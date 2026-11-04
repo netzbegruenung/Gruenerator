@@ -264,6 +264,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'countFileBearingOrphans: a bug counter over dead-status rows, trashed or not',
     'AND file_path IS NOT NULL',
   ],
+  [
+    'apps/api/services/sharedMediaService.ts',
+    'studio_assets',
+    'reapUnclaimedStudioAssetUploads: a trashed gallery item still owns its upload until the purge, so it must count as a claim',
+    'sa.media_id = sm.id',
+  ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
   [
     'apps/api/services/canvas/canvasRepository.ts',

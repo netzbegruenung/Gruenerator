@@ -7,9 +7,11 @@
  * submit → long-poll → fetch-result dance with it — GreenPT answers the
  * conversion synchronously on one request.
  *
- * Two entry points:
+ * Entry points:
  * - extractTextWithDocling(filePath) — reads file from disk
  * - extractBase64WithDocling(base64Data, filename) — accepts base64 directly (chat attachments)
+ * - extractPagesWithDocling(buffer, filename, pages) — einzelne Seiten mit
+ *   Seitenzuordnung, für Tabellenseiten und Scans im Scraper-Ingest
  */
 
 import { promises as fs } from 'fs';
@@ -53,10 +55,20 @@ interface DoclingResponse {
  * Shared core: POST a buffer to the GreenPT Documents API and parse the
  * markdown response. Bounded by DOCLING_MAX_WAIT_MS.
  */
+class DoclingHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 async function sendBufferToDocling(
   fileBuffer: Buffer,
   fileName: string,
-  logPrefix: string
+  logPrefix: string,
+  extraFields: ReadonlyArray<[string, string]> = []
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
   const maxWaitMs = env.DOCLING_MAX_WAIT_MS;
@@ -79,6 +91,7 @@ async function sendBufferToDocling(
     formData.append('force_ocr', 'false');
     formData.append('do_table_structure', 'true');
     formData.append('table_mode', 'accurate');
+    for (const [key, value] of extraFields) formData.append(key, value);
 
     console.log(
       `${logPrefix} Converting via ${GREENPT_DOCUMENTS_URL} (${fileBuffer.length} bytes, deadline=${maxWaitMs}ms)`
@@ -93,7 +106,10 @@ async function sendBufferToDocling(
 
     if (!res.ok) {
       const errorText = await res.text().catch(() => 'unknown');
-      throw new Error(`GreenPT documents API returned ${res.status}: ${errorText.slice(0, 500)}`);
+      throw new DoclingHttpError(
+        res.status,
+        `GreenPT documents API returned ${res.status}: ${errorText.slice(0, 500)}`
+      );
     }
 
     const result = (await res.json()) as DoclingResponse;
@@ -146,8 +162,131 @@ async function sendBufferToDocling(
       errorType: error instanceof Error ? error.constructor.name : typeof error,
       fileName,
     });
+    if (error instanceof DoclingHttpError) {
+      throw new DoclingHttpError(error.status, `Docling extraction failed: ${errMsg}`);
+    }
     throw new Error(`Docling extraction failed: ${errMsg}`);
   }
+}
+
+/**
+ * Seitenweise Umwandlung für den Scraper-Ingest: Tabellenseiten und Seiten
+ * ohne Textschicht, die sonst an Mistral OCR gingen.
+ *
+ * Bei PDFs mit Textschicht liest Docling (`force_ocr=false`) die Werte aus
+ * der Textschicht und baut nur die Tabellenstruktur — gemessen an 34
+ * Tabellenseiten aus PARDOK (04.11.2026): keine einzige Zahl, die nicht im PDF
+ * steht, und verloren gingen nur Kopf- und Fusszeilen.
+ *
+ * Aufeinanderfolgende Seiten gehen als ein `page_range` in eine Anfrage; die
+ * Antwort wird an `md_page_break_placeholder` wieder in Seiten zerlegt. Stimmt
+ * die Zahl der Teile nicht mit der Zahl der Seiten überein, fällt der Lauf weg
+ * und die Seiten behalten ihren pdfjs-Text — eine falsch zugeordnete Seite
+ * wäre schlimmer als eine Tabelle als Fliesstext.
+ *
+ * GreenPTs Kontingent (600 Anfragen je 15 min) gilt je Konto und teilt sich
+ * mit Websuche und Reranking der Produktion. Deshalb höchstens eine Anfrage
+ * je `GREENPT_DOCLING_INTERVAL_MS` in diesem Prozess (Vorgabe 3 s = die
+ * Hälfte des Kontingents), und ein 429 wartet, statt die Seiten aufzugeben.
+ */
+const PAGE_BREAK = '<!-- gruenerator-page-break -->';
+/** Grössere Läufe werden geteilt: eine Anfrage bleibt so unter dem Zeitlimit. */
+const MAX_PAGES_PER_REQUEST = 25;
+/** Unter 1,5 s wäre das ganze Kontingent weg — dann bliebe der Produktion nichts. */
+const FLOOR_REQUEST_INTERVAL_MS = 1_500;
+const RATE_LIMIT_WAITS_MS = [60_000, 120_000, 300_000];
+
+let nextRequestAt = 0;
+
+async function takeRequestSlot(): Promise<void> {
+  const now = Date.now();
+  const at = Math.max(now, nextRequestAt);
+  nextRequestAt = at + Math.max(env.GREENPT_DOCLING_INTERVAL_MS, FLOOR_REQUEST_INTERVAL_MS);
+  if (at > now) await new Promise((resolve) => setTimeout(resolve, at - now));
+}
+
+/** Aufeinanderfolgende Seiten zu Läufen, jeder höchstens `MAX_PAGES_PER_REQUEST` lang. */
+export function pageRuns(pages: readonly number[]): number[][] {
+  const runs: number[][] = [];
+  for (const page of [...new Set(pages)].sort((a, b) => a - b)) {
+    const run = runs[runs.length - 1];
+    if (run && page === run[run.length - 1] + 1 && run.length < MAX_PAGES_PER_REQUEST) {
+      run.push(page);
+    } else {
+      runs.push([page]);
+    }
+  }
+  return runs;
+}
+
+/**
+ * Docling füllt Tabellenzellen mit Leerzeichen auf Spaltenbreite auf. Das
+ * kostet bei breiten Tabellen ein Vielfaches an Zeichen, und die Zerlegung
+ * hält eine Tabelle nur bis 1800 Zeichen zusammen.
+ */
+export function compactMarkdownTables(markdown: string): string {
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return line;
+      const cells = trimmed
+        .slice(1, -1)
+        .split('|')
+        .map((cell) => cell.trim());
+      const separator = cells.every((cell) => /^:?-+:?$/.test(cell));
+      return `| ${cells.map((cell) => (separator ? '---' : cell)).join(' | ')} |`;
+    })
+    .join('\n');
+}
+
+async function convertRun(
+  fileBuffer: Buffer,
+  fileName: string,
+  run: readonly number[]
+): Promise<string> {
+  const fields: Array<[string, string]> = [
+    ['page_range', String(run[0])],
+    ['page_range', String(run[run.length - 1])],
+    ['md_page_break_placeholder', PAGE_BREAK],
+  ];
+  for (let attempt = 0; ; attempt++) {
+    await takeRequestSlot();
+    try {
+      const result = await sendBufferToDocling(fileBuffer, fileName, '[DoclingOCR:pages]', fields);
+      return result.text ?? '';
+    } catch (error: unknown) {
+      const wait = RATE_LIMIT_WAITS_MS[attempt];
+      if (!(error instanceof DoclingHttpError && error.status === 429) || wait === undefined) {
+        throw error;
+      }
+      console.warn(`[DoclingOCR:pages] 429 from GreenPT, waiting ${wait / 1000}s`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
+/**
+ * Markdown je Seite (1-basiert) für genau diese Seiten. Scheitert eine Anfrage,
+ * wirft die Funktion — der Aufrufer entscheidet, ob der pdfjs-Text bleibt.
+ */
+export async function extractPagesWithDocling(
+  fileBuffer: Buffer,
+  fileName: string,
+  pages: readonly number[]
+): Promise<Map<number, string>> {
+  const byPage = new Map<number, string>();
+  for (const run of pageRuns(pages)) {
+    const parts = (await convertRun(fileBuffer, fileName, run)).split(PAGE_BREAK);
+    if (parts.length !== run.length) {
+      console.warn(
+        `[DoclingOCR:pages] ${fileName} pages ${run[0]}-${run[run.length - 1]}: ${parts.length} parts for ${run.length} pages, keeping pdfjs text`
+      );
+      continue;
+    }
+    run.forEach((page, i) => byPage.set(page, compactMarkdownTables(parts[i].trim())));
+  }
+  return byPage;
 }
 
 /**

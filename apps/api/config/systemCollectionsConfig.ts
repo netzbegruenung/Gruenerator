@@ -673,10 +673,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'landtag-nrw',
     country: 'DE',
     includeInDefaultSearch: false,
-    // Erst mit dem Notebook freischalten: mcpExposed folgt nicht dem Channel
-    // (serverFactory.ts), der öffentliche MCP-Server zeigte die Sammlung sonst
-    // schon, solange das Notebook noch `internal` ist.
-    mcpExposed: false,
+    // Freigeschaltet mit dem Notebook (kein `channel` mehr). mcpExposed folgt dem
+    // Channel nicht (serverFactory.ts): geht das Notebook zurück auf `internal`,
+    // muss hier wieder `false` stehen. Gilt auch für `gruenerator_search` im Chat.
+    mcpExposed: true,
     qdrantCollection: 'landtag_nrw_documents',
     name: 'Landtag NRW',
     dependentDocTypes: ['Entschließungsantrag'],
@@ -726,10 +726,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'landtag-berlin',
     country: 'DE',
     includeInDefaultSearch: false,
-    // Erst mit dem Notebook freischalten: mcpExposed folgt nicht dem Channel
-    // (serverFactory.ts), der öffentliche MCP-Server zeigte die Sammlung sonst
-    // schon, solange das Notebook noch `internal` ist.
-    mcpExposed: false,
+    // Freigeschaltet mit dem Notebook (kein `channel` mehr). mcpExposed folgt dem
+    // Channel nicht (serverFactory.ts): geht das Notebook zurück auf `internal`,
+    // muss hier wieder `false` stehen. Gilt auch für `gruenerator_search` im Chat.
+    mcpExposed: true,
     qdrantCollection: 'landtag_berlin_documents',
     name: 'Abgeordnetenhaus Berlin',
     demotedContentTypes: ['plenarprotokoll', 'ausschussprotokoll'],

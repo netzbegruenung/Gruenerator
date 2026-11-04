@@ -16,14 +16,20 @@ import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { SOURCE_PREFIX } from '../../../agents/langgraph/ChatGraph/types.js';
 import { landtagDocTitle } from '../../../services/landtag/docTitle.js';
 import { findLandtag, LANDTAGE, landtageFor } from '../../../services/landtag/index.js';
-import { FRAKTION_LABEL } from '../../../services/landtag/registry.js';
+import { FRAKTION_LABEL, type LandtagMeta } from '../../../services/landtag/registry.js';
 import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
+import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { lastUserText } from '../services/messageHelpers.js';
 
+import { executeDirectSearch } from './directSearchExecutors.js';
+
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+
+const log = createLogger('LandtagTool');
 
 function filterDate(iso: string): string {
   const [y, m, d] = iso.split('-');
@@ -52,7 +58,145 @@ interface Ctx {
   sourceRegistry: SourceRegistry;
 }
 
+/** Soviele Textstellen aus den Plenarprotokollen gehen an das Modell. */
+const PROTOKOLL_PASSAGES = 6;
+
+/**
+ * Plenarprotokolle für Parlamente, deren Liste keine führt: Textstellen aus dem
+ * Parlaments-Notebook, dort je Tagesordnungspunkt abgelegt. Gesucht wird mit der
+ * ganzen Frage und nur dicht — die Hybridsuche brauchte auf den Parlaments-
+ * Sammlungen 10–12 s, die dichte 0,2–3,8 s (#5290). Vorher stand hier ein
+ * Verweis auf `gruenerator_search`; das Modell nahm die falsche Sammlung
+ * („bayern", live 04.11.2026) und antwortete aus der Websuche.
+ */
+async function runProtokollSuche(
+  { sourceRegistry }: Ctx,
+  meta: (typeof LANDTAGE)[LandtagParlament],
+  collection: string,
+  question: string,
+  filters: LandtagFilter
+) {
+  let passages: Awaited<ReturnType<typeof executeDirectSearch>>['results'] = [];
+  let resolved = collection;
+  try {
+    const res = await executeDirectSearch({
+      query: question,
+      collection,
+      limit: PROTOKOLL_PASSAGES,
+      searchMode: 'vector',
+      filters: { content_type: ['plenarprotokoll'] },
+    });
+    passages = (res.results ?? []).filter((r) => r.excerpt);
+    resolved = res.collection;
+  } catch (error: unknown) {
+    log.warn(
+      `[landtag] ${meta.id} Protokolle: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return {
+      resultCount: 0,
+      sources: '',
+      error: `Die Plenarprotokolle des ${meta.parlament} sind gerade nicht erreichbar.`,
+    };
+  }
+  if (passages.length === 0) {
+    return {
+      resultCount: 0,
+      sources: '',
+      error: `Keine passende Stelle in den Plenarprotokollen des ${meta.parlament} gefunden.`,
+      quelle: meta.quellenangabe,
+    };
+  }
+  const results: SearchResult[] = passages.map((p, i) => ({
+    source: `${SOURCE_PREFIX.GRUENERATOR}${resolved}`,
+    title: `${meta.kurz} · Plenarprotokoll · ${p.source}`,
+    content: p.excerpt,
+    ...(p.url ? { url: p.url } : {}),
+    relevance: 1 - 0.02 * i,
+  }));
+  const sources = sourceRegistry.register(results);
+  const ohneZeitraum = filters.datumVon || filters.datumBis || filters.fraktion?.length;
+  return {
+    resultCount: results.length,
+    sources: sources ?? '',
+    hinweis: `Textstellen aus den Plenarprotokollen (je Tagesordnungspunkt), nach Nähe zur Frage. Sie tragen den Text selbst und sind direkt zitierbar; parlament_lesen gilt nur für Drucksachen. Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
+    ...(ohneZeitraum
+      ? {
+          hinweise: [
+            'Zeitraum und Fraktion werden bei den Protokollen nicht gefiltert; die Frage selbst steuert die Auswahl.',
+          ],
+        }
+      : {}),
+    quelle: meta.quellenangabe,
+  };
+}
+
+/** So viele Textstellen aus dem Parlaments-Notebook kommen zur Live-Liste dazu. */
+const NOTEBOOK_PASSAGES = 4;
+/**
+ * Nur die dichte Suche: die serverseitige Hybridsuche brauchte auf
+ * `landtag_berlin_documents` 10–12 s (lokal gegen Prod gemessen, 04.11.2026), die
+ * dichte allein 0,2–3,8 s — und an ihr wurde das Ranking geprüft (6 von 8 Zielen
+ * auf Rang 1). Die Live-Liste deckt den wörtlichen Teil ohnehin ab.
+ */
+const NOTEBOOK_SEARCH_MODE = 'vector';
+
+interface NotebookPassage {
+  title: string;
+  url: string | null;
+  excerpt: string;
+  collection: string;
+}
+
+/**
+ * Die besten Textstellen des Parlaments-Notebooks zur Frage. Die Live-API sortiert
+ * nur nach Datum; das Notebook rankt nach Inhalt und liefert den Text gleich mit.
+ * Eine Art gibt es dort als `content_type`; Fraktion, Zeitraum, Wahlperiode und
+ * Arten, die das Notebook nicht führt, kann es nicht einhalten — dann bleibt es
+ * weg, statt Treffer ausserhalb des Filters unterzumischen. Ein Ausfall kostet
+ * nur die Textstellen, nie die Live-Liste.
+ */
+async function notebookPassages(
+  notebook: LandtagMeta['notebook'],
+  question: string,
+  filters: LandtagFilter
+): Promise<NotebookPassage[]> {
+  if (!notebook || !question.trim()) return [];
+  if (
+    filters.wahlperiode != null ||
+    filters.fraktion?.length ||
+    filters.datumVon ||
+    filters.datumBis
+  ) {
+    return [];
+  }
+  const contentTypes = (filters.typ ?? []).map((t) => notebook.contentTypes[t]);
+  if (contentTypes.some((c) => !c)) return [];
+  try {
+    const res = await executeDirectSearch({
+      query: question,
+      collection: notebook.collection,
+      limit: NOTEBOOK_PASSAGES,
+      searchMode: NOTEBOOK_SEARCH_MODE,
+      ...(contentTypes.length > 0
+        ? { filters: { content_type: [...new Set(contentTypes as string[])] } }
+        : {}),
+    });
+    return (res.results ?? [])
+      .filter((r) => r.excerpt)
+      .map((r) => ({
+        title: r.source,
+        url: r.url ?? null,
+        excerpt: r.excerpt,
+        collection: res.collection,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 /** Gemeinsame Ausführung von `landtag` und `nationalrat`. */
+const WAHLPERIODE_RE = /wahlperiode|legislatur|\bWP\s?\d/i;
+
 async function runParlamentSuche(
   { state, sourceRegistry }: Ctx,
   parlament: LandtagParlament,
@@ -66,23 +210,66 @@ async function runParlamentSuche(
   const fromArgs = Object.fromEntries(
     Object.entries(args).filter(([, v]) => v !== undefined)
   ) as LandtagFilter;
-  const filters: LandtagFilter = { ...detectLandtagFromWording(userText), ...fromArgs };
+  const fromWording = detectLandtagFromWording(userText);
+  const filters: LandtagFilter = { ...fromWording, ...fromArgs };
+  // Ein Jahr in der Frage ist ein Zeitraum, keine Wahlperiode. Das Modell setzte für
+  // „2026" trotzdem WP 19 (die Refs lauten „BE 19/…") und schnitt die seit 11/2026
+  // laufende WP 20 ab: 73 statt 77 Anträge (live 04.11.2026, ein Satz in der
+  // Beschreibung änderte daran nichts, 0/3).
+  if (fromWording.datumVon && !WAHLPERIODE_RE.test(userText)) delete filters.wahlperiode;
 
-  let found: Awaited<ReturnType<typeof findLandtag>> | null = null;
-  try {
-    found = await findLandtag(parlament, query ?? '', filters);
-  } catch {
-    // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
+  // Protokolle aus dem Notebook, wo die Liste keine führt; eine gemischte Art-Liste fragt die Liste ohne sie.
+  const protokollNotebook =
+    !meta.typen.Plenarprotokoll && meta.notebook?.contentTypes.Plenarprotokoll
+      ? meta.notebook.collection
+      : undefined;
+  if (protokollNotebook && filters.typ?.includes('Plenarprotokoll')) {
+    const rest = filters.typ.filter((t) => t !== 'Plenarprotokoll');
+    if (rest.length === 0) {
+      return runProtokollSuche(
+        { state, sourceRegistry },
+        meta,
+        protokollNotebook,
+        userText || (query ?? ''),
+        filters
+      );
+    }
+    filters.typ = rest;
   }
-  if (!found) {
+  const ohneProtokolle =
+    protokollNotebook && args.typ?.includes('Plenarprotokoll')
+      ? 'Plenarprotokolle sind nicht in dieser Liste; dafür landtag mit typ Plenarprotokoll allein aufrufen.'
+      : null;
+
+  const [found, passages] = await Promise.all([
+    (async () => {
+      try {
+        return await findLandtag(parlament, query ?? '', filters);
+      } catch (error: unknown) {
+        // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
+        // Der Grund gehört ins Log — die Absage allein sagt nicht, ob ein Schlüssel fehlt oder Qdrant weg ist.
+        log.warn(
+          `[landtag] ${parlament}: ${error instanceof Error ? error.message : String(error)}`
+        );
+        return null;
+      }
+    })(),
+    // Die ganze Frage, nicht die Stichwörter: das Notebook sucht semantisch.
+    notebookPassages(meta.notebook, userText || (query ?? ''), filters),
+  ]);
+  if (!found && passages.length === 0) {
     return {
       resultCount: 0,
       sources: '',
       error: `Die Abfrage beim ${meta.parlament} ist gerade nicht erreichbar.`,
     };
   }
-  const hinweise = [...found.notes];
-  if (found.ausgeschlossen) {
+  const hinweise = found
+    ? [...found.notes, ...(ohneProtokolle ? [ohneProtokolle] : [])]
+    : [
+        `Die Live-Abfrage beim ${meta.parlament} ist gerade nicht erreichbar; es folgen nur Textstellen aus dem Notebook.`,
+      ];
+  if (found?.ausgeschlossen) {
     // Eine Grenze, kein Fehlschlag: als `error` sagte der Schreiber „Aufruf fehlgeschlagen",
     // als `hinweis` erreichte ihn der Grund gar nicht (live 29.10.2026, Anfragen im Nationalrat).
     return {
@@ -93,7 +280,8 @@ async function runParlamentSuche(
       quelle: meta.quellenangabe,
     };
   }
-  if (found.candidates.length === 0) {
+  const candidates = found?.candidates ?? [];
+  if (candidates.length === 0 && passages.length === 0) {
     return {
       resultCount: 0,
       sources: '',
@@ -102,22 +290,76 @@ async function runParlamentSuche(
       quelle: meta.quellenangabe,
     };
   }
-  const results: SearchResult[] = found.candidates.map((c, i) => ({
-    source: 'landtag',
-    title: landtagDocTitle(meta, c),
-    content: [c.titel, c.abstract ? `Schlagwort: ${c.abstract}` : null, `Ref: ${c.ref}`]
-      .filter(Boolean)
-      .join('\n'),
-    ...(c.pdfUrl ? { url: c.pdfUrl } : {}),
-    relevance: 1 - 0.02 * i,
-  }));
+  // Steht eine Textstelle im selben PDF wie ein Listeneintrag, wird sie dessen Auszug
+  // statt einer zweiten Quelle für dasselbe Dokument.
+  const passageByUrl = new Map(passages.filter((p) => p.url).map((p) => [p.url, p]));
+  const results: SearchResult[] = candidates.map((c, i) => {
+    const passage = c.pdfUrl ? passageByUrl.get(c.pdfUrl) : undefined;
+    if (passage) passageByUrl.delete(c.pdfUrl);
+    return {
+      source: 'landtag',
+      title: landtagDocTitle(meta, c),
+      content: [
+        c.titel,
+        c.abstract ? `Schlagwort: ${c.abstract}` : null,
+        `Ref: ${c.ref}`,
+        passage ? `Auszug: ${passage.excerpt}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      ...(c.pdfUrl ? { url: c.pdfUrl } : {}),
+      relevance: 1 - 0.02 * i,
+    };
+  });
+  const unmerged = new Set(passageByUrl.values());
+  const extra = passages.filter((p) => !p.url || unmerged.has(p));
+  results.push(
+    ...extra.map((p, i) => ({
+      source: `${SOURCE_PREFIX.GRUENERATOR}${p.collection}`,
+      title: p.title,
+      content: p.excerpt,
+      ...(p.url ? { url: p.url } : {}),
+      relevance: 0.9 - 0.02 * i,
+    }))
+  );
   // Listenzeilen tragen Titel, Schlagwort und Ref: 3000 Zeichen halten sie ganz.
   const sources = sourceRegistry.register(results, { snippetChars: 3000 });
+  const gesamt = found?.gesamt ?? 0;
+  // Die Liste ist gedeckelt; auf „wie viele" antwortete der Schreiber mit ihrer Länge
+  // („insgesamt 25 Anträge" statt 83, live 04.11.2026). Er liest `fuerSchreiber`, nicht `hinweis`.
+  const zaehlung =
+    gesamt > candidates.length
+      ? `Gesamtzahl laut ${meta.parlament}: ${gesamt} Dokumente${
+          describeLandtagFilter(filters).length > 0
+            ? ` (${describeLandtagFilter(filters).join('; ')})`
+            : ''
+        }. Die Liste zeigt nur ${candidates.length} davon. Fragt die Person nach der Anzahl, nenne ${gesamt} als Gesamtzahl, nicht die Länge der Liste.`
+      : null;
+  // Bei Anfragen trägt der Listentitel die FRAGE. Auf „was hat die Landesregierung
+  // geantwortet" fasste der Schreiber in 2 von 4 Läufen die Fragen zusammen, ohne
+  // dass gelesen wurde (live 04.11.2026).
+  const mitAntworten = filters.typ?.some((t) => t === 'Antwort' || t === 'Anfrage') ?? false;
+  const schreiber = [
+    zaehlung,
+    mitAntworten
+      ? 'Die Listeneinträge nennen nur die Frage. Was geantwortet wurde, steht nur in Texten, die parlament_lesen geliefert hat oder die als „Auszug" bzw. Notebook-Textstelle mitkommen; ohne solchen Text keine Aussage über den Inhalt einer Antwort.'
+      : null,
+  ].filter(Boolean);
+  const lesen = `Für Inhalte \`parlament_lesen\` mit quelle '${meta.id}' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf.`;
   return {
     resultCount: results.length,
     sources: sources ?? '',
-    gesamt: found.gesamt,
-    hinweis: `Die Liste enthält nur Metadaten. Für Inhalte \`parlament_lesen\` mit quelle '${meta.id}' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf. Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
+    gesamt,
+    ...(schreiber.length > 0 ? { fuerSchreiber: schreiber.join(' ') } : {}),
+    hinweis: `${
+      mitAntworten
+        ? 'Die Titel sind die Fragen, nicht die Antworten: wer wissen will, was geantwortet wurde, braucht parlament_lesen. '
+        : ''
+    }${
+      passages.length > 0
+        ? 'Listeneinträge tragen nur Metadaten, Einträge mit „Auszug" und die Notebook-Textstellen schon Text daraus.'
+        : 'Die Liste enthält nur Metadaten.'
+    } ${lesen} Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
     ...(hinweise.length > 0 ? { hinweise } : {}),
     quelle: meta.quellenangabe,
     // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
@@ -125,11 +367,11 @@ async function runParlamentSuche(
       parlament: meta.kurz,
       query: query ?? '',
       filter: describeLandtagFilter(filters),
-      gesamt: found.gesamt,
+      gesamt: found?.gesamt ?? 0,
       hinweise,
       quelle: meta.quellenangabe,
       portal: meta.portalUrl,
-      dokumente: found.candidates.map((c) => ({
+      dokumente: candidates.map((c) => ({
         ref: c.ref,
         typ: c.drucksachetyp,
         datum: c.datum,
@@ -152,7 +394,7 @@ export function makeLandtagTool(ctx: Ctx): Tool {
   const ids = parlamente.map((m) => m.id) as [LandtagParlament, ...LandtagParlament[]];
   const liste = parlamente.map((m) => `'${m.id}' (${m.parlament})`).join(', ');
   return tool({
-    description: `Findet Drucksachen eines Landesparlaments: Anträge, Anfragen und Antworten, Gesetzentwürfe, Beschlussempfehlungen. Parlament: ${liste}. Filter: Wahlperiode, Art (typ), Fraktion, Zeitraum, Titel, Schlagwort, Volltext. Liefert eine Liste mit Refs (z. B. "BE 19/3519", Schriftliche Anfragen "BE 19/S27288"), nur Metadaten. Ein Filter, den das Parlament nicht kennt, wird nicht angewendet und im Hinweis genannt. Nur Deutschland.
+    description: `Findet Drucksachen eines Landesparlaments: Anträge, Anfragen und Antworten, Gesetzentwürfe, Beschlussempfehlungen. Parlament: ${liste}. Filter: Wahlperiode, Art (typ), Fraktion, Zeitraum, Titel, Schlagwort, Volltext. Liefert eine Liste mit Refs (z. B. "BE 19/3519", Schriftliche Anfragen "BE 19/S27288", NRW "NW 18/21508"), nur Metadaten. In NRW rankt query nach Inhalt (Liste dann nach Nähe sortiert); Kleine Anfragen liegen dort nur mit ihrer Antwort vor, Protokolle nicht in der Liste. Ein Filter, den das Parlament nicht kennt, wird nicht angewendet und im Hinweis genannt. Nur Deutschland.
 
 Nicht für Inhalte, dafür parlament_lesen mit quelle = parlament. Nicht für den Bundestag, dafür bundestag. Nicht für Positionen der Grünen, dafür gruenerator_search.`,
     inputSchema: z.object({

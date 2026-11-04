@@ -24,6 +24,8 @@
  * `code` wins when both match.
  */
 
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
+
 import { type TaskShape } from './autoPolicy.js';
 
 export { type TaskShape };
@@ -51,6 +53,11 @@ const CODE_LANG_RE =
 
 // A concrete file name with a code/data extension ("config.yaml", "app.tsx").
 const CODE_FILE_RE = /\b[\w-]+\.(ts|tsx|js|jsx|mjs|py|json|ya?ml|sql|sh|css|scss|html|xml|env)\b/i;
+
+// A link is where something lives, not what the answer is. Without this, every
+// pasted source ending in `.html` read as a file name — live 03.11.2026 that
+// put Antrag turns on the code lane and replaced the recipe's format.
+const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi;
 
 // ── strict_format ────────────────────────────────────────────────────────────
 
@@ -105,9 +112,10 @@ export interface TaskShapeContext {
 
 const STICKY_FOLLOWUP_MAX_WORDS = 25;
 
-/** The previous answer was machine-readable output. */
+/** The previous answer was machine-readable output. A chart block is fenced
+ *  JSON but drawn as prose, so it does not count. */
 function answerWasCodeShaped(t: string): boolean {
-  const trimmed = t.trim();
+  const trimmed = replaceVisualBlocksWithText(t).trim();
   return FENCE_RE.test(trimmed) || /^[[{]/.test(trimmed);
 }
 
@@ -118,11 +126,12 @@ export function detectTaskShape(
   const t = (userText ?? '').trim();
   if (t.length === 0) return null;
 
+  const words = t.replace(URL_RE, ' ');
   if (
     FENCE_RE.test(t) ||
-    MACHINE_FORMAT_RE.test(t) ||
-    CODE_LANG_RE.test(t) ||
-    CODE_FILE_RE.test(t)
+    MACHINE_FORMAT_RE.test(words) ||
+    CODE_LANG_RE.test(words) ||
+    CODE_FILE_RE.test(words)
   ) {
     return 'code';
   }

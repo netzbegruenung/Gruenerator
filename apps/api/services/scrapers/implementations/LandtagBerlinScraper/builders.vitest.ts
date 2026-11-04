@@ -19,6 +19,7 @@ import {
   fileKeyOf,
   headerTextOf,
   isPendingAnfrage,
+  isPlaceholderPdf,
   latestDateOf,
   plenarPagesOf,
   plenarUnitsOf,
@@ -63,6 +64,15 @@ describe('Drucksachen', () => {
   it('holds back an Anfrage that has no answer yet', () => {
     const [unit] = drucksacheUnitsOf(entries('anfrageOhneAntwort'));
     expect(isPendingAnfrage(unit)).toBe(true);
+  });
+
+  it('recognises the placeholder PDF PARDOK serves before the real file exists', () => {
+    expect(isPlaceholderPdf('## Seite 1\n\nEs liegt noch keine Datei vor.')).toBe(true);
+    expect(isPlaceholderPdf('Es liegt noch keine Datei vor')).toBe(true);
+    expect(
+      isPlaceholderPdf('## Seite 1\n\nEs liegt noch keine Datei vor. Der Senat antwortet …')
+    ).toBe(false);
+    expect(isPlaceholderPdf('')).toBe(false);
   });
 
   it('keys a document by its file', () => {

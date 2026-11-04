@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   announcesPendingWork,
+  asksUserToWait,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksLikeToolCallLeak,
@@ -437,6 +438,25 @@ describe('createControlTokenFilter — über den ganzen Strom', () => {
 
   it('verträgt leere Teilstücke', () => {
     expect(run(['', 'Text', ''])).toBe('Text');
+  });
+});
+
+describe('asksUserToWait', () => {
+  it('flags the wait request from #5182 (30.10.2026)', () => {
+    expect(asksUserToWait('… muss ich den Wortlaut neu nachschlagen. Einen Moment bitte.')).toBe(
+      true
+    );
+    expect(asksUserToWait('Einen kurzen Augenblick, ich melde mich gleich.')).toBe(true);
+  });
+
+  // `edit_sheet` queues the change and says so truthfully — a retry would
+  // only cost time and could swap a correct answer on the wire.
+  it('leaves work in progress to the telemetry', () => {
+    const sheetNote =
+      'Die Änderung an **"Budget"** ist eingetragen (2 Zellen) und erscheint gleich in der geöffneten Tabelle.';
+    expect(asksUserToWait(sheetNote)).toBe(false);
+    expect(announcesPendingWork(sheetNote)).toBe(true);
+    expect(asksUserToWait('Das Bild wird gerade erstellt.')).toBe(false);
   });
 });
 

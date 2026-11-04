@@ -113,6 +113,17 @@ export function isPendingAnfrage(unit: DrucksacheUnit): boolean {
   return unit.entries.every((e) => e.docType === 'Schriftliche Anfrage');
 }
 
+/**
+ * PARDOK legt für eine angekündigte Drucksache ein PDF an, das nur
+ * „Es liegt noch keine Datei vor." enthält (gesehen an d19-3190, 04.11.2026).
+ * Gespeichert wäre das ein Dokument ohne Inhalt, das als bekannt gilt und
+ * nie wieder gelesen wird.
+ */
+export function isPlaceholderPdf(text: string): boolean {
+  const body = text.replace(/^##[ \t]*Seite[ \t]+\d+[ \t]*$/gm, '').trim();
+  return /^es liegt noch keine datei vor\.?$/i.test(body);
+}
+
 // ── Plenarprotokolle ───────────────────────────────────────────────────────
 
 /** Das Wortprotokoll eines Plenareintrags; die übrigen PDFs sind Beschlüsse. */

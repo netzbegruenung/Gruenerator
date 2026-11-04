@@ -58,7 +58,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 26. Oktober 2026</p>
+      <p>Stand: 4. November 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -295,7 +295,10 @@ const Datenschutz = () => {
           </tr>
           <tr>
             <td>Black Forest Labs</td>
-            <td>EU (EU-API api.eu.bfl.ai)</td>
+            <td>
+              EU (EU-API api.eu.bfl.ai); ist diese nicht erreichbar, globale API api.bfl.ai
+              (Verarbeitung auch in den USA möglich)
+            </td>
             <td>Bildgenerierung (FLUX)</td>
           </tr>
           <tr>
@@ -348,13 +351,17 @@ const Datenschutz = () => {
 
       <h2>Datenverarbeitung in Drittländern</h2>
       <p>
-        Die Verarbeitung Deiner Daten findet ausschließlich auf dem Gebiet der Europäischen Union
+        Die Verarbeitung Deiner Daten findet grundsätzlich auf dem Gebiet der Europäischen Union
         bzw. des Europäischen Wirtschaftsraums statt (insbesondere Deutschland, Frankreich,
         Finnland, Italien, Luxemburg, die Niederlande, Österreich, Polen und Schweden). Eine
         Übermittlung personenbezogener Daten in Drittländer außerhalb der EU/des EWR findet nicht
-        statt. Sollte künftig ausnahmsweise eine Drittlandübermittlung erfolgen, geschieht dies nur
-        auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien wie
-        der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber gesondert.
+        statt, mit einer Ausnahme: Ist der EU-Endpunkt von Black Forest Labs (api.eu.bfl.ai) nicht
+        erreichbar, senden wir Bildanfragen an dessen globalen Endpunkt (api.bfl.ai), der auch
+        Rechenzentren in den USA nutzt. Das geschieht nur, solange der EU-Endpunkt gar nicht
+        antwortet. Sollte künftig ausnahmsweise eine Drittlandübermittlung erfolgen, geschieht dies
+        nur auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien
+        wie der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber
+        gesondert.
       </p>
 
       <h2>Allgemeiner Hinweis zur Löschung von Daten</h2>
@@ -467,13 +474,14 @@ const Datenschutz = () => {
         Bei Nutzung des Grünerator Imagine werden Deine hochgeladenen Bilder und Prompts unmittelbar
         an den Anbieter des gewählten Bildmodells weitergeleitet und dort ausschließlich zur
         Bearbeitung verwendet. Im Bild-Studio ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai)
-        voreingestellt; für den Melious-Fallback verarbeitet Melious AI GmbH (Deutschland) Deine
-        Eingaben mit FLUX.2 [klein]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt
-        diesen Melious-Fallback; dort gibt es keine Modellwahl. Bei der experimentellen Bearbeitung
-        mit Boxen und bei „Layout planen“ übermitteln wir Bild bzw. Prompt zusätzlich an Melious AI
-        GmbH, wo das Sprachmodell Gemma 4 die Bildelemente erkennt bzw. den Bildaufbau plant. Wir
-        speichern die Bilder nicht auf unseren Servern; eine Nutzung zum KI-Training findet nicht
-        statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+        voreingestellt (zum Ausweichen bei einem Ausfall siehe „Datenverarbeitung in Drittländern“);
+        für den Melious-Fallback verarbeitet Melious AI GmbH (Deutschland) Deine Eingaben mit FLUX.2
+        [klein]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt diesen Melious-Fallback;
+        dort gibt es keine Modellwahl. Bei der experimentellen Bearbeitung mit Boxen und bei „Layout
+        planen“ übermitteln wir Bild bzw. Prompt zusätzlich an Melious AI GmbH, wo das Sprachmodell
+        Gemma 4 die Bildelemente erkennt bzw. den Bildaufbau plant. Wir speichern die Bilder nicht
+        auf unseren Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist
+        Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>

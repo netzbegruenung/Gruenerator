@@ -139,7 +139,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // A placeholder assistant row was minted in buildStreamContext. Its writer
       // accumulates the streamed reply so an aborted/crashed turn keeps whatever
       // streamed. The SSE text listener is registered LATER — right before the
-      // main respond stage — so the many handler branches below (sharepic/reel/
+      // main respond stage — so the many handler branches below (sharepic/
       // board/… which stream their own text_delta AND persist their own rows)
       // never pollute the placeholder.
       pendingId = pendingAssistantMessageId;
@@ -169,8 +169,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentCanvas: rawCurrentCanvas,
         currentSharepic: rawCurrentSharepic,
         currentSocialPost: rawCurrentSocialPost,
-        currentReel: rawCurrentReel,
-        reelUpload: rawReelUpload,
       } = args.body;
 
       // Durable mention tokens (parsed in streamContext) are the source of
@@ -238,7 +236,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // stage that can also pin the intent.
       let forcedTool = mentionForcedTool;
 
-      // === Early handler branches (reel / social post / sharepic edit) ===
+      // === Early handler branches (social post / sharepic edit) ===
       const early = await runEarlyHandlerStage({
         sse,
         req,
@@ -251,8 +249,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserTextNoMentions,
         imageAttachments,
         universalEditForced,
-        rawCurrentReel,
-        rawReelUpload,
         rawCurrentSharepic,
         rawCurrentSocialPost,
       });

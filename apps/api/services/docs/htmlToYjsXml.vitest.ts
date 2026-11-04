@@ -2,6 +2,10 @@ import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/sha
 import * as Y from 'yjs';
 import { describe, expect, it } from 'vitest';
 
+import { validateAndSanitizeHtml } from '../tiptap/contentConverter.js';
+
+import { ensureHtml } from './contentNormalization.js';
+
 /**
  * The HTML→Yjs seed converter feeds the BlockNote editor. These lock the fidelity
  * that agent-generated documents depend on: inline marks (bold/italic/code) and
@@ -122,5 +126,37 @@ describe('injectHtmlIntoFragment — tables', () => {
     expect(text(cells[0]![0]!)).toEqual([{ insert: 'Partei', attributes: { bold: {} } }]);
     expect(text(cells[1]![0]!)).toEqual([{ insert: 'Grüne', attributes: { bold: {} } }]);
     expect(text(cells[2]![1]!)).toEqual([]);
+  });
+});
+
+describe('injectHtmlIntoFragment — code blocks', () => {
+  it('seeds <pre> as a codeBlock and keeps its line breaks and escaped characters', () => {
+    const { blocks } = seedBlocks(
+      '<p>Vorher</p><pre><code class="language-ts">if (a &lt; b) {\n  run();\n}\n</code></pre><p>Nachher</p>'
+    );
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'codeBlock', 'paragraph']);
+    expect(blocks[1].delta).toEqual([{ insert: 'if (a < b) {\n  run();\n}' }]);
+  });
+
+  // Video 03.11.2026: a chat answer with a fenced Antrag, sent to
+  // POST /api/docs/from-export by „Im Editor öffnen". The editor showed the
+  // sentence before the fence and the sources — the Antrag itself was gone.
+  it('keeps a fenced block of a chat answer on the from-export path', () => {
+    const answer =
+      'Hier ist die überarbeitete Fassung:\n\n---\n\n```\n' +
+      'Der Rat der Stadt Meckenheim möge beschließen:\n\n' +
+      '1. Die Verwaltung wird beauftragt, eine Aufstellung vorzulegen\n' +
+      '   - Sämtliche Ist-Kosten des Fuhrparks\n\nBegründung\n```\n\n## Quellen\n\n- [1] Stadtlohn';
+    const { blocks } = seedBlocks(validateAndSanitizeHtml(ensureHtml(answer)));
+    expect(blocks.map((b) => b.type)).toEqual([
+      'paragraph',
+      'paragraph',
+      'codeBlock',
+      'heading',
+      'bulletListItem',
+    ]);
+    expect(blocks[2].delta[0]?.insert).toContain(
+      'möge beschließen:\n\n1. Die Verwaltung wird beauftragt'
+    );
   });
 });

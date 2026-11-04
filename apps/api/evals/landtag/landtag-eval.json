@@ -1,0 +1,429 @@
+{
+  "_about": "Eval der Landtags-Werkzeuge (landtag, parlament_lesen) für Berlin (PARDOK live) und NRW (Notebook). Wahrheit am 04.11.2026 aus Qdrant (landtag_nrw_documents) und der PARDOK-API abgefragt, nicht aus dem Werkzeug. Runner: runLandtagEval.ts.",
+  "global_must_not": [
+    "(durchsucht|abgedeckt) (hier )?keine (Dokumente|Daten) (von|aus|der) Landt",
+    "Dokumente von Landtagen (werden )?hier nicht",
+    "gerade nicht erreichbar"
+  ],
+  "cases": [
+    {
+      "id": "N1",
+      "question": "Welche Gesetzentwürfe wurden im Landtag NRW seit September 2026 eingebracht?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "cites_min": 3,
+      "cites_from": [
+        "18/21744",
+        "18/21628",
+        "18/21612",
+        "18/21227",
+        "18/21223",
+        "18/21002",
+        "18/21000",
+        "18/21228",
+        "18/21208",
+        "18/21201",
+        "18/21224",
+        "18/21226"
+      ],
+      "truth": "12 Gesetzentwürfe mit published_at >= 2026-09-01 (Qdrant, content_type drucksache, doc_type Gesetzentwurf)"
+    },
+    {
+      "id": "N2",
+      "question": "Was hat die Landesregierung NRW auf Kleine Anfragen zum Wolf geantwortet?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          }
+        }
+      ],
+      "cites_min": 2,
+      "must_contain": ["Herdenschutz|Weidetier|Wolfsgebiet|Nutztier"],
+      "truth": "Antworten mit „Wolf\" im Kopf: 18/16473, 18/16263, 18/13295, 18/13215, 18/11489, 18/5705 (der Volltextindex sieht „Wölfe\"/„Wolfs\" nicht; weitere einschlägige Antworten zählen)"
+    },
+    {
+      "id": "N3",
+      "question": "Wie viele Anträge hat die AfD-Fraktion im Landtag NRW im Jahr 2025 gestellt?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "must_contain": ["\\b(83|89)\\b"],
+      "must_not": ["insgesamt \\**25\\b"],
+      "truth": "Qdrant: 83 Anträge, 89 mit Entschließungs- und Eilanträgen (party AfD, 2025)"
+    },
+    {
+      "id": "N4",
+      "question": "Fasse die Drucksache 18/21208 des Landtags NRW zusammen.",
+      "tools": [
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          },
+          "refs": ["NW 18/21208"]
+        }
+      ],
+      "must_contain": ["[Jj]agd"],
+      "truth": "18/21208 = Viertes Gesetz zur Änderung des Landesjagdgesetzes NRW (Gesetzentwurf CDU, GRÜNE, 08.09.2026)"
+    },
+    {
+      "id": "N5",
+      "question": "Hat die Linke im Landtag NRW Anträge zum Mietendeckel gestellt?",
+      "tools": [],
+      "must_contain": ["nicht[^.]{0,60}vertreten|keine (BSW-|Linke[n-]*)?Fraktion"],
+      "no_refs": true,
+      "truth": "Die Linke ist im 18. Landtag NRW nicht vertreten (party-Facette: CDU, SPD, GRÜNE, FDP, AfD, Landesregierung)"
+    },
+    {
+      "id": "N6",
+      "question": "Welche Anträge haben die Grünen im Landtag NRW zur Windkraft gestellt?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "cites_all": ["18/2141"],
+      "truth": "Einziger Antrag mit GRÜNE und „Windenergie\" im Kopf: 18/2141 (13.12.2022, CDU, GRÜNE)"
+    },
+    {
+      "id": "N7",
+      "question": "Was wurde im Landtag NRW in der Plenardebatte zur ersten Lesung des Haushalts 2027 gesagt?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "must_not": ["nicht (durch)?such", "keine (Daten|Dokumente) (zu|von|aus) Landtag"],
+      "truth": "Plenarprotokoll 18/129 vom 16.09.2026, 1. Lesung Haushaltsgesetz 2027 (Notebook, content_type plenarprotokoll). Erwartet seit dem Protokollzweig in `landtag`: Textstellen aus dem Notebook, Zitat von 18/129.",
+      "cites_all": ["18/129"]
+    },
+    {
+      "id": "N8",
+      "question": "Was hat die Landesregierung NRW auf Anfragen zum Lehrkräftemangel geantwortet? Nenne konkrete Zahlen.",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          }
+        }
+      ],
+      "cites_min": 2,
+      "must_contain": ["\\d"],
+      "truth": "Antworten mit „Lehrkräftemangel\" im Kopf: 18/12503, 18/10140, 18/9611, 18/7505, 18/5138, 18/3850"
+    },
+    {
+      "id": "N9",
+      "question": "Was fordern CDU und Grüne im Landtag NRW in der Drucksache 18/2141?",
+      "tools": [
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          },
+          "refs": ["NW 18/2141"]
+        }
+      ],
+      "must_contain": ["Wind"],
+      "truth": "18/2141: Antrag CDU, GRÜNE „Bessere Rahmenbedingungen für Windenergie in NRW setzen\""
+    },
+    {
+      "id": "N10",
+      "question": "Welche Änderungsanträge gab es im Landtag NRW zum Krankenhausgestaltungsgesetz, und von wem?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "cites_all": ["18/21558"],
+      "must_contain": ["CDU", "GRÜNE|Grüne"],
+      "truth": "18/21558, Änderungsantrag CDU, GRÜNE vom 30.09.2026 zum Sechsten Gesetz zur Änderung des KHGG"
+    },
+    {
+      "id": "B1",
+      "question": "Welche Gesetzentwürfe hat der Berliner Senat 2026 ins Abgeordnetenhaus eingebracht?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "cites_min": 3,
+      "cites_from": [
+        "19/2879",
+        "19/2924",
+        "19/2944",
+        "19/2956",
+        "19/2957",
+        "19/2958",
+        "19/2999",
+        "19/3071",
+        "19/3072",
+        "19/3104",
+        "19/3105",
+        "19/3106",
+        "19/3155",
+        "19/3186",
+        "19/3223",
+        "19/3234",
+        "19/3235",
+        "19/3236",
+        "19/3333",
+        "19/3361",
+        "19/3443",
+        "19/3444"
+      ],
+      "truth": "PARDOK: 22 Vorlagen zur Beschlussfassung (Gesetzentwurf) seit 01.01.2026"
+    },
+    {
+      "id": "B2",
+      "question": "Was hat der Berliner Senat zur Sanierung der Elsenbrücke geantwortet?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "cites_min": 1,
+      "cites_from": [
+        "16/20800",
+        "17/17298",
+        "18/1629",
+        "18/1630",
+        "18/1661",
+        "18/16816",
+        "18/17214",
+        "18/1979",
+        "18/1980",
+        "18/1981",
+        "18/20167",
+        "18/22806",
+        "19/0078",
+        "19/11908",
+        "19/21055",
+        "19/24382"
+      ],
+      "truth": "PARDOK f.titel Elsenbrücke: 29 Treffer, u. a. 19/24382, 19/21055"
+    },
+    {
+      "id": "B3",
+      "question": "Hat die BSW-Fraktion im Abgeordnetenhaus Berlin Anträge gestellt?",
+      "tools": [],
+      "must_contain": ["nicht[^.]{0,60}vertreten|keine (BSW-|Linke[n-]*)?Fraktion"],
+      "no_refs": true,
+      "truth": "PARDOK f.urheber BSW: 0 Treffer; BSW ist im Abgeordnetenhaus nicht vertreten"
+    },
+    {
+      "id": "B4",
+      "question": "Worum geht es in der Drucksache 19/2500 des Berliner Abgeordnetenhauses?",
+      "tools": [
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "berlin"
+          },
+          "refs": ["BE 19/2500"]
+        }
+      ],
+      "must_contain": ["Petition"],
+      "truth": "19/2500: Unterrichtung, Bericht des Petitionsausschusses über seine Tätigkeit im Jahr 2024"
+    },
+    {
+      "id": "B5",
+      "question": "Welche Schriftlichen Anfragen zu Radwegen gab es im Oktober 2026 im Berliner Abgeordnetenhaus?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "cites_all": ["19/27244"],
+      "must_contain": ["Gehrensee"],
+      "truth": "PARDOK: genau 1 Schriftliche Anfrage mit „Radweg\" im Titel im Oktober 2026: 19/S27244 (Gehrenseebrücke)"
+    },
+    {
+      "id": "B6",
+      "question": "Wie viele Anträge hat die Grünen-Fraktion im Berliner Abgeordnetenhaus 2026 gestellt?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "must_contain": ["\\b77\\b"],
+      "must_not": ["insgesamt \\**25\\b"],
+      "truth": "PARDOK f.drucksachtyp Antrag, f.urheber Grüne, 2026: numFound 77. Mit f.wahlperiode=19 nur 73: die WP 20 läuft seit 11/2026 (PARDOK, 04.11.2026)"
+    },
+    {
+      "id": "B7",
+      "question": "Was hat der Berliner Senat auf Anfragen zur Mietpreisbremse geantwortet?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "cites_min": 1,
+      "cites_from": ["19/21284", "19/25246", "19/25956", "19/25957", "19/26375"],
+      "truth": "PARDOK f.titel Mietpreisbremse seit 2025: 10 Treffer"
+    },
+    {
+      "id": "B8",
+      "question": "Fasse den Gesetzentwurf zum Personalvertretungsgesetz (Drucksache 19/3444) des Berliner Abgeordnetenhauses zusammen.",
+      "tools": [
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "berlin"
+          },
+          "refs": ["BE 19/3444"]
+        }
+      ],
+      "must_contain": ["Personalvertret"],
+      "truth": "19/3444: Vorlage zur Beschlussfassung (Gesetzentwurf) Personalvertretungsgesetz, 11.08.2026"
+    },
+    {
+      "id": "B9",
+      "question": "Welche Anträge haben die Grünen im Berliner Abgeordnetenhaus zur Wärmeplanung gestellt?",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "cites_all": ["19/3451"],
+      "truth": "PARDOK f.titel Wärmeplanung: einziger Antrag der Grünen 19/3451 „Bürgerenergiefonds Berlin zur Umsetzung der Wärmeplanung\" (17.08.2026)"
+    },
+    {
+      "id": "B10",
+      "question": "Vergleiche, was im Berliner Abgeordnetenhaus und im Landtag NRW zur kommunalen Wärmeplanung beantragt oder beschlossen wurde.",
+      "tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        },
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        }
+      ],
+      "cites_min": 2,
+      "cites_from": [
+        "19/16697",
+        "19/18565",
+        "19/18747",
+        "19/20451",
+        "19/20770",
+        "19/21165",
+        "19/24503",
+        "19/24584",
+        "19/3451",
+        "18/11651",
+        "18/11571",
+        "18/10465",
+        "18/9465",
+        "18/6739",
+        "18/5411",
+        "18/4352"
+      ],
+      "cites_both": true,
+      "truth": "Berlin: 19/16697, 19/18565, 19/18747, 19/20451, 19/20770, 19/21165 …; NRW: 18/11651, 18/11571, 18/10465, 18/9465, 18/6739, 18/5411"
+    },
+    {
+      "id": "A1",
+      "locale": "de-AT",
+      "question": "Welche Anträge haben die Grünen im Landtag NRW zuletzt eingebracht?",
+      "tools": [],
+      "forbid_tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          }
+        }
+      ],
+      "truth": "Landtag NRW ist für de-AT nicht freigeschaltet (registry audience de-DE): kein landtag(nrw), keine erfundenen Drucksachen"
+    },
+    {
+      "id": "A2",
+      "locale": "de-AT",
+      "question": "Welche Anträge zum Klimaschutz gab es zuletzt im Nationalrat?",
+      "tools": [
+        {
+          "tool": "nationalrat"
+        }
+      ],
+      "forbid_tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "truth": "Für de-AT hat der Nationalrat ein eigenes Werkzeug `nationalrat`; landtag(nrw/berlin) darf nicht kommen"
+    }
+  ]
+}

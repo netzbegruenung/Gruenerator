@@ -936,6 +936,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen
 
 Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Ihre Daten stehen im angehängten Dokumentkontext.
 - Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Nennst du gerechnete Werte, sag in einem kurzen Satz, dass sie aus dem Tabellenauszug abgelesen und nicht per Code berechnet sind.
 - Gib einen \`\`\`python-Block NUR aus, wenn der*die Nutzer*in ausdrücklich nach Code fragt. Die Tabelle steht darin als DataFrame \`df\` bereit; der Block läuft erst, wenn die Person ihn startet. Behaupte NIEMALS, dass Code von selbst läuft oder dass das Ergebnis gleich erscheint.
 - Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
@@ -1085,7 +1086,6 @@ function formatPlatformContext(platform: string | undefined): string {
 ## PLATTFORMKONTEXT: APP
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
-- Reel-Untertitel bearbeiten geht nur in der Web-Version (gruenerator.eu im Browser)
 - PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
 - Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen

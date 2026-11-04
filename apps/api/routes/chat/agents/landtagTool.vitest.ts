@@ -17,6 +17,28 @@ vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   },
 }));
 
+type Passage = { source: string; url?: string; excerpt: string };
+const directSearch =
+  vi.fn<
+    (p: {
+      query: string;
+      collection?: string;
+      limit?: number;
+      searchMode?: string;
+    }) => Promise<unknown>
+  >();
+vi.mock('./directSearchExecutors.js', () => ({
+  executeDirectSearch: (p: { query: string; collection?: string; limit?: number }) =>
+    directSearch(p),
+}));
+const notebook = (results: Passage[]) => ({
+  collection: 'landtag_berlin_documents',
+  query: '',
+  searchMode: 'hybrid',
+  resultsCount: results.length,
+  results,
+});
+
 const state = (locale: string, text = ''): ChatGraphState =>
   ({
     intent: 'search',
@@ -51,10 +73,30 @@ const candidate = {
 describe('makeLandtagTool', () => {
   beforeEach(() => {
     findLandtag.mockReset();
+    directSearch.mockReset();
+    directSearch.mockResolvedValue(notebook([]));
     ausfall = false;
   });
   const make = (locale = 'de-DE', text = '') =>
     makeLandtagTool({ state: state(locale, text), sourceRegistry: createSourceRegistry() });
+
+  it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
+    await exec(make('de-DE', 'Wie viele Anträge haben die Grünen in Berlin 2026 gestellt?'), {
+      parlament: 'berlin',
+      wahlperiode: 19,
+      typ: ['Antrag'],
+    });
+    const filters = findLandtag.mock.calls[0]![2] as Record<string, unknown>;
+    expect(filters).toMatchObject({ datumVon: '2026-01-01', typ: ['Antrag'] });
+    expect(filters).not.toHaveProperty('wahlperiode');
+
+    await exec(make('de-DE', 'Anträge der Grünen 2026 in der 19. Wahlperiode'), {
+      parlament: 'berlin',
+      wahlperiode: 19,
+    });
+    expect(findLandtag.mock.calls[1]![2]).toMatchObject({ wahlperiode: 19 });
+  });
 
   it('sagt Österreich ab, ohne zu suchen', async () => {
     const out = (await exec(make('de-AT'), { parlament: 'berlin', query: 'Verkehr' })) as {
@@ -62,6 +104,82 @@ describe('makeLandtagTool', () => {
     };
     expect(out.error).not.toBe('');
     expect(findLandtag).not.toHaveBeenCalled();
+  });
+
+  it('liefert Plenarprotokolle als Textstellen aus dem Notebook, mit der ganzen Frage (NRW, live 04.11.2026)', async () => {
+    directSearch.mockResolvedValue({
+      collection: 'landtag-nrw',
+      results: [
+        {
+          source: 'Haushaltsgesetz 2027, 1. Lesung',
+          url: 'https://www.landtag.nrw.de/Dokument?Id=MMP18%2F129|1|20',
+          excerpt: 'Minister Optendrenk: …',
+        },
+      ],
+    });
+    const frage = 'Was wurde in der ersten Lesung des Haushalts 2027 gesagt?';
+    const out = (await exec(make('de-DE', frage), {
+      parlament: 'nrw',
+      typ: ['Plenarprotokoll'],
+    })) as { resultCount: number; sources: string; hinweis: string };
+    expect(directSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: frage,
+        collection: 'landtag-nrw',
+        searchMode: 'vector',
+        filters: { content_type: ['plenarprotokoll'] },
+      })
+    );
+    expect(findLandtag).not.toHaveBeenCalled();
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('NRW · Plenarprotokoll · Haushaltsgesetz 2027');
+    expect(out.hinweis).toMatch(/direkt zitierbar/);
+  });
+
+  it('fragt bei gemischter Art die Liste ohne Protokolle und sagt es', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const out = (await exec(make(), {
+      parlament: 'berlin',
+      typ: ['Antrag', 'Plenarprotokoll'],
+    })) as { hinweise?: string[] };
+    expect(findLandtag).toHaveBeenCalledWith(
+      'berlin',
+      '',
+      expect.objectContaining({ typ: ['Antrag'] })
+    );
+    expect(directSearch).not.toHaveBeenCalled();
+    expect(out.hinweise).toEqual([expect.stringMatching(/typ Plenarprotokoll allein/)]);
+  });
+
+  it('sagt bei Antworten, dass die Titel nur die Fragen sind (Planer und Schreiber)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const out = (await exec(make(), { parlament: 'nrw', typ: ['Antwort'] })) as {
+      hinweis: string;
+      fuerSchreiber?: string;
+    };
+    expect(out.hinweis).toMatch(/^Die Titel sind die Fragen/);
+    expect(out.fuerSchreiber).toMatch(/nur in Texten, die parlament_lesen geliefert hat/);
+
+    const antrag = (await exec(make(), { parlament: 'nrw', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(antrag.fuerSchreiber).toBeUndefined();
+  });
+
+  it('gibt dem Schreiber die Gesamtzahl, wenn die Liste gedeckelt ist (Zählfrage, live 04.11.2026)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 77, notes: [] });
+    const out = (await exec(make(), { parlament: 'berlin', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(out.fuerSchreiber).toMatch(
+      /Gesamtzahl laut Abgeordnetenhaus von Berlin: 77 Dokumente \(Art: Antrag\)\. .*nur 1 davon.*nenne 77/
+    );
+
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const voll = (await exec(make(), { parlament: 'berlin', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(voll.fuerSchreiber).toBeUndefined();
   });
 
   it('übernimmt Fraktion, Art und Jahr aus dem Wortlaut; gesetzte Argumente gehen vor', async () => {
@@ -126,6 +244,84 @@ describe('makeLandtagTool', () => {
     expect(out).not.toHaveProperty('uiCard');
   });
 
+  describe('Textstellen aus dem Notebook (Berlin)', () => {
+    const frage = 'Was hat der Senat zu Kiezblocks geantwortet?';
+
+    it('sucht mit der ganzen Frage und legt die Textstelle zum selben PDF als Auszug an den Eintrag', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      directSearch.mockResolvedValue(
+        notebook([
+          { source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Der Senat prüft …' },
+          {
+            source: 'Ausschuss für Mobilität, 70. Sitzung',
+            url: 'https://pardok.parlament-berlin.de/x/mv19-070-wp.pdf',
+            excerpt: 'Kiezblocks im Ausschuss',
+          },
+        ])
+      );
+      const out = (await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+      })) as { resultCount: number; sources: string; hinweis: string };
+      // „geantwortet" setzt die Art Antwort; das Notebook führt sie als `drucksache`.
+      expect(directSearch).toHaveBeenCalledWith({
+        query: frage,
+        collection: 'landtag-berlin',
+        limit: 4,
+        searchMode: 'vector',
+        filters: { content_type: ['drucksache'] },
+      });
+      // Ein Eintrag mit Auszug plus eine eigene Textstelle — kein zweiter Eintrag fürs selbe PDF.
+      expect(out.resultCount).toBe(2);
+      expect(out.sources).toContain('Auszug: Der Senat prüft');
+      expect(out.sources).toContain('Kiezblocks im Ausschuss');
+      expect(out.hinweis).toMatch(/Auszug/);
+    });
+
+    it('liefert die Textstellen, wenn die Live-Abfrage ausfällt, und sagt es', async () => {
+      ausfall = true;
+      directSearch.mockResolvedValue(
+        notebook([{ source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Text' }])
+      );
+      const out = (await exec(make('de-DE', frage), { parlament: 'berlin' })) as {
+        resultCount: number;
+        hinweise: string[];
+        error?: string;
+      };
+      expect(out.error).toBeUndefined();
+      expect(out.resultCount).toBe(1);
+      expect(out.hinweise[0]).toMatch(/Live-Abfrage .* nicht erreichbar/);
+    });
+
+    it('lässt das Notebook weg, sobald ein Filter gilt, den es nicht einhalten kann', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      for (const text of ['Anfragen der Grünen zu Kiezblocks', 'Anfragen zu Kiezblocks 2026']) {
+        await exec(make('de-DE', text), { parlament: 'berlin', query: 'Kiezblock' });
+      }
+      // Anträge führt das Notebook gar nicht.
+      await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+        typ: ['Antrag'],
+      });
+      expect(directSearch).not.toHaveBeenCalled();
+    });
+
+    it('kostet bei einem Ausfall des Notebooks nur die Textstellen', async () => {
+      findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+      directSearch.mockRejectedValue(new Error('Qdrant 503'));
+      const out = (await exec(make('de-DE', frage), {
+        parlament: 'berlin',
+        query: 'Kiezblock',
+      })) as {
+        resultCount: number;
+        hinweis: string;
+      };
+      expect(out.resultCount).toBe(1);
+      expect(out.hinweis).toMatch(/nur Metadaten/);
+    });
+  });
+
   it('meldet einen Ausfall der Quelle als Fehler statt zu werfen', async () => {
     ausfall = true;
     const out = (await exec(make(), { parlament: 'berlin', query: 'x' })) as { error: string };
@@ -136,6 +332,7 @@ describe('makeLandtagTool', () => {
 describe('makeNationalratTool', () => {
   beforeEach(() => {
     findLandtag.mockReset();
+    directSearch.mockReset();
     ausfall = false;
   });
   const make = (locale: string, text = '') =>
@@ -175,6 +372,8 @@ describe('makeNationalratTool', () => {
     expect(at.quelle).toMatch(/CC BY 4\.0/);
     expect(at.hinweis).toContain("quelle 'nationalrat'");
     expect(at.uiCard.parlament).toBe('Nationalrat');
+    // Der Nationalrat hat kein Notebook.
+    expect(directSearch).not.toHaveBeenCalled();
   });
 });
 

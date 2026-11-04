@@ -76,6 +76,12 @@ const BEFORE: Row[] = [
   },
   { identifier: 'bundestag', mention: 'bundestag', title: 'Bundestag', audience: 'de-DE' },
   {
+    identifier: 'abgeordnetenhaus',
+    mention: 'abgeordnetenhaus',
+    title: 'Abgeordnetenhaus Berlin',
+    audience: 'de-DE',
+  },
+  {
     identifier: 'summary',
     mention: 'zusammenfassung',
     title: 'Zusammenfassung',

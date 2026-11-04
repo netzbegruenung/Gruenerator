@@ -14,9 +14,14 @@
 
 export const SOURCE_LINK_SCHEME = 'quelle';
 
+// Read, never written: models sometimes translate the scheme and emit
+// `[Titel](source:3)` (#5315). Accepting it here keeps that link rendering in
+// every reader; the renumbering writes it back as `quelle:`.
+const READ_SCHEMES = `(?:${SOURCE_LINK_SCHEME}|source)`;
+
 // Label: no `]` or newline, bounded. N: a citation id, bounded like the
 // `[N]` marker renderer's MAX_CITATION_ID.
-const SOURCE_LINK_SOURCE = `\\[([^\\]\\n]{1,300})\\]\\(${SOURCE_LINK_SCHEME}:(\\d{1,3})\\)`;
+const SOURCE_LINK_SOURCE = `\\[([^\\]\\n]{1,300})\\]\\(${READ_SCHEMES}:(\\d{1,3})\\)`;
 
 /** Fresh regex per use — the `g` flag makes shared instances stateful.
  *  Groups: 1 = label, 2 = citation id. */
@@ -40,7 +45,7 @@ export function citationReferenceRegex(): RegExp {
 /** The citation id a link target points at, or `null` for any other href. */
 export function parseSourceLinkHref(href: string | null | undefined): number | null {
   if (!href) return null;
-  const match = new RegExp(`^${SOURCE_LINK_SCHEME}:(\\d{1,3})$`).exec(href.trim());
+  const match = new RegExp(`^${READ_SCHEMES}:(\\d{1,3})$`).exec(href.trim());
   if (!match) return null;
   const id = Number(match[1]);
   return id >= 1 ? id : null;

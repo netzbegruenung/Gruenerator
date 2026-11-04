@@ -14,11 +14,11 @@ export {
   type MarketplaceTabIcon,
   type MarketplaceTabSlug,
 } from './registry.js';
+export { LEGACY_COLLECTION_ALIASES } from './collectionAliases.js';
 export {
   AGENTURA_PATH,
   DEFAULT_MARKETPLACE_FILTERS,
   GRUENERATOREN_PATH,
-  LEGACY_COLLECTION_ALIASES,
   MARKETPLACE_PATH,
   agenturaToMarketplaceHref,
   kindsForTab,

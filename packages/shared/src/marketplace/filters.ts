@@ -10,6 +10,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
+import { LEGACY_COLLECTION_ALIASES } from './collectionAliases.js';
 import { categoryById, type MarketplaceCategoryId } from './categories.js';
 import {
   DEFAULT_MARKETPLACE_SORT,
@@ -85,11 +86,6 @@ function toSearchParams(source: MarketplaceParamSource): URLSearchParams {
 
 const isTabSlug = (value: string | null): value is MarketplaceTabSlug =>
   value !== null && (MARKETPLACE_TAB_SLUGS as readonly string[]).includes(value);
-
-/** F0 — ids that were renamed; old shared links keep resolving. */
-export const LEGACY_COLLECTION_ALIASES = {
-  'wahlkampf-moritz': 'mustergruen-wahlkampf',
-} as const;
 
 /** Unknown values fall back to the default instead of failing. */
 export function parseMarketplaceParams(source: MarketplaceParamSource): MarketplaceFilters {

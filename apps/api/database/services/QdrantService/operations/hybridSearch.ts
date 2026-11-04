@@ -241,7 +241,10 @@ async function hybridSearchServerSide(
     using: '',
     limit: recall,
     score_threshold: threshold,
-    params: { hnsw_ef: Math.max(100, recall * 2) },
+    // Kein `hnsw_ef`: das frühere `max(100, recall * 2)` (600 bei recall 300)
+    // kostete auf den Landtags-Sammlungen (1,2 Mio. Vektoren) 23–44 s je
+    // Suche, langsamer als `exact`; Qdrants Vorgabe 0,2–3,1 s bei 297–300 von
+    // 300 Treffern der exakten Suche (#5325). Die Spiegelsuche erbt das.
     ...(prefetchFilter && { filter: prefetchFilter }),
   };
 

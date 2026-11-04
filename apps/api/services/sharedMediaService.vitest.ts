@@ -141,6 +141,26 @@ describe('getMediaLibrary', () => {
 
     expect(lastCall().sql).not.toMatch(ORIGIN_CLAUSE);
   });
+
+  it('counts with the same filters as the page, so hasMore ends while searching (#4681)', async () => {
+    query.mockResolvedValueOnce([]);
+    queryOne.mockResolvedValueOnce({ total: '0' });
+    const service = new SharedMediaService();
+    await service.getMediaLibrary('user-1', {
+      type: 'image',
+      search: 'wahl',
+      limit: 10,
+      offset: 20,
+    });
+
+    const page = lastCall();
+    const [countSql, countParams] = queryOne.mock.calls.at(-1)!;
+    expect(countSql).toContain('media_type = $2');
+    expect(countSql).toContain('title ILIKE $3 OR alt_text ILIKE $3');
+    expect(countParams).toEqual(['user-1', 'image', '%wahl%']);
+    expect(page.sql).toContain('LIMIT $4 OFFSET $5');
+    expect(page.params).toEqual(['user-1', 'image', '%wahl%', 10, 20]);
+  });
 });
 
 /**
@@ -357,6 +377,36 @@ describe('reapOrphanedShares', () => {
 
     expect(await service.reapOrphanedShares(24)).toEqual([]);
     expect(rm).not.toHaveBeenCalled();
+  });
+});
+
+describe('reapUnclaimedStudioAssetUploads', () => {
+  beforeEach(() => {
+    rm.mockClear();
+  });
+
+  it('deletes only old studio-asset uploads no gallery row (trashed or not) points at', async () => {
+    query.mockResolvedValueOnce([]);
+    await new SharedMediaService().reapUnclaimedStudioAssetUploads(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toContain('DELETE FROM shared_media');
+    expect(sql).toMatch(/created_at\s*<\s*NOW\(\)\s*-\s*make_interval/i);
+    expect(sql).toContain('NOT EXISTS (SELECT 1 FROM studio_assets sa WHERE sa.media_id = sm.id)');
+    // A purged public asset leaves a claimed upload without a gallery row.
+    expect(sql).toContain('sm.claimed_at IS NULL');
+    // A trashed gallery item still owns its upload until the purge.
+    expect(sql).not.toMatch(/sa\.deleted_at/);
+    expect(params).toEqual(['studio-asset', 24]);
+    expect(rm).not.toHaveBeenCalled();
+  });
+
+  it('removes the files of every upload it deleted', async () => {
+    query.mockResolvedValueOnce([{ share_token: 'tok-s', status: 'ready', file_size: '2048' }]);
+    const reaped = await new SharedMediaService().reapUnclaimedStudioAssetUploads(24);
+
+    expect(reaped).toEqual([{ shareToken: 'tok-s', status: 'ready', fileSize: 2048 }]);
+    expect(rm.mock.calls.some(([dir]) => String(dir).endsWith('/tok-s'))).toBe(true);
   });
 });
 

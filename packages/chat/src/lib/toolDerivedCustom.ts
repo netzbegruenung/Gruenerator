@@ -13,7 +13,7 @@ export interface PersistedToolCallLike {
 
 /**
  * The `custom.*` render fields that live on a persisted TOOL CALL rather than
- * on the message metadata: sharepic variants, social post, Bahn board, reel
+ * on the message metadata: sharepic variants, social post, Bahn board,
  * cards. One function for both reload paths — the web converter
  * (`runtime/threadMessageConversion.ts`) and the native adapter
  * (`adapters/messageConversion.ts`) — so a field cannot survive a reload on one
@@ -79,18 +79,6 @@ export function buildToolDerivedCustom(
       custom.vorlagenSuggestions = parsedVorlagen.data;
       break;
     }
-  }
-
-  // Reel cards: the persisted results carry payloads identical to the
-  // reel_processing / reel_picker SSE events.
-  const reelProcessingCall = toolCalls.find((tc) => tc.toolName === 'reel_processing');
-  if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
-  const reelPickerProjects = (
-    toolCalls.find((tc) => tc.toolName === 'reel_picker')?.result as
-      { projects?: unknown } | undefined
-  )?.projects;
-  if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
-    custom.reelPicker = { projects: reelPickerProjects };
   }
 
   return custom;

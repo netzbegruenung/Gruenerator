@@ -873,7 +873,7 @@ describe('bundestag: modus zaehlen, ref', () => {
         }),
         { modus: 'zaehlen' }
       ) as Promise<Record<string, unknown>>;
-    const landtag = await run('Was hat der Landtag in NRW zu Windkraft beschlossen?');
+    const landtag = await run('Was hat der Landtag in Bayern zu Windkraft beschlossen?');
     expect(landtag['fuerSchreiber']).toMatch(/nur den Bundestag/);
     expect(String(landtag['hinweis'] ?? '')).not.toMatch(/Landesparlament/);
     const bund = await run('Wie viele Anträge zu Windkraft gab es?');
@@ -947,6 +947,25 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out.fuerSchreiber).toBeUndefined();
   });
 
+  it('Landtag NRW: derselbe Verweis, mit parlament nrw (live 04.11.2026 sagte er „nicht durchsucht")', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions:
+            'Welche Anträge haben die Grünen im Landtag NRW zur Windkraft gestellt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { landtagHinweis?: string; fuerSchreiber?: string };
+    expect(out.landtagHinweis).toMatch(/`landtag` mit parlament 'nrw'/);
+    expect(out.fuerSchreiber).toBeUndefined();
+  });
+
   it('ref einer Anfrage ohne Antwort-Drucksache: hinweise sagt „liegt noch nicht vor“', async () => {
     retrieveBundestagFamily.mockResolvedValue({
       results: [
@@ -981,7 +1000,7 @@ describe('bundestag: modus zaehlen, ref', () => {
       makeBundestagTool({
         state: {
           ...state,
-          lastUserTextNoMentions: 'Was hat der Landtag NRW zu Windkraft beschlossen?',
+          lastUserTextNoMentions: 'Was hat der Landtag in Bayern zu Windkraft beschlossen?',
         } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),

@@ -191,6 +191,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   examples: { modelId: GEMMA, reasoning: 'low' },
   pressemitteilung_examples: { modelId: GEMMA, reasoning: 'low' },
   bundestag: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
+  abgeordnetenhaus: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   abgeordnetenwatch: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   news: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   // Tier-3.5 loop demotion: the loop's model picks its own tools.

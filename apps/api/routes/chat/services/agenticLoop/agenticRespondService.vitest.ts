@@ -93,6 +93,7 @@ import { createAnswerValidator } from './synthVerdicts.js';
 import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  SYNTH_RETRY_SYSTEM_SUFFIX,
   TurnSuspendedError,
   type AnswerReplacement,
   type LoopEngineParams,
@@ -714,6 +715,25 @@ describe('createAnswerValidator', () => {
     // Ein abgeschnittener JSON-Block ist BEIDES. Der JSON-Hinweis ist der
     // konkretere Auftrag an den Schreiber, also muss er gewinnen.
     expect(createAnswerValidator()('{"a": 1, "b"')).toBe(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+  });
+
+  // #5289: die Antwort vom 30.10.2026, ganz. Deutsch und länger als 200
+  // Zeichen — an `looksLikeToolPlanLeak` kam sie deshalb vorbei.
+  it('ordnet eine Wiederholung an, wenn die Antwort auf Arbeit warten lässt', () => {
+    const answer =
+      'Da ich in den Ergebnissen der Recherche von vorhin nur Ausschnitte der Reden erhalten habe, muss ich den vollständigen Wortlaut der Rede vom 24. September 2026 neu nachschlagen. Einen Moment bitte.\n\n(Hier würde nun der Aufruf des entsprechenden Recherche-Werkzeugs folgen)';
+    expect(createAnswerValidator()(answer)).toBe(SYNTH_RETRY_SYSTEM_SUFFIX);
+  });
+
+  it('lässt eine Antwort ohne Warte-Bitte durch — auch die wahre Tabellen-Notiz', () => {
+    expect(
+      createAnswerValidator()('Zu einer Rede vom 14. März 2019 habe ich nichts gefunden.')
+    ).toBeNull();
+    expect(
+      createAnswerValidator()(
+        'Die Änderung an **"Budget"** ist eingetragen (2 Zellen) und erscheint gleich in der geöffneten Tabelle.'
+      )
+    ).toBeNull();
   });
 });
 
