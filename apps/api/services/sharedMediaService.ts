@@ -502,9 +502,12 @@ class SharedMediaService {
    * is outside the Mediathek and its quota, its share link never expires, and
    * `trashShare` refuses it because the gallery row is meant to own the file.
    *
-   * A trashed `studio_assets` row still owns its upload until the trash purge
-   * removes both, so the `NOT EXISTS` deliberately looks at every row, trashed
-   * or not. The age bound leaves the client its window between the two calls.
+   * "Never claimed" is `claimed_at IS NULL`, stamped by `createStudioAsset`.
+   * A missing `studio_assets` row alone is not enough: purging a once-public
+   * asset deletes the row but keeps its file, because other people's designs
+   * still point at the URL. The `NOT EXISTS` (trashed rows included) only
+   * backs the stamp up. The age bound leaves the client its window between
+   * the two calls.
    * Files go after the row, for the same reason as in {@link reapOrphanedShares}.
    */
   async reapUnclaimedStudioAssetUploads(olderThanHours: number): Promise<ReapedShare[]> {
@@ -518,6 +521,7 @@ class SharedMediaService {
       `DELETE FROM shared_media sm
         WHERE sm.upload_source = $1
           AND sm.created_at < NOW() - make_interval(hours => $2::int)
+          AND sm.claimed_at IS NULL
           AND NOT EXISTS (SELECT 1 FROM studio_assets sa WHERE sa.media_id = sm.id)
         RETURNING sm.share_token, sm.status, sm.file_size`,
       [STUDIO_ASSET_UPLOAD_SOURCE, Math.max(0, Math.trunc(olderThanHours))]

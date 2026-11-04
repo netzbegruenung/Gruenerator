@@ -373,6 +373,8 @@ describe('reapUnclaimedStudioAssetUploads', () => {
     expect(sql).toContain('DELETE FROM shared_media');
     expect(sql).toMatch(/created_at\s*<\s*NOW\(\)\s*-\s*make_interval/i);
     expect(sql).toContain('NOT EXISTS (SELECT 1 FROM studio_assets sa WHERE sa.media_id = sm.id)');
+    // A purged public asset leaves a claimed upload without a gallery row.
+    expect(sql).toContain('sm.claimed_at IS NULL');
     // A trashed gallery item still owns its upload until the purge.
     expect(sql).not.toMatch(/sa\.deleted_at/);
     expect(params).toEqual(['studio-asset', 24]);

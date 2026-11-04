@@ -65,6 +65,9 @@ export const sharedMedia = pgTable(
     is_library_item: boolean('is_library_item').notNull().default(true),
     alt_text: text('alt_text'),
     upload_source: text('upload_source').notNull().default('upload'),
+    // When a Studio gallery item first took this upload; never cleared, so the
+    // unclaimed-upload sweep spares files a purged public asset left behind.
+    claimed_at: timestamp('claimed_at', { withTimezone: true }),
     // Which product made this image ('ki' | 'sharepic' | 'upload' | 'unknown'), set
     // server-side at insert time. Answers a different question than `upload_source`:
     // that one says how the bytes arrived and drives library curation, this one says

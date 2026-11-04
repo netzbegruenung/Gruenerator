@@ -426,6 +426,36 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
     expect(left.rows.map((r) => r.share_token)).toEqual([okToken]);
   });
 
+  it('the unclaimed-upload sweep spares a purged public asset and takes a never-claimed upload', async () => {
+    const claimed = await insertMedia(me);
+    const created = await createStudioAsset(
+      me,
+      createBody(claimed, { visibility: 'public', rightsConfirmed: true })
+    );
+    if (!created.ok) throw new Error('create failed');
+    await pool.query('UPDATE studio_assets SET deleted_at = now() WHERE id = $1', [
+      created.value.id,
+    ]);
+    // A once-public asset: the purge drops the row and keeps the file (#4555 review).
+    expect(await purgeStudioAsset(created.value.id, null)).toBe(true);
+
+    const unclaimed = await insertMedia(me);
+    await pool.query(
+      `UPDATE shared_media SET created_at = now() - interval '2 days' WHERE share_token = ANY($1)`,
+      [[claimed, unclaimed]]
+    );
+
+    const { getSharedMediaService } = await import('../sharedMediaService.js');
+    const reaped = await getSharedMediaService().reapUnclaimedStudioAssetUploads(24);
+    expect(reaped.map((r) => r.shareToken)).toEqual([unclaimed]);
+
+    const left = await pool.query<{ share_token: string }>(
+      'SELECT share_token FROM shared_media WHERE share_token = ANY($1)',
+      [[claimed, unclaimed]]
+    );
+    expect(left.rows.map((r) => r.share_token)).toEqual([claimed]);
+  });
+
   it('only public+ok or own assets can be liked/saved', async () => {
     expect(await isStudioAssetVisible(me, await insertAsset(other))).toBe(true);
     expect(
