@@ -119,6 +119,31 @@ describe('confirmation builders', () => {
     expect(both.match(/Hintergrund konnte ich nicht malen/g)).toHaveLength(1);
   });
 
+  it('keeps the old notice sentence only for variants without a report', () => {
+    const withNotice = (extra: Record<string, unknown>) => [
+      { ...creator(1, extra)[0], notice: 'x' },
+    ];
+    expect(
+      buildSharepicConfirmation(withNotice({})).match(/Hintergrund konnte ich nicht malen/g)
+    ).toHaveLength(1);
+    const palette = buildSharepicConfirmation(
+      withNotice({ bericht: [{ art: 'gestaltung', text: 'Die Farben stammen aus der Palette.' }] })
+    );
+    expect(palette).toContain('Die Farben stammen aus der Palette.');
+    expect(palette).not.toContain('Markenfarbe');
+  });
+
+  it('tells the person what a revision dropped', () => {
+    const text = buildSharepicConfirmation(
+      creator(1, {
+        revisionOf: 'old',
+        bericht: [{ art: 'foto', id: 'upload:1', status: 'nicht_verwendet', grund: 'zu klein' }],
+      })
+    );
+    expect(text).toContain('Dein Foto habe ich nicht verwendet: zu klein.');
+    expect(isArtifactConfirmation(text)).toBe(true);
+  });
+
   it('pluralises the variant count', () => {
     expect(buildSharepicConfirmation(legacy(1))).toContain('1 Sharepic-Variante');
     expect(buildSharepicConfirmation(legacy(3))).toContain('3 Sharepic-Varianten');

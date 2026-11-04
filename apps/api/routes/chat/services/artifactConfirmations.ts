@@ -36,23 +36,24 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
   const first = variants[0];
   const creator = first ? parseSharepicChatProps(first.initialProps) : null;
   if (creator) {
+    const bericht = creator.bericht ?? [];
+    const berichtText = berichtSaetze(bericht)
+      .map((satz) => ` ${satz}`)
+      .join('');
     if (creator.revisionOf) {
       const editorNote = creator.editorChangesDropped
         ? ' Falls du es im Editor bearbeitet hast: Diese Änderungen sind hier nicht enthalten, die bearbeitete Fassung bleibt im Editor.'
         : '';
-      return `Ich habe dir das Sharepic überarbeitet.${editorNote} Sag mir, wenn noch etwas anders sein soll.`;
+      return `Ich habe dir das Sharepic überarbeitet.${editorNote}${berichtText} Sag mir, wenn noch etwas anders sein soll.`;
     }
     const slides = creator.creatorSpec.slides.length;
     // Short on purpose: the full reason (trees, outage) stays on the variant.
-    const bericht = creator.bericht ?? [];
-    // A `gestaltung` entry carries that sentence itself — say it once.
+    // A variant with a report says the scene itself (its `gestaltung` entry);
+    // the notice sentence is only for old cards without one.
     const scene =
-      first?.notice && !bericht.some((e) => e.art === 'gestaltung')
+      first?.notice && bericht.length === 0
         ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
         : '';
-    const berichtText = berichtSaetze(bericht)
-      .map((satz) => ` ${satz}`)
-      .join('');
     const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
     return slides > 1
       ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene}${berichtText} ${tail}`
