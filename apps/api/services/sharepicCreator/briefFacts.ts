@@ -287,26 +287,48 @@ const WEEKDAY_NAMES: [WeekdayId, string][] = [
   ['sa', 'samstag|sonnabend'],
   ['so', 'sonntag'],
 ];
-/** Full names open a compound („Donnerstagabend“, „sonntags“); „Do.“ needs its dot unless capitalised („Do“). */
+/**
+ * A day mention: the name alone, genitive/adverb „-s“ or a time of day
+ * („Donnerstagabend“). Not „Sonntagsfrage“, „Montage“ or „Montagsdemo“ —
+ * those name no date (a recurring „Montagsdemo“ is left out on purpose, the
+ * model has to take its weekday from the order's own words).
+ */
+const DAY_SUFFIX = '(?:s|(?:früh|vor|nach)?(?:mittag|abend|morgen|nacht)s?)?';
 const WEEKDAY_FULL = WEEKDAY_NAMES.map(
-  ([id, names]) => [id, new RegExp(`(?<!\\p{L})(?:${names})`, 'iu')] as const
+  ([id, names]) => [id, new RegExp(`(?<!\\p{L})(?:${names})${DAY_SUFFIX}(?!\\p{L})`, 'iu')] as const
 );
-const WEEKDAY_SHORT = WEEKDAY_NAMES.map(([id]) => {
-  const cap = id[0]!.toUpperCase() + id[1]!;
-  return [id, new RegExp(`(?<!\\p{L})(?:${id}\\.|${cap}\\.?)(?!\\p{L})`, 'u')] as const;
-});
+const ABBREVIATIONS: WeekdayId[] = WEEKDAY_NAMES.map(([id]) => id);
+const cap = (id: string) => id[0]!.toUpperCase() + id[1]!;
+const ABBR_GROUP = ABBREVIATIONS.map(cap).join('|');
+/** „Mo.“, „Sa./So.“ — a dot, capitalised; „Fr.“ before a surname is „Frau“. */
+const WEEKDAY_DOTTED = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})\\.(?!\\p{L})(?<!Fr\\.(?=\\s+\\p{Lu}\\p{Ll}))`,
+  'gu'
+);
+/** „Mo–Fr“, „Sa/So“: both ends capitalised, undotted only inside a range or list. */
+const WEEKDAY_RANGE = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})\\s*[–\\-/]\\s*(${ABBR_GROUP})(?!\\p{L})`,
+  'gu'
+);
 
 /** The weekdays a text names, as full word, compound or abbreviation. */
 export function weekdaysIn(text: string): Set<WeekdayId> {
   const found = new Set<WeekdayId>();
   for (const [id, full] of WEEKDAY_FULL) if (full.test(text)) found.add(id);
-  // Undotted only in capitals: lowercase „so“ or „do“ is an ordinary word.
-  for (const [id, short] of WEEKDAY_SHORT) if (short.test(text)) found.add(id);
+  const add = (short: string) => found.add(short.toLowerCase() as WeekdayId);
+  for (const m of text.matchAll(WEEKDAY_DOTTED)) add(m[1]!);
+  for (const m of text.matchAll(WEEKDAY_RANGE)) {
+    add(m[1]!);
+    add(m[2]!);
+  }
   return found;
 }
 
-/** A weekday as the model writes it („Do“, „Donnerstag“, „do.“) — null when it is none. */
+/** A weekday as the model writes it: a full name (with day-part suffix) or a known abbreviation — else null. */
 export function weekdayId(value: string): WeekdayId | null {
-  const id = value.trim().toLowerCase().replace(/\.$/, '').slice(0, 2);
-  return WEEKDAY_NAMES.some(([w]) => w === id) ? (id as WeekdayId) : null;
+  const word = value.trim().replace(/\.$/, '');
+  const short = word.toLowerCase();
+  if (word.length === 2 && ABBREVIATIONS.includes(short as WeekdayId)) return short as WeekdayId;
+  const full = WEEKDAY_FULL.find(([, re]) => new RegExp(`^${re.source}$`, 'iu').test(word));
+  return full ? full[0] : null;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { sharepicSlideSchema } from '@gruenerator/contracts';
 
-import { weekdaysIn } from './briefFacts.js';
+import { weekdayId, weekdaysIn } from './briefFacts.js';
 import { repairDatum } from './datumRepair.js';
 import { validateDraft } from './draftAgent.js';
 
@@ -225,6 +225,12 @@ describe('repairDatum', () => {
     expect(out.repairs).toEqual([]);
   });
 
+  it('drops a weekday the order only mimics ("So geht\'s nicht weiter")', () => {
+    const out = repair({ weekday: 'So' }, "So geht's nicht weiter – Infoabend");
+    expect(out.datum).toBeUndefined();
+    expect(out.repairs).toEqual(['datum.weekday', 'datum']);
+  });
+
   it('removes an empty datum and an empty date', () => {
     expect(repair({}, 'Fest').datum).toBeUndefined();
     expect(repair({ weekday: 'Sa', date: '' }, 'am Samstag').datum).toEqual({ weekday: 'Sa' });
@@ -242,9 +248,42 @@ describe('weekdaysIn', () => {
   it('reads names, abbreviations, compounds and case', () => {
     expect(weekdaysIn('Mi., Freitag und sonntags')).toEqual(new Set(['mi', 'fr', 'so']));
     expect(weekdaysIn('Donnerstagabend')).toEqual(new Set(['do']));
-    expect(weekdaysIn('SAMSTAG, Mo und di.')).toEqual(new Set(['sa', 'mo', 'di']));
+    expect(weekdaysIn('SAMSTAG, Mo. und Di.')).toEqual(new Set(['sa', 'mo', 'di']));
+  });
+  it('reads ranges and lists of abbreviations', () => {
+    expect(weekdaysIn('Mo–Fr 9 Uhr')).toEqual(new Set(['mo', 'fr']));
+    expect(weekdaysIn('Sa./So.')).toEqual(new Set(['sa', 'so']));
+    expect(weekdaysIn('Sa/So')).toEqual(new Set(['sa', 'so']));
   });
   it('ignores ordinary words', () => {
     expect(weekdaysIn('so wird das, wir sind dort')).toEqual(new Set());
+  });
+  it.each([
+    "So geht's nicht weiter",
+    'Das war es und so.',
+    'Fr. Müller lädt ein',
+    'Sonntagsfrage',
+    'Die Montage der Anlage',
+    // Deliberate: „Montagsdemo“ names a recurring event, not a date; matching it
+    // would also need „Montage“-style prefixes, so it counts as no weekday.
+    'Montagsdemo',
+    'Mo ist ein Name, Di auch',
+  ])('names no weekday in "%s"', (text) => {
+    expect(weekdaysIn(text).size).toBe(0);
+  });
+  it.each([['Domino'], ['Sonntagsfrage'], ['Montage'], ['Sonn'], ['']])(
+    'reads the model value %j as no weekday',
+    (value) => {
+      expect(weekdayId(value)).toBeNull();
+    }
+  );
+  it.each([
+    ['Do', 'do'],
+    ['do.', 'do'],
+    ['Donnerstag', 'do'],
+    ['Donnerstagabend', 'do'],
+    ['So.', 'so'],
+  ])('reads the model value %j as %s', (value, id) => {
+    expect(weekdayId(value)).toBe(id);
   });
 });
