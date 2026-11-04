@@ -136,6 +136,17 @@ describe('runNotebookPraezisionTurn', () => {
     expect(system).toContain('Immer duzen.');
   });
 
+  // Live 04.11.2026 (evals/answer/bgst-live-eval-2026-11-04.md): jeder
+  // Präzisions-Turn stoppte nach EINEM find — „nicht enthalten" bei einer Zahl,
+  // die in Quelle 5 stand, und 2 von 3 Beschlüssen bei einer Listenfrage.
+  it('asks for grep on list questions and a second look before "not in the sources"', async () => {
+    const { run, loopCalls } = setup();
+    await run();
+    const system = loopCalls[0]!.systemMessage as string;
+    expect(system).toMatch(/WELCHE Quellen etwas enthalten[^\n]*zuerst grep/);
+    expect(system).toMatch(/„Steht nicht in den Quellen" sagst du erst nach einem ZWEITEN Zugriff/);
+  });
+
   it('lists the notebook sources with their refs so the pinned first call needs no guess', async () => {
     const { run, loopCalls, deps } = setup();
     await run();
