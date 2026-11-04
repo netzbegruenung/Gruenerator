@@ -20,8 +20,14 @@ function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): 
   switch (status) {
     case 'freigestellt':
       return `${dein} ${mehrere ? 'sind' : 'ist'} freigestellt auf dem Sharepic.`;
-    case 'ungeschnitten':
+    case 'ungeschnitten': {
+      // The Szene reason carries both failures; the plain cut-out one is this sentence already.
+      const szene = gruende.find((g) => g.startsWith('Die Szene'));
+      if (szene) {
+        return `${dein} ${mehrere ? 'stehen' : 'steht'} ungeschnitten auf dem Sharepic – ${szene.replace(/[.\s]+$/, '')}.`;
+      }
       return `${dein} ${mehrere ? 'stehen' : 'steht'} ungeschnitten auf dem Sharepic – freistellen hat nicht geklappt.`;
+    }
     case 'nicht_verwendet': {
       const grund = gruende.map((g) => g.replace(/[.\s]+$/, '')).join('; ');
       return `${dein} habe ich nicht verwendet${grund ? `: ${grund}` : ''}.`;

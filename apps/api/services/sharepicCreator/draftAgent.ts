@@ -123,6 +123,16 @@ export { isQuoteBrief, namesSpeaker, spelledNumbers } from './briefFacts.js';
 export { validateDraft, bridgeProblems } from './draftValidation.js';
 
 const DRAFT_ATTEMPTS = 3;
+const COLLAGE_GRUND = 'Die Szene mit dir ließ sich nicht malen.';
+
+/** At most one `foto` entry per photo; the last written is the most specific. */
+export function oneFotoPerId(bericht: readonly SharepicBerichtEintrag[]): SharepicBerichtEintrag[] {
+  return bericht.filter(
+    (e, i) =>
+      e.art !== 'foto' ||
+      !bericht.slice(i + 1).some((later) => later.art === 'foto' && later.id === e.id)
+  );
+}
 
 /**
  * `defaultLocale` is the user's profile country; the model may switch it when
@@ -422,6 +432,7 @@ export async function draftSharepic(
     bericht.push({ art: 'repariert', feld: r.feld, wert: r.wert.slice(0, 60) });
   }
   const scene = accepted.scene;
+  let collageId: string | null = null;
   if (scene) {
     const background = spec.slides[scene.slide]!.background;
     const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
@@ -483,15 +494,16 @@ export async function draftSharepic(
       } else {
         // The scene is a photo ground and a `bild` stands on a colour, so the photo does not
         // go beside a scene painted without the person; it stands on the colour instead.
-        const grund = 'Die Szene mit dir ließ sich nicht malen.';
+        const grund = COLLAGE_GRUND;
         const cut = placed('freigestellt');
         const card = cut ? null : placed('karte');
         const next = cut ?? card;
         if (next) spec = next;
-        bericht.push(
-          cut
-            ? { art: 'foto', id, status: 'collage', grund }
-            : card
+        // The cut-out below reports a cut photo itself; the entry is rewritten there.
+        if (cut) collageId = id;
+        else {
+          bericht.push(
+            card
               ? { art: 'foto', id, status: 'verwendet', grund }
               : {
                   art: 'foto',
@@ -499,7 +511,8 @@ export async function draftSharepic(
                   status: 'nicht_verwendet',
                   grund: `${grund} Das Foto passt nicht auf diese Slide.`,
                 }
-        );
+          );
+        }
       }
     }
   }
@@ -511,7 +524,21 @@ export async function draftSharepic(
     bericht.push({ art: 'fehlt', fakt: 'termin' });
   }
   // Foto entries first: the cap below must never drop them.
-  bericht.unshift(...cut.fotoEintraege);
+  bericht.unshift(
+    ...cut.fotoEintraege.map((e): SharepicBerichtEintrag => {
+      if (e.art !== 'foto' || e.id !== collageId) return e;
+      // One entry per photo: the scene failed, and the cut-out either worked or did not.
+      return e.status === 'freigestellt'
+        ? { ...e, status: 'collage', grund: COLLAGE_GRUND }
+        : e.status === 'ungeschnitten'
+          ? {
+              ...e,
+              grund:
+                'Die Szene mit dir ließ sich nicht malen, und freistellen hat auch nicht geklappt.',
+            }
+          : e;
+    })
+  );
   const paletteNote = paletteHinweis(palette);
   if (paletteNote) bericht.push({ art: 'gestaltung', text: paletteNote.slice(0, 300) });
   hinweis =
@@ -548,7 +575,7 @@ export async function draftSharepic(
     spec,
     ...(hinweis && { hinweis }),
     ...(form && { form }),
-    bericht: bericht.slice(0, 20),
+    bericht: oneFotoPerId(bericht).slice(0, 20),
     ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
     attributions: credits.map((credit) =>

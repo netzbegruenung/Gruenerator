@@ -8,7 +8,8 @@ import { describe, expect, it, vi } from 'vitest';
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
-import { draftSharepic, takeScene } from './draftAgent.js';
+import { berichtSaetze } from '../../routes/chat/services/sharepicBericht.js';
+import { draftSharepic, oneFotoPerId, takeScene } from './draftAgent.js';
 import { calmBox, sceneLayout, type ScenePainter } from './sceneBackground.js';
 
 const needs = { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [] };
@@ -706,5 +707,47 @@ describe('draftSharepic — scene with the person', () => {
       draftSharepic(brief, 'de-DE', null, [photo(1, null)], { scene: vi.fn(), cutOut: vi.fn() })
     ).rejects.toThrow();
     expect(errors[0]).toContain('person nur mit einem eigenen Foto');
+  });
+
+  const fotoEntries = (bericht: readonly { art: string; id?: string }[] | undefined) =>
+    (bericht ?? []).filter((e) => e.art === 'foto' && e.id === 'upload:1');
+
+  it('reports one collage entry when the cut-out worked', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn().mockResolvedValue('ki:cutoutcutoutcutout1234'),
+    });
+    expect(fotoEntries(draft.bericht)).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)[0]).toMatchObject({ status: 'collage' });
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('freigestellt davorgestellt');
+    expect(text).not.toContain('Dein Foto ist freigestellt');
+  });
+
+  it('reports one ungeschnitten entry naming both failures when the cut-out fails too', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn().mockResolvedValue(null),
+    });
+    expect(fotoEntries(draft.bericht)).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)[0]).toMatchObject({ status: 'ungeschnitten' });
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('Die Szene mit dir ließ sich nicht malen');
+    expect(text).toContain('freistellen hat auch nicht geklappt');
+    expect(text).not.toContain('freigestellt davorgestellt');
+  });
+
+  it('never keeps two foto entries for one photo', () => {
+    const out = oneFotoPerId([
+      { art: 'foto', id: 'upload:1', status: 'in_szene' },
+      { art: 'foto', id: 'upload:2', status: 'verwendet' },
+      { art: 'foto', id: 'upload:1', status: 'collage' },
+    ]);
+    expect(out).toEqual([
+      { art: 'foto', id: 'upload:2', status: 'verwendet' },
+      { art: 'foto', id: 'upload:1', status: 'collage' },
+    ]);
   });
 });
