@@ -2,7 +2,7 @@
  * The failure paths are the reason this driver is shared: the retry policy,
  * the two shapes a provider can return a tool call in, and the truncated
  * schema-mismatch report. Previously duplicated between sharepicEditLlm and
- * reelEditLlm, where they could drift apart unnoticed.
+ * the social-post edit, where they could drift apart unnoticed.
  */
 
 import { describe, expect, it, vi } from 'vitest';

@@ -117,54 +117,6 @@ export class AuthService {
     }
   }
 
-  async canEditDocument(documentId: string, userId: string): Promise<boolean> {
-    try {
-      const result = await this.db(
-        `SELECT created_by, permissions, share_mode, share_permission
-         FROM collaborative_documents
-         WHERE id = $1 AND is_deleted = false`,
-        [documentId]
-      );
-
-      if (result.length === 0) {
-        return false;
-      }
-
-      const document = result[0];
-      const isOwner = document.created_by === userId;
-      const permissions = (document.permissions || {}) as Record<
-        string,
-        { level?: string } | undefined
-      >;
-      const userPermission = permissions[userId];
-
-      if (isOwner) return true;
-
-      if (
-        userPermission?.level !== undefined &&
-        ['owner', 'editor'].includes(userPermission.level)
-      ) {
-        return true;
-      }
-
-      const shareMode = (document.share_mode as string) || 'private';
-      const sharePermission = (document.share_permission as string) || 'editor';
-      if (shareMode === 'authenticated' && sharePermission === 'editor') {
-        return true;
-      }
-
-      const groupPerms = await this.getGroupSharePermissions(userId, documentId);
-      if (groupPerms?.write === true) {
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      log.error(`[CanEdit] Error checking edit permission: ${error}`);
-      return false;
-    }
-  }
-
   private async getGroupSharePermissions(
     userId: string,
     contentId: string

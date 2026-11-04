@@ -118,7 +118,7 @@ export function namesSocialPostTarget(text: string): boolean {
  * neuesten Post der letzten 30 Nachrichten, und `TONE_WORD_PATTERN` feuert auf
  * ein einzelnes Wort: zehn Turns nach einem Post schrieb „Wie schreibe ich
  * einen guten Text?" oder „kürzer" unter einer Antwort den Post um. Dieselbe
- * Regel wie `sharepicEditAddressed` und `reelEditAddressed`.
+ * Regel wie `sharepicEditAddressed`.
  */
 export function socialPostEditAddressed(
   order: string,

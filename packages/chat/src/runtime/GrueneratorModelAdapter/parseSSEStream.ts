@@ -42,7 +42,6 @@ import {
 } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
-import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { ChatStreamError } from '../streamErrorMessage';
@@ -78,12 +77,7 @@ import type {
   ComputeData,
   SharepicData,
 } from '../../hooks/useChatGraphStream';
-import type {
-  ConfirmActionData,
-  DocumentCreatedData,
-  ReelPickerData,
-  ReelProcessingData,
-} from '../../types/messageMetadata';
+import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
 
 /**
@@ -292,8 +286,6 @@ async function* parseStream(
   // The session as this message carries it (persisted shape). Kept apart from
   // the store: the panel only opens where it can dock, the message always gets it.
   let receivedBrowserSession: BrowserSessionMeta | null = null;
-  let receivedReelProcessing: ReelProcessingData | null = null;
-  let receivedReelPicker: ReelPickerData | null = null;
   let evidenceWeakAccum: string | null = null;
   // Notebook answers only (`answer_mode`): which mode this turn runs in.
   let receivedAnswerMode: NotebookResolvedAnswerMode | null = null;
@@ -437,8 +429,6 @@ async function* parseStream(
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (receivedBrowserSession) custom.browserSession = receivedBrowserSession;
-    if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
-    if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
     if (turnDurationMs != null) custom.turnDurationMs = turnDurationMs;
     if (receivedAnswerMode) {
@@ -1031,47 +1021,6 @@ async function* parseStream(
             break;
           }
 
-          case 'reel_processing': {
-            receivedReelProcessing = data as { uploadId: string; filename: string };
-            yield buildResult();
-            break;
-          }
-
-          case 'reel_picker': {
-            receivedReelPicker = data as ReelPickerData;
-            yield buildResult();
-            break;
-          }
-
-          case 'reel_updated': {
-            const payload = data as {
-              projectId: string;
-              title: string;
-              segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
-              summary: string;
-              changedIndices: number[];
-            };
-            const reelStore = useReelLiveStore.getState();
-            reelStore.upsertEntry(payload.projectId, {
-              title: payload.title,
-              segments: payload.segments,
-              summary: payload.summary,
-              changedIndices: payload.changedIndices,
-            });
-            // Auto-open the docked panel on the edited reel.
-            if (reelStore.activeReel?.projectId !== payload.projectId) {
-              reelStore.setActiveReel({ projectId: payload.projectId, title: payload.title });
-            }
-            break;
-          }
-
-          case 'reel_edit_error': {
-            const { error } = data as { projectId?: string; error: string };
-            console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
-            toastError('Untertitel konnten nicht bearbeitet werden', error);
-            break;
-          }
-
           // Agentic tool loop (sharepic edit + general respond loop): each tool
           // step renders as a tool-call part, mirroring the thinking_step
           // archive-and-replace mechanics (including the duplicate-stepId guard).
@@ -1456,7 +1405,7 @@ async function* parseStream(
             // with an `embedded` mode.
             // Only where an ArtifactPanel is actually mounted (/chat thread view):
             // elsewhere the write is invisible AND would close a docked
-            // sharepic/reel via the one-panel rule with nothing replacing it.
+            // sharepic via the one-panel rule with nothing replacing it.
             if (
               !muted() &&
               created.background !== true &&

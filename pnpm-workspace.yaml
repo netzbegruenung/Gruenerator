@@ -27,21 +27,17 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Locked by #4533 under the former blanket @assistant-ui/* exclusion, published
-  # 2026-10-12/13. Exact versions only; inert from 2026-10-16 09:07 UTC, remove then.
-  - 'safe-content-frame@0.0.34'
-  # The hosted voice agent (`extra/voice-agents/browser`) first shipped in 3.0;
-  # the voice-agent test page needs it. Published 2026-10-20 17:23 UTC.
-  # Inert from 2026-10-23 17:23 UTC, remove then.
-  - '@mistralai/mistralai@3.1.0'
+  # ggraphic release, published 2026-11-01 16:15 UTC.
+  # Inert from 2026-11-04 16:16 UTC, remove then.
   - '@ggraphic/collab@0.1.0-alpha.0'
-  # Same, release run 41344826896. Published 2026-11-01 20:05 UTC.
-  # Inert from 2026-11-04 20:06 UTC, remove then.
-  - '@ggraphic/core@0.1.0-alpha.1'
-  # Same, release of 2026-11-02 (D2e, #144). Published 08:28-08:30 UTC.
-  # Inert from 2026-11-05 08:30 UTC, remove then.
-  - '@ggraphic/schema@0.1.0-alpha.1'
-  - '@ggraphic/editor@0.1.0-alpha.2'
+  # Text inserts at 120/72/56 px scaled to the page width (Movm/ggraphic#181),
+  # undo kept across an own deck op (Movm/ggraphic#183).
+  # core/schema alpha.2 published 2026-11-02 11:16-11:20 UTC, inert from
+  # 2026-11-05 11:20 UTC; editor alpha.5 published 2026-11-03 10:28 UTC, inert
+  # from 2026-11-06 10:28 UTC. Remove then.
+  - '@ggraphic/core@0.1.0-alpha.2'
+  - '@ggraphic/schema@0.1.0-alpha.2'
+  - '@ggraphic/editor@0.1.0-alpha.5'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -283,6 +279,18 @@ allowBuilds:
 # imports `@blocknote/xl-ai/server`). Guarded by
 # packages/docs/src/lib/aiSuggestionMarks.vitest.ts.
 #
+# The same patch makes the agent replay (`getStepsAsAgent`, src/prosemirror/
+# agent.ts, built into dist/server-CGu6iHhc.js) skip structurally incomplete
+# prefixes. It types an insert in with `slice.content.cut(0, i)`; inside nested
+# blocks a cut ends in an empty blockContainer/blockGroup, which the schema
+# forbids and BlockNote core reads as `firstChild.type` (blockContainer node
+# view, numbered-list decorations) — the AI added a list item, threw, and lost
+# its children (#4956). Cuts whose nodes fail `validContent` are skipped; the
+# full slice is always applied. Guarding core instead would mean patching every
+# `firstChild` reader. Unchanged in 0.57.0 (agent cut and core reader both).
+# Both ESM entries import that chunk. Guarded by the "nested blocks" tests in
+# packages/docs/src/lib/structuralUpdateFallback.vitest.ts.
+#
 # `@ts-rest/core@3.52.1` (zod 4 migration): its .d.ts files name zod 3
 # types that zod 4 no longer exports (`z.AnyZodObject`, `z.objectUtil`,
 # `z.ZodEffects`). Under skipLibCheck they silently become `any`, and
@@ -472,7 +480,7 @@ overrides:
   tsx>esbuild: ^0.28.1
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
-  '@types/node': 26.6.5
+  '@types/node': 26.6.6
   '@tanstack/react-query': ^5.104.3
   zustand: 5.0.16
   katex: ^0.19.0

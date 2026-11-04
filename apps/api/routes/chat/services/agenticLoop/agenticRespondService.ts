@@ -56,7 +56,7 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 import { approvalGateEnabled } from './approvalPolicy.js';
 import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
+import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
@@ -65,9 +65,7 @@ import {
   priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
-  seedAttachedCloudFiles,
-  seedAttachedDocuments,
-  seedAttachedPages,
+  seedTurnMaterial,
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
@@ -376,43 +374,22 @@ export async function streamAgenticResponse(
       });
     }
 
-    // Angehängte Dokumente EINMAL vorab abrufen — unbedingt, nicht auf Verdacht.
-    // Begründung an `seedAttachedDocuments`; kurz: die Entscheidung, ob ein Turn
-    // sein eigenes Dokument braucht, lag beim Planer und ging schief.
+    // Das Material dieses Turns (Dokumente, Cloud-Dateien, @link-Seiten)
+    // EINMAL vorab lesen — unbedingt, nicht auf Verdacht. Begründung an
+    // `seedAttachedDocuments`; kurz: die Entscheidung, ob ein Turn sein eigenes
+    // Dokument braucht, lag beim Planer und ging schief.
     // Nach der Rehydrierung, damit die Anhänge dieses Turns hinter der
     // mitgeführten Recherche numeriert werden und deren Zitatnummern stabil
     // bleiben.
-    const seeded = await seedAttachedDocuments({
+    const material = resolveTurnMaterial(finalState);
+    const seeded = await seedTurnMaterial({
       state: finalState,
       sourceRegistry,
-      toolName: ATTACHED_DOCS_TOOL,
-      isMounted: ATTACHED_DOCS_TOOL in tools,
-      skipTables: 'tabelle_auswerten' in tools,
-      includeNotebooks: 'tabelle_auswerten' in tools,
+      isMounted: (name) => name in tools,
       onInfo: (m) => log.info(m),
       onError: (m) => log.warn(m),
     });
     toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
-    // Die gewählten Wolke-/Connect-Dateien genauso — im Loop las sie sonst
-    // niemand, obwohl der Klassifikator ihretwegen `search` erzwingt.
-    const seededCloudFiles = await seedAttachedCloudFiles({
-      state: finalState,
-      sourceRegistry,
-      isMounted: 'cloud_files' in tools,
-      onInfo: (m) => log.info(m),
-      onError: (m) => log.warn(m),
-    });
-    toolReplayMessages = [...toolReplayMessages, ...seededCloudFiles.replay];
-    // Die @link-Seiten des Turns genauso — ohne den Seed sah der Planer die
-    // Adresse nie, sie steht nicht im Text (#4896).
-    const seededPages = await seedAttachedPages({
-      state: finalState,
-      sourceRegistry,
-      isMounted: 'scrape_url' in tools,
-      onInfo: (m) => log.info(m),
-      onError: (m) => log.warn(m),
-    });
-    toolReplayMessages = [...toolReplayMessages, ...seededPages.replay];
 
     // Gemeinsam für Umschlag und Motor: der Umschlag zählt laufende Aufrufe,
     // die Stillstands-Uhr der Werkzeugphase liest sie. Ohne diese eine Instanz
@@ -612,6 +589,7 @@ export async function streamAgenticResponse(
       sourceRegistry,
       recipeRegistry,
       opening: () => (emitter.openingEmitted ? emitter.openingSentence : null),
+      materialNote: seeded.writerNote,
     };
 
     // Split slots pick the best model per phase (fast tool-caller plans, best
@@ -655,7 +633,7 @@ export async function streamAgenticResponse(
     // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
     // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
     // laufen können.
-    const hasAttachedDocuments = retrievableAttachedSources(finalState).length > 0;
+    const hasAttachedDocuments = material.qdrantDocs.length > 0;
     const summaryAsk = isSummaryAsk(lastUserText);
 
     // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
@@ -706,7 +684,7 @@ export async function streamAgenticResponse(
       summaryAsk,
       sharepicOrder: await isSharepicOrder(),
       artifactEditOrder: finalState.artifactEditOrder === true,
-      attachedSeedDelivered: seeded.delivered || seededCloudFiles.delivered,
+      attachedSeedDelivered: seeded.delivered,
       resumesSuspendedTurn: resumeApproval != null,
       tabularToolMounted: 'tabelle_auswerten' in wrapped,
     });
@@ -735,7 +713,7 @@ export async function streamAgenticResponse(
             mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
             priorToolNames: priorToolNames(toolHistory),
             isLookupTool,
-            attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
+            materialTools: materialReaderTools(material).filter((name) => name in wrapped),
             userText: finalState.lastUserTextNoMentions ?? lastUserText,
             threadNotebook: promptNotebook != null,
             recipeOrder:
@@ -814,16 +792,23 @@ export async function streamAgenticResponse(
           }`
         );
       },
-      onSynthFallback: () => {
-        // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
-        // nichts, was sich hätte messen lassen.
-        recordSlowVerdict(synth.provider, synth.name, 'synth_stall');
+      onSynthFallback: (reason) => {
+        // Stillstand und leere Antwort sind Verdikte, die die Messung nicht
+        // liefert: es kam nichts, was sich hätte messen lassen. Der
+        // Einzeldurchlauf vermerkt beide genauso (streamWithFallback).
+        recordSlowVerdict(
+          synth.provider,
+          synth.name,
+          reason === 'empty_completion' ? 'synth_empty' : 'synth_stall'
+        );
         if (!synthFallback) return;
-        log.warn(`[Agentic] synth ${synth.name} stalled → falling back to ${synthFallback.name}`);
+        log.warn(
+          `[Agentic] synth ${synth.name} ${reason === 'empty_completion' ? 'returned no text' : 'stalled'} → falling back to ${synthFallback.name}`
+        );
         sse.send('fallback', {
           from: { id: synth.name, name: synth.name },
           to: { id: synthFallback.name, name: synthFallback.name },
-          reason: 'first_token_timeout',
+          reason,
         });
       },
       tools: wrapped,
@@ -862,9 +847,12 @@ export async function streamAgenticResponse(
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
       // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
       // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
+      // Ebenso die Notiz über nicht lesbares Material (#5286): der Seed-Replay
+      // fehlt ohne montiertes Lesewerkzeug ganz.
       getRecipeBlock: () =>
         recipeRegistry.render() +
         offerNote(finalState, recipeRegistry.mentions) +
+        seeded.writerNote +
         (sourceRegistry.size > 0
           ? buildUncoveredTermNote(lastUserText, sourceRegistry.renderAll())
           : ''),

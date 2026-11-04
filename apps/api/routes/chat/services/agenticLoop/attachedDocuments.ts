@@ -17,12 +17,14 @@ import {
   executeMultiDocFanout,
   type MultiDocFanoutResult,
 } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import { attachedPageUrls } from '../../agents/namedPages.js';
 
 import { isLoopRerankEnabled } from './flags.js';
 
 import type {
   ChatGraphState,
   DocumentSource,
+  DocumentSourceKind,
   SearchResult,
 } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -87,25 +89,91 @@ export {
 export const ATTACHED_DOC_SNIPPET_CHARS = 6_000;
 
 /**
+ * Auf welchem Weg der Loop eine gewählte oder angehängte Quellart liest.
+ *
+ * - `qdrant_docs`: Vorab-Abruf und `dokumente_lesen`/`summarize`, die per
+ *   Dokument-Id aus Qdrant lesen.
+ * - `cloud`: Vorab-Abruf per Download (`seedAttachedCloudFiles`), nachgelesen
+ *   über `cloud_files`. NICHT `qdrant_docs`: die Modi von `dokumente_lesen`
+ *   können eine Wolke- oder Connect-Datei nicht lesen (#5264, #5266).
+ * - `notebook`: eigene Werkzeuge; vorab gelesen nur im Tabellen-Turn.
+ * - `prompt`: steht schon im Prompt, kein Abruf.
+ *
+ * Bis #5266 entschieden vier Stellen getrennt, welches Material ein Turn trägt
+ * (Allowlist, drei Seed-Filter, Montage, erzwungener erster Aufruf), und jede
+ * neue Anhangsart brauchte vier Patches — vergass einer davon die Art, kam sie
+ * im Loop still nicht mehr beim Modell an. Die Tabelle ist vollständig über
+ * `DocumentSourceKind`: eine neue Art kompiliert erst mit einem Eintrag hier.
+ */
+type MaterialReader = 'qdrant_docs' | 'cloud' | 'notebook' | 'prompt';
+
+const READER_BY_KIND = {
+  document: 'qdrant_docs',
+  document_chat: 'qdrant_docs',
+  doc_mention: 'qdrant_docs',
+  system_document: 'qdrant_docs',
+  wolke: 'cloud',
+  connect: 'cloud',
+  notebook: 'notebook',
+  attachment: 'prompt',
+  current_doc: 'prompt',
+} as const satisfies Record<DocumentSourceKind, MaterialReader>;
+
+/** Das Material eines Loop-Turns, gruppiert nach Leseweg. */
+export interface TurnMaterial {
+  qdrantDocs: DocumentSource[];
+  cloudFiles: DocumentSource[];
+  notebooks: DocumentSource[];
+  /** Die @link-Seiten (`attachedPageUrls`) — keine `DocumentSource`, sie kommen über `webpageUrls`. */
+  pageUrls: string[];
+}
+
+/**
+ * Die eine Antwort auf „welches Material trägt dieser Turn?" — für den
+ * Vorab-Abruf, die Montage von `dokumente_lesen`/`summarize` und den
+ * erzwungenen ersten Aufruf.
+ */
+export function resolveTurnMaterial(state: ChatGraphState): TurnMaterial {
+  return {
+    qdrantDocs: sourcesReadBy(state, 'qdrant_docs'),
+    cloudFiles: sourcesReadBy(state, 'cloud'),
+    notebooks: sourcesReadBy(state, 'notebook'),
+    pageUrls: attachedPageUrls(state),
+  };
+}
+
+function sourcesReadBy(state: ChatGraphState, reader: MaterialReader): DocumentSource[] {
+  return (state.documentSources ?? []).filter((s) => READER_BY_KIND[s.kind] === reader);
+}
+
+/**
+ * Die Werkzeuge, mit denen der Planer das Material dieses Turns nachlesen kann
+ * — der Aufrufer filtert auf das, was montiert ist. Eine Connect-Datei hat im
+ * Loop kein Lesewerkzeug; sie erreicht nur über den Vorab-Abruf den Schreiber.
+ */
+export function materialReaderTools(material: TurnMaterial): string[] {
+  return [
+    ...(material.qdrantDocs.length > 0 ? [ATTACHED_DOCS_TOOL] : []),
+    ...(material.cloudFiles.some((s) => s.kind === 'wolke') ? ['cloud_files'] : []),
+    ...(material.pageUrls.length > 0 ? ['scrape_url'] : []),
+    ...(material.notebooks.length > 0 ? ['notebook_quellen'] : []),
+  ];
+}
+
+/**
  * Welche der normalisierten Dokumentquellen dieses Turns wirklich ein
- * angehängtes Dokument sind.
+ * angehängtes Dokument sind — die `qdrant_docs`-Gruppe von `resolveTurnMaterial`.
  *
  * Bewusst enger als `retrievableDocSources` in `searchNode`: dort gehören
  * `notebook`, `wolke` und `connect` dazu, weil der Einzelpfad sie über denselben
- * Fan-out bedient. Im Loop haben die drei ihre eigenen Werkzeuge — sie hier
+ * Fan-out bedient. Im Loop haben die drei ihre eigenen Wege — sie hier
  * mitzunehmen hieße, jeden Notebook-Turn ungefragt eine zweite Suche zahlen zu
  * lassen. Ein aus dem Notebook-Reader übergebenes Dokument (`system_document`
  * bzw. `document` mit `ownerUserId`) ist dagegen ein angehängtes Dokument: die
  * Person hat genau dieses eine gewählt.
  */
 export function retrievableAttachedSources(state: ChatGraphState): DocumentSource[] {
-  return (state.documentSources ?? []).filter(
-    (s) =>
-      s.kind === 'document' ||
-      s.kind === 'document_chat' ||
-      s.kind === 'doc_mention' ||
-      s.kind === 'system_document'
-  );
+  return sourcesReadBy(state, 'qdrant_docs');
 }
 
 /** Die Abfrage, mit der ohne Zutun des Modells in den Anhängen gesucht wird. */

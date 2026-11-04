@@ -43,23 +43,6 @@ export interface ConfirmActionData {
 
 export type DocumentCreatedData = DocumentCreatedEvent;
 
-/** A chat-uploaded video being auto-transcribed (ReelProcessingCard). */
-export interface ReelProcessingData {
-  uploadId: string;
-  filename: string;
-}
-
-/** Reel project picker payload (ReelPickerCard). */
-export interface ReelPickerData {
-  projects: Array<{
-    projectId: string;
-    title: string;
-    updatedAt: string;
-    thumbnailUrl: string | null;
-    hasSubtitles: boolean;
-  }>;
-}
-
 export type ChatMessageMetadata = {
   progress?: ChatProgress;
   citations?: Citation[];
@@ -93,8 +76,6 @@ export type ChatMessageMetadata = {
   followUpSuggestions?: string[];
   confirmAction?: ConfirmActionData;
   createdDocument?: DocumentCreatedData;
-  reelProcessing?: ReelProcessingData;
-  reelPicker?: ReelPickerData;
   /** Turn was interrupted mid-stream (row still status='streaming' on reload);
    *  the partial text renders normally plus a subtle marker. */
   interrupted?: boolean;

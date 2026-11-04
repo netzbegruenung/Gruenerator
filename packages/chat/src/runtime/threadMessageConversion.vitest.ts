@@ -461,27 +461,6 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.bahnData).toBeUndefined();
   });
 
-  it('rehydrates reel_processing and reel_picker cards from persisted tool calls', () => {
-    const custom = customOf({
-      toolCalls: [
-        {
-          toolCallId: 'tc1',
-          toolName: 'reel_processing',
-          args: {},
-          result: { uploadId: 'u1', filename: 'clip.mp4' },
-        },
-        {
-          toolCallId: 'tc2',
-          toolName: 'reel_picker',
-          args: {},
-          result: { projects: [{ projectId: 'p1', title: 'Reel' }] },
-        },
-      ],
-    });
-    expect(custom.reelProcessing).toEqual({ uploadId: 'u1', filename: 'clip.mp4' });
-    expect(custom.reelPicker).toEqual({ projects: [{ projectId: 'p1', title: 'Reel' }] });
-  });
-
   it('derives streamMetadata from intent so message actions rehydrate', () => {
     const custom = customOf({ intent: 'research', searchCount: 3 });
     expect(custom.streamMetadata).toEqual({ intent: 'research', searchCount: 3 });

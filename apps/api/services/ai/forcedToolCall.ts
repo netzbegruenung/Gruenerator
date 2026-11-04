@@ -1,7 +1,8 @@
 /**
  * One forced single tool call on the facade, shared by the editor op planners
- * (board/sheet/presentation, behind the agentic loop's `edit_document` tool,
- * #3426).
+ * (board/presentation, behind the agentic loop's `edit_document` tool, #3426).
+ * The sheet planner moved to `aiObject` so a malformed op earns a repair turn
+ * (#4470).
  *
  * The three planners independently built the same three things around
  * `aiTools()`: a JSON-Schema tool converted from a zod schema (the facade's
@@ -20,7 +21,7 @@
  * What this does NOT do: validate the tool input against a schema. The
  * `inputSchema` here only describes the tool to the model; each caller keeps
  * its own post-call validation (a whole-array `safeParse` for boards, a
- * per-op drop-and-keep for sheet/presentation) because the failure semantics
+ * per-op drop-and-keep for presentations) because the failure semantics
  * genuinely differ between them.
  */
 

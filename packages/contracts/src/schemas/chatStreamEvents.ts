@@ -629,25 +629,6 @@ export const sharepicUpdatedEventSchema = z
   .passthrough();
 export type SharepicUpdatedEvent = z.infer<typeof sharepicUpdatedEventSchema>;
 
-export const reelSegmentSchema = z.object({
-  id: z.number(),
-  startTime: z.number(),
-  endTime: z.number(),
-  text: z.string(),
-});
-export type ReelSegment = z.infer<typeof reelSegmentSchema>;
-
-export const reelUpdatedEventSchema = z
-  .object({
-    projectId: z.string(),
-    title: z.string(),
-    segments: z.array(reelSegmentSchema),
-    summary: z.string(),
-    changedIndices: z.array(z.number()),
-  })
-  .passthrough();
-export type ReelUpdatedEvent = z.infer<typeof reelUpdatedEventSchema>;
-
 /**
  * Per-event runtime validation gate for the chat SSE stream. Policy: pin the
  * fields the frontend parser actually READS (type + presence); everything
@@ -838,10 +819,6 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   social_post_edit_error: z
     .object({ postId: z.string().optional(), error: z.string() })
     .passthrough(),
-  reel_processing: z.object({ uploadId: z.string(), filename: z.string() }).passthrough(),
-  reel_picker: z.object({ projects: z.array(z.unknown()) }).passthrough(),
-  reel_updated: reelUpdatedEventSchema,
-  reel_edit_error: z.object({ projectId: z.string().optional(), error: z.string() }).passthrough(),
   tool_step_start: z
     .object({
       stepId: z.string(),

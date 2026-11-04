@@ -223,6 +223,23 @@ describe('streamWithReasoning — Fehlerarten und Delta-Formen', () => {
     const chunks = await streamOf(streamWithReasoning(PARAMS))();
     expect(chunks.map((c) => c.delta).join('')).toBe('Werde Mitglied!');
   });
+
+  // Live 03.11.2026, 08:48 UTC: Mistral returned empty, the chat fell back to
+  // Gemma with reasoning on — this stream — and the whole call showed verbatim.
+  it('schneidet einen Werkzeugaufruf als Text heraus und zeigt sein langes Argument', async () => {
+    const { streamWithReasoning } = await load();
+    const antrag = `Antrag an den Rat der Stadt Meckenheim\n\n${'Die Verwaltung wird beauftragt. '.repeat(8)}`;
+    const call = `<|tool_call>call:gruenerator:draft_structured{dokumenttyp:"antrag",inhalt:${JSON.stringify(antrag)}}<tool_call|>`;
+    const sse = ['Hier ist die Fassung:', ...call.match(/.{1,40}/gs)!]
+      .map((content) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n`)
+      .join('');
+    vi.stubGlobal('fetch', async () => new Response(`${sse}data: [DONE]\n`, { status: 200 }));
+
+    const chunks = await streamOf(streamWithReasoning(PARAMS))();
+    const text = chunks.map((c) => c.delta).join('');
+    expect(text).toBe(`Hier ist die Fassung:\n\n${antrag}`);
+    expect(text).not.toContain('tool_call');
+  });
 });
 
 /**

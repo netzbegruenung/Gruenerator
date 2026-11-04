@@ -38,6 +38,38 @@ describe('detectTaskShape — code', () => {
     expect(detectTaskShape(long, { lastAssistantText: '```json\n{"a":1}\n```' })).toBeNull();
   });
 
+  // Live 03.11.2026, gruenerator-antrag: pasted source links ending in `.html`
+  // turned Antrag turns into `code` — Mistral lane, unified loop, and the
+  // recipe's format replaced by "halte dich an das verlangte Format".
+  it('a pasted link is not a file name', () => {
+    expect(
+      detectTaskShape(
+        'Nimm diese Beispiele auf: https://www.stadtlohn.de/portal/pressemitteilungen/stadt-setzt-auf-e-carsharing-900000937-28240.html'
+      )
+    ).toBeNull();
+    expect(
+      detectTaskShape('Schau mal hier https://example.org/feed.xml was dazu steht')
+    ).toBeNull();
+    expect(detectTaskShape('Quelle: www.gemeinde.de/index.php?id=4 bitte einbauen')).toBeNull();
+    expect(detectTaskShape('Lies https://api.example.org/json/v1 und fass es zusammen')).toBeNull();
+  });
+
+  it('still finds a code ask next to a link', () => {
+    expect(detectTaskShape('Gib mir die Daten von https://example.org/liste.html als JSON')).toBe(
+      'code'
+    );
+    expect(detectTaskShape('Was steht in config.yaml falsch?')).toBe('code');
+  });
+
+  it('a chart block in the last answer does not make a follow-up code', () => {
+    const chartAnswer =
+      'Hier die Zahlen:\n\n```bars\n{"title":"Fuhrpark","items":[{"label":"PKW","value":38}]}\n```\n\nUnd der Antrag.';
+    expect(detectTaskShape('Wo ist die Fassung?', { lastAssistantText: chartAnswer })).toBeNull();
+    expect(
+      detectTaskShape('ändere den Wert auf 5', { lastAssistantText: '```json\n{"a":1}\n```' })
+    ).toBe('code');
+  });
+
   it('a Reel-Skript is prose, not code', () => {
     expect(detectTaskShape('Schreib mir ein Skript für ein Reel zur Wärmewende')).toBeNull();
   });

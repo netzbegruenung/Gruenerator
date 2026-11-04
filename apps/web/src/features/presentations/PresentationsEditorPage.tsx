@@ -99,14 +99,9 @@ function PresentationsEditorContent() {
 
   useDocumentTitle(docData?.title);
 
-  const canEdit = useMemo(() => {
-    if (!docData) return false;
-    if (isGuest) return docData.share_permission !== 'viewer';
-    if (docData.created_by === user?.id) return true;
-    const perm = docData.permissions?.[user?.id ?? ''];
-    if (perm) return ['owner', 'editor'].includes(perm.level);
-    return docData.share_permission !== 'viewer';
-  }, [docData, isGuest, user]);
+  // Write access comes from the server, from the rule the collab connection
+  // enforces; a missing field reads as read-only (#4893).
+  const canEdit = docData?.can_edit === true;
 
   const queryClient = useQueryClient();
   const { mutateAsync: updateDocument } = useUpdateDocument();

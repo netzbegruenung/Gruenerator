@@ -42,6 +42,7 @@ import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanupService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { startDocsIndexRefresh } from './services/docs/docsIndexRefresh.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
 import { startExplainableImageWorker } from './services/explainables/explainableImageWorker.js';
@@ -285,6 +286,10 @@ async function startWorker(): Promise<void> {
   // Misst mit, wie schnell jedes Modell antwortet, und wärmt die Basislinie aus
   // den letzten 24 h vor. Braucht die Postgres-Init oben.
   startModelLatencyRollup();
+
+  // The chat's docs index follows the live docs site, not the copy bundled
+  // with this image — the two are rolled out separately (#5013).
+  startDocsIndexRefresh();
 
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.

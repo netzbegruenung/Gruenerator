@@ -219,7 +219,6 @@ export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
 export * from './schemas/recurringTasks.js';
 export * from './schemas/canvasAi.js';
-export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/canvasTemplateFields.js';

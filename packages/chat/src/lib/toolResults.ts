@@ -682,7 +682,6 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'image',
     accent: 'create',
   },
-  reel_edit: { label: 'Reel', activeLabel: 'Bearbeite Reel', iconKey: 'image', accent: 'create' },
 
   // --- Interactive / external ----------------------------------------------
   ask_human: { label: 'Rückfrage', iconKey: 'message-circle', accent: 'neutral' },

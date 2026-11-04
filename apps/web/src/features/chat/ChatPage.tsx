@@ -2,7 +2,6 @@ import {
   ArtifactPanel,
   ChatThreadRouting,
   GrueneratorThread,
-  ReelArtifactPanel,
   SharepicArtifactPanel,
   setMentionInstance,
   setMentionLandesverbaende,
@@ -529,15 +528,9 @@ function ChatPage() {
         <SharepicArtifactPanel className={artifactPanelClass} />
       )}
       {!hub && effectiveViewMode === 'thread' && (
-        // Reel-Modus: pins the reel video with a live subtitle overlay while
-        // the user edits subtitle text via chat. Renders null unless a reel
-        // is active, so it coexists with the sharepic panel.
-        <ReelArtifactPanel className={artifactPanelClass} />
-      )}
-      {!hub && effectiveViewMode === 'thread' && (
         // Artefakt-Modus: pins a generated HTML/SVG artifact (sandboxed iframe)
         // while the user iterates via chat. Renders null unless an artifact is
-        // active; opening one closes the sharepic/reel panel (single docked rail).
+        // active; opening one closes the sharepic panel (single docked rail).
         <ArtifactPanel className={artifactPanelClass} />
       )}
     </div>
