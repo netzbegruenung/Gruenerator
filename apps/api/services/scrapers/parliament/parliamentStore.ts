@@ -35,6 +35,18 @@ const UPSERT_BATCH = 10;
  */
 const FULL_TEXT_MAX_CHARS = 400_000;
 
+/**
+ * Qdrant ohne Platz: jede weitere Schreibanfrage scheitert genauso, und am
+ * selben Volume hängen alle Sammlungen der Produktion (#4133). Ein Lauf, der
+ * das sieht, bricht ab, statt Dokument für Dokument weiterzuschreiben.
+ */
+export function isStorageFull(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /No space left on device|WAL buffer size exceeds|Not enough space available/i.test(
+    message
+  );
+}
+
 export interface ParliamentDocument {
   documentId: string;
   title: string;

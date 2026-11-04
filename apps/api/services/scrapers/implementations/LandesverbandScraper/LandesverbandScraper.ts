@@ -382,7 +382,8 @@ export class LandesverbandScraper extends BaseScraper {
             await fs.writeFile(tempPath, pdfBuffer);
             this.log(`Processing PDF with OcrService: ${filename}`);
 
-            const result = await ocrService.extractTextFromDocument(tempPath);
+            // Scans über GreenPTs Docling statt Mistral OCR — wie die Parlamente (`parliament/pdfText.ts`).
+            const result = await ocrService.extractTextFromDocument(tempPath, 'docling');
             text = result.text || '';
             recordExtraction({
               method: result.extractionMethod || result.method,
@@ -1299,7 +1300,7 @@ export class LandesverbandScraper extends BaseScraper {
 
     try {
       await fs.writeFile(tempPath, buffer);
-      const ocrResult = await ocrService.extractTextFromDocument(tempPath);
+      const ocrResult = await ocrService.extractTextFromDocument(tempPath, 'docling');
       text = ocrResult.text || '';
       recordExtraction({
         method: ocrResult.extractionMethod || ocrResult.method,

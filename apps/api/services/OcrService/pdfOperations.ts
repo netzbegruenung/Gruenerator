@@ -14,14 +14,16 @@ import type {
   ExtractionResult,
   PageExtractionResult,
 } from './types.js';
+import type * as PdfJs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- pdfjs-dist's legacy build ships no type declarations */
+
+export type PdfJsModule = typeof PdfJs;
 
 /**
  * Lazy load PDF.js to avoid memory overhead
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPdfJs(): Promise<any> {
+export async function getPdfJs(): Promise<PdfJsModule> {
   try {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
     return pdfjsLib;

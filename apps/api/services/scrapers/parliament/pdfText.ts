@@ -69,13 +69,16 @@ export async function downloadPdf(
 }
 
 /**
- * PDF.js liest jede Seite; nur Tabellenseiten und Scans gehen an Mistral OCR
- * (`OcrService.applyTablePages`). Die Seitenmarken braucht es dafür und für
- * `page_number` je Chunk.
+ * PDF.js liest jede Seite; nur Tabellenseiten und Seiten ohne Textschicht
+ * gehen an GreenPTs Docling (`OcrService.applyTablePages`), das bei uns nichts
+ * je Seite kostet. Bis 11/2026 war es Mistral OCR, und das las jedes Dokument
+ * mit mehr als 20 Tabellenseiten ganz — in PARDOK fast nur lange Antworten
+ * MIT Textschicht, bezahlt für Zahlen, die schon im PDF stehen. Die
+ * Seitenmarken braucht es dafür und für `page_number` je Chunk.
  *
- * Scheitert das zweimal — Mistral OCR antwortet zeitweise mit 503 und nimmt
- * keine Datei über 50 MB (Antworten mit eingescannten Anlagen erreichen
- * 100 MB) —, bleibt der Text, den PDF.js allein findet. Ein Teil des Textes
+ * Scheitert das zweimal — GreenPT antwortet mit einem Fehler, oder der Scan
+ * geht im Rückfall an Mistral OCR, das zeitweise mit 503 antwortet und keine
+ * Datei über 50 MB nimmt —, bleibt der Text, den PDF.js allein findet. Ein Teil des Textes
  * ist besser als ein Dokument, das bei jedem Lauf erneut scheitert;
  * `extraction_method: 'pdfjs-fallback'` macht solche Dokumente für eine
  * spätere Nachbearbeitung mit `--force` auffindbar.
@@ -99,7 +102,7 @@ async function extractWithFallback(pdfPath: string, label: string): Promise<PdfT
   let lastError: unknown;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const result = await ocrService.extractTextFromDocument(pdfPath, undefined, {
+      const result = await ocrService.extractTextFromDocument(pdfPath, 'docling', {
         pageMarkers: true,
       });
       return {
