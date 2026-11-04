@@ -37,7 +37,7 @@ const log = createLogger('sharepicCreator:photo');
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
 
 /** Photos beyond this are not read — the upload limit is 10 MB, this is slack for the library's own re-encode. */
-const MAX_BYTES = 25 * 1024 * 1024;
+export const MAX_BYTES = 25 * 1024 * 1024;
 
 const SYSTEM = `Du siehst ein Foto, das eine Person für ein Sharepic hochgeladen hat (Hochformat, 4:5 oder 3:4). Beschreibe es sachlich für eine Designerin, die entscheidet, wie Text darauf passt.
 
