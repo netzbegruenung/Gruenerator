@@ -48,6 +48,8 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
   bundestag:
     'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
+  abgeordnetenhaus:
+    'loop only — @abgeordnetenhaus pins the landtag tool (parlament berlin: PARDOK live via services/landtag/berlin + passages of the landtag-berlin notebook)',
   bahn: 'RETIRED as a verdict (availability: retired) — the Deutsche-Bahn tools live on as a managed connector, mounted by loadManagedMcpCatalog when a turn is scoped to it (@mention or pinned). No tier produces this intent any more, so nothing here is reachable',
   reise:
     'RETIRED as a verdict — was the umbrella that mounted bahn + hotel + wetter together. Each connector is mounted on its own by @mention now, so the umbrella has nothing left to bundle',

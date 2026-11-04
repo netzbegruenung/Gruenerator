@@ -12,8 +12,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
+  compactMarkdownTables,
   extractBase64WithDocling,
+  extractPagesWithDocling,
   isDoclingAvailable,
+  pageRuns,
   GREENPT_DOCUMENTS_URL,
 } from './doclingIntegration.js';
 
@@ -150,5 +153,101 @@ describe('isDoclingAvailable', () => {
 
     delete process.env.GREENPT_API_KEY;
     await expect(isDoclingAvailable()).resolves.toBe(false);
+  });
+});
+
+describe('pageRuns', () => {
+  it('fasst aufeinanderfolgende Seiten zusammen und sortiert', () => {
+    expect(pageRuns([16, 18, 23, 24, 25, 16])).toEqual([[16], [18], [23, 24, 25]]);
+  });
+
+  it('teilt lange Läufe nach 25 Seiten', () => {
+    const runs = pageRuns(Array.from({ length: 60 }, (_, i) => i + 1));
+    expect(runs.map((r) => r.length)).toEqual([25, 25, 10]);
+    expect(runs[1][0]).toBe(26);
+  });
+});
+
+describe('compactMarkdownTables', () => {
+  it('entfernt das Auffüllen der Zellen und vereinheitlicht die Trennzeile', () => {
+    const md = [
+      'Text davor   bleibt',
+      '| Delikt          |   2024 | 2025 |',
+      '|-----------------|-------:|------|',
+      '| Betrug          |    205 |  155 |',
+    ].join('\n');
+    expect(compactMarkdownTables(md)).toBe(
+      [
+        'Text davor   bleibt',
+        '| Delikt | 2024 | 2025 |',
+        '| --- | --- | --- |',
+        '| Betrug | 205 | 155 |',
+      ].join('\n')
+    );
+  });
+});
+
+describe('extractPagesWithDocling', () => {
+  const PAGE_BREAK = '<!-- gruenerator-page-break -->';
+  const md = (...pages: string[]) =>
+    jsonResponse({ document: { md_content: pages.join(PAGE_BREAK) } });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function run(pages: number[]) {
+    const pending = extractPagesWithDocling(Buffer.from('pdf'), 'S19-1.pdf', pages);
+    await vi.runAllTimersAsync();
+    return pending;
+  }
+
+  it('schickt je Lauf einen page_range mit Seitenumbruch-Marke und ordnet die Teile den Seiten zu', async () => {
+    mockFetch
+      .mockResolvedValueOnce(md('Seite drei', '| a   | b |'))
+      .mockResolvedValueOnce(md('Seite sieben'));
+
+    const byPage = await run([3, 4, 7]);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const form = (mockFetch.mock.calls[0][1] as RequestInit).body as FormData;
+    expect(form.getAll('page_range')).toEqual(['3', '4']);
+    expect(form.get('md_page_break_placeholder')).toBe(PAGE_BREAK);
+    expect(
+      ((mockFetch.mock.calls[1][1] as RequestInit).body as FormData).getAll('page_range')
+    ).toEqual(['7', '7']);
+    expect([...byPage]).toEqual([
+      [3, 'Seite drei'],
+      [4, '| a | b |'],
+      [7, 'Seite sieben'],
+    ]);
+  });
+
+  it('verwirft einen Lauf, dessen Teile nicht zur Seitenzahl passen', async () => {
+    mockFetch.mockResolvedValueOnce(md('nur ein Teil für zwei Seiten'));
+    const byPage = await run([3, 4]);
+    expect(byPage.size).toBe(0);
+  });
+
+  it('wartet bei 429 und versucht es erneut, statt aufzugeben', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse('Too Many Requests', 429))
+      .mockResolvedValueOnce(md('Seite eins'));
+    const byPage = await run([1]);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(byPage.get(1)).toBe('Seite eins');
+  });
+
+  it('wirft bei anderen Fehlern, damit der Aufrufer den pdfjs-Text behält', async () => {
+    mockFetch.mockResolvedValue(jsonResponse('boom', 500));
+    const pending = extractPagesWithDocling(Buffer.from('pdf'), 'S19-1.pdf', [1]);
+    const assertion = expect(pending).rejects.toThrow(/500/);
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
