@@ -45,6 +45,11 @@ describe('stripOutOfRangeCitations', () => {
     expect(r.text).toBe('- Kohleausstieg\n- [Tagebau](quelle:2)');
   });
 
+  it('writes a translated `source:` link back as `quelle:` (#5315)', () => {
+    const r = stripOutOfRangeCitations('* [PersVG](source:3) vom 11.08.2026 und [9](source:9)', 3);
+    expect(r).toEqual({ text: '* [PersVG](quelle:3) vom 11.08.2026 und 9', changed: true });
+  });
+
   it('does not touch non-citation brackets', () => {
     const t = 'Der Zeitraum [2020-2024] war entscheidend.';
     expect(stripOutOfRangeCitations(t, 3).changed).toBe(false);
