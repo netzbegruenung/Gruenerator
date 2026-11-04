@@ -10,7 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
-import { calendarDays, namesSpeaker, NUMBER } from './briefFacts.js';
+import { calendarDays, hasTermin, namesSpeaker, NUMBER } from './briefFacts.js';
 import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
@@ -232,7 +232,8 @@ const FAKTEN_BLOCKS = ['diagramm', 'iconliste', 'vergleich', 'zahl'];
 export function formMismatch(
   form: SharepicFormId,
   spec: SharepicSpec,
-  hasScene: boolean
+  hasScene: boolean,
+  given: string
 ): string | null {
   const items = spec.slides.flatMap((slide) => slide.items);
   const has = (type: string) => items.some((item) => item.type === type);
@@ -294,7 +295,8 @@ export function formMismatch(
         ? null
         : `${label}: auf die Szene gehört die Zahl – groß in der Headline oder als {"type":"diagramm"}, {"type":"iconliste"} oder {"type":"vergleich"} (Kapitel faktenbild).`;
     case 'veranstaltung':
-      return spec.slides.some((slide) => slide.datum)
+      // A brief without a date builds without the circle: nothing may be invented for it.
+      return spec.slides.some((slide) => slide.datum) || !hasTermin(given)
         ? null
         : `${label}: Datum (und Ort) gehören in "datum" der Slide (Kapitel veranstaltung).`;
     case 'vorstellung':

@@ -311,6 +311,20 @@ const WEEKDAY_RANGE = new RegExp(
   'gu'
 );
 
+/**
+ * Undotted „Do“ / „Sa“ is a weekday only with a hint: after „am“, „ab“,
+ * „jeden“, „bis“ or right before a clock time or a calendar date. Bare
+ * „So geht’s“ or „Mo Farah“ stay words and names.
+ */
+const AFTER_PREPOSITION = new RegExp(
+  `(?<![\\p{L}])(?:am|ab|jeden|bis)\\s+(${ABBR_GROUP})(?!\\p{L})(?!\\.\\s+\\p{Lu}\\p{Ll})`,
+  'giu'
+);
+const BEFORE_TIME_OR_DATE = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})(?!\\p{L})[,\\s]*(?=\\d{1,2}(?:[:.]\\d{2})?\\s*(?:Uhr|h(?!\\p{L}))|\\d{1,2}:\\d{2}|\\d{1,2}\\.\\s?\\d{1,2}\\.)`,
+  'gu'
+);
+
 /** The weekdays a text names, as full word, compound or abbreviation. */
 export function weekdaysIn(text: string): Set<WeekdayId> {
   const found = new Set<WeekdayId>();
@@ -321,6 +335,9 @@ export function weekdaysIn(text: string): Set<WeekdayId> {
     add(m[1]!);
     add(m[2]!);
   }
+  // The preposition is case-insensitive, the abbreviation must stay capitalised.
+  for (const m of text.matchAll(AFTER_PREPOSITION)) if (/^\p{Lu}/u.test(m[1]!)) add(m[1]!);
+  for (const m of text.matchAll(BEFORE_TIME_OR_DATE)) add(m[1]!);
   return found;
 }
 
@@ -331,4 +348,9 @@ export function weekdayId(value: string): WeekdayId | null {
   if (word.length === 2 && ABBREVIATIONS.includes(short as WeekdayId)) return short as WeekdayId;
   const full = WEEKDAY_FULL.find(([, re]) => new RegExp(`^${re.source}$`, 'iu').test(word));
   return full ? full[0] : null;
+}
+
+/** The brief names a day: a calendar date or a weekday. */
+export function hasTermin(given: string): boolean {
+  return calendarDays(given).size > 0 || weekdaysIn(given).size > 0;
 }

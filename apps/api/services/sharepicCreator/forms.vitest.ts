@@ -100,36 +100,53 @@ describe('formMismatch', () => {
   const headline = slide([{ type: 'headline', lines: ['Busse statt Stau'] }]);
 
   it('holds a carousel to at least two slides', () => {
-    expect(formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false)).toContain(
+    expect(formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false, '')).toContain(
       '2–8 Slides'
     );
     expect(
-      formMismatch('karussell', { locale: 'de-DE', slides: [headline, headline] }, false)
+      formMismatch('karussell', { locale: 'de-DE', slides: [headline, headline] }, false, '')
     ).toBeNull();
   });
 
   it('names the count and the way out on a one-slide carousel', () => {
-    const mismatch = formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false);
+    const mismatch = formMismatch('karussell', { locale: 'de-DE', slides: [headline] }, false, '');
     expect(mismatch).toContain('du hast 1');
     expect(mismatch).toContain('Aufruf-Slide');
   });
 
   it('holds a single image to one slide', () => {
-    expect(formMismatch('einzelbild', { locale: 'de-DE', slides: [headline] }, false)).toBeNull();
     expect(
-      formMismatch('einzelbild', { locale: 'de-DE', slides: [headline, headline] }, false)
+      formMismatch('einzelbild', { locale: 'de-DE', slides: [headline] }, false, '')
+    ).toBeNull();
+    expect(
+      formMismatch('einzelbild', { locale: 'de-DE', slides: [headline, headline] }, false, '')
     ).toContain('genau eine Slide');
   });
 
   it('wants a quote item for a quote', () => {
-    expect(formMismatch('zitat', { locale: 'de-DE', slides: [headline] }, false)).toContain(
+    expect(formMismatch('zitat', { locale: 'de-DE', slides: [headline] }, false, '')).toContain(
       '"type":"zitat"'
     );
   });
 
   it('wants a steckbrief for a Vorstellung', () => {
-    expect(formMismatch('vorstellung', { locale: 'de-DE', slides: [headline] }, false)).toContain(
-      '"type":"steckbrief"'
+    expect(
+      formMismatch('vorstellung', { locale: 'de-DE', slides: [headline] }, false, '')
+    ).toContain('"type":"steckbrief"');
+  });
+
+  describe('veranstaltung', () => {
+    const noDatum = { locale: 'de-DE' as const, slides: [headline] };
+    it('needs no circle when the brief names no date', () => {
+      expect(
+        formMismatch('veranstaltung', noDatum, false, 'Infoabend zur Grünen Wolke')
+      ).toBeNull();
+    });
+    it.each(['am 20.11.', 'Infoabend am Donnerstag', 'Mo–Fr offen'])(
+      'wants the circle when the brief names a date: %s',
+      (given) => {
+        expect(formMismatch('veranstaltung', noDatum, false, given)).toContain('"datum"');
+      }
     );
   });
 
@@ -137,13 +154,14 @@ describe('formMismatch', () => {
   // Headline ohne jede Zahl zurück.
   it('wants a number on a Faktenbild scene', () => {
     const spec = (s: ReturnType<typeof slide>) => ({ locale: 'de-DE' as const, slides: [s] });
-    expect(formMismatch('faktenbild', spec(headline), false)).toContain('"kind":"szene"');
-    expect(formMismatch('faktenbild', spec(headline), true)).toContain('gehört die Zahl');
+    expect(formMismatch('faktenbild', spec(headline), false, '')).toContain('"kind":"szene"');
+    expect(formMismatch('faktenbild', spec(headline), true, '')).toContain('gehört die Zahl');
     expect(
       formMismatch(
         'faktenbild',
         spec(slide([{ type: 'headline', lines: ['38 % weniger', 'Insekten'] }])),
-        true
+        true,
+        ''
       )
     ).toBeNull();
     expect(
@@ -155,7 +173,8 @@ describe('formMismatch', () => {
             { type: 'diagramm', art: 'balken', werte: [] } as never,
           ])
         ),
-        true
+        true,
+        ''
       )
     ).toBeNull();
   });

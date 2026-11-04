@@ -255,6 +255,16 @@ describe('weekdaysIn', () => {
     expect(weekdaysIn('Sa./So.')).toEqual(new Set(['sa', 'so']));
     expect(weekdaysIn('Sa/So')).toEqual(new Set(['sa', 'so']));
   });
+  it.each([
+    ['am Do um 19 Uhr', 'do'],
+    ['Do 19 Uhr', 'do'],
+    ['Sa, 14.11.', 'sa'],
+    ['jeden Mi', 'mi'],
+    ['ab Fr', 'fr'],
+    ['bis So', 'so'],
+  ])('reads the undotted short form in "%s"', (text, id) => {
+    expect(weekdaysIn(text)).toEqual(new Set([id]));
+  });
   it('ignores ordinary words', () => {
     expect(weekdaysIn('so wird das, wir sind dort')).toEqual(new Set());
   });
@@ -268,6 +278,7 @@ describe('weekdaysIn', () => {
     // would also need „Montage“-style prefixes, so it counts as no weekday.
     'Montagsdemo',
     'Mo ist ein Name, Di auch',
+    'Mo Farah läuft',
   ])('names no weekday in "%s"', (text) => {
     expect(weekdaysIn(text).size).toBe(0);
   });

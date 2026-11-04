@@ -39,7 +39,7 @@ import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 import { carouselLookProblems } from './carouselLook.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DatumRepair, repairDatum } from './datumRepair.js';
-import { type DraftFailure, DraftFailedError } from './draftFailure.js';
+import { type DraftFailure, DraftFailedError, sameFailure } from './draftFailure.js';
 import { paintIllustrations, cutOutBilder, type SharepicPainters } from './draftPainting.js';
 import { SCENE_PENDING, takeScene, type DraftScene } from './draftScene.js';
 import {
@@ -194,13 +194,18 @@ export async function draftSharepic(
   }
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
-  const picked = named ?? needs.data.form;
+  // A chip whose form the brief cannot fill would only fail on every attempt.
+  const fillable = [...new Set(needs.data.alternativen)].filter((f) => formHasMaterial(f, given));
+  // The model's own pick is held to the same: no material, no form that fails on every attempt.
+  const picked =
+    named ??
+    (formHasMaterial(needs.data.form, given) ? needs.data.form : (fillable[0] ?? 'einzelbild'));
+  if (!named && picked !== needs.data.form) {
+    log.info(`form ${needs.data.form} lacks material → ${picked}`);
+  }
   const chosen =
     single && (picked === 'karussell' || picked === 'interview') ? 'einzelbild' : picked;
-  // A chip whose form the brief cannot fill would only fail on every attempt.
-  const alternativen = [...new Set(needs.data.alternativen)].filter(
-    (f) => f !== chosen && formHasMaterial(f, given)
-  );
+  const alternativen = fillable.filter((f) => f !== chosen);
   // A revision keeps its form unless the request names one.
   const form = current ? named : chosen;
   const recipe = form ? FORM_RECIPES[form] : null;
@@ -274,6 +279,8 @@ export async function draftSharepic(
   // What the last checkable attempt got wrong, for the person's text if every attempt fails.
   // „Not your request" only while no attempt has delivered a draft to check.
   let failure: DraftFailure = { kind: 'structure' };
+  // The last two validation errors: the same one twice means the model will not fix it.
+  const lastErrors: string[] = [];
   // What the last attempt dropped from `datum` as not in the order.
   let lastDatumRepairs: DatumRepair[] = [];
 
@@ -319,9 +326,10 @@ export async function draftSharepic(
         single &&
         checked.value.slides.length !== 1 &&
         `${sharepicFormLabel(form!)}: genau eine Slide – der Auftrag will ein einzelnes Bild.`;
-      const formWrong = checkForm && formMismatch(checkForm, checked.value, taken.scene !== null);
+      const formWrong =
+        checkForm && formMismatch(checkForm, checked.value, taken.scene !== null, given);
       const carouselWrong =
-        carouselToo && formMismatch('karussell', checked.value, taken.scene !== null);
+        carouselToo && formMismatch('karussell', checked.value, taken.scene !== null, given);
       const mismatch = notSingle || formWrong || carouselWrong;
       if (mismatch) {
         const failed = notSingle || formWrong ? form! : 'karussell';
@@ -358,14 +366,25 @@ export async function draftSharepic(
     maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
   };
-  let draft = await aiObject(draftCall);
+  const tracked: typeof draftCall = {
+    ...draftCall,
+    validate: (input, attempt, attempts) => {
+      const result = draftCall.validate(input, attempt, attempts);
+      if (!result.ok) lastErrors.push(result.error);
+      return result;
+    },
+  };
+  let draft = await aiObject(tracked);
   // Repairs on the same model repeat its mistake — three identical `{}` at
   // temperature 0 (21.10.2026). A draft it could not finish gets one round on
   // another model before the person reads a failure. Not after an outage: the
   // lane's fallback chain has already tried that model.
-  if (!draft.ok && !draft.cause && !photoGuard.fallback(draft.error)) {
+  // The same validation error twice is not luck: the second model would make it too (~55 s lost, 05.11.2026).
+  const [prev, last] = lastErrors.slice(-2);
+  const repeats = failure.kind !== 'structure' && !!prev && !!last && sameFailure(prev, last);
+  if (!draft.ok && !draft.cause && !photoGuard.fallback(draft.error) && !repeats) {
     log.warn(`draft failed on ${PINNED.model}, retrying on ${RESCUE.model}: ${draft.error}`);
-    draft = await aiObject({ ...draftCall, pinned: RESCUE, attempts: RESCUE_ATTEMPTS });
+    draft = await aiObject({ ...tracked, pinned: RESCUE, attempts: RESCUE_ATTEMPTS });
   }
   // Every attempt dropped the own photo: keep it and say so rather than fail.
   const photoKept = draft.ok ? null : photoGuard.fallback(draft.error);

@@ -572,7 +572,13 @@ describe('draftSharepic — form', () => {
       { slides: [quote] }
     );
 
-    const draft = await draftSharepic('Lena Grün: Busse statt Stau', 'de-DE', null, [], {});
+    const draft = await draftSharepic(
+      'Zitat von Lena Grün: Busse statt Stau',
+      'de-DE',
+      null,
+      [],
+      {}
+    );
 
     expect(errors[0]).toContain('Zitat');
     expect(draft.form).toBe('zitat');
