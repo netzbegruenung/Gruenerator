@@ -1323,7 +1323,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grenzen",
     "anchor": "#grenzen",
     "category": "Chat",
-    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für diese eine Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen."
+    "text": "| | ------------------------------------- | ---------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für diese eine Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen."
   },
   {
     "url": "/docs/chat/dateien-hinzufuegen",
@@ -1363,7 +1363,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agents aufrufen",
     "anchor": "#agents-aufrufen",
     "category": "Chat",
-    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt Grüneratoren in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt Grüneratoren in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Projekten, mit dem Namen des Projekts, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1427,7 +1427,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "@beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Gruppen\" und „von anderen\" (in der App: „Rezepte aus deinen Gruppen\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "@beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
