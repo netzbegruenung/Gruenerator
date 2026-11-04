@@ -1,7 +1,7 @@
 /**
  * Die Zähler sind das Prüfmittel für die Fingerprint-Gatter — wenn sie falsch
  * zählen, meldet der Bericht eine Ersparnis, die es nicht gibt. Festgehalten:
- *   1. Der OCR-Anteil wird an "ocr" im Methodennamen erkannt, damit ein neuer
+ *   1. Der OCR-Anteil wird an "ocr" oder "mistral" im Methodennamen erkannt, damit ein neuer
  *      Anbieter-Label nicht still aus der Kostenzahl fällt.
  *   2. Drain leert wirklich — im langlebigen API-Prozess trüge ein Rest die
  *      Zahlen des einen Laufs in den Bericht des nächsten.
@@ -39,6 +39,15 @@ describe('recordExtraction', () => {
   it('recognises the paid path by the label, not by an allow-list', () => {
     recordExtraction({ method: 'some-future-OCR-provider', pages: 3 });
     expect(drainExtractionStats().ocrDocuments).toBe(1);
+  });
+
+  it('counts Mistral table pages as paid, and Docling ones as free (#5304)', () => {
+    recordExtraction({ method: 'pdfjs-direct+mistral-tables', pages: 30 });
+    recordExtraction({ method: 'pdfjs-direct+docling-tables', pages: 30 });
+    recordExtraction({ method: 'docling', pages: 5 });
+    const stats = drainExtractionStats();
+    expect(stats.ocrDocuments).toBe(1);
+    expect(stats.ocrPages).toBe(30);
   });
 
   it('survives a missing page count', () => {
