@@ -16,7 +16,7 @@ const isTableText = (block: unknown): block is string =>
   typeof block === 'string' && block.trimStart().startsWith('|');
 
 /** A literal backslash-n (not a line break) between the `|` that ends one row and the `|` that starts the next. */
-const ESCAPED_ROW_BREAK = /(?<=\|)[ \t]*\\n[ \t]*(?=\|)/;
+const ESCAPED_ROW_BREAK = /\|[ \t]*\\n[ \t]*(?=\|)/g;
 const SEPARATOR_ROW = /^\|(?:[ \t]*:?-+:?[ \t]*\|)+[ \t]*$/;
 
 /**
@@ -28,7 +28,7 @@ const SEPARATOR_ROW = /^\|(?:[ \t]*:?-+:?[ \t]*\|)+[ \t]*$/;
  */
 export function unescapeTableRows(block: unknown): unknown {
   if (!isTableText(block) || block.includes('\n')) return block;
-  const rows = block.trim().split(ESCAPED_ROW_BREAK);
+  const rows = block.trim().replace(ESCAPED_ROW_BREAK, '|\n').split('\n');
   if (rows.length < 2 || !SEPARATOR_ROW.test(rows[1].trim())) return block;
   return rows.join('\n');
 }
