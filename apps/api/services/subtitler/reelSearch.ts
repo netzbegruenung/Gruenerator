@@ -28,7 +28,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Matched segments quoted per reel — enough to judge relevance, not a transcript dump. */
 const MAX_SNIPPET_SEGMENTS = 3;
-/** Full-transcript cap, mirroring reelEditService's MAX_PROMPT_SEGMENTS. */
+/** Full-transcript cap for one reel's transcript in the recall answer. */
 const MAX_TRANSCRIPT_SEGMENTS = 150;
 
 interface ReelSearchRow {

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 
-import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 
 import type { ArtifactData } from '../hooks/useChatGraphStream';
@@ -172,14 +171,9 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
   setPanelDockable: (dockable) => set({ panelDockable: dockable }),
   setActiveArtifact: (artifact) => {
     // Only one docked panel at a time: opening an artifact closes an active
-    // sharepic/reel. (Those stores don't import this one, so no cycle.)
-    if (artifact) {
-      if (useSharepicLiveStore.getState().activeVariant) {
-        useSharepicLiveStore.getState().setActiveVariant(null);
-      }
-      if (useReelLiveStore.getState().activeReel) {
-        useReelLiveStore.getState().setActiveReel(null);
-      }
+    // sharepic. (Those stores don't import this one, so no cycle.)
+    if (artifact && useSharepicLiveStore.getState().activeVariant) {
+      useSharepicLiveStore.getState().setActiveVariant(null);
     }
     set({ activeArtifact: artifact });
   },
@@ -221,26 +215,15 @@ export function canAutoOpenArtifactPanel(): boolean {
   return useArtifactLiveStore.getState().panelDockable;
 }
 
-// Reverse direction of the one-docked-panel rule: activating a sharepic or reel
-// clears an active artifact. Those stores can't import this one (cycle), so the
-// coupling lives here as subscriptions — mirroring the reel<->sharepic pattern
-// in reelLiveStore.ts. setState (not setActiveArtifact) avoids re-triggering the
-// forward clear. Without this, opening a sharepic/reel while an artifact is
-// docked would render two panels side by side.
+// Reverse direction of the one-docked-panel rule: activating a sharepic clears
+// an active artifact. Those stores can't import this one (cycle), so the
+// coupling lives here as a subscription. setState (not setActiveArtifact)
+// avoids re-triggering the forward clear. Without this, opening a sharepic
+// while an artifact is docked would render two panels side by side.
 useSharepicLiveStore.subscribe((state, prevState) => {
   if (
     state.activeVariant &&
     state.activeVariant !== prevState.activeVariant &&
-    useArtifactLiveStore.getState().activeArtifact
-  ) {
-    useArtifactLiveStore.setState({ activeArtifact: null });
-  }
-});
-
-useReelLiveStore.subscribe((state, prevState) => {
-  if (
-    state.activeReel &&
-    state.activeReel !== prevState.activeReel &&
     useArtifactLiveStore.getState().activeArtifact
   ) {
     useArtifactLiveStore.setState({ activeArtifact: null });

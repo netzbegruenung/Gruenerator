@@ -146,20 +146,6 @@ describe('chatStreamEventSchemas gate', () => {
       );
     }
   });
-
-  it('reel_updated pins the segment shape', () => {
-    const schema = chatStreamEventSchemas['reel_updated']!;
-    const base = { projectId: 'p', title: 't', summary: 's', changedIndices: [0] };
-    expect(
-      schema.safeParse({
-        ...base,
-        segments: [{ id: 1, startTime: 0, endTime: 2.5, text: 'Hi' }],
-      }).success
-    ).toBe(true);
-    expect(schema.safeParse({ ...base, segments: [{ id: 'x', startTime: 'bad' }] }).success).toBe(
-      false
-    );
-  });
 });
 
 describe('coerceSharepicVariants (schema-based)', () => {

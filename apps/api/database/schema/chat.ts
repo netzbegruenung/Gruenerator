@@ -145,8 +145,8 @@ export const chatThreadCanvases = pgTable('chat_thread_canvases', {
 
 /**
  * Maps chat threads to the subtitler projects ("reels") edited in them.
- * `is_active` marks the project the reel_edit branch targets when no
- * explicit currentReel selection arrives with the request. Mirrors
+ * Written by the chat reel-edit branch, which was removed; the table is kept
+ * as data (no code reads or writes it). Mirrors
  * `migrations/create_chat_thread_reels.sql`.
  */
 export const chatThreadReels = pgTable('chat_thread_reels', {

@@ -1,27 +1,25 @@
 /**
- * Die Bausteine, die jede Bearbeitungs-Weiche (Sharepic, Social-Post, Reel)
+ * Die Bausteine, die jede Bearbeitungs-Weiche (Sharepic, Social-Post)
  * braucht, bevor sie einen Turn an sich zieht: einen ADRESSATEN und ein Verb,
  * das wirklich am Nomen steht.
  *
- * Beta-Audit 30.09.2026: jede der drei Weichen fragte nur „gibt es im Thread
+ * Beta-Audit 30.09.2026: jede der Weichen fragte nur „gibt es im Thread
  * irgendwo so ein Artefakt?" und dann nach einem Verb und einem Nomen irgendwo
- * in der Nachricht. So wurde „Schreib mir drei Ideen für Reels" Tage nach
- * einem Reel zur Untertitel-Bearbeitung und „Zeig mir den Text des
- * Beschlusses" zur Sharepic-Bearbeitung.
+ * in der Nachricht. So wurde „Zeig mir den Text des Beschlusses" Tage nach
+ * einem Sharepic zur Sharepic-Bearbeitung.
  *
  * Blatt ohne schwere Importe, damit Klassifikator und Router es teilen.
  */
 
 /** Die Artefakte, die eine Bearbeitungs-Weiche im Chat ändern kann. */
 export type EditableArtifact =
-  'sharepic' | 'social_post' | 'reel' | 'image' | 'document' | 'sheet' | 'presentation';
+  'sharepic' | 'social_post' | 'image' | 'document' | 'sheet' | 'presentation';
 
 /**
  * Welche Werkzeug-Schritte ein Artefakt BAUEN oder BEARBEITEN. Die Bearbeitungen
  * stehen mit drin: eine Sharepic- oder Post-Korrektur speichert nur ihren Schritt
  * und keine neuen Varianten — ohne sie bräche die zweite Korrektur in Folge
- * („Zeile 2 kürzer", dann „und grüner") am Adressaten ab. `reel_picker` zählt,
- * weil die Auswahl ausdrücklich um eine zweite Nachricht zum Reel bittet.
+ * („Zeile 2 kürzer", dann „und grüner") am Adressaten ab.
  */
 const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   sharepic: 'sharepic',
@@ -32,9 +30,6 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   sharepic_edit: 'sharepic',
   social_post: 'social_post',
   social_post_edit: 'social_post',
-  reel_edit: 'reel',
-  reel_processing: 'reel',
-  reel_picker: 'reel',
   create_document: 'document',
   create_sheet: 'sheet',
   create_presentation: 'presentation',
@@ -55,9 +50,9 @@ const EDITABLE_BY_INTENT: Readonly<Record<string, EditableArtifact>> = {
  * Was der Assistenz-Turn DIREKT vor diesem gebaut oder bearbeitet hat.
  *
  * Eine Liste statt eines Schalters pro Art: `last_tool_context` und
- * `chat_thread_reels` sind beide Dauerzustand — sie überschreibt erst das
+ * `last_tool_context` ist Dauerzustand — er überschreibt erst das
  * nächste Artefakt —, und die Frage „kam das gerade eben?" stellt jede Weiche
- * gleich. Die Schritte genügen: Reel und Post tauchen in `lastTurnArtifacts()`
+ * gleich. Die Schritte genügen: der Post taucht in `lastTurnArtifacts()`
  * gar nicht auf (die Artefakt-Liste kennt nur Bild, Sharepic, Dokumente),
  * und das Sharepic steht dort nur, wenn sein `sharepic`-Schritt Varianten trägt.
  */
@@ -256,8 +251,8 @@ function clauseAround(text: string, at: number): string {
   return text.slice(start, endRel < 0 ? text.length : at + endRel);
 }
 
-// Frage ÜBER das Bearbeiten statt Auftrag dazu: „Wie mache ich gute Reels?",
-// „Was sind gute Untertitel für Instagram?". Die höfliche Bitte in Frageform
+// Frage ÜBER das Bearbeiten statt Auftrag dazu: „Wie mache ich gute Posts?",
+// „Was sind gute Überschriften für Instagram?". Die höfliche Bitte in Frageform
 // („Kannst du die Überschrift kürzen?") beginnt nicht mit einem Fragewort und
 // bleibt ein Auftrag; „Wie wäre es mit einem anderen Bild?" ist ein Vorschlag
 // und bleibt es ebenfalls.

@@ -249,42 +249,6 @@ describe('sharepic edit needs an addressee', () => {
   });
 });
 
-// Beta-Audit 30.09.2026: ein Reel-Nomen und ein Verb irgendwo öffneten die
-// Reel-Auswahl oder bearbeiteten ein Reel von vor Tagen. Beobachtet am
-// Ergebnis: die Reel-Spur scheitert hier am Postgres-Wächter und meldet
-// `reel_edit_error`.
-describe('reel edit needs an order and an addressee', () => {
-  async function reelTurn(text: string, lastTurnTools: string[] = []) {
-    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Reel-Thread');
-    setLastTurnToolStepsFixture(thread.id, lastTurnTools);
-    const { events } = await runTurn(suite.baseUrl(), {
-      threadId: thread.id,
-      messages: [userTurn(text)],
-    });
-    return events.some((e) => e.event === 'reel_edit_error');
-  }
-
-  it.each([
-    'Wie mache ich gute Reels?',
-    'Schreib mir drei Ideen für Reels',
-    'Was sind gute Untertitel für Instagram?',
-  ])('„%s" reaches no reel lane, not even right after a reel', async (text) => {
-    expect(await reelTurn(text)).toBe(false);
-    expect(await reelTurn(text, ['reel_edit'])).toBe(false);
-  });
-
-  it.each(['mach den Untertitel im Reel kürzer', 'gender die Untertitel in meinem Reel'])(
-    '„%s" names an existing reel and reaches the lane',
-    async (text) => {
-      expect(await reelTurn(text)).toBe(true);
-    }
-  );
-
-  it('„fix den Tippfehler im Untertitel" right after a reel reaches the lane', async () => {
-    expect(await reelTurn('fix den Tippfehler im Untertitel', ['reel_edit'])).toBe(true);
-  });
-});
-
 // Beta-Audit 30.09.2026: ohne Karte griff die Post-Weiche auf den neuesten Post
 // im Thread, gleich wie alt. Beobachtet am Ergebnis: die Post-Spur scheitert
 // hier am Postgres-Wächter und meldet `social_post_edit_error`.
