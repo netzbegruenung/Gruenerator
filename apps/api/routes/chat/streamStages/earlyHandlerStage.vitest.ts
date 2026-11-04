@@ -29,14 +29,14 @@ const prior = (bericht: unknown[]) => ({
   props: { creatorSpec: spec, attributions: [null], bericht },
 });
 
-async function run(text: string, bericht: unknown[]) {
+async function run(text: string, bericht: unknown[], editables: string[] = ['sharepic']) {
   getLast.mockResolvedValue(prior(bericht));
-  const classifiedState = { intent: 'direct', lastTurnEditables: ['sharepic'] } as never;
+  const classifiedState = { intent: 'direct', lastTurnEditables: editables } as never;
   const out = await runEarlyHandlerStage({
     sse: { send: vi.fn() } as never,
     req: {} as never,
     classifiedState,
-    initialState: { lastTurnEditables: ['sharepic'] } as never,
+    initialState: { lastTurnEditables: editables } as never,
     cleanupPending: vi.fn() as never,
     actualThreadId: 't1',
     userId: 'u1',
@@ -72,5 +72,24 @@ describe('early handler: sharepic gap filled by the next turn', () => {
   it('"klingt gut" with a fehlt entry is left alone', async () => {
     const { out } = await run('klingt gut', [{ art: 'fehlt', fakt: 'termin' }]);
     expect(out.sharepicRefinement).toBeUndefined();
+  });
+
+  const fehlt = [{ art: 'fehlt', fakt: 'termin' }];
+  it.each(['Was ist am 20.11. im Bundestag?', 'Schreib mir einen Post für Do.'])(
+    '"%s" is not an answer to the gap',
+    async (text) => {
+      const { out } = await run(text, fehlt);
+      expect(out.sharepicRefinement).toBeUndefined();
+    }
+  );
+
+  it('without an open card or a sharepic in the previous turn it is not addressed', async () => {
+    const { out } = await run('Do., 20.11., 18 Uhr, Kreisbüro', fehlt, []);
+    expect(out.sharepicRefinement).toBeUndefined();
+  });
+
+  it('reads nothing when the turn names no day', async () => {
+    await run('klingt gut', fehlt);
+    expect(getLast).not.toHaveBeenCalled();
   });
 });

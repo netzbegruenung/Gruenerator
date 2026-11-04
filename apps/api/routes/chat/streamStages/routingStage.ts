@@ -155,6 +155,8 @@ export function runRoutingStage({
     hasOpenCanvasId: !!rawCurrentCanvas?.id,
     hasNamedBoard: (rawBoardIds?.length ?? 0) > 0 || mentionBoardIds.length > 0,
     isSharepicRefinement: !!sharepicRefinement,
+    // Eine Antwort, die eine Lücke füllt, kommt als `isSharepicRefinement` aus
+    // earlyHandlerStage — dieses Signal braucht dafür nichts.
     addressesThreadSharepic:
       stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),

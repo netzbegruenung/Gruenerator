@@ -11,10 +11,12 @@
 
 import { parseSharepicChatProps } from '@gruenerator/contracts';
 
+import { hasTermin } from '../../../services/sharepicCreator/briefFacts.js';
 import { createLogger } from '../../../utils/logger.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
 import {
+  asksForNewArtifact,
   isSharepicModeEdit,
   looksLikeSharepicOrder,
   sharepicEditAddressed,
@@ -335,10 +337,20 @@ export async function runEarlyHandlerStage({
           `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
         );
       }
-    } else if (stateHasSharepic(classifiedState)) {
+    } else if (
+      // Adressat wie bei der Regel oben: offene Karte oder Sharepic im Turn davor
+      // (`stateHasSharepic` allein nähme auch ein uraltes Artefakt). Frage und
+      // neuer Schreibauftrag („Schreib mir einen Post für Do.") sind keine Antwort.
+      (rawCurrentSharepic != null || lastTurnSharepic) &&
+      !followText.includes('?') &&
+      !asksForNewArtifact(followOrder) &&
+      // Billigste Prüfung zuerst: der Lesezugriff nur bei einem Turn mit Tag.
+      hasTermin(followOrder) &&
+      stateHasSharepic(classifiedState)
+    ) {
       // Die Antwort auf eine gemeldete Lücke („Do., 20.11., 18 Uhr, Kreisbüro"
       // nach „Termin ausgelassen") trägt weder Verb noch Nomen, also greift
-      // keine Regel oben. Ein Lesezugriff, nur wenn der Thread ein Sharepic hat.
+      // keine Regel oben.
       const prior = await getLastSharepicVariant(actualThreadId);
       if (
         prior &&
