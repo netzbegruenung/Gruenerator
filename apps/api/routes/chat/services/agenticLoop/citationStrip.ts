@@ -7,13 +7,14 @@
  * streamed deltas with it).
  */
 
-import { citationReferenceRegex } from '@gruenerator/shared/utils';
+import { citationReferenceRegex, SOURCE_LINK_SCHEME } from '@gruenerator/shared/utils';
 
 /**
  * Drop or trim `[N]` markers whose numbers fall outside `1..maxId`. A group with
  * some valid + some invalid numbers keeps only the valid ones ("[2, 7]" → "[2]"
  * when maxId=3); an all-invalid group is removed entirely. A source link to an
- * unknown id keeps its title as plain text. Whitespace left by a removed marker
+ * unknown id keeps its title as plain text; a link in a translated scheme
+ * (`source:N`) is rewritten to `quelle:N`. Whitespace left by a removed marker
  * is tidied so the prose reads cleanly.
  */
 export function stripOutOfRangeCitations(
@@ -29,7 +30,11 @@ export function stripOutOfRangeCitations(
     citationReferenceRegex(),
     (whole, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
       if (label !== undefined) {
-        if (inRange(Number(linkId))) return whole;
+        if (inRange(Number(linkId))) {
+          const canonical = `[${label}](${SOURCE_LINK_SCHEME}:${linkId})`;
+          if (canonical !== whole) changed = true;
+          return canonical;
+        }
         changed = true;
         return label;
       }
