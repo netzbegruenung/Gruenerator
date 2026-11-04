@@ -141,6 +141,26 @@ describe('getMediaLibrary', () => {
 
     expect(lastCall().sql).not.toMatch(ORIGIN_CLAUSE);
   });
+
+  it('counts with the same filters as the page, so hasMore ends while searching (#4681)', async () => {
+    query.mockResolvedValueOnce([]);
+    queryOne.mockResolvedValueOnce({ total: '0' });
+    const service = new SharedMediaService();
+    await service.getMediaLibrary('user-1', {
+      type: 'image',
+      search: 'wahl',
+      limit: 10,
+      offset: 20,
+    });
+
+    const page = lastCall();
+    const [countSql, countParams] = queryOne.mock.calls.at(-1)!;
+    expect(countSql).toContain('media_type = $2');
+    expect(countSql).toContain('title ILIKE $3 OR alt_text ILIKE $3');
+    expect(countParams).toEqual(['user-1', 'image', '%wahl%']);
+    expect(page.sql).toContain('LIMIT $4 OFFSET $5');
+    expect(page.params).toEqual(['user-1', 'image', '%wahl%', 10, 20]);
+  });
 });
 
 /**

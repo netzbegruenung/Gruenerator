@@ -1299,47 +1299,38 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
-      let query = `
+      // One predicate for the page and its COUNT — a count that drifts from its
+      // list promises rows the paginator never hands out (#4681).
+      let filters = '';
+      const params: unknown[] = [userId];
+
+      if (type && type !== 'all') {
+        params.push(type);
+        filters += ` AND media_type = $${params.length}`;
+      }
+
+      if (search) {
+        params.push(likeContainsPattern(search));
+        filters += ` AND (title ILIKE $${params.length} OR alt_text ILIKE $${params.length})`;
+      }
+
+      const order = sort === 'oldest' ? 'ORDER BY created_at ASC' : 'ORDER BY created_at DESC';
+      const query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
                        download_count, view_count, created_at, alt_text, upload_source,
                        original_filename, content_origin
                 FROM shared_media
-                WHERE user_id = $1
-                  AND ${assetPoolWhere()}
+                WHERE user_id = $1 AND ${assetPoolWhere()}${filters}
+                ${order}
+                LIMIT $${params.length + 1} OFFSET $${params.length + 2}
             `;
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
 
-      if (type && type !== 'all') {
-        query += ` AND media_type = $${paramIndex}`;
-        params.push(type);
-        paramIndex++;
-      }
+      const results = await this.postgres!.query<SharedMediaRow>(query, [...params, limit, offset]);
 
-      if (search) {
-        query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
-        params.push(likeContainsPattern(search));
-        paramIndex++;
-      }
-
-      query += sort === 'oldest' ? ` ORDER BY created_at ASC` : ` ORDER BY created_at DESC`;
-
-      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-      params.push(limit, offset);
-
-      const results = await this.postgres!.query<SharedMediaRow>(query, params);
-
-      // Same predicate as the page query above, by construction — a COUNT that
-      // drifts from its list promises rows the paginator never hands out.
-      const countQuery = `
-                SELECT COUNT(*) as total
-                FROM shared_media
-                WHERE user_id = $1
-                  AND ${assetPoolWhere()}
-                  ${type && type !== 'all' ? 'AND media_type = $2' : ''}
-            `;
-      const countParams = type && type !== 'all' ? [userId, type] : [userId];
+      const countQuery = `SELECT COUNT(*) as total FROM shared_media
+                WHERE user_id = $1 AND ${assetPoolWhere()}${filters}`;
+      const countParams = params;
       const countResult = await this.postgres!.queryOne<{ total: string }>(countQuery, countParams);
 
       return {
