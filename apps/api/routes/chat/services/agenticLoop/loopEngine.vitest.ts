@@ -18,6 +18,7 @@ import {
   type LoopEngineParams,
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
+import { createAnswerValidator } from './synthVerdicts.js';
 
 import { APICallError, RetryError, type ModelMessage } from 'ai';
 
@@ -1755,6 +1756,31 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const { deps } = synthSequence([SHORT_INVALID, 'Ich kann diese Anfrage nicht erfüllen.']);
     const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
     expect(out.text).toBe(SHORT_INVALID);
+  });
+
+  // #5289 with the REAL validator: the 30.10.2026 answer is long enough to be
+  // on the wire before the verdict, so the retry must come back as a replace.
+  it('replaces a streamed request to wait with the retry', async () => {
+    const waiting = `${'Ich habe nur Ausschnitte der Rede. '.repeat(8)}Einen Moment bitte.`;
+    const honest =
+      'Den vollständigen Wortlaut habe ich nicht gefunden; hier die Ausschnitte von vorhin.';
+    const { deps, synthSystems } = synthSequence([waiting, honest]);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: createAnswerValidator() }), deps);
+    expect(out.text).toBe(honest);
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX);
+  });
+
+  // The cost of a false positive is one extra pass, never the answer: when
+  // the message itself asks for the phrase, the retry carries it too.
+  it('keeps an answer whose request to wait was asked for', async () => {
+    const script =
+      'Telefonskript: „Guten Tag, hier ist das Grüne Büro. Einen Moment bitte, ich verbinde."';
+    const { deps, calls } = synthSequence([script, script]);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: createAnswerValidator() }), deps);
+    expect(out.text).toBe(script);
+    expect(out.replacement).toBeUndefined();
+    expect(calls()).toBe(2);
   });
 
   it('does not run a second pass for a valid answer', async () => {

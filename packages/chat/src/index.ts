@@ -225,7 +225,6 @@ export {
 } from './components/shared/ReadonlyThreadProvider';
 export { ReadonlyThreadView } from './components/shared/ReadonlyThreadView';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
-export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { ArtifactPanel } from './components/ArtifactPanel';
 export { useDockedPanelActive } from './hooks/useDockedPanelActive';
 export { useReportPanelDockable } from './hooks/useReportPanelDockable';

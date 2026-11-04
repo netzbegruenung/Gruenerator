@@ -3,6 +3,8 @@
  * Handles Mistral API calls for document Q&A
  */
 
+import { type ChatCompletionRequest } from '@mistralai/mistralai/models/components/index.js';
+
 import type { StoredDocument, MistralContentItem } from './types.js';
 
 /**
@@ -12,7 +14,7 @@ export async function askMistralAboutDocuments(
   mistral: {
     chat: {
       complete: (
-        params: unknown
+        params: ChatCompletionRequest
       ) => Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
     };
   },
@@ -67,7 +69,7 @@ export async function askMistralAboutDocuments(
     model: 'mistral-small-latest',
     messages: [{ role: 'user', content: messageContent }],
     temperature: 0.2,
-    top_p: 0.85,
+    topP: 0.85,
   });
 
   const knowledge = response.choices?.[0]?.message?.content || '';

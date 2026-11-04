@@ -42,7 +42,7 @@ const RENAMES: Record<string, string> = {
  * Vertragsfelder, die den Zustand bewusst NICHT erreichen — sie werden im
  * Router oder beim Aufbau des Kontexts verbraucht (`attachments` wird zu
  * `imageAttachments`/`attachmentContext` verarbeitet, `roleRef`/`roleName`
- * werden zu `customSystemPrompt` aufgelöst, `currentSharepic`/`currentReel`/
+ * werden zu `customSystemPrompt` aufgelöst, `currentSharepic`/
  * `currentSocialPost` bedienen die Verfeinerungs-Pfade im Router).
  *
  * Die Liste ist bewusst NICHT der Ort, an dem man ein vergessenes Feld

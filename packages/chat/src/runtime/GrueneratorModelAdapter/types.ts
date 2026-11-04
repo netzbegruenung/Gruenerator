@@ -11,12 +11,7 @@ import type {
 } from '../../hooks/useChatGraphStream';
 import type { CodeArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
-import type {
-  ConfirmActionData,
-  DocumentCreatedData,
-  ReelPickerData,
-  ReelProcessingData,
-} from '../../types/messageMetadata';
+import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
 import type { ChatModelRunResult, ToolCallMessagePart } from '@assistant-ui/react';
 import type {
   RoleRef,
@@ -50,8 +45,6 @@ export type GrueneratorMessageMetadata = {
   agentMention?: string;
   confirmAction?: ConfirmActionData;
   createdDocument?: DocumentCreatedData;
-  reelProcessing?: ReelProcessingData;
-  reelPicker?: ReelPickerData;
   /** Notebook found little relevant to answer with (`evidence_weak`); rendered
    *  as a quiet note under the answer instead of a toast (AssistantMessage.tsx). */
   evidenceWeak?: string;

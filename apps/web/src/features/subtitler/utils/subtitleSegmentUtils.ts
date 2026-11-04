@@ -4,7 +4,7 @@
  * Thin wrappers over @gruenerator/shared/subtitle-editor — the single
  * source of truth for the wire format "MM:SS.F - MM:SS.F\nText\n\n…".
  * Keeping the web-local names avoids churn at the call sites
- * (SubtitlerPage, SubtitlerBetaPage, SubtitleEditor, segmentsToTranscript).
+ * (SubtitlerPage, SubtitleEditor, segmentsToTranscript).
  */
 
 import { parseStoredSubtitles, formatSubtitlesToText } from '@gruenerator/shared';

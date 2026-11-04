@@ -1,15 +1,34 @@
 import { sheetOperationSchema } from '@gruenerator/contracts';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// `generateSheetOperations` calls the shared `runForcedToolCall`
-// (services/ai/forcedToolCall.ts), which calls the facade's `aiTools`.
-// Mocking the facade and running the real (unmocked) helper exercises that
-// shared copy through the sheet planner as well as the board one — see
-// services/ai/__tests__/forcedToolCall.vitest.ts for the helper's own
-// retry/extraction mechanics.
-const aiTools = vi.fn();
+// `generateSheetOperations` calls the facade's `aiObject`. The fake below plays
+// its contract — one scripted tool input per attempt, each run through the
+// planner's own `validate`, the next attempt only after a rejection — so these
+// tests pin the planner's gate. The repair turn itself is tested with aiObject
+// in services/ai/__tests__.
+type Call = {
+  lane: string;
+  toolName: string;
+  attempts?: number;
+  validate: (
+    input: unknown,
+    attempt: number,
+    attempts: number
+  ) => { ok: true; value: unknown } | { ok: false; error: string };
+};
+const scripted: unknown[] = [];
+const rejections: string[] = [];
+const aiObject = vi.fn(async (call: Call) => {
+  const attempts = call.attempts ?? 2;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const v = call.validate(scripted[attempt - 1], attempt, attempts);
+    if (v.ok) return { ok: true, data: v.value };
+    rejections.push(v.error);
+  }
+  return { ok: false, error: rejections.at(-1) ?? '' };
+});
 vi.mock('../../services/ai/generate.js', () => ({
-  aiTools: (...args: unknown[]) => aiTools(...args),
+  aiObject: (call: Call) => aiObject(call),
 }));
 
 const { generateSheetOperations, normalizeRawOp, SHEET_TOOL_STRICT_PROMPT } =
@@ -210,25 +229,15 @@ describe('Phase 1 structural operation schema', () => {
   });
 });
 
-/** A tool-call-shaped `AiResult` for `applySheetOperations`. */
-function toolCallResult(operations: unknown[]) {
-  return {
-    success: true,
-    content: null,
-    stop_reason: 'tool_use',
-    tool_calls: [{ name: 'applySheetOperations', input: { operations } }],
-  };
-}
-
 describe('generateSheetOperations', () => {
   beforeEach(() => {
-    aiTools.mockReset();
+    aiObject.mockClear();
+    scripted.length = 0;
+    rejections.length = 0;
   });
 
   it('returns validated ops on the happy path', async () => {
-    aiTools.mockResolvedValueOnce(
-      toolCallResult([{ type: 'set_range_values', range: 'B1', values: [[2500]] }])
-    );
+    scripted.push({ operations: [{ type: 'set_range_values', range: 'B1', values: [[2500]] }] });
 
     const ops = await generateSheetOperations({
       userPrompt: 'ändere B1 auf 2500',
@@ -236,19 +245,36 @@ describe('generateSheetOperations', () => {
     });
 
     expect(ops).toEqual([{ type: 'set_range_values', range: 'B1', values: [[2500]] }]);
-    const call = aiTools.mock.calls[0][0] as { lane: string; tools: Array<{ name: string }> };
+    const call = aiObject.mock.calls[0][0];
     expect(call.lane).toBe('editor_ops_sheet');
-    expect(call.tools[0].name).toBe('applySheetOperations');
+    expect(call.toolName).toBe('applySheetOperations');
   });
 
-  it('drops an invalid op and keeps the valid ones (per-op leniency)', async () => {
-    aiTools.mockResolvedValueOnce(
-      toolCallResult([
-        { type: 'set_range_values', range: 'B1', values: [[2500]] },
-        // Missing "range" — invalid set_number_format, dropped, not fatal.
-        { type: 'set_number_format', pattern: '0%' },
-      ])
+  it('sends a malformed op back for repair, naming the field (#4470)', async () => {
+    scripted.push(
+      { operations: [{ type: 'set_number_format', pattern: '0%' }] },
+      { operations: [{ type: 'set_number_format', range: 'B2:B9', pattern: '0%' }] }
     );
+
+    const ops = await generateSheetOperations({
+      userPrompt: 'formatiere Spalte B als Prozent',
+      sheetContext: 'A1: Umsatz, B1: 1000',
+    });
+
+    expect(rejections).toHaveLength(1);
+    expect(rejections[0]).toContain('Operation 1: range:');
+    expect(ops).toEqual([{ type: 'set_number_format', range: 'B2:B9', pattern: '0%' }]);
+  });
+
+  it('keeps the valid ops on the last attempt (per-op leniency)', async () => {
+    const batch = {
+      operations: [
+        { type: 'set_range_values', range: 'B1', values: [[2500]] },
+        // Missing "range" — still invalid after the repair turn.
+        { type: 'set_number_format', pattern: '0%' },
+      ],
+    };
+    scripted.push(batch, batch);
 
     const ops = await generateSheetOperations({
       userPrompt: 'ändere B1 und formatiere etwas',
@@ -256,5 +282,49 @@ describe('generateSheetOperations', () => {
     });
 
     expect(ops).toEqual([{ type: 'set_range_values', range: 'B1', values: [[2500]] }]);
+  });
+
+  it('accepts format_range fields nested under the op name without a repair turn', async () => {
+    // The exact op the cortecs fallback sent in #4470.
+    scripted.push({
+      operations: [
+        {
+          background: '#46962b',
+          bold: true,
+          fontColor: '#ffffff',
+          format_range: { range: 'A1:C1' },
+          type: 'format_range',
+        },
+      ],
+    });
+
+    const ops = await generateSheetOperations({
+      userPrompt: 'Mach die Kopfzeile in der Tabelle fett und grün hinterlegt',
+      sheetContext: 'A1: Name, B1: Ort, C1: Datum',
+    });
+
+    expect(rejections).toHaveLength(0);
+    expect(ops).toEqual([
+      {
+        type: 'format_range',
+        range: 'A1:C1',
+        bold: true,
+        background: '#46962b',
+        fontColor: '#ffffff',
+      },
+    ]);
+  });
+
+  it('returns no ops when no attempt produced a usable tool call', async () => {
+    const ops = await generateSheetOperations({ userPrompt: 'x', sheetContext: '' });
+    expect(ops).toEqual([]);
+  });
+
+  it('rethrows a provider failure', async () => {
+    const cause = new Error('provider chain spent');
+    aiObject.mockResolvedValueOnce({ ok: false, error: 'x', cause } as never);
+    await expect(generateSheetOperations({ userPrompt: 'x', sheetContext: '' })).rejects.toBe(
+      cause
+    );
   });
 });

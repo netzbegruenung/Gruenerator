@@ -88,10 +88,6 @@ export interface BuildRequestBodyParams {
   } | null;
   /** Social post marked "active for chat editing" (combined post card), if any. */
   currentSocialPost: { postId: string } | null;
-  /** Subtitler project marked active for chat subtitle editing, if any. */
-  currentReel: { projectId: string } | null;
-  /** Composer-attached video, already TUS-uploaded (reel transcription). */
-  reelUpload: { uploadId: string; filename: string } | null;
 }
 
 const lastUserText = (formattedMessages: FormattedMessage[]): string =>
@@ -212,8 +208,6 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     seededInitialAssistantMessage,
     currentSharepic,
     currentSocialPost,
-    currentReel,
-    reelUpload,
   } = params;
 
   if (effectiveMode === 'search') {
@@ -287,8 +281,6 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     currentCanvas: injectedCurrentCanvas,
     currentSharepic: currentSharepic ?? undefined,
     currentSocialPost: currentSocialPost ?? undefined,
-    currentReel: currentReel ?? undefined,
-    reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
     // Forward the last browser-computed spreadsheet result so the backend can
     // give it to the model as ground truth (formatComputedResultContext) — the

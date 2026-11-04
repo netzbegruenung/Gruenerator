@@ -77,8 +77,6 @@ function build(overrides: {
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,
     currentSocialPost: null,
-    currentReel: null,
-    reelUpload: null,
   });
 }
 

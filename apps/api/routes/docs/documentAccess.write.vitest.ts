@@ -93,6 +93,37 @@ describe('canWriteDocument', () => {
   });
 });
 
+// Anonymous readers get the connection's guest rule (authenticateAsGuest):
+// a public document, writable unless the link is a viewer link (#4893).
+const anonymousCases: [string, Record<string, unknown>, boolean][] = [
+  ['a public document without share_permission', { is_public: true, share_mode: 'public' }, true],
+  [
+    'a public editor link',
+    { is_public: true, share_mode: 'public', share_permission: 'editor' },
+    true,
+  ],
+  [
+    'a public viewer link',
+    { is_public: true, share_mode: 'public', share_permission: 'viewer' },
+    false,
+  ],
+  ['a private document', {}, false],
+  [
+    'an authenticated-only editor link',
+    { share_mode: 'authenticated', share_permission: 'editor' },
+    false,
+  ],
+  ['a document whose owner column is empty', { created_by: null }, false],
+];
+
+describe('canWriteDocument — anonymous reader', () => {
+  it.each(anonymousCases)('%s', async (_name, overrides, expected) => {
+    primeDb({ read: true, write: true });
+    expect(await canWriteDocument(doc(overrides), null)).toBe(expected);
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
 describe('checkDocumentWriteAccess', () => {
   it('applies the same rule to the stored row', async () => {
     primeDb({ read: true, write: true }, doc());
