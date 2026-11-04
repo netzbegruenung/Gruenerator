@@ -130,7 +130,7 @@ describe('confirmation builders', () => {
       withNotice({ bericht: [{ art: 'gestaltung', text: 'Die Farben stammen aus der Palette.' }] })
     );
     expect(palette).toContain('Die Farben stammen aus der Palette.');
-    expect(palette).not.toContain('Markenfarbe');
+    expect(palette).not.toContain('Hintergrund konnte ich nicht malen');
   });
 
   it('tells the person what a revision dropped', () => {
