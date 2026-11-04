@@ -24,7 +24,7 @@ export interface ContentSyncSlot {
   start: Date;
 }
 
-// Same slots as the crons in .github/workflows/content-sync.yml (UTC).
+// Slots in UTC. The workflow has no crons of its own any more (#5329).
 const FULL_SLOT = { hour: 2, minute: 17 };
 const HOURLY_MINUTE = 23;
 const HOURLY_FIRST_HOUR = 4;
