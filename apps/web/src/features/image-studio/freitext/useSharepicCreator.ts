@@ -200,7 +200,7 @@ export function useSharepicCreator(userId: string | null) {
             prompt: text,
             ...(current ? { current } : {}),
             ...(photos.length
-              ? { photos: photos.map(({ id, analysis }) => ({ id, analysis })) }
+              ? { photos: photos.map(({ id, analysis, url }) => ({ id, analysis, url })) }
               : {}),
           },
         })

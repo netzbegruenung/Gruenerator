@@ -212,7 +212,9 @@ export function validateDraft(
   /** Stock photos beyond our catalogue: found live this turn, or kept from the current draft. */
   livePhotos: readonly string[] = [],
   /** The design the draft wears; the model never writes it. */
-  brand: SharepicBrand | null = null
+  brand: SharepicBrand | null = null,
+  /** Own photos the server can cut out (they came with a `url`, and a cut-out painter exists). */
+  cutOutUploads: readonly string[] = []
 ): StructuredValidation<SharepicSpec> {
   // Country and brand are decided outside the model; whatever it wrote there goes.
   const { brand: _written, ...fields } = tightenAccentMarksDeep(input) as Record<string, unknown>;
@@ -318,6 +320,7 @@ export function validateDraft(
       if (
         item.ausschnitt === 'freigestellt' &&
         isSharepicUploadId(item.quelle) &&
+        !cutOutUploads.includes(item.quelle) &&
         !slide.items.some((i) => i.type === 'steckbrief')
       ) {
         errors.push(

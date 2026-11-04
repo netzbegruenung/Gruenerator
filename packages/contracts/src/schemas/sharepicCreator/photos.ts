@@ -40,14 +40,16 @@ export const SHAREPIC_NEUTRAL_PHOTO_ANALYSIS: SharepicPhotoAnalysis = {
   analysiert: false,
 };
 
-export const sharepicOwnPhotoSchema = z.object({
-  id: z.string().regex(SHAREPIC_UPLOAD_ID),
-  analysis: sharepicPhotoAnalysisSchema,
-});
-export type SharepicOwnPhoto = z.infer<typeof sharepicOwnPhotoSchema>;
-
 /** The durable URL `uploadBlobToMediaLibrary` returns — the server reads the file itself, it never fetches. */
 export const SHAREPIC_PHOTO_URL = /^\/api\/share\/([\w-]{16,64})\/download$/;
 export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
+
+export const sharepicOwnPhotoSchema = z.object({
+  id: z.string().regex(SHAREPIC_UPLOAD_ID),
+  analysis: sharepicPhotoAnalysisSchema,
+  /** Library URL of the photo — lets the server cut the person out (rembg); older clients send none. */
+  url: sharepicPhotoUrlSchema.optional(),
+});
+export type SharepicOwnPhoto = z.infer<typeof sharepicOwnPhotoSchema>;
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });

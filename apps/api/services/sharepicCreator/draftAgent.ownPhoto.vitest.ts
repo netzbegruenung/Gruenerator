@@ -1,10 +1,11 @@
-import { type SharepicSpec } from '@gruenerator/contracts';
+import { type SharepicSpec, SHAREPIC_NEUTRAL_PHOTO_ANALYSIS } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
 import { draftSharepic } from './draftAgent.js';
+import { cutOutBilder } from './draftPainting.js';
 import { OWN_PHOTO_KEPT_HINWEIS } from './ownPhoto.js';
 
 type Slide = SharepicSpec['slides'][number];
@@ -161,5 +162,95 @@ describe('draftSharepic — the own photo stays on a revision', () => {
     await draftSharepic(COLOUR, 'de-DE', current);
     const prompt = (aiObject.mock.calls[1]![0] as { prompt: string }).prompt;
     expect(prompt).toContain('Eigene Fotos der Person (upload:N) bleiben');
+  });
+});
+
+describe('draftSharepic — the own photo is cut out', () => {
+  const cutSlide = (): Slide => ({
+    background: { kind: 'farbe', color: 'tanne' },
+    position: 'oben',
+    align: 'links',
+    items: [
+      { type: 'headline', lines: ['Radweg', 'jetzt'] },
+      { type: 'bild', quelle: 'upload:1', ausschnitt: 'freigestellt', filter: 'original' },
+    ],
+    logo: false,
+  });
+  const cutDraft: SharepicSpec = { locale: 'de-DE', slides: [cutSlide()] };
+  const photo = (url?: string) => ({
+    id: 'upload:1',
+    analysis: SHAREPIC_NEUTRAL_PHOTO_ANALYSIS,
+    ...(url && { url }),
+  });
+  const URL = '/api/share/own-token-00000000001/download';
+  const bildOf = (spec: SharepicSpec) => spec.slides[0]!.items.find((i) => i.type === 'bild')!;
+
+  it('cuts the photo out when it came with a url, and reports it', async () => {
+    const run = answers(cutDraft, cutDraft, cutDraft);
+    const cutOut = vi.fn(async () => 'ki:freisteller-000000001');
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [photo(URL)], { cutOut });
+    expect(run.errors).toEqual([]);
+    expect(bildOf(draft.spec)).toMatchObject({ freisteller: 'ki:freisteller-000000001' });
+    expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'freigestellt' });
+  });
+
+  it('keeps the photo uncut and reports why when the cut-out fails', async () => {
+    answers(cutDraft, cutDraft, cutDraft);
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [photo(URL)], {
+      cutOut: async () => null,
+    });
+    expect(bildOf(draft.spec)).not.toHaveProperty('freisteller');
+    expect(draft.hinweis).toContain('freistellen');
+    expect(draft.bericht).toContainEqual(
+      expect.objectContaining({ art: 'foto', id: 'upload:1', status: 'ungeschnitten' })
+    );
+  });
+
+  it('reports an uncut own photo even without a painter', async () => {
+    const { fotoEintraege } = await cutOutBilder(cutDraft, undefined, new Map(), [photo(URL)]);
+    expect(fotoEintraege).toEqual([
+      expect.objectContaining({ art: 'foto', id: 'upload:1', status: 'ungeschnitten' }),
+    ]);
+  });
+
+  it('lists the foto entries before the others', async () => {
+    answers(cutDraft, cutDraft, cutDraft);
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [photo(URL)], {
+      cutOut: async () => 'ki:freisteller-000000001',
+    });
+    expect(draft.bericht?.[0]).toMatchObject({ art: 'foto' });
+  });
+
+  it('still refuses a cut-out for a photo without a url', async () => {
+    const run = answers(cutDraft, cutDraft, cutDraft);
+    await draftSharepic('Radweg', 'de-DE', null, [photo()], { cutOut: async () => 'ki:x' }).catch(
+      () => null
+    );
+    expect(run.errors[0]).toContain('stellt der Grünerator nicht frei');
+  });
+
+  it('leaves the stock photo without an entry', async () => {
+    const stock: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          ...cutSlide(),
+          items: [
+            { type: 'headline', lines: ['Radweg', 'jetzt'] },
+            {
+              type: 'bild',
+              quelle: 'diogo-ferrer-Ue8fAd5DXnY-unsplash.jpg',
+              ausschnitt: 'freigestellt',
+              filter: 'original',
+            },
+          ],
+        },
+      ],
+    };
+    answers(stock, stock, stock);
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [], {
+      cutOut: async () => 'ki:freisteller-000000001',
+    });
+    expect((draft.bericht ?? []).filter((e) => e.art === 'foto')).toEqual([]);
   });
 });

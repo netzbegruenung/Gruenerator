@@ -1,6 +1,7 @@
 import {
   isSharepicUploadId,
   type SharepicBerichtEintrag,
+  type SharepicOwnPhoto,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
@@ -72,7 +73,9 @@ export async function cutOutBilder(
   spec: SharepicSpec,
   painter: CutOutPainter | undefined,
   /** quelle → the cut-out a Vorlage shipped with it. */
-  shipped: ReadonlyMap<string, string> = new Map()
+  shipped: ReadonlyMap<string, string> = new Map(),
+  /** The person's own photos; an `upload:N` is read through the `url` it carries. */
+  ownPhotos: readonly SharepicOwnPhoto[] = []
 ): Promise<{
   spec: SharepicSpec;
   hinweis: string | null;
@@ -85,7 +88,9 @@ export async function cutOutBilder(
   const cutOut = (quelle: string): ReturnType<CutOutPainter> => {
     let job = pending.get(quelle);
     if (!job) {
-      job = painter ? painter(quelle) : Promise.resolve(null);
+      job = painter
+        ? painter(quelle, ...(isSharepicUploadId(quelle) ? [ownPhotos] : []))
+        : Promise.resolve(null);
       pending.set(quelle, job);
     }
     return job;
@@ -100,9 +105,18 @@ export async function cutOutBilder(
           if (item.ausschnitt !== 'freigestellt') return rest;
           const kept = shipped.get(item.quelle);
           if (kept) return { ...rest, freisteller: kept };
-          // An own photo is never cut out: on a steckbrief it keeps its background.
-          if (isSharepicUploadId(item.quelle)) return rest;
-          if (!painter) return item;
+          if (!painter) {
+            // An own photo never vanishes silently from the report.
+            if (isSharepicUploadId(item.quelle)) {
+              fotoEintraege.push({
+                art: 'foto',
+                id: item.quelle,
+                status: 'ungeschnitten',
+                grund: CUT_OUT_FAILED_HINWEIS,
+              });
+            }
+            return item;
+          }
           const ref = await cutOut(item.quelle);
           if (!ref) failed = true;
           if (isSharepicUploadId(item.quelle)) {

@@ -114,10 +114,10 @@ describe('useSharepicCreator with own photos', () => {
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
     expect(bodies[0]).toMatchObject({
       prompt: 'Sharepic zum Infostand',
-      photos: [{ id: 'upload:1', analysis }],
+      photos: [{ id: 'upload:1', analysis, url: photo(1).url }],
     });
-    // The URL stays on the client: the server reads the file itself.
-    expect(JSON.stringify(bodies[0])).not.toContain('/api/share/');
+    // The server reads the file itself (cut-out); the name stays on the client.
+    expect(JSON.stringify(bodies[0])).not.toContain('foto-1.jpg');
   });
 
   it('hands the composer the library url for upload:1 and the stock url for a stock photo', async () => {

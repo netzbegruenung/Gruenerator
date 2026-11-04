@@ -317,7 +317,8 @@ export async function draftSharepic(
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order,
         livePhotos,
-        design
+        design,
+        painters.cutOut ? ownPhotos.filter((p) => p.url).map((p) => p.id) : []
       );
       if (!checked.ok) return checked;
       const notSingle =
@@ -444,13 +445,14 @@ export async function draftSharepic(
     };
   }
   const illustrated = await paintIllustrations(spec, painters.illustrations);
-  const cut = await cutOutBilder(illustrated.spec, painters.cutOut, shippedCutOuts);
+  const cut = await cutOutBilder(illustrated.spec, painters.cutOut, shippedCutOuts, ownPhotos);
   spec = cut.spec;
   // Judged on the outcome: the form check reads the conversation too, so the order alone could be wrong.
   if (form === 'veranstaltung' && !spec.slides.some((slide) => slide.datum)) {
     bericht.push({ art: 'fehlt', fakt: 'termin' });
   }
-  bericht.push(...cut.fotoEintraege);
+  // Foto entries first: the cap below must never drop them.
+  bericht.unshift(...cut.fotoEintraege);
   const paletteNote = paletteHinweis(palette);
   if (paletteNote) bericht.push({ art: 'gestaltung', text: paletteNote.slice(0, 300) });
   hinweis =
