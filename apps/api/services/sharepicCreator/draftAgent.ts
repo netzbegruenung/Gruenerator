@@ -20,6 +20,7 @@ import {
   brandIdFor,
   SHAREPIC_BRAND_COLORS,
   slidePhotoFilename,
+  type SharepicBerichtEintrag,
   type SharepicBrand,
   type SharepicCreatorLocale,
   type SharepicDraftFocus,
@@ -200,7 +201,8 @@ export async function draftSharepic(
   const picked =
     named ??
     (formHasMaterial(needs.data.form, given) ? needs.data.form : (fillable[0] ?? 'einzelbild'));
-  if (!named && picked !== needs.data.form) {
+  const swappedFrom = !named && picked !== needs.data.form ? needs.data.form : null;
+  if (swappedFrom) {
     log.info(`form ${needs.data.form} lacks material → ${picked}`);
   }
   const chosen =
@@ -271,24 +273,21 @@ export async function draftSharepic(
   const asked = brief ? `${order}\n${brief}` : order;
   // An own photo goes only when the request names it (#4253) — never read from `prompt`,
   // whose researched sources may say „Bild“ anywhere.
-  const photoGuard = ownPhotoGuard<{
+  type Drafted = {
     spec: SharepicSpec;
     scene: DraftScene | null;
     kept: string | null;
-  }>(current, photoRequestTexts(order, brief));
+    /** What this attempt dropped from `datum` as not in the order. */
+    repairs?: DatumRepair[];
+  };
+
+  const photoGuard = ownPhotoGuard<Drafted>(current, photoRequestTexts(order, brief));
   // What the last checkable attempt got wrong, for the person's text if every attempt fails.
   // „Not your request" only while no attempt has delivered a draft to check.
   let failure: DraftFailure = { kind: 'structure' };
   // The last two validation errors: the same one twice means the model will not fix it.
   const lastErrors: string[] = [];
-  // What the last attempt dropped from `datum` as not in the order.
-  let lastDatumRepairs: DatumRepair[] = [];
-
-  const draftCall: AiObjectCall<{
-    spec: SharepicSpec;
-    scene: DraftScene | null;
-    kept: string | null;
-  }> = {
+  const draftCall: AiObjectCall<Drafted> = {
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale, design)}\n\n${context.join('\n\n')}`,
@@ -306,7 +305,6 @@ export async function draftSharepic(
       const taken = takeScene(withPaletteColors(input, locale, design));
       if (!taken.ok) return taken;
       const repaired = repairDatum(taken.input, given);
-      lastDatumRepairs = repaired.repairs;
       for (const r of repaired.repairs) {
         log.info(`repaired ${r.feld} "${r.wert}" (slide ${r.slide + 1})`);
       }
@@ -346,17 +344,23 @@ export async function draftSharepic(
         current && attempt < attempts ? untouchedSlides(current, checked.value, asked) : [];
       if (untouched.length) return { ok: false, error: untouchedProblems(untouched) };
       const drifts = current ? specEditDrift(current, checked.value, asked, focus) : [];
-      let value: { spec: SharepicSpec; scene: DraftScene | null; kept: string | null } = {
+      let value: Drafted = {
         spec: checked.value,
         scene: taken.scene,
         kept: null,
+        repairs: repaired.repairs,
       };
       if (drifts.length) {
         // The model's last attempt restores, also after attempts that never got here.
         if (attempt < attempts) return { ok: false, error: driftProblems(drifts, current!) };
         // Out of repair turns: keep what was asked, put back what was dropped.
         const restored = restoreDroppedFields(checked.value, drifts);
-        value = { spec: restored.spec, scene: taken.scene, kept: restored.hinweis };
+        value = {
+          spec: restored.spec,
+          scene: taken.scene,
+          kept: restored.hinweis,
+          repairs: repaired.repairs,
+        };
       }
       // The own photo last: it may undo a drift restore's background choice, never the reverse.
       return photoGuard.check(value);
@@ -397,6 +401,18 @@ export async function draftSharepic(
   const drafted = accepted.spec;
   let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
   let hinweis: string | null = null;
+  const bericht: SharepicBerichtEintrag[] = [];
+  if (form) {
+    bericht.push({
+      art: 'form',
+      form,
+      von: named ? 'person' : 'creator',
+      ...(swappedFrom && { statt: swappedFrom }),
+    });
+  }
+  for (const r of accepted.repairs ?? []) {
+    bericht.push({ art: 'repariert', feld: r.feld, wert: r.wert.slice(0, 60) });
+  }
   const scene = accepted.scene;
   if (scene) {
     const background = spec.slides[scene.slide]!.background;
@@ -404,7 +420,10 @@ export async function draftSharepic(
     const painted = painters.scene
       ? await painters.scene({ motiv: scene.motiv, textSeite, format: spec.format })
       : ({ ok: false, hinweis: null } as const);
-    if (!painted.ok) hinweis = painted.hinweis;
+    if (!painted.ok) {
+      hinweis = painted.hinweis;
+      if (painted.hinweis) bericht.push({ art: 'gestaltung', text: painted.hinweis });
+    }
     spec = {
       ...spec,
       slides: spec.slides.map((slide, i) =>
@@ -427,9 +446,16 @@ export async function draftSharepic(
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   const cut = await cutOutBilder(illustrated.spec, painters.cutOut, shippedCutOuts);
   spec = cut.spec;
+  // Judged on the outcome: the form check reads the conversation too, so the order alone could be wrong.
+  if (form === 'veranstaltung' && !spec.slides.some((slide) => slide.datum)) {
+    bericht.push({ art: 'fehlt', fakt: 'termin' });
+  }
+  bericht.push(...cut.fotoEintraege);
+  const paletteNote = paletteHinweis(palette);
+  if (paletteNote) bericht.push({ art: 'gestaltung', text: paletteNote.slice(0, 300) });
   hinweis =
     [
-      paletteHinweis(palette),
+      paletteNote,
       hinweis ?? illustrated.hinweis,
       cut.hinweis,
       accepted.kept,
@@ -461,6 +487,7 @@ export async function draftSharepic(
     spec,
     ...(hinweis && { hinweis }),
     ...(form && { form }),
+    bericht: bericht.slice(0, 20),
     ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
     attributions: credits.map((credit) =>

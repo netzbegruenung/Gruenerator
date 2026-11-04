@@ -47,6 +47,16 @@ describe('toCreatorVariant', () => {
     expect(v.label).toBe('Sharepic');
   });
 
+  it('carries the bericht on the props, and leaves it off when empty', () => {
+    const bericht = [{ art: 'fehlt' as const, fakt: 'termin' as const }];
+    const opts = { revisionOf: null, editorChangesDropped: false };
+    const base = { spec: SPEC_DE, chapters: [], attributions: [null] };
+    expect(toCreatorVariant({ ...base, bericht }, opts).initialProps).toMatchObject({ bericht });
+    expect(toCreatorVariant({ ...base, bericht: [] }, opts).initialProps).not.toHaveProperty(
+      'bericht'
+    );
+  });
+
   it('derives the alt text from the first slide without marker syntax', () => {
     const v = toCreatorVariant(
       { spec: SPEC_DE, chapters: [], attributions: [null] },

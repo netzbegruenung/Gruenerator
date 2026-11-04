@@ -1,4 +1,8 @@
-import { isSharepicUploadId, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  isSharepicUploadId,
+  type SharepicBerichtEintrag,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 
 import { type CutOutPainter } from './cutOut.js';
 import { type IllustrationPainter } from './illustrations.js';
@@ -69,8 +73,14 @@ export async function cutOutBilder(
   painter: CutOutPainter | undefined,
   /** quelle → the cut-out a Vorlage shipped with it. */
   shipped: ReadonlyMap<string, string> = new Map()
-): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+): Promise<{
+  spec: SharepicSpec;
+  hinweis: string | null;
+  /** Report entries for the person's own photos; stock photos leave none. */
+  fotoEintraege: SharepicBerichtEintrag[];
+}> {
   let failed = false;
+  const fotoEintraege: SharepicBerichtEintrag[] = [];
   const pending = new Map<string, ReturnType<CutOutPainter>>();
   const cutOut = (quelle: string): ReturnType<CutOutPainter> => {
     let job = pending.get(quelle);
@@ -95,12 +105,28 @@ export async function cutOutBilder(
           if (!painter) return item;
           const ref = await cutOut(item.quelle);
           if (!ref) failed = true;
+          if (isSharepicUploadId(item.quelle)) {
+            fotoEintraege.push(
+              ref
+                ? { art: 'foto', id: item.quelle, status: 'freigestellt' }
+                : {
+                    art: 'foto',
+                    id: item.quelle,
+                    status: 'ungeschnitten',
+                    grund: CUT_OUT_FAILED_HINWEIS,
+                  }
+            );
+          }
           return ref ? { ...rest, freisteller: ref } : rest;
         })
       ),
     }))
   );
-  return { spec: { ...spec, slides }, hinweis: failed ? CUT_OUT_FAILED_HINWEIS : null };
+  return {
+    spec: { ...spec, slides },
+    hinweis: failed ? CUT_OUT_FAILED_HINWEIS : null,
+    fotoEintraege,
+  };
 }
 
 export interface SharepicPainters {

@@ -98,6 +98,7 @@ export function toCreatorVariant(
   const props: SharepicChatProps = {
     creatorSpec: draft.spec,
     attributions: draft.attributions,
+    ...(draft.bericht?.length && { bericht: draft.bericht }),
     ...(opts.revisionOf !== null && { revisionOf: opts.revisionOf }),
     ...(opts.editorChangesDropped && { editorChangesDropped: true as const }),
   };
