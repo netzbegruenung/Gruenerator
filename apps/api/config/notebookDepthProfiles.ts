@@ -64,6 +64,14 @@ export interface NotebookDepthProfile {
    */
   queryRewrite: boolean;
   /**
+   * Ob vor der Suche ein kurzer KI-Aufruf die Fachbegriffe der Frage bestimmt
+   * (`extractSearchTerms`). Sie ersetzen den Fragesatz in der Wortsuche der
+   * Hybridsuche und entscheiden, welcher Abschnitt eines Dokuments als
+   * Begriffstreffer gilt (#5341); die Vektorsuche liest weiter die Frage. Nur
+   * `deep`: `fast` bleibt byte-identisch (Grün-O-Mat), `ultra` ist ungemessen.
+   */
+  subjectTerms: boolean;
+  /**
    * Ob jede Quelle im Pool ihre beste Stelle bekommt, bevor eine Quelle eine
    * weitere bekommt (höchstens das halbe Fenster, siehe
    * `reserveBestPassagePerSource`). Aus bei `fast`: der Grün-O-Mat fährt die
@@ -90,6 +98,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: false,
+    subjectTerms: false,
     bestPassagePerSource: false,
   },
   // 100 ist die Decke der Qdrant-Suche je Abfrage. Gemessen 06.10.2026 an 23
@@ -108,6 +117,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: true,
+    subjectTerms: true,
     bestPassagePerSource: true,
   },
   ultra: {
@@ -122,6 +132,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 3,
     history: true,
     queryRewrite: true,
+    subjectTerms: false,
     bestPassagePerSource: false,
   },
 };

@@ -200,3 +200,27 @@ describe('validateSearchParams — sparseQueryVector', () => {
     ).not.toHaveProperty('sparseQueryVector');
   });
 });
+
+describe('validateSearchParams — lexicalTerms (#5341)', () => {
+  it('carries the subject terms through the nested branch', () => {
+    const out = validate({
+      query: 'Was gilt zur Wärmepumpe?',
+      userId: undefined,
+      options: {
+        mode: 'hybrid',
+        searchCollection: 'grundsatz_documents',
+        lexicalTerms: ['Wärmepumpe'],
+      },
+    });
+    expect(out.options.lexicalTerms).toEqual(['Wärmepumpe']);
+  });
+
+  it('drops empty and non-string entries, and the field when nothing is left', () => {
+    const out = validate({
+      query: 'Frage',
+      userId: undefined,
+      options: { searchCollection: 'grundsatz_documents', lexicalTerms: ['', 3, '  '] },
+    });
+    expect(out.options).not.toHaveProperty('lexicalTerms');
+  });
+});

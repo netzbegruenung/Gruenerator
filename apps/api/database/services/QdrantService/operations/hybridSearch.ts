@@ -102,7 +102,9 @@ export async function hybridSearch(
     }
 
     const recallText = Math.max(limit, recallLimit || limit * 4);
-    const textResults = await performTextSearch(client, collection, query, filter, recallText);
+    const textResults = options.lexicalTerms?.length
+      ? await searchLexicalTerms(client, collection, options.lexicalTerms, filter, recallText)
+      : await performTextSearch(client, collection, query, filter, recallText);
 
     const dynamicThreshold = hybridCfg.enableDynamicThresholds
       ? calculateDynamicThreshold(threshold, textResults.length > 0, hybridCfg)
@@ -409,6 +411,32 @@ async function hybridSearchServerSide(
       textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };
+}
+
+/**
+ * Die Wortsuche für eine lange Frage: je Fachbegriff eine eigene Suche statt
+ * einer über den ganzen Fragesatz (#5341). Ein Satz steht in keinem Abschnitt
+ * wörtlich; `performTextSearch` fiel dann auf seine Einzelwort-Suche zurück,
+ * in der „welche" so viel zählte wie der eine Begriff, um den es ging, und
+ * bewertete jeden Treffer mit dem Mindestwert. Ein Abschnitt, den mehrere
+ * Begriffe finden, behält seinen besten Wert.
+ */
+export async function searchLexicalTerms(
+  client: QdrantClient,
+  collection: string,
+  terms: readonly string[],
+  filter: QdrantFilter,
+  limit: number
+): Promise<TextSearchResult[]> {
+  const perTerm = await Promise.all(
+    terms.map((term) => performTextSearch(client, collection, term, filter, limit))
+  );
+  const best = new Map<string | number, TextSearchResult>();
+  for (const hit of perTerm.flat()) {
+    const seen = best.get(hit.id);
+    if (!seen || hit.score > seen.score) best.set(hit.id, hit);
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 /**

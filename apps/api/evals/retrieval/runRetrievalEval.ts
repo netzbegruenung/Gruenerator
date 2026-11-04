@@ -201,7 +201,8 @@ const { notebookQAService } = await import('../../services/notebook/NotebookQASe
 const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
   await import('../../routes/chat/services/notebookHistoryService.js');
-const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
+const { expandQuery, extractSearchTerms } =
+  await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
 const { RERANK_INSTRUCT_PRESETS, isRerankInstructPreset } = await import('./rerankInstructs.js');
@@ -656,6 +657,8 @@ async function runNotebookCase(
       Math.max(1, profile.queryVariants)
     );
   }
+  // Wie `notebookStreamCore.ts`: die Fachbegriffe aus der umgeschriebenen Frage.
+  const lexicalTerms = profile.subjectTerms ? await extractSearchTerms(queries[0]) : [];
 
   const user = meta.user;
   try {
@@ -668,6 +671,7 @@ async function runNotebookCase(
       userId: 'SYSTEM',
       depth,
       queries,
+      ...(lexicalTerms.length > 0 && { lexicalTerms }),
       ...(user && {
         getCollectionFn: async (id: string) =>
           id === user.collectionId ? { name: user.name, user_id: 'SYSTEM' } : null,

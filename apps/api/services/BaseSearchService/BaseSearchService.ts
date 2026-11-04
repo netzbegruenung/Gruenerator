@@ -65,6 +65,14 @@ import type {
  * genug, dass er nur Gleichstände entscheidet — Dokumentscores laufen in einen
  * Deckel bei 1.0, und dahinter steht sonst die Einfügereihenfolge.
  */
+/**
+ * Höchster Anteil der Pool-Abschnitte, in dem ein Fachbegriff der Frage stehen
+ * darf, um noch als Begriffstreffer zu zählen (#5341). Gemessen 04.11.2026 an
+ * einem Notebook mit 654 Abschnitten: Fachbegriffe 0,3–4,4 % („Wärmepumpe",
+ * „Bundesfrauenrat"), Gattungswörter 36–46 % („Beschlüsse", „Partei").
+ */
+const LEXICAL_TERM_MAX_POOL_SHARE = 0.1;
+
 const NO_TITLE_MATCH_TIE_BREAK = 0.02;
 
 /**
@@ -269,6 +277,7 @@ export class BaseSearchService {
           rrfK: options.rrfK ?? 60,
           recallLimit: options.recallLimit,
           sparseQueryVector: options.sparseQueryVector,
+          lexicalTerms: options.lexicalTerms,
         },
       });
 
@@ -282,6 +291,7 @@ export class BaseSearchService {
       const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
+        ...(options.lexicalTerms?.length && { lexicalTerms: options.lexicalTerms }),
         ...(options.rerankChunks === true && {
           rerankChunks: true,
           onRerankDegraded: () => {
@@ -876,6 +886,13 @@ export class BaseSearchService {
     const normQuery = normalizeQuery(query);
     const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
     const queryCoverageTerms = coverageTerms(query);
+    // Fachbegriffe der Frage (#5341). Ein langer Fragesatz steht in keinem
+    // Abschnitt wörtlich, `has_term` bliebe dort immer falsch — die Begriffe
+    // lösen nur die Regel „ein Treffer-Abschnitt steht in den Top-Chunks seines
+    // Dokuments" aus, nicht den Score-Aufschlag von `has_term`.
+    const lexicalTerms = (options.lexicalTerms ?? []).filter((t) => normalizeQuery(t));
+    const termsByChunk = new Map<object, string[]>();
+    const chunksByTerm = new Map<string, number>();
 
     // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notebooks,
     // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notebook und
@@ -930,6 +947,11 @@ export class BaseSearchService {
 
       // Lexical-aware adjustments
       const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
+      const matchedTerms = hasTerm
+        ? []
+        : lexicalTerms.filter((t) => containsNormalized(chunkData.text, normalizeQuery(t)));
+      if (matchedTerms.length > 0) termsByChunk.set(chunkData, matchedTerms);
+      for (const t of matchedTerms) chunksByTerm.set(t, (chunksByTerm.get(t) ?? 0) + 1);
       const isTOC = looksLikeTOC(chunkData.text);
       const inHeader = chunkData.content_type === 'heading';
       // Der Cross-Encoder ersetzt die Basis, nicht die Zuschläge: er urteilt
@@ -978,6 +1000,17 @@ export class BaseSearchService {
       }
     }
 
+    // Ein Begriff, der in jedem dritten Abschnitt steht, zeichnet keinen aus:
+    // die KI nennt mitunter Gattungswörter („Beschlüsse", „Partei"), und deren
+    // erster Treffer wäre sonst die beste Stelle eines Dokuments.
+    const lexicalHits = new Map<object, string>();
+    for (const [chunk, terms] of termsByChunk) {
+      const rare = terms.find(
+        (t) => (chunksByTerm.get(t) ?? 0) <= chunks.length * LEXICAL_TERM_MAX_POOL_SHARE
+      );
+      if (rare) lexicalHits.set(chunk, rare);
+    }
+
     // Calculate enhanced scores and format results
     const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map((doc) => {
       // Graduated filtering for short queries
@@ -1022,10 +1055,11 @@ export class BaseSearchService {
       const maxN = contentConfig.maxChunksPerDocument;
       let topChunks = doc.chunks.slice(0, maxN);
 
-      if (normQuery) {
-        const idx = topChunks.findIndex((c) => c.has_term);
+      if (normQuery || lexicalTerms.length > 0) {
+        const isHit = (c: (typeof doc.chunks)[number]) => !!c.has_term || lexicalHits.has(c);
+        const idx = topChunks.findIndex(isHit);
         if (idx === -1) {
-          const firstHit = doc.chunks.find((c) => c.has_term);
+          const firstHit = doc.chunks.find(isHit);
           if (firstHit) topChunks = [firstHit, ...topChunks].slice(0, maxN);
         } else if (idx > 0) {
           const [hit] = topChunks.splice(idx, 1);
@@ -1039,7 +1073,13 @@ export class BaseSearchService {
         .map((chunk) =>
           normQuery && chunk.has_term
             ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
-            : this.extractRelevantExcerpt(chunk.text)
+            : lexicalHits.has(chunk)
+              ? extractMatchedExcerpt(
+                  chunk.text,
+                  lexicalHits.get(chunk)!,
+                  contentConfig.maxExcerptLength
+                )
+              : this.extractRelevantExcerpt(chunk.text)
         )
         .join('\n\n---\n\n');
 
@@ -1091,7 +1131,13 @@ export class BaseSearchService {
           preview:
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
-              : this.extractRelevantExcerpt(tc.text),
+              : lexicalHits.has(tc)
+                ? extractMatchedExcerpt(
+                    tc.text,
+                    lexicalHits.get(tc)!,
+                    contentConfig.maxExcerptLength
+                  )
+                : this.extractRelevantExcerpt(tc.text),
           text: tc.text,
         })),
         chunk_count: doc.chunks.length,
@@ -1239,6 +1285,9 @@ export class BaseSearchService {
       rerankChunks: params.options?.rerankChunks === true,
       // Ein vorgegebener BM25-Anfragevektor ändert die Treffer bei gleicher Anfrage.
       sparseQueryVector: params.options?.sparseQueryVector ?? null,
+      // Fachbegriffe ersetzen die Wortsuche (#5341) — dieselbe Frage mit und
+      // ohne sie liefert andere Treffer.
+      lexicalTerms: params.options?.lexicalTerms ?? null,
     };
 
     return `${this.serviceName}:${this.simpleHash(JSON.stringify(keyData))}`;
