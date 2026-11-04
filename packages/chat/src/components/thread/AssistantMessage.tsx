@@ -44,8 +44,6 @@ import { VorlagenSuggestionsSection } from '../message-parts/VorlagenSuggestions
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
 import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
-import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
-import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
 import { useChatDensity, useChatMessageActions } from './chatDensityContext';
 
@@ -378,12 +376,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {!isStreaming && custom?.createdDocument && (
             <DocumentCreatedCard document={custom.createdDocument} />
           )}
-
-          {!isStreaming && custom?.reelProcessing && (
-            <ReelProcessingCard data={custom.reelProcessing} />
-          )}
-
-          {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
           {showActions && (
             <MessageActions
