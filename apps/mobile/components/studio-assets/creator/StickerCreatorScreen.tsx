@@ -32,7 +32,7 @@ import { StickerPreview, usePreviewSize, type StickerDraft } from './creatorPart
 import { ImageStickerDesigner } from './ImageStickerDesigner';
 import { writeStickerPng } from './stickerRender';
 import { StudioAssetForm } from './StudioAssetForm';
-import { uploadStickerPng } from './uploadSticker';
+import { uploadStudioAssetImage } from './uploadSticker';
 
 const UPLOAD_ERROR = 'Das Hochladen hat nicht geklappt. Bitte versuche es erneut.';
 const CREATE_ERROR = 'Sticker konnte nicht gespeichert werden.';
@@ -47,7 +47,7 @@ const HEADINGS: Record<Exclude<CreatorStep, 'design'>, string> = {
 async function uploadDraft(image: StickerDraft['image'], filename: string): Promise<string> {
   const uri = await writeStickerPng(image, filename);
   try {
-    return await uploadStickerPng(uri, filename);
+    return await uploadStudioAssetImage(uri, filename);
   } finally {
     try {
       new File(uri).delete();

@@ -15,6 +15,8 @@ import {
 import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
 import { useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import { secureStorage } from '../../services/storage';
+import { pickImageForEditor } from '../../services/imageEditMobile';
+import { uploadStudioAssetImage } from '../studio-assets/creator/uploadSticker';
 
 import { BackgroundPicker } from './BackgroundPicker';
 import { StickerPicker } from './StickerPicker';
@@ -22,7 +24,9 @@ import { StickerPicker } from './StickerPicker';
 jest.mock('@gruenerator/shared/studio-assets', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/studio-assets'),
   useOwnStudioAssets: jest.fn(),
+  useStudioAssetMutations: () => ({ create: { mutateAsync: mockCreate } }),
 }));
+jest.mock('../studio-assets/creator/uploadSticker', () => ({ uploadStudioAssetImage: jest.fn() }));
 jest.mock('@gruenerator/shared/marketplace', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
   useMarketplaceKind: jest.fn(),
@@ -38,7 +42,10 @@ jest.mock('@tanstack/react-query', () => ({
 jest.mock('../common/Skeleton', () => ({ SkeletonRows: () => null }));
 // Skia needs the native module; the pickers only use it to decode an upload.
 jest.mock('@shopify/react-native-skia', () => ({
-  Skia: {},
+  Skia: {
+    Image: { MakeImageFromEncoded: () => ({}) },
+    Data: { fromURI: async () => ({}) },
+  },
   Canvas: () => null,
   Group: () => null,
   Image: () => null,
@@ -53,6 +60,7 @@ jest.mock('../common/BottomSheet', () => ({
     visible ? children : null,
 }));
 
+const mockCreate = jest.fn<(body: unknown) => Promise<StudioAssetItem>>();
 const mockOwn = useOwnStudioAssets as unknown as jest.MockedFunction<
   (kind: string, q: string) => Record<string, unknown>
 >;
@@ -235,6 +243,60 @@ describe('BackgroundPicker', () => {
     const { id, kind, src, title, width, height } = shared;
     expect(onPickGallery).toHaveBeenCalledWith({ id, kind, src, title, width, height });
     expect(screen.queryByRole('header', { name: 'Hintergründe im Marktplatz' })).toBeNull();
+  });
+
+  it('stores an uploaded photo as a private gallery background and uses its src', async () => {
+    const created = asset({
+      id: 'c0ffee00-8a4d-4f5e-9c2a-7d1e5b3a9f10',
+      title: 'Eigenes Hintergrundbild',
+    });
+    (pickImageForEditor as jest.Mock<() => Promise<unknown>>).mockResolvedValue({
+      uri: 'file:///cache/pick.jpg',
+      width: 10,
+      height: 10,
+    });
+    (uploadStudioAssetImage as jest.Mock<() => Promise<string>>).mockResolvedValue('tok123');
+    mockCreate.mockResolvedValue(created);
+    const onCustom = jest.fn();
+    const onSelect = jest.fn();
+    await render(
+      <BackgroundPicker
+        isAustria={false}
+        images={{}}
+        selected="tanne"
+        custom={null}
+        freeBackground={null}
+        onSelect={onSelect}
+        onCustom={onCustom}
+        onPickGallery={jest.fn()}
+      />
+    );
+    await fireEvent.press(screen.getByRole('radio', { name: 'Deine' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Bild hochladen' }));
+    await act(async () => {});
+
+    expect(uploadStudioAssetImage).toHaveBeenCalledWith(
+      'file:///cache/pick.jpg',
+      'profilbild-hintergrund.jpg',
+      'image/jpeg'
+    );
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shareToken: 'tok123',
+        kind: 'background',
+        source: 'upload',
+        visibility: 'private',
+        title: 'Eigenes Hintergrundbild',
+      })
+    );
+    expect(onCustom).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///cache/pick.jpg', galleryUrl: created.src })
+    );
+    expect(onSelect).toHaveBeenCalledWith(
+      'eigenes-bild',
+      expect.objectContaining({ kind: 'image' })
+    );
   });
 
   it('opens on Deine when the own photo is in use', async () => {
