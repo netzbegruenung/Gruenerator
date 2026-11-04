@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+
 import { findNrw } from './find.js';
-import { type NrwFilter, type NrwNotebook, type NrwPayload } from './notebook.js';
+import { getNrwNotebook, type NrwFilter, type NrwNotebook, type NrwPayload } from './notebook.js';
 import { fetchNrwTexts, resolveNrwRefs } from './read.js';
 
 // Die echten Funktionen von notebook.ts, ohne Qdrant- und Mistral-Anbindung.
@@ -66,6 +68,8 @@ describe('findNrw', () => {
     expect(nb.nearest).toHaveBeenCalledWith('Windkraft', expect.anything(), 120);
     expect(r.candidates.map((c) => c.ref)).toEqual(['NW 18/7', 'NW 18/3']);
     expect(r.notes).toEqual([expect.stringMatching(/Nähe zu „Windkraft“.*etwa 40/)]);
+    // Die 40 zählen nur die Filter, nicht das Thema: keine Gesamtzahl für „wie viele".
+    expect(r.gesamt).toBe(2);
   });
 
   it('sucht Volltext über alle Chunks und zählt dann keine Dokumente', async () => {
@@ -126,7 +130,7 @@ describe('findNrw', () => {
     const wp = await findNrw({ query: '', filters: { wahlperiode: 17 } }, nb);
     expect(wp.ausgeschlossen).toMatch(/nur die 18\. Wahlperiode/);
     const protokoll = await findNrw({ query: '', filters: { typ: ['Plenarprotokoll'] } }, nb);
-    expect(protokoll.ausgeschlossen).toMatch(/gruenerator_search/);
+    expect(protokoll.ausgeschlossen).toMatch(/Plenarprotokoll/);
     const linke = await findNrw({ query: '', filters: { fraktion: ['linke'] } }, nb);
     expect(linke.ausgeschlossen).toMatch(/nicht vertreten/);
     expect(nb.latest).not.toHaveBeenCalled();
@@ -161,5 +165,20 @@ describe('resolveNrwRefs / fetchNrwTexts', () => {
       ['NW 18/100', 'Text A', 'pdf'],
       ['NW 18/101', '', 'missing'],
     ]);
+  });
+});
+
+describe('getNrwNotebook', () => {
+  it('holt den Client je Aufruf über init(), damit ein verworfener Client neu verbunden wird', async () => {
+    const init = vi.fn(async () => undefined);
+    const count = vi.fn(async () => ({ count: 7 }));
+    vi.mocked(getQdrantInstance).mockReturnValue({
+      init,
+      readClient: () => ({ count }),
+    } as never);
+    const nb = getNrwNotebook();
+    expect(await nb.count({ must: [] })).toBe(7);
+    expect(await nb.count({ must: [] })).toBe(7);
+    expect(init).toHaveBeenCalledTimes(2);
   });
 });

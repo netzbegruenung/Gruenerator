@@ -93,11 +93,12 @@ export function dedupeNrw(payloads: readonly NrwPayload[]): BundestagCandidate[]
   return [...byRef.values()];
 }
 
-function qdrantNotebook(client: QdrantClient): NrwNotebook {
+function qdrantNotebook(clientOf: () => Promise<QdrantClient>): NrwNotebook {
   const payloads = (points: Array<{ payload?: NrwPayload | null }>) =>
     points.map((p) => p.payload ?? {});
   return {
     async latest(filter, limit) {
+      const client = await clientOf();
       const page = await client.scroll(LANDTAG_NRW_COLLECTION, {
         filter,
         limit,
@@ -108,6 +109,7 @@ function qdrantNotebook(client: QdrantClient): NrwNotebook {
       return payloads(page.points);
     },
     async nearest(query, filter, limit) {
+      const client = await clientOf();
       const vector = await mistralEmbeddingService.generateQueryEmbedding(query);
       const res = await client.query(LANDTAG_NRW_COLLECTION, {
         query: vector,
@@ -119,9 +121,11 @@ function qdrantNotebook(client: QdrantClient): NrwNotebook {
       return payloads(res.points);
     },
     async count(filter) {
+      const client = await clientOf();
       return (await client.count(LANDTAG_NRW_COLLECTION, { filter, exact: true })).count;
     },
     async text(documentId) {
+      const client = await clientOf();
       const byDoc = { key: 'document_id', match: { value: documentId } };
       const head = await client.scroll(LANDTAG_NRW_COLLECTION, {
         filter: { must: [byDoc, { key: 'chunk_index', match: { value: 0 } }] },
@@ -157,5 +161,12 @@ function qdrantNotebook(client: QdrantClient): NrwNotebook {
 }
 
 export function getNrwNotebook(): NrwNotebook {
-  return qdrantNotebook(getQdrantInstance().readClient(LANDTAG_NRW_COLLECTION));
+  // Je Aufruf: `init()` ist idempotent und verbindet neu, wenn der Dienst den
+  // Client nach einem Ausfall verworfen hat — ein einmal geholter Client warf
+  // dann „Qdrant is not available" (live 04.11.2026, 2 von 8 NRW-Turns).
+  return qdrantNotebook(async () => {
+    const qdrant = getQdrantInstance();
+    await qdrant.init();
+    return qdrant.readClient(LANDTAG_NRW_COLLECTION);
+  });
 }

@@ -20,6 +20,7 @@ import { readDocuments } from '../bundestag/qa/read.js';
 import { LANDTAG_BACKENDS } from './backends.js';
 import { type LandtagFindResult } from './berlin/find.js';
 import { LANDTAGE, type LandtagMeta } from './registry.js';
+import { topicOf } from './wording.js';
 
 export { LANDTAGE, landtageFor, landtagMeta } from './registry.js';
 export type { LandtagFindResult } from './berlin/find.js';
@@ -30,12 +31,37 @@ async function getRedis(): Promise<TextCache | null> {
   return redisClient as unknown as TextCache;
 }
 
+/** „19/2500", „Drucksache 18/21208", „19/S27244" in Suchwort oder Titelfilter. */
+const DOC_NUMBER_RE = /(?<![\d/])(\d{1,2})\/S?0*(\d{1,6})(?![\d/])/;
+
 export async function findLandtag(
   parlament: LandtagParlament,
   query: string,
   filters: LandtagFilter
 ): Promise<LandtagFindResult> {
-  return LANDTAG_BACKENDS[parlament]().find({ query, filters });
+  const backend = LANDTAG_BACKENDS[parlament]();
+  // Eine Nummer sucht die Titelsuche nicht: „19/2500" fand nichts, das Modell las nie
+  // und sagte „liegt mir nicht vor" (live 04.11.2026). Erst die Nummer, dann die Suche.
+  const nr = DOC_NUMBER_RE.exec(`${query} ${filters.titel ?? ''}`);
+  if (nr) {
+    const { refPrefix } = LANDTAGE[parlament];
+    // Ohne und mit `S` (Berliner Schriftliche Anfragen haben eine eigene Reihe).
+    const hits = await backend.resolveRefs([
+      `${refPrefix} ${nr[1]}/${nr[2]}`,
+      `${refPrefix} ${nr[1]}/S${nr[2]}`,
+    ]);
+    if (hits.length > 0) {
+      return {
+        candidates: hits,
+        gesamt: hits.length,
+        notes: [
+          `Gefunden über die Nummer ${nr[1]}/${nr[2]}; für den Inhalt parlament_lesen mit dieser Ref.`,
+        ],
+      };
+    }
+  }
+  // Filterwörter („Anträge", „Fraktion der Grünen") sind kein Thema; sie stehen schon im Filter.
+  return backend.find({ query: topicOf(query), filters });
 }
 
 /** Welchem Parlament gehört der Ref? `null`, wenn keins ihn als seinen erkennt. */

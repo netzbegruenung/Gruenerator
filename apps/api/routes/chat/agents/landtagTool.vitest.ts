@@ -9,6 +9,10 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 const findLandtag = vi.fn<(p: string, q: string, f: unknown) => Promise<unknown>>();
 // Eine werfende `vi.fn` lässt Vitest den Test selbst rot färben; der Ausfall kommt darum aus dieser Weiche.
 let ausfall = false;
+const executeDirectSearch = vi.fn<(p: unknown) => Promise<unknown>>();
+vi.mock('./directSearchExecutors.js', () => ({
+  executeDirectSearch: (p: unknown) => executeDirectSearch(p),
+}));
 vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   findLandtag: (p: string, q: string, f: unknown): Promise<unknown> => {
@@ -51,6 +55,7 @@ const candidate = {
 describe('makeLandtagTool', () => {
   beforeEach(() => {
     findLandtag.mockReset();
+    executeDirectSearch.mockReset();
     ausfall = false;
   });
   const make = (locale = 'de-DE', text = '') =>
@@ -62,6 +67,82 @@ describe('makeLandtagTool', () => {
     };
     expect(out.error).not.toBe('');
     expect(findLandtag).not.toHaveBeenCalled();
+  });
+
+  it('liefert Plenarprotokolle als Textstellen aus dem Notebook, mit der ganzen Frage (NRW, live 04.11.2026)', async () => {
+    executeDirectSearch.mockResolvedValue({
+      collection: 'landtag-nrw',
+      results: [
+        {
+          source: 'Haushaltsgesetz 2027, 1. Lesung',
+          url: 'https://www.landtag.nrw.de/Dokument?Id=MMP18%2F129|1|20',
+          excerpt: 'Minister Optendrenk: …',
+        },
+      ],
+    });
+    const frage = 'Was wurde in der ersten Lesung des Haushalts 2027 gesagt?';
+    const out = (await exec(make('de-DE', frage), {
+      parlament: 'nrw',
+      typ: ['Plenarprotokoll'],
+    })) as { resultCount: number; sources: string; hinweis: string };
+    expect(executeDirectSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: frage,
+        collection: 'landtag-nrw',
+        searchMode: 'vector',
+        filters: { content_type: ['plenarprotokoll'] },
+      })
+    );
+    expect(findLandtag).not.toHaveBeenCalled();
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('NRW · Plenarprotokoll · Haushaltsgesetz 2027');
+    expect(out.hinweis).toMatch(/direkt zitierbar/);
+  });
+
+  it('fragt bei gemischter Art die Liste ohne Protokolle und sagt es', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const out = (await exec(make(), {
+      parlament: 'berlin',
+      typ: ['Antrag', 'Plenarprotokoll'],
+    })) as { hinweise?: string[] };
+    expect(findLandtag).toHaveBeenCalledWith(
+      'berlin',
+      '',
+      expect.objectContaining({ typ: ['Antrag'] })
+    );
+    expect(executeDirectSearch).not.toHaveBeenCalled();
+    expect(out.hinweise).toEqual([expect.stringMatching(/typ Plenarprotokoll allein/)]);
+  });
+
+  it('sagt bei Antworten, dass die Titel nur die Fragen sind (Planer und Schreiber)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const out = (await exec(make(), { parlament: 'nrw', typ: ['Antwort'] })) as {
+      hinweis: string;
+      fuerSchreiber?: string;
+    };
+    expect(out.hinweis).toMatch(/^Die Titel sind die Fragen/);
+    expect(out.fuerSchreiber).toMatch(/nur in Texten, die parlament_lesen geliefert hat/);
+
+    const antrag = (await exec(make(), { parlament: 'nrw', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(antrag.fuerSchreiber).toBeUndefined();
+  });
+
+  it('gibt dem Schreiber die Gesamtzahl, wenn die Liste gedeckelt ist (Zählfrage, live 04.11.2026)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 77, notes: [] });
+    const out = (await exec(make(), { parlament: 'berlin', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(out.fuerSchreiber).toMatch(
+      /Gesamtzahl laut Abgeordnetenhaus von Berlin: 77 Dokumente \(Art: Antrag\)\. .*nur 1 davon.*nenne 77/
+    );
+
+    findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+    const voll = (await exec(make(), { parlament: 'berlin', typ: ['Antrag'] })) as {
+      fuerSchreiber?: string;
+    };
+    expect(voll.fuerSchreiber).toBeUndefined();
   });
 
   it('übernimmt Fraktion, Art und Jahr aus dem Wortlaut; gesetzte Argumente gehen vor', async () => {

@@ -16,14 +16,20 @@ import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { SOURCE_PREFIX } from '../../../agents/langgraph/ChatGraph/types.js';
 import { landtagDocTitle } from '../../../services/landtag/docTitle.js';
 import { findLandtag, LANDTAGE, landtageFor } from '../../../services/landtag/index.js';
 import { FRAKTION_LABEL } from '../../../services/landtag/registry.js';
 import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
+import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { lastUserText } from '../services/messageHelpers.js';
 
+import { executeDirectSearch } from './directSearchExecutors.js';
+
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+
+const log = createLogger('LandtagTool');
 
 function filterDate(iso: string): string {
   const [y, m, d] = iso.split('-');
@@ -52,6 +58,78 @@ interface Ctx {
   sourceRegistry: SourceRegistry;
 }
 
+/** Soviele Textstellen aus den Plenarprotokollen gehen an das Modell. */
+const PROTOKOLL_PASSAGES = 6;
+
+/**
+ * Plenarprotokolle für Parlamente, deren Liste keine führt: Textstellen aus dem
+ * Parlaments-Notebook, dort je Tagesordnungspunkt abgelegt. Gesucht wird mit der
+ * ganzen Frage und nur dicht — die Hybridsuche brauchte auf den Parlaments-
+ * Sammlungen 10–12 s, die dichte 0,2–3,8 s (#5290). Vorher stand hier ein
+ * Verweis auf `gruenerator_search`; das Modell nahm die falsche Sammlung
+ * („bayern", live 04.11.2026) und antwortete aus der Websuche.
+ */
+async function runProtokollSuche(
+  { sourceRegistry }: Ctx,
+  meta: (typeof LANDTAGE)[LandtagParlament],
+  collection: string,
+  question: string,
+  filters: LandtagFilter
+) {
+  let passages: Awaited<ReturnType<typeof executeDirectSearch>>['results'] = [];
+  let resolved = collection;
+  try {
+    const res = await executeDirectSearch({
+      query: question,
+      collection,
+      limit: PROTOKOLL_PASSAGES,
+      searchMode: 'vector',
+      filters: { content_type: ['plenarprotokoll'] },
+    });
+    passages = (res.results ?? []).filter((r) => r.excerpt);
+    resolved = res.collection;
+  } catch (error: unknown) {
+    log.warn(
+      `[landtag] ${meta.id} Protokolle: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return {
+      resultCount: 0,
+      sources: '',
+      error: `Die Plenarprotokolle des ${meta.parlament} sind gerade nicht erreichbar.`,
+    };
+  }
+  if (passages.length === 0) {
+    return {
+      resultCount: 0,
+      sources: '',
+      error: `Keine passende Stelle in den Plenarprotokollen des ${meta.parlament} gefunden.`,
+      quelle: meta.quellenangabe,
+    };
+  }
+  const results: SearchResult[] = passages.map((p, i) => ({
+    source: `${SOURCE_PREFIX.GRUENERATOR}${resolved}`,
+    title: `${meta.kurz} · Plenarprotokoll · ${p.source}`,
+    content: p.excerpt,
+    ...(p.url ? { url: p.url } : {}),
+    relevance: 1 - 0.02 * i,
+  }));
+  const sources = sourceRegistry.register(results);
+  const ohneZeitraum = filters.datumVon || filters.datumBis || filters.fraktion?.length;
+  return {
+    resultCount: results.length,
+    sources: sources ?? '',
+    hinweis: `Textstellen aus den Plenarprotokollen (je Tagesordnungspunkt), nach Nähe zur Frage. Sie tragen den Text selbst und sind direkt zitierbar; parlament_lesen gilt nur für Drucksachen. Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
+    ...(ohneZeitraum
+      ? {
+          hinweise: [
+            'Zeitraum und Fraktion werden bei den Protokollen nicht gefiltert; die Frage selbst steuert die Auswahl.',
+          ],
+        }
+      : {}),
+    quelle: meta.quellenangabe,
+  };
+}
+
 /** Gemeinsame Ausführung von `landtag` und `nationalrat`. */
 async function runParlamentSuche(
   { state, sourceRegistry }: Ctx,
@@ -68,11 +146,33 @@ async function runParlamentSuche(
   ) as LandtagFilter;
   const filters: LandtagFilter = { ...detectLandtagFromWording(userText), ...fromArgs };
 
+  // Protokolle aus dem Notebook, wo die Liste keine führt; eine gemischte Art-Liste fragt die Liste ohne sie.
+  const protokollNotebook = meta.typen.Plenarprotokoll ? undefined : meta.protokollNotebook;
+  if (protokollNotebook && filters.typ?.includes('Plenarprotokoll')) {
+    const rest = filters.typ.filter((t) => t !== 'Plenarprotokoll');
+    if (rest.length === 0) {
+      return runProtokollSuche(
+        { state, sourceRegistry },
+        meta,
+        protokollNotebook,
+        userText || (query ?? ''),
+        filters
+      );
+    }
+    filters.typ = rest;
+  }
+  const ohneProtokolle =
+    protokollNotebook && args.typ?.includes('Plenarprotokoll')
+      ? 'Plenarprotokolle sind nicht in dieser Liste; dafür landtag mit typ Plenarprotokoll allein aufrufen.'
+      : null;
+
   let found: Awaited<ReturnType<typeof findLandtag>> | null = null;
   try {
     found = await findLandtag(parlament, query ?? '', filters);
-  } catch {
+  } catch (error: unknown) {
     // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
+    // Der Grund gehört ins Log — die Absage allein sagt nicht, ob ein Schlüssel fehlt oder Qdrant weg ist.
+    log.warn(`[landtag] ${parlament}: ${error instanceof Error ? error.message : String(error)}`);
   }
   if (!found) {
     return {
@@ -81,7 +181,7 @@ async function runParlamentSuche(
       error: `Die Abfrage beim ${meta.parlament} ist gerade nicht erreichbar.`,
     };
   }
-  const hinweise = [...found.notes];
+  const hinweise = [...found.notes, ...(ohneProtokolle ? [ohneProtokolle] : [])];
   if (found.ausgeschlossen) {
     // Eine Grenze, kein Fehlschlag: als `error` sagte der Schreiber „Aufruf fehlgeschlagen",
     // als `hinweis` erreichte ihn der Grund gar nicht (live 29.10.2026, Anfragen im Nationalrat).
@@ -113,11 +213,36 @@ async function runParlamentSuche(
   }));
   // Listenzeilen tragen Titel, Schlagwort und Ref: 3000 Zeichen halten sie ganz.
   const sources = sourceRegistry.register(results, { snippetChars: 3000 });
+  // Die Liste ist gedeckelt; auf „wie viele" antwortete der Schreiber mit ihrer Länge
+  // („insgesamt 25 Anträge" statt 83, live 04.11.2026). Er liest `fuerSchreiber`, nicht `hinweis`.
+  const zaehlung =
+    found.gesamt > results.length
+      ? `Gesamtzahl laut ${meta.parlament}: ${found.gesamt} Dokumente${
+          describeLandtagFilter(filters).length > 0
+            ? ` (${describeLandtagFilter(filters).join('; ')})`
+            : ''
+        }. Die Liste zeigt nur ${results.length} davon. Fragt die Person nach der Anzahl, nenne ${found.gesamt} als Gesamtzahl, nicht die Länge der Liste.`
+      : null;
+  // Bei Anfragen trägt der Listentitel die FRAGE. Auf „was hat die Landesregierung
+  // geantwortet" fasste der Schreiber in 2 von 4 Läufen die Fragen zusammen, ohne
+  // dass gelesen wurde (live 04.11.2026).
+  const mitAntworten = filters.typ?.some((t) => t === 'Antwort' || t === 'Anfrage') ?? false;
+  const schreiber = [
+    zaehlung,
+    mitAntworten
+      ? 'Die Listeneinträge nennen nur die Frage. Was geantwortet wurde, steht nur in Texten, die parlament_lesen geliefert hat; ohne solchen Text keine Aussage über den Inhalt einer Antwort.'
+      : null,
+  ].filter(Boolean);
   return {
     resultCount: results.length,
     sources: sources ?? '',
     gesamt: found.gesamt,
-    hinweis: `Die Liste enthält nur Metadaten. Für Inhalte \`parlament_lesen\` mit quelle '${meta.id}' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf. Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
+    ...(schreiber.length > 0 ? { fuerSchreiber: schreiber.join(' ') } : {}),
+    hinweis: `${
+      mitAntworten
+        ? 'Die Titel sind die Fragen, nicht die Antworten: wer wissen will, was geantwortet wurde, braucht parlament_lesen. '
+        : ''
+    }Die Liste enthält nur Metadaten. Für Inhalte \`parlament_lesen\` mit quelle '${meta.id}' aufrufen: bei einer Themen- oder Listenfrage alle einschlägigen Refs (bis zu 6) in einem Aufruf. Nenne in der Antwort die Quelle: ${meta.quellenangabe}.`,
     ...(hinweise.length > 0 ? { hinweise } : {}),
     quelle: meta.quellenangabe,
     // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.

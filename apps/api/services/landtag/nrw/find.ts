@@ -109,5 +109,6 @@ export async function findNrw(
       `Gezeigt werden die neuesten ${candidates.length} von ${gesamt} Drucksachen; mit Zeitraum, Titel, Art oder einem Thema (query) eingrenzen.`
     );
   }
-  return { candidates, gesamt: gesamt ?? candidates.length, notes };
+  // Mit Thema zählt `gesamt` nur die Filter, nicht das Thema: als Gesamtzahl taugt dann nur die Liste.
+  return { candidates, gesamt: query ? candidates.length : (gesamt ?? candidates.length), notes };
 }

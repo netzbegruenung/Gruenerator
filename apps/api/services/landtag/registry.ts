@@ -27,6 +27,8 @@ export interface LandtagMeta {
   kurz: string;
   /** „Abgeordnetenhaus von Berlin": für das Lesen (Prompt) und die Quellenangabe. */
   parlament: string;
+  /** Woran eine Frage dieses Parlament nennt; `bundestag` verweist dann auf `landtag`. */
+  genannt: RegExp;
   /** Genitiv für den Lese-Prompt: „des Abgeordnetenhauses von Berlin". */
   herkunft: string;
   /** Präfix der Refs („BE 19/3519"). */
@@ -37,6 +39,12 @@ export interface LandtagMeta {
   portalUrl: string;
   /** Pflichtangabe der Lizenz; steht in jedem Werkzeugergebnis und auf der Karte. */
   quellenangabe: string;
+  /**
+   * Notebook-Schlüssel, unter dem die Plenarprotokolle je Tagesordnungspunkt liegen
+   * (`content_type: plenarprotokoll`). Gesetzt nur, wo die Liste keine Protokolle
+   * führt: dann liefert `landtag` mit `typ: Plenarprotokoll` Textstellen daraus.
+   */
+  protokollNotebook?: string;
   /** `false` = der Filter wird nicht angewendet und mit einem Hinweis gemeldet. */
   supports: Record<LandtagFilterKey, boolean>;
   /** Hinweis, wenn ein nicht unterstützter Filter gesetzt wurde (statt des Standardsatzes). */
@@ -55,6 +63,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     audience: 'de-DE',
     kurz: 'Berlin',
     parlament: 'Abgeordnetenhaus von Berlin',
+    genannt: /berlin|abgeordnetenhaus/i,
     herkunft: 'des Abgeordnetenhauses von Berlin',
     refPrefix: 'BE',
     // „19/S27288" ist eine Schriftliche Anfrage, alles andere eine Drucksache.
@@ -64,6 +73,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     },
     portalUrl: 'https://pardok.parlament-berlin.de/portala/',
     quellenangabe: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
+    protokollNotebook: 'landtag-berlin',
     supports: {
       wahlperiode: true,
       typ: true,
@@ -107,6 +117,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     audience: 'de-DE',
     kurz: 'NRW',
     parlament: 'Landtag Nordrhein-Westfalen',
+    genannt: /(?<!\p{L})nrw(?!\p{L})|nordrhein|westfal|düsseldorf/iu,
     herkunft: 'des Landtags Nordrhein-Westfalen',
     refPrefix: 'NW',
     nummer: (nr) => `NRW-Drs. ${nr}`,
@@ -114,6 +125,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     portalUrl:
       'https://www.landtag.nrw.de/home/dokumente/dokumentensuche/parlamentsdokumente/parlamentsdatenbank-suchergebnis.html?wp=18&view=detail&dokart=DRUCKSACHE',
     quellenangabe: 'Quelle: Landtag Nordrhein-Westfalen, Parlamentsdatenbank',
+    protokollNotebook: 'landtag-nrw',
     // Keine Live-API: gesucht wird im Notebook (`landtag_nrw_documents`), siehe `nrw/find.ts`.
     supports: {
       wahlperiode: true,
@@ -140,10 +152,6 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       Änderungsantrag: ['Änderungsantrag'],
       Plenarprotokoll: null,
     },
-    typHinweis: {
-      Plenarprotokoll:
-        "Plenar- und Ausschussprotokolle des Landtags NRW liegen nach Tagesordnungspunkten im Notebook; dafür gruenerator_search mit collection 'landtag-nrw'.",
-    },
     fraktionen: {
       gruene: 'GRÜNE',
       cdu: 'CDU',
@@ -163,6 +171,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     audience: 'de-AT',
     kurz: 'Nationalrat',
     parlament: 'Nationalrat',
+    genannt: /nationalrat/i,
     herkunft: 'des österreichischen Nationalrats',
     refPrefix: 'NR',
     // Die Liste trägt die Zitierform des Parlaments („123 d.B.", „1025/A(E)"); die GP steht im Ref.

@@ -305,6 +305,7 @@ describe('loopTools', () => {
         'gruenerator_pressemitteilung_examples',
         'abgeordnetenwatch',
         'bundestag',
+        'landtag',
         'umfragen',
         'gruenerator_docs_search',
       ])

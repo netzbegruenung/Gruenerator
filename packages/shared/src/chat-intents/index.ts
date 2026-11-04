@@ -461,7 +461,11 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   bundestag: {
     id: 'bundestag',
     category: 'retrieval',
-    loopTools: ['bundestag'],
+    // `landtag` hängt an derselben Sperre (`toolCatalog`) und muss in der
+    // Recherche-Menge stehen: ein erzwungener erster Schritt kannte ihn sonst
+    // nicht, und „Gesetzentwürfe im Landtag NRW" landete bei der Websuche
+    // (live 04.11.2026).
+    loopTools: ['bundestag', 'landtag'],
     audience: 'de-DE',
     degradeTo: 'web',
     declineNote: DECLINE_BUNDESTAG,
