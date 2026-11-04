@@ -110,6 +110,24 @@ const ANSWER_FORM_PRECEDENCE = [
 ];
 
 /**
+ * Die Form folgt der Frage, nicht einem Dossier für alles. Live 04.11.2026
+ * (evals/answer/bgst-live-eval-2026-11-04.md): Mit „nach Themen, nicht nach
+ * Dokumenten" und der Pflicht-Einleitung begann jede Antwort mit „Die Quellen
+ * enthalten …", eine Positionsfrage verschmolz vier Beschlüsse zu einem
+ * „konsistenten" Profil ohne Urheber und Datum, eine Listenfrage verlor einen
+ * der Beschlüsse im Fließtext.
+ */
+const ANSWER_BY_QUESTION_TYPE = [
+  '## FORM NACH FRAGETYP (Vorrang vor Antwort-Struktur und Stil-Regeln):',
+  '- Einzelfakt (eine Zahl, ein Datum, ein Name, ein Gremium, ja/nein): Die Antwort steht im ersten Satz. Danach in 1-3 Sätzen, woher sie stammt — Titel des Dokuments, dazu Gremium und Datum, soweit Quelle oder Fundstelle sie nennen — und eine direkt zugehörige Einschränkung oder Ausnahme. Keine Überschriften, kein Fazit.',
+  '- Frage nach den Dokumenten, die etwas enthalten: Nenne JEDES einschlägige Dokument einzeln (Titel, Gremium und Datum soweit bekannt, was es dazu sagt). Ein Dokument darf nicht in einer Sammelaussage verschwinden. Eine Liste ist hier erlaubt.',
+  '- Positionen, Vergleich oder Entwicklung über mehrere Quellen: Stelle jede Position mit ihrer Quelle, ihrem Urheber und Datum getrennt dar, zeitlich geordnet. Erst danach das Verhältnis: Übereinstimmung, Widerspruch oder Entwicklung. Verschmilz unterschiedliche Aussagen verschiedener Quellen nicht zu einer.',
+  '- Frage nach der Urheberschaft (wer hat etwas beschlossen, gefordert, verfasst): Ordne jede Aussage ihrem Urheber zu und gliedere nach Urheber.',
+  '- Offene Überblicks- oder Erklärfrage: Antwort-Struktur unten.',
+  '',
+];
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
@@ -121,18 +139,19 @@ function buildDraftPrompt(
   const domain = isPolitical ? 'politische Dokumentenanalyse' : 'Dokumentenanalyse';
   const isApp = surface === 'app';
   const rules = [
-    `Du bist ein Experte für ${domain}. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.`,
+    `Du bist ein Experte für ${domain}. Beantworte die Frage in der Form, die sie verlangt — von der knappen Faktenauskunft bis zum gut strukturierten Dossier im NotebookLM-Stil. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.`,
     `Sammlung: ${collectionName}.`,
     '',
     ...ANSWER_FORM_PRECEDENCE,
+    ...ANSWER_BY_QUESTION_TYPE,
     '## ANTWORT-STRUKTUR:',
+    '- Gilt für Überblicks- und Erklärfragen; die anderen Fragetypen haben ihre Form oben.',
     '',
-    '### 1. Einleitung (1-2 Sätze)',
-    '- Beginne mit einer kontextualisierenden Einleitung: "Die Quellen enthalten [umfangreiche/detaillierte/grundlegende] Informationen zu [Thema]..."',
-    '- Nenne kurz die wichtigsten thematischen Schwerpunkte',
+    '### 1. Kernaussage (1-2 Sätze)',
+    '- Beginne mit der Antwort selbst, nicht mit einem Satz über die Quellen („Die Quellen enthalten …").',
     '',
     '### 2. Hauptteil (thematisch gruppiert)',
-    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
+    '- Strukturiere Überblicksfragen nach INHALTLICHEN Themen, nicht nach Dokumenten',
     '- Verwende aussagekräftige Überschriften (## Überschrift)',
     '- Jeder Abschnitt sollte:',
     '  - Mit einem verbindenden Satz beginnen, der den Kontext setzt',
@@ -141,7 +160,7 @@ function buildDraftPrompt(
     '  - Zitate [1][2] direkt nach relevanten Aussagen setzen',
     '',
     '### 3. Synthese/Fazit (bei komplexen Themen)',
-    '- Bei umfangreichen Antworten: Schließe mit einer synthesierenden Zusammenfassung',
+    '- Nur wenn die Antwort mehrere Quellen oder Aspekte zusammenführt: Schließe mit einer synthesierenden Zusammenfassung, die etwas hinzufügt — keine Wiederholung des Hauptteils',
     '- Das Fazit MUSS sich auf Informationen aus den Quellen stützen — keine eigenen Schlussfolgerungen',
     '',
     ...(isApp
@@ -163,7 +182,7 @@ function buildDraftPrompt(
     '## QUELLENTREUE:',
     '- Verwende AUSSCHLIESSLICH Informationen aus den bereitgestellten Quellen.',
     '- JEDE Faktenaussage MUSS mit mindestens einer Quellenangabe [n] belegt werden.',
-    '- Nutze MÖGLICHST VIELE der verfügbaren Quellen. Wenn eine Quelle relevante Informationen enthält, beziehe sie ein.',
+    '- Beziehe JEDE Quelle ein, die zur gestellten Frage etwas beiträgt — aber keine, die nur das Thema streift.',
     '- Sätze OHNE Quellenangabe sind NUR für Einleitungen, Übergänge und Zusammenfassungen erlaubt.',
     '- Falls die Quellen zu einem Aspekt der Frage KEINE Informationen enthalten: Sage dies offen, statt Informationen zu ergänzen.',
     '- Erfinde KEINE Fakten, Zahlen oder Zusammenhänge, die nicht in den Quellen stehen.',
@@ -176,6 +195,7 @@ function buildDraftPrompt(
     isApp ? '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.' : '- KEINE Blockzitate (>).',
     '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
     '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
+    '- Setze an eine Aussage nur die Quellen, die genau diese Aussage tragen — nicht dieselbe Zitatgruppe an jeden Satz.',
     '- JEDE Faktenaussage braucht mindestens eine Quellenangabe — auch bei Synthese mehrerer Quellen.',
     ...(isApp ? [`- ${SOURCE_LINK_RULE}`] : []),
     '',
