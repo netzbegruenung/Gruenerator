@@ -97,23 +97,35 @@ export function expandResultsToChunks(
   return expanded;
 }
 
+/** Whitespace-insensitive identity of a passage's text; empty text has none. */
+export function passageTextKey(text: string | null | undefined): string | null {
+  const key = (text ?? '').replace(/\s+/g, ' ').trim();
+  return key.length > 0 ? key : null;
+}
+
 /**
- * Deduplicate results by document ID and chunk index
+ * Deduplicate results by document ID and chunk index — and by text: the same
+ * file uploaded twice is two documents with identical chunks. Kept apart, the
+ * copy took every second slot and doubled each citation (live 04.11.2026,
+ * evals/answer/bgst-live-eval-2026-11-04.md). The first occurrence wins.
  */
 export function deduplicateResults(
   results: ExpandedChunkResult[],
   includeCollectionInKey: boolean = false
 ): ExpandedChunkResult[] {
   const keySet = new Set<string>();
+  const textSet = new Set<string>();
   const deduped: ExpandedChunkResult[] = [];
 
   for (const r of results) {
     const key = includeCollectionInKey
       ? `${r.collection_id}:${r.document_id}:${r.chunk_index}`
       : `${r.document_id}:${r.chunk_index}`;
+    const textKey = passageTextKey(r.chunk_text);
 
-    if (keySet.has(key)) continue;
+    if (keySet.has(key) || (textKey !== null && textSet.has(textKey))) continue;
     keySet.add(key);
+    if (textKey !== null) textSet.add(textKey);
     deduped.push(r);
   }
 

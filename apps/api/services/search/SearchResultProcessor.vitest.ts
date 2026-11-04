@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildReferencesMap,
+  deduplicateResults,
   expandResultsToChunks,
   filterAndSortResults,
   sourceTextForPrompt,
@@ -376,5 +377,27 @@ describe('expandResultsToChunks reicht den dichten Kosinus durch', () => {
       { document_id: 'doc-3', title: 'Alt-Pfad', chunk_text: 'Text.', similarity_score: 0.5 },
     ]);
     expect(expanded).not.toHaveProperty('dense_similarity');
+  });
+});
+
+describe('deduplicateResults', () => {
+  const r = (document_id: string, chunk_index: number, chunk_text: string) =>
+    ({ document_id, chunk_index, chunk_text, title: document_id }) as ExpandedChunkResult;
+
+  it('drops a chunk with the same document and index', () => {
+    expect(deduplicateResults([r('a', 1, 'x'), r('a', 1, 'y')])).toHaveLength(1);
+  });
+
+  it('drops the identical text of a second upload of the same file, keeping the first', () => {
+    const out = deduplicateResults([
+      r('original', 3, 'Das Statut tritt am 1. Mai in Kraft.'),
+      r('kopie', 3, 'Das Statut  tritt am 1. Mai\nin Kraft.'),
+      r('kopie', 4, 'Anderer Text.'),
+    ]);
+    expect(out.map((x) => `${x.document_id}:${x.chunk_index}`)).toEqual(['original:3', 'kopie:4']);
+  });
+
+  it('keeps chunks without text apart', () => {
+    expect(deduplicateResults([r('a', 1, ''), r('b', 1, '')])).toHaveLength(2);
   });
 });
