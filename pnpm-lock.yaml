@@ -399,8 +399,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@langfuse/otel':
-        specifier: ^5.13.0
-        version: 5.13.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-exporter-base@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-transformer@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
+        specifier: ^6.1.0
+        version: 6.1.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-exporter-base@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
       '@langfuse/tracing':
         specifier: ^5.13.0
         version: 5.13.0(@opentelemetry/api@1.10.0)
@@ -6446,15 +6446,20 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
 
-  '@langfuse/otel@5.13.0':
-    resolution: {integrity: sha512-bPpBim4roGJ14R7OASxkwEse9bYjb3KU/4kgIS9GbOjVVylMb+99lnfjGHviQ/ix1wEEsZGWq2flMsLw1GhJIA==}
-    engines: {node: '>=20'}
+  '@langfuse/core@6.1.0':
+    resolution: {integrity: sha512-/laX8F0h53z0bl9RetkH40aoVYQ4GPHyA0uCMIZOxsmAAyt+YiRpdiVn8XTDfn8K4pDrA8nmRtZTHqKknG2dAA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/otel@6.1.0':
+    resolution: {integrity: sha512-zEIAvW5BxGUquGsH5Nww1vpTOFupiOz8uLzud68Rg1aF2fxyesE0fxSoi8cfxqgukIehPJPXkTqYzO8aYW5Dqw==}
+    engines: {node: '>=22'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
       '@opentelemetry/core': ^2.12.0
       '@opentelemetry/exporter-trace-otlp-http': '>=0.202.0 <1.0.0'
       '@opentelemetry/otlp-exporter-base': '>=0.202.0 <1.0.0'
-      '@opentelemetry/otlp-transformer': '>=0.202.0 <1.0.0'
       '@opentelemetry/sdk-trace-base': ^2.0.1
 
   '@langfuse/tracing@5.13.0':
@@ -10950,10 +10955,6 @@ packages:
   '@typescript-eslint/types@6.21.0':
     resolution: {integrity: sha512-1kFmZ1rOm5epu9NZEZm1kckCDGj5UJEf7P1kliH4LKu/RkwpsfqqGmY2OOcUs18lSlQBKLDYBOGxRVtrMN5lpg==}
     engines: {node: ^16.0.0 || >=18.0.0}
-
-  '@typescript-eslint/types@8.72.0':
-    resolution: {integrity: sha512-Adfoy59kxNEjT5E5fnyrp7GpHYuWs8ONbdohu4ez6IU46qDq8LltG90tLmkucZB2uhYL8mqBjtXqGd8yhfjXqQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/types@8.72.1':
     resolution: {integrity: sha512-LmE5IhQet1BWOWEXqBrVtBPsMAOQ6Nzk35d+WLh3mk4EUF33sqlfxjio1MdYeSvKSG5skactKKuixBIKXhL4Rw==}
@@ -28577,14 +28578,17 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.10.0
 
-  '@langfuse/otel@5.13.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-exporter-base@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-transformer@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
+  '@langfuse/core@6.1.0(@opentelemetry/api@1.10.0)':
     dependencies:
-      '@langfuse/core': 5.13.0(@opentelemetry/api@1.10.0)
+      '@opentelemetry/api': 1.10.0
+
+  '@langfuse/otel@6.1.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/otlp-exporter-base@0.221.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
+    dependencies:
+      '@langfuse/core': 6.1.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/exporter-trace-otlp-http': 0.221.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/otlp-exporter-base': 0.221.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/otlp-transformer': 0.221.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
 
   '@langfuse/tracing@5.13.0(@opentelemetry/api@1.10.0)':
@@ -33116,8 +33120,6 @@ snapshots:
   '@typescript-eslint/types@5.62.0': {}
 
   '@typescript-eslint/types@6.21.0': {}
-
-  '@typescript-eslint/types@8.72.0': {}
 
   '@typescript-eslint/types@8.72.1': {}
 
@@ -38024,7 +38026,7 @@ snapshots:
 
   eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.1(eslint@8.57.1(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10(supports-color@10.2.2))(eslint@8.57.1(supports-color@10.2.2))(supports-color@10.2.2):
     dependencies:
-      '@typescript-eslint/types': 8.72.0
+      '@typescript-eslint/types': 8.72.1
       comment-parser: 1.4.9
       debug: 4.4.3(supports-color@10.2.2)
       eslint: 8.57.1(supports-color@10.2.2)
@@ -38043,7 +38045,7 @@ snapshots:
 
   eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.1(eslint@9.39.5(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10(supports-color@10.2.2))(eslint@9.39.5(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2):
     dependencies:
-      '@typescript-eslint/types': 8.72.0
+      '@typescript-eslint/types': 8.72.1
       comment-parser: 1.4.9
       debug: 4.4.3(supports-color@10.2.2)
       eslint: 9.39.5(jiti@2.7.0)(supports-color@10.2.2)
