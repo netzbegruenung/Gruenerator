@@ -22,7 +22,7 @@ const RECIPE_ORIGIN_ORDER: readonly RecipeOrigin[] = ['bundled', 'own', 'group',
 export const RECIPE_ORIGIN_SUBLABELS: Record<RecipeOrigin, string> = {
   bundled: 'mitgeliefert',
   own: 'eigene',
-  group: 'aus deinen Gruppen',
+  group: 'aus deinen Projekten',
   saved: 'von anderen',
 };
 
@@ -35,7 +35,7 @@ export const RECIPE_ORIGIN_SUBLABELS: Record<RecipeOrigin, string> = {
 export const RECIPE_ORIGIN_SECTION_TITLES: Record<RecipeOrigin, string> = {
   bundled: 'Rezepte',
   own: 'Meine Rezepte',
-  group: 'Rezepte aus deinen Gruppen',
+  group: 'Rezepte aus deinen Projekten',
   saved: 'Rezepte von anderen',
 };
 

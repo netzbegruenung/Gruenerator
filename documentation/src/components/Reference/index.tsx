@@ -25,12 +25,10 @@ interface Manifest {
   uploads: {
     groups: Array<{ id: string; title: string; labels: string[] }>;
     codeExtensions: string[];
-    videoFormats: string[];
     limits: {
       maxFileSizeMB: number;
       maxTotalSizeMB: number;
       maxFiles: number;
-      maxVideoFileSizeMB: number;
     };
   };
   collections: {
@@ -53,7 +51,7 @@ const manifest = manifestJson as Manifest;
  * the whole contract.
  */
 export function UploadFormats(): React.JSX.Element {
-  const { groups, codeExtensions, videoFormats } = manifest.uploads;
+  const { groups, codeExtensions } = manifest.uploads;
   return (
     <div className={styles.grid}>
       {groups.map((group) => (
@@ -62,10 +60,6 @@ export function UploadFormats(): React.JSX.Element {
           <p className={styles.body}>{group.labels.join(', ')}</p>
         </div>
       ))}
-      <div className={styles.card}>
-        <h4 className={styles.cardTitle}>Video</h4>
-        <p className={styles.body}>{videoFormats.join(', ').toUpperCase()}</p>
-      </div>
       <div className={styles.card}>
         <h4 className={styles.cardTitle}>Quellcode</h4>
         <p className={styles.body}>
@@ -175,13 +169,7 @@ export function Fact({
   name,
 }: {
   name:
-    | 'maxFileSize'
-    | 'maxTotalSize'
-    | 'maxFiles'
-    | 'maxVideoSize'
-    | 'nationwideCount'
-    | 'lvCount'
-    | 'connectorCount';
+    'maxFileSize' | 'maxTotalSize' | 'maxFiles' | 'nationwideCount' | 'lvCount' | 'connectorCount';
 }): React.JSX.Element {
   const { limits } = manifest.uploads;
   switch (name) {
@@ -191,8 +179,6 @@ export function Fact({
       return <>{limits.maxTotalSizeMB} MB</>;
     case 'maxFiles':
       return <>{limits.maxFiles}</>;
-    case 'maxVideoSize':
-      return <>{limits.maxVideoFileSizeMB} MB</>;
     case 'nationwideCount':
       return <>{manifest.collections.nationwide.length}</>;
     case 'lvCount':

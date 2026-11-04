@@ -7,12 +7,22 @@ import { DOCS_SUBTYPES } from './constants.js';
 import {
   checkDocumentAccess,
   autoGrantSharePermission,
+  canWriteDocument,
   redactDocumentForReader,
+  type DocumentWriteSubject,
 } from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
 
 const router = Router();
 const db = getPostgresInstance();
+
+function writeSubject(document: CollaborativeDocument): DocumentWriteSubject {
+  return {
+    ...document,
+    share_mode: document.share_mode ?? null,
+    share_permission: document.share_permission ?? null,
+  };
+}
 
 /**
  * @route   GET /api/docs/resolve/:id
@@ -52,8 +62,12 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
         return res.status(403).json({ error: 'Access denied' });
       }
 
+      // can_edit is the editors' only source for write access: the same rule
+      // the collab connection enforces, so the UI never offers edits the
+      // connection drops, nor hides edits it allows (#4893).
+      const can_edit = await canWriteDocument(writeSubject(document), userId);
       autoGrantSharePermission(document, userId);
-      return res.json(redactDocumentForReader(document, userId));
+      return res.json({ ...redactDocumentForReader(document, userId), can_edit });
     }
 
     if (document.share_mode === 'private' && !document.is_public) {
@@ -64,7 +78,8 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       return res.json({ id: document.id, share_mode: 'authenticated', title: document.title });
     }
 
-    return res.json(redactDocumentForReader(document, null));
+    const can_edit = await canWriteDocument(writeSubject(document), null);
+    return res.json({ ...redactDocumentForReader(document, null), can_edit });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error resolving document:', error);

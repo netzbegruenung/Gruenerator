@@ -7,13 +7,11 @@ import { NOTEBOOK_SOURCE_CONTENT_TYPE } from '../lib/documentMentionables';
 import {
   validateFile,
   isImageMimeType,
-  isVideoMimeType,
   fileToBase64,
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
 import { isTabularFile } from '../lib/spreadsheetSetup';
 import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
-import { useChatConfigStore } from '../stores/chatConfigStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
 
 import type {
@@ -38,25 +36,8 @@ const SYNTHETIC_MENTION_TYPES = [
   NOTEBOOK_SOURCE_CONTENT_TYPE,
 ];
 
-/** Name of the data content part carrying a chat video's TUS upload result. */
-export const REEL_UPLOAD_PART_NAME = 'gruenerator-reel-upload';
-
-export interface ReelUploadData {
-  uploadId: string;
-  filename: string;
-}
-
 export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   accept = [getAcceptedFileTypes(), ...SYNTHETIC_MENTION_TYPES].join(',');
-
-  /**
-   * TUS uploads started in add(), awaited in send(). Keyed by attachment id
-   * so the upload runs while the user is still composing the message.
-   */
-  private reelUploads = new Map<
-    string,
-    { promise: Promise<{ uploadId: string }>; abort: () => void }
-  >();
 
   /**
    * File contents read in add(), consumed in send(). A picked File is a
@@ -75,35 +56,6 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
     validateFile(file);
 
     const id = crypto.randomUUID();
-
-    if (isVideoMimeType(file.type)) {
-      const { uploadReelVideo } = useChatConfigStore.getState();
-      if (!uploadReelVideo) {
-        throw new Error('Video-Upload ist auf dieser Oberfläche nicht verfügbar.');
-      }
-      // The request body carries exactly one reelUpload — a second video
-      // would silently win over the first, so reject it up front.
-      if (this.reelUploads.size > 0) {
-        throw new Error('Bitte nur ein Video pro Nachricht anhängen.');
-      }
-      // Start the upload immediately; send() awaits the result. A failed
-      // upload surfaces when the user sends (attachment errors out there).
-      // The no-op catch marks the promise handled so an upload that fails
-      // after the attachment was removed (or never sent) doesn't fire an
-      // unhandled promise rejection.
-      const upload = uploadReelVideo(file);
-      upload.promise.catch(() => {});
-      this.reelUploads.set(id, upload);
-
-      return {
-        id,
-        type: 'file',
-        name: file.name,
-        contentType: file.type,
-        file,
-        status: { type: 'requires-action', reason: 'composer-send' },
-      };
-    }
 
     const [base64, pageCount] = await Promise.all([fileToBase64(file), getPdfPageCount(file)]);
     this.readContents.set(id, { base64, pageCount });
@@ -138,27 +90,6 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
 
   private async complete(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const mimeType = attachment.contentType ?? 'application/octet-stream';
-
-    const reelUpload = this.reelUploads.get(attachment.id);
-    if (reelUpload) {
-      try {
-        const { uploadId } = await reelUpload.promise;
-        const data: ReelUploadData = { uploadId, filename: attachment.name };
-        return {
-          id: attachment.id,
-          type: attachment.type,
-          name: attachment.name,
-          contentType: mimeType,
-          // Synthetic data part (same mechanism as mention chips) — the model
-          // adapter extracts it into the request body's `reelUpload` field.
-          // No file/image part, so nothing gets base64'd.
-          content: [{ type: 'data' as const, name: REEL_UPLOAD_PART_NAME, data }],
-          status: { type: 'complete' },
-        };
-      } finally {
-        this.reelUploads.delete(attachment.id);
-      }
-    }
 
     const { base64, pageCount } = this.readContents.get(attachment.id) ?? {
       base64: await fileToBase64(attachment.file),
@@ -199,10 +130,6 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   }
 
   async remove(attachment: Attachment): Promise<void> {
-    // Abort an in-flight video upload — without this a removed 500MB
-    // attachment keeps saturating the upstream and orphans a server file.
-    this.reelUploads.get(attachment.id)?.abort();
-    this.reelUploads.delete(attachment.id);
     this.readContents.delete(attachment.id);
   }
 }

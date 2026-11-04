@@ -55,7 +55,9 @@ function quoteBareKeys(source: string): string {
 
 /** `call:name{…}` → the call, or null when the arguments do not parse. */
 export function parseTextToolCall(body: string): TextToolCall | null {
-  const match = /^\s*call:([\w.-]+)\s*(\{[\s\S]*\})\s*$/.exec(body);
+  // `:` belongs to the name: Gemma namespaces a call now and then
+  // (`call:gruenerator:draft_structured{…}`, live 03.11.2026).
+  const match = /^\s*call:([\w.:-]+)\s*(\{[\s\S]*\})\s*$/.exec(body);
   if (!match) return null;
   const native = match[2]!
     .split(NATIVE_QUOTE)

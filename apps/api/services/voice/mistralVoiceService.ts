@@ -136,12 +136,14 @@ class MistralVoiceService {
       log.debug('[Mistral Voice] Text sample:', resp.text?.slice(0, 200));
       return this._formatResponse(transcriptionResponse as MistralTranscriptionResponse, options);
     } catch (error) {
-      const err = error as Error & { response?: { data?: unknown; status?: number } };
+      // The SDK's MistralError carries the HTTP status as `statusCode` and the
+      // raw response body as `body`; there is no `response` object.
+      const err = error as Error & { statusCode?: number; body?: string };
       log.error('[Mistral Voice] Transcription error details:', {
         message: err.message,
         stack: err.stack,
-        response: err.response?.data || 'No response data',
-        status: err.response?.status || 'No status',
+        response: err.body || 'No response data',
+        status: err.statusCode || 'No status',
       });
       throw new Error(`Transcription failed: ${err.message}`);
     }
@@ -258,15 +260,13 @@ class MistralVoiceService {
 
       const chunks: string[] = [];
 
-      for await (const event of stream) {
-        const eventData = event as Record<string, unknown>;
-        const eventType = eventData.type as string | undefined;
-
-        if (eventType === 'transcription.text.delta') {
-          const delta = eventData.text as string;
-          chunks.push(delta);
-          yield { type: 'text.delta', text: delta };
-        } else if (eventType === 'transcription.done') {
+      // The SDK wraps every SSE event as `{ event, data }`; the payload with
+      // `type` and `text` sits in `data`.
+      for await (const { data } of stream) {
+        if (data.type === 'transcription.text.delta') {
+          chunks.push(data.text);
+          yield { type: 'text.delta', text: data.text };
+        } else if (data.type === 'transcription.done') {
           yield { type: 'done', text: chunks.join('') };
         }
       }

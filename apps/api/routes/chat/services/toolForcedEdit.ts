@@ -31,7 +31,7 @@ export interface RunToolForcedEditParams<T> {
   systemPrompt: string;
   /** The user's natural-language edit request. */
   instruction: string;
-  /** Log prefix, e.g. '[reel_edit]'. */
+  /** Log prefix, e.g. '[sharepic_edit]'. */
   logPrefix: string;
   maxAttempts?: number;
 }

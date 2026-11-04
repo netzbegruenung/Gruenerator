@@ -76,16 +76,10 @@
       ".yaml",
       ".yml"
     ],
-    "videoFormats": [
-      "mp4",
-      "quicktime",
-      "webm"
-    ],
     "limits": {
       "maxFileSizeMB": 25,
       "maxTotalSizeMB": 30,
-      "maxFiles": 10,
-      "maxVideoFileSizeMB": 500
+      "maxFiles": 10
     }
   },
   "collections": {

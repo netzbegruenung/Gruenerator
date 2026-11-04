@@ -101,14 +101,12 @@ function extractUploads() {
   if (extensions.length === 0) {
     fail(SRC.fileUtils, 'TEXT_EXTENSION_OVERRIDES', 'a `new Set([...])` of extensions');
   }
-  const video = constSetStrings(sf, 'VIDEO_MIME_TYPES');
 
   const mb = (bytes) => (bytes === undefined ? undefined : Math.round(bytes / (1024 * 1024)));
   const limits = {
     maxFileSizeMB: mb(constNumber(sf, 'MAX_FILE_SIZE')),
     maxTotalSizeMB: mb(constNumber(sf, 'MAX_TOTAL_SIZE')),
     maxFiles: constNumber(sf, 'MAX_FILES'),
-    maxVideoFileSizeMB: mb(constNumber(sf, 'MAX_VIDEO_FILE_SIZE')),
   };
   for (const [key, value] of Object.entries(limits)) {
     if (value === undefined) fail(SRC.fileUtils, key, 'a numeric constant like `25 * 1024 * 1024`');
@@ -117,7 +115,6 @@ function extractUploads() {
   return {
     groups: groups.filter((g) => g.labels.length > 0),
     codeExtensions: extensions.slice().sort(),
-    videoFormats: video.map((m) => m.replace(/^video\//, '')).sort(),
     limits,
   };
 }
