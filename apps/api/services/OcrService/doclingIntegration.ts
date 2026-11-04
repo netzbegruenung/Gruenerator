@@ -186,13 +186,14 @@ async function sendBufferToDocling(
  *
  * GreenPTs Kontingent (600 Anfragen je 15 min) gilt je Konto und teilt sich
  * mit Websuche und Reranking der Produktion. Deshalb höchstens eine Anfrage
- * je `MIN_REQUEST_INTERVAL_MS` in diesem Prozess, und ein 429 wartet, statt
- * die Seiten aufzugeben.
+ * je `GREENPT_DOCLING_INTERVAL_MS` in diesem Prozess (Vorgabe 3 s = die
+ * Hälfte des Kontingents), und ein 429 wartet, statt die Seiten aufzugeben.
  */
 const PAGE_BREAK = '<!-- gruenerator-page-break -->';
 /** Grössere Läufe werden geteilt: eine Anfrage bleibt so unter dem Zeitlimit. */
 const MAX_PAGES_PER_REQUEST = 25;
-const MIN_REQUEST_INTERVAL_MS = 3_000;
+/** Unter 1,5 s wäre das ganze Kontingent weg — dann bliebe der Produktion nichts. */
+const FLOOR_REQUEST_INTERVAL_MS = 1_500;
 const RATE_LIMIT_WAITS_MS = [60_000, 120_000, 300_000];
 
 let nextRequestAt = 0;
@@ -200,7 +201,7 @@ let nextRequestAt = 0;
 async function takeRequestSlot(): Promise<void> {
   const now = Date.now();
   const at = Math.max(now, nextRequestAt);
-  nextRequestAt = at + MIN_REQUEST_INTERVAL_MS;
+  nextRequestAt = at + Math.max(env.GREENPT_DOCLING_INTERVAL_MS, FLOOR_REQUEST_INTERVAL_MS);
   if (at > now) await new Promise((resolve) => setTimeout(resolve, at - now));
 }
 

@@ -386,6 +386,11 @@ const envSchema = z.object({
   // Documents API. 50 MB / 1000 pages is the validation ceiling; 10 min covers
   // worst-case scan-heavy PDFs.
   DOCLING_MAX_WAIT_MS: numStr(600_000),
+  // Abstand zwischen zwei seitenweisen Docling-Anfragen in einem Prozess.
+  // GreenPT erlaubt 600 Anfragen je 15 min (= 1,5 s) je Konto, geteilt mit
+  // Websuche und Reranking der Produktion: 3 s nimmt die Hälfte. Nur ein
+  // Nachtlauf ohne Tagesverkehr setzt weniger (Backfill: 2 s = 75 %).
+  GREENPT_DOCLING_INTERVAL_MS: numStr(3_000),
   REMBG_URL: z.string().optional(),
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
