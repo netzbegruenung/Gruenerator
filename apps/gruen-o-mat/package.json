@@ -14,7 +14,7 @@
   "dependencies": {
     "@assistant-ui/react": "^0.15.32",
     "@gruenerator/chat": "workspace:*",
-    "lucide-react": "^1.65.0",
+    "lucide-react": "^1.66.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-router-dom": "^7.18.5",

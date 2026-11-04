@@ -380,6 +380,36 @@ describe('reapOrphanedShares', () => {
   });
 });
 
+describe('reapUnclaimedStudioAssetUploads', () => {
+  beforeEach(() => {
+    rm.mockClear();
+  });
+
+  it('deletes only old studio-asset uploads no gallery row (trashed or not) points at', async () => {
+    query.mockResolvedValueOnce([]);
+    await new SharedMediaService().reapUnclaimedStudioAssetUploads(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toContain('DELETE FROM shared_media');
+    expect(sql).toMatch(/created_at\s*<\s*NOW\(\)\s*-\s*make_interval/i);
+    expect(sql).toContain('NOT EXISTS (SELECT 1 FROM studio_assets sa WHERE sa.media_id = sm.id)');
+    // A purged public asset leaves a claimed upload without a gallery row.
+    expect(sql).toContain('sm.claimed_at IS NULL');
+    // A trashed gallery item still owns its upload until the purge.
+    expect(sql).not.toMatch(/sa\.deleted_at/);
+    expect(params).toEqual(['studio-asset', 24]);
+    expect(rm).not.toHaveBeenCalled();
+  });
+
+  it('removes the files of every upload it deleted', async () => {
+    query.mockResolvedValueOnce([{ share_token: 'tok-s', status: 'ready', file_size: '2048' }]);
+    const reaped = await new SharedMediaService().reapUnclaimedStudioAssetUploads(24);
+
+    expect(reaped).toEqual([{ shareToken: 'tok-s', status: 'ready', fileSize: 2048 }]);
+    expect(rm.mock.calls.some(([dir]) => String(dir).endsWith('/tok-s'))).toBe(true);
+  });
+});
+
 /**
  * Every status literal `sharedMediaService.ts` writes, across the three shapes
  * it uses to write one:

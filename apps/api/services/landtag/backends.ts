@@ -18,6 +18,9 @@ import { getNationalratApi } from './nationalrat/filterApi.js';
 import { findNationalrat } from './nationalrat/find.js';
 import { resolveNationalratRefs } from './nationalrat/refs.js';
 import { fetchNationalratTexts } from './nationalrat/text.js';
+import { findNrw } from './nrw/find.js';
+import { getNrwNotebook } from './nrw/notebook.js';
+import { fetchNrwTexts, resolveNrwRefs } from './nrw/read.js';
 
 export interface LandtagBackend {
   find(args: { query: string; filters: LandtagFilter }): Promise<LandtagFindResult>;
@@ -39,5 +42,11 @@ export const LANDTAG_BACKENDS: Record<LandtagParlament, () => LandtagBackend> = 
     find: (args) => findNationalrat(args, getNationalratApi()),
     resolveRefs: (refs) => resolveNationalratRefs(refs, getNationalratApi()),
     fetchTexts: (candidates, deps) => fetchNationalratTexts(candidates, deps, getNationalratApi()),
+  }),
+  // Keine Live-API: alles aus dem Notebook (`nrw/notebook.ts`).
+  nrw: () => ({
+    find: (args) => findNrw(args, getNrwNotebook()),
+    resolveRefs: (refs) => resolveNrwRefs(refs, getNrwNotebook()),
+    fetchTexts: (candidates) => fetchNrwTexts(candidates, getNrwNotebook()),
   }),
 };

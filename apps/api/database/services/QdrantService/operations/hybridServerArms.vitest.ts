@@ -86,10 +86,10 @@ const QUERY_VECTOR = [0.1, 0.2];
 const QUERY = 'Klimaschutz Wahlprogramm';
 
 /**
- * limit 5, recallLimit 20 → recall = max(5, 20) = 20 (`hybridSearch.ts:204`),
- * hnsw_ef = max(100, 40) = 100 (`:214`). Beide Zahlen stehen unten als
- * Literale in den Zusicherungen, damit eine Änderung an der Recall-Formel
- * hier auffällt und nicht stillschweigend mitwandert.
+ * limit 5, recallLimit 20 → recall = max(5, 20) = 20 (`hybridSearch.ts:204`).
+ * Die Zahl steht unten als Literal in den Zusicherungen, damit eine Änderung
+ * an der Recall-Formel hier auffällt und nicht stillschweigend mitwandert.
+ * Ein `hnsw_ef` geht bewusst NICHT mit (#5325) — die Zusicherung hält das fest.
  */
 async function runArm(client: ReturnType<typeof fakeClient>, filter: QdrantFilter = {}) {
   return hybridSearch(
@@ -147,7 +147,6 @@ const DENSE_PREFETCH = {
   using: '',
   limit: 20,
   score_threshold: 0.35,
-  params: { hnsw_ef: 100 },
 };
 
 const SPARSE_PREFETCH = (limit: number) => ({

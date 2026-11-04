@@ -20,10 +20,10 @@ name: Content Sync Watchdog
 #
 # Content Sync is now dispatched by the Grünerator API (workflow_dispatch, see
 # apps/api/services/scrapers/contentSyncDispatcher.ts) because the crons stayed
-# throttled. The measurement does not care how a run was started: the action
-# lists runs of every event and recognises a full run by its `Sync gruene-de`
-# job, which a dispatched full run has as well. So this keeps watching whichever
-# of the two is actually starting the runs.
+# throttled; since #5329 the workflow has no crons at all, so a dispatcher that
+# stops shows up here and nowhere else. The measurement does not care how a run
+# was started: the action lists runs of every event and recognises a full run
+# by its `Sync gruene-de` job, which a dispatched full run has as well.
 #
 # It is itself a cron and can itself be dropped. That is tolerable in a way the
 # sync is not: every tick evaluates the whole trailing window, so a lost tick is

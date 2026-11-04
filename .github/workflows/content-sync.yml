@@ -1,29 +1,23 @@
 name: Content Sync
 
 on:
-  # The Grünerator API dispatches this workflow on the same slots
-  # (apps/api/services/scrapers/contentSyncDispatcher.ts, `mode` input below),
-  # because GitHub throttles these crons to ~5 of 18 runs a day (#3048). The
-  # crons stay as a fallback until the dispatch token is verified in
-  # production; a follow-up removes them. Duplicate runs meanwhile are expected.
-  schedule:
-    # Minute 23/17, not 0. GitHub deprioritises `schedule` events under load and
-    # drops them rather than queueing when the delay outgrows the next
-    # occurrence: on 2026-08-26 the hourly runs drifted from +30 to +88 min and
-    # ~3 slots were lost; on 2026-08-27 the daily fired 10 h 16 min late and 14
-    # of 15 hourly slots never fired at all (#2972). The top of the hour is the
-    # busiest moment in that queue. Unproven as a remedy — nothing here can make
-    # the scheduler reliable, which is why the watchdog in
-    # content-sync-watchdog.yml exists to make a dropped run visible.
-    - cron: '23 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
-    - cron: '17 2 * * *' # Daily 03:00 CET → all sources
+  # Started only by the Grünerator API (workflow_dispatch with `mode`, see
+  # apps/api/services/scrapers/contentSyncDispatcher.ts). The `schedule:` crons
+  # are gone: GitHub throttled them to ~5 of 18 slots a day and fired the rest
+  # hours late (#2972, #3048). Once dispatch ran every slot (18/18 a day since
+  # 2026-10-30), the crons only produced late duplicates, and a duplicate holds
+  # the server's per-source lock: on 2026-11-04 the 02:17 nightly cron fired
+  # at 09:15 as a second full run, and the 09:23 hourly dispatch got HTTP 409
+  # for LV HE (#5329). They were no fallback anyway, since every sync job calls
+  # the same API that dispatches. A dispatcher that stops is caught by
+  # content-sync-watchdog.yml.
   workflow_dispatch:
     inputs:
       mode:
-        # What the API dispatcher sends. 'hourly' behaves exactly like the hourly
-        # cron (LV-only, `recent`, still promotable to full by the catch-up
-        # below); 'full' — the default, so a bare manual dispatch keeps meaning
-        # a full run — like the nightly one. Ignored with source/landesverband.
+        # What the API dispatcher sends. 'hourly' is LV-only and `recent`,
+        # still promotable to full by the catch-up below; 'full' — the default,
+        # so a bare manual dispatch keeps meaning a full run — is the nightly
+        # one. Ignored with source/landesverband.
         description: 'Run kind: full (all sources) or hourly (Landesverbände only)'
         type: choice
         options:
@@ -63,7 +57,7 @@ concurrency:
   # group, so dispatched hourly and full runs must not share one — an hourly
   # dispatch would otherwise drop a full run that is waiting its turn. Single
   # source/LV runs get their own group for the same reason.
-  group: content-sync-${{ github.event.schedule || ((inputs.source || inputs.landesverband) && 'single') || inputs.mode || 'full' }}
+  group: content-sync-${{ ((inputs.source || inputs.landesverband) && 'single') || inputs.mode || 'full' }}
   cancel-in-progress: false
 
 jobs:
@@ -76,10 +70,9 @@ jobs:
       source_matrix: ${{ steps.set.outputs.source_matrix }}
       # The single answer to "is this the full nightly run?". Three jobs need
       # it — the source matrix here, the LV jobs' `recent` flag, the aggregate
-      # digest's --no-email — and each used to re-derive it by comparing the
-      # cron string to a literal. Three copies of one decision is how a
-      # schedule edit silently demotes the nightly run in two of the three
-      # places and nothing turns red. Decided once, read everywhere.
+      # digest's --no-email. Three copies of one decision is how an edit
+      # silently demotes the nightly run in two of the three places and
+      # nothing turns red. Decided once, read everywhere.
       is_full_run: ${{ steps.set.outputs.is_full_run }}
       single_kind: ${{ steps.set.outputs.single_kind }}
       single_value: ${{ steps.set.outputs.single_value }}
@@ -94,36 +87,20 @@ jobs:
           token: ${{ github.token }}
       - id: set
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           INPUT_MODE: ${{ inputs.mode }}
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
           FULL_RUN_FOUND: ${{ steps.lastfull.outputs.found }}
           HOURS_SINCE_FULL: ${{ steps.lastfull.outputs.hours_since }}
         run: |
-          # Which run is the full one is decided HERE and nowhere else, and by
-          # the HOUR field rather than the whole cron string.
+          # Which run is the full one is decided HERE and nowhere else.
+          # First door: a dispatch without mode=hourly (the API's 02:17 slot,
+          # or a bare manual dispatch).
           #
-          # Both halves of that were bugs waiting on a schedule edit. Three
-          # jobs each compared `github.event.schedule` to the literal
-          # '0 2 * * *': this one, the LV matrix's `recent` flag, and the
-          # aggregate digest's --no-email. Changing the minute above would have
-          # left all three unmatched — the nightly run demoted to an LV-only
-          # incremental crawl, the nine non-LV sources not synced, no admin
-          # digest sent, and nothing red anywhere. Exactly the silence #2972 is
-          # about, introduced by the fix for it.
-          #
-          # The hourly cron covers hours 04-20, so hour 2 is unambiguous, and
-          # the old '0 2 * * *' still resolves to it for any event already in
-          # flight when this lands.
-          SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')
-          FULL_RUN_HOUR=2
-
           # Second door into the full run: catch one up that never fired.
           #
-          # GitHub drops `schedule` events rather than queueing them, and hour 2
-          # is a single slot — lose it and the nine non-LV sources, the full
-          # archive walks and the admin digest are skipped for the whole day,
+          # The 02:17 slot is a single dispatch — lose it and the nine non-LV
+          # sources, the full archive walks and the admin digest are skipped for the whole day,
           # with every run that *did* fire reporting success. Measured on
           # 2026-09-15: four of eighteen slots arrived, and no run at hour 2 for
           # nine days straight, so the non-LV corpus had been stale that long
@@ -144,12 +121,7 @@ jobs:
           # against it.
           FULL_RUN_CATCHUP_HOURS=22
 
-          # Empty SCHEDULE = dispatch. Without mode=hourly that has always meant
-          # a full run; with it (the API's hourly slots) it is decided exactly
-          # like an hourly cron, catch-up included.
-          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ]; then
-            IS_FULL_RUN=true
-          elif [ -z "$SCHEDULE" ] && [ "$INPUT_MODE" != "hourly" ]; then
+          if [ "$INPUT_MODE" != "hourly" ]; then
             IS_FULL_RUN=true
           elif [ "$FULL_RUN_FOUND" != "true" ]; then
             echo "::warning::No full Content Sync run found in the recent history — running this one as the full sync."
@@ -190,7 +162,7 @@ jobs:
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$ALL_SOURCES" >> "$GITHUB_OUTPUT"
           else
-            # Hourly schedule or hourly dispatch → LVs only
+            # Hourly dispatch → LVs only
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
