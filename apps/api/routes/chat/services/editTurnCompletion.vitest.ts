@@ -29,9 +29,9 @@ function makeSse() {
 
 const base = {
   text: 'Fertig.',
-  intent: 'reel_edit',
-  persistLabel: 'reelEdit:persist',
-  logPrefix: '[ReelEdit]',
+  intent: 'social_post_edit',
+  persistLabel: 'socialPostEdit:persist',
+  logPrefix: '[SocialPostEdit]',
   startTime: Date.now() - 1000,
 };
 
@@ -54,12 +54,12 @@ describe('finishEditTurn', () => {
     expect(payload).toMatchObject({
       threadId: 't1',
       citations: [],
-      metadata: { intent: 'reel_edit', searchCount: 0, searchTimeMs: 0 },
+      metadata: { intent: 'social_post_edit', searchCount: 0, searchTimeMs: 0 },
     });
     expect(payload.metadata.totalTimeMs).toBeGreaterThan(0);
 
     expect(createMessage).toHaveBeenCalledWith('t1', 'assistant', 'Fertig.', {
-      intent: 'reel_edit',
+      intent: 'social_post_edit',
     });
     expect(touchThread).toHaveBeenCalledWith('t1');
     expect(sse.end).toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('finishEditTurn', () => {
 
   it('carries toolCalls and a computed searchCount', async () => {
     const sse = makeSse();
-    const toolCalls = [{ toolCallId: 'tc_1', toolName: 'reel_edit' }];
+    const toolCalls = [{ toolCallId: 'tc_1', toolName: 'social_post_edit' }];
     await finishEditTurn({
       ...base,
       sse: sse as never,
@@ -107,7 +107,7 @@ describe('finishEditTurn', () => {
 
     expect(sse.sendRaw.mock.calls[0][1].metadata.searchCount).toBe(3);
     expect(createMessage).toHaveBeenCalledWith('t1', 'assistant', 'Fertig.', {
-      intent: 'reel_edit',
+      intent: 'social_post_edit',
       toolCalls,
     });
   });
@@ -117,7 +117,7 @@ describe('finishEditTurn', () => {
     await finishEditTurn({ ...base, sse: sse as never, threadId: 't1', toolCalls: [] });
 
     expect(createMessage).toHaveBeenCalledWith('t1', 'assistant', 'Fertig.', {
-      intent: 'reel_edit',
+      intent: 'social_post_edit',
     });
   });
 });
