@@ -8,7 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
-import { uploadStickerPng } from './uploadSticker';
+import { uploadStudioAssetImage } from './uploadSticker';
 import { renderBadge, writeStickerPng } from './stickerRender';
 
 import { StickerCreatorScreen } from './StickerCreatorScreen';
@@ -37,7 +37,7 @@ jest.mock('./stickerRender', () => ({
 }));
 // The stack is not under test; the way back is the footer's „Zurück" here.
 jest.mock('../../../hooks/useStepBack', () => ({ useStepBack: jest.fn() }));
-jest.mock('./uploadSticker', () => ({ uploadStickerPng: jest.fn() }));
+jest.mock('./uploadSticker', () => ({ uploadStudioAssetImage: jest.fn() }));
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({
     canceled: false,
@@ -62,7 +62,7 @@ jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAvoidingView: ({ children }: { children: ReactNode }) => children,
 }));
 
-const mockUpload = uploadStickerPng as jest.MockedFunction<typeof uploadStickerPng>;
+const mockUpload = uploadStudioAssetImage as jest.MockedFunction<typeof uploadStudioAssetImage>;
 const mockWrite = writeStickerPng as jest.MockedFunction<typeof writeStickerPng>;
 const mockRenderBadge = renderBadge as jest.MockedFunction<typeof renderBadge>;
 

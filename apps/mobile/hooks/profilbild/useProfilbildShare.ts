@@ -26,7 +26,6 @@ import {
   type ProfilbildModel,
 } from '../../components/profilbild/sceneModel';
 import { resolveChatUrl } from '../../services/chatApiUrl';
-import { uploadToMediaShare } from '../../services/mediaUpload';
 import { secureStorage } from '../../services/storage';
 
 /** The model plus the picker selection it was made with. */
@@ -41,7 +40,7 @@ export interface ProfilbildReopen extends ProfilbildSnapshot {
   person: SkImage;
   /** The cached cutout file, standing in for the photo the cutout came from. */
   personUri: string;
-  /** Where the restored custom background is stored, so it is not uploaded again. */
+  /** Where the restored custom background is stored, so it is saved as it was. */
   customUrl: string | null;
   /** Gallery sticker images by share path. */
   gallery: Record<string, SkImage>;
@@ -169,17 +168,6 @@ export async function loadProfilbildReopen(
   };
 }
 
-async function uploadCustomBackground(uri: string): Promise<string> {
-  const token = await uploadToMediaShare(
-    uri,
-    'profilbild-hintergrund.jpg',
-    'image/jpeg',
-    'profilbild-background'
-  );
-  if (!token) throw new Error('Hintergrundbild konnte nicht gespeichert werden.');
-  return `/api/share/${token}/download`;
-}
-
 const toDataUrl = (base64: string) => `data:image/png;base64,${base64}`;
 
 /**
@@ -199,7 +187,8 @@ export function useProfilbildShare() {
 
   /**
    * A reopened Profilbild keeps updating its share; a fresh photo (null) starts a
-   * new one. Uploads are per share: purging one Profilbild deletes its background.
+   * new one. An old `profilbild-background` upload is purged with its Profilbild;
+   * gallery backgrounds are not.
    */
   const begin = useCallback((reopen: ProfilbildReopen | null) => {
     session.current += 1;
@@ -221,8 +210,10 @@ export function useProfilbildShare() {
       let background: SavedProfilbildBackground;
       if (snapshot.backgroundId === CUSTOM_ID && snapshot.custom) {
         const { uri, galleryUrl } = snapshot.custom;
-        const url = galleryUrl ?? uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
-        if (!galleryUrl) uploaded.current.set(uri, url);
+        // A new photo is a gallery background (BackgroundPicker uploads it); a
+        // reopened one still names the file it was saved with, old rows included.
+        const url = galleryUrl ?? uploaded.current.get(uri);
+        if (!url) throw new Error('Hintergrundbild konnte nicht gespeichert werden.');
         background = { kind: 'custom', url };
       } else if (snapshot.backgroundId === FREE_BACKGROUND_ID) {
         // A free colour or two-stop gradient; anything else cannot be a free choice.

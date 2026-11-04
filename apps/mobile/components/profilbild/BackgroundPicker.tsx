@@ -9,6 +9,11 @@ import {
   type Swatch,
 } from '@gruenerator/shared/profilbild';
 import { isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
+import {
+  assetFormBody,
+  emptyAssetForm,
+  useStudioAssetMutations,
+} from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
@@ -20,6 +25,7 @@ import { resolveChatUrl } from '../../services/chatApiUrl';
 import { pickImageForEditor } from '../../services/imageEditMobile';
 import { borderRadius, spacing } from '../../theme';
 import { SegmentedControl } from '../common/SegmentedControl';
+import { uploadStudioAssetImage } from '../studio-assets/creator/uploadSticker';
 import { useShareToken } from '../studio-assets/useShareToken';
 
 import { FlatFill } from './FlatFill';
@@ -63,12 +69,31 @@ interface BackgroundPickerProps {
   onPickGallery(item: GalleryAsset): void;
 }
 
-async function loadCustom(): Promise<CustomBackground | null> {
+// The picker hands over a cache file without the original name.
+const UPLOAD_TITLE = 'Eigenes Hintergrundbild';
+
+/** Picks a photo and stores it as a private gallery background, like web; `galleryUrl` is its src. */
+async function loadCustom(
+  create: ReturnType<typeof useStudioAssetMutations>['create'],
+  isAustria: boolean
+): Promise<CustomBackground | null> {
   const ref = await pickImageForEditor();
   if (!ref) return null;
   const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(ref.uri));
   if (!image) throw new Error('decode failed');
-  return { uri: ref.uri, image, galleryUrl: null };
+  const shareToken = await uploadStudioAssetImage(
+    ref.uri,
+    'profilbild-hintergrund.jpg',
+    'image/jpeg'
+  );
+  const form = { ...emptyAssetForm(isAustria ? 'de-AT' : 'de-DE'), title: UPLOAD_TITLE };
+  const item = await create.mutateAsync({
+    shareToken,
+    kind: 'background',
+    source: 'upload',
+    ...assetFormBody(form),
+  });
+  return { uri: ref.uri, image, galleryUrl: item.src };
 }
 
 /**
@@ -88,6 +113,8 @@ export function BackgroundPicker({
 }: BackgroundPickerProps) {
   const theme = useTheme();
   const token = useShareToken();
+  const { create } = useStudioAssetMutations();
+  const [uploading, setUploading] = useState(false);
   const colors = colorSwatches(isAustria);
   const gradients = gradientSwatches(isAustria);
   const presets = presetDesigns(isAustria);
@@ -107,13 +134,16 @@ export function BackgroundPicker({
   ];
 
   const upload = () => {
-    loadCustom()
+    if (uploading) return;
+    setUploading(true);
+    loadCustom(create, isAustria)
       .then((next) => {
         if (!next) return;
         onCustom(next);
         onSelect(CUSTOM_ID, { kind: 'image', image: next.image });
       })
-      .catch(() => Alert.alert('Fehler', 'Das Bild konnte nicht geladen werden.'));
+      .catch(() => Alert.alert('Fehler', 'Das Bild konnte nicht gespeichert werden.'))
+      .finally(() => setUploading(false));
   };
 
   const selectFree = (bg: FreeBackground) => onSelect(FREE_BACKGROUND_ID, bg);
