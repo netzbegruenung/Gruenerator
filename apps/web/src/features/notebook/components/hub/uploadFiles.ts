@@ -50,3 +50,30 @@ export function describeRejectedFiles(rejected: RejectedFile[]): string {
 export function hasFileDrag(e: DragEvent): boolean {
   return Array.from(e.dataTransfer.types).includes('Files');
 }
+
+/**
+ * Inhaltsgleiche Dateien einer Auswahl auf die erste reduzieren (#5342). Der
+ * Server erkennt Dubletten nur gegen schon angehängte Quellen, angehängt wird
+ * aber erst nach der ganzen Auswahl — zwei Kopien in einem Wurf, auch unter
+ * verschiedenen Namen, kämen sonst beide durch. Gehasht wird nur, was eine
+ * Größe mit einer anderen Datei teilt: gleiche Bytes heißt gleiche Größe.
+ */
+export async function dropSameContent(files: File[]): Promise<File[]> {
+  const sizeCount = new Map<number, number>();
+  for (const file of files) sizeCount.set(file.size, (sizeCount.get(file.size) ?? 0) + 1);
+
+  const seen = new Set<string>();
+  const kept: File[] = [];
+  for (const file of files) {
+    if ((sizeCount.get(file.size) ?? 0) > 1) {
+      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      const key = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(
+        ''
+      );
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    kept.push(file);
+  }
+  return kept;
+}

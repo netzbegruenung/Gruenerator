@@ -25,6 +25,8 @@ export interface DocumentMetadata {
   /** Extracted plain text, kept so the source never has to be fetched again. */
   markdownContent?: string | null | undefined;
   pageCount?: number | undefined;
+  /** SHA-256 of the uploaded bytes, for duplicate detection within a notebook. */
+  fileHash?: string | null | undefined;
   additionalMetadata?: Record<string, unknown> | null | undefined;
 }
 
