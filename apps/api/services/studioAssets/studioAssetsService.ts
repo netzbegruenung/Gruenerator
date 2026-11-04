@@ -262,6 +262,13 @@ export async function createStudioAsset(
     );
   }
 
+  // Stamp before the insert: a crash in between leaves an upload the sweep
+  // never takes, the reverse order a claimed one it could (#4555).
+  await db
+    .update(sharedMedia)
+    .set({ claimed_at: sql`COALESCE(${sharedMedia.claimed_at}, now())` })
+    .where(eq(sharedMedia.id, media.id));
+
   let insertedId: string | null = null;
   try {
     const [inserted] = await db

@@ -9,7 +9,8 @@
  * - Orphan-based: subtitler-projects/, shared-media/ (DB-tracked, only delete if not in DB)
  * - Row-based: shared_media rows stuck in 'processing'/'failed' (delete the row
  *   *and* its files — the directory-only pass above cannot see them, because
- *   they still have a row)
+ *   they still have a row), and Studio gallery uploads no `studio_assets` row
+ *   ever claimed
  */
 
 import fs from 'fs/promises';
@@ -60,6 +61,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * verarbeitet werden" on `/share/:token` for a day instead of a bare 404.
  */
 const ORPHANED_SHARE_MAX_AGE_HOURS = 24;
+
+/** Time a client has between uploading gallery bytes and creating their item. */
+const UNCLAIMED_UPLOAD_MAX_AGE_HOURS = 24;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let initialized = false;
@@ -325,6 +329,37 @@ async function cleanStuckShareRows(): Promise<CleanupStats> {
   return stats;
 }
 
+/**
+ * Studio gallery uploads whose `studio_assets` row was never created (#4555).
+ * Same shape as {@link cleanStuckShareRows}: the service deletes row and files.
+ */
+async function cleanUnclaimedStudioAssetUploads(): Promise<CleanupStats> {
+  const stats: CleanupStats = {
+    directory: 'shared_media (unclaimed studio-asset uploads)',
+    checked: 0,
+    deleted: 0,
+    freedBytes: 0,
+    errors: 0,
+  };
+
+  try {
+    const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
+    const service = await getSharedMediaService();
+    const reaped = await service.reapUnclaimedStudioAssetUploads(UNCLAIMED_UPLOAD_MAX_AGE_HOURS);
+
+    stats.checked = reaped.length;
+    stats.deleted = reaped.length;
+    stats.freedBytes = reaped.reduce((sum, row) => sum + row.fileSize, 0);
+  } catch (err: unknown) {
+    stats.errors++;
+    log.error(
+      `Unclaimed studio-asset upload cleanup failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  return stats;
+}
+
 async function getDirSize(dirPath: string): Promise<number> {
   let size = 0;
   try {
@@ -382,6 +417,15 @@ async function runFullCleanup(): Promise<void> {
   if (stuckRowStats.deleted > 0) {
     log.info(
       `[shared_media] Reaped ${stuckRowStats.deleted} share(s) stuck in processing/failed for over ${ORPHANED_SHARE_MAX_AGE_HOURS}h, freed ${formatBytes(stuckRowStats.freedBytes)}`
+    );
+  }
+
+  const unclaimedStats = await cleanUnclaimedStudioAssetUploads();
+  totalDeleted += unclaimedStats.deleted;
+  totalFreed += unclaimedStats.freedBytes;
+  if (unclaimedStats.deleted > 0) {
+    log.info(
+      `[shared_media] Reaped ${unclaimedStats.deleted} studio-asset upload(s) no gallery item claimed within ${UNCLAIMED_UPLOAD_MAX_AGE_HOURS}h, freed ${formatBytes(unclaimedStats.freedBytes)}`
     );
   }
 
