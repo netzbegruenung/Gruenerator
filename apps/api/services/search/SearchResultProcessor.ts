@@ -98,22 +98,44 @@ export function expandResultsToChunks(
 }
 
 /**
- * Deduplicate results by document ID and chunk index
+ * Identity of a passage as a second upload of the same file repeats it: same
+ * title, same text (whitespace-insensitive). The title is what keeps two
+ * DIFFERENT sources apart that quote one paragraph verbatim — both are
+ * evidence and must both survive. Empty text has no identity.
+ */
+export function uploadCopyKey(
+  title: string | null | undefined,
+  text: string | null | undefined
+): string | null {
+  const body = (text ?? '').replace(/\s+/g, ' ').trim();
+  return body.length > 0 ? `${(title ?? '').trim()}\n${body}` : null;
+}
+
+/**
+ * Deduplicate results by document ID and chunk index — and by
+ * {@link uploadCopyKey}: the same file uploaded twice is two documents with
+ * identical chunks. Kept apart, the copy took every second slot and doubled
+ * each citation (live 04.11.2026, evals/answer/bgst-live-eval-2026-11-04.md).
+ * The first occurrence wins.
  */
 export function deduplicateResults(
   results: ExpandedChunkResult[],
   includeCollectionInKey: boolean = false
 ): ExpandedChunkResult[] {
   const keySet = new Set<string>();
+  const copySet = new Set<string>();
   const deduped: ExpandedChunkResult[] = [];
 
   for (const r of results) {
     const key = includeCollectionInKey
       ? `${r.collection_id}:${r.document_id}:${r.chunk_index}`
       : `${r.document_id}:${r.chunk_index}`;
+    const copy = uploadCopyKey(r.title, r.chunk_text);
+    const copyKey = copy !== null && includeCollectionInKey ? `${r.collection_id}:${copy}` : copy;
 
-    if (keySet.has(key)) continue;
+    if (keySet.has(key) || (copyKey !== null && copySet.has(copyKey))) continue;
     keySet.add(key);
+    if (copyKey !== null) copySet.add(copyKey);
     deduped.push(r);
   }
 

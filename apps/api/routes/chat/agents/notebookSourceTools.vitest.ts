@@ -583,6 +583,24 @@ describe('find', () => {
     });
   });
 
+  it('searches the full window in precision mode and the narrow one elsewhere', async () => {
+    const chat = makeCtx({ searchResults, links: ['d1'] });
+    await chat.run({ action: 'find', query: 'Radweg' });
+    expect(chat.documentService.search).toHaveBeenCalledWith(
+      expect.objectContaining({ options: expect.objectContaining({ limit: 30 }) })
+    );
+
+    const praezision = makeCtx({
+      searchResults,
+      links: ['d1'],
+      scopeLock: { ids: ['n1'], readOnly: true },
+    });
+    await praezision.run({ action: 'find', query: 'Radweg' });
+    expect(praezision.documentService.search).toHaveBeenCalledWith(
+      expect.objectContaining({ options: expect.objectContaining({ limit: 60 }) })
+    );
+  });
+
   it('registers an uploaded file without an address', async () => {
     const { run, registered } = makeCtx({ searchResults, links: ['d1'] });
     await run({ action: 'find', query: 'Radweg' });

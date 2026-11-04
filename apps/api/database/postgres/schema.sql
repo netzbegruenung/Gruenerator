@@ -251,7 +251,8 @@ CREATE TABLE IF NOT EXISTS documents (
     last_synced_at TIMESTAMPTZ,
     group_wolke_share_id TEXT,
     processing_started_at TIMESTAMPTZ,
-    processing_attempts INTEGER NOT NULL DEFAULT 0
+    processing_attempts INTEGER NOT NULL DEFAULT 0,
+    file_hash TEXT
 );
 
 CREATE TABLE IF NOT EXISTS document_daily_versions (
