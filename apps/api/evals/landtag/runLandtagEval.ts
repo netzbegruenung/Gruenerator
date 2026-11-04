@@ -2,14 +2,18 @@
  * Eval der Landtags-Werkzeuge gegen eine laufende lokale API (Dev-Bypass).
  *
  *   cd apps/api && EVAL_API=http://localhost:3021 DEV_AUTH_BYPASS_TOKEN=… \
- *     npx tsx evals/landtag/runLandtagEval.ts [--only N1,B2] [--out ergebnis.json]
+ *     npx tsx evals/landtag/runLandtagEval.ts [--only N1,B2] [--repeat 3] [--out ergebnis.json]
  *
  * Je Fall eine Zeile: PASS/FAIL, Werkzeugkette, zitierte Refs, Gründe. Geprüft wird
  * gegen `landtag-eval.json` (Wahrheit aus Qdrant und PARDOK, nicht aus dem Werkzeug):
  * - erwartete Aufrufe (Werkzeug, Argument-Teilmenge, Refs in `dokumente`),
  * - zitierte Drucksachen (Nummern im Antworttext und in den zitierten Quellen),
  * - Pflicht- und Verbotsmuster im Antworttext,
- * - „erfundene Ref": eine genannte Nummer, die in keinem Werkzeugergebnis stand.
+ * - „erfundene Ref": eine genannte Nummer, die in keinem Werkzeugergebnis stand,
+ * - verbotene Aufrufe (`forbid_tools`, etwa ein Landtag für eine Person aus Österreich).
+ *
+ * `--repeat N` fragt jeden Fall N-mal: ein einzelnes PASS sagt bei einem Sprachmodell
+ * wenig, die Quote je Fall ist die Zahl, die zählt.
  *
  * Jeder Fall legt einen Thread an; danach wandert er in den Papierkorb (`--keep-threads`
  * schaltet das ab). Sonst holt der nächste Lauf ihn über den proaktiven Recall
@@ -29,6 +33,10 @@ interface EvalCase {
   id: string;
   question: string;
   tools: ToolExpectation[];
+  /** Darf nicht aufgerufen werden (Werkzeug + Argument-Teilmenge). */
+  forbid_tools?: ToolExpectation[];
+  /** Geht als `x-user-locale` mit; ohne gilt die API-Vorgabe de-DE. */
+  locale?: 'de-DE' | 'de-AT';
   cites_min?: number;
   cites_from?: string[];
   cites_all?: string[];
@@ -121,6 +129,11 @@ export function judge(c: EvalCase, turn: Turn, globalMustNot: readonly string[])
     );
     if (!hit) failures.push(`fehlender Aufruf ${want.tool} ${JSON.stringify(want.args ?? {})}`);
   }
+  for (const no of c.forbid_tools ?? []) {
+    if (turn.calls.some((call) => call.tool === no.tool && argsMatch(call.args, no.args ?? {}))) {
+      failures.push(`verbotener Aufruf ${no.tool} ${JSON.stringify(no.args ?? {})}`);
+    }
+  }
 
   const cited = citedNumbers(turn);
   // Bekannt ist, was ein Werkzeug geliefert hat: die Ergebnisse im Stream (dort ist
@@ -180,7 +193,12 @@ export function judge(c: EvalCase, turn: Turn, globalMustNot: readonly string[])
   };
 }
 
-async function ask(api: string, token: string, question: string): Promise<Turn> {
+async function ask(
+  api: string,
+  token: string,
+  question: string,
+  locale: EvalCase['locale']
+): Promise<Turn> {
   const started = Date.now();
   const res = await fetch(`${api}/api/chat-graph/stream`, {
     method: 'POST',
@@ -188,6 +206,7 @@ async function ask(api: string, token: string, question: string): Promise<Turn> 
       'content-type': 'application/json',
       origin: 'http://localhost:3000',
       'x-dev-auth-bypass': token,
+      ...(locale ? { 'x-user-locale': locale } : {}),
     },
     body: JSON.stringify({
       messages: [{ id: 'm1', role: 'user', parts: [{ type: 'text', text: question }] }],
@@ -261,20 +280,20 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const only = argv.includes('--only') ? argv[argv.indexOf('--only') + 1]!.split(',') : null;
   const out = argv.includes('--out') ? argv[argv.indexOf('--out') + 1]! : null;
+  const repeat = argv.includes('--repeat') ? Number(argv[argv.indexOf('--repeat') + 1]) : 1;
   const concurrency = Number(process.env.EVAL_CONCURRENCY ?? 3);
 
   const file = JSON.parse(readFileSync(join(here, 'landtag-eval.json'), 'utf8')) as EvalFile;
   const cases = file.cases.filter((c) => !only || only.includes(c.id));
-  const results: CaseResult[] = [];
-  const answers: Record<string, string> = {};
-  const calls: Record<string, Turn['calls']> = {};
+  const jobs = cases.flatMap((c) => Array.from({ length: repeat }, () => c));
+  const runs: Array<{ result: CaseResult; answer: string; calls: Turn['calls'] }> = [];
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, cases.length) }, async () => {
-      while (next < cases.length) {
+    Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
+      while (next < jobs.length) {
         const i = next++;
-        const c = cases[i]!;
-        const turn = await ask(api, token, c.question).catch((e: unknown): Turn => ({
+        const c = jobs[i]!;
+        const turn = await ask(api, token, c.question, c.locale).catch((e: unknown): Turn => ({
           calls: [],
           resultText: '',
           answer: '',
@@ -282,26 +301,47 @@ async function main(): Promise<void> {
           error: String(e),
           seconds: 0,
         }));
-        answers[c.id] = turn.answer;
-        calls[c.id] = turn.calls;
-        results[i] = judge(c, turn, file.global_must_not);
+        runs[i] = {
+          result: judge(c, turn, file.global_must_not),
+          answer: turn.answer,
+          calls: turn.calls,
+        };
         if (turn.threadId && !argv.includes('--keep-threads')) {
           await trashThread(api, token, turn.threadId);
         }
       }
     })
   );
-  for (const r of results) {
-    console.log(
-      `${r.id.padEnd(4)} ${r.pass ? 'PASS' : r.severe ? 'FAIL!' : 'FAIL'} ${String(r.seconds).padStart(3)}s  ${r.chain}  [${r.cited.join(', ')}]${r.failures.length ? `  — ${r.failures.join('; ')}` : ''}`
-    );
-  }
-  const passed = results.filter((r) => r.pass).length;
-  const severe = results.filter((r) => r.severe).length;
+  const summaries = summarize(runs.map((r) => r.result));
+  for (const s of summaries) console.log(s.line);
+  const passed = summaries.filter((s) => s.passRuns === s.runs).length;
+  const severe = runs.filter((r) => r.result.severe).length;
   console.log(
-    `\n${passed}/${results.length} PASS, ${severe} schwer (falsche Behauptung / erfundene Ref)`
+    `\n${passed}/${summaries.length} Fälle in allen ${repeat} Läufen PASS, ${severe} schwere Läufe (falsche Behauptung / erfundene Ref)`
   );
-  if (out) writeFileSync(out, JSON.stringify({ results, answers, calls }, null, 2));
+  if (out) writeFileSync(out, JSON.stringify({ runs }, null, 2));
+}
+
+/** Je Fall eine Zeile: Quote, schwere Läufe, Ketten und die Gründe der Fehlläufe. */
+export function summarize(
+  results: readonly CaseResult[]
+): Array<{ id: string; runs: number; passRuns: number; line: string }> {
+  const byId = new Map<string, CaseResult[]>();
+  for (const r of results) byId.set(r.id, [...(byId.get(r.id) ?? []), r]);
+  return [...byId].map(([id, rs]) => {
+    const passRuns = rs.filter((r) => r.pass).length;
+    const severe = rs.filter((r) => r.severe).length;
+    const status = passRuns === rs.length ? 'PASS' : severe > 0 ? 'FAIL!' : 'FAIL';
+    const chains = [...new Set(rs.map((r) => r.chain))].join(' | ');
+    const why = [...new Set(rs.flatMap((r) => r.failures))].join('; ');
+    const seconds = Math.round(rs.reduce((a, r) => a + r.seconds, 0) / rs.length);
+    return {
+      id,
+      runs: rs.length,
+      passRuns,
+      line: `${id.padEnd(4)} ${status.padEnd(5)} ${passRuns}/${rs.length} ${String(seconds).padStart(3)}s  ${chains}  [${[...new Set(rs.flatMap((r) => r.cited))].join(', ')}]${why ? `  — ${why}` : ''}`,
+    };
+  });
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { citedNumbers, docNumbers, judge } from './runLandtagEval.js';
+import { citedNumbers, docNumbers, judge, summarize } from './runLandtagEval.js';
 
 const turn = (over: Partial<Parameters<typeof judge>[1]> = {}): Parameters<typeof judge>[1] => ({
   calls: [{ tool: 'landtag', args: { parlament: 'nrw' } }],
@@ -115,5 +115,38 @@ describe('judge', () => {
       'zu wenig Treffer zitiert: 1 < 2',
       'nicht beide Parlamente zitiert',
     ]);
+  });
+
+  it('meldet einen verbotenen Aufruf, nicht aber einen anderen Parlaments-Aufruf', () => {
+    const forbid = [{ tool: 'landtag', args: { parlament: 'nrw' } }];
+    expect(judge({ ...base, forbid_tools: forbid }, turn(), []).failures).toEqual([
+      'verbotener Aufruf landtag {"parlament":"nrw"}',
+    ]);
+    const other = turn({ calls: [{ tool: 'landtag', args: { parlament: 'nationalrat' } }] });
+    expect(judge({ ...base, forbid_tools: forbid }, other, []).pass).toBe(true);
+  });
+});
+
+describe('summarize', () => {
+  const result = (pass: boolean, severe = false) => ({
+    id: 'B1',
+    pass,
+    severe,
+    chain: 'landtag(berlin)',
+    cited: [],
+    failures: pass ? [] : ['zu wenig Treffer zitiert: 0 < 3'],
+    seconds: 10,
+  });
+
+  it('zählt je Fall die bestandenen Läufe und markiert schwere Fehlläufe', () => {
+    const [ok, mixed] = summarize([
+      { ...result(true), id: 'N1' },
+      result(true),
+      result(false, true),
+      result(true),
+    ]);
+    expect(ok).toMatchObject({ id: 'N1', runs: 1, passRuns: 1 });
+    expect(mixed).toMatchObject({ id: 'B1', runs: 3, passRuns: 2 });
+    expect(mixed!.line).toMatch(/^B1 {3}FAIL! 2\/3 .*zu wenig Treffer/);
   });
 });

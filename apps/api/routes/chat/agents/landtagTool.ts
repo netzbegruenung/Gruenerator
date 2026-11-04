@@ -131,6 +131,8 @@ async function runProtokollSuche(
 }
 
 /** Gemeinsame Ausführung von `landtag` und `nationalrat`. */
+const WAHLPERIODE_RE = /wahlperiode|legislatur|\bWP\s?\d/i;
+
 async function runParlamentSuche(
   { state, sourceRegistry }: Ctx,
   parlament: LandtagParlament,
@@ -144,7 +146,13 @@ async function runParlamentSuche(
   const fromArgs = Object.fromEntries(
     Object.entries(args).filter(([, v]) => v !== undefined)
   ) as LandtagFilter;
-  const filters: LandtagFilter = { ...detectLandtagFromWording(userText), ...fromArgs };
+  const fromWording = detectLandtagFromWording(userText);
+  const filters: LandtagFilter = { ...fromWording, ...fromArgs };
+  // Ein Jahr in der Frage ist ein Zeitraum, keine Wahlperiode. Das Modell setzte für
+  // „2026" trotzdem WP 19 (die Refs lauten „BE 19/…") und schnitt die seit 11/2026
+  // laufende WP 20 ab: 73 statt 77 Anträge (live 04.11.2026, ein Satz in der
+  // Beschreibung änderte daran nichts, 0/3).
+  if (fromWording.datumVon && !WAHLPERIODE_RE.test(userText)) delete filters.wahlperiode;
 
   // Protokolle aus dem Notebook, wo die Liste keine führt; eine gemischte Art-Liste fragt die Liste ohne sie.
   const protokollNotebook = meta.typen.Plenarprotokoll ? undefined : meta.protokollNotebook;

@@ -294,7 +294,7 @@
       ],
       "must_contain": ["\\b77\\b"],
       "must_not": ["insgesamt \\**25\\b"],
-      "truth": "PARDOK f.drucksachtyp Antrag, f.urheber Grüne, 2026: numFound 77"
+      "truth": "PARDOK f.drucksachtyp Antrag, f.urheber Grüne, 2026: numFound 77. Mit f.wahlperiode=19 nur 73: die WP 20 läuft seit 11/2026 (PARDOK, 04.11.2026)"
     },
     {
       "id": "B7",
@@ -378,6 +378,52 @@
       ],
       "cites_both": true,
       "truth": "Berlin: 19/16697, 19/18565, 19/18747, 19/20451, 19/20770, 19/21165 …; NRW: 18/11651, 18/11571, 18/10465, 18/9465, 18/6739, 18/5411"
+    },
+    {
+      "id": "A1",
+      "locale": "de-AT",
+      "question": "Welche Anträge haben die Grünen im Landtag NRW zuletzt eingebracht?",
+      "tools": [],
+      "forbid_tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "parlament_lesen",
+          "args": {
+            "quelle": "nrw"
+          }
+        }
+      ],
+      "truth": "Landtag NRW ist für de-AT nicht freigeschaltet (registry audience de-DE): kein landtag(nrw), keine erfundenen Drucksachen"
+    },
+    {
+      "id": "A2",
+      "locale": "de-AT",
+      "question": "Welche Anträge zum Klimaschutz gab es zuletzt im Nationalrat?",
+      "tools": [
+        {
+          "tool": "nationalrat"
+        }
+      ],
+      "forbid_tools": [
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "nrw"
+          }
+        },
+        {
+          "tool": "landtag",
+          "args": {
+            "parlament": "berlin"
+          }
+        }
+      ],
+      "truth": "Für de-AT hat der Nationalrat ein eigenes Werkzeug `nationalrat`; landtag(nrw/berlin) darf nicht kommen"
     }
   ]
 }

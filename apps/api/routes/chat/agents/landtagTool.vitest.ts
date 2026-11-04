@@ -61,6 +61,24 @@ describe('makeLandtagTool', () => {
   const make = (locale = 'de-DE', text = '') =>
     makeLandtagTool({ state: state(locale, text), sourceRegistry: createSourceRegistry() });
 
+  it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
+    await exec(make('de-DE', 'Wie viele Anträge haben die Grünen in Berlin 2026 gestellt?'), {
+      parlament: 'berlin',
+      wahlperiode: 19,
+      typ: ['Antrag'],
+    });
+    const filters = findLandtag.mock.calls[0]![2] as Record<string, unknown>;
+    expect(filters).toMatchObject({ datumVon: '2026-01-01', typ: ['Antrag'] });
+    expect(filters).not.toHaveProperty('wahlperiode');
+
+    await exec(make('de-DE', 'Anträge der Grünen 2026 in der 19. Wahlperiode'), {
+      parlament: 'berlin',
+      wahlperiode: 19,
+    });
+    expect(findLandtag.mock.calls[1]![2]).toMatchObject({ wahlperiode: 19 });
+  });
+
   it('sagt Österreich ab, ohne zu suchen', async () => {
     const out = (await exec(make('de-AT'), { parlament: 'berlin', query: 'Verkehr' })) as {
       error: string;
