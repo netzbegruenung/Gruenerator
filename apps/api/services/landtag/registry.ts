@@ -102,6 +102,62 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       neos: null,
     },
   },
+  nrw: {
+    id: 'nrw',
+    audience: 'de-DE',
+    kurz: 'NRW',
+    parlament: 'Landtag Nordrhein-Westfalen',
+    herkunft: 'des Landtags Nordrhein-Westfalen',
+    refPrefix: 'NW',
+    nummer: (nr) => `NRW-Drs. ${nr}`,
+    // Die Trefferliste, die auch der Scraper liest: Drucksachen der laufenden Wahlperiode.
+    portalUrl:
+      'https://www.landtag.nrw.de/home/dokumente/dokumentensuche/parlamentsdokumente/parlamentsdatenbank-suchergebnis.html?wp=18&view=detail&dokart=DRUCKSACHE',
+    quellenangabe: 'Quelle: Landtag Nordrhein-Westfalen, Parlamentsdatenbank',
+    // Keine Live-API: gesucht wird im Notebook (`landtag_nrw_documents`), siehe `nrw/find.ts`.
+    supports: {
+      wahlperiode: true,
+      typ: true,
+      fraktion: true,
+      datum: true,
+      titel: true,
+      // Die Schlagworte liegen in der Nutzlast, aber ohne Index.
+      schlagwort: false,
+      volltext: true,
+    },
+    unsupportedHint: {
+      schlagwort:
+        'Für den Landtag NRW gibt es keinen Schlagwortfilter; das Thema als `query` geben (inhaltlich gerankt) oder `volltext` nutzen.',
+    },
+    // Werte von `doc_type` (`classifyDocType` im Scraper, Schreibweise der Parlamentsdatenbank).
+    typen: {
+      Antrag: ['Antrag', 'Entschließungsantrag', 'Eilantrag'],
+      // Kleine Anfragen liegen nur mit ihrer Antwort vor, die die Fragen wörtlich zitiert.
+      Anfrage: ['Große Anfrage', 'Antwort'],
+      Antwort: ['Antwort'],
+      Gesetzentwurf: ['Gesetzentwurf'],
+      Beschlussempfehlung: ['Beschlussempfehlung', 'Beschlussempfehlung und Bericht'],
+      Änderungsantrag: ['Änderungsantrag'],
+      Plenarprotokoll: null,
+    },
+    typHinweis: {
+      Plenarprotokoll:
+        "Plenar- und Ausschussprotokolle des Landtags NRW liegen nach Tagesordnungspunkten im Notebook; dafür gruenerator_search mit collection 'landtag-nrw'.",
+    },
+    fraktionen: {
+      gruene: 'GRÜNE',
+      cdu: 'CDU',
+      spd: 'SPD',
+      fdp: 'FDP',
+      afd: 'AfD',
+      linke: null,
+      bsw: null,
+      oevp: null,
+      spoe: null,
+      fpoe: null,
+      neos: null,
+    },
+  },
   nationalrat: {
     id: 'nationalrat',
     audience: 'de-AT',

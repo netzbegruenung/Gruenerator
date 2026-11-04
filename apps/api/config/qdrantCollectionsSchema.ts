@@ -493,6 +493,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'doc_type', type: 'keyword' },
+      // Refs des Werkzeugs `landtag` („NW 18/21508") auflösen (`services/landtag/nrw/`).
+      { field: 'document_number', type: 'keyword' },
       // Abhängige Dokumente zu ihrem Ursprung holen (`dependentExpansion.ts`).
       { field: 'bezug', type: 'keyword' },
       // Alle Dokumente eines Verfahrens (Präfix der `record_id`, #4307).
