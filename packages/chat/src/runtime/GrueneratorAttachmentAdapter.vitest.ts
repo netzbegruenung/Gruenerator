@@ -5,13 +5,12 @@
  * user only saw the draft bounce back. The contents are now read at pick time.
  */
 
+import { type PendingAttachment } from '@assistant-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
-
-import type { PendingAttachment } from '@assistant-ui/core';
 
 const fileToBase64 = vi.hoisted(() => vi.fn<(file: File) => Promise<string>>());
 
