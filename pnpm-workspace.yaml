@@ -279,6 +279,18 @@ allowBuilds:
 # imports `@blocknote/xl-ai/server`). Guarded by
 # packages/docs/src/lib/aiSuggestionMarks.vitest.ts.
 #
+# The same patch makes the agent replay (`getStepsAsAgent`, src/prosemirror/
+# agent.ts, built into dist/server-CGu6iHhc.js) skip structurally incomplete
+# prefixes. It types an insert in with `slice.content.cut(0, i)`; inside nested
+# blocks a cut ends in an empty blockContainer/blockGroup, which the schema
+# forbids and BlockNote core reads as `firstChild.type` (blockContainer node
+# view, numbered-list decorations) — the AI added a list item, threw, and lost
+# its children (#4956). Cuts whose nodes fail `validContent` are skipped; the
+# full slice is always applied. Guarding core instead would mean patching every
+# `firstChild` reader. Unchanged in 0.57.0 (agent cut and core reader both).
+# Both ESM entries import that chunk. Guarded by the "nested blocks" tests in
+# packages/docs/src/lib/structuralUpdateFallback.vitest.ts.
+#
 # `@ts-rest/core@3.52.1` (zod 4 migration): its .d.ts files name zod 3
 # types that zod 4 no longer exports (`z.AnyZodObject`, `z.objectUtil`,
 # `z.ZodEffects`). Under skipLibCheck they silently become `any`, and

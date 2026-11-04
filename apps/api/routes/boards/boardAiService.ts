@@ -8,8 +8,8 @@
  * Routed through the facade (lane `editor_ops_board`) rather than calling the
  * AI SDK directly — see services/ai/generate.ts. The forced single tool call
  * (JSON-Schema conversion, retry, transport extraction) lives in
- * services/ai/forcedToolCall.ts, shared with sheetAiService.ts and
- * presentationAiService.ts; this file keeps only its own prompt, board
+ * services/ai/forcedToolCall.ts, shared with presentationAiService.ts;
+ * this file keeps only its own prompt, board
  * serialization, and the whole-array post-call zod validation.
  */
 

@@ -8,9 +8,9 @@
  *
  * Mirrors boards/boardAiService.ts (plan-then-apply, plain JSON, no streaming),
  * routed through the facade (lane `editor_ops_sheet`) rather than calling the
- * AI SDK directly — see services/ai/generate.ts. The forced single tool call
- * lives in services/ai/forcedToolCall.ts, shared with boardAiService.ts and
- * presentationAiService.ts. The lane always primes on Mistral Medium 3.5 (the
+ * AI SDK directly — see services/ai/generate.ts. The forced tool call runs
+ * through `aiObject`, so a malformed op earns a repair turn that names the
+ * field error instead of being dropped silently (#4470). The lane always primes on Mistral Medium 3.5 (the
  * model this planner needs — smaller fallbacks mis-shape or drop
  * set_range_values ops), but unlike the previous pinned, chain-less provider
  * check, a lane always carries the facade's generic fallback chain: an
@@ -21,7 +21,8 @@
 import { sheetOperationSchema, type SheetOperation } from '@gruenerator/contracts';
 import { z } from 'zod';
 
-import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
+import { aiObject } from '../../services/ai/generate.js';
+import { toolInputJsonSchema } from '../../services/ai/toolJsonSchema.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('SheetAI');
@@ -126,18 +127,26 @@ EXAMPLE 4 — the header is in A1:E1 and the user says "mach die Kopfzeile schic
 { "operations": [ { "type": "format_range", "range": "A1:E1", "bold": true, "background": "#46962b", "fontColor": "#ffffff", "horizontalAlign": "center", "border": { "edges": "bottom", "style": "medium" } }, { "type": "freeze_panes", "rows": 1, "columns": 0 }, { "type": "set_column_width", "at": "A", "count": 5 } ] }`;
 
 /**
- * Coerce the two shape mistakes models make most often on set_range_values
- * (precisely the op used to modify existing cells) so they validate instead of
- * being dropped:
- *  - `values` given as a 1D array (["a","b"]) → wrap into one row ([["a","b"]]).
- *  - `values` given as a bare scalar (2500) → single cell ([[2500]]).
- * Anything already well-shaped (a 2D array) passes through untouched. Non-objects
- * and other op types are returned as-is for the strict schema to accept or reject.
+ * Coerce the shape mistakes models make most often so the op validates
+ * instead of being dropped:
+ *  - fields nested under the op's own name (`{ "type": "format_range",
+ *    "format_range": { "range": "A1:C1" } }`, seen from the cortecs fallback in
+ *    #4470) → hoisted to the top level.
+ *  - set_range_values (precisely the op used to modify existing cells):
+ *    `values` given as a 1D array (["a","b"]) → wrap into one row ([["a","b"]]);
+ *    `values` given as a bare scalar (2500) → single cell ([[2500]]).
+ * Anything already well-shaped passes through untouched. Non-objects are
+ * returned as-is for the strict schema to accept or reject.
  */
 export function normalizeRawOp(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
-  const op = raw as Record<string, unknown>;
-  if (op.type !== 'set_range_values') return raw;
+  let op = raw as Record<string, unknown>;
+  const nested = typeof op.type === 'string' ? op[op.type] : undefined;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    const { [op.type as string]: _nested, ...rest } = op;
+    op = { ...(nested as Record<string, unknown>), ...rest };
+  }
+  if (op.type !== 'set_range_values') return op;
 
   let values = op.values;
   if (!Array.isArray(values)) {
@@ -153,9 +162,35 @@ export function normalizeRawOp(raw: unknown): unknown {
 const TOOL_NAME = 'applySheetOperations';
 const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(50) });
 
+interface PlannedOps {
+  captured: SheetOperation[];
+  /** One line per malformed op: what is wrong, then the op as sent. */
+  dropped: string[];
+  rawCount: number;
+}
+
+/** Validate each op on its own — one bad op must never discard the batch. */
+function validateOps(rawOps: unknown[]): PlannedOps {
+  const captured: SheetOperation[] = [];
+  const dropped: string[] = [];
+  rawOps.forEach((raw, index) => {
+    const parsed = sheetOperationSchema.safeParse(normalizeRawOp(raw));
+    if (parsed.success) {
+      captured.push(parsed.data);
+      return;
+    }
+    const issue = parsed.error.issues[0];
+    const where = issue?.path.length ? `${issue.path.join('.')}: ` : '';
+    dropped.push(
+      `Operation ${index + 1}: ${where}${issue?.message ?? 'invalid'} :: ${JSON.stringify(raw).slice(0, 160)}`
+    );
+  });
+  return { captured, dropped, rawCount: rawOps.length };
+}
+
 /**
  * Plan sheet operations for a user request. Returns a validated
- * SheetOperation[] (possibly empty). Throws only on provider/model failure.
+ * SheetOperation[] (possibly empty). Throws only on provider failure.
  */
 export async function generateSheetOperations(opts: {
   userPrompt: string;
@@ -170,48 +205,57 @@ export async function generateSheetOperations(opts: {
 
   const system = `${SHEET_TOOL_STRICT_PROMPT}\n\nAKTUELLER TABELLEN-ZUSTAND:\n${sheetContext.slice(0, 24_000)}${referenceSection}`;
 
-  const toolInput = await runForcedToolCall({
+  const result = await aiObject<PlannedOps>({
     lane: 'editor_ops_sheet',
     system,
     prompt: userPrompt,
     toolName: TOOL_NAME,
-    // Deliberately lenient (`z.unknown()` items): a single malformed op must
-    // not make the whole tool call unusable. We validate each op ourselves
-    // below against sheetOperationSchema and keep the good ones.
     toolDescription:
       'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-    inputSchema: OPERATIONS_SCHEMA,
+    // Deliberately lenient (`unknown` items): the strictness lives in
+    // `validate`, per op.
+    schema: toolInputJsonSchema(OPERATIONS_SCHEMA),
     temperature: 0.2,
+    label: 'SheetAI',
+    validate: (input, attempt, attempts) => {
+      const envelope = OPERATIONS_SCHEMA.safeParse(input);
+      if (!envelope.success) {
+        return {
+          ok: false,
+          error: 'Erwartet wird { "operations": [ ... ] } mit höchstens 50 Operationen',
+        };
+      }
+      const planned = validateOps(envelope.data.operations);
+      // A malformed op gets a repair turn that names the field (#4470). The
+      // last attempt keeps the valid ones rather than losing the whole edit.
+      if (planned.dropped.length > 0 && attempt < attempts) {
+        return {
+          ok: false,
+          error: `${planned.dropped.length} Operation(en) passen nicht zum Schema — korrigiere sie und gib alle Operationen erneut aus:\n${planned.dropped.join('\n')}`,
+        };
+      }
+      return { ok: true, value: planned };
+    },
   });
 
-  const rawOps = toolInput ? (toolInput as { operations?: unknown[] }).operations : null;
-
-  // Per-op validation: keep every valid operation, drop (and log) only the
-  // malformed ones — one bad op must never silently discard a whole batch.
-  const captured: SheetOperation[] = [];
-  const dropped: string[] = [];
-  for (const raw of Array.isArray(rawOps) ? rawOps : []) {
-    const parsed = sheetOperationSchema.safeParse(normalizeRawOp(raw));
-    if (parsed.success) captured.push(parsed.data);
-    else
-      dropped.push(
-        `${parsed.error.issues[0]?.message ?? 'invalid'} :: ${JSON.stringify(raw).slice(0, 160)}`
-      );
+  if (!result.ok) {
+    if (result.cause) throw result.cause;
+    // No usable tool call on any attempt: the frontend can only show
+    // "keine Änderung", so the diagnosis has to live in the logs.
+    log.warn(
+      `[SheetAI] 0 operations for prompt "${userPrompt}" — no usable tool call: ${result.error}`
+    );
+    return [];
   }
 
+  const { captured, dropped, rawCount } = result.data;
   if (dropped.length > 0) {
     log.warn(`[SheetAI] Dropped ${dropped.length} malformed operation(s): ${dropped.join(' | ')}`);
   }
-  // When the model plans nothing, surface WHY (empty tool call vs. no tool call
-  // vs. all-dropped) — the frontend can only show "keine Änderung", so the
-  // diagnosis has to live in the logs. `runForcedToolCall` already logs each
-  // failed attempt's stop_reason as it happens; this summarizes what reached
-  // the validation step.
   if (captured.length === 0) {
     log.warn(
-      `[SheetAI] 0 operations for prompt "${userPrompt}" — toolCall=${toolInput ? 'yes' : 'no'}, ` +
-        `rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, dropped=${dropped.length}, ` +
-        `contextChars=${sheetContext.length}`
+      `[SheetAI] 0 operations for prompt "${userPrompt}" — rawOpsCount=${rawCount}, ` +
+        `dropped=${dropped.length}, contextChars=${sheetContext.length}`
     );
   }
 

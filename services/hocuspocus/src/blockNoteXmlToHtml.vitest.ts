@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
 
@@ -44,6 +45,42 @@ describe('blockNoteXmlToHtml — track-changes suggestion marks', () => {
       '<blockContainer><paragraph><bold>fett</bold> und <italic>kursiv</italic></paragraph></blockContainer>';
     expect(blockNoteXmlToHtml(xml)).toBe(
       '<h1>Titel</h1><p><strong>fett</strong> und <em>kursiv</em></p>'
+    );
+  });
+});
+
+describe('blockNoteXmlToHtml — real Y.XmlFragment output', () => {
+  // Yjs lowercases element names in toString(), so the fixture is built as a
+  // real fragment instead of hand-written camelCase XML (see #4867).
+  function fragmentXml(
+    blocks: Array<{ name: string; attributes?: Record<string, string>; text: string }>
+  ): string {
+    const fragment = new Y.Doc().getXmlFragment('document-store');
+    for (const block of blocks) {
+      const container = new Y.XmlElement('blockContainer');
+      container.setAttribute('id', block.name + '-id');
+      fragment.push([container]);
+      const element = new Y.XmlElement(block.name);
+      for (const [key, value] of Object.entries(block.attributes ?? {})) {
+        element.setAttribute(key, value);
+      }
+      container.push([element]);
+      element.push([new Y.XmlText(block.text)]);
+    }
+    return fragment.toString();
+  }
+
+  it('converts lists and strips block wrappers from lowercased Yjs output', () => {
+    const xml = fragmentXml([
+      { name: 'heading', attributes: { level: '1' }, text: 'Titel' },
+      { name: 'bulletlistitem', text: 'eins' },
+      { name: 'bulletlistitem', text: 'zwei' },
+      { name: 'numberedlistitem', text: 'drei' },
+      { name: 'paragraph', text: 'Ende' },
+    ]);
+    expect(xml).toContain('<bulletlistitem');
+    expect(blockNoteXmlToHtml(xml)).toBe(
+      '<h1>Titel</h1><ul><li>eins</li><li>zwei</li></ul><ol><li>drei</li></ol><p>Ende</p>'
     );
   });
 });

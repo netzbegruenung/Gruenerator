@@ -10,7 +10,7 @@
  * routed through the facade (lane `editor_ops_presentation`) rather than
  * calling the AI SDK directly — see services/ai/generate.ts. The forced
  * single tool call lives in services/ai/forcedToolCall.ts, shared with
- * boardAiService.ts and sheetAiService.ts. As with the sheet lane, a lane
+ * boardAiService.ts. As with the sheet lane, a lane
  * always carries the facade's generic fallback chain: an unavailable Mistral
  * now falls back to cortecs/melious instead of the previous pinned,
  * chain-less "fail loudly" (#3426).
