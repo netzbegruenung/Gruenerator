@@ -40,11 +40,16 @@ export interface LandtagMeta {
   /** Pflichtangabe der Lizenz; steht in jedem Werkzeugergebnis und auf der Karte. */
   quellenangabe: string;
   /**
-   * Notebook-Schlüssel, unter dem die Plenarprotokolle je Tagesordnungspunkt liegen
-   * (`content_type: plenarprotokoll`). Gesetzt nur, wo die Liste keine Protokolle
-   * führt: dann liefert `landtag` mit `typ: Plenarprotokoll` Textstellen daraus.
+   * Das Parlaments-Notebook, falls es eins gibt: die Suche legt dann die besten
+   * Textstellen neben die Live-Liste. Die Parlaments-API hat keine Rangfolge
+   * (neueste zuerst), das Notebook schon.
    */
-  protokollNotebook?: string;
+  notebook?: {
+    /** Sammlungsschlüssel für `executeDirectSearch`. */
+    collection: string;
+    /** `content_type` des Notebooks je Art; eine Art ohne Eintrag führt es nicht. */
+    contentTypes: Partial<Record<LandtagTyp, string>>;
+  };
   /** `false` = der Filter wird nicht angewendet und mit einem Hinweis gemeldet. */
   supports: Record<LandtagFilterKey, boolean>;
   /** Hinweis, wenn ein nicht unterstützter Filter gesetzt wurde (statt des Standardsatzes). */
@@ -73,7 +78,15 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     },
     portalUrl: 'https://pardok.parlament-berlin.de/portala/',
     quellenangabe: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
-    protokollNotebook: 'landtag-berlin',
+    // Drucksachen führt das Notebook nur als Schriftliche Anfrage samt Antwort.
+    notebook: {
+      collection: 'landtag-berlin',
+      contentTypes: {
+        Anfrage: 'drucksache',
+        Antwort: 'drucksache',
+        Plenarprotokoll: 'plenarprotokoll',
+      },
+    },
     supports: {
       wahlperiode: true,
       typ: true,
@@ -125,7 +138,8 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     portalUrl:
       'https://www.landtag.nrw.de/home/dokumente/dokumentensuche/parlamentsdokumente/parlamentsdatenbank-suchergebnis.html?wp=18&view=detail&dokart=DRUCKSACHE',
     quellenangabe: 'Quelle: Landtag Nordrhein-Westfalen, Parlamentsdatenbank',
-    protokollNotebook: 'landtag-nrw',
+    // Die Liste kommt schon aus dem Notebook; es bleiben ihm die Protokolle, die sie nicht führt.
+    notebook: { collection: 'landtag-nrw', contentTypes: { Plenarprotokoll: 'plenarprotokoll' } },
     // Keine Live-API: gesucht wird im Notebook (`landtag_nrw_documents`), siehe `nrw/find.ts`.
     supports: {
       wahlperiode: true,

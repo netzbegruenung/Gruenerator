@@ -61,7 +61,7 @@ import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { toolResultBudget } from './toolResultBudgets.js';
-import { createToolScope, type ToolScope } from './toolScope.js';
+import { createToolScope, DEFERRABLE_GROUPS, type ToolScope } from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
@@ -563,8 +563,17 @@ export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undef
   }
 }
 
-/** Aufrufe, die nichts nachschlagen: das Rezept und die Rückfrage. */
-const NOT_A_LOOKUP: ReadonlySet<string> = new Set(['rezept_laden', 'ask_human']);
+/**
+ * Aufrufe, die nichts nachschlagen: das Rezept, die Rückfrage und die Lader
+ * des `toolScope` (`meine_inhalte_laden` u. a.) — die öffnen nur eine Gruppe.
+ * Ein gelungener Lader neben zwei gescheiterten `notebooks` hätte den Turn
+ * sonst als gelungen verbucht (#3884).
+ */
+const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
+  'rezept_laden',
+  'ask_human',
+  ...DEFERRABLE_GROUPS.map((g) => g.loaderTool),
+]);
 
 /**
  * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen

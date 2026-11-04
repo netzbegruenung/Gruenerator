@@ -103,6 +103,7 @@ interface PinRoute {
 const PIN_ROUTES: readonly PinRoute[] = [
   { intent: 'abgeordnetenwatch' },
   { intent: 'bundestag' },
+  { intent: 'abgeordnetenhaus' },
   { intent: 'hilfe' },
   /**
    * `@umfragen` — der erste Eintrag, dessen Intent stillgelegt ist.

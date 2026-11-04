@@ -23,6 +23,9 @@
  *                       Abgeordnetenhaus bekommt unabhängig davon nur eine Anfrage
  *                       nach der anderen.
  *   --limit <n>         nach n gespeicherten Dokumenten aufhören
+ *   --until <HH:MM>     ab dieser Uhrzeit (lokal, nächstes Vorkommen) kein neues
+ *                       Dokument mehr beginnen — für Läufe im Nachtfenster; der
+ *                       nächste Start setzt dort fort
  *   --dry-run           herunterladen, auslesen, zerlegen — nichts einbetten, nichts schreiben
  *   --force             auch vorhandene Dokumente neu schreiben
  *
@@ -40,6 +43,7 @@ interface CliArgs {
   parts: Part[];
   concurrency: number;
   limit?: number;
+  stopAt?: number;
   dryRun: boolean;
   force: boolean;
 }
@@ -49,6 +53,17 @@ function positiveInt(flag: string, value: string | undefined): number {
   if (!Number.isInteger(n) || n < 1)
     throw new Error(`${flag} expects a positive integer, got "${value}"`);
   return n;
+}
+
+/** Nächstes Vorkommen von „HH:MM" in lokaler Zeit, als Epoch ms. */
+function nextClockTime(flag: string, value: string | undefined): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value ?? '');
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59)
+    throw new Error(`${flag} expects HH:MM, got "${value}"`);
+  const at = new Date();
+  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  if (at.getTime() <= Date.now()) at.setDate(at.getDate() + 1);
+  return at.getTime();
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -68,6 +83,9 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case '--limit':
         args.limit = positiveInt(flag, argv[++i]);
+        break;
+      case '--until':
+        args.stopAt = nextClockTime(flag, argv[++i]);
         break;
       case '--dry-run':
         args.dryRun = true;
@@ -98,6 +116,7 @@ async function main(): Promise<void> {
     dryRun: args.dryRun,
     force: args.force,
     ...(args.limit !== undefined && { limit: args.limit }),
+    ...(args.stopAt !== undefined && { stopAt: args.stopAt }),
   });
 
   const seconds = (Date.now() - started) / 1000;
@@ -112,14 +131,28 @@ async function main(): Promise<void> {
   console.log(
     `duration:  ${seconds.toFixed(0)} s${summary.stored > 0 ? ` (${(seconds / summary.stored).toFixed(2)} s per stored document)` : ''}`
   );
+  if (args.stopAt !== undefined && Date.now() >= args.stopAt) {
+    console.log('stopped:   --until reached — run the same command again to continue');
+  }
   for (const error of summary.errors.slice(0, 20)) console.log(`  ! ${error}`);
   if (summary.failed > 0) process.exitCode = 1;
 }
 
+/** Exit-Code für „Qdrant hat keinen Platz": ein Neustart würde nur weiter scheitern. */
+const EXIT_STORAGE_FULL = 3;
+
 main()
-  .catch((error: unknown) => {
+  .catch(async (error: unknown) => {
     console.error(error);
-    process.exitCode = 1;
+    const { isStorageFull } = await import('../services/scrapers/parliament/index.js');
+    if (isStorageFull(error)) {
+      console.error(
+        'FATAL: Qdrant has no space left — stopped. Do not restart before freeing disk.'
+      );
+      process.exitCode = EXIT_STORAGE_FULL;
+    } else {
+      process.exitCode = 1;
+    }
   })
   .finally(() => {
     // Offene Qdrant-/Redis-Verbindungen halten den Prozess sonst am Leben.

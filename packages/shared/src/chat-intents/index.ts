@@ -311,6 +311,9 @@ const DECLINE_ABGEORDNETENWATCH =
 const DECLINE_BUNDESTAG =
   'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. ' +
   'Für den österreichischen Nationalrat liegen hier keine Daten vor.';
+const DECLINE_ABGEORDNETENHAUS =
+  'PARDOK erfasst nur das Abgeordnetenhaus von Berlin. ' +
+  'Für österreichische Landtage und den Nationalrat liegen hier keine Daten vor.';
 
 /**
  * Every intent, exactly once. `Record<ChatIntentId, …>` is what makes this
@@ -482,6 +485,26 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       // mehr einzeln im Menü.
       activatesSkill: 'bundestagsrecherche',
       hidesSkillListing: true,
+    },
+  },
+  // `@abgeordnetenhaus` heftet das Landtags-Werkzeug an (`landtag`, Parlament
+  // Berlin: PARDOK live plus die Passagen des Abgeordnetenhaus-Notebooks).
+  // Kein eigenes Werkzeug: `landtag` und `parlament_lesen` gibt es seit 10/2026.
+  abgeordnetenhaus: {
+    id: 'abgeordnetenhaus',
+    category: 'retrieval',
+    loopTools: ['landtag'],
+    audience: 'de-DE',
+    degradeTo: 'web',
+    declineNote: DECLINE_ABGEORDNETENHAUS,
+    uiTool: 'landtag',
+    mention: {
+      slug: 'abgeordnetenhaus',
+      title: 'Abgeordnetenhaus Berlin',
+      description: 'Anfragen, Anträge und Debatten im Berliner Landesparlament, live aus PARDOK',
+      avatar: '🏛️',
+      backgroundColor: '#4B5563',
+      pinsTool: 'landtag',
     },
   },
   // ── Retired: moved to the managed-connector path ─────────────────────────

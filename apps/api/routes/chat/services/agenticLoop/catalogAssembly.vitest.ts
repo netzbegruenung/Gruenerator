@@ -711,12 +711,17 @@ describe('isLookupTool', () => {
     expect(isLookupTool('web_search')).toBe(true);
   });
 
-  it.each(['edit_document', 'gruenerator_examples_search', 'rezept_laden', 'ask_human'])(
-    '%s nicht',
-    (name) => {
-      expect(isLookupTool(name)).toBe(false);
-    }
-  );
+  it.each([
+    'edit_document',
+    'gruenerator_examples_search',
+    'rezept_laden',
+    'ask_human',
+    'meine_inhalte_laden',
+    'website_werkzeug_laden',
+    'parlament_werkzeuge_laden',
+  ])('%s nicht', (name) => {
+    expect(isLookupTool(name)).toBe(false);
+  });
 });
 
 describe('priorTurnRetrievalFailed', () => {
@@ -753,6 +758,16 @@ describe('priorTurnRetrievalFailed', () => {
       priorTurnRetrievalFailed([
         step('rezept_laden', true),
         step('gruenerator_examples_search', true),
+        step('notebooks', false),
+      ])
+    ).toBe(true);
+  });
+
+  it('ein gelungener toolScope-Lader verdeckt die gescheiterten Abrufe nicht (#3884)', () => {
+    expect(
+      priorTurnRetrievalFailed([
+        step('meine_inhalte_laden', true),
+        step('notebooks', false),
         step('notebooks', false),
       ])
     ).toBe(true);
