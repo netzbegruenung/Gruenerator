@@ -101,6 +101,7 @@ type PdfProvider =
   | 'pdfjs-direct'
   | 'pdfjs-direct+mistral-tables'
   | 'pdfjs-direct+docling-tables'
+  | 'pdfjs-direct+tables-failed'
   | 'mistral-ocr'
   | 'docling';
 
@@ -444,7 +445,9 @@ export class OCRService {
           `[OCRService] Docling for table pages failed, keeping PDF.js text:`,
           (error as Error).message
         );
-        return { result, provider: 'pdfjs-direct' };
+        // Eigenes Etikett, damit ein Aufrufer, der lieber später erneut liest
+        // (Backfill), das von einem PDF ohne Tabellen unterscheiden kann.
+        return { result, provider: 'pdfjs-direct+tables-failed' };
       }
     }
 

@@ -33,6 +33,7 @@ import { BaseScraper } from '../../base/BaseScraper.js';
 import {
   downloadPdf,
   extractPdfText,
+  isStorageFull,
   joinPages,
   ParliamentStore,
   PoliteGate,
@@ -252,6 +253,7 @@ export class LandtagBerlinScraper extends BaseScraper {
     try {
       await task();
     } catch (error: unknown) {
+      if (isStorageFull(error)) throw error;
       const message = error instanceof Error ? error.message : String(error);
       summary.failed += 1;
       summary.errors.push(`${label}: ${message}`);
@@ -289,7 +291,7 @@ export class LandtagBerlinScraper extends BaseScraper {
       return;
     }
     const main = unit.entries.find((e) => e.docType !== 'Antwort') ?? unit.entries[0];
-    const extraction = await this.#extract(unit.pdfUrl, documentId, summary);
+    const extraction = await this.#extract(unit.pdfUrl, documentId, summary, options);
     if (isPlaceholderPdf(extraction.text)) {
       // Kommt wieder dran, sobald PARDOK die Datei hat: ihr `aktualisiert` rückt dann vor.
       summary.waiting += 1;
@@ -359,7 +361,7 @@ export class LandtagBerlinScraper extends BaseScraper {
       summary.waiting += 1;
       return;
     }
-    const extraction = await this.#extract(protocolUrl, protocolId, summary);
+    const extraction = await this.#extract(protocolUrl, protocolId, summary, options);
     const pages = splitPages(extraction.text);
     const offset = printedPageOffsetOf(pages);
     if (offset === null) throw new Error('no printed page numbers in the protocol');
@@ -443,7 +445,7 @@ export class LandtagBerlinScraper extends BaseScraper {
 
     const read = async (url: string | null) => {
       if (!url) return null;
-      const extraction = await this.#extract(url, protocolId, summary);
+      const extraction = await this.#extract(url, protocolId, summary, options);
       return { url, extraction, tops: splitTops(extraction.text) };
     };
     const wort = await read(session.wortprotokoll);
@@ -497,10 +499,21 @@ export class LandtagBerlinScraper extends BaseScraper {
     return !latest || latest <= daysAgo(SETTLE_DAYS);
   }
 
-  async #extract(url: string, label: string, summary: LandtagBerlinRunSummary): Promise<PdfText> {
+  async #extract(
+    url: string,
+    label: string,
+    summary: LandtagBerlinRunSummary,
+    options: LandtagBerlinRunOptions
+  ): Promise<PdfText> {
     const buffer = await downloadPdf(this.#gate, (u, o) => this.fetchWithRetry(u, o), url);
     const result = await extractPdfText(buffer, `[landtag-berlin] ${label}`);
     summary.extractionMethods[result.method] = (summary.extractionMethods[result.method] ?? 0) + 1;
+    // Im Nacht-Sync ist eine Tabelle als Fliesstext besser als kein Dokument.
+    // Der Backfill liest dasselbe Dokument lieber im nächsten Durchgang neu:
+    // gespeichert gälte es als bekannt und bekäme seine Tabellen nie.
+    if (options.mode === 'backfill' && result.method === 'pdfjs-direct+tables-failed') {
+      throw new Error('table pages not converted (GreenPT failed) — retried on the next pass');
+    }
     return result;
   }
 
@@ -546,6 +559,12 @@ export class LandtagBerlinScraper extends BaseScraper {
     summary.chunks += written;
     summary.stored += 1;
     this.stats.vectorsStored += written;
+    // Ein Backfill läuft Stunden; ohne diese Zeile sähe man den Fortschritt erst am Ende.
+    if (summary.stored % 100 === 0) {
+      log.info(
+        `[landtag-berlin] progress: stored=${summary.stored} skipped=${summary.skipped} failed=${summary.failed} chunks=${summary.chunks}`
+      );
+    }
   }
 }
 

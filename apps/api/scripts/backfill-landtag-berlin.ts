@@ -138,10 +138,21 @@ async function main(): Promise<void> {
   if (summary.failed > 0) process.exitCode = 1;
 }
 
+/** Exit-Code für „Qdrant hat keinen Platz": ein Neustart würde nur weiter scheitern. */
+const EXIT_STORAGE_FULL = 3;
+
 main()
-  .catch((error: unknown) => {
+  .catch(async (error: unknown) => {
     console.error(error);
-    process.exitCode = 1;
+    const { isStorageFull } = await import('../services/scrapers/parliament/index.js');
+    if (isStorageFull(error)) {
+      console.error(
+        'FATAL: Qdrant has no space left — stopped. Do not restart before freeing disk.'
+      );
+      process.exitCode = EXIT_STORAGE_FULL;
+    } else {
+      process.exitCode = 1;
+    }
   })
   .finally(() => {
     // Offene Qdrant-/Redis-Verbindungen halten den Prozess sonst am Leben.

@@ -336,7 +336,8 @@ describe('Tabellenseiten und Scans über Docling, wenn ausdrücklich bestellt (S
     docling.extractPagesWithDocling.mockRejectedValue(new Error('GreenPT 503'));
     const result = await service.extractTextFromDocument(FIXTURE, 'docling', { pageMarkers: true });
     expect(mistral.extractPagesWithMistralOCR).not.toHaveBeenCalled();
-    expect(result.extractionMethod).toBe('pdfjs-direct');
+    // Eigenes Etikett: der Backfill liest so ein Dokument später neu.
+    expect(result.extractionMethod).toBe('pdfjs-direct+tables-failed');
     expect(result.text).toContain('Hetzner Online GmbH');
   }, 30_000);
 
