@@ -15,6 +15,7 @@
 import { applyContextCap } from '../../utils/contextCap.js';
 import { buildPageRangesFromRaw } from '../document-services/TextChunker/pageMarkerProcessing.js';
 import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
+import { passageTextKey } from '../search/SearchResultProcessor.js';
 
 import { type rerankNotebookResults } from './rerankNotebookResults.js';
 
@@ -758,6 +759,37 @@ function toPassage(doc: DocumentResult, tc: TopChunk): Passage {
 const passageKey = (p: { sourceId: string; chunkIndex: number }): string =>
   `${p.sourceId}:${p.chunkIndex}`;
 
+/** Höchstens so viele Passagen je Quelle, solange andere Quellen Plätze füllen können. */
+export const FIND_PER_SOURCE = 3;
+
+/**
+ * Die ersten `limit` Passagen, mit höchstens `FIND_PER_SOURCE` je Quelle —
+ * ohne Rerank tragen alle Chunks eines Dokuments denselben Wert und belegten
+ * sonst geschlossen die Spitze (Live 04.11.2026: 8 von 10 Plätzen aus dem
+ * Nachbarbeschluss, die gesuchte Zahl stand in Quelle 5, der Loop meldete
+ * „nicht enthalten"). Bleiben Plätze frei, weil es zu wenige Quellen gibt,
+ * füllen die zurückgestellten Passagen sie auf — eine Suche in EINER Quelle
+ * verliert nichts. Die Reihenfolge der Eingabe bleibt erhalten.
+ */
+export function spreadAcrossSources<T extends { sourceId: string }>(
+  ranked: readonly T[],
+  limit: number
+): T[] {
+  const perSource = new Map<string, number>();
+  const picked = new Set<number>();
+  ranked.forEach((p, i) => {
+    if (picked.size >= limit) return;
+    const n = perSource.get(p.sourceId) ?? 0;
+    if (n >= FIND_PER_SOURCE) return;
+    perSource.set(p.sourceId, n + 1);
+    picked.add(i);
+  });
+  ranked.forEach((_, i) => {
+    if (picked.size < limit) picked.add(i);
+  });
+  return ranked.filter((_, i) => picked.has(i));
+}
+
 export async function findPassages(
   input: {
     documentIds: readonly string[];
@@ -795,15 +827,24 @@ export async function findPassages(
   }
 
   // Stabile Sortierung: gleiche Dokumentwerte behalten die Chunk-Reihenfolge der Suche.
-  const flat = (resp.results ?? [])
+  const sorted = (resp.results ?? [])
     .flatMap((doc) => (doc.top_chunks ?? []).map((tc) => toPassage(doc, tc)))
     .filter((p) => p.text.trim().length > 0)
     .sort((a, b) => b.score - a.score);
+  // Dieselbe Datei zweimal im Notebook: gleicher Text, zwei Quellen — die
+  // Kopie belegte sonst Plätze und doppelte jedes Zitat. Die erste gewinnt.
+  const seenText = new Set<string>();
+  const flat = sorted.filter((p) => {
+    const key = passageTextKey(p.text);
+    if (key === null || seenText.has(key)) return false;
+    seenText.add(key);
+    return true;
+  });
 
   // `rerankNotebookResults` überspringt selbst bei ≤ 3 Ergebnissen — hier
   // gar nicht erst aufgerufen, damit `reranked` stimmt.
   if (!input.rerank || flat.length <= 3) {
-    return { passages: flat.slice(0, limit), reranked: false };
+    return { passages: spreadAcrossSources(flat, limit), reranked: false };
   }
 
   const candidates: ExpandedChunkResult[] = flat.slice(0, FIND_MAX_LIMIT).map((p) => ({
@@ -830,5 +871,5 @@ export async function findPassages(
     const p = byKey.get(passageKey({ sourceId: r.document_id, chunkIndex: r.chunk_index }));
     return p ? [{ ...p, score: r.similarity }] : [];
   });
-  return { passages: passages.slice(0, limit), reranked: true };
+  return { passages: spreadAcrossSources(passages, limit), reranked: true };
 }

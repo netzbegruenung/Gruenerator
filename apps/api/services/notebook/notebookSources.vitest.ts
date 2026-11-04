@@ -19,6 +19,7 @@ import {
   resolveReaderSource,
   resolveSourceInNotebook,
   sliceSource,
+  spreadAcrossSources,
   SLICE_DEFAULT_CHARS,
   SLICE_MAX_CHARS,
   type NotebookSourcesDeps,
@@ -631,6 +632,44 @@ describe('outlineSource', () => {
   });
 });
 
+describe('spreadAcrossSources', () => {
+  const p = (sourceId: string, n: number) => ({ sourceId, n });
+
+  it('caps one source at three places while other sources can fill the rest', () => {
+    const ranked = [
+      ...[1, 2, 3, 4, 5, 6].map((n) => p('nachbar', n)),
+      p('statut', 1),
+      p('statut', 2),
+      p('gesucht', 1),
+    ];
+    expect(spreadAcrossSources(ranked, 6)).toEqual([
+      p('nachbar', 1),
+      p('nachbar', 2),
+      p('nachbar', 3),
+      p('statut', 1),
+      p('statut', 2),
+      p('gesucht', 1),
+    ]);
+  });
+
+  it('refills free places from the held-back passages, in input order', () => {
+    const ranked = [p('a', 1), p('a', 2), p('a', 3), p('a', 4), p('b', 1), p('a', 5)];
+    expect(spreadAcrossSources(ranked, 6)).toEqual(ranked);
+    expect(spreadAcrossSources(ranked, 5)).toEqual([
+      p('a', 1),
+      p('a', 2),
+      p('a', 3),
+      p('a', 4),
+      p('b', 1),
+    ]);
+  });
+
+  it('loses nothing in a search inside a single source', () => {
+    const ranked = [1, 2, 3, 4, 5].map((n) => p('a', n));
+    expect(spreadAcrossSources(ranked, 10)).toEqual(ranked);
+  });
+});
+
 describe('findPassages', () => {
   const searchResults = [
     {
@@ -719,6 +758,28 @@ describe('findPassages', () => {
         }),
       })
     );
+  });
+
+  it('drops the identical passage of a second upload of the same file', async () => {
+    const copy = {
+      document_id: 'd1-kopie',
+      title: 'Antrag Radweg',
+      similarity_score: 0.7,
+      top_chunks: [{ chunk_index: 4, preview: 'kurz', text: 'Der Radweg kommt 2027.' }],
+    };
+    const { deps } = makeDeps({ searchResults: [...searchResults, copy] });
+    const out = await findPassages(
+      {
+        documentIds: ['d1', 'd2', 'd1-kopie'],
+        query: 'Radweg',
+        mode: 'hybrid',
+        limit: 10,
+        rerank: false,
+        userId: 'u',
+      },
+      deps
+    );
+    expect(out.passages.map((p) => p.sourceId)).toEqual(['d1', 'd1', 'd2']);
   });
 
   it('runs vector mode through the hybrid path with vector-only weights', async () => {
