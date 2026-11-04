@@ -22,7 +22,11 @@ export function stripOutOfRangeCitations(
   maxId: number
 ): { text: string; changed: boolean } {
   const max = Math.max(0, maxId);
-  let changed = false;
+  // Two kinds of change: a dropped marker leaves gaps the tidy pass closes; a
+  // scheme rewrite (`source:` → `quelle:`) changes nothing else, so the rest of
+  // the answer — code blocks, indentation — must come back untouched.
+  let dropped = false;
+  let rewritten = false;
 
   const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= max;
 
@@ -32,21 +36,21 @@ export function stripOutOfRangeCitations(
       if (label !== undefined) {
         if (inRange(Number(linkId))) {
           const canonical = `[${label}](${SOURCE_LINK_SCHEME}:${linkId})`;
-          if (canonical !== whole) changed = true;
+          if (canonical !== whole) rewritten = true;
           return canonical;
         }
-        changed = true;
+        dropped = true;
         return label;
       }
       const nums = (inner ?? '').split(/\s*,\s*/).map((n) => Number(n));
       const valid = nums.filter(inRange);
       if (valid.length === nums.length) return whole; // all valid — untouched
-      changed = true;
+      dropped = true;
       return valid.length === 0 ? '' : `[${valid.join(', ')}]`;
     }
   );
 
-  if (!changed) return { text, changed: false };
+  if (!dropped) return { text: replaced, changed: rewritten };
 
   // Tidy artifacts left by dropped markers: space-before-punctuation, doubled
   // spaces, empty parens, and a dangling space before a newline.
