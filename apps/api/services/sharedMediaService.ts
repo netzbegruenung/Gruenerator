@@ -493,6 +493,49 @@ class SharedMediaService {
   }
 
   /**
+   * Gallery uploads no gallery item ever claimed (#4555).
+   *
+   * A Studio gallery item is two writes: the client uploads the bytes first
+   * (`upload_source = 'studio-asset'`) and creates the `studio_assets` row
+   * second. When the second call never comes — tab closed, create refused —
+   * the upload is left over, and nothing else would ever remove it: the source
+   * is outside the Mediathek and its quota, its share link never expires, and
+   * `trashShare` refuses it because the gallery row is meant to own the file.
+   *
+   * A trashed `studio_assets` row still owns its upload until the trash purge
+   * removes both, so the `NOT EXISTS` deliberately looks at every row, trashed
+   * or not. The age bound leaves the client its window between the two calls.
+   * Files go after the row, for the same reason as in {@link reapOrphanedShares}.
+   */
+  async reapUnclaimedStudioAssetUploads(olderThanHours: number): Promise<ReapedShare[]> {
+    await this.ensureInitialized();
+
+    const rows = await this.postgres!.query<{
+      share_token: string;
+      status: string;
+      file_size: string | number | null;
+    }>(
+      `DELETE FROM shared_media sm
+        WHERE sm.upload_source = $1
+          AND sm.created_at < NOW() - make_interval(hours => $2::int)
+          AND NOT EXISTS (SELECT 1 FROM studio_assets sa WHERE sa.media_id = sm.id)
+        RETURNING sm.share_token, sm.status, sm.file_size`,
+      [STUDIO_ASSET_UPLOAD_SOURCE, Math.max(0, Math.trunc(olderThanHours))]
+    );
+
+    const reaped: ReapedShare[] = [];
+    for (const row of rows) {
+      await this.cleanupShareFiles(row.share_token);
+      reaped.push({
+        shareToken: row.share_token,
+        status: row.status,
+        fileSize: Number(row.file_size ?? 0),
+      });
+    }
+    return reaped;
+  }
+
+  /**
    * How many rows the `file_path IS NULL` interlock in {@link reapOrphanedShares}
    * is holding back — rows in a dead status that nonetheless carry a file.
    *
