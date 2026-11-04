@@ -237,6 +237,36 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).toContain('du darfst sie mit [N] belegen');
   });
 
+  // #5182, live 30.10.2026: mitgeführte Redeausschnitte, `bundestag_reden`
+  // scheitert in diesem Turn. Die Zeile „NICHT neu recherchiert … sag, dass du
+  // neu nachschlagen müsstest" überstimmte als letzter Absatz die
+  // Fehlschlag-Notiz, und der werkzeuglose Schreiber kündigte die Suche an.
+  it.each([
+    ['gescheiterten', { result: { error: 'Keine Rede enthält die Phrase.' }, ok: false as const }],
+    ['leeren', { result: { results: [] } }],
+  ])(
+    'sagt nach einem %s Abruf neben mitgeführten Quellen nicht „neu nachschlagen"',
+    (_label, outcome) => {
+      const steps: PersistedStep[] = [
+        {
+          toolCallId: 'c1',
+          toolName: 'bundestag_reden',
+          args: { redner: 'Katrin Uhlig' },
+          ...outcome,
+        },
+      ];
+      const prompt = buildSynthSystem(
+        '[1] Antrag',
+        ctx({ steps, sourceRegistry: carriedRegistry() })
+      );
+      expect(prompt).not.toContain('NICHT neu recherchiert');
+      expect(prompt).not.toContain('neu nachschlagen müsstest');
+      expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
+      expect(prompt).toContain('du darfst sie mit [N] belegen');
+      expect(prompt).toContain('kündige keine weitere Suche an');
+    }
+  );
+
   it('schweigt zur Recherche, wenn ein Verbindungs-Tool gelaufen ist', () => {
     const steps: PersistedStep[] = [
       { toolName: 'sally_ticket', serverName: 'Sally', result: { ok: true } } as never,

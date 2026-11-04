@@ -162,8 +162,6 @@ export interface DocQnAResult {
 export interface MistralClient {
   files?: {
     upload?: (payload: FileUploadPayload) => Promise<FileUploadResponse>;
-    create?: (payload: FileUploadPayload) => Promise<FileUploadResponse>;
-    add?: (payload: FileUploadPayload) => Promise<FileUploadResponse>;
     getSignedUrl?: (params: { fileId: string }) => Promise<SignedUrlResponse>;
   };
   chat?: {
@@ -187,8 +185,6 @@ export interface FileUploadPayload {
  */
 export interface FileUploadResponse {
   id?: string | undefined;
-  file?: { id?: string };
-  data?: { id?: string };
 }
 
 /**
@@ -204,9 +200,9 @@ export interface SignedUrlResponse {
 export interface ChatCompletionParams {
   model: string;
   messages: Array<{ role: string; content: unknown }>;
-  max_tokens: number;
+  maxTokens: number;
   temperature: number;
-  top_p: number;
+  topP: number;
 }
 
 /**
