@@ -20,6 +20,7 @@ import {
   DOCUMENT_UPLOAD_FORMAT_HINT,
   resolveDocumentUploadFormat,
   uploadOnlyBodySchema,
+  type UploadOnlyDuplicate,
   type UploadOnlyResponse,
 } from '@gruenerator/contracts';
 import express, { type Router, type Response, type NextFunction, type Request } from 'express';
@@ -28,7 +29,12 @@ import multer from 'multer';
 import { kickIngestWorker } from '../../services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import {
+  findDuplicateInNotebook,
+  hashFile,
+} from '../../services/notebook/notebookDuplicateUpload.js';
 import { createLogger } from '../../utils/logger.js';
+import { requireNotebookEdit } from '../notebook/notebookAccess.js';
 
 import type {
   DocumentRequest,
@@ -176,6 +182,40 @@ router.post(
       }
 
       const title = parsedBody.data.title || file.originalname;
+      const fileHash = await hashFile(file.path);
+
+      // Refuse a second copy of a file the target notebook already holds
+      // (#5342) before a row exists — afterwards it would be an orphan that the
+      // ingest worker reads and OCRs for nothing.
+      const collectionId = parsedBody.data.collectionId;
+      if (collectionId) {
+        const denied = await requireNotebookEdit(collectionId, userId);
+        if (denied) {
+          removePendingUpload(file.path);
+          res.status(denied.status).json({ success: false, message: denied.body.error });
+          return;
+        }
+        // A failed lookup must not cost the upload: the worst case is the
+        // duplicate this check exists to catch, not a lost file.
+        const duplicate = await findDuplicateInNotebook(collectionId, {
+          hash: fileHash,
+          filename: file.originalname,
+          size: file.size,
+        }).catch((err: unknown) => {
+          log.warn(`[POST /upload-only] duplicate check failed for ${collectionId}:`, err);
+          return null;
+        });
+        if (duplicate) {
+          removePendingUpload(file.path);
+          const body: UploadOnlyDuplicate = {
+            success: false,
+            message: `„${file.originalname}" liegt schon in diesem Notebook (als „${duplicate.title}").`,
+            duplicateOf: duplicate,
+          };
+          res.status(409).json(body);
+          return;
+        }
+      }
 
       const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
         title: title.trim(),
@@ -183,6 +223,7 @@ router.post(
         sourceType: 'manual',
         vectorCount: 0,
         fileSize: file.size,
+        fileHash,
         status: 'uploaded',
         additionalMetadata: {
           filePath: file.path,

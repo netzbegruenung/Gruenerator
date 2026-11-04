@@ -3,7 +3,7 @@ import { toast } from '@gruenerator/ui';
 import { useRef, useState, type DragEvent } from 'react';
 import { HiUpload } from 'react-icons/hi';
 
-import { useDocumentsStore } from '../../../../stores/documentsStore';
+import { DuplicateUploadError, useDocumentsStore } from '../../../../stores/documentsStore';
 import { cn } from '../../../../utils/cn';
 
 import { EmptySources, filterByTitle, NoMatches } from './PanelChrome';
@@ -32,7 +32,16 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
    * lägen sie als Dokumente ohne Notebook herum.
    */
   const upload = async (files: File[]) => {
-    const { accepted, rejected } = partitionUploadableFiles(files);
+    const { accepted: picked, rejected } = partitionUploadableFiles(files);
+    // The server only sees files already attached, and attaching happens after
+    // the whole batch — two copies in one drop would both get through.
+    const seen = new Set<string>();
+    const accepted = picked.filter((file) => {
+      const key = `${file.name}\u0000${file.size}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total);
     const batch = accepted.slice(0, room);
     if (rejected.length > 0) toast.error(describeRejectedFiles(rejected));
@@ -45,13 +54,25 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
 
     setUploading(batch.length);
     const ids: string[] = [];
+    const duplicates: string[] = [];
     try {
       for (const file of batch) {
-        const doc = await uploadFileOnly(file, file.name);
-        ids.push(doc.id);
+        try {
+          const doc = await uploadFileOnly(file, file.name, hub.collection?.id);
+          ids.push(doc.id);
+        } catch (err) {
+          if (!(err instanceof DuplicateUploadError)) throw err;
+          duplicates.push(err.message);
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Fehler beim Hochladen der Datei.');
+    }
+    if (duplicates.length === 1) toast.info(`${duplicates[0]} Nicht noch einmal hochgeladen.`);
+    if (duplicates.length > 1) {
+      toast.info(
+        `${duplicates.length} Dateien liegen schon in diesem Notebook und wurden nicht noch einmal hochgeladen.`
+      );
     }
     try {
       await hub.addDocuments(ids);
