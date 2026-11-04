@@ -2,6 +2,11 @@ import { type SharepicSpec, type SharepicVariant } from '@gruenerator/contracts'
 import { describe, it, expect } from 'vitest';
 
 import {
+  DRAFT_LIMIT_TEXTS,
+  DraftFailedError,
+} from '../../../services/sharepicCreator/draftFailure.js';
+
+import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildSharepicConfirmation,
   isArtifactConfirmation,
@@ -124,19 +129,54 @@ describe('confirmation builders', () => {
   });
 
   it('names the limit a failed draft kept breaking, and stays recognisable', () => {
-    const text = sharepicTurnText([], true, 'headline_line_too_long');
+    const text = sharepicTurnText([], true, new DraftFailedError('Headline-Zeile zu lang: abc'));
     expect(text).toMatch(/^Die Überarbeitung hat leider nicht geklappt\./);
     expect(text).toContain('höchstens 24 Zeichen');
     expect(text).not.toContain('Formuliere die Änderung');
     expect(isArtifactConfirmation(text)).toBe(true);
-    expect(isArtifactConfirmation(sharepicTurnText([], false, 'headline_line_too_long'))).toBe(
-      true
-    );
+    expect(
+      isArtifactConfirmation(
+        sharepicTurnText([], false, new DraftFailedError('Headline-Zeile zu lang: abc'))
+      )
+    ).toBe(true);
   });
 });
 
 describe('sharepicTurnText — unveränderte Überarbeitung', () => {
   it('sagt ehrlich, dass sich nichts geändert hat', () => {
     expect(sharepicTurnText([], true, 'unchanged')).toContain('unverändert');
+  });
+});
+
+describe('sharepicTurnText — Ursache des Entwurfs', () => {
+  it('names the form and what it needs', () => {
+    const text = sharepicTurnText(
+      [],
+      false,
+      new DraftFailedError('x', {
+        kind: 'material',
+        form: 'diagramm',
+        ask: 'mindestens zwei Zahlen',
+      })
+    );
+    expect(text).toContain('Diagramm');
+    expect(text).toContain('mindestens zwei Zahlen');
+    expect(text).not.toContain('anderen Thema');
+  });
+
+  it('provider outage is not the request', () => {
+    expect(sharepicTurnText([], false, new DraftFailedError('x', { kind: 'provider' }))).toContain(
+      'nicht erreichbar'
+    );
+  });
+
+  it('limit reason still wins', () => {
+    const text = sharepicTurnText([], false, new DraftFailedError('Headline-Zeile zu lang: abc'));
+    expect(text).toContain(DRAFT_LIMIT_TEXTS.headline_line_too_long);
+  });
+
+  it('generic fallback never blames the topic', () => {
+    expect(sharepicTurnText([], false, null)).not.toContain('Thema');
+    expect(isArtifactConfirmation(ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed)).toBe(true);
   });
 });

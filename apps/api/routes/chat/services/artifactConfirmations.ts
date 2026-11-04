@@ -15,13 +15,12 @@
  * re-opening that bug.
  */
 
-import {
-  parseSharepicChatProps,
-  type SharepicDraftFailureReason,
-  type SharepicVariant,
-} from '@gruenerator/contracts';
+import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
 
-import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
+import {
+  type DraftFailedError,
+  draftFailedText,
+} from '../../../services/sharepicCreator/draftFailure.js';
 
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
@@ -71,8 +70,8 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
  */
 export const ARTIFACT_CONFIRMATION_TEXTS = {
   sharepicFailed:
-    `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-    `anderen Thema noch einmal versuchen?`,
+    `Ich konnte den Entwurf diesmal nicht fertigstellen. Versuch es bitte noch ` +
+    `einmal – gern mit etwas mehr Angaben.`,
   sharepicRevisionFailed:
     `Die Überarbeitung hat leider nicht geklappt. Formuliere die Änderung etwas ` +
     `genauer und versuch es noch einmal.`,
@@ -87,7 +86,7 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
  * breaking, or a revision whose spec came back identical — live 11.10.2026
  * „Mach die Schrift weiß" showed a copy labelled „Überarbeitet".
  */
-export type SharepicTurnFailure = SharepicDraftFailureReason | 'unchanged';
+export type SharepicTurnFailure = DraftFailedError | 'unchanged';
 
 /**
  * The text a sharepic turn ends with; a failed revision asks for a clearer
@@ -101,10 +100,17 @@ export function sharepicTurnText(
   if (variants.length > 0) return buildSharepicConfirmation(variants);
   if (failure === 'unchanged') return ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
   if (failure) {
-    const lead = revision
-      ? 'Die Überarbeitung hat leider nicht geklappt.'
-      : 'Die Sharepic-Erstellung hat leider nicht geklappt.';
-    return `${lead} ${DRAFT_LIMIT_TEXTS[failure]}`;
+    return revision
+      ? draftFailedText(
+          'Die Überarbeitung hat leider nicht geklappt.',
+          failure,
+          'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
+        )
+      : draftFailedText(
+          'Die Sharepic-Erstellung hat leider nicht geklappt.',
+          failure,
+          'Formuliere den Auftrag etwas genauer und versuch es noch einmal.'
+        );
   }
   return revision
     ? ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed
@@ -125,7 +131,7 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
  * inheritable, and it is far longer than any template here.
  */
 const FIXED_TEXT_OPENING_RE =
-  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
+  /^(?:Ich habe dir\b|Ich konnte den Entwurf\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
 
 /** Longest template above is ~230 chars; the bound leaves room for wording drift. */
 const MAX_FIXED_TEXT_LENGTH = 320;

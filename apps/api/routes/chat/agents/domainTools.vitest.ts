@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { DraftFailedError } from '../../../services/sharepicCreator/draftFailure.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
@@ -1548,6 +1549,20 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     const retried = (await exec(tool, { text: 'b' })) as { variants: unknown[] };
     expect(retried.variants).toEqual(VARIANTS);
     expect(runSharepicGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it('failure with a cause hands the cause text to the model', async () => {
+    runSharepicGeneration.mockResolvedValueOnce({
+      variants: [],
+      failure: new DraftFailedError('x', { kind: 'form', form: 'veranstaltung' }),
+    });
+    const state = {
+      ...baseState,
+      messages: [{ role: 'user', content: 'x' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const failed = await exec(makeTool(state), { text: 'a' });
+    expect(JSON.stringify(failed)).toContain('Veranstaltung');
   });
 
   it('pre-existing variants on state (defensive) short-circuit immediately', async () => {

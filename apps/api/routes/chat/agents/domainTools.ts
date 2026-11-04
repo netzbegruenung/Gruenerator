@@ -67,7 +67,7 @@ import {
   readLandtagRefs,
 } from '../../../services/landtag/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
-import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
+import { draftFailedText } from '../../../services/sharepicCreator/draftFailure.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
   withResearchedSources,
@@ -1305,7 +1305,13 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
         // Den Grund nur durchreichen, wo der Aufrufer ihn kennt — keinen erfinden.
         return erstellungFehlgeschlagen(
           'Sharepic',
-          failure && failure !== 'unchanged' ? DRAFT_LIMIT_TEXTS[failure] : null
+          failure && failure !== 'unchanged'
+            ? draftFailedText(
+                'Der Entwurf ist nicht gelungen.',
+                failure,
+                'Formuliere den Auftrag etwas genauer und versuch es noch einmal.'
+              )
+            : null
         );
       }
       // Shared-ref merge → forceFinish trips and the router lifts the variants

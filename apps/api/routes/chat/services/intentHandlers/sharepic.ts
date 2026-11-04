@@ -262,7 +262,7 @@ export async function runSharepicGeneration(opts: {
         variants: [],
         error: 'Sharepic draft failed',
       });
-      return failed(error.reason);
+      return failed(error);
     }
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
     sse.send('sharepic_complete', {
