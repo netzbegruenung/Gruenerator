@@ -104,7 +104,7 @@ export function extractContent(content: unknown): string {
 
   if (content.startsWith('[{') && content.includes('"type":"text"')) {
     try {
-      const parts = JSON.parse(content);
+      const parts: unknown = JSON.parse(content);
       if (Array.isArray(parts)) {
         return parts
           .filter(

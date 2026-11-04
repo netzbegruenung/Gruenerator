@@ -44,18 +44,6 @@ export default defineConfig(
   // Shared packages
   { files: SHARED_FILES, extends: [baseConfig] },
 
-  // Diese Pakete lintet auch die CI mit dieser Datei (kein eigenes
-  // eslint.config.js). Bis #5322 war die Regel hier versehentlich aus; die
-  // Altlast wird in #5326 abgebaut, danach fällt dieser Block weg.
-  {
-    files: [
-      'packages/chat/**/*.{ts,tsx,js,jsx}',
-      'packages/canvas-editor/**/*.{ts,tsx,js,jsx}',
-      'services/hocuspocus/**/*.{ts,tsx,js,jsx}',
-    ],
-    rules: { '@typescript-eslint/no-unsafe-assignment': 'off' },
-  },
-
   // Root-level config files (no type-checking)
   {
     files: ['*.{js,mjs,cjs,ts}'],

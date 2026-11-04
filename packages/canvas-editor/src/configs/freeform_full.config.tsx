@@ -80,21 +80,28 @@ interface StashedPlane {
 }
 
 // ============================================================================
-// ACTIONS TYPE — uses 'any' for flexibility with createBaseActions return type
+// ACTIONS TYPE
 // ============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FreeformActions = Record<string, any>;
+type BaseActions = ReturnType<typeof createBaseActions<FreeformState>>;
 
-interface FreeformBackgroundActions {
+export interface FreeformActions extends BaseActions {
+  updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
+  addAdditionalTextElement: (text: AdditionalText) => void;
+  insertBlock: (block: LiftedBlock) => void;
   setBackgroundMode: (mode: 'color' | 'image') => void;
   setBackgroundColor: (color: string) => void;
-  setImageScale: (scale: number) => void;
   setCurrentImageSrc: (
     file: File | null,
     objectUrl?: string,
     attribution?: StockImageAttribution | null
   ) => void;
+  setImageScale: (scale: number) => void;
+  handleBackgroundImageDragEnd: (x: number, y: number) => void;
+  moveLayerUp: (itemId: string) => void;
+  moveLayerDown: (itemId: string) => void;
+  bringToFront: (itemId: string) => void;
+  sendToBack: (itemId: string) => void;
 }
 
 // ============================================================================
@@ -339,9 +346,7 @@ const withFreeformAi = (
 
   // Freeform shows EITHER the photo or the colour plane, so each pick also sets
   // the mode. A colour pick keeps the photo in state, hidden.
-  background: (state, anyActions) => {
-    // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
-    const actions = anyActions as FreeformBackgroundActions;
+  background: (state, actions) => {
     const isImage = state.backgroundMode === 'image';
     return {
       colors: BACKGROUND_COLORS,

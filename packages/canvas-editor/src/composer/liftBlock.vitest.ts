@@ -13,14 +13,7 @@ import { createFreeformFullConfig, type FreeformState } from '../configs/freefor
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composeSharepic } from './composeSharepic';
-import {
-  blockElementIds,
-  blockGround,
-  liftBlock,
-  placeBlock,
-  translateBlock,
-  type LiftedBlock,
-} from './liftBlock';
+import { blockElementIds, blockGround, liftBlock, placeBlock, translateBlock } from './liftBlock';
 import { farbe, options } from './sharepicSpecFixtures';
 
 import type { AdditionalText } from '@ggraphic/editor/config';
@@ -183,8 +176,7 @@ describe('insertBlock on a freeform page', () => {
     const saveToHistory = vi.fn();
     const config = createFreeformFullConfig(getCanvasFormatOrDefault(null));
     const actions = config.createActions(() => state, setState, saveToHistory, vi.fn(), {});
-    // Boundary cast: FreeformActions is Record<string, any>.
-    const insert = actions.insertBlock as (block: LiftedBlock) => void;
+    const insert = actions.insertBlock;
     return { actions, insert, saveToHistory, getState: () => state };
   }
   const block = liftBlock(
@@ -217,7 +209,7 @@ describe('insertBlock on a freeform page', () => {
     const text = (getState().additionalTexts as AdditionalText[]).find(
       (t) => t.id === 'blk-x-liste'
     )!;
-    const update = actions.updateAdditionalText as (id: string, p: Partial<AdditionalText>) => void;
+    const update = actions.updateAdditionalText;
     update(text.id, { text: `${text.text}\n• Noch ein Punkt\n• Und noch einer` });
     const grown = (getState().shapeInstances as ShapeInstance[]).find((s) => s.id === card.id)!;
     expect(grown.height).toBeGreaterThan(card.height);
