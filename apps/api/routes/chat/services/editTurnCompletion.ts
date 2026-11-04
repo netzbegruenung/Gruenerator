@@ -1,7 +1,7 @@
 /**
  * Shared terminal step for the edit/loop turn services.
  *
- * sharepicEditService, reelEditService and socialPostEditService each ended a
+ * sharepicEditService and socialPostEditService each ended a
  * turn the same way: emit the reply, emit `done`, persist the assistant message
  * with one retry, touch the thread, warn on a failed persist, close the stream.
  * Copies of a sequence whose retry policy and warning behaviour must not drift
@@ -23,14 +23,14 @@ export interface FinishEditTurnParams {
   text: string;
   /**
    * Persisted + wire intent. A plain string, not SearchIntent: the edit
-   * services use pseudo-intents (`sharepic_edit`, `reel_edit`,
+   * services use pseudo-intents (`sharepic_edit`,
    * `social_post_edit`) that are deliberately absent from the contract enum,
    * which is why `done` goes out via sendRaw here.
    */
   intent: string;
-  /** withRetry label, e.g. 'reelEdit:persist'. */
+  /** withRetry label, e.g. 'socialPostEdit:persist'. */
   persistLabel: string;
-  /** Log prefix for a failed persist, e.g. '[ReelEdit]'. */
+  /** Log prefix for a failed persist, e.g. '[SocialPostEdit]'. */
   logPrefix: string;
   startTime: number;
   classificationTimeMs?: number;

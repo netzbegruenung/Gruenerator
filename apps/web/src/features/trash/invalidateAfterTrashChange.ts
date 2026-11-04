@@ -33,7 +33,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   notebook: [['notebookCollections'], ['notebook', 'collection'], ['mention-user-notebooks']],
   document: [['notebook', 'collection']],
   shared_media: [MEDIA_LIBRARY_QUERY_KEY],
-  subtitler_project: [['subtitler-beta', 'projects']],
+  subtitler_project: [],
   user_agent: [['user-agents'], ['mention-user-agents']],
   user_template: [['userTemplates'], ['profileData'], ['user-templates', 'docs-and-boards']],
   user_text_form: [['text-forms'], ['mention-textforms']],

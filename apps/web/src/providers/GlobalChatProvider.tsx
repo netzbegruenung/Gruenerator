@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
+import { handleUnauthorized } from '../components/utils/apiClient';
 import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
 import {
   ChatPdfLetterheadExportHost,
@@ -24,7 +24,6 @@ import { useModelPreferences } from '../features/models/hooks/useModelPreference
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
-import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { mistralChatVoice } from '../features/voice-agent-test/chatVoice';
@@ -314,54 +313,6 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         });
         if (result.status !== 200) return null;
         return { version: result.body.version, state: result.body.state };
-      },
-      uploadReelVideo: (file: File, onProgress?: (pct: number) => void) =>
-        uploadVideoToTus(file, onProgress),
-      getReelVideoUrl: (projectId: string) =>
-        `${apiClient.defaults.baseURL}/subtitler/projects/${projectId}/video`,
-      fetchReelProject: async (projectId: string) => {
-        const result = await getContractsClient().subtitler.getProject({ params: { projectId } });
-        if (result.status !== 200) return null;
-        const project = result.body.project;
-        if (!project) return null;
-        return {
-          title: project.title ?? 'Reel',
-          subtitles: project.subtitles ?? null,
-        };
-      },
-      fetchReelAutoProgress: async (uploadId: string) => {
-        try {
-          const response = await apiClient.get<{
-            status: 'processing' | 'processing_done' | 'complete' | 'error';
-            overallProgress?: number | null;
-            projectId?: string | null;
-            subtitles?: string | null;
-            error?: string | null;
-          }>(`/subtitler/auto-progress/${uploadId}`);
-          const p = response.data;
-          return {
-            status: p.status === 'processing_done' ? ('processing' as const) : p.status,
-            overallProgress: p.overallProgress ?? 0,
-            projectId: p.projectId ?? null,
-            subtitles: p.subtitles ?? null,
-            error: p.error ?? null,
-          };
-        } catch (err) {
-          // 404 = Redis key expired (1h TTL) or unknown uploadId.
-          if ((err as { response?: { status?: number } }).response?.status === 404) {
-            return {
-              status: 'not_found' as const,
-              overallProgress: 0,
-              projectId: null,
-              subtitles: null,
-              error: null,
-            };
-          }
-          return null;
-        }
-      },
-      onOpenReelStudio: (projectId: string) => {
-        window.open(`/reel/studio?project=${projectId}`, '_blank', 'noopener,noreferrer');
       },
       onExportPdfLetterhead: requestPdfLetterheadExport,
       getPodcastUrl: (podcastSlug: string) => `/podcast/${podcastSlug}`,

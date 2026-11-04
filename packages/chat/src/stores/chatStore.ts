@@ -27,7 +27,6 @@ import { useComputeExportStore } from './computeExportStore';
 import { draftRoleState } from './draftRole';
 import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
-import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 import { useUserProfileStore } from './userProfileStore';
 
@@ -761,11 +760,6 @@ function switchThread(threadId: string | null, opts: { keepMentions: boolean }):
   // variant from the old thread must not stay pinned — nor be sent as
   // the currentSharepic edit target — in the new one.
   useSharepicLiveStore.getState().setActiveVariant(null);
-  // Same for Reel-Modus: a stale activeReel would inject the old
-  // thread's transcript into the new one, hijack bare edit verbs into
-  // subtitle edits of the old reel, and bind the wrong reel to the new
-  // thread on the first successful edit.
-  useReelLiveStore.getState().setActiveReel(null);
   // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
   // so without this reset the old thread's artifact stays pinned in the new one.
   useArtifactLiveStore.getState().setActiveArtifact(null);
