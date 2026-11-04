@@ -27,13 +27,8 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Locked by #4533 under the former blanket @assistant-ui/* exclusion, published
-  # 2026-10-12/13. Exact versions only; inert from 2026-10-16 09:07 UTC, remove then.
-  - 'safe-content-frame@0.0.34'
-  # The hosted voice agent (`extra/voice-agents/browser`) first shipped in 3.0;
-  # the voice-agent test page needs it. Published 2026-10-20 17:23 UTC.
-  # Inert from 2026-10-23 17:23 UTC, remove then.
-  - '@mistralai/mistralai@3.1.0'
+  # ggraphic release, published 2026-11-01 16:15 UTC.
+  # Inert from 2026-11-04 16:16 UTC, remove then.
   - '@ggraphic/collab@0.1.0-alpha.0'
   # Text inserts at 120/72/56 px scaled to the page width (Movm/ggraphic#181),
   # undo kept across an own deck op (Movm/ggraphic#183).
