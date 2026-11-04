@@ -24,6 +24,7 @@ import {
   bundestagRefSchema,
   landtagRefSchema,
   type LandtagParlament,
+  parseSharepicChatProps,
 } from '@gruenerator/contracts';
 import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool } from 'ai';
@@ -92,6 +93,7 @@ import {
 } from '../services/intentExecutionService.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
+import { berichtFuerKi } from '../services/sharepicBericht.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import { werkzeugFehler } from './toolFailure.js';
@@ -1274,7 +1276,9 @@ export function makeCreateSharepicTool(ctx: {
   return tool({
     description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
-NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/Karussell/eine Infografik/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/Karussell/eine Infografik/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}
+
+Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im Ergebnis unter "bericht" – sag es der Person.`,
     inputSchema: z.object({
       text: z
         .string()
@@ -1319,6 +1323,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       state.sharepicVariants = variants;
       return {
         variants,
+        bericht: berichtFuerKi(parseSharepicChatProps(variants[0]?.initialProps)?.bericht ?? []),
         note: 'Sharepic erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an und biete Anpassungen an.',
       };
     },

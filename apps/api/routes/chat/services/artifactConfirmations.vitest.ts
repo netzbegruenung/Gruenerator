@@ -102,6 +102,23 @@ describe('isArtifactConfirmation', () => {
 });
 
 describe('confirmation builders', () => {
+  it('tells the person what the report says, and says the scene notice only once', () => {
+    const text = buildSharepicConfirmation(
+      creator(1, { bericht: [{ art: 'fehlt', fakt: 'termin' }] })
+    );
+    expect(text).toContain('Den Termin habe ich weggelassen');
+    expect(isArtifactConfirmation(text)).toBe(true);
+    const both = buildSharepicConfirmation([
+      {
+        ...creator(1, {
+          bericht: [{ art: 'gestaltung', text: 'Den Hintergrund konnte ich nicht malen lassen.' }],
+        })[0],
+        notice: 'x',
+      },
+    ]);
+    expect(both.match(/Hintergrund konnte ich nicht malen/g)).toHaveLength(1);
+  });
+
   it('pluralises the variant count', () => {
     expect(buildSharepicConfirmation(legacy(1))).toContain('1 Sharepic-Variante');
     expect(buildSharepicConfirmation(legacy(3))).toContain('3 Sharepic-Varianten');

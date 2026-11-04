@@ -22,6 +22,8 @@ import {
   draftFailedText,
 } from '../../../services/sharepicCreator/draftFailure.js';
 
+import { berichtSaetze } from './sharepicBericht.js';
+
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
 /**
@@ -42,13 +44,19 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
     }
     const slides = creator.creatorSpec.slides.length;
     // Short on purpose: the full reason (trees, outage) stays on the variant.
-    const scene = first?.notice
-      ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
-      : '';
+    const bericht = creator.bericht ?? [];
+    // A `gestaltung` entry carries that sentence itself — say it once.
+    const scene =
+      first?.notice && !bericht.some((e) => e.art === 'gestaltung')
+        ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
+        : '';
+    const berichtText = berichtSaetze(bericht)
+      .map((satz) => ` ${satz}`)
+      .join('');
     const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
     return slides > 1
-      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene} ${tail}`
-      : `Ich habe dir ein Sharepic entworfen.${scene} ${tail}`;
+      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene}${berichtText} ${tail}`
+      : `Ich habe dir ein Sharepic entworfen.${scene}${berichtText} ${tail}`;
   }
   const deckSlides = first?.pages?.length;
   if (deckSlides) {

@@ -61,6 +61,16 @@ describe('read_sharepic', () => {
     expect(out.beschreibung).toContain('color: tanne');
   });
 
+  it('returns the creation report as lines', async () => {
+    resolveTarget.mockResolvedValue({
+      ...target,
+      props: { ...target.props, bericht: [{ art: 'fehlt', fakt: 'termin' }] },
+    });
+    const { ctx, run } = setup();
+    const out = await run(makeReadSharepicTool(ctx), {});
+    expect(String(out.bericht)).toContain('Beim Erstellen: Termin fehlte');
+  });
+
   it('reports an error when there is no creator sharepic', async () => {
     resolveTarget.mockResolvedValue(null);
     const { ctx, run } = setup();
@@ -87,6 +97,22 @@ describe('edit_sharepic', () => {
       instruction: 'Headline: Neu',
       userId: 'u1',
     });
+  });
+
+  it('carries the report of the new variant', async () => {
+    resolveTarget.mockResolvedValue(target);
+    reviseCreatorSharepic.mockResolvedValue({
+      id: 'v2',
+      canvasType: 'freeform',
+      initialProps: {
+        creatorSpec: { ...SPEC, slides: [slide('Neu')] },
+        attributions: [null],
+        bericht: [{ art: 'fehlt', fakt: 'termin' }],
+      },
+    });
+    const { ctx, run } = setup();
+    const out = await run(makeEditSharepicTool(ctx), { anweisung: 'Headline: Neu' });
+    expect(String(out.bericht)).toContain('Beim Erstellen: Termin fehlte');
   });
 
   it('answers unchanged as a failed step without a card', async () => {

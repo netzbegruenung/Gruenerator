@@ -13,6 +13,7 @@ import { parseSharepicChatProps } from '@gruenerator/contracts';
 
 import { createLogger } from '../../../utils/logger.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
+import { berichtFuerKi } from '../services/sharepicBericht.js';
 import {
   isSharepicModeEdit,
   looksLikeSharepicOrder,
@@ -82,9 +83,11 @@ export async function buildSharepicContextBlock(
   const prior = await creatorRevisionTarget(threadId, variantId);
   const props = prior ? parseSharepicChatProps(prior.props) : null;
   if (!props) return null;
+  const bericht = berichtFuerKi(props.bericht ?? []);
   return [
     'Aktives Sharepic (Sharepic-Modus) — Inhalt und Gestaltung der offenen Karte als Spec:',
     JSON.stringify(props.creatorSpec).slice(0, SHAREPIC_CONTEXT_MAX),
+    ...(bericht ? [bericht] : []),
     'In diesem Turn wurde daran nichts geändert.',
   ].join('\n');
 }

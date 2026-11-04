@@ -7,7 +7,11 @@
  */
 import { isDeepStrictEqual } from 'node:util';
 
-import { stripInlineMarks, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  stripInlineMarks,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -16,6 +20,7 @@ import { draftFailedText } from '../../../services/sharepicCreator/draftFailure.
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.js';
+import { berichtFuerKi } from '../services/sharepicBericht.js';
 import { reviseCreatorSharepic } from '../services/sharepicCreatorVariant.js';
 import { resolveLoopSharepicTarget } from '../services/sharepicLoopTarget.js';
 
@@ -85,7 +90,9 @@ export function makeReadSharepicTool(ctx: LoopToolCtx): Tool {
   return tool({
     description: `Liest ein Sharepic/Karussell dieses Gesprächs: Folien, Hintergrund und alle Texte. Kein Bild, keine Änderung.
 
-NUTZE bei Fragen zum Sharepic ("was steht drauf", "wie viele Folien") und vor einer Änderung nur, wenn unklar ist, welches Feld oder welches Sharepic gemeint ist. Standard ist die geöffnete Karte.`,
+NUTZE bei Fragen zum Sharepic ("was steht drauf", "wie viele Folien") und vor einer Änderung nur, wenn unklar ist, welches Feld oder welches Sharepic gemeint ist. Standard ist die geöffnete Karte.
+
+Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im Ergebnis unter "bericht" – sag es der Person.`,
     inputSchema: z.object({
       variantId: z
         .string()
@@ -100,6 +107,7 @@ NUTZE bei Fragen zum Sharepic ("was steht drauf", "wie viele Folien") und vor ei
         variantId: target.prior.variantId,
         slideCount: spec.slides.length,
         beschreibung: describeSpec(spec),
+        bericht: berichtFuerKi(target.props.bericht ?? []),
       };
     },
   });
@@ -112,7 +120,9 @@ export function makeEditSharepicTool(ctx: LoopToolCtx): Tool {
   return tool({
     description: `Überarbeitet ein bestehendes Sharepic/Karussell dieses Gesprächs: Texte, Aufbau, Hintergrund, Folien. Es entsteht eine neue Karte; die alte bleibt.
 
-NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die geöffnete (sonst die neueste) Karte das Ziel. "anweisung" ist der Wortlaut der Person, ergänzt um konkrete Texte. Fasse Änderungen in einen Aufruf. NICHT für ein neues Sharepic.`,
+NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die geöffnete (sonst die neueste) Karte das Ziel. "anweisung" ist der Wortlaut der Person, ergänzt um konkrete Texte. Fasse Änderungen in einen Aufruf. NICHT für ein neues Sharepic.
+
+Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im Ergebnis unter "bericht" – sag es der Person.`,
     inputSchema: z.object({
       anweisung: z
         .string()
@@ -161,7 +171,8 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
         sse.send('sharepic_complete', { message: 'Sharepic überarbeitet', variants: [variant] });
         const summary = `Sharepic überarbeitet (${revised?.slides.length ?? 1} Folie(n)): ${anweisung.slice(0, 120)}`;
         state.chatSharepicEdits = [...(state.chatSharepicEdits ?? []), anweisung.slice(0, 120)];
-        return { variantId: variant.id, unchanged: false, summary, variants: [variant] };
+        const bericht = berichtFuerKi(parseSharepicChatProps(variant.initialProps)?.bericht ?? []);
+        return { variantId: variant.id, unchanged: false, summary, bericht, variants: [variant] };
       } catch (error) {
         if (error instanceof DraftFailedError) {
           log.warn(`Sharepic-Überarbeitung gescheitert: ${error.message}`);

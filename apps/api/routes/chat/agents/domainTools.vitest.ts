@@ -1483,6 +1483,42 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     });
   }
 
+  it('adds the creation report next to the variants', async () => {
+    const creatorVariant = {
+      id: 'c',
+      canvasType: 'freeform',
+      initialProps: {
+        creatorSpec: {
+          locale: 'de-DE',
+          slides: [
+            {
+              background: { kind: 'farbe', color: 'tanne' },
+              position: 'mitte',
+              align: 'links',
+              items: [{ type: 'headline', lines: ['Busse'] }],
+              logo: false,
+            },
+          ],
+        },
+        attributions: [null],
+        bericht: [{ art: 'fehlt', fakt: 'termin' }],
+      },
+    };
+    runSharepicGeneration.mockResolvedValue({ variants: [creatorVariant], failure: null });
+    const state = {
+      ...baseState,
+      intent: 'sharepic',
+      messages: [{ role: 'user', content: 'Sharepic' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const out = (await exec(makeTool(state), { text: 'Busse' })) as {
+      variants: unknown[];
+      bericht: string;
+    };
+    expect(out.variants).toEqual([creatorVariant]);
+    expect(out.bericht).toContain('Beim Erstellen: Termin fehlte');
+  });
+
   it('injects the researched text as the trailing user message and returns variants verbatim', async () => {
     runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const events: SseEvent[] = [];

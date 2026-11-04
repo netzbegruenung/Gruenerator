@@ -101,6 +101,21 @@ describe('buildSharepicContextBlock', () => {
     expect(mockNamed).toHaveBeenCalledWith('t1', 'v1');
   });
 
+  it('hängt den Bericht des Entwurfs als Zeilen an', async () => {
+    mockNamed.mockResolvedValue({
+      variantId: 'v1',
+      canvasType: 'freeform',
+      props: {
+        creatorSpec: SPEC,
+        attributions: [null],
+        bericht: [{ art: 'fehlt', fakt: 'termin' }],
+      },
+      canvasId: null,
+    });
+    const block = await buildSharepicContextBlock('t1', 'v1');
+    expect(block).toContain('Beim Erstellen: Termin fehlte');
+  });
+
   it('ist null für ein Vorlagen-Sharepic ohne Creator-Spec', async () => {
     mockNamed.mockResolvedValue({
       variantId: 'v1',
