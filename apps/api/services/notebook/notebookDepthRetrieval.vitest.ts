@@ -108,6 +108,35 @@ describe('getSearchContext — retrieval per depth tier', () => {
   });
 });
 
+describe('getSearchContext — lexical terms (#5341)', () => {
+  it('hands the terms to the search of the question', async () => {
+    await notebookQAService.getSearchContext({
+      question: 'Was steht zur Wärmepumpe drin?',
+      collectionId: 'grundsatz-system',
+      depth: 'deep',
+      lexicalTerms: ['Wärmepumpe'],
+    });
+    expect(search.mock.calls[0][0].options.lexicalTerms).toEqual(['Wärmepumpe']);
+  });
+
+  it('keeps them away from the searches of sub-questions', async () => {
+    await notebookQAService.getSearchContext({
+      question: 'Was gilt zur Wärmepumpe? Und wie hoch ist die Förderung für Solardächer?',
+      collectionId: 'grundsatz-system',
+      depth: 'deep',
+      lexicalTerms: ['Wärmepumpe'],
+    });
+    const withTerms = search.mock.calls.filter(([p]) => p.options.lexicalTerms);
+    expect(search.mock.calls.length).toBeGreaterThan(1);
+    expect(withTerms).toHaveLength(1);
+  });
+
+  it('sends none when the caller has none', async () => {
+    await optionsFor('deep');
+    expect(search.mock.calls[0][0].options).not.toHaveProperty('lexicalTerms');
+  });
+});
+
 describe('getSearchContext — source tier', () => {
   const protocolAndDrucksache = () => ({
     results: [

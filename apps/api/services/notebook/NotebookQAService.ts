@@ -530,6 +530,7 @@ export class NotebookQAService {
     depth,
     sourceTier,
     queries,
+    lexicalTerms,
     getCollectionFn,
     getDocumentIdsFn,
   }: GetSearchContextParams): Promise<SearchContext | null> {
@@ -590,7 +591,8 @@ export class NotebookQAService {
         requestFilters,
         profile,
         queryGroups,
-        sourceTier
+        sourceTier,
+        lexicalTerms
       );
     } else if (collectionId) {
       return this._getSingleCollectionSearchContext(
@@ -602,7 +604,8 @@ export class NotebookQAService {
         queryGroups,
         sourceTier,
         getCollectionFn,
-        getDocumentIdsFn
+        getDocumentIdsFn,
+        lexicalTerms
       );
     }
 
@@ -619,7 +622,8 @@ export class NotebookQAService {
     profile: NotebookDepthProfile,
     /** One group per retrieval angle; group 0 holds the paraphrases. */
     queryGroups: string[][],
-    sourceTier: NotebookSourceTier | undefined
+    sourceTier: NotebookSourceTier | undefined,
+    lexicalTerms?: string[]
   ): Promise<SearchContext | null> {
     // Detect document scope and subcategory filters from natural language
     const detectedScope = queryIntentService.detectDocumentScope(question);
@@ -646,7 +650,7 @@ export class NotebookQAService {
     // the hits grouped per query so selectAcrossQueryGroups can give each one
     // its share of the budget.
     const resultsByGroup = await Promise.all(
-      queryGroups.map(async (group) => {
+      queryGroups.map(async (group, g) => {
         const perQuery = await Promise.all(
           group.flatMap((q) =>
             effectiveCollectionIds.map((cId) =>
@@ -656,7 +660,8 @@ export class NotebookQAService {
                 documentScope,
                 this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
                 profile,
-                sourceTier
+                sourceTier,
+                g === 0 ? lexicalTerms : undefined
               )
             )
           )
@@ -704,7 +709,8 @@ export class NotebookQAService {
     queryGroups: string[][],
     sourceTier: NotebookSourceTier | undefined,
     getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
-    getDocumentIdsFn?: (id: string) => Promise<string[]>
+    getDocumentIdsFn?: (id: string) => Promise<string[]>,
+    lexicalTerms?: string[]
   ): Promise<SearchContext | null> {
     const systemConfig = getSystemCollectionConfig(collectionId);
     const isSystem = !!systemConfig;
@@ -790,11 +796,12 @@ export class NotebookQAService {
 
     // Grouped per query, not flattened — see selectAcrossQueryGroups.
     const resultsByGroup = await Promise.all(
-      queryGroups.map(async (group) => {
+      queryGroups.map(async (group, g) => {
         const perQuery = await Promise.all(
           group.map(async (q) => {
             const searchResults = await searchOrSkip({
               query: q,
+              ...(g === 0 && lexicalTerms?.length && { lexicalTerms }),
               searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
               userId: isSystem ? null : (userId ?? null),
               documentIds: isSystem ? undefined : documentIds,
@@ -877,7 +884,8 @@ export class NotebookQAService {
     documentScope: DocumentScope,
     filters: RequestFilters,
     profile?: NotebookDepthProfile,
-    sourceTier?: NotebookSourceTier
+    sourceTier?: NotebookSourceTier,
+    lexicalTerms?: string[]
   ): Promise<ExpandedChunkResult[]> {
     const config = SYSTEM_COLLECTIONS[collectionId];
     if (!config) {
@@ -906,6 +914,7 @@ export class NotebookQAService {
           recallLimit: searchParams.recallLimit,
           qualityMin: searchParams.qualityMin,
           additionalFilter,
+          ...(lexicalTerms?.length && { lexicalTerms }),
         },
       });
 
@@ -1001,6 +1010,7 @@ export class NotebookQAService {
     documentIds,
     additionalFilter,
     searchParams,
+    lexicalTerms,
   }: InternalSearchOptions): Promise<SearchResultInput[]> {
     const resp = await documentSearchService.search({
       query,
@@ -1016,6 +1026,7 @@ export class NotebookQAService {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(lexicalTerms?.length && { lexicalTerms }),
       },
     });
 

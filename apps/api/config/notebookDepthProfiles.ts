@@ -63,6 +63,14 @@ export interface NotebookDepthProfile {
    * braucht das Thema, der Prompt nicht die alten Turns.
    */
   queryRewrite: boolean;
+  /**
+   * Ob vor der Suche ein kurzer KI-Aufruf die Fachbegriffe der Frage bestimmt
+   * (`extractSearchTerms`). Sie ersetzen den Fragesatz in der Wortsuche der
+   * Hybridsuche und entscheiden, welcher Abschnitt eines Dokuments als
+   * Begriffstreffer gilt (#5341); die Vektorsuche liest weiter die Frage. Nur
+   * `deep`: `fast` bleibt byte-identisch (Grün-O-Mat), `ultra` ist ungemessen.
+   */
+  subjectTerms: boolean;
 }
 
 const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
@@ -78,6 +86,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: false,
+    subjectTerms: false,
   },
   // 100 ist die Decke der Qdrant-Suche je Abfrage. Gemessen 06.10.2026 an 23
   // LV-Fragen (evals/answer/model-eval-2026-10-06.md): gegen 40/18 gewann
@@ -95,6 +104,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 1,
     history: false,
     queryRewrite: true,
+    subjectTerms: true,
   },
   ultra: {
     searchLimit: 100,
@@ -108,6 +118,7 @@ const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
     queryVariants: 3,
     history: true,
     queryRewrite: true,
+    subjectTerms: false,
   },
 };
 

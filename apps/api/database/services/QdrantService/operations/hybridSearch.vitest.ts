@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   applyWeightedCombination,
   calculateDynamicThreshold,
   calculateTextSearchScore,
+  searchLexicalTerms,
 } from './hybridSearch.js';
 
 import type { HybridConfig, TextSearchResult, VectorSearchResult } from './types.js';
@@ -189,5 +190,52 @@ describe('calculateDynamicThreshold', () => {
     expect(calculateDynamicThreshold(0.28, false, { ...cfg, enableDynamicThresholds: false })).toBe(
       0.28
     );
+  });
+});
+
+describe('searchLexicalTerms (#5341)', () => {
+  // A scroll that finds a chunk when its text contains the filter's match text.
+  const chunks: Record<string, string> = {
+    a: 'Das Deutschlandticket bleibt.',
+    b: 'Das Deutschlandticket ersetzt das 49-Euro-Ticket, Deutschlandticket.',
+    c: 'Nichts zum Thema.',
+  };
+  const fakeClient = () => {
+    const scroll = vi.fn(async (_collection: string, req: { filter: { must: unknown[] } }) => {
+      const cond = req.filter.must.at(-1) as { match: { text: string } };
+      const term = cond.match.text.toLowerCase();
+      return {
+        points: Object.entries(chunks)
+          .filter(([, text]) => text.toLowerCase().includes(term))
+          .map(([id, chunk_text]) => ({ id, payload: { chunk_text } })),
+      };
+    });
+    return { client: { scroll } as never, scroll };
+  };
+
+  it('searches each term on its own instead of the question sentence', async () => {
+    const { client, scroll } = fakeClient();
+    await searchLexicalTerms(client, 'documents', ['Deutschlandticket', '49-Euro-Ticket'], {}, 20);
+    const searched = scroll.mock.calls.map(([, req]) =>
+      (req.filter.must.at(-1) as { match: { text: string } }).match.text.toLowerCase()
+    );
+    expect(searched).toContain('deutschlandticket');
+    expect(searched).toContain('49-euro-ticket');
+  });
+
+  it('keeps one hit per chunk, at the best score any term gave it', async () => {
+    const { client } = fakeClient();
+    const hits = await searchLexicalTerms(
+      client,
+      'documents',
+      ['Deutschlandticket', '49-Euro-Ticket'],
+      {},
+      20
+    );
+    expect(hits.map((h) => h.id).sort()).toEqual(['a', 'b']);
+    // b names the first term twice: its score comes from that term.
+    const b = hits.find((h) => h.id === 'b')!;
+    expect(b.score).toBe(calculateTextSearchScore('Deutschlandticket', chunks.b));
+    expect(hits[0]?.id).toBe('b');
   });
 });
