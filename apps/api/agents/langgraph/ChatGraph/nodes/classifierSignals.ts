@@ -110,6 +110,7 @@ export const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'compare',
   'abgeordnetenwatch',
   'bundestag',
+  'abgeordnetenhaus',
 ] as const satisfies readonly ChatIntentId[]);
 
 /**

@@ -37,6 +37,17 @@ export interface LandtagMeta {
   portalUrl: string;
   /** Pflichtangabe der Lizenz; steht in jedem Werkzeugergebnis und auf der Karte. */
   quellenangabe: string;
+  /**
+   * Das Parlaments-Notebook, falls es eins gibt: die Suche legt dann die besten
+   * Textstellen neben die Live-Liste. Die Parlaments-API hat keine Rangfolge
+   * (neueste zuerst), das Notebook schon.
+   */
+  notebook?: {
+    /** Sammlungsschlüssel für `executeDirectSearch`. */
+    collection: string;
+    /** `content_type` des Notebooks je Art; eine Art ohne Eintrag führt es nicht. */
+    contentTypes: Partial<Record<LandtagTyp, string>>;
+  };
   /** `false` = der Filter wird nicht angewendet und mit einem Hinweis gemeldet. */
   supports: Record<LandtagFilterKey, boolean>;
   /** Hinweis, wenn ein nicht unterstützter Filter gesetzt wurde (statt des Standardsatzes). */
@@ -64,6 +75,15 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     },
     portalUrl: 'https://pardok.parlament-berlin.de/portala/',
     quellenangabe: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
+    // Drucksachen führt das Notebook nur als Schriftliche Anfrage samt Antwort.
+    notebook: {
+      collection: 'landtag-berlin',
+      contentTypes: {
+        Anfrage: 'drucksache',
+        Antwort: 'drucksache',
+        Plenarprotokoll: 'plenarprotokoll',
+      },
+    },
     supports: {
       wahlperiode: true,
       typ: true,

@@ -37,6 +37,8 @@ const CLIENT_INTENT_TO_TOOL_BEFORE: Record<string, string> = {
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   bundestag: 'bundestag',
   chat_history: 'search_chat_history',
+  // 11/2026, mit Absicht: `@abgeordnetenhaus` zeigt die Karte des Landtags-Werkzeugs.
+  abgeordnetenhaus: 'landtag',
 };
 
 /** `apps/api/.../postResponseService.ts` before the registry: shared 7 + 5. */
@@ -94,6 +96,8 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   // Erwähnung über `pinsTool` fest, nicht über `forcedTool`.
   ['wiederkehrend', 'create_recurring_task', undefined],
   ['explainable-erstellen', 'explainable-erstellen', undefined],
+  // 11/2026: das Abgeordnetenhaus war über `landtag` schon erreichbar, nur kein `@` führte hin.
+  ['abgeordnetenhaus', 'abgeordnetenhaus', 'de-DE'],
 ];
 
 describe('registry totality', () => {
@@ -305,6 +309,7 @@ describe('loopTools', () => {
         'gruenerator_pressemitteilung_examples',
         'abgeordnetenwatch',
         'bundestag',
+        'landtag',
         'umfragen',
         'gruenerator_docs_search',
       ])

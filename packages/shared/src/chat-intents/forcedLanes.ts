@@ -82,6 +82,7 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // ist stillgelegt — siehe unten bei den anderen.
   hilfe: 'loop',
   bundestag: 'loop',
+  abgeordnetenhaus: 'loop',
   abgeordnetenwatch: 'loop',
 
   // ── pipeline — eigene Erstellroute, dispatcht auf den forcedTool-String ────
