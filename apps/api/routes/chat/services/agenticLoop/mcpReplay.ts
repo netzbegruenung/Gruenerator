@@ -120,15 +120,32 @@ const ACTION_DIGEST_MAX_CHARS = 300;
  * 300 chars. Built field by field from known scalars, so `variants`,
  * `initialProps`, base64 and upload URLs cannot get in.
  */
+/**
+ * The outcome line of an action result. The sharepic tools write `summary`, the
+ * editor tools (`edit_document_text`, `edit_sheet`, …) write `note`, and
+ * `create_document` only carries the created document's title.
+ */
+function outcomeText(result: Record<string, unknown>): string | null {
+  for (const key of ['summary', 'note'] as const) {
+    const value = result[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  const doc = result.document;
+  if (doc && typeof doc === 'object') {
+    const title = (doc as Record<string, unknown>).title;
+    if (typeof title === 'string' && title.trim()) return `Dokument erstellt: ${title.trim()}`;
+  }
+  return null;
+}
+
 export function actionDigest(step: PersistedStep): string {
   const result = step.result ?? {};
   const digest: { ok: boolean; unchanged?: true; summary?: string; error?: string } = {
     ok: step.ok !== false,
   };
   if (result.unchanged === true) digest.unchanged = true;
-  if (typeof result.summary === 'string' && result.summary.trim()) {
-    digest.summary = result.summary.trim();
-  }
+  const summary = outcomeText(result);
+  if (summary) digest.summary = summary;
   if (typeof result.error === 'string' && result.error.trim()) {
     digest.error = result.error.trim();
   }

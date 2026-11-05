@@ -288,6 +288,23 @@ describe('actionDigest', () => {
     expect(actionDigest(sharepic({ result: { unchanged: true } }))).toContain('"unchanged":true');
   });
 
+  it('reads the outcome the editor tools store under note', () => {
+    const out = actionDigest(
+      internalStep({ toolName: 'edit_document_text', result: { note: 'Absatz 2 förmlicher' } })
+    );
+    expect(out).toBe('{"ok":true,"summary":"Absatz 2 förmlicher"}');
+  });
+
+  it('names the document create_document produced', () => {
+    const out = actionDigest(
+      internalStep({
+        toolName: 'create_document',
+        result: { document: { documentId: 'd1', title: 'Pressemitteilung Radweg' } },
+      })
+    );
+    expect(out).toBe('{"ok":true,"summary":"Dokument erstellt: Pressemitteilung Radweg"}');
+  });
+
   it('stays within 300 chars for a 2000-char summary', () => {
     const out = actionDigest(sharepic({ result: { summary: 'x'.repeat(2000) } }));
     expect(out.length).toBeLessThanOrEqual(300);
