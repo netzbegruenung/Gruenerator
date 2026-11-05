@@ -24,6 +24,7 @@ import {
   resolveNotebookCollections,
 } from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { recommendedToolsFor } from '../../../../routes/chat/agents/recipeCatalog.js';
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
@@ -1436,15 +1437,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // material already here, and the forced search put it into the loop under
       // `toolChoice: required` — live 29.09.2026 the planner then summarised the
       // pasted newsletter instead of correcting it.
+      //
+      // The same holds for a chosen recipe that declares research (its
+      // `recommendedTools` name `gruenerator_search`): `@wahlpruefstein` with a
+      // pasted catalogue on the default agent has no notebook, so it used to
+      // fall through to `produktion` — eval 05.11.2026: 0 of 12 catalogues got
+      // a single search, every answer opened with "Da ich … keine Recherche
+      // durchgeführt habe".
       const defaultNotebookScopeCount =
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
+      const recipeWantsSearch =
+        state.activeSkillMention != null &&
+        recommendedToolsFor(state.activeSkillMention, () => true).includes('gruenerator_search');
       if (
-        defaultNotebookScopeCount > 0 &&
+        (defaultNotebookScopeCount > 0 || recipeWantsSearch) &&
         !reworksSuppliedText(state.lastUserTextNoMentions ?? userContent)
       ) {
         return classifyWithForcedSearch({
-          reason: 'AttachmentDefaultNotebook',
+          reason:
+            defaultNotebookScopeCount > 0
+              ? 'AttachmentDefaultNotebook'
+              : 'AttachmentResearchRecipe',
           docCount: defaultNotebookScopeCount,
           userContent,
           conversationContext,

@@ -284,6 +284,22 @@ const CASES: Case[] = [
     lane: 'loop',
     summarizeMounted: false,
   },
+  // Ein gewähltes Rezept, das Recherche verlangt, zählt wie ein Notebook: der
+  // eingefügte Katalog ist Material, die Antwort braucht die Suche (Eval
+  // 05.11.2026: ohne diese Regel 0 von 12 Katalogen mit auch nur einer Suche).
+  {
+    id: 'rezept-wahlpruefstein',
+    prompt: 'Beantworte diesen Wahlprüfstein-Katalog.',
+    body: { activeSkillMention: 'wahlpruefstein' },
+    lane: 'loop',
+    summarizeMounted: false,
+  },
+  {
+    id: 'rezept-korrigieren',
+    prompt: 'rechtschreibung korrigieren',
+    body: { activeSkillMention: 'wahlpruefstein' },
+    lane: 'single_pass',
+  },
   // Der Auftrag steht im Turn davor, dieser Turn traegt keinen: die Notebook-
   // Suche bleibt, aber ohne `summarize` als Koeder.
   {
