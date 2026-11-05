@@ -276,3 +276,81 @@ export function addresseeInBrief(adressat: string, givenWords: ReadonlySet<strin
   const names = wordsOf(adressat.replace(/^@/, '')).filter((w) => !ADDRESS_WORDS.has(w));
   return names.length > 0 && names.every((w) => givenWords.has(w));
 }
+
+export type WeekdayId = 'mo' | 'di' | 'mi' | 'do' | 'fr' | 'sa' | 'so';
+const WEEKDAY_NAMES: [WeekdayId, string][] = [
+  ['mo', 'montag'],
+  ['di', 'dienstag'],
+  ['mi', 'mittwoch'],
+  ['do', 'donnerstag'],
+  ['fr', 'freitag'],
+  ['sa', 'samstag|sonnabend'],
+  ['so', 'sonntag'],
+];
+/**
+ * A day mention: the name alone, genitive/adverb „-s“ or a time of day
+ * („Donnerstagabend“). Not „Sonntagsfrage“, „Montage“ or „Montagsdemo“ —
+ * those name no date (a recurring „Montagsdemo“ is left out on purpose, the
+ * model has to take its weekday from the order's own words).
+ */
+const DAY_SUFFIX = '(?:s|(?:früh|vor|nach)?(?:mittag|abend|morgen|nacht)s?)?';
+const WEEKDAY_FULL = WEEKDAY_NAMES.map(
+  ([id, names]) => [id, new RegExp(`(?<!\\p{L})(?:${names})${DAY_SUFFIX}(?!\\p{L})`, 'iu')] as const
+);
+const ABBREVIATIONS: WeekdayId[] = WEEKDAY_NAMES.map(([id]) => id);
+const cap = (id: string) => id[0]!.toUpperCase() + id[1]!;
+const ABBR_GROUP = ABBREVIATIONS.map(cap).join('|');
+/** „Mo.“, „Sa./So.“ — a dot, capitalised; „Fr.“ before a surname is „Frau“. */
+const WEEKDAY_DOTTED = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})\\.(?!\\p{L})(?<!Fr\\.(?=\\s+\\p{Lu}\\p{Ll}))`,
+  'gu'
+);
+/** „Mo–Fr“, „Sa/So“: both ends capitalised, undotted only inside a range or list. */
+const WEEKDAY_RANGE = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})\\s*[–\\-/]\\s*(${ABBR_GROUP})(?!\\p{L})`,
+  'gu'
+);
+
+/**
+ * Undotted „Do“ / „Sa“ is a weekday only with a hint: after „am“, „ab“,
+ * „jeden“, „bis“ or right before a clock time or a calendar date. Bare
+ * „So geht’s“ or „Mo Farah“ stay words and names.
+ */
+const AFTER_PREPOSITION = new RegExp(
+  `(?<![\\p{L}])(?:am|ab|jeden|bis)\\s+(${ABBR_GROUP})(?!\\p{L})(?!\\.\\s+\\p{Lu}\\p{Ll})`,
+  'giu'
+);
+const BEFORE_TIME_OR_DATE = new RegExp(
+  `(?<!\\p{L})(${ABBR_GROUP})(?!\\p{L})[,\\s]*(?=\\d{1,2}(?:[:.]\\d{2})?\\s*(?:Uhr|h(?!\\p{L}))|\\d{1,2}:\\d{2}|\\d{1,2}\\.\\s?\\d{1,2}\\.)`,
+  'gu'
+);
+
+/** The weekdays a text names, as full word, compound or abbreviation. */
+export function weekdaysIn(text: string): Set<WeekdayId> {
+  const found = new Set<WeekdayId>();
+  for (const [id, full] of WEEKDAY_FULL) if (full.test(text)) found.add(id);
+  const add = (short: string) => found.add(short.toLowerCase() as WeekdayId);
+  for (const m of text.matchAll(WEEKDAY_DOTTED)) add(m[1]!);
+  for (const m of text.matchAll(WEEKDAY_RANGE)) {
+    add(m[1]!);
+    add(m[2]!);
+  }
+  // The preposition is case-insensitive, the abbreviation must stay capitalised.
+  for (const m of text.matchAll(AFTER_PREPOSITION)) if (/^\p{Lu}/u.test(m[1]!)) add(m[1]!);
+  for (const m of text.matchAll(BEFORE_TIME_OR_DATE)) add(m[1]!);
+  return found;
+}
+
+/** A weekday as the model writes it: a full name (with day-part suffix) or a known abbreviation — else null. */
+export function weekdayId(value: string): WeekdayId | null {
+  const word = value.trim().replace(/\.$/, '');
+  const short = word.toLowerCase();
+  if (word.length === 2 && ABBREVIATIONS.includes(short as WeekdayId)) return short as WeekdayId;
+  const full = WEEKDAY_FULL.find(([, re]) => new RegExp(`^${re.source}$`, 'iu').test(word));
+  return full ? full[0] : null;
+}
+
+/** The brief names a day: a calendar date or a weekday. */
+export function hasTermin(given: string): boolean {
+  return calendarDays(given).size > 0 || weekdaysIn(given).size > 0;
+}

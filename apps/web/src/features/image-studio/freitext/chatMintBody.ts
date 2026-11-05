@@ -6,7 +6,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
-import { canvasSeed, composeCreatorSharepic } from './composeForRender';
+import { canvasSeed, composeCreatorSharepic, sharepicPhotoSrc } from './composeForRender';
 
 const TITLE_MAX = 60;
 
@@ -39,12 +39,19 @@ export async function chatMintBody(variant: {
 }> {
   const creator = parseSharepicChatProps(variant.initialProps);
   if (!creator) return { canvasType: variant.canvasType, initialProps: variant.initialProps };
-  const seed = canvasSeed(await composeCreatorSharepic(creator.creatorSpec, creator.attributions), {
-    // The composition shows `creatorSpec`; the source keeps the untweaked base and the choice revertible.
-    base: creator.creatorBase ?? creator.creatorSpec,
-    tweaks: creator.creatorTweaks ?? {},
-    attributions: creator.attributions,
-  });
+  const seed = canvasSeed(
+    await composeCreatorSharepic(
+      creator.creatorSpec,
+      creator.attributions,
+      sharepicPhotoSrc(creator.photos ?? [])
+    ),
+    {
+      // The composition shows `creatorSpec`; the source keeps the untweaked base and the choice revertible.
+      base: creator.creatorBase ?? creator.creatorSpec,
+      tweaks: creator.creatorTweaks ?? {},
+      attributions: creator.attributions,
+    }
+  );
   const title = creatorTitle(creator.creatorSpec);
   return {
     canvasType: seed.templateType,

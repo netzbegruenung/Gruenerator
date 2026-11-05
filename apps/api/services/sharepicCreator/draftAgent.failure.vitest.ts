@@ -50,8 +50,12 @@ const BROKEN = {
 
 /** Runs the call's own validator on `input`, as `aiObject` does. */
 const answer = (input: unknown) => (call: DraftCall) => {
-  const checked = call.validate(input, call.attempts, call.attempts) as
-    { ok: true; value: unknown } | { ok: false; error: string };
+  // As `aiObject` does: every attempt runs the validator until one passes.
+  type Checked = { ok: true; value: unknown } | { ok: false; error: string };
+  let checked = { ok: false, error: '' } as Checked;
+  for (let attempt = 1; attempt <= call.attempts && !checked.ok; attempt++) {
+    checked = call.validate(input, attempt, call.attempts) as Checked;
+  }
   return Promise.resolve(
     checked.ok ? { ok: true, data: checked.value } : { ok: false, error: checked.error }
   );
@@ -135,6 +139,53 @@ describe('a draft Gemma cannot finish', () => {
   });
 });
 
+describe('the form the model picked', () => {
+  it('falls back to a form the brief can fill when it lacks the material', async () => {
+    aiObject
+      .mockResolvedValueOnce({
+        ...needs,
+        data: { ...needs.data, form: 'diagramm', alternativen: ['einzelbild'] },
+      })
+      .mockImplementation(answer(GOOD));
+    const result = await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE');
+    expect(result.form).toBe('einzelbild');
+  });
+
+  it('falls back from a model-picked Faktenbild when the brief has no number', async () => {
+    aiObject
+      .mockResolvedValueOnce({
+        ...needs,
+        data: { ...needs.data, form: 'faktenbild', alternativen: ['einzelbild'] },
+      })
+      .mockImplementation(answer(GOOD));
+    const result = await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE');
+    expect(result.form).toBe('einzelbild');
+  });
+
+  it('builds an event sharepic without a date when the order names none', async () => {
+    aiObject
+      .mockResolvedValueOnce({ ...needs, data: { ...needs.data, form: 'veranstaltung' } })
+      .mockImplementation(answer(GOOD));
+    const result = await draftSharepic('Infoabend zur Grünen Wolke', 'de-DE');
+    expect(result.form).toBe('veranstaltung');
+    expect(draftCalls()).toHaveLength(1);
+  });
+});
+
+describe('a draft that repeats its validation error', () => {
+  it('skips the rescue model', async () => {
+    aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(BROKEN));
+    await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE').catch(() => null);
+    expect(draftCalls().map((c) => c.pinned.model)).toEqual(['gemma-4-31b:balanced']);
+  });
+
+  it('still rescues a draft without structure', async () => {
+    aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(EMPTY));
+    await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE').catch(() => null);
+    expect(draftCalls()).toHaveLength(2);
+  });
+});
+
 describe('a draft that fails for good', () => {
   const failure = async () => {
     const err = await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE').catch(
@@ -165,10 +216,16 @@ describe('a draft that fails for good', () => {
   });
 
   it('names the form it could not build', async () => {
-    aiObject
-      .mockResolvedValueOnce({ ...needs, data: { ...needs.data, form: 'zitat' } })
-      .mockImplementation(answer(GOOD));
-    const err = await failure();
+    // Named, not model-picked: a model-picked form without material falls back instead.
+    aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(GOOD));
+    const err = (await draftSharepic(
+      'Sharepic: Mehr Busse für alle',
+      'de-DE',
+      null,
+      [],
+      {},
+      'zitat'
+    ).catch((e: unknown) => e)) as DraftFailedError;
     expect(err.failure).toEqual({
       kind: 'form',
       form: 'zitat',
@@ -206,6 +263,20 @@ describe('a draft that fails for good', () => {
     expect(draftFailedBody(err).error).toBe(
       'Der Entwurf ist nicht gelungen. Für die Form „Diagramm“ brauche ich mindestens zwei Zahlen, am besten mit Quelle. Schreib mir das dazu, oder wähl eine andere Form.'
     );
+  });
+
+  it('asks for the number of a named Faktenbild before any model call', async () => {
+    aiObject.mockClear();
+    const err = (await draftSharepic(
+      'Faktenbild: Zeit für mehr Artenschutz jetzt!',
+      'de-DE',
+      null,
+      [],
+      {},
+      'faktenbild'
+    ).catch((e: unknown) => e)) as DraftFailedError;
+    expect(aiObject).not.toHaveBeenCalled();
+    expect(err.failure).toMatchObject({ kind: 'material', form: 'faktenbild' });
   });
 
   it('still tries a named quote: the speaker is only guessed', async () => {

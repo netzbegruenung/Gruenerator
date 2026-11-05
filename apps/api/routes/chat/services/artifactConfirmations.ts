@@ -15,13 +15,13 @@
  * re-opening that bug.
  */
 
-import {
-  parseSharepicChatProps,
-  type SharepicDraftFailureReason,
-  type SharepicVariant,
-} from '@gruenerator/contracts';
+import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
+import { berichtSaetze } from '@gruenerator/shared/image-studio';
 
-import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
+import {
+  type DraftFailedError,
+  draftFailedText,
+} from '../../../services/sharepicCreator/draftFailure.js';
 
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
@@ -35,21 +35,28 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
   const first = variants[0];
   const creator = first ? parseSharepicChatProps(first.initialProps) : null;
   if (creator) {
+    const bericht = creator.bericht ?? [];
+    const berichtText = berichtSaetze(bericht)
+      .map((satz) => ` ${satz}`)
+      .join('');
     if (creator.revisionOf) {
       const editorNote = creator.editorChangesDropped
         ? ' Falls du es im Editor bearbeitet hast: Diese Änderungen sind hier nicht enthalten, die bearbeitete Fassung bleibt im Editor.'
         : '';
-      return `Ich habe dir das Sharepic überarbeitet.${editorNote} Sag mir, wenn noch etwas anders sein soll.`;
+      return `Ich habe dir das Sharepic überarbeitet.${editorNote}${berichtText} Sag mir, wenn noch etwas anders sein soll.`;
     }
     const slides = creator.creatorSpec.slides.length;
     // Short on purpose: the full reason (trees, outage) stays on the variant.
-    const scene = first?.notice
-      ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
-      : '';
+    // A variant with a report says the scene itself (its `gestaltung` entry);
+    // the notice sentence is only for old cards without one.
+    const scene =
+      first?.notice && bericht.length === 0
+        ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
+        : '';
     const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
     return slides > 1
-      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene} ${tail}`
-      : `Ich habe dir ein Sharepic entworfen.${scene} ${tail}`;
+      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene}${berichtText} ${tail}`
+      : `Ich habe dir ein Sharepic entworfen.${scene}${berichtText} ${tail}`;
   }
   const deckSlides = first?.pages?.length;
   if (deckSlides) {
@@ -71,8 +78,8 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
  */
 export const ARTIFACT_CONFIRMATION_TEXTS = {
   sharepicFailed:
-    `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-    `anderen Thema noch einmal versuchen?`,
+    `Ich konnte den Entwurf diesmal nicht fertigstellen. Versuch es bitte noch ` +
+    `einmal – gern mit etwas mehr Angaben.`,
   sharepicRevisionFailed:
     `Die Überarbeitung hat leider nicht geklappt. Formuliere die Änderung etwas ` +
     `genauer und versuch es noch einmal.`,
@@ -87,7 +94,7 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
  * breaking, or a revision whose spec came back identical — live 11.10.2026
  * „Mach die Schrift weiß" showed a copy labelled „Überarbeitet".
  */
-export type SharepicTurnFailure = SharepicDraftFailureReason | 'unchanged';
+export type SharepicTurnFailure = DraftFailedError | 'unchanged';
 
 /**
  * The text a sharepic turn ends with; a failed revision asks for a clearer
@@ -101,10 +108,17 @@ export function sharepicTurnText(
   if (variants.length > 0) return buildSharepicConfirmation(variants);
   if (failure === 'unchanged') return ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
   if (failure) {
-    const lead = revision
-      ? 'Die Überarbeitung hat leider nicht geklappt.'
-      : 'Die Sharepic-Erstellung hat leider nicht geklappt.';
-    return `${lead} ${DRAFT_LIMIT_TEXTS[failure]}`;
+    return revision
+      ? draftFailedText(
+          'Die Überarbeitung hat leider nicht geklappt.',
+          failure,
+          'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
+        )
+      : draftFailedText(
+          'Die Sharepic-Erstellung hat leider nicht geklappt.',
+          failure,
+          'Formuliere den Auftrag etwas genauer und versuch es noch einmal.'
+        );
   }
   return revision
     ? ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed
@@ -125,10 +139,10 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
  * inheritable, and it is far longer than any template here.
  */
 const FIXED_TEXT_OPENING_RE =
-  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
+  /^(?:Ich habe dir\b|Ich konnte den Entwurf\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
 
-/** Longest template above is ~230 chars; the bound leaves room for wording drift. */
-const MAX_FIXED_TEXT_LENGTH = 320;
+/** Longest template above is ~230 chars (form failure with its material ask); the bound leaves room for wording drift. */
+const MAX_FIXED_TEXT_LENGTH = 400;
 
 /** True when the text is one of our own contentless artifact confirmations. */
 export function isArtifactConfirmation(text: string): boolean {

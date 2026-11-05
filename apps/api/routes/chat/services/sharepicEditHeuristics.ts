@@ -174,6 +174,29 @@ export function sharepicEditAddressed(
   return context.cardOpen || context.lastTurnSharepic || namesSharepicTarget(order);
 }
 
+const USE_VERB =
+  /(?<!\p{L})(?:nimm|nehm\w*|verwend\w*|benutz\w*|nutz\w*|setz\w*|leg\w*|pack\w*|tausch\w*|austausch\w*|ersetz\w*|wechsel\w*)/iu;
+const STRONG_SWAP_VERB = /(?<!\p{L})(?:tausch\w*|austausch\w*|ersetz\w*|wechsel\w*)/iu;
+const SHAREPIC_WORD = /(?<!\p{L})share[\s-]?pic\w*/iu;
+// Ganzes Wort: „Bildung" und „Bildschirm" sind kein Foto.
+const PHOTO_WORD = /(?<!\p{L})(?:foto|bild)s?(?!\p{L})/iu;
+// Zeigt auf den Anhang: „dieses", „das hier", „das neue", „meins", „mein Foto".
+const ATTACHMENT_POINTER =
+  /(?<!\p{L})(?:dies\w*|das\s+hier|das\s+neue|meins?|mein\w*\s+(?:foto|bild))(?!\p{L})/iu;
+
+/**
+ * „Nimm dieses Foto fürs Sharepic" / „Tausch das Bild gegen dieses hier": mit einem
+ * Bild-Anhang ein Tauschauftrag, kein Auftrag ans Bild. Bewusst eng, weil ein
+ * Verb+Nomen-Paar allein „Setz das Bild auf meine Website" mitnähme:
+ * (a) der Auftrag nennt das Sharepic und ein Nutz-/Tausch-Verb, oder
+ * (b) ein Tausch-Verb, das Foto als ganzes Wort und ein Zeiger auf den Anhang.
+ * „Mach das Bild heller" bleibt Bildbearbeitung (kein Verb, kein Sharepic).
+ */
+export function swapsSharepicPhoto(order: string): boolean {
+  if (SHAREPIC_WORD.test(order) && USE_VERB.test(order)) return true;
+  return STRONG_SWAP_VERB.test(order) && PHOTO_WORD.test(order) && ATTACHMENT_POINTER.test(order);
+}
+
 // „mach"/„zeig"/„anderes"/„neues" sind die Verben, die ebenso gut etwas NEUES
 // bestellen oder zeigen lassen, und Text, Liste, Datum, Seite und Stichpunkte
 // sind die Nomen, die ebenso gut den Stoff meinen. Ein solches Paar allein ist

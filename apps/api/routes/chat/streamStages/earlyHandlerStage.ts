@@ -11,12 +11,17 @@
 
 import { parseSharepicChatProps } from '@gruenerator/contracts';
 
+import { hasTermin } from '../../../services/sharepicCreator/briefFacts.js';
+import { terminGapInstruction } from '../../../services/sharepicCreator/terminGap.js';
 import { createLogger } from '../../../utils/logger.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
+import { berichtFuerKi } from '../services/sharepicBericht.js';
 import {
+  asksForNewArtifact,
   isSharepicModeEdit,
   looksLikeSharepicOrder,
   sharepicEditAddressed,
+  swapsSharepicPhoto,
 } from '../services/sharepicEditHeuristics.js';
 import {
   handleSharepicEdit,
@@ -24,6 +29,7 @@ import {
   namesSharepicTarget,
   threadHasSharepic,
 } from '../services/sharepicEditService.js';
+import { fillsSharepicGap, stateHasSharepic } from '../services/sharepicGap.js';
 import {
   getLastSharepicVariant,
   getSharepicVariantInWindow,
@@ -82,9 +88,11 @@ export async function buildSharepicContextBlock(
   const prior = await creatorRevisionTarget(threadId, variantId);
   const props = prior ? parseSharepicChatProps(prior.props) : null;
   if (!props) return null;
+  const bericht = berichtFuerKi(props.bericht ?? []);
   return [
     'Aktives Sharepic (Sharepic-Modus) — Inhalt und Gestaltung der offenen Karte als Spec:',
     JSON.stringify(props.creatorSpec).slice(0, SHAREPIC_CONTEXT_MAX),
+    ...(bericht ? [bericht] : []),
     'In diesem Turn wurde daran nichts geändert.',
   ].join('\n');
 }
@@ -294,30 +302,40 @@ export async function runEarlyHandlerStage({
   // the one you just made" — regenerate seeded with the previous sharepic's
   // text, not a fresh sharepic about the word "verlängern". Overrides whatever
   // intent the classifier picked (the edit verb alone rarely classifies as
-  // sharepic). Skipped when an image is attached (that's image_edit territory).
+  // sharepic). Skipped when an image is attached (that's image_edit territory),
+  // except a photo swap onto the addressed sharepic (`photoSwap` below).
   // Creator sharepics already branch into this refinement from the edit branch
   // above; this block is reached when handleSharepicEdit declined: no target
   // variant, or a template with no descriptor (the narrow case).
   let sharepicRefinement: SharepicRefinement | undefined;
+  // Ein Bild-Anhang mit Tauschauftrag („Nimm dieses Foto fürs Sharepic") an die
+  // offene Karte oder das Sharepic im Turn davor ist KEINE Bildbearbeitung: die
+  // Revision bekommt das Foto (photosForTurn). Eine bloße Bildänderung („Mach das
+  // Bild heller") und `@bildbearbeiten` bleiben image_edit.
+  const photoSwap =
+    imageAttachments.length > 0 &&
+    !universalEditForced &&
+    (rawCurrentSharepic != null || lastTurnSharepic) &&
+    swapsSharepicPhoto(orderText(lastUserTextNoMentions));
   if (
     actualThreadId &&
     lastUserMessage &&
-    imageAttachments.length === 0 &&
-    classifiedState.intent !== 'image_edit' &&
-    !universalEditForced
+    !universalEditForced &&
+    (photoSwap || (imageAttachments.length === 0 && classifiedState.intent !== 'image_edit'))
   ) {
     const followText = lastUserTextNoMentions;
     const followOrder = orderText(followText);
     if (
-      isSharepicRefinement(followOrder) &&
-      orderMayMeanArtifact(followText, namesSharepicTarget) &&
-      // Derselbe Adressat wie oben: `getLastSharepicVariant` findet das Sharepic
-      // noch 30 Nachrichten später, und „Ist das im Wahlprogramm anders?" wurde
-      // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
-      sharepicEditAddressed(followOrder, {
-        cardOpen: rawCurrentSharepic != null,
-        lastTurnSharepic,
-      })
+      photoSwap ||
+      (isSharepicRefinement(followOrder) &&
+        orderMayMeanArtifact(followText, namesSharepicTarget) &&
+        // Derselbe Adressat wie oben: `getLastSharepicVariant` findet das Sharepic
+        // noch 30 Nachrichten später, und „Ist das im Wahlprogramm anders?" wurde
+        // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
+        sharepicEditAddressed(followOrder, {
+          cardOpen: rawCurrentSharepic != null,
+          lastTurnSharepic,
+        }))
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {
@@ -326,10 +344,38 @@ export async function runEarlyHandlerStage({
           prior,
         };
         classifiedState.intent = 'sharepic';
+        // Ein überstimmtes image_edit darf nicht als Zweitauftrag nachlaufen.
+        if (photoSwap && classifiedState.secondaryIntent === 'image_edit') {
+          classifiedState.secondaryIntent = null;
+        }
         forcedTool = true;
         log.info(
           `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
         );
+      }
+    } else if (
+      // Adressat wie bei der Regel oben: offene Karte oder Sharepic im Turn davor
+      // (`stateHasSharepic` allein nähme auch ein uraltes Artefakt). Frage und
+      // neuer Schreibauftrag („Schreib mir einen Post für Do.") sind keine Antwort.
+      (rawCurrentSharepic != null || lastTurnSharepic) &&
+      !followText.includes('?') &&
+      !asksForNewArtifact(followOrder) &&
+      // Billigste Prüfung zuerst: der Lesezugriff nur bei einem Turn mit Tag.
+      hasTermin(followOrder) &&
+      stateHasSharepic(classifiedState)
+    ) {
+      // Die Antwort auf eine gemeldete Lücke („Do., 20.11., 18 Uhr, Kreisbüro"
+      // nach „Termin ausgelassen") trägt weder Verb noch Nomen, also greift
+      // keine Regel oben.
+      const prior = await getLastSharepicVariant(actualThreadId);
+      if (
+        prior &&
+        fillsSharepicGap(parseSharepicChatProps(prior.props)?.bericht ?? null, followOrder)
+      ) {
+        sharepicRefinement = { instruction: terminGapInstruction(followText), prior };
+        classifiedState.intent = 'sharepic';
+        forcedTool = true;
+        log.info(`[ChatGraph] Sharepic gap filled: "${followText}"`);
       }
     }
   }

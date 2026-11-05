@@ -34,7 +34,7 @@ import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
 import { clientToolResumeRejection } from './agenticLoop/clientToolRegistry.js';
 import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
-import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
+import { sharepicTurnText } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from './contextPruningService.js';
 import { imageVisibility } from './imageVisibility.js';
@@ -292,7 +292,11 @@ export async function runChatGraphResume({
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const { finalState: resumedFinalState, sharepicVariants } = await executeIntentPipeline({
+      const {
+        finalState: resumedFinalState,
+        sharepicVariants,
+        sharepicFailure,
+      } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -300,10 +304,7 @@ export async function runChatGraphResume({
         imageAttachments: requestContext.imageAttachments ?? [],
       });
 
-      const fullText =
-        sharepicVariants.length > 0
-          ? buildSharepicConfirmation(sharepicVariants)
-          : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+      const fullText = sharepicTurnText(sharepicVariants, false, sharepicFailure);
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 

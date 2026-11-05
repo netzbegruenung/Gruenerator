@@ -1,4 +1,9 @@
-import { isSharepicUploadId, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  isSharepicUploadId,
+  type SharepicBerichtEintrag,
+  type SharepicOwnPhoto,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 
 import { type CutOutPainter } from './cutOut.js';
 import { type IllustrationPainter } from './illustrations.js';
@@ -68,14 +73,24 @@ export async function cutOutBilder(
   spec: SharepicSpec,
   painter: CutOutPainter | undefined,
   /** quelle → the cut-out a Vorlage shipped with it. */
-  shipped: ReadonlyMap<string, string> = new Map()
-): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+  shipped: ReadonlyMap<string, string> = new Map(),
+  /** The person's own photos; an `upload:N` is read through the `url` it carries. */
+  ownPhotos: readonly SharepicOwnPhoto[] = []
+): Promise<{
+  spec: SharepicSpec;
+  hinweis: string | null;
+  /** Report entries for the person's own photos; stock photos leave none. */
+  fotoEintraege: SharepicBerichtEintrag[];
+}> {
   let failed = false;
+  const fotoEintraege: SharepicBerichtEintrag[] = [];
   const pending = new Map<string, ReturnType<CutOutPainter>>();
   const cutOut = (quelle: string): ReturnType<CutOutPainter> => {
     let job = pending.get(quelle);
     if (!job) {
-      job = painter ? painter(quelle) : Promise.resolve(null);
+      job = painter
+        ? painter(quelle, ...(isSharepicUploadId(quelle) ? [ownPhotos] : []))
+        : Promise.resolve(null);
       pending.set(quelle, job);
     }
     return job;
@@ -90,17 +105,42 @@ export async function cutOutBilder(
           if (item.ausschnitt !== 'freigestellt') return rest;
           const kept = shipped.get(item.quelle);
           if (kept) return { ...rest, freisteller: kept };
-          // An own photo is never cut out: on a steckbrief it keeps its background.
-          if (isSharepicUploadId(item.quelle)) return rest;
-          if (!painter) return item;
+          if (!painter) {
+            // An own photo never vanishes silently from the report.
+            if (isSharepicUploadId(item.quelle)) {
+              fotoEintraege.push({
+                art: 'foto',
+                id: item.quelle,
+                status: 'ungeschnitten',
+                grund: CUT_OUT_FAILED_HINWEIS,
+              });
+            }
+            return item;
+          }
           const ref = await cutOut(item.quelle);
           if (!ref) failed = true;
+          if (isSharepicUploadId(item.quelle)) {
+            fotoEintraege.push(
+              ref
+                ? { art: 'foto', id: item.quelle, status: 'freigestellt' }
+                : {
+                    art: 'foto',
+                    id: item.quelle,
+                    status: 'ungeschnitten',
+                    grund: CUT_OUT_FAILED_HINWEIS,
+                  }
+            );
+          }
           return ref ? { ...rest, freisteller: ref } : rest;
         })
       ),
     }))
   );
-  return { spec: { ...spec, slides }, hinweis: failed ? CUT_OUT_FAILED_HINWEIS : null };
+  return {
+    spec: { ...spec, slides },
+    hinweis: failed ? CUT_OUT_FAILED_HINWEIS : null,
+    fotoEintraege,
+  };
 }
 
 export interface SharepicPainters {

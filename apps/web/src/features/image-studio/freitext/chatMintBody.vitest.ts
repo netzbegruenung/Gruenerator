@@ -54,7 +54,7 @@ describe('chatMintBody', () => {
         attributions: [null],
       },
     });
-    expect(composeCreatorSharepic).toHaveBeenCalledWith(shown, [null]);
+    expect(composeCreatorSharepic).toHaveBeenCalledWith(shown, [null], expect.any(Function));
     const [source] = sourcesOf(body);
     expect(source!.slide).toEqual(base);
     expect(source!.tweaks).toEqual({ farbe: 'mint' });

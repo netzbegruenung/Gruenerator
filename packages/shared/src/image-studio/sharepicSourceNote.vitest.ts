@@ -27,6 +27,23 @@ const own: Slide = {
 };
 
 describe('sharepicSourceNote', () => {
+  // #5349: a photo placed as a `bild` on a colour is still a photo.
+  const onColour = (quelle: string): Slide => ({
+    ...color,
+    items: [{ type: 'bild', quelle, ausschnitt: 'freigestellt', filter: 'original' }],
+  });
+
+  it('counts an own photo placed as a cut-out on a colour slide', () => {
+    const note = sharepicSourceNote([onColour('upload:1')], [null]);
+    expect(note).toContain('Bilder: Eigenes Foto – kein KI-Bild.');
+    expect(note).not.toContain('Farbfläche');
+  });
+
+  it('counts a stock photo placed as a bild on a colour slide and credits it', () => {
+    const note = sharepicSourceNote([onColour('b.jpg'), color], [credit('Ada Muster'), null]);
+    expect(note).toContain('Folie 1 Stockfoto von Ada Muster auf Unsplash, Folie 2 Farbfläche');
+  });
+
   it('calls an own photo an own photo — no photographer, no Unsplash — and says it is no AI image', () => {
     const note = sharepicSourceNote([own], [null]);
     expect(note).toContain('Bilder: Eigenes Foto – kein KI-Bild.');

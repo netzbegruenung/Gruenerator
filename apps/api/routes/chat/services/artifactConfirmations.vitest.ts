@@ -2,6 +2,13 @@ import { type SharepicSpec, type SharepicVariant } from '@gruenerator/contracts'
 import { describe, it, expect } from 'vitest';
 
 import {
+  DRAFT_LIMIT_TEXTS,
+  DraftFailedError,
+} from '../../../services/sharepicCreator/draftFailure.js';
+
+import { materialAsk } from '../../../services/sharepicCreator/forms.js';
+
+import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildSharepicConfirmation,
   isArtifactConfirmation,
@@ -97,6 +104,48 @@ describe('isArtifactConfirmation', () => {
 });
 
 describe('confirmation builders', () => {
+  it('tells the person what the report says, and says the scene notice only once', () => {
+    const text = buildSharepicConfirmation(
+      creator(1, { bericht: [{ art: 'fehlt', fakt: 'termin' }] })
+    );
+    expect(text).toContain('Den Termin habe ich weggelassen');
+    expect(isArtifactConfirmation(text)).toBe(true);
+    const both = buildSharepicConfirmation([
+      {
+        ...creator(1, {
+          bericht: [{ art: 'gestaltung', text: 'Den Hintergrund konnte ich nicht malen lassen.' }],
+        })[0],
+        notice: 'x',
+      },
+    ]);
+    expect(both.match(/Hintergrund konnte ich nicht malen/g)).toHaveLength(1);
+  });
+
+  it('keeps the old notice sentence only for variants without a report', () => {
+    const withNotice = (extra: Record<string, unknown>) => [
+      { ...creator(1, extra)[0], notice: 'x' },
+    ];
+    expect(
+      buildSharepicConfirmation(withNotice({})).match(/Hintergrund konnte ich nicht malen/g)
+    ).toHaveLength(1);
+    const palette = buildSharepicConfirmation(
+      withNotice({ bericht: [{ art: 'gestaltung', text: 'Die Farben stammen aus der Palette.' }] })
+    );
+    expect(palette).toContain('Die Farben stammen aus der Palette.');
+    expect(palette).not.toContain('Hintergrund konnte ich nicht malen');
+  });
+
+  it('tells the person what a revision dropped', () => {
+    const text = buildSharepicConfirmation(
+      creator(1, {
+        revisionOf: 'old',
+        bericht: [{ art: 'foto', id: 'upload:1', status: 'nicht_verwendet', grund: 'zu klein' }],
+      })
+    );
+    expect(text).toContain('Dein Foto habe ich nicht verwendet: zu klein.');
+    expect(isArtifactConfirmation(text)).toBe(true);
+  });
+
   it('pluralises the variant count', () => {
     expect(buildSharepicConfirmation(legacy(1))).toContain('1 Sharepic-Variante');
     expect(buildSharepicConfirmation(legacy(3))).toContain('3 Sharepic-Varianten');
@@ -124,19 +173,69 @@ describe('confirmation builders', () => {
   });
 
   it('names the limit a failed draft kept breaking, and stays recognisable', () => {
-    const text = sharepicTurnText([], true, 'headline_line_too_long');
+    const text = sharepicTurnText([], true, new DraftFailedError('Headline-Zeile zu lang: abc'));
     expect(text).toMatch(/^Die Überarbeitung hat leider nicht geklappt\./);
     expect(text).toContain('höchstens 24 Zeichen');
     expect(text).not.toContain('Formuliere die Änderung');
     expect(isArtifactConfirmation(text)).toBe(true);
-    expect(isArtifactConfirmation(sharepicTurnText([], false, 'headline_line_too_long'))).toBe(
-      true
-    );
+    expect(
+      isArtifactConfirmation(
+        sharepicTurnText([], false, new DraftFailedError('Headline-Zeile zu lang: abc'))
+      )
+    ).toBe(true);
   });
 });
 
 describe('sharepicTurnText — unveränderte Überarbeitung', () => {
   it('sagt ehrlich, dass sich nichts geändert hat', () => {
     expect(sharepicTurnText([], true, 'unchanged')).toContain('unverändert');
+  });
+});
+
+describe('sharepicTurnText — Ursache des Entwurfs', () => {
+  it('names the form and what it needs', () => {
+    const text = sharepicTurnText(
+      [],
+      false,
+      new DraftFailedError('x', {
+        kind: 'material',
+        form: 'diagramm',
+        ask: 'mindestens zwei Zahlen',
+      })
+    );
+    expect(text).toContain('Diagramm');
+    expect(text).toContain('mindestens zwei Zahlen');
+    expect(text).not.toContain('anderen Thema');
+  });
+
+  it('provider outage is not the request', () => {
+    expect(sharepicTurnText([], false, new DraftFailedError('x', { kind: 'provider' }))).toContain(
+      'nicht erreichbar'
+    );
+  });
+
+  it('limit reason still wins', () => {
+    const text = sharepicTurnText([], false, new DraftFailedError('Headline-Zeile zu lang: abc'));
+    expect(text).toContain(DRAFT_LIMIT_TEXTS.headline_line_too_long);
+  });
+
+  it('generic fallback never blames the topic', () => {
+    expect(sharepicTurnText([], false, null)).not.toContain('Thema');
+    expect(isArtifactConfirmation(ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed)).toBe(true);
+  });
+
+  it('still recognises the longest material and form failure sentences', () => {
+    for (const form of ['diagramm', 'rechnung', 'termine', 'zitat', 'interview'] as const) {
+      const ask = materialAsk(form);
+      expect(ask, form).not.toBeNull();
+      const error = new DraftFailedError('x', { kind: 'material', form, ask: ask! });
+      const formError = new DraftFailedError('x', { kind: 'form', form, ask: ask! });
+      for (const revision of [true, false]) {
+        for (const e of [error, formError]) {
+          const text = sharepicTurnText([], revision, e);
+          expect(isArtifactConfirmation(text), form).toBe(true);
+        }
+      }
+    }
   });
 });

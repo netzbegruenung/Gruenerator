@@ -34,6 +34,20 @@ export function draftFailureReason(error: string): SharepicDraftFailureReason | 
   return null;
 }
 
+/** An error text without what varies between attempts: slide numbers, digits, quoted contents. */
+function failureShape(error: string): string {
+  return error
+    .replace(/Slide \d+: /g, '')
+    .replace(/slides\.\d+\./g, '')
+    .replace(/„[^“”"]*[“”"]|"[^"]*"|“[^“”]*”/g, '')
+    .replace(/\d+/g, '');
+}
+
+/** Two attempts failed alike: a third on another model would repeat the mistake. */
+export function sameFailure(a: string, b: string): boolean {
+  return failureShape(a) === failureShape(b);
+}
+
 /**
  * Why the last attempt failed. Only `content` is the request's doing; the
  * others must not send the person off to rephrase a request that was fine.
