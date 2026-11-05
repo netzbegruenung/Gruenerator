@@ -77,7 +77,6 @@ import {
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
-import { isToolScopeEnforced } from './flags.js';
 import {
   forcedFirstStepTools,
   isMcpCapabilityQuestion,
@@ -1215,7 +1214,7 @@ export async function streamAgenticResponse(
     answerReplaced,
     mcpMountMs,
     toolScope: toolScope && {
-      enforced: isToolScopeEnforced(),
+      enforced: toolScope.enforced,
       deferred: toolScope.deferredToolNames().length,
       misses: toolScope.misses(steps.map((s) => s.toolName)),
     },

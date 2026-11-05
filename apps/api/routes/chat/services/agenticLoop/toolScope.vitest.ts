@@ -315,3 +315,15 @@ describe('createToolScope — Parlaments-Gruppe', () => {
     expect(active === undefined || FOLGE.every((t) => active.includes(t))).toBe(true);
   });
 });
+
+describe('createToolScope — enforced', () => {
+  it('reports whether it really defers, so the turn line logs the mode it ran', () => {
+    const text = 'Schreib eine Pressemitteilung zum Radentscheid';
+    expect(createToolScope({ toolNames: MOUNTED, userText: text, enforce: true }).enforced).toBe(
+      true
+    );
+    expect(createToolScope({ toolNames: MOUNTED, userText: text, enforce: false }).enforced).toBe(
+      false
+    );
+  });
+});
