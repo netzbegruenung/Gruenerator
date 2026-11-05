@@ -83,6 +83,7 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
   'scrape_url',
 ]);
 

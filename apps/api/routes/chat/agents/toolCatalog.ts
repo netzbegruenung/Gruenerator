@@ -169,6 +169,7 @@ const CATALOG_TOOLS = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
 ]);
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
@@ -196,6 +197,7 @@ const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
   gruenerator_search: ['search'],
   gruenerator_examples_search: ['examples'],
   gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+  gruenerator_wahlpruefstein_examples: ['examples'],
 };
 
 /**
