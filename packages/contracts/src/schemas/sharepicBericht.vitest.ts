@@ -62,3 +62,22 @@ describe('the sharepic Bericht', () => {
     ).toBe(true);
   });
 });
+
+describe('sharepicChatPropsSchema photos', () => {
+  const url = '/api/share/abcdefghijklmnop1234/download';
+  it('accepts id and library url, optional', () => {
+    const base = { creatorSpec: spec, attributions: [] };
+    expect(
+      sharepicChatPropsSchema.safeParse({ ...base, photos: [{ id: 'upload:1', url }] }).success
+    ).toBe(true);
+    expect(
+      sharepicChatPropsSchema.safeParse({ ...base, photos: [{ id: 'foto', url }] }).success
+    ).toBe(false);
+    expect(
+      sharepicChatPropsSchema.safeParse({
+        ...base,
+        photos: [{ id: 'upload:1', url: 'https://x/y' }],
+      }).success
+    ).toBe(false);
+  });
+});

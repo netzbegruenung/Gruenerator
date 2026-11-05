@@ -31,6 +31,7 @@ import {
   firstSlideText,
   reviseCreatorSharepic,
 } from '../sharepicCreatorVariant.js';
+import { photosForTurn } from '../sharepicTurnPhotos.js';
 import {
   getLastSharepicVariant,
   type PriorSharepic,
@@ -189,11 +190,14 @@ export async function runSharepicGeneration(opts: {
 
     let variant: SharepicVariant;
     if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
+      const { photos, bericht } = await photosForTurn(state, refinement.prior.props);
       variant = await reviseCreatorSharepic({
         instruction: refinement.instruction,
         prior: refinement.prior,
         spec: priorCreatorSpec,
         userId: state.agentConfig?.userId ?? null,
+        photos,
+        photoBericht: bericht,
       });
       const revised = parseSharepicChatProps(variant.initialProps)?.creatorSpec;
       if (revised && isDeepStrictEqual(revised, priorCreatorSpec)) {
@@ -227,6 +231,8 @@ export async function runSharepicGeneration(opts: {
         ? (avoid.brand ?? null)
         : (requestedBrand(ownWords) ??
           (grueneJugendRoleLocale(state.activeRole) ? 'gruene-jugend' : null));
+      // „Eine andere Variante“ keeps the photos of the draft it replaces.
+      const { photos, bericht } = await photosForTurn(state, prior?.props ?? null);
       variant = await createCreatorSharepic({
         brief,
         background,
@@ -238,6 +244,8 @@ export async function runSharepicGeneration(opts: {
         // "Eine andere Variante" of a carousel may stay one.
         oneSlide: wantsOneSlide(ownWords, form) && !(avoid && avoid.slides.length > 1),
         vorlage,
+        photos,
+        photoBericht: bericht,
       });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });

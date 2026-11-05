@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { sharepicBrandSchema, sharepicCreatorLocaleSchema } from './enums.js';
 import { sharepicFormSchema } from './forms.js';
 import { sharepicPatchOpSchema } from './patch.js';
-import { sharepicOwnPhotoSchema } from './photos.js';
+import { sharepicOwnPhotoSchema, sharepicPhotoUrlSchema } from './photos.js';
 import { SHAREPIC_UPLOAD_ID, SHAREPIC_UPLOAD_MAX } from './refs.js';
 import { sharepicPhotoAttributionSchema, sharepicTweakChoiceSchema } from './source.js';
 import { sharepicSpecSchema } from './spec.js';
@@ -135,6 +135,11 @@ export const sharepicChatPropsSchema = z.object({
   creatorTweaks: sharepicTweakChoiceSchema.optional(),
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
   bericht: z.array(sharepicBerichtEintragSchema).max(20).optional(),
+  /** The chat's own photos (id → durable library URL); the analysis is recomputed server-side. */
+  photos: z
+    .array(z.object({ id: z.string().regex(SHAREPIC_UPLOAD_ID), url: sharepicPhotoUrlSchema }))
+    .max(SHAREPIC_UPLOAD_MAX)
+    .optional(),
   slide: z.number().int().min(0).optional(),
   revisionOf: z.string().optional(),
   editorChangesDropped: z.literal(true).optional(),

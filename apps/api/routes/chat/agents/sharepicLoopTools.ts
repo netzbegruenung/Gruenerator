@@ -23,6 +23,7 @@ import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.j
 import { berichtFuerKi } from '../services/sharepicBericht.js';
 import { reviseCreatorSharepic } from '../services/sharepicCreatorVariant.js';
 import { resolveLoopSharepicTarget } from '../services/sharepicLoopTarget.js';
+import { photosForTurn } from '../services/sharepicTurnPhotos.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
@@ -147,11 +148,14 @@ Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im 
       drafts += 1;
       sse.send('image_start', { message: 'Überarbeite dein Sharepic…' });
       try {
+        const { photos, bericht: photoBericht } = await photosForTurn(state, target.prior.props);
         const variant = await reviseCreatorSharepic({
           instruction: anweisung,
           prior: target.prior,
           spec,
           userId: state.agentConfig?.userId ?? null,
+          photos,
+          photoBericht,
         });
         // The loop wrote this call off (timeout) and told the model it failed —
         // a late card would change the sharepic behind that answer.

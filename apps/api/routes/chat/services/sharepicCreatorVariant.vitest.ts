@@ -80,6 +80,7 @@ describe('toCreatorVariant', () => {
       attributions: [null],
     });
     const v = await createCreatorSharepic({
+      photos: [],
       brand: 'gruene-jugend',
       brief: 'Mieten',
       background: null,
@@ -162,6 +163,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
   it('drafts fresh in the requested locale', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_AT, chapters: [], attributions: [null] });
     const v = await createCreatorSharepic({
+      photos: [],
       brand: null,
       brief: 'Öffis',
       background: null,
@@ -197,6 +199,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       alternativen: ['karussell', 'infografik'],
     });
     const v = await createCreatorSharepic({
+      photos: [],
       brand: null,
       brief: 'Öffis',
       background: null,
@@ -213,6 +216,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: null };
     const v = await reviseCreatorSharepic({
+      photos: [],
       instruction: 'Headline kürzer',
       prior,
       spec: SPEC_DE,
@@ -227,6 +231,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: 'c1' };
     const v = await reviseCreatorSharepic({
+      photos: [],
       instruction: 'Headline kürzer',
       prior,
       spec: SPEC_DE,
@@ -240,6 +245,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
   it("fills the Vorlage's spec in its form instead of drafting freely", async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_CAROUSEL, chapters: [], attributions: [] });
     await createCreatorSharepic({
+      photos: [],
       brand: null,
       brief: 'Busse auf dem Land',
       background: null,
@@ -266,6 +272,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
   const fill = async (vorlage: SharepicSpec, drafted: SharepicSpec) => {
     draftSharepic.mockResolvedValue({ spec: drafted, chapters: [], attributions: [] });
     const v = await createCreatorSharepic({
+      photos: [],
       brand: null,
       brief: 'Gedenken',
       background: null,
@@ -290,5 +297,61 @@ describe('createCreatorSharepic with a Vorlage', () => {
     expect((await fill(SPEC_DE, SPEC_DE)).thema).toBeUndefined();
     const own = await fill({ ...SPEC_DE, thema: 'europa' }, { ...SPEC_DE, thema: 'frauen' });
     expect(own.thema).toBe('frauen');
+  });
+});
+
+describe('photos', () => {
+  const PHOTO = {
+    id: 'upload:1',
+    url: '/api/share/abcdefghijklmnop1234/download',
+    analysis: {
+      motiv: 'Eine Straße',
+      personen: 0,
+      ruhigeSeite: 'oben' as const,
+      hell: true,
+      eignung: 'vollflaeche' as const,
+      stichworte: [],
+      analysiert: true,
+    },
+  };
+
+  it('hands the photos to the draft and writes id and url into the props', async () => {
+    draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
+    const v = await createCreatorSharepic({
+      photos: [PHOTO],
+      photoBericht: [{ art: 'gestaltung', text: 'Ein Foto war zu groß.' }],
+      brief: 'Mieten',
+      background: null,
+      avoid: null,
+      locale: 'de-DE',
+      brand: null,
+      userId: null,
+      form: null,
+      oneSlide: false,
+    });
+    expect(draftSharepic.mock.calls.at(-1)?.[3]).toEqual([PHOTO]);
+    const props = parseSharepicChatProps(v.initialProps);
+    expect(props?.photos).toEqual([{ id: 'upload:1', url: PHOTO.url }]);
+    expect(props?.bericht).toEqual([{ art: 'gestaltung', text: 'Ein Foto war zu groß.' }]);
+  });
+
+  it('writes no photos field without photos', () => {
+    const v = toCreatorVariant(
+      { spec: SPEC_DE, chapters: [], attributions: [null] },
+      { revisionOf: null, editorChangesDropped: false, photos: [] }
+    );
+    expect(v.initialProps).not.toHaveProperty('photos');
+  });
+
+  it('revises with the photos', async () => {
+    draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
+    await reviseCreatorSharepic({
+      photos: [PHOTO],
+      instruction: 'kürzer',
+      prior: { variantId: 'v1', canvasType: 'freeform', props: {}, canvasId: null },
+      spec: SPEC_DE,
+      userId: null,
+    });
+    expect(draftSharepic.mock.calls.at(-1)?.[3]).toEqual([PHOTO]);
   });
 });

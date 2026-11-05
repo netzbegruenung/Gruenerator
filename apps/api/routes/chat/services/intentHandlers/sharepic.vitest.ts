@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   revise: vi.fn(),
   last: vi.fn(),
   vorlage: vi.fn(),
+  photosForTurn: vi.fn(),
 }));
 
 vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
@@ -23,6 +24,7 @@ vi.mock('../sharepicVariantHelpers.js', async (importOriginal) => ({
 vi.mock('../../../../services/sharepicVorlagen/catalog.js', () => ({
   getSharepicVorlage: mocks.vorlage,
 }));
+vi.mock('../sharepicTurnPhotos.js', () => ({ photosForTurn: mocks.photosForTurn }));
 vi.mock('../threadPersistenceService.js', () => ({
   getRecentThreadSources: () => Promise.resolve([]),
 }));
@@ -95,6 +97,7 @@ function run(text: string, refinement?: { instruction: string; prior: PriorShare
 describe('runSharepicGeneration', () => {
   beforeEach(() => {
     for (const m of Object.values(mocks)) m.mockReset();
+    mocks.photosForTurn.mockResolvedValue({ photos: [], bericht: [] });
     mocks.create.mockResolvedValue(DRAFT);
     mocks.revise.mockResolvedValue(DRAFT);
   });
@@ -134,6 +137,8 @@ describe('runSharepicGeneration', () => {
       prior: CREATOR_PRIOR,
       spec: SPEC,
       userId: null,
+      photos: [],
+      photoBericht: [],
     });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith('sharepic_complete', {
@@ -309,6 +314,7 @@ describe('runSharepicGeneration with a picked Vorlage', () => {
 
   beforeEach(() => {
     for (const m of Object.values(mocks)) m.mockReset();
+    mocks.photosForTurn.mockResolvedValue({ photos: [], bericht: [] });
     mocks.create.mockResolvedValue(DRAFT);
     mocks.vorlage.mockImplementation((id: string) => (id === VORLAGE.id ? VORLAGE : null));
   });
@@ -374,5 +380,31 @@ describe('legacySharepicText', () => {
     );
     expect(legacySharepicText({})).toBe('');
     expect(legacySharepicText(undefined)).toBe('');
+  });
+
+  describe('own photos', () => {
+    const PHOTO = {
+      id: 'upload:1',
+      url: '/api/share/abcdefghijklmnop1234/download',
+      analysis: {} as never,
+    };
+    const NOTE = { art: 'gestaltung', text: 'Ein Foto war zu groß.' } as const;
+
+    it('hands the turn’s photos and their report to a fresh draft', async () => {
+      mocks.photosForTurn.mockResolvedValue({ photos: [PHOTO], bericht: [NOTE] });
+      await run('Sharepic zu Bussen').done;
+      expect(mocks.photosForTurn).toHaveBeenCalledWith(expect.anything(), null);
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({ photos: [PHOTO], photoBericht: [NOTE] })
+      );
+    });
+
+    it('carries the revised variant’s photos into the revision', async () => {
+      mocks.photosForTurn.mockResolvedValue({ photos: [PHOTO], bericht: [] });
+      mocks.revise.mockResolvedValue(REVISED);
+      await run('kürzer', { instruction: 'kürzer', prior: CREATOR_PRIOR }).done;
+      expect(mocks.photosForTurn).toHaveBeenCalledWith(expect.anything(), CREATOR_PRIOR.props);
+      expect(mocks.revise).toHaveBeenCalledWith(expect.objectContaining({ photos: [PHOTO] }));
+    });
   });
 });
