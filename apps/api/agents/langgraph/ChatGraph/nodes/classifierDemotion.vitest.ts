@@ -462,6 +462,17 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).toBe('search');
   });
 
+  it.each([
+    'Schreib mir ein kurzes Gedicht über Fahrräder im Herbst',
+    'kürzer',
+    'Danke dir für die Hilfe',
+  ])('flag off: Prosa „%s" bleibt ein Prosa-Verdikt, nie agentic/search', async (userMessage) => {
+    process.env.CHAT_AGENT_LOOP = 'false';
+    const result = await classifierNode(buildState({ userMessage }));
+    expect(result.intent).not.toBe('agentic');
+    expect(result.intent).not.toBe('search');
+  });
+
   it('flag off: ein abruf-förmiger Prosa-Turn degradiert über den Entscheider', async () => {
     // Die andere Tür. Ohne Schleife blieb ein toolbares `direct` bis zum
     // Residual liegen und wurde dort `produktion` — eine Nachrichtenfrage, aus

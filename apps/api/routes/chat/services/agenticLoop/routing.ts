@@ -1063,6 +1063,7 @@ export type SinglePassReason =
   | 'pipeline_agent'
   | 'accepted_offer'
   | 'reworks_own_material'
+  // Editor-Flächen entscheiden früher in `decideTurnPlan`; das Flag wird heute nie gesetzt.
   | 'editor_surface';
 
 /** Alles, was einen Turn UNABHÄNGIG vom Intent in die Schleife hebt. */
@@ -1120,6 +1121,7 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
   ) {
     return 'reworks_own_material';
   }
+  // Nie gesetzt: Editor-Flächen kurzschliessen früher in `decideTurnPlan`.
   if (p.editorSurfaceHeldBack === true) return 'editor_surface';
   return null;
 }

@@ -161,10 +161,10 @@ describe('context window', () => {
       )
     );
 
-    // „Und nun?" geht seit dem Loop-Standard in den Loop (keine Wortzahl-Ausnahme
-    // mehr), und der Loop beschneidet nicht gegen das aufgelöste Modellfenster.
-    // Der Einzeldurchlauf, den dieser Test braucht, entsteht über einen Zustand:
-    // ausgeschaltete Schleife (`loop_disabled`).
+    // „Und nun?" geht seit dem Loop-Standard in den Loop. Der Loop beschneidet
+    // ebenfalls (`responseAgentic.ts`, gegen `turnContextWindow(modelId)`), aber
+    // die Fenster-Attrappe dieses Harness (`respond.resolution`) treibt nur den
+    // Einzeldurchlauf. Den erzeugt ein Zustand: ausgeschaltete Schleife.
     pinChatEnv({ CHAT_AGENT_LOOP: 'false' });
     respond.resolution = { contextWindow: 128_000 };
     const wide = await runTurn(suite.baseUrl(), {

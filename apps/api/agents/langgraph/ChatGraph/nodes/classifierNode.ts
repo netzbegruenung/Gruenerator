@@ -345,6 +345,16 @@ function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boo
   );
 }
 
+/**
+ * Das eine Tor, durch das ein Prosa-Verdikt (ausser dem Gruss) zu `agentic`
+ * wird. Ist die Schleife aus, bleibt das Prosa-Verdikt stehen: `agentic` hat
+ * keinen Einzeldurchlauf, der Entscheider fienge es mit `agentic_to_search` ab,
+ * und ein Gedicht liefe als Suche.
+ */
+function proseGoesToLoop(intent: string): boolean {
+  return NO_RETRIEVAL_VERDICTS.has(intent) && intent !== 'greeting' && isAgenticLoopEnabled();
+}
+
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
   // „suche im web danach" nennt eine andere Quelle — kein Anschluss ans Notebook.
   if (EXPLICIT_WEB_SEARCH_PATTERN.test(text)) return false;
@@ -2148,7 +2158,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
-      if (NO_RETRIEVAL_VERDICTS.has(result.intent) && result.intent !== 'greeting') {
+      if (proseGoesToLoop(result.intent)) {
         recordDecision('classifier.tier', 'tier3_short_message_to_loop', {
           inputs: { heuristicIntent: result.intent },
         });
@@ -2399,7 +2409,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Was einen Turn im Einzeldurchlauf hält, steht im Router (`keepsSinglePass`).
     const demotable =
       (isAgenticLoopEnabled() && DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent)) ||
-      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting');
+      proseGoesToLoop(heuristic.intent) ||
+      // Schleife aus: wie bisher nur der abruf-förmige Turn (→ `search` im Auffang).
+      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && looksLikeToolableQuestion(userContent));
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
@@ -2467,7 +2479,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     ) {
       const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
-        const resolvedIntent = generation === 'keine' ? 'agentic' : generation.intent;
+        const resolvedIntent =
+          generation === 'keine'
+            ? isAgenticLoopEnabled()
+              ? 'agentic'
+              : 'produktion'
+            : generation.intent;
         // „Da fehlt noch Marburg in der Tabelle": kein Erstell-Imperativ, die
         // Tabelle gibt es schon — das Modell las nur das Nomen und baute live
         // (11.10.2026) eine zweite. Der Loop hat edit_sheet & Co.
@@ -2526,9 +2543,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // `keepsSinglePass` is the only place that keeps a turn out. Anything else
     // the table produced (a low-confidence artifact or gated verdict) stands — it found SOMETHING, just not confidently, and the
     // router's licence and negative-action gates are what check it.
-    const residualIntent: SearchIntent =
-      NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
-        ? 'agentic'
+    const residualIntent: SearchIntent = proseGoesToLoop(heuristic.intent)
+      ? 'agentic'
+      : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
+        ? 'produktion'
         : heuristic.intent;
     const classificationTimeMs = Date.now() - startTime;
     log.info(
