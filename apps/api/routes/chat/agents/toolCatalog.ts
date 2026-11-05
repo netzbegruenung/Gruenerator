@@ -88,6 +88,7 @@ import {
   makeCreatePdfTool,
   makeCreateSharepicTool,
   makeDocsSearchTool,
+  makeEditImageTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
@@ -1278,7 +1279,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
-    // so it stays intent-scoped (and gated). image_edit stays single-pass.
+    // so it stays intent-scoped (and gated). Editing it is `edit_image` below.
     // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
     // (IMAGE_REQUEST_PATTERN) — image phrasings the confident heuristic misses
     // land there; idempotency + forceFinish cap quota at one image per turn.
@@ -1291,6 +1292,20 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
+    }
+    // Das zuletzt erzeugte Bild verändern. Montiert, solange das letzte Artefakt
+    // des Threads ein Bild ist — ob ein Turn es meint, entscheidet der Planer,
+    // nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die grafik noch
+    // einmal an" ohne Werkzeug → erfundene Anpassung). Ein ANGEHÄNGTES Foto
+    // bleibt beim Einzeldurchlauf-`image_edit`; hier hätte das Werkzeug das
+    // falsche Bild genommen.
+    if (
+      !editorSurface &&
+      state.lastToolContext?.kind === 'image' &&
+      (state.imageAttachments?.length ?? 0) === 0 &&
+      state.enabledTools?.['image_edit'] !== false
+    ) {
+      tools.edit_image = makeEditImageTool({ sse, state, threadId: loop.threadId ?? null });
     }
     // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
     // generation KIND the router derived (from intent OR — for a demoted

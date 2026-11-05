@@ -19,6 +19,8 @@ const KIND_BY_TOOL: Readonly<Record<string, EditableArtifactKind>> = {
   create_explainable: 'explainable',
   edit_explainable: 'explainable',
   edit_document_text: 'document',
+  generate_image: 'image',
+  edit_image: 'image',
 };
 
 const KIND_BY_SURFACE: Readonly<Record<string, EditableArtifactKind>> = {
@@ -41,9 +43,11 @@ function changedSomething(step: PersistedStep): boolean {
 
 export function editedArtifactKinds(
   steps: readonly PersistedStep[],
-  state: Pick<ChatGraphState, 'editToolSurface'>
+  state: Pick<ChatGraphState, 'editToolSurface'> & Partial<Pick<ChatGraphState, 'generatedImage'>>
 ): Set<EditableArtifactKind> {
   const kinds = new Set<EditableArtifactKind>();
+  // Der Einzeldurchlauf (`image`/`image_edit`) schreibt keinen Schritt, nur das Bild.
+  if (state.generatedImage) kinds.add('image');
   for (const step of steps) {
     if (!changedSomething(step)) continue;
     const direct = KIND_BY_TOOL[step.toolName];
@@ -73,7 +77,8 @@ export function guardedArtifactKinds(
       a.kind === 'presentation' ||
       a.kind === 'document' ||
       a.kind === 'board' ||
-      a.kind === 'explainable'
+      a.kind === 'explainable' ||
+      a.kind === 'image'
     ) {
       kinds.add(a.kind);
     }

@@ -29,6 +29,7 @@ const CREATION_TOOL_NAMES = new Set([
   'sharepic',
   'generate_image',
   'image_edit',
+  'edit_image',
   'create_presentation',
   'create_sheet',
   'create_document',

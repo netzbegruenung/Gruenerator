@@ -128,6 +128,8 @@ export const DECISION_POINTS = {
       'tier2.9_docs_help',
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
+      // Kurznachricht nach einem erzeugten Bild → Loop mit `edit_image`.
+      'tier3_short_message_after_image',
       'tier3_heuristic',
       'tier3.4_chat_recall',
       'tier3.4_recurring_order',

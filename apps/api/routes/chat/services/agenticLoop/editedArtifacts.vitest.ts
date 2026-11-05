@@ -35,6 +35,17 @@ describe('editedArtifactKinds', () => {
     expect(kinds.size).toBe(0);
   });
 
+  it('counts an image from the loop tools or from the single-pass state', () => {
+    expect([...editedArtifactKinds([step('edit_image')], {})]).toEqual(['image']);
+    expect([...editedArtifactKinds([step('generate_image')], {})]).toEqual(['image']);
+    expect([...editedArtifactKinds([step('edit_image', { ok: false })], {})]).toEqual([]);
+    expect([
+      ...editedArtifactKinds([], {
+        generatedImage: { url: '/x.png' } as ChatGraphState['generatedImage'],
+      }),
+    ]).toEqual(['image']);
+  });
+
   it('maps board writes and edit_document by surface', () => {
     expect([
       ...editedArtifactKinds([step('boards_tasks', { args: { action: 'move_card' } })], {}),
@@ -60,5 +71,12 @@ describe('guardedArtifactKinds — lastToolContext', () => {
   it('guards a document only lastToolContext knows (save_as_doc)', () => {
     const state = { lastToolContext: { kind: 'document', ref: 'd1' } } as unknown as ChatGraphState;
     expect(guardedArtifactKinds(state).has('document')).toBe(true);
+  });
+
+  it('guards an image once the thread has one', () => {
+    const state = {
+      lastToolContext: { kind: 'image', ref: '/x.png' },
+    } as unknown as ChatGraphState;
+    expect(guardedArtifactKinds(state).has('image')).toBe(true);
   });
 });

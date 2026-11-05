@@ -64,6 +64,7 @@ const SHAREPIC_EDITED_TAIL =
  *  capability note — see its call site. */
 export const ARTIFACT_TOOL_NAMES = [
   'generate_image',
+  'edit_image',
   'sharepic',
   'create_presentation',
   'create_sheet',
