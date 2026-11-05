@@ -72,6 +72,8 @@ export interface ChatTrace {
   sharepicGenerated: boolean;
   imageGenerated: boolean;
   citations: unknown[];
+  /** `done` carried the loop mode (loop turns only); null otherwise. */
+  loopMode: 'unified' | 'split' | null;
   /** Grounding proxy: number of citations surfaced on `done`. */
   sources: number;
   fullText: string;

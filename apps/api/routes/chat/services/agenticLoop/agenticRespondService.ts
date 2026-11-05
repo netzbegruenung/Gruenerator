@@ -22,6 +22,7 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -531,6 +532,11 @@ export async function streamAgenticResponse(
 
     const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
     mode = resolveLoopMode(resolution.provider, resolution.modelName, materialHeavy);
+    recordDecision('loop.mode', mode, {
+      inputs: { provider: resolution.provider, model: resolution.modelName, materialHeavy },
+    });
+    // Rides on the state to the `done` event (persistStage), like usedRecipes.
+    finalState.loopMode = mode;
     if (materialHeavy) {
       log.info(
         `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`

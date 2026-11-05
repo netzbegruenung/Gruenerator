@@ -493,21 +493,19 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
  * oft leere Züge, ist das der erste Ort zum Nachsehen.
  *
- * ZWEI EHRLICHE KOSTEN dieser Wahl:
+ * EIN EHRLICHER PREIS dieser Wahl: drei Stufen, drei Gateways, aber zweimal
+ * DIESELBEN Gewichte. Ein Gateway-Ausfall trifft nur eine Stufe; ein Problem
+ * des Modells selbst trifft Melious und Cortecs gleich. Gemessen am 21.10.2026
+ * (#4785): ein erzwungener Schritt, der dem Prompt widerspricht, hing auf
+ * beiden 3/3 Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
+ * 3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie) oder
+ * der Zuschnitt (`forcedFirstStepTools`).
  *
- * 1. Melious sendet `environment_impact` nur nicht-gestreamt. Damit der Planer
- *    weiter gemessen statt geschätzt wird, fragt `meliousFetch` die Werkzeug-
- *    phase nicht-gestreamt und spielt die Antwort dem SDK als Strom vor
- *    (meliousThinkingFetch.ts). Preis: Narration und Denk-Deltas des Planers
- *    kommen je Schritt erst mit der fertigen Antwort (~0,6 s), nicht Token für
- *    Token.
- * 2. Drei Stufen, drei Gateways, aber zweimal DIESELBEN Gewichte. Ein
- *    Gateway-Ausfall trifft nur eine Stufe; ein Problem des Modells selbst
- *    trifft Melious und Cortecs gleich. Gemessen am 21.10.2026 (#4785): ein
- *    erzwungener Schritt, der dem Prompt widerspricht, hing auf beiden 3/3
- *    Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
- *    3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie)
- *    oder der Zuschnitt (`forcedFirstStepTools`).
+ * Bis 28.10.2026 stand hier eine zweite: Melious meldete `environment_impact`
+ * nur nicht-gestreamt, also fragte `meliousFetch` die Werkzeugphase
+ * nicht-gestreamt und spielte sie als Strom vor. Seitdem kommt der Wert im
+ * letzten Chunk, und die Werkzeugphase streamt (74a7463822,
+ * meliousThinkingFetch.ts).
  *
  * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
  * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:

@@ -988,6 +988,8 @@ export interface ChatGraphState {
   // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
+  /** Loop turns only: which mode ran. Surfaces on the `done` event. */
+  loopMode?: 'unified' | 'split';
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
   // Die Titel der Vorlagen, die `vorlagen_vorschlagen` in diesem Turn als
   // Galerie gezeigt hat. Der Split-Schreiber erfährt davon nur hierüber

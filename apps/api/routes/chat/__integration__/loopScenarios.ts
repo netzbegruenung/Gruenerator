@@ -132,6 +132,8 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     streams: [{ text: '' }, { text: GERMAN_ANSWER }],
     mustDecide: [
       { point: 'router.run_agentic', chose: 'loop' },
+      // The harness reports a stub model, so the mode is split.
+      { point: 'loop.mode', chose: 'split' },
       { point: 'loop.synth_verdict', chose: 'accepted' },
     ],
   },
