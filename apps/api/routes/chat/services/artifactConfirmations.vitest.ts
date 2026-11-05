@@ -6,6 +6,8 @@ import {
   DraftFailedError,
 } from '../../../services/sharepicCreator/draftFailure.js';
 
+import { materialAsk } from '../../../services/sharepicCreator/forms.js';
+
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildSharepicConfirmation,
@@ -220,5 +222,20 @@ describe('sharepicTurnText — Ursache des Entwurfs', () => {
   it('generic fallback never blames the topic', () => {
     expect(sharepicTurnText([], false, null)).not.toContain('Thema');
     expect(isArtifactConfirmation(ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed)).toBe(true);
+  });
+
+  it('still recognises the longest material and form failure sentences', () => {
+    for (const form of ['diagramm', 'rechnung', 'termine', 'zitat', 'interview'] as const) {
+      const ask = materialAsk(form);
+      expect(ask, form).not.toBeNull();
+      const error = new DraftFailedError('x', { kind: 'material', form, ask: ask! });
+      const formError = new DraftFailedError('x', { kind: 'form', form, ask: ask! });
+      for (const revision of [true, false]) {
+        for (const e of [error, formError]) {
+          const text = sharepicTurnText([], revision, e);
+          expect(isArtifactConfirmation(text), form).toBe(true);
+        }
+      }
+    }
   });
 });

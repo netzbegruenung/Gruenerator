@@ -141,8 +141,8 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
 const FIXED_TEXT_OPENING_RE =
   /^(?:Ich habe dir\b|Ich konnte den Entwurf\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
 
-/** Longest template above is ~230 chars; the bound leaves room for wording drift. */
-const MAX_FIXED_TEXT_LENGTH = 320;
+/** Longest template above is ~230 chars (form failure with its material ask); the bound leaves room for wording drift. */
+const MAX_FIXED_TEXT_LENGTH = 400;
 
 /** True when the text is one of our own contentless artifact confirmations. */
 export function isArtifactConfirmation(text: string): boolean {
