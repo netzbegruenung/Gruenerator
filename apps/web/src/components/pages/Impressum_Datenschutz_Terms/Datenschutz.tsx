@@ -487,11 +487,13 @@ const Datenschutz = () => {
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
       <p>
         Zur Transkription werden Deine Audio- und Videodaten auf unseren Servern verarbeitet (u. a.
-        Zuschnitt/Orchestrierung) und zur Sprache-zu-Text-Umwandlung vorrangig an Mistral AI Voxtral
-        (Frankreich, EU) und ersatzweise an GreenPT (Verarbeitung in Frankreich, EU; Audio-Eingaben
-        werden dort nicht dauerhaft gespeichert) übermittelt. Die Originaldateien werden nach der
-        Verarbeitung sofort gelöscht; eine dauerhafte Speicherung, manuelle Sichtung oder Nutzung zu
-        Trainingszwecken findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+        Zuschnitt/Orchestrierung) und zur Sprache-zu-Text-Umwandlung an Mistral AI Voxtral
+        (Frankreich, EU) und GreenPT (Verarbeitung in Frankreich, EU; Audio-Eingaben werden dort
+        nicht dauerhaft gespeichert) übermittelt: Sprachaufnahmen vorrangig an Voxtral, Untertitel
+        vorrangig an GreenPT, jeweils mit dem anderen Anbieter als Ersatz. Die Originaldateien
+        werden nach der Verarbeitung sofort gelöscht; eine dauerhafte Speicherung, manuelle Sichtung
+        oder Nutzung zu Trainingszwecken findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit.
+        b DSGVO.
       </p>
 
       <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>

@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import mistralClient from '../../ai/mistralClient.js';
 import ttsService from '../../voice/ttsService.js';
+import { interpolateWordTimestamps } from '../voxtralTranscriptionService.js';
 
 // Live round-trip (real TTS → real transcription) — billable and network-flaky,
 // so it only runs under the explicit opt-in, not on every `pnpm test` that
@@ -32,14 +33,15 @@ describe.skipIf(!CAN_SYNTHESISE)('Round-trip TTS → transcription', () => {
     console.log(`  TTS generated: ${wavBuffer.length} bytes → ${speechWavPath}`);
   }, 30000);
 
-  it('Voxtral transcription with word timestamps', async () => {
+  it('Voxtral transcription with segment timestamps', async () => {
     const audioBuffer = fs.readFileSync(speechWavPath);
 
     const result = await mistralClient.audio.transcriptions.complete({
-      model: 'voxtral-mini-latest',
+      model: 'voxtral-mini-transcribe-3',
       file: { fileName: 'speech.wav', content: audioBuffer },
       language: 'de',
-      timestampGranularities: ['word'],
+      // Voxtral 3 has no word granularity — `['word']` answers HTTP 400.
+      timestampGranularities: ['segment'],
     });
 
     const resp = result as {
@@ -50,13 +52,10 @@ describe.skipIf(!CAN_SYNTHESISE)('Round-trip TTS → transcription', () => {
     expect(resp.text).toBeTruthy();
     expect(resp.text.toLowerCase()).toMatch(/gr[üö]n+erator/);
     expect(resp.segments).toBeDefined();
-    expect(resp.segments!.length).toBeGreaterThan(5);
+    expect(resp.segments!.length).toBeGreaterThan(0);
 
-    const words = resp.segments!.map((s) => ({
-      word: s.text.trim(),
-      start: s.start,
-      end: s.end,
-    }));
+    const words = resp.segments!.flatMap((s) => interpolateWordTimestamps(s));
+    expect(words.length).toBeGreaterThan(5);
 
     expect(words[0]!.start).toBeGreaterThanOrEqual(0);
     expect(words[0]!.end).toBeGreaterThan(words[0]!.start);

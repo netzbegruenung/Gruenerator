@@ -194,9 +194,9 @@
       "task": "Untertitel & Transkription",
       "models": [
         {
-          "model": "voxtral-mini-latest",
-          "code": "voxtral-mini-latest",
-          "label": "Voxtral Mini",
+          "model": "voxtral-mini-transcribe-3",
+          "code": "voxtral-mini-transcribe-3",
+          "label": "Voxtral Mini Transcribe 3",
           "provider": "voxtral",
           "host": "Mistral AI",
           "flag": "🇫🇷",

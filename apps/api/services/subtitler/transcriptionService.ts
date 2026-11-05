@@ -68,6 +68,7 @@ async function transcribeWithProvider(
   locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
   const { provider, reason, chain } = chooseProvider({
+    wordTimestamps: requestWordTimestamps,
     override: env.TRANSCRIPTION_PROVIDER,
   });
 
