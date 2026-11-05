@@ -358,6 +358,14 @@ export const evalExpectSchema = z
     judge: z.array(rubricNameSchema).optional(),
     /** Facts the answer must not contradict (judge `known_answer` rubric). */
     judgeFacts: z.array(z.string()).optional(),
+    /** Die Antwort parst ohne Code-Fence (oder aus einem ```json-Fence) als JSON. */
+    answerIsJson: z.boolean().optional(),
+    /** Anzahl nicht-leerer Zeilen der Antwort, exakt. */
+    answerLineCount: z.number().int().optional(),
+    /** `createDegenerationGuard()` aus dem Loop schlägt über `fullText` nicht an. */
+    noDegeneration: z.boolean().optional(),
+    /** Der Turn hat ein Bild erzeugt (`trace.imageGenerated`). */
+    generatesImage: z.boolean().optional(),
   })
   .strict();
 export type EvalExpect = z.infer<typeof evalExpectSchema>;
@@ -366,6 +374,9 @@ export type EvalExpect = z.infer<typeof evalExpectSchema>;
 export const evalTurnSchema = z
   .object({
     prompt: z.string(),
+    /** Datei unter `evals/fixtures/`, deren Text beim Laden des Korpus dem
+     *  Prompt vorangestellt wird (eingefügtes Material). Nach dem Laden leer. */
+    promptFile: z.string().optional(),
     expect: evalExpectSchema,
     /**
      * Was statt `expect` gilt, wenn der Lauf mit `CHAT_AGENT_LOOP=false` gegen

@@ -43,7 +43,11 @@ export function normalize(line: EvalCase | EvalScenario): EvalScenario {
  * number and the offending field path — a corpus typo should be a two-second
  * fix, not a hunt.
  */
-export function parseCorpusText(text: string, fileLabel: string): EvalScenario[] {
+export function parseCorpusText(
+  text: string,
+  fileLabel: string,
+  fixturesDir: string | null = null
+): EvalScenario[] {
   const scenarios: EvalScenario[] = [];
   text.split('\n').forEach((raw, i) => {
     const line = raw.trim();
@@ -76,7 +80,21 @@ export function parseCorpusText(text: string, fileLabel: string): EvalScenario[]
       throw new Error(`${at}${label}: invalid corpus line — ${issues}`);
     }
 
-    scenarios.push(normalize(parsed.data));
+    const scenario = normalize(parsed.data);
+    scenario.turns = scenario.turns.map((turn) => {
+      if (turn.promptFile == null) return turn;
+      const { promptFile, ...rest } = turn;
+      if (fixturesDir == null)
+        throw new Error(`${at}: promptFile "${promptFile}" needs a fixtures dir`);
+      let material: string;
+      try {
+        material = readFileSync(join(fixturesDir, promptFile), 'utf8').trim();
+      } catch {
+        throw new Error(`${at}: promptFile "${promptFile}" not found in ${fixturesDir}`);
+      }
+      return { ...rest, prompt: `${material}\n\n${turn.prompt}` };
+    });
+    scenarios.push(scenario);
   });
   return scenarios;
 }
@@ -116,7 +134,11 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
   const scenarios: EvalScenario[] = [];
   const seen = new Set<string>();
   for (const file of files) {
-    for (const scenario of parseCorpusText(readFileSync(file, 'utf8'), file)) {
+    for (const scenario of parseCorpusText(
+      readFileSync(file, 'utf8'),
+      file,
+      join(here, 'fixtures')
+    )) {
       if (seen.has(scenario.id)) {
         throw new Error(`Duplicate scenario id "${scenario.id}" (${file})`);
       }
