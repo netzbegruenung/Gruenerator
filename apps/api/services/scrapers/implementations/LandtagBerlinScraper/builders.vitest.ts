@@ -51,10 +51,14 @@ describe('toEntry', () => {
     expect(antrag.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it('drops the blank PARDOK sometimes leaves in a PDF file name', () => {
-    const url = 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-15345';
-    const entry = toEntry({ ...raw.antrag[0], pdf_url: [{ main: `${url} .pdf` }] });
-    expect(entry.pdfUrls[0].url).toBe(`${url}.pdf`);
+  it('drops a blank before the PDF extension, but keeps one inside the name', () => {
+    const base = 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19';
+    const urlOf = (main: string) =>
+      toEntry({ ...raw.antrag[0], pdf_url: [{ main }] }).pdfUrls[0].url;
+    expect(urlOf(`${base}/SchrAnfr/S19-15345 .pdf`)).toBe(`${base}/SchrAnfr/S19-15345.pdf`);
+    expect(urlOf(`${base}/DruckSachen/d19-3007 Neu.pdf`)).toBe(
+      `${base}/DruckSachen/d19-3007 Neu.pdf`
+    );
   });
 });
 
