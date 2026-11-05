@@ -719,6 +719,89 @@ describe('draftSharepic — scene with the person', () => {
     expect(cutOut).not.toHaveBeenCalled();
   });
 
+  // Plays the repair loop with attempt numbers: each answer is attempt i of n.
+  const loopAnswers = (...raws: unknown[]) => {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs });
+    const errors: string[] = [];
+    aiObject.mockImplementationOnce(
+      async (opts: {
+        validate: (
+          i: unknown,
+          a: number,
+          n: number
+        ) => { ok: boolean; value?: unknown; error?: string };
+      }) => {
+        for (const [i, raw] of raws.entries()) {
+          const checked = opts.validate(raw, i + 1, raws.length);
+          if (checked.ok) return { ok: true, data: checked.value };
+          errors.push(checked.error!);
+        }
+        return { ok: false, error: errors.join(' | ') };
+      }
+    );
+    return errors;
+  };
+  const plainScene = { slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] };
+  const attachOrder = 'Faktenbild: auf dem Bild soll ich (Anhang) auf einer grünen Wolke surfen';
+  const fix = 'setz in der szene "person": "upload:1"';
+
+  it('sends a scene without the person back when the order points at the attachment', async () => {
+    const errors = loopAnswers(plainScene, { slides: [slide(personScene)] });
+    const draft = await draftSharepic(attachOrder, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(errors).toEqual([
+      `Der Auftrag will die Person aus dem eigenen Foto in der Szene: ${fix}.`,
+    ]);
+    expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
+  });
+
+  it('leaves a scene without the person alone when the order names no photo', async () => {
+    const errors = loopAnswers(plainScene, plainScene);
+    await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('lets the last attempt pass and reports the photo as unused', async () => {
+    const errors = loopAnswers(plainScene, plainScene);
+    const draft = await draftSharepic(attachOrder, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(errors).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({ status: 'nicht_verwendet' }),
+    ]);
+  });
+
+  it('reports the real karte reason when only the card fits', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const real = sharepicSpecSchema.safeParse.bind(sharepicSpecSchema);
+    vi.spyOn(sharepicSpecSchema, 'safeParse').mockImplementation((value: unknown) => {
+      const sl = (value as SharepicSpec).slides?.[0];
+      const bild = sl?.items.find((i) => i.type === 'bild');
+      const refused =
+        (sl?.background.kind === 'foto' && sl.background.filename === 'upload:1') ||
+        (bild?.type === 'bild' && bild.ausschnitt === 'freigestellt');
+      return refused ? ({ success: false } as ReturnType<typeof real>) : real(value);
+    });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn(),
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({
+        status: 'verwendet',
+        grund: expect.stringContaining('Dein Foto steht als Karte auf dem Sharepic.'),
+      }),
+    ]);
+  });
+
   it('reports an own photo the painted scene does not use', async () => {
     draftAnswers({
       slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })],

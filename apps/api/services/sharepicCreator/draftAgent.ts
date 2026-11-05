@@ -64,7 +64,13 @@ import {
   materialAsk,
   missingMaterial,
 } from './forms.js';
-import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard, photoRequestTexts } from './ownPhoto.js';
+import {
+  hasOwnPhoto,
+  namesPhoto,
+  OWN_PHOTO_RULE,
+  ownPhotoGuard,
+  photoRequestTexts,
+} from './ownPhoto.js';
 import {
   paletteHint,
   paletteHinweis,
@@ -124,6 +130,8 @@ export { isQuoteBrief, namesSpeaker, spelledNumbers } from './briefFacts.js';
 export { validateDraft, bridgeProblems } from './draftValidation.js';
 
 const DRAFT_ATTEMPTS = 3;
+const POINTS_AT_ATTACHMENT =
+  /(?<!\p{L})(?:anhang|angeh[äa]ngt\p{L}*|mein(?:em|en)?\s+foto)(?!\p{L})/iu;
 const COLLAGE_GRUND = 'Die Szene mit dir ließ sich nicht malen.';
 const PHOTO_GROUND_GRUND =
   'Die Szene mit dir ließ sich nicht malen – dein Foto ist jetzt der Hintergrund.';
@@ -369,6 +377,21 @@ export async function draftSharepic(
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
       const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
       if (look) return { ok: false, error: look };
+      // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
+      const firstPersonable = [...personable][0];
+      if (
+        !current &&
+        attempt < attempts &&
+        taken.scene &&
+        !taken.scene.person &&
+        firstPersonable &&
+        (namesPhoto(order) || POINTS_AT_ATTACHMENT.test(order))
+      ) {
+        return {
+          ok: false,
+          error: `Der Auftrag will die Person aus dem eigenen Foto in der Szene: setz in der szene "person": "${firstPersonable}".`,
+        };
+      }
       // Like a drift: the last attempt passes, the reply then says the slide stayed.
       const untouched =
         current && attempt < attempts ? untouchedSlides(current, checked.value, asked) : [];
