@@ -96,6 +96,7 @@ function withoutDigestedRows(result: Record<string, unknown>): Record<string, un
  */
 export const ACTION_DIGEST_TOOLS: ReadonlySet<string> = new Set([
   'edit_document',
+  'edit_document_text',
   'edit_current_sharepic',
   'edit_sharepic',
   'edit_sheet',

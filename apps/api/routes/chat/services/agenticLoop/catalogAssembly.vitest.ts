@@ -655,6 +655,10 @@ describe('priorTurnRetrieved', () => {
     // Rezept, und „förmlicher" bekam danach den Anschluss-Zwang auf die Websuche.
     expect(priorTurnRetrieved(history('rezept_laden', 'create_document'))).toBe(false);
     expect(priorTurnRetrieved(history('ask_human', 'meine_inhalte_laden'))).toBe(false);
+    // Both lists at once: the action digest set (#5371) and the non-lookups.
+    expect(priorTurnRetrieved(history('rezept_laden', 'edit_image', 'edit_document_text'))).toBe(
+      false
+    );
   });
 
   it('ein Abruf neben einer Erzeugung zählt', () => {
