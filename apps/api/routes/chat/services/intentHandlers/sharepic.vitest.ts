@@ -406,5 +406,18 @@ describe('legacySharepicText', () => {
       expect(mocks.photosForTurn).toHaveBeenCalledWith(expect.anything(), CREATOR_PRIOR.props);
       expect(mocks.revise).toHaveBeenCalledWith(expect.objectContaining({ photos: [PHOTO] }));
     });
+
+    it('drafts without photos and says so when loading them throws', async () => {
+      mocks.photosForTurn.mockRejectedValue(new Error('storage down'));
+      await run('Sharepic zu Bussen').done;
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          photos: [],
+          photoBericht: [
+            { art: 'gestaltung', text: 'Deine Fotos konnten diesmal nicht geladen werden.' },
+          ],
+        })
+      );
+    });
   });
 });
