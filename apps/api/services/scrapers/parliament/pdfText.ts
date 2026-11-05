@@ -33,6 +33,8 @@ export interface PdfText {
   text: string;
   method: string;
   pageCount: number;
+  /** Von pdfjs erkannte Tabellenseiten; an Mistral gehen sie bei `pdfjs-direct+mistral-tables`. */
+  tablePages?: number[] | undefined;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -91,7 +93,11 @@ export async function extractPdfText(buffer: Buffer, label: string): Promise<Pdf
   fs.writeFileSync(tempPath, buffer);
   try {
     const result = await extractWithFallback(tempPath, label);
-    recordExtraction({ method: result.method, pages: result.pageCount });
+    recordExtraction({
+      method: result.method,
+      pages: result.pageCount,
+      tablePages: result.tablePages,
+    });
     return result;
   } finally {
     fs.rmSync(tempPath, { force: true });
@@ -109,6 +115,7 @@ async function extractWithFallback(pdfPath: string, label: string): Promise<PdfT
         text: result.text ?? '',
         method: result.extractionMethod,
         pageCount: result.pageCount,
+        tablePages: result.tablePages,
       };
     } catch (error: unknown) {
       lastError = error;
