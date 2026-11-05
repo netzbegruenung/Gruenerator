@@ -89,7 +89,12 @@ export function toEntry(r: PardokRecord): PardokEntry {
     sachgebiet: titel?.d?.trim() || null,
     publishedAt: isoDate(typeof r.datum === 'string' ? r.datum : undefined),
     updatedAt: isoDate(first(r, 'aktualisiert')?.D?.replace(/ /g, '.')),
-    pdfUrls: list(r, 'pdf_url').map((p) => ({ url: p.main, label: p.t ?? null })),
+    // PARDOK sometimes stores a blank in the file name („S19-15345 .pdf"); the file
+    // itself has none, and the blank turns the download into a 404. Names never hold one.
+    pdfUrls: list(r, 'pdf_url').map((p) => ({
+      url: p.main.replace(/\s+/g, ''),
+      label: p.t ?? null,
+    })),
     pages: dseit?.anfangsseite ? { from: dseit.anfangsseite, to: dseit.endseite ?? null } : null,
     urheber: list(r, 'urheber').map((u) => ({ name: u.name ?? '', fraktion: u.fraktion ?? '' })),
     koerperschaften: list(r, 'urheber_koerperschaft')

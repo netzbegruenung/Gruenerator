@@ -50,6 +50,12 @@ describe('toEntry', () => {
     expect(antrag.pdfUrls[0].url).toMatch(/d19-3519\.pdf$/);
     expect(antrag.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it('drops the blank PARDOK sometimes leaves in a PDF file name', () => {
+    const url = 'https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-15345';
+    const entry = toEntry({ ...raw.antrag[0], pdf_url: [{ main: `${url} .pdf` }] });
+    expect(entry.pdfUrls[0].url).toBe(`${url}.pdf`);
+  });
 });
 
 describe('Drucksachen', () => {
