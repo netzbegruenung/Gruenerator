@@ -53,7 +53,10 @@ pnpm --filter @gruenerator/api eval:review   # evals/review.html + evals/review-
 EVAL_BYPASS_TOKEN=<dev-bypass-token> pnpm --filter @gruenerator/api eval:chat
 
 # judge pass over the traces of the last run
-LITELLM_BASE_URL=<url> LITELLM_API_KEY=<key> pnpm --filter @gruenerator/api eval:judge
+CORTECS_API_KEY=<key> pnpm --filter @gruenerator/api eval:judge
+# any OpenAI-compatible host works, e.g. Gemma 4 31B on Melious:
+CORTECS_BASE_URL=https://api.melious.ai/v1 CORTECS_API_KEY=<melious-key> \
+  EVAL_JUDGE_MODEL=gemma-4-31b:balanced pnpm --filter @gruenerator/api eval:judge
 
 # long-thread scenarios only (see compaction overrides above)
 EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:longthread
