@@ -238,7 +238,9 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual({ variants: [], failure: null });
+    const result = await done;
+    expect(result.variants).toEqual([]);
+    expect(result.failure).toBeInstanceOf(DraftFailedError);
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
@@ -251,7 +253,9 @@ describe('runSharepicGeneration', () => {
   it('asks for a clearer order when a fresh draft fails', async () => {
     mocks.create.mockRejectedValue(new DraftFailedError('no valid spec'));
     const { send, done } = run('Sharepic über Busse auf dem Land');
-    expect(await done).toEqual({ variants: [], failure: null });
+    const result = await done;
+    expect(result.variants).toEqual([]);
+    expect(result.failure).toBeInstanceOf(DraftFailedError);
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
@@ -271,7 +275,10 @@ describe('runSharepicGeneration', () => {
       instruction: 'Mach die erste Zeile viel länger',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual({ variants: [], failure: 'headline_line_too_long' });
+    const result = await done;
+    expect(result.variants).toEqual([]);
+    expect(result.failure).toBeInstanceOf(DraftFailedError);
+    expect((result.failure as DraftFailedError).reason).toBe('headline_line_too_long');
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
