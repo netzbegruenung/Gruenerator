@@ -650,6 +650,13 @@ describe('priorTurnRetrieved', () => {
     );
   });
 
+  it('das Rezept und die Rückfrage schlagen nichts nach', () => {
+    // Live 05.11.2026 (Eval ul-doc-foermlicher): „Erstelle ein Dokument" lud das
+    // Rezept, und „förmlicher" bekam danach den Anschluss-Zwang auf die Websuche.
+    expect(priorTurnRetrieved(history('rezept_laden', 'create_document'))).toBe(false);
+    expect(priorTurnRetrieved(history('ask_human', 'meine_inhalte_laden'))).toBe(false);
+  });
+
   it('ein Abruf neben einer Erzeugung zählt', () => {
     expect(priorTurnRetrieved(history('sharepic', 'web_search'))).toBe(true);
   });

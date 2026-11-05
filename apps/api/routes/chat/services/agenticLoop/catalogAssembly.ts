@@ -559,7 +559,10 @@ export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undef
   try {
     return toolHistory
       .toolSteps()
-      .some((s: PersistedStep) => !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName));
+      .some(
+        (s: PersistedStep) =>
+          !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) && !NOT_A_LOOKUP.has(s.toolName)
+      );
   } catch {
     return false;
   }
