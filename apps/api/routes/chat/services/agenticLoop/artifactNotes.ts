@@ -179,6 +179,9 @@ function noEditPathNote(kind: EditorSurfaceKind): string {
   return `HINWEIS: In diesem Zug kann ${geoeffnete} ${artefact.noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`;
 }
 
+/** The static part of `capabilityNote` — also the unified writer's capability rule. */
+export const CAPABILITY_NOTE_TEXT = `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.`;
+
 /**
  * The synth model's only channel for "what did this turn actually produce".
  *
@@ -348,8 +351,6 @@ export function buildArtifactNotes(
         ? ' In diesem Turn wurde ein Artefakt ERSTELLT: kündige es knapp an und fasse die recherchierten Kerninhalte zusammen. Behaupte unter keinen Umständen, die Erstellung sei fehlgeschlagen.'
         : ' Wurde ein Artefakt angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.';
   const capabilityNote =
-    artifactToolMounted || producedArtifact
-      ? `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.${outcomeClause}`
-      : '';
+    artifactToolMounted || producedArtifact ? `${CAPABILITY_NOTE_TEXT}${outcomeClause}` : '';
   return { notes: artifacts, capabilityNote, producedArtifact };
 }

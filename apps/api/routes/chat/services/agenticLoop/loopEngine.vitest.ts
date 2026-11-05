@@ -8,6 +8,8 @@ import {
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
+  TOOL_USE_RULES,
+  UNIFIED_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
   SYNTH_CUTOFF_RETRY_SUFFIX,
@@ -19,6 +21,9 @@ import {
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
+import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+
+import { createHash } from 'node:crypto';
 
 import { APICallError, RetryError, type ModelMessage } from 'ai';
 
@@ -554,6 +559,68 @@ describe('runAgenticLoop — unified mode', () => {
     // Regression: afterGather never fired in unified mode, so a compound sharepic
     // turn that only searched left the artifact uncreated.
     expect(afterGather).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('unified suffix — tool and writer rules', () => {
+  it('keeps the gather suffix byte-identical', async () => {
+    const systems: string[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: StreamOpts) => {
+        systems.push(o.system ?? '');
+        return streamOf([{ type: 'text-delta', text: '' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'split', toolSystem: '' }), deps);
+    const gatherSystem = systems[0] ?? '';
+    expect(gatherSystem.length).toBe(2459);
+    expect(createHash('sha256').update(gatherSystem).digest('hex')).toBe(
+      'bbf396270f6ed10a61f6bda98e94129639aa8e67dc1d80f7994ffd8ed62590ac'
+    );
+  });
+
+  it('gives the unified stream the tool and writer rules', async () => {
+    let seen:
+      (StreamOpts & { prepareStep?: (a: { stepNumber: number }) => { system?: string } }) | null =
+      null;
+    const deps: LoopDeps = {
+      streamText: ((o: typeof seen) => {
+        seen = o;
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'unified', maxSteps: 1 }), deps);
+    expect(seen).not.toBeNull();
+    const system = seen!.system ?? '';
+    expect(system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(system).toContain(TOOL_USE_RULES);
+    expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
+    expect(system).toContain('ANTWORTE KONKRET');
+    // The unified model writes the answer — the gather-only ban must not reach it.
+    expect(system).not.toContain('Schreibe in dieser Phase KEINE finale Antwort');
+    // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.
+    const override = seen!.prepareStep?.({ stepNumber: 0 }).system ?? '';
+    expect(override).toContain(TOOL_USE_RULES);
+    expect(override).toContain(NO_CAPABILITY_DENIAL_RULE);
+    expect(override).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+  });
+
+  it('keeps the AT country block in unified', async () => {
+    let system = '';
+    const deps: LoopDeps = {
+      streamText: ((o: StreamOpts) => {
+        system = o.system ?? '';
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(
+      baseParams({ mode: 'unified', toolSystem: 'BASE\n\n## LÄNDERKONTEXT: ÖSTERREICH\nAT' }),
+      deps
+    );
+    expect(system).toContain('## LÄNDERKONTEXT: ÖSTERREICH');
   });
 });
 

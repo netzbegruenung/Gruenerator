@@ -26,6 +26,7 @@ import {
   RetryError,
 } from 'ai';
 
+import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -36,12 +37,14 @@ import { prefillAllowanceForModel } from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
+import { CAPABILITY_NOTE_TEXT } from './artifactNotes.js';
 import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
   trimDegenerate,
 } from './degeneration.js';
 import { toolsForProvider } from './providerTools.js';
+import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
@@ -227,10 +230,15 @@ export const FORCE_FINISH_SYSTEM_SUFFIX =
 export const FORCE_FINISH_GATHER_SUFFIX =
   '\n\nWICHTIG: Schritt-Limit erreicht — beende die Recherche JETZT ohne weitere Tool-Aufrufe.';
 
-const GATHER_SUFFIX = [
+const GATHER_HEADER =
+  '\n\n' +
+  'ARBEITSPHASE (hier erledigst du die TOOL-Arbeit: Belege sammeln UND angeforderte Inhalte erstellen — die finale Textantwort schreibst du NICHT hier):';
+
+/** Tool rules shared by the split planner and the unified loop. Every rule line
+ *  is preceded by a newline, so `GATHER_HEADER + TOOL_USE_RULES + GATHER_NO_ANSWER_RULE`
+ *  is byte-identical to the former `GATHER_SUFFIX`. */
+export const TOOL_USE_RULES: string = [
   '',
-  '',
-  'ARBEITSPHASE (hier erledigst du die TOOL-Arbeit: Belege sammeln UND angeforderte Inhalte erstellen — die finale Textantwort schreibst du NICHT hier):',
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
   // Live am 02.08.2026: eine Rückfrage zu einer eingefügten Fallstudie löste
@@ -240,8 +248,27 @@ const GATHER_SUFFIX = [
   '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument, ein Explainable oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_explainable / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
-  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft.") — aber NUR im selben Schritt wie der Aufruf selbst; eine Ankündigung ohne Tool-Aufruf ist keine Antwort. Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
 ].join('\n');
+
+/** Gather-only: the planner's prose is never the answer. Unified leaves it out —
+ *  there the same model writes the answer. */
+const GATHER_NO_ANSWER_RULE =
+  '\n' +
+  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft.") — aber NUR im selben Schritt wie der Aufruf selbst; eine Ankündigung ohne Tool-Aufruf ist keine Antwort. Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.';
+
+const GATHER_SUFFIX = GATHER_HEADER + TOOL_USE_RULES + GATHER_NO_ANSWER_RULE;
+
+/** What the split synth writer is told, and the unified model must be told too. */
+export const UNIFIED_WRITER_RULES: string = [
+  '',
+  '',
+  'ANTWORTPHASE (brauchst du keine Tools mehr, schreibst du selbst die Antwort):',
+  ANSWER_CONCRETELY_RULE,
+  NO_CAPABILITY_DENIAL_RULE,
+  CAPABILITY_NOTE_TEXT.trim(),
+].join('\n');
+
+export const UNIFIED_SUFFIX = TOOL_USE_RULES + UNIFIED_WRITER_RULES;
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
 function tryLenientJsonParse(raw: string): unknown {
@@ -752,13 +779,14 @@ async function streamWithTools(
   model: LanguageModel,
   deps: LoopDeps
 ): Promise<LoopResult> {
+  const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
   const { idle, idleMs } = createToolPhaseIdle(
     p,
-    prefillAllowanceForModel(model, p.toolSystem, p.messages)
+    prefillAllowanceForModel(model, unifiedSystem, p.messages)
   );
   const result = deps.streamText({
     model,
-    system: p.toolSystem,
+    system: unifiedSystem,
     messages: p.messages,
     tools: toolsForProvider(p.tools),
     stopWhen: isStepCount(p.maxSteps),
@@ -769,7 +797,7 @@ async function streamWithTools(
     // verlassen — dieselbe Form wie in gather und synth.
     abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
     prepareStep: buildPrepareStep(
-      p.toolSystem,
+      unifiedSystem,
       FORCE_FINISH_SYSTEM_SUFFIX,
       p.maxSteps,
       p.forceFinish,

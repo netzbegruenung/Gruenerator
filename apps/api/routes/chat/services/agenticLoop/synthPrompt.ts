@@ -141,6 +141,9 @@ export interface SynthPromptContext {
   materialNote: string;
 }
 
+export const ANSWER_CONCRETELY_RULE =
+  'ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).';
+
 /**
  * Synthesizer system (split mode): the selected model has no tools, so the
  * gathered numbered sources are injected into its context for [N] citing.
@@ -150,7 +153,7 @@ export function buildSynthSystem(sources: string, ctx: SynthPromptContext): stri
     sources.trim().length > 0
       ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Ein Marker [N] steht nur hinter einer Aussage, die Quelle N SELBST trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg. Deckt keine Quelle die Frage, sag es ehrlich. ${SOURCE_LINK_RULE}
 
-ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).
+${ANSWER_CONCRETELY_RULE}
 
 ${RECENCY_RULE}
 
