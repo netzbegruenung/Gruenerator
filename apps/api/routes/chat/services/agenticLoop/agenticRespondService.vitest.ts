@@ -16,7 +16,7 @@
  *  - dass die Erstellungs-Werkzeuge ihre eigene Zeitgrenze bekommen.
  */
 import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Die Zusammenfassungszeile IST hier der Prüfgegenstand (siehe den letzten
 // Block): sie geht über den Logger, also muss er greifbar sein.
@@ -101,11 +101,6 @@ vi.mock('./clientToolRegistry.js', async (importOriginal) => {
 
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
-import { env } from '../../../../config/env.js';
-import {
-  _resetModelHealthForTests,
-  recordSlowVerdict,
-} from '../../../../services/ai/modelHealth.js';
 import { UNIFIED_GEMMA_CHAIN } from '../../agents/autoPolicy.js';
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
@@ -212,20 +207,6 @@ const baseParams = (state: ChatGraphState, systemMessage: string, userText: stri
 });
 
 describe('streamAgenticResponse — Modus-Wahl', () => {
-  // Die Standard-Lane hat ihren Schlüssel; ohne ihn startet der Turn auf
-  // Mistral Large (siehe den Test zu „zäh“ unten).
-  const savedKeys = { melious: env.MELIOUS_API_KEY, mistral: env.MISTRAL_API_KEY };
-  beforeEach(() => {
-    env.MELIOUS_API_KEY = 'test-key';
-    env.MISTRAL_API_KEY = 'test-key';
-    _resetModelHealthForTests();
-  });
-  afterEach(() => {
-    env.MELIOUS_API_KEY = savedKeys.melious;
-    env.MISTRAL_API_KEY = savedKeys.mistral;
-    _resetModelHealthForTests();
-  });
-
   it('läuft unified, wenn der Anbieter der schnelle Werkzeug-Rufer ist', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
@@ -249,26 +230,6 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     );
     expect(seen!.mode).toBe('unified');
     expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
-  });
-
-  it('startet auf Mistral Large statt auf Cortecs, wenn Melious Gemma als zäh gilt', async () => {
-    _resetModelHealthForTests();
-    for (let i = 0; i < 2; i++) recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
-    const { sse } = fakeSse();
-    let seen: LoopEngineParams | null = null;
-    await streamAgenticResponse(
-      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
-      fakeDeps({
-        provider: 'melious',
-        modelName: 'gemma-4-31b:balanced',
-        onLoop: (p) => (seen = p),
-      })
-    );
-    _resetModelHealthForTests();
-    expect(seen!.mode).toBe('unified');
-    const lane = (m: unknown) => (m as { modelId?: string }).modelId;
-    expect(lane(seen!.synthModel)).toBe('mistral-large-4');
-    expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
   });
 
   it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {

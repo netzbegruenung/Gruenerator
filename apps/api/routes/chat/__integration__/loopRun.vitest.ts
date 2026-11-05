@@ -159,7 +159,6 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 });
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
-const { env } = await import('../../../config/env.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
 const { createProviderStub } = await import('./harness/providerStub.js');
 const { createJournalCapture } = await import('./harness/journalCapture.js');
@@ -213,9 +212,6 @@ beforeEach(() => {
   // Ausdrücklich: ohne Angabe liefe jeder Turn auf dem Anbieter `stub`, also
   // split — das ist hier die benannte Split-Lane, nicht ein Zufall der Vorgabe.
   respond.resolution = SPLIT_LANE;
-  // `env` ist das geparste Objekt, `vi.stubEnv` erreicht es nicht. Ohne
-  // Melious-Schlüssel startet ein unified-Gemma-Zug auf Mistral Large.
-  env.MELIOUS_API_KEY = undefined;
 });
 
 describe('loop decision maps', () => {
@@ -228,7 +224,6 @@ describe('loop decision maps', () => {
     // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
     if (scenario.env) pinChatEnv(scenario.env);
     if (scenario.resolution) respond.resolution = scenario.resolution;
-    if (scenario.resolution?.provider === 'melious') env.MELIOUS_API_KEY = 'test-key';
 
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
@@ -328,15 +323,6 @@ describe('loop decision maps', () => {
         loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
         `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
       ).toContain(scenario.synthSystemIncludes);
-    }
-
-    // Die Schwester muss auf der aufgelösten Lane laufen (hier: der Stub), nicht
-    // auf der Ausweichstufe: ohne Melious-Schlüssel startet ein unified-Zug
-    // stattdessen auf Mistral Large.
-    if (scenario.resolution?.provider === 'melious') {
-      expect(loopScript.calls[0]?.modelId, `${scenario.id}: erster Aufruf`).not.toContain(
-        'mistral'
-      );
     }
 
     if (scenario.unifiedSystemIncludes) {

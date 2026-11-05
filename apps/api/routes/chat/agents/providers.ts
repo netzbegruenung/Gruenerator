@@ -792,14 +792,6 @@ export function isUnifiedGemma(provider: string, modelName: string): boolean {
 }
 
 /**
- * Gemma runs only via Melious (decision 05.11.2026). A health swap
- * (`pickHealthyTarget`, GENERIC_FALLBACK) must therefore never land a unified
- * turn on Cortecs, which serves `gemma-4-31b-it`.
- */
-const unifiedTargetAllowed = (target: { provider: string; model: string }): boolean =>
-  synthTargetAllowed(target) && target.provider !== 'cortecs';
-
-/**
  * The lanes behind the selected one for a unified Gemma turn:
  * `UNIFIED_GEMMA_CHAIN` minus the selected stage. Empty for every other lane
  * (Mistral keeps its own repair path only).
@@ -807,36 +799,8 @@ const unifiedTargetAllowed = (target: { provider: string; model: string }): bool
 export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
   if (!isUnifiedGemma(provider, modelName)) return [];
   return UNIFIED_GEMMA_CHAIN.filter((stage) => !isUnifiedGemma(stage.provider, stage.model)).map(
-    (stage) => getModel(stage.provider, stage.model, { acceptTarget: unifiedTargetAllowed })
+    (stage) => getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
   );
-}
-
-/**
- * The unified primary when Melious Gemma cannot serve it: flagged slow
- * (`getModel` would swap in the Cortecs sibling) or no `MELIOUS_API_KEY`
- * (`instantiateModel` would substitute another provider). The turn then starts
- * on the chain's next stage (Mistral Large 4) instead. `null` = keep the
- * resolved model.
- */
-export function getUnifiedPrimaryOverride(
-  provider: string,
-  modelName: string
-): { model: LanguageModel; name: string; provider: Provider; reason: string } | null {
-  if (!isUnifiedGemma(provider, modelName)) return null;
-  const reason = !isProviderConfigured(provider)
-    ? 'melious_unconfigured'
-    : isModelSlow(provider, modelName)
-      ? 'melious_slow'
-      : null;
-  if (reason == null) return null;
-  const next = UNIFIED_GEMMA_CHAIN.find((stage) => !isUnifiedGemma(stage.provider, stage.model));
-  if (!next) return null;
-  return {
-    model: getModel(next.provider, next.model, { acceptTarget: unifiedTargetAllowed }),
-    name: next.model,
-    provider: next.provider,
-    reason,
-  };
 }
 
 /**
