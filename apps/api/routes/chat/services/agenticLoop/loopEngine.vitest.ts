@@ -687,6 +687,9 @@ describe('unified suffix — tool and writer rules', () => {
     expect(system).toContain(TOOL_USE_RULES);
     expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
     expect(system).toContain('ANTWORTE KONKRET');
+    // Hinweise der Werkzeuge binden die Antwort (im Split trägt das der Schreiber-Block).
+    expect(system).toContain('`fuerSchreiber`');
+    expect(system).toContain('`antwortregel`');
     // The unified model writes the answer — the gather-only ban must not reach it.
     expect(system).not.toContain('Schreibe in dieser Phase KEINE finale Antwort');
     // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.

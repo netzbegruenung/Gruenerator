@@ -266,6 +266,7 @@ export const UNIFIED_WRITER_RULES: string = [
   ANSWER_CONCRETELY_RULE,
   NO_CAPABILITY_DENIAL_RULE,
   CAPABILITY_NOTE_TEXT.trim(),
+  'Steht in einem Werkzeugergebnis ein Feld `fuerSchreiber` oder `antwortregel`, ist das eine verbindliche Anweisung an deine Antwort — beachte sie vor allem anderen.',
 ].join('\n');
 
 export const UNIFIED_SUFFIX = TOOL_USE_RULES + UNIFIED_WRITER_RULES;
