@@ -88,6 +88,7 @@ import {
   untouchedSlides,
 } from './specEditGuard.js';
 import { basicsText, chapterText, examplesText, systemPrompt } from './styleguide.js';
+import { terminAnswerOf } from './terminGap.js';
 
 const log = createLogger('sharepicCreator:draft');
 
@@ -320,6 +321,8 @@ export async function draftSharepic(
       : []
   );
   const photoGuard = ownPhotoGuard<Drafted>(current, photoRequestTexts(order, brief));
+  // A revision filling in a missing Termin (chat gap answer or Studio words): weekday and place go on the card.
+  const terminAntwort = terminAnswerOf(order, current);
   // What the last checkable attempt got wrong, for the person's text if every attempt fails.
   // „Not your request" only while no attempt has delivered a draft to check.
   let failure: DraftFailure = { kind: 'structure' };
@@ -361,7 +364,8 @@ export async function draftSharepic(
         order,
         livePhotos,
         design,
-        painters.cutOut ? ownPhotos.filter((p) => p.url).map((p) => p.id) : []
+        painters.cutOut ? ownPhotos.filter((p) => p.url).map((p) => p.id) : [],
+        terminAntwort
       );
       if (!checked.ok) return checked;
       const notSingle =

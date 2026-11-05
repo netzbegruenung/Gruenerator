@@ -215,7 +215,9 @@ export function validateDraft(
   /** The design the draft wears; the model never writes it. */
   brand: SharepicBrand | null = null,
   /** Own photos the server can cut out (they came with a `url`, and a cut-out painter exists). */
-  cutOutUploads: readonly string[] = []
+  cutOutUploads: readonly string[] = [],
+  /** The Termin this revision fills in (`terminAnswerOf`): its weekday and place go on the card. */
+  terminAntwort: string | null = null
 ): StructuredValidation<SharepicSpec> {
   // Country and brand are decided outside the model; whatever it wrote there goes.
   const { brand: _written, ...fields } = tightenAccentMarksDeep(input) as Record<string, unknown>;
@@ -491,7 +493,10 @@ export function validateDraft(
     ? { ok: false, error: errors.join(' ') }
     : {
         ok: true,
-        value: withTerminAnswer(withOrderedTime(withOrderedDate(base.value, order), order), order),
+        value: withTerminAnswer(
+          withOrderedTime(withOrderedDate(base.value, order), order),
+          terminAntwort
+        ),
       };
 }
 
