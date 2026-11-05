@@ -3,6 +3,7 @@ import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 import { type DecisionPointId } from '../../../utils/decisionJournal.js';
 
 import { type ScriptedResponse } from './harness/loopScript.js';
+import { type RespondScript } from './harness/respondScript.js';
 
 /**
  * Scenarios that run the REAL agentic loop, with the model scripted at the
@@ -86,6 +87,17 @@ export interface LoopScenario {
    */
   synthSystemIncludes?: string;
   /**
+   * Das Gegenstück für die Unified-Schwester: dieselben Texte, aber im
+   * Systemtext des EINEN Aufrufs (unified hat keinen Schreiber-Kontext). Gilt
+   * nur für unified; `synthSystemIncludes` nur für split.
+   */
+  unifiedSystemIncludes?: string;
+  /**
+   * Die Modell-Auflösung dieses Szenarios (`respond.resolution`). Ohne Angabe
+   * gilt `SPLIT_LANE`; die Unified-Schwestern setzen `UNIFIED_LANE`.
+   */
+  resolution?: RespondScript['resolution'];
+  /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
    * await-interleaving artefact, but HOW MANY are deferred is a property of the
@@ -123,7 +135,18 @@ const GERMAN_ANSWER =
 /** Reaches tier 3.5 loop demotion, so every scenario below enters the loop. */
 const LOOP_PROMPT = 'Was ist die Position der Gruenen zur Windkraft?';
 
-export const LOOP_SCENARIOS: readonly LoopScenario[] = [
+/**
+ * Die Split-Lane der Harness, ausdrücklich: Anbieter `stub` ist kein
+ * Unified-Modell, `prefersUnifiedLoop` ist false, der Turn läuft als Planer +
+ * Schreiber. Bis zur Unified-Umstellung (Gemma 4 31B auf Melious) war das die
+ * unbenannte Vorgabe von `respond.resolution`; jetzt steht sie da.
+ */
+export const SPLIT_LANE = { provider: 'stub', modelName: 'stub-model' } as const;
+
+/** Die Standard-Lane in Produktion: Gemma 4 31B auf Melious, ein Unified-Modell. */
+export const UNIFIED_LANE = { provider: 'melious', modelName: 'gemma-4-31b:balanced' } as const;
+
+const SPLIT_SCENARIOS: readonly LoopScenario[] = [
   {
     id: 'loop-synth-akzeptiert',
     category: 'synth-verdict',
@@ -495,4 +518,82 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
       without: ['read_pdf_form', 'media', 'summarize'],
     },
   },
+];
+
+/**
+ * Szenarien, die die Standard-Lane meinen und dort unified laufen. Nicht dabei:
+ * `@bundestag` (trägt eine Garantie, bleibt split — das deckt `loopRun`s
+ * Mistral-Fall), die Einzeldurchlauf-Szenarien (kein Loop) und die beiden
+ * Wiederholungs-Fälle der Synth-Verdikte, deren zweiter Versuch ein eigener
+ * Reparaturaufruf mit eigenem Skript-Eintrag ist.
+ */
+const UNIFIED_SISTER_IDS: readonly string[] = [
+  'loop-synth-akzeptiert',
+  'loop-synth-ablehnung-getauscht',
+  'loop-guard-duplikat',
+  'loop-guard-aehnliche-suche',
+  'loop-guard-suchbudget',
+  'loop-guard-fehlerdeckel',
+  'loop-guard-fehlerbudget',
+  'loop-guard-nebenlaeufig',
+  'mention-dokumente-loop',
+  'mention-recherche-loop',
+  'mention-umfragen-loop',
+  'mention-pressemitteilungen-loop',
+  'mention-doku-loop',
+  'anhang-zusammenfassung-loop',
+  'notebook-dokument-zusammenfassung-loop',
+  'recherche-auftrag-zuschnitt',
+];
+
+/**
+ * Dieselbe Frage auf der Standard-Lane. Unified kennt keine zwei Phasen, also
+ * trägt EIN Skript-Eintrag die Werkzeugaufrufe des Splits und den Antworttext
+ * (die Aufrufe laufen vor dem Text, wie in einem echten Schritt-Lauf).
+ */
+function unifiedSister(base: LoopScenario): LoopScenario {
+  const last = base.streams[base.streams.length - 1];
+  const calls = base.streams.flatMap((stream) => stream.calls ?? []);
+  const parallel = base.streams.some((stream) => stream.parallel === true);
+  const { synthSystemIncludes, mustDecide, ...rest } = base;
+  // `synthSystemIncludes` prüft im Split, dass der Digest eines Werkzeugs den
+  // Schreiber erreicht (`buildToolPayloadNote`: „der Schreiber sieht das
+  // tool-result nicht"). Unified hat diesen Block nicht und braucht ihn nicht —
+  // der EINE Aufruf sieht das Ergebnis selbst. Was dort stattdessen zu
+  // beobachten ist: dass derselbe Systemtext, der die Werkzeuge trägt, auch die
+  // Antwortregeln trägt (`UNIFIED_WRITER_RULES`), sonst schriebe niemand sie vor.
+  return {
+    ...rest,
+    id: `${base.id}-unified`,
+    note: `Unified-Schwester von \`${base.id}\`: dieselbe Frage auf Gemma 4 31B (Melious), also ein Aufruf statt Planer + Schreiber. ${base.note}`,
+    resolution: UNIFIED_LANE,
+    streams: [
+      {
+        ...(calls.length > 0 && { calls }),
+        ...(parallel && { parallel }),
+        ...(last?.text !== undefined && { text: last.text }),
+      },
+    ],
+    mustDecide: [
+      // Der saubere unified-Pfad vermerkt kein `accepted`: ein Verdikt fällt nur,
+      // wenn die Reparatur anspringt oder eine Ablehnung getauscht wird.
+      ...(mustDecide ?? []).filter(
+        (entry) => entry.point !== 'loop.mode' && entry.chose !== 'accepted'
+      ),
+      { point: 'loop.mode', chose: 'unified' },
+    ],
+    ...(mustDecide?.some((entry) => entry.chose === 'accepted') && {
+      notReached: ['loop.synth_verdict'] satisfies DecisionPointId[],
+    }),
+    ...(synthSystemIncludes && { unifiedSystemIncludes: 'ANTWORTPHASE' }),
+  };
+}
+
+export const LOOP_SCENARIOS: readonly LoopScenario[] = [
+  ...SPLIT_SCENARIOS,
+  ...UNIFIED_SISTER_IDS.map((id) => {
+    const base = SPLIT_SCENARIOS.find((scenario) => scenario.id === id);
+    if (!base) throw new Error(`unknown unified sister base: ${id}`);
+    return unifiedSister(base);
+  }),
 ];

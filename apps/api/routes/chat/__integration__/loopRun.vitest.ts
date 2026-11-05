@@ -169,7 +169,7 @@ const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
-const { LOOP_SCENARIOS } = await import('./loopScenarios.js');
+const { LOOP_SCENARIOS, SPLIT_LANE } = await import('./loopScenarios.js');
 
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');
 const UPDATE = process.env.SIM_UPDATE === '1';
@@ -209,6 +209,9 @@ beforeEach(() => {
   capture.reset();
   loopScript.reset();
   searchBackend.reset();
+  // Ausdrücklich: ohne Angabe liefe jeder Turn auf dem Anbieter `stub`, also
+  // split — das ist hier die benannte Split-Lane, nicht ein Zufall der Vorgabe.
+  respond.resolution = SPLIT_LANE;
 });
 
 describe('loop decision maps', () => {
@@ -220,6 +223,7 @@ describe('loop decision maps', () => {
 
     // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
     if (scenario.env) pinChatEnv(scenario.env);
+    if (scenario.resolution) respond.resolution = scenario.resolution;
 
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
@@ -319,6 +323,13 @@ describe('loop decision maps', () => {
         loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
         `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
       ).toContain(scenario.synthSystemIncludes);
+    }
+
+    if (scenario.unifiedSystemIncludes) {
+      expect(
+        loopScript.calls[0]?.system ?? '',
+        `${scenario.id}: der Systemtext des Unified-Aufrufs sollte "${scenario.unifiedSystemIncludes}" enthalten`
+      ).toContain(scenario.unifiedSystemIncludes);
     }
 
     for (const point of scenario.notReached ?? []) {
