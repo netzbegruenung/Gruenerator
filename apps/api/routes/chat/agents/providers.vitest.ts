@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 
 import {
   AVAILABLE_MODELS,
@@ -7,6 +7,8 @@ import {
   getModelConfig,
   resolveLoopPlannerLane,
   loopPlannerModelName,
+  getUnifiedFallbackModels,
+  getUnifiedPrimaryOverride,
   isUnifiedGemma,
   prefersUnifiedLoop,
   resolveModelTuple,
@@ -17,13 +19,19 @@ import {
   GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
+import { getDefaultModel } from '../../../services/ai/providers.js';
+import { env } from '../../../config/env.js';
+import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
+
+import { resolveLoopMode } from '../services/agenticLoop/loopMode.js';
 
 import {
   LOOP_PLANNER_CHAIN,
   LOOP_SYNTH_FALLBACK,
   LOOP_SYNTH_PRIMARY,
   mayWriteAnswer,
+  resolveAutoSelection,
 } from './autoPolicy.js';
 
 /**
@@ -70,6 +78,76 @@ describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split
 
   it('honours a MELIOUS_DEFAULT_MODEL name', () => {
     expect(isUnifiedGemma('melious', GEMMA_31B_ON_MELIOUS.model)).toBe(true);
+  });
+});
+
+describe('the real default lane resolves to a unified loop', () => {
+  it.each(['agentic', 'search'])(
+    'auto + intent %s -> melious gemma 31b -> unified',
+    async (intent) => {
+      const selection = resolveAutoSelection({ intent });
+      const tuple = await resolveModelTuple(selection.modelId, 'req-default-lane');
+      expect(tuple).toMatchObject({ provider: 'melious' });
+      expect(isUnifiedGemma(tuple!.provider, tuple!.model)).toBe(true);
+      expect(
+        resolveLoopMode({
+          provider: tuple!.provider,
+          modelName: tuple!.model,
+          materialHeavy: false,
+          carriesGuarantee: false,
+          headless: false,
+        })
+      ).toEqual({ mode: 'unified', reason: 'unified_model' });
+    }
+  );
+});
+
+describe('unified Gemma never leaves Melious for Cortecs', () => {
+  const GEMMA = 'gemma-4-31b:balanced';
+  const keys = ['MISTRAL_API_KEY', 'MELIOUS_API_KEY', 'CORTECS_API_KEY'] as const;
+  const saved: Record<string, string | undefined> = {};
+  const lane = (m: unknown): string =>
+    `${(m as { provider?: string }).provider ?? ''}/${(m as { modelId?: string }).modelId ?? ''}`;
+  const slow = (provider: string, model: string): void => {
+    recordSlowVerdict(provider, model, 'test');
+    recordSlowVerdict(provider, model, 'test');
+  };
+
+  beforeEach(() => {
+    for (const k of keys) {
+      saved[k] = env[k];
+      env[k] = 'test-key';
+    }
+    _resetModelHealthForTests();
+  });
+  afterEach(() => {
+    for (const k of keys) env[k] = saved[k];
+    _resetModelHealthForTests();
+  });
+
+  it('keeps Cortecs out of the fallback list when Mistral Large is slow', () => {
+    slow('mistral', 'mistral-large-4');
+    slow('melious', getDefaultModel('melious'));
+    const fallbacks = getUnifiedFallbackModels('melious', GEMMA);
+    expect(fallbacks).toHaveLength(1);
+    expect(lane(fallbacks[0])).not.toMatch(/cortecs|gemma-4-31b-it/);
+  });
+
+  it('has no primary override while Melious Gemma is healthy and configured', () => {
+    expect(getUnifiedPrimaryOverride('melious', GEMMA)).toBeNull();
+    expect(getUnifiedPrimaryOverride('mistral', 'mistral-large-4')).toBeNull();
+  });
+
+  it('starts on mistral-large-4 when Melious Gemma is flagged slow', () => {
+    slow('melious', GEMMA);
+    const override = getUnifiedPrimaryOverride('melious', GEMMA);
+    expect(override).toMatchObject({ provider: 'mistral', name: 'mistral-large-4' });
+    expect(lane(override!.model)).not.toMatch(/cortecs|gemma-4-31b-it/);
+  });
+
+  it('starts on mistral-large-4 when Melious has no key', () => {
+    env.MELIOUS_API_KEY = undefined;
+    expect(getUnifiedPrimaryOverride('melious', GEMMA)).toMatchObject({ name: 'mistral-large-4' });
   });
 });
 

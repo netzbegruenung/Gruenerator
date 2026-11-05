@@ -33,6 +33,7 @@ import {
   resolveLoopPlannerLane,
   getLoopSynthModel,
   getUnifiedFallbackModels,
+  getUnifiedPrimaryOverride,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -629,6 +630,17 @@ export async function streamAgenticResponse(
     // still guards the slow think-lanes either way, so a policy pointing at
     // gemma-litellm (→ verdigado-think) is still rewritten to gemma4-31b.
     const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
+    // Unified Gemma that Melious cannot serve right now starts on the chain's
+    // next stage instead of a Cortecs sibling (Gemma runs only via Melious).
+    const unifiedOverride =
+      mode === 'unified'
+        ? getUnifiedPrimaryOverride(resolution.provider, resolution.modelName)
+        : null;
+    if (unifiedOverride) {
+      log.warn(
+        `[Agentic] unified ${resolution.provider}/${resolution.modelName} unavailable (${unifiedOverride.reason}) → starting on ${unifiedOverride.provider}/${unifiedOverride.name}`
+      );
+    }
     const synth =
       mode === 'split'
         ? getLoopSynthModel(
@@ -639,7 +651,13 @@ export async function streamAgenticResponse(
             },
             undecided
           )
-        : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
+        : unifiedOverride
+          ? {
+              model: unifiedOverride.model,
+              name: unifiedOverride.name,
+              provider: unifiedOverride.provider,
+            }
+          : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
     synthName = synth.name;
 
     const afterGather = createAfterGather({
@@ -790,7 +808,9 @@ export async function streamAgenticResponse(
     // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
     // the selected host rejects or goes silent before any call or output.
     const unifiedFallbacks =
-      mode === 'unified' ? getUnifiedFallbackModels(resolution.provider, resolution.modelName) : [];
+      mode === 'unified' && !unifiedOverride
+        ? getUnifiedFallbackModels(resolution.provider, resolution.modelName)
+        : [];
     // Whichever mode, the lane that backs up the tool-less writer.
     const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
