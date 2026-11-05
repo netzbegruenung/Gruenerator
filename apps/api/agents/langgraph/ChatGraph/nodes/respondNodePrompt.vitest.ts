@@ -320,7 +320,7 @@ const hessenRow: TextForm = {
 type Case = {
   name: string;
   state: ChatGraphState;
-  opts?: { retrievalExpected?: boolean };
+  opts?: { retrievalExpected?: boolean; loop?: boolean };
   setup?: () => void;
 };
 
@@ -542,6 +542,15 @@ const GOLDEN_CASES: readonly Case[] = [
     name: 'retrievalExpected (agentischer loop)',
     state: makeState(withAgentDefaultRecipe as never),
     opts: { retrievalExpected: true },
+  },
+  {
+    name: 'prosa-turn mit agenten-standard, einzelpfad',
+    state: makeState({ ...withAgentDefaultRecipe, intent: 'produktion' } as never),
+  },
+  {
+    name: 'prosa-turn mit agenten-standard, loop',
+    state: makeState({ ...withAgentDefaultRecipe, intent: 'produktion' } as never),
+    opts: { retrievalExpected: true, loop: true },
   },
   {
     name: 'custom system prompt — duenn',
@@ -834,5 +843,38 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     );
     expect(loop).not.toContain('RECHERCHE-METHODE');
     expect(loop).toContain('Form und Umfang gibt die oben aktive Textform vor');
+  });
+});
+
+describe('Prosa im Loop verliert nichts', () => {
+  const prose = (intent: string) => makeState({ ...withAgentDefaultRecipe, intent } as never);
+  const LOOP = { retrievalExpected: true, loop: true } as const;
+
+  it('trägt Rezept-Rumpf und Schreibhilfe auf dem Loop-Pfad', async () => {
+    const loop = await buildSystemMessage(prose('produktion'), LOOP);
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('lässt den Einzelpfad unverändert', async () => {
+    const single = await buildSystemMessage(prose('produktion'));
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(single).toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
+  });
+
+  it('lässt die Ehrlichkeitsnotiz im Loop weg', async () => {
+    const loop = await buildSystemMessage(prose('produktion'), LOOP);
+    expect(loop).not.toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
+  });
+
+  it('legt Rezept und Schreibhilfe nicht auf Nicht-Prosa-Turns im Loop', async () => {
+    const loop = await buildSystemMessage(prose('search'), LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('behandelt greeting im Loop nicht als Prosa', async () => {
+    const loop = await buildSystemMessage(prose('greeting'), LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
   });
 });
