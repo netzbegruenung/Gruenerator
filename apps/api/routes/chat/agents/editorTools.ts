@@ -41,8 +41,8 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
 import {
-  DRAFT_LIMIT_TEXTS,
   DraftFailedError,
+  draftFailedText,
 } from '../../../services/sharepicCreator/draftFailure.js';
 import {
   describeBackgrounds,
@@ -369,8 +369,12 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         );
         return {
           error:
-            err instanceof DraftFailedError && err.reason
-              ? `Die Änderung am Sharepic ist nicht gelungen. ${DRAFT_LIMIT_TEXTS[err.reason]}`
+            err instanceof DraftFailedError
+              ? draftFailedText(
+                  'Die Änderung am Sharepic ist nicht gelungen.',
+                  err,
+                  'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
+                )
               : 'Die Änderung am Sharepic konnte nicht geplant werden. Versuche es erneut.',
         };
       }

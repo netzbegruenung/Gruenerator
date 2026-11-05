@@ -6,9 +6,11 @@ import { randomUUID } from 'node:crypto';
 
 import {
   brandIdFor,
+  parseSharepicChatProps,
   SHAREPIC_PROMPT_MAX,
   stripInlineMarks,
   type SharepicBrand,
+  type SharepicBerichtEintrag,
   type SharepicBrandId,
   type SharepicChatProps,
   type SharepicDraftResponse,
@@ -29,6 +31,7 @@ import { createIllustrationPainter } from '../../../services/sharepicCreator/ill
 import { createScenePainter } from '../../../services/sharepicCreator/sceneBackground.js';
 
 import { type PriorSharepic } from './sharepicVariantHelpers.js';
+import { type SharepicOwnPhotoWithUrl } from './turnPhotos.js';
 
 const ALTERNATIVE_RE =
   /\b(?:ander(?:e|es|en|er)|neue[nrs]?|weitere[nrs]?|noch\s+(?:ein|eine|einen))\s+(?:variante|version|entwurf|gestaltung|vorschlag|layout|sharepic)\b|\bganz\s+anders\b/i;
@@ -93,11 +96,21 @@ const CREATOR_CANVAS: Record<SharepicBrandId, SharepicVariant['canvasType']> = {
  */
 export function toCreatorVariant(
   draft: SharepicDraftResponse,
-  opts: { revisionOf: string | null; editorChangesDropped: boolean }
+  opts: {
+    revisionOf: string | null;
+    editorChangesDropped: boolean;
+    /** The chat's own photos; their ids resolve to these urls when the sharepic is composed. */
+    photos?: readonly SharepicOwnPhotoWithUrl[];
+    /** Photos of this turn that were left out — the answer mentions them. */
+    photoBericht?: readonly SharepicBerichtEintrag[];
+  }
 ): SharepicVariant {
+  const bericht = [...(opts.photoBericht ?? []), ...(draft.bericht ?? [])];
   const props: SharepicChatProps = {
     creatorSpec: draft.spec,
     attributions: draft.attributions,
+    ...(bericht.length && { bericht: bericht.slice(0, 20) }),
+    ...(opts.photos?.length && { photos: opts.photos.map(({ id, url }) => ({ id, url })) }),
     ...(opts.revisionOf !== null && { revisionOf: opts.revisionOf }),
     ...(opts.editorChangesDropped && { editorChangesDropped: true as const }),
   };
@@ -140,6 +153,9 @@ export async function createCreatorSharepic(args: {
   oneSlide: boolean;
   /** A catalogue Vorlage the person picked: its layout is filled, not redrafted. */
   vorlage?: SharepicVorlage | null;
+  /** The person's own photos of this chat, analysed and stored. */
+  photos: readonly SharepicOwnPhotoWithUrl[];
+  photoBericht?: readonly SharepicBerichtEintrag[];
 }): Promise<SharepicVariant> {
   const { vorlage } = args;
   // Only the request's own dates must reach the sharepic, not the material's.
@@ -151,7 +167,7 @@ export async function createCreatorSharepic(args: {
         ),
         args.locale,
         vorlage.spec,
-        [],
+        args.photos,
         paintersFor(args.userId),
         vorlage.form,
         args.brief
@@ -160,7 +176,7 @@ export async function createCreatorSharepic(args: {
         buildCreatorPrompt(args),
         args.locale,
         null,
-        [],
+        args.photos,
         paintersFor(args.userId),
         args.form,
         args.brief,
@@ -173,7 +189,15 @@ export async function createCreatorSharepic(args: {
   // drops it now and then (a remembrance on plain green), so it is kept here.
   const thema = vorlage?.spec.thema;
   const spec = thema && !draft.spec.thema ? { ...draft.spec, thema } : draft.spec;
-  return toCreatorVariant({ ...draft, spec }, { revisionOf: null, editorChangesDropped: false });
+  return toCreatorVariant(
+    { ...draft, spec },
+    {
+      revisionOf: null,
+      editorChangesDropped: false,
+      photos: args.photos,
+      ...(args.photoBericht && { photoBericht: args.photoBericht }),
+    }
+  );
 }
 
 export async function reviseCreatorSharepic(args: {
@@ -181,16 +205,32 @@ export async function reviseCreatorSharepic(args: {
   prior: PriorSharepic;
   spec: SharepicSpec;
   userId: string | null;
+  /** Photos the revised sharepic already holds plus this turn's. */
+  photos: readonly SharepicOwnPhotoWithUrl[];
+  photoBericht?: readonly SharepicBerichtEintrag[];
 }): Promise<SharepicVariant> {
+  const instruction = args.instruction.slice(0, SHAREPIC_PROMPT_MAX);
   const draft = await draftSharepic(
-    args.instruction.slice(0, SHAREPIC_PROMPT_MAX),
+    instruction,
     args.spec.locale,
     args.spec,
-    [],
-    paintersFor(args.userId)
+    args.photos,
+    paintersFor(args.userId),
+    null,
+    instruction,
+    null,
+    null,
+    false,
+    null,
+    // The report of the draft being revised said the Termin was missing: it still is, unless this edit added one.
+    (parseSharepicChatProps(args.prior.props)?.bericht ?? []).some(
+      (e) => e.art === 'fehlt' && e.fakt === 'termin'
+    )
   );
   return toCreatorVariant(draft, {
     revisionOf: args.prior.variantId,
     editorChangesDropped: args.prior.canvasId !== null,
+    photos: args.photos,
+    ...(args.photoBericht && { photoBericht: args.photoBericht }),
   });
 }

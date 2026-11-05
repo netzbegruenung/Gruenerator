@@ -33,6 +33,7 @@ import { orderText } from '../services/orderText.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { looksLikeSharepicOrder } from '../services/sharepicEditHeuristics.js';
+import { stateHasSharepic } from '../services/sharepicGap.js';
 import { getIntentMessage, type SSEWriter } from '../services/sseHelpers.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
@@ -154,10 +155,10 @@ export function runRoutingStage({
     hasOpenCanvasId: !!rawCurrentCanvas?.id,
     hasNamedBoard: (rawBoardIds?.length ?? 0) > 0 || mentionBoardIds.length > 0,
     isSharepicRefinement: !!sharepicRefinement,
+    // Eine Antwort, die eine Lücke füllt, kommt als `isSharepicRefinement` aus
+    // earlyHandlerStage — dieses Signal braucht dafür nichts.
     addressesThreadSharepic:
-      (classifiedState.currentSharepic != null ||
-        classifiedState.lastTurnEditables?.includes('sharepic') === true ||
-        classifiedState.threadArtifacts?.some((a) => a.kind === 'sharepic') === true) &&
+      stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOffer: classifiedState.acceptedOfferKind != null,

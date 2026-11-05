@@ -3,7 +3,7 @@ import { toast } from '@gruenerator/ui';
 import { useRef, useState, type DragEvent } from 'react';
 import { HiUpload } from 'react-icons/hi';
 
-import { useDocumentsStore } from '../../../../stores/documentsStore';
+import { DuplicateUploadError, useDocumentsStore } from '../../../../stores/documentsStore';
 import { cn } from '../../../../utils/cn';
 
 import { EmptySources, filterByTitle, NoMatches } from './PanelChrome';
@@ -11,6 +11,7 @@ import { SourceTable } from './SourceTable';
 import {
   ACCEPTED_EXTENSIONS,
   describeRejectedFiles,
+  dropSameContent,
   hasFileDrag,
   partitionUploadableFiles,
 } from './uploadFiles';
@@ -26,13 +27,31 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
 
+  const busy = useRef(false);
+
+  const upload = async (files: File[]) => {
+    // A second batch while the first is still unattached would pass the
+    // server's duplicate check, which only sees attached sources.
+    if (busy.current) {
+      toast.info('Bitte warten, bis die laufenden Dateien hochgeladen sind.');
+      return;
+    }
+    busy.current = true;
+    try {
+      await uploadBatch(files);
+    } finally {
+      busy.current = false;
+    }
+  };
+
   /**
    * Hochladen, dann in EINEM Aufruf anhängen. Scheitert eine Datei mitten in
    * der Reihe, werden die schon hochgeladenen trotzdem angehängt — sonst
    * lägen sie als Dokumente ohne Notebook herum.
    */
-  const upload = async (files: File[]) => {
-    const { accepted, rejected } = partitionUploadableFiles(files);
+  const uploadBatch = async (files: File[]) => {
+    const { accepted: picked, rejected } = partitionUploadableFiles(files);
+    const accepted = await dropSameContent(picked);
     const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total);
     const batch = accepted.slice(0, room);
     if (rejected.length > 0) toast.error(describeRejectedFiles(rejected));
@@ -45,13 +64,25 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
 
     setUploading(batch.length);
     const ids: string[] = [];
+    const duplicates: string[] = [];
     try {
       for (const file of batch) {
-        const doc = await uploadFileOnly(file, file.name);
-        ids.push(doc.id);
+        try {
+          const doc = await uploadFileOnly(file, file.name, hub.collection?.id);
+          ids.push(doc.id);
+        } catch (err) {
+          if (!(err instanceof DuplicateUploadError)) throw err;
+          duplicates.push(err.message);
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Fehler beim Hochladen der Datei.');
+    }
+    if (duplicates.length === 1) toast.info(`${duplicates[0]} Nicht noch einmal hochgeladen.`);
+    if (duplicates.length > 1) {
+      toast.info(
+        `${duplicates.length} Dateien liegen schon in diesem Notebook und wurden nicht noch einmal hochgeladen.`
+      );
     }
     try {
       await hub.addDocuments(ids);

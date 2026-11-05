@@ -22,7 +22,7 @@ import * as Sentry from '@sentry/react';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { composeCreatorSharepic } from './freitext/composeForRender';
+import { composeCreatorSharepic, sharepicPhotoSrc } from './freitext/composeForRender';
 import { createSerialQueue } from './serialRenderQueue';
 import { webCanvasImageUrls } from './webCanvasImageUrls';
 
@@ -244,7 +244,11 @@ async function renderCreatorSlide(
   quality: RenderQuality
 ): Promise<string | null> {
   try {
-    const composed = await composeCreatorSharepic(props.creatorSpec, props.attributions);
+    const composed = await composeCreatorSharepic(
+      props.creatorSpec,
+      props.attributions,
+      sharepicPhotoSrc(props.photos ?? [])
+    );
     const slide = composed.slides[props.slide ?? 0];
     if (!slide) return null;
     return await renderSharepicToImage(composed.templateType, slide, {

@@ -614,6 +614,21 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(draftSharepic.mock.calls[0]![8]).toBe("Headline auf 'Bus statt Stau' ändern");
   });
 
+  it('names what a failed sharepic edit draft is missing', async () => {
+    draftSharepic.mockRejectedValue(
+      new DraftFailedError('x', {
+        kind: 'material',
+        form: 'diagramm',
+        ask: 'mindestens zwei Zahlen',
+      })
+    );
+    const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Mach ein Diagramm daraus',
+    })) as { error: string };
+    expect(out.error).toContain('mindestens zwei Zahlen');
+    expect(out.error).not.toContain('konnte nicht geplant werden');
+  });
+
   it('drops the palette note when nothing changed, keeps the rest', async () => {
     draftSharepic.mockResolvedValue({
       spec: structuredClone(deckSpec),

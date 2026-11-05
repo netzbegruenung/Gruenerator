@@ -1,9 +1,12 @@
 import {
   type DocumentStatusResponse as ContractDocumentStatusResponse,
   type DocumentStatusValue,
+  type UploadOnlyDuplicate,
   type UploadOnlyResponse,
+  uploadOnlyDuplicateSchema,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import axios from 'axios';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
@@ -39,6 +42,19 @@ interface CombinedContentResponse {
  * the schema describes the 200, and the poll must also survive a 404 body.
  */
 type DocumentUploadResponse = UploadOnlyResponse;
+
+/**
+ * The target notebook already holds this file (409 from /upload-only). Thrown
+ * apart from other failures so a batch upload can skip the file and go on.
+ */
+export class DuplicateUploadError extends Error {
+  readonly duplicateOf: UploadOnlyDuplicate['duplicateOf'];
+  constructor(body: UploadOnlyDuplicate) {
+    super(body.message);
+    this.name = 'DuplicateUploadError';
+    this.duplicateOf = body.duplicateOf;
+  }
+}
 
 interface DocumentStatusResponse {
   data?: Partial<ContractDocumentStatusResponse['data']>;
@@ -206,7 +222,8 @@ interface DocumentsActions {
   fetchDocuments: () => Promise<void>;
   fetchCombinedContent: () => Promise<{ documents: Document[]; texts: Text[] } | undefined>;
   uploadDocument: (file: File, title: string, groupId?: string | null) => Promise<Document>;
-  uploadFileOnly: (file: File, title?: string) => Promise<Document>;
+  /** `collectionId` turns on the server's duplicate check for that notebook. */
+  uploadFileOnly: (file: File, title?: string, collectionId?: string) => Promise<Document>;
   pollDocumentStatus: (
     documentId: string,
     onStatusChange?: (status: DocumentStatus) => void
@@ -407,7 +424,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
       },
 
       // Upload file only (no processing) — used by 2-step notebook creation
-      uploadFileOnly: async (file, title) => {
+      uploadFileOnly: async (file, title, collectionId) => {
         set((state) => {
           state.isUploading = true;
           state.uploadProgress = 0;
@@ -419,6 +436,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
           formData.append('document', file);
           if (title) {
             formData.append('title', title);
+          }
+          if (collectionId) {
+            formData.append('collectionId', collectionId);
           }
 
           const response = await apiClient.post<DocumentUploadResponse>(
@@ -447,6 +467,17 @@ export const useDocumentsStore = create<DocumentsStore>()(
             throw new Error(result.message ?? 'Failed to upload file');
           }
         } catch (error: unknown) {
+          const duplicate =
+            axios.isAxiosError(error) && error.response?.status === 409
+              ? uploadOnlyDuplicateSchema.safeParse(error.response.data)
+              : null;
+          if (duplicate?.success) {
+            set((state) => {
+              state.isUploading = false;
+              state.uploadProgress = 0;
+            });
+            throw new DuplicateUploadError(duplicate.data);
+          }
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           set((state) => {
             state.error = errorMessage;

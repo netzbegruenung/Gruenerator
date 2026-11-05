@@ -127,6 +127,8 @@ export interface GenerateResult {
 
 export interface GenerateFromImageOptions extends SubmitOptions, PollOptions {
   seed?: number;
+  /** The reference is a person's own photo: never send it to the global endpoint. */
+  euOnly?: boolean;
 }
 
 export interface ReferenceImage {
@@ -395,7 +397,8 @@ class FluxImageService {
   private async postGeneration(
     endpointPath: string,
     body: unknown,
-    operationType: string
+    operationType: string,
+    euOnly = false
   ): Promise<SubmitResponse> {
     const headers = {
       accept: 'application/json',
@@ -421,7 +424,7 @@ class FluxImageService {
     try {
       return await send(this.baseUrl);
     } catch (error: unknown) {
-      if (this.baseUrl !== BFL_EU_URL || !isEndpointUnreachable(error)) throw error;
+      if (euOnly || this.baseUrl !== BFL_EU_URL || !isEndpointUnreachable(error)) throw error;
       const original = (error as FluxError).originalError as FluxApiError | undefined;
       console.warn(
         `[FluxImageService] EU endpoint unreachable (${original?.code ?? 'unknown'}), sending ${operationType} to ${BFL_GLOBAL_URL}`
@@ -745,7 +748,12 @@ class FluxImageService {
     );
     this.recordImageOperation(modelPath);
 
-    const request = await this.postGeneration(modelPath, body, 'generateFromImages');
+    const request = await this.postGeneration(
+      modelPath,
+      body,
+      'generateFromImages',
+      options.euOnly === true
+    );
 
     const { id, polling_url } = request;
     console.log(`[FluxImageService] Image-to-image request submitted successfully, ID: ${id}`);

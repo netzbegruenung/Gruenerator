@@ -33,6 +33,17 @@ describe('FLUX endpoint fallback', () => {
     expect(postedUrls()).toEqual([EU, GLOBAL]);
   });
 
+  it('keeps a person’s own photo off the global endpoint', async () => {
+    vi.mocked(axios.post).mockRejectedValue(tlsError);
+    const flux = new FluxImageService({ apiKey: 'k' });
+    await expect(
+      flux.generateFromImages('p', [{ buffer: Buffer.from('x'), mimeType: 'image/jpeg' }], {
+        euOnly: true,
+      })
+    ).rejects.toThrow();
+    expect(postedUrls()).toEqual([EU]);
+  });
+
   it('stays on the EU endpoint when it answered, even with an error', async () => {
     vi.mocked(axios.post).mockRejectedValue(serverError);
     await expect(new FluxImageService({ apiKey: 'k' }).submit('p')).rejects.toThrow();

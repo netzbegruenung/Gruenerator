@@ -198,3 +198,15 @@ describe('draftSharepic — a Vorlage cut-out', () => {
     expect(hinweis ?? '').not.toContain('freistellen');
   });
 });
+
+describe('draftSharepic — datum repair', () => {
+  it('drops an invented time instead of rejecting, so the spec carries no datum', async () => {
+    const draft = {
+      ...strip,
+      slides: [{ ...strip.slides[0]!, datum: { time: '18 Uhr' } }],
+    } as unknown as SharepicSpec;
+    answer(draft);
+    const { spec } = await draftSharepic('Wind', 'de-DE', null, []);
+    expect(spec.slides[0]).not.toHaveProperty('datum');
+  });
+});

@@ -11,7 +11,12 @@ vi.mock('./photoTone', () => ({
   cachedPhotoTone: vi.fn(() => null),
 }));
 
-import { canvasSeed, composeCreatorSharepic, creatorPhotoSrc } from './composeForRender';
+import {
+  canvasSeed,
+  composeCreatorSharepic,
+  creatorPhotoSrc,
+  sharepicPhotoSrc,
+} from './composeForRender';
 
 const slide = (headline: string): SharepicSpec['slides'][number] => ({
   background: { kind: 'farbe', color: 'tanne' },
@@ -109,5 +114,22 @@ describe('creatorPhotoSrc', () => {
       '/api/sharepic-vorlagen/assets/person-frei.webp'
     );
     expect(creatorPhotoSrc('wind.jpg')).toBe('/api/image-picker/stock-image/wind.jpg');
+  });
+});
+
+describe('sharepicPhotoSrc', () => {
+  const src = sharepicPhotoSrc([{ id: 'upload:1', url: '/api/share/abcdefghijklmnop/download' }]);
+
+  it('resolves an own photo to its library url', () => {
+    expect(src('upload:1')).toBe('/api/share/abcdefghijklmnop/download');
+  });
+
+  it('gives an unknown upload no source', () => {
+    expect(src('upload:2')).toBe('');
+  });
+
+  it('leaves everything else to creatorPhotoSrc', () => {
+    expect(src('foo.jpg')).toBe(creatorPhotoSrc('foo.jpg'));
+    expect(sharepicPhotoSrc()('foo.jpg')).toBe(creatorPhotoSrc('foo.jpg'));
   });
 });

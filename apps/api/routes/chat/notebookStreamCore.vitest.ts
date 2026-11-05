@@ -24,6 +24,7 @@ const streamWithFallback = vi.fn();
 const streamForResolution = vi.fn();
 const isProviderConfigured = vi.fn((..._args: unknown[]) => true);
 const expandQuery = vi.fn();
+const extractSearchTerms = vi.fn();
 const logInfo = vi.fn();
 
 vi.mock('../../utils/logger.js', () => ({
@@ -73,6 +74,7 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
 }));
 vi.mock('../../services/search/QueryExpansionService.js', () => ({
   expandQuery: (...args: unknown[]) => expandQuery(...args),
+  extractSearchTerms: (...args: unknown[]) => extractSearchTerms(...args),
 }));
 
 const { handleNotebookStream } = await import('./notebookStreamCore.js');
@@ -203,11 +205,32 @@ function setupMocks() {
     primary: 'Was steht zur sozialen Sicherung drin?',
     alternatives: ['Grundsicherung Positionen', 'Sozialstaat Reform'],
   });
+  extractSearchTerms.mockResolvedValue(['Grundsicherung']);
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   setupMocks();
+});
+
+describe('handleNotebookStream — subject terms (#5341)', () => {
+  it('fetches the subject terms in deep and hands them to the search', async () => {
+    await run('deep');
+    expect(extractSearchTerms).toHaveBeenCalledWith('Was steht zur sozialen Sicherung drin?');
+    expect(getSearchContext.mock.calls[0][0]).toMatchObject({ lexicalTerms: ['Grundsicherung'] });
+  });
+
+  it.each(['fast', 'ultra'] as const)('leaves %s without them', async (mode) => {
+    await run(mode);
+    expect(extractSearchTerms).not.toHaveBeenCalled();
+    expect(getSearchContext.mock.calls[0][0]).not.toHaveProperty('lexicalTerms');
+  });
+
+  it('searches as before when no term comes back', async () => {
+    extractSearchTerms.mockResolvedValueOnce([]);
+    await run('deep');
+    expect(getSearchContext.mock.calls[0][0]).not.toHaveProperty('lexicalTerms');
+  });
 });
 
 describe('handleNotebookStream — reranking per tier', () => {

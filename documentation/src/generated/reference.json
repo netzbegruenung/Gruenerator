@@ -85,6 +85,11 @@
   "collections": {
     "nationwide": [
       {
+        "id": "landtag-berlin-system",
+        "name": "Abgeordnetenhaus Berlin",
+        "description": "Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin"
+      },
+      {
         "id": "abgeordnetenwatch-system",
         "name": "Abgeordnetenwatch",
         "description": "Namentliche Abstimmungen (mit Grünen-Votum) und Nebentätigkeiten von Abgeordneten"
@@ -133,6 +138,11 @@
         "id": "kommunalwiki-system",
         "name": "KommunalWiki",
         "description": "Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)"
+      },
+      {
+        "id": "landtag-nrw-system",
+        "name": "Landtag NRW",
+        "description": "Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen"
       }
     ],
     "landesverbaende": [
