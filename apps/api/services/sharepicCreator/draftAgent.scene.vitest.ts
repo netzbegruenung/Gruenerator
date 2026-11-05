@@ -764,7 +764,10 @@ describe('draftSharepic — scene with the person', () => {
       scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
       cutOut: vi.fn(),
     });
-    expect(errors).toEqual([]);
+    // Only the general rule (photos brought along) fires, not the person-in-scene one.
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('eigenes Foto mitgebracht');
+    expect(errors[0]).not.toContain('Der Auftrag will die Person');
   });
 
   it('lets the last attempt pass and reports the photo as unused', async () => {
