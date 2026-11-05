@@ -166,9 +166,9 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   };
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-  // `already` check, so it is safe to call both inside afterGather (split,
-  // BEFORE synth so the synth can confirm it) AND as a post-loop net for
-  // unified mode, where afterGather never runs (loopEngine returns early).
+  // `already` check, so it is safe to call more than once. Turns that carry
+  // this guarantee run split (`turnCarriesGuarantee`), so afterGather fires
+  // BEFORE the synth and the synth can confirm the artefact.
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
     // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
