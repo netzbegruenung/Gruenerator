@@ -12,8 +12,22 @@ describe('resolveLoopMode', () => {
     ['guarantee turn', MISTRAL, { ...CLEAN, carriesGuarantee: true }, 'split', 'guarantee'],
     ['headless run', MISTRAL, { ...CLEAN, headless: true }, 'split', 'headless'],
     [
-      'non-unified model',
+      'melious gemma 31b is unified',
       { provider: 'melious', modelName: 'gemma-4-31b:balanced' },
+      CLEAN,
+      'unified',
+      'unified_model',
+    ],
+    [
+      'melious gemma 31b with a guarantee',
+      { provider: 'melious', modelName: 'gemma-4-31b:balanced' },
+      { ...CLEAN, carriesGuarantee: true },
+      'split',
+      'guarantee',
+    ],
+    [
+      'non-unified model',
+      { provider: 'cortecs', modelName: 'gemma-4-31b-it' },
       CLEAN,
       'split',
       'not_unified_model',

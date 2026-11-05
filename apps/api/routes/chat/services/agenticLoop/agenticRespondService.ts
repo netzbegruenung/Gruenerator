@@ -32,6 +32,7 @@ import {
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
+  getUnifiedFallbackModels,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -786,6 +787,10 @@ export async function streamAgenticResponse(
           )
         : null;
     const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
+    // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
+    // the selected host rejects or goes silent before any call or output.
+    const unifiedFallbacks =
+      mode === 'unified' ? getUnifiedFallbackModels(resolution.provider, resolution.modelName) : [];
     // Whichever mode, the lane that backs up the tool-less writer.
     const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
@@ -814,6 +819,7 @@ export async function streamAgenticResponse(
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
       ...(repair && { repairModel: repair.model }),
+      ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
       ...(repairFallback && { repairFallback: repairFallback.model }),
       producedArtifact: () => turnProducedArtifact(finalState),
       plannerFallbackModels: plannerFallbacks,
@@ -847,11 +853,21 @@ export async function streamAgenticResponse(
         recordSlowVerdict(
           synth.provider,
           synth.name,
-          reason === 'empty_completion' ? 'synth_empty' : 'synth_stall'
+          reason === 'empty_completion'
+            ? 'synth_empty'
+            : reason === 'upstream_error'
+              ? 'upstream_error'
+              : 'synth_stall'
         );
         if (!synthFallback) return;
         log.warn(
-          `[Agentic] synth ${synth.name} ${reason === 'empty_completion' ? 'returned no text' : 'stalled'} → falling back to ${synthFallback.name}`
+          `[Agentic] synth ${synth.name} ${
+            reason === 'empty_completion'
+              ? 'returned no text'
+              : reason === 'upstream_error'
+                ? 'rejected the request'
+                : 'stalled'
+          } → falling back to ${synthFallback.name}`
         );
         sse.send('fallback', {
           from: { id: synth.name, name: synth.name },

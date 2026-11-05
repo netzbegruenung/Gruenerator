@@ -26,9 +26,10 @@
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
- * `prefersUnifiedLoop` is true only for Mistral. Picking a Mistral lane
- * therefore also selects the UNIFIED loop (one model does tools + prose);
- * every other lane runs the split (fixed planner gathers, synth writes).
+ * `prefersUnifiedLoop` is true for Mistral and for Gemma 4 31B on Melious.
+ * Picking such a lane therefore also selects the UNIFIED loop (one model does
+ * tools + prose); every other lane runs the split (fixed planner gathers,
+ * synth writes). Guarantee-carrying and material-heavy turns still split.
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';

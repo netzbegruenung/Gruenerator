@@ -7,6 +7,7 @@ import {
   getModelConfig,
   resolveLoopPlannerLane,
   loopPlannerModelName,
+  isUnifiedGemma,
   prefersUnifiedLoop,
   resolveModelTuple,
 } from './providers.js';
@@ -40,15 +41,35 @@ const WRITER_MODELS = new Set([
   'mistral-large-4',
 ]);
 
-describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
+describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split)', () => {
   it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
     expect(prefersUnifiedLoop('mistral', 'mistral-medium-2604')).toBe(true);
   });
+
+  it.each([
+    ['melious', 'gemma-4-31b', true],
+    ['melious', 'gemma-4-31b:balanced', true],
+    ['melious', 'gemma-4-31b:speed', true],
+    ['melious', 'gemma-4-31b:eco', true],
+    ['melious', 'gemma-4-26b-a4b', false],
+    ['melious', 'gemma-4-26b-a4b:speed', false],
+    ['cortecs', 'gemma-4-31b-it', false],
+    ['cortecs', 'mistral-small-3.2', false],
+    ['greenpt', 'gemma4-31b', false],
+    ['melious', 'gruenerator-panda', false],
+    ['melious', 'deepseek-v4.1-flash', false],
+  ])('%s/%s -> unified %s', (provider, model, expected) => {
+    expect(isUnifiedGemma(provider, model)).toBe(expected);
+    expect(prefersUnifiedLoop(provider, model)).toBe(expected);
+  });
+
   it('every other provider runs the split (planner does tools, selection writes)', () => {
     expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
     expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
-    expect(prefersUnifiedLoop('cortecs', 'gemma-4-31b-it')).toBe(false);
-    expect(prefersUnifiedLoop('melious', 'gemma-4-31b:balanced')).toBe(false);
+  });
+
+  it('honours a MELIOUS_DEFAULT_MODEL name', () => {
+    expect(isUnifiedGemma('melious', GEMMA_31B_ON_MELIOUS.model)).toBe(true);
   });
 });
 
