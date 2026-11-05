@@ -15,8 +15,8 @@
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
 artifact                         47   10.9 %     0
-gated                            18    4.2 %     0
-loop                            348   80.9 %     7
+gated                            19    4.4 %     0
+loop                            347   80.7 %     7
 prose                            17    4.0 %     0
 (unbekannt)                       0    0.0 %     0
 
@@ -39,7 +39,7 @@ classifier.tier  (419)
     tier2_agentura_create         0
     tier2.7_mcp_followup          0
     tier2.7_sharepic_followup     8
-    tier2.9_docs_help            11
+    tier2.9_docs_help            12
     tier2.95_ambiguous_graphic    3
     tier3_short_message           1
     tier3_short_message_to_loop    5
@@ -47,7 +47,7 @@ classifier.tier  (419)
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
-    tier3.5_loop_demotion       311
+    tier3.5_loop_demotion       310
     tier3.8_generation_scope      7
     residual                      4
     error_fallback                0
@@ -67,7 +67,7 @@ bahn                              0  retired
 reise                             0  retired
 hotel                             0  retired
 umfragen                          0  retired
-hilfe                            11  gated
+hilfe                            12  gated
 wetter                            0  retired
 news                              0  retired
 image                             2  artifact
@@ -95,4 +95,4 @@ mcp                               0  retired
 produktion                       13  prose
 direct                            0  prose
 greeting                          4  prose
-agentic                         335  loop
+agentic                         334  loop
