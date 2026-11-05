@@ -65,7 +65,7 @@ import {
 } from '../../../../services/mcp/McpServerRegistry.js';
 import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
-import { recordDecision } from '../../../../utils/decisionJournal.js';
+import { type BranchOf, recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { getActiveAnchors } from './anchorContext.js';
@@ -1384,6 +1384,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Context-only fallback branches — fire only when no search-capable
     // mention above already routed the request.
 
+    // Gemeinsam für Datei- und Bild-Anhang: ein Erstell-Auftrag über dem Anhang
+    // ist ein Erstell-Turn. `null` = kein Auftrag, der Aufrufer fällt weiter.
+    const classifyCreationOrderOverAttachment = (
+      decision: BranchOf<'classifier.tier'>
+    ): Partial<ChatGraphState> | null => {
+      const orderedKind = compoundGenerationKind('produktion', askText);
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (!orderedKind || !orderedIntent) return null;
+      log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+      recordDecision('classifier.tier', decision, { inputs: { kind: orderedKind } });
+      return {
+        intent: orderedIntent,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    };
+
     if (hasAttachmentContext && userContent.length > 0) {
       // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
       // Schreibauftrag am Material. Dieser Rückfall lief vor jeder Erstell-Regel
@@ -1397,24 +1419,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // nie ein Artefakt (`search` hat keine Erstell-Art), ein Notebook-Agent
       // beantwortete „mach daraus eine Präsentation" also mit Text. Der bestellte
       // Gegenstand und sein Stoff im Anhang gehen der Notebook-Erdung vor.
-      const orderedKind = compoundGenerationKind('produktion', askText);
-      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
-      if (orderedKind && orderedIntent) {
-        log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
-        recordDecision('classifier.tier', 'tier2_attachment_create_order', {
-          inputs: { kind: orderedKind },
-        });
-        return {
-          intent: orderedIntent,
-          searchSources: [],
-          searchQuery: null,
-          detectedFilters: null,
-          reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
-          hasTemporal: temporal.hasTemporal,
-          complexity,
-          classificationTimeMs: Date.now() - startTime,
-        };
-      }
+      const orderedTurn = classifyCreationOrderOverAttachment('tier2_attachment_create_order');
+      if (orderedTurn) return orderedTurn;
 
       // Agent-bound default notebooks (or a deliberate composer pick): the
       // attachment is working material (e.g. a pasted citizen email), but the
@@ -1471,6 +1477,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // Image attachments (no edit verb above) — vision model interprets in respond.
     if (hasImageAttachments) {
+      // Derselbe Erstell-Auftrag wie beim Datei-Anhang: „erstelle ein Sharepic …"
+      // mit Foto darf nicht im Vision-Text enden (live 05.11.2026).
+      const orderedTurn = classifyCreationOrderOverAttachment(
+        'tier2_image_attachment_create_order'
+      );
+      if (orderedTurn) return orderedTurn;
+
       log.info(
         `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing produktion intent`
       );
