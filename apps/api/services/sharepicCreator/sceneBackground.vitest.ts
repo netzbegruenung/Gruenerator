@@ -66,7 +66,8 @@ describe('createScenePainter', () => {
       expect(generateFromImages).toHaveBeenCalledWith(
         expect.stringContaining('a forest'),
         [{ buffer: Buffer.from('jpegbytes'), mimeType: 'image/jpeg' }],
-        { aspect_ratio: '4:5' }
+        // A person's own photo never leaves the EU endpoint.
+        { aspect_ratio: '4:5', euOnly: true }
       );
     });
 

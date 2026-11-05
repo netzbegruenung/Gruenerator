@@ -141,7 +141,7 @@ export function createScenePainter(userId: string): ScenePainter {
       const prompt = serializeLayout(sceneLayout(motiv, textSeite));
       const options = { aspect_ratio: format === 'post-portrait-tall' ? '3:4' : '4:5' } as const;
       const { stored } = reference
-        ? await flux.generateFromImages(prompt, [reference], options)
+        ? await flux.generateFromImages(prompt, [reference], { ...options, euOnly: true })
         : await flux.generateFromPrompt(prompt, options);
       const share = await getSharedMediaService().uploadMediaFile(userId, {
         fileBuffer: fs.readFileSync(stored.filePath),
