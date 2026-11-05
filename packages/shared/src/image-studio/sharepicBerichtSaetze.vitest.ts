@@ -75,6 +75,19 @@ describe('berichtSaetze', () => {
         },
       ])
     ).toEqual(['Die Szene mit dir ließ sich nicht malen – dein Foto ist jetzt der Hintergrund.']);
+    expect(
+      berichtSaetze([
+        {
+          art: 'foto',
+          id: 'upload:1',
+          status: 'verwendet',
+          grund:
+            'Die Szene mit dir ließ sich nicht malen. Dein Foto steht als Karte auf dem Sharepic.',
+        },
+      ])
+    ).toEqual([
+      'Die Szene mit dir ließ sich nicht malen. Dein Foto steht als Karte auf dem Sharepic.',
+    ]);
     expect(berichtSaetze([{ art: 'foto', id: 'upload:1', status: 'verwendet' }])).toEqual([
       'Dein Foto ist auf dem Sharepic.',
     ]);

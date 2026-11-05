@@ -546,7 +546,12 @@ export async function draftSharepic(
         else {
           bericht.push(
             card
-              ? { art: 'foto', id, status: 'verwendet', grund }
+              ? {
+                  art: 'foto',
+                  id,
+                  status: 'verwendet',
+                  grund: `${grund} Dein Foto steht als Karte auf dem Sharepic.`,
+                }
               : {
                   art: 'foto',
                   id,
@@ -583,6 +588,51 @@ export async function draftSharepic(
             }
           : e;
     })
+  );
+  // No own photo may vanish unreported (live: a first draft painted a generic surfer and said nothing).
+  const reported = new Set(bericht.flatMap((e) => (e.art === 'foto' ? [e.id] : [])));
+  const shown = new Set(photoNames(spec.slides));
+  let unused = ownPhotos.filter((p) => !shown.has(p.id) && !reported.has(p.id));
+  if (!current && unused.length === ownPhotos.length && unused.length) {
+    const first = unused[0]!;
+    const head = spec.slides[0]!;
+    const painted =
+      head.background.kind !== 'farbe' && isSharepicSceneRef(head.background.filename);
+    if (!painted) {
+      const candidate: SharepicSpec = {
+        ...spec,
+        slides: spec.slides.map((slide, i) =>
+          i === 0
+            ? {
+                ...slide,
+                background: {
+                  kind: 'foto',
+                  filename: first.id,
+                  textSeite: first.analysis.ruhigeSeite ?? 'unten',
+                },
+              }
+            : slide
+        ),
+      };
+      if (sharepicSpecSchema.safeParse(candidate).success) {
+        spec = candidate;
+        bericht.unshift({
+          art: 'foto',
+          id: first.id,
+          status: 'verwendet',
+          grund: 'Ich habe dein Foto als Hintergrund eingesetzt.',
+        });
+        unused = unused.slice(1);
+      }
+    }
+  }
+  bericht.unshift(
+    ...unused.map((p): SharepicBerichtEintrag => ({
+      art: 'foto',
+      id: p.id,
+      status: 'nicht_verwendet',
+      grund: 'Es passte nicht in diesen Entwurf – sag mir, wo es hin soll.',
+    }))
   );
   const paletteNote = paletteHinweis(palette);
   if (paletteNote) bericht.push({ art: 'gestaltung', text: paletteNote.slice(0, 300) });

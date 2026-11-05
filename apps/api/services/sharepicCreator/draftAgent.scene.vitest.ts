@@ -719,6 +719,23 @@ describe('draftSharepic — scene with the person', () => {
     expect(cutOut).not.toHaveBeenCalled();
   });
 
+  it('reports an own photo the painted scene does not use', async () => {
+    draftAnswers({
+      slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })],
+    });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({
+        status: 'nicht_verwendet',
+        grund: 'Es passte nicht in diesen Entwurf – sag mir, wo es hin soll.',
+      }),
+    ]);
+    expect(berichtSaetze(draft.bericht!).join(' ')).toContain('sag mir, wo es hin soll');
+  });
+
   it('puts the photo cut out on the colour when the scene with the person fails', async () => {
     refusePhotoGround();
     draftAnswers({ slides: [slide(personScene)] });

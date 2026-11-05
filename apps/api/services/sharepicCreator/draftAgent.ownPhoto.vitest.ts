@@ -6,6 +6,7 @@ vi.mock('../ai/generate.js', () => ({ aiObject }));
 
 import { draftSharepic } from './draftAgent.js';
 import { cutOutBilder } from './draftPainting.js';
+import { berichtSaetze } from '@gruenerator/shared/image-studio';
 import { OWN_PHOTO_KEPT_HINWEIS } from './ownPhoto.js';
 
 type Slide = SharepicSpec['slides'][number];
@@ -252,5 +253,55 @@ describe('draftSharepic — the own photo is cut out', () => {
       cutOut: async () => 'ki:freisteller-000000001',
     });
     expect((draft.bericht ?? []).filter((e) => e.art === 'foto')).toEqual([]);
+  });
+});
+
+describe('draftSharepic — no own photo vanishes unreported', () => {
+  const own = (id = 'upload:1') => ({ id, analysis: SHAREPIC_NEUTRAL_PHOTO_ANALYSIS });
+  const fotos = (bericht: readonly { art: string; id?: string }[] | undefined) =>
+    (bericht ?? []).filter((e) => e.art === 'foto');
+
+  it('makes the photo the ground of a first draft that left it out', async () => {
+    answers(lost, lost, lost);
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [own()]);
+    expect(draft.spec.slides[0]!.background).toMatchObject({
+      kind: 'foto',
+      filename: 'upload:1',
+      textSeite: 'unten',
+    });
+    expect(fotos(draft.bericht)).toEqual([
+      {
+        art: 'foto',
+        id: 'upload:1',
+        status: 'verwendet',
+        grund: 'Ich habe dein Foto als Hintergrund eingesetzt.',
+      },
+    ]);
+  });
+
+  it('reports an unused photo of a revision, and nothing for one that is not offered', async () => {
+    answers(lost, lost, lost);
+    const kept = await draftSharepic('Mach den Hintergrund tanne', 'de-DE', {
+      locale: 'de-DE',
+      slides: [slide(TANNE)],
+    });
+    expect(fotos(kept.bericht)).toEqual([]);
+
+    answers(lost, lost, lost);
+    const draft = await draftSharepic(
+      'Mach den Hintergrund tanne',
+      'de-DE',
+      { locale: 'de-DE', slides: [slide(TANNE)] },
+      [own()]
+    );
+    expect(fotos(draft.bericht)).toEqual([
+      {
+        art: 'foto',
+        id: 'upload:1',
+        status: 'nicht_verwendet',
+        grund: 'Es passte nicht in diesen Entwurf – sag mir, wo es hin soll.',
+      },
+    ]);
+    expect(berichtSaetze(draft.bericht!).join(' ')).toContain('sag mir, wo es hin soll');
   });
 });
