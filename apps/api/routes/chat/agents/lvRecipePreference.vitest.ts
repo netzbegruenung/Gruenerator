@@ -12,7 +12,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
-  ownedLvDefaultRecipeMention,
+  ownedDefaultRecipeMention,
   preferredLvRecipeMention,
   roleAwareDefaultRecipeMention,
 } from './lvRecipePreference.js';
@@ -312,7 +312,7 @@ describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
   });
 });
 
-describe('ownedLvDefaultRecipeMention', () => {
+describe('ownedDefaultRecipeMention', () => {
   // Die Regel ist abgeleitet („genau ein eigenes Rezept"), nicht deklariert.
   // Bekäme ein Bürger-Agent ein zweites Rezept, fiele das Vorladen still weg —
   // dieser Test macht das laut.
@@ -321,18 +321,19 @@ describe('ownedLvDefaultRecipeMention', () => {
       lv.buergerAgentId,
       lv.beschlussAgentId,
       lv.wahlprogrammAgentId,
+      lv.wahlpruefsteinAgentId,
     ])
       .filter((id): id is string => id !== undefined && !DISABLED_LV_AGENT_IDS.has(id))
       .map((id) => [id] as const)
   )('lädt auf %s vor', (id) => {
     const agent = getSystemAgent(id);
     expect(agent).toBeDefined();
-    expect(ownedLvDefaultRecipeMention(agent ?? {})).toBe(agent?.defaultRecipeMention);
+    expect(ownedDefaultRecipeMention(agent ?? {})).toBe(agent?.defaultRecipeMention);
   });
 
   it('liefert das Rezept eines Ein-Rezept-LV-Agenten', () => {
     expect(
-      ownedLvDefaultRecipeMention({
+      ownedDefaultRecipeMention({
         identifier: 'gruenerator-buergeranfragen-berlin',
         defaultRecipeMention: 'buerger-berlin',
       })
@@ -341,31 +342,44 @@ describe('ownedLvDefaultRecipeMention', () => {
 
   it('lässt LV-PR-Agenten beim Selbstladen — sie führen mehr als ein Rezept', () => {
     expect(
-      ownedLvDefaultRecipeMention({
+      ownedDefaultRecipeMention({
         identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
         defaultRecipeMention: 'presse-saarland',
       })
     ).toBeNull();
   });
 
-  it('greift nicht, wenn der Default einem anderen Agenten gehört', () => {
+  it('lädt das geliehene Rezept vor, wenn sein Besitzer nur dieses eine führt', () => {
+    // Die LV-Wahlprüfstein-Agenten besitzen kein Rezept; `wahlpruefstein`
+    // gehört dem bundesweiten Wahlprüfstein-Agenten, der nur dieses führt.
     expect(
-      ownedLvDefaultRecipeMention({
+      ownedDefaultRecipeMention({
         identifier: 'gruenerator-wahlpruefsteine-berlin',
         defaultRecipeMention: 'wahlpruefstein',
       })
-    ).toBeNull();
+    ).toBe('wahlpruefstein');
     expect(
-      ownedLvDefaultRecipeMention({
-        identifier: 'gruenerator-buergerservice',
-        defaultRecipeMention: 'buergermail',
+      ownedDefaultRecipeMention({
+        identifier: 'gruenerator-wahlpruefsteine',
+        defaultRecipeMention: 'wahlpruefstein',
+      })
+    ).toBe('wahlpruefstein');
+  });
+
+  it('greift nicht, wenn der Besitzer des Defaults mehrere Rezepte führt', () => {
+    // Schleswig-Holstein hat kein eigenes Presserezept und trägt `presse`,
+    // das dem PR-Agenten mit Insta/Facebook/LinkedIn gehört.
+    expect(
+      ownedDefaultRecipeMention({
+        identifier: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
+        defaultRecipeMention: 'presse',
       })
     ).toBeNull();
   });
 
   it('greift nicht auf dem Agenten eines abgeschalteten Verbands', () => {
     expect(
-      ownedLvDefaultRecipeMention({
+      ownedDefaultRecipeMention({
         identifier: 'gruenerator-buergeranfragen-hamburg',
         defaultRecipeMention: 'buerger-hamburg',
       })
