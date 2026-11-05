@@ -15,13 +15,13 @@ import {
 import { type ImageAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import { MAX_BYTES } from '../../../services/sharepicCreator/photoAnalysis.js';
 
+import { isWolkePhoto } from './wolkePhoto.js';
+
 export type SharepicOwnPhotoWithUrl = SharepicOwnPhoto & { url: string };
 
 export type TurnPhotoSource =
   | { kind: 'upload'; name: string; mimeType: string; data: string }
   | { kind: 'wolke'; ref: WolkeFileRef };
-
-const WOLKE_IMAGE_EXT = /\.(?:jpe?g|png|webp)$/i;
 
 const stripDataPrefix = (data: string): string => data.replace(/^data:[^,]*,/, '');
 const base64Bytes = (b64: string): number => Math.floor((b64.length * 3) / 4);
@@ -48,9 +48,7 @@ export function collectTurnPhotos(
       mimeType: i.type,
       data: stripDataPrefix(i.data),
     })),
-    ...wolke
-      .filter((ref) => WOLKE_IMAGE_EXT.test(ref.name))
-      .map<TurnPhotoSource>((ref) => ({ kind: 'wolke', ref })),
+    ...wolke.filter(isWolkePhoto).map<TurnPhotoSource>((ref) => ({ kind: 'wolke', ref })),
   ];
 
   const take: { id: string; source: TurnPhotoSource }[] = [];

@@ -34,7 +34,8 @@ export type ForceReason =
   | 'named_intent'
   | 'sharepic_order'
   | 'artifact_edit_order'
-  | 'tabular_decision';
+  | 'tabular_decision'
+  | 'material_order';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -86,6 +87,9 @@ export function shouldForceFirstToolCall(input: {
   resumesSuspendedTurn?: boolean;
   /** `tabelle_auswerten` hängt im Katalog: der Turn rechnet über eine Tabelle. */
   tabularToolMounted?: boolean;
+  /** Ein bestelltes Artefakt über gewähltem Material, dessen Lesewerkzeug hängt
+   *  (`compoundGenerationOrdered` + `materialReaderTools`). */
+  materialOrder?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
@@ -288,6 +292,15 @@ export function shouldForceFirstToolCall(input: {
   // beiden Material-Zweige prüfen ihre eigene Bedingung bereits selbst.
   if (input.attachedSeedDelivered) return null;
 
+  // Elfter Weg: ein bestelltes Artefakt über gewähltem Material, und der
+  // Vorab-Abruf hat nichts geliefert. Der Klassifikator schickt diesen Turn als
+  // `agentic` statt in die Zwangssuche (`tier2_material_create_order`), also
+  // greift der Intent-Weg darunter nicht mehr — ohne Zwang liesse der Planer
+  // das Material liegen, und `forceCompoundGeneration` baute das Artefakt aus
+  // dem Auftragssatz allein. Der Zwang gilt nur den Lesewerkzeugen des
+  // Materials, nicht der Recherche (#3888).
+  if (input.materialOrder) return 'material_order';
+
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '') ? 'named_intent' : null;
 }
 
@@ -423,6 +436,9 @@ export function forcedFirstStepTools(input: {
       break;
     case 'tabular_decision':
       candidates = ['tabelle_auswerten', 'direkt_antworten'];
+      break;
+    case 'material_order':
+      candidates = material;
       break;
     case 'artifact_edit_order':
       candidates = [
