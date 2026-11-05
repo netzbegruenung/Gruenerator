@@ -601,6 +601,8 @@ export interface TurnResult {
   latencyMs: number;
   intent: string | null;
   agentic: boolean;
+  /** Loop mode from the `done` event; null on single pass or older backends. */
+  loopMode: 'unified' | 'split' | null;
   toolCalls: { toolName: string; ok: boolean; summary?: string; args?: Record<string, unknown> }[];
   /**
    * Der Quellenblock, den das Modell bis einschließlich dieses Turns gesehen hat

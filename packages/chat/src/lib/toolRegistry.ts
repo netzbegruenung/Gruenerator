@@ -18,6 +18,7 @@ import {
   parseExamples,
   parsePersonResult,
   parsePressemitteilungExamples,
+  parseWahlpruefsteinExamples,
   parseResearchResult,
   parseScrapeResult,
   parseSearchCitations,
@@ -43,6 +44,7 @@ export const UI_TOOL_NAMES = z.enum([
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
   'gruenerator_person_search',
   'scrape_url',
   'generate_image',
@@ -1242,6 +1244,11 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     'gruenerator_pressemitteilung_examples',
     'press-examples',
     (_a, r) => ({ kind: 'press-examples', ...parsePressemitteilungExamples(r) })
+  ),
+  gruenerator_wahlpruefstein_examples: entry(
+    'gruenerator_wahlpruefstein_examples',
+    'snippets',
+    (_a, r) => ({ kind: 'snippets', items: parseWahlpruefsteinExamples(r) })
   ),
   gruenerator_person_search: entry('gruenerator_person_search', 'person', (_a, r) => ({
     kind: 'person',

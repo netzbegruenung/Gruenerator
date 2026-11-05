@@ -16,6 +16,8 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
 
 import { GLOSSARY_TERM_RE } from '../../../../services/chat/productGlossary.js';
 
+import { CREATION_VERB_CORE } from './fastPathGuards.js';
+
 import type { SearchIntent, SearchSource } from '../types.js';
 
 /**
@@ -484,9 +486,21 @@ export const GRUENERATOR_FEATURE_NOUN =
  * positive is cheap (the model just picks another tool) while a false negative
  * on a generation-shaped question is not (it builds the artifact instead).
  */
+/**
+ * A turn that OPENS with a creation imperative is an order, even when its topic
+ * is phrased as a question: „Erstelle ein Explainable: Wie funktioniert eine
+ * Wärmepumpe?" (live 05.11.2026) became a help question about Explainables.
+ * Only the opening counts — „Wie erstelle ich ein Sharepic?" stays a question.
+ */
+const ORDER_OPENING_RE = new RegExp(
+  `^\\s*(?:bitte\\s+)?(?:${CREATION_VERB_CORE}|schreib)[a-zäöü]*\\b`,
+  'i'
+);
+
 export function looksLikeDocsHelpQuestion(text: string): boolean {
   const t = (text ?? '').trim();
   if (!t) return false;
+  if (ORDER_OPENING_RE.test(t)) return false;
   const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
   if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
   if (INSTRUCTIONAL_QUESTION.test(t) && hasFeature) return true;

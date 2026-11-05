@@ -98,6 +98,22 @@ export interface DirectPressemitteilungExamplesResult {
   message?: string;
 }
 
+export interface WahlpruefsteinExample {
+  id: string;
+  /** Verband und Wahl, z. B. „Deutscher Mieterbund (Bundestagswahl 2025)". */
+  title: string;
+  /** Frage und Antwort im Wortlaut. */
+  body: string;
+  wahl: string;
+}
+
+export interface DirectWahlpruefsteinExamplesResult {
+  resultsCount: number;
+  examples: WahlpruefsteinExample[];
+  error?: boolean;
+  message?: string;
+}
+
 /**
  * An image hit from the web search. Carries no `snippet`, because Linkup's image
  * entries carry no `content` — that absence is the whole reason these must not
@@ -785,4 +801,45 @@ function timeRangeToFromDate(timeRange: string): string | undefined {
   const d = new Date();
   d.setDate(d.getDate() - offset);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Frühere Antworten der Bundespartei auf ähnliche Wahlprüfstein-Fragen — dünne
+ * Hülle über `searchExamples` (kinds=['wahlpruefstein']), Form wie bei den
+ * Pressemitteilungen.
+ */
+export async function executeDirectWahlpruefsteinExamples(params: {
+  query: string;
+  ebene?: 'bund' | 'europa';
+  limit?: number;
+}): Promise<DirectWahlpruefsteinExamplesResult> {
+  const { query, ebene, limit = 5 } = params;
+  const result = await searchExamples({
+    query,
+    kinds: ['wahlpruefstein'],
+    limit,
+    ...(ebene && { ebene }),
+  });
+  if (result.errors.wahlpruefstein) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      error: true,
+      message: `Wahlprüfstein-Beispielsuche fehlgeschlagen: ${result.errors.wahlpruefstein}`,
+    };
+  }
+  const examples: WahlpruefsteinExample[] = (result.byKind.wahlpruefstein ?? []).map((e) => ({
+    id: e.id,
+    title: e.title,
+    body: e.body,
+    wahl: e.wahl ?? '',
+  }));
+  if (examples.length === 0) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      message: 'Keine ähnlichen Wahlprüfstein-Antworten gefunden.',
+    };
+  }
+  return { resultsCount: examples.length, examples };
 }

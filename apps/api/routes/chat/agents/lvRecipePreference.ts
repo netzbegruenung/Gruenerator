@@ -157,31 +157,36 @@ export function roleAwareDefaultRecipeMention(
 }
 
 /**
- * Das Rezept, das ein Ein-Rezept-LV-Agent im agentischen Loop VORAB lädt.
+ * Das Rezept, das ein Ein-Rezept-Agent im agentischen Loop VORAB lädt.
  *
  * Der Loop ignoriert `defaultRecipeMention` und überlässt die Wahl dem Modell
  * über `rezept_laden` — für einen Agenten, der genau eine Textsorte schreibt
- * (Bürger*innenanfragen), heißt das: das Rezept kommt selten an,
- * weil die kleinen Loop-Modelle das Werkzeug überspringen. Solche Agenten
+ * (Bürger*innenanfragen, Wahlprüfsteine), heißt das: das Rezept kommt selten
+ * an, weil die kleinen Loop-Modelle das Werkzeug überspringen. Solche Agenten
  * bekommen es deshalb deterministisch.
  *
- * „Ein-Rezept" ist wörtlich gemeint: dem Agenten gehört genau EIN Rezept, und
- * es ist sein Default. Ein LV-PR-Agent führt Presse UND Insta — ein vorab
- * geladenes Presserezept stünde neben einem selbst gewählten Insta-Rezept, zwei
- * Formatgeber auf einem Text. Er bleibt beim Selbstladen.
+ * „Ein-Rezept" ist wörtlich gemeint, und zwar auf beiden Seiten:
+ * - dem Agenten gehört kein anderes Rezept als sein Default (die LV-
+ *   Wahlprüfstein-Agenten besitzen gar keins, sie leihen sich `wahlpruefstein`);
+ * - der Besitzer des Defaults besitzt nur dieses eine Rezept. `presse` gehört
+ *   dem PR-Agenten, der auch Insta, Facebook und LinkedIn führt — ein vorab
+ *   geladenes Presserezept stünde dort neben einem selbst gewählten
+ *   Insta-Rezept, zwei Formatgeber auf einem Text. Wer `presse` als Default
+ *   trägt, bleibt deshalb beim Selbstladen, ebenso jeder LV-PR-Agent.
  */
-export function ownedLvDefaultRecipeMention(
+export function ownedDefaultRecipeMention(
   agentConfig: { identifier?: string | undefined; defaultRecipeMention?: string | undefined },
   instanceId: InstanceId = CURRENT_INSTANCE
 ): string | null {
   const { identifier, defaultRecipeMention } = agentConfig;
   if (!identifier || !defaultRecipeMention) return null;
-  if (!landesverbandOfAgent(identifier) || DISABLED_LV_AGENT_IDS.has(identifier)) return null;
+  if (DISABLED_LV_AGENT_IDS.has(identifier)) return null;
   const allSkills: readonly Skill[] = SKILLS;
-  const owned = allSkills.filter(
-    (s) => s.identifier === identifier && isSkillOfferedIn(s, instanceId)
-  );
-  return owned.length === 1 && owned[0]?.mention === defaultRecipeMention
-    ? defaultRecipeMention
-    : null;
+  const offered = allSkills.filter((s) => isSkillOfferedIn(s, instanceId));
+  const recipe = offered.find((s) => s.mention === defaultRecipeMention);
+  if (!recipe) return null;
+  const ownedBy = (id: string) => offered.filter((s) => s.identifier === id);
+  const agentOwnsOnlyDefault = ownedBy(identifier).every((s) => s.mention === defaultRecipeMention);
+  const ownerOwnsOnlyDefault = ownedBy(recipe.identifier).length === 1;
+  return agentOwnsOnlyDefault && ownerOwnsOnlyDefault ? defaultRecipeMention : null;
 }
