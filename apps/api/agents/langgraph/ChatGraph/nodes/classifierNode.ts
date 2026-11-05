@@ -58,6 +58,7 @@ import {
   sharepicEditAddressed,
 } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
+import { isWolkePhoto } from '../../../../routes/chat/services/wolkePhoto.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
   McpServerRegistry,
@@ -979,6 +980,31 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Gemeinsam für Datei- und Bild-Anhang: ein Erstell-Auftrag über dem Anhang
+    // ist ein Erstell-Turn. `null` = kein Auftrag, der Aufrufer fällt weiter.
+    const classifyCreationOrderOverAttachment = (
+      decision: BranchOf<'classifier.tier'>
+    ): Partial<ChatGraphState> | null => {
+      const orderedKind = compoundGenerationKind(
+        'produktion',
+        state.lastUserTextNoMentions ?? userContent
+      );
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (!orderedKind || !orderedIntent) return null;
+      log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+      recordDecision('classifier.tier', decision, { inputs: { kind: orderedKind } });
+      return {
+        intent: orderedIntent,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    };
+
     // ── TIER 2: Context intents (resource presence, no mutation keywords) ──
     // Summary detection: when documents/attachments are present AND user asks for summary,
     // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
@@ -998,6 +1024,55 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity: 'simple' as const,
         classificationTimeMs,
       };
+    }
+
+    // Ein Erstell-Auftrag über gewähltem Material (Wolke, Connect, @Dokument,
+    // Dokument-Chat, Notebook-Quelle) ist ein Erstell-Turn — VOR den
+    // Zwangssuchen darunter. Die erzwingen `search`, weil der Einzeldurchlauf
+    // diese Arten nur über die Suche liest; `search` hat aber keine Erstell-Art,
+    // und „erstelle ein Sharepic mit diesem Bild" + Wolke-Foto kam live als
+    // „ich bin ein textbasiertes Modell" zurück (Prod 05.11.2026, `steps=0`).
+    // Wer das Material lesen kann, bekommt den Turn: Wolke-Fotos liest der
+    // Sharepic-Creator selbst (`photosForTurn`), also Einzeldurchlauf; alles
+    // andere liest nur die Schleife (`resolveTurnMaterial`), die die bestellte
+    // Art aus dem Auftrag ableitet und über `forceCompoundGeneration` zusichert.
+    // Eine Frage zum Material ohne Auftrag fällt weiter in die Zwangssuche.
+    const freshCloudFiles = !state.cloudFilesCarriedOnly && (hasWolkeFiles || hasConnectFiles);
+    const freshNotebookSources = hasNotebookSources && !state.notebookSourcesCarriedOnly;
+    if (
+      (hasDocumentChat || hasDocuments || freshNotebookSources || freshCloudFiles) &&
+      userContent.length > 0
+    ) {
+      const orderedKind = compoundGenerationKind(
+        'produktion',
+        state.lastUserTextNoMentions ?? userContent
+      );
+      if (orderedKind) {
+        const onlyWolkePhotos =
+          !hasDocumentChat &&
+          !hasDocuments &&
+          !freshNotebookSources &&
+          !hasConnectFiles &&
+          state.wolkeFiles.every(isWolkePhoto);
+        if (orderedKind === 'sharepic' && onlyWolkePhotos) {
+          const orderedTurn = classifyCreationOrderOverAttachment('tier2_cloud_photo_create_order');
+          if (orderedTurn) return orderedTurn;
+        }
+        log.info(`[Classifier] Creation order over picked material → loop (${orderedKind})`);
+        recordDecision('classifier.tier', 'tier2_material_create_order', {
+          inputs: { kind: orderedKind },
+        });
+        return {
+          intent: 'agentic',
+          searchSources: [],
+          searchQuery: userContent.slice(0, 500),
+          detectedFilters: null,
+          reasoning: `Erstell-Auftrag über gewähltem Material: ${artifactKind(orderedKind).label} → Schleife`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // If document chat IDs are present (from @dokumentchat multi-select), force search intent
@@ -1383,28 +1458,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // Context-only fallback branches — fire only when no search-capable
     // mention above already routed the request.
-
-    // Gemeinsam für Datei- und Bild-Anhang: ein Erstell-Auftrag über dem Anhang
-    // ist ein Erstell-Turn. `null` = kein Auftrag, der Aufrufer fällt weiter.
-    const classifyCreationOrderOverAttachment = (
-      decision: BranchOf<'classifier.tier'>
-    ): Partial<ChatGraphState> | null => {
-      const orderedKind = compoundGenerationKind('produktion', askText);
-      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
-      if (!orderedKind || !orderedIntent) return null;
-      log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
-      recordDecision('classifier.tier', decision, { inputs: { kind: orderedKind } });
-      return {
-        intent: orderedIntent,
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    };
 
     if (hasAttachmentContext && userContent.length > 0) {
       // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
