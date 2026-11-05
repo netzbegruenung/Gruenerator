@@ -9,6 +9,7 @@
  * Run with: pnpm --filter @gruenerator/api test
  */
 
+import { PDFDocument } from 'pdf-lib';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
@@ -200,31 +201,56 @@ describe('extractPagesWithDocling', () => {
     vi.useRealTimers();
   });
 
-  async function run(pages: number[]) {
-    const pending = extractPagesWithDocling(Buffer.from('pdf'), 'S19-1.pdf', pages);
+  async function pdfWithPages(count: number): Promise<Buffer> {
+    const doc = await PDFDocument.create();
+    for (let i = 0; i < count; i++) doc.addPage([200 + i, 300]);
+    return Buffer.from(await doc.save());
+  }
+
+  async function run(pages: number[], file: Buffer = Buffer.from('pdf')) {
+    const pending = extractPagesWithDocling(file, 'S19-1.pdf', pages);
     await vi.runAllTimersAsync();
     return pending;
   }
 
-  it('schickt je Lauf einen page_range mit Seitenumbruch-Marke und ordnet die Teile den Seiten zu', async () => {
+  async function uploadedPdf(call: number): Promise<PDFDocument> {
+    const form = (mockFetch.mock.calls[call][1] as RequestInit).body as FormData;
+    const blob = form.get('files') as Blob;
+    return PDFDocument.load(await blob.arrayBuffer());
+  }
+
+  it('lädt je Lauf nur dessen Seiten hoch und ordnet die Teile den Seiten zu', async () => {
     mockFetch
       .mockResolvedValueOnce(md('Seite drei', '| a   | b |'))
       .mockResolvedValueOnce(md('Seite sieben'));
 
-    const byPage = await run([3, 4, 7]);
+    const byPage = await run([3, 4, 7], await pdfWithPages(8));
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const form = (mockFetch.mock.calls[0][1] as RequestInit).body as FormData;
-    expect(form.getAll('page_range')).toEqual(['3', '4']);
+    expect(form.getAll('page_range')).toEqual([]);
     expect(form.get('md_page_break_placeholder')).toBe(PAGE_BREAK);
-    expect(
-      ((mockFetch.mock.calls[1][1] as RequestInit).body as FormData).getAll('page_range')
-    ).toEqual(['7', '7']);
+    // Seitenbreite 200 + Index: die richtigen Seiten, in der richtigen Reihenfolge.
+    const first = await uploadedPdf(0);
+    expect(first.getPages().map((page) => page.getWidth())).toEqual([202, 203]);
+    const second = await uploadedPdf(1);
+    expect(second.getPages().map((page) => page.getWidth())).toEqual([206]);
     expect([...byPage]).toEqual([
       [3, 'Seite drei'],
       [4, '| a | b |'],
       [7, 'Seite sieben'],
     ]);
+  });
+
+  it('schickt die ganze Datei mit page_range, wenn pdf-lib sie nicht öffnen kann', async () => {
+    mockFetch.mockResolvedValueOnce(md('Seite drei', 'Seite vier'));
+
+    const byPage = await run([3, 4], Buffer.from('kein pdf'));
+
+    const form = (mockFetch.mock.calls[0][1] as RequestInit).body as FormData;
+    expect(form.getAll('page_range')).toEqual(['3', '4']);
+    expect(await (form.get('files') as Blob).text()).toBe('kein pdf');
+    expect(byPage.get(4)).toBe('Seite vier');
   });
 
   it('verwirft einen Lauf, dessen Teile nicht zur Seitenzahl passen', async () => {
