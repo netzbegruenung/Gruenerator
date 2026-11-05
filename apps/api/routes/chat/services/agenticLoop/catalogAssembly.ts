@@ -492,8 +492,8 @@ export function createLoopGuards(
  * "mach das nochmal", "trag das jetzt ein") remembers what was gathered. Covers
  * ALL informational tools (search, bundestag, umfragen, summarize,
  * personal-data, MCP, system sources) — skipped are side-effecting/generative
- * actions (NON_REPLAYABLE_ACTION_TOOLS; action steps replay as digests) and one-shot scaffolding
- * (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
+ * actions (NON_REPLAYABLE_ACTION_TOOLS; the rest of the actions replay as
+ * digests) and one-shot scaffolding (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
  * buildToolObservationReplay to tools mounted THIS turn. MCP steps stay behind
  * their rollout flag; search/domain replay is always on.
  *

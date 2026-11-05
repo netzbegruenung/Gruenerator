@@ -21,26 +21,7 @@ vi.mock('../../../database/services/PostgresService.js', async () => ({
   getPostgresInstance: () => ({
     query: (sql: string) => {
       if (String(sql).includes('FROM chat_messages')) return Promise.resolve([]);
-      const planner = loopScript.calls[0]?.messages ?? [];
-      const call = planner
-        .filter((m) => m.role === 'assistant' && Array.isArray(m.content))
-        .flatMap((m) => m.content as Array<{ type: string; toolName?: string }>)
-        .find((part) => part.type === 'tool-call' && part.toolName === 'edit_sharepic');
-      expect(call).toBeDefined();
-
-      const result = planner
-        .filter((m) => m.role === 'tool' && Array.isArray(m.content))
-        .flatMap((m) => m.content as Array<{ type: string; toolName?: string; output?: unknown }>)
-        .find((part) => part.type === 'tool-result' && part.toolName === 'edit_sharepic');
-      expect(result?.output).toEqual({
-        type: 'text',
-        value: '{"ok":true,"summary":"Headline gekürzt"}',
-      });
-
-      // The split-synth call gets the history without tool messages.
-      const synth = loopScript.calls[1]?.messages ?? [];
-      expect(synth.length).toBeGreaterThan(0);
-      expect(synth.some((m) => m.role === 'tool')).toBe(false);
+      throw new Error(`unexpected Postgres query: ${String(sql).slice(0, 300)}`);
     },
   }),
 }));
@@ -102,14 +83,6 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
-// NOT mocked here, unlike every sibling file: agenticRespondService. Doubling it
-// is exactly what puts the loop out of reach.
-//
-// `ai` is replaced instead. `loopEngine` imports streamText/generateText at
-// module scope into `defaultDeps`, and `runAgenticLoop(p, deps = defaultDeps)`
-// reads them from there — so this reaches the loop without threading anything
-// through the router. Partial spread: `tool`, `isStepCount`,
-// `convertToModelMessages` and the rest must stay real.
 // Der Bundestag-/Abgeordnetenwatch-Abruf, aus demselben Grund wie
 // `directSearch` oben: nur das BACKEND wird ersetzt. Die Werkzeugdefinition, das
 // Locale-Gitter am Katalog und der `searchNode`-Zweig bleiben echt — sonst
@@ -142,6 +115,14 @@ vi.mock('../../../services/document-services/DocumentSearchService/index.js', as
   };
 });
 
+// NOT mocked here, unlike every sibling file: agenticRespondService. Doubling it
+// is exactly what puts the loop out of reach.
+//
+// `ai` is replaced instead. `loopEngine` imports streamText/generateText at
+// module scope into `defaultDeps`, and `runAgenticLoop(p, deps = defaultDeps)`
+// reads them from there — so this reaches the loop without threading anything
+// through the router. Partial spread: `tool`, `isStepCount`,
+// `convertToModelMessages` and the rest must stay real.
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {
