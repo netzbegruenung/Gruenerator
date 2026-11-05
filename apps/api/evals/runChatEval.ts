@@ -485,6 +485,7 @@ async function runTurn(
     latencyMs,
     intent: trace.intent,
     agentic: trace.agentic,
+    loopMode: trace.loopMode,
     toolCalls: trace.toolCalls.map((t) => ({
       toolName: t.toolName,
       ok: t.ok,
