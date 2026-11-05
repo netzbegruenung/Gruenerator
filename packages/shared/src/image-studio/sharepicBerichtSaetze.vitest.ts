@@ -7,7 +7,7 @@ const TERMIN =
   'Den Termin habe ich weggelassen, weil er im Auftrag fehlt. Nenn mir Datum und Ort, dann setze ich ihn ein.';
 
 describe('berichtSaetze', () => {
-  it('puts the missing date first and keeps at most two sentences', () => {
+  it('puts the missing date first, then the scene sentence and the repair', () => {
     const bericht: SharepicBerichtEintrag[] = [
       { art: 'repariert', feld: 'datum.time', wert: '18 Uhr' },
       { art: 'gestaltung', text: 'Den Hintergrund konnte ich nicht malen lassen.' },
