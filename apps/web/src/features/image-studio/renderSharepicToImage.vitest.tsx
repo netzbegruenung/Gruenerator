@@ -21,7 +21,10 @@ const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
 
 vi.mock('@sentry/react', () => ({ captureException: sentry.captureException }));
 
-vi.mock('./freitext/composeForRender', () => ({ composeCreatorSharepic: compose.fn }));
+vi.mock('./freitext/composeForRender', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  composeCreatorSharepic: compose.fn,
+}));
 
 vi.mock('@gruenerator/canvas-editor', () => ({
   ensureFontsReady: () => Promise.resolve(),
@@ -159,11 +162,18 @@ describe('renderSharepicToImage', () => {
     };
     const result = renderSharepicToImage(
       'freeform',
-      { creatorSpec, attributions: [null, null], slide: 1 },
+      {
+        creatorSpec,
+        attributions: [null, null],
+        slide: 1,
+        photos: [{ id: 'upload:1', url: '/api/share/abcdefghijklmnop/download' }],
+      },
       { quality: 'preview' }
     );
     await vi.advanceTimersByTimeAsync(1000);
     await expect(result).resolves.toMatch(/^data:image\/png/);
+    const photoSrc = compose.fn.mock.calls[0]![2] as (f: string) => string;
+    expect(photoSrc('upload:1')).toBe('/api/share/abcdefghijklmnop/download');
     expect(mounts.props).toHaveLength(1);
     expect(mounts.props[0]).toMatchObject({
       configId: 'freeform',
