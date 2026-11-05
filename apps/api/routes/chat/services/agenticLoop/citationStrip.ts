@@ -9,13 +9,20 @@
 
 import { citationReferenceRegex, SOURCE_LINK_SCHEME } from '@gruenerator/shared/utils';
 
+// Stands in for a removed marker until the local tidy below has closed the gap
+// around it. NUL does not occur in model prose.
+const GAP = '\u0000';
+// One or more removed markers in a row ("[4] [5]").
+const GAPS = `${GAP}(?:[ \\t]*${GAP})*`;
+
 /**
  * Drop or trim `[N]` markers whose numbers fall outside `1..maxId`. A group with
  * some valid + some invalid numbers keeps only the valid ones ("[2, 7]" → "[2]"
  * when maxId=3); an all-invalid group is removed entirely. A source link to an
  * unknown id keeps its title as plain text; a link in a translated scheme
  * (`source:N`) is rewritten to `quelle:N`. Whitespace left by a removed marker
- * is tidied so the prose reads cleanly.
+ * is tidied so the prose reads cleanly — only right at the removal, so code
+ * blocks and deliberate spacing elsewhere come back untouched (#5336).
  */
 export function stripOutOfRangeCitations(
   text: string,
@@ -46,20 +53,20 @@ export function stripOutOfRangeCitations(
       const valid = nums.filter(inRange);
       if (valid.length === nums.length) return whole; // all valid — untouched
       dropped = true;
-      return valid.length === 0 ? '' : `[${valid.join(', ')}]`;
+      return valid.length === 0 ? GAP : `[${valid.join(', ')}]`;
     }
   );
 
   if (!dropped) return { text: replaced, changed: rewritten };
 
-  // Tidy artifacts left by dropped markers: space-before-punctuation, doubled
-  // spaces, empty parens, and a dangling space before a newline.
+  // Close the gap each removed marker leaves, looking only at the characters
+  // next to it: empty parens, a space before punctuation or a line end, a
+  // doubled space, and a line that now starts with one (indentation kept).
   const tidied = replaced
-    .replace(/ +([.,;:!?])/g, '$1')
-    .replace(/\(\s*\)/g, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .trim();
+    .replace(new RegExp(`\\(\\s*${GAPS}\\s*\\)`, 'g'), GAP)
+    .replace(new RegExp(`[ \\t]*${GAPS}[ \\t]*(?=[.,;:!?]|\\n|$)`, 'g'), '')
+    .replace(new RegExp(`(^|\\n)([ \\t]*)${GAPS}[ \\t]*`, 'g'), '$1$2')
+    .replace(new RegExp(`[ \\t]*${GAPS}[ \\t]*`, 'g'), ' ');
 
   return { text: tidied, changed: true };
 }
