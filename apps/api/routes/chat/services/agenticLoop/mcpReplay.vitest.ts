@@ -284,6 +284,14 @@ describe('actionDigest', () => {
     expect(out).toContain('kein Zugriff');
   });
 
+  it('reports a step that carries an error as failed, even without ok:false', () => {
+    // Forced steps are persisted without `ok`, so the error alone has to decide.
+    const out = actionDigest(
+      internalStep({ toolName: 'sharepic', result: { error: 'Zeitüberschreitung' } })
+    );
+    expect(out).toContain('"ok":false');
+  });
+
   it('marks an unchanged result', () => {
     expect(actionDigest(sharepic({ result: { unchanged: true } }))).toContain('"unchanged":true');
   });
