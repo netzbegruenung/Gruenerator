@@ -46,6 +46,12 @@ import { type LoopMode } from './loopEngine.js';
  * it for that reason. This predicate must never be handed a number that counts
  * it. Fed one, it strips the writer's tool catalog to protect material the
  * writer does not have, and the answer says so.
+ *
+ * Measured 05.11.2026 (plan unified-loop, task 6.1): with this predicate forced
+ * to false, `ul-paste-umbau` ran ten times as a unified Gemma 4 31B turn on
+ * Melious with `noDegeneration` green 10/10 (`ul-paste-lektorat` routes single
+ * pass and never reached it). The exception stays anyway: a degenerated answer
+ * over pasted material costs more than the split writer's extra step.
  */
 export function materialDominatesTurn(
   userText: string,
