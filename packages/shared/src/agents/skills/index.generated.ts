@@ -89,7 +89,7 @@ export const SKILLS = [
     promptTemplate: 'Entwickle Aktionsideen zu: ',
   },
   {
-    identifier: 'gruenerator-universal',
+    identifier: 'gruenerator-wahlpruefsteine',
     title: 'Wahlprüfsteine',
     description: 'Fragenkataloge von Verbänden beantworten',
     iconKey: 'PiListChecks',
@@ -98,6 +98,7 @@ export const SKILLS = [
     mention: 'wahlpruefstein',
     skillCategory: 'dokumente',
     promptTemplate: 'Beantworte diesen Wahlprüfstein-Katalog: ',
+    recommendedTools: ['gruenerator_search', 'gruenerator_wahlpruefstein_examples', 'web_search'],
   },
   {
     identifier: 'gruenerator-buergerservice',

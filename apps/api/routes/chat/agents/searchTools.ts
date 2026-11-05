@@ -24,6 +24,7 @@ import {
   executeDirectSearch,
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
+  executeDirectWahlpruefsteinExamples,
   executeDirectWebSearch,
 } from './directSearch.js';
 import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
@@ -665,6 +666,36 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
     },
   });
 
+  tools.gruenerator_wahlpruefstein_examples = tool({
+    description: `Suche nach echten Antworten von BÜNDNIS 90/DIE GRÜNEN auf Wahlprüfsteine früherer Bundestags- und Europawahlen (2021, 2024, 2025) — je Treffer eine Verbandsfrage mit der Antwort der Bundespartei.
+
+NUTZE WENN:
+- Ein Wahlprüfstein-Katalog beantwortet wird und du sehen willst, wie eine ähnliche Frage früher beantwortet wurde (Ton, Länge, Aufbau)
+
+Suche mit dem Sachbegriff der Frage (z. B. "Mietpreisbremse Verlängerung"), eine Suche je Themenblock. Die Antworten sind Vorlagen für die Form; ob eine Position heute noch gilt, klärt gruenerator_search.
+
+NICHT FÜR: Positionsrecherche (nutze gruenerator_search), Pressemitteilungen (nutze gruenerator_pressemitteilung_examples).`,
+    inputSchema: z.object({
+      query: z.string().describe('Sachbegriff der Frage'),
+      ebene: z
+        .enum(['bund', 'europa'])
+        .optional()
+        .describe('Nur Antworten zu Bundestags- (bund) oder Europawahlen (europa)'),
+    }),
+    execute: async ({ query, ebene }) => {
+      try {
+        return await executeDirectWahlpruefsteinExamples({ query, ...(ebene && { ebene }) });
+      } catch (error) {
+        log.error('Direct wahlpruefstein examples error:', error);
+        return {
+          error: 'Wahlprüfstein-Beispielsuche fehlgeschlagen',
+          examples: [],
+          resultsCount: 0,
+        };
+      }
+    },
+  });
+
   tools.web_search = tool({
     description: `Suche im Internet nach aktuellen Informationen, Fakten und Nachrichten — in drei Stufen.
 
@@ -876,6 +907,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     if (!agentAllowsTool(declared, 'examples')) {
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
+      delete tools.gruenerator_wahlpruefstein_examples;
     }
     if (!agentAllowsTool(declared, 'web')) {
       delete tools.web_search;

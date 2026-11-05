@@ -15,13 +15,14 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import { createLogger } from '../../utils/logger.js';
 import { contentExamplesService } from '../contentExamplesService.js';
 import { DocumentSearchService } from '../document-services/index.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
 
 import type { QdrantFilter } from '../../database/services/QdrantService/types.js';
 import type { DocumentResult } from '../BaseSearchService/types.js';
 
 const log = createLogger('ExampleSearch');
 
-export type ExampleKind = 'social' | 'press';
+export type ExampleKind = 'social' | 'press' | 'wahlpruefstein';
 
 export interface UnifiedExample {
   kind: ExampleKind;
@@ -31,6 +32,8 @@ export interface UnifiedExample {
   platform?: string; // social only
   author?: string; // social only
   lv?: string; // press only
+  /** wahlpruefstein only: die Wahl der Vorlage (btw21, ew24, btw25). */
+  wahl?: string;
   publishedAt?: string;
   url?: string;
   sourceId?: string;
@@ -61,6 +64,8 @@ export interface SearchExamplesParams {
   // `social_media_examples` pool. Press path ignores this — the
   // Landesverband press collection is locale-derived (DE/AT) elsewhere.
   examplesCollection?: string;
+  /** wahlpruefstein only: auf Antworten zu Bundestags- oder Europawahlen eingrenzen. */
+  ebene?: 'bund' | 'europa';
 }
 
 export interface SearchExamplesResult {
@@ -302,9 +307,54 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
   return out;
 }
 
+const WAHLPRUEFSTEIN_COLLECTION = 'wahlpruefstein_examples';
+const WAHL_LABELS: Record<string, string> = {
+  btw21: 'Bundestagswahl 2021',
+  btw25: 'Bundestagswahl 2025',
+  ew24: 'Europawahl 2024',
+};
+
+/**
+ * Echte Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je
+ * Frage/Antwort-Paar. Gesucht wird über die Frage: wer einen Katalog
+ * beantwortet, will sehen, wie eine ähnliche Frage früher beantwortet wurde.
+ * Kein `lvScope` — die Sammlung kennt nur Bund und Europa; Landesverbände
+ * finden ihre eigenen Antworten über das LV-Notebook.
+ */
+async function fetchWahlpruefstein(params: SearchExamplesParams): Promise<UnifiedExample[]> {
+  const { query, limit = 5, ebene } = params;
+  const qdrant = getQdrantInstance();
+  await qdrant.ensureConnected();
+  const ops = qdrant.operations;
+  if (!ops) throw new Error('Qdrant nicht verbunden');
+  await mistralEmbeddingService.init();
+  const vector = await mistralEmbeddingService.generateQueryEmbedding(query);
+  const filter: QdrantFilter = ebene ? { must: [{ key: 'ebene', match: { value: ebene } }] } : {};
+  const hits = await ops.searchWithQuality(WAHLPRUEFSTEIN_COLLECTION, vector, filter, {
+    limit,
+    threshold: 0.3,
+    withPayload: true,
+  });
+  return hits.map((h) => {
+    const p = h.payload;
+    const str = (k: string) => (typeof p[k] === 'string' ? (p[k] as string) : '');
+    const position = str('position');
+    const wahl = str('wahl');
+    return {
+      kind: 'wahlpruefstein' as const,
+      id: String(h.id),
+      title: `${str('verband')} (${WAHL_LABELS[wahl] ?? wahl})`,
+      body: `Frage: ${str('frage')}\n\nAntwort: ${position ? `${position}. ` : ''}${str('antwort')}`,
+      ...(wahl && { wahl }),
+      relevance: h.score,
+    };
+  });
+}
+
 const FETCHERS: Record<ExampleKind, (params: SearchExamplesParams) => Promise<UnifiedExample[]>> = {
   social: fetchSocial,
   press: fetchPress,
+  wahlpruefstein: fetchWahlpruefstein,
 };
 
 export async function searchExamples(params: SearchExamplesParams): Promise<SearchExamplesResult> {
