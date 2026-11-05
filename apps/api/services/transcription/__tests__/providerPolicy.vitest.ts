@@ -75,6 +75,18 @@ describe('chooseProvider', () => {
     expect(chooseProvider({ eco: true, override: 'voxtral' }).provider).toBe('voxtral');
   });
 
+  it('puts GreenPT first for word timestamps, which Voxtral 3 no longer measures', () => {
+    expect(chooseProvider({ wordTimestamps: true })).toEqual({
+      provider: 'greenpt',
+      reason: 'word-timestamps',
+      chain: ['greenpt', 'voxtral'],
+    });
+  });
+
+  it('lets the env override beat the word-timestamp preference', () => {
+    expect(chooseProvider({ wordTimestamps: true, override: 'voxtral' }).provider).toBe('voxtral');
+  });
+
   it("treats 'auto' as no override", () => {
     expect(chooseProvider({ override: 'auto' }).reason).toBe('default');
   });

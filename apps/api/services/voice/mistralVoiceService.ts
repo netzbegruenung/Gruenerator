@@ -57,12 +57,12 @@ function voxtralRequestFields(options: TranscriptionOptions): {
 }
 
 /**
- * Voxtral model variants:
- * - voxtral-mini-latest (→ voxtral-mini-2602): Transcription + understanding + function calling
- * - voxtral-small-latest: Small (24B) — highest quality understanding + translation
+ * Voxtral Mini Transcribe 3 (alias of `voxtral-mini-transcribe-3-0`), the
+ * successor of the retired `voxtral-mini-2602`. Pinned to the `-3` alias rather
+ * than `-latest`, so a generation change stays a deliberate edit here.
  */
-const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-latest';
-const VOXTRAL_STREAM_MODEL = 'voxtral-mini-latest';
+const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-transcribe-3';
+const VOXTRAL_STREAM_MODEL = 'voxtral-mini-transcribe-3';
 
 interface TranscriptionOptions {
   language?: string;

@@ -97,7 +97,7 @@ const MODEL_LABELS = {
   // Label bleibt, damit eine noch irgendwo notierte Kennung nicht als
   // unbeschriftet durchfaellt.
   'verdigado-pro': 'GPT-OSS 120B',
-  'voxtral-mini-latest': 'Voxtral Mini',
+  'voxtral-mini-transcribe-3': 'Voxtral Mini Transcribe 3',
   'green-s-pro': 'Green S Pro',
   // Dieselben Gewichte wie BFLs `/v1/flux-2-klein-9b`, Melious' Kennung —
   // deshalb DERSELBE lesbare Name, wie bei Gemma 4 oben.
