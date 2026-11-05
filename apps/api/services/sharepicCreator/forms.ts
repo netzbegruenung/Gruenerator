@@ -196,6 +196,11 @@ const MATERIAL: Partial<
 > = {
   diagramm: { has: twoNumbers, ask: 'mindestens zwei Zahlen, am besten mit Quelle', exact: true },
   rechnung: { has: twoNumbers, ask: 'die Zahlen, aus denen sich die Rechnung ergibt', exact: true },
+  faktenbild: {
+    has: (brief) => (brief.match(NUMBER) ?? []).length >= 1,
+    ask: 'eine Zahl, die das Bild trägt',
+    exact: true,
+  },
   termine: {
     has: (brief) => calendarDays(brief).size >= 2,
     ask: 'mindestens zwei Termine mit Datum',

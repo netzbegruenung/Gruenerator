@@ -151,6 +151,17 @@ describe('the form the model picked', () => {
     expect(result.form).toBe('einzelbild');
   });
 
+  it('falls back from a model-picked Faktenbild when the brief has no number', async () => {
+    aiObject
+      .mockResolvedValueOnce({
+        ...needs,
+        data: { ...needs.data, form: 'faktenbild', alternativen: ['einzelbild'] },
+      })
+      .mockImplementation(answer(GOOD));
+    const result = await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE');
+    expect(result.form).toBe('einzelbild');
+  });
+
   it('builds an event sharepic without a date when the order names none', async () => {
     aiObject
       .mockResolvedValueOnce({ ...needs, data: { ...needs.data, form: 'veranstaltung' } })
@@ -252,6 +263,20 @@ describe('a draft that fails for good', () => {
     expect(draftFailedBody(err).error).toBe(
       'Der Entwurf ist nicht gelungen. Für die Form „Diagramm“ brauche ich mindestens zwei Zahlen, am besten mit Quelle. Schreib mir das dazu, oder wähl eine andere Form.'
     );
+  });
+
+  it('asks for the number of a named Faktenbild before any model call', async () => {
+    aiObject.mockClear();
+    const err = (await draftSharepic(
+      'Faktenbild: Zeit für mehr Artenschutz jetzt!',
+      'de-DE',
+      null,
+      [],
+      {},
+      'faktenbild'
+    ).catch((e: unknown) => e)) as DraftFailedError;
+    expect(aiObject).not.toHaveBeenCalled();
+    expect(err.failure).toMatchObject({ kind: 'material', form: 'faktenbild' });
   });
 
   it('still tries a named quote: the speaker is only guessed', async () => {

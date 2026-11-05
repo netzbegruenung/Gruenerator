@@ -191,7 +191,7 @@ describe('formHasMaterial', () => {
   });
 
   it('keeps forms that work without numbers, people or dates', () => {
-    for (const form of ['einzelbild', 'karussell', 'zahl', 'faktenbild', 'vergleich'] as const) {
+    for (const form of ['einzelbild', 'karussell', 'zahl', 'vergleich'] as const) {
       expect(formHasMaterial(form, ARTENSCHUTZ)).toBe(true);
     }
   });
@@ -205,6 +205,13 @@ describe('formHasMaterial', () => {
     expect(missingMaterial('zitat', ARTENSCHUTZ)).toBeNull();
     expect(missingMaterial('einzelbild', ARTENSCHUTZ)).toBeNull();
     expect(missingMaterial('diagramm', 'Solar 2020: 12 %, 2025: 31 %')).toBeNull();
+  });
+
+  it('wants one number for a Faktenbild', () => {
+    expect(formHasMaterial('faktenbild', ARTENSCHUTZ)).toBe(false);
+    expect(formHasMaterial('faktenbild', 'Solar deckt 31 % des Stroms')).toBe(true);
+    expect(missingMaterial('faktenbild', ARTENSCHUTZ)).toBe('eine Zahl, die das Bild trägt');
+    expect(missingMaterial('faktenbild', 'Solar deckt 31 % des Stroms')).toBeNull();
   });
 
   it('keeps them once the brief brings the material', () => {
