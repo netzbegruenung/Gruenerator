@@ -13,6 +13,8 @@ const TERMIN_SATZ =
   'Den Termin habe ich weggelassen, weil er im Auftrag fehlt. Nenn mir Datum und Ort, dann setze ich ihn ein.';
 const REPARATUR_SATZ =
   'Ein Datum oder eine Uhrzeit, die nicht in deinem Auftrag standen, habe ich weggelassen.';
+const ORT_SATZ =
+  'Einen Ort, der nicht in deinem Auftrag stand, habe ich weggelassen. Nenn ihn mir, dann setze ich ihn ein.';
 
 function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): string {
   const dein = mehrere ? 'Deine Fotos' : 'Dein Foto';
@@ -55,6 +57,9 @@ function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): 
 export function berichtSaetze(bericht: readonly SharepicBerichtEintrag[]): string[] {
   const saetze: string[] = [];
   for (const e of bericht) if (e.art === 'fehlt') saetze.push(TERMIN_SATZ);
+  // The Termin sentence already asks for the place.
+  const ortWeg = bericht.some((e) => e.art === 'repariert' && e.feld === 'ort');
+  if (ortWeg && !bericht.some((e) => e.art === 'fehlt')) saetze.push(ORT_SATZ);
   const fotos = new Map<Foto['status'], Foto[]>();
   for (const e of bericht) {
     if (e.art === 'foto') fotos.set(e.status, [...(fotos.get(e.status) ?? []), e]);
@@ -72,6 +77,6 @@ export function berichtSaetze(bericht: readonly SharepicBerichtEintrag[]): strin
       );
     }
   }
-  if (bericht.some((e) => e.art === 'repariert')) rest.push(REPARATUR_SATZ);
+  if (bericht.some((e) => e.art === 'repariert' && e.feld !== 'ort')) rest.push(REPARATUR_SATZ);
   return [...new Set([...saetze, ...rest.slice(0, MAX_REST_SAETZE)])];
 }

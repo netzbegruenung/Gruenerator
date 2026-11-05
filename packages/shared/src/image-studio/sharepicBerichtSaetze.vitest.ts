@@ -7,6 +7,15 @@ const TERMIN =
   'Den Termin habe ich weggelassen, weil er im Auftrag fehlt. Nenn mir Datum und Ort, dann setze ich ihn ein.';
 
 describe('berichtSaetze', () => {
+  // #5347: an invented place is dropped and the person is asked for it.
+  it('asks for the place it dropped, but not twice next to the missing Termin', () => {
+    const ort: SharepicBerichtEintrag = { art: 'repariert', feld: 'ort', wert: 'Online-Meeting' };
+    expect(berichtSaetze([ort])).toEqual([
+      'Einen Ort, der nicht in deinem Auftrag stand, habe ich weggelassen. Nenn ihn mir, dann setze ich ihn ein.',
+    ]);
+    expect(berichtSaetze([ort, { art: 'fehlt', fakt: 'termin' }])).toEqual([TERMIN]);
+  });
+
   it('puts the missing date first, then the scene sentence and the repair', () => {
     const bericht: SharepicBerichtEintrag[] = [
       { art: 'repariert', feld: 'datum.time', wert: '18 Uhr' },

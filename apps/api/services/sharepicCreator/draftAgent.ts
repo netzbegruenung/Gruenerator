@@ -64,6 +64,7 @@ import {
   materialAsk,
   missingMaterial,
 } from './forms.js';
+import { repairOrt } from './ortRepair.js';
 import {
   hasOwnPhoto,
   namesPhoto,
@@ -308,7 +309,7 @@ export async function draftSharepic(
     spec: SharepicSpec;
     scene: DraftScene | null;
     kept: string | null;
-    /** What this attempt dropped from `datum` as not in the order. */
+    /** What this attempt dropped from `datum` and `ort` as not in the order. */
     repairs?: DatumRepair[];
   };
 
@@ -341,7 +342,12 @@ export async function draftSharepic(
       if (!lacksStructure(input)) failure = { kind: 'content' };
       const taken = takeScene(withPaletteColors(input, locale, design), personable);
       if (!taken.ok) return taken;
-      const repaired = repairDatum(taken.input, given, keptWeekdays);
+      const datumFixed = repairDatum(taken.input, given, keptWeekdays);
+      const ortFixed = repairOrt(datumFixed.input, given);
+      const repaired = {
+        input: ortFixed.input,
+        repairs: [...datumFixed.repairs, ...ortFixed.repairs],
+      };
       for (const r of repaired.repairs) {
         log.info(`repaired ${r.feld} "${r.wert}" (slide ${r.slide + 1})`);
       }

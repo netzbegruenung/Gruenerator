@@ -2,7 +2,7 @@ import { calendarDays, timeInBrief, type WeekdayId, weekdayId, weekdaysIn } from
 
 export type DatumRepair = {
   slide: number;
-  feld: 'datum.date' | 'datum.time' | 'datum.weekday' | 'datum';
+  feld: 'datum.date' | 'datum.time' | 'datum.weekday' | 'datum' | 'ort';
   wert: string;
 };
 

@@ -52,7 +52,7 @@ export const sharepicBerichtEintragSchema = z.discriminatedUnion('art', [
   z.object({ art: z.literal('fehlt'), fakt: z.enum(['termin']) }),
   z.object({
     art: z.literal('repariert'),
-    feld: z.enum(['datum', 'datum.date', 'datum.time', 'datum.weekday']),
+    feld: z.enum(['datum', 'datum.date', 'datum.time', 'datum.weekday', 'ort']),
     wert: z.string().max(60),
   }),
   z.object({
