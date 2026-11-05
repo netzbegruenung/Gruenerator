@@ -161,9 +161,10 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onUpgrade(_data) {},
 
     async onChange(data) {
-      const { documentName, update, context } = data;
+      const { documentName, update } = data;
+      const context = data.context as { readOnly?: boolean } | undefined;
       log.info(
-        `[CanvasCollab][Change] ${documentName} update arrived (${(update as Uint8Array)?.length ?? 0} bytes, readOnly: ${(context as { readOnly?: boolean })?.readOnly ?? 'unknown'})`
+        `[CanvasCollab][Change] ${documentName} update arrived (${(update as Uint8Array)?.length ?? 0} bytes, readOnly: ${context?.readOnly ?? 'unknown'})`
       );
     },
 

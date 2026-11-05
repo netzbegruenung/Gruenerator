@@ -8,19 +8,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from './freeform_full.config';
 
-import type { ChartType, ShapeType } from '@ggraphic/editor/elements';
-
-/** Die Einfüge-Türen, die der Test ruft (`FreeformActions` ist untypisiert). */
-interface InsertActions {
-  addHeader: () => void;
-  addSubheader: () => void;
-  addText: () => void;
-  addShape: (type: ShapeType) => void;
-  addAsset: (assetId: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
-  addChart: (type: ChartType) => void;
-}
-
 function harness(formatId: string) {
   const format = getCanvasFormatOrDefault(formatId);
   const config = createFreeformFullConfig(format);
@@ -36,7 +23,7 @@ function harness(formatId: string) {
     vi.fn(),
     vi.fn(),
     {}
-  ) as InsertActions;
+  );
   return { actions, current: () => state, format };
 }
 

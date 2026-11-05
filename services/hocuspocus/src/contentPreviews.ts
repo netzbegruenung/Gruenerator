@@ -102,7 +102,7 @@ export function presentationPreviewHtml(ydoc: Y.Doc): string | null {
     .toArray()
     .slice(0, MAX_SLIDE_TITLES)
     .map((slide) => {
-      const title = slide instanceof Y.Map ? slide.get('title') : null;
+      const title: unknown = slide instanceof Y.Map ? slide.get('title') : null;
       return typeof title === 'string' ? title.trim() : '';
     });
   if (!titles.some(Boolean)) return null;

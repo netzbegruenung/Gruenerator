@@ -200,7 +200,7 @@ export function parseRoomCloseInput(v: unknown): { rooms: string[]; userId: stri
   if (
     !Array.isArray(r.rooms) ||
     r.rooms.length === 0 ||
-    !r.rooms.every((room) => typeof room === 'string' && room.length > 0)
+    !r.rooms.every((room): room is string => typeof room === 'string' && room.length > 0)
   ) {
     return null;
   }
