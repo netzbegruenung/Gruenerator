@@ -859,7 +859,8 @@ export async function runAgenticLoop(
         p.onSynthFallback?.(
           error instanceof ToolPhaseStallError ? 'first_token_timeout' : 'upstream_error'
         );
-      }
+      },
+      () => p.abortSignal.aborted
     );
     const result: StreamWithToolsResult = { ...streamed, finishReason };
     if (p.suspended?.()) throw new TurnSuspendedError();
