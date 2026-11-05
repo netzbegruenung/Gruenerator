@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import { actionDigest, buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { toolResultBudget } from './toolResultBudgets.js';
 import { DEFAULT_MAX_RESULT_CHARS, resultForModel } from './wrapTools.js';
 
@@ -260,5 +260,73 @@ describe('spliceToolReplay', () => {
   it('passes the history through untouched when there is no replay', () => {
     expect(spliceToolReplay(history, [])).toEqual(history);
     expect(spliceToolReplay([], replay)).toEqual([]);
+  });
+});
+
+describe('actionDigest', () => {
+  const sharepic = (over: Partial<PersistedStep> = {}): PersistedStep =>
+    internalStep({
+      toolName: 'edit_sharepic',
+      result: {
+        summary: 'Headline gekürzt',
+        variants: [{ initialProps: { img: 'data:image/png;base64,AAAA' } }],
+      },
+      ...over,
+    });
+
+  it('keeps ok and summary, drops variants', () => {
+    expect(actionDigest(sharepic())).toBe('{"ok":true,"summary":"Headline gekürzt"}');
+  });
+
+  it('reports a failed step with its error', () => {
+    const out = actionDigest(sharepic({ ok: false, result: { error: 'kein Zugriff' } }));
+    expect(out).toContain('"ok":false');
+    expect(out).toContain('kein Zugriff');
+  });
+
+  it('marks an unchanged result', () => {
+    expect(actionDigest(sharepic({ result: { unchanged: true } }))).toContain('"unchanged":true');
+  });
+
+  it('reads the outcome the editor tools store under note', () => {
+    const out = actionDigest(
+      internalStep({ toolName: 'edit_document_text', result: { note: 'Absatz 2 förmlicher' } })
+    );
+    expect(out).toBe('{"ok":true,"summary":"Absatz 2 förmlicher"}');
+  });
+
+  it('names the document create_document produced', () => {
+    const out = actionDigest(
+      internalStep({
+        toolName: 'create_document',
+        result: { document: { documentId: 'd1', title: 'Pressemitteilung Radweg' } },
+      })
+    );
+    expect(out).toBe('{"ok":true,"summary":"Dokument erstellt: Pressemitteilung Radweg"}');
+  });
+
+  it('stays within 300 chars for a 2000-char summary', () => {
+    const out = actionDigest(sharepic({ result: { summary: 'x'.repeat(2000) } }));
+    expect(out.length).toBeLessThanOrEqual(300);
+    expect(() => JSON.parse(out)).not.toThrow();
+  });
+
+  it('is used by the replay for action tools, shortValue stays for the rest', () => {
+    const names = new Set(['edit_image', 'edit_sharepic', 'create_document', 'web_search']);
+    const steps = ['edit_image', 'edit_sharepic', 'create_document', 'web_search'].map(
+      (toolName, i) =>
+        internalStep({
+          toolCallId: `a${i}`,
+          toolName,
+          result: { summary: 'erledigt', variants: ['V'], content: 'Treffer' },
+        })
+    );
+    const msgs = buildToolObservationReplay(steps, names);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>).map(
+      (r) => r.output.value
+    );
+    for (const v of out.slice(0, 3)) expect(v).toBe('{"ok":true,"summary":"erledigt"}');
+    expect(out[3]).toContain('"content":"Treffer"');
+    expect(out[3]).toContain('variants');
   });
 });

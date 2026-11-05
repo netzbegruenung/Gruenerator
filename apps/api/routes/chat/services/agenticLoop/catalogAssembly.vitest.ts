@@ -836,10 +836,28 @@ describe('buildToolReplay — was wiederkommt und was nicht', () => {
     expect(await replayFor([step('gruenerator_pressemitteilung_examples')])).toEqual([]);
   });
 
-  it('schliesst erzeugende Aktionen weiterhin aus', async () => {
-    expect(await replayFor([step('create_document'), step('gruenerator_search')])).toEqual([
-      'gruenerator_search',
-    ]);
+  it('fills the replay window with replayable steps only', async () => {
+    // Oldest to newest: seven replayable steps, then the three newest are memory.
+    const persisted = [
+      ...[1, 2, 3, 4, 5, 6, 7].map((i) => step('web_search', `w${i}`)),
+      ...[1, 2, 3].map((i) => step('memory', `m${i}`)),
+    ];
+    const messages = await buildToolReplay({
+      threadId: 't1',
+      tools: { ...catalog, memory: {} } as unknown as ToolSet,
+      // Like the real projection: the newest `limit` steps, oldest first.
+      toolHistory: { toolSteps: (limit = 6) => persisted.slice(-limit) } as never,
+      onError: () => {},
+    });
+    const assistant = messages.find((m) => m.role === 'assistant');
+    const ids = (assistant!.content as { toolCallId: string }[]).map((p) => p.toolCallId);
+    expect(ids).toEqual(['w2', 'w3', 'w4', 'w5', 'w6', 'w7']);
+  });
+
+  it('spielt erzeugende Aktionen als Digest ein, memory bleibt draussen', async () => {
+    expect(
+      await replayFor([step('create_document'), step('memory'), step('gruenerator_search')])
+    ).toEqual(['create_document', 'gruenerator_search']);
   });
 });
 
