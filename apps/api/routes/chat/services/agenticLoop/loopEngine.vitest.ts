@@ -624,6 +624,116 @@ describe('unified suffix — tool and writer rules', () => {
   });
 });
 
+describe('runAgenticLoop — unified repair', () => {
+  const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
+  const tools = { web_search: {} } as unknown as LoopEngineParams['tools'];
+  const GOOD = 'Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].';
+
+  /** `first` answers the unified pass (model `synth`), `repairText` the writer. */
+  function setup(first: Part[] | (() => ReturnType<LoopDeps['streamText']>), repairText = GOOD) {
+    const calls: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        calls.push(o.model.id);
+        if (o.model.id === 'repair') return streamOf([{ type: 'text-delta', text: repairText }]);
+        return typeof first === 'function' ? first() : streamOf(first);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, calls };
+  }
+  const params = (over: Partial<LoopEngineParams> = {}) =>
+    baseParams({ mode: 'unified', repairModel, tools, ...over });
+
+  it('re-writes an empty answer on the repair lane when no artifact was produced', async () => {
+    const onText = vi.fn();
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(params({ onText }), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
+    expect(out.replacedStreamed).toBe(true);
+    // The repair is silent — the completion replace carries it.
+    expect(onText).not.toHaveBeenCalled();
+  });
+
+  it('does not repair an empty answer after an artifact (the caller confirms it)', async () => {
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(params({ producedArtifact: () => true }), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe('');
+    expect(out.replacement).toBeUndefined();
+  });
+
+  it('repairs an answer the validator rejects', async () => {
+    const { deps, calls } = setup([{ type: 'text-delta', text: 'Ein abgebrochener Satz, der' }]);
+    const out = await runAgenticLoop(
+      params({ validateAnswer: (t) => (t === GOOD ? null : SYNTH_CUTOFF_RETRY_SUFFIX) }),
+      deps
+    );
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+  });
+
+  it('repairs a degenerate stream instead of trimming it', async () => {
+    const proseSentence = (i: number): string =>
+      `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro, damit junge Menschen im Wahlkreis ${i * 7} unabhängig vom Elternhaus lernen können. `;
+    const spam = '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+    const { deps, calls } = setup(
+      () =>
+        ({
+          stream: (async function* () {
+            for (let i = 0; i < 40; i++) yield { type: 'text-delta', text: proseSentence(i) };
+            while (true) yield { type: 'text-delta', text: spam };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>
+    );
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+    expect(out.text).toBe(GOOD);
+  });
+
+  it('repairs an answer that ended on finishReason length', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: 'Eine lange Antwort, die abgeschnitten wurde' },
+      { type: 'finish', finishReason: 'length' },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+  });
+
+  it('swaps an English refusal for the German one without a repair pass', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: "I'm sorry, but I can't help with that." },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe(SYNTH_REFUSAL_TEXT);
+    expect(out.replacement).toBe('refusal_swap');
+    expect(out.replacedStreamed).toBe(true);
+  });
+
+  it('calls streamText exactly once for a clean answer', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: GOOD },
+      { type: 'finish', finishReason: 'stop' },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBeUndefined();
+  });
+
+  it("keeps today's behaviour without a repair lane", async () => {
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(baseParams({ mode: 'unified', tools }), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe('');
+  });
+});
+
 describe('runAgenticLoop — split (planner/executor)', () => {
   it('planner gathers (streamText+tools) then the SELECTED model synthesizes (streamText, no tools)', async () => {
     const order: string[] = [];

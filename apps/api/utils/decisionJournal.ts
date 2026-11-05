@@ -206,6 +206,12 @@ export const DECISION_POINTS = {
     ],
   },
 
+  /** A unified answer the one-model pass got wrong and the tool-less writer
+   *  re-wrote. The wire shows only the replacement; the branch names why. */
+  'loop.unified_repair': {
+    branches: ['empty', 'invalid', 'plan_leak', 'degenerate', 'abnormal_finish'],
+  },
+
   /** Antwortmodus der Notebook-Seite. Das Wire-Event `answer_mode` zeigt nur
    *  Modus und Grund; ob ein `explicit` Chat oder Präzision war und welches
    *  Wächter-Verdikt fiel, steht nur hier. */

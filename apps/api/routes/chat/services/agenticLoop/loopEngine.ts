@@ -565,6 +565,16 @@ export interface LoopEngineParams {
   /** Split mode: sibling lane, tried once when `synthModel` goes silent. Omit
    *  and a stall simply surfaces as the turn's timeout message. */
   synthFallbackModel?: LanguageModel;
+  /** Unified mode: the tool-less writer that re-writes a failed answer (the split
+   *  synth chain, `LOOP_SYNTH_PRIMARY`). Omit and a failed unified answer stays
+   *  as it was. */
+  repairModel?: LanguageModel;
+  /** Unified mode: sibling lane of `repairModel` (`LOOP_SYNTH_FALLBACK`). */
+  repairFallback?: LanguageModel;
+  /** Unified mode: whether the turn created or edited an artifact. An empty
+   *  answer after one is confirmed by the caller, not repaired. Read AFTER
+   *  `afterGather`, which may still produce one. */
+  producedArtifact?: () => boolean;
   /** Split mode: tried in order when `plannerModel` rejects or stalls the tool
    *  phase before any tool call (see `gather`). Empty or omitted, the turn
    *  degrades to synthesis. */
@@ -734,7 +744,10 @@ export type AnswerReplacement =
   | 'degeneration_trim'
   /** Unified: the trimmed prefix replaces the streamed spam. */
   | 'unified_degeneration'
-  /** Either mode: a foreign-language refusal swapped for the canned German one. */
+  /** Unified: the tool-less writer re-wrote an empty, invalid, leaked or cut-off answer. */
+  | 'unified_repair'
+  /** Split always; unified when a repair lane is set: a foreign-language refusal
+   *  swapped for the canned German one. */
   | 'refusal_swap';
 
 /** How `runAgenticLoop`'s answer relates to what was already streamed. */
@@ -751,19 +764,106 @@ export interface LoopResult {
   replacement?: AnswerReplacement;
 }
 
+export type UnifiedRepairReason =
+  'empty' | 'invalid' | 'plan_leak' | 'degenerate' | 'abnormal_finish';
+
+type StreamWithToolsResult = LoopResult & { finishReason: string | null };
+
+/** Why a unified answer is unusable as written — the unified twin of split's
+ *  `invalidReason`/leak checks. An empty answer after an artifact is NOT one:
+ *  the caller confirms the artifact instead. */
+export function unifiedRepairReason(
+  result: StreamWithToolsResult,
+  p: LoopEngineParams
+): UnifiedRepairReason | null {
+  if (result.finishReason === DEGENERATE_FINISH_REASON) return 'degenerate';
+  if (
+    result.finishReason != null &&
+    result.finishReason !== 'stop' &&
+    result.finishReason !== 'tool-calls'
+  ) {
+    return 'abnormal_finish';
+  }
+  if (result.text.trim().length === 0) return p.producedArtifact?.() ? null : 'empty';
+  if (looksLikeToolPlanLeak(result.text, Object.keys(p.tools))) return 'plan_leak';
+  if (p.validateAnswer?.(result.text) != null) return 'invalid';
+  return null;
+}
+
+/** Unified: re-write a failed answer with the tool-less writer. Silent — the bad
+ *  text is already on the wire (or there is none), so the caller's `completion`
+ *  replace carries the result. Null when the repair did not produce an answer. */
+async function repairUnifiedAnswer(
+  p: LoopEngineParams,
+  deps: LoopDeps,
+  reason: UnifiedRepairReason,
+  failed: StreamWithToolsResult
+): Promise<LoopResult | null> {
+  if (p.repairModel == null) return null;
+  log.warn(
+    `[Engine] unified answer unusable (${reason}, ${failed.text.length} chars, finish=${failed.finishReason ?? 'none'}) — re-writing it with the tool-less writer`
+  );
+  recordDecision('loop.unified_repair', reason, {
+    inputs: { textLength: failed.text.length, finishReason: failed.finishReason },
+  });
+  try {
+    const repaired = await synthesize(
+      {
+        ...p,
+        synthModel: p.repairModel,
+        ...(p.repairFallback != null && { synthFallbackModel: p.repairFallback }),
+        // Nothing of the repair streams: the completion replace shows it.
+        onText: () => {},
+      },
+      deps,
+      { failedBeforeAnyTool: false }
+    );
+    if (repaired.text.trim().length === 0) {
+      log.warn('[Engine] unified repair produced no answer — keeping the original');
+      return null;
+    }
+    return { text: repaired.text, replacedStreamed: true, replacement: 'unified_repair' };
+  } catch (err) {
+    log.warn(
+      `[Engine] unified repair failed (${err instanceof Error ? err.message : String(err)}) — keeping the original`
+    );
+    return null;
+  }
+}
+
 export async function runAgenticLoop(
   p: LoopEngineParams,
   deps: LoopDeps = defaultDeps
 ): Promise<LoopResult> {
   if (p.mode === 'unified') {
-    const result = await streamWithTools(p, p.synthModel, deps);
+    const { finishReason, ...streamed } = await streamWithTools(p, p.synthModel, deps);
+    const result: StreamWithToolsResult = { ...streamed, finishReason };
     if (p.suspended?.()) throw new TurnSuspendedError();
     // Unified mode has no separate synth phase, so the artifact/edit guarantees
     // run AFTER the stream (idempotent — the hooks no-op when the model already
     // created/edited). Without this, a Mistral turn that only searched left the
     // compound sharepic/doc uncreated.
     if (p.afterGather) await p.afterGather();
-    return result;
+    if (p.repairModel != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
+      // Same order as split: an English decline is surfaced as a decline, never re-written.
+      if (looksLikeSynthRefusal(result.text) && refusalLanguage(result.text) === 'en') {
+        log.info(
+          `[Engine] unified answer declined the request (en) — surfacing the German refusal; discarded: ${JSON.stringify(
+            result.text.trim().slice(0, 120)
+          )}`
+        );
+        recordDecision('loop.synth_verdict', 'refusal_swapped', {
+          inputs: { refusalLanguage: 'en' },
+        });
+        return { text: SYNTH_REFUSAL_TEXT, replacedStreamed: true, replacement: 'refusal_swap' };
+      }
+      const reason = unifiedRepairReason(result, p);
+      if (reason != null) {
+        const repaired = await repairUnifiedAnswer(p, deps, reason, result);
+        if (repaired) return repaired;
+      }
+    }
+    return streamed;
   }
   const outcome = await gather(p, deps);
   if (p.suspended?.()) throw new TurnSuspendedError();
@@ -778,7 +878,7 @@ async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
   deps: LoopDeps
-): Promise<LoopResult> {
+): Promise<StreamWithToolsResult> {
   const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
   const { idle, idleMs } = createToolPhaseIdle(
     p,
@@ -851,9 +951,9 @@ async function streamWithTools(
     // trimmed the returned text back to the healthy prefix, and the caller's
     // `completion` replace (the same channel the split validation retry uses)
     // swaps what the client shows and what gets persisted.
-    return { text, replacedStreamed: true, replacement: 'unified_degeneration' };
+    return { text, finishReason, replacedStreamed: true, replacement: 'unified_degeneration' };
   }
-  return { text };
+  return { text, finishReason };
 }
 
 /** Split phase 1: the planner runs the tool loop and fills the source registry.

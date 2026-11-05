@@ -55,7 +55,11 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { approvalGateEnabled } from './approvalPolicy.js';
-import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
+import {
+  buildPreLoopEditNotes,
+  editOutcomeAfterPreamble,
+  turnProducedArtifact,
+} from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
 import {
@@ -752,6 +756,22 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // Unified: the same tool-less writer chain split mode uses re-writes an
+    // answer the one-model pass got wrong (empty, cut off, leaked plan, spam).
+    const repair =
+      mode === 'unified'
+        ? getLoopSynthModel(
+            {
+              model: resolution.model,
+              modelName: resolution.modelName,
+              provider: resolution.provider,
+            },
+            undecided
+          )
+        : null;
+    const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
+    // Whichever mode, the lane that backs up the tool-less writer.
+    const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
     // exceed the fallback's window — rebuild rather than guess.
     const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
@@ -777,6 +797,9 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
+      ...(repair && { repairModel: repair.model }),
+      ...(repairFallback && { repairFallback: repairFallback.model }),
+      producedArtifact: () => turnProducedArtifact(finalState),
       plannerFallbackModels: plannerFallbacks,
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
@@ -876,10 +899,10 @@ export async function streamAgenticResponse(
       // The history was pruned for the selected lane — up to 262k on an
       // explicit Mistral Medium turn. The fallback is the planner lane, which
       // Melious caps near 131k (#4201).
-      ...(synthFallback && {
+      ...(writerFallback && {
         synthFallbackMessages: (system: string) =>
           messagesForLane(
-            { modelName: synthFallback.name, contextWindow: synthFallback.contextWindow },
+            { modelName: writerFallback.name, contextWindow: writerFallback.contextWindow },
             primaryWindow,
             messages,
             (window) => pruneMessages(messages, window, system),
