@@ -78,9 +78,15 @@
         },
         {
           "id": "reels-untertitel",
-          "title": "Simple Reel",
+          "title": "Untertitel",
           "description": "Untertitel für Clips",
           "path": "/studio/video"
+        },
+        {
+          "id": "studio-videoeditor",
+          "title": "Video-Editor",
+          "description": "Clips schneiden & gestalten",
+          "path": "/studio/videoeditor"
         },
         {
           "id": "studio-voice",
@@ -255,7 +261,7 @@
       "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team"
     },
     "tool-reel": {
-      "title": "Reel",
+      "title": "Untertitel",
       "path": "/studio/video",
       "subtitle": "Social-Clips untertiteln"
     },
@@ -288,6 +294,11 @@
       "title": "Übersetzer",
       "path": "/uebersetzer",
       "subtitle": "Texte & Dokumente mit DeepL übersetzen"
+    },
+    "tool-videoeditor": {
+      "title": "Video-Editor",
+      "path": "/studio/videoeditor",
+      "subtitle": "Videos schneiden, Text & Musik"
     },
     "tool-voice": {
       "title": "Grünerator Voice",

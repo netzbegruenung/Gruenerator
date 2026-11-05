@@ -251,7 +251,8 @@ CREATE TABLE IF NOT EXISTS documents (
     last_synced_at TIMESTAMPTZ,
     group_wolke_share_id TEXT,
     processing_started_at TIMESTAMPTZ,
-    processing_attempts INTEGER NOT NULL DEFAULT 0
+    processing_attempts INTEGER NOT NULL DEFAULT 0,
+    file_hash TEXT
 );
 
 CREATE TABLE IF NOT EXISTS document_daily_versions (
@@ -637,6 +638,11 @@ CREATE TABLE IF NOT EXISTS shared_media (
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_library_item BOOLEAN DEFAULT TRUE;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS alt_text TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS upload_source TEXT DEFAULT 'upload';
+-- When a Studio gallery item first took this upload. Never cleared: a purged
+-- once-public asset leaves its file for other people's designs, and only this
+-- stamp keeps the unclaimed-upload sweep away from it (#4555). Repeated in
+-- migrations/zz_20261104_shared_media_claimed_at.sql for existing databases.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
 -- Which product made this image — the Studio gallery splits Sharepics from
 -- KI-Bilder on it. Server-set, unlike the client-supplied `image_type`.
 -- NOT NULL on purpose: a NULL would be indistinguishable from "backend too old

@@ -238,7 +238,7 @@
     "path": "/projekte"
   },
   "catalog.tool-reel": {
-    "title": "Reel",
+    "title": "Untertitel",
     "subtitle": "Social-Clips untertiteln",
     "path": "/studio/video"
   },
@@ -273,7 +273,7 @@
     "path": "/uebersetzer"
   },
   "catalog.tool-videoeditor": {
-    "title": "Video Editor",
+    "title": "Video-Editor",
     "subtitle": "Videos schneiden, Text & Musik",
     "path": "/studio/videoeditor"
   },
@@ -453,7 +453,7 @@
     "path": "/projekte"
   },
   "workplace.reels-untertitel": {
-    "title": "Simple Reel",
+    "title": "Untertitel",
     "subtitle": "Untertitel für Clips",
     "path": "/studio/video"
   },
@@ -472,7 +472,7 @@
     "path": "/studio/sticker"
   },
   "workplace.studio-videoeditor": {
-    "title": "Video Editor",
+    "title": "Video-Editor",
     "subtitle": "Clips schneiden & gestalten",
     "path": "/studio/videoeditor"
   },

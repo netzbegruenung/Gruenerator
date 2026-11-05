@@ -10,6 +10,8 @@
  * the turn still succeeds while the failure stays visible.
  */
 
+import { type WolkeFileRef } from '@gruenerator/contracts';
+
 import NextcloudApiClient from '../../../../services/api-clients/nextcloudApiClient.js';
 import { extractTextFromFile } from '../../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/shareManager.js';
@@ -53,6 +55,37 @@ function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+export type WolkeDownload =
+  | { ok: true; buffer: Buffer; mimeType: string | null; size: number }
+  | { ok: false; message: string };
+
+/** Share link → client → download; the shared first half of every Wolke read. */
+export async function downloadWolkeFile(userId: string, ref: WolkeFileRef): Promise<WolkeDownload> {
+  const { shareLinkId, path: filePath, name } = ref;
+
+  const shareLink = await resolveShareLink(userId, shareLinkId);
+  if (!shareLink) {
+    log.warn(`[Wolke] Skip ${name}: share link ${shareLinkId} not available`);
+    return { ok: false, message: `Wolke-Freigabe für "${name}" nicht verfügbar` };
+  }
+
+  let client: NextcloudApiClient;
+  try {
+    client = await NextcloudApiClient.create(shareLink.share_link);
+  } catch (err) {
+    log.warn(`[Wolke] NextcloudApiClient init failed for ${shareLinkId}`, err);
+    return { ok: false, message: `Wolke-Verbindung fehlgeschlagen: ${errMessage(err)}` };
+  }
+
+  try {
+    const download = await client.downloadFile(filePath);
+    return { ok: true, ...download };
+  } catch (err) {
+    log.warn(`[Wolke] downloadFile failed for ${filePath}`, err);
+    return { ok: false, message: `Download von "${name}" fehlgeschlagen: ${errMessage(err)}` };
+  }
+}
+
 export async function retrieveWolkeFile(
   src: DocumentSource,
   perSourceLimit: number,
@@ -61,36 +94,8 @@ export async function retrieveWolkeFile(
   if (src.kind !== 'wolke' || !src.wolke) return { results: [] };
   const { shareLinkId, path: filePath, name } = src.wolke;
 
-  const shareLink = await resolveShareLink(userId, shareLinkId);
-  if (!shareLink) {
-    log.warn(`[Wolke] Skip ${name}: share link ${shareLinkId} not available`);
-    return {
-      results: [],
-      error: { message: `Wolke-Freigabe für "${name}" nicht verfügbar` },
-    };
-  }
-
-  let client: NextcloudApiClient;
-  try {
-    client = await NextcloudApiClient.create(shareLink.share_link);
-  } catch (err) {
-    log.warn(`[Wolke] NextcloudApiClient init failed for ${shareLinkId}`, err);
-    return {
-      results: [],
-      error: { message: `Wolke-Verbindung fehlgeschlagen: ${errMessage(err)}` },
-    };
-  }
-
-  let download: { buffer: Buffer; mimeType: string | null; size: number };
-  try {
-    download = await client.downloadFile(filePath);
-  } catch (err) {
-    log.warn(`[Wolke] downloadFile failed for ${filePath}`, err);
-    return {
-      results: [],
-      error: { message: `Download von "${name}" fehlgeschlagen: ${errMessage(err)}` },
-    };
-  }
+  const download = await downloadWolkeFile(userId, src.wolke);
+  if (!download.ok) return { results: [], error: { message: download.message } };
 
   const mimetype = download.mimeType || mimeTypeFromName(name);
   let text: string;

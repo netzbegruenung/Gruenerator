@@ -60,6 +60,11 @@ const RUNNERS: Record<
 /**
  * Picks a provider via the shared policy, then works down its chain, skipping
  * providers whose key is unset and retrying the next one on error.
+ *
+ * A result without the requested word timestamps counts as a miss, not a
+ * success: subtitles cannot be cut from it, and GreenPT answers some audio with
+ * text but an empty word list. If no provider yields words (silent audio), the
+ * last result is returned so the subtitle generator reports that itself.
  */
 async function transcribeWithProvider(
   audioPath: string,
@@ -68,12 +73,15 @@ async function transcribeWithProvider(
   locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
   const { provider, reason, chain } = chooseProvider({
+    wordTimestamps: requestWordTimestamps,
     override: env.TRANSCRIPTION_PROVIDER,
   });
 
   // One line per transcription — the only place the provider decision is
   // observable, and infrequent enough not to be noise.
   log.info(`provider=${provider} (${reason}) chain=${chain.join('→')} locale=${locale}`);
+
+  let withoutWords: TranscriptionResult | null = null;
 
   for (const attempt of chain) {
     const runner = RUNNERS[attempt];
@@ -82,6 +90,11 @@ async function transcribeWithProvider(
     try {
       const result = await runner.run(audioPath, requestWordTimestamps, uploadId, locale);
       recordOperation({ unit: 'transcriptions', ...runner.usage });
+      if (requestWordTimestamps && !result.words?.length) {
+        log.warn(`${attempt} returned no word timestamps, trying next provider`);
+        withoutWords = result;
+        continue;
+      }
       return result;
     } catch (error: unknown) {
       log.warn(
@@ -89,6 +102,8 @@ async function transcribeWithProvider(
       );
     }
   }
+
+  if (withoutWords) return withoutWords;
 
   throw new Error(
     'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral) or GREENPT_API_KEY (green-s-pro).'

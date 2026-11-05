@@ -71,3 +71,63 @@ export function detectLandtagFromWording(question: string): LandtagFilter {
   }
   return { ...found, ...zeitraum };
 }
+
+/**
+ * Wörter, die schon als Filter wirken (Art, Fraktion, Parlament, Jahr) oder nur
+ * die Frage tragen. Im Suchwort machen sie aus einer Zähl- oder Listenfrage eine
+ * Titelsuche: `query: "Anträge"` fand in Berlin 5 statt 77 Anträge der Grünen
+ * (live 04.11.2026), weil nur Titel mit dem Wort „Anträge" übrig blieben.
+ */
+const FILTER_WORDS = new RegExp(
+  [
+    'antr(a|ä)g\\w*',
+    'anfrage\\w*',
+    'antwort\\w*',
+    'gesetzentw(u|ü)rf\\w*',
+    'drucksache\\w*',
+    'beschlussempfehlung\\w*',
+    '(a|ä)nderungsantr(a|ä)g\\w*',
+    'plenarprotokoll\\w*',
+    'fraktion\\w*',
+    'gr(u|ü)ne\\w*',
+    'b(u|ü)ndnis',
+    'cdu',
+    'spd',
+    'fdp',
+    'afd',
+    'linke\\w*',
+    'bsw',
+    'landtag\\w*',
+    'abgeordnetenhaus\\w*',
+    'nrw',
+    'nordrhein\\w*',
+    'westfal\\w*',
+    'berlin\\w*',
+    'landesparlament\\w*',
+    '(19|20)\\d\\d',
+    'wie',
+    'viele',
+    'welche\\w*',
+    'alle',
+    'gestellt',
+    'eingebracht',
+    'der',
+    'die',
+    'das',
+    'im',
+    'in',
+    'jahr',
+    'seit',
+  ]
+    .map((w) => `(?<![\\p{L}\\p{N}])${w}(?![\\p{L}\\p{N}])`)
+    .join('|'),
+  'giu'
+);
+
+/** Das Thema im Suchwort, ohne Filter- und Fragewörter; leer, wenn keins übrig bleibt. */
+export function topicOf(query: string): string {
+  return query
+    .replace(FILTER_WORDS, ' ')
+    .replace(/[\s,.;:!?/-]+/g, ' ')
+    .trim();
+}

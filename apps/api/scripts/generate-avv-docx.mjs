@@ -164,7 +164,7 @@ const content = [
     li: '**Bildbearbeitung und -generierung:** Sharepics und Grafiken (Grünerator Imagine, FLUX-Modell von Black Forest Labs; Verarbeitung in der EU)',
   },
   {
-    li: '**Audio- und Videotranskription:** Umwandlung von Sprach- und Videoaufnahmen in Text (Reel-Grünerator) vorrangig über Mistral AI Voxtral (FR), ersatzweise über GreenPT (Verarbeitung in FR; keine dauerhafte Speicherung der Audio-Eingaben)',
+    li: '**Audio- und Videotranskription:** Umwandlung von Sprach- und Videoaufnahmen in Text (Reel-Grünerator) über Mistral AI Voxtral (FR) und GreenPT (Verarbeitung in FR) — Untertitel vorrangig über GreenPT, Sprachaufnahmen vorrangig über Voxtral, jeweils mit dem anderen als Ersatz (keine dauerhafte Speicherung der Audio-Eingaben)',
   },
   {
     li: '**Notebooks:** KI-gestützte Frage-Antwort-Funktion zu Parteiprogrammen, Beschlüssen und weiteren Dokumenten (Vektorsuche)',
@@ -541,7 +541,7 @@ const content = [
           'HQ Freiburg im Breisgau (DE); Vertragsentität noch zu bestätigen',
           'Bestehend',
           'Bildgenerierung (FLUX)',
-          'Verarbeitung in der EU (EU-API api.eu.bfl.ai). Kein Training.',
+          'Verarbeitung in der EU (EU-API api.eu.bfl.ai); ist diese nicht erreichbar, globale API api.bfl.ai (Verarbeitung auch in den USA möglich). Kein Training.',
         ],
       ],
     },

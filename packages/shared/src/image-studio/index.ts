@@ -47,6 +47,7 @@ export type { StyleVariantConfig, InfrastructureOptionConfig, ImageFormatId } fr
 export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
 export { sharepicSourceNote } from './sharepicSourceNote.js';
 export { sharepicRevisionReply } from './sharepicRevisionReply.js';
+export { berichtSaetze } from './sharepicBerichtSaetze.js';
 
 // Hooks
 export { useKiImageGeneration, buildPureCreateBody } from './hooks/useKiImageGeneration.js';

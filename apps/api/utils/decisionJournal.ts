@@ -107,6 +107,11 @@ export const DECISION_POINTS = {
       // Erstell-Auftrag über einem Anhang („mach daraus eine Präsentation") →
       // benannter Erstell-Intent, vor dem Anhang-Rückfall auf `produktion`.
       'tier2_attachment_create_order',
+      'tier2_image_attachment_create_order',
+      // Erstell-Auftrag über gewähltem Material (Wolke, Connect, @Dokument,
+      // Notebook-Quelle) statt Zwangssuche: Wolke-Fotos → Sharepic, sonst Loop.
+      'tier2_cloud_photo_create_order',
+      'tier2_material_create_order',
       // Folgeauftrag auf ein Chat-Dokument ohne „komplett neu" → gezielt im Loop.
       'tier2.7_doc_targeted_edit',
       // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.

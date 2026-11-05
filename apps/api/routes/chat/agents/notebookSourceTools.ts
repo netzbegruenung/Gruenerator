@@ -33,6 +33,7 @@ import { checkHealth, textStatsBatched } from '../../../services/nlp/nlpClient.j
 import {
   chunksOrThrow,
   findPassages,
+  FIND_MAX_LIMIT,
   listNotebookSources,
   matchSourceByName,
   loadPassagePageEnds,
@@ -922,7 +923,16 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     }
 
     const found = await findPassages(
-      { documentIds, query, mode: args.mode, limit: args.limit ?? 10, rerank: args.rerank, userId },
+      {
+        documentIds,
+        query,
+        mode: args.mode,
+        // Im Präzisionsmodus (Notebook-Seite, gesperrter Scope) ist find die
+        // ganze Antwortgrundlage — dort das volle Fenster, sonst das knappe.
+        limit: args.limit ?? (state.notebookScopeLock ? FIND_MAX_LIMIT : 10),
+        rerank: args.rerank,
+        userId,
+      },
       deps
     );
     const { reranked } = found;

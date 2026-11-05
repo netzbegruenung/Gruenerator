@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { DraftFailedError } from '../../../services/sharepicCreator/draftFailure.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
@@ -873,7 +874,7 @@ describe('bundestag: modus zaehlen, ref', () => {
         }),
         { modus: 'zaehlen' }
       ) as Promise<Record<string, unknown>>;
-    const landtag = await run('Was hat der Landtag in NRW zu Windkraft beschlossen?');
+    const landtag = await run('Was hat der Landtag in Bayern zu Windkraft beschlossen?');
     expect(landtag['fuerSchreiber']).toMatch(/nur den Bundestag/);
     expect(String(landtag['hinweis'] ?? '')).not.toMatch(/Landesparlament/);
     const bund = await run('Wie viele Anträge zu Windkraft gab es?');
@@ -947,6 +948,25 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(out.fuerSchreiber).toBeUndefined();
   });
 
+  it('Landtag NRW: derselbe Verweis, mit parlament nrw (live 04.11.2026 sagte er „nicht durchsucht")', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [{ source: 'bundestag', title: 'Drucksache 21/50', content: 'x' }],
+    });
+    const out = (await exec(
+      makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions:
+            'Welche Anträge haben die Grünen im Landtag NRW zur Windkraft gestellt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Windkraft' }
+    )) as { landtagHinweis?: string; fuerSchreiber?: string };
+    expect(out.landtagHinweis).toMatch(/`landtag` mit parlament 'nrw'/);
+    expect(out.fuerSchreiber).toBeUndefined();
+  });
+
   it('ref einer Anfrage ohne Antwort-Drucksache: hinweise sagt „liegt noch nicht vor“', async () => {
     retrieveBundestagFamily.mockResolvedValue({
       results: [
@@ -981,7 +1001,7 @@ describe('bundestag: modus zaehlen, ref', () => {
       makeBundestagTool({
         state: {
           ...state,
-          lastUserTextNoMentions: 'Was hat der Landtag NRW zu Windkraft beschlossen?',
+          lastUserTextNoMentions: 'Was hat der Landtag in Bayern zu Windkraft beschlossen?',
         } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),
@@ -1463,6 +1483,42 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     });
   }
 
+  it('adds the creation report next to the variants', async () => {
+    const creatorVariant = {
+      id: 'c',
+      canvasType: 'freeform',
+      initialProps: {
+        creatorSpec: {
+          locale: 'de-DE',
+          slides: [
+            {
+              background: { kind: 'farbe', color: 'tanne' },
+              position: 'mitte',
+              align: 'links',
+              items: [{ type: 'headline', lines: ['Busse'] }],
+              logo: false,
+            },
+          ],
+        },
+        attributions: [null],
+        bericht: [{ art: 'fehlt', fakt: 'termin' }],
+      },
+    };
+    runSharepicGeneration.mockResolvedValue({ variants: [creatorVariant], failure: null });
+    const state = {
+      ...baseState,
+      intent: 'sharepic',
+      messages: [{ role: 'user', content: 'Sharepic' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const out = (await exec(makeTool(state), { text: 'Busse' })) as {
+      variants: unknown[];
+      bericht: string;
+    };
+    expect(out.variants).toEqual([creatorVariant]);
+    expect(out.bericht).toContain('Beim Erstellen: Termin fehlte');
+  });
+
   it('injects the researched text as the trailing user message and returns variants verbatim', async () => {
     runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const events: SseEvent[] = [];
@@ -1529,6 +1585,20 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     const retried = (await exec(tool, { text: 'b' })) as { variants: unknown[] };
     expect(retried.variants).toEqual(VARIANTS);
     expect(runSharepicGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it('failure with a cause hands the cause text to the model', async () => {
+    runSharepicGeneration.mockResolvedValueOnce({
+      variants: [],
+      failure: new DraftFailedError('x', { kind: 'form', form: 'veranstaltung' }),
+    });
+    const state = {
+      ...baseState,
+      messages: [{ role: 'user', content: 'x' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const failed = await exec(makeTool(state), { text: 'a' });
+    expect(JSON.stringify(failed)).toContain('Veranstaltung');
   });
 
   it('pre-existing variants on state (defensive) short-circuit immediately', async () => {

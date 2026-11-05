@@ -13,7 +13,18 @@ describe('sourceLinks', () => {
     expect(parseSourceLinkHref(' quelle:12 ')).toBe(12);
   });
 
+  it('reads the English slip `source:N` as a source link (#5315)', () => {
+    expect(parseSourceLinkHref('source:3')).toBe(3);
+    const text = '* [Personalvertretungsgesetz (PersVG)](source:3) und [1]';
+    expect([...text.matchAll(citationReferenceRegex())].map((m) => [m[1], m[2], m[3]])).toEqual([
+      ['Personalvertretungsgesetz (PersVG)', '3', undefined],
+      [undefined, undefined, '1'],
+    ]);
+    expect(sourceLinksToCitations(text)).toBe('* Personalvertretungsgesetz (PersVG) [3] und [1]');
+  });
+
   it('rejects everything that is not a source link', () => {
+    expect(parseSourceLinkHref('sources:3')).toBeNull();
     expect(parseSourceLinkHref('https://example.org')).toBeNull();
     expect(parseSourceLinkHref('quelle:0')).toBeNull();
     expect(parseSourceLinkHref('quelle:abc')).toBeNull();

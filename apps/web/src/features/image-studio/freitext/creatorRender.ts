@@ -17,7 +17,7 @@ import { downloadDataUrl } from '../../../utils/downloadFile';
 import { renderSharepicToImage } from '../renderSharepicToImage';
 import { downloadSharepicZip } from '../services/downloadSharepicZip';
 
-import { composeCreatorSharepic } from './composeForRender';
+import { composeCreatorSharepic, sharepicPhotoSrc } from './composeForRender';
 import { loadImage } from './photoTone';
 
 export async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
@@ -87,7 +87,11 @@ export async function renderSharepicSheet(
 ): Promise<string | null> {
   const props = parseSharepicChatProps(initialProps);
   if (!props) return null;
-  const composed = await composeCreatorSharepic(props.creatorSpec, props.attributions);
+  const composed = await composeCreatorSharepic(
+    props.creatorSpec,
+    props.attributions,
+    sharepicPhotoSrc(props.photos ?? [])
+  );
   const previews = await renderPreviews(composed);
   return previews ? contactSheet(previews) : null;
 }

@@ -31,7 +31,7 @@ import {
   toClientSource,
   sourceTextForPrompt,
 } from '../../services/search/index.js';
-import { expandQuery } from '../../services/search/QueryExpansionService.js';
+import { expandQuery, extractSearchTerms } from '../../services/search/QueryExpansionService.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -280,6 +280,11 @@ export async function handleNotebookStream(
     // `queries` is seeded with `question`, so it is never empty.
     const rerankQuery = queries[0];
 
+    // Fachbegriffe für die Wortsuche — aus der umgeschriebenen Frage, damit eine
+    // Folgefrage („und beim Nahverkehr?") ihr Thema mitbringt. Leer bei
+    // Fehlschlag: die Suche läuft dann wie vorher.
+    const lexicalTerms = profile.subjectTerms ? await extractSearchTerms(rerankQuery) : [];
+
     let searchContext: SearchContext | null;
     try {
       searchContext = await notebookQAService.getSearchContext({
@@ -291,6 +296,7 @@ export async function handleNotebookStream(
         depth,
         sourceTier,
         queries,
+        ...(lexicalTerms.length > 0 && { lexicalTerms }),
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;

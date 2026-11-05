@@ -190,3 +190,87 @@ function parseExpansionResponse(content: string): ParsedExpansion {
   }
   return { alternatives: [], standalone: null };
 }
+
+const termCache = new Map<string, string[]>();
+
+const SUBJECT_TERMS_PROMPT = `Du bestimmst, wonach eine Volltextsuche in einer Dokumentensammlung suchen soll.
+Gegeben eine Frage, nenne höchstens 3 Begriffe:
+- den Gegenstand der Frage als Fachbegriff oder Eigennamen, so geschrieben, wie er in einem Dokument stünde (Groß- und Kleinschreibung, Bindestriche)
+- nur wenn du sicher bist: eine andere gängige Bezeichnung desselben Gegenstands (frühere Bezeichnung, Abkürzung oder ausgeschriebene Form)
+- jeder Begriff ein bis drei Wörter
+- keine allgemeinen Wörter, die nur die Frage oder die Art der Quellen beschreiben (Dokument, Quelle, Text, Aussage, Inhalt, Überblick, Beschluss, Antrag, Partei, Programm), keine Fragewörter, keine Verbindung eines Begriffs mit einem solchen Wort
+- hat die Frage keinen bestimmten Gegenstand, gib eine leere Liste zurück
+
+Antworte NUR mit JSON:
+{ "terms": ["Begriff"] }`;
+
+/**
+ * The subject terms of a question, as a source would spell them — the input
+ * the lexical half of the hybrid search is built for (#5341). A sentence
+ * appears in no chunk verbatim, so with the question as its search term the
+ * text lane fell back to single words, where "welche" counted as much as the
+ * one term the question was about.
+ *
+ * A wrong term costs nothing but a search with no hits; on failure or timeout
+ * the caller gets `[]` and searches exactly as before.
+ */
+export async function extractSearchTerms(question: string): Promise<string[]> {
+  const cacheKey = question.toLowerCase().trim();
+  const cached = termCache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const content = await aiText({
+      lane: 'chat_query_expansion',
+      pinned: 'standard',
+      system: SUBJECT_TERMS_PROMPT,
+      prompt: `Frage: "${question}"`,
+      maxOutputTokens: 80,
+      temperature: 0,
+      json: true,
+      // Wie expandQuery: gemessen meist 0,4–1,5 s, einmal über 3 s.
+      timeoutMs: 4000,
+    });
+    const terms = parseSubjectTerms(content);
+    if (termCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = termCache.keys().next().value;
+      if (firstKey) termCache.delete(firstKey);
+    }
+    termCache.set(cacheKey, terms);
+    log.info(`[Terms] ${JSON.stringify(terms)} for: "${question.slice(0, 50)}"`);
+    return terms;
+  } catch (error: unknown) {
+    log.warn(
+      `[Terms] Failed for "${question.slice(0, 50)}": ${error instanceof Error ? error.message : String(error)}`
+    );
+    return [];
+  }
+}
+
+/** At most 3 distinct terms of 2–60 characters; anything else is dropped. */
+export function parseSubjectTerms(content: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    try {
+      parsed = JSON.parse(match[0]);
+    } catch {
+      return [];
+    }
+  }
+  const raw = (parsed as { terms?: unknown } | null)?.terms;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const t of raw) {
+    if (typeof t !== 'string') continue;
+    const term = t.trim();
+    if (term.length < 2 || term.length > 60 || seen.has(term.toLowerCase())) continue;
+    seen.add(term.toLowerCase());
+    terms.push(term);
+  }
+  return terms.slice(0, 3);
+}

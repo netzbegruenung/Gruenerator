@@ -1,24 +1,18 @@
-import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import VideoEditorPage, { VIDEO_EDITOR_APP_PATH } from './VideoEditorPage';
+import VideoEditorPage, { BETA_NOTICE_SEEN_KEY, VIDEO_EDITOR_APP_PATH } from './VideoEditorPage';
 
 import { axe, render, screen } from '@/test-utils';
 
-let isAdmin = true;
-vi.mock('../../stores/authStore', () => ({
-  useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ user: { id: 'u1', email: 'person@example.org', is_admin: isAdmin } }),
-}));
-
 describe('VideoEditorPage', () => {
   beforeEach(() => {
-    isAdmin = true;
+    localStorage.setItem(BETA_NOTICE_SEEN_KEY, '1');
   });
 
   it('embeds the editor app under its own path with an accessible name', async () => {
     const { container } = render(<VideoEditorPage />);
-    const frame = screen.getByTitle('Gruenerator Video Editor');
+    const frame = screen.getByTitle('Grünerator Video-Editor');
     expect(frame.tagName).toBe('IFRAME');
     expect(frame).toHaveAttribute('src', '/videoeditor/app/');
     expect(VIDEO_EDITOR_APP_PATH).toBe('/videoeditor/app/');
@@ -26,14 +20,18 @@ describe('VideoEditorPage', () => {
     expect(await axe(container, { iframes: false })).toHaveNoViolations();
   });
 
-  it('is open to instance admins only while it is being tried out', () => {
-    isAdmin = false;
-    render(
-      <MemoryRouter>
-        <VideoEditorPage />
-      </MemoryRouter>
-    );
-    expect(screen.queryByTitle('Gruenerator Video Editor')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Kein Zugriff' })).toBeInTheDocument();
+  it('shows the beta notice on the first visit only', async () => {
+    localStorage.removeItem(BETA_NOTICE_SEEN_KEY);
+    const { unmount } = render(<VideoEditorPage />);
+
+    const dialog = screen.getByRole('dialog', { name: 'Der neue Video-Editor' });
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole('button', { name: "Los geht's" }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(localStorage.getItem(BETA_NOTICE_SEEN_KEY)).toBe('1');
+
+    unmount();
+    render(<VideoEditorPage />);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

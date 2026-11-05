@@ -60,11 +60,26 @@ describe('answer surfaces in prompts.ts', () => {
       '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
       '- Bei Widersprüchen in Quellen: Benenne sie transparent',
       '- Gendere Personenbezeichnungen mit Genderstern (z.B. Bürger*innen, der*die Sprecher*in)',
-      '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
+      '- Strukturiere Überblicksfragen nach INHALTLICHEN Themen, nicht nach Dokumenten',
+      '## FORM NACH FRAGETYP (Vorrang vor Antwort-Struktur und Stil-Regeln):',
     ]) {
       expect(app).toContain(invariant);
       expect(mcp).toContain(invariant);
     }
+  });
+
+  it('answers first and lets the question type pick the form (bgst-live-eval-2026-11-04)', () => {
+    const system = buildDraftPromptGrundsatz().system;
+    expect(system).not.toContain('kontextualisierenden Einleitung');
+    expect(system).toContain('Die Antwort steht im ersten Satz');
+    expect(system).toContain('Nenne JEDES einschlägige Dokument einzeln');
+    expect(system).toContain(
+      'Verschmilz unterschiedliche Aussagen verschiedener Quellen nicht zu einer'
+    );
+    expect(system).toContain('nicht dieselbe Zitatgruppe an jeden Satz');
+    expect(system.indexOf('## FORM NACH FRAGETYP')).toBeLessThan(
+      system.indexOf('## ANTWORT-STRUKTUR:')
+    );
   });
 
   it('lets a form requested in the question override the default structure', () => {

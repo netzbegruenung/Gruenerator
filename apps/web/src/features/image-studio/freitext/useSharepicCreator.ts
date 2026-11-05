@@ -14,7 +14,11 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { sharepicRevisionReply, sharepicSourceNote } from '@gruenerator/shared/image-studio';
+import {
+  berichtSaetze,
+  sharepicRevisionReply,
+  sharepicSourceNote,
+} from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -200,7 +204,7 @@ export function useSharepicCreator(userId: string | null) {
             prompt: text,
             ...(current ? { current } : {}),
             ...(photos.length
-              ? { photos: photos.map(({ id, analysis }) => ({ id, analysis })) }
+              ? { photos: photos.map(({ id, analysis, url }) => ({ id, analysis, url })) }
               : {}),
           },
         })
@@ -277,18 +281,22 @@ export function useSharepicCreator(userId: string | null) {
           ? `Hier ist dein Karussell mit ${composed.slides.length} Folien.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
-      const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
+      // The report replaces the joined legacy hinweis; an older API sends only the latter.
+      const saetze = draft.body.bericht?.length ? berichtSaetze(draft.body.bericht) : [];
+      const hinweis = saetze.length ? null : (draft.body.hinweis ?? null);
+      const report = saetze.length ? `\n\n${saetze.map((satz) => `- ${satz}`).join('\n')}` : '';
+      const notice = hinweis ? ` ${hinweis}` : '';
       say(
         'assistant',
         current
-          ? sharepicRevisionReply({
+          ? `${sharepicRevisionReply({
               before: current,
               after: next,
               order: text,
-              hinweis: draft.body.hinweis ?? null,
+              hinweis,
               attributions: credits,
-            })
-          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+            })}${report}`
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.${report}`
       );
       setPhase('ready');
     },

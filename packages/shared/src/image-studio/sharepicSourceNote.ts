@@ -2,6 +2,7 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   isSharepicVorlageRef,
+  slidePhotoFilename,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
@@ -18,24 +19,14 @@ const sourceOf = (
   slide: SharepicSpec['slides'][number],
   attribution: SharepicPhotoAttribution | null
 ): PictureSource => {
-  // No default: a new background kind must be mapped here (compile error otherwise).
-  const bg = slide.background;
-  switch (bg.kind) {
-    case 'farbe':
-      return { kind: 'farbe' };
-    case 'foto':
-    case 'foto-oben':
-    case 'foto-unten':
-      // The user's own photos stand under an `upload:N` id instead of a stock file name.
-      if (isSharepicUploadId(bg.filename)) return { kind: 'eigenes-foto' };
-      if (isSharepicSceneRef(bg.filename)) return { kind: 'ki-bild' };
-      if (isSharepicVorlageRef(bg.filename)) return { kind: 'vorlage-foto' };
-      return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
-    default: {
-      const unmapped: never = bg;
-      return unmapped;
-    }
-  }
+  // The background's photo, or a `bild` placed on a colour (own cut-out, stock photo).
+  const filename = slidePhotoFilename(slide);
+  if (!filename) return { kind: 'farbe' };
+  // The user's own photos stand under an `upload:N` id instead of a stock file name.
+  if (isSharepicUploadId(filename)) return { kind: 'eigenes-foto' };
+  if (isSharepicSceneRef(filename)) return { kind: 'ki-bild' };
+  if (isSharepicVorlageRef(filename)) return { kind: 'vorlage-foto' };
+  return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
 };
 
 const describe = (source: PictureSource): string => {

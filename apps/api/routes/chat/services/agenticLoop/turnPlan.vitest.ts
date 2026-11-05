@@ -735,6 +735,19 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.compoundGenerationOrdered).toBe(true);
   });
 
+  // Was der Klassifikator bei einem Auftrag über gewähltem Material (Wolke-PDF,
+  // @Dokument, Notebook-Quelle) liefert: `agentic` — der Loop muss die Art aus
+  // dem Auftrag ableiten und bestellt montieren, sonst antwortet er mit Text.
+  it.each([
+    ['Mach ein Sharepic aus dieser Pressemitteilung', 'sharepic'],
+    ['Erstelle eine Präsentation aus dieser Datei', 'presentation'],
+  ] as const)('ein Auftrag über gewähltem Material geht bestellt in den Loop: %s', (text, kind) => {
+    const p = plan({ intent: 'agentic', lastUserText: text });
+    expect(p.compoundGenerationKind).toBe(kind);
+    expect(p.compoundGenerationOrdered).toBe(true);
+    expect(p.runAgentic).toBe(true);
+  });
+
   it.each(['kürze die PM auf die Hälfte', 'Schreib den Text ohne Sharepic.'])(
     'ohne Freigabe montiert nichts: %s',
     (lastUserText) => {

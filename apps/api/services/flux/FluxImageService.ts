@@ -127,6 +127,8 @@ export interface GenerateResult {
 
 export interface GenerateFromImageOptions extends SubmitOptions, PollOptions {
   seed?: number;
+  /** The reference is a person's own photo: never send it to the global endpoint. */
+  euOnly?: boolean;
 }
 
 export interface ReferenceImage {
@@ -225,6 +227,34 @@ export function buildFlux3Body(prompt: string, options: Flux3BodyOptions = {}) {
 const POLL_RUNNING = new Set(['Pending', 'Reasoning', 'Generating']);
 const POLL_MODERATED = new Set(['Request Moderated', 'Content Moderated']);
 
+/** The endpoint the privacy policy names. */
+const BFL_EU_URL = 'https://api.eu.bfl.ai';
+/** Only while the EU endpoint cannot be reached at all, see `postGeneration`. */
+const BFL_GLOBAL_URL = 'https://api.bfl.ai';
+
+/** Raised before a request reaches BFL; resending it elsewhere cannot bill twice. */
+const UNREACHABLE_CODES = new Set([
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ECONNREFUSED',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+]);
+
+/**
+ * True when the endpoint never answered: DNS, refused connection or a broken
+ * TLS handshake. Any HTTP response — even a 5xx — means BFL saw the request.
+ */
+export function isEndpointUnreachable(error: unknown): boolean {
+  const original = ((error as FluxError | null)?.originalError ?? error) as FluxApiError | null;
+  if (!original || original.response) return false;
+  const code = original.code ?? '';
+  return (
+    UNREACHABLE_CODES.has(code) ||
+    /^(ERR_TLS_|CERT_|UNABLE_TO_VERIFY|DEPTH_ZERO_SELF_SIGNED|SELF_SIGNED_CERT)/.test(code)
+  );
+}
+
 class FluxImageService {
   private apiKey: string;
   private baseUrl: string;
@@ -268,7 +298,7 @@ class FluxImageService {
 
   constructor(options: FluxImageServiceOptions = {}) {
     this.apiKey = options.apiKey || env.BFL_API_KEY || '';
-    this.baseUrl = options.baseUrl || 'https://api.eu.bfl.ai';
+    this.baseUrl = options.baseUrl || BFL_EU_URL;
     this.modelPath = options.modelPath || FLUX3_MODEL_PATH;
     this.resolution = options.resolution;
 
@@ -333,12 +363,6 @@ class FluxImageService {
 
   async submit(prompt: string, options: SubmitOptions = {}): Promise<SubmitResponse> {
     const modelPath = options.modelPathOverride || this.modelPath;
-    const url = `${this.baseUrl}${modelPath}`;
-    const headers = {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
-      'x-key': this.apiKey,
-    };
     const body = isFlux3Path(modelPath)
       ? buildFlux3Body(prompt, {
           ...options,
@@ -354,22 +378,59 @@ class FluxImageService {
           prompt_upsampling: options.prompt_upsampling ?? false,
         };
 
-    console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
+    console.log(`[FluxImageService] Submitting text-to-image request to ${modelPath}`);
     this.recordImageOperation(modelPath);
 
-    return await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: AxiosConfigWithFamily = {
-        headers,
-        timeout: this.retryConfig.networkTimeoutMs,
-      };
-      if (family) axiosConfig.family = family as 4 | 6;
+    const data = await this.postGeneration(modelPath, body, 'submit');
+    console.log(
+      `[FluxImageService] Text-to-image request submitted successfully, ID: ${data?.id}${data?.cost != null ? `, cost: ${String(data.cost)}` : ''}`
+    );
+    return data;
+  }
 
-      const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
-      console.log(
-        `[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}${res.data?.cost != null ? `, cost: ${String(res.data.cost)}` : ''}`
+  /**
+   * POSTs a generation request to the EU endpoint. Only when that endpoint
+   * cannot be reached at all does the same request go to the global one — on
+   * 04.11.2026 BFL's EU front door served a `*.azureedge.net` certificate and
+   * every image failed. Nothing reached BFL then, so nothing is billed twice.
+   */
+  private async postGeneration(
+    endpointPath: string,
+    body: unknown,
+    operationType: string,
+    euOnly = false
+  ): Promise<SubmitResponse> {
+    const headers = {
+      accept: 'application/json',
+      'Content-Type': 'application/json',
+      'x-key': this.apiKey,
+    };
+    const send = (baseUrl: string) =>
+      this.executeWithRetry(async (family?: number) => {
+        const axiosConfig: AxiosConfigWithFamily = {
+          headers,
+          timeout: this.retryConfig.networkTimeoutMs,
+        };
+        if (family) axiosConfig.family = family as 4 | 6;
+
+        const res = await axios.post<SubmitResponse>(
+          `${baseUrl}${endpointPath}`,
+          body,
+          axiosConfig
+        );
+        return res.data;
+      }, operationType);
+
+    try {
+      return await send(this.baseUrl);
+    } catch (error: unknown) {
+      if (euOnly || this.baseUrl !== BFL_EU_URL || !isEndpointUnreachable(error)) throw error;
+      const original = (error as FluxError).originalError as FluxApiError | undefined;
+      console.warn(
+        `[FluxImageService] EU endpoint unreachable (${original?.code ?? 'unknown'}), sending ${operationType} to ${BFL_GLOBAL_URL}`
       );
-      return res.data;
-    }, 'submit');
+      return await send(BFL_GLOBAL_URL);
+    }
   }
 
   private async executeWithRetry<T>(
@@ -655,12 +716,6 @@ class FluxImageService {
       throw new Error('generateFromImages requires at least one reference image');
     }
     const modelPath = options.modelPathOverride || this.modelPath;
-    const url = `${this.baseUrl}${modelPath}`;
-    const headers = {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
-      'x-key': this.apiKey,
-    };
 
     let body: Record<string, unknown>;
     if (isFlux3Path(modelPath)) {
@@ -689,20 +744,16 @@ class FluxImageService {
 
     const totalKb = Math.round(images.reduce((sum, img) => sum + img.buffer.length, 0) / 1024);
     console.log(
-      `[FluxImageService] Submitting image-to-image request to ${url}, ${images.length} reference image(s), total size: ${totalKb}KB`
+      `[FluxImageService] Submitting image-to-image request to ${modelPath}, ${images.length} reference image(s), total size: ${totalKb}KB`
     );
     this.recordImageOperation(modelPath);
 
-    const request = await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: AxiosConfigWithFamily = {
-        headers,
-        timeout: this.retryConfig.networkTimeoutMs,
-      };
-      if (family) axiosConfig.family = family as 4 | 6;
-
-      const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
-      return res.data;
-    }, 'generateFromImages');
+    const request = await this.postGeneration(
+      modelPath,
+      body,
+      'generateFromImages',
+      options.euOnly === true
+    );
 
     const { id, polling_url } = request;
     console.log(`[FluxImageService] Image-to-image request submitted successfully, ID: ${id}`);
@@ -728,12 +779,7 @@ class FluxImageService {
    * outpainting is its own paid endpoint and isn't model-parameterized.
    */
   async outpaintImage(imageBuffer: Buffer, options: OutpaintOptions): Promise<GenerateResult> {
-    const url = `${this.baseUrl}/v1/flux-tools/outpainting-v1`;
-    const headers = {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
-      'x-key': this.apiKey,
-    };
+    const endpointPath = '/v1/flux-tools/outpainting-v1';
     const base64 = imageBuffer.toString('base64');
 
     const body: Record<string, unknown> = {
@@ -751,20 +797,11 @@ class FluxImageService {
     if (options.auto_crop) body.auto_crop = true;
 
     console.log(
-      `[FluxImageService] Submitting outpainting request to ${url}, target ${options.width}x${options.height}, source size: ${Math.round(imageBuffer.length / 1024)}KB`
+      `[FluxImageService] Submitting outpainting request to ${endpointPath}, target ${options.width}x${options.height}, source size: ${Math.round(imageBuffer.length / 1024)}KB`
     );
-    this.recordImageOperation('/v1/flux-tools/outpainting-v1');
+    this.recordImageOperation(endpointPath);
 
-    const request = await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: AxiosConfigWithFamily = {
-        headers,
-        timeout: this.retryConfig.networkTimeoutMs,
-      };
-      if (family) axiosConfig.family = family as 4 | 6;
-
-      const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
-      return res.data;
-    }, 'outpaint');
+    const request = await this.postGeneration(endpointPath, body, 'outpaint');
 
     const { id, polling_url } = request;
     console.log(`[FluxImageService] Outpainting submitted, ID: ${id}`);

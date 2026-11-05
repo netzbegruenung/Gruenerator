@@ -108,6 +108,81 @@ describe('getSearchContext — retrieval per depth tier', () => {
   });
 });
 
+describe('getSearchContext — lexical terms (#5341)', () => {
+  it('hands the terms to the search of the question', async () => {
+    await notebookQAService.getSearchContext({
+      question: 'Was steht zur Wärmepumpe drin?',
+      collectionId: 'grundsatz-system',
+      depth: 'deep',
+      lexicalTerms: ['Wärmepumpe'],
+    });
+    expect(search.mock.calls[0][0].options.lexicalTerms).toEqual(['Wärmepumpe']);
+  });
+
+  it('keeps them away from the searches of sub-questions', async () => {
+    await notebookQAService.getSearchContext({
+      question: 'Was gilt zur Wärmepumpe? Und wie hoch ist die Förderung für Solardächer?',
+      collectionId: 'grundsatz-system',
+      depth: 'deep',
+      lexicalTerms: ['Wärmepumpe'],
+    });
+    const withTerms = search.mock.calls.filter(([p]) => p.options.lexicalTerms);
+    expect(search.mock.calls.length).toBeGreaterThan(1);
+    expect(withTerms).toHaveLength(1);
+  });
+
+  it('sends none when the caller has none', async () => {
+    await optionsFor('deep');
+    expect(search.mock.calls[0][0].options).not.toHaveProperty('lexicalTerms');
+  });
+});
+
+describe('getSearchContext — best passage per source (#5341)', () => {
+  // A strong document brings more passages than the window holds, all at its
+  // own score; a weak one has a single passage below them.
+  const strongAndWeak = () => ({
+    results: [
+      {
+        document_id: 'stark',
+        title: 'Starker Beschluss',
+        similarity_score: 0.9,
+        top_chunks: Array.from({ length: 120 }, (_, i) => ({
+          chunk_index: i,
+          preview: `Stelle ${i}`,
+        })),
+      },
+      {
+        document_id: 'schwach',
+        title: 'Schwacher Beschluss',
+        similarity_score: 0.5,
+        top_chunks: [{ chunk_index: 1, preview: 'Den Preis garantieren wir.' }],
+      },
+    ],
+  });
+  const sourcesAt = async (depth: 'fast' | 'deep' | 'ultra') => {
+    search.mockResolvedValue(strongAndWeak());
+    const ctx = await notebookQAService.getSearchContext({
+      question: 'Welche Positionen gibt es zum Ticketpreis?',
+      collectionId: 'grundsatz-system',
+      depth,
+    });
+    return ctx!.sortedResults;
+  };
+
+  it('keeps the weak source in the deep window with its best passage', async () => {
+    const rows = await sourcesAt('deep');
+    expect(rows).toHaveLength(100);
+    expect(rows.filter((r) => r.document_id === 'schwach')).toHaveLength(1);
+  });
+
+  it('leaves fast and ultra on the plain cut by score', async () => {
+    for (const depth of ['fast', 'ultra'] as const) {
+      const rows = await sourcesAt(depth);
+      expect(rows.every((r) => r.document_id === 'stark')).toBe(true);
+    }
+  });
+});
+
 describe('getSearchContext — source tier', () => {
   const protocolAndDrucksache = () => ({
     results: [
@@ -145,5 +220,48 @@ describe('getSearchContext — source tier', () => {
   it('keeps the score order without a tier or with equal', async () => {
     expect(await firstDocument()).toBe('debatte');
     expect(await firstDocument('equal')).toBe('debatte');
+  });
+});
+
+describe('getSearchContext — failed searches (#5325)', () => {
+  const failed = {
+    success: false,
+    message: 'Hybrid search failed: This operation was aborted',
+    results: [],
+  };
+
+  it('throws when every search failed, instead of reporting "no passages"', async () => {
+    search.mockResolvedValue(failed);
+    await expect(
+      notebookQAService.getSearchContext({
+        question: 'Fasse die Drucksache 18/21208 zusammen.',
+        collectionId: 'grundsatz-system',
+        depth: 'deep',
+      })
+    ).rejects.toThrow(
+      'Die Suche im Notebook ist fehlgeschlagen. Bitte versuche es gleich noch einmal.'
+    );
+  });
+
+  it('answers from the searches that worked when only some failed', async () => {
+    search.mockResolvedValueOnce(failed).mockResolvedValue({
+      results: [
+        {
+          document_id: 'antwort',
+          title: 'Antwort der Landesregierung',
+          relevant_content: '1.200 Stellen unbesetzt',
+          similarity_score: 0.8,
+          top_chunks: [{ chunk_index: 0, preview: '1.200 Stellen unbesetzt' }],
+        },
+      ],
+    });
+    const ctx = await notebookQAService.getSearchContext({
+      question: 'Lehrkräftemangel',
+      collectionId: 'grundsatz-system',
+      depth: 'ultra',
+      queries: ['Lehrkräftemangel', 'fehlende Lehrkräfte', 'Lehrermangel Zahlen'],
+    });
+    expect(search.mock.calls.length).toBeGreaterThan(1);
+    expect(ctx?.sortedResults.length).toBeGreaterThan(0);
   });
 });

@@ -12,7 +12,7 @@ import type http from 'http';
 
 const log = createLogger('voiceRealtime');
 const MISTRAL_API_KEY = env.MISTRAL_API_KEY;
-const REALTIME_MODEL = 'voxtral-mini-transcribe-realtime-2602';
+const REALTIME_MODEL = 'voxtral-mini-transcribe-realtime-3';
 
 const AUDIO_FORMAT = {
   encoding: AudioEncoding.PcmS16le,

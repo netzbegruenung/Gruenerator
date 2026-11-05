@@ -63,15 +63,23 @@ let stats = emptyStats();
 /**
  * A document was read. `method` is the extractor's own label; everything
  * containing "ocr" counts as the paid path, so a new provider label does not
- * silently drop out of the cost figure.
+ * silently drop out of the cost figure. "mistral" too: `pdfjs-direct+mistral-tables`
+ * sends its table pages to Mistral OCR without saying "ocr" (#5304). Only those
+ * pages are paid, so with `tablePages` given they count instead of `pages`;
+ * without it the whole document counts, an upper bound.
  */
-export function recordExtraction(input: { method: string; pages?: number | undefined }): void {
+export function recordExtraction(input: {
+  method: string;
+  pages?: number | undefined;
+  tablePages?: number[] | undefined;
+}): void {
   const pages = Number.isFinite(input.pages) ? Math.max(0, input.pages as number) : 0;
   stats.documents += 1;
   stats.pages += pages;
-  if (input.method.toLowerCase().includes('ocr')) {
+  if (/ocr|mistral/i.test(input.method)) {
     stats.ocrDocuments += 1;
-    stats.ocrPages += pages;
+    stats.ocrPages +=
+      /mistral-tables/i.test(input.method) && input.tablePages ? input.tablePages.length : pages;
   }
 }
 

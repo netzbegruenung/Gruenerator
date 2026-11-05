@@ -12,7 +12,11 @@ import fs from 'node:fs/promises';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SHAREPIC_SCENE_REF } from '@gruenerator/contracts';
+import {
+  isSharepicUploadId,
+  SHAREPIC_SCENE_REF,
+  type SharepicOwnPhoto,
+} from '@gruenerator/contracts';
 
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -27,14 +31,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const STOCK_DIR = path.join(__dirname, '../../public/sharepic_example_bg');
 
 /** `ki:<token>` of the cut-out, or null where it could not be made. */
-export type CutOutPainter = (quelle: string) => Promise<string | null>;
+export type CutOutPainter = (
+  quelle: string,
+  ownPhotos?: readonly SharepicOwnPhoto[]
+) => Promise<string | null>;
 
 /**
  * The bytes behind a `bild` source: our own storage, or a live stock photo
- * from Unsplash's image host. An own upload (`upload:N`) is not: its URL
- * stays on the client.
+ * from Unsplash's image host. An own upload (`upload:N`) is read through the
+ * `url` the client sent with it — `loadOwnPhoto` checks it is the user's own.
  */
-async function loadSource(quelle: string, userId: string): Promise<Buffer | null> {
+async function loadSource(
+  quelle: string,
+  userId: string,
+  ownPhotos: readonly SharepicOwnPhoto[]
+): Promise<Buffer | null> {
+  if (isSharepicUploadId(quelle)) {
+    const url = ownPhotos.find((p) => p.id === quelle)?.url;
+    return url ? loadOwnPhoto(url, userId, getSharedMediaService()) : null;
+  }
   const token = SHAREPIC_SCENE_REF.exec(quelle)?.[1];
   if (token) return loadOwnPhoto(`/api/share/${token}/download`, userId, getSharedMediaService());
   // Only a catalogue name reaches the disk: no path from the model is joined.
@@ -50,9 +65,9 @@ const CACHE_MAX = 500;
 const cache = new Map<string, string>();
 
 export function createCutOutPainter(userId: string): CutOutPainter {
-  return async (quelle) => {
+  return async (quelle, ownPhotos = []) => {
     try {
-      const source = await loadSource(quelle, userId);
+      const source = await loadSource(quelle, userId, ownPhotos);
       if (!source) return null;
       const key = `${userId}:${createHash('sha256').update(source).digest('hex')}`;
       const media = getSharedMediaService();

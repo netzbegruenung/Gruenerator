@@ -388,6 +388,7 @@ export class LandesverbandScraper extends BaseScraper {
             recordExtraction({
               method: result.extractionMethod || result.method,
               pages: result.pageCount,
+              tablePages: result.tablePages,
             });
 
             this.log(
@@ -1305,6 +1306,7 @@ export class LandesverbandScraper extends BaseScraper {
       recordExtraction({
         method: ocrResult.extractionMethod || ocrResult.method,
         pages: ocrResult.pageCount,
+        tablePages: ocrResult.tablePages,
       });
     } finally {
       try {

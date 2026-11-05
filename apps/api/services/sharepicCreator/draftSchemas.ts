@@ -74,6 +74,7 @@ const SCENE_BACKGROUND = {
     kind: { type: 'string', const: 'szene' },
     motiv: { type: 'string' },
     textSeite: { type: 'string', enum: sharepicTextSideSchema.options },
+    person: { type: 'string' },
   },
   required: ['kind', 'motiv', 'textSeite'],
 };

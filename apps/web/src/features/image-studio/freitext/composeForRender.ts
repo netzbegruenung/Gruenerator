@@ -30,6 +30,17 @@ export const creatorPhotoSrc = (filename: string): string => {
   return token ? `/api/share/${token}/download` : stockPhotoSrc(filename);
 };
 
+/**
+ * `creatorPhotoSrc` plus the chat sharepic's own photos: `upload:N` resolves
+ * through the variant's `photos` mapping, an unmapped one to no source.
+ */
+export const sharepicPhotoSrc =
+  (photos: readonly { id: string; url: string }[] = []) =>
+  (filename: string): string =>
+    filename.startsWith('upload:')
+      ? (photos.find((p) => p.id === filename)?.url ?? '')
+      : creatorPhotoSrc(filename);
+
 export async function composeCreatorSharepic(
   spec: SharepicSpec,
   attributions: (SharepicPhotoAttribution | null)[],

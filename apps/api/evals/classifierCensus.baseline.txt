@@ -30,6 +30,9 @@ classifier.tier  (389)
     tier2_offer_accept            0
     tier2_artifact_question_accept    0
     tier2_attachment_create_order    0
+    tier2_image_attachment_create_order    0
+    tier2_cloud_photo_create_order    0
+    tier2_material_create_order    0
     tier2.7_doc_targeted_edit     0
     tier3.8_existing_artifact_edit    0
     tier2.97_existing_artifact_order    6
@@ -58,6 +61,7 @@ examples                          0  loop
 pressemitteilung_examples         0  retired
 abgeordnetenwatch                 0  loop
 bundestag                         0  loop
+abgeordnetenhaus                  0  loop
 bahn                              0  retired
 reise                             0  retired
 hotel                             0  retired

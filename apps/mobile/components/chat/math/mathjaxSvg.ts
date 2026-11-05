@@ -14,6 +14,8 @@ import '@mathjax/src/cjs/input/tex/textmacros/TextMacrosConfiguration.js';
 import { mathjax } from '@mathjax/src/cjs/mathjax.js';
 import { SVG } from '@mathjax/src/cjs/output/svg.js';
 
+import { mathToSpeech, type SpeechNode } from './mathSpeech';
+
 // The TeX font, not v4's default New Computer Modern: that one loads glyph
 // ranges asynchronously, and this conversion runs synchronously during render.
 // Preloaded packages do not pull in their font extensions, so mhchem's arrows
@@ -24,14 +26,21 @@ import { SVG } from '@mathjax/src/cjs/output/svg.js';
 // Only `texToSvg.ts` may load this module, and only lazily (see there).
 MathJaxTexFont.addExtension(MathJaxMhchemFontExtension);
 
+/** SVG markup plus the German spoken form of the same formula (`null` if none). */
+export interface ConvertedTex {
+  xml: string;
+  speech: string | null;
+}
+
 /** Builds the TeX → SVG markup converter. */
-export function createTexToSvg(): (tex: string, display: boolean) => string {
+export function createTexToSvg(): (tex: string, display: boolean) => ConvertedTex {
   const adaptor = liteAdaptor();
   RegisterHTMLHandler(adaptor);
+  const input = new TeX({
+    packages: ['base', 'ams', 'boldsymbol', 'color', 'mhchem', 'newcommand', 'textmacros'],
+  });
   const doc = mathjax.document('', {
-    InputJax: new TeX({
-      packages: ['base', 'ams', 'boldsymbol', 'color', 'mhchem', 'newcommand', 'textmacros'],
-    }),
+    InputJax: input,
     // 'local': every SVG carries its own glyph <defs>, so each one renders alone.
     OutputJax: new SVG({ fontCache: 'local', fontData: MathJaxTexFont }),
   });
@@ -42,6 +51,9 @@ export function createTexToSvg(): (tex: string, display: boolean) => string {
     // XML, not `outerHTML`: HTML leaves `<` unescaped in attributes such as
     // `data-latex="a < b"`. react-native-svg's parser tolerates that, strict
     // XML parsers do not (mathjax/MathJax#3549).
-    return adaptor.serializeXML(adaptor.firstChild(container) as LiteElement);
+    const xml = adaptor.serializeXML(adaptor.firstChild(container) as LiteElement);
+    // The MathML tree of the conversion just run, so the formula is parsed once.
+    // `mathNode` is `protected` in the typings; the walker reads only a few members.
+    return { xml, speech: mathToSpeech((input as unknown as { mathNode: SpeechNode }).mathNode) };
   };
 }

@@ -30,6 +30,7 @@ const base = {
   attachedSeedDelivered: false,
   resumesSuspendedTurn: false,
   tabularToolMounted: false,
+  materialOrder: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -743,7 +744,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('acht Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('neun Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
@@ -756,6 +757,8 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
       // Die Suchfamilie läuft per Erwähnung in der Schleife; ohne Pin griffe
       // das Modell zur generischen Suche statt zur gewählten Quelle.
       'gruenerator_search',
+      // `@abgeordnetenhaus` (#5290): PARDOK live über das Landtags-Werkzeug.
+      'landtag',
       // `@wiederkehrend` (#3221): stillgelegter Intent, dessen Erwähnung das
       // Loop-Werkzeug pinnt — dieselbe Bauform wie `@umfragen`.
       'recurring_tasks',
@@ -835,6 +838,34 @@ describe('forcedFirstStepTools', () => {
         userText: 'Welche Buchung war die größte?',
       })
     ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
+  // Ein bestelltes Artefakt über gewähltem Material läuft als `agentic`, nicht
+  // als `search` — ohne eigenen Zweig verlöre es den Zwang aufs Lesen, sobald der
+  // Vorab-Abruf leer bleibt, und das Artefakt entstünde aus dem Auftragssatz.
+  describe('material_order', () => {
+    it('zwingt bei leerem Seed aufs Material', () => {
+      expect(force({ materialOrder: true })).toBe('material_order');
+    });
+
+    it('nicht, wenn der Seed geliefert hat', () => {
+      expect(force({ materialOrder: true, attachedSeedDelivered: true })).toBeNull();
+    });
+
+    it('sieht nur die Lesewerkzeuge des Materials, keine Recherche', () => {
+      expect(
+        forcedFirstStepTools({
+          reason: 'material_order',
+          intent: 'agentic',
+          mounted: [...MOUNTED, 'dokumente_lesen'],
+          mcpToolNames: [],
+          priorToolNames: [],
+          isLookupTool: (name) => !NOT_LOOKUP.has(name),
+          materialTools: ['dokumente_lesen'],
+          userText: 'erstelle daraus eine tabelle',
+        })
+      ).toEqual(['dokumente_lesen']);
+    });
   });
 
   const tools = (
