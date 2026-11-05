@@ -109,6 +109,20 @@ function carriedQueryVector(source: Record<string, unknown> | undefined): {
 }
 
 /**
+ * `lexicalTerms` über die Validierung tragen — dieselbe Positivliste wie bei
+ * `queryVector`: fiele das Feld weg, liefe die Suche ohne Fehler mit dem
+ * ganzen Fragesatz als Suchbegriff weiter, und der Fix wäre still wirkungslos.
+ */
+function carriedLexicalTerms(source: Record<string, unknown> | undefined): {
+  lexicalTerms?: string[];
+} {
+  const value = source?.lexicalTerms;
+  if (!Array.isArray(value)) return {};
+  const terms = value.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  return terms.length > 0 ? { lexicalTerms: terms } : {};
+}
+
+/**
  * `sparseQueryVector` über die Validierung tragen — dieselbe Falle, dieselbe
  * Stelle, andere Lane.
  *
@@ -255,6 +269,7 @@ export class DocumentSearchService extends BaseSearchService {
         ...(pOptions?.rerankChunks === true && { rerankChunks: true }),
         ...carriedQueryVector(pOptions),
         ...carriedSparseQueryVector(pOptions),
+        ...carriedLexicalTerms(pOptions),
       };
 
       return {
@@ -329,6 +344,7 @@ export class DocumentSearchService extends BaseSearchService {
           ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
           ...carriedQueryVector(p),
           ...carriedSparseQueryVector(p),
+          ...carriedLexicalTerms(p),
         },
       };
     }
@@ -374,6 +390,7 @@ export class DocumentSearchService extends BaseSearchService {
         ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
         ...carriedQueryVector(p),
         ...carriedSparseQueryVector(p),
+        ...carriedLexicalTerms(p),
       },
     };
   }

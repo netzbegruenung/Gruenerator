@@ -102,7 +102,9 @@ export async function hybridSearch(
     }
 
     const recallText = Math.max(limit, recallLimit || limit * 4);
-    const textResults = await performTextSearch(client, collection, query, filter, recallText);
+    const textResults = options.lexicalTerms?.length
+      ? await searchLexicalTerms(client, collection, options.lexicalTerms, filter, recallText)
+      : await performTextSearch(client, collection, query, filter, recallText);
 
     const dynamicThreshold = hybridCfg.enableDynamicThresholds
       ? calculateDynamicThreshold(threshold, textResults.length > 0, hybridCfg)
@@ -241,7 +243,10 @@ async function hybridSearchServerSide(
     using: '',
     limit: recall,
     score_threshold: threshold,
-    params: { hnsw_ef: Math.max(100, recall * 2) },
+    // Kein `hnsw_ef`: das frühere `max(100, recall * 2)` (600 bei recall 300)
+    // kostete auf den Landtags-Sammlungen (1,2 Mio. Vektoren) 23–44 s je
+    // Suche, langsamer als `exact`; Qdrants Vorgabe 0,2–3,1 s bei 297–300 von
+    // 300 Treffern der exakten Suche (#5325). Die Spiegelsuche erbt das.
     ...(prefetchFilter && { filter: prefetchFilter }),
   };
 
@@ -406,6 +411,32 @@ async function hybridSearchServerSide(
       textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };
+}
+
+/**
+ * Die Wortsuche für eine lange Frage: je Fachbegriff eine eigene Suche statt
+ * einer über den ganzen Fragesatz (#5341). Ein Satz steht in keinem Abschnitt
+ * wörtlich; `performTextSearch` fiel dann auf seine Einzelwort-Suche zurück,
+ * in der „welche" so viel zählte wie der eine Begriff, um den es ging, und
+ * bewertete jeden Treffer mit dem Mindestwert. Ein Abschnitt, den mehrere
+ * Begriffe finden, behält seinen besten Wert.
+ */
+export async function searchLexicalTerms(
+  client: QdrantClient,
+  collection: string,
+  terms: readonly string[],
+  filter: QdrantFilter,
+  limit: number
+): Promise<TextSearchResult[]> {
+  const perTerm = await Promise.all(
+    terms.map((term) => performTextSearch(client, collection, term, filter, limit))
+  );
+  const best = new Map<string | number, TextSearchResult>();
+  for (const hit of perTerm.flat()) {
+    const seen = best.get(hit.id);
+    if (!seen || hit.score > seen.score) best.set(hit.id, hit);
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 /**

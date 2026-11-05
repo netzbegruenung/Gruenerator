@@ -1,5 +1,6 @@
 {
   "intents": [
+    "abgeordnetenhaus",
     "abgeordnetenwatch",
     "agentic",
     "artifact",
@@ -38,6 +39,12 @@
   ],
   "experimentalIntents": [],
   "mentionables": {
+    "abgeordnetenhaus": {
+      "title": "Abgeordnetenhaus Berlin",
+      "description": "Anfragen, Anträge und Debatten im Berliner Landesparlament, live aus PARDOK",
+      "mention": "@abgeordnetenhaus",
+      "audience": "de-DE"
+    },
     "abgeordnetenwatch": {
       "title": "Abgeordnetenwatch",
       "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",

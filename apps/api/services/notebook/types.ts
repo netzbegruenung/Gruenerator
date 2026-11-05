@@ -154,6 +154,8 @@ export interface InternalSearchOptions {
   documentIds?: string[] | undefined;
   additionalFilter?: QdrantFilter | undefined;
   searchParams: SearchParams;
+  /** See `GetSearchContextParams.lexicalTerms`. */
+  lexicalTerms?: string[] | undefined;
 }
 
 /**
@@ -213,6 +215,14 @@ export interface GetSearchContextParams {
    * both the worker pool and the progress channel.
    */
   queries?: string[] | undefined;
+  /**
+   * The question's subject terms as a source would spell them (#5341). They
+   * replace the sentence in the lexical half of the hybrid search and decide
+   * which chunk of a document counts as a term hit; the dense half keeps
+   * reading the question. Applied to the paraphrase group only — sub-questions
+   * are other questions and keep their own wording.
+   */
+  lexicalTerms?: string[] | undefined;
   getCollectionFn?: (
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;

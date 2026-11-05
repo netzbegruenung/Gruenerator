@@ -5,7 +5,8 @@ vi.mock('../ai/generate.js', () => ({
   aiText: (...args: unknown[]) => aiText(...args),
 }));
 
-const { expandQuery } = await import('./QueryExpansionService.js');
+const { expandQuery, extractSearchTerms, parseSubjectTerms } =
+  await import('./QueryExpansionService.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -83,5 +84,46 @@ describe('expandQuery with history context', () => {
     const call = aiText.mock.calls[0][0] as { system: string; maxOutputTokens: number };
     expect(call.system).not.toContain('alternative Formulierungen');
     expect(call.maxOutputTokens).toBe(80);
+  });
+});
+
+describe('extractSearchTerms (#5341)', () => {
+  it('returns the terms the model names', async () => {
+    aiText.mockResolvedValueOnce('{ "terms": ["Wärmepumpe", "Heizungsgesetz"] }');
+    expect(await extractSearchTerms('Was gilt zur Wärmepumpe?')).toEqual([
+      'Wärmepumpe',
+      'Heizungsgesetz',
+    ]);
+  });
+
+  it('caches per question', async () => {
+    aiText.mockResolvedValueOnce('{ "terms": ["Radweg"] }');
+    await extractSearchTerms('Wo kommt der Radweg hin?');
+    await extractSearchTerms('Wo kommt der Radweg hin?');
+    expect(aiText).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to no terms when the call fails, without caching the failure', async () => {
+    aiText.mockRejectedValueOnce(new Error('timeout'));
+    expect(await extractSearchTerms('Was steht zur Kita-Gebühr drin?')).toEqual([]);
+    aiText.mockResolvedValueOnce('{ "terms": ["Kita-Gebühr"] }');
+    expect(await extractSearchTerms('Was steht zur Kita-Gebühr drin?')).toEqual(['Kita-Gebühr']);
+  });
+});
+
+describe('parseSubjectTerms', () => {
+  it('keeps at most three distinct terms', () => {
+    expect(parseSubjectTerms('{"terms":["A1","b2","B2","c3","d4"]}')).toEqual(['A1', 'b2', 'c3']);
+  });
+
+  it('drops non-strings, one-letter and overlong entries', () => {
+    expect(parseSubjectTerms(`{"terms":[1,"x","${'y'.repeat(61)}","Tempo 30"]}`)).toEqual([
+      'Tempo 30',
+    ]);
+  });
+
+  it('reads JSON wrapped in prose and gives up on garbage', () => {
+    expect(parseSubjectTerms('Hier: {"terms":["Mietpreisbremse"]}')).toEqual(['Mietpreisbremse']);
+    expect(parseSubjectTerms('keine Ahnung')).toEqual([]);
   });
 });

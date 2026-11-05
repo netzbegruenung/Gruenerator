@@ -98,22 +98,44 @@ export function expandResultsToChunks(
 }
 
 /**
- * Deduplicate results by document ID and chunk index
+ * Identity of a passage as a second upload of the same file repeats it: same
+ * title, same text (whitespace-insensitive). The title is what keeps two
+ * DIFFERENT sources apart that quote one paragraph verbatim — both are
+ * evidence and must both survive. Empty text has no identity.
+ */
+export function uploadCopyKey(
+  title: string | null | undefined,
+  text: string | null | undefined
+): string | null {
+  const body = (text ?? '').replace(/\s+/g, ' ').trim();
+  return body.length > 0 ? `${(title ?? '').trim()}\n${body}` : null;
+}
+
+/**
+ * Deduplicate results by document ID and chunk index — and by
+ * {@link uploadCopyKey}: the same file uploaded twice is two documents with
+ * identical chunks. Kept apart, the copy took every second slot and doubled
+ * each citation (live 04.11.2026, evals/answer/bgst-live-eval-2026-11-04.md).
+ * The first occurrence wins.
  */
 export function deduplicateResults(
   results: ExpandedChunkResult[],
   includeCollectionInKey: boolean = false
 ): ExpandedChunkResult[] {
   const keySet = new Set<string>();
+  const copySet = new Set<string>();
   const deduped: ExpandedChunkResult[] = [];
 
   for (const r of results) {
     const key = includeCollectionInKey
       ? `${r.collection_id}:${r.document_id}:${r.chunk_index}`
       : `${r.document_id}:${r.chunk_index}`;
+    const copy = uploadCopyKey(r.title, r.chunk_text);
+    const copyKey = copy !== null && includeCollectionInKey ? `${r.collection_id}:${copy}` : copy;
 
-    if (keySet.has(key)) continue;
+    if (keySet.has(key) || (copyKey !== null && copySet.has(copyKey))) continue;
     keySet.add(key);
+    if (copyKey !== null) copySet.add(copyKey);
     deduped.push(r);
   }
 
@@ -520,6 +542,45 @@ export function selectAcrossQueryGroups(
   }
 
   return selected;
+}
+
+/**
+ * Cut a ranked passage list to `limit`, but give every source its best
+ * passage before any source gets a further one — up to half the window.
+ *
+ * Passages inherit their document's score and a document brings up to
+ * `maxChunksPerDocument` of them, so the first ten or so documents fill a
+ * 100-passage window and every other source in the pool is cut whole — even
+ * one whose best passage beats most passages in the window. Live 04.11.2026
+ * (#5341, evals/answer/bgst-live-eval-2026-11-04.md): the window held 12 of
+ * 31 matching documents, and the only source with the 49 € position (its
+ * best passage, document rank 22) never reached the prompt.
+ *
+ * One reserved passage per source, not more: the refill by score is what
+ * gives strong documents their depth, and that is where relevant passages
+ * sit too (measured: a statement at place 4 of the rank-7 document was lost
+ * with 2 or 3 reserved per source). The half-window cap keeps that depth when
+ * the pool holds as many documents as the window has slots.
+ *
+ * Input order is kept, so the prompt still reads by score.
+ */
+export function reserveBestPassagePerSource(
+  ranked: ExpandedChunkResult[],
+  limit: number
+): ExpandedChunkResult[] {
+  const maxReserved = Math.floor(limit / 2);
+  const sources = new Set<string>();
+  const reserved = new Set<ExpandedChunkResult>();
+  for (const r of ranked) {
+    if (reserved.size >= maxReserved) break;
+    const source = `${r.collection_id ?? ''}:${r.document_id}`;
+    if (sources.has(source)) continue;
+    sources.add(source);
+    reserved.add(r);
+  }
+
+  let room = limit - reserved.size;
+  return ranked.filter((r) => reserved.has(r) || room-- > 0);
 }
 
 /**

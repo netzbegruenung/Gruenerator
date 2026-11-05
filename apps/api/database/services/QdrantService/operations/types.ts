@@ -24,6 +24,12 @@ export interface HybridSearchOptions extends VectorSearchOptions {
   recallLimit?: number | undefined;
   /** Siehe `SearchOptions.sparseQueryVector` — von dort durchgereicht. */
   sparseQueryVector?: SparseVector | undefined;
+  /**
+   * Begriffe für die Wortsuche statt des Anfragetexts (#5341). Nur die
+   * clientseitige Fusion liest sie; der BM25-Pfad gewichtet seltene Wörter
+   * ohnehin selbst.
+   */
+  lexicalTerms?: string[] | undefined;
 }
 
 export interface ContextOptions {
