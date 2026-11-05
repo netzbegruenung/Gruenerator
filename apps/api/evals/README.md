@@ -204,7 +204,9 @@ zurück, welche gemeint ist, und der Fall endet als unerwartete Rückfrage.
 | `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
 | `EVAL_RECORD_DIR`               | —                       | record raw SSE per turn (E2E fixtures)             |
 | `EVAL_DECISION_DIR`             | —                       | read decision journals back, render maps           |
-| `CORTECS_API_KEY`               | —                       | judge only (Cortecs)                               |
+| `CORTECS_API_KEY`               | —                       | judge only — key of the OpenAI-compatible host     |
+| `CORTECS_BASE_URL`              | `api.cortecs.ai/v1`     | judge only — any OpenAI-compatible host (Melious)  |
+| `EVAL_JUDGE_MODEL`              | `gemma-4-31b-it`        | judge only — model name on that host               |
 | `EVAL_JUDGE_BLOCKING=1`         | —                       | judge failures set exit code                       |
 
 ## Decision maps from a live run
