@@ -340,3 +340,43 @@ describe('loop decision maps', () => {
     );
   });
 });
+
+describe('unified loop', () => {
+  const MISTRAL = { provider: 'mistral', modelName: 'mistral-large-4' };
+
+  it('runs tools and writes in one streamText call', async () => {
+    respond.resolution = MISTRAL;
+    loopScript.script({
+      calls: [{ tool: 'web_search', args: { query: 'Radwege' } }],
+      text: 'Antwort mit [1].',
+    });
+
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Was ist die Position der Gruenen zur Windkraft?')],
+    });
+
+    loopScript.assertScriptsConsumed();
+    expect(loopScript.calls).toHaveLength(1);
+    expect(capture.last().entries.find((e) => e.point === 'loop.mode')?.chose).toBe('unified');
+    expect(trace.fullText).toContain('Antwort mit');
+  });
+
+  it('runs afterGather after the stream in unified', async () => {
+    // Pins today's behaviour (flipped in Task 3.4): the model only searched, so
+    // the compound guarantee builds the ordered sharepic AFTER the text, and the
+    // text does not announce it.
+    respond.resolution = MISTRAL;
+    loopScript.script({
+      calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }],
+      text: 'Hier die Recherche zur Windkraft [1].',
+    });
+
+    const { trace, events } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Recherchiere zur Windkraft und erstelle ein Sharepic dazu')],
+    });
+
+    expect(capture.last().entries.find((e) => e.point === 'loop.mode')?.chose).toBe('unified');
+    expect(events.map((e) => e.event)).toContain('sharepic_complete');
+    expect(trace.fullText).not.toMatch(/sharepic/i);
+  });
+});
