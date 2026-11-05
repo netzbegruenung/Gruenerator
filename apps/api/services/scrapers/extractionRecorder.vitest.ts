@@ -50,6 +50,16 @@ describe('recordExtraction', () => {
     expect(stats.ocrPages).toBe(30);
   });
 
+  it('counts only the table pages Mistral read, when they are known', () => {
+    recordExtraction({ method: 'pdfjs-direct+mistral-tables', pages: 30, tablePages: [4, 9] });
+    recordExtraction({ method: 'pdfjs-direct', pages: 30, tablePages: [4, 9] });
+    recordExtraction({ method: 'mistral-ocr', pages: 12, tablePages: [1] });
+    const stats = drainExtractionStats();
+    expect(stats.pages).toBe(72);
+    expect(stats.ocrDocuments).toBe(2);
+    expect(stats.ocrPages).toBe(14);
+  });
+
   it('survives a missing page count', () => {
     recordExtraction({ method: 'plain-read', pages: undefined });
     const stats = drainExtractionStats();
