@@ -247,7 +247,7 @@ export interface Agent {
    * craft rules live in exactly one place, the recipe body. The agentic loop
    * lets the model pick via `rezept_laden` — except on a Landesverband agent
    * that owns exactly this one recipe (Bürger*innenanfragen): there it is
-   * loaded up front (`ownedLvDefaultRecipeMention`). An explicit composer
+   * loaded up front (`ownedDefaultRecipeMention`). An explicit composer
    * mention always wins.
    */
   defaultRecipeMention?: string;
