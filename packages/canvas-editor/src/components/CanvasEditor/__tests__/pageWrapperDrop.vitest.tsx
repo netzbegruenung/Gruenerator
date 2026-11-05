@@ -117,7 +117,7 @@ describe('PageWrapper block drop', () => {
     // jsdom drops clientX/Y from drag events; the point itself is GenericCanvas's job.
     expect(insert).toHaveBeenCalledWith('de-block-zitat', {
       pageIndex: 1,
-      at: expect.objectContaining({}),
+      at: expect.objectContaining({}) as unknown,
     });
     expect(dropElement).not.toHaveBeenCalled();
     expect(takeDropPlaced()).toBe(true);

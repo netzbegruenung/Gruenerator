@@ -257,10 +257,8 @@ async function* runClientToolResumes(params: {
       // Dialog geht ohnehin auf, und `HTTP error 403` erklärt nichts.
       const consentRequired = await routeUnauthorized(resumeResponse);
       if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
-      const errorData = await resumeResponse.json().catch(() => ({}));
-      throw new Error(
-        (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
-      );
+      const errorData = (await resumeResponse.json().catch(() => ({}))) as { error?: string };
+      throw new Error(errorData.error || `HTTP error ${resumeResponse.status}`);
     }
 
     const nextOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
@@ -379,10 +377,8 @@ export function createGrueneratorModelAdapter(
           if (!resumeResponse.ok) {
             const consentRequired = await routeUnauthorized(resumeResponse);
             if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
-            const errorData = await resumeResponse.json().catch(() => ({}));
-            throw new Error(
-              (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
-            );
+            const errorData = (await resumeResponse.json().catch(() => ({}))) as { error?: string };
+            throw new Error(errorData.error || `HTTP error ${resumeResponse.status}`);
           }
 
           let resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
@@ -443,10 +439,8 @@ export function createGrueneratorModelAdapter(
           if (!resumeResponse.ok) {
             const consentRequired = await routeUnauthorized(resumeResponse);
             if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
-            const errorData = await resumeResponse.json().catch(() => ({}));
-            throw new Error(
-              (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
-            );
+            const errorData = (await resumeResponse.json().catch(() => ({}))) as { error?: string };
+            throw new Error(errorData.error || `HTTP error ${resumeResponse.status}`);
           }
 
           let resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };

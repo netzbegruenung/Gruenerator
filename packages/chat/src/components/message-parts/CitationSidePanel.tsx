@@ -158,7 +158,7 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
         signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data: ChunksResponse = await response.json();
+      const data = (await response.json()) as ChunksResponse;
       if (!data.success || data.chunks.length === 0) {
         throw new Error('Keine Inhalte gefunden');
       }

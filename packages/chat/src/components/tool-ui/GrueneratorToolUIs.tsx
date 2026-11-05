@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/react';
-import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
+import { type ComponentType, type ReactNode } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { selectApprovalLabels, type PartLike } from '../../lib/narrationView';
@@ -21,14 +21,16 @@ import { TabelleAuswertenToolUI } from './TabelleAuswertenToolUI';
 import { ToolApprovalCard, type ToolApprovalState } from './ToolApprovalCard';
 import { ToolGrantCard } from './ToolGrantCard';
 
-import type { Toolkit } from '@assistant-ui/react';
+import type { ToolCallMessagePartProps, Toolkit } from '@assistant-ui/react';
 
 // The persistent planner narration (split-gather mode) renders above every tool
 // card, whatever its dedicated renderer, so the between-tool prose stays visible
 // in document order. `toolCallId` is always present on assistant-ui's render
 // props; ToolNarration no-ops when the part carries no narration.
+// `Toolkit` types args and result as `any`; the props are pinned to the
+// shapes the renderers below actually accept.
 type ToolRender = NonNullable<Toolkit[string]['render']>;
-type ToolRenderProps = ComponentProps<ToolRender>;
+type ToolRenderProps = ToolCallMessagePartProps<Record<string, unknown>, unknown>;
 
 function withNarration(render: (props: ToolRenderProps) => ReactNode): ToolRender {
   const Wrapped: ComponentType<ToolRenderProps> = (props) => (
