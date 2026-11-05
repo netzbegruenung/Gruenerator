@@ -29,9 +29,17 @@ const prior = (bericht: unknown[]) => ({
   props: { creatorSpec: spec, attributions: [null], bericht },
 });
 
-async function run(text: string, bericht: unknown[], editables: string[] = ['sharepic']) {
+async function run(
+  text: string,
+  bericht: unknown[],
+  editables: string[] = ['sharepic'],
+  extra: { images?: unknown[]; universalEditForced?: boolean; intent?: string } = {}
+) {
   getLast.mockResolvedValue(prior(bericht));
-  const classifiedState = { intent: 'direct', lastTurnEditables: editables } as never;
+  const classifiedState = {
+    intent: extra.intent ?? 'direct',
+    lastTurnEditables: editables,
+  } as never;
   const out = await runEarlyHandlerStage({
     sse: { send: vi.fn() } as never,
     req: {} as never,
@@ -42,8 +50,8 @@ async function run(text: string, bericht: unknown[], editables: string[] = ['sha
     userId: 'u1',
     lastUserMessage: { role: 'user', content: text } as never,
     lastUserTextNoMentions: text,
-    imageAttachments: [],
-    universalEditForced: false,
+    imageAttachments: (extra.images ?? []) as never,
+    universalEditForced: extra.universalEditForced ?? false,
     rawCurrentSharepic: null,
     rawCurrentSocialPost: null,
   });
@@ -91,5 +99,43 @@ describe('early handler: sharepic gap filled by the next turn', () => {
   it('reads nothing when the turn names no day', async () => {
     await run('klingt gut', fehlt);
     expect(getLast).not.toHaveBeenCalled();
+  });
+});
+
+describe('early handler: photo swap by attachment', () => {
+  beforeEach(() => getLast.mockReset());
+  const img = { type: 'image', url: 'data:image/png;base64,AAAA' };
+
+  it.each([
+    ['Nimm dieses Foto fürs Sharepic', 'direct'],
+    ['Tausch das Bild gegen das hier', 'image_edit'],
+  ])('"%s" revises the sharepic with the photo', async (text, intent) => {
+    const { out, classifiedState } = await run(text, [], ['sharepic'], { images: [img], intent });
+    expect(out.sharepicRefinement?.instruction).toBe(text);
+    expect(out.forcedTool).toBe(true);
+    expect(classifiedState.intent).toBe('sharepic');
+  });
+
+  it('a plain image edit stays image_edit', async () => {
+    const { out, classifiedState } = await run('Mach das Bild heller', [], ['sharepic'], {
+      images: [img],
+      intent: 'image_edit',
+    });
+    expect(out.sharepicRefinement).toBeUndefined();
+    expect(classifiedState.intent).toBe('image_edit');
+  });
+
+  it('@bildbearbeiten keeps image_edit', async () => {
+    const { out } = await run('Nimm dieses Foto fürs Sharepic', [], ['sharepic'], {
+      images: [img],
+      universalEditForced: true,
+      intent: 'image_edit',
+    });
+    expect(out.sharepicRefinement).toBeUndefined();
+  });
+
+  it('without a sharepic in the thread nothing changes', async () => {
+    const { out } = await run('Nimm dieses Foto fürs Sharepic', [], [], { images: [img] });
+    expect(out.sharepicRefinement).toBeUndefined();
   });
 });

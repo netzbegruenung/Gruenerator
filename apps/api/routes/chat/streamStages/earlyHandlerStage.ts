@@ -20,6 +20,7 @@ import {
   isSharepicModeEdit,
   looksLikeSharepicOrder,
   sharepicEditAddressed,
+  swapsSharepicPhoto,
 } from '../services/sharepicEditHeuristics.js';
 import {
   handleSharepicEdit,
@@ -305,25 +306,34 @@ export async function runEarlyHandlerStage({
   // above; this block is reached when handleSharepicEdit declined: no target
   // variant, or a template with no descriptor (the narrow case).
   let sharepicRefinement: SharepicRefinement | undefined;
+  // Ein Bild-Anhang mit Tauschauftrag („Nimm dieses Foto fürs Sharepic") an die
+  // offene Karte oder das Sharepic im Turn davor ist KEINE Bildbearbeitung: die
+  // Revision bekommt das Foto (photosForTurn). Eine bloße Bildänderung („Mach das
+  // Bild heller") und `@bildbearbeiten` bleiben image_edit.
+  const photoSwap =
+    imageAttachments.length > 0 &&
+    !universalEditForced &&
+    (rawCurrentSharepic != null || lastTurnSharepic) &&
+    swapsSharepicPhoto(orderText(lastUserTextNoMentions));
   if (
     actualThreadId &&
     lastUserMessage &&
-    imageAttachments.length === 0 &&
-    classifiedState.intent !== 'image_edit' &&
-    !universalEditForced
+    !universalEditForced &&
+    (photoSwap || (imageAttachments.length === 0 && classifiedState.intent !== 'image_edit'))
   ) {
     const followText = lastUserTextNoMentions;
     const followOrder = orderText(followText);
     if (
-      isSharepicRefinement(followOrder) &&
-      orderMayMeanArtifact(followText, namesSharepicTarget) &&
-      // Derselbe Adressat wie oben: `getLastSharepicVariant` findet das Sharepic
-      // noch 30 Nachrichten später, und „Ist das im Wahlprogramm anders?" wurde
-      // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
-      sharepicEditAddressed(followOrder, {
-        cardOpen: rawCurrentSharepic != null,
-        lastTurnSharepic,
-      })
+      photoSwap ||
+      (isSharepicRefinement(followOrder) &&
+        orderMayMeanArtifact(followText, namesSharepicTarget) &&
+        // Derselbe Adressat wie oben: `getLastSharepicVariant` findet das Sharepic
+        // noch 30 Nachrichten später, und „Ist das im Wahlprogramm anders?" wurde
+        // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
+        sharepicEditAddressed(followOrder, {
+          cardOpen: rawCurrentSharepic != null,
+          lastTurnSharepic,
+        }))
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {

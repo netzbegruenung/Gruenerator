@@ -174,6 +174,20 @@ export function sharepicEditAddressed(
   return context.cardOpen || context.lastTurnSharepic || namesSharepicTarget(order);
 }
 
+const PHOTO_SWAP_VERB =
+  /(?<!\p{L})(?:nimm|nehm\w*|tausch\w*|ersetz\w*|verwend\w*|benutz\w*|nutz\w*|setz\w*|pack\w*|leg\w*|wechsel\w*)(?!\p{L}{12})/iu;
+const PHOTO_SWAP_NOUN = /(?<!\p{L})(?:sharepic\w*|foto\w*|bild\w*|hintergrund\w*|motiv\w*)/iu;
+
+/**
+ * „Nimm dieses Foto fürs Sharepic" / „Tausch das Bild gegen das hier": mit einem
+ * Bild-Anhang ein Tauschauftrag, kein Auftrag ans Bild. Bewusst enger als
+ * `isSharepicRefinement` („Mach das Bild heller" ist Bildbearbeitung): es braucht
+ * ein Tausch-Verb UND das Sharepic oder dessen Foto im selben Satz.
+ */
+export function swapsSharepicPhoto(order: string): boolean {
+  return PHOTO_SWAP_VERB.test(order) && PHOTO_SWAP_NOUN.test(order);
+}
+
 // „mach"/„zeig"/„anderes"/„neues" sind die Verben, die ebenso gut etwas NEUES
 // bestellen oder zeigen lassen, und Text, Liste, Datum, Seite und Stichpunkte
 // sind die Nomen, die ebenso gut den Stoff meinen. Ein solches Paar allein ist
