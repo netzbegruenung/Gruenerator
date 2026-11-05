@@ -539,7 +539,7 @@ const PASSIVE_CLAIM_VERBS =
 
 /** Ein Artefakt, dessen Änderung eine Antwort behaupten kann. */
 export type EditableArtifactKind =
-  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'explainable';
+  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'explainable' | 'image';
 
 const ARTIFACT_CLAIM_NOUNS: Record<EditableArtifactKind, string> = {
   sharepic: 'sharepics?|karussells?|slider|folien?|dachzeile|kachel',
@@ -548,7 +548,16 @@ const ARTIFACT_CLAIM_NOUNS: Record<EditableArtifactKind, string> = {
   document: 'dokument(?:e|s)?|absatz|absätze|abschnitte?|begründung',
   board: 'boards?|karten?|aufgaben?',
   explainable: 'explainables?|erklärseiten?|abschnitte?',
+  // Live 05.11.2026: „Ich habe die Grafik noch einmal angepasst." ohne
+  // Bildwerkzeug. „Grafik" sagen Leute auch zum Sharepic — darum gilt eine
+  // Sharepic-Änderung hier mit (`satisfies`).
+  image: 'bild(?:er|es)?|grafik(?:en)?|fotos?|ki-bild(?:er)?|motive?|illustration(?:en)?',
 };
+
+/** Eine Änderung, die eine Behauptung über `kind` wahr macht. */
+function satisfies(edited: ReadonlySet<EditableArtifactKind>, kind: EditableArtifactKind): boolean {
+  return edited.has(kind) || (kind === 'image' && edited.has('sharepic'));
+}
 
 // Ich-Perfekt mit Artefakt-Nomen und Änderungsverb im selben Satz — oder das
 // Passiv („Folie 4 wurde … gelöscht", live 11.10.2026 nach einem
@@ -605,7 +614,7 @@ export function stripPhantomArtifactEdit(
     const sentence = parts[i];
     const sep = parts[i + 1] ?? '';
     const named = [...guarded].filter((kind) => ARTIFACT_CLAIM_RE[kind].test(sentence));
-    const phantom = named.length > 0 && !named.some((kind) => turn.edited.has(kind));
+    const phantom = named.length > 0 && !named.some((kind) => satisfies(turn.edited, kind));
     const echo = removedKinds.has('sharepic') && SHAREPIC_EDIT_TAIL_RE.test(sentence.trim());
     if (phantom || echo) {
       removed.push(sentence.trim());

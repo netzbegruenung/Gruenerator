@@ -23,7 +23,10 @@ import {
 } from '../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../utils/logger.js';
 import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.js';
-import { guardedArtifactKinds } from '../services/agenticLoop/editedArtifacts.js';
+import {
+  editedArtifactKinds,
+  guardedArtifactKinds,
+} from '../services/agenticLoop/editedArtifacts.js';
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
 import { sharepicTurnText } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
@@ -375,9 +378,10 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomNote.text;
     }
-    // Kein Werkzeug gemountet: „Ich habe die Tabelle sortiert" ist hier nie wahr (#4458).
+    // Kein Werkzeug gemountet: „Ich habe die Tabelle sortiert" ist hier nie wahr
+    // (#4458) — außer dem Bild, das `image`/`image_edit` vor der Antwort erzeugt hat.
     const phantomEdit = stripPhantomArtifactEdit(fullText, {
-      edited: new Set(),
+      edited: editedArtifactKinds([], finalState),
       guarded: guardedArtifactKinds(finalState),
     });
     if (phantomEdit.removed.length > 0) {
