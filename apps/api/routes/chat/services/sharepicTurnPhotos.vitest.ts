@@ -145,6 +145,22 @@ describe('prepareSharepicPhotos', () => {
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 
+  it('does not add a photo the sheet already holds', async () => {
+    mocks.upload.mockResolvedValue({ shareToken: TOKEN });
+    const args = { userId: 'u-same', images: [jpeg('again')], wolke: [] };
+    const first = await prepareSharepicPhotos({ ...args, prior: [] });
+    const second = await prepareSharepicPhotos({ ...args, prior: first.photos });
+    expect(second.photos).toHaveLength(1);
+    expect(mocks.analyze).toHaveBeenCalledTimes(1);
+    const twice = await prepareSharepicPhotos({
+      userId: 'u-twice',
+      images: [jpeg('dup'), jpeg('dup')],
+      wolke: [],
+      prior: [],
+    });
+    expect(twice.photos).toHaveLength(1);
+  });
+
   it('keeps the prior photos in front of the new ones', async () => {
     mocks.upload.mockResolvedValue({ shareToken: TOKEN });
     const prior = {
@@ -171,7 +187,7 @@ describe('priorSharepicPhotos', () => {
   it('re-analyses from the stored file, not from the props, and drops unreadable ones', async () => {
     const url = `/api/share/${TOKEN}/download`;
     mocks.loadOwn.mockImplementation(async (u: string) => (u === url ? Buffer.from('b') : null));
-    const photos = await priorSharepicPhotos(
+    const { photos, bericht } = await priorSharepicPhotos(
       {
         photos: [
           { id: 'upload:1', url },
@@ -181,11 +197,37 @@ describe('priorSharepicPhotos', () => {
       'u-1'
     );
     expect(photos).toEqual([{ id: 'upload:1', url, analysis: ANALYSIS }]);
+    expect(bericht).toEqual([
+      {
+        art: 'foto',
+        id: 'upload:2',
+        status: 'nicht_verwendet',
+        grund: 'Das Foto ist nicht mehr in deiner Mediathek.',
+      },
+    ]);
     expect(mocks.loadOwn).toHaveBeenCalledWith(url, 'u-1', expect.anything());
   });
 
+  it('degrades a throwing photo to a report entry', async () => {
+    mocks.loadOwn.mockRejectedValue(new Error('disk'));
+    const r = await priorSharepicPhotos(
+      { photos: [{ id: 'upload:1', url: `/api/share/${TOKEN}/download` }] },
+      'u-1'
+    );
+    expect(r.photos).toEqual([]);
+    expect(r.bericht).toHaveLength(1);
+  });
+
+  it('analyses the same prior photo once across revisions', async () => {
+    mocks.loadOwn.mockResolvedValue(Buffer.from('cached-prior'));
+    const props = { photos: [{ id: 'upload:1', url: `/api/share/${TOKEN}/download` }] };
+    await priorSharepicPhotos(props, 'u-cache');
+    await priorSharepicPhotos(props, 'u-cache');
+    expect(mocks.analyze).toHaveBeenCalledTimes(1);
+  });
+
   it('is empty for props without photos', async () => {
-    expect(await priorSharepicPhotos({}, 'u-1')).toEqual([]);
+    expect(await priorSharepicPhotos({}, 'u-1')).toEqual({ photos: [], bericht: [] });
   });
 });
 
@@ -226,6 +268,7 @@ describe('photosForTurn', () => {
   it('keeps the revised variant’s photos and numbers new ones after them', async () => {
     const url = `/api/share/${TOKEN}/download`;
     mocks.loadOwn.mockResolvedValue(Buffer.from('old'));
+    mocks.upload.mockResolvedValue({ shareToken: 'otherotherother99' });
     const r = await photosForTurn(
       { agentConfig: { userId: 'u-t2' } as never, imageAttachments: [jpeg('new-one')] },
       {

@@ -148,7 +148,19 @@ Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im 
       drafts += 1;
       sse.send('image_start', { message: 'Überarbeite dein Sharepic…' });
       try {
-        const { photos, bericht: photoBericht } = await photosForTurn(state, target.prior.props);
+        // A photo problem must not fail the edit: it goes on without photos and says so.
+        const { photos, bericht: photoBericht } = await photosForTurn(
+          state,
+          target.prior.props
+        ).catch((error: unknown) => {
+          log.warn(
+            `Fotos nicht geladen: ${error instanceof Error ? error.message : String(error)}`
+          );
+          return {
+            photos: [],
+            bericht: [{ art: 'gestaltung', text: 'Die Fotos konnte ich nicht laden.' } as const],
+          };
+        });
         const variant = await reviseCreatorSharepic({
           instruction: anweisung,
           prior: target.prior,

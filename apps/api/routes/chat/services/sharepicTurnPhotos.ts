@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import {
   parseSharepicChatProps,
   type SharepicBerichtEintrag,
+  type SharepicPhotoAnalysis,
   type SharepicChatProps,
   type WolkeFileRef,
 } from '@gruenerator/contracts';
@@ -31,8 +32,30 @@ import { collectTurnPhotos, type SharepicOwnPhotoWithUrl } from './turnPhotos.js
 const log = createLogger('sharepicTurnPhotos');
 
 const CACHE_MAX = 500;
-/** `userId:sha256(bytes)` → library URL. */
-const cache = new Map<string, string>();
+interface Known {
+  url: string;
+  /** Vision result, once computed — a revision does not pay for it again. */
+  analysis: SharepicPhotoAnalysis | null;
+}
+/** `userId:sha256(bytes)` → library URL and analysis. */
+const cache = new Map<string, Known>();
+
+const keyOf = (userId: string, buffer: Buffer): string =>
+  `${userId}:${createHash('sha256').update(buffer).digest('hex')}`;
+
+function remember(key: string, known: Known): void {
+  if (!cache.has(key) && cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
+  cache.set(key, known);
+}
+
+async function analysisOf(key: string, buffer: Buffer): Promise<SharepicPhotoAnalysis> {
+  const known = cache.get(key);
+  if (known?.analysis) return known.analysis;
+  const analysis = await analyzePhoto(buffer);
+  // A failed vision call is a placeholder, not worth keeping.
+  if (known && analysis.analysiert) known.analysis = analysis;
+  return analysis;
+}
 
 const IMAGE_MIME: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -49,17 +72,17 @@ const photoUrl = (shareToken: string): string => `/api/share/${shareToken}/downl
 /** Library URL of these bytes, stored on first sight; the copy is a normal upload. */
 async function storeOnce(
   userId: string,
+  key: string,
   buffer: Buffer,
   name: string,
   mimeType: string
 ): Promise<string> {
   const media = getSharedMediaService();
-  const key = `${userId}:${createHash('sha256').update(buffer).digest('hex')}`;
   const cached = cache.get(key);
   if (cached) {
     // The person may have deleted the copy from their library since.
-    const share = await media.getShareByToken(cached.split('/')[3]!);
-    if (share?.status === 'ready') return cached;
+    const share = await media.getShareByToken(cached.url.split('/')[3]!);
+    if (share?.status === 'ready') return cached.url;
     cache.delete(key);
   }
   const share = await media.uploadMediaFile(userId, {
@@ -71,8 +94,7 @@ async function storeOnce(
     uploadSource: 'upload',
   });
   const url = photoUrl(share.shareToken);
-  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
-  cache.set(key, url);
+  remember(key, { url, analysis: null });
   return url;
 }
 
@@ -116,8 +138,11 @@ export async function prepareSharepicPhotos(opts: {
         name = source.ref.name;
         mimeType = download.mimeType || imageMimeOf(name);
       }
-      const url = await storeOnce(userId, buffer, name, mimeType);
-      photos.push({ id, url, analysis: await analyzePhoto(buffer) });
+      const key = keyOf(userId, buffer);
+      const url = await storeOnce(userId, key, buffer, name, mimeType);
+      // The same photo again (a prior one, or twice in this turn) keeps its id.
+      if (photos.some((p) => p.url === url)) continue;
+      photos.push({ id, url, analysis: await analysisOf(key, buffer) });
     } catch (error) {
       log.warn(`photo ${id} not used: ${error instanceof Error ? error.message : String(error)}`);
       bericht.push(notUsed(id, 'Das Foto konnte nicht gespeichert werden.'));
@@ -134,14 +159,29 @@ export async function prepareSharepicPhotos(opts: {
 export async function priorSharepicPhotos(
   props: Pick<SharepicChatProps, 'photos'> | null,
   userId: string
-): Promise<SharepicOwnPhotoWithUrl[]> {
+): Promise<{ photos: SharepicOwnPhotoWithUrl[]; bericht: SharepicBerichtEintrag[] }> {
   const media = getSharedMediaService();
-  const out: SharepicOwnPhotoWithUrl[] = [];
+  const photos: SharepicOwnPhotoWithUrl[] = [];
+  const bericht: SharepicBerichtEintrag[] = [];
   for (const { id, url } of props?.photos ?? []) {
-    const buffer = await loadOwnPhoto(url, userId, media);
-    if (buffer) out.push({ id, url, analysis: await analyzePhoto(buffer) });
+    try {
+      const buffer = await loadOwnPhoto(url, userId, media);
+      if (!buffer) {
+        bericht.push(notUsed(id, 'Das Foto ist nicht mehr in deiner Mediathek.'));
+        continue;
+      }
+      const key = keyOf(userId, buffer);
+      // This url is known to be the person's own and ready.
+      remember(key, { url, analysis: cache.get(key)?.analysis ?? null });
+      photos.push({ id, url, analysis: await analysisOf(key, buffer) });
+    } catch (error) {
+      log.warn(
+        `prior photo ${id} not used: ${error instanceof Error ? error.message : String(error)}`
+      );
+      bericht.push(notUsed(id, 'Das Foto konnte nicht geladen werden.'));
+    }
   }
-  return out;
+  return { photos, bericht };
 }
 
 /**
@@ -162,10 +202,11 @@ export async function photosForTurn(
   const userId = state.agentConfig?.userId ?? null;
   if (!userId) return { photos: [], bericht: [] };
   const prior = await priorSharepicPhotos(parseSharepicChatProps(priorProps), userId);
-  return prepareSharepicPhotos({
+  const turn = await prepareSharepicPhotos({
     userId,
     images: state.imageAttachments ?? [],
     wolke: state.cloudFilesCarriedOnly === true ? [] : (state.wolkeFiles ?? []),
-    prior,
+    prior: prior.photos,
   });
+  return { photos: turn.photos, bericht: [...prior.bericht, ...turn.bericht] };
 }
