@@ -331,6 +331,9 @@ export async function streamAgenticResponse(
           finalState.intent === 'agentic' && finalState.mcpServerScope != null
             ? 'mcp'
             : finalState.intent,
+        ...(finalState.loopDemotedFromProse != null && {
+          demotedFromProse: finalState.loopDemotedFromProse,
+        }),
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),

@@ -71,6 +71,7 @@ const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { respond } = await import('./harness/respondScript.js');
+const { resolveAutoSelection } = await import('../agents/autoPolicy.js');
 
 const suite = useChatApp();
 
@@ -88,6 +89,24 @@ describe('loop entry', () => {
     expect(trace.agentic).toBe(true);
     expect(respond.agenticCalls).toHaveLength(1);
     expect(respond.singlePassCalls).toHaveLength(0);
+  });
+
+  it('keeps the prose reasoning level for a poem that runs in the loop (D8b)', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Schreib ein Gedicht über Fahrräder')],
+    });
+
+    expect(trace.agentic).toBe(true);
+    const finalState = respond.agenticCalls[0]?.finalState;
+    expect(finalState?.intent).toBe('agentic');
+    expect(finalState?.loopDemotedFromProse).toBe('produktion');
+    expect(
+      resolveAutoSelection({
+        intent: finalState?.intent,
+        demotedFromProse: finalState?.loopDemotedFromProse,
+        complexity: finalState?.complexity,
+      }).reasoning
+    ).toBe('off');
   });
 
   it('never claims agentic on a turn that took the single-pass branch', async () => {

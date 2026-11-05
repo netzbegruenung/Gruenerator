@@ -338,6 +338,31 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).toBe('agentic');
   });
 
+  it('a prose verdict demoted to the loop carries its prose origin (D8b)', async () => {
+    const state = buildState({
+      userMessage: 'Schreib mir ein kurzes Gedicht über den Wald im Herbst',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromProse).toBe('produktion');
+    expect(result.loopDemotedFromRetrieval).toBeFalsy();
+  });
+
+  it('a short prose message carries its prose origin too (D8b)', async () => {
+    const result = await classifierNode(buildState({ userMessage: 'heller' }));
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromProse).toBeTruthy();
+  });
+
+  it('a retrieval-demoted turn carries no prose origin (D8b)', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: 'Wer ist aktuell Bundeskanzler in Österreich?' })
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromRetrieval).toBe(true);
+    expect(result.loopDemotedFromProse).toBeFalsy();
+  });
+
   it('chat-recall phrasing is decided outright at Tier 3.4', async () => {
     // "was haben wir … besprochen" ist eindeutig genug für die Direktroute.
     const state = buildState({

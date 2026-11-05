@@ -356,6 +356,16 @@ function proseGoesToLoop(intent: string): boolean {
   return NO_RETRIEVAL_VERDICTS.has(intent) && intent !== 'greeting' && isAgenticLoopEnabled();
 }
 
+/**
+ * Das Gegenstück zu `loopDemotedFromRetrieval`: ein Prosa-Verdikt, das nur in
+ * den Loop gerutscht ist, behält sein Verdikt für die Modellwahl (Lane und
+ * Denkstufe der Prosa-Zeile in `AUTO_POLICY`). Routing, Werkzeuge und
+ * `forceFirstToolCall` sehen weiter `agentic`.
+ */
+function proseOrigin(intent: SearchIntent): Partial<ChatGraphState> {
+  return proseGoesToLoop(intent) ? { loopDemotedFromProse: intent } : {};
+}
+
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
   // „suche im web danach" nennt eine andere Quelle — kein Anschluss ans Notebook.
   if (EXPLICIT_WEB_SEARCH_PATTERN.test(text)) return false;
@@ -2182,6 +2192,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           searchQuery: null,
           detectedFilters: null,
           reasoning: 'Kurznachricht ohne Abruf-Verdikt → Loop',
+          ...proseOrigin(result.intent),
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -2448,6 +2459,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
         // steps=0 and the honesty note itself as the user-facing answer.
         loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
+        ...proseOrigin(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),
@@ -2536,6 +2548,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             generation === 'keine'
               ? 'Kein Artefakt gefragt (deterministisch aufgelöst)'
               : `Artefakt erkannt: ${resolvedIntent}`,
+          ...(generation === 'keine' && proseOrigin('produktion')),
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -2579,6 +2592,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       ),
       detectedFilters: heuristicExtractFilters(userContent),
       reasoning: `Kein Gitter beansprucht den Turn (Heuristik ${heuristic.intent}@${effectiveConfidence.toFixed(2)})`,
+      ...proseOrigin(heuristic.intent),
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,

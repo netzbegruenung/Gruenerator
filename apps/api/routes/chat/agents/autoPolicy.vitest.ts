@@ -582,3 +582,29 @@ describe('UNIFIED_GEMMA_CHAIN', () => {
     for (const entry of UNIFIED_GEMMA_CHAIN) expect(entry.provider).not.toBe('cortecs');
   });
 });
+
+describe('autoPolicy — prose turns demoted into the loop keep the prose row (D8b)', () => {
+  it('a prose-demoted agentic turn resolves like its prose verdict', () => {
+    for (const complexity of COMPLEXITIES) {
+      expect(
+        resolveAutoSelection({ intent: 'agentic', demotedFromProse: 'produktion', complexity })
+      ).toEqual(resolveAutoSelection({ intent: 'produktion', complexity }));
+    }
+    expect(
+      resolveAutoSelection({ intent: 'agentic', demotedFromProse: 'produktion' }).reasoning
+    ).toBe('off');
+  });
+
+  it('plain agentic keeps low', () => {
+    expect(resolveAutoSelection({ intent: 'agentic' }).reasoning).toBe('low');
+    expect(resolveAutoSelection({ intent: 'agentic', demotedFromProse: null }).reasoning).toBe(
+      'low'
+    );
+  });
+
+  it('the origin is ignored when the turn is not agentic', () => {
+    expect(resolveAutoSelection({ intent: 'web', demotedFromProse: 'produktion' })).toEqual(
+      resolveAutoSelection({ intent: 'web' })
+    );
+  });
+});
