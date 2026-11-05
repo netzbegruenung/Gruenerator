@@ -2147,12 +2147,40 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             hasTabularAttachment: state.hasTabularAttachment ?? false,
           });
 
+    // Nach einem erzeugten Bild hat der Planer etwas zu planen (`edit_image`) —
+    // ein Prosa-Verdikt geht dann an den Loop statt an eine Antwort ohne
+    // Werkzeug. Live 05.11.2026: „die Mühle an den Rand …" lief ohne Werkzeug,
+    // und die Antwort erzählte eine Anpassung, die nie stattfand. Gilt hier für
+    // Kurznachrichten („heller", „anders") und unten in Tier 3.5 für den Rest.
+    // Ein angehängtes Foto bleibt beim Einzeldurchlauf (`isPixelTurn`), das
+    // Werkzeug nähme das falsche Bild.
+    const loopEditsLastImage = state.lastToolContext?.kind === 'image' && !hasImageAttachments;
+
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
       const result = classifyHeuristically();
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
+      if (
+        loopEditsLastImage &&
+        NO_RETRIEVAL_VERDICTS.has(result.intent) &&
+        result.intent !== 'greeting'
+      ) {
+        recordDecision('classifier.tier', 'tier3_short_message_after_image', {
+          inputs: { heuristicIntent: result.intent },
+        });
+        return {
+          intent: 'agentic',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Kurznachricht nach einem Bild → Loop mit edit_image',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
       recordDecision('classifier.tier', 'tier3_short_message', {
         inputs: { heuristicIntent: result.intent, confidence: result.confidence },
       });
@@ -2371,8 +2399,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // than a topic. The word cap is what keeps it narrow — a full new question
     // asked after a sharepic is not a follow-up, and its own heuristic verdict
     // (search/web/…) demotes it regardless of this branch.
+    //
+    // Ein erzeugtes Bild ist davon ausgenommen (`loopEditsLastImage`, oben).
     const isArtifactFollowup =
-      state.lastToolContext != null && userContent.split(/\s+/).filter(Boolean).length <= 12;
+      state.lastToolContext != null &&
+      !loopEditsLastImage &&
+      userContent.split(/\s+/).filter(Boolean).length <= 12;
 
     const selfContained =
       isVagueFollowup ||
@@ -2424,7 +2456,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const demotable =
       (isAgenticLoopEnabled() && DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent)) ||
       (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-        (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained));
+        (looksLikeToolableQuestion(userContent) ||
+          unsourcedWriting ||
+          !selfContained ||
+          // „noch einmal" ist für `looksLikeSelfContainedTurn` ein Neu-Schreiben
+          // des Textes; nach einem Bild meint es das Bild.
+          (loopEditsLastImage && heuristic.intent !== 'greeting')));
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
