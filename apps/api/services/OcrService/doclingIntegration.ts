@@ -19,6 +19,8 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { PDFDocument } from 'pdf-lib';
+
 import { env } from '../../config/env.js';
 
 import type { ExtractionResult } from './types.js';
@@ -178,11 +180,15 @@ async function sendBufferToDocling(
  * Tabellenseiten aus PARDOK (04.11.2026): keine einzige Zahl, die nicht im PDF
  * steht, und verloren gingen nur Kopf- und Fusszeilen.
  *
- * Aufeinanderfolgende Seiten gehen als ein `page_range` in eine Anfrage; die
- * Antwort wird an `md_page_break_placeholder` wieder in Seiten zerlegt. Stimmt
- * die Zahl der Teile nicht mit der Zahl der Seiten überein, fällt der Lauf weg
- * und die Seiten behalten ihren pdfjs-Text — eine falsch zugeordnete Seite
- * wäre schlimmer als eine Tabelle als Fliesstext.
+ * Aufeinanderfolgende Seiten gehen als ein Lauf in eine Anfrage. Hochgeladen
+ * wird nur der Lauf: die Seiten werden lokal in ein eigenes kleines PDF
+ * geschnitten — sonst ginge die ganze Datei je Lauf hoch (200 MB für eine
+ * Seite, und Dateien über GreenPTs 125-MB-Grenze wären gar nicht lesbar, #5358).
+ * Kann pdf-lib die Datei nicht öffnen, geht wie früher die ganze Datei mit
+ * `page_range` hoch. Die Antwort wird an `md_page_break_placeholder` wieder
+ * in Seiten zerlegt. Stimmt die Zahl der Teile nicht mit der Zahl der Seiten
+ * überein, fällt der Lauf weg und die Seiten behalten ihren pdfjs-Text — eine
+ * falsch zugeordnete Seite wäre schlimmer als eine Tabelle als Fliesstext.
  *
  * GreenPTs Kontingent (600 Anfragen je 15 min) gilt je Konto und teilt sich
  * mit Websuche und Reranking der Produktion. Deshalb höchstens eine Anfrage
@@ -240,20 +246,32 @@ export function compactMarkdownTables(markdown: string): string {
     .join('\n');
 }
 
+/** Die Seiten des Laufs (1-basiert) als eigenes PDF. */
+async function cutRun(source: PDFDocument, run: readonly number[]): Promise<Buffer> {
+  const cut = await PDFDocument.create();
+  const copied = await cut.copyPages(
+    source,
+    run.map((page) => page - 1)
+  );
+  for (const page of copied) cut.addPage(page);
+  return Buffer.from(await cut.save());
+}
+
 async function convertRun(
   fileBuffer: Buffer,
+  source: PDFDocument | null,
   fileName: string,
   run: readonly number[]
 ): Promise<string> {
-  const fields: Array<[string, string]> = [
-    ['page_range', String(run[0])],
-    ['page_range', String(run[run.length - 1])],
-    ['md_page_break_placeholder', PAGE_BREAK],
-  ];
+  const upload = source ? await cutRun(source, run) : fileBuffer;
+  const fields: Array<[string, string]> = [['md_page_break_placeholder', PAGE_BREAK]];
+  if (!source) {
+    fields.push(['page_range', String(run[0])], ['page_range', String(run[run.length - 1])]);
+  }
   for (let attempt = 0; ; attempt++) {
     await takeRequestSlot();
     try {
-      const result = await sendBufferToDocling(fileBuffer, fileName, '[DoclingOCR:pages]', fields);
+      const result = await sendBufferToDocling(upload, fileName, '[DoclingOCR:pages]', fields);
       return result.text ?? '';
     } catch (error: unknown) {
       const wait = RATE_LIMIT_WAITS_MS[attempt];
@@ -263,6 +281,18 @@ async function convertRun(
       console.warn(`[DoclingOCR:pages] 429 from GreenPT, waiting ${wait / 1000}s`);
       await new Promise((resolve) => setTimeout(resolve, wait));
     }
+  }
+}
+
+async function loadPdf(fileBuffer: Buffer, fileName: string): Promise<PDFDocument | null> {
+  try {
+    return await PDFDocument.load(fileBuffer, { ignoreEncryption: true, updateMetadata: false });
+  } catch (error: unknown) {
+    console.warn(
+      `[DoclingOCR:pages] ${fileName}: pdf-lib cannot open the file, uploading it whole with page_range:`,
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
   }
 }
 
@@ -276,8 +306,9 @@ export async function extractPagesWithDocling(
   pages: readonly number[]
 ): Promise<Map<number, string>> {
   const byPage = new Map<number, string>();
+  const source = await loadPdf(fileBuffer, fileName);
   for (const run of pageRuns(pages)) {
-    const parts = (await convertRun(fileBuffer, fileName, run)).split(PAGE_BREAK);
+    const parts = (await convertRun(fileBuffer, source, fileName, run)).split(PAGE_BREAK);
     if (parts.length !== run.length) {
       console.warn(
         `[DoclingOCR:pages] ${fileName} pages ${run[0]}-${run[run.length - 1]}: ${parts.length} parts for ${run.length} pages, keeping pdfjs text`
