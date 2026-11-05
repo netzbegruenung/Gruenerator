@@ -1,10 +1,11 @@
 import {
   SHAREPIC_NEUTRAL_PHOTO_ANALYSIS,
+  sharepicSpecSchema,
   type SharepicOwnPhoto,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { berichtSaetze } from '@gruenerator/shared/image-studio';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
@@ -666,7 +667,60 @@ describe('draftSharepic — scene with the person', () => {
     expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
   });
 
+  // The own photo as ground is the first fallback; this makes that step fail so the collage steps run.
+  const refusePhotoGround = () => {
+    const real = sharepicSpecSchema.safeParse.bind(sharepicSpecSchema);
+    vi.spyOn(sharepicSpecSchema, 'safeParse').mockImplementation((value: unknown) => {
+      const bg = (value as SharepicSpec).slides?.[0]?.background;
+      return bg?.kind === 'foto' && bg.filename === 'upload:1'
+        ? ({ success: false } as ReturnType<typeof real>)
+        : real(value);
+    });
+  };
+  afterEach(() => vi.restoreAllMocks());
+
+  it('sets the own photo as the ground first when the scene with the person fails', async () => {
+    draftAnswers({
+      slides: [
+        {
+          ...slide(personScene),
+          items: [
+            { type: 'headline', lines: ['Mehr Sonne', 'auf jedes Dach'] },
+            {
+              type: 'iconliste',
+              zeilen: [
+                { icon: 'fahrrad', text: 'Nimm das Rad' },
+                { icon: 'essen', text: 'Eigener Becher' },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const cutOut = vi.fn();
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({
+        ok: false,
+        hinweis:
+          'Der Hintergrund ließ sich nicht malen – das Sharepic steht auf einer Markenfarbe.',
+      }),
+      cutOut,
+    });
+    expect(draft.spec.slides[0]!.background).toMatchObject({
+      kind: 'foto',
+      filename: 'upload:1',
+      textSeite: 'unten',
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([expect.objectContaining({ status: 'verwendet' })]);
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('dein Foto ist jetzt der Hintergrund');
+    expect(text).not.toContain('Markenfarbe');
+    expect(draft.hinweis ?? '').not.toContain('Markenfarbe');
+    expect(cutOut).not.toHaveBeenCalled();
+  });
+
   it('puts the photo cut out on the colour when the scene with the person fails', async () => {
+    refusePhotoGround();
     draftAnswers({ slides: [slide(personScene)] });
     const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' });
     const cutOut = vi.fn().mockResolvedValue('ki:cutoutcutoutcutout1234');
@@ -713,6 +767,7 @@ describe('draftSharepic — scene with the person', () => {
     (bericht ?? []).filter((e) => e.art === 'foto' && e.id === 'upload:1');
 
   it('reports one collage entry when the cut-out worked', async () => {
+    refusePhotoGround();
     draftAnswers({ slides: [slide(personScene)] });
     const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
       scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
@@ -726,6 +781,7 @@ describe('draftSharepic — scene with the person', () => {
   });
 
   it('reports one ungeschnitten entry naming both failures when the cut-out fails too', async () => {
+    refusePhotoGround();
     draftAnswers({ slides: [slide(personScene)] });
     const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
       scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),

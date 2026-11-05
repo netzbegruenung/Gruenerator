@@ -65,5 +65,18 @@ describe('berichtSaetze', () => {
     expect(
       berichtSaetze([{ art: 'foto', id: 'upload:1', status: 'nicht_verwendet', grund: 'zu klein' }])
     ).toEqual(['Dein Foto habe ich nicht verwendet: zu klein.']);
+    expect(
+      berichtSaetze([
+        {
+          art: 'foto',
+          id: 'upload:1',
+          status: 'verwendet',
+          grund: 'Die Szene mit dir ließ sich nicht malen – dein Foto ist jetzt der Hintergrund.',
+        },
+      ])
+    ).toEqual(['Die Szene mit dir ließ sich nicht malen – dein Foto ist jetzt der Hintergrund.']);
+    expect(berichtSaetze([{ art: 'foto', id: 'upload:1', status: 'verwendet' }])).toEqual([
+      'Dein Foto ist auf dem Sharepic.',
+    ]);
   });
 });

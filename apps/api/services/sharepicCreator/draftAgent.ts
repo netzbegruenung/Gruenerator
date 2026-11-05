@@ -125,6 +125,8 @@ export { validateDraft, bridgeProblems } from './draftValidation.js';
 
 const DRAFT_ATTEMPTS = 3;
 const COLLAGE_GRUND = 'Die Szene mit dir ließ sich nicht malen.';
+const PHOTO_GROUND_GRUND =
+  'Die Szene mit dir ließ sich nicht malen – dein Foto ist jetzt der Hintergrund.';
 
 /** At most one `foto` entry per photo; the last written is the most specific. */
 export function oneFotoPerId(bericht: readonly SharepicBerichtEintrag[]): SharepicBerichtEintrag[] {
@@ -457,29 +459,59 @@ export async function draftSharepic(
           ...(scene.person ? [ownPhotos] : [])
         )
       : ({ ok: false, hinweis: null } as const);
-    if (!painted.ok) {
+    // The colour-ground note is false when the person's own photo becomes the ground below.
+    let photoGround: SharepicSpec | null = null;
+    if (!painted.ok && scene.person) {
+      const own = ownPhotos.find((p) => p.id === scene.person);
+      const candidate: SharepicSpec = {
+        ...spec,
+        slides: spec.slides.map((slide, i) =>
+          i === scene.slide
+            ? {
+                ...slide,
+                background: {
+                  kind: 'foto',
+                  filename: scene.person!,
+                  textSeite: own?.analysis.ruhigeSeite ?? textSeite,
+                },
+              }
+            : slide
+        ),
+      };
+      if (sharepicSpecSchema.safeParse(candidate).success) photoGround = candidate;
+    }
+    if (!painted.ok && !photoGround) {
       hinweis = painted.hinweis;
       if (painted.hinweis) bericht.push({ art: 'gestaltung', text: painted.hinweis });
     }
-    spec = {
-      ...spec,
-      slides: spec.slides.map((slide, i) =>
-        i !== scene.slide
-          ? slide
-          : painted.ok
-            ? { ...slide, background: { kind: 'foto', filename: painted.ref, textSeite } }
-            : {
-                ...slide,
-                // The block sat beside the scene; on a plain colour it belongs in the middle.
-                position: 'mitte',
-                background: {
-                  kind: 'farbe',
-                  color: SHAREPIC_BRAND_COLORS[brandIdFor(spec.locale, spec.brand)][0]!,
-                },
-              }
-      ),
-    };
-    if (scene.person) {
+    if (photoGround) {
+      spec = photoGround;
+      bericht.push({
+        art: 'foto',
+        id: scene.person!,
+        status: 'verwendet',
+        grund: PHOTO_GROUND_GRUND,
+      });
+    } else
+      spec = {
+        ...spec,
+        slides: spec.slides.map((slide, i) =>
+          i !== scene.slide
+            ? slide
+            : painted.ok
+              ? { ...slide, background: { kind: 'foto', filename: painted.ref, textSeite } }
+              : {
+                  ...slide,
+                  // The block sat beside the scene; on a plain colour it belongs in the middle.
+                  position: 'mitte',
+                  background: {
+                    kind: 'farbe',
+                    color: SHAREPIC_BRAND_COLORS[brandIdFor(spec.locale, spec.brand)][0]!,
+                  },
+                }
+        ),
+      };
+    if (scene.person && !photoGround) {
       const id = scene.person;
       const placed = (ausschnitt: 'freigestellt' | 'karte') => {
         const next: SharepicSpec = {

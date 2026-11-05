@@ -39,8 +39,11 @@ function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): 
       return mehrere
         ? 'Die Szene mit dir hat nicht geklappt – ich habe deine Fotos freigestellt davorgestellt.'
         : 'Die Szene mit dir hat nicht geklappt – ich habe dein Foto freigestellt davorgestellt.';
-    case 'verwendet':
+    case 'verwendet': {
+      // The reason says how the photo got there; without one the plain sentence is enough.
+      if (gruende.length) return [...new Set(gruende)].join(' ');
       return `${dein} ${mehrere ? 'sind' : 'ist'} auf dem Sharepic.`;
+    }
   }
 }
 
