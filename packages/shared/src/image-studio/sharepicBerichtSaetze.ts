@@ -16,6 +16,13 @@ const REPARATUR_SATZ =
 const ORT_SATZ =
   'Einen Ort, der nicht in deinem Auftrag stand, habe ich weggelassen. Nenn ihn mir, dann setze ich ihn ein.';
 
+/** Without the closing dots and spaces — a loop, as `/[.\s]+$/` backtracks on long whitespace runs. */
+function ohneSchluss(text: string): string {
+  let end = text.length;
+  while (end > 0 && (text[end - 1] === '.' || /\s/.test(text[end - 1]!))) end--;
+  return text.slice(0, end);
+}
+
 function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): string {
   const dein = mehrere ? 'Deine Fotos' : 'Dein Foto';
   switch (status) {
@@ -25,12 +32,12 @@ function fotoSatz(status: Foto['status'], gruende: string[], mehrere: boolean): 
       // The Szene reason carries both failures; the plain cut-out one is this sentence already.
       const szene = gruende.find((g) => g.startsWith('Die Szene'));
       if (szene) {
-        return `${dein} ${mehrere ? 'stehen' : 'steht'} ungeschnitten auf dem Sharepic – ${szene.replace(/[.\s]+$/, '')}.`;
+        return `${dein} ${mehrere ? 'stehen' : 'steht'} ungeschnitten auf dem Sharepic – ${ohneSchluss(szene)}.`;
       }
       return `${dein} ${mehrere ? 'stehen' : 'steht'} ungeschnitten auf dem Sharepic – freistellen hat nicht geklappt.`;
     }
     case 'nicht_verwendet': {
-      const grund = gruende.map((g) => g.replace(/[.\s]+$/, '')).join('; ');
+      const grund = gruende.map(ohneSchluss).join('; ');
       return `${dein} habe ich nicht verwendet${grund ? `: ${grund}` : ''}.`;
     }
     case 'in_szene':
