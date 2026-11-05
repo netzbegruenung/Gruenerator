@@ -847,10 +847,10 @@ describe('buildToolReplay — was wiederkommt und was nicht', () => {
     expect(ids).toEqual(['w2', 'w3', 'w4', 'w5', 'w6', 'w7']);
   });
 
-  it('schliesst erzeugende Aktionen weiterhin aus', async () => {
-    expect(await replayFor([step('create_document'), step('gruenerator_search')])).toEqual([
-      'gruenerator_search',
-    ]);
+  it('spielt erzeugende Aktionen als Digest ein, memory bleibt draussen', async () => {
+    expect(
+      await replayFor([step('create_document'), step('memory'), step('gruenerator_search')])
+    ).toEqual(['create_document', 'gruenerator_search']);
   });
 });
 

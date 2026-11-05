@@ -55,7 +55,7 @@ import {
 import { type ClientToolGate } from './clientToolGate.js';
 import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
-import { buildToolObservationReplay } from './mcpReplay.js';
+import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
@@ -90,37 +90,25 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
 const REPLAY_SCAN_STEPS = 50;
 
 /**
- * Tools whose steps are NOT replayed as cross-turn "observations": side-effecting
- * or generative actions that own their own rehydration path (createdDocument /
- * generatedImage / sharepic card metadata) or emit SSE ops (edit_document).
- * Replaying them as tool messages would double-represent the artefact or make the
- * model think content already exists. Every OTHER mounted tool (search, bundestag,
- * umfragen, summarize, personal-data, MCP, system sources) IS replayed.
+ * Tools whose steps are NOT replayed at all, not even as a digest.
+ *
+ * `vertonen`: the audio file renders from the compute card's persisted metadata.
+ * Replayed as a tool message it would tell the model a file exists this turn —
+ * and the model would announce a download nobody just made.
+ * `memory`: a replayed save would tell the model it already remembered — and the
+ * person reading the replayed card would see a save that did not happen this turn.
  */
-const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
-  'edit_document',
-  'edit_current_sharepic',
-  'edit_sharepic',
-  'edit_sheet',
-  'edit_presentation',
-  'edit_explainable',
-  'reisekosten_abrechnung',
-  'create_document',
-  'create_board',
-  'create_sheet',
-  'create_presentation',
-  'create_pdf',
-  'create_explainable',
-  'generate_image',
-  'sharepic',
-  // The audio file renders from the compute card's persisted metadata. Replayed
-  // as a tool message it would tell the model a file exists this turn — and the
-  // model would announce a download nobody just made.
-  'vertonen',
-  // A replayed save would tell the model it already remembered — and the
-  // person reading the replayed card would see a save that did not happen
-  // this turn.
-  'memory',
+const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set(['memory', 'vertonen']);
+
+/**
+ * Every side-effecting or generative tool: the digest set (`ACTION_DIGEST_TOOLS`,
+ * replayed as a compact outcome line) plus the never-replayed ones. This is the
+ * "did something" list that `isLookupTool` and `threadFetchedInformation` use to
+ * tell "made" from "looked up" — an action step is not research, replayed or not.
+ */
+const ACTION_TOOLS: ReadonlySet<string> = new Set([
+  ...ACTION_DIGEST_TOOLS,
+  ...NON_REPLAYABLE_ACTION_TOOLS,
 ]);
 
 /**
@@ -504,7 +492,7 @@ export function createLoopGuards(
  * "mach das nochmal", "trag das jetzt ein") remembers what was gathered. Covers
  * ALL informational tools (search, bundestag, umfragen, summarize,
  * personal-data, MCP, system sources) — skipped are side-effecting/generative
- * actions (NON_REPLAYABLE_ACTION_TOOLS) and one-shot scaffolding
+ * actions (NON_REPLAYABLE_ACTION_TOOLS; action steps replay as digests) and one-shot scaffolding
  * (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
  * buildToolObservationReplay to tools mounted THIS turn. MCP steps stay behind
  * their rollout flag; search/domain replay is always on.
@@ -540,7 +528,7 @@ export async function buildToolReplay(params: {
 /**
  * Hat dieser Thread zuletzt INFORMATION geholt?
  *
- * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `NON_REPLAYABLE_ACTION_TOOLS`
+ * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `ACTION_TOOLS`
  * ist die eine Liste, an der „geholt" von „gemacht" getrennt wird, und eine
  * zweite daneben wäre die Sorte Duplikat, die auseinanderläuft. Ein Thread, der
  * ein Sharepic gebaut hat, hat nichts nachgeschlagen.
@@ -560,9 +548,7 @@ export async function buildToolReplay(params: {
 export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undefined): boolean {
   if (!toolHistory) return false;
   try {
-    return toolHistory
-      .toolSteps()
-      .some((s: PersistedStep) => !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName));
+    return toolHistory.toolSteps().some((s: PersistedStep) => !ACTION_TOOLS.has(s.toolName));
   } catch {
     return false;
   }
@@ -589,7 +575,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
  */
 export function isLookupTool(toolName: string): boolean {
   return (
-    !NON_REPLAYABLE_ACTION_TOOLS.has(toolName) &&
+    !ACTION_TOOLS.has(toolName) &&
     !ONE_SHOT_SCAFFOLD_TOOLS.has(toolName) &&
     !NOT_A_LOOKUP.has(toolName)
   );

@@ -24,7 +24,7 @@
  * real model would have stepped.
  */
 
-import { type FlexibleSchema, type LanguageModel, type ToolSet } from 'ai';
+import { type FlexibleSchema, type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
 
 /** A part as `drain()` reads it. `text-delta` is the only one that reaches the user. */
 export interface ScriptedPart {
@@ -76,6 +76,8 @@ export interface StreamTextRecord {
    * stünde das ohnehin.
    */
   toolChoice: unknown;
+  /** The model messages this call received (what the model saw as history). */
+  messages: ModelMessage[];
   /**
    * Das `activeTools` des ersten Schritts, neben `toolChoice` aufgezeichnet:
    * der Unterschied zwischen "required über alles" und "required über diese"
@@ -147,6 +149,7 @@ function partsOf(response: ScriptedResponse): ScriptedPart[] {
 export function fakeLoopStreamText(options: {
   model: LanguageModel;
   system?: string;
+  messages?: ModelMessage[];
   tools?: ToolSet;
   prepareStep?: (arg: {
     stepNumber: number;
@@ -162,6 +165,7 @@ export function fakeLoopStreamText(options: {
     system: firstStep?.system ?? options.system ?? '',
     toolNames: Object.keys(tools),
     toolChoice: firstStep?.toolChoice ?? null,
+    messages: options.messages ?? [],
     firstStepActiveTools: firstStep?.activeTools ?? null,
   });
 

@@ -88,6 +88,62 @@ function withoutDigestedRows(result: Record<string, unknown>): Record<string, un
   return rest;
 }
 
+/**
+ * Side-effecting or generative tools. Their steps replay as an outcome digest,
+ * never as the raw result: the artefact itself (variants, initialProps, files)
+ * owns its own rehydration path, and the raw payload would double-represent it.
+ * The model only needs to see THAT the action ran and how it ended.
+ */
+export const ACTION_DIGEST_TOOLS: ReadonlySet<string> = new Set([
+  'edit_document',
+  'edit_current_sharepic',
+  'edit_sharepic',
+  'edit_sheet',
+  'edit_presentation',
+  'edit_explainable',
+  'edit_image',
+  'reisekosten_abrechnung',
+  'create_document',
+  'create_board',
+  'create_sheet',
+  'create_presentation',
+  'create_pdf',
+  'create_explainable',
+  'generate_image',
+  'sharepic',
+]);
+
+const ACTION_DIGEST_MAX_CHARS = 300;
+
+/**
+ * `{"ok":boolean,"unchanged"?:true,"summary"?:string,"error"?:string}`, at most
+ * 300 chars. Built field by field from known scalars, so `variants`,
+ * `initialProps`, base64 and upload URLs cannot get in.
+ */
+export function actionDigest(step: PersistedStep): string {
+  const result = step.result ?? {};
+  const digest: { ok: boolean; unchanged?: true; summary?: string; error?: string } = {
+    ok: step.ok !== false,
+  };
+  if (result.unchanged === true) digest.unchanged = true;
+  if (typeof result.summary === 'string' && result.summary.trim()) {
+    digest.summary = result.summary.trim();
+  }
+  if (typeof result.error === 'string' && result.error.trim()) {
+    digest.error = result.error.trim();
+  }
+  let out = JSON.stringify(digest);
+  while (out.length > ACTION_DIGEST_MAX_CHARS) {
+    const key = (digest.summary?.length ?? 0) >= (digest.error?.length ?? 0) ? 'summary' : 'error';
+    const text = digest[key];
+    if (!text) break;
+    const over = out.length - ACTION_DIGEST_MAX_CHARS;
+    digest[key] = text.slice(0, Math.max(0, text.length - over - 1)).trimEnd() + '…';
+    out = JSON.stringify(digest);
+  }
+  return out;
+}
+
 function shortValue(result: Record<string, unknown>): string {
   // The persisted step is deliberately raw (card + debugging) — internal-only
   // fields like `rerankDegraded` are stripped HERE, at replay serialization,
@@ -149,7 +205,9 @@ export function buildToolObservationReplay(
   const serialize = (s: PersistedStep): string =>
     sameTurn
       ? sameTurnValue(s.result, opts?.resultBudgetFor?.(s.toolName) ?? null)
-      : shortValue(s.result);
+      : ACTION_DIGEST_TOOLS.has(s.toolName)
+        ? actionDigest(s)
+        : shortValue(s.result);
   const seen = new Set<string>();
   const valid = steps.filter((s) => {
     if (!currentCatalogNames.has(s.toolName)) return false; // validity gate
