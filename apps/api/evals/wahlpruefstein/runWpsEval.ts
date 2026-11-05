@@ -12,6 +12,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { htmlToStructuredText } from '../../services/scrapers/utils/htmlCleaner.js';
+
 import {
   exclamationCount,
   genderMarks,
@@ -114,18 +116,8 @@ async function fetchDocumentText(base: string, headers: Record<string, string>, 
   if (!res.ok) return null;
   const body = tryJson(await res.text());
   if (typeof body?.content !== 'string') return null;
-  return body.content
-    .replace(/<h([1-6])[^>]*>/gi, (_, n: string) => `\n${'#'.repeat(Number(n))} `)
-    .replace(/<li[^>]*>/gi, '\n- ')
-    .replace(/<\/(p|h[1-6]|div|tr|li)>|<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  // Strukturerhaltend (Überschriften, Absätze, Listen) — dieselbe Tür wie die Scraper.
+  return htmlToStructuredText(body.content);
 }
 
 async function streamTurn(
