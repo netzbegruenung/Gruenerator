@@ -189,3 +189,38 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     expect(result.reasoning).not.toContain('lastToolContext(image)');
   });
 });
+
+describe('classifierNode — Erstell-Auftrag über einem Bild-Anhang', () => {
+  const image = [{ name: 'foto.jpg', type: 'image/jpeg', data: 'x' }];
+
+  it('„Erstelle mir ein Sharepic …" mit Foto ist ein Sharepic-Turn, kein Vision-Text', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage:
+          'Erstelle mir ein lustiges Sharepic für eine Informationsveranstaltung. Auf dem Bild soll ich auf einer grünen Wolke surfen',
+        imageAttachments: image,
+      })
+    );
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('eine Frage zum Bild bleibt produktion', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: 'Was ist auf dem Bild?', imageAttachments: image })
+    );
+    expect(result.intent).toBe('produktion');
+  });
+
+  it('„Mach daraus eine Präsentation" liest sich wie beim Datei-Anhang', async () => {
+    const withFile = await classifierNode(
+      buildState({
+        userMessage: 'Mach daraus eine Präsentation',
+        attachmentContext: 'Inhalt der hochgeladenen Datei...',
+      })
+    );
+    const result = await classifierNode(
+      buildState({ userMessage: 'Mach daraus eine Präsentation', imageAttachments: image })
+    );
+    expect(result.intent).toBe(withFile.intent);
+  });
+});

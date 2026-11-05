@@ -152,6 +152,7 @@ export type { SharepicFormId } from './sharepicCreator/forms.js';
 export {
   parseSharepicChatProps,
   SHAREPIC_PROMPT_MAX,
+  sharepicBerichtEintragSchema,
   sharepicChatPropsSchema,
   sharepicCreatorErrorSchema,
   sharepicDraftBodySchema,
@@ -163,6 +164,7 @@ export {
   sharepicReviewResponseSchema,
 } from './sharepicCreator/api.js';
 export type {
+  SharepicBerichtEintrag,
   SharepicChatProps,
   SharepicCreatorError,
   SharepicDraftFailureReason,

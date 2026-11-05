@@ -1,10 +1,16 @@
-import { type SharepicSpec } from '@gruenerator/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  SHAREPIC_NEUTRAL_PHOTO_ANALYSIS,
+  sharepicSpecSchema,
+  type SharepicOwnPhoto,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
+import { berichtSaetze } from '@gruenerator/shared/image-studio';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
-import { draftSharepic, takeScene } from './draftAgent.js';
+import { draftSharepic, oneFotoPerId, takeScene } from './draftAgent.js';
 import { calmBox, sceneLayout, type ScenePainter } from './sceneBackground.js';
 
 const needs = { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [] };
@@ -572,7 +578,13 @@ describe('draftSharepic — form', () => {
       { slides: [quote] }
     );
 
-    const draft = await draftSharepic('Lena Grün: Busse statt Stau', 'de-DE', null, [], {});
+    const draft = await draftSharepic(
+      'Zitat von Lena Grün: Busse statt Stau',
+      'de-DE',
+      null,
+      [],
+      {}
+    );
 
     expect(errors[0]).toContain('Zitat');
     expect(draft.form).toBe('zitat');
@@ -626,5 +638,275 @@ describe('draftSharepic — form', () => {
 
     expect(errors).toEqual([]);
     expect(draft.form).toBeUndefined();
+  });
+});
+
+describe('draftSharepic — scene with the person', () => {
+  const photo = (
+    personen: number,
+    url: string | null = '/api/share/tok/download'
+  ): SharepicOwnPhoto => ({
+    id: 'upload:1',
+    analysis: { ...SHAREPIC_NEUTRAL_PHOTO_ANALYSIS, personen },
+    ...(url && { url }),
+  });
+  const personScene = { kind: 'szene', motiv: MOTIV, textSeite: 'unten', person: 'upload:1' };
+  const brief = 'Faktenbild: ich surfe auf einer grünen Wolke';
+
+  it('paints the person into the scene and reports it', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
+    const own = [photo(1)];
+
+    const draft = await draftSharepic(brief, 'de-DE', null, own, { scene: paint, cutOut: vi.fn() });
+
+    expect(paint).toHaveBeenCalledWith(
+      { motiv: MOTIV, textSeite: 'unten', format: undefined, person: 'upload:1' },
+      own
+    );
+    expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
+  });
+
+  // The own photo as ground is the first fallback; this makes that step fail so the collage steps run.
+  const refusePhotoGround = () => {
+    const real = sharepicSpecSchema.safeParse.bind(sharepicSpecSchema);
+    vi.spyOn(sharepicSpecSchema, 'safeParse').mockImplementation((value: unknown) => {
+      const bg = (value as SharepicSpec).slides?.[0]?.background;
+      return bg?.kind === 'foto' && bg.filename === 'upload:1'
+        ? ({ success: false } as ReturnType<typeof real>)
+        : real(value);
+    });
+  };
+  afterEach(() => vi.restoreAllMocks());
+
+  it('sets the own photo as the ground first when the scene with the person fails', async () => {
+    draftAnswers({
+      slides: [
+        {
+          ...slide(personScene),
+          items: [
+            { type: 'headline', lines: ['Mehr Sonne', 'auf jedes Dach'] },
+            {
+              type: 'iconliste',
+              zeilen: [
+                { icon: 'fahrrad', text: 'Nimm das Rad' },
+                { icon: 'essen', text: 'Eigener Becher' },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const cutOut = vi.fn();
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({
+        ok: false,
+        hinweis:
+          'Der Hintergrund ließ sich nicht malen – das Sharepic steht auf einer Markenfarbe.',
+      }),
+      cutOut,
+    });
+    expect(draft.spec.slides[0]!.background).toMatchObject({
+      kind: 'foto',
+      filename: 'upload:1',
+      textSeite: 'unten',
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([expect.objectContaining({ status: 'verwendet' })]);
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('dein Foto ist jetzt der Hintergrund');
+    expect(text).not.toContain('Markenfarbe');
+    expect(draft.hinweis ?? '').not.toContain('Markenfarbe');
+    expect(cutOut).not.toHaveBeenCalled();
+  });
+
+  // Plays the repair loop with attempt numbers: each answer is attempt i of n.
+  const loopAnswers = (...raws: unknown[]) => {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs });
+    const errors: string[] = [];
+    aiObject.mockImplementationOnce(
+      async (opts: {
+        validate: (
+          i: unknown,
+          a: number,
+          n: number
+        ) => { ok: boolean; value?: unknown; error?: string };
+      }) => {
+        for (const [i, raw] of raws.entries()) {
+          const checked = opts.validate(raw, i + 1, raws.length);
+          if (checked.ok) return { ok: true, data: checked.value };
+          errors.push(checked.error!);
+        }
+        return { ok: false, error: errors.join(' | ') };
+      }
+    );
+    return errors;
+  };
+  const plainScene = { slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] };
+  const attachOrder = 'Faktenbild: auf dem Bild soll ich (Anhang) auf einer grünen Wolke surfen';
+  const fix = 'setz in der szene "person": "upload:1"';
+
+  it('sends a scene without the person back when the order points at the attachment', async () => {
+    const errors = loopAnswers(plainScene, { slides: [slide(personScene)] });
+    const draft = await draftSharepic(attachOrder, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(errors).toEqual([
+      `Der Auftrag will die Person aus dem eigenen Foto in der Szene: ${fix}.`,
+    ]);
+    expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
+  });
+
+  it('leaves a scene without the person alone when the order names no photo', async () => {
+    const errors = loopAnswers(plainScene, plainScene);
+    await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    // Only the general rule (photos brought along) fires, not the person-in-scene one.
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('eigenes Foto mitgebracht');
+    expect(errors[0]).not.toContain('Der Auftrag will die Person');
+  });
+
+  it('lets the last attempt pass and reports the photo as unused', async () => {
+    const errors = loopAnswers(plainScene, plainScene);
+    const draft = await draftSharepic(attachOrder, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(errors).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({ status: 'nicht_verwendet' }),
+    ]);
+  });
+
+  it('reports the real karte reason when only the card fits', async () => {
+    draftAnswers({ slides: [slide(personScene)] });
+    const real = sharepicSpecSchema.safeParse.bind(sharepicSpecSchema);
+    vi.spyOn(sharepicSpecSchema, 'safeParse').mockImplementation((value: unknown) => {
+      const sl = (value as SharepicSpec).slides?.[0];
+      const bild = sl?.items.find((i) => i.type === 'bild');
+      const refused =
+        (sl?.background.kind === 'foto' && sl.background.filename === 'upload:1') ||
+        (bild?.type === 'bild' && bild.ausschnitt === 'freigestellt');
+      return refused ? ({ success: false } as ReturnType<typeof real>) : real(value);
+    });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn(),
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({
+        status: 'verwendet',
+        grund: expect.stringContaining('Dein Foto steht als Karte auf dem Sharepic.'),
+      }),
+    ]);
+  });
+
+  it('reports an own photo the painted scene does not use', async () => {
+    draftAnswers({
+      slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })],
+    });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+      cutOut: vi.fn(),
+    });
+    expect(fotoEntries(draft.bericht)).toEqual([
+      expect.objectContaining({
+        status: 'nicht_verwendet',
+        grund: 'Es passte nicht in diesen Entwurf – sag mir, wo es hin soll.',
+      }),
+    ]);
+    expect(berichtSaetze(draft.bericht!).join(' ')).toContain('sag mir, wo es hin soll');
+  });
+
+  it('puts the photo cut out on the colour when the scene with the person fails', async () => {
+    refusePhotoGround();
+    draftAnswers({ slides: [slide(personScene)] });
+    const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' });
+    const cutOut = vi.fn().mockResolvedValue('ki:cutoutcutoutcutout1234');
+
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: paint,
+      cutOut,
+    });
+
+    const [s] = draft.spec.slides;
+    expect(s!.background).toMatchObject({ kind: 'farbe' });
+    expect(s!.items).toContainEqual(
+      expect.objectContaining({
+        type: 'bild',
+        quelle: 'upload:1',
+        ausschnitt: 'freigestellt',
+        freisteller: 'ki:cutoutcutoutcutout1234',
+      })
+    );
+    expect(draft.bericht).toContainEqual(
+      expect.objectContaining({ art: 'foto', id: 'upload:1', status: 'collage' })
+    );
+  });
+
+  it('rejects a person from a photo without a person on it', async () => {
+    const errors = draftAnswers({ slides: [slide(personScene)] });
+    await expect(
+      draftSharepic(brief, 'de-DE', null, [photo(0)], { scene: vi.fn(), cutOut: vi.fn() })
+    ).rejects.toThrow();
+    expect(errors[0]).toBe(
+      'Slide 1: person nur mit einem eigenen Foto, auf dem eine Person ist – sonst weglassen.'
+    );
+  });
+
+  it('rejects a person from a photo the server cannot read', async () => {
+    const errors = draftAnswers({ slides: [slide(personScene)] });
+    await expect(
+      draftSharepic(brief, 'de-DE', null, [photo(1, null)], { scene: vi.fn(), cutOut: vi.fn() })
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('person nur mit einem eigenen Foto');
+  });
+
+  const fotoEntries = (bericht: readonly { art: string; id?: string }[] | undefined) =>
+    (bericht ?? []).filter((e) => e.art === 'foto' && e.id === 'upload:1');
+
+  it('reports one collage entry when the cut-out worked', async () => {
+    refusePhotoGround();
+    draftAnswers({ slides: [slide(personScene)] });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn().mockResolvedValue('ki:cutoutcutoutcutout1234'),
+    });
+    expect(fotoEntries(draft.bericht)).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)[0]).toMatchObject({ status: 'collage' });
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('freigestellt davorgestellt');
+    expect(text).not.toContain('Dein Foto ist freigestellt');
+  });
+
+  it('reports one ungeschnitten entry naming both failures when the cut-out fails too', async () => {
+    refusePhotoGround();
+    draftAnswers({ slides: [slide(personScene)] });
+    const draft = await draftSharepic(brief, 'de-DE', null, [photo(1)], {
+      scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: false, hinweis: 'Nicht gemalt.' }),
+      cutOut: vi.fn().mockResolvedValue(null),
+    });
+    expect(fotoEntries(draft.bericht)).toHaveLength(1);
+    expect(fotoEntries(draft.bericht)[0]).toMatchObject({ status: 'ungeschnitten' });
+    const text = berichtSaetze(draft.bericht!).join(' ');
+    expect(text).toContain('Die Szene mit dir ließ sich nicht malen');
+    expect(text).toContain('freistellen hat auch nicht geklappt');
+    expect(text).not.toContain('freigestellt davorgestellt');
+  });
+
+  it('never keeps two foto entries for one photo', () => {
+    const out = oneFotoPerId([
+      { art: 'foto', id: 'upload:1', status: 'in_szene' },
+      { art: 'foto', id: 'upload:2', status: 'verwendet' },
+      { art: 'foto', id: 'upload:1', status: 'collage' },
+    ]);
+    expect(out).toEqual([
+      { art: 'foto', id: 'upload:2', status: 'verwendet' },
+      { art: 'foto', id: 'upload:1', status: 'collage' },
+    ]);
   });
 });

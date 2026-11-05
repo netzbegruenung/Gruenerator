@@ -108,7 +108,7 @@ describe('draftFailedBody', () => {
 describe('carousel slide count', () => {
   it('fails with the range as its reason and names it for the person', () => {
     const one = { locale: 'de-DE' as const, slides: [current.slides[0]!] };
-    const error = `Der Auftrag ist ein Sharepic der Form ${formMismatch('karussell', one, false)}`;
+    const error = `Der Auftrag ist ein Sharepic der Form ${formMismatch('karussell', one, false, '')}`;
     expect(new DraftFailedError(error).reason).toBe('carousel_slide_count');
     expect(draftFailedBody(new DraftFailedError(error))).toEqual({
       error: `Der Entwurf ist nicht gelungen. ${DRAFT_LIMIT_TEXTS.carousel_slide_count}`,

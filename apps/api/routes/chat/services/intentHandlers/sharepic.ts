@@ -31,6 +31,7 @@ import {
   firstSlideText,
   reviseCreatorSharepic,
 } from '../sharepicCreatorVariant.js';
+import { photosForTurn } from '../sharepicTurnPhotos.js';
 import {
   getLastSharepicVariant,
   type PriorSharepic,
@@ -132,6 +133,23 @@ const failed = (failure: SharepicTurnFailure | null = null): SharepicGeneration 
   failure,
 });
 
+/** A photo problem must not fail the sharepic: it goes on without photos and says so. */
+async function safePhotosForTurn(
+  ...args: Parameters<typeof photosForTurn>
+): ReturnType<typeof photosForTurn> {
+  try {
+    return await photosForTurn(...args);
+  } catch (error) {
+    log.warn(
+      `[ChatGraph] Fotos nicht geladen: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return {
+      photos: [],
+      bericht: [{ art: 'gestaltung', text: 'Deine Fotos konnten diesmal nicht geladen werden.' }],
+    };
+  }
+}
+
 /**
  * Emits its own `sharepic_complete` (including error payloads) and returns the
  * variants ([] on failure) so callers never have to duplicate the SSE handling.
@@ -189,11 +207,14 @@ export async function runSharepicGeneration(opts: {
 
     let variant: SharepicVariant;
     if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
+      const { photos, bericht } = await safePhotosForTurn(state, refinement.prior.props);
       variant = await reviseCreatorSharepic({
         instruction: refinement.instruction,
         prior: refinement.prior,
         spec: priorCreatorSpec,
         userId: state.agentConfig?.userId ?? null,
+        photos,
+        photoBericht: bericht,
       });
       const revised = parseSharepicChatProps(variant.initialProps)?.creatorSpec;
       if (revised && isDeepStrictEqual(revised, priorCreatorSpec)) {
@@ -227,6 +248,8 @@ export async function runSharepicGeneration(opts: {
         ? (avoid.brand ?? null)
         : (requestedBrand(ownWords) ??
           (grueneJugendRoleLocale(state.activeRole) ? 'gruene-jugend' : null));
+      // „Eine andere Variante“ keeps the photos of the draft it replaces.
+      const { photos, bericht } = await safePhotosForTurn(state, prior?.props ?? null);
       variant = await createCreatorSharepic({
         brief,
         background,
@@ -238,6 +261,8 @@ export async function runSharepicGeneration(opts: {
         // "Eine andere Variante" of a carousel may stay one.
         oneSlide: wantsOneSlide(ownWords, form) && !(avoid && avoid.slides.length > 1),
         vorlage,
+        photos,
+        photoBericht: bericht,
       });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
@@ -262,7 +287,7 @@ export async function runSharepicGeneration(opts: {
         variants: [],
         error: 'Sharepic draft failed',
       });
-      return failed(error.reason);
+      return failed(error);
     }
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
     sse.send('sharepic_complete', {

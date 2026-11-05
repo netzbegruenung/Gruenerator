@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { sharepicBrandSchema, sharepicCreatorLocaleSchema } from './enums.js';
 import { sharepicFormSchema } from './forms.js';
 import { sharepicPatchOpSchema } from './patch.js';
-import { sharepicOwnPhotoSchema } from './photos.js';
-import { SHAREPIC_UPLOAD_MAX } from './refs.js';
+import { sharepicOwnPhotoSchema, sharepicPhotoUrlSchema } from './photos.js';
+import { SHAREPIC_UPLOAD_ID, SHAREPIC_UPLOAD_MAX } from './refs.js';
 import { sharepicPhotoAttributionSchema, sharepicTweakChoiceSchema } from './source.js';
 import { sharepicSpecSchema } from './spec.js';
 
@@ -37,6 +37,41 @@ export const sharepicDraftBodySchema = z.object({
   focus: sharepicDraftFocusSchema.optional(),
 });
 
+/**
+ * What the creator chose, repaired and left out — one entry per event, so the
+ * next turn (and the person) can tell a missing date from a dropped one.
+ */
+export const sharepicBerichtEintragSchema = z.discriminatedUnion('art', [
+  z.object({
+    art: z.literal('form'),
+    form: sharepicFormSchema,
+    von: z.enum(['person', 'creator']),
+    /** The form the model first picked, when the brief lacked its material. */
+    statt: sharepicFormSchema.optional(),
+  }),
+  z.object({ art: z.literal('fehlt'), fakt: z.enum(['termin']) }),
+  z.object({
+    art: z.literal('repariert'),
+    feld: z.enum(['datum', 'datum.date', 'datum.time', 'datum.weekday', 'ort']),
+    wert: z.string().max(60),
+  }),
+  z.object({
+    art: z.literal('foto'),
+    id: z.string().regex(SHAREPIC_UPLOAD_ID),
+    status: z.enum([
+      'in_szene',
+      'collage',
+      'freigestellt',
+      'ungeschnitten',
+      'verwendet',
+      'nicht_verwendet',
+    ]),
+    grund: z.string().max(200).optional(),
+  }),
+  z.object({ art: z.literal('gestaltung'), text: z.string().max(300) }),
+]);
+export type SharepicBerichtEintrag = z.infer<typeof sharepicBerichtEintragSchema>;
+
 export const sharepicDraftResponseSchema = z.object({
   spec: sharepicSpecSchema,
   /** Chapters the model asked for — shown in the UI so the knowledge path stays visible. */
@@ -49,6 +84,8 @@ export const sharepicDraftResponseSchema = z.object({
   form: sharepicFormSchema.optional(),
   /** Two other forms that would suit the request. */
   alternativen: z.array(sharepicFormSchema).max(2).optional(),
+  /** What the draft chose, repaired and left out. */
+  bericht: z.array(sharepicBerichtEintragSchema).max(20).optional(),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 
@@ -97,6 +134,12 @@ export const sharepicChatPropsSchema = z.object({
   creatorBase: sharepicSpecSchema.optional(),
   creatorTweaks: sharepicTweakChoiceSchema.optional(),
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  bericht: z.array(sharepicBerichtEintragSchema).max(20).optional(),
+  /** The chat's own photos (id → durable library URL); the analysis is recomputed server-side. */
+  photos: z
+    .array(z.object({ id: z.string().regex(SHAREPIC_UPLOAD_ID), url: sharepicPhotoUrlSchema }))
+    .max(SHAREPIC_UPLOAD_MAX)
+    .optional(),
   slide: z.number().int().min(0).optional(),
   revisionOf: z.string().optional(),
   editorChangesDropped: z.literal(true).optional(),
