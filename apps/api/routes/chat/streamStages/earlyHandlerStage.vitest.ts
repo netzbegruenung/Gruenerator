@@ -71,7 +71,7 @@ describe('early handler: sharepic gap filled by the next turn', () => {
       { art: 'fehlt', fakt: 'termin' },
     ]);
     expect(out.sharepicRefinement?.instruction).toBe(
-      'Setz den Termin ein: Do., 20.11., 18 Uhr, Kreisbüro'
+      'Setz den Termin ein – Wochentag, Datum und Uhrzeit in "datum", einen genannten Ort in "ort": Do., 20.11., 18 Uhr, Kreisbüro'
     );
     expect(out.forcedTool).toBe(true);
     expect(classifiedState.intent).toBe('sharepic');

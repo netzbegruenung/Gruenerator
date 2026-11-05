@@ -12,6 +12,7 @@
 import { parseSharepicChatProps } from '@gruenerator/contracts';
 
 import { hasTermin } from '../../../services/sharepicCreator/briefFacts.js';
+import { terminGapInstruction } from '../../../services/sharepicCreator/terminGap.js';
 import { createLogger } from '../../../utils/logger.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
@@ -371,7 +372,7 @@ export async function runEarlyHandlerStage({
         prior &&
         fillsSharepicGap(parseSharepicChatProps(prior.props)?.bericht ?? null, followOrder)
       ) {
-        sharepicRefinement = { instruction: `Setz den Termin ein: ${followText}`, prior };
+        sharepicRefinement = { instruction: terminGapInstruction(followText), prior };
         classifiedState.intent = 'sharepic';
         forcedTool = true;
         log.info(`[ChatGraph] Sharepic gap filled: "${followText}"`);
