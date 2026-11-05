@@ -222,9 +222,44 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       spec: SPEC_DE,
       userId: null,
     });
-    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], {});
+    expect(draftSharepic).toHaveBeenCalledWith(
+      'Headline kürzer',
+      'de-DE',
+      SPEC_DE,
+      [],
+      {},
+      null,
+      'Headline kürzer',
+      null,
+      null,
+      false,
+      null,
+      false
+    );
     expect(v.initialProps).toMatchObject({ revisionOf: 'old' });
     expect(v.initialProps.editorChangesDropped).toBeUndefined();
+  });
+
+  it('tells the draft that the prior report said the Termin was missing', async () => {
+    draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
+    const prior = {
+      variantId: 'old',
+      canvasType: 'freeform',
+      props: {
+        creatorSpec: SPEC_DE,
+        attributions: [],
+        bericht: [{ art: 'fehlt', fakt: 'termin' }],
+      },
+      canvasId: null,
+    };
+    await reviseCreatorSharepic({
+      photos: [],
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
+    expect(draftSharepic.mock.calls.at(-1)?.[11]).toBe(true);
   });
 
   it('flags editor changes when the prior was opened in the editor', async () => {
