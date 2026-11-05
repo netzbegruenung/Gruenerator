@@ -330,12 +330,12 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).toBe('produktion');
   });
 
-  it('creative writing is never demoted (confident heuristic or LLM, either way not agentic)', async () => {
+  it('creative writing goes to the loop like every prose verdict (no text exemption)', async () => {
     const state = buildState({
       userMessage: 'Schreib mir ein kurzes Gedicht über den Wald im Herbst',
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
+    expect(result.intent).toBe('agentic');
   });
 
   it('chat-recall phrasing is decided outright at Tier 3.4', async () => {
@@ -526,16 +526,16 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.detectedUrls).toHaveLength(1);
   });
 
-  it('a pure URL paste (no question) is NOT demoted — it IS the scrape turn', async () => {
+  it('a pure URL paste (no question) goes to the loop, which scrapes it itself', async () => {
     const state = buildState({
       userMessage: 'https://www.tagesschau.de/inland/tempolimit-100.html',
     });
     const result = await classifierNode(state);
-    // One non-question token is not toolable → kein Loop. Der Scrape-Pfad war
-    // vorher der SEKUNDÄR-Intent, weil die LLM-Stufe den primären besetzte;
-    // jetzt behält die Regeltabelle ihr eigenes Verdikt, und das ist genau
-    // dieser Pfad. Ein Sekundär-Intent daneben wäre eine Dopplung.
-    expect(result.intent).toBe('scrape_url');
+    // Ein Prosa-Verdikt (die Regeltabelle kennt für einen blossen Link kein
+    // eigenes) geht seit dem Loop-Standard in den Loop; er hat das
+    // Abruf-Werkzeug. Vorher hielt `looksLikeSelfContainedTurn` (BARE_URL_ONLY)
+    // den Turn auf dem Scrape-Slot des Einzeldurchlaufs.
+    expect(result.intent).toBe('agentic');
     expect(result.detectedUrls).toHaveLength(1);
   });
 

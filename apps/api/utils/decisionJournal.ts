@@ -64,6 +64,9 @@ export const DECISION_POINTS = {
       'agentic_to_search',
       'system_tool_to_web',
       'einfache_sprache_to_produktion',
+      // Eine `@…-erstellen`-Erwähnung ohne Verbund: der Klassifikator schickt den
+      // Prosa-Turn als `agentic`, die Erstellroute gehört aber dem Einzeldurchlauf.
+      'agentic_to_produktion_pinned_create',
       // Der Intent lebt nur noch in der Schleife, und die blieb zu. Ziel steht
       // als `degradeTo` in der Intent-Registry, nicht hier.
       'loop_only_degraded',
@@ -129,7 +132,7 @@ export const DECISION_POINTS = {
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
       // Kurznachricht nach einem erzeugten Bild → Loop mit `edit_image`.
-      'tier3_short_message_after_image',
+      'tier3_short_message_to_loop',
       'tier3_heuristic',
       'tier3.4_chat_recall',
       'tier3.4_recurring_order',

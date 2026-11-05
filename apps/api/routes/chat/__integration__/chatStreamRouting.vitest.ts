@@ -161,6 +161,11 @@ describe('context window', () => {
       )
     );
 
+    // „Und nun?" geht seit dem Loop-Standard in den Loop (keine Wortzahl-Ausnahme
+    // mehr), und der Loop beschneidet nicht gegen das aufgelöste Modellfenster.
+    // Der Einzeldurchlauf, den dieser Test braucht, entsteht über einen Zustand:
+    // ausgeschaltete Schleife (`loop_disabled`).
+    pinChatEnv({ CHAT_AGENT_LOOP: 'false' });
     respond.resolution = { contextWindow: 128_000 };
     const wide = await runTurn(suite.baseUrl(), {
       messages: [...history, userTurn('Und nun?', 'mz')],
@@ -181,6 +186,7 @@ describe('context window', () => {
     // The window has to actually reach pruning: a wide lane must keep strictly
     // more history than a narrow one for the same input.
     expect((wideMessages ?? []).length).toBeGreaterThan((narrowMessages ?? []).length);
+    pinChatEnv();
   });
 });
 

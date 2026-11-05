@@ -159,7 +159,8 @@ describe('„ja" auf eine Rückfrage zu Tabelle oder Präsentation', () => {
 
   it('ohne Rückfrage bleibt ein „ja" beim üblichen Weg', async () => {
     const result = await classifierNode(thread('presentation', 'Erledigt.', 'ja'));
-    expect(result.intent).not.toBe('agentic');
+    // Das Prosa-Verdikt geht in den Loop; die Weiche selbst hat nicht gefeuert.
+    expect(result.artifactEditOrder).toBeUndefined();
   });
 
   it('ohne Tabelle oder Präsentation im Thread greift die Weiche nicht', async () => {
@@ -172,7 +173,7 @@ describe('„ja" auf eine Rückfrage zu Tabelle oder Präsentation', () => {
         threadArtifacts: [{ kind: 'sharepic', ref: 'sp' }],
       } as Partial<ChatGraphState>)
     );
-    expect(result.intent).not.toBe('agentic');
+    expect(result.artifactEditOrder).toBeUndefined();
   });
 });
 

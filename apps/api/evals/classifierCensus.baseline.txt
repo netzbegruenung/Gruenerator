@@ -16,8 +16,8 @@ disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
 artifact                         47   10.9 %     0
 gated                            18    4.2 %     0
-loop                            308   71.6 %     0
-prose                            57   13.3 %    18
+loop                            348   80.9 %     7
+prose                            17    4.0 %     0
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -41,14 +41,15 @@ classifier.tier  (419)
     tier2.7_sharepic_followup     8
     tier2.9_docs_help            11
     tier2.95_ambiguous_graphic    3
-    tier3_short_message           6
+    tier3_short_message           1
+    tier3_short_message_to_loop    5
     tier3_heuristic              58
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
-    tier3.5_loop_demotion       283
-    tier3.8_generation_scope     18
-    residual                     21
+    tier3.5_loop_demotion       311
+    tier3.8_generation_scope      7
+    residual                      4
     error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -91,7 +92,7 @@ create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       50  prose
-direct                            5  prose
-greeting                          2  prose
-agentic                         295  loop
+produktion                       13  prose
+direct                            0  prose
+greeting                          4  prose
+agentic                         335  loop

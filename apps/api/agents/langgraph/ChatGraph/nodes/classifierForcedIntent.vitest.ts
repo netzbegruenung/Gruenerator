@@ -1238,17 +1238,19 @@ describe('Follow-up on a failed tool turn runs the loop', () => {
     }
   );
 
-  // Die Gegenprobe ist die Reproduktion: derselbe Verlauf ohne das Signal
-  // landet heute dort, wo beta ihn hatte — ohne Werkzeug.
-  it.each([
-    ['finde es', 'direct'],
-    ['stimmt nicht du hast de tools', 'produktion'],
-  ])('without the signal: %s → %s (beta, #3778)', async (userMessage, intent) => {
-    const result = await classifierNode(
-      afterFailedTurn(userMessage, { lastTurnRetrievalFailed: false })
-    );
-    expect(result.intent).toBe(intent);
-  });
+  // Ohne das Signal gibt es keinen Werkzeug-Pin, aber das Prosa-Verdikt geht
+  // seit dem Loop-Standard ohnehin in den Loop — der Unterschied zum Signal ist
+  // der fehlende Pin (`mentionPinnedTool`), nicht mehr die Lane.
+  it.each(['finde es', 'stimmt nicht du hast de tools'])(
+    'without the signal: %s → loop, but no tool pin (beta, #3778)',
+    async (userMessage) => {
+      const result = await classifierNode(
+        afterFailedTurn(userMessage, { lastTurnRetrievalFailed: false })
+      );
+      expect(result.intent).toBe('agentic');
+      expect(result.mentionPinnedTool).toBeUndefined();
+    }
+  );
 
   it.each(['mach daraus einen Instagram-Post', 'danke dir', 'warum?', 'erklär mir das'])(
     'creation, thanks and questions about the failure stay out: %s',

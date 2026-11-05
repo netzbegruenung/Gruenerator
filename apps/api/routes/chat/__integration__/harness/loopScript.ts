@@ -64,6 +64,9 @@ export interface ScriptedResponse {
 export interface StreamTextRecord {
   modelId: string;
   system: string;
+  /** Die Nachrichten, die der Aufruf bekam, als JSON — für „sieht der Schreiber
+   *  das Material?" jenseits des Systemprompts. */
+  messagesJson: string;
   toolNames: string[];
   /**
    * Was der erste Schritt vom Planer VERLANGT hat — das Ergebnis des ECHTEN
@@ -147,6 +150,7 @@ function partsOf(response: ScriptedResponse): ScriptedPart[] {
 export function fakeLoopStreamText(options: {
   model: LanguageModel;
   system?: string;
+  messages?: unknown;
   tools?: ToolSet;
   prepareStep?: (arg: {
     stepNumber: number;
@@ -160,6 +164,7 @@ export function fakeLoopStreamText(options: {
     // Was der erste Schritt WIRKLICH sieht: `prepareStep` legt die Rezept-
     // Registry (Methoden, `rezept_laden`, Agent-Default) auf den Basistext.
     system: firstStep?.system ?? options.system ?? '',
+    messagesJson: JSON.stringify(options.messages ?? []),
     toolNames: Object.keys(tools),
     toolChoice: firstStep?.toolChoice ?? null,
     firstStepActiveTools: firstStep?.activeTools ?? null,
