@@ -1,4 +1,4 @@
-import { calendarDays, timeInBrief, weekdayId, weekdaysIn } from './briefFacts.js';
+import { calendarDays, timeInBrief, type WeekdayId, weekdayId, weekdaysIn } from './briefFacts.js';
 
 export type DatumRepair = {
   slide: number;
@@ -17,7 +17,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 export function repairDatum(
   input: unknown,
-  given: string
+  given: string,
+  /** Weekdays the draft being revised already carries — they stay, as the text no longer says them. */
+  keptWeekdays: ReadonlySet<WeekdayId> = new Set()
 ): { input: unknown; repairs: DatumRepair[] } {
   if (!isRecord(input) || !Array.isArray(input.slides)) return { input, repairs: [] };
   const repairs: DatumRepair[] = [];
@@ -64,7 +66,7 @@ export function repairDatum(
     }
     if (datum.weekday !== undefined) {
       const id = weekday === null ? null : weekdayId(weekday);
-      if (id === null || !orderedWeekdays.has(id)) {
+      if (id === null || (!orderedWeekdays.has(id) && !keptWeekdays.has(id))) {
         drop('datum.weekday', weekday);
         delete datum.weekday;
       }

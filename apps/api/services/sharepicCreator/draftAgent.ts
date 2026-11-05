@@ -38,6 +38,7 @@ import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject, type AiObjectCall } from '../ai/generate.js';
 import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
+import { weekdayId } from './briefFacts.js';
 import { carouselLookProblems } from './carouselLook.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DatumRepair, repairDatum } from './datumRepair.js';
@@ -161,7 +162,9 @@ export async function draftSharepic(
    * Whose design a first draft wears (the chat's „GJ-Design“, a GJ Vorlage);
    * null: the party's. A revision keeps the draft's own.
    */
-  brand: SharepicBrand | null = null
+  brand: SharepicBrand | null = null,
+  /** A revision of a draft whose report said the Termin was missing: it still is, until a datum appears. */
+  priorMissingTermin = false
 ): Promise<SharepicDraftResponse> {
   // The brief as validation reads it: a revision's draft counts as given.
   const given = current ? `${prompt}\n${JSON.stringify(current)}` : prompt;
@@ -174,6 +177,13 @@ export async function draftSharepic(
       ask,
     });
   }
+  // A revision's `given` carries the draft as JSON, which no weekday pattern reads.
+  const keptWeekdays = new Set(
+    (current?.slides ?? []).flatMap((slide) => {
+      const id = slide.datum?.weekday ? weekdayId(slide.datum.weekday) : null;
+      return id ? [id] : [];
+    })
+  );
   const fixed = current?.locale ?? null;
   const design = current ? (current.brand ?? null) : brand;
   const single = oneSlide && !current;
@@ -321,7 +331,7 @@ export async function draftSharepic(
       if (!lacksStructure(input)) failure = { kind: 'content' };
       const taken = takeScene(withPaletteColors(input, locale, design), personable);
       if (!taken.ok) return taken;
-      const repaired = repairDatum(taken.input, given);
+      const repaired = repairDatum(taken.input, given, keptWeekdays);
       for (const r of repaired.repairs) {
         log.info(`repaired ${r.feld} "${r.wert}" (slide ${r.slide + 1})`);
       }
@@ -520,7 +530,10 @@ export async function draftSharepic(
   const cut = await cutOutBilder(illustrated.spec, painters.cutOut, shippedCutOuts, ownPhotos);
   spec = cut.spec;
   // Judged on the outcome: the form check reads the conversation too, so the order alone could be wrong.
-  if (form === 'veranstaltung' && !spec.slides.some((slide) => slide.datum)) {
+  if (
+    (form === 'veranstaltung' || priorMissingTermin) &&
+    !spec.slides.some((slide) => slide.datum)
+  ) {
     bericht.push({ art: 'fehlt', fakt: 'termin' });
   }
   // Foto entries first: the cap below must never drop them.

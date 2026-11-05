@@ -298,3 +298,28 @@ describe('weekdaysIn', () => {
     expect(weekdayId(value)).toBe(id);
   });
 });
+
+describe('datum repair on a revision', () => {
+  const kept = new Set(['do'] as const);
+  const run = (weekday: string, keptWeekdays: ReadonlySet<'do'>) => {
+    const { input, repairs } = repairDatum(
+      withDatum({ weekday, date: '20.11.', time: '19:00' }),
+      'Mach die Überschrift kürzer\n{"weekday":"Do","date":"20.11.","time":"19:00"}',
+      keptWeekdays
+    );
+    const slide = (input as ReturnType<typeof withDatum>).slides[0] as { datum?: object };
+    return { datum: slide.datum, repairs: repairs.map((r) => r.feld) };
+  };
+
+  it('keeps a weekday the draft already carries and reports no repair', () => {
+    const out = run('Do', kept);
+    expect(out.datum).toEqual({ weekday: 'Do', date: '20.11.', time: '19:00' });
+    expect(out.repairs).toEqual([]);
+  });
+
+  it('still drops a weekday the revision invents', () => {
+    const out = run('Fr', kept);
+    expect(out.datum).toEqual({ date: '20.11.', time: '19:00' });
+    expect(out.repairs).toEqual(['datum.weekday']);
+  });
+});

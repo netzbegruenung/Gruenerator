@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   brandIdFor,
+  parseSharepicChatProps,
   SHAREPIC_PROMPT_MAX,
   stripInlineMarks,
   type SharepicBrand,
@@ -208,12 +209,23 @@ export async function reviseCreatorSharepic(args: {
   photos: readonly SharepicOwnPhotoWithUrl[];
   photoBericht?: readonly SharepicBerichtEintrag[];
 }): Promise<SharepicVariant> {
+  const instruction = args.instruction.slice(0, SHAREPIC_PROMPT_MAX);
   const draft = await draftSharepic(
-    args.instruction.slice(0, SHAREPIC_PROMPT_MAX),
+    instruction,
     args.spec.locale,
     args.spec,
     args.photos,
-    paintersFor(args.userId)
+    paintersFor(args.userId),
+    null,
+    instruction,
+    null,
+    null,
+    false,
+    null,
+    // The report of the draft being revised said the Termin was missing: it still is, unless this edit added one.
+    (parseSharepicChatProps(args.prior.props)?.bericht ?? []).some(
+      (e) => e.art === 'fehlt' && e.fakt === 'termin'
+    )
   );
   return toCreatorVariant(draft, {
     revisionOf: args.prior.variantId,

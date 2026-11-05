@@ -100,3 +100,46 @@ describe('draftSharepic — bericht', () => {
 function slideCurrent() {
   return { locale: 'de-DE' as const, slides: [slide()] } as never;
 }
+
+describe('draftSharepic — bericht on a revision', () => {
+  const revise = (
+    raw: unknown,
+    priorMissingTermin: boolean,
+    order = 'Mach die Überschrift kürzer'
+  ) => {
+    answers(needs('veranstaltung'), raw);
+    return draftSharepic(
+      order,
+      'de-DE',
+      slideCurrent(),
+      [],
+      {},
+      null,
+      order,
+      null,
+      null,
+      false,
+      null,
+      priorMissingTermin
+    );
+  };
+
+  it('keeps saying the Termin is missing after an unrelated edit', async () => {
+    const draft = await revise({ slides: [slide()] }, true);
+    expect(draft.bericht).toContainEqual({ art: 'fehlt', fakt: 'termin' });
+  });
+
+  it('does not say it for a revision of a draft that was not missing it', async () => {
+    const draft = await revise({ slides: [slide()] }, false);
+    expect(draft.bericht ?? []).not.toContainEqual({ art: 'fehlt', fakt: 'termin' });
+  });
+
+  it('stops once the revision adds a datum', async () => {
+    const draft = await revise(
+      { slides: [slide({ datum: { date: '14.11.' } })] },
+      true,
+      'Trag den 14.11. ein'
+    );
+    expect(draft.bericht ?? []).not.toContainEqual({ art: 'fehlt', fakt: 'termin' });
+  });
+});
