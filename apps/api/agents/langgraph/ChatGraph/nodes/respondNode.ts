@@ -10,7 +10,10 @@
 import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import {
+  ownedDefaultRecipeMention,
+  roleAwareDefaultRecipeMention,
+} from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   methodPrecedenceNote,
@@ -2237,9 +2240,20 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const textFormFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
-    : '';
+  // Im Loop lädt die Rezept-Registry den Default eines Ein-Rezept-Agenten
+  // schon vor (`catalogAssembly`, dieselben Bedingungen) — hier stünde derselbe
+  // Rumpf sonst ein zweites Mal im Prompt.
+  const preloadedByRegistry =
+    opts.loop === true &&
+    !state.activeSkillMention &&
+    !state.activeRecipeId &&
+    !state.customSystemPrompt &&
+    resolved != null &&
+    resolved.mention === ownedDefaultRecipeMention(agentConfig);
+  const textFormFragment =
+    resolved && !preloadedByRegistry
+      ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
+      : '';
 
   // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
   // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene

@@ -873,6 +873,24 @@ describe('Prosa im Loop verliert nichts', () => {
     expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
   });
 
+  it('legt das vorgeladene Rezept eines Ein-Rezept-Agenten nicht ein zweites Mal in den Loop-Prompt', async () => {
+    // Die Rezept-Registry (`catalogAssembly`) lädt den Default dieser Agenten im
+    // Loop schon vor; hier stünde derselbe Rumpf sonst doppelt.
+    const owned = makeState({
+      agentConfig: {
+        ...withAgentDefaultRecipe.agentConfig,
+        identifier: 'gruenerator-buergeranfragen-berlin',
+        defaultRecipeMention: 'buerger-berlin',
+      },
+      intent: 'produktion',
+    } as never);
+    const loop = await buildSystemMessage(owned, LOOP);
+    expect(loop).not.toContain('<<REZEPT-PROMPT:buerger-berlin>>');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    const single = await buildSystemMessage(owned);
+    expect(single).toContain('<<REZEPT-PROMPT:buerger-berlin>>');
+  });
+
   it('behandelt greeting im Loop nicht als Prosa', async () => {
     const loop = await buildSystemMessage(prose('greeting'), LOOP);
     expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
