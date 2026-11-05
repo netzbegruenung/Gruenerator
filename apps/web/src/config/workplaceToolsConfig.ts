@@ -167,14 +167,14 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'reels-untertitel',
-    title: 'Simple Reel',
+    title: 'Untertitel',
     description: 'Untertitel für Clips',
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
   },
   {
     id: 'studio-videoeditor',
-    title: 'Video Editor',
+    title: 'Video-Editor',
     description: 'Clips schneiden & gestalten',
     path: '/studio/videoeditor',
     icon: getIcon('navigation', 'videoEditor')!,

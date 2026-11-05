@@ -1,8 +1,10 @@
-import RequireAdmin from '../admin/components/RequireAdmin';
+import { useState } from 'react';
+
+import VideoEditorBetaDialog from './VideoEditorBetaDialog';
 
 /**
- * The full video editor, the second reel path in the Studio next to Simple Reel.
- * Instance admins only while it is being tried out (config/adminOnlyTools.ts).
+ * The full video editor, the second video path in the Studio next to Untertitel.
+ * Open to everyone as a beta: the first visit shows VideoEditorBetaDialog.
  *
  * The editor is a separate application from a private repository (it is built on
  * proprietary code that must not enter this AGPL codebase). It is served
@@ -11,15 +13,39 @@ import RequireAdmin from '../admin/components/RequireAdmin';
  */
 export const VIDEO_EDITOR_APP_PATH = '/videoeditor/app/';
 
+/** localStorage key (F0): set once the beta notice was closed. */
+export const BETA_NOTICE_SEEN_KEY = 'videoeditor-beta-notice-seen';
+
+function betaNoticeSeen(): boolean {
+  try {
+    return localStorage.getItem(BETA_NOTICE_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function VideoEditorPage() {
+  const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
+
+  const closeBetaNotice = (open: boolean) => {
+    if (open) return;
+    setBetaNoticeOpen(false);
+    try {
+      localStorage.setItem(BETA_NOTICE_SEEN_KEY, '1');
+    } catch {
+      // Private mode: the notice simply shows again next time.
+    }
+  };
+
   return (
-    <RequireAdmin type="instanceAdmin">
+    <>
       <iframe
         src={VIDEO_EDITOR_APP_PATH}
-        title="Gruenerator Video Editor"
+        title="Grünerator Video-Editor"
         className="block h-dvh w-full border-0"
         allow="autoplay; fullscreen; clipboard-read; clipboard-write"
       />
-    </RequireAdmin>
+      <VideoEditorBetaDialog open={betaNoticeOpen} onOpenChange={closeBetaNotice} />
+    </>
   );
 }
