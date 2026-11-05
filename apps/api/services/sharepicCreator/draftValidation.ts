@@ -38,6 +38,7 @@ import { hasStockPhoto } from './catalog.js';
 import { headlineLineTooLong } from './draftFailure.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { itemTexts, stringsOf, textsOf } from './slideTexts.js';
+import { withTerminAnswer } from './terminGap.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
@@ -488,7 +489,10 @@ export function validateDraft(
   });
   return errors.length
     ? { ok: false, error: errors.join(' ') }
-    : { ok: true, value: withOrderedTime(withOrderedDate(base.value, order), order) };
+    : {
+        ok: true,
+        value: withTerminAnswer(withOrderedTime(withOrderedDate(base.value, order), order), order),
+      };
 }
 
 const BRIDGE_END = /(?:…|\.\.\.)\s*$/;

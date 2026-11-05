@@ -88,7 +88,6 @@ import {
   untouchedSlides,
 } from './specEditGuard.js';
 import { basicsText, chapterText, examplesText, systemPrompt } from './styleguide.js';
-import { terminAnswer, terminGapProblems } from './terminGap.js';
 
 const log = createLogger('sharepicCreator:draft');
 
@@ -384,10 +383,6 @@ export async function draftSharepic(
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
       const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
       if (look) return { ok: false, error: look };
-      // An answer to a reported missing Termin: the place and weekday it names belong on the card.
-      const answer = current && attempt < attempts ? terminAnswer(order) : null;
-      const gap = answer ? terminGapProblems(answer, checked.value.slides) : null;
-      if (gap) return { ok: false, error: gap };
       // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
       const firstPersonable = [...personable][0];
       if (

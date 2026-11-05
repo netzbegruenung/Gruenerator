@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { type SharepicSlide } from '@gruenerator/contracts';
+import { type SharepicSpec } from '@gruenerator/contracts';
 
-import { placeIn, terminAnswer, terminGapInstruction, terminGapProblems } from './terminGap.js';
+import { placeIn, terminAnswer, terminGapInstruction, withTerminAnswer } from './terminGap.js';
 
 const ANSWER = 'Donnerstag, 20.11., 19 Uhr im Bürgerhaus Linden, Am Lindenplatz 4';
-const slide = (extra: Pick<SharepicSlide, 'ort' | 'datum'> = {}) => extra;
+
+const spec = (slide: Partial<SharepicSpec['slides'][number]>) =>
+  ({
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'unten',
+        align: 'links',
+        logo: true,
+        items: [],
+        ...slide,
+      },
+    ],
+  }) as unknown as SharepicSpec;
 
 describe('terminGap', () => {
   it('round-trips the person’s answer through the instruction', () => {
@@ -20,21 +33,23 @@ describe('terminGap', () => {
     expect(placeIn('Freitag ab 18 Uhr')).toBeNull();
   });
 
-  // Live 05.11.2026: the revision set `datum` and left out the named place and weekday.
-  it('asks for a named place and weekday the draft left out', () => {
-    const problems = terminGapProblems(ANSWER, [
-      slide({ datum: { date: '20.11.', time: '19 Uhr' } }),
-    ]);
-    expect(problems).toContain('„Bürgerhaus Linden, Am Lindenplatz 4“');
-    expect(problems).toContain('weekday');
+  // Live 05.11.2026: three attempts set neither `ort` nor the weekday.
+  it('puts the named place and weekday on the circle’s slide', () => {
+    const out = withTerminAnswer(
+      spec({ datum: { date: '20.11.', time: '19 Uhr' } }),
+      terminGapInstruction(ANSWER)
+    );
+    expect(out.slides[0]!.datum).toEqual({ weekday: 'Donnerstag', date: '20.11.', time: '19 Uhr' });
+    expect(out.slides[0]!.ort).toEqual({ lines: ['Bürgerhaus Linden', 'Am Lindenplatz 4'] });
   });
 
-  it('is content once place and weekday stand on a slide', () => {
-    const done = slide({
-      datum: { weekday: 'Donnerstag', date: '20.11.', time: '19 Uhr' },
-      ort: { lines: ['Bürgerhaus Linden', 'Am Lindenplatz 4'] },
-    });
-    expect(terminGapProblems(ANSWER, [done])).toBeNull();
-    expect(terminGapProblems('20.11., 19 Uhr', [slide({ datum: { date: '20.11.' } })])).toBeNull();
+  it('keeps what the draft already has and leaves other orders alone', () => {
+    const done = spec({ datum: { weekday: 'Do', date: '20.11.' }, ort: { lines: ['Kreisbüro'] } });
+    expect(withTerminAnswer(done, terminGapInstruction(ANSWER))).toBe(done);
+    const plain = spec({ datum: { date: '20.11.' } });
+    expect(withTerminAnswer(plain, ANSWER)).toBe(plain);
+    // No circle: nothing to attach the place to.
+    const noCircle = spec({});
+    expect(withTerminAnswer(noCircle, terminGapInstruction(ANSWER))).toBe(noCircle);
   });
 });

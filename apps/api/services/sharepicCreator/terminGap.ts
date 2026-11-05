@@ -1,10 +1,9 @@
 /**
  * The person's answer to a reported missing Termin („Do., 20.11., 18 Uhr,
  * Kreisbüro"). The chat turns it into a revision with this instruction; the
- * creator reads the answer back out of it and holds the draft to what it
- * names — live 05.11.2026 the model set the date and left out place and weekday.
+ * creator reads the answer back out of it and puts what it names on the card.
  */
-import { type SharepicSlide } from '@gruenerator/contracts';
+import { SHAREPIC_LIMITS, type SharepicSpec } from '@gruenerator/contracts';
 
 import { weekdayId, weekdaysIn } from './briefFacts.js';
 
@@ -21,6 +20,7 @@ export function terminAnswer(order: string): string | null {
 const DATE = /(?<!\d)\d{1,2}\.\s?\d{1,2}\.(?:\s?\d{2,4})?/g;
 const TIME = /(?<!\d)\d{1,2}(?:[:.]\d{2})?\s*(?:Uhr|h)(?!\p{L})|(?<!\d)\d{1,2}:\d{2}/giu;
 const LINKING = /^(?:[,–-]|\s|(?:am|um|ab|im|in|bis|von)(?!\p{L}))+/iu;
+const bare = (word: string) => word.replace(/,$/, '');
 
 /** What the answer names besides weekday, date and time — the place — or null. */
 export function placeIn(answer: string): string | null {
@@ -28,7 +28,7 @@ export function placeIn(answer: string): string | null {
     .replace(DATE, ' ')
     .replace(TIME, ' ')
     .split(/(\s+)/)
-    .filter((word) => !weekdayId(word.replace(/[,]$/, '')))
+    .filter((word) => !weekdayId(bare(word)))
     .join('')
     .replace(/\s+/g, ' ')
     // Leftover connectors between the dropped parts: „, , im …“, „am , um“.
@@ -39,20 +39,38 @@ export function placeIn(answer: string): string | null {
   return /\p{L}{3}/u.test(rest) ? rest : null;
 }
 
-/** Why the revised draft does not carry what the answer names, or null. */
-export function terminGapProblems(
-  answer: string,
-  slides: readonly Pick<SharepicSlide, 'ort' | 'datum'>[]
-): string | null {
-  const problems: string[] = [];
-  const place = placeIn(answer);
-  if (place && !slides.some((s) => s.ort)) {
-    problems.push(
-      `Der Auftrag nennt den Ort „${place}“: setz ihn als "ort": {"lines": [Name, Adresse]} auf die Slide mit dem Datum.`
-    );
-  }
-  if (weekdaysIn(answer).size && !slides.some((s) => s.datum?.weekday)) {
-    problems.push('Der Auftrag nennt den Wochentag: setz ihn in "datum" als "weekday".');
-  }
-  return problems.length ? problems.join(' ') : null;
+/** „Bürgerhaus Linden, Am Lindenplatz 4“ → name and address; null when a line would not fit. */
+function placeLines(place: string): string[] | null {
+  const [name, ...address] = place.split(/,\s*/);
+  const lines = [name!, address.join(', ')].filter(Boolean);
+  return lines.every((line) => line.length <= SHAREPIC_LIMITS.ortLine) ? lines : null;
+}
+
+/**
+ * Puts the weekday and place the answer names in the circle's slide when the
+ * draft left them out. Under a forced tool call Gemma drops `datum` fields and
+ * `ort` even when told (live 05.11.2026: three attempts, none set `ort`), so
+ * the program does it — as `withOrderedDate`/`withOrderedTime` do for date and time.
+ */
+export function withTerminAnswer(spec: SharepicSpec, order: string): SharepicSpec {
+  const answer = terminAnswer(order);
+  const at = answer ? spec.slides.findIndex((slide) => slide.datum) : -1;
+  if (!answer || at < 0) return spec;
+  const slide = spec.slides[at]!;
+  const named =
+    weekdaysIn(answer).size === 1
+      ? answer
+          .split(/\s+/)
+          .map(bare)
+          .find((word) => weekdayId(word))
+      : undefined;
+  const place = spec.slides.some((s) => s.ort) ? null : placeIn(answer);
+  const lines = place ? placeLines(place) : null;
+  if ((slide.datum!.weekday || !named) && !lines) return spec;
+  const next = {
+    ...slide,
+    datum: { ...slide.datum!, ...(!slide.datum!.weekday && named && { weekday: named }) },
+    ...(lines && { ort: { lines } }),
+  };
+  return { ...spec, slides: spec.slides.map((s, i) => (i === at ? next : s)) };
 }
