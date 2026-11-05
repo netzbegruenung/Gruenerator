@@ -389,6 +389,6 @@ latency p50/p95, per-category), and a **regression diff** vs the baseline
 - `judge/` — rubrics + runner + calibration fixtures (the historical class-6
   "keine Treffer auf echten Daten" and class-11 "Edit angewendet, Text leugnet
   ihn" bugs MUST fail the judge — `judge.vitest.ts`, live part gated on
-  `LITELLM_*`).
+  `CORTECS_API_KEY` plus `RUN_LIVE_PROVIDER_TESTS`).
 - `fixtures/fillerTurns.ts` — deterministic padding pool for `padTurns`.
 - `tools/` — adversarial generator + corpus-mining SQL.
