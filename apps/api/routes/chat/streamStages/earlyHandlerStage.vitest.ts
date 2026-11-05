@@ -33,7 +33,12 @@ async function run(
   text: string,
   bericht: unknown[],
   editables: string[] = ['sharepic'],
-  extra: { images?: unknown[]; universalEditForced?: boolean; intent?: string } = {}
+  extra: {
+    images?: unknown[];
+    universalEditForced?: boolean;
+    intent?: string;
+    secondaryIntent?: string;
+  } = {}
 ) {
   getLast.mockResolvedValue(prior(bericht));
   const classifiedState = {
@@ -110,9 +115,14 @@ describe('early handler: photo swap by attachment', () => {
     ['Nimm dieses Foto fürs Sharepic', 'direct'],
     ['Tausch das Bild gegen das hier', 'image_edit'],
   ])('"%s" revises the sharepic with the photo', async (text, intent) => {
-    const { out, classifiedState } = await run(text, [], ['sharepic'], { images: [img], intent });
+    const { out, classifiedState } = await run(text, [], ['sharepic'], {
+      images: [img],
+      intent,
+      secondaryIntent: 'image_edit',
+    });
     expect(out.sharepicRefinement?.instruction).toBe(text);
     expect(out.forcedTool).toBe(true);
+    expect(classifiedState.secondaryIntent ?? null).toBeNull();
     expect(classifiedState.intent).toBe('sharepic');
   });
 

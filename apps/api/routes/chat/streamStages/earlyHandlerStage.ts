@@ -301,7 +301,8 @@ export async function runEarlyHandlerStage({
   // the one you just made" — regenerate seeded with the previous sharepic's
   // text, not a fresh sharepic about the word "verlängern". Overrides whatever
   // intent the classifier picked (the edit verb alone rarely classifies as
-  // sharepic). Skipped when an image is attached (that's image_edit territory).
+  // sharepic). Skipped when an image is attached (that's image_edit territory),
+  // except a photo swap onto the addressed sharepic (`photoSwap` below).
   // Creator sharepics already branch into this refinement from the edit branch
   // above; this block is reached when handleSharepicEdit declined: no target
   // variant, or a template with no descriptor (the narrow case).
@@ -342,6 +343,10 @@ export async function runEarlyHandlerStage({
           prior,
         };
         classifiedState.intent = 'sharepic';
+        // Ein überstimmtes image_edit darf nicht als Zweitauftrag nachlaufen.
+        if (photoSwap && classifiedState.secondaryIntent === 'image_edit') {
+          classifiedState.secondaryIntent = null;
+        }
         forcedTool = true;
         log.info(
           `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`

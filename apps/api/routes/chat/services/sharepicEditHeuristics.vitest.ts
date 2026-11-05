@@ -4,6 +4,7 @@ import { orderMayMeanArtifact, orderText } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
+  swapsSharepicPhoto,
   isSharepicModeEdit,
   looksLikeSharepicOrder,
   isVerificationQuestion,
@@ -478,4 +479,23 @@ describe('looksLikeSharepicOrder', () => {
       looksLikeSharepicOrder('Recherchiere aktuelle Zahlen und mach ein Sharepic daraus')
     ).toBe(false);
   });
+});
+
+describe('swapsSharepicPhoto', () => {
+  it.each([
+    'Nimm dieses Foto fürs Sharepic',
+    'Tausch das Bild gegen dieses hier',
+    'Ersetz das Foto auf dem Sharepic durch meins',
+  ])('"%s" swaps', (t) => expect(swapsSharepicPhoto(orderText(t))).toBe(true));
+
+  it.each([
+    'Setz das Bild auf meine Website',
+    'Nutz das Foto für einen Instagram-Post',
+    'Leg das Bild in meine Mediathek',
+    'Pack das Foto in die Präsentation',
+    'Ersetze den Hintergrund auf dem Foto durch einen Strand',
+    'Mach das Bild heller',
+    'Verwende die Bildung als Thema',
+    'Tausch den Bildschirm gegen dieses',
+  ])('"%s" does not', (t) => expect(swapsSharepicPhoto(orderText(t))).toBe(false));
 });
