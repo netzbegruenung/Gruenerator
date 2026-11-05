@@ -434,13 +434,15 @@ export async function assembleToolCatalog(
   // Namen, die dieser Turn wirklich hat. Die Lader werden anschliessend als
   // ganz normale Werkzeuge montiert — wie `rezept_laden`, damit sie Karten,
   // Wächter und Zeitgrenzen aus `wrapToolsForLoop` genauso bekommen. Im
-  // Schattenbetrieb gibt es keine Lader.
+  // Schattenbetrieb gibt es keine Lader. Eine Allowlist ist schon der
+  // Zuschnitt, den der Agent will — ihn noch einmal hinter Lader zu stellen,
+  // versteckte das einzige Werkzeug eines Notebook-Agenten.
   const toolScope = createToolScope({
     toolNames: Object.keys(tools),
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
-    enforce: isToolScopeEnforced(),
+    enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());
 
