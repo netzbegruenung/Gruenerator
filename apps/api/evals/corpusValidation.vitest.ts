@@ -205,3 +205,22 @@ describe('promptFile', () => {
     expect(() => parseCorpusText(line, 'demo.jsonl', tmpdir())).toThrow(/demo\.jsonl:1.*nope\.txt/);
   });
 });
+
+describe('unified-loop corpus gating', () => {
+  it('gates the scenario that writes memory behind the memory lane', () => {
+    const base = {
+      slow: false,
+      mcp: false,
+      notebook: false,
+      systemMcp: false,
+      deepResearch: false,
+      bgstKorpus: false,
+      userNotebook: false,
+      attachedDoc: false,
+    };
+    const ids = (memory: boolean) =>
+      loadCorpus(HERE, { ...base, memory, filter: 'unified-loop' }).map((s) => s.id);
+    expect(ids(false)).not.toContain('ul-merken');
+    expect(ids(true)).toContain('ul-merken');
+  });
+});
