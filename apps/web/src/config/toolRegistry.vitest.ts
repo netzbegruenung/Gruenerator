@@ -71,14 +71,14 @@ describe('toolRegistry invariants', () => {
     }
   });
 
-  it('studio offers two reel paths: Simple Reel and the full video editor', () => {
+  it('studio offers two video paths: Untertitel and the full video editor', () => {
     const simple = tools.find((t) => t.id === 'reels-untertitel');
-    expect(simple?.title).toBe('Simple Reel');
+    expect(simple?.title).toBe('Untertitel');
     expect(simple?.path).toBe('/studio/video');
     expect(simple?.search?.id).toBe('tool-reel');
 
     const editor = tools.find((t) => t.id === 'studio-videoeditor');
-    expect(editor?.title).toBe('Video Editor');
+    expect(editor?.title).toBe('Video-Editor');
     expect(editor?.path).toBe('/studio/videoeditor');
     expect(editor?.tile?.group).toBe('studio');
     expect(editor?.search?.id).toBe('tool-videoeditor');

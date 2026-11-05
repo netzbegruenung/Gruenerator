@@ -19,7 +19,6 @@ const NO_AGENTS: Agent[] = [];
  */
 export function useFeatureIndex(): FeatureHit[] {
   const locale = useAuthStore((state) => state.locale);
-  const isAdmin = useAuthStore((state) => state.user?.is_admin === true);
   const { isAuthenticated } = useAuthBootstrap();
   const { data: userAgents = NO_AGENTS } = useUserAgents();
   // Die Suche ist auch auf öffentlichen Seiten offen; der Endpunkt verlangt
@@ -33,9 +32,8 @@ export function useFeatureIndex(): FeatureHit[] {
         locale,
         userAgents,
         hiddenAgentIdentifiers,
-        isAdmin,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenKey` ist die stabile Abhängigkeit
-    [locale, userAgents, hiddenKey, isAdmin]
+    [locale, userAgents, hiddenKey]
   );
 }
