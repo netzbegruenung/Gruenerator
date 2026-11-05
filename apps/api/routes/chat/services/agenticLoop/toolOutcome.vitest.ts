@@ -168,6 +168,21 @@ describe('buildToolFailureNote', () => {
     expect(note).toBe('');
   });
 
+  it('drops a failed creation that a retry with other wording made good', () => {
+    // Live 05.11.2026 (eval ul-compound): the first sharepic draft failed, the
+    // retry with a shorter text succeeded, and the answer still said the
+    // sharepic could not be created.
+    const note = buildToolFailureNote([
+      step({
+        toolName: 'sharepic',
+        args: { text: 'Wir fordern eine sichere, barrierefreie Infrastruktur …' },
+        result: { error: 'Der Entwurf ist nicht gelungen.' },
+      }),
+      step({ toolName: 'sharepic', args: { text: 'Sichere Radwege für alle!' }, result: {} }),
+    ]);
+    expect(note).toBe('');
+  });
+
   it('keeps a failure on another target of the same tool', () => {
     const note = buildToolFailureNote([
       step({

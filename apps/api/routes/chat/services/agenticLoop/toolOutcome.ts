@@ -6,8 +6,11 @@
  * Einzeln geprüft in `toolOutcome.vitest.ts`.
  */
 import { applyContextCap } from '../../../../utils/contextCap.js';
+import { ARTIFACT_KINDS } from '../artifactKindRegistry.js';
 
 import { readMcpResult, type PersistedStep } from './types.js';
+
+const CREATION_TOOLS: ReadonlySet<string> = new Set(ARTIFACT_KINDS.map((k) => k.loopToolName));
 
 /**
  * Split-mode synth is tool-less and sees only the numbered source registry — but
@@ -63,8 +66,13 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
   // answer still apologised for it (#4458).
   // Same tool AND same arguments: one call can target different things
   // (`documents` on doc A, then doc B), and a success on B must not hide A.
+  // A creation tool has no target: its retry rewords the brief, and one
+  // success delivers the artefact the turn asked for (live 05.11.2026, a
+  // sharepic retry succeeded and the answer said it could not be created).
   const sameCall = (a: PersistedStep, b: PersistedStep) =>
-    a.toolName === b.toolName && JSON.stringify(a.args ?? {}) === JSON.stringify(b.args ?? {});
+    a.toolName === b.toolName &&
+    (CREATION_TOOLS.has(a.toolName) ||
+      JSON.stringify(a.args ?? {}) === JSON.stringify(b.args ?? {}));
   const recovered = (i: number) =>
     native
       .slice(i + 1)
