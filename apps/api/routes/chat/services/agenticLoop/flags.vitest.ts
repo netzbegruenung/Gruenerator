@@ -7,10 +7,11 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { isAgenticLoopEnabled, isLoopRerankEnabled } from './flags.js';
+import { isAgenticLoopEnabled, isLoopRerankEnabled, isToolScopeEnforced } from './flags.js';
 
 const originalRerank = process.env.LOOP_RERANK_ENABLED;
 const originalLoop = process.env.CHAT_AGENT_LOOP;
+const originalScope = process.env.LOOP_TOOL_SCOPE_ENFORCE;
 
 function restore(key: string, value: string | undefined): void {
   if (value === undefined) delete process.env[key];
@@ -20,6 +21,7 @@ function restore(key: string, value: string | undefined): void {
 afterEach(() => {
   restore('LOOP_RERANK_ENABLED', originalRerank);
   restore('CHAT_AGENT_LOOP', originalLoop);
+  restore('LOOP_TOOL_SCOPE_ENFORCE', originalScope);
 });
 
 describe('isLoopRerankEnabled', () => {
@@ -47,5 +49,17 @@ describe('isLoopRerankEnabled', () => {
     delete process.env.LOOP_RERANK_ENABLED;
     expect(isAgenticLoopEnabled()).toBe(true);
     expect(isLoopRerankEnabled()).toBe(false);
+  });
+});
+
+describe('isToolScopeEnforced', () => {
+  it('enforces the scope by default', () => {
+    delete process.env.LOOP_TOOL_SCOPE_ENFORCE;
+    expect(isToolScopeEnforced()).toBe(true);
+  });
+
+  it('falls back to shadow mode with LOOP_TOOL_SCOPE_ENFORCE=false', () => {
+    process.env.LOOP_TOOL_SCOPE_ENFORCE = 'false';
+    expect(isToolScopeEnforced()).toBe(false);
   });
 });
