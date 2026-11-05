@@ -257,6 +257,10 @@ describe('draftSharepic — the own photo is cut out', () => {
 });
 
 describe('draftSharepic — no own photo vanishes unreported', () => {
+  const slide2 = (bg: Slide['background']): SharepicSpec => ({
+    locale: 'de-DE',
+    slides: [slide(bg)],
+  });
   const own = (id = 'upload:1') => ({ id, analysis: SHAREPIC_NEUTRAL_PHOTO_ANALYSIS });
   const fotos = (bericht: readonly { art: string; id?: string }[] | undefined) =>
     (bericht ?? []).filter((e) => e.art === 'foto');
@@ -277,6 +281,37 @@ describe('draftSharepic — no own photo vanishes unreported', () => {
         grund: 'Ich habe dein Foto als Hintergrund eingesetzt.',
       },
     ]);
+  });
+
+  it('sends a first draft back that uses none of the photos brought along', async () => {
+    const run = answers(lost, slide2(PHOTO), slide2(PHOTO));
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [own()]);
+    expect(run.errors).toEqual([
+      'Du hast ein eigenes Foto mitgebracht (upload:1) – setz es ein: als Hintergrund, als bild (auch ausschnitt "freigestellt") oder als "person" in der szene.',
+    ]);
+    expect(draft.spec.slides[0]!.background).toMatchObject({ filename: 'upload:1' });
+    expect(
+      fotos(draft.bericht).some((e) => (e as { status?: string }).status === 'nicht_verwendet')
+    ).toBe(false);
+  });
+
+  it('lets the last attempt pass and reports the unused photo', async () => {
+    const run = answers(lost, lost, lost);
+    const draft = await draftSharepic('Radweg', 'de-DE', null, [own()]);
+    expect(run.errors).toHaveLength(2);
+    // the net places the photo as ground when the draft left it out
+    expect(fotos(draft.bericht)).toHaveLength(1);
+  });
+
+  it('never sends a revision back for an unused photo', async () => {
+    const run = answers(lost, lost, lost);
+    await draftSharepic(
+      'Mach den Hintergrund tanne',
+      'de-DE',
+      { locale: 'de-DE', slides: [slide(TANNE)] },
+      [own()]
+    );
+    expect(run.errors).toEqual([]);
   });
 
   it('reports an unused photo of a revision, and nothing for one that is not offered', async () => {

@@ -392,6 +392,18 @@ export async function draftSharepic(
           error: `Der Auftrag will die Person aus dem eigenen Foto in der Szene: setz in der szene "person": "${firstPersonable}".`,
         };
       }
+      // Photos brought along on a first draft are the request: a draft that uses none is sent back.
+      if (!current && attempt < attempts && ownPhotos.length) {
+        const used = new Set(photoNames(checked.value.slides));
+        if (taken.scene?.person) used.add(taken.scene.person);
+        if (!ownPhotos.some((p) => used.has(p.id))) {
+          const ids = ownPhotos.map((p) => p.id);
+          return {
+            ok: false,
+            error: `Du hast ein eigenes Foto mitgebracht (${ids.join(', ')}) – setz es ein: als Hintergrund, als bild (auch ausschnitt "freigestellt") oder als "person" in der szene.`,
+          };
+        }
+      }
       // Like a drift: the last attempt passes, the reply then says the slide stayed.
       const untouched =
         current && attempt < attempts ? untouchedSlides(current, checked.value, asked) : [];
