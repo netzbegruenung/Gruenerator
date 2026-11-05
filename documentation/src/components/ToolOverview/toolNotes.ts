@@ -79,6 +79,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  'studio-videoeditor': {
+    note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
+    platform: ['web'],
+  },
   'studio-voice': {
     note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
     platform: ['web', 'desktop'],

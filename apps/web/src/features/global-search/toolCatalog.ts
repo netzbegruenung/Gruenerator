@@ -1,6 +1,6 @@
 /**
  * Curated catalog of the tools a user searches for by name, each with synonyms
- * so "video" or "untertitel" finds Reel, "ocr" finds the Scanner, etc. Many of
+ * so "video" or "untertitel" finds Untertitel, "ocr" finds the Scanner, etc. Many of
  * these have no sidebar entry, so the nav-derived index alone would never
  * surface them.
  *
@@ -44,7 +44,7 @@ type RegisteredEntry = ToolCatalogEntry & { id: ToolSearchId };
 export const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-reel',
-    title: 'Reel',
+    title: 'Untertitel',
     subtitle: 'Social-Clips untertiteln',
     path: '/studio/video',
     icon: nav('reel'),
@@ -52,11 +52,11 @@ export const CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: 'tool-videoeditor',
-    title: 'Video Editor',
+    title: 'Video-Editor',
     subtitle: 'Videos schneiden, Text & Musik',
     path: '/studio/videoeditor',
     icon: nav('videoEditor'),
-    keywords: ['video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
+    keywords: ['video editor', 'video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
   },
   {
     id: 'tool-studio',
