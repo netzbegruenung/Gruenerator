@@ -16,13 +16,12 @@
  */
 
 import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
+import { berichtSaetze } from '@gruenerator/shared/image-studio';
 
 import {
   type DraftFailedError,
   draftFailedText,
 } from '../../../services/sharepicCreator/draftFailure.js';
-
-import { berichtSaetze } from './sharepicBericht.js';
 
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 

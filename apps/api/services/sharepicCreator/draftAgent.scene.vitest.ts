@@ -3,12 +3,12 @@ import {
   type SharepicOwnPhoto,
   type SharepicSpec,
 } from '@gruenerator/contracts';
+import { berichtSaetze } from '@gruenerator/shared/image-studio';
 import { describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
-import { berichtSaetze } from '../../routes/chat/services/sharepicBericht.js';
 import { draftSharepic, oneFotoPerId, takeScene } from './draftAgent.js';
 import { calmBox, sceneLayout, type ScenePainter } from './sceneBackground.js';
 

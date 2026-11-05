@@ -219,6 +219,35 @@ describe('useSharepicCreator with own photos', () => {
   });
 });
 
+describe('useSharepicCreator with the creator report', () => {
+  const TERMIN =
+    'Den Termin habe ich weggelassen, weil er im Auftrag fehlt. Nenn mir Datum und Ort, dann setze ich ihn ein.';
+  const answer = (extra: Record<string, unknown>) =>
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({ spec: spec('upload:1'), chapters: [], attributions: [null], ...extra })
+      )
+    );
+
+  it('lists the report as bullets under the draft and shows no hinweis next to it', async () => {
+    answer({ bericht: [{ art: 'fehlt', fakt: 'termin' }], hinweis: 'Alter Hinweistext.' });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    const text = result.current.messages.at(-1)!.text;
+    expect(text).toContain(`\n\n- ${TERMIN}`);
+    expect(text).not.toContain('Alter Hinweistext.');
+  });
+
+  it('shows the hinweis when the API sent no report (older API)', async () => {
+    answer({ hinweis: 'Alter Hinweistext.' });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    const text = result.current.messages.at(-1)!.text;
+    expect(text).toContain('Alter Hinweistext.');
+    expect(text).not.toContain('\n- ');
+  });
+});
+
 describe('useSharepicCreator after a carousel revision', () => {
   const slide = (lines: string[], filename: string | null = null) => ({
     background: filename
