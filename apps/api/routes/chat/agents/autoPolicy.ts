@@ -309,6 +309,13 @@ export interface AutoSelection {
 
 export interface AutoSelectionInput {
   intent?: string | null | undefined;
+  /**
+   * Prose verdict an `agentic` turn was demoted from (`loopDemotedFromProse`).
+   * The table lookup, hint and material rules then see that verdict instead of
+   * `agentic`, so the loop keeps the prose lane and reasoning level. Ignored
+   * for any other intent.
+   */
+  demotedFromProse?: string | null | undefined;
   complexity?: Complexity | null | undefined;
   agentId?: string | null | undefined;
   /**
@@ -393,7 +400,10 @@ const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'off' };
  * because it is the only one that also raises reasoning.
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
-  const intent = input.intent ?? 'produktion';
+  const intent =
+    input.intent === 'agentic' && input.demotedFromProse
+      ? input.demotedFromProse
+      : (input.intent ?? 'produktion');
   const complexity = input.complexity ?? 'simple';
 
   // Vor allen Overrides: ein Pipeline-Agent hat seine Aufgabe schon

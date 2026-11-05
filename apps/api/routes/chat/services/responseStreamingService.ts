@@ -261,6 +261,8 @@ export async function resolveModel(
   options?: {
     hasImages?: boolean;
     intent?: string;
+    /** Prose verdict an `agentic` turn came from — see resolveAutoSelection. */
+    demotedFromProse?: string | null;
     complexity?: Complexity;
     /** Output contract on the turn (detectTaskShape) — lane override for the
      *  neutral intents, see resolveAutoSelection. */
@@ -303,6 +305,7 @@ export async function resolveModel(
     // is the whole point of resolving auto on the server instead of the client.
     const selection = resolveAutoSelection({
       ...(options?.intent != null && { intent: options.intent }),
+      ...(options?.demotedFromProse != null && { demotedFromProse: options.demotedFromProse }),
       ...(options?.complexity != null && { complexity: options.complexity }),
       ...(options?.taskShape != null && { taskShape: options.taskShape }),
       ...(options?.materialChars != null && { materialChars: options.materialChars }),

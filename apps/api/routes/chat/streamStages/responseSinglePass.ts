@@ -200,6 +200,9 @@ export async function runSinglePassAnswer({
       // das gewählte Modell für ein Bild, das nie ankommt.
       hasImages: imagesVisible,
       intent: finalState.intent,
+      ...(finalState.loopDemotedFromProse != null && {
+        demotedFromProse: finalState.loopDemotedFromProse,
+      }),
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       materialChars: turnMaterialChars(finalState),
       agentId: finalState.agentConfig.identifier,

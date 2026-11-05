@@ -699,6 +699,16 @@ export interface ChatGraphState {
   loopDemotedFromRetrieval?: boolean | undefined;
 
   /**
+   * Counterpart for PROSE verdicts: this `agentic` turn reached the loop
+   * because the classifier's prose verdict (`produktion`, `direct`, …) goes
+   * through `proseGoesToLoop`. Carries that verdict so the auto policy keeps
+   * the prose lane and reasoning level (`reasoning: 'off'`) — without it a
+   * poem ran with the `agentic` row's `low` (E3 run B, 05.11.2026: 5.5 → 12.9 s).
+   * Only the model lookup reads it; routing and tools still see `agentic`.
+   */
+  loopDemotedFromProse?: SearchIntent | undefined;
+
+  /**
    * The LLM classifier itself said this turn needs research (`needsResearch:
    * true`) and then picked `direct` anyway. Its own reasoning gave the game
    * away live: „ist eine Web-Recherche (web) notwendig, um die aktuellen
