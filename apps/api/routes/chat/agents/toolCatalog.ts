@@ -172,6 +172,9 @@ const CATALOG_TOOLS = new Set([
   'gruenerator_wahlpruefstein_examples',
 ]);
 
+/** The recipe whose turns get `gruenerator_wahlpruefstein_examples`. */
+const WAHLPRUEFSTEIN_RECIPE = 'wahlpruefstein';
+
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
@@ -453,6 +456,14 @@ export function buildChatToolCatalog(params: {
       `[toolCatalog] agent ${agentConfig.identifier} has no web capability — web_search/scrape_url not mounted`
     );
   }
+
+  // Die Wahlprüfstein-Beispiele braucht nur ein Turn, auf dem das Rezept gilt —
+  // gewählt oder als Default des Agenten. Sonst zahlte ihre Beschreibung auf
+  // jeden werkzeugtragenden Aufruf ein (toolScopeBudget.vitest.ts).
+  const wahlpruefsteinTurn =
+    loop?.state.activeSkillMention === WAHLPRUEFSTEIN_RECIPE ||
+    agentConfig.defaultRecipeMention === WAHLPRUEFSTEIN_RECIPE;
+  if (!wahlpruefsteinTurn) delete base.gruenerator_wahlpruefstein_examples;
 
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
