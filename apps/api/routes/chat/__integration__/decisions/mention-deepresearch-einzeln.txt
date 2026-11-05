@@ -13,6 +13,7 @@ classifier.tier                  = tier3.5_loop_demotion          confidence=0.5
 respond.answer_format            = standard                       complexity=moderate intent=research retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
+loop.unified_repair              = (not reached)
 notebook.answer_mode             = (not reached)
 -- wire --
 intent=research agentic=false tools=[] warnings=[research_plan_failed] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

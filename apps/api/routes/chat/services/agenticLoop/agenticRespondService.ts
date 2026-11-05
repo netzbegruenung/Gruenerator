@@ -90,7 +90,7 @@ import {
   type AnswerReplacement,
   type LoopMode,
 } from './loopEngine.js';
-import { createAfterGather } from './loopGuarantees.js';
+import { createAfterGather, turnCarriesGuarantee } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
@@ -215,6 +215,9 @@ export async function streamAgenticResponse(
      *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
      *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
     disableMcp?: boolean;
+    /** Hintergrundlauf ohne Leser (Wiederkehrende Aufgabe, Board-Agent,
+     *  Notebook-Präzision): läuft immer im Split-Modus. */
+    headless?: boolean;
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
@@ -247,6 +250,7 @@ export async function streamAgenticResponse(
     threadId,
     toolHistory,
     disableMcp,
+    headless,
     searchToolKeys,
     toolAllowlist,
     grantedOnce,
@@ -535,9 +539,21 @@ export async function streamAgenticResponse(
     });
 
     const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
-    mode = resolveLoopMode(resolution.provider, resolution.modelName, materialHeavy);
+    const resolvedMode = resolveLoopMode({
+      provider: resolution.provider,
+      modelName: resolution.modelName,
+      materialHeavy,
+      carriesGuarantee: turnCarriesGuarantee(finalState, lastUserText),
+      headless: headless === true,
+    });
+    mode = resolvedMode.mode;
     recordDecision('loop.mode', mode, {
-      inputs: { provider: resolution.provider, model: resolution.modelName, materialHeavy },
+      inputs: {
+        provider: resolution.provider,
+        model: resolution.modelName,
+        materialHeavy,
+        reason: resolvedMode.reason,
+      },
     });
     // Rides on the state to the `done` event (persistStage), like usedRecipes.
     finalState.loopMode = mode;
