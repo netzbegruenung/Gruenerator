@@ -2285,3 +2285,53 @@ describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
     expect(afterGather).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
+  const RECALL = '## RELEVANTE VERGANGENE GESPRÄCHE\n\nVerkehr.';
+  type SysOpts = StreamOpts & {
+    system?: unknown;
+    prepareStep?: (a: { stepNumber: number }) => { system?: unknown };
+  };
+
+  function run(turnContext: string | null) {
+    const seen: SysOpts[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: SysOpts) => {
+        seen.push(o);
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    return runAgenticLoop(
+      baseParams({
+        mode: 'unified',
+        maxSteps: 3,
+        ...(turnContext ? { turnContext } : {}),
+      }),
+      deps
+    ).then(() => seen);
+  }
+
+  it('schickt system als Array, die zweite Nachricht trägt den Rückblick', async () => {
+    const [call] = await run(RECALL);
+    expect(call.system).toEqual([
+      { role: 'system', content: `TOOLSYS${UNIFIED_SUFFIX}` },
+      { role: 'system', content: RECALL },
+    ]);
+  });
+
+  it('hält den Rückblick auch auf dem Schlussschritt (prepareStep ersetzt system)', async () => {
+    const [call] = await run(RECALL);
+    const step = call.prepareStep!({ stepNumber: 2 });
+    expect(Array.isArray(step.system)).toBe(true);
+    const sys = step.system as Array<{ role: string; content: string }>;
+    expect(sys[0].content).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+    expect(sys[1]).toEqual({ role: 'system', content: RECALL });
+  });
+
+  it('ohne turnContext bleibt system ein String', async () => {
+    const [call] = await run(null);
+    expect(call.system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(typeof call.prepareStep!({ stepNumber: 2 }).system).toBe('string');
+  });
+});

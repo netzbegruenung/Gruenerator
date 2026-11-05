@@ -197,6 +197,9 @@ export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
     systemMessage: string;
+    /** Rückblick auf frühere Gespräche: geht als zweite System-Nachricht an das
+     *  Modell, damit der Prompt-Prefix cachebar bleibt (`withTurnContext`). */
+    turnContext?: string | null;
     messages: ModelMessage[];
     modelId?: string;
     requestId: string;
@@ -241,6 +244,7 @@ export async function streamAgenticResponse(
   const {
     finalState,
     systemMessage,
+    turnContext,
     messages,
     modelId,
     requestId,
@@ -541,7 +545,11 @@ export async function streamAgenticResponse(
       mcpCapabilityQuestion,
     });
 
-    const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
+    const materialHeavy = materialDominatesTurn(
+      lastUserText,
+      `${systemMessage}${turnContext ?? ''}`,
+      carriedMaterialChars
+    );
     const resolvedMode = resolveLoopMode({
       provider: resolution.provider,
       modelName: resolution.modelName,
@@ -880,6 +888,7 @@ export async function streamAgenticResponse(
       tools: wrapped,
       toolActivity,
       toolSystem,
+      ...(turnContext ? { turnContext } : {}),
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.

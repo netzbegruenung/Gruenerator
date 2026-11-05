@@ -911,3 +911,20 @@ describe('Prosa im Loop verliert nichts', () => {
     expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
   });
 });
+
+describe('recallAsMessage', () => {
+  const RECALL = '## RELEVANTE VERGANGENE GESPRÄCHE\n\nEs ging um Verkehr.';
+  const state = () => makeState({ chatHistoryContext: RECALL });
+  const OPTS = { retrievalExpected: true, loop: true } as const;
+
+  it('rendert den Rückblick standardmäßig in den Prompt', async () => {
+    expect(await buildSystemMessage(state(), OPTS)).toContain(RECALL);
+  });
+
+  it('lässt ihn mit recallAsMessage weg, und sonst ändert sich nichts', async () => {
+    const withRecall = await buildSystemMessage(state(), OPTS);
+    const without = await buildSystemMessage(state(), { ...OPTS, recallAsMessage: true });
+    expect(without).not.toContain('RELEVANTE VERGANGENE GESPRÄCHE');
+    expect(withRecall.replace(`\n\n${RECALL}`, '')).toBe(without);
+  });
+});

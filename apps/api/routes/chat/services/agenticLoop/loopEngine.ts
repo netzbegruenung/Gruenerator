@@ -47,7 +47,7 @@ import { toolsForProvider } from './providerTools.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
-import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
+import type { LanguageModel, ModelMessage, SystemModelMessage, ToolSet } from 'ai';
 
 const log = createLogger('AgenticLoopEngine');
 
@@ -345,6 +345,36 @@ export function failedStepRetryNudge(step: PreparedStepView | null): string | nu
   );
 }
 
+/**
+ * Der Rückblick auf frühere Gespräche ändert sich mit jeder Frage. Als eigene
+ * System-Nachricht HINTER dem Prompt bleibt dessen Prefix (samt Werkzeugen, die
+ * der Anbieter danach rendert) cachebar. Direkt hinter der ersten, nie nach einer
+ * Assistenten-Nachricht: GreenPT lehnt das ab.
+ */
+export function withTurnContext(
+  system: string,
+  turnContext: string | null | undefined
+): string | SystemModelMessage[] {
+  if (!turnContext) return system;
+  return [
+    { role: 'system', content: system },
+    { role: 'system', content: turnContext },
+  ];
+}
+
+/** Ein `system` aus prepareStep ERSETZT das des Aufrufs — also ebenfalls einpacken. */
+function withTurnContextOnSteps<
+  F extends (...args: never[]) => { system?: string | SystemModelMessage[] },
+>(prepare: F, turnContext: string | null | undefined): F {
+  if (!turnContext) return prepare;
+  return ((...args: Parameters<F>) => {
+    const step = prepare(...args);
+    return step.system === undefined || typeof step.system !== 'string'
+      ? step
+      : { ...step, system: withTurnContext(step.system, turnContext) };
+  }) as F;
+}
+
 /** prepareStep shared by both modes: on the last step (or when forceFinish
  *  trips) strip tools AND explain why via a per-step system override. */
 export function buildPrepareStep(
@@ -595,6 +625,8 @@ export interface LoopEngineParams {
   toolActivity?: { inFlight: () => number };
   /** System for the tool phase: base + tool-usage block (+ mcp note). */
   toolSystem: string;
+  /** Per-turn recall, sent as a second system message (see {@link withTurnContext}). */
+  turnContext?: string | null;
   /** Builds the synthesizer system from the gathered numbered sources block. */
   buildSynthSystem: (sourcesBlock: string) => string;
   getSourcesBlock: () => string;
@@ -914,16 +946,17 @@ async function streamWithTools(
   const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
   const { idle, idleMs } = createToolPhaseIdle(
     p,
-    prefillAllowanceForModel(model, unifiedSystem, p.messages)
+    prefillAllowanceForModel(model, `${unifiedSystem}${p.turnContext ?? ''}`, p.messages)
   );
   const firstResponseMs =
-    PLANNER_FIRST_RESPONSE_DEADLINE_MS + prefillAllowanceForModel(model, unifiedSystem, p.messages);
+    PLANNER_FIRST_RESPONSE_DEADLINE_MS +
+    prefillAllowanceForModel(model, `${unifiedSystem}${p.turnContext ?? ''}`, p.messages);
   let firstResponse: IdleDeadline | null = hasNextLane
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   const result = deps.streamText({
     model,
-    system: unifiedSystem,
+    system: withTurnContext(unifiedSystem, p.turnContext),
     messages: p.messages,
     tools: toolsForProvider(p.tools),
     stopWhen: isStepCount(p.maxSteps),
@@ -937,17 +970,20 @@ async function streamWithTools(
       idle.signal,
       ...(firstResponse ? [firstResponse.signal] : []),
     ]),
-    prepareStep: buildPrepareStep(
-      unifiedSystem,
-      FORCE_FINISH_SYSTEM_SUFFIX,
-      p.maxSteps,
-      p.forceFinish,
-      p.forceFirstToolCall ?? false,
-      p.forcedToolForStep,
-      p.getRecipeBlock,
-      p.firstToolName ?? null,
-      p.activeTools,
-      p.firstStepTools ?? null
+    prepareStep: withTurnContextOnSteps(
+      buildPrepareStep(
+        unifiedSystem,
+        FORCE_FINISH_SYSTEM_SUFFIX,
+        p.maxSteps,
+        p.forceFinish,
+        p.forceFirstToolCall ?? false,
+        p.forcedToolForStep,
+        p.getRecipeBlock,
+        p.firstToolName ?? null,
+        p.activeTools,
+        p.firstStepTools ?? null
+      ),
+      p.turnContext
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -1180,7 +1216,11 @@ async function gatherOn(
   hasNextLane: boolean
 ): Promise<LaneProbe & { error: unknown }> {
   const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
-  const prefillMs = prefillAllowanceForModel(model, gatherSystem, p.messages);
+  const prefillMs = prefillAllowanceForModel(
+    model,
+    `${gatherSystem}${p.turnContext ?? ''}`,
+    p.messages
+  );
   const { idle } = createToolPhaseIdle(p, prefillMs);
   const firstResponseMs = PLANNER_FIRST_RESPONSE_DEADLINE_MS + prefillMs;
   let firstResponse: IdleDeadline | null = hasNextLane
@@ -1192,7 +1232,7 @@ async function gatherOn(
   try {
     const result: Drainable = deps.streamText({
       model,
-      system: gatherSystem,
+      system: withTurnContext(gatherSystem, p.turnContext),
       messages: p.messages,
       tools: toolsForProvider(p.tools),
       stopWhen: isStepCount(p.maxSteps),
@@ -1205,17 +1245,20 @@ async function gatherOn(
         idle.signal,
         ...(firstResponse ? [firstResponse.signal] : []),
       ]),
-      prepareStep: buildPrepareStep(
-        gatherSystem,
-        FORCE_FINISH_GATHER_SUFFIX,
-        p.maxSteps,
-        p.forceFinish,
-        p.forceFirstToolCall ?? false,
-        p.forcedToolForStep,
-        p.getRecipeBlock,
-        p.firstToolName ?? null,
-        p.activeTools,
-        p.firstStepTools ?? null
+      prepareStep: withTurnContextOnSteps(
+        buildPrepareStep(
+          gatherSystem,
+          FORCE_FINISH_GATHER_SUFFIX,
+          p.maxSteps,
+          p.forceFinish,
+          p.forceFirstToolCall ?? false,
+          p.forcedToolForStep,
+          p.getRecipeBlock,
+          p.firstToolName ?? null,
+          p.activeTools,
+          p.firstStepTools ?? null
+        ),
+        p.turnContext
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
@@ -1485,11 +1528,13 @@ async function synthesize(
     const gate = createGatedEmitter(silent ? () => {} : p.onText, SHORT_ANSWER_MAX_CHARS);
     // Plus das Einlesen: Synthese schweigt sonst nur beim Denken oder Sterben,
     // aber vor dem ersten Delta liest der Anbieter den ganzen Verlauf ein.
-    const idleMs = SYNTH_IDLE_DEADLINE_MS + prefillAllowanceForModel(model, system, passMessages);
+    const idleMs =
+      SYNTH_IDLE_DEADLINE_MS +
+      prefillAllowanceForModel(model, `${system}${p.turnContext ?? ''}`, passMessages);
     const idle = createIdleDeadline(idleMs, () => new SynthStallError(idleMs));
     const result = deps.streamText({
       model,
-      system,
+      system: withTurnContext(system, p.turnContext),
       messages: passMessages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
@@ -1528,7 +1573,12 @@ async function synthesize(
    */
   const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
     const onFallback = (fallback: LanguageModel) =>
-      runPass(system, fallback, p.synthFallbackMessages?.(system) ?? messages, silent);
+      runPass(
+        system,
+        fallback,
+        p.synthFallbackMessages?.(`${system}${p.turnContext ?? ''}`) ?? messages,
+        silent
+      );
     let pass: SynthPass;
     try {
       pass = await runPass(system, p.synthModel, messages, silent);

@@ -1077,3 +1077,18 @@ describe('streamAgenticResponse — Browser-Aufruf neben einer Freigabe (#5044)'
     expect(outcome.pendingApproval).toBeUndefined();
   });
 });
+
+describe('streamAgenticResponse — turnContext', () => {
+  it('reicht den Rückblick an die Schleife weiter, ohne ihn in toolSystem zu mischen', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    const deps = fakeDeps({ onLoop: (p) => (seen = p) });
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse, turnContext: '## RÜCKBLICK' },
+      deps
+    );
+    const params = seen as LoopEngineParams | null;
+    expect(params?.turnContext).toBe('## RÜCKBLICK');
+    expect(params?.toolSystem).not.toContain('## RÜCKBLICK');
+  });
+});

@@ -1937,6 +1937,12 @@ export interface SystemMessageOptions {
    * `buildPromptBlockContext` es aus dem Intent ab.
    */
   proseIntent?: boolean;
+  /**
+   * Der Loop schickt den Rückblick auf frühere Gespräche als eigene System-
+   * Nachricht hinter dem Prompt (`turnContext`). Er ändert sich mit jeder Frage;
+   * mitten im Prompt zerschnitte er den Prefix-Cache von Prompt und Werkzeugen.
+   */
+  recallAsMessage?: boolean;
 }
 
 /**
@@ -2015,7 +2021,8 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
         attachmentQuery(state)
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
-  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
+  const chatHistoryFormatted =
+    state.chatHistoryContext && !opts.recallAsMessage ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = isPinnedTransfer
