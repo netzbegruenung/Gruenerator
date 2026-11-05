@@ -20,7 +20,7 @@ import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServe
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import {
-  ownedLvDefaultRecipeMention,
+  ownedDefaultRecipeMention,
   preferredLvRecipeMention,
 } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
@@ -83,6 +83,7 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
   'scrape_url',
 ]);
 
@@ -300,7 +301,7 @@ export async function assembleToolCatalog(
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
-  // Ein-Rezept-LV-Agenten (Bürger*innenanfragen) bekommen ihr Rezept vorab:
+  // Ein-Rezept-Agenten (Bürger*innenanfragen, Wahlprüfsteine) bekommen ihr Rezept vorab:
   // nur ohne eigene Wahl und ohne Persona (wie `resolveEffectiveRecipeMention`)
   // und nicht auf Plauder- oder Produktfragen. Anders als im Single-Pass-Pfad
   // auch auf Recherchefragen („Wie positioniert sich der LV zu …?") — genau
@@ -308,7 +309,7 @@ export async function assembleToolCatalog(
   // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
-  const ownedDefault = ownedLvDefaultRecipeMention(agentConfig);
+  const ownedDefault = ownedDefaultRecipeMention(agentConfig);
   if (
     ownedDefault &&
     !state.activeSkillMention &&

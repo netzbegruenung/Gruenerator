@@ -20,6 +20,7 @@ export {
   executeDirectSearch,
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
+  executeDirectWahlpruefsteinExamples,
   executeDirectWebSearch,
 } from './directSearchExecutors.js';
 
@@ -28,5 +29,7 @@ export type {
   DirectExamplesResult,
   DirectPressemitteilungExamplesResult,
   PressemitteilungExample,
+  DirectWahlpruefsteinExamplesResult,
+  WahlpruefsteinExample,
   DirectWebSearchResult,
 } from './directSearchExecutors.js';

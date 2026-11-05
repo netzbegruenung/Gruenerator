@@ -18,6 +18,7 @@ const SEARCH_TOOL_NAMES = new Set([
   'gruenerator_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
   'gruenerator_docs_search',
   'web_search',
   'scrape_url',

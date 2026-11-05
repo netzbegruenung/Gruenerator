@@ -283,6 +283,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'retrieval',
   },
+  gruenerator_wahlpruefstein_examples: {
+    label: 'Wahlprüfstein-Beispiele',
+    activeLabel: 'Suche frühere Wahlprüfstein-Antworten',
+    iconKey: 'file',
+    accent: 'retrieval',
+  },
   // Backend wire name is the German verb; F1 keeps it even though it now also
   // serves poll data rather than only surveys.
   umfragen: {
@@ -1016,6 +1022,13 @@ export function parseExamples(result: unknown): ExampleSnippet[] {
       content: getString(item, 'content'),
     }))
     .filter((e) => e.content !== null || e.platform !== null);
+}
+
+/** gruenerator_wahlpruefstein_examples → { examples: [{ title, body }] }; Verband als Kopf. */
+export function parseWahlpruefsteinExamples(result: unknown): ExampleSnippet[] {
+  return (getArray(result, 'examples') ?? [])
+    .map((item) => ({ platform: getString(item, 'title'), content: getString(item, 'body') }))
+    .filter((e) => e.content !== null);
 }
 
 // ---------------------------------------------------------------------------
