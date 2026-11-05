@@ -9,6 +9,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  carouselSlideCount,
+  DraftFailedError,
+} from '../../../services/sharepicCreator/draftFailure.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
@@ -515,7 +519,10 @@ describe('Erstellen schlägt fehl', () => {
   });
 
   it('sharepic: bekannter Grund wird durchgereicht', async () => {
-    runSharepicGeneration.mockResolvedValue({ variants: [], failure: 'carousel_slide_count' });
+    runSharepicGeneration.mockResolvedValue({
+      variants: [],
+      failure: new DraftFailedError(carouselSlideCount(1)),
+    });
     const tool = makeCreateSharepicTool({ sse, state: state(), threadId: 't1' } as never);
     const out = await exec(tool, { text: 'x' });
     expect(out.error).toMatch(/Sharepic-Erstellung fehlgeschlagen/);
