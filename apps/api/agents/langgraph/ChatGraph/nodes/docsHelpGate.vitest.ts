@@ -68,6 +68,10 @@ describe('looksLikeDocsHelpQuestion', () => {
       'Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn',
       'Mach ein Explainable zur Wärmepumpe',
       'Erstelle ein Sharepic mit Steckbrief für unsere Kandidatin',
+      // Live 05.11.2026 (Eval ul-expl-einfacher): the order carries its topic as a
+      // „wie funktioniert …" question, and the turn became a help question.
+      'Erstelle ein Explainable: Wie funktioniert eine Wärmepumpe?',
+      'Bitte mach ein Explainable: Was ist eine Wärmepumpe?',
     ]) {
       expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
     }
