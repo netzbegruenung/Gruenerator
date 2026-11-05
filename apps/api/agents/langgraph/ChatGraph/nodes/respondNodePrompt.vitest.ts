@@ -891,6 +891,21 @@ describe('Prosa im Loop verliert nichts', () => {
     expect(single).toContain('<<REZEPT-PROMPT:buerger-berlin>>');
   });
 
+  it('erkennt den in den Loop gerutschten Prosa-Turn am Prosa-Ursprung', async () => {
+    // Seit dem Loop als Standard kommt ein Gedicht als `agentic` an; das
+    // Prosa-Verdikt steht in `loopDemotedFromProse`.
+    const demoted = makeState({
+      ...withAgentDefaultRecipe,
+      intent: 'agentic',
+      loopDemotedFromProse: 'produktion',
+    } as never);
+    const loop = await buildSystemMessage(demoted, LOOP);
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    const plain = await buildSystemMessage(prose('agentic'), LOOP);
+    expect(plain).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
   it('behandelt greeting im Loop nicht als Prosa', async () => {
     const loop = await buildSystemMessage(prose('greeting'), LOOP);
     expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');

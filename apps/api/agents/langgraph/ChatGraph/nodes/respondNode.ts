@@ -1520,7 +1520,8 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
 }
 
 export function getModeGuidance(state: ChatGraphState, opts: { proseLoop?: boolean } = {}): string {
-  switch (state.intent) {
+  // A prose turn in the loop arrives as `agentic`; it keeps its prose verdict's guidance.
+  switch (opts.proseLoop ? (state.loopDemotedFromProse ?? state.intent) : state.intent) {
     case 'edit_current_doc':
       return getDocEditGuidance(state);
     case 'summary':
@@ -2024,9 +2025,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
 
+  // A prose turn reaches the loop as `agentic`; its prose verdict travels in
+  // `loopDemotedFromProse` (classifier `proseGoesToLoop`).
   const proseLoop =
     opts.loop === true &&
-    (opts.proseIntent ?? (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting'));
+    (opts.proseIntent ??
+      (state.loopDemotedFromProse != null ||
+        (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting')));
   const intentGuidance =
     getModeGuidance(state, { proseLoop }) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
