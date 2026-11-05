@@ -105,36 +105,26 @@ export async function runAgenticAnswer({
     loop: true,
     recallAsMessage: true,
   });
+  // Der Rückblick geht als eigene System-Nachricht mit (`turnContext`), belegt
+  // aber weiter Kontext — fürs Kürzen zählt er mit.
   const turnContext = classifiedState.chatHistoryContext ?? null;
-  // Der Rückblick steht nicht mehr im Prompt, belegt aber weiter Kontext.
-  const budgetSystemMessage = turnContext ? `${systemMessage}\n\n${turnContext}` : systemMessage;
   // `contextWindowTokens` already carries the lane floor (turnContextWindow in
   // streamContext): this path cannot ask the resolution — `resolveModel` runs
   // inside streamAgenticResponse, i.e. after pruning.
   const prunedValidMessages = pruneMessages(
     validMessages as Parameters<typeof pruneMessages>[0],
     contextWindowTokens,
-    budgetSystemMessage
+    turnContext ? `${systemMessage}\n\n${turnContext}` : systemMessage
   );
   const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
-    ? await applyCompaction(
-        actualThreadId,
-        prunedValidMessages,
-        budgetSystemMessage,
-        contextWindowTokens
-      )
-    : { systemMessage: budgetSystemMessage, messages: prunedValidMessages };
-  const budgetedFinalSystemMessage = restoreAttachmentsDroppedWithHistory(
+    ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage, contextWindowTokens)
+    : { systemMessage, messages: prunedValidMessages };
+  const finalSystemMessage = restoreAttachmentsDroppedWithHistory(
     classifiedState,
-    budgetSystemMessage,
+    systemMessage,
     compactedSystemMessage,
     contextMessages
   );
-  // Der Rückblick geht als eigene System-Nachricht mit (`turnContext`); im
-  // Prompt-String zählte er nur für die Budgets oben.
-  const finalSystemMessage = turnContext
-    ? budgetedFinalSystemMessage.replace(`\n\n${turnContext}`, '')
-    : budgetedFinalSystemMessage;
 
   // The loop's gather/synth generations nest under this root span — they
   // pass buildAiTelemetry() from inside loopEngine. Until this existed the
