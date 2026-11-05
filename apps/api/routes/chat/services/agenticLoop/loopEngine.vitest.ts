@@ -562,6 +562,95 @@ describe('runAgenticLoop — unified mode', () => {
   });
 });
 
+describe('runAgenticLoop — unified lane chain', () => {
+  const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['synthModel'];
+  const fallback = lane('fallback');
+  const rejected = () =>
+    new APICallError({
+      message: 'The request was rejected as malformed.',
+      url: 'https://melious.example/v1/chat/completions',
+      requestBodyValues: {},
+      statusCode: 400,
+    });
+  const hang = () =>
+    ({
+      stream: (async function* () {
+        await new Promise(() => {});
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  function chainDeps(first: () => ReturnType<LoopDeps['streamText']>) {
+    const calls: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        calls.push(o.model.id);
+        if (o.model.id === 'fallback') {
+          return streamOf([{ type: 'text-delta', text: 'FALLBACK_ANSWER' }]);
+        }
+        return first();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, calls };
+  }
+  const params = (over: Partial<LoopEngineParams> = {}) =>
+    baseParams({ mode: 'unified', unifiedFallbacks: [fallback], ...over });
+
+  it('(a) moves to the next lane when the first rejects before any output, and says so', async () => {
+    const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
+    const onSynthFallback = vi.fn();
+    const out = await runAgenticLoop(params({ onSynthFallback }), deps);
+    expect(calls).toEqual(['synth', 'fallback']);
+    expect(out.text).toBe('FALLBACK_ANSWER');
+    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('upstream_error');
+  });
+
+  it('(b) does not switch once text has streamed — the error surfaces to the caller', async () => {
+    const onText = vi.fn();
+    const { deps, calls } = chainDeps(() =>
+      streamOf([
+        { type: 'text-delta', text: 'Halbe Antwort' },
+        { type: 'error', error: rejected() },
+      ])
+    );
+    await expect(runAgenticLoop(params({ onText }), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+    expect(onText).toHaveBeenCalledWith('Halbe Antwort');
+  });
+
+  it('(c) switches after the 15 s first-response window when the first lane is silent', async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, calls } = chainDeps(hang);
+      const onSynthFallback = vi.fn();
+      const pending = runAgenticLoop(
+        params({ onSynthFallback, abortSignal: new AbortController().signal }),
+        deps
+      );
+      await vi.advanceTimersByTimeAsync(16_000);
+      expect(calls).toEqual(['synth', 'fallback']);
+      expect((await pending).text).toBe('FALLBACK_ANSWER');
+      expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('(d) does not switch after a tool call, even if nothing else came out', async () => {
+    const { deps, calls } = chainDeps(() =>
+      streamOf([{ type: 'tool-call' }, { type: 'error', error: rejected() }])
+    );
+    await expect(runAgenticLoop(params(), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+  });
+
+  it('the last lane gets no short first-response window and its error surfaces', async () => {
+    const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
+    await expect(runAgenticLoop(params({ unifiedFallbacks: [] }), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+  });
+});
+
 describe('unified suffix — tool and writer rules', () => {
   it('keeps the gather suffix byte-identical', async () => {
     const systems: string[] = [];

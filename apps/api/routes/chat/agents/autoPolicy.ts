@@ -593,6 +593,14 @@ export const LOOP_SYNTH_PRIMARY = {
 };
 export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-large-4' };
 
+/**
+ * Lane ladder for a unified Gemma turn: Gemma 4 31B on Melious, then Mistral
+ * Large 4 (another model family) if Melious rejects or goes silent before any
+ * tool call or output (`runLaneChain`). Deliberately no Cortecs stage — Gemma
+ * runs only via Melious (decision 05.11.2026).
+ */
+export const UNIFIED_GEMMA_CHAIN = [GEMMA_31B_ON_MELIOUS, LOOP_SYNTH_FALLBACK] as const;
+
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch
  *  trainierten Lanes. Letztere sind heute nirgends mehr wählbar — der Zweig

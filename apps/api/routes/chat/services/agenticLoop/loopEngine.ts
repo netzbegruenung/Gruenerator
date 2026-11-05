@@ -575,6 +575,10 @@ export interface LoopEngineParams {
    *  answer after one is confirmed by the caller, not repaired. Read AFTER
    *  `afterGather`, which may still produce one. */
   producedArtifact?: () => boolean;
+  /** Unified mode: tried in order when `synthModel` rejects or stays silent
+   *  before any tool call or output (see `runLaneChain`). Empty or omitted, the
+   *  error surfaces as before. */
+  unifiedFallbacks?: readonly LanguageModel[];
   /** Split mode: tried in order when `plannerModel` rejects or stalls the tool
    *  phase before any tool call (see `gather`). Empty or omitted, the turn
    *  degrades to synthesis. */
@@ -667,7 +671,7 @@ export interface LoopEngineParams {
   /** Fires when the sibling lane takes over — the synth stalled, or came back
    *  without a word — so the client can surface the switch the same way the
    *  single-pass path does. */
-  onSynthFallback?: (reason: 'first_token_timeout' | 'empty_completion') => void;
+  onSynthFallback?: (reason: 'first_token_timeout' | 'empty_completion' | 'upstream_error') => void;
   /**
    * SPLIT ONLY: fires when the planner accepted the request and then sent
    * nothing until the tool-phase deadline. Separate from `onSynthFallback`
@@ -836,7 +840,27 @@ export async function runAgenticLoop(
   deps: LoopDeps = defaultDeps
 ): Promise<LoopResult> {
   if (p.mode === 'unified') {
-    const { finishReason, ...streamed } = await streamWithTools(p, p.synthModel, deps);
+    const lanes = [p.synthModel, ...(p.unifiedFallbacks ?? [])];
+    const { finishReason, ...streamed } = await runLaneChain(
+      lanes,
+      async (model, isLast): Promise<LaneAttempt<StreamWithToolsResult>> => {
+        const probe: LaneProbe = { sawToolCall: false, sawToolResult: false, sawOutput: false };
+        try {
+          const value = await streamWithTools(p, model, deps, probe, !isLast);
+          return { ...probe, error: null, value };
+        } catch (error) {
+          return { ...probe, error, value: null };
+        }
+      },
+      (from, to, error) => {
+        log.warn(
+          `[Engine] unified ${modelLabel(from)} ${error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the request'} before any call or output — retrying on ${modelLabel(to)}`
+        );
+        p.onSynthFallback?.(
+          error instanceof ToolPhaseStallError ? 'first_token_timeout' : 'upstream_error'
+        );
+      }
+    );
     const result: StreamWithToolsResult = { ...streamed, finishReason };
     if (p.suspended?.()) throw new TurnSuspendedError();
     // Unified mode has no separate synth phase, so the artifact/edit guarantees
@@ -877,13 +901,24 @@ export async function runAgenticLoop(
 async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
-  deps: LoopDeps
+  deps: LoopDeps,
+  /** Filled while the stream is read, so a thrown error still says how far the
+   *  lane got (see `runLaneChain`). */
+  probe: LaneProbe = { sawToolCall: false, sawToolResult: false, sawOutput: false },
+  /** Another lane waits behind this one: silence before the first response
+   *  then only costs PLANNER_FIRST_RESPONSE_DEADLINE_MS. */
+  hasNextLane = false
 ): Promise<StreamWithToolsResult> {
   const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
   const { idle, idleMs } = createToolPhaseIdle(
     p,
     prefillAllowanceForModel(model, unifiedSystem, p.messages)
   );
+  const firstResponseMs =
+    PLANNER_FIRST_RESPONSE_DEADLINE_MS + prefillAllowanceForModel(model, unifiedSystem, p.messages);
+  let firstResponse: IdleDeadline | null = hasNextLane
+    ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
+    : null;
   const result = deps.streamText({
     model,
     system: unifiedSystem,
@@ -895,7 +930,11 @@ async function streamWithTools(
     ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
     // Kombiniert, damit eine verstummte Lane wirklich abgebaut wird statt nur
     // verlassen — dieselbe Form wie in gather und synth.
-    abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
+    abortSignal: AbortSignal.any([
+      p.abortSignal,
+      idle.signal,
+      ...(firstResponse ? [firstResponse.signal] : []),
+    ]),
     prepareStep: buildPrepareStep(
       unifiedSystem,
       FORCE_FINISH_SYSTEM_SUFFIX,
@@ -921,13 +960,25 @@ async function streamWithTools(
     const clean = unifiedFilter.push(delta);
     if (clean.length > 0) p.onText(clean);
   };
+  const observed: Drainable = {
+    stream: observeLane(
+      result.stream,
+      probe,
+      () => firstResponse,
+      () => {
+        firstResponse?.clear();
+        firstResponse = null;
+      }
+    ),
+  };
   const { text, finishReason, stalled } = await drain(
-    result,
+    observed,
     emitFiltered,
     p.onReasoning,
     idle,
     'stop'
   );
+  firstResponse?.clear();
   const tail = unifiedFilter.flush();
   if (tail.length > 0) p.onText(tail);
   if (stalled) {
@@ -970,10 +1021,9 @@ interface GatherOutcome {
   failedBeforeAnyTool: boolean;
 }
 
-/** One planner attempt; never throws. */
-interface GatherAttempt {
-  error: unknown;
-  /** The planner emitted at least one tool call — it may have executed, so the
+/** One attempt on one lane; never throws. */
+interface LaneProbe {
+  /** The lane emitted at least one tool call — it may have executed, so the
    *  attempt must not be repeated (a retry could create the same form twice). */
   sawToolCall: boolean;
   /** A tool came back with a result. A CALL alone does not mean that: an
@@ -983,14 +1033,23 @@ interface GatherAttempt {
    *  already said so, and the writer, missing the failure note, announced a
    *  research plan with tool names and asked „Soll ich starten?". */
   sawToolResult: boolean;
-  /** Reasoning or narration already reached the client. A second lane would
+  /** Reasoning or text already reached the client. A second lane would
    *  stream its own next to it, so the attempt is not repeated either. */
   sawOutput: boolean;
 }
 
+interface LaneAttempt<T> extends LaneProbe {
+  error: unknown;
+  /** What the attempt produced. Null with an `error` means the chain rethrows
+   *  it when it stops there; a non-null value on an error is the caller's own
+   *  degraded outcome (`gather` degrades to synthesis instead of failing). */
+  value: T | null;
+}
+
 /** Provider verdicts a different lane can plausibly accept: a rejected request
  *  (the 400 "malformed" of an overfull context window), a rate limit, an
- *  outage. Not an abort. A stall before any output counts too (see `gather`). */
+ *  outage. Not an abort. A stall before any output counts too (see
+ *  `runLaneChain`). */
 const LANE_SWITCH_CODES = new Set(['invalid_request', 'rate_limited', 'provider_unavailable']);
 
 /** The provider's verdict. The SDK wraps an exhausted 429/5xx retry in a
@@ -999,36 +1058,111 @@ function providerVerdict(err: unknown): string {
   return classifyProviderError(RetryError.isInstance(err) ? err.lastError : err).code;
 }
 
-async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcome> {
-  const lanes = [p.plannerModel, ...(p.plannerFallbackModels ?? [])];
+/**
+ * The tool phase's lane ladder, shared by split's `gather` and the unified loop.
+ * Runs `attempt` on each lane in order and moves on only when the lane failed
+ * with a switchable verdict (or stalled before its first response) and left no
+ * trace: no tool call, no output. Anything else stops the chain — a call may
+ * have executed, and output is already on the client.
+ *
+ * Returns the stopping attempt's value; a failure without one is rethrown.
+ */
+async function runLaneChain<T>(
+  lanes: readonly LanguageModel[],
+  attempt: (model: LanguageModel, isLast: boolean) => Promise<LaneAttempt<T>>,
+  onSwitch: (from: LanguageModel, to: LanguageModel, error: unknown) => void,
+  aborted: () => boolean = () => false
+): Promise<T> {
+  let last: LaneAttempt<T> | null = null;
   for (const [i, model] of lanes.entries()) {
     const hasNext = i < lanes.length - 1;
-    const attempt = await gatherOn(p, deps, model, i === 0, hasNext);
-    if (attempt.error == null) return { failedBeforeAnyTool: false };
-    // A call may have executed — no second lane — but only a result means the
-    // registry holds anything the writer can answer from.
-    if (attempt.sawToolCall) return { failedBeforeAnyTool: !attempt.sawToolResult };
+    last = await attempt(model, !hasNext);
+    if (last.error == null && last.value != null) return last.value;
     if (
       !hasNext ||
-      attempt.sawOutput ||
-      p.abortSignal.aborted ||
+      last.sawToolCall ||
+      last.sawOutput ||
+      aborted() ||
       // A lane that stayed silent has already cost its deadline, but the
       // alternative was an empty "technisch gescheitert" turn. Live 12.10.2026:
       // Melious gemma went silent on 3 of 14 pinned notebook_quellen calls
       // (#4480), and the fallback lane answered each one. The turn's own wall
       // clock (`abortSignal`) still caps every further attempt.
       !(
-        attempt.error instanceof ToolPhaseStallError ||
-        LANE_SWITCH_CODES.has(providerVerdict(attempt.error))
+        last.error instanceof ToolPhaseStallError ||
+        LANE_SWITCH_CODES.has(providerVerdict(last.error))
       )
     ) {
       break;
     }
-    log.warn(
-      `[Engine] planner ${modelLabel(model)} ${attempt.error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying on ${modelLabel(lanes[i + 1])}`
-    );
+    onSwitch(model, lanes[i + 1], last.error);
   }
-  return { failedBeforeAnyTool: true };
+  if (last?.value != null) return last.value;
+  throw last?.error ?? new Error('no lane produced an answer');
+}
+
+/** Passes `stream` through and records how far the lane got. The first part
+ *  that is not the SDK's own preamble ends the first-response window. */
+function observeLane(
+  stream: AsyncIterable<StreamPart>,
+  probe: LaneProbe,
+  firstResponse: () => IdleDeadline | null,
+  onFirstResponse: () => void
+): AsyncIterable<StreamPart> {
+  return {
+    [Symbol.asyncIterator]() {
+      const iterator = stream[Symbol.asyncIterator]();
+      return {
+        async next() {
+          const waiting = firstResponse();
+          const next = await Promise.race([
+            iterator.next(),
+            ...(waiting ? [waiting.deadline] : []),
+          ]);
+          if (next.done) return next;
+          const part = next.value;
+          if (!SDK_PREAMBLE_PARTS.has(part.type)) onFirstResponse();
+          if (part.type === 'tool-call') probe.sawToolCall = true;
+          if (part.type === 'tool-result') probe.sawToolResult = true;
+          if (
+            (part.type === 'reasoning-delta' || part.type === 'text-delta') &&
+            part.text != null &&
+            part.text.length > 0
+          ) {
+            probe.sawOutput = true;
+          }
+          return next;
+        },
+        return: (value?: unknown) =>
+          iterator.return ? iterator.return(value) : Promise.resolve({ done: true, value }),
+      } as AsyncIterator<StreamPart>;
+    },
+  };
+}
+
+async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcome> {
+  const lanes = [p.plannerModel, ...(p.plannerFallbackModels ?? [])];
+  let tried = 0;
+  return runLaneChain<GatherOutcome>(
+    lanes,
+    async (model, isLast) => {
+      const attempt = await gatherOn(p, deps, model, tried++ === 0, !isLast);
+      // A call may have executed — no second lane — but only a result means the
+      // registry holds anything the writer can answer from.
+      return {
+        ...attempt,
+        value: {
+          failedBeforeAnyTool: attempt.error == null ? false : !attempt.sawToolResult,
+        },
+      };
+    },
+    (from, to, error) => {
+      log.warn(
+        `[Engine] planner ${modelLabel(from)} ${error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying on ${modelLabel(to)}`
+      );
+    },
+    () => p.abortSignal.aborted
+  );
 }
 
 async function gatherOn(
@@ -1042,7 +1176,7 @@ async function gatherOn(
   /** Another lane waits behind this one: silence before the first response
    *  then only costs PLANNER_FIRST_RESPONSE_DEADLINE_MS. */
   hasNextLane: boolean
-): Promise<GatherAttempt> {
+): Promise<LaneProbe & { error: unknown }> {
   const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
   const prefillMs = prefillAllowanceForModel(model, gatherSystem, p.messages);
   const { idle } = createToolPhaseIdle(p, prefillMs);

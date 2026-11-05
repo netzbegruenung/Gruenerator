@@ -571,3 +571,14 @@ describe('resolveAutoSelection — Pipeline-Agenten', () => {
     expect(selection.reasoning).toBe('medium');
   });
 });
+
+describe('UNIFIED_GEMMA_CHAIN', () => {
+  it('is Gemma on Melious, then the Mistral writer — and no entry targets Cortecs', async () => {
+    const { UNIFIED_GEMMA_CHAIN, LOOP_SYNTH_FALLBACK } = await import('./autoPolicy.js');
+    const { GEMMA_31B_ON_MELIOUS } = await import('../../../services/ai/gemmaHosts.js');
+    expect(UNIFIED_GEMMA_CHAIN[0]).toBe(GEMMA_31B_ON_MELIOUS);
+    expect(UNIFIED_GEMMA_CHAIN[1]).toBe(LOOP_SYNTH_FALLBACK);
+    expect(UNIFIED_GEMMA_CHAIN).toHaveLength(2);
+    for (const entry of UNIFIED_GEMMA_CHAIN) expect(entry.provider).not.toBe('cortecs');
+  });
+});
