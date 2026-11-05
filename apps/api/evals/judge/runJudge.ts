@@ -199,4 +199,6 @@ async function main(): Promise<void> {
   if (BLOCKING && failed.length > 0) process.exitCode = 1;
 }
 
-void main();
+// Only as a script: judge.vitest imports `parseVerdict` from here, and an
+// unguarded call would run a whole judge pass as a side effect of that import.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) void main();
