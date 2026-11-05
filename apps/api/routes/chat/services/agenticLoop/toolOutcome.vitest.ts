@@ -180,7 +180,22 @@ describe('buildToolFailureNote', () => {
       }),
       step({ toolName: 'sharepic', args: { text: 'Sichere Radwege für alle!' }, result: {} }),
     ]);
-    expect(note).toBe('');
+    expect(note).not.toMatch(/FEHLGESCHLAGENE WERKZEUGE/);
+    expect(note).toMatch(/sharepic: ein Aufruf schlug fehl \(Der Entwurf ist nicht gelungen\.\)/);
+    expect(note).toMatch(/behaupte nicht, die Erstellung sei gescheitert/);
+  });
+
+  it('still names a failed creation when a different one succeeded later', () => {
+    const note = buildToolFailureNote([
+      step({
+        toolName: 'create_presentation',
+        args: { topic: 'Radwege' },
+        result: { error: 'Zeitüberschreitung' },
+      }),
+      step({ toolName: 'create_presentation', args: { topic: 'Bäume' }, result: {} }),
+    ]);
+    expect(note).toMatch(/create_presentation: ein Aufruf schlug fehl \(Zeitüberschreitung\)/);
+    expect(note).toMatch(/sag konkret, welches davon fehlt/);
   });
 
   it('keeps a failure on another target of the same tool', () => {
