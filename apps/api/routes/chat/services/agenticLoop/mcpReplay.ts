@@ -141,15 +141,16 @@ function outcomeText(result: Record<string, unknown>): string | null {
 
 export function actionDigest(step: PersistedStep): string {
   const result = step.result ?? {};
+  const error =
+    typeof result.error === 'string' && result.error.trim() ? result.error.trim() : null;
+  // Forced steps are persisted without `ok`; an error in the result decides then.
   const digest: { ok: boolean; unchanged?: true; summary?: string; error?: string } = {
-    ok: step.ok !== false,
+    ok: step.ok !== false && error == null,
   };
   if (result.unchanged === true) digest.unchanged = true;
   const summary = outcomeText(result);
   if (summary) digest.summary = summary;
-  if (typeof result.error === 'string' && result.error.trim()) {
-    digest.error = result.error.trim();
-  }
+  if (error) digest.error = error;
   let out = JSON.stringify(digest);
   while (out.length > ACTION_DIGEST_MAX_CHARS) {
     const key = (digest.summary?.length ?? 0) >= (digest.error?.length ?? 0) ? 'summary' : 'error';
