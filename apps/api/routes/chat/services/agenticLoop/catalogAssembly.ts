@@ -86,6 +86,9 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'scrape_url',
 ]);
 
+/** How many persisted steps `buildToolReplay` looks at before filtering. */
+const REPLAY_SCAN_STEPS = 50;
+
 /**
  * Tools whose steps are NOT replayed as cross-turn "observations": side-effecting
  * or generative actions that own their own rehydration path (createdDocument /
@@ -516,9 +519,11 @@ export async function buildToolReplay(params: {
 }): Promise<ModelMessage[]> {
   try {
     const catalogNames = new Set(Object.keys(params.tools));
+    // Scan wide, filter, THEN let buildToolObservationReplay keep the newest six:
+    // cutting to six first let non-replayable steps (memory, actions) eat the window.
     const recent = params.toolHistory
-      ? params.toolHistory.toolSteps()
-      : await getRecentToolSteps(params.threadId);
+      ? params.toolHistory.toolSteps(REPLAY_SCAN_STEPS)
+      : await getRecentToolSteps(params.threadId, REPLAY_SCAN_STEPS);
     const replayable = recent.filter(
       (s: PersistedStep) =>
         !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
