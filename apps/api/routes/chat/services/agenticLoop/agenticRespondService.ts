@@ -752,7 +752,8 @@ export async function streamAgenticResponse(
       resumesSuspendedTurn: resumeApproval != null,
       tabularToolMounted: 'tabelle_auswerten' in wrapped,
       materialOrder:
-        finalState.compoundGenerationOrdered === true &&
+        (finalState.compoundGenerationOrdered === true ||
+          finalState.readsPickedMaterial === true) &&
         materialReaderTools(material).some((name) => name in wrapped),
     });
     const forceFirstToolCall = forceReason !== null;

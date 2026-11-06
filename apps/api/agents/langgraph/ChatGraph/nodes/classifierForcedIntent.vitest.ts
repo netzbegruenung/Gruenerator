@@ -361,20 +361,22 @@ describe('Tier 2 — context intents (resource presence only)', () => {
   // in der Pressemitteilung", „fasse den Antrag zusammen"), und ein daraus
   // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
   // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
+  // @document and @dokumentchat are picked material: the loop reads them and the
+  // model decides (06.11.2026). The refined query still feeds the up-front seed.
   describe('the forced search carries no Textsorte verdict', () => {
-    it.each<[string, Partial<ChatGraphState>]>([
-      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
-      ['@notebook', { notebookIds: ['nb-1'] }],
-      ['@document', { documentIds: ['doc-1'] }],
-      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
-    ])('stays a search on the %s path', async (_label, mention) => {
+    it.each<[string, Partial<ChatGraphState>, string]>([
+      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }, 'search'],
+      ['@notebook', { notebookIds: ['nb-1'] }, 'search'],
+      ['@document', { documentIds: ['doc-1'] }, 'agentic'],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }, 'agentic'],
+    ])('keeps its route on the %s path', async (_label, mention, intent) => {
       const state = buildState({
         userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
         attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
         ...mention,
       });
       const result = await classifierNode(state);
-      expect(result.intent).toBe('search');
+      expect(result.intent).toBe(intent);
       expect(result.searchQuery).not.toBeNull();
       expect(result.documentSubtype).toBeUndefined();
     });

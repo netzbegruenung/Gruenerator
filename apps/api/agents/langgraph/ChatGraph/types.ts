@@ -1257,6 +1257,10 @@ export interface ChatGraphState {
   // Die Art wurde bestellt, nicht nur genannt. `false` heisst: Werkzeug montiert,
   // aber `forceCompoundGeneration` holt es nicht nach — der Planer entscheidet.
   compoundGenerationOrdered?: boolean;
+  // Picked material with text (not only photos) went to the loop as material
+  // (`classifyPickedMaterial`): an empty up-front seed forces the first planner
+  // step onto its readers, as the forced search used to guarantee.
+  readsPickedMaterial?: boolean;
   // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
   // research loop, then feeds the gathered sources to the `edit_document` tool
   // as reference material. Synth writes only a short confirm.

@@ -43,6 +43,7 @@ import {
   setThreadLastMcpServer,
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
+import { isWolkePhoto } from '../wolkePhoto.js';
 
 import { type AskHumanGate } from './askHumanGate.js';
 import {
@@ -831,18 +832,17 @@ export async function seedAttachedDocuments(params: {
  * Up-front-Seed für die gewählten Wolke- und Connect-Dateien des Turns —
  * dieselbe Bauform wie `seedAttachedDocuments`.
  *
- * Eine gewählte Cloud-Datei erzwingt im Klassifikator `search`, und `search`
- * läuft als Loop. `retrievableAttachedSources` lässt `wolke`/`connect` aber
+ * Eine gewählte Cloud-Datei ist Material des Loop-Turns. `retrievableAttachedSources` lässt `wolke`/`connect` aber
  * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
  * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
  * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
  * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
  * hier über denselben Fan-out wie im Einzeldurchlauf.
  *
- * Nur mitgeführte Dateien (`cloudFilesCarriedOnly`) liest der Seed nur, wenn
- * der Klassifikator ihretwegen `search` erzwungen hat — bei „Danke!" oder
- * „Erstelle ein Sharepic …" lässt er das bewusst (#4897), und jeder Abruf ist
- * ein Download samt Textextraktion.
+ * Mitgeführte Dateien (#4112) liest er auf jedem Turn mit, wie früher die
+ * erzwungene Suche: ob der Turn sie braucht, entscheidet das Modell, und eine
+ * Connect-Datei hat im Loop kein Lesewerkzeug. Fotos liest er nie — sie haben
+ * keinen Text, den OCR fände.
  *
  * Der Planer bekommt je Wolke-Datei ein `cloud_files`-`read`-Paar, sofern das
  * Werkzeug montiert ist. Für Connect-Dateien gibt es im Loop kein
@@ -861,11 +861,11 @@ export async function seedAttachedCloudFiles(params: {
   onError: (message: string) => void;
 }): Promise<SeededCloudFiles> {
   const { state } = params;
-  const sources = resolveTurnMaterial(state).cloudFiles;
+  // A photo has no text to pre-read: OCR gave 3 characters in 3 s on every turn (live 06.11.2026).
+  const sources = resolveTurnMaterial(state).cloudFiles.filter(
+    (s) => !isWolkePhoto({ name: s.label })
+  );
   if (sources.length === 0) return { ...NOTHING_SEEDED, unreadable: [] };
-  if (state.cloudFilesCarriedOnly && state.intent !== 'search') {
-    return { ...NOTHING_SEEDED, unreadable: [] };
-  }
 
   // Eigener try: nur ein gescheiterter Abruf heißt „keine Datei lesbar". Wirft
   // erst die Registrierung danach, steht der Text womöglich schon im

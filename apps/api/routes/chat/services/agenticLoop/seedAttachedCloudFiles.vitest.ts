@@ -188,10 +188,24 @@ describe('seedAttachedCloudFiles', () => {
     expect(unreadable).toEqual([]);
   });
 
-  it('liest eine nur mitgeführte Datei nur, wenn der Klassifikator lesen wollte', async () => {
+  it('liest eine mitgeführte Datei auch auf einem Loop-Turn mit — ob er sie braucht, entscheidet das Modell', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { [wolkeSource.id]: [hit] },
+      searchedCollections: [],
+      errors: [],
+    });
     const { delivered } = await run(stateWith({ cloudFilesCarriedOnly: true, intent: 'agentic' }));
 
+    expect(delivered).toBe(true);
+    expect(fanout).toHaveBeenCalledOnce();
+  });
+
+  it('liest ein Foto nie per OCR vor (live 06.11.2026: 3 Zeichen in 3 s je Turn)', async () => {
+    const photo = { ...wolkeSource, id: 'wolke:link:/IMG_2601 (1).jpg', label: 'IMG_2601 (1).jpg' };
+    const { delivered, unreadable } = await run(stateWith({ documentSources: [photo] }));
+
     expect(delivered).toBe(false);
+    expect(unreadable).toEqual([]);
     expect(fanout).not.toHaveBeenCalled();
   });
 
