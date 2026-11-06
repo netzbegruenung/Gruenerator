@@ -207,19 +207,19 @@ describe('gather stall — degradieren UND vermerken', () => {
 
   it('meldet die Werkzeugphase EINMAL, damit der Aufrufer die Lane vermerken kann', async () => {
     const { deps } = stalledPlanner();
-    const onToolPhaseStall = vi.fn();
+    const onLaneUnhealthy = vi.fn();
 
-    const running = runAgenticLoop(params({ onToolPhaseStall }), deps);
+    const running = runAgenticLoop(params({ onLaneUnhealthy }), deps);
     await vi.advanceTimersByTimeAsync(60_000);
     await running;
 
-    expect(onToolPhaseStall).toHaveBeenCalledOnce();
+    expect(onLaneUnhealthy).toHaveBeenCalledExactlyOnceWith(0, 'stall');
   });
 
   it('antwortet trotzdem — der Stillstand kostet den Zug nicht', async () => {
     const { deps } = stalledPlanner();
 
-    const running = runAgenticLoop(params({ onToolPhaseStall: vi.fn() }), deps);
+    const running = runAgenticLoop(params({ onLaneUnhealthy: vi.fn() }), deps);
     await vi.advanceTimersByTimeAsync(60_000);
     const out = await running;
 
@@ -231,11 +231,11 @@ describe('gather stall — degradieren UND vermerken', () => {
       planner: () => streamOf([{ type: 'text-delta', text: 'ich suche' }]),
       synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
     });
-    const onToolPhaseStall = vi.fn();
+    const onLaneUnhealthy = vi.fn();
 
-    await runAgenticLoop(params({ onToolPhaseStall }), deps);
+    await runAgenticLoop(params({ onLaneUnhealthy }), deps);
 
-    expect(onToolPhaseStall).not.toHaveBeenCalled();
+    expect(onLaneUnhealthy).not.toHaveBeenCalled();
   });
 });
 
@@ -304,12 +304,11 @@ describe('tool phase stall guard (unified)', () => {
     expect((err as Error).name).toBe('TimeoutError');
   });
 
-  it('meldet NICHT an das Gesundheitsregister — das ist die Nutzer-Lane', async () => {
-    // Absicht, keine Lücke: der unified-Stream fährt das GEWÄHLTE Modell, dessen
-    // Gesundheit `responseStreamingService` bereits bucht. Und ein Stillstand
-    // hier kann einer vollständigen Antwort folgen (Test oben) — ein Zäh-Vermerk
-    // gegen eine Lane, die gerade sauber geantwortet hat, wäre schlicht falsch.
-    // Der Vermerk gilt nur der festen Planer-Lane des Split.
+  it('meldet NICHT an das Gesundheitsregister, wenn schon Text kam', async () => {
+    // Ein Stillstand NACH sichtbarer Ausgabe kann einer vollständigen Antwort
+    // folgen (Test oben) — ein Zäh-Vermerk gegen eine Lane, die gerade sauber
+    // geantwortet hat, wäre schlicht falsch. Gemeldet wird unified nur eine
+    // Lane, die keine Spur hinterliess.
     const { deps } = depsFor({
       synth: () =>
         ({
@@ -319,13 +318,13 @@ describe('tool phase stall guard (unified)', () => {
           })(),
         }) as unknown as ReturnType<LoopDeps['streamText']>,
     });
-    const onToolPhaseStall = vi.fn();
+    const onLaneUnhealthy = vi.fn();
 
-    const running = runAgenticLoop(unified({ onToolPhaseStall }), deps).catch((e: unknown) => e);
+    const running = runAgenticLoop(unified({ onLaneUnhealthy }), deps).catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
     await running;
 
-    expect(onToolPhaseStall).not.toHaveBeenCalled();
+    expect(onLaneUnhealthy).not.toHaveBeenCalled();
   });
 
   it('wertet einen LAUFENDEN Werkzeugaufruf als Lebenszeichen', async () => {

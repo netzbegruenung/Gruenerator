@@ -121,23 +121,73 @@ describe('modelHealth', () => {
     expect(isModelSlow(P, M)).toBe(true);
   });
 
-  it('ein ausdrückliches Verdikt zählt wie eine zähe Probe', () => {
-    recordSlowVerdict(P, M, 'First-Token-Frist gerissen');
-    expect(isModelSlow(P, M)).toBe(false);
+  it('ein ausdrückliches Verdikt öffnet sofort', () => {
     recordSlowVerdict(P, M, 'First-Token-Frist gerissen');
     expect(isModelSlow(P, M)).toBe(true);
   });
 
-  it('nach 5 min steht das Paar auf Probe — ein Verdikt genügt', () => {
-    vi.useFakeTimers();
-    recordSlowVerdict(P, M, 'x');
-    recordSlowVerdict(P, M, 'x');
-    expect(isModelSlow(P, M)).toBe(true);
+  const MIN = 60 * 1000;
 
-    vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+  it('das erste Fenster dauert 2 min, danach steht das Paar auf Probe', () => {
+    vi.useFakeTimers();
+    warmUp();
+    recordSlowVerdict(P, M, 'x');
+    vi.advanceTimersByTime(2 * MIN - 1);
+    expect(isModelSlow(P, M)).toBe(true);
+    vi.advanceTimersByTime(2);
     expect(isModelSlow(P, M)).toBe(false);
 
-    recordSlowVerdict(P, M, 'wieder zäh');
+    // Auf Probe genügt auch EINE zähe Durchsatz-Probe.
+    sample(3.7);
+    expect(isModelSlow(P, M)).toBe(true);
+  });
+
+  it('das Fenster wächst, solange die Störung anhält: 2 → 4 → 8 → … → 30 min', () => {
+    vi.useFakeTimers();
+    const fenster: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      recordSlowVerdict(P, M, 'x');
+      let minuten = 0;
+      while (isModelSlow(P, M)) {
+        vi.advanceTimersByTime(MIN);
+        minuten++;
+      }
+      fenster.push(minuten);
+    }
+    expect(fenster).toEqual([2, 4, 8, 16, 30, 30]);
+  });
+
+  it('nach 30 min Ruhe fängt die Treppe wieder bei 2 min an', () => {
+    vi.useFakeTimers();
+    recordSlowVerdict(P, M, 'x');
+    vi.advanceTimersByTime(2 * MIN + 1);
+    recordSlowVerdict(P, M, 'x');
+    vi.advanceTimersByTime(4 * MIN + 1);
+    expect(isModelSlow(P, M)).toBe(false);
+
+    vi.advanceTimersByTime(30 * MIN + 1);
+    recordSlowVerdict(P, M, 'nach der Ruhe');
+    vi.advanceTimersByTime(2 * MIN + 1);
+    expect(isModelSlow(P, M)).toBe(false);
+  });
+
+  it('Verdikte während des offenen Fensters verlängern es nicht', () => {
+    vi.useFakeTimers();
+    recordSlowVerdict(P, M, 'x');
+    // Parallele Züge, die schon vor dem Vermerk an die Lane gingen.
+    recordSlowVerdict(P, M, 'x');
+    recordSlowVerdict(P, M, 'x');
+    vi.advanceTimersByTime(2 * MIN + 1);
+    expect(isModelSlow(P, M)).toBe(false);
+  });
+
+  it('eine gesunde Probe schliesst ein offenes Fenster nicht', () => {
+    // #5399: 13 s nach dem Planer-Stillstand setzte ein gesunder Aufruf den
+    // Vermerk zurück, bevor er je etwas bewirkte.
+    warmUp();
+    recordSlowVerdict(P, M, 'gather_stall');
+    sample(80);
+    sample(80);
     expect(isModelSlow(P, M)).toBe(true);
   });
 
@@ -148,7 +198,7 @@ describe('modelHealth', () => {
     sample(3.9);
     expect(isModelSlow(P, M)).toBe(true);
 
-    vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+    vi.advanceTimersByTime(2 * MIN + 1);
     expect(isModelSlow(P, M)).toBe(false);
 
     sample(78);
