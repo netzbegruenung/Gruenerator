@@ -18,6 +18,8 @@
  * darf sich nicht den OCR-Dienst einhandeln, der an `injectImageAttachments`
  * im selben Modul hängt.
  */
+import { listTurnImageRefs } from './turnImageList.js';
+
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 /**
@@ -63,10 +65,17 @@ export type ImageVisibility =
  * einer Quelle.
  */
 export function imageVisibility(
-  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments'>,
+  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments' | 'wolkeFiles'>,
   opts: { loop?: boolean } = {}
 ): ImageVisibility {
-  if (!state.imageAttachments || state.imageAttachments.length === 0) return 'none';
+  // Fotos aus der Wolke stehen nur für den Loop bereit (`bild_ansehen` lädt sie);
+  // in der Nachricht des Einzeldurchlaufs fehlen sie, also dürfen sie dort nie
+  // „sichtbar" machen.
+  const hasImages =
+    opts.loop === true
+      ? listTurnImageRefs(state).length > 0
+      : (state.imageAttachments?.length ?? 0) > 0;
+  if (!hasImages) return 'none';
   if (state.enabledTools?.['vision'] === false) return 'vision_off';
   if (state.intent === 'image_edit') return 'image_edit';
   return opts.loop === true ? 'tool' : 'visible';

@@ -73,6 +73,7 @@ import { IMAGE_TOOL, imageVisibility } from '../services/imageVisibility.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
+import { turnImagesOf } from '../services/turnImages.js';
 
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
@@ -770,9 +771,13 @@ NUTZE WENN:
   // The loop's only way to see this turn's images (#3841). Not part of the
   // research ban: reading what the person attached is not new research. Mounted
   // on the same answer that makes the system prompt name it.
+  // EINE Liste je Turn: ihr Download-Cache gilt für bild_ansehen und edit_image
+  // zusammen, sonst lädt ein Turn, der erst ansieht und dann bearbeitet, das
+  // Wolke-Foto zweimal.
+  const turnImages = loop ? turnImagesOf(loop.state) : [];
   if (loop && imageVisibility(loop.state, { loop: true }) === 'tool') {
     tools[IMAGE_TOOL] = makeBildAnsehenTool({
-      images: loop.state.imageAttachments,
+      images: turnImages,
       sourceRegistry,
     });
   }
@@ -1315,19 +1320,29 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     ) {
       tools.generate_image = makeImageTool({ sse, state });
     }
-    // Das zuletzt erzeugte Bild verändern. Montiert, solange das letzte Artefakt
-    // des Threads ein Bild ist — ob ein Turn es meint, entscheidet der Planer,
-    // nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die grafik noch
-    // einmal an" ohne Werkzeug → erfundene Anpassung). Ein ANGEHÄNGTES Foto
-    // bleibt beim Einzeldurchlauf-`image_edit`; hier hätte das Werkzeug das
-    // falsche Bild genommen.
+    // Ein Bild verändern: das zuletzt erzeugte des Threads (ohne `bild`) oder
+    // ein Foto dieses Turns (mit `bild`, Wolke oder Anhang — die Vorlage für
+    // „ein Bild von mir, wie ich …"). Ob ein Turn es meint, entscheidet der
+    // Planer, nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die
+    // grafik noch einmal an" ohne Werkzeug → erfundene Anpassung). Ein
+    // ANGEHÄNGTES Foto nahm das Werkzeug früher nicht ernst genug: ohne `bild`
+    // hätte es das falsche (zuletzt erzeugte) Bild genommen. Deshalb bleibt der
+    // Standard an `lastToolContext` + „keine Anhänge" gebunden (siehe
+    // `makeEditImageTool`), und Turn-Fotos erreicht nur die ausdrückliche Nummer.
     if (
       !editorSurface &&
-      state.lastToolContext?.kind === 'image' &&
-      (state.imageAttachments?.length ?? 0) === 0 &&
-      state.enabledTools?.['image_edit'] !== false
+      state.enabledTools?.['image_edit'] !== false &&
+      ((state.lastToolContext?.kind === 'image' && (state.imageAttachments?.length ?? 0) === 0) ||
+        imageVisibility(state, { loop: true }) === 'tool')
     ) {
-      tools.edit_image = makeEditImageTool({ sse, state, threadId: loop.threadId ?? null });
+      tools.edit_image = makeEditImageTool({
+        sse,
+        state,
+        threadId: loop.threadId ?? null,
+        turnImages,
+        lastImageDefault:
+          state.lastToolContext?.kind === 'image' && (state.imageAttachments?.length ?? 0) === 0,
+      });
     }
     // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
     // generation KIND the router derived (from intent OR — for a demoted
