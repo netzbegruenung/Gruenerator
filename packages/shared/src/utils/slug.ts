@@ -49,9 +49,12 @@ export function slugifyName(name: string, fallback = 'notebook'): string {
     .replace(COMBINING_DIACRITICS, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    // The line above collapses every run into a single '-', so one dash per
+    // end is all there is to strip — and an unquantified pattern cannot
+    // backtrack (CodeQL js/polynomial-redos).
+    .replace(/^-|-$/g, '')
     .slice(0, 40)
-    .replace(/-+$/g, '');
+    .replace(/-$/, '');
   return normalized || fallback;
 }
 
