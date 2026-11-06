@@ -30,7 +30,7 @@ describe('font roles of the packs', () => {
 describe('print colours of the packs', () => {
   // The vector PDF matches paints against these keys as lower-case #rrggbb;
   // an upper-case key would never match and the colour would silently stay RGB.
-  it.each([GRUENE_DE, GRUENE_AT])('$id maps only own colours, in lower case', (pack) => {
+  it.each([GRUENE_DE, GRUENE_AT])('$id maps only colours the pack names, in lower case', (pack) => {
     const own = JSON.stringify({ ...pack, print: null }).toLowerCase();
     const cmyk = pack.print?.cmyk ?? {};
     expect(Object.keys(cmyk).length).toBeGreaterThan(0);

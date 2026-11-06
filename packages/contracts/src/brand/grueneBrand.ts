@@ -216,7 +216,7 @@ const GRUENE_DE_PRINT = {
     '#0ba1dd': [75, 18, 0, 0], // Himmel
     '#f5f1e9': [5, 5, 10, 0], // Sand
     '#6ccd87': [60, 0, 64, 0], // Hellgrün
-    '#e6007e': [0, 100, 0, 0], // Magenta, Störer only
+    '#e6007e': [0, 100, 0, 0], // Magenta: here an outline swatch (effects)
   },
 } as const;
 // AT has no published print spec. Dunkelgrün is the fill of the official
