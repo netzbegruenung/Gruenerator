@@ -22,6 +22,8 @@ import {
   textOf,
   tonesOf,
   type DeckStilCtx,
+  bildFolie,
+  BILD_BOXES,
 } from './shared.js';
 
 import { type DeckStilBox } from './index.js';
@@ -94,6 +96,9 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       });
       b.text('folie-kontakt', '', X + 6, 780, 1400, 28, { lineHeight: 1.3 });
       break;
+    case 'bild':
+      bildFolie(b, folie);
+      break;
   }
   const state = finishFolie(b, folie, ctx, 'aussage');
   // Grasgrün trägt weiße Schrift schlecht. DE: Dunkeltanne wie im Entwurf (auf #00CC4F gut über 4,5:1).
@@ -126,4 +131,5 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   },
   zitat: { 'folie-zitat': { maxHeight: 580, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
+  bild: BILD_BOXES,
 };

@@ -1,7 +1,7 @@
 import { defaultCanvasEditorStore } from '@ggraphic/editor/internal/stores/createCanvasEditorStore';
 import { TEMPLATE_DRAG_TYPE as VORLAGE_DRAG_TYPE } from '@ggraphic/editor/internal/utils/mediaDrop';
 import { CanvasEditorProvider } from '@ggraphic/editor/shell';
-import { readFolie } from '@gruenerator/contracts/slides';
+import { FOLIEN_TYP_IDS, readFolie } from '@gruenerator/contracts/slides';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -660,7 +660,7 @@ describe('VorlagenSection on a slide deck', () => {
       service: { listCanvas: vi.fn(async () => [...CANVAS_CATALOGUE, DECK_CANVAS]) },
     });
     const slides = screen.getByRole('region', { name: 'Folien aus Vorlagen' });
-    expect(within(slides).getAllByRole('button')).toHaveLength(7);
+    expect(within(slides).getAllByRole('button')).toHaveLength(FOLIEN_TYP_IDS.length);
     const more = await screen.findByRole('region', { name: 'Weitere Vorlagen' });
     expect(
       within(more)
@@ -786,7 +786,7 @@ describe('VorlagenSection on a slide deck', () => {
       { ...slidePage('s1'), state: { ...slidePage('s1').state, deckStil: 'kacheln' } },
     ];
 
-    it('lists all seven Folientypen in the current style, first and open', async () => {
+    it('lists every Folientyp in the current style, first and open', async () => {
       setup(KACHELN_DECK, { formatId: 'slide-16-9', service: { loadDeckVorlagen } });
       const groups = await waitFor(() => {
         const found = document.querySelectorAll('details');
@@ -794,7 +794,9 @@ describe('VorlagenSection on a slide deck', () => {
         return found;
       });
       expect(groups[0]!.querySelector('summary')).toHaveTextContent('Kacheln');
-      expect(within(groups[0] as HTMLElement).getAllByRole('button')).toHaveLength(7);
+      expect(within(groups[0] as HTMLElement).getAllByRole('button')).toHaveLength(
+        FOLIEN_TYP_IDS.length
+      );
       expect(groups[1]).not.toHaveAttribute('open');
       expect(screen.getByRole('button', { name: 'Liste – Kacheln einfügen' })).toBeInTheDocument();
     });

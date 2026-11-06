@@ -646,4 +646,5 @@ export const slideKit = {
   FOOTER,
   STOERER,
   STOERER_FILL,
+  PHOTO,
 } as const;
