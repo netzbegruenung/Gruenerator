@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const recordImpact = vi.fn();
-vi.mock('../../usage/UsageTrackingService.js', () => ({ recordImpact }));
+const recordTokenUsage = vi.fn();
+vi.mock('../../usage/UsageTrackingService.js', () => ({ recordImpact, recordTokenUsage }));
 vi.mock('../../../utils/usageContext.js', () => ({
   getUsageUserId: () => 'u1',
   getUsageFeature: () => 'chat',
@@ -70,6 +71,7 @@ describe('meliousFetch — tool phase streams and is measured', () => {
 
   beforeEach(() => {
     recordImpact.mockClear();
+    recordTokenUsage.mockClear();
     originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (_url, init) => {
       sent = JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
@@ -108,8 +110,18 @@ describe('meliousFetch — tool phase streams and is measured', () => {
     ]);
     expect(result.usage.inputTokens).toBe(120);
     await vi.waitFor(() => expect(recordImpact).toHaveBeenCalledTimes(1));
+    // Booked under the upstream Melious names, tokens and measurement alike —
+    // under different providers the stats would estimate the request again.
     expect(recordImpact).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'melious', model: 'gemma-4-31b:balanced', userId: 'u1' })
+      expect.objectContaining({ provider: 'infercom', model: 'gemma-4-31b:balanced', userId: 'u1' })
+    );
+    expect(recordTokenUsage).toHaveBeenCalledTimes(1);
+    expect(recordTokenUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'infercom',
+        model: 'gemma-4-31b:balanced',
+        inputTokens: 120,
+      })
     );
   });
 
