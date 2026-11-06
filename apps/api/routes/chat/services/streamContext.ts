@@ -1296,6 +1296,7 @@ export async function buildStreamContext({
     docAttachments,
     processedMeta,
     contextWindowTokens,
+    turnPicksDocumentChat: authorizedDocumentChatIds.length > 0,
     sse,
   });
 

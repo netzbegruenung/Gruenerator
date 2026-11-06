@@ -18,6 +18,7 @@ import {
   type MultiDocFanoutResult,
 } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { attachedPageUrls } from '../../agents/namedPages.js';
+import { wholeDocumentSkipsRetrieval } from '../wholeDocument.js';
 
 import { isLoopRerankEnabled } from './flags.js';
 
@@ -134,8 +135,13 @@ export interface TurnMaterial {
  * erzwungenen ersten Aufruf.
  */
 export function resolveTurnMaterial(state: ChatGraphState): TurnMaterial {
+  // Ein Ganzdokument-Turn hat sein Material ganz im Prompt (wholeDocument.ts):
+  // kein Vorab-Abruf, kein erzwungenes `dokumente_lesen`/`summarize` dafür.
+  // Live-Test 06.11.2026: ohne das erzwang `material_order` eine Planer-Runde
+  // für `dokumente_lesen`, obwohl der Schreiber die 68k Zeichen schon hatte.
+  const skip = wholeDocumentSkipsRetrieval(state.wholeDocument, state.threadAttachments ?? []);
   return {
-    qdrantDocs: sourcesReadBy(state, 'qdrant_docs'),
+    qdrantDocs: sourcesReadBy(state, 'qdrant_docs').filter((s) => !skip.has(s.id)),
     cloudFiles: sourcesReadBy(state, 'cloud'),
     notebooks: sourcesReadBy(state, 'notebook'),
     pageUrls: attachedPageUrls(state),

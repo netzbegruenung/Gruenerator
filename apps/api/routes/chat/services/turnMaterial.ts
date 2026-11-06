@@ -22,6 +22,10 @@
  * consumers spend it as if it did.
  */
 
+import { wholeDocumentIdsInPrompt } from './wholeDocument.js';
+
+import type { WholeDocumentTurn } from '../../../agents/langgraph/ChatGraph/types.js';
+
 export interface TurnMaterialState {
   /** THIS turn's uploads, already rendered into prompt text. */
   attachmentContext?: string | null | undefined;
@@ -35,9 +39,15 @@ export interface TurnMaterialState {
         summary?: string | null | undefined;
       }[]
     | undefined;
+  /** A whole-document turn puts vectorized rows back in full — see wholeDocument.ts. */
+  wholeDocument?: WholeDocumentTurn | null | undefined;
 }
 
 export function turnMaterialChars(state: TurnMaterialState): number {
+  const wholeIds =
+    state.wholeDocument?.origin === 'thread'
+      ? wholeDocumentIdsInPrompt(state.wholeDocument)
+      : new Set<string>();
   return (
     (state.attachmentContext?.length ?? 0) +
     (state.threadAttachments ?? [])
@@ -52,7 +62,8 @@ export function turnMaterialChars(state: TurnMaterialState): number {
       // material is already present. Live 13.08.2026 the model said so
       // itself — "wurden mir inhaltlich nicht übermittelt" — while the log
       // for the same turn read `material=286075c`.
-      .filter((a) => !a.isImage && a.documentId == null)
+      // Except on a whole-document turn: then the row IS in the prompt, in full.
+      .filter((a) => !a.isImage && (a.documentId == null || wholeIds.has(a.documentId)))
       .reduce((sum, a) => sum + (a.extractedText?.length ?? a.summary?.length ?? 0), 0)
   );
 }
