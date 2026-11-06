@@ -102,6 +102,7 @@ describe('resolveTurnMaterial', () => {
       documentSources: [src('document_chat', 'pdf'), src('document', 'datei')],
       wholeDocument: {
         origin: 'turn',
+        ask: 'summary',
         docs: [{ name: 'Vereinbarung.pdf', text: 'x', documentId: 'pdf' }],
         chars: 1,
         budgetChars: 151_550,

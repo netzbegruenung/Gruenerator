@@ -93,13 +93,25 @@ describe('paste with typed text — current turn routing', () => {
     expect(s.attachmentContext).toContain('A-Satz');
   });
 
+  // Live 04.11.2026 (#5406, Thread aad8d508): „Hier sind die Termine" über einer
+  // langen Terminliste. Über 12k vektorisiert, der Turn wurde zur Suche nach
+  // „Termine", und das Modell antwortete „Du hast mir keinen Text geschickt" —
+  // auf gruenerator.eu nachgestellt: 38 von 110 Terminen, der Rest still weg.
   it.each([
     ['12k', 12_000],
     ['30k', 30_000],
-  ])('%s is vectorized and the inline text is dropped', async (_l, n) => {
-    const s = await runEnrich([para('A', n)]);
+  ])('%s is indexed for follow-ups AND stays inline, whatever the order', async (_l, n) => {
+    const s = await runEnrich([para('A', n)], 'Hier sind die Termine');
+    expect(s.documentChatIds).toHaveLength(1);
+    expect(s.attachmentContext).toContain('A-Satz');
+    expect(s.wholeDocument).toMatchObject({ origin: 'turn', fits: true });
+  });
+
+  it('a paste beyond the whole-document budget is vectorized and dropped as before', async () => {
+    const s = await runEnrich([para('A', 300_000)], 'Hier sind die Termine');
     expect(s.documentChatIds).toHaveLength(1);
     expect(s.attachmentContext ?? '').not.toContain('A-Satz');
+    expect(s.wholeDocument ?? null).toBeNull();
   });
 });
 
@@ -115,11 +127,11 @@ describe('paste with a summary ask — whole-document turn', () => {
 });
 
 describe('two pastes in ONE message (same file name)', () => {
-  it('small + large: the large one is indexed under ITS OWN text, the small stays inline', async () => {
+  it('small + large: the large one is indexed under ITS OWN text, both stay inline', async () => {
     const s = await runEnrich([para('KLEIN', 3_000), para('GROSS', 20_000)]);
     expect(uploads.map((u) => u.text?.slice(0, 5))).toEqual(['GROSS']);
     expect(s.attachmentContext ?? '').toContain('KLEIN');
-    expect(s.attachmentContext ?? '').not.toContain('GROSS');
+    expect(s.attachmentContext ?? '').toContain('GROSS');
   });
 
   it('large + small: nothing from the small one is indexed under the large text', async () => {

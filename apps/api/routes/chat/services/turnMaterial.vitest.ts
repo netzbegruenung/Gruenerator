@@ -75,6 +75,7 @@ describe('turnMaterialChars', () => {
         threadAttachments: [{ isImage: false, documentId: id, extractedText: text }],
         wholeDocument: {
           origin: 'thread',
+          ask: 'summary',
           docs: [{ name: 'document.pdf', text, documentId: id }],
           chars: text.length,
           budgetChars: 151_550,
