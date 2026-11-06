@@ -159,6 +159,7 @@ export {
   isThreadReadOnly,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
+  subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 export { buildThreadPath } from './lib/threadPath';
