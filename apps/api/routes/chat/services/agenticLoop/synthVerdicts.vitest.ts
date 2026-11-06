@@ -73,3 +73,21 @@ describe('finalizeAnswerText — angekündigte Erstellung ohne Artefakt (#4611)'
     expect(r.text).toBe(live);
   });
 });
+
+describe('finalizeAnswerText — erfundener Werkzeug-Fehlschlag (06.11.2026)', () => {
+  const live =
+    'Es tut mir leid, der Aufruf zur Bilderstellung ist gerade fehlgeschlagen. Ich kann dir aber anbieten, ein Bild zu beschreiben.';
+
+  it('streicht den Satz bei steps=0 und meldet replaced', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 0 });
+    expect(r.text).toBe('Ich kann dir aber anbieten, ein Bild zu beschreiben.');
+    expect(r.replaced).toBe(true);
+    expect(r.warnings.join()).toContain('tool failure claim without a tool step');
+  });
+
+  it('lässt ihn stehen, wenn ein Werkzeug lief und scheiterte', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 1 });
+    expect(r.text).toBe(live);
+    expect(r.replaced).toBe(false);
+  });
+});
