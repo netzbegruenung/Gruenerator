@@ -42,10 +42,35 @@ describe('offerNote', () => {
   const state = (over: Record<string, unknown> = {}) =>
     ({ userLocale: 'de-DE', vorlagenShown: [], enabledTools: {}, ...over }) as never;
 
-  it('names the artifact in a single closing question', () => {
+  it('names the artifact in an optional closing offer', () => {
     const note = offerNote(state(), ['sprechzettel']);
-    expect(note).toContain('ABSCHLUSS');
+    expect(note).toContain('ABSCHLUSS (freiwillig)');
     expect(note).toContain('Präsentation');
+  });
+
+  // Live 06.11.2026: „schließe mit genau EINER kurzen Rückfrage … Keine andere
+  // Rückfrage" hielt Gemma 4 31B in einer Endlosschleife aus Selbstkorrekturen.
+  it('neither demands the offer nor dictates its wording', () => {
+    vorlagenCatalog.size = 0;
+    const note = offerNote(state(), ['instagram']);
+    expect(note).not.toMatch(/genau EINER|Keine andere Rückfrage|schließe mit/);
+    expect(note).toContain('als Frage oder als kurzer Satz');
+  });
+
+  it('offers nothing the thread already has, not just this turn', () => {
+    vorlagenCatalog.size = 3;
+    const withSharepic = state({ threadArtifacts: [{ kind: 'sharepic' }] });
+    // Weder die Galerie noch das Sharepic selbst.
+    expect(offerNote(withSharepic, ['instagram'])).toBe('');
+    vorlagenCatalog.size = 0;
+    expect(offerNote(withSharepic, ['instagram'])).toBe('');
+    expect(
+      offerNote(state({ threadArtifacts: [{ kind: 'presentation' }] }), ['sprechzettel'])
+    ).toBe('');
+    // Eine andere Art im Thread hält das Angebot nicht auf.
+    expect(offerNote(state({ threadArtifacts: [{ kind: 'document' }] }), ['instagram'])).toContain(
+      'Sharepic'
+    );
   });
 
   it('is empty without a fitting recipe', () => {
@@ -139,6 +164,35 @@ describe('offerToRecord', () => {
         producedArtifact: false,
       })
     ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Das live gestellte Angebot (06.11.2026). Ein Trenner an jedem Punkt las es
+  // als „2026 erstellen?" — ohne „Sharepic", also ungespeichert.
+  it.each([
+    'Soll ich daraus ein Sharepic mit dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?',
+    'Soll ich daraus ein Sharepic zum Bauausschuss am 19. November machen?',
+    'Soll ich daraus z.B. ein Sharepic machen?',
+  ])('records an offer whose details carry dots: %s', (offer) => {
+    expect(
+      offerToRecord({
+        recipeMentions: ['instagram'],
+        text: `${post}\n\n${offer}`,
+        producedArtifact: false,
+      })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Das Angebot ist frei formuliert und muss keine Frage sein.
+  it.each([
+    'Wenn du magst, mache ich daraus ein Sharepic.',
+    'Gern erstelle ich dir dazu noch ein Sharepic.',
+    'Sag Bescheid, dann baue ich dir ein Sharepic daraus.',
+  ])('records a first-person offer without a question mark: %s', (offer) => {
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
   });
 
   it('records the live offer that ended with „!" instead of a question', () => {
@@ -277,5 +331,11 @@ describe('offerTopic', () => {
         'Liebe Freund*innen, die Verkehrswende …\n\nSoll ich daraus eine Präsentation machen?'
       )
     ).toBe('Liebe Freund*innen, die Verkehrswende …');
+  });
+
+  it('drops a closing offer that is no question', () => {
+    expect(
+      offerTopic('Bist du dabei? Komm am Samstag!\n\nWenn du magst, mache ich daraus ein Sharepic.')
+    ).toBe('Bist du dabei? Komm am Samstag!');
   });
 });

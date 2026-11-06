@@ -1678,10 +1678,12 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * branch still answers it in one or two paragraphs.
  */
 // Angebote (#4367): ein Angebot, das ein ABSCHLUSS-Hinweis des Rezepts
-// verlangt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
-// was angeboten wurde, und ein „ja" darauf baut es.
+// erlaubt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
+// was angeboten werden darf, und ein „ja" darauf baut es. „Erlaubt", nicht
+// „verlangt": die Pflicht zur Rückfrage hielt Gemma 4 31B am 06.11.2026 in
+// einer Endlosschleife aus Selbstkorrekturen.
 const SCOPE_RULE =
-  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer der einen Rückfrage, die ein ABSCHLUSS-Hinweis verlangt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer dem einen Angebot, das ein ABSCHLUSS-Hinweis erlaubt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
 
 /**
  * The syntax has to be named. Asked only for "Überschriften", the model answered

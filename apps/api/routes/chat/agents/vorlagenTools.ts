@@ -177,20 +177,29 @@ export function vorlagenForTurn(state: ChatGraphState): SharepicVorlage[] | null
 }
 
 /**
- * Das Angebot nach einem Social-Post — als Rückfrage im Text, nicht als Chip
+ * Das freiwillige Angebot nach einem Social-Post — im Text, nicht als Chip
  * und nicht als ungefragte Galerie. Hängt an jeder Stelle, an der ein
- * Social-Rezept in den Prompt kommt (Einzeldurchlauf und Loop). Die Frage nennt
- * „Sharepic-Vorlagen", damit ein knappes „ja" danach die Vorlagen trifft
- * (`acceptsVorlagenOffer`, `mentionsVorlagen`).
+ * Social-Rezept in den Prompt kommt (Einzeldurchlauf und Loop). Wie das Modell
+ * es formuliert, ist frei; es nennt nur die Vorlagen, damit ein knappes „ja"
+ * danach sie trifft (`acceptsVorlagenOffer`, `mentionsVorlagen` lesen das Wort,
+ * nicht die Satzform).
+ *
+ * Hat der Thread schon ein Sharepic, entfällt es: aus einer Vorlage wird
+ * wieder eines, und das Angebot kam sonst nach jedem weiteren Post erneut —
+ * siehe `offerNote` für denselben Fall beim Sharepic selbst.
  */
 export function vorlagenOfferNote(
-  state: Pick<ChatGraphState, 'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools'>,
+  state: Pick<
+    ChatGraphState,
+    'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools' | 'threadArtifacts'
+  >,
   recipeMentions: readonly string[]
 ): string {
   // Dasselbe Tor wie die Montage: ein Agent ohne die Fähigkeit bietet sie nicht an.
   if (state.enabledTools?.['vorlagen'] === false) return '';
   if (state.vorlagenShown?.length) return '';
+  if (state.threadArtifacts?.some((artifact) => artifact.kind === 'sharepic')) return '';
   if (!recipeMentions.some(isSocialRecipe)) return '';
   if (turnVorlagen(state).length === 0) return '';
-  return '\n\nABSCHLUSS: Schließe nach dem fertigen Beitrag mit EINER kurzen, freundlichen Rückfrage, ob du passende Sharepic-Vorlagen dazu zeigen sollst — aus jeder macht die Person mit einem Klick ein Sharepic mit diesem Text (z. B. „Soll ich dir passende Sharepic-Vorlagen zeigen? Daraus wird mit einem Klick ein Sharepic mit deinem Text."). Nur diese eine Frage; beschreibe kein Design.';
+  return '\n\nABSCHLUSS (freiwillig): Passt es zum fertigen Beitrag, darfst du zum Schluss anbieten, passende Sharepic-Vorlagen zu zeigen — aus jeder macht die Person mit einem Klick ein Sharepic mit diesem Text (etwa „Soll ich dir passende Sharepic-Vorlagen zeigen? Daraus wird mit einem Klick ein Sharepic mit deinem Text."). Wie du es formulierst, ist dir überlassen; nenne dabei die Vorlagen, sonst öffnet ein „ja" darauf nichts. Biete es nur einmal an und beschreibe kein Design.';
 }
