@@ -85,30 +85,43 @@ function collectionWith(pageids: number[]): FakePoint[] {
   }));
 }
 
-/** MediaWiki: erst die Titelliste, danach je Batch der Seiteninhalt. */
-function mockWiki(allpages: Array<{ title: string; pageid: number }>, content = 'Inhalt') {
+type ContributorsBody = { query: { pages: Record<string, unknown> }; continue?: object };
+
+/**
+ * MediaWiki: erst die Titelliste, danach je Batch Autorenschaft und Inhalt.
+ * `contributors` liefert die Antworten auf `prop=contributors` der Reihe nach
+ * (für `pccontinue`); ohne Angabe nennt die Antwort niemanden.
+ */
+function mockWiki(
+  allpages: Array<{ title: string; pageid: number }>,
+  content = 'Inhalt',
+  contributors: ContributorsBody[] = []
+) {
+  let contributorsCall = 0;
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
       const body = url.includes('list=allpages')
         ? { query: { allpages: allpages } }
-        : {
-            query: {
-              pages: Object.fromEntries(
-                allpages.map((a) => [
-                  String(a.pageid),
-                  {
-                    pageid: a.pageid,
-                    title: a.title,
-                    categories: [],
-                    revisions: [
-                      { slots: { main: { '*': content } }, timestamp: '2020-01-01T00:00:00Z' },
-                    ],
-                  },
-                ])
-              ),
-            },
-          };
+        : url.includes('prop=contributors')
+          ? (contributors[contributorsCall++] ?? { query: { pages: {} } })
+          : {
+              query: {
+                pages: Object.fromEntries(
+                  allpages.map((a) => [
+                    String(a.pageid),
+                    {
+                      pageid: a.pageid,
+                      title: a.title,
+                      categories: [],
+                      revisions: [
+                        { slots: { main: { '*': content } }, timestamp: '2020-01-01T00:00:00Z' },
+                      ],
+                    },
+                  ])
+                ),
+              },
+            };
       return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
     })
   );
@@ -199,6 +212,78 @@ describe('fullCrawl prunes articles deleted upstream', () => {
 
     await expect(crawl(0.9)).rejects.toThrow();
     expect(del).not.toHaveBeenCalled();
+  });
+});
+
+describe('fullCrawl skips pages written only by anonymous IPs', () => {
+  // Spam-Welle 05./06.11.2026: türkische „Tron Enerji"-Seiten, jede von einer
+  // anderen IP und ohne ein einziges angemeldetes Konto.
+  const SPAM = { title: 'Tron Enerji ile Kripto Para', pageid: 5514 };
+  const TEXT = 'Radverkehr in der Kommune: Radwege, Fahrradstraßen und Abstellanlagen. '.repeat(3);
+
+  function storedPageIds(): number[] {
+    return upsert.mock.calls.flatMap((c) =>
+      (c[1] as { points: Array<{ payload: { pageid: number } }> }).points.map(
+        (p) => p.payload.pageid
+      )
+    );
+  }
+
+  it('does not store an IP-only page but stores one with a registered author', async () => {
+    points = [];
+    mockWiki([{ title: 'Radverkehr', pageid: 1 }, SPAM], TEXT, [
+      {
+        query: {
+          pages: {
+            '1': { pageid: 1, contributors: [{ name: 'Wolfgang Pohl' }], anoncontributors: 2 },
+            '5514': { pageid: 5514, anoncontributors: 1 },
+          },
+        },
+      },
+    ]);
+
+    const result = await crawl(0.9);
+
+    expect(new Set(storedPageIds())).toEqual(new Set([1]));
+    expect(result.skipReasons.anonymous_only.count).toBe(1);
+    expect(result.skipReasons.anonymous_only.examples).toEqual([SPAM.title]);
+  });
+
+  it('prunes an IP-only page that was stored before the gate existed', async () => {
+    points = collectionWith([1, 1, 5514]);
+    mockWiki([{ title: 'Radverkehr', pageid: 1 }, SPAM], TEXT, [
+      {
+        query: {
+          pages: {
+            '1': { pageid: 1, contributors: [{ name: 'Wolfgang Pohl' }] },
+            '5514': { pageid: 5514, anoncontributors: 1 },
+          },
+        },
+      },
+    ]);
+
+    const result = await crawl(0.9);
+
+    expect(deletedIds()).toEqual([3]);
+    expect(result.pruned).toBe(1);
+  });
+
+  it('follows pccontinue before calling a page anonymous', async () => {
+    // `pclimit` gilt für die ganze Anfrage: die angemeldete Autorin von
+    // Seite 1 steht erst in der zweiten Antwort.
+    points = [];
+    mockWiki([{ title: 'Radverkehr', pageid: 1 }], TEXT, [
+      {
+        query: { pages: { '1': { pageid: 1, anoncontributors: 3 } } },
+        continue: { pccontinue: '1|42', continue: '||' },
+      },
+      { query: { pages: { '1': { pageid: 1, contributors: [{ name: 'Sophia Berger' }] } } } },
+    ]);
+
+    const result = await crawl(0.9);
+
+    expect(storedPageIds()).toContain(1);
+    expect(result.skipReasons.anonymous_only.count).toBe(0);
   });
 });
 

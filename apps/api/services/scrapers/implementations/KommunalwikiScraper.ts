@@ -83,7 +83,18 @@ interface CrawlResult {
     no_revision: SkipReason;
     no_chunks: SkipReason;
     already_exists: SkipReason;
+    anonymous_only: SkipReason;
   };
+}
+
+interface MediaWikiContributorsResponse {
+  query?: {
+    pages?: Record<
+      string,
+      { pageid: number; contributors?: Array<{ name: string }>; anoncontributors?: number }
+    >;
+  };
+  continue?: Record<string, string>;
 }
 
 interface MediaWikiQueryResponse {
@@ -178,6 +189,52 @@ export class KommunalwikiScraper extends BaseScraper {
 
     this.log(`Found ${articles.length} articles`);
     return articles;
+  }
+
+  /**
+   * Seiten, an denen ausschliesslich anonyme IP-Adressen geschrieben haben.
+   *
+   * Im KommunalWiki dürfen Anonyme Seiten anlegen, und Spam-Bots tun das in
+   * Wellen: am 05./06.11.2026 Dutzende türkische „Tron Enerji"-Seiten von
+   * wechselnden IPs, von denen der Nachtlauf sechs einlas, bevor die Wiki-
+   * Redaktion sie löschte (vorher schon #3198). Gemessen am selben Tag: von
+   * 1.665 lebenden Seiten war keine einzige nur von IPs bearbeitet — das
+   * Gatter trifft also nur, was die Redaktion ohnehin löscht.
+   *
+   * `pclimit` gilt für die ganze Anfrage, nicht je Seite: ohne das Folgen von
+   * `pccontinue` fehlte manchen Seiten die Liste, und sie sähen anonym aus.
+   */
+  private async getAnonymousOnlyPageIds(pageids: number[]): Promise<Set<number>> {
+    const registered = new Set<number>();
+    const anonymous = new Set<number>();
+    let cont: Record<string, string> = {};
+
+    do {
+      const params = new URLSearchParams({
+        action: 'query',
+        pageids: pageids.join('|'),
+        prop: 'contributors',
+        pclimit: 'max',
+        format: 'json',
+        ...cont,
+      });
+
+      const response = await this.fetchWithRetry(`${this.apiUrl}?${params}`, {
+        timeout: 30000,
+        maxRetries: 3,
+        headers: { Accept: 'application/json' },
+      });
+      const data = (await response.json()) as MediaWikiContributorsResponse;
+
+      for (const page of Object.values(data.query?.pages ?? {})) {
+        if (page.contributors?.length) registered.add(page.pageid);
+        if ((page.anoncontributors ?? 0) > 0) anonymous.add(page.pageid);
+      }
+
+      cont = data.continue?.pccontinue ? data.continue : {};
+    } while (cont.pccontinue);
+
+    return new Set([...anonymous].filter((id) => !registered.has(id)));
   }
 
   /**
@@ -514,8 +571,12 @@ export class KommunalwikiScraper extends BaseScraper {
         no_revision: { count: 0, examples: [] },
         no_chunks: { count: 0, examples: [] },
         already_exists: { count: 0, examples: [] },
+        anonymous_only: { count: 0, examples: [] },
       },
     };
+    // Anonym-only-Seiten gelten auch fürs Aufräumen als nicht lebend: so
+    // verschwindet eine, die vor diesem Gatter eingelesen wurde, im selben Lauf.
+    const anonymousOnly = new Set<number>();
 
     try {
       const articles = await this.getAllArticleTitles();
@@ -533,6 +594,8 @@ export class KommunalwikiScraper extends BaseScraper {
         const pageids = batch.map((a) => a.pageid);
 
         try {
+          const batchAnonymousOnly = await this.getAnonymousOnlyPageIds(pageids);
+          for (const id of batchAnonymousOnly) anonymousOnly.add(id);
           const contentData = await this.getArticleContent(pageids);
           const pages = contentData.query?.pages || {};
 
@@ -545,6 +608,15 @@ export class KommunalwikiScraper extends BaseScraper {
               result.skipReasons.no_revision.count++;
               if (result.skipReasons.no_revision.examples.length < 10) {
                 result.skipReasons.no_revision.examples.push(article?.title || `pageid:${pageid}`);
+              }
+              continue;
+            }
+
+            if (anonymousOnly.has(article.pageid)) {
+              result.skipped++;
+              result.skipReasons.anonymous_only.count++;
+              if (result.skipReasons.anonymous_only.examples.length < 10) {
+                result.skipReasons.anonymous_only.examples.push(article.title);
               }
               continue;
             }
@@ -662,7 +734,7 @@ export class KommunalwikiScraper extends BaseScraper {
       // `getAllArticleTitles`, landen wir im catch und räumen nie auf — das
       // ist Absicht: gegen einen lauten Ausfall hilft nur, nichts zu tun.
       const prune = await this.pruneDeletedArticles(
-        new Set(articles.map((a) => a.pageid)),
+        new Set(articles.map((a) => a.pageid).filter((id) => !anonymousOnly.has(id))),
         pruneMaxShare
       );
       result.pruned = prune.pruned;
@@ -722,6 +794,11 @@ export class KommunalwikiScraper extends BaseScraper {
         console.log(`  • No content: ${sr.no_content.count}`);
         if (sr.no_content.examples.length > 0)
           console.log(`    Examples: ${sr.no_content.examples.slice(0, 5).join(', ')}`);
+      }
+      if (sr.anonymous_only.count > 0) {
+        console.log(`  • Anonymous (IP-only) authors: ${sr.anonymous_only.count}`);
+        if (sr.anonymous_only.examples.length > 0)
+          console.log(`    Examples: ${sr.anonymous_only.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.no_revision.count > 0) {
         console.log(`  • No revision data: ${sr.no_revision.count}`);
