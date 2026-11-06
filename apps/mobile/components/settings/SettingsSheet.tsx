@@ -534,6 +534,22 @@ export function SettingsSheet() {
                 onPress={() => setDetail('locale')}
               />
               <ListRow
+                icon="sunny-outline"
+                title={getSettingsEntry('erinnerungen.tagesbriefing').title}
+                value="Übersicht beim ersten Besuch des Tages"
+                accessory={
+                  <Switch
+                    value={user.proactive_briefing_enabled !== false}
+                    onValueChange={(value) => {
+                      void updateProfile({ proactive_briefing_enabled: value }).catch(() => {
+                        Alert.alert('Fehler', 'Einstellung konnte nicht gespeichert werden.');
+                      });
+                    }}
+                    trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                  />
+                }
+              />
+              <ListRow
                 icon="accessibility-outline"
                 title="Barrierefreiheit"
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}

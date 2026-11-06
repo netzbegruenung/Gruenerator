@@ -162,6 +162,7 @@ export {
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 export { buildThreadPath } from './lib/threadPath';
+export { useDailyBriefing } from './hooks/useDailyBriefing';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';

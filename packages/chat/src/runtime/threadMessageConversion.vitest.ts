@@ -26,6 +26,7 @@ function customOf(metadata: LoadedMessage['metadata']): Record<string, unknown> 
 // A representative persisted value for every 1:1 passthrough field. Keyed by the
 // field name so the `it.each` below cannot pass unless each key is handled.
 const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], unknown> = {
+  followUpSuggestions: ['Was steht heute an?'],
   citations: [{ id: 'c1', title: 'Quelle' }],
   searchImages: [
     {

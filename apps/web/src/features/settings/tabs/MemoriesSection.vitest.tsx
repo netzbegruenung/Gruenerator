@@ -106,6 +106,33 @@ describe('MemoriesSection', () => {
     await waitFor(() => expect(sent).toEqual({ memory_enabled: false }));
   });
 
+  it('persists the Tagesbriefing switch through the profile update', async () => {
+    server.use(http.get(LIST, () => HttpResponse.json({ memories: [] })));
+    let sent: unknown = null;
+    server.use(
+      http.put(PROFILE, async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({
+          success: true,
+          profile: { id: 'u1', proactive_briefing_enabled: false },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<MemoriesSection />);
+    const toggle = await screen.findByRole('switch', { name: 'Tagesbriefing im Chat einschalten' });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await waitFor(() => expect(sent).toEqual({ proactive_briefing_enabled: false }));
+  });
+
+  it('hides the dev rerun buttons outside the dev auth bypass', async () => {
+    server.use(http.get(LIST, () => HttpResponse.json({ memories: [] })));
+    renderWithProviders(<MemoriesSection />);
+    await screen.findByRole('switch', { name: 'Tagesbriefing im Chat einschalten' });
+    expect(screen.queryByText('Folgetag simulieren')).not.toBeInTheDocument();
+  });
+
   it('filters by kind client-side', async () => {
     server.use(http.get(LIST, () => HttpResponse.json({ memories: ROWS })));
     const { user } = renderWithProviders(<MemoriesSection />);

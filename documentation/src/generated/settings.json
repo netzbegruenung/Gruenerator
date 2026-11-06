@@ -142,6 +142,11 @@
       "title": "Gedächtnis",
       "description": "Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
     },
+    "erinnerungen.tagesbriefing": {
+      "tab": "erinnerungen",
+      "title": "Tagesbriefing im Chat",
+      "description": "Beim ersten Besuch des Tages schreibt dir der Grünerator eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute."
+    },
     "personalisierung.rollen": {
       "tab": "personalisierung",
       "title": "Rollen",
@@ -434,6 +439,12 @@
         "key": "wolke_new_files",
         "label": "Neue Wolke-Dateien",
         "description": "Neue Dateien in den Wolke-Ordnern deiner Notebooks",
+        "group": "system"
+      },
+      {
+        "key": "daily_briefing",
+        "label": "Tagesbriefing",
+        "description": "Deine Übersicht beim ersten Besuch des Tages",
         "group": "system"
       },
       {

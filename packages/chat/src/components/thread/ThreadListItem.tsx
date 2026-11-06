@@ -33,6 +33,7 @@ import { cn } from '../../lib/utils';
 import {
   getThreadAccessType,
   getThreadTags,
+  isBriefingUnread,
   isThreadReadOnly,
   subscribeThreadTags,
 } from '../../runtime/GrueneratorThreadListAdapter';
@@ -224,6 +225,11 @@ export function GrueneratorThreadListItem() {
     () => isThreadReadOnly(remoteId ?? ''),
     () => isThreadReadOnly(remoteId ?? '')
   );
+  const briefingUnread = useSyncExternalStore(
+    subscribeThreadTags,
+    () => isBriefingUnread(remoteId ?? ''),
+    () => isBriefingUnread(remoteId ?? '')
+  );
   const isOwner = accessType === 'owner';
   const { threadPath, onClick: handleOpen } = useOpenThread(remoteId, title, readOnly);
   const handleArchive = useSafeThreadAction('archive');
@@ -264,6 +270,11 @@ export function GrueneratorThreadListItem() {
               <p className="min-w-0 truncate text-sm">
                 <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
               </p>
+              {briefingUnread && (
+                <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-foreground">
+                  Neu
+                </span>
+              )}
               {!isOwner && (
                 <span
                   className="flex shrink-0 items-center gap-1 rounded bg-secondary-100 px-1 py-0.5 text-[10px] text-foreground-muted dark:bg-secondary-800"
