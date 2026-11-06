@@ -14,6 +14,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * Table-level constraint lines inside CREATE TABLE. Postgres allows whitespace before the
+ * parenthesis (`PRIMARY KEY (a, b)`), so match the keyword, not a literal `KEYWORD(`.
+ */
+const TABLE_CONSTRAINT_LINE = /^(CONSTRAINT|UNIQUE|CHECK|PRIMARY\s+KEY|FOREIGN\s+KEY|EXCLUDE)\b/;
+
+/**
  * Parse schema.sql file to extract table definitions and columns
  */
 export function parseSchemaFile(schemaContent: string): SchemaCache {
@@ -41,14 +47,7 @@ export function parseSchemaFile(schemaContent: string): SchemaCache {
       .filter((line) => line);
 
     for (const line of lines) {
-      if (
-        line.startsWith('--') ||
-        line.startsWith('CONSTRAINT') ||
-        line.startsWith('UNIQUE(') ||
-        line.startsWith('CHECK(') ||
-        line.startsWith('PRIMARY KEY(') ||
-        line.startsWith('FOREIGN KEY')
-      ) {
+      if (line.startsWith('--') || TABLE_CONSTRAINT_LINE.test(line)) {
         continue;
       }
 
