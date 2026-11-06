@@ -44,6 +44,7 @@ import {
   trimDegenerate,
 } from './degeneration.js';
 import { toolsForProvider } from './providerTools.js';
+import { findSourceEchoCut } from './sourceRegistry.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
@@ -791,6 +792,10 @@ export type AnswerReplacement =
   | 'degeneration_trim'
   /** Unified: the trimmed prefix replaces the streamed spam. */
   | 'unified_degeneration'
+  /** Unified: the answer before the copied source register replaces the stream. */
+  | 'unified_source_echo'
+  /** Split: the answer before the copied source register replaces the stream. */
+  | 'source_echo_trim'
   /** Unified: the tool-less writer re-wrote an empty, invalid, leaked or cut-off answer. */
   | 'unified_repair'
   /** Split always; unified when a repair lane is set: a foreign-language refusal
@@ -1022,7 +1027,7 @@ async function streamWithTools(
       }
     ),
   };
-  const { text, finishReason, stalled } = await drain(
+  const { text, finishReason, stalled, echoCut } = await drain(
     observed,
     emitFiltered,
     p.onReasoning,
@@ -1054,6 +1059,10 @@ async function streamWithTools(
     // `completion` replace (the same channel the split validation retry uses)
     // swaps what the client shows and what gets persisted.
     return { text, finishReason, replacedStreamed: true, replacement: 'unified_degeneration' };
+  }
+  if (echoCut) {
+    // The start of the copied register is already on the wire.
+    return { text, finishReason, replacedStreamed: true, replacement: 'unified_source_echo' };
   }
   return { text, finishReason };
 }
@@ -1535,6 +1544,8 @@ async function synthesize(
   interface SynthPass {
     text: string;
     finishReason: string | null;
+    /** The pass was cut where it started copying the source register. */
+    echoCut: boolean;
     flush: () => void;
     discard: () => void;
     isOpen: () => boolean;
@@ -1569,13 +1580,14 @@ async function synthesize(
       onError: logStreamError('synth'),
     });
     try {
-      const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
+      const { text, finishReason, echoCut } = await drain(result, gate.push, p.onReasoning, idle);
       // Stripped again on the accumulated text: `drain` collects it from the
       // SDK independently of the gate, and this copy is what gets persisted and
       // what every validator downstream reads.
       return {
         text: stripToolControlTokens(text),
         finishReason,
+        echoCut,
         flush: gate.flush,
         discard: gate.discard,
         isOpen: gate.isOpen,
@@ -1775,6 +1787,11 @@ async function synthesize(
       // still carries the degenerate tail drain cut off. Replace it.
       return { text: first.text, replacedStreamed: true, replacement: 'degeneration_trim' };
     }
+    // Whether or not the gate was open, flush() just put the buffered deltas
+    // on the wire — and they run past the cut.
+    if (first.echoCut) {
+      return { text: first.text, replacedStreamed: true, replacement: 'source_echo_trim' };
+    }
     return { text: first.text };
   }
 
@@ -1822,10 +1839,11 @@ async function drain(
    * eines Fehlers, der den Text mitnähme.
    */
   onStall: 'throw' | 'stop' = 'throw'
-): Promise<{ text: string; finishReason: string | null; stalled: boolean }> {
+): Promise<{ text: string; finishReason: string | null; stalled: boolean; echoCut: boolean }> {
   let text = '';
   let finishReason: string | null = null;
   let stalled = false;
+  let echoCut = false;
   const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
@@ -1857,6 +1875,23 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
+        // The writer started copying the source register out of its prompt
+        // (#5409). What came before is the finished answer: stop pulling, keep
+        // it, and report a clean stop — the caller replaces what the wire saw.
+        // A marker split across two deltas is still found: the search reaches
+        // back past the start of this one.
+        const echoAt = findSourceEchoCut(text, text.length - part.text.length - ECHO_LOOKBACK);
+        if (echoAt != null) {
+          log.warn(
+            `[Engine] writer is copying the source register after ${text.length} chars — stopping the stream, keeping ${echoAt}`
+          );
+          text = text.slice(0, echoAt);
+          finishReason = 'stop';
+          echoCut = true;
+          // swallow-ok: cleanup of an abandoned stream that only repeats our prompt
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
         // A model that cannot stop ("Ende. Fertig. 😊" loops, digit/smiley runs)
         // has no limit on our side to run into — the answer paths deliberately
         // set no maxOutputTokens, so without this it streams until the PROVIDER's
@@ -1910,5 +1945,8 @@ async function drain(
       `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
     );
   }
-  return { text, finishReason, stalled };
+  return { text, finishReason, stalled, echoCut };
 }
+
+/** How far back the echo search reaches before the newest delta — the marker is 23 chars. */
+const ECHO_LOOKBACK = 40;
