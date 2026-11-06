@@ -915,10 +915,12 @@ export async function streamAgenticResponse(
               : 'synth_stall'
         );
         if (!synthFallback) {
+          // Ab dem zweiten Wechsel kommt der Turn von der vorigen Ausweich-Lane.
+          const from = unifiedFallbackNames[unifiedSwitches - 1] ?? synth.name;
           const to = unifiedFallbackNames[unifiedSwitches++];
           if (to != null) {
             sse.send('fallback', {
-              from: { id: synth.name, name: synth.name },
+              from: { id: from, name: from },
               to: { id: to, name: to },
               reason,
             });

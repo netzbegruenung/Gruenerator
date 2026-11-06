@@ -295,6 +295,27 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     });
   });
 
+  it('meldet beim zweiten Wechsel die vorige Ausweich-Lane als Quelle', async () => {
+    const { sse, sent } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => {
+          p.onSynthFallback?.('first_token_timeout');
+          p.onSynthFallback?.('first_token_timeout');
+        },
+      })
+    );
+    const events = sent.filter((e) => e.event === 'fallback');
+    expect(events).toHaveLength(2);
+    expect(events[1]!.payload).toMatchObject({
+      from: { id: UNIFIED_GEMMA_CHAIN[1].model },
+      to: { id: UNIFIED_GEMMA_CHAIN[2].model },
+    });
+  });
+
   it('läuft split auf jedem anderen Anbieter', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
