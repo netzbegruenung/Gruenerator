@@ -1149,6 +1149,7 @@ describe('streamAgenticResponse — Ganzdokument im split-Modus', () => {
     fakeState({
       wholeDocument: {
         origin: 'turn',
+        ask: 'summary',
         docs: [{ name: 'Vereinbarung.pdf', text: DOC, documentId: 'doc-1' }],
         chars: DOC.length,
         budgetChars: 224_000,

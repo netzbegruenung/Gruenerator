@@ -307,6 +307,7 @@ describe('toolCatalog domain tool mounting', () => {
         documentSources: [{ kind: 'document', id: 'doc-1', label: 'Vereinbarung.pdf' }],
         wholeDocument: {
           origin: 'turn',
+          ask: 'summary',
           docs: [{ name: 'Vereinbarung.pdf', text: 'x', documentId: 'doc-1' }],
           chars: 68_000,
           budgetChars: fits ? 224_000 : 40_000,

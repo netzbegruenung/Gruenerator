@@ -18,6 +18,18 @@
  * Form, die die Person verlangt hat, ohne Werkzeug und ohne Werkzeugfrist.
  * Passt es nicht, bleibt `summarize` (Map-Reduce) zuständig.
  *
+ * Zweiter Auslöser: eingefügter Text (Paste-Chip). Ein Paste ist das Material
+ * des Turns, kein Nachschlagewerk — „Hier sind die Termine" über einer langen
+ * Liste will jeden Termin, nicht die drei, die eine Suche nach „Termine"
+ * zurückbringt. Live 04.11.2026 (#5406, Thread aad8d508): über 12.000 Zeichen
+ * wurde die Liste vektorisiert, der Turn zur Suche, und das Modell antwortete
+ * zweimal „Du hast mir keinen Text geschickt"; auf gruenerator.eu nachgestellt
+ * kamen 38 von 110 Terminen an, der Rest fehlte still. Dieser Auslöser greift
+ * nur, wenn das Material des Turns AUSSCHLIESSLICH aus Pastes besteht und ganz
+ * ins Budget passt: ein hochgeladenes PDF daneben bleibt bei der Suche, und ein
+ * zu großer Paste fällt auf sie zurück statt auf Map-Reduce, das für
+ * „formatiere" die falsche Antwort wäre.
+ *
  * Der Volltext liegt immer schon vor: für die Anhänge dieses Turns aus der
  * Extraktion, für frühere aus `chat_thread_attachments.extracted_text` — auch
  * bei vektorisierten Zeilen. Gelesen wird also nichts nach, es wird nur nicht
@@ -60,17 +72,35 @@ export function wholeDocumentBudgetChars(contextWindowTokens: number | undefined
 
 export function resolveWholeDocumentTurn(input: {
   userText: string;
-  /** Die Dokument-Anhänge dieses Turns mit ihrem extrahierten Text. */
-  turnDocs: readonly { name: string; text: string; documentId?: string | null }[];
+  /** Die Dokument-Anhänge dieses Turns mit ihrem extrahierten Text; `pasted`
+   *  markiert eingefügten Text (`isPastedTextAttachment`). */
+  turnDocs: readonly {
+    name: string;
+    text: string;
+    documentId?: string | null;
+    pasted?: boolean;
+  }[];
   threadAttachments: readonly ThreadAttachment[];
   /** Der Turn nennt anderes Material (@datei, Notebook, @dokumentchat) — dann
    *  meint „fasse zusammen" das, nicht die früheren Anhänge. */
   turnReferencesOtherMaterial: boolean;
   contextWindowTokens: number | undefined;
 }): WholeDocumentTurn | null {
-  if (!isSummaryAsk(input.userText)) return null;
-
   const turnDocs = input.turnDocs.filter((d) => d.text.trim().length > 0);
+  const budgetChars = wholeDocumentBudgetChars(input.contextWindowTokens);
+
+  if (!isSummaryAsk(input.userText)) {
+    if (turnDocs.length === 0 || !turnDocs.every((d) => d.pasted === true)) return null;
+    const docs = turnDocs.map((d) => ({
+      name: d.name,
+      text: d.text,
+      documentId: d.documentId ?? null,
+    }));
+    const chars = docs.reduce((sum, d) => sum + d.text.length, 0);
+    if (chars > budgetChars) return null;
+    return { origin: 'turn', ask: 'paste', docs, chars, budgetChars, fits: true };
+  }
+
   let origin: WholeDocumentTurn['origin'];
   let docs: WholeDocumentTurn['docs'];
   if (turnDocs.length > 0) {
@@ -92,8 +122,7 @@ export function resolveWholeDocumentTurn(input: {
   }
 
   const chars = docs.reduce((sum, d) => sum + d.text.length, 0);
-  const budgetChars = wholeDocumentBudgetChars(input.contextWindowTokens);
-  return { origin, docs, chars, budgetChars, fits: chars <= budgetChars };
+  return { origin, ask: 'summary', docs, chars, budgetChars, fits: chars <= budgetChars };
 }
 
 /**
@@ -109,9 +138,30 @@ export function wholeDocumentIdsInPrompt(
 }
 
 /**
+ * Die Dokument-Chat-Ids, in denen dieser Turn noch suchen muss. Ein Paste-Turn
+ * hat seinen eingefügten Text ganz im Prompt; indiziert ist er nur für die
+ * Folgeturns. Zählte er trotzdem als Dokument-Chat, erzwang der Klassifikator
+ * eine Suche, und der Prompt sagte „auf ausgewählte Dokumente begrenzt" — live
+ * nachgestellt antwortete das Modell dann „In deiner Nachricht sind keine
+ * Termine angekommen" und fragte nach dem „angehängten Dokument" (#5406).
+ * Eine Zusammenfassung behält ihre Ids: ihr Suchumfang ist bewusst so gebaut.
+ */
+export function documentChatIdsToSearch(state: {
+  documentChatIds?: readonly string[] | null | undefined;
+  wholeDocument?: WholeDocumentTurn | null | undefined;
+}): string[] {
+  const ids = [...(state.documentChatIds ?? [])];
+  if (state.wholeDocument?.ask !== 'paste') return ids;
+  const inPrompt = wholeDocumentIdsInPrompt(state.wholeDocument);
+  return ids.filter((id) => !inPrompt.has(id));
+}
+
+/**
  * Die Qdrant-Ids, die ein Ganzdokument-Turn NICHT über die Suche braucht: die
- * Dokumente, die er ganz liest, und bei Material dieses Turns auch die
- * mitgeführten früheren Anhänge — gefragt ist nach dem neuen. Gilt für
+ * Dokumente, die er ganz liest, und bei einer Zusammenfassung von Material
+ * dieses Turns auch die mitgeführten früheren Anhänge — gefragt ist nach dem
+ * neuen. Ein Paste-Turn ohne Zusammenfassung lässt sie suchbar: „Vergleiche
+ * das mit dem PDF von vorhin" braucht das PDF. Gilt für
  * `summarize` immer (es liest `docs` direkt, auch wenn sie nicht passen; der
  * Live-Test vom 06.11.2026 fasste dasselbe 233k-Dokument sonst zweimal
  * zusammen, einmal aus dem Volltext, einmal aus 20 Qdrant-Chunks).
@@ -122,7 +172,7 @@ export function wholeDocumentReadDirectly(
 ): ReadonlySet<string> {
   if (!turn) return new Set();
   const ids = new Set(turn.docs.map((d) => d.documentId).filter((id): id is string => id != null));
-  if (turn.origin === 'turn') {
+  if (turn.origin === 'turn' && turn.ask === 'summary') {
     for (const a of threadAttachments) if (a.documentId) ids.add(a.documentId);
   }
   return ids;
