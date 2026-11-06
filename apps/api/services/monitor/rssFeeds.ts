@@ -50,7 +50,6 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'rp-online.de': 'https://rp-online.de/feed.rss',
   'merkur.de': 'https://www.merkur.de/welt/rssfeed.rdf',
   'fr.de': 'https://www.fr.de/rssfeed.rdf',
-  'stuttgarter-zeitung.de': 'https://www.stuttgarter-zeitung.de/rss/topthemen.rss.feed',
   'augsburger-allgemeine.de': 'https://www.augsburger-allgemeine.de/rss',
   'hna.de': 'https://www.hna.de/welt/rssfeed.rdf',
   // Austrian
@@ -62,7 +61,6 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'tt.com': 'https://www.tt.com/rss/news.xml',
   'news.at': 'https://www.news.at/rss/news',
   'meinbezirk.at': 'https://www.meinbezirk.at/rss',
-  'noen.at': 'https://www.noen.at/xml/rss',
   'vienna.at': 'https://www.vienna.at/rss',
   'ots.at': 'https://www.ots.at/rss/index',
   'moment.at': 'https://www.moment.at/rss',
@@ -85,4 +83,15 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'eurotopics.net': 'https://www.eurotopics.net/export/de/rss-debatten.xml',
   'gruene-bundestag.de/fachtexte': 'https://www.gruene-bundestag.de/fachtexte-rss-feed.xml',
   'gruene-bundestag.de/presse': 'https://www.gruene-bundestag.de/pressemitteilungen-rss-feed.xml',
+};
+
+/**
+ * Outlets without an RSS feed that publish a Google News sitemap instead
+ * (`<news:title>` + `<loc>` + `<news:publication_date>`). Same legal frame as
+ * above: only headline + link are taken. Both RSS feeds answered 404 in
+ * 11/2026 (#5425); the sitemaps were verified 2026-11-07.
+ */
+export const KNOWN_NEWS_SITEMAPS: Record<string, string> = {
+  'stuttgarter-zeitung.de': 'https://www.stuttgarter-zeitung.de/sitemap-news.xml',
+  'noen.at': 'https://www.noen.at/sitemap-news.xml',
 };
