@@ -695,7 +695,15 @@ export async function computePlatformUsageStats(
     providers: [...byProvider.entries()]
       .map(([provider, entry]) => ({
         provider,
-        grid_g_per_kwh: gridIntensityFor(provider),
+        // What the published emissions were actually computed with: Melious'
+        // live per-request factor on measured rows, the table on estimated ones.
+        grid_g_per_kwh:
+          // Rounded: stored Wms/µg are integers, the quotient carries their noise.
+          entry.energyWms > 0
+            ? Math.round(
+                (entry.emissionsUg / UG_PER_G / (entry.energyWms / WMS_PER_WH / 1000)) * 10
+              ) / 10
+            : gridIntensityFor(provider),
         pue: entry.energyWms > 0 ? entry.pueWeighted / entry.energyWms : pueFor(provider),
         pue_estimated: entry.pueEstimated,
         energy_wh: entry.energyWms / WMS_PER_WH,

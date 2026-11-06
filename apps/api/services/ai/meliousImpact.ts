@@ -1,15 +1,38 @@
-/** Capture Melious' per-request `environment_impact` before the AI SDK strips it. */
+/**
+ * Book Melious' per-request usage and `environment_impact` before the AI SDK strips them.
+ *
+ * Melious is a router: `environment_impact.provider_id` names the upstream that
+ * served the request (berget/SE, infercom/DE, its own FI nodes …). Both rows —
+ * tokens and the live measurement — are booked under that upstream, and BOTH
+ * here: the token row has to sit under the same provider as the measurement, or
+ * the usage stats see an unmeasured token row next to an unrelated measured one
+ * and estimate the request a second time. Only the body names the upstream, so
+ * `withUsageTracking` leaves Melious' tokens to this HTTP boundary.
+ */
 
 import { createLogger } from '../../utils/logger.js';
 import { getUsageFeature, getUsageUserId } from '../../utils/usageContext.js';
-import { recordImpact } from '../usage/UsageTrackingService.js';
+import { recordImpact, recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { parseUsageTokens } from './greenptImpact.js';
 
 const log = createLogger('meliousImpact');
 const TAP_CEILING_MS = 300_000;
 
-type Impact = { energyWms: number; emissionsUg: number; inputTokens: number; outputTokens: number };
+type Impact = {
+  energyWms: number;
+  emissionsUg: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** `environment_impact.provider_id`, the upstream that served the request. */
+  upstream: string | null;
+};
+type Usage = { inputTokens: number; outputTokens: number; cachedInputTokens: number };
+
+/** Booked provider for a Melious response: the upstream it names, else the router. */
+export function meliousBookedProvider(impact: Impact | null): string {
+  return impact?.upstream ?? 'melious';
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -25,7 +48,33 @@ export function parseMeliousImpact(body: unknown): Impact | null {
   const emissionsUg =
     typeof carbonG === 'number' && Number.isFinite(carbonG) ? carbonG * 1_000_000 : 0;
   if (energyWms <= 0 && emissionsUg <= 0) return null;
-  return { energyWms, emissionsUg, ...parseUsageTokens(body) };
+  const providerId = body.environment_impact.provider_id;
+  // Becomes a usage-row key and a lookup into energyFootprint.ts — accept only a plain id.
+  const upstream =
+    typeof providerId === 'string' && /^[a-z0-9][a-z0-9_-]{0,39}$/.test(providerId.toLowerCase())
+      ? providerId.toLowerCase()
+      : null;
+  return { energyWms, emissionsUg, ...parseUsageTokens(body), upstream };
+}
+
+function parseMeliousUsage(body: unknown): Usage | null {
+  if (!record(body) || !record(body.usage) || typeof body.usage.prompt_tokens !== 'number') {
+    return null;
+  }
+  const details = body.usage.prompt_tokens_details;
+  const cached = record(details) ? details.cached_tokens : null;
+  return {
+    inputTokens: body.usage.prompt_tokens,
+    outputTokens:
+      typeof body.usage.completion_tokens === 'number' ? body.usage.completion_tokens : 0,
+    cachedInputTokens: typeof cached === 'number' ? cached : 0,
+  };
+}
+
+type Booking = { usage: Usage | null; impact: Impact | null };
+
+function parseBody(body: unknown): Booking {
+  return { usage: parseMeliousUsage(body), impact: parseMeliousImpact(body) };
 }
 
 export function meliousModelFromRequest(body: unknown): string | null {
@@ -38,16 +87,18 @@ export function meliousModelFromRequest(body: unknown): string | null {
   }
 }
 
-function parseSse(text: string): Impact | null {
-  let found: Impact | null = null;
+function parseSse(text: string): Booking {
+  const found: Booking = { usage: null, impact: null };
   for (const line of text.split('\n')) {
     if (!line.startsWith('data:')) continue;
     const value = line.slice(5).trim();
     if (!value || value === '[DONE]') continue;
     try {
-      found = parseMeliousImpact(JSON.parse(value)) ?? found;
+      const frame = parseBody(JSON.parse(value));
+      found.usage = frame.usage ?? found.usage;
+      found.impact = frame.impact ?? found.impact;
     } catch {
-      // A partial frame is not an impact record.
+      // A partial frame is not a usage record.
     }
   }
   return found;
@@ -60,15 +111,20 @@ export function captureMeliousImpact(
 ): Response {
   const userId = getUsageUserId();
   if (!userId || !model || !response.ok) return response;
-  const save = (impact: Impact | null): void => {
-    if (!impact) return;
-    recordImpact({ provider: 'melious', model, userId, feature: getUsageFeature(), ...impact });
+  const feature = getUsageFeature();
+  const save = ({ usage, impact }: Booking): void => {
+    const provider = meliousBookedProvider(impact);
+    if (usage) recordTokenUsage({ provider, model, userId, feature, ...usage });
+    if (impact) {
+      const { upstream: _upstream, ...measured } = impact;
+      recordImpact({ provider, model, userId, feature, ...measured });
+    }
   };
   if (!response.headers.get('content-type')?.includes('text/event-stream')) {
     void response
       .clone()
       .json()
-      .then(parseMeliousImpact)
+      .then(parseBody)
       .then(save)
       .catch((error: unknown) => log.debug('impact parse failed:', error));
     return response;
