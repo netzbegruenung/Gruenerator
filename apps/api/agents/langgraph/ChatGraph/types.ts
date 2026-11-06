@@ -489,6 +489,9 @@ export interface ExamplesToolResult {
 export interface WholeDocumentTurn {
   /** `turn`: die Anhänge dieses Turns. `thread`: die früheren des Gesprächs. */
   origin: 'turn' | 'thread';
+  /** `summary`: der Auftrag fasst zusammen. `paste`: das Material dieses Turns
+   *  ist eingefügter Text und passt ganz ins Budget (#5406). */
+  ask: 'summary' | 'paste';
   docs: Array<{ name: string; text: string; documentId: string | null }>;
   chars: number;
   budgetChars: number;

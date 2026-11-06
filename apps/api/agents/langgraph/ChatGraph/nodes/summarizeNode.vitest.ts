@@ -175,6 +175,7 @@ describe('summarizeNode — whole-document turn', () => {
       ],
       wholeDocument: {
         origin: 'turn',
+        ask: 'summary',
         docs: [{ name: 'Eingefügter Text.txt', text: 'Seite eins.', documentId: null }],
         chars: 11,
         budgetChars: 151_550,
@@ -196,6 +197,7 @@ describe('summarizeNode — whole document too large for the prompt', () => {
       documentChatIds: ['doc-big'],
       wholeDocument: {
         origin: 'turn',
+        ask: 'summary',
         docs: [{ name: 'Protokoll.txt', text: 'Satz. '.repeat(40_000), documentId: 'doc-big' }],
         chars: 240_000,
         budgetChars: 151_550,

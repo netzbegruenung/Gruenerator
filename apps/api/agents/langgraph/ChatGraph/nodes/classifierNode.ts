@@ -58,6 +58,7 @@ import {
   sharepicEditAddressed,
 } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
+import { documentChatIdsToSearch } from '../../../../routes/chat/services/wholeDocument.js';
 import { isWolkePhoto } from '../../../../routes/chat/services/wolkePhoto.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
@@ -777,7 +778,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Resource presence flags
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
-    const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    // Ohne die Pastes, deren Volltext ganz im Prompt steht (#5406).
+    const documentChatToSearch = documentChatIdsToSearch(state);
+    const hasDocumentChat = documentChatToSearch.length > 0;
     const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasConnectFiles = state.connectFiles && state.connectFiles.length > 0;
     const hasNotebookSources = (state.notebookSources?.length ?? 0) > 0;
@@ -1076,7 +1079,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (hasDocumentChat && userContent.length > 0) {
       return classifyPickedMaterial({
         reason: 'DocumentChat',
-        docCount: state.documentChatIds.length,
+        docCount: documentChatToSearch.length,
         userContent,
         conversationContext,
         topicalContext,

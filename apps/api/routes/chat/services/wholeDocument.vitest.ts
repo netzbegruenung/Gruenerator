@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   WHOLE_DOCUMENT_FLOOR_CHARS,
+  documentChatIdsToSearch,
   plannerDocumentStub,
   resolveWholeDocumentTurn,
   wholeDocumentBudgetChars,
@@ -30,7 +31,7 @@ const row = (over: Partial<ThreadAttachment>): ThreadAttachment => ({
 
 const base = {
   userText: 'Bitte fasse den Text kurz zusammen:',
-  turnDocs: [] as { name: string; text: string; documentId?: string | null }[],
+  turnDocs: [] as { name: string; text: string; documentId?: string | null; pasted?: boolean }[],
   threadAttachments: [] as ThreadAttachment[],
   turnReferencesOtherMaterial: false,
   contextWindowTokens: 86_600,
@@ -111,6 +112,43 @@ describe('resolveWholeDocumentTurn', () => {
     ).toBeNull();
   });
 
+  // #5406: eine eingefügte Terminliste mit „Hier sind die Termine". Ein Paste
+  // ist Material dieses Turns, kein Nachschlagewerk — er wird ganz gelesen,
+  // auch ohne Zusammenfassungs-Auftrag.
+  it('reads pasted text whole without a summary ask', () => {
+    const turn = resolveWholeDocumentTurn({
+      ...base,
+      userText: 'Hier sind die Termine',
+      turnDocs: [{ name: 'Eingefügter Text.txt', text: 'y'.repeat(13_300), pasted: true }],
+    });
+    expect(turn).toMatchObject({ origin: 'turn', ask: 'paste', chars: 13_300, fits: true });
+  });
+
+  it('leaves an uploaded file next to the paste to retrieval when nothing asks for a summary', () => {
+    expect(
+      resolveWholeDocumentTurn({
+        ...base,
+        userText: 'Was steht im PDF zu den Terminen?',
+        turnDocs: [
+          { name: 'Eingefügter Text.txt', text: 'y'.repeat(13_300), pasted: true },
+          { name: 'Protokoll.pdf', text: 'z'.repeat(60_000) },
+        ],
+      })
+    ).toBeNull();
+  });
+
+  it('leaves a paste beyond the budget to retrieval when nothing asks for a summary', () => {
+    // Map-Reduce wäre für „formatiere" die falsche Antwort; die Suche bleibt.
+    expect(
+      resolveWholeDocumentTurn({
+        ...base,
+        userText: 'Formatiere alle Termine',
+        contextWindowTokens: 20_000,
+        turnDocs: [{ name: 'Eingefügter Text.txt', text: 'y'.repeat(400_000), pasted: true }],
+      })
+    ).toBeNull();
+  });
+
   it('reports a document larger than the budget as not fitting', () => {
     const turn = resolveWholeDocumentTurn({
       ...base,
@@ -149,6 +187,24 @@ describe('wholeDocumentSkipsRetrieval', () => {
     expect([...wholeDocumentSkipsRetrieval(turn, [row({})])]).toEqual(['doc-old']);
   });
 
+  it('keeps the carried thread documents searchable on a paste turn without a summary ask', () => {
+    // „Vergleiche das mit dem PDF von vorhin" muss das PDF weiter finden.
+    const turn = resolveWholeDocumentTurn({
+      ...base,
+      userText: 'Vergleiche diese Termine mit dem PDF von vorhin',
+      turnDocs: [
+        {
+          name: 'Eingefügter Text.txt',
+          text: 'y'.repeat(13_300),
+          documentId: 'doc-paste',
+          pasted: true,
+        },
+      ],
+      threadAttachments: [row({})],
+    });
+    expect([...wholeDocumentSkipsRetrieval(turn, [row({})])]).toEqual(['doc-paste']);
+  });
+
   it('retrieves as before when the text does not fit', () => {
     const turn = resolveWholeDocumentTurn({
       ...base,
@@ -177,6 +233,7 @@ describe('plannerDocumentStub', () => {
   const pdf = { name: 'Vereinbarung.pdf', text: 'x'.repeat(68_000), documentId: 'doc-1' };
   const turn = (over: Partial<WholeDocumentTurn> = {}): WholeDocumentTurn => ({
     origin: 'turn',
+    ask: 'summary',
     docs: [pdf],
     chars: 68_000,
     budgetChars: 224_000,
@@ -211,5 +268,42 @@ describe('plannerDocumentStub', () => {
       plannerDocumentStub(turn({ docs: [small], chars: 5_000 }), new Set(['doc-1']))
     ).toBeNull();
     expect(plannerDocumentStub(null, new Set(['doc-1']))).toBeNull();
+  });
+});
+
+describe('documentChatIdsToSearch', () => {
+  const pasteTurn = resolveWholeDocumentTurn({
+    ...base,
+    userText: 'Hier sind die Termine',
+    turnDocs: [
+      {
+        name: 'Eingefügter Text.txt',
+        text: 'y'.repeat(13_300),
+        documentId: 'doc-paste',
+        pasted: true,
+      },
+    ],
+  });
+
+  it('drops the paste whose full text rides in the prompt, keeps everything else', () => {
+    expect(
+      documentChatIdsToSearch({
+        documentChatIds: ['doc-paste', 'doc-old'],
+        wholeDocument: pasteTurn,
+      })
+    ).toEqual(['doc-old']);
+  });
+
+  it('leaves a summary turn alone — its search scope is decided elsewhere', () => {
+    const summary = resolveWholeDocumentTurn({
+      ...base,
+      turnDocs: [{ name: 'Bericht.pdf', text: 'z'.repeat(30_000), documentId: 'doc-pdf' }],
+    });
+    expect(
+      documentChatIdsToSearch({ documentChatIds: ['doc-pdf'], wholeDocument: summary })
+    ).toEqual(['doc-pdf']);
+    expect(documentChatIdsToSearch({ documentChatIds: ['doc-pdf'], wholeDocument: null })).toEqual([
+      'doc-pdf',
+    ]);
   });
 });

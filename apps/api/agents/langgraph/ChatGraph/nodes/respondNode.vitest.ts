@@ -214,6 +214,7 @@ describe('whole-document turn — the full text reaches the prompt', () => {
     expect(formatThreadAttachmentsContext([row], 86_600)).toBe('');
     const out = formatThreadAttachmentsContext([row], 86_600, '', '', '', {
       origin: 'thread',
+      ask: 'summary',
       docs: [{ name: 'document.pdf', text: pdf, documentId: 'doc-old' }],
       chars: pdf.length,
       budgetChars: 151_550,

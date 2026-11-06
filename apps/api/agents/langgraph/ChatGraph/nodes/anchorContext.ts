@@ -1,3 +1,5 @@
+import { documentChatIdsToSearch } from '../../../../routes/chat/services/wholeDocument.js';
+
 import type { ChatGraphState } from '../types.js';
 
 /**
@@ -48,7 +50,7 @@ export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
     if (titles.length > 0) anchors.push({ kind: 'documentMention', titles });
   }
 
-  if (state.documentChatIds && state.documentChatIds.length > 0) {
+  if (documentChatIdsToSearch(state).length > 0) {
     anchors.push({ kind: 'documentChat' });
   }
   if (state.boardContext) anchors.push({ kind: 'board' });

@@ -16,6 +16,7 @@ import {
 } from '../../../services/presentations/PresentationGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { isPastedTextAttachment } from './attachmentProcessingService.js';
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
 import { sendChatWarning } from './sseHelpers.js';
 import { resolveWholeDocumentTurn } from './wholeDocument.js';
@@ -466,7 +467,14 @@ export async function enrichContext(opts: {
     turnDocs: docAttachments.flatMap((att) => {
       const meta = metaOf.get(att);
       return meta?.extractedText
-        ? [{ name: meta.name, text: meta.extractedText, documentId: meta.documentId ?? null }]
+        ? [
+            {
+              name: meta.name,
+              text: meta.extractedText,
+              documentId: meta.documentId ?? null,
+              pasted: isPastedTextAttachment(att.name, att.type),
+            },
+          ]
         : [];
     }),
     threadAttachments: initialState.threadAttachments ?? [],
