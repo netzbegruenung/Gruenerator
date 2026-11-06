@@ -83,6 +83,7 @@ function buildCatalog(userLocale: (typeof LOCALES)[number]): ToolSet {
     cloudConnectionCount: 1,
     documentSources: [{ kind: 'document', label: 'antrag.pdf', id: 'd1' }],
     pdfFormAttachments: [{ name: 'formular.pdf', data: '' }],
+    threadAttachments: [{ id: 'a0', name: 'vorher.pdf', extractedText: 'Text', documentId: null }],
   } as unknown as ChatGraphState;
   const { tools } = buildChatToolCatalog({
     agentConfig,
