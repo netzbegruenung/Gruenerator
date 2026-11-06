@@ -8,7 +8,7 @@
  * fits the question. Search and the kind filter are client-side — the list is
  * capped at 60 rows server-side, a round trip would be slower than a filter.
  */
-import { requestThreadListReload } from '@gruenerator/chat';
+import { requestDailyBriefingNow, requestThreadListReload } from '@gruenerator/chat';
 import { MEMORY_TEXT_MAX_CHARS, type MemoryKind, type UserMemory } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
@@ -95,7 +95,7 @@ export default memo(function MemoriesSection() {
   const { data: profileData } = useProfile(userId);
   const profile = profileData as Profile | undefined;
   const memoryEnabled = profile?.memory_enabled ?? true;
-  const briefingEnabled = profile?.proactive_briefing_enabled ?? true;
+  const briefingEnabled = profile?.proactive_briefing_enabled ?? false;
 
   const {
     data: memories = [],
@@ -146,12 +146,13 @@ export default memo(function MemoriesSection() {
   const briefingToggleMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       profileApiService.updateProfile({ proactive_briefing_enabled: enabled }),
-    onSuccess: (updated: Profile) => {
+    onSuccess: (updated: Profile, enabled: boolean) => {
       queryClient.setQueryData(QUERY_KEYS.profile(userId), (old: Profile | undefined) => ({
         ...old,
         ...updated,
       }));
       setMutationError(null);
+      if (enabled) requestDailyBriefingNow();
     },
     onError: () => setMutationError('Der Schalter konnte nicht gespeichert werden.'),
   });

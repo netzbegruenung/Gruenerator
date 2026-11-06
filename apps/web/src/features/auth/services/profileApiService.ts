@@ -260,7 +260,7 @@ export const profileApiService = {
       bundestag_api_enabled: profile.bundestag_api_enabled || false,
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
-      proactive_briefing_enabled: profile.proactive_briefing_enabled ?? true,
+      proactive_briefing_enabled: profile.proactive_briefing_enabled ?? false,
       custom_prompt: profile.custom_prompt || '',
     };
 

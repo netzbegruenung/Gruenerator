@@ -1,7 +1,7 @@
 -- Tagesbriefing: die proaktive Nachricht beim ersten Besuch des Tages.
 --
 -- `profiles.proactive_briefing_enabled` ist der Schalter in den Einstellungen
--- (Standard an). `daily_briefings` ist der Ledger: eine Zeile je Person und
+-- (Standard aus, opt-in). `daily_briefings` ist der Ledger: eine Zeile je Person und
 -- Kalendertag (Europe/Berlin). Der Primärschlüssel ist der Claim — der erste
 -- INSERT gewinnt, auch über Tabs, Geräte und Cluster-Worker hinweg. Die Zeile
 -- überlebt das Löschen des Threads (ON DELETE SET NULL), damit am selben Tag
@@ -9,7 +9,7 @@
 --
 -- `monitor_lagebilder` hält das stündlich im Monitor-Refresh erzeugte, geteilte
 -- Lagebild je Locale, damit ein Redis-Neustart keinen Modellaufruf kostet.
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS daily_briefings (
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,

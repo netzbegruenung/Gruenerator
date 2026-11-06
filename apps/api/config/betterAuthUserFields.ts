@@ -82,7 +82,7 @@ export const USER_ADDITIONAL_FIELDS = {
     type: 'boolean',
     required: false,
     input: false,
-    defaultValue: true,
+    defaultValue: false,
   },
 } as const;
 

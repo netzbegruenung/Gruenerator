@@ -46,13 +46,12 @@ async function requestBriefing(retryPending = true): Promise<void> {
     if (res.status !== 200) return;
     const { status, threadId } = res.body;
     // `pending` (the login hook is still building it) asks once more after a
-    // few seconds; `disabled` (may be switched on later today) stays open for
-    // the next mount.
+    // few seconds. `disabled` is the default (opt-in) and counts as asked for
+    // today; switching it on goes through `requestDailyBriefingNow`.
     if (status === 'pending') {
       if (retryPending) setTimeout(() => void requestBriefing(false), PENDING_RETRY_MS);
       return;
     }
-    if (status === 'disabled') return;
     writeRequestedDay(day);
     if (status === 'created' || (status === 'exists' && threadId)) requestThreadListReload();
   } catch {
@@ -60,6 +59,20 @@ async function requestBriefing(retryPending = true): Promise<void> {
   } finally {
     inFlight = false;
   }
+}
+
+/**
+ * Asks for today's Tagesbriefing right away, ignoring the once-a-day guard —
+ * for the moment the switch in the settings is turned on.
+ */
+export function requestDailyBriefingNow(): void {
+  memoryDay = null;
+  try {
+    globalThis.localStorage?.removeItem(STORAGE_KEY);
+  } catch {
+    // storage unavailable: the in-memory reset is enough
+  }
+  void requestBriefing();
 }
 
 /** Asks once per Berlin calendar day and device for today's Tagesbriefing. */

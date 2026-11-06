@@ -69,7 +69,7 @@ export async function loadBriefingProfile(userId: string): Promise<BriefingProfi
   return {
     firstName: firstNameOf(row.first_name, row.display_name),
     locale: row.locale === 'de-AT' ? 'de-AT' : 'de-DE',
-    enabled: row.proactive_briefing_enabled !== false,
+    enabled: row.proactive_briefing_enabled === true,
     hasConsent: row.ai_consent_at != null,
     roles: Array.isArray(row.roles) ? (row.roles as UserRole[]) : [],
   };

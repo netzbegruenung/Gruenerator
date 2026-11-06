@@ -74,7 +74,7 @@ export const profiles = pgTable(
     boards: boolean('boards').notNull().default(false),
     bundestag_api_enabled: boolean('bundestag_api_enabled').notNull().default(false),
     memory_enabled: boolean('memory_enabled').notNull().default(true),
-    proactive_briefing_enabled: boolean('proactive_briefing_enabled').notNull().default(true),
+    proactive_briefing_enabled: boolean('proactive_briefing_enabled').notNull().default(false),
     /** „Panda" lane unlock; null = instance default. See services/user/pandaEntitlement.ts. */
     panda_enabled: boolean('panda_enabled'),
     feedback_button: text('feedback_button').notNull().default('text'),

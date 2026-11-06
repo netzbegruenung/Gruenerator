@@ -114,16 +114,17 @@ describe('MemoriesSection', () => {
         sent = await request.json();
         return HttpResponse.json({
           success: true,
-          profile: { id: 'u1', proactive_briefing_enabled: false },
+          profile: { id: 'u1', proactive_briefing_enabled: true },
         });
       })
     );
     const { user } = renderWithProviders(<MemoriesSection />);
     const toggle = await screen.findByRole('switch', { name: 'Tagesbriefing im Chat einschalten' });
     await waitFor(() => expect(toggle).toBeEnabled());
-    expect(toggle).toBeChecked();
+    // opt-in: off until the person switches it on
+    expect(toggle).not.toBeChecked();
     await user.click(toggle);
-    await waitFor(() => expect(sent).toEqual({ proactive_briefing_enabled: false }));
+    await waitFor(() => expect(sent).toEqual({ proactive_briefing_enabled: true }));
   });
 
   it('hides the dev rerun buttons outside the dev auth bypass', async () => {
