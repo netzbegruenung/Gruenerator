@@ -503,6 +503,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'sparkles',
     accent: 'create',
   },
+  edit_image: {
+    label: 'Bild bearbeitet',
+    activeLabel: 'Bearbeite das Bild',
+    iconKey: 'sparkles',
+    accent: 'create',
+  },
   sharepic: {
     label: 'Sharepic',
     activeLabel: 'Erstelle Sharepic',

@@ -202,11 +202,20 @@ const CASES: Case[] = [
     id: 'nachgereicht',
     prompt: 'hängt doch an',
     after: 'rechtschreibung korrigieren',
-    lane: 'single_pass',
+    // Geflippt mit dem Loop-Standard: „hängt doch an" nennt keine Umarbeitung,
+    // also hält nichts den Turn draussen (`reworks_own_material` liest den Text).
+    lane: 'loop',
+    summarizeMounted: false,
   },
   { id: 'uebersetzen', prompt: 'bitte übersetze das ins Englische', lane: 'single_pass' },
   { id: 'kuerzen', prompt: 'kürze den Text auf die Hälfte', lane: 'single_pass' },
-  { id: 'social', prompt: 'mach daraus einen Instagram-Post', lane: 'single_pass' },
+  // Geflippt: keine Umarbeitung des Materials, sondern ein Erstell-Auftrag daraus.
+  {
+    id: 'social',
+    prompt: 'mach daraus einen Instagram-Post',
+    lane: 'loop',
+    summarizeMounted: false,
+  },
   { id: 'gendern', prompt: 'gendere den Text', lane: 'single_pass' },
   {
     id: 'korrigiere-alles',
@@ -214,7 +223,8 @@ const CASES: Case[] = [
     lane: 'single_pass',
   },
   { id: 'lektorat-frage', prompt: 'kannst du das lektorieren?', lane: 'single_pass' },
-  { id: 'nur-paste', prompt: '', lane: 'single_pass' },
+  // Geflippt: ohne Auftragstext gibt es nichts, was den Turn draussen hält.
+  { id: 'nur-paste', prompt: '', lane: 'loop', summarizeMounted: false },
   {
     id: 'fehlerliste',
     prompt: 'prüfe den Text auf Fehler und gib mir eine Liste',
@@ -387,7 +397,12 @@ describe('pasted text + an order about it', () => {
       expect(planner?.toolNames.includes('summarize'), `${c.id}: summarize on offer`).toBe(
         c.summarizeMounted
       );
-      expect(writer?.system ?? '', `${c.id}: the writer sees the paste`).toContain('Coxon');
+      // System ODER Nachrichten: bei einem Turn ohne Auftragstext steht das
+      // Eingefügte in der Nutzernachricht, nicht im Systemprompt.
+      expect(
+        `${writer?.system ?? ''}${writer?.messagesJson ?? ''}`,
+        `${c.id}: the writer sees the paste`
+      ).toContain('Coxon');
     } else {
       expect(loopScript.calls, `${c.id}: no planner call`).toEqual([]);
       expect(

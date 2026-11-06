@@ -108,11 +108,14 @@ describe('sharepic licence', () => {
     // The live message itself cannot reach the gate here: „Kürzer bitte" first
     // passes the social-post edit branch, whose post lookup the Postgres mock
     // rejects. „Entwirf" is a resolver trigger word and lands on the same gate
-    // input — unlicensed sharepic, no word, no sharepic in the thread.
+    // input — unlicensed sharepic, no word, no sharepic in the thread. Since the
+    // loop-by-default change a creative-form turn („Entwirf einen Slogan …")
+    // goes to the loop before the resolver; „visualisiere" keeps a non-prose
+    // verdict (image@0.65) that still reaches Tier 3.8.
     scriptGenerationKind('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Entwirf einen Slogan zur Kernaussage')],
+      messages: [userTurn('Entwirf und visualisiere die Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
@@ -129,7 +132,7 @@ describe('sharepic licence', () => {
     scriptGenerationKind('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Entwirf einen Slogan zur Kernaussage')],
+      messages: [userTurn('Entwirf und visualisiere die Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
@@ -338,7 +341,7 @@ describe('negative action constraints', () => {
       messages: [userTurn('Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.')],
     });
     suite.pool.assertScriptsConsumed();
-    expect(forbidden.trace.intent).toBe('produktion');
+    expect(forbidden.trace.intent).toBe('agentic');
     expect(forbidden.trace.documentCreated).toBe(false);
 
     // Der Kontrolllauf braucht seit #2270 kein Skript mehr: "leg sie als

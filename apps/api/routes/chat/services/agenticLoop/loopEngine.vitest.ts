@@ -8,6 +8,8 @@ import {
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
+  TOOL_USE_RULES,
+  UNIFIED_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
   SYNTH_CUTOFF_RETRY_SUFFIX,
@@ -19,6 +21,9 @@ import {
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
+import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+
+import { createHash } from 'node:crypto';
 
 import { APICallError, RetryError, type ModelMessage } from 'ai';
 
@@ -554,6 +559,270 @@ describe('runAgenticLoop — unified mode', () => {
     // Regression: afterGather never fired in unified mode, so a compound sharepic
     // turn that only searched left the artifact uncreated.
     expect(afterGather).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runAgenticLoop — unified lane chain', () => {
+  const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['synthModel'];
+  const fallback = lane('fallback');
+  const rejected = () =>
+    new APICallError({
+      message: 'The request was rejected as malformed.',
+      url: 'https://melious.example/v1/chat/completions',
+      requestBodyValues: {},
+      statusCode: 400,
+    });
+  const hang = () =>
+    ({
+      stream: (async function* () {
+        await new Promise(() => {});
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  function chainDeps(first: () => ReturnType<LoopDeps['streamText']>) {
+    const calls: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        calls.push(o.model.id);
+        if (o.model.id === 'fallback') {
+          return streamOf([{ type: 'text-delta', text: 'FALLBACK_ANSWER' }]);
+        }
+        return first();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, calls };
+  }
+  const params = (over: Partial<LoopEngineParams> = {}) =>
+    baseParams({ mode: 'unified', unifiedFallbacks: [fallback], ...over });
+
+  it('(a) moves to the next lane when the first rejects before any output, and says so', async () => {
+    const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
+    const onSynthFallback = vi.fn();
+    const out = await runAgenticLoop(params({ onSynthFallback }), deps);
+    expect(calls).toEqual(['synth', 'fallback']);
+    expect(out.text).toBe('FALLBACK_ANSWER');
+    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('upstream_error');
+  });
+
+  it('(b) does not switch once text has streamed — the error surfaces to the caller', async () => {
+    const onText = vi.fn();
+    const { deps, calls } = chainDeps(() =>
+      streamOf([
+        { type: 'text-delta', text: 'Halbe Antwort' },
+        { type: 'error', error: rejected() },
+      ])
+    );
+    await expect(runAgenticLoop(params({ onText }), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+    expect(onText).toHaveBeenCalledWith('Halbe Antwort');
+  });
+
+  it('(c) switches after the 15 s first-response window when the first lane is silent', async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, calls } = chainDeps(hang);
+      const onSynthFallback = vi.fn();
+      const pending = runAgenticLoop(
+        params({ onSynthFallback, abortSignal: new AbortController().signal }),
+        deps
+      );
+      await vi.advanceTimersByTimeAsync(16_000);
+      expect(calls).toEqual(['synth', 'fallback']);
+      expect((await pending).text).toBe('FALLBACK_ANSWER');
+      expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('(d) does not switch after a tool call, even if nothing else came out', async () => {
+    const { deps, calls } = chainDeps(() =>
+      streamOf([{ type: 'tool-call' }, { type: 'error', error: rejected() }])
+    );
+    await expect(runAgenticLoop(params(), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+  });
+
+  it('the last lane gets no short first-response window and its error surfaces', async () => {
+    const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
+    await expect(runAgenticLoop(params({ unifiedFallbacks: [] }), deps)).rejects.toBeDefined();
+    expect(calls).toEqual(['synth']);
+  });
+});
+
+describe('unified suffix — tool and writer rules', () => {
+  it('keeps the gather suffix byte-identical', async () => {
+    const systems: string[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: StreamOpts) => {
+        systems.push(o.system ?? '');
+        return streamOf([{ type: 'text-delta', text: '' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'split', toolSystem: '' }), deps);
+    const gatherSystem = systems[0] ?? '';
+    expect(gatherSystem.length).toBe(2459);
+    expect(createHash('sha256').update(gatherSystem).digest('hex')).toBe(
+      'bbf396270f6ed10a61f6bda98e94129639aa8e67dc1d80f7994ffd8ed62590ac'
+    );
+  });
+
+  it('gives the unified stream the tool and writer rules', async () => {
+    let seen:
+      (StreamOpts & { prepareStep?: (a: { stepNumber: number }) => { system?: string } }) | null =
+      null;
+    const deps: LoopDeps = {
+      streamText: ((o: typeof seen) => {
+        seen = o;
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'unified', maxSteps: 1 }), deps);
+    expect(seen).not.toBeNull();
+    const system = seen!.system ?? '';
+    expect(system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(system).toContain(TOOL_USE_RULES);
+    expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
+    expect(system).toContain('ANTWORTE KONKRET');
+    // Hinweise der Werkzeuge binden die Antwort (im Split trägt das der Schreiber-Block).
+    expect(system).toContain('`fuerSchreiber`');
+    expect(system).toContain('`antwortregel`');
+    // The unified model writes the answer — the gather-only ban must not reach it.
+    expect(system).not.toContain('Schreibe in dieser Phase KEINE finale Antwort');
+    // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.
+    const override = seen!.prepareStep?.({ stepNumber: 0 }).system ?? '';
+    expect(override).toContain(TOOL_USE_RULES);
+    expect(override).toContain(NO_CAPABILITY_DENIAL_RULE);
+    expect(override).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+  });
+
+  it('keeps the AT country block in unified', async () => {
+    let system = '';
+    const deps: LoopDeps = {
+      streamText: ((o: StreamOpts) => {
+        system = o.system ?? '';
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(
+      baseParams({ mode: 'unified', toolSystem: 'BASE\n\n## LÄNDERKONTEXT: ÖSTERREICH\nAT' }),
+      deps
+    );
+    expect(system).toContain('## LÄNDERKONTEXT: ÖSTERREICH');
+  });
+});
+
+describe('runAgenticLoop — unified repair', () => {
+  const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
+  const tools = { web_search: {} } as unknown as LoopEngineParams['tools'];
+  const GOOD = 'Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].';
+
+  /** `first` answers the unified pass (model `synth`), `repairText` the writer. */
+  function setup(first: Part[] | (() => ReturnType<LoopDeps['streamText']>), repairText = GOOD) {
+    const calls: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        calls.push(o.model.id);
+        if (o.model.id === 'repair') return streamOf([{ type: 'text-delta', text: repairText }]);
+        return typeof first === 'function' ? first() : streamOf(first);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, calls };
+  }
+  const params = (over: Partial<LoopEngineParams> = {}) =>
+    baseParams({ mode: 'unified', repairModel, tools, ...over });
+
+  it('re-writes an empty answer on the repair lane when no artifact was produced', async () => {
+    const onText = vi.fn();
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(params({ onText }), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
+    expect(out.replacedStreamed).toBe(true);
+    // The repair is silent — the completion replace carries it.
+    expect(onText).not.toHaveBeenCalled();
+  });
+
+  it('does not repair an empty answer after an artifact (the caller confirms it)', async () => {
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(params({ producedArtifact: () => true }), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe('');
+    expect(out.replacement).toBeUndefined();
+  });
+
+  it('repairs an answer the validator rejects', async () => {
+    const { deps, calls } = setup([{ type: 'text-delta', text: 'Ein abgebrochener Satz, der' }]);
+    const out = await runAgenticLoop(
+      params({ validateAnswer: (t) => (t === GOOD ? null : SYNTH_CUTOFF_RETRY_SUFFIX) }),
+      deps
+    );
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+  });
+
+  it('repairs a degenerate stream instead of trimming it', async () => {
+    const proseSentence = (i: number): string =>
+      `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro, damit junge Menschen im Wahlkreis ${i * 7} unabhängig vom Elternhaus lernen können. `;
+    const spam = '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+    const { deps, calls } = setup(
+      () =>
+        ({
+          stream: (async function* () {
+            for (let i = 0; i < 40; i++) yield { type: 'text-delta', text: proseSentence(i) };
+            while (true) yield { type: 'text-delta', text: spam };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>
+    );
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+    expect(out.text).toBe(GOOD);
+  });
+
+  it('repairs an answer that ended on finishReason length', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: 'Eine lange Antwort, die abgeschnitten wurde' },
+      { type: 'finish', finishReason: 'length' },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.replacement).toBe('unified_repair');
+  });
+
+  it('swaps an English refusal for the German one without a repair pass', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: "I'm sorry, but I can't help with that." },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe(SYNTH_REFUSAL_TEXT);
+    expect(out.replacement).toBe('refusal_swap');
+    expect(out.replacedStreamed).toBe(true);
+  });
+
+  it('calls streamText exactly once for a clean answer', async () => {
+    const { deps, calls } = setup([
+      { type: 'text-delta', text: GOOD },
+      { type: 'finish', finishReason: 'stop' },
+    ]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBeUndefined();
+  });
+
+  it("keeps today's behaviour without a repair lane", async () => {
+    const { deps, calls } = setup([]);
+    const out = await runAgenticLoop(baseParams({ mode: 'unified', tools }), deps);
+    expect(calls).toEqual(['synth']);
+    expect(out.text).toBe('');
   });
 });
 
@@ -2014,5 +2283,55 @@ describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
     );
     expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
     expect(afterGather).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
+  const RECALL = '## RELEVANTE VERGANGENE GESPRÄCHE\n\nVerkehr.';
+  type SysOpts = StreamOpts & {
+    system?: unknown;
+    prepareStep?: (a: { stepNumber: number }) => { system?: unknown };
+  };
+
+  function run(turnContext: string | null) {
+    const seen: SysOpts[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: SysOpts) => {
+        seen.push(o);
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    return runAgenticLoop(
+      baseParams({
+        mode: 'unified',
+        maxSteps: 3,
+        ...(turnContext ? { turnContext } : {}),
+      }),
+      deps
+    ).then(() => seen);
+  }
+
+  it('schickt system als Array, die zweite Nachricht trägt den Rückblick', async () => {
+    const [call] = await run(RECALL);
+    expect(call.system).toEqual([
+      { role: 'system', content: `TOOLSYS${UNIFIED_SUFFIX}` },
+      { role: 'system', content: RECALL },
+    ]);
+  });
+
+  it('hält den Rückblick auch auf dem Schlussschritt (prepareStep ersetzt system)', async () => {
+    const [call] = await run(RECALL);
+    const step = call.prepareStep!({ stepNumber: 2 });
+    expect(Array.isArray(step.system)).toBe(true);
+    const sys = step.system as Array<{ role: string; content: string }>;
+    expect(sys[0].content).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+    expect(sys[1]).toEqual({ role: 'system', content: RECALL });
+  });
+
+  it('ohne turnContext bleibt system ein String', async () => {
+    const [call] = await run(null);
+    expect(call.system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(typeof call.prepareStep!({ stepNumber: 2 }).system).toBe('string');
   });
 });

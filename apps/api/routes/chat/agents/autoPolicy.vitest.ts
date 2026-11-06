@@ -571,3 +571,40 @@ describe('resolveAutoSelection — Pipeline-Agenten', () => {
     expect(selection.reasoning).toBe('medium');
   });
 });
+
+describe('UNIFIED_GEMMA_CHAIN', () => {
+  it('is Gemma on Melious, then the Mistral writer — and no entry targets Cortecs', async () => {
+    const { UNIFIED_GEMMA_CHAIN, LOOP_SYNTH_FALLBACK } = await import('./autoPolicy.js');
+    const { GEMMA_31B_ON_MELIOUS } = await import('../../../services/ai/gemmaHosts.js');
+    expect(UNIFIED_GEMMA_CHAIN[0]).toBe(GEMMA_31B_ON_MELIOUS);
+    expect(UNIFIED_GEMMA_CHAIN[1]).toBe(LOOP_SYNTH_FALLBACK);
+    expect(UNIFIED_GEMMA_CHAIN).toHaveLength(2);
+    for (const entry of UNIFIED_GEMMA_CHAIN) expect(entry.provider).not.toBe('cortecs');
+  });
+});
+
+describe('autoPolicy — prose turns demoted into the loop keep the prose row (D8b)', () => {
+  it('a prose-demoted agentic turn resolves like its prose verdict', () => {
+    for (const complexity of COMPLEXITIES) {
+      expect(
+        resolveAutoSelection({ intent: 'agentic', demotedFromProse: 'produktion', complexity })
+      ).toEqual(resolveAutoSelection({ intent: 'produktion', complexity }));
+    }
+    expect(
+      resolveAutoSelection({ intent: 'agentic', demotedFromProse: 'produktion' }).reasoning
+    ).toBe('off');
+  });
+
+  it('plain agentic keeps low', () => {
+    expect(resolveAutoSelection({ intent: 'agentic' }).reasoning).toBe('low');
+    expect(resolveAutoSelection({ intent: 'agentic', demotedFromProse: null }).reasoning).toBe(
+      'low'
+    );
+  });
+
+  it('the origin is ignored when the turn is not agentic', () => {
+    expect(resolveAutoSelection({ intent: 'web', demotedFromProse: 'produktion' })).toEqual(
+      resolveAutoSelection({ intent: 'web' })
+    );
+  });
+});

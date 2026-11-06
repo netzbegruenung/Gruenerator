@@ -31,7 +31,6 @@ import {
   compoundGenerationKind,
   isDocumentContextEditAllowed,
   isReferentialFollowup,
-  looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
   reworksSuppliedText,
@@ -345,6 +344,26 @@ function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boo
     verdict.intent !== 'summary' &&
     NON_SEARCH_INTENTS.has(verdict.intent)
   );
+}
+
+/**
+ * Das eine Tor, durch das ein Prosa-Verdikt (ausser dem Gruss) zu `agentic`
+ * wird. Ist die Schleife aus, bleibt das Prosa-Verdikt stehen: `agentic` hat
+ * keinen Einzeldurchlauf, der Entscheider fienge es mit `agentic_to_search` ab,
+ * und ein Gedicht liefe als Suche.
+ */
+function proseGoesToLoop(intent: string): boolean {
+  return NO_RETRIEVAL_VERDICTS.has(intent) && intent !== 'greeting' && isAgenticLoopEnabled();
+}
+
+/**
+ * Das Gegenstück zu `loopDemotedFromRetrieval`: ein Prosa-Verdikt, das nur in
+ * den Loop gerutscht ist, behält sein Verdikt für die Modellwahl (Lane und
+ * Denkstufe der Prosa-Zeile in `AUTO_POLICY`). Routing, Werkzeuge und
+ * `forceFirstToolCall` sehen weiter `agentic`.
+ */
+function proseOrigin(intent: SearchIntent): Partial<ChatGraphState> {
+  return proseGoesToLoop(intent) ? { loopDemotedFromProse: intent } : {};
 }
 
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
@@ -803,18 +822,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // @sheet mentions. currentDocument is shared with docs/presentations, so a
     // sheet open in its own editor is already covered by hasCurrentDocument.
     const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
-
-    // "Did the user supply the substance?" — the single answer the writing-order
-    // rule consults (Tier 3.5 below, and `decideRunAgentic` in the router). The
-    // paste threshold is the heuristics' own (NOUN_TRIGGER_MAX_LENGTH), reused
-    // rather than re-picked so "long enough to carry its own subject" means one
-    // thing across the classifier.
-    const turnCarriesOwnMaterial =
-      userContent.length > NOUN_TRIGGER_MAX_LENGTH ||
-      hasAttachmentContext ||
-      hasCurrentDocument ||
-      hasDocMentions ||
-      hasDocumentChat;
 
     // ── TIER 1: Mutation intents (resource + action keywords) ──
     // These are the most specific signals — a user explicitly requesting a change
@@ -2161,12 +2168,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             hasTabularAttachment: state.hasTabularAttachment ?? false,
           });
 
-    // Short messages: always use heuristics (likely greetings)
+    // Ein Prosa-Verdikt (ausser dem Gruss) geht an den Loop, nie an eine Antwort
+    // ohne Werkzeug: Kurznachrichten („heller", „kürzer", „und Bayern?") sind das,
+    // was der Thread sagt, und nur der Loop sieht den Thread samt seinen
+    // Werkzeugen (`edit_image`, `edit_sharepic`, Suche). Live 05.11.2026: „die
+    // Mühle an den Rand …" lief ohne Werkzeug, und die Antwort erzählte eine
+    // Anpassung, die nie stattfand. Ein angehängtes Foto bleibt beim
+    // Einzeldurchlauf (`isPixelTurn`, im Router).
+
+    // Short messages: heuristics decide the verdict; prose goes to the loop.
     if (userContent.length < 10) {
       const result = classifyHeuristically();
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
+      if (proseGoesToLoop(result.intent)) {
+        recordDecision('classifier.tier', 'tier3_short_message_to_loop', {
+          inputs: { heuristicIntent: result.intent },
+        });
+        return {
+          intent: 'agentic',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Kurznachricht ohne Abruf-Verdikt → Loop',
+          ...proseOrigin(result.intent),
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
       recordDecision('classifier.tier', 'tier3_short_message', {
         inputs: { heuristicIntent: result.intent, confidence: result.confidence },
       });
@@ -2197,12 +2228,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
     const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
 
-    // A short message inside a running conversation carries no signal of its
-    // own. The penalty is not its only job any more: `isVagueFollowup` also
-    // feeds `selfContained` at Tier 3.5, which is what keeps "mach es blauer"
-    // out of a planner that has nothing to plan.
+    // A short message inside a running conversation carries no signal of its own,
+    // so a confident NON-prose verdict (artifact, gated) is held back from the
+    // Tier-3 early return. This penalty is all that is left of `isVagueFollowup`:
+    // it no longer feeds `selfContained` (deleted) and decides nothing about prose
+    // — every prose verdict goes to the loop regardless. Dropping it flipped three
+    // artifact and one gated census verdict, which this change must not do.
     const isVagueFollowup = conversationContext && userContent.split(/\s+/).length <= 8;
-
     const effectiveConfidence =
       heuristic.confidence - (needsDecomposition ? 0.3 : 0) - (isVagueFollowup ? 0.25 : 0);
 
@@ -2355,44 +2387,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Only retrieval-shaped intents demote — generation/platform-gated intents
     // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
     // LLM tier so their gates/HITL/routing stay intact.
-    // A writing order whose substance the user did NOT supply demotes too. The
-    // heuristic itself already draws this line — `isCreativeTask && isLongPaste`
-    // scores 0.82 while `isCreativeTask` alone scores 0.75 — it just resolved
-    // both to `direct`. Demoting the second case is what makes "schreib eine
-    // Pressemitteilung zu X" reach a planner that can search, instead of being
-    // written from parametric memory.
-    const unsourcedWriting =
-      NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-      looksLikeUnsourcedWritingOrder(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
-
-    // The default flips here: a no-retrieval verdict at this point is the
-    // heuristic table's RESIDUAL, not a finding — `direct@0.50` is what the
-    // rule table returns when nothing matched. Treating "nothing matched" as
-    // "needs no tool" is the bug class the three rescue predicates were each
-    // patching one shape of. Now the residual loops unless the turn positively
-    // shows it is self-contained (`looksLikeSelfContainedTurn`, which is also
-    // what the router's gate consults — one rule, one implementation).
-    //
-    // A short follow-up is exempt on purpose. It is the one case where the
-    // THREAD decides and the message text cannot: "mach es blauer" carries no
-    // signal at all, and the -0.25 penalty above exists precisely to send it to a
-    // tier that can read the conversation. Looping it would strand an artifact
-    // follow-up in a planner with nothing to plan.
-    //
-    // `lastToolContext` is the second half of that: mentions are stripped from
-    // message text on send, so a thread that just produced a sharepic is the
-    // ONLY evidence that "und jetzt noch die Uhrzeit ergänzen" is an edit rather
-    // than a topic. The word cap is what keeps it narrow — a full new question
-    // asked after a sharepic is not a follow-up, and its own heuristic verdict
-    // (search/web/…) demotes it regardless of this branch.
-    const isArtifactFollowup =
-      state.lastToolContext != null && userContent.split(/\s+/).filter(Boolean).length <= 12;
-
-    const selfContained =
-      isVagueFollowup ||
-      isArtifactFollowup ||
-      looksLikeSelfContainedTurn(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
-
     // Das Chat-Recall-VETO ist weg, und zwar aus demselben Grund, aus dem es
     // existierte. Es hielt jede Formulierung aus dem RECALL-Gitter aus der
     // Demotion zurück, damit die LLM-Stufe entscheiden konnte, ob wirklich ein
@@ -2435,10 +2429,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Verschiedenes zugleich: der Klassifikator liess einen abruf-förmigen Turn
     // bei `produktion`, während der `agentic_to_search`-Auffang des Entscheiders
     // für genau diesen Fall „dann such eben" vorsah und nie erreicht wurde.
+    // Jedes Prosa-Verdikt ausser dem Gruss geht in den Loop — als Zustandsregel,
+    // nicht als Textheuristik: kein Wortzähler, keine Selbstgenügsamkeits-Prüfung.
+    // Was einen Turn im Einzeldurchlauf hält, steht im Router (`keepsSinglePass`).
     const demotable =
       (isAgenticLoopEnabled() && DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent)) ||
-      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-        (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained));
+      proseGoesToLoop(heuristic.intent) ||
+      // Schleife aus: wie bisher nur der abruf-förmige Turn (→ `search` im Auffang).
+      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && looksLikeToolableQuestion(userContent));
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
@@ -2449,7 +2447,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           heuristicIntent: heuristic.intent,
           confidence: heuristic.confidence,
           effectiveConfidence,
-          selfContained,
           demotable,
         },
       });
@@ -2462,6 +2459,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
         // steps=0 and the honesty note itself as the user-facing answer.
         loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
+        ...proseOrigin(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),
@@ -2507,7 +2505,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     ) {
       const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
-        const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
+        const resolvedIntent =
+          generation === 'keine'
+            ? isAgenticLoopEnabled()
+              ? 'agentic'
+              : 'produktion'
+            : generation.intent;
         // „Da fehlt noch Marburg in der Tabelle": kein Erstell-Imperativ, die
         // Tabelle gibt es schon — das Modell las nur das Nomen und baute live
         // (11.10.2026) eine zweite. Der Loop hat edit_sheet & Co.
@@ -2545,6 +2548,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             generation === 'keine'
               ? 'Kein Artefakt gefragt (deterministisch aufgelöst)'
               : `Artefakt erkannt: ${resolvedIntent}`,
+          ...(generation === 'keine' && proseOrigin('produktion')),
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -2561,16 +2565,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     //
     // The verdict is the heuristic table's own, with one substitution. A
     // no-retrieval verdict down here is the table's RESIDUAL (`direct@0.50`
-    // means "no rule fired"), not a finding — and every rescue predicate that
-    // could turn it into a loop turn has already run and declined
-    // (`looksLikeToolableQuestion`, `unsourcedWriting`, `looksLikeSelfContained
-    // Turn`). So it is named for what it is: `produktion`, a self-contained
-    // answer. Anything else the table produced (a low-confidence artifact or
-    // gated verdict) stands — it found SOMETHING, just not confidently, and the
+    // means "no rule fired"), not a finding. "Nothing matched" is no evidence
+    // that nothing is needed, so it goes to the loop (`agentic`); the router's
+    // `keepsSinglePass` is the only place that keeps a turn out. Anything else
+    // the table produced (a low-confidence artifact or gated verdict) stands — it found SOMETHING, just not confidently, and the
     // router's licence and negative-action gates are what check it.
-    const residualIntent: SearchIntent = NO_RETRIEVAL_VERDICTS.has(heuristic.intent)
-      ? 'produktion'
-      : heuristic.intent;
+    const residualIntent: SearchIntent = proseGoesToLoop(heuristic.intent)
+      ? 'agentic'
+      : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
+        ? 'produktion'
+        : heuristic.intent;
     const classificationTimeMs = Date.now() - startTime;
     log.info(
       `[Classifier] Residual: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} → ${residualIntent} in ${classificationTimeMs}ms`
@@ -2588,6 +2592,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       ),
       detectedFilters: heuristicExtractFilters(userContent),
       reasoning: `Kein Gitter beansprucht den Turn (Heuristik ${heuristic.intent}@${effectiveConfidence.toFixed(2)})`,
+      ...proseOrigin(heuristic.intent),
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,

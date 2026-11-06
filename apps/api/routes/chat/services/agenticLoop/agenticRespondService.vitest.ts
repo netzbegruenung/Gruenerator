@@ -49,6 +49,21 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   };
 });
 
+// Die Verdikte, die der Loop beim Stillstand/Ausfall einer Lane vermerkt.
+const { slowVerdicts } = vi.hoisted(() => ({
+  slowVerdicts: [] as { provider: string; model: string; reason: string }[],
+}));
+vi.mock('../../../../services/ai/modelHealth.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../services/ai/modelHealth.js')>();
+  return {
+    ...actual,
+    recordSlowVerdict: (provider: string, model: string, reason: string) => {
+      slowVerdicts.push({ provider, model, reason });
+      actual.recordSlowVerdict(provider, model, reason);
+    },
+  };
+});
+
 // Der Vorab-Abruf der @link-Seiten (#4896) liest über den echten Crawl-Pfad;
 // gestellt wird nur das Netz.
 const { crawledSeeds } = vi.hoisted(() => ({ crawledSeeds: [] as string[][] }));
@@ -86,6 +101,7 @@ vi.mock('./clientToolRegistry.js', async (importOriginal) => {
 
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
+import { UNIFIED_GEMMA_CHAIN } from '../../agents/autoPolicy.js';
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
 import { createToolActivity, type ToolActivity } from './toolActivity.js';
@@ -199,6 +215,49 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     expect(seen!.mode).toBe('unified');
+  });
+
+  it('läuft unified auf der Standard-Lane (Gemma 4 31B auf Melious) und kennt nur Mistral Large als Ausweich', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => (seen = p),
+      })
+    );
+    expect(seen!.mode).toBe('unified');
+    expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
+  });
+
+  it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
+  });
+
+  it('vermerkt einen abgelehnten Aufruf als upstream_error, nicht als synth_stall', async () => {
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => {
+          p.onSynthFallback?.('upstream_error');
+          p.onSynthFallback?.('first_token_timeout');
+        },
+      })
+    );
+    expect(slowVerdicts.map((v) => v.reason)).toEqual(['upstream_error', 'synth_stall']);
+    expect(slowVerdicts[0]!.model).toBe('gemma-4-31b:balanced');
   });
 
   it('läuft split auf jedem anderen Anbieter', async () => {
@@ -1016,5 +1075,20 @@ describe('streamAgenticResponse — Browser-Aufruf neben einer Freigabe (#5044)'
     expect(loopSawSuspended).toBe(true);
     expect(outcome.pendingClientTool).toEqual(HELD);
     expect(outcome.pendingApproval).toBeUndefined();
+  });
+});
+
+describe('streamAgenticResponse — turnContext', () => {
+  it('reicht den Rückblick an die Schleife weiter, ohne ihn in toolSystem zu mischen', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    const deps = fakeDeps({ onLoop: (p) => (seen = p) });
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse, turnContext: '## RÜCKBLICK' },
+      deps
+    );
+    const params = seen as LoopEngineParams | null;
+    expect(params?.turnContext).toBe('## RÜCKBLICK');
+    expect(params?.toolSystem).not.toContain('## RÜCKBLICK');
   });
 });

@@ -97,13 +97,13 @@ const SCREENSHOT_THREAD = [
 ];
 
 describe('classifierNode — creationTopic', () => {
-  it('der Auflöser entscheidet die ART, aber liefert kein Thema', async () => {
-    // Der Verlauf aus dem Fehlerbericht trägt das Wort „sharepic", erreicht den
-    // Generierungs-Auflöser also — und wird dort entschieden. Der Auflöser hat
-    // einen GESCHLOSSENEN Antwortraum (welche Artefaktart, mehr nicht), kann
-    // also gar kein Thema liefern, und genau das ist hier die Zusicherung: die
-    // Stufe erfindet keins. Das Thema kommt aus `createTopic()` im Router, der
-    // auf `resolveReferentialTopic` über denselben Verlauf zurückfällt.
+  it('der Klassifikator erfindet kein Thema; der Turn geht in den Loop', async () => {
+    // Der Verlauf aus dem Fehlerbericht trägt das Wort „sharepic". Seit dem
+    // Loop-Standard ist das Heuristik-Verdikt ein Prosa-Verdikt und geht an den
+    // Loop (Tier 3.5), der Generierungs-Auflöser wird nicht mehr gefragt. Die
+    // Zusicherung bleibt: der Klassifikator erfindet kein Thema. Das Thema kommt
+    // aus `createTopic()` im Router, der auf `resolveReferentialTopic` über
+    // denselben Verlauf zurückfällt.
     const state = buildState(SCREENSHOT_THREAD);
     executeProvider.mockImplementation(
       async (_provider: string, _id: string, req: { systemPrompt?: string }) =>
@@ -113,7 +113,7 @@ describe('classifierNode — creationTopic', () => {
     );
 
     const result = await classifierNode(state);
-    expect(result.intent).toBe('sharepic');
+    expect(result.intent).toBe('agentic');
     expect(result.creationTopic ?? null).toBeNull();
   });
 });

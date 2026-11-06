@@ -10,7 +10,10 @@
 import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import {
+  ownedDefaultRecipeMention,
+  roleAwareDefaultRecipeMention,
+} from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   methodPrecedenceNote,
@@ -69,7 +72,11 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
+import {
+  looksLikeDocsHelpQuestion,
+  looksLikeGeltungsfrage,
+  NO_RETRIEVAL_VERDICTS,
+} from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
 import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
@@ -1512,8 +1519,9 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
   );
 }
 
-export function getModeGuidance(state: ChatGraphState): string {
-  switch (state.intent) {
+export function getModeGuidance(state: ChatGraphState, opts: { proseLoop?: boolean } = {}): string {
+  // A prose turn in the loop arrives as `agentic`; it keeps its prose verdict's guidance.
+  switch (opts.proseLoop ? (state.loopDemotedFromProse ?? state.intent) : state.intent) {
     case 'edit_current_doc':
       return getDocEditGuidance(state);
     case 'summary':
@@ -1536,7 +1544,13 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'direct':
       return (
         DIRECT_GUIDANCE +
-        (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE) +
+        // Im Loop darf das Modell Werkzeuge rufen: „NICHTS recherchiert" und
+        // „Quellen aus dem Thread" wären dort falsch, also keine der beiden Notizen.
+        (opts.proseLoop
+          ? ''
+          : state.sourcesCarriedFromThread
+            ? CARRIED_SOURCES_NOTE
+            : DIRECT_HONESTY_NOTE) +
         (FILE_TALK_RE.test(state.lastUserTextNoMentions || lastUserText(state)) ||
         state.forbiddenArtifactAction
           ? NO_HANDMADE_FILE_NOTE
@@ -1917,6 +1931,18 @@ export interface SystemMessageOptions {
    * the images are visible (`imageVisibility`).
    */
   loop?: boolean;
+  /**
+   * Prosa-Turn (`NO_RETRIEVAL_VERDICTS` ohne `greeting`) im Loop: Rezept-Rumpf
+   * und Schreibhilfe bleiben im Prompt wie im Einzelpfad. Ohne Angabe leitet
+   * `buildPromptBlockContext` es aus dem Intent ab.
+   */
+  proseIntent?: boolean;
+  /**
+   * Der Loop schickt den Rückblick auf frühere Gespräche als eigene System-
+   * Nachricht hinter dem Prompt (`turnContext`). Er ändert sich mit jeder Frage;
+   * mitten im Prompt zerschnitte er den Prefix-Cache von Prompt und Werkzeugen.
+   */
+  recallAsMessage?: boolean;
 }
 
 /**
@@ -1995,7 +2021,8 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
         attachmentQuery(state)
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
-  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
+  const chatHistoryFormatted =
+    state.chatHistoryContext && !opts.recallAsMessage ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = isPinnedTransfer
@@ -2005,8 +2032,15 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
 
+  // A prose turn reaches the loop as `agentic`; its prose verdict travels in
+  // `loopDemotedFromProse` (classifier `proseGoesToLoop`).
+  const proseLoop =
+    opts.loop === true &&
+    (opts.proseIntent ??
+      (state.loopDemotedFromProse != null ||
+        (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting')));
   const intentGuidance =
-    getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
+    getModeGuidance(state, { proseLoop }) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
   // Was dieses Gespräch gebaut hat. Die EINE Naht, die beide Pfade erreicht:
   // der Loop erbt diesen `systemMessage` und hängt nur noch an, was erst in
@@ -2171,7 +2205,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Formatgeber. Dieselbe Trennung macht `catalogAssembly` für `rezept_laden`
   // im Loop. Regeln und Herleitung in `effectiveRecipeMention.ts`.
   const isWriteEligibleTurn =
-    !opts.retrievalExpected &&
+    (!opts.retrievalExpected || proseLoop) &&
     !isNeutralTurn &&
     intent !== 'greeting' &&
     !looksLikeChitchatTurn(userQuestion) &&
@@ -2218,9 +2252,20 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const textFormFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
-    : '';
+  // Im Loop lädt die Rezept-Registry den Default eines Ein-Rezept-Agenten
+  // schon vor (`catalogAssembly`, dieselben Bedingungen) — hier stünde derselbe
+  // Rumpf sonst ein zweites Mal im Prompt.
+  const preloadedByRegistry =
+    opts.loop === true &&
+    !state.activeSkillMention &&
+    !state.activeRecipeId &&
+    !state.customSystemPrompt &&
+    resolved != null &&
+    resolved.mention === ownedDefaultRecipeMention(agentConfig);
+  const textFormFragment =
+    resolved && !preloadedByRegistry
+      ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
+      : '';
 
   // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
   // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene

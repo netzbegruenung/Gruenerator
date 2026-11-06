@@ -61,6 +61,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   scrape_url: ['Webseite gelesen', 'Webseiten gelesen'],
   sharepic: ['Sharepic', 'Sharepics'],
   generate_image: ['Bild', 'Bilder'],
+  edit_image: ['Bildbearbeitung', 'Bildbearbeitungen'],
   create_presentation: ['Präsentation', 'Präsentationen'],
   create_sheet: ['Tabelle', 'Tabellen'],
   create_document: ['Dokument', 'Dokumente'],

@@ -71,6 +71,7 @@ const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { respond } = await import('./harness/respondScript.js');
+const { resolveAutoSelection } = await import('../agents/autoPolicy.js');
 
 const suite = useChatApp();
 
@@ -88,6 +89,24 @@ describe('loop entry', () => {
     expect(trace.agentic).toBe(true);
     expect(respond.agenticCalls).toHaveLength(1);
     expect(respond.singlePassCalls).toHaveLength(0);
+  });
+
+  it('keeps the prose reasoning level for a poem that runs in the loop (D8b)', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Schreib ein Gedicht über Fahrräder')],
+    });
+
+    expect(trace.agentic).toBe(true);
+    const finalState = respond.agenticCalls[0]?.finalState;
+    expect(finalState?.intent).toBe('agentic');
+    expect(finalState?.loopDemotedFromProse).toBe('produktion');
+    expect(
+      resolveAutoSelection({
+        intent: finalState?.intent,
+        demotedFromProse: finalState?.loopDemotedFromProse,
+        complexity: finalState?.complexity,
+      }).reasoning
+    ).toBe('off');
   });
 
   it('never claims agentic on a turn that took the single-pass branch', async () => {
@@ -161,6 +180,11 @@ describe('context window', () => {
       )
     );
 
+    // „Und nun?" geht seit dem Loop-Standard in den Loop. Der Loop beschneidet
+    // ebenfalls (`responseAgentic.ts`, gegen `turnContextWindow(modelId)`), aber
+    // die Fenster-Attrappe dieses Harness (`respond.resolution`) treibt nur den
+    // Einzeldurchlauf. Den erzeugt ein Zustand: ausgeschaltete Schleife.
+    pinChatEnv({ CHAT_AGENT_LOOP: 'false' });
     respond.resolution = { contextWindow: 128_000 };
     const wide = await runTurn(suite.baseUrl(), {
       messages: [...history, userTurn('Und nun?', 'mz')],
@@ -181,6 +205,7 @@ describe('context window', () => {
     // The window has to actually reach pruning: a wide lane must keep strictly
     // more history than a narrow one for the same input.
     expect((wideMessages ?? []).length).toBeGreaterThan((narrowMessages ?? []).length);
+    pinChatEnv();
   });
 });
 

@@ -77,6 +77,12 @@ describe('buildTrace', () => {
     expect(parseTrace(failRaw, 1).sharepicGenerated).toBe(false);
   });
 
+  it('reads loopMode from done', () => {
+    expect(parseTrace(frame('done', { loopMode: 'split' }), 1).loopMode).toBe('split');
+    expect(parseTrace(frame('done', { loopMode: 'unified' }), 1).loopMode).toBe('unified');
+    expect(parseTrace(frame('done', {}), 1).loopMode).toBeNull();
+  });
+
   it('flags a stream that never produced done', () => {
     const t = parseTrace(frame('text_delta', { text: 'hi' }), 1);
     expect(t.error).toMatch(/without a done/);

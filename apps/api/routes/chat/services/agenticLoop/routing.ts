@@ -135,15 +135,6 @@ export function looksLikeToolableQuestion(raw: string): boolean {
 // ungrounded (any writing order), and where it did fire it fired by accident as
 // often as by design — "er ist doch kein MdB mehr" matched on the negation
 // particle "mehr", which the list meant as the expansion word in "erzähl mehr".
-/**
- * Nothing but pasted link(s) — see `looksLikeSelfContainedTurn`.
- *
- * The separator is `\s+`, not `\s*`: with `\s*` the repeated group could split a
- * single run of non-space characters in more than one way, which is exponential
- * backtracking on a message the user fully controls (CodeQL js/redos).
- */
-const BARE_URL_ONLY_RE = /^\s*https?:\/\/\S+(?:\s+https?:\/\/\S+)*\s*$/i;
-
 // A run of pleasantry words, not just one: „super, danke!", „ok, danke dir",
 // „Perfekt, vielen Dank!" (#3715). The words after the thanks (dir, schön,
 // vielen …) are only harmless because every word must come from this list.
@@ -410,77 +401,6 @@ export function looksLikeUnsourcedWritingOrder(
   // skipped by the very phrasing it exists for.
   if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return false;
   return WRITING_ORDER_RE.test(t);
-}
-
-/**
- * "Can this turn be answered from what is already on the table?"
- *
- * The inversion of the old default, and the reason it exists: a no-tool verdict
- * used to be the RESIDUAL — anything the heuristics could not name became
- * `direct`, and three separate rescue predicates (`looksLikeToolableQuestion`,
- * `classifierContradictedResearch`, `looksLikeUnsourcedWritingOrder`) were bolted
- * on over time to pull specific shapes back out of it. Each rescue was written
- * after a live failure, which is the tell: the residual was answering questions
- * it had never been asked. A bare topic ("Windkraft Bayern"), a statement to
- * check, an imperative with no question word — none of them carried a signal any
- * of the three looked for, so all of them were answered from parametric memory.
- *
- * So the burden of proof moves. A turn stays off the loop only when it POSITIVELY
- * shows it needs nothing fetched:
- *  - pleasantries, which want no answer at all;
- *  - pure creative form — a poem needs no sources and must never carry [N];
- *  - a rewrite or a regenerate, definitionally grounded in the text it acts on;
- *  - a turn carrying its own material (long paste, attachment, open document),
- *    where a planner would go looking for what the user already supplied.
- *
- * Everything else defaults into the loop, where the planner decides whether to
- * call a tool. That is the cheap direction to be wrong in: an unnecessary loop
- * costs latency, an unnecessary `direct` costs a confidently wrong answer.
- *
- * Same predicate on both sides of the wire on purpose — the classifier's
- * demotion gate and the router's `decideRunAgentic` implement one rule, and two
- * hand-maintained copies of one rule is the drift shape this whole series is
- * unwinding.
- */
-export function looksLikeSelfContainedTurn(
-  raw: string,
-  opts: { hasOwnMaterial: boolean }
-): boolean {
-  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
-  if (t.length === 0) return true;
-  // Under three words nothing can be demonstrated either way — "Und nun?",
-  // "mach weiter", "und Bayern?" are whatever the THREAD says they are, and this
-  // predicate cannot see the thread. Same floor `looksLikeToolableQuestion` uses,
-  // for the same reason: a default must not fire on absent evidence. The
-  // classifier applies a wider version of this exemption (it CAN see the thread,
-  // via the vague-follow-up penalty and `lastToolContext`); here it stays at the
-  // floor so the router never contradicts a decision the classifier made with
-  // more information.
-  if (t.split(/\s+/).filter(Boolean).length < 3) return true;
-  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return true;
-  // A message that is nothing but pasted link(s) names its own subject — the
-  // page IS the material. It already has a deterministic single-pass route
-  // (the classifier's URL wrapper takes the `scrape_url` slot outright), and
-  // looping it would buy a planner call to arrive at the same one tool. A link
-  // WITH prose around it is a different turn and still loops.
-  if (BARE_URL_ONLY_RE.test(t)) return true;
-  // Eine Faktenprüfung muss nachschlagen, auch wenn sie ihren Stoff mitbringt
-  // und „korrigiere" sagt — sonst endet sie als Single-Pass aus dem
-  // Modellgedächtnis, und der Zwang in `shouldForceFirstToolCall` erreicht sie
-  // nie (Beta 30.09.2026: „prüf die Fakten darin und korrigiere falsche Angaben").
-  if (looksLikeFactCheckOrder(orderText(t))) return false;
-  if (CREATIVE_FORM_RE.test(t)) return true;
-  if (hasRewriteTarget(t) || REGENERATE_RE.test(t)) return true;
-  // A PROHIBITION is not a request, and it must not reach a planner. "Halte die
-  // Ergebnisse fest, aber erstelle diesmal kein Dokument" is honoured by exactly
-  // one thing — the router's persistent-action gate — and that gate only ever
-  // sees ARTIFACT intents. Demoting this turn to `agentic` would hand the
-  // forbidden tool to a model that never saw the gate, which is the same hole
-  // `looksLikeUnsourcedWritingOrder` documents one function up; the default
-  // inversion would have re-opened it from the other side.
-  if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return true;
-  if (opts.hasOwnMaterial) return true;
-  return false;
 }
 
 /** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
@@ -1113,6 +1033,97 @@ export interface AgenticDecisionInput {
    *  document. Feeds `looksLikeUnsourcedWritingOrder`: a writing order WITH
    *  material stays single-pass, without it the loop decides whether to search. */
   hasOwnMaterial?: boolean;
+  /** Eine `@…-erstellen`-Erwähnung hat die Artefaktart festgezurrt
+   *  (`mentionPinnedArtifactKind`). Ohne Verbund (Recherche + Erzeugung) gehört der
+   *  Turn der direkten Erstellroute, die auf einem Loop-Turn übersprungen wird. */
+  pinnedArtifactCreate?: boolean;
+  /** Ein Pipeline-Agent (Einfache/Leichte Sprache) führt den Turn mit eigener Kette aus. */
+  pipelineAgent?: boolean;
+  /** Der Turn ist das „ja" auf ein Artefakt-Angebot (`acceptedOfferKind`). */
+  acceptedOffer?: boolean;
+  /** Eine Editor-Fläche mit offenem Ziel hält den Turn über ihren eigenen Pfad
+   *  (`decideEditToolLoop`/`compoundEdit`), nicht über das allgemeine Gate. */
+  editorSurfaceHeldBack?: boolean;
+}
+
+/**
+ * Die Gründe, aus denen ein Prosa-Turn im Einzeldurchlauf bleibt. Jeder ist ein
+ * ZUSTAND des Turns oder des Threads — kein Wortzähler, keine Wortliste bestimmt
+ * mehr, ob eine Anschlussfrage („kürzer", „und in Bayern?") den Loop erreicht.
+ */
+export type SinglePassReason =
+  | 'greeting'
+  | 'loop_disabled'
+  | 'pinned_tool_without_loop'
+  | 'compound'
+  | 'selected_notebook'
+  | 'secondary_intent'
+  | 'pixel_turn'
+  | 'image_only_ask'
+  | 'pipeline_agent'
+  | 'accepted_offer'
+  | 'reworks_own_material'
+  // Editor-Flächen entscheiden früher in `decideTurnPlan`; das Flag wird heute nie gesetzt.
+  | 'editor_surface';
+
+/** Alles, was einen Turn UNABHÄNGIG vom Intent in die Schleife hebt. */
+function hasExplicitLoopReason(p: AgenticDecisionInput): boolean {
+  return (
+    p.mustLoop ||
+    (p.forcedTool && p.forcedLoop) ||
+    p.isPdfFillRequest ||
+    p.isTabularAnalysisTurn === true ||
+    looksLikeMemoryRequest(p.lastUserText)
+  );
+}
+
+/**
+ * Der eine Ort, an dem ein Turn im Einzeldurchlauf BLEIBT. `null` heisst: nichts
+ * hält ihn draussen, ein Prosa-Intent geht in den Loop.
+ *
+ * Gegründet auf Zustand: Intent, Schalter, Anhänge, Pins, gewähltes Notebook,
+ * Pipeline-Agent, angenommenes Angebot. Textgegründet sind nur noch
+ * `image_only_ask` (`looksLikeImageOnlyAsk`) und `reworks_own_material`
+ * (`reworksSuppliedText`) — beide waren schon vorher so erkannt und sind hier
+ * unverändert übernommen.
+ */
+export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | null {
+  const tabular = p.isTabularAnalysisTurn === true;
+  if (p.intent === 'greeting' && !hasExplicitLoopReason(p)) return 'greeting';
+  if (!p.loopEnabled && !p.mustLoop) return 'loop_disabled';
+  if (p.forcedTool && !p.forcedLoop) return 'pinned_tool_without_loop';
+  const compoundGen =
+    p.compoundGeneration && (isCompoundGenerationIntent(p.intent) || isGroundableProse(p.intent));
+  if (p.pinnedArtifactCreate === true && !compoundGen && isGroundableProse(p.intent)) {
+    return 'pinned_tool_without_loop';
+  }
+  if (p.isCompound && !tabular) return 'compound';
+  if (p.hasSelectedNotebook && !p.mustLoop && !tabular) return 'selected_notebook';
+  if (!(p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url'))) {
+    return 'secondary_intent';
+  }
+  if (isPixelTurn(p.hasImageAttachments, p.intent)) return 'pixel_turn';
+  if (p.hasImageAttachments && !hasExplicitLoopReason(p) && looksLikeImageOnlyAsk(p.lastUserText)) {
+    return 'image_only_ask';
+  }
+  if (p.pipelineAgent === true) return 'pipeline_agent';
+  if (p.acceptedOffer === true) return 'accepted_offer';
+  // Nur wenn nichts anderes den Turn in die Schleife hebt: eine mitgenannte Art
+  // („Dazu passt später ein Sharepic") montiert ihr Werkzeug auch an einer
+  // Umarbeitung des eigenen Materials.
+  if (
+    isGroundableProse(p.intent) &&
+    p.hasOwnMaterial === true &&
+    !compoundGen &&
+    p.isReisekostenTurn !== true &&
+    !hasExplicitLoopReason(p) &&
+    reworksSuppliedText(p.lastUserText)
+  ) {
+    return 'reworks_own_material';
+  }
+  // Nie gesetzt: Editor-Flächen kurzschliessen früher in `decideTurnPlan`.
+  if (p.editorSurfaceHeldBack === true) return 'editor_surface';
+  return null;
 }
 
 /**
@@ -1123,107 +1134,27 @@ export interface AgenticDecisionInput {
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // Eine zurückgewonnene Art hebt den Turn in die Schleife, wo ihr Werkzeug
-  // hängt — auch einen Prosa-Turn mit eigenem Material. Bis 15.10.2026 zählte
-  // das nur bei benannten Erzeugungs-Intents: „mach daraus ein Dokument" unter
-  // einem Anhang war `self-contained`, lief als Einzeldurchlauf, und das
-  // erkannte Dokument-Werkzeug wurde nie montiert.
+  // hängt — auch einen Prosa-Turn mit eigenem Material.
   const compoundGen =
     p.compoundGeneration && (isCompoundGenerationIntent(p.intent) || isGroundableProse(p.intent));
-  // "Füll mir das Formular aus" is an imperative with no question word, so
-  // looksLikeToolableQuestion rejects it by design (content imperatives are
-  // creative generation). With a PDF attached it is exactly a tool turn — and
-  // the PDF form tools only exist inside the loop.
-  // A writing order with no supplied substance is the THIRD `direct` rescue.
-  // The first two both key on the turn looking like a question (`looksLike-
-  // ToolableQuestion`) or on the classifier having contradicted itself — and
-  // `classifierContradictedResearch` is only ever set in the LLM tier, so every
-  // turn that short-circuits earlier could never reach it. A "schreib eine
-  // Pressemitteilung zu X" carries neither signal and used to answer from
-  // parametric memory with no way in.
-  const unsourcedWriting = looksLikeUnsourcedWritingOrder(p.lastUserText, {
-    hasOwnMaterial: p.hasOwnMaterial === true,
-  });
-  // The three rescues above are now the SUBSET of a default: `looksLike-
-  // SelfContainedTurn` says which turns provably need nothing fetched, and
-  // everything else loops. They stay named in the journal because each one
-  // records a live failure, and losing the names would lose the reason.
-  const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
-    hasOwnMaterial: p.hasOwnMaterial === true,
-  });
-  // "Merk dir, dass …" is an imperative without a question word, so every net
-  // above rejects it — and the only place that can honour it is the loop,
-  // where the `memory` tool is mounted. Single-pass would confirm a save it
-  // never made (the failure the explicit-memory rebuild exists for).
+  // „Merk dir, dass …" ist ein Imperativ ohne Fragewort; nur der Loop hat das
+  // `memory`-Werkzeug. Einzeldurchlauf bestätigte ein Speichern, das nie lief.
   const memoryRequest = looksLikeMemoryRequest(p.lastUserText);
-  // „Kannst du das lektorieren?" is shaped like a question, but it asks for work
-  // on the material the turn brought along — nothing to look up. Without this
-  // the question rescue sent it into the loop, where the planner reached for
-  // tools instead of the text (live 29.09.2026: a pasted newsletter came back
-  // summarised instead of corrected).
-  const reworksOwnMaterial = p.hasOwnMaterial === true && reworksSuppliedText(p.lastUserText);
+  // Ein Prosa-Turn geht in den Loop; was ihn draussen hält, steht in
+  // `keepsSinglePass`. Die Textheuristiken, die früher darüber entschieden
+  // (`looksLikeSelfContainedTurn`, `looksLikeUnsourcedWritingOrder`,
+  // `looksLikeToolableQuestion` als Rettung), sind aus dem Gate entfernt.
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    (isGroundableProse(p.intent) &&
-      ((looksLikeToolableQuestion(p.lastUserText) && !reworksOwnMaterial) ||
-        p.classifierContradictedResearch === true ||
-        unsourcedWriting ||
-        !selfContained)) ||
+    isGroundableProse(p.intent) ||
     p.isPdfFillRequest ||
     p.isReisekostenTurn === true ||
     p.isTabularAnalysisTurn === true ||
     compoundGen ||
     memoryRequest;
-  const secondaryAllowed =
-    p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
-  // The loop is the ONLY executor for a connector turn (`agentic` + mcpServerScope;
-  // the legacy mcpToolNode was removed, the `mcp` intent retired in #4043), so it
-  // always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
-  // The single-pass kill-switches below (compound / secondary) still apply; an
-  // image no longer holds it back (`explicitLoopReason`).
   const gateOpen = p.mustLoop || (p.loopEnabled && inLoopSet);
-  // Zwei Ausnahmen aus zwei Gründen, die lange derselbe waren.
-  //
-  // `mustLoop`: kein Turn dieser Menge hat einen Einzeldurchlauf-Executor —
-  // intentExecutionService hat keinen Zweig für einen Konnektor-Turn, einen
-  // Werkzeug-Pin oder `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
-  // ungelesene Wissenssammlung ist der kleinere Verlust gegen einen Turn, der
-  // gar nichts tut — deshalb hebt dieses Flag auch die Notebook-Sperre auf.
-  //
-  // `forcedLoop`: die Person hat den Intent per Erwähnung gesetzt, und für
-  // diesen Intent heisst das „lauf im Loop" statt „hefte ein deterministisches
-  // Einzelwerkzeug an". Es hebt NUR den forcedTool-Notausschalter auf; das
-  // Gate und die Notebook-Sperre bleiben, weil ein Intent mit eigenem
-  // Executor beides nicht braucht.
-  //
-  // Bilder hielten bis #3841 JEDEN Turn im Einzeldurchlauf, weil der Loop keine
-  // Pixel sieht. Seit `bild_ansehen` liest er sie über ein Werkzeug, und draussen
-  // bleiben nur noch zwei Fälle: die Pixel-Intents, die am Bild selbst arbeiten,
-  // und eine Frage, die das Bild allein beantwortet — dort liest ein
-  // Vision-Modell die Pixel direkt. Ein ausdrücklicher Grund für die Schleife
-  // (Konnektor, Gedächtnis, Formular, Zwang) schlägt diese Vermutung.
-  // `forcedLoop` is a property of the intent; only with `forcedTool` is it a
-  // mention the person made.
-  const explicitLoopReason =
-    p.mustLoop ||
-    (p.forcedTool && p.forcedLoop) ||
-    p.isPdfFillRequest ||
-    p.isTabularAnalysisTurn === true ||
-    memoryRequest;
-  const imageStaysSinglePass =
-    isPixelTurn(p.hasImageAttachments, p.intent) ||
-    (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
-  const runAgentic =
-    gateOpen &&
-    // A pinned tool WITHOUT a loop lane (`forcedTool && !forcedLoop`: sharepic,
-    // image, summary, @deepresearch …) keeps a table turn single-pass too. The
-    // loop has no tool for that pin, so letting it in would drop the person's
-    // mention silently — the failure this switch exists for (#5063). The
-    // single-pass answer says instead that the values are not computed.
-    (!p.forcedTool || p.forcedLoop) &&
-    (!p.isCompound || p.isTabularAnalysisTurn === true) &&
-    (!p.hasSelectedNotebook || p.mustLoop || p.isTabularAnalysisTurn === true) &&
-    secondaryAllowed &&
-    !imageStaysSinglePass;
+  const keptReason = keepsSinglePass(p);
+  const runAgentic = gateOpen && keptReason === null;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
     inputs: {
       intent: p.intent,
@@ -1235,18 +1166,18 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       isCompound: p.isCompound,
       hasSelectedNotebook: p.hasSelectedNotebook,
       forcedTool: p.forcedTool,
-      secondaryAllowed,
+      secondaryAllowed: keptReason !== 'secondary_intent',
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
       ...(p.isReisekostenTurn === true && { isReisekostenTurn: true }),
       ...(p.isTabularAnalysisTurn === true && { isTabularAnalysisTurn: true }),
-      unsourcedWriting,
-      selfContained,
       memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
-      ...(reworksOwnMaterial && { reworksOwnMaterial: true }),
+      ...(keptReason != null && { singlePassReason: keptReason }),
       // Only on image turns, so the imageless decision maps keep their columns.
-      ...(p.hasImageAttachments && { imageStaysSinglePass }),
+      ...(p.hasImageAttachments && {
+        imageStaysSinglePass: keptReason === 'pixel_turn' || keptReason === 'image_only_ask',
+      }),
     },
   });
   return runAgentic;

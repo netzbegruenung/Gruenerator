@@ -72,6 +72,8 @@ export interface ChatTrace {
   sharepicGenerated: boolean;
   imageGenerated: boolean;
   citations: unknown[];
+  /** `done` carried the loop mode (loop turns only); null otherwise. */
+  loopMode: 'unified' | 'split' | null;
   /** Grounding proxy: number of citations surfaced on `done`. */
   sources: number;
   fullText: string;
@@ -356,6 +358,14 @@ export const evalExpectSchema = z
     judge: z.array(rubricNameSchema).optional(),
     /** Facts the answer must not contradict (judge `known_answer` rubric). */
     judgeFacts: z.array(z.string()).optional(),
+    /** Die Antwort parst ohne Code-Fence (oder aus einem ```json-Fence) als JSON. */
+    answerIsJson: z.boolean().optional(),
+    /** Anzahl nicht-leerer Zeilen der Antwort, exakt. */
+    answerLineCount: z.number().int().optional(),
+    /** `createDegenerationGuard()` aus dem Loop schlägt über `fullText` nicht an. */
+    noDegeneration: z.boolean().optional(),
+    /** Der Turn hat ein Bild erzeugt (`trace.imageGenerated`). */
+    generatesImage: z.boolean().optional(),
   })
   .strict();
 export type EvalExpect = z.infer<typeof evalExpectSchema>;
@@ -364,6 +374,9 @@ export type EvalExpect = z.infer<typeof evalExpectSchema>;
 export const evalTurnSchema = z
   .object({
     prompt: z.string(),
+    /** Datei unter `evals/fixtures/`, deren Text beim Laden des Korpus dem
+     *  Prompt vorangestellt wird (eingefügtes Material). Nach dem Laden leer. */
+    promptFile: z.string().optional(),
     expect: evalExpectSchema,
     /**
      * Was statt `expect` gilt, wenn der Lauf mit `CHAT_AGENT_LOOP=false` gegen
@@ -588,6 +601,8 @@ export interface TurnResult {
   latencyMs: number;
   intent: string | null;
   agentic: boolean;
+  /** Loop mode from the `done` event; null on single pass or older backends. */
+  loopMode: 'unified' | 'split' | null;
   toolCalls: { toolName: string; ok: boolean; summary?: string; args?: Record<string, unknown> }[];
   /**
    * Der Quellenblock, den das Modell bis einschließlich dieses Turns gesehen hat

@@ -50,6 +50,9 @@ export const DECISION_POINTS = {
   /** Loop vs. single-pass. The highest fan-in decision in the chat stack. */
   'router.run_agentic': { branches: ['loop', 'single_pass'] },
 
+  /** Unified (one model plans and writes) vs. split (planner + synth). */
+  'loop.mode': { branches: ['unified', 'split'] },
+
   /** The router overruling the classifier. The wire shows only the result. */
   'router.intent_override': {
     branches: [
@@ -61,6 +64,9 @@ export const DECISION_POINTS = {
       'agentic_to_search',
       'system_tool_to_web',
       'einfache_sprache_to_produktion',
+      // Eine `@…-erstellen`-Erwähnung ohne Verbund: der Klassifikator schickt den
+      // Prosa-Turn als `agentic`, die Erstellroute gehört aber dem Einzeldurchlauf.
+      'agentic_to_produktion_pinned_create',
       // Der Intent lebt nur noch in der Schleife, und die blieb zu. Ziel steht
       // als `degradeTo` in der Intent-Registry, nicht hier.
       'loop_only_degraded',
@@ -125,6 +131,8 @@ export const DECISION_POINTS = {
       'tier2.9_docs_help',
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
+      // Kurznachricht nach einem erzeugten Bild → Loop mit `edit_image`.
+      'tier3_short_message_to_loop',
       'tier3_heuristic',
       'tier3.4_chat_recall',
       'tier3.4_recurring_order',
@@ -201,6 +209,12 @@ export const DECISION_POINTS = {
       'invalid_replaced',
       'invalid_retry_failed',
     ],
+  },
+
+  /** A unified answer the one-model pass got wrong and the tool-less writer
+   *  re-wrote. The wire shows only the replacement; the branch names why. */
+  'loop.unified_repair': {
+    branches: ['empty', 'invalid', 'plan_leak', 'degenerate', 'abnormal_finish'],
   },
 
   /** Antwortmodus der Notebook-Seite. Das Wire-Event `answer_mode` zeigt nur

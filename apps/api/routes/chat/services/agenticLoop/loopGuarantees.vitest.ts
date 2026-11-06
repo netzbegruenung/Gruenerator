@@ -10,7 +10,11 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import { createAfterGather, type GuaranteeContext } from './loopGuarantees.js';
+import {
+  createAfterGather,
+  turnCarriesGuarantee,
+  type GuaranteeContext,
+} from './loopGuarantees.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
@@ -275,5 +279,68 @@ describe('Pin-Zusicherung — ein benanntes bundestag läuft, auch wenn der Plan
     const { run, execute } = harness({ editToolSurface: null }, ask, 'bundestag');
     expect(await run()).toBe(false);
     expect(execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('turnCarriesGuarantee — wann ein Turn auf den Split-Loop gehört', () => {
+  const state = (over: Partial<ChatGraphState>): ChatGraphState => over as ChatGraphState;
+
+  it('ordered compound generation carries a guarantee', () => {
+    expect(
+      turnCarriesGuarantee(
+        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: true })
+      )
+    ).toBe(true);
+    expect(turnCarriesGuarantee(state({ compoundGenerationKind: 'sharepic' }))).toBe(true);
+  });
+
+  it('a merely named artifact (compoundGenerationOrdered: false) does not', () => {
+    expect(
+      turnCarriesGuarantee(
+        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: false })
+      )
+    ).toBe(false);
+  });
+
+  it('an artifact edit order carries a guarantee', () => {
+    expect(turnCarriesGuarantee(state({ artifactEditOrder: true }))).toBe(true);
+  });
+
+  it('the forced edit precondition carries one — by intent, and by the ask', () => {
+    expect(
+      turnCarriesGuarantee(state({ editToolSurface: 'board', intent: 'edit_current_board' }))
+    ).toBe(true);
+    expect(
+      turnCarriesGuarantee(
+        state({ editToolSurface: 'board', intent: 'agentic' }),
+        'Erstelle eine Aufgabe „Plakate bestellen" in To-Do'
+      )
+    ).toBe(true);
+    // A question to the board is no edit.
+    expect(
+      turnCarriesGuarantee(
+        state({ editToolSurface: 'board', intent: 'agentic' }),
+        'Wie viele Aufgaben sind offen?'
+      )
+    ).toBe(false);
+    // Already edited: nothing is owed any more.
+    expect(
+      turnCarriesGuarantee(
+        state({
+          editToolSurface: 'board',
+          intent: 'edit_current_board',
+          editorEditsSummary: 'x',
+        } as Partial<ChatGraphState>)
+      )
+    ).toBe(false);
+  });
+
+  it('a pinned bundestag carries a guarantee, another pinned tool does not', () => {
+    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'bundestag' }))).toBe(true);
+    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'web_search' }))).toBe(false);
+  });
+
+  it('a plain turn carries none', () => {
+    expect(turnCarriesGuarantee(state({ intent: 'agentic' }))).toBe(false);
   });
 });

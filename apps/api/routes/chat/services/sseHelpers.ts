@@ -330,6 +330,8 @@ export interface SSEEventPayloads {
     citations?: unknown[];
     generatedImage?: GeneratedImageResult | null;
     interrupted?: boolean;
+    /** Loop turns only. */
+    loopMode?: 'unified' | 'split';
     metadata?: {
       intent: SearchIntent;
       searchCount: number;

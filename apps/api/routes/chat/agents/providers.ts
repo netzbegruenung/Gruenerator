@@ -35,6 +35,7 @@ import {
   LOOP_PLANNER_UNCONFIGURED,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
+  UNIFIED_GEMMA_CHAIN,
 } from './autoPolicy.js';
 
 import type { AgentConfig } from './types.js';
@@ -237,7 +238,7 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
  * trotzdem stehen: F1 (CLAUDE.md), er steckt in persistierten Thread-Zuständen
  * und wird nicht umbenannt. Was er BEDEUTET, steht hier.
  *
- * Die Lane braucht nichts aus dem Mistral-Regelwerk (`isAgenticToolCapable`,
+ * Die Lane braucht nichts aus dem Mistral-Regelwerk (`prefersUnifiedLoop`,
  * Kontextfenster, Fallback-Ketten): sie schreibt Prosa über Material, das schon
  * im Kontext steht, und ruft keine eigenen Werkzeuge auf.
  *
@@ -764,33 +765,42 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
 }
 
 /**
- * Whether a resolved model can drive the agentic chat tool loop (native
- * function calling with multi-step tool use). Conservative on purpose: only
- * Mistral is enabled for now — it's the primary EU provider and our strongest
- * tool-caller (mistral-medium-2604). Die übrigen Antwort-Lanes (Gemma 4 über
- * Cortecs, die kleinen Modelle) sind NICHT freigeschaltet; eine
- * Nutzerwahl ohne Werkzeugfähigkeit bleibt auf dem Single-Pass-Pfad, statt
- * still getauscht zu werden. `litellm/GPT-OSS` stand hier bis zum 29.08.2026
- * und ist als Ziel weg (services/ai/litellmRetired.ts).
- */
-export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
-  return provider === 'mistral';
-}
-
-/**
  * Whether the SELECTED model drives the tool loop directly (unified single-model
  * pass) vs. delegating tool orchestration to the fast planner (planner/executor
  * split: the `standard` intermediate stage gathers, selected model writes the answer).
  *
- * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
- * fastest and highest-fidelity. Everything else splits: the fixed fast planner
- * does every tool call (so tool-calling reliability no longer depends on the
- * user's model) and the selected model only writes prose — which is why ANY
- * model, including slow "thinking" lanes and non-tool-callers, is now selectable
+ * Unified: Mistral (our fast native tool-caller) and Gemma 4 31B on Melious
+ * (`isUnifiedGemma`, the default lane). Everything else splits: the fixed fast
+ * planner does every tool call (so tool-calling reliability no longer depends
+ * on the user's model) and the selected model only writes prose — which is why
+ * ANY model, including slow "thinking" lanes and non-tool-callers, is selectable
  * for the loop.
  */
-export function prefersUnifiedLoop(provider: string, _modelName: string): boolean {
-  return provider === 'mistral';
+export function prefersUnifiedLoop(provider: string, modelName: string): boolean {
+  return provider === 'mistral' || isUnifiedGemma(provider, modelName);
+}
+
+/**
+ * Gemma 4 31B on Melious, in any routing flavor (`:balanced`/`:speed`/`:eco`,
+ * also when the name comes from `MELIOUS_DEFAULT_MODEL`). Deliberately Melious
+ * only: Cortecs' `gemma-4-31b-it`, the 26B variants, GreenPT and the
+ * DeepSeek/Panda lane stay on the split (decision 05.11.2026).
+ */
+const UNIFIED_GEMMA_NAME = /^gemma-4-31b(?::balanced|:speed|:eco)?$/;
+export function isUnifiedGemma(provider: string, modelName: string): boolean {
+  return provider === 'melious' && UNIFIED_GEMMA_NAME.test(modelName);
+}
+
+/**
+ * The lanes behind the selected one for a unified Gemma turn:
+ * `UNIFIED_GEMMA_CHAIN` minus the selected stage. Empty for every other lane
+ * (Mistral keeps its own repair path only).
+ */
+export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
+  if (!isUnifiedGemma(provider, modelName)) return [];
+  return UNIFIED_GEMMA_CHAIN.filter((stage) => !isUnifiedGemma(stage.provider, stage.model)).map(
+    (stage) => getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
+  );
 }
 
 /**
@@ -996,22 +1006,6 @@ export function getLoopSynthModel(
     name: choice.model,
     provider: choice.provider,
   };
-}
-
-/**
- * Cheap, slot-free check of whether the model that WILL be used (user selection
- * or agent default) can drive the agentic loop. Mistral lanes never acquire an
- * `instantiateModel` runs.
- */
-export function selectionIsToolCapable(agentProvider: string, modelId?: string): boolean {
-  if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
-    const cfg = AVAILABLE_MODELS[modelId];
-    if (cfg) {
-      return isAgenticToolCapable(cfg.provider, cfg.model);
-    }
-    // Unknown id → agent default is used, fall through.
-  }
-  return isAgenticToolCapable(agentProvider, '');
 }
 
 export function getProviderName(provider: AgentConfig['provider'] | Provider): string {
