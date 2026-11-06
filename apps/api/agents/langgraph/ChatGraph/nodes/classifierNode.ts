@@ -404,9 +404,10 @@ const SLIDE_ORDER_VERB =
 const NEW_ARTIFACT_ASK =
   /(?<!\p{L})(?:erstell|generier|neue[nsrm]?(?!\p{L})|weitere[nsrm]?(?!\p{L})|(?:noch|bau\w*|mach\w*)\s+(?:mir\s+)?(?:noch\s+)?eine?[nrms]?(?!\p{L}))/iu;
 
-/** Ein Änderungsverb an einem Bild, das `hasImageEditVerb` nicht kennt („passe … an"). */
+/** Ein Änderungsverb an einem Bild, das `hasImageEditVerb` nicht kennt („passe … an").
+ *  Nur der Imperativ „pass(e|en)": „Das Bild passt perfekt, danke an dich" ist kein Auftrag. */
 const IMAGE_ADJUST_VERB =
-  /(?<!\p{L})(?:pass\w*[^.?!]{0,60}?\ban|anpass\w*|überarbeit\w*|änder\w*|korrigier\w*)(?!\p{L})/iu;
+  /(?<!\p{L})(?:pass(?:e|en)?(?!\p{L})[^.?!]{0,60}?\ban|anpass\w*|überarbeit\w*|änder\w*|korrigier\w*)(?!\p{L})/iu;
 
 /** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
 const FULL_REWRITE_ASK =

@@ -481,6 +481,21 @@ describe('genau ein Bild im Thread', () => {
     expect(call?.toolChoice).toBe('required');
     expect(call?.firstStepActiveTools).toContain('edit_image');
   });
+
+  it('zwingt nichts bei einem Dank, der „passt … an" enthält', async () => {
+    const threadId = await artifactThread('image', true);
+    loopScript.script({ text: 'Antwort.' }, { text: 'Antwort.' });
+    await runTurn(app.baseUrl, {
+      threadId,
+      messages: [
+        userTurn(KINDS.image.created, 'm1'),
+        { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'Hier ist es.' }] },
+        userTurn('Das Bild passt perfekt, danke an dich!', 'm2'),
+      ],
+    });
+    const call = loopScript.calls[0];
+    expect(call?.toolChoice).not.toBe('required');
+  });
 });
 
 describe('edit_image im Loop', () => {
