@@ -37,6 +37,52 @@ export function isPastedTextAttachment(name: string, mimeType: string): boolean 
 }
 
 /**
+ * Überschrift eines eingefügten Texts im Material dieses Turns.
+ *
+ * Ein Paste ist keine hochgeladene Datei, sondern ein Teil der Nachricht. Stand
+ * er als `### Eingefügter Text.txt (Volltext-Auszug)` unter ANGEHÄNGTE DOKUMENTE,
+ * las das Modell „Hier sind die Termine" als Nachricht OHNE Termine und fragte
+ * zurück, ob die Liste „aus dem angehängten Dokument" gemeint sei — 2 von 3
+ * Läufen, lokal wie auf gruenerator.eu (#5423).
+ *
+ * Zugleich der Erkennungsschlüssel für Rubrik und Anker (`describeTurnMaterial`):
+ * der Materialblock reist als Text, die Art des Abschnitts steht nur hier (#5430).
+ */
+export const PASTED_TEXT_HEADING = 'Eingefügter Text (von der Person in diese Nachricht eingefügt)';
+
+/**
+ * Die `###`-Überschrift eines Material-Abschnitts, ohne die Rauten. `earlier`
+ * gesetzt: der Abschnitt stammt aus einem früheren Turn und trägt, ob er voll
+ * oder nur zusammengefasst vorliegt. Der `###`-Präfix davor ist tragend:
+ * `limitAttachmentContext` schneidet daran die Dokumente.
+ */
+export function materialSectionHeading(
+  name: string,
+  mimeType: string,
+  earlier?: 'Volltext-Auszug' | 'Zusammenfassung'
+): string {
+  const pasted = isPastedTextAttachment(name, mimeType);
+  if (!earlier) return pasted ? PASTED_TEXT_HEADING : `${name} (Volltext-Auszug)`;
+  return pasted
+    ? `Eingefügter Text aus einer früheren Nachricht (${earlier})`
+    : `${name} (${earlier})`;
+}
+
+const UPLOAD_SECTION_RE = /^### .+ \(Volltext-Auszug\)$/m;
+
+/** Was im Material dieses Turns steht: ein eingefügter Text, eine hochgeladene Datei. */
+export function describeTurnMaterial(attachmentContext: string | null | undefined): {
+  pasted: boolean;
+  uploaded: boolean;
+} {
+  if (!attachmentContext) return { pasted: false, uploaded: false };
+  return {
+    pasted: attachmentContext.includes(`### ${PASTED_TEXT_HEADING}`),
+    uploaded: UPLOAD_SECTION_RE.test(attachmentContext),
+  };
+}
+
+/**
  * When the composer text is empty, the paste IS the prompt: return its decoded
  * text plus the attachment list without the paste files, so the caller can
  * promote the text into the user message instead of the untrusted-material
@@ -239,7 +285,9 @@ export async function processAttachments(
           // vectorized doc's RAG chunks (see contextEnrichmentService's
           // SMALL_DOC_VECTORIZATION_THRESHOLD routing) — the model otherwise
           // can't tell whether it's seeing everything or an excerpt.
-          documentTexts.push(`### ${attachment.name} (Volltext-Auszug)\n\n${text}`);
+          documentTexts.push(
+            `### ${materialSectionHeading(attachment.name, attachment.type)}\n\n${text}`
+          );
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,

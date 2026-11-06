@@ -67,6 +67,8 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
 
 const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
   await import('./respondNode.js');
+const { PASTED_TEXT_HEADING } =
+  await import('../../../../routes/chat/services/attachmentProcessingService.js');
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -349,6 +351,34 @@ const GOLDEN_CASES: readonly Case[] = [
     state: makeState({
       attachmentContext: '### Antrag.pdf\n\nDer Antrag fordert ein Tempolimit.',
       threadAttachments: [protokoll],
+    } as never),
+  },
+  // #5423: ein Paste ist Teil der Nachricht, keine hochgeladene Datei.
+  {
+    name: 'mit eingefuegtem text',
+    state: makeState({
+      intent: 'produktion',
+      attachmentContext: `### ${PASTED_TEXT_HEADING}\n\n12.01.2027 Neujahrsempfang, Rathaus`,
+      threadAttachments: [
+        {
+          ...protokoll,
+          id: 'att-paste',
+          name: 'Eingefügter Text.txt',
+          mimeType: 'text/plain',
+          extractedText: '05.01.2027 Klausur, Parteibüro',
+        },
+      ],
+      messages: [{ role: 'user', content: 'Hier sind die Termine' }],
+    } as never),
+  },
+  {
+    name: 'eingefuegter text neben datei',
+    state: makeState({
+      intent: 'produktion',
+      attachmentContext: [
+        '### Antrag.pdf (Volltext-Auszug)\n\nDer Antrag fordert ein Tempolimit.',
+        `### ${PASTED_TEXT_HEADING}\n\nUnsere Begründung: weniger Lärm.`,
+      ].join('\n\n---\n\n'),
     } as never),
   },
   {

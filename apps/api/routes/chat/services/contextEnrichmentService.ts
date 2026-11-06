@@ -16,7 +16,7 @@ import {
 } from '../../../services/presentations/PresentationGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { isPastedTextAttachment } from './attachmentProcessingService.js';
+import { isPastedTextAttachment, materialSectionHeading } from './attachmentProcessingService.js';
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
 import { sendChatWarning } from './sseHelpers.js';
 import { resolveWholeDocumentTurn } from './wholeDocument.js';
@@ -519,7 +519,7 @@ export async function enrichContext(opts: {
         // Label distinguishes this inline full-text path from the vectorized
         // (RAG-chunked) sibling files in the same turn — see
         // SMALL_DOC_VECTORIZATION_THRESHOLD above.
-        .map((m) => `### ${m.name} (Volltext-Auszug)\n\n${m.extractedText}`);
+        .map((m) => `### ${materialSectionHeading(m.name, m.mimeType)}\n\n${m.extractedText}`);
       initialState.attachmentContext =
         smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
     }

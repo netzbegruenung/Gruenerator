@@ -30,6 +30,7 @@ vi.mock('../../../services/document-services/DocumentProcessingService/fileProce
 }));
 
 const { enrichContext } = await import('./contextEnrichmentService.js');
+const { PASTED_TEXT_HEADING } = await import('./attachmentProcessingService.js');
 const { formatThreadAttachmentsContext } =
   await import('../../../agents/langgraph/ChatGraph/nodes/respondNode.js');
 
@@ -56,9 +57,7 @@ const meta = (text: string) => ({
 
 async function runEnrich(texts: string[], userText = '') {
   const initialState = {
-    attachmentContext: texts
-      .map((t) => `### ${NAME} (Volltext-Auszug)\n\n${t}`)
-      .join('\n\n---\n\n'),
+    attachmentContext: texts.map((t) => `### ${PASTED_TEXT_HEADING}\n\n${t}`).join('\n\n---\n\n'),
     documentChatIds: [] as string[],
     messages: userText ? [{ role: 'user', content: userText }] : [],
     threadAttachments: [],
@@ -150,6 +149,33 @@ describe('two pastes in ONE message (same file name)', () => {
   });
 });
 
+// Neben einer vektorisierten Datei baut enrichContext den Inline-Block neu
+// (keine Ganzdokument-Aufgabe: nicht alles Material ist eingefügt). Auch dort
+// trägt der Paste seine eigene Überschrift (#5423).
+describe('paste next to a vectorized upload', () => {
+  it('keeps the paste heading when the inline block is rebuilt', async () => {
+    const big = para('GROSS', 15_000);
+    const small = para('KLEIN', 2_000);
+    const upload = { ...paste(big), name: 'bericht.txt' };
+    const initialState = {
+      attachmentContext: `### bericht.txt (Volltext-Auszug)\n\n${big}\n\n---\n\n### ${PASTED_TEXT_HEADING}\n\n${small}`,
+      documentChatIds: [] as string[],
+      messages: [{ role: 'user', content: 'Hier sind die Termine' }],
+      threadAttachments: [],
+    };
+    await enrichContext({
+      initialState: initialState as never,
+      userId: 'u1',
+      docAttachments: [upload, paste(small)] as never,
+      processedMeta: [{ ...meta(big), name: 'bericht.txt' }, meta(small)] as never,
+      contextWindowTokens: 128_000,
+      sse: { send: vi.fn() } as never,
+    });
+    expect(initialState.documentChatIds).toHaveLength(1);
+    expect(initialState.attachmentContext).toBe(`### ${PASTED_TEXT_HEADING}\n\n${small}`);
+  });
+});
+
 describe('earlier pastes in the same thread', () => {
   const row = (text: string, documentId: string | null = null) => ({
     id: text.slice(0, 3),
@@ -177,12 +203,19 @@ describe('earlier pastes in the same thread', () => {
     expect(out).toMatch(/frühere|Fassung|älter/i);
   });
 
+  // #5423: in Folge-Turns stand er als „Eingefügter Text.txt (Volltext-Auszug)".
+  it('an earlier paste is named as text from an earlier message, not as a file', () => {
+    const out = formatThreadAttachmentsContext([row(para('ALT', 2_000))], 128_000, '', '', '');
+    expect(out).toContain('### 1. Eingefügter Text aus einer früheren Nachricht (Volltext-Auszug)');
+    expect(out).not.toContain('Eingefügter Text.txt');
+  });
+
   it('an older vectorized paste does not shadow the current inline one', () => {
     const out = formatThreadAttachmentsContext(
       [row(para('ALT', 20_000), 'doc-old')],
       128_000,
       '',
-      `### ${NAME} (Volltext-Auszug)\n\n${para('NEU', 3_000)}`,
+      `### ${PASTED_TEXT_HEADING}\n\n${para('NEU', 3_000)}`,
       ''
     );
     expect(out).not.toContain('ALT-Satz');

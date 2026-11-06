@@ -12,6 +12,7 @@ import {
   restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
+import { PASTED_TEXT_HEADING } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { replaceUntrustedBlocks } from '../../../../routes/chat/services/untrustedContent.js';
 
 import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
@@ -826,7 +827,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
   // entfernt die File-Parts, bevor die Historie gebaut wird.
   describe('derselbe Text nur einmal im Prompt', () => {
     it('lässt die gespeicherte Zeile weg, wenn der Live-Anhang denselben Text trägt', () => {
-      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const live = `### ${PASTED_TEXT_HEADING}\n\n${article}`;
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
@@ -843,7 +844,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
 
     it('lässt einen anderen Anhang neben dem Live-Anhang stehen', () => {
       const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
-      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const live = `### ${PASTED_TEXT_HEADING}\n\n${article}`;
       const out = formatThreadAttachmentsContext(
         [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
         undefined,
@@ -880,7 +881,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       // Der gespeicherte Volltext ist ungekürzt, der Live-Block kann es nicht
       // sein — deshalb zählt die Überdeckung in beide Richtungen, sobald sie
       // lang genug ist, um kein Zufall mehr zu sein.
-      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article.slice(0, 1200)}`;
+      const live = `### ${PASTED_TEXT_HEADING}\n\n${article.slice(0, 1200)}`;
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
@@ -889,7 +890,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
       const live = [
         `### Radwege.txt (Volltext-Auszug)\n\n${other}`,
-        `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`,
+        `### ${PASTED_TEXT_HEADING}\n\n${article}`,
       ].join('\n\n---\n\n');
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
