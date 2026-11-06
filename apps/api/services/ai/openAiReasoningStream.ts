@@ -26,7 +26,7 @@ import {
   SOVEREIGN_ZDR_PROVIDERS,
 } from './cortecsRequestPolicy.js';
 import { createAnswerToolCallFilter, createGemmaChannelFilter } from './gemmaChannelFilter.js';
-import { parseMeliousImpact } from './meliousImpact.js';
+import { meliousBookedProvider, parseMeliousImpact } from './meliousImpact.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
 import { MELIOUS_BASE_URL } from './providerInstances.js';
@@ -317,8 +317,14 @@ export async function* streamWithReasoning(
       ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
       inputTokens: usage?.inputTokens ?? null,
     });
-    if (usage) recordTokenUsage({ provider: bookedProvider, model: params.model, ...usage });
-    if (impact) recordImpact({ provider: params.provider, model: params.model, ...impact });
+    // Melious nennt den Upstream erst im letzten Chunk; beide Zeilen gehen
+    // dorthin, damit Messung und Tokens unter demselben Anbieter stehen.
+    const provider = params.provider === 'melious' ? meliousBookedProvider(impact) : bookedProvider;
+    if (usage) recordTokenUsage({ provider, model: params.model, ...usage });
+    if (impact) {
+      const { upstream: _upstream, ...measured } = impact;
+      recordImpact({ provider, model: params.model, ...measured });
+    }
   }
 }
 

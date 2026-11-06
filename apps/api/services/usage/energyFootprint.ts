@@ -403,13 +403,17 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // ein Land zu nennen; 45 ist Schwedens Wert (Ember 2024) und damit die
   // günstigste Lesart einer unbestimmten Angabe. Erring high wäre die
   // vorsichtigere Wahl — die Zahl steht unter Vorbehalt, bis das Land benannt
-  // ist, nicht mehr bis der Header sie nennt.
+  // ist, nicht mehr bis der Header sie nennt. Benannt hat es inzwischen Melious:
+  // `provider_id: berget, location: SE` (06.11.2026), Live-Faktor dort ~25.
+  // Über Melious gerechnete Berget-Zeilen tragen diese Live-Messung; die 45
+  // gilt nur noch für Cortecs-Zeilen und Melious-Zeilen ohne Messung.
   berget: 45,
   // Melious' eigener Faktor, NICHT ein Landeswert: jede nicht-gestreamte
   // Antwort am 23.09.2026 (9 von 9, `location: 'FI'`) ergab carbon_g_co2 /
   // energy_kwh = 193,0 — konstant, obwohl die Doku stündliche electricity-map-
-  // Daten verspricht. Steht hier für die gestreamten Züge, damit sie mit
-  // demselben Faktor gerechnet werden wie die gemeldeten.
+  // Daten verspricht. Seit 06.11.2026 nur noch Rückfall: Melious-Zeilen tragen
+  // Melious' Live-Messung und stehen unter dem Upstream aus `provider_id`
+  // (services/ai/meliousImpact.ts); `melious` bleibt nur, wo keine Messung kam.
   melious: 193,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.

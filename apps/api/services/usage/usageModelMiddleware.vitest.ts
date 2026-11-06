@@ -100,6 +100,13 @@ describe('withUsageTracking', () => {
     );
   });
 
+  it('überlässt Melious-Tokens der HTTP-Grenze, die den Upstream kennt', async () => {
+    // meliousImpact.ts bucht sie unter `provider_id` neben der Messung; hier ein
+    // zweites Mal gebucht, zählte jede Melious-Anfrage doppelt.
+    await drain(withUsageTracking(fakeModel([{ type: 'text-delta', text: 'x' }], 200), 'melious'));
+    expect(recordTokenUsage).not.toHaveBeenCalled();
+  });
+
   it('bucht den Cache-Anteil der Eingabe mit, wenn der Anbieter ihn meldet', async () => {
     const model = {
       specificationVersion: 'v4',
@@ -116,7 +123,7 @@ describe('withUsageTracking', () => {
       }),
     } as unknown as LanguageModel;
     await (
-      withUsageTracking(model, 'melious') as unknown as { doGenerate: () => Promise<unknown> }
+      withUsageTracking(model, 'mistral') as unknown as { doGenerate: () => Promise<unknown> }
     ).doGenerate();
     expect(recordTokenUsage).toHaveBeenCalledWith(
       expect.objectContaining({ inputTokens: 11635, outputTokens: 5, cachedInputTokens: 11520 })
