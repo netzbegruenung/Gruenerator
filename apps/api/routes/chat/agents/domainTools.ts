@@ -1565,9 +1565,14 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', created);
       state.createdDocument = created;
+      // Live-Test 06.11.2026: „schreib ein Dokument und füge das Bild ein" — die
+      // Antwort sagte, das Bild sei integriert. Dieses Werkzeug übernimmt keine Bilder.
+      const imageNote = state.takesThreadImage
+        ? ` Das Bild aus dem Gespräch ist NICHT ${label === 'Dokument' ? 'im Dokument' : `in der ${label}`} – Bilder übernimmt dieses Werkzeug nicht. Sag das ehrlich und behaupte nichts anderes.`
+        : '';
       return {
         document: created,
-        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.${imageNote}`,
       };
     },
   });

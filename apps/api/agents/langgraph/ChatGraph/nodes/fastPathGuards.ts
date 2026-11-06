@@ -544,6 +544,20 @@ export function hasExplicitSharepicWord(text: string): boolean {
 }
 
 /**
+ * Der Auftrag nennt ein anderes Artefakt als ein Bild: ein Sharepic, Dokument,
+ * eine Präsentation, ein PDF … „schreib ein Dokument und füge das Bild ein" will
+ * das Bild IN diesem Artefakt, nicht ein neues Bild (live 06.11.2026: daraus
+ * malte FLUX ein „Informationsplakat").
+ */
+export function namesNonImageArtifact(text: string): boolean {
+  if (hasExplicitSharepicWord(text)) return true;
+  const order = stripQuotedSpans(orderText(text));
+  return (Object.keys(ARTIFACT_NOUN_BY_KIND) as ForbiddableArtifact[]).some(
+    (kind) => kind !== 'image' && ARTIFACT_NOUN_BY_KIND[kind].test(order)
+  );
+}
+
+/**
  * Der Auftrag nennt ein POST-Nomen und nicht nur ein Sharepic ("Post mit
  * Sharepic"). Er gehört damit dem Schreibzweig, nicht der Sharepic-Route.
  *

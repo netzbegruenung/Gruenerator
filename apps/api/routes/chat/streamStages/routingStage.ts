@@ -122,7 +122,7 @@ export function runRoutingStage({
       classifiedState.lastTurnEditables?.includes('image') === true
     )
   ) {
-    classifiedState.sharepicTakesThreadImage = true;
+    classifiedState.takesThreadImage = true;
   }
 
   const plan = decideTurnPlan({

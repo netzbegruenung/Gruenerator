@@ -758,6 +758,24 @@ describe('draftSharepic — scene with the person', () => {
     expect(draft.bericht).toContainEqual({ art: 'foto', id: 'upload:1', status: 'in_szene' });
   });
 
+  // Live-Test 06.11.2026: ein KI-Bild einer Sonnenblumenwiese mit einer Menge im
+  // Hintergrund, „mach ein faktenbild mit dem bild" — die Menge wurde als die
+  // Person gelesen und in eine Collage gemalt.
+  it('does not ask for the person when the photo shows a crowd, not one person', async () => {
+    const errors = loopAnswers(plainScene, plainScene);
+    await draftSharepic(
+      'Faktenbild mit dem Bild: 75 % der Wildbienen brauchen Blühwiesen',
+      'de-DE',
+      null,
+      [photo(9)],
+      {
+        scene: vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF }),
+        cutOut: vi.fn(),
+      }
+    );
+    expect(errors.join(' ')).not.toContain('Der Auftrag will die Person');
+  });
+
   it('leaves a scene without the person alone when the order names no photo', async () => {
     const errors = loopAnswers(plainScene, plainScene);
     await draftSharepic(brief, 'de-DE', null, [photo(1)], {

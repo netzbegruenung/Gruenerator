@@ -285,7 +285,7 @@ describe('photosForTurn', () => {
   it('takes the thread’s last generated image when the turn means it', async () => {
     mocks.lastImage.mockResolvedValue(jpeg('flux-result'));
     const r = await photosForTurn(
-      { agentConfig: { userId: 'u-t3' } as never, threadId: 't-1', sharepicTakesThreadImage: true },
+      { agentConfig: { userId: 'u-t3' } as never, threadId: 't-1', takesThreadImage: true },
       null
     );
     expect(mocks.lastImage).toHaveBeenCalledWith('t-1');
@@ -301,7 +301,7 @@ describe('photosForTurn', () => {
       {
         agentConfig,
         threadId: 't-1',
-        sharepicTakesThreadImage: true,
+        takesThreadImage: true,
         imageAttachments: [jpeg('attached')],
       },
       null

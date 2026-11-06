@@ -168,11 +168,15 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     // Live 06.11.2026: das Bild ging an FLUX zurück, Gemma schrieb einen
     // erfundenen dalle-Aufruf als Antwort, und „als sharepic" danach fand kein
     // Sharepic-Werkzeug. Das Nomen gibt das Sharepic frei; das erzeugte Bild
-    // kommt über `sharepicTakesThreadImage` als eigenes Foto mit.
+    // kommt über `takesThreadImage` als eigenes Foto mit.
     'nimm dieses bild und pack es in ein veranstaltungssharepic zum thema wolke, musterdaten',
     'Mach aus dem Bild ein Sharepic',
     'als sharepic',
-  ])('überlässt "%s" dem Sharepic-Weg', async (text) => {
+    // Live-Test 06.11.2026: alle drei wurden ein von FLUX gemaltes „Plakat".
+    'schreib ein kurzes dokument über blühwiesen und füge das bild ein',
+    'mach eine präsentation mit 3 folien über blühwiesen und verwende das bild',
+    'erstelle ein PDF mit dem Bild',
+  ])('überlässt "%s" dem Weg des genannten Artefakts', async (text) => {
     const result = await classifierNode(
       buildState({ userMessage: text, lastToolContext: afterImage, lastTurnEditables: ['image'] })
     );
