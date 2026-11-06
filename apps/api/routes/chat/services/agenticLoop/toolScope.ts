@@ -230,6 +230,8 @@ export interface ToolScopeStep {
 }
 
 export interface ToolScope {
+  /** Ob dieser Umfang wirklich zurückstellt (sonst nur Schattenbetrieb). */
+  readonly enforced: boolean;
   /**
    * Die Namen, die dieser Schritt mitschickt — oder `undefined`, wenn nichts
    * zurückgestellt ist oder der Umfang nur beobachtet. `undefined` heisst "kein
@@ -296,6 +298,7 @@ export function createToolScope(params: {
   const initiallyClosed = [...closed.values()];
 
   return {
+    enforced: params.enforce,
     activeTools(steps) {
       // Ein Einstieg ist in diesem Turn gelaufen: seine Folgewerkzeuge öffnen.
       const called = new Set<string>();

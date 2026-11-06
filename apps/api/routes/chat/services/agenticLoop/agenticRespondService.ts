@@ -22,6 +22,7 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -31,6 +32,7 @@ import {
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
+  getUnifiedFallbackModels,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -54,7 +56,11 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { approvalGateEnabled } from './approvalPolicy.js';
-import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
+import {
+  buildPreLoopEditNotes,
+  editOutcomeAfterPreamble,
+  turnProducedArtifact,
+} from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
 import {
@@ -71,7 +77,6 @@ import {
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
-import { isToolScopeEnforced } from './flags.js';
 import {
   forcedFirstStepTools,
   isMcpCapabilityQuestion,
@@ -85,7 +90,7 @@ import {
   type AnswerReplacement,
   type LoopMode,
 } from './loopEngine.js';
-import { createAfterGather } from './loopGuarantees.js';
+import { createAfterGather, turnCarriesGuarantee } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
@@ -192,6 +197,9 @@ export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
     systemMessage: string;
+    /** Rückblick auf frühere Gespräche: geht als zweite System-Nachricht an das
+     *  Modell, damit der Prompt-Prefix cachebar bleibt (`withTurnContext`). */
+    turnContext?: string | null;
     messages: ModelMessage[];
     modelId?: string;
     requestId: string;
@@ -210,6 +218,9 @@ export async function streamAgenticResponse(
      *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
      *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
     disableMcp?: boolean;
+    /** Hintergrundlauf ohne Leser (Wiederkehrende Aufgabe, Board-Agent,
+     *  Notebook-Präzision): läuft immer im Split-Modus. */
+    headless?: boolean;
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
@@ -233,6 +244,7 @@ export async function streamAgenticResponse(
   const {
     finalState,
     systemMessage,
+    turnContext,
     messages,
     modelId,
     requestId,
@@ -242,6 +254,7 @@ export async function streamAgenticResponse(
     threadId,
     toolHistory,
     disableMcp,
+    headless,
     searchToolKeys,
     toolAllowlist,
     grantedOnce,
@@ -322,6 +335,9 @@ export async function streamAgenticResponse(
           finalState.intent === 'agentic' && finalState.mcpServerScope != null
             ? 'mcp'
             : finalState.intent,
+        ...(finalState.loopDemotedFromProse != null && {
+          demotedFromProse: finalState.loopDemotedFromProse,
+        }),
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
@@ -529,8 +545,29 @@ export async function streamAgenticResponse(
       mcpCapabilityQuestion,
     });
 
-    const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
-    mode = resolveLoopMode(resolution.provider, resolution.modelName, materialHeavy);
+    const materialHeavy = materialDominatesTurn(
+      lastUserText,
+      `${systemMessage}${turnContext ?? ''}`,
+      carriedMaterialChars
+    );
+    const resolvedMode = resolveLoopMode({
+      provider: resolution.provider,
+      modelName: resolution.modelName,
+      materialHeavy,
+      carriesGuarantee: turnCarriesGuarantee(finalState, lastUserText),
+      headless: headless === true,
+    });
+    mode = resolvedMode.mode;
+    recordDecision('loop.mode', mode, {
+      inputs: {
+        provider: resolution.provider,
+        model: resolution.modelName,
+        materialHeavy,
+        reason: resolvedMode.reason,
+      },
+    });
+    // Rides on the state to the `done` event (persistStage), like usedRecipes.
+    finalState.loopMode = mode;
     if (materialHeavy) {
       log.info(
         `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`
@@ -746,6 +783,26 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // Unified: the same tool-less writer chain split mode uses re-writes an
+    // answer the one-model pass got wrong (empty, cut off, leaked plan, spam).
+    const repair =
+      mode === 'unified'
+        ? getLoopSynthModel(
+            {
+              model: resolution.model,
+              modelName: resolution.modelName,
+              provider: resolution.provider,
+            },
+            undecided
+          )
+        : null;
+    const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
+    // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
+    // the selected host rejects or goes silent before any call or output.
+    const unifiedFallbacks =
+      mode === 'unified' ? getUnifiedFallbackModels(resolution.provider, resolution.modelName) : [];
+    // Whichever mode, the lane that backs up the tool-less writer.
+    const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
     // exceed the fallback's window — rebuild rather than guess.
     const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
@@ -771,6 +828,10 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
+      ...(repair && { repairModel: repair.model }),
+      ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
+      ...(repairFallback && { repairFallback: repairFallback.model }),
+      producedArtifact: () => turnProducedArtifact(finalState),
       plannerFallbackModels: plannerFallbacks,
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
@@ -802,11 +863,21 @@ export async function streamAgenticResponse(
         recordSlowVerdict(
           synth.provider,
           synth.name,
-          reason === 'empty_completion' ? 'synth_empty' : 'synth_stall'
+          reason === 'empty_completion'
+            ? 'synth_empty'
+            : reason === 'upstream_error'
+              ? 'upstream_error'
+              : 'synth_stall'
         );
         if (!synthFallback) return;
         log.warn(
-          `[Agentic] synth ${synth.name} ${reason === 'empty_completion' ? 'returned no text' : 'stalled'} → falling back to ${synthFallback.name}`
+          `[Agentic] synth ${synth.name} ${
+            reason === 'empty_completion'
+              ? 'returned no text'
+              : reason === 'upstream_error'
+                ? 'rejected the request'
+                : 'stalled'
+          } → falling back to ${synthFallback.name}`
         );
         sse.send('fallback', {
           from: { id: synth.name, name: synth.name },
@@ -817,6 +888,7 @@ export async function streamAgenticResponse(
       tools: wrapped,
       toolActivity,
       toolSystem,
+      ...(turnContext ? { turnContext } : {}),
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
@@ -870,10 +942,10 @@ export async function streamAgenticResponse(
       // The history was pruned for the selected lane — up to 262k on an
       // explicit Mistral Medium turn. The fallback is the planner lane, which
       // Melious caps near 131k (#4201).
-      ...(synthFallback && {
+      ...(writerFallback && {
         synthFallbackMessages: (system: string) =>
           messagesForLane(
-            { modelName: synthFallback.name, contextWindow: synthFallback.contextWindow },
+            { modelName: writerFallback.name, contextWindow: writerFallback.contextWindow },
             primaryWindow,
             messages,
             (window) => pruneMessages(messages, window, system),
@@ -1154,7 +1226,7 @@ export async function streamAgenticResponse(
     answerReplaced,
     mcpMountMs,
     toolScope: toolScope && {
-      enforced: isToolScopeEnforced(),
+      enforced: toolScope.enforced,
       deferred: toolScope.deferredToolNames().length,
       misses: toolScope.misses(steps.map((s) => s.toolName)),
     },

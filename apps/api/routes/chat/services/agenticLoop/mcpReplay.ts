@@ -88,6 +88,81 @@ function withoutDigestedRows(result: Record<string, unknown>): Record<string, un
   return rest;
 }
 
+/**
+ * Side-effecting or generative tools. Their steps replay as an outcome digest,
+ * never as the raw result: the artefact itself (variants, initialProps, files)
+ * owns its own rehydration path, and the raw payload would double-represent it.
+ * The model only needs to see THAT the action ran and how it ended.
+ */
+export const ACTION_DIGEST_TOOLS: ReadonlySet<string> = new Set([
+  'edit_document',
+  'edit_document_text',
+  'edit_current_sharepic',
+  'edit_sharepic',
+  'edit_sheet',
+  'edit_presentation',
+  'edit_explainable',
+  'edit_image',
+  'reisekosten_abrechnung',
+  'create_document',
+  'create_board',
+  'create_sheet',
+  'create_presentation',
+  'create_pdf',
+  'create_explainable',
+  'generate_image',
+  'sharepic',
+]);
+
+const ACTION_DIGEST_MAX_CHARS = 300;
+
+/**
+ * `{"ok":boolean,"unchanged"?:true,"summary"?:string,"error"?:string}`, at most
+ * 300 chars. Built field by field from known scalars, so `variants`,
+ * `initialProps`, base64 and upload URLs cannot get in.
+ */
+/**
+ * The outcome line of an action result. The sharepic tools write `summary`, the
+ * editor tools (`edit_document_text`, `edit_sheet`, …) write `note`, and
+ * `create_document` only carries the created document's title.
+ */
+function outcomeText(result: Record<string, unknown>): string | null {
+  for (const key of ['summary', 'note'] as const) {
+    const value = result[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  const doc = result.document;
+  if (doc && typeof doc === 'object') {
+    const title = (doc as Record<string, unknown>).title;
+    if (typeof title === 'string' && title.trim()) return `Dokument erstellt: ${title.trim()}`;
+  }
+  return null;
+}
+
+export function actionDigest(step: PersistedStep): string {
+  const result = step.result ?? {};
+  const error =
+    typeof result.error === 'string' && result.error.trim() ? result.error.trim() : null;
+  // Forced steps are persisted without `ok`; an error in the result decides then.
+  const digest: { ok: boolean; unchanged?: true; summary?: string; error?: string } = {
+    ok: step.ok !== false && error == null,
+  };
+  if (result.unchanged === true) digest.unchanged = true;
+  const summary = outcomeText(result);
+  if (summary) digest.summary = summary;
+  if (error) digest.error = error;
+  let out = JSON.stringify(digest);
+  while (out.length > ACTION_DIGEST_MAX_CHARS) {
+    const key = (digest.summary?.length ?? 0) >= (digest.error?.length ?? 0) ? 'summary' : 'error';
+    const text = digest[key];
+    if (!text) break;
+    const over = out.length - ACTION_DIGEST_MAX_CHARS;
+    digest[key] = text.slice(0, Math.max(0, text.length - over - 1)).trimEnd() + '…';
+    out = JSON.stringify(digest);
+  }
+  return out;
+}
+
 function shortValue(result: Record<string, unknown>): string {
   // The persisted step is deliberately raw (card + debugging) — internal-only
   // fields like `rerankDegraded` are stripped HERE, at replay serialization,
@@ -149,7 +224,9 @@ export function buildToolObservationReplay(
   const serialize = (s: PersistedStep): string =>
     sameTurn
       ? sameTurnValue(s.result, opts?.resultBudgetFor?.(s.toolName) ?? null)
-      : shortValue(s.result);
+      : ACTION_DIGEST_TOOLS.has(s.toolName)
+        ? actionDigest(s)
+        : shortValue(s.result);
   const seen = new Set<string>();
   const valid = steps.filter((s) => {
     if (!currentCatalogNames.has(s.toolName)) return false; // validity gate

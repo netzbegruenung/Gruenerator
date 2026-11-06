@@ -30,6 +30,7 @@ import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { imageEditNode } from '../../../agents/langgraph/ChatGraph/nodes/imageEditNode.js';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import {
   retrieveAbgeordnetenwatch,
@@ -91,6 +92,7 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
@@ -1207,8 +1209,8 @@ Verlinke die gefundenen Seiten in der Antwort mit ihrer vollständigen URL.`,
  * user message — that lets the loop steer the image (e.g. from search results).
  * The result is merged back onto the shared state so the router persists it via
  * the message-level `generatedImage` metadata (its rehydration path); the model
- * only gets a lean confirmation (no base64). `image_edit` stays single-pass —
- * it needs an attachment and the router gate excludes attachment turns.
+ * only gets a lean confirmation (no base64). Editing an image is `edit_image`
+ * below; an ATTACHED photo stays single-pass `image_edit` (`isPixelTurn`).
  */
 export function makeImageTool(ctx: { sse: SSEWriter; state: ChatGraphState }): Tool {
   const { sse, state } = ctx;
@@ -1249,6 +1251,72 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
         };
       }
       const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
+      sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
+      return { error: err };
+    },
+  });
+}
+
+/**
+ * `edit_image`: verändert das zuletzt im Thread erzeugte Bild (FLUX
+ * image-to-image über `imageEditNode`). Live 05.11.2026: „passe die grafik noch
+ * einmal an" traf keine Bearbeitungs-Vokabel des Klassifikators, landete ohne
+ * Bildwerkzeug — und die Antwort erzählte eine Anpassung, die nie lief. Mit dem
+ * Werkzeug im Loop entscheidet der Planer, nicht eine Wortliste.
+ *
+ * Gleiche Bauform wie `generate_image`: Ergebnis auf den geteilten State (der
+ * Router persistiert es als `generatedImage`), Karte über `image_start`/
+ * `image_complete`, und höchstens ein Bild je Turn — der Planer sieht das Bild
+ * nicht und würde sonst „noch einmal versuchen" (Baum-Budget).
+ */
+export function makeEditImageTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  threadId: string | null;
+}): Tool {
+  const { sse, state, threadId } = ctx;
+  return tool({
+    description: `Verändert das Bild, das in diesem Gespräch zuletzt erzeugt wurde (KI-Bildbearbeitung).
+
+NUTZE WENN der*die Nutzer*in an DIESEM Bild etwas geändert haben möchte ("passe die Grafik an", "die Mühle an den Rand", "mach den Himmel dunkler", "noch einmal, aber mit Schnee"). Übergib die gewünschte Änderung als knappe deutsche Anweisung. NICHT für ein neues, anderes Motiv (dafür generate_image) und nicht für Fragen zum Bild.`,
+    inputSchema: z.object({
+      anweisung: z.string().min(1).describe('Was sich am Bild ändern soll'),
+    }),
+    execute: async ({ anweisung }) => {
+      if (state.generatedImage) {
+        return {
+          ok: true,
+          note: 'In diesem Turn wurde bereits ein Bild erzeugt und angezeigt. Rufe edit_image NICHT erneut auf; beschreibe die Änderung kurz.',
+        };
+      }
+      const previous = threadId ? await loadLastGeneratedImage(threadId) : null;
+      if (!previous) {
+        return {
+          error:
+            'Das vorige Bild ist nicht mehr verfügbar. Sag das ehrlich und biete an, ein neues Bild zu erzeugen.',
+        };
+      }
+      sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
+      const injected = { role: 'user', content: anweisung } as ChatGraphState['messages'][number];
+      const result = await imageEditNode({
+        ...state,
+        messages: [...state.messages, injected],
+        imageAttachments: [previous],
+        imageEditStyle: 'universal',
+      });
+      state.generatedImage = result.generatedImage ?? null;
+      if (state.generatedImage) {
+        sse.send('image_complete', {
+          message: PROGRESS_MESSAGES.imageEditComplete,
+          image: state.generatedImage,
+        });
+        return {
+          ok: true,
+          anweisung,
+          note: 'Bild bearbeitet und dem*der Nutzer*in angezeigt. Rufe edit_image NICHT erneut auf; beschreibe die Änderung in 1–2 Sätzen.',
+        };
+      }
+      const err = result.error ?? 'Bildbearbeitung fehlgeschlagen.';
       sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
       return { error: err };
     },

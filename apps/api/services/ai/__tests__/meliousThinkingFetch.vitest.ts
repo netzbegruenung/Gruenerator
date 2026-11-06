@@ -113,6 +113,21 @@ describe('meliousFetch — Flavor auf dem Draht', () => {
     expect(body.reasoning_effort).toBe('none');
   });
 
+  it('keeps tools when a unified step crosses the balanced limit', async () => {
+    const tools = [{ type: 'function', function: { name: 'web_search', parameters: {} } }];
+    const body = await sentBody(
+      JSON.stringify({
+        model: 'gemma-4-31b:balanced',
+        messages: [{ role: 'user', content: 'x'.repeat(150_000) }],
+        tools,
+        tool_choice: 'auto',
+      })
+    );
+    expect(body.model).toBe(MELIOUS_WIDE_MODEL);
+    expect(body.tools).toEqual(tools);
+    expect(body.tool_choice).toBe('auto');
+  });
+
   // Die Token-Zeile schreibt das SDK unter dem logischen Namen; bucht die
   // Messung unter dem Draht-Namen, liegen Tokens und Energie in zwei Zeilen.
   it('bucht die Messung unter dem logischen Namen, nicht unter :speed', async () => {

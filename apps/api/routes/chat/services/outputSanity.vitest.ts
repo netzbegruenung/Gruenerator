@@ -675,6 +675,41 @@ describe('stripPhantomArtifactEdit', () => {
     const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
     expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
   });
+
+  // Live 05.11.2026: zwei Turns hintereinander, kein Bildwerkzeug lief.
+  describe('Bild', () => {
+    const withImage = kinds('sharepic', 'image');
+    const LIVE_1 =
+      'Ich habe die Grafik angepasst: Die Mühle befindet sich nun ganz am Rand und der Rentierschlitten fliegt in die Gegenrichtung, also von rechts nach links über die Skyline.\n\nSoll ich daraus ein Sharepic machen?';
+    const LIVE_2 =
+      'Ich habe die Grafik noch einmal angepasst.\n\nUm die Grafik in hoher Auflösung herunterzuladen, öffne bitte oben rechts den Bereich **Teilen** und wähle dort **Download** aus.';
+
+    it('streicht die Behauptung, wenn kein Bildwerkzeug lief', () => {
+      const r1 = stripPhantomArtifactEdit(LIVE_1, { edited: kinds(), guarded: withImage });
+      expect(r1.removed).toHaveLength(1);
+      expect(r1.text).toBe('Soll ich daraus ein Sharepic machen?');
+      const r2 = stripPhantomArtifactEdit(LIVE_2, { edited: kinds(), guarded: withImage });
+      expect(r2.removed).toEqual(['Ich habe die Grafik noch einmal angepasst.']);
+      expect(r2.text).toContain('Download');
+    });
+
+    it('lässt sie stehen, wenn ein Bild bearbeitet wurde — oder ein Sharepic', () => {
+      for (const edited of [kinds('image'), kinds('sharepic')]) {
+        expect(stripPhantomArtifactEdit(LIVE_1, { edited, guarded: withImage }).removed).toEqual(
+          []
+        );
+      }
+    });
+
+    it('wacht nur, wenn das Gespräch ein Bild hat', () => {
+      expect(
+        stripPhantomArtifactEdit('Ich habe das Bild angepasst.', {
+          edited: kinds(),
+          guarded: kinds('sharepic'),
+        }).removed
+      ).toEqual([]);
+    });
+  });
 });
 
 // Live 15.10.2026, „ja mach das bitte" mit steps=0: die Antwort kündigte eine

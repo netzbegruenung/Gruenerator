@@ -488,6 +488,9 @@ export async function runChatGraphResume({
     const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
       hasImages: resumeImagesVisible,
       intent: finalState.intent,
+      ...(finalState.loopDemotedFromProse != null && {
+        demotedFromProse: finalState.loopDemotedFromProse,
+      }),
       agentId: finalState.agentConfig.identifier,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),

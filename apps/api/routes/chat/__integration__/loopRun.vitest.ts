@@ -169,7 +169,7 @@ const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
-const { LOOP_SCENARIOS } = await import('./loopScenarios.js');
+const { LOOP_SCENARIOS, SPLIT_LANE } = await import('./loopScenarios.js');
 
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');
 const UPDATE = process.env.SIM_UPDATE === '1';
@@ -209,6 +209,9 @@ beforeEach(() => {
   capture.reset();
   loopScript.reset();
   searchBackend.reset();
+  // Ausdrücklich: ohne Angabe liefe jeder Turn auf dem Anbieter `stub`, also
+  // split — das ist hier die benannte Split-Lane, nicht ein Zufall der Vorgabe.
+  respond.resolution = SPLIT_LANE;
 });
 
 describe('loop decision maps', () => {
@@ -220,6 +223,7 @@ describe('loop decision maps', () => {
 
     // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
     if (scenario.env) pinChatEnv(scenario.env);
+    if (scenario.resolution) respond.resolution = scenario.resolution;
 
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
@@ -321,6 +325,13 @@ describe('loop decision maps', () => {
       ).toContain(scenario.synthSystemIncludes);
     }
 
+    if (scenario.unifiedSystemIncludes) {
+      expect(
+        loopScript.calls[0]?.system ?? '',
+        `${scenario.id}: der Systemtext des Unified-Aufrufs sollte "${scenario.unifiedSystemIncludes}" enthalten`
+      ).toContain(scenario.unifiedSystemIncludes);
+    }
+
     for (const point of scenario.notReached ?? []) {
       expect(
         journal.entries.filter((e) => e.point === point).map((e) => e.chose),
@@ -338,5 +349,50 @@ describe('loop decision maps', () => {
     expect(rendered, `decision map drifted for "${scenario.id}" — review, then SIM_UPDATE=1`).toBe(
       readFileSync(mapPath, 'utf8')
     );
+  });
+});
+
+describe('unified loop', () => {
+  const MISTRAL = { provider: 'mistral', modelName: 'mistral-large-4' };
+
+  it('runs tools and writes in one streamText call', async () => {
+    respond.resolution = MISTRAL;
+    loopScript.script({
+      calls: [{ tool: 'web_search', args: { query: 'Radwege' } }],
+      text: 'Antwort mit [1].',
+    });
+
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Was ist die Position der Gruenen zur Windkraft?')],
+    });
+
+    loopScript.assertScriptsConsumed();
+    expect(loopScript.calls).toHaveLength(1);
+    expect(capture.last().entries.find((e) => e.point === 'loop.mode')?.chose).toBe('unified');
+    expect(trace.fullText).toContain('Antwort mit');
+  });
+
+  it('runs a compound sharepic turn on the split loop, so the writer announces the sharepic', async () => {
+    // Inverted in Task 3.4 (it pinned afterGather-after-the-stream): a turn that
+    // owes a guaranteed artifact is split even on Mistral — the guarantee runs
+    // BEFORE the writer, which is therefore told the sharepic exists.
+    respond.resolution = MISTRAL;
+    loopScript.script(
+      { calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }], text: '' },
+      { text: 'Hier die Recherche zur Windkraft [1] — dazu habe ich ein Sharepic erstellt.' }
+    );
+
+    const { trace, events } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Recherchiere zur Windkraft und erstelle ein Sharepic dazu')],
+    });
+
+    const mode = capture.last().entries.find((e) => e.point === 'loop.mode');
+    expect(mode?.chose).toBe('split');
+    expect(mode?.inputs?.reason).toBe('guarantee');
+    expect(events.map((e) => e.event)).toContain('sharepic_complete');
+    // Planner pass, then the writer: two calls, the second one without the unified tool rules.
+    expect(loopScript.calls).toHaveLength(2);
+    expect(loopScript.calls[1]?.system ?? '').not.toContain('ANTWORTPHASE');
+    expect(trace.fullText).toMatch(/sharepic/i);
   });
 });

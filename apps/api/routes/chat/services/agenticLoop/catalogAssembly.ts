@@ -20,7 +20,7 @@ import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServe
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import {
-  ownedLvDefaultRecipeMention,
+  ownedDefaultRecipeMention,
   preferredLvRecipeMention,
 } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
@@ -55,7 +55,7 @@ import {
 import { type ClientToolGate } from './clientToolGate.js';
 import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
-import { buildToolObservationReplay } from './mcpReplay.js';
+import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
@@ -83,41 +83,33 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
   'scrape_url',
 ]);
 
+/** How many persisted steps `buildToolReplay` looks at before filtering. */
+const REPLAY_SCAN_STEPS = 50;
+
 /**
- * Tools whose steps are NOT replayed as cross-turn "observations": side-effecting
- * or generative actions that own their own rehydration path (createdDocument /
- * generatedImage / sharepic card metadata) or emit SSE ops (edit_document).
- * Replaying them as tool messages would double-represent the artefact or make the
- * model think content already exists. Every OTHER mounted tool (search, bundestag,
- * umfragen, summarize, personal-data, MCP, system sources) IS replayed.
+ * Tools whose steps are NOT replayed at all, not even as a digest.
+ *
+ * `vertonen`: the audio file renders from the compute card's persisted metadata.
+ * Replayed as a tool message it would tell the model a file exists this turn —
+ * and the model would announce a download nobody just made.
+ * `memory`: a replayed save would tell the model it already remembered — and the
+ * person reading the replayed card would see a save that did not happen this turn.
  */
-const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
-  'edit_document',
-  'edit_current_sharepic',
-  'edit_sharepic',
-  'edit_sheet',
-  'edit_presentation',
-  'edit_explainable',
-  'reisekosten_abrechnung',
-  'create_document',
-  'create_board',
-  'create_sheet',
-  'create_presentation',
-  'create_pdf',
-  'create_explainable',
-  'generate_image',
-  'sharepic',
-  // The audio file renders from the compute card's persisted metadata. Replayed
-  // as a tool message it would tell the model a file exists this turn — and the
-  // model would announce a download nobody just made.
-  'vertonen',
-  // A replayed save would tell the model it already remembered — and the
-  // person reading the replayed card would see a save that did not happen
-  // this turn.
-  'memory',
+const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set(['memory', 'vertonen']);
+
+/**
+ * Every side-effecting or generative tool: the digest set (`ACTION_DIGEST_TOOLS`,
+ * replayed as a compact outcome line) plus the never-replayed ones. This is the
+ * "did something" list that `isLookupTool` and `threadFetchedInformation` use to
+ * tell "made" from "looked up" — an action step is not research, replayed or not.
+ */
+const ACTION_TOOLS: ReadonlySet<string> = new Set([
+  ...ACTION_DIGEST_TOOLS,
+  ...NON_REPLAYABLE_ACTION_TOOLS,
 ]);
 
 /**
@@ -300,7 +292,7 @@ export async function assembleToolCatalog(
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
-  // Ein-Rezept-LV-Agenten (Bürger*innenanfragen) bekommen ihr Rezept vorab:
+  // Ein-Rezept-Agenten (Bürger*innenanfragen, Wahlprüfsteine) bekommen ihr Rezept vorab:
   // nur ohne eigene Wahl und ohne Persona (wie `resolveEffectiveRecipeMention`)
   // und nicht auf Plauder- oder Produktfragen. Anders als im Single-Pass-Pfad
   // auch auf Recherchefragen („Wie positioniert sich der LV zu …?") — genau
@@ -308,7 +300,7 @@ export async function assembleToolCatalog(
   // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
-  const ownedDefault = ownedLvDefaultRecipeMention(agentConfig);
+  const ownedDefault = ownedDefaultRecipeMention(agentConfig);
   if (
     ownedDefault &&
     !state.activeSkillMention &&
@@ -433,13 +425,15 @@ export async function assembleToolCatalog(
   // Namen, die dieser Turn wirklich hat. Die Lader werden anschliessend als
   // ganz normale Werkzeuge montiert — wie `rezept_laden`, damit sie Karten,
   // Wächter und Zeitgrenzen aus `wrapToolsForLoop` genauso bekommen. Im
-  // Schattenbetrieb gibt es keine Lader.
+  // Schattenbetrieb gibt es keine Lader. Eine Allowlist ist schon der
+  // Zuschnitt, den der Agent will — ihn noch einmal hinter Lader zu stellen,
+  // versteckte das einzige Werkzeug eines Notebook-Agenten.
   const toolScope = createToolScope({
     toolNames: Object.keys(tools),
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
-    enforce: isToolScopeEnforced(),
+    enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());
 
@@ -501,8 +495,8 @@ export function createLoopGuards(
  * "mach das nochmal", "trag das jetzt ein") remembers what was gathered. Covers
  * ALL informational tools (search, bundestag, umfragen, summarize,
  * personal-data, MCP, system sources) — skipped are side-effecting/generative
- * actions (NON_REPLAYABLE_ACTION_TOOLS) and one-shot scaffolding
- * (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
+ * actions (NON_REPLAYABLE_ACTION_TOOLS; the rest of the actions replay as
+ * digests) and one-shot scaffolding (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
  * buildToolObservationReplay to tools mounted THIS turn. MCP steps stay behind
  * their rollout flag; search/domain replay is always on.
  *
@@ -516,9 +510,11 @@ export async function buildToolReplay(params: {
 }): Promise<ModelMessage[]> {
   try {
     const catalogNames = new Set(Object.keys(params.tools));
+    // Scan wide, filter, THEN let buildToolObservationReplay keep the newest six:
+    // cutting to six first let non-replayable steps (memory, actions) eat the window.
     const recent = params.toolHistory
-      ? params.toolHistory.toolSteps()
-      : await getRecentToolSteps(params.threadId);
+      ? params.toolHistory.toolSteps(REPLAY_SCAN_STEPS)
+      : await getRecentToolSteps(params.threadId, REPLAY_SCAN_STEPS);
     const replayable = recent.filter(
       (s: PersistedStep) =>
         !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
@@ -535,7 +531,7 @@ export async function buildToolReplay(params: {
 /**
  * Hat dieser Thread zuletzt INFORMATION geholt?
  *
- * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `NON_REPLAYABLE_ACTION_TOOLS`
+ * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `ACTION_TOOLS`
  * ist die eine Liste, an der „geholt" von „gemacht" getrennt wird, und eine
  * zweite daneben wäre die Sorte Duplikat, die auseinanderläuft. Ein Thread, der
  * ein Sharepic gebaut hat, hat nichts nachgeschlagen.
@@ -557,7 +553,7 @@ export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undef
   try {
     return toolHistory
       .toolSteps()
-      .some((s: PersistedStep) => !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName));
+      .some((s: PersistedStep) => !ACTION_TOOLS.has(s.toolName) && !NOT_A_LOOKUP.has(s.toolName));
   } catch {
     return false;
   }
@@ -584,7 +580,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
  */
 export function isLookupTool(toolName: string): boolean {
   return (
-    !NON_REPLAYABLE_ACTION_TOOLS.has(toolName) &&
+    !ACTION_TOOLS.has(toolName) &&
     !ONE_SHOT_SCAFFOLD_TOOLS.has(toolName) &&
     !NOT_A_LOOKUP.has(toolName)
   );

@@ -187,7 +187,7 @@ describe('Gedächtnis erreicht das Modell', () => {
     const threadId = first.trace.threadId;
     expect(threadId).toBeTruthy();
     await runTurn(suite.baseUrl(), {
-      messages: [userTurn(GREETING), userTurn('Und weiter?', 'm2')],
+      messages: [userTurn(GREETING), userTurn('Hallo nochmal!', 'm2')],
       threadId,
     });
 

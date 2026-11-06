@@ -187,10 +187,12 @@ describe('decideTurnPlan — die Lane kommt aus der Registry', () => {
     expect(p.lane).toBe('pipeline');
   });
 
-  it('produktion: Schreibarbeit am mitgebrachten Material, ohne Pipeline-Agent', () => {
+  it('produktion: Umarbeitung des mitgebrachten Materials, ohne Pipeline-Agent', () => {
+    // Geflippt: ein Schreibauftrag MIT Material geht jetzt in den Loop; nur die
+    // Umarbeitung des Materials (`reworks_own_material`) bleibt einzeln.
     const p = plan({
       intent: 'produktion',
-      lastUserText: 'Schreib mir eine Pressemitteilung dazu',
+      lastUserText: 'Kannst du das lektorieren?',
       hasOwnMaterial: true,
     });
     expect(p.runAgentic).toBe(false);
@@ -251,11 +253,19 @@ describe('decideTurnPlan — die Kippfälle', () => {
     expect(p.intent).toBe('produktion');
   });
 
-  it('mitgebrachtes Material hält einen Schreibauftrag im Einzeldurchlauf', () => {
+  it('mitgebrachtes Material hält nur die Umarbeitung im Einzeldurchlauf, nicht jeden Schreibauftrag', () => {
     const order = 'Schreib mir eine Pressemitteilung dazu';
     expect(plan({ intent: 'produktion', lastUserText: order }).runAgentic).toBe(true);
+    // Geflippt: Material allein hält einen Schreibauftrag nicht mehr draussen.
     expect(
       plan({ intent: 'produktion', lastUserText: order, hasOwnMaterial: true }).runAgentic
+    ).toBe(true);
+    expect(
+      plan({
+        intent: 'produktion',
+        lastUserText: 'Kannst du das lektorieren?',
+        hasOwnMaterial: true,
+      }).runAgentic
     ).toBe(false);
   });
 
@@ -748,14 +758,15 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.runAgentic).toBe(true);
   });
 
-  it.each(['kürze die PM auf die Hälfte', 'Schreib den Text ohne Sharepic.'])(
-    'ohne Freigabe montiert nichts: %s',
-    (lastUserText) => {
-      const p = plan({ intent: 'produktion', lastUserText, hasOwnMaterial: true });
-      expect(p.compoundGenerationKind).toBeNull();
-      expect(p.runAgentic).toBe(false);
-    }
-  );
+  it.each([
+    ['kürze die PM auf die Hälfte', false],
+    // Geflippt: kein Umarbeiten des Materials, also Loop — nur ohne Sharepic-Werkzeug.
+    ['Schreib den Text ohne Sharepic.', true],
+  ])('ohne Freigabe montiert nichts: %s', (lastUserText, loops) => {
+    const p = plan({ intent: 'produktion', lastUserText, hasOwnMaterial: true });
+    expect(p.compoundGenerationKind).toBeNull();
+    expect(p.runAgentic).toBe(loops);
+  });
 
   // Die Frage darf weiter in den Loop (sie ist eine), aber ohne Sharepic-Werkzeug.
   it('eine Meta-Frage zum Sharepic montiert nichts', () => {

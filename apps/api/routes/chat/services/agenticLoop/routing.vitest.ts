@@ -19,7 +19,6 @@ import {
   isReferentialFollowup,
   namesSharepicWithoutOrder,
   needsThreadGrounding,
-  looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   reworksSuppliedText,
   asksAboutSuppliedMaterial,
@@ -228,9 +227,11 @@ describe('decideRunAgentic', () => {
   // Connectors no longer mount on vocabulary: a telegram-style ask names no
   // connector, so nothing pulls it into the loop. A named one runs as `mcp`
   // (`mustLoop`), covered below.
-  it('keeps a telegram-style live-data ask single-pass when it names no connector', () => {
+  it('a telegram-style live-data ask names no connector: loop as prose, single-pass as scrape_url', () => {
+    // Geflippt mit dem Loop-Standard: ein Prosa-Verdikt mit eigenem Material
+    // ging über `selfContained` in den Einzeldurchlauf, jetzt in den Loop.
     const withMaterial = { intent: 'direct', hasOwnMaterial: true };
-    expect(decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen' })).toBe(false);
+    expect(decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen' })).toBe(true);
     expect(decide({ intent: 'scrape_url', lastUserText: 'Zug nach Nürnberg' })).toBe(false);
   });
 
@@ -240,8 +241,11 @@ describe('decideRunAgentic', () => {
     );
   });
 
-  it('keeps a greeting mislabelled `direct` on the fast path', () => {
-    expect(decide({ intent: 'direct', lastUserText: 'Hallo, wer bist du?' })).toBe(false);
+  it('a greeting stays single-pass by its INTENT, not by its words', () => {
+    // Geflippt: `direct` mit Grusswort-Text blieb über `CHITCHAT_RE` draussen.
+    // Jetzt entscheidet der Intent — ein Gruss ist `greeting` (`keepsSinglePass`).
+    expect(decide({ intent: 'direct', lastUserText: 'Hallo, wer bist du?' })).toBe(true);
+    expect(decide({ intent: 'greeting', lastUserText: 'Hallo, wer bist du?' })).toBe(false);
   });
 
   it('rescues a factual question mislabelled `produktion`', () => {
@@ -351,18 +355,13 @@ describe('decideRunAgentic', () => {
 
   it('lets a PDF fill ask into the loop, though it is no "toolable question"', () => {
     const fill = { intent: 'direct', lastUserText: 'Füll mir bitte das Formular aus' };
-    // Since the default inversion this imperative loops WITHOUT the PDF signal
-    // too: it is not a question, not a rewrite, not creative form, and carries
-    // no material — so nothing shows it can be answered as it stands. The
-    // control side of this pair therefore had to move; `isPdfFillRequest`
-    // still matters because it survives every kill-switch check below and,
-    // upstream, is what mounts the PDF tools at all.
+    // Prose loops by default, with or without the PDF signal and with or
+    // without own material (flipped: material alone used to keep it single-pass).
+    // `isPdfFillRequest` still matters because it survives every kill-switch
+    // check below and, upstream, is what mounts the PDF tools at all.
     expect(decide(fill)).toBe(true);
     expect(decide({ ...fill, isPdfFillRequest: true })).toBe(true);
-    // The control that still proves the flag does something: WITH own material
-    // the turn is self-contained and stays single-pass unless the PDF signal
-    // says otherwise.
-    expect(decide({ ...fill, hasOwnMaterial: true })).toBe(false);
+    expect(decide({ ...fill, hasOwnMaterial: true })).toBe(true);
     expect(decide({ ...fill, hasOwnMaterial: true, isPdfFillRequest: true })).toBe(true);
     // Kill-switches still win — the PDF tools are not worth a broken contract.
     expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
@@ -375,8 +374,8 @@ describe('decideRunAgentic', () => {
       lastUserText: 'Mach mir die Reisekostenabrechnung, Belege anbei',
       hasOwnMaterial: true,
     };
-    // Own material makes the turn self-contained — single-pass, no tool.
-    expect(decide(ask)).toBe(false);
+    // Flipped: own material no longer keeps a prose turn single-pass.
+    expect(decide(ask)).toBe(true);
     expect(decide({ ...ask, isReisekostenTurn: true })).toBe(true);
     expect(decide({ ...ask, isReisekostenTurn: true, loopEnabled: false })).toBe(false);
   });
@@ -452,18 +451,13 @@ describe('decideRunAgentic', () => {
       intent: 'direct',
       lastUserText: 'Erklär mir die aktuellen Vorwürfe gegen die Partei',
     };
-    // The default inversion now catches this shape without the flag — which was
-    // the point of inverting: the rescue only ever fired when the LLM tier had
-    // ALSO answered needsResearch=true, so every turn that short-circuited
-    // earlier reached the user unrescued. The flag is kept because it is a
-    // second, independent reason to loop, and it is the only one that survives
-    // a turn the phrasing rules read as self-contained.
+    // Prose loops by default, so the statement needs no flag; the flag is kept
+    // as a second, independent reason to loop. Creative form is no longer an
+    // exemption (flipped: `CREATIVE_FORM_RE` lost its effect on routing).
     expect(decide(statement)).toBe(true);
     expect(decide({ ...statement, classifierContradictedResearch: true })).toBe(true);
-    // Creative form is the exemption the inversion must not swallow — and the
-    // contradiction flag still overrides it.
     const poem = { intent: 'direct', lastUserText: 'Schreib ein Gedicht über den Herbst' };
-    expect(decide(poem)).toBe(false);
+    expect(decide(poem)).toBe(true);
     expect(decide({ ...poem, classifierContradictedResearch: true })).toBe(true);
 
     // Kill-switches still win, exactly as for the PDF rescue above.
@@ -475,7 +469,7 @@ describe('decideRunAgentic', () => {
     );
   });
 
-  it('a writing order enters the loop unless the user supplied the substance', () => {
+  it('a writing order enters the loop, with or without supplied substance', () => {
     // This pin was inverted deliberately. It used to read "leaves a creative
     // direct turn alone" and asserted `false` for exactly this input — the rule
     // "Erstelle/Schreib X = IMMER direct", which also lives in the classifier
@@ -486,37 +480,45 @@ describe('decideRunAgentic', () => {
     // material to write FROM is in the turn.
     const order = { intent: 'direct', lastUserText: 'Schreib eine Rede über den Klimaschutz' };
     expect(decide(order)).toBe(true);
-    expect(decide({ ...order, hasOwnMaterial: true })).toBe(false);
+    // Flipped: supplied material alone no longer keeps a writing order out; only
+    // a REWORK of it does (`reworks_own_material`, see singlePassExceptions).
+    expect(decide({ ...order, hasOwnMaterial: true })).toBe(true);
 
     // Kill-switches still win, exactly as for the other two `direct` rescues.
     expect(decide({ ...order, loopEnabled: false })).toBe(false);
     expect(decide({ ...order, forcedTool: true })).toBe(false);
   });
 
-  it('pure creative FORM stays single-pass, supplied or not', () => {
-    // "Substance" is not a meaningful category for a poem or a slogan: there is
-    // nothing to look up, so the loop's latency would buy nothing. This is the
-    // one carve-out in the rule above, and it is the same exemption the
-    // grounding gate applies (a poem must never grow [N] footnotes).
+  it('pure creative FORM enters the loop too (no text exemption)', () => {
+    // Flipped: the poem/slogan carve-out was a word list. The loop's answer
+    // grounding decides about [N] footnotes, not the router.
     for (const lastUserText of [
       'Schreib mir ein Gedicht über den Frühling',
       'Erstelle einen Slogan zur Verkehrswende',
       'Formulier ein Motto für unseren Parteitag',
       'Schreib einen Glückwunsch zum 60. Geburtstag',
     ]) {
-      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(true);
     }
   });
 
-  it('a rewrite of existing text stays single-pass', () => {
-    // A rewrite is grounded in what it rewrites — the substance is already in
-    // the thread even though nothing was pasted THIS turn.
+  it("a rewrite of existing text enters the loop; of the turn's own material it stays single-pass", () => {
+    // Flipped: "Mach das kürzer" nach einem Artefakt ist ein Fall für die
+    // Bearbeitungswerkzeuge des Loops. Nur eine Umarbeitung des MITGEBRACHTEN
+    // Materials bleibt draussen (`reworks_own_material`).
+    expect(
+      decide({
+        intent: 'direct',
+        lastUserText: 'Überarbeite diesen Abschnitt',
+        hasOwnMaterial: true,
+      })
+    ).toBe(false);
     for (const lastUserText of [
       'Mach das kürzer',
       'Formulier den folgenden Text freundlicher',
       'Überarbeite diesen Abschnitt',
     ]) {
-      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(true);
     }
   });
 
@@ -568,9 +570,8 @@ describe('decideRunAgentic', () => {
       }
     });
 
-    it('an image turn without a question stays single-pass like a PDF turn', () => {
-      // Own material makes a writing order self-contained — same as a PDF.
-      expect(decide({ ...image, lastUserText: 'Schreib einen Instagram-Post dazu' })).toBe(false);
+    it('an image turn without a question enters the loop (flipped: no self-contained exemption)', () => {
+      expect(decide({ ...image, lastUserText: 'Schreib einen Instagram-Post dazu' })).toBe(true);
     });
 
     it('an explicit loop reason beats the image-only reading', () => {
@@ -1611,20 +1612,36 @@ describe('rewritesSuppliedText', () => {
   });
 });
 
+const REWORK_BASE: AgenticDecisionInput = {
+  loopEnabled: true,
+  agenticIntents: new Set(['agentic']),
+  intent: 'produktion',
+  lastUserText: '',
+  forcedTool: false,
+  mustLoop: false,
+  forcedLoop: false,
+  isCompound: false,
+  hasSelectedNotebook: false,
+  secondaryIntent: null,
+  compoundGeneration: false,
+  hasImageAttachments: false,
+  isPdfFillRequest: false,
+};
+
 describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze', () => {
-  it('Übersetzen ist ein Rewrite und bleibt self-contained', () => {
+  it('Übersetzen ist ein Rewrite und bleibt an eigenem Material einzeln', () => {
     // Vorher tot: \b[üu]bersetze konnte "Übersetze …" nie matchen — der Turn
     // galt nicht als self-contained und demotierte in die gemma-Synth-Lane
     // (QA-Lauf 08/2026: zerrissene Übersetzungen).
     const t = 'Übersetze den folgenden Text ins Englische: Hallo zusammen, wir treffen uns morgen.';
     expect(rewritesSuppliedText(t)).toBe(true);
-    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+    expect(decideRunAgentic({ ...REWORK_BASE, lastUserText: t, hasOwnMaterial: true })).toBe(false);
   });
 
   it('Überarbeiten ebenso', () => {
     const t = 'Überarbeite bitte diesen Absatz sprachlich';
     expect(rewritesSuppliedText(t)).toBe(true);
-    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+    expect(decideRunAgentic({ ...REWORK_BASE, lastUserText: t, hasOwnMaterial: true })).toBe(false);
   });
 
   it('die ASCII-Schreibweise funktioniert weiterhin', () => {
@@ -1694,22 +1711,28 @@ describe('compoundGenerationKind — liest nur den Auftrag', () => {
 
 // Beta 30.09.2026 (D1): eine Faktenprüfung mit eigenem Stoff galt als in sich
 // geschlossen, endete als Single-Pass und erreichte den Such-Zwang nie.
-describe('looksLikeSelfContainedTurn — Faktenprüfung schlägt nach', () => {
+describe('Faktenprüfung mit eigenem Stoff schlägt nach (reworks_own_material greift nicht)', () => {
   const WALLBOX =
     'Der Bund fördert seit 2025 jede private Wallbox mit 900 Euro, und in Deutschland gibt es inzwischen über 200.000 öffentliche Ladepunkte. Damit ist das Ziel der Bundesregierung für 2030 bereits erreicht.';
   const material = { hasOwnMaterial: true };
 
   it.each(['prüf die Fakten darin und korrigiere falsche Angaben', 'stimmt das so?'])(
-    'Stoff + „%s" ist nicht in sich geschlossen',
+    'Stoff + „%s" geht in den Loop',
     (order) => {
-      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(false);
+      expect(
+        decideRunAgentic({ ...REWORK_BASE, lastUserText: `${WALLBOX}\n\n${order}`, ...material })
+      ).toBe(true);
     }
   );
 
   it.each(['prüf, ob die Rechtschreibung korrekt ist', 'Ist das korrekt formuliert?'])(
-    'eine Sprachprüfung bleibt in sich geschlossen: „%s"',
+    // Geflippt: die Sprachprüfung ist kein Umarbeiten (`asksForRework`), und
+    // eigenes Material hält einen Prosa-Turn nicht mehr allein draussen.
+    'eine Sprachprüfung geht ebenfalls in den Loop: „%s"',
     (order) => {
-      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(true);
+      expect(
+        decideRunAgentic({ ...REWORK_BASE, lastUserText: `${WALLBOX}\n\n${order}`, ...material })
+      ).toBe(true);
     }
   );
 });

@@ -507,6 +507,25 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     intent = p.pipelineForceIntent;
   }
 
+  // Eine `@…-erstellen`-Erwähnung ohne Verbund gehört der direkten Erstellroute
+  // (`createIntentStage`), die auf einem Loop-Turn übersprungen wird. Der
+  // Klassifikator schickt jeden Prosa-Turn als `agentic`; ohne diese Korrektur
+  // träfe ihn der `agentic_to_search`-Auffang unten, statt dass er als Prosa-Turn
+  // den Erstell-Pin erreicht.
+  if (
+    intent === 'agentic' &&
+    p.mentionPinnedArtifactKind != null &&
+    compoundKind == null &&
+    pinnedTool == null &&
+    !p.agenturaCreateOrder &&
+    !connectorScoped
+  ) {
+    recordDecision('router.intent_override', 'agentic_to_produktion_pinned_create', {
+      inputs: { intentBefore: 'agentic' },
+    });
+    intent = 'produktion';
+  }
+
   // ── 3. Das Loop-Gate ──────────────────────────────────────────────────────
   // Kurzschluss-Reihenfolge unverändert: ein Pipeline-Agent vetot, danach
   // beantworten die beiden Editor-Varianten die Frage bereits, und erst zuletzt
@@ -534,6 +553,9 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         isTabularAnalysisTurn: p.isTabularAnalysisTurn === true,
         classifierContradictedResearch: p.classifierContradictedResearch,
         hasOwnMaterial: p.hasOwnMaterial,
+        pinnedArtifactCreate: p.mentionPinnedArtifactKind != null,
+        pipelineAgent: p.pipelineForceIntent != null,
+        acceptedOffer: p.acceptedOffer,
       }));
 
   // ── 4. Auffang-Intent ─────────────────────────────────────────────────────

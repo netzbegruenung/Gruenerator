@@ -88,6 +88,7 @@ import {
   makeCreatePdfTool,
   makeCreateSharepicTool,
   makeDocsSearchTool,
+  makeEditImageTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
@@ -169,7 +170,11 @@ const CATALOG_TOOLS = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
 ]);
+
+/** The recipe whose turns get `gruenerator_wahlpruefstein_examples`. */
+const WAHLPRUEFSTEIN_RECIPE = 'wahlpruefstein';
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
@@ -196,6 +201,7 @@ const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
   gruenerator_search: ['search'],
   gruenerator_examples_search: ['examples'],
   gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+  gruenerator_wahlpruefstein_examples: ['examples'],
 };
 
 /**
@@ -451,6 +457,14 @@ export function buildChatToolCatalog(params: {
       `[toolCatalog] agent ${agentConfig.identifier} has no web capability — web_search/scrape_url not mounted`
     );
   }
+
+  // Die Wahlprüfstein-Beispiele braucht nur ein Turn, auf dem das Rezept gilt —
+  // gewählt oder als Default des Agenten. Sonst zahlte ihre Beschreibung auf
+  // jeden werkzeugtragenden Aufruf ein (toolScopeBudget.vitest.ts).
+  const wahlpruefsteinTurn =
+    loop?.state.activeSkillMention === WAHLPRUEFSTEIN_RECIPE ||
+    agentConfig.defaultRecipeMention === WAHLPRUEFSTEIN_RECIPE;
+  if (!wahlpruefsteinTurn) delete base.gruenerator_wahlpruefstein_examples;
 
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
@@ -1278,7 +1292,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
-    // so it stays intent-scoped (and gated). image_edit stays single-pass.
+    // so it stays intent-scoped (and gated). Editing it is `edit_image` below.
     // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
     // (IMAGE_REQUEST_PATTERN) — image phrasings the confident heuristic misses
     // land there; idempotency + forceFinish cap quota at one image per turn.
@@ -1291,6 +1305,20 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
+    }
+    // Das zuletzt erzeugte Bild verändern. Montiert, solange das letzte Artefakt
+    // des Threads ein Bild ist — ob ein Turn es meint, entscheidet der Planer,
+    // nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die grafik noch
+    // einmal an" ohne Werkzeug → erfundene Anpassung). Ein ANGEHÄNGTES Foto
+    // bleibt beim Einzeldurchlauf-`image_edit`; hier hätte das Werkzeug das
+    // falsche Bild genommen.
+    if (
+      !editorSurface &&
+      state.lastToolContext?.kind === 'image' &&
+      (state.imageAttachments?.length ?? 0) === 0 &&
+      state.enabledTools?.['image_edit'] !== false
+    ) {
+      tools.edit_image = makeEditImageTool({ sse, state, threadId: loop.threadId ?? null });
     }
     // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
     // generation KIND the router derived (from intent OR — for a demoted

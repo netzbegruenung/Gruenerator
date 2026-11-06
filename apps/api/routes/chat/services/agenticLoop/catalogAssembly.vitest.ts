@@ -650,6 +650,17 @@ describe('priorTurnRetrieved', () => {
     );
   });
 
+  it('das Rezept und die Rückfrage schlagen nichts nach', () => {
+    // Live 05.11.2026 (Eval ul-doc-foermlicher): „Erstelle ein Dokument" lud das
+    // Rezept, und „förmlicher" bekam danach den Anschluss-Zwang auf die Websuche.
+    expect(priorTurnRetrieved(history('rezept_laden', 'create_document'))).toBe(false);
+    expect(priorTurnRetrieved(history('ask_human', 'meine_inhalte_laden'))).toBe(false);
+    // Both lists at once: the action digest set (#5371) and the non-lookups.
+    expect(priorTurnRetrieved(history('rezept_laden', 'edit_image', 'edit_document_text'))).toBe(
+      false
+    );
+  });
+
   it('ein Abruf neben einer Erzeugung zählt', () => {
     expect(priorTurnRetrieved(history('sharepic', 'web_search'))).toBe(true);
   });
@@ -829,10 +840,28 @@ describe('buildToolReplay — was wiederkommt und was nicht', () => {
     expect(await replayFor([step('gruenerator_pressemitteilung_examples')])).toEqual([]);
   });
 
-  it('schliesst erzeugende Aktionen weiterhin aus', async () => {
-    expect(await replayFor([step('create_document'), step('gruenerator_search')])).toEqual([
-      'gruenerator_search',
-    ]);
+  it('fills the replay window with replayable steps only', async () => {
+    // Oldest to newest: seven replayable steps, then the three newest are memory.
+    const persisted = [
+      ...[1, 2, 3, 4, 5, 6, 7].map((i) => step('web_search', `w${i}`)),
+      ...[1, 2, 3].map((i) => step('memory', `m${i}`)),
+    ];
+    const messages = await buildToolReplay({
+      threadId: 't1',
+      tools: { ...catalog, memory: {} } as unknown as ToolSet,
+      // Like the real projection: the newest `limit` steps, oldest first.
+      toolHistory: { toolSteps: (limit = 6) => persisted.slice(-limit) } as never,
+      onError: () => {},
+    });
+    const assistant = messages.find((m) => m.role === 'assistant');
+    const ids = (assistant!.content as { toolCallId: string }[]).map((p) => p.toolCallId);
+    expect(ids).toEqual(['w2', 'w3', 'w4', 'w5', 'w6', 'w7']);
+  });
+
+  it('spielt erzeugende Aktionen als Digest ein, memory bleibt draussen', async () => {
+    expect(
+      await replayFor([step('create_document'), step('memory'), step('gruenerator_search')])
+    ).toEqual(['create_document', 'gruenerator_search']);
   });
 });
 

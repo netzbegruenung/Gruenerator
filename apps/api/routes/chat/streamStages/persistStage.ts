@@ -170,6 +170,7 @@ export async function runPersistStage({
   sse.send('done', {
     ...(actualThreadId != null && { threadId: actualThreadId }),
     citations: finalState.citations,
+    ...(finalState.loopMode != null && { loopMode: finalState.loopMode }),
     generatedImage,
     // Compound board turn: boards render from these `done` fields (no card
     // SSE), mirroring the single-pass @board-erstellen handler.

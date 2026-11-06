@@ -26,9 +26,10 @@
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
- * `prefersUnifiedLoop` is true only for Mistral. Picking a Mistral lane
- * therefore also selects the UNIFIED loop (one model does tools + prose);
- * every other lane runs the split (fixed planner gathers, synth writes).
+ * `prefersUnifiedLoop` is true for Mistral and for Gemma 4 31B on Melious.
+ * Picking such a lane therefore also selects the UNIFIED loop (one model does
+ * tools + prose); every other lane runs the split (fixed planner gathers,
+ * synth writes). Guarantee-carrying and material-heavy turns still split.
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
@@ -308,6 +309,13 @@ export interface AutoSelection {
 
 export interface AutoSelectionInput {
   intent?: string | null | undefined;
+  /**
+   * Prose verdict an `agentic` turn was demoted from (`loopDemotedFromProse`).
+   * The table lookup, hint and material rules then see that verdict instead of
+   * `agentic`, so the loop keeps the prose lane and reasoning level. Ignored
+   * for any other intent.
+   */
+  demotedFromProse?: string | null | undefined;
   complexity?: Complexity | null | undefined;
   agentId?: string | null | undefined;
   /**
@@ -392,7 +400,10 @@ const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'off' };
  * because it is the only one that also raises reasoning.
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
-  const intent = input.intent ?? 'produktion';
+  const intent =
+    input.intent === 'agentic' && input.demotedFromProse
+      ? input.demotedFromProse
+      : (input.intent ?? 'produktion');
   const complexity = input.complexity ?? 'simple';
 
   // Vor allen Overrides: ein Pipeline-Agent hat seine Aufgabe schon
@@ -493,21 +504,19 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
  * oft leere Züge, ist das der erste Ort zum Nachsehen.
  *
- * ZWEI EHRLICHE KOSTEN dieser Wahl:
+ * EIN EHRLICHER PREIS dieser Wahl: drei Stufen, drei Gateways, aber zweimal
+ * DIESELBEN Gewichte. Ein Gateway-Ausfall trifft nur eine Stufe; ein Problem
+ * des Modells selbst trifft Melious und Cortecs gleich. Gemessen am 21.10.2026
+ * (#4785): ein erzwungener Schritt, der dem Prompt widerspricht, hing auf
+ * beiden 3/3 Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
+ * 3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie) oder
+ * der Zuschnitt (`forcedFirstStepTools`).
  *
- * 1. Melious sendet `environment_impact` nur nicht-gestreamt. Damit der Planer
- *    weiter gemessen statt geschätzt wird, fragt `meliousFetch` die Werkzeug-
- *    phase nicht-gestreamt und spielt die Antwort dem SDK als Strom vor
- *    (meliousThinkingFetch.ts). Preis: Narration und Denk-Deltas des Planers
- *    kommen je Schritt erst mit der fertigen Antwort (~0,6 s), nicht Token für
- *    Token.
- * 2. Drei Stufen, drei Gateways, aber zweimal DIESELBEN Gewichte. Ein
- *    Gateway-Ausfall trifft nur eine Stufe; ein Problem des Modells selbst
- *    trifft Melious und Cortecs gleich. Gemessen am 21.10.2026 (#4785): ein
- *    erzwungener Schritt, der dem Prompt widerspricht, hing auf beiden 3/3
- *    Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
- *    3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie)
- *    oder der Zuschnitt (`forcedFirstStepTools`).
+ * Bis 28.10.2026 stand hier eine zweite: Melious meldete `environment_impact`
+ * nur nicht-gestreamt, also fragte `meliousFetch` die Werkzeugphase
+ * nicht-gestreamt und spielte sie als Strom vor. Seitdem kommt der Wert im
+ * letzten Chunk, und die Werkzeugphase streamt (74a7463822,
+ * meliousThinkingFetch.ts).
  *
  * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
  * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
@@ -594,6 +603,14 @@ export const LOOP_SYNTH_PRIMARY = {
   model: GEMMA_31B_PRIMARY.model,
 };
 export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-large-4' };
+
+/**
+ * Lane ladder for a unified Gemma turn: Gemma 4 31B on Melious, then Mistral
+ * Large 4 (another model family) if Melious rejects or goes silent before any
+ * tool call or output (`runLaneChain`). Deliberately no Cortecs stage — Gemma
+ * runs only via Melious (decision 05.11.2026).
+ */
+export const UNIFIED_GEMMA_CHAIN = [GEMMA_31B_ON_MELIOUS, LOOP_SYNTH_FALLBACK] as const;
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch

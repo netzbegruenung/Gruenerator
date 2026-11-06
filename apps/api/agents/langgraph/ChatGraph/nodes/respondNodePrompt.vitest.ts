@@ -320,7 +320,7 @@ const hessenRow: TextForm = {
 type Case = {
   name: string;
   state: ChatGraphState;
-  opts?: { retrievalExpected?: boolean };
+  opts?: { retrievalExpected?: boolean; loop?: boolean };
   setup?: () => void;
 };
 
@@ -542,6 +542,15 @@ const GOLDEN_CASES: readonly Case[] = [
     name: 'retrievalExpected (agentischer loop)',
     state: makeState(withAgentDefaultRecipe as never),
     opts: { retrievalExpected: true },
+  },
+  {
+    name: 'prosa-turn mit agenten-standard, einzelpfad',
+    state: makeState({ ...withAgentDefaultRecipe, intent: 'produktion' } as never),
+  },
+  {
+    name: 'prosa-turn mit agenten-standard, loop',
+    state: makeState({ ...withAgentDefaultRecipe, intent: 'produktion' } as never),
+    opts: { retrievalExpected: true, loop: true },
   },
   {
     name: 'custom system prompt — duenn',
@@ -834,5 +843,88 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     );
     expect(loop).not.toContain('RECHERCHE-METHODE');
     expect(loop).toContain('Form und Umfang gibt die oben aktive Textform vor');
+  });
+});
+
+describe('Prosa im Loop verliert nichts', () => {
+  const prose = (intent: string) => makeState({ ...withAgentDefaultRecipe, intent } as never);
+  const LOOP = { retrievalExpected: true, loop: true } as const;
+
+  it('trägt Rezept-Rumpf und Schreibhilfe auf dem Loop-Pfad', async () => {
+    const loop = await buildSystemMessage(prose('produktion'), LOOP);
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('lässt den Einzelpfad unverändert', async () => {
+    const single = await buildSystemMessage(prose('produktion'));
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(single).toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
+  });
+
+  it('lässt die Ehrlichkeitsnotiz im Loop weg', async () => {
+    const loop = await buildSystemMessage(prose('produktion'), LOOP);
+    expect(loop).not.toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
+  });
+
+  it('legt Rezept und Schreibhilfe nicht auf Nicht-Prosa-Turns im Loop', async () => {
+    const loop = await buildSystemMessage(prose('search'), LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('legt das vorgeladene Rezept eines Ein-Rezept-Agenten nicht ein zweites Mal in den Loop-Prompt', async () => {
+    // Die Rezept-Registry (`catalogAssembly`) lädt den Default dieser Agenten im
+    // Loop schon vor; hier stünde derselbe Rumpf sonst doppelt.
+    const owned = makeState({
+      agentConfig: {
+        ...withAgentDefaultRecipe.agentConfig,
+        identifier: 'gruenerator-buergeranfragen-berlin',
+        defaultRecipeMention: 'buerger-berlin',
+      },
+      intent: 'produktion',
+    } as never);
+    const loop = await buildSystemMessage(owned, LOOP);
+    expect(loop).not.toContain('<<REZEPT-PROMPT:buerger-berlin>>');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    const single = await buildSystemMessage(owned);
+    expect(single).toContain('<<REZEPT-PROMPT:buerger-berlin>>');
+  });
+
+  it('erkennt den in den Loop gerutschten Prosa-Turn am Prosa-Ursprung', async () => {
+    // Seit dem Loop als Standard kommt ein Gedicht als `agentic` an; das
+    // Prosa-Verdikt steht in `loopDemotedFromProse`.
+    const demoted = makeState({
+      ...withAgentDefaultRecipe,
+      intent: 'agentic',
+      loopDemotedFromProse: 'produktion',
+    } as never);
+    const loop = await buildSystemMessage(demoted, LOOP);
+    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    const plain = await buildSystemMessage(prose('agentic'), LOOP);
+    expect(plain).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('behandelt greeting im Loop nicht als Prosa', async () => {
+    const loop = await buildSystemMessage(prose('greeting'), LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+  });
+});
+
+describe('recallAsMessage', () => {
+  const RECALL = '## RELEVANTE VERGANGENE GESPRÄCHE\n\nEs ging um Verkehr.';
+  const state = () => makeState({ chatHistoryContext: RECALL });
+  const OPTS = { retrievalExpected: true, loop: true } as const;
+
+  it('rendert den Rückblick standardmäßig in den Prompt', async () => {
+    expect(await buildSystemMessage(state(), OPTS)).toContain(RECALL);
+  });
+
+  it('lässt ihn mit recallAsMessage weg, und sonst ändert sich nichts', async () => {
+    const withRecall = await buildSystemMessage(state(), OPTS);
+    const without = await buildSystemMessage(state(), { ...OPTS, recallAsMessage: true });
+    expect(without).not.toContain('RELEVANTE VERGANGENE GESPRÄCHE');
+    expect(withRecall.replace(`\n\n${RECALL}`, '')).toBe(without);
   });
 });

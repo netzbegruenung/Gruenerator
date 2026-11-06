@@ -7,6 +7,7 @@ function trace(over: Partial<ChatTrace> = {}): ChatTrace {
   return {
     intent: 'agentic',
     agentic: true,
+    loopMode: null,
     toolCalls: [],
     sharepicGenerated: false,
     imageGenerated: false,
@@ -855,5 +856,39 @@ describe('keineErfundeneRef', () => {
   it('grün: parlament_lesen wurde nicht aufgerufen', () => {
     const r = check([liste('Ref: 21/1')]);
     expect(r.pass).toBe(true);
+  });
+});
+
+describe('format assertions — answerIsJson, answerLineCount, noDegeneration, generatesImage', () => {
+  const pass = (
+    text: string,
+    e: Parameters<typeof runAssertions>[1],
+    over: Partial<ChatTrace> = {}
+  ) => runAssertions(trace({ fullText: text, ...over }), e).every((r) => r.pass);
+
+  it('answerIsJson accepts bare JSON and a json fence, rejects a broken start', () => {
+    const json = '[{"titel":"a"}]';
+    expect(pass(json, { answerIsJson: true })).toBe(true);
+    expect(pass('```json\n' + json + '\n```', { answerIsJson: true })).toBe(true);
+    expect(pass('Hier: [{', { answerIsJson: true })).toBe(false);
+  });
+
+  it('answerLineCount counts non-empty lines', () => {
+    expect(pass('a\n\nb\nc', { answerLineCount: 3 })).toBe(true);
+    expect(pass('a\n\nb\nc', { answerLineCount: 2 })).toBe(false);
+  });
+
+  it('noDegeneration fails on a repetition loop and passes on prose', () => {
+    expect(pass('Radwege sind wichtig. '.repeat(500), { noDegeneration: true })).toBe(false);
+    expect(
+      pass('Radwege machen Städte sicherer und leiser. Wer sie baut, spart Platz und Geld.', {
+        noDegeneration: true,
+      })
+    ).toBe(true);
+  });
+
+  it('generatesImage reads trace.imageGenerated', () => {
+    expect(pass('x', { generatesImage: true }, { imageGenerated: true })).toBe(true);
+    expect(pass('x', { generatesImage: true })).toBe(false);
   });
 });
