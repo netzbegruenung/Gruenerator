@@ -232,6 +232,22 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
   });
 
+  it('lässt die :speed-Stufe weg, wenn der Primär-Request schon als :speed rausgeht', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    // ~150k Zeichen ≈ 50k Tokens: meliousWireModel schickt :balanced als :speed.
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(150_000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => (seen = p),
+      })
+    );
+    expect(seen!.mode).toBe('unified');
+    expect(seen!.unifiedFallbacks).toHaveLength(1);
+  });
+
   it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
