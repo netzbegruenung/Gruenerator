@@ -605,12 +605,29 @@ export const LOOP_SYNTH_PRIMARY = {
 export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-large-4' };
 
 /**
- * Lane ladder for a unified Gemma turn: Gemma 4 31B on Melious, then Mistral
- * Large 4 (another model family) if Melious rejects or goes silent before any
- * tool call or output (`runLaneChain`). Deliberately no Cortecs stage — Gemma
- * runs only via Melious (decision 05.11.2026).
+ * Dieselben Gewichte über Melious' `:speed`-Variante (infercom, DE). Gemessen am
+ * 06.11.2026 mit einem echten Loop-Request (~10k Tokens): ~290 Tok/s statt ~37,
+ * erstes Token 1,5–2 s ohne Prompt-Cache — und während einer Störung von
+ * `:balanced` (erstes Token 34–88 s) unverändert schnell. Preis 0,20/0,35 € je
+ * Mio. Tokens gegen 0,10/0,30 € für `:balanced`, deshalb nur als Rückfall.
  */
-export const UNIFIED_GEMMA_CHAIN = [GEMMA_31B_ON_MELIOUS, LOOP_SYNTH_FALLBACK] as const;
+export const GEMMA_31B_ON_MELIOUS_SPEED = {
+  provider: 'melious' as const,
+  model: 'gemma-4-31b:speed',
+};
+
+/**
+ * Lane ladder for a unified Gemma turn: Gemma 4 31B on Melious, then the same
+ * weights on Melious' `:speed` upstream, then Mistral Large 4 (another model
+ * family) — each step taken if the lane before rejects or goes silent before
+ * any tool call or output (`runLaneChain`). Deliberately no Cortecs stage —
+ * Gemma runs via Melious (decision 05.11.2026).
+ */
+export const UNIFIED_GEMMA_CHAIN = [
+  GEMMA_31B_ON_MELIOUS,
+  GEMMA_31B_ON_MELIOUS_SPEED,
+  LOOP_SYNTH_FALLBACK,
+] as const;
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch

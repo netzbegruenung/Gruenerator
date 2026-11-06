@@ -38,11 +38,27 @@ const DEFAULT_OUTPUT_RESERVE = 4_096;
 /** Flavors, die Melious auf den FI-Knoten mit ~45k legt (gemessen 23.09.2026). */
 const FI_NODE_MODELS = new Set(['gemma-4-31b', 'gemma-4-31b:balanced', 'gemma-4-31b:eco']);
 
+/**
+ * Ob ein Request dieser Grösse an `modelName` auf dem Draht zu
+ * {@link MELIOUS_WIDE_MODEL} wird. Dieselbe Rechnung wie {@link meliousWireModel},
+ * für Aufrufer, die den Body noch nicht gebaut haben (die Ausweichkette des Loops).
+ */
+export function meliousGoesWide(
+  modelName: string,
+  bodyChars: number,
+  maxTokens: number | null = null
+): boolean {
+  if (!FI_NODE_MODELS.has(modelName)) return false;
+  const output = maxTokens ?? DEFAULT_OUTPUT_RESERVE;
+  return bodyChars / CHARS_PER_TOKEN + output > BALANCED_TOKEN_LIMIT;
+}
+
 export function meliousWireModel(body: Record<string, unknown>): string | null {
-  if (typeof body.model !== 'string' || !FI_NODE_MODELS.has(body.model)) return null;
-  const output = typeof body.max_tokens === 'number' ? body.max_tokens : DEFAULT_OUTPUT_RESERVE;
-  const estimate = JSON.stringify(body).length / CHARS_PER_TOKEN + output;
-  return estimate > BALANCED_TOKEN_LIMIT ? MELIOUS_WIDE_MODEL : null;
+  if (typeof body.model !== 'string') return null;
+  const maxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : null;
+  return meliousGoesWide(body.model, JSON.stringify(body).length, maxTokens)
+    ? MELIOUS_WIDE_MODEL
+    : null;
 }
 
 /**

@@ -791,15 +791,42 @@ export function isUnifiedGemma(provider: string, modelName: string): boolean {
   return provider === 'melious' && UNIFIED_GEMMA_NAME.test(modelName);
 }
 
+/** Melious' routing flavor; no suffix is `:balanced`. */
+function meliousFlavor(modelName: string): string {
+  return modelName.split(':')[1] ?? 'balanced';
+}
+
 /**
  * The lanes behind the selected one for a unified Gemma turn:
- * `UNIFIED_GEMMA_CHAIN` minus the selected stage. Empty for every other lane
- * (Mistral keeps its own repair path only).
+ * `UNIFIED_GEMMA_CHAIN` minus the selected stage — a Gemma stage counts as the
+ * selected one when it has the same Melious flavor (same upstream). Empty for
+ * every other lane (Mistral keeps its own repair path only).
+ *
+ * `wireModelName`: what the selected stage really sends (`meliousWireModel` turns
+ * a large `:balanced` request into `:speed`). Went the primary out as `:speed`,
+ * a `:speed` stage would repeat the same request on the same upstream and only
+ * add another first-response deadline before Mistral.
  */
-export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
+export function unifiedFallbackStages(
+  provider: string,
+  modelName: string,
+  wireModelName: string | null = null
+): (typeof UNIFIED_GEMMA_CHAIN)[number][] {
   if (!isUnifiedGemma(provider, modelName)) return [];
-  return UNIFIED_GEMMA_CHAIN.filter((stage) => !isUnifiedGemma(stage.provider, stage.model)).map(
-    (stage) => getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
+  const sent = new Set([meliousFlavor(modelName), meliousFlavor(wireModelName ?? modelName)]);
+  return UNIFIED_GEMMA_CHAIN.filter(
+    (stage) =>
+      !(isUnifiedGemma(stage.provider, stage.model) && sent.has(meliousFlavor(stage.model)))
+  );
+}
+
+export function getUnifiedFallbackModels(
+  provider: string,
+  modelName: string,
+  wireModelName: string | null = null
+): LanguageModel[] {
+  return unifiedFallbackStages(provider, modelName, wireModelName).map((stage) =>
+    getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
   );
 }
 
