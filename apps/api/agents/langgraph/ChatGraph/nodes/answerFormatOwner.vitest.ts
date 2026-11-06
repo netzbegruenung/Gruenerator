@@ -183,6 +183,14 @@ describe('Formatregel — eine gewaehlte Textform ist ein Eigentuemer', () => {
 describe('Formatregel — die Suchfamilie fällt an EXTERNAL_RESEARCH_INTENTS auseinander', () => {
   const EXPANDED = 'gliedere sie mit';
 
+  it('gewähltes Material im Loop (agentic) bleibt ohne Gliederungsregel, wie früher als search', async () => {
+    const prompt = await buildSystemMessage(
+      state({ intent: 'agentic', readsPickedMaterial: true }),
+      { retrievalExpected: true }
+    );
+    expect(prompt).not.toContain(EXPANDED);
+  });
+
   it.each(['research', 'web', 'agentic'] as const)(
     '%s bekommt die Gliederungsregel, sobald Abruf erwartet wird',
     async (intent) => {

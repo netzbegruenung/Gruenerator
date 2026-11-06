@@ -588,13 +588,14 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.detectedUrls).toHaveLength(1);
   });
 
-  it('doc attachments force search BEFORE tier 3.5 — never demoted', async () => {
+  it('doc attachments go to the loop as picked material BEFORE tier 3.5 — not a demotion', async () => {
     const state = buildState({
       userMessage: 'Welche Position haben die Grünen zur Vorratsdatenspeicherung?',
       documentIds: ['doc-1'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
+    expect(result.intent).toBe('agentic');
+    expect(result.reasoning).toContain('picked material');
   });
 
   it('injection cannot force demotion of a generation intent', async () => {

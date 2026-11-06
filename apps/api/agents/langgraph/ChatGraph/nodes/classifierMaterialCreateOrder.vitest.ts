@@ -143,14 +143,15 @@ describe('classifierNode — Erstell-Auftrag über gewähltem Material', () => {
     expect(result.intent).toBe('agentic');
   });
 
-  it('eine Frage zur Wolke-Datei bleibt bei der Zwangssuche', async () => {
+  it('eine Frage zur Wolke-Datei geht als Material in die Schleife, mit verfeinerter Suchanfrage', async () => {
     const result = await classifierNode(
       buildState({
         userMessage: 'Was steht in dieser Datei über den Radverkehr?',
         wolkeFiles: [wolke('PM.pdf')],
       })
     );
-    expect(result.intent).toBe('search');
+    expect(result.intent).toBe('agentic');
+    expect(result.searchQuery).toBeTruthy();
   });
 
   it('mitgeführte Wolke-Dateien zählen nicht als gewähltes Material', async () => {
@@ -162,5 +163,55 @@ describe('classifierNode — Erstell-Auftrag über gewähltem Material', () => {
       })
     );
     expect(result.reasoning ?? '').not.toContain('gewähltem Material');
+  });
+});
+
+/**
+ * Live 06.11.2026: ein gewähltes Wolke-Foto erzwang auf JEDEM Turn `search`, und
+ * `search` montiert kein Erstell-Werkzeug. Gewähltes Material ist kein Intent —
+ * die Schleife liest es, und das Modell entscheidet.
+ */
+describe('classifierNode — gewähltes Material ist kein Intent', () => {
+  const PHOTO = [wolke('IMG_2601-1365x2048 (1).jpg')];
+
+  it('„erstelle ein bild von mir …" mit frischem Wolke-Foto → Schleife statt Suche', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'erstelle ein bild von mir wo ich auf einer wolke surfe',
+        wolkeFiles: PHOTO,
+      })
+    );
+    expect(result.intent).toBe('agentic');
+  });
+
+  it('@Dokument, Dokument-Chat und Connect ohne Auftrag → Schleife', async () => {
+    for (const material of [
+      { documentIds: ['doc-1'] },
+      { documentChatIds: ['chat-1'] },
+      { connectFiles: [{ provider: 'google-drive', fileId: 'f1', name: 'Konzept.docx' }] },
+    ]) {
+      const result = await classifierNode(
+        buildState({ userMessage: 'Was steht da über den Radverkehr drin?', ...material })
+      );
+      expect(result.intent, JSON.stringify(material)).toBe('agentic');
+    }
+  });
+
+  it.each(['nimm das bild im anhang für das sharepic', 'denk dir daten dafür aus', 'ja'])(
+    'eine mitgeführte Wolke-Datei beansprucht „%s" nicht',
+    async (userMessage) => {
+      const result = await classifierNode(
+        buildState({ userMessage, wolkeFiles: PHOTO, cloudFilesCarriedOnly: true })
+      );
+      expect(result.reasoning ?? '').not.toMatch(/Wolke/);
+      expect(result.intent).not.toBe('search');
+    }
+  );
+
+  it('die @notebook-Erwähnung bleibt eine Suche', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: 'Was sagt das Programm zum Radverkehr?', notebookIds: ['nb-1'] })
+    );
+    expect(result.intent).toBe('search');
   });
 });

@@ -94,7 +94,9 @@ describe('cloud files stay in the thread (#4112)', () => {
       threadId,
     });
 
-    expect(second.trace.intent).toBe('search');
+    // A carried file no longer decides the route (06.11.2026): it rides along as
+    // loop material, and the up-front seed reads it on every turn.
+    expect(second.trace.intent).toBe('agentic');
     expect(lastTurnFiles()).toEqual([FILE]);
     // Refs only — what the thread row keeps is the pick, nothing more.
     expect(threads.get(threadId!)?.cloudFiles).toEqual({ wolke: [], connect: [FILE] });
