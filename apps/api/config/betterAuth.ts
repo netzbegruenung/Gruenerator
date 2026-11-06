@@ -136,7 +136,7 @@ const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 // Siehe PostgresService: ohne Listener beendet der Fehler einer ruhenden Verbindung den Worker.
 pool.on('error', (error) => {
-  log.error('Idle client error:', error.message);
+  log.error('Idle client error: %s', error.message);
 });
 const db = drizzle(pool, { schema });
 
