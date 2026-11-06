@@ -177,6 +177,8 @@ export interface TurnPlanInput {
    * baute live 11.10.2026 daneben ein zweites, neues Sharepic.
    */
   addressesThreadSharepic?: boolean;
+  /** Der Thread enthält ein Sharepic (`stateHasSharepic`). */
+  threadHasSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
@@ -431,7 +433,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     !p.isSharepicRefinement &&
     !editorSurface &&
     p.addressesThreadSharepic !== true &&
-    namesSharepicWithoutOrder(proposedIntent, p.lastUserText)
+    namesSharepicWithoutOrder(proposedIntent, p.lastUserText, p.threadHasSharepic ?? true)
       ? 'sharepic'
       : null;
   const compoundKind = orderedKind ?? namedOnlyKind;
