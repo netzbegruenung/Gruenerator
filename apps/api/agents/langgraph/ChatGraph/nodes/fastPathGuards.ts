@@ -9,6 +9,7 @@
  * Leaf module (no imports from the classifier) so both callers can share it and
  * it unit-tests in isolation (fastPathGuards.vitest.ts).
  */
+import { orderText } from '../../../../routes/chat/services/orderText.js';
 
 /**
  * Quoted spans are reported speech, not the user's own ask. Straight single
@@ -193,6 +194,19 @@ export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>
   board: /\b(board\w*|kanban\w*|karten?|aufgaben?|tasks?)\b/i,
   image: /\b(bild\w*|foto\w*|grafik\w*|illustration\w*)\b/i,
 };
+
+/**
+ * Meint dieser Turn das zuletzt im Thread erzeugte Bild? Ja, wenn es im Turn
+ * davor kam, oder wenn der Auftrag ein Bild nennt. `last_tool_context` bleibt
+ * „image", bis das nächste Artefakt kommt — ohne Adressaten würde jeder spätere
+ * Turn das alte Bild meinen. Zwei Leser: der Bild-Folgezweig des Klassifikators
+ * und die Fotos eines Sharepic-Turns (`photosForTurn`).
+ */
+export function addressesThreadImage(text: string, lastTurnProducedImage: boolean): boolean {
+  return (
+    lastTurnProducedImage || ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(text)))
+  );
+}
 
 /**
  * An ACTION-LEVEL prohibition: "nichts speichern", "keine Dokumentaktion",
@@ -489,9 +503,13 @@ export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, 
  * „Slider" (15.10.2026): so heissen die Karussells im Chat und im Creator
  * (`sharepicCreator/forms.ts`) — „wandle diese PM in einen Sharepic-Slider um"
  * war der Live-Fall, „mach daraus einen Slider" trug das Wort gar nicht.
+ *
+ * Zusammensetzungen (06.11.2026): „pack es in ein Veranstaltungssharepic" fand
+ * das Wort nicht, weil `\b` davor nur das freistehende Nomen zulässt. Nur für
+ * „Sharepic" selbst — „Kinderkarussell" ist kein Karussell-Sharepic.
  */
 export const SHAREPIC_NOUN_SRC =
-  'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
+  '[a-zäöüß]+share[\\s-]?pics?|share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
   '|karussell\\w*|carousels?|slider[ns]?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").

@@ -18,6 +18,7 @@ import {
   NOUN_TRIGGER_MAX_LENGTH,
   extractMessageText,
 } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { addressesThreadImage } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/systemMcpServers.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -114,6 +115,15 @@ export function runRoutingStage({
     lastUserTextNoMentions
   );
   if (sharepicInProgress) classifiedState.sharepicInProgress = true;
+  if (
+    classifiedState.lastToolContext?.kind === 'image' &&
+    addressesThreadImage(
+      lastUserTextNoMentions,
+      classifiedState.lastTurnEditables?.includes('image') === true
+    )
+  ) {
+    classifiedState.sharepicTakesThreadImage = true;
+  }
 
   const plan = decideTurnPlan({
     // EINE Lesung des Schalters pro Turn. Vorher standen hier drei, die

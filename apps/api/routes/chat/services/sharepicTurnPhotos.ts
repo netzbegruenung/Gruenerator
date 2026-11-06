@@ -27,6 +27,7 @@ import {
 } from '../../../services/sharepicCreator/photoAnalysis.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { loadLastGeneratedImage } from './lastGeneratedImage.js';
 import { collectTurnPhotos, type SharepicOwnPhotoWithUrl } from './turnPhotos.js';
 
 const log = createLogger('sharepicTurnPhotos');
@@ -190,8 +191,11 @@ export async function priorSharepicPhotos(
  * attachments. Wolke files carried over from earlier turns are material, not
  * photos of this order — unless the thread is still working on the sharepic they
  * were picked for (`sharepicInProgress`; live 06.11.2026: „nimm das bild im
- * anhang für das sharepic", built two turns later without it). Without a person
- * there is no library to store in.
+ * anhang für das sharepic", built two turns later without it). The image the
+ * thread generated last comes along when the turn means it
+ * (`sharepicTakesThreadImage`; live 06.11.2026: „nimm dieses bild und pack es in
+ * ein Sharepic" after a FLUX image) — an attached image wins, it is the one
+ * „dieses Bild" points at. Without a person there is no library to store in.
  */
 export async function photosForTurn(
   state: Partial<
@@ -201,6 +205,8 @@ export async function photosForTurn(
       | 'wolkeFiles'
       | 'cloudFilesCarriedOnly'
       | 'sharepicInProgress'
+      | 'sharepicTakesThreadImage'
+      | 'threadId'
       | 'agentConfig'
     >
   >,
@@ -209,9 +215,14 @@ export async function photosForTurn(
   const userId = state.agentConfig?.userId ?? null;
   if (!userId) return { photos: [], bericht: [] };
   const prior = await priorSharepicPhotos(parseSharepicChatProps(priorProps), userId);
+  const attached = state.imageAttachments ?? [];
+  const threadImage =
+    state.sharepicTakesThreadImage === true && attached.length === 0 && state.threadId
+      ? await loadLastGeneratedImage(state.threadId)
+      : null;
   const turn = await prepareSharepicPhotos({
     userId,
-    images: state.imageAttachments ?? [],
+    images: threadImage ? [threadImage] : attached,
     wolke:
       state.cloudFilesCarriedOnly === true && state.sharepicInProgress !== true
         ? []

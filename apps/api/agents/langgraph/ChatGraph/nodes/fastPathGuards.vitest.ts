@@ -88,6 +88,9 @@ describe('hasExplicitSharepicWord', () => {
       'Mach mir einen Dreizeiler zum Radverkehr',
       'Info-Sharepic zur Kindergrundsicherung',
       'Zitat-Sharepic: Wir kämpfen für Klimaschutz',
+      // Zusammengesetzt, live 06.11.2026.
+      'pack es in ein Veranstaltungssharepic zum Thema Wolke',
+      'Ein Wahlkampfsharepic bitte',
     ]) {
       expect(hasExplicitSharepicWord(t), t).toBe(true);
     }
@@ -103,6 +106,7 @@ describe('hasExplicitSharepicWord', () => {
       'Mal mir ein Bild dazu',
       'Mach ein Poster',
       'Schreib einen Insta-Post zu Tempo 30',
+      'Wir fahren aufs Kinderkarussell',
     ]) {
       expect(hasExplicitSharepicWord(t), t).toBe(false);
     }

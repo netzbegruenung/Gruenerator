@@ -121,6 +121,7 @@ import {
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
 import {
+  addressesThreadImage,
   ARTIFACT_NOUN_BY_KIND,
   asksForChatDeliverable,
   CREATION_VERB_RE,
@@ -1914,11 +1915,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // eins. `last_tool_context` bleibt „image", bis das nächste Artefakt kommt,
       // und `isImageRegenRequest` feuert auf „nochmal"/„anders": Turns später
       // wurde „Erklär das nochmal" zur Bildbearbeitung (Beta-Audit 30.09.2026).
+      //
+      // Ein Turn, der „Sharepic" sagt, will das Bild IN ein Sharepic, nicht ein
+      // anderes Bild: „nimm dieses bild und pack es in ein Sharepic" ging an
+      // FLUX zurück (live 06.11.2026). Er fällt durch zum Sharepic-Weg, der das
+      // erzeugte Bild als eigenes Foto mitnimmt (`sharepicTakesThreadImage`).
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
-        (state.lastTurnEditables?.includes('image') === true ||
-          ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(userContent)))) &&
+        !hasExplicitSharepicWord(userContent) &&
+        addressesThreadImage(userContent, state.lastTurnEditables?.includes('image') === true) &&
         (hasImageEditVerb(userContent) ||
           isImageRegenRequest(userContent) ||
           isImageEditInstruction(userContent)) &&

@@ -164,6 +164,21 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     expect(result.intent).not.toBe('image_edit');
   });
 
+  it.each([
+    // Live 06.11.2026: das Bild ging an FLUX zurück, Gemma schrieb einen
+    // erfundenen dalle-Aufruf als Antwort, und „als sharepic" danach fand kein
+    // Sharepic-Werkzeug. Das Nomen gibt das Sharepic frei; das erzeugte Bild
+    // kommt über `sharepicTakesThreadImage` als eigenes Foto mit.
+    'nimm dieses bild und pack es in ein veranstaltungssharepic zum thema wolke, musterdaten',
+    'Mach aus dem Bild ein Sharepic',
+    'als sharepic',
+  ])('überlässt "%s" dem Sharepic-Weg', async (text) => {
+    const result = await classifierNode(
+      buildState({ userMessage: text, lastToolContext: afterImage, lastTurnEditables: ['image'] })
+    );
+    expect(result.intent).not.toBe('image_edit');
+  });
+
   it('greift nicht ohne vorheriges Bild', async () => {
     // Der Grund, warum ein blosses Bildteil-Nomen hier reichen darf: die Stufe
     // weiss bereits, dass ein Bild dasteht. Ohne Artefakt darf „Mach den Text

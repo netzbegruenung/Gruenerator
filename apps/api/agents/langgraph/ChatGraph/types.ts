@@ -1260,6 +1260,9 @@ export interface ChatGraphState {
   // Der Thread arbeitet noch an einem Sharepic (`threadWorksOnSharepic`): die
   // dafür gewählten, inzwischen mitgeführten Wolke-Fotos gehören zum Auftrag.
   sharepicInProgress?: boolean;
+  // Der Turn meint das zuletzt im Thread erzeugte Bild (`addressesThreadImage`):
+  // ein Sharepic-Turn bekommt es als eigenes Foto („pack dieses Bild in ein Sharepic").
+  sharepicTakesThreadImage?: boolean;
   // Picked material with text (not only photos) went to the loop as material
   // (`classifyPickedMaterial`): an empty up-front seed forces the first planner
   // step onto its readers, as the forced search used to guarantee.
