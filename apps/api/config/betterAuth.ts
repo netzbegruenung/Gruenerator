@@ -134,6 +134,10 @@ export const SESSION_COOKIE_PREFIX =
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
+// Siehe PostgresService: ohne Listener beendet der Fehler einer ruhenden Verbindung den Worker.
+pool.on('error', (error) => {
+  log.error('Idle client error:', error.message);
+});
 const db = drizzle(pool, { schema });
 
 /**
