@@ -150,6 +150,31 @@ describe('formMismatch', () => {
     );
   });
 
+  // Live-Test 06.11.2026: „mach ein Faktenbild mit dem Bild" — das eigene Foto
+  // durfte nie der Hintergrund sein, der Creator verwarf es.
+  it('takes an own photo as the Faktenbild background, the number still required', () => {
+    const onPhoto = (items: SharepicSpec['slides'][number]['items']) => ({
+      locale: 'de-DE' as const,
+      slides: [
+        {
+          ...slide(items),
+          background: { kind: 'foto' as const, filename: 'upload:1', textSeite: 'unten' as const },
+        },
+      ],
+    });
+    expect(
+      formMismatch(
+        'faktenbild',
+        onPhoto([{ type: 'headline', lines: ['75 % der', 'Wildbienen'] }]),
+        false,
+        ''
+      )
+    ).toBeNull();
+    expect(formMismatch('faktenbild', onPhoto(headline.items), false, '')).toContain(
+      'gehört die Zahl'
+    );
+  });
+
   // Live 01.11.2026: „Andere Variante als Faktenbild" kam als Szene mit einer
   // Headline ohne jede Zahl zurück.
   it('wants a number on a Faktenbild scene', () => {

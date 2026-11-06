@@ -1,8 +1,9 @@
 /**
  * Das zuletzt im Thread erzeugte Bild als Bearbeitungs-Eingabe („mach es
- * blauer" nach einem Generierungs-Turn). Zwei Leser: der Router für das
- * Einzeldurchlauf-`image_edit` und das Loop-Werkzeug `edit_image` — eine
- * Quelle, damit beide dasselbe Bild meinen.
+ * blauer" nach einem Generierungs-Turn). Drei Leser: der Router für das
+ * Einzeldurchlauf-`image_edit`, das Loop-Werkzeug `edit_image` und die Fotos
+ * eines Sharepic-Turns (`photosForTurn`) — eine Quelle, damit alle dasselbe
+ * Bild meinen.
  *
  * Nur lokale FLUX-Ergebnisse (strikte Pfadform, kein Traversal).
  */

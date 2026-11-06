@@ -111,6 +111,16 @@ import type { Request } from 'express';
 const log = createLogger('DomainTools');
 
 /**
+ * Der Turn meinte das Bild aus dem Gespräch, aber dieses Werkzeug nimmt keins
+ * mit. Ohne den Satz behauptete die Antwort ein eingefügtes Bild (Live-Test
+ * 06.11.2026: „schreib ein Dokument und füge das Bild ein").
+ */
+export function threadImageNotTaken(state: ChatGraphState, where: string): string {
+  return state.takesThreadImage
+    ? ` Das Bild aus dem Gespräch ist NICHT ${where} – Bilder übernimmt dieses Werkzeug nicht. Sag das ehrlich und behaupte nichts anderes.`
+    : '';
+}
+/**
  * Die Erzeugung lieferte nichts. Der Grund ist meist nicht bekannt (die
  * Generatoren geben `null` zurück) — dann steht das da, statt einer erfundenen
  * Ursache. Wichtig ist der nächste Schritt: ein Fehlschlag nach langer Wartezeit
@@ -1565,9 +1575,13 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', created);
       state.createdDocument = created;
+      const imageNote = threadImageNotTaken(
+        state,
+        label === 'Dokument' ? 'im Dokument' : `in der ${label}`
+      );
       return {
         document: created,
-        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.${imageNote}`,
       };
     },
   });
@@ -1719,7 +1733,8 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
               : '') +
           (result.verification.problems.length
             ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
-            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
+            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`) +
+          threadImageNotTaken(state, 'im PDF'),
       };
     },
   });
@@ -1796,7 +1811,9 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklä
       state.createdDocument = outcome.document;
       return {
         document: outcome.document,
-        note: 'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.',
+        note:
+          'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.' +
+          threadImageNotTaken(state, 'im Explainable — seine Erklärbilder werden eigens gemalt'),
       };
     },
   });

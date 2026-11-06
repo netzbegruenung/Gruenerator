@@ -14,6 +14,7 @@ import {
   makeImageTool,
   makeParlamentLesenTool,
   makeSummaryTool,
+  threadImageNotTaken,
 } from './domainTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -1671,6 +1672,20 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
     expect(created?.payload).toEqual(DOC);
   });
 
+  // Live-Test 06.11.2026: „schreib ein Dokument und füge das Bild ein" — die
+  // Antwort behauptete ein eingefügtes Bild, das es nicht gab.
+  it('says the thread image is not in the artifact when the turn meant it', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    const meant = (await exec(makeTool('document', withUser({ takesThreadImage: true })), {
+      prompt: 'Blühwiesen',
+    })) as { note: string };
+    expect(meant.note).toContain('Das Bild aus dem Gespräch ist NICHT im Dokument');
+    const unmeant = (await exec(makeTool('document', withUser()), { prompt: 'Blühwiesen' })) as {
+      note: string;
+    };
+    expect(unmeant.note).not.toContain('Bild');
+  });
+
   it('is idempotent per turn: a second call never regenerates', async () => {
     runDocGeneration.mockResolvedValue(DOC);
     const state = withUser();
@@ -1937,5 +1952,16 @@ describe('artifact briefs carry the conversation', () => {
 
     const brief = (runBoardGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
     expect(brief).toContain('Cooling Zones');
+  });
+});
+
+// Claude-Review #5398: PDF und Explainable brauchten denselben Satz wie das Dokument.
+describe('threadImageNotTaken', () => {
+  it('names where the meant thread image is missing, and is silent otherwise', () => {
+    const meant = { takesThreadImage: true } as ChatGraphState;
+    expect(threadImageNotTaken(meant, 'im PDF')).toContain(
+      'Das Bild aus dem Gespräch ist NICHT im PDF'
+    );
+    expect(threadImageNotTaken({} as ChatGraphState, 'im PDF')).toBe('');
   });
 });
