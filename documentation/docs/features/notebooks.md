@@ -63,7 +63,7 @@ Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 ### Auf „Öffentlich" listen
 
-Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Öffentlich' listen"** aktivieren. Dann erscheint dein Notebook für andere im **Marktplatz** unter **Notebooks**: Dort können sie es finden, liken, kommentieren und **merken**. Die Kachel **„Öffentlich"** in der Notebook-Reihe der Wissen-Seite öffnet den Marktplatz direkt bei den Notebooks; was du dort gemerkt hast, steht auf der Wissen-Seite unter **„Gemerkt"** und in deren Suche. Du kannst ein eigenes Notebook auch im Marktplatz über das **Plus** (**Element hinzufügen**) öffentlich machen. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Öffentlich' listen"** aktivieren. Dann erscheint dein Notebook für andere im **Marktplatz** unter **Notebooks**: Dort können sie es finden, liken, kommentieren und **merken**. Was du dort gemerkt hast, steht auf der Wissen-Seite hinter der Kachel **„Meine Notebooks"**. Du kannst ein eigenes Notebook auch im Marktplatz über das **Plus** (**Element hinzufügen**) öffentlich machen. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten"** — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.
@@ -76,7 +76,7 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 
 ## Verwalten
 
-Hinter der Karte **„Eigene Notebooks"** auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte im Abschnitt **„Eigene"**. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
+Hinter der Kachel **„Meine Notebooks"** auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
 - **Teilen** — Untermenü mit **„Link kopieren"** und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe oben).
