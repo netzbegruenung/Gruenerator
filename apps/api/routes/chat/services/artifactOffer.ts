@@ -21,6 +21,12 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import {
+  creationOrderPattern,
+  EXISTING_SHAREPIC_DET_SRC,
+  hasExplicitSharepicWord,
+  SHAREPIC_NOUN_SRC,
+} from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { vorlagenOfferNote } from '../agents/vorlagenTools.js';
 
 import { compoundGenerationKind } from './agenticLoop/routing.js';
@@ -165,6 +171,58 @@ export const QUESTION_EDITABLE_KINDS: readonly ArtifactKindId[] = [
  *    Tabelle um eine Spalte ergänzen?"), ist keine Erstellung und bleibt
  *    ungespeichert.
  */
+/**
+ * Ein Sharepic, das ein Angebot erstellen will: ein Erstell-Verb am Nomen, wie
+ * im Bestell-Prädikat, aber im Fenster des ganzen Satzes statt 40 Zeichen.
+ */
+const SHAREPIC_OFFER_ORDER = creationOrderPattern(
+  // Ein bestimmter oder besitzanzeigender Artikel am Nomen meint ein
+  // vorhandenes Sharepic („das Sharepic heller machen"), und ein „ja" darauf
+  // darf kein zweites bauen. Nur am Nomen, das das Verb trifft: „aus der
+  // Infografik ein Sharepic erstellen" bietet ein neues an. „das als Sharepic"
+  // ist der Stoff, nicht das Sharepic.
+  `(?<!\\b(?:${EXISTING_SHAREPIC_DET_SRC})\\s+(?:(?!als\\s)[a-zäöüß-]+\\s+)?)(?:${SHAREPIC_NOUN_SRC})`,
+  {
+    extraVerbs: 'kreier|bastel',
+    forward: 200,
+  }
+);
+
+/**
+ * Die Art, die ein Angebot in Ich-Form neu anbietet.
+ *
+ * Für das Sharepic liest das Bestell-Prädikat (`asksForSharepic`) zu eng. Es
+ * verlangt das Verb höchstens 40 Zeichen vom Nomen, endet an jedem Punkt und
+ * gibt einem genannten Post den Vortritt. Für einen Auftrag hat das seinen
+ * Grund: „Erstelle einen Post mit Sharepic" ist ein Schreibauftrag, und eine
+ * dort erkannte Art baut `forceCompoundGeneration` garantiert. Ein Angebot
+ * folgt aber dem fertigen Post, nennt ihn („ein Sharepic zum Post"), trägt
+ * Abkürzungen („ggf.") und stellt das Verb ans Satzende („… mit dem Hinweis
+ * auf den Bauausschuss am 19.11.2026 erstellen?"). Solche Angebote blieben
+ * ungespeichert, und das „ja" darauf baute nichts (#5412).
+ *
+ * Der Satz kommt aus `sentences()`, ein Punkt darin ist also kein Satzende. Die
+ * Wächter bleiben: Zitat, Verneinung und Meta-Frage fängt
+ * `hasExplicitSharepicWord` ab, das Verb am Nomen ein „Soll ich dir erklären,
+ * was ein gutes Sharepic ausmacht?". Den Artikel am Nomen prüft
+ * `SHAREPIC_OFFER_ORDER`.
+ *
+ * Die übrigen Arten lesen weiter das Bestell-Prädikat. Für sie ist kein
+ * solches Angebot aufgefallen.
+ */
+const SHAREPIC_WORDS = new RegExp(`\\b(?:${SHAREPIC_NOUN_SRC})\\b`, 'gi');
+
+function offeredKind(sentence: string): ArtifactKindId | null {
+  if (!hasExplicitSharepicWord(sentence)) return compoundGenerationKind('produktion', sentence);
+  // Eine andere Art, die das Verb trifft, geht vor: „eine Tabelle mit allen
+  // Sharepics erstellen" bietet die Tabelle an. Das Bestell-Prädikat prüft das
+  // Sharepic zuerst, deshalb fragt es hier ohne die Sharepic-Wörter, mit
+  // seinen Wächtern für Verneinung und Meta-Frage.
+  const other = compoundGenerationKind('produktion', sentence.replace(SHAREPIC_WORDS, 'Inhalt'));
+  if (other) return other;
+  return SHAREPIC_OFFER_ORDER.test(sentence.replaceAll('.', ' ')) ? 'sharepic' : null;
+}
+
 export function offerToRecord(opts: {
   recipeMentions: readonly string[];
   text: string;
@@ -196,7 +254,7 @@ export function offerToRecord(opts: {
     (p): p is string => p != null && FIRST_PERSON_OFFER_RE.test(p)
   );
   for (const passage of ownOffers) {
-    const kind = compoundGenerationKind('produktion', passage);
+    const kind = offeredKind(passage);
     if (!kind) continue;
     const editable = QUESTION_EDITABLE_KINDS.includes(kind) && opts.threadKinds?.includes(kind);
     return editable ? null : { kind };
