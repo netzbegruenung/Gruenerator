@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { createSourceRegistry } from './sourceRegistry.js';
+import { createSourceRegistry, findSourceEchoCut } from './sourceRegistry.js';
 
 import type { SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -687,5 +687,49 @@ describe('sourceRegistry.note', () => {
       ]);
       expect(reg.size).toBe(2);
     });
+  });
+});
+
+// Live 06.11.2026 (#5409): die richtige Antwort, dann das Register aus dem
+// Systemprompt Zeile für Zeile abgeschrieben — 14k Zeichen bis zum Wächter.
+describe('findSourceEchoCut', () => {
+  const ANSWER =
+    'Zu den Fahrradstellplätzen heißt es unter **§18**: Zielwert **666 Einheiten bis 2028**, Budget **2.250 Tausend Euro** [1]. Direkt benachbart ist **§19** [1].';
+
+  it('cuts at the echoed register line and drops the legend that opened it', () => {
+    const text = `${ANSWER} [1] bezieht sich auf die Kooperationsvereinbarung.pdf in diesem Gespräch. [2] (frühere Recherche) Heizungsgesetz 2026 <https://example.org> — Für eine Wärmepumpe`;
+    expect(text.slice(0, findSourceEchoCut(text) ?? -1)).toBe(ANSWER);
+  });
+
+  it('drops a "Quellen:" heading above the list', () => {
+    const text = `${ANSWER}\n\n**Quellen:**\n[2] (frühere Recherche) Heizungsgesetz 2026`;
+    expect(text.slice(0, findSourceEchoCut(text) ?? -1)).toBe(ANSWER);
+  });
+
+  // Review #5415: an answer that OPENS with a marker is no legend.
+  it('keeps an answer that opens with a citation marker', () => {
+    const answer = '[1] Laut der Vereinbarung sind 666 Stellplätze vorgesehen.';
+    const text = `${answer} [2] (frühere Recherche) Heizungsgesetz <https://example.org> — Text`;
+    expect(text.slice(0, findSourceEchoCut(text) ?? -1)).toBe(answer);
+    const multi = `[1] Erster Satz.\n[1] Zweiter Satz mit Beleg.\n[2] (frühere Recherche) Titel`;
+    expect(multi.slice(0, findSourceEchoCut(multi) ?? -1)).toBe(
+      '[1] Erster Satz.\n[1] Zweiter Satz mit Beleg.'
+    );
+  });
+
+  it('never cuts to nothing', () => {
+    const text = '[1] bezieht sich auf das PDF. [2] (frühere Recherche) Titel';
+    expect(findSourceEchoCut(text)).toBeGreaterThan(0);
+  });
+
+  it('keeps a citation marker inside the answer', () => {
+    expect(findSourceEchoCut(ANSWER)).toBeNull();
+    expect(findSourceEchoCut('Laut der früheren Recherche [2] gilt das GModG.')).toBeNull();
+  });
+
+  it('only looks at the tail when asked to', () => {
+    const text = `${ANSWER} [2] (frühere Recherche) Titel`;
+    expect(findSourceEchoCut(text, text.length - 5)).toBeNull();
+    expect(findSourceEchoCut(text, ANSWER.length)).not.toBeNull();
   });
 });

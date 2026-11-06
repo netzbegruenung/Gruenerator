@@ -534,7 +534,9 @@ describe('checkAndRevise — Sibling bei Langsamkeit', () => {
         provider === GEMMA_PRIMAER ? new Promise<Answer>(() => {}) : antwort(type, 'Vom Sibling.')
       );
       const ersterLauf = laufe();
-      await vi.advanceTimersByTimeAsync(300_000);
+      // Lang genug für die Hedge-Frist, kürzer als das erste Fenster des
+      // Vermerks (2 min, modelHealth.ts) — danach stünde der Primär auf Probe.
+      await vi.advanceTimersByTimeAsync(60_000);
       await ersterLauf;
 
       const zweiter = poolNachProvider(async (_p, type) => antwort(type, 'Vom Sibling.'));

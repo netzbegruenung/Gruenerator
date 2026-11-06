@@ -813,21 +813,75 @@ export function unifiedFallbackStages(
   wireModelName: string | null = null
 ): (typeof UNIFIED_GEMMA_CHAIN)[number][] {
   if (!isUnifiedGemma(provider, modelName)) return [];
-  const sent = new Set([meliousFlavor(modelName), meliousFlavor(wireModelName ?? modelName)]);
   return UNIFIED_GEMMA_CHAIN.filter(
-    (stage) =>
-      !(isUnifiedGemma(stage.provider, stage.model) && sent.has(meliousFlavor(stage.model)))
+    (stage) => !reachesSameMeliousUpstream(stage, modelName, wireModelName)
   );
 }
 
-export function getUnifiedFallbackModels(
+/**
+ * Ob `stage` dieselbe Melious-Gemma mit demselben Flavor ist, die der laufende
+ * Versuch schon erreicht hat — logisch (`modelName`) oder auf dem Draht
+ * (`wireModelName`, den `meliousWireModel` bei grossen Bodies auf `:speed`
+ * setzt). Eine solche Stufe wiederholte dieselbe Anfrage am selben Upstream.
+ */
+function reachesSameMeliousUpstream(
+  stage: { provider: string; model: string },
+  modelName: string,
+  wireModelName: string | null
+): boolean {
+  if (!isUnifiedGemma(stage.provider, stage.model)) return false;
+  const sent = new Set([meliousFlavor(modelName), meliousFlavor(wireModelName ?? modelName)]);
+  return sent.has(meliousFlavor(stage.model));
+}
+
+/** Eine Stufe einer Lane-Kette: WER sie ist, damit ein Stillstand die Stufe
+ *  vermerkt, die wirklich lief, und die Instanz dazu. */
+export interface LaneStage {
+  provider: Provider;
+  model: string;
+  languageModel: LanguageModel;
+}
+
+/**
+ * Die Instanz einer Ketten-Stufe — OHNE den stillen Tausch in `getModel`.
+ *
+ * Eine Kette hat ihre Ausweichziele selbst deklariert und schiebt zähe Stufen
+ * selbst ans Ende (Vorbild `resolveIntermediateChain` in services/ai/providers.ts).
+ * Liesse `getModel` hier `pickHealthyTarget` tauschen, liefe unter dem Namen
+ * der Stufe ein anderes Modell, und der Vermerk beim Stillstand träfe die
+ * falsche Lane.
+ */
+function stageModel(stage: { provider: Provider; model: string }): LaneStage {
+  return {
+    provider: stage.provider,
+    model: stage.model,
+    languageModel: getModel(stage.provider, stage.model, { acceptTarget: () => false }),
+  };
+}
+
+/**
+ * Die ganze Lane-Kette eines Unified-Gemma-Zuges: die gewählte Stufe, dahinter
+ * `unifiedFallbackStages`. Zähe Stufen rücken ans Ende, nicht hinaus — ein
+ * zähes Modell antwortet langsam, nicht falsch, und ist alles zäh, läuft der
+ * Zug trotzdem. Ein zäh vermerkter `:balanced` startet so auf `:speed`, dann
+ * Mistral Large 4 — und nicht, wie bis 06.11.2026 über den stillen Tausch in
+ * `getModel`, auf Cortecs, das diese Kette bewusst nicht führt.
+ *
+ * Leer für jede andere Lane: Mistral-Unified behält seine eine Instanz.
+ */
+export function resolveUnifiedLaneChain(
   provider: string,
   modelName: string,
   wireModelName: string | null = null
-): LanguageModel[] {
-  return unifiedFallbackStages(provider, modelName, wireModelName).map((stage) =>
-    getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
-  );
+): LaneStage[] {
+  if (!isUnifiedGemma(provider, modelName)) return [];
+  const declared: { provider: Provider; model: string }[] = [
+    { provider: 'melious', model: modelName },
+    ...unifiedFallbackStages(provider, modelName, wireModelName),
+  ];
+  const slow = (s: { provider: Provider; model: string }): boolean =>
+    isModelSlow(s.provider, s.model);
+  return [...declared.filter((s) => !slow(s)), ...declared.filter(slow)].map(stageModel);
 }
 
 /**
@@ -851,22 +905,17 @@ export function getUnifiedFallbackModels(
  * erste Wahl, ohne jede Obergrenze dafür, wie oft ein Zug die volle
  * Werkzeugfrist absitzt (gemessen: 45 s Leerlauf in einem Zug von 47,9 s).
  *
- * WAS DAS KOSTET, GENAU: der Breaker in `modelHealth` öffnet bei ZWEI
- * Verdikten, nicht bei einem (`modelHealth.vitest.ts`, „ein ausdrückliches
- * Verdikt zählt wie eine zähe Probe"). Nach einem einzelnen Stillstand zahlt
- * der nächste Zug die Frist also noch einmal; erst der zweite schaltet die
- * Stufe für 5 Minuten ab. Aus unbegrenzt oft wird damit zweimal — nicht
- * keinmal.
+ * WAS DAS KOSTET, GENAU: ein Stillstand. `modelHealth` vermerkt ab dem ersten
+ * ausdrücklichen Verdikt (seit 06.11.2026, #5399; vorher erst ab dem zweiten,
+ * und jede gesunde Probe dazwischen löschte den ersten). Danach überspringt
+ * jeder Zug dieses Workers die Stufe, 2 min beim ersten Mal und länger, solange
+ * die Störung anhält (2 → 4 → 8 → 16 → 30 min). Läuft das Fenster ab, ist der
+ * nächste Zug die Probe; die Wahl fällt pro Zug neu, das Ausweichen endet also
+ * von selbst.
  *
- * Und das ist Absicht, kein übersehener Rest. Ein einzelner Stillstand kann
- * ein Netz-Schluckauf sein; eine Stufe wegen eines Ausreissers fünf Minuten
- * zu meiden, wäre der teurere Fehler.
- * Wer die Schwelle doch senken will, senkt sie nicht hier: `recordSlowVerdict`
- * teilt den Breaker mit den Durchsatz-Proben und mit `synth_stall`, dessen
- * Pfad im selben Zug schon eine Geschwister-Lane hat.
- *
- * `modelHealth` hält den Vermerk 5 Minuten und stellt die Stufe danach auf
- * Probe; die Wahl fällt pro Zug neu, das Ausweichen endet also von selbst.
+ * Ein einzelner Stillstand kann ein Netz-Schluckauf sein. Der Preis dafür sind
+ * zwei Minuten auf `:speed` — dieselben Gewichte, etwas teurer —, und das ist
+ * billiger, als einen weiteren Zug die Frist absitzen zu lassen.
  */
 function plannerStageUsable(stage: { provider: Provider; model: string }): boolean {
   if (!isProviderConfigured(stage.provider)) return false;
@@ -940,31 +989,45 @@ export function resolveLoopPlannerLane(): {
   languageModel: LanguageModel;
 } {
   const p = loopPlannerChoice();
-  return { provider: p.provider, model: p.model, languageModel: getModel(p.provider, p.model) };
+  // Ohne Tausch: die Kette hat schon gewählt — sind alle Stufen zäh, wäre der
+  // stille Tausch in `getModel` ein Ziel, das in dieser Kette nichts zu suchen
+  // hat, unter dem Namen der Stufe.
+  const stage = stageModel(p);
+  return { provider: stage.provider, model: stage.model, languageModel: stage.languageModel };
 }
 
 /**
- * Ausweich-Lanes für den Werkzeugschritt, der Reihe nach versucht, wenn die
+ * Ausweich-Stufen für den Werkzeugschritt, der Reihe nach versucht, wenn die
  * Planer-Lane ablehnt (400/429/5xx) oder schweigt, bevor ein Werkzeug lief.
  *
- * Die Stufen der Kette HINTER der laufenden, jede auf einem eigenen Gateway —
- * eine Ablehnung des Melious-Knotens (am 02.10.2026 „malformed" bei 60
- * Typeform-Werkzeugen, sein Fenster von ~45k Tokens) trifft Cortecs nicht.
- * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist.
+ * Die Stufen der Kette HINTER der laufenden: `:speed` (anderer Upstream bei
+ * Melious), Cortecs (anderes Gateway), Mistral Small (andere Familie).
+ * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist —
+ * und `:speed`, wenn der Primär schon dorthin ging (`wireModelName`: ein
+ * grosser `:balanced`-Body wird auf dem Draht zu `:speed`, siehe
+ * `meliousWireModel`; die Stufe wiederholte sonst dieselbe Anfrage).
+ *
+ * Mit Identität, damit `agenticRespondService` den Stillstand der Stufe
+ * vermerkt, die wirklich stand.
  */
-export function getLoopPlannerFallbackModels(
+export function getLoopPlannerFallbackStages(
   plannerProvider: Provider,
-  plannerName: string
-): LanguageModel[] {
+  plannerName: string,
+  wireModelName: string | null = null
+): LaneStage[] {
   const at = LOOP_PLANNER_CHAIN.findIndex(
     (stage) => stage.provider === plannerProvider && stage.model === plannerName
   );
   if (at < 0) return [];
+  const sentToMelious = isUnifiedGemma(plannerProvider, plannerName);
   return LOOP_PLANNER_CHAIN.slice(at + 1)
     .filter(
-      (stage) => isProviderConfigured(stage.provider) && !isModelSlow(stage.provider, stage.model)
+      (stage) =>
+        !(sentToMelious && reachesSameMeliousUpstream(stage, plannerName, wireModelName)) &&
+        isProviderConfigured(stage.provider) &&
+        !isModelSlow(stage.provider, stage.model)
     )
-    .map((stage) => getModel(stage.provider, stage.model));
+    .map(stageModel);
 }
 
 /**

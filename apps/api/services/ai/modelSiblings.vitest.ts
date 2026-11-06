@@ -20,11 +20,12 @@ vi.mock('./providers.js', () => ({
   getDefaultModel: (p: string) => defaults[p] ?? 'x',
 }));
 
-/** Zwei Verdikte = vermerkt. */
+/** Ein ausdrückliches Verdikt = vermerkt. */
 function markSlow(provider: string, model: string): void {
   recordSlowVerdict(provider, model, 'test');
-  recordSlowVerdict(provider, model, 'test');
 }
+
+const SPEED = 'gemma-4-31b:speed';
 
 describe('modelSiblings', () => {
   beforeEach(() => {
@@ -40,16 +41,26 @@ describe('modelSiblings', () => {
     expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toBeNull();
   });
 
-  it('das belegte Geschwister geht vor der Fallback-Kette', () => {
+  it('ein zäher :balanced geht an :speed — dieselben Gewichte, anderer Upstream', () => {
     markSlow('melious', 'gemma-4-31b:balanced');
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
+      provider: 'melious',
+      model: SPEED,
+    });
+  });
+
+  it('ist :speed selbst zäh, greift die Kette: zuerst Cortecs', () => {
+    markSlow('melious', 'gemma-4-31b:balanced');
+    markSlow('melious', SPEED);
     expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
       provider: 'cortecs',
       model: 'gemma-4-31b-it',
     });
   });
 
-  it('ist das Geschwister selbst zäh, greift die Kette', () => {
+  it('ist auch Cortecs zäh, bleibt Mistral', () => {
     markSlow('melious', 'gemma-4-31b:balanced');
+    markSlow('melious', SPEED);
     markSlow('cortecs', 'gemma-4-31b-it');
     expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
       provider: 'mistral',
@@ -74,6 +85,7 @@ describe('modelSiblings', () => {
   it('ein nicht konfigurierter Anbieter wird übersprungen', () => {
     configured.delete('cortecs');
     markSlow('melious', 'gemma-4-31b:balanced');
+    markSlow('melious', SPEED);
     expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
       provider: 'mistral',
       model: 'mistral-medium-2604',
@@ -82,6 +94,7 @@ describe('modelSiblings', () => {
 
   it('ist alles zäh, bleibt es beim Primär — langsam schlägt gar nicht', () => {
     markSlow('melious', 'gemma-4-31b:balanced');
+    markSlow('melious', SPEED);
     markSlow('cortecs', 'gemma-4-31b-it');
     markSlow('mistral', 'mistral-medium-2604');
     expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toBeNull();

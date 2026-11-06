@@ -802,7 +802,14 @@ NUTZE WENN:
     // summary). A vectorized document is not in the prompt, so it keeps
     // `summarize` beside `dokumente_lesen` as its only full-text path; the
     // `summary` intent brings its own material (documents or the thread).
-    if (state.intent === 'summary' || attachedSources.length > 0) {
+    // A whole-document turn that fits has the full text in the writer's prompt
+    // (wholeDocument.ts) — `summarize` would only re-read it. Live 06.11.2026,
+    // once the planner saw a stub instead of the text (#5399), it picked
+    // `summarize` anyway: 22 s of map-reduce over a document the writer had.
+    if (
+      (state.intent === 'summary' || attachedSources.length > 0) &&
+      state.wholeDocument?.fits !== true
+    ) {
       tools.summarize = makeSummaryTool({ sse, state });
     }
 

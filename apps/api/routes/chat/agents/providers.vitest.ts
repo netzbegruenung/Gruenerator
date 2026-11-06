@@ -11,6 +11,7 @@ import {
   prefersUnifiedLoop,
   resolveModelTuple,
   unifiedFallbackStages,
+  resolveUnifiedLaneChain,
 } from './providers.js';
 import {
   GEMMA_31B_ALTERNATE,
@@ -18,6 +19,7 @@ import {
   GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
+import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
 
 import { resolveLoopMode } from '../services/agenticLoop/loopMode.js';
@@ -479,5 +481,43 @@ describe('unifiedFallbackStages', () => {
   it('gibt anderen Lanes keine Ausweichstufen', () => {
     expect(unifiedFallbackStages('mistral', 'mistral-large-4')).toEqual([]);
     expect(unifiedFallbackStages('cortecs', 'gemma-4-31b-it')).toEqual([]);
+  });
+});
+
+describe('resolveUnifiedLaneChain', () => {
+  const ids = (chain: ReturnType<typeof resolveUnifiedLaneChain>) =>
+    chain.map((s) => `${s.provider}/${s.model}`);
+
+  it('gesund: die gewählte Stufe zuerst, dahinter :speed und Mistral Large 4', () => {
+    _resetModelHealthForTests();
+    expect(ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'))).toEqual([
+      'melious/gemma-4-31b:balanced',
+      'melious/gemma-4-31b:speed',
+      `mistral/${LOOP_SYNTH_FALLBACK.model}`,
+    ]);
+  });
+
+  it('ein zäher :balanced rückt ans Ende — der Zug startet auf :speed, nie auf Cortecs', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
+    const chain = ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'));
+    expect(chain).toEqual([
+      'melious/gemma-4-31b:speed',
+      `mistral/${LOOP_SYNTH_FALLBACK.model}`,
+      'melious/gemma-4-31b:balanced',
+    ]);
+    expect(chain.some((id) => id.startsWith('cortecs/'))).toBe(false);
+    _resetModelHealthForTests();
+  });
+
+  it('ging :balanced auf dem Draht als :speed raus, fehlt die :speed-Stufe', () => {
+    _resetModelHealthForTests();
+    expect(
+      ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'))
+    ).toEqual(['melious/gemma-4-31b:balanced', `mistral/${LOOP_SYNTH_FALLBACK.model}`]);
+  });
+
+  it('ist leer für jede andere Lane', () => {
+    expect(resolveUnifiedLaneChain('mistral', 'mistral-large-4')).toEqual([]);
   });
 });

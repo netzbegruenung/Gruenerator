@@ -27,7 +27,11 @@
 
 import { createLogger } from '../../utils/logger.js';
 
-import { GEMMA_31B_ON_CORTECS, GEMMA_31B_ON_MELIOUS } from './gemmaHosts.js';
+import {
+  GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_MELIOUS,
+  GEMMA_31B_ON_MELIOUS_SPEED,
+} from './gemmaHosts.js';
 import { GENERIC_FALLBACK } from './lanes.js';
 import { isModelSlow } from './modelHealth.js';
 import { getDefaultModel, isProviderConfigured } from './providers.js';
@@ -88,9 +92,14 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // `GemmaHost`: der trägt seit dem 25.08.2026 auch `contextWindow` und
   // `laneId`, und ein `ModelTarget` mit Extra-Feldern reist von hier aus
   // ungefragt in jeden Aufrufer weiter.
+  //
+  // Ein zäher `:balanced` geht zuerst an `:speed` — dieselben Gewichte bei
+  // Melious, anderer Upstream (infercom/DE), am 06.11.2026 während einer
+  // `:balanced`-Störung unverändert schnell (GEMMA_31B_ON_MELIOUS_SPEED). Ist
+  // auch `:speed` zäh, folgt FALLBACK_CHAIN: Cortecs, dann Mistral.
   [`${GEMMA_31B_ON_MELIOUS.provider}/${GEMMA_31B_ON_MELIOUS.model}`]: {
-    provider: GEMMA_31B_ON_CORTECS.provider,
-    model: GEMMA_31B_ON_CORTECS.model,
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
   },
   [`${GEMMA_31B_ON_CORTECS.provider}/${GEMMA_31B_ON_CORTECS.model}`]: {
     provider: GEMMA_31B_ON_MELIOUS.provider,

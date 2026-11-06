@@ -67,6 +67,12 @@ vi.mock('../services/intentExecutionService.js', () => ({
   runBoardGeneration: (o: unknown): Promise<unknown> => runBoardGeneration(o),
 }));
 
+const threadImageInLibrary = vi.fn<(s: unknown) => Promise<string | null>>(async () => null);
+vi.mock('../services/sharepicTurnPhotos.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  threadImageInLibrary: (s: unknown) => threadImageInLibrary(s),
+}));
+
 type SseEvent = { type: string; payload: unknown };
 function fakeSse(sink: SseEvent[]) {
   return {
@@ -1684,6 +1690,25 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
       note: string;
     };
     expect(unmeant.note).not.toContain('Bild');
+  });
+
+  it('hands the thread image to a document and a deck, never to a sheet', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    threadImageInLibrary.mockResolvedValue('/api/share/tok/download');
+    const state = () => withUser({ takesThreadImage: true });
+    const doc = (await exec(makeTool('document', state()), { prompt: 'a' })) as { note: string };
+    expect((runDocGeneration.mock.calls[0]![0] as { image: string }).image).toBe(
+      '/api/share/tok/download'
+    );
+    expect(doc.note).toContain('steht im Dokument unter der Überschrift');
+    const deck = (await exec(makeTool('presentation', state()), { prompt: 'a' })) as {
+      note: string;
+    };
+    expect(deck.note).toContain('auf einer eigenen Bildfolie');
+    const sheet = (await exec(makeTool('sheet', state()), { prompt: 'a' })) as { note: string };
+    expect((runDocGeneration.mock.calls[2]![0] as { image: unknown }).image).toBeNull();
+    expect(sheet.note).toContain('NICHT in der Tabelle');
+    threadImageInLibrary.mockResolvedValue(null);
   });
 
   it('is idempotent per turn: a second call never regenerates', async () => {

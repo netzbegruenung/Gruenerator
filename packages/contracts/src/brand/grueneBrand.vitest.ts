@@ -26,3 +26,19 @@ describe('font roles of the packs', () => {
     expect(Object.keys(GRUENE_AT.fonts)).not.toContain('handwriting');
   });
 });
+
+describe('print colours of the packs', () => {
+  // The vector PDF matches paints against these keys as lower-case #rrggbb;
+  // an upper-case key would never match and the colour would silently stay RGB.
+  it.each([GRUENE_DE, GRUENE_AT])('$id maps only colours the pack names, in lower case', (pack) => {
+    const own = JSON.stringify({ ...pack, print: null }).toLowerCase();
+    const cmyk = pack.print?.cmyk ?? {};
+    expect(Object.keys(cmyk).length).toBeGreaterThan(0);
+    for (const [hex, values] of Object.entries(cmyk)) {
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/);
+      expect(own).toContain(hex);
+      expect(values).toHaveLength(4);
+      for (const v of values) expect(v >= 0 && v <= 100).toBe(true);
+    }
+  });
+});

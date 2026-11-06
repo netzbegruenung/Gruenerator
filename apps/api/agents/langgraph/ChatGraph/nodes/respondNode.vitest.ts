@@ -12,6 +12,7 @@ import {
   restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
+import { replaceUntrustedBlocks } from '../../../../routes/chat/services/untrustedContent.js';
 
 import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
 import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
@@ -178,6 +179,48 @@ describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
     for (let i = 0; i < 10; i++) {
       expect(out).toContain(`F${i}.pdf`);
     }
+  });
+});
+
+// Live 06.11.2026, Thread f421f2a5: „fasse zusammen" über ein 30-seitiges PDF.
+// Fragen an ein Dokument kommen mit 25.000 Zeichen je Dokument aus; eine
+// Zusammenfassung braucht das Ganze (routes/chat/services/wholeDocument.ts).
+describe('whole-document turn — the full text reaches the prompt', () => {
+  const pdf = 'Absatz über die Löschfristen. '.repeat(3_000); // 90.000 Zeichen
+
+  it('keeps a document whole under the whole-document budget', () => {
+    const context = `### document.pdf\n\n${pdf}`;
+    expect(limitAttachmentContext(context, 86_600).length).toBeLessThan(30_000);
+    expect(limitAttachmentContext(context, 86_600, 151_550, null, Infinity)).toBe(context);
+  });
+
+  it('splits an over-budget pair by budget, not by the 25.000 cap', () => {
+    const context = [`### a.pdf\n\n${pdf}`, `### b.pdf\n\n${pdf}`].join('\n\n---\n\n');
+    const capped = limitAttachmentContext(context, 86_600, 151_550);
+    const whole = limitAttachmentContext(context, 86_600, 151_550, null, Infinity);
+    expect(capped.length).toBeLessThan(55_000);
+    expect(whole.length).toBeGreaterThan(140_000);
+  });
+
+  it('puts a vectorised earlier document back in full', () => {
+    const row = {
+      id: 'a1',
+      name: 'document.pdf',
+      isImage: false,
+      extractedText: pdf,
+      documentId: 'doc-old',
+      summary: null,
+    } as ThreadAttachment;
+    expect(formatThreadAttachmentsContext([row], 86_600)).toBe('');
+    const out = formatThreadAttachmentsContext([row], 86_600, '', '', '', {
+      origin: 'thread',
+      docs: [{ name: 'document.pdf', text: pdf, documentId: 'doc-old' }],
+      chars: pdf.length,
+      budgetChars: 151_550,
+      fits: true,
+    });
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain(pdf.trim());
   });
 });
 
@@ -708,6 +751,28 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       summary: 'Kurzfassung',
       ...over,
     }) as ThreadAttachment;
+
+  // Review #5418: der Planer-Platzhalter ersetzt die Blöcke der früheren
+  // Dokumente — die Bildbeschreibungen daneben müssen stehen bleiben.
+  it('bettet frühere Bilder unter einer eigenen Art ein, nicht als Dokument', () => {
+    const out = formatThreadAttachmentsContext(
+      [
+        doc(article),
+        doc(null, {
+          id: 'img',
+          name: 'foto.jpg',
+          isImage: true,
+          summary: 'Ein Foto vom Marktplatz',
+        }),
+      ],
+      undefined,
+      'Und weiter?'
+    );
+    const planner = replaceUntrustedBlocks(out, 'frueheres_dokument', 'PLATZHALTER');
+    expect(planner).toContain('PLATZHALTER');
+    expect(planner).not.toContain('Aktionsplan gegen Hitze');
+    expect(planner).toContain('Ein Foto vom Marktplatz');
+  });
 
   it('lässt den Anhang weg, wenn sein Text schon in der Historie steht', () => {
     const out = formatThreadAttachmentsContext([doc(article)], undefined, `Nutzer: ${article}`);

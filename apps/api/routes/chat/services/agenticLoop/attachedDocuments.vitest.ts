@@ -95,6 +95,22 @@ describe('resolveTurnMaterial', () => {
     expect(retrievableAttachedSources(state)).toEqual([]);
   });
 
+  // Live-Test 06.11.2026: ein 30-seitiges PDF mit „fasse zusammen" stand ganz
+  // im Prompt, trotzdem erzwang `material_order` noch `dokumente_lesen`.
+  it('lässt ein Dokument weg, das ein Ganzdokument-Turn ganz im Prompt hat', () => {
+    const state = stateWith({
+      documentSources: [src('document_chat', 'pdf'), src('document', 'datei')],
+      wholeDocument: {
+        origin: 'turn',
+        docs: [{ name: 'Vereinbarung.pdf', text: 'x', documentId: 'pdf' }],
+        chars: 1,
+        budgetChars: 151_550,
+        fits: true,
+      },
+    });
+    expect(resolveTurnMaterial(state).qdrantDocs.map((s) => s.id)).toEqual(['datei']);
+  });
+
   it('nimmt die @link-Seiten des Turns mit, aber keinen Wolke-Freigabe-Link', () => {
     const state = stateWith({
       attachedWebpageUrls: ['https://gruene.de/a', 'https://wolke.netzbegruenung.de/s/abc'],

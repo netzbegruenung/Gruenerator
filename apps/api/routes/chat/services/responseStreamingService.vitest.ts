@@ -42,7 +42,8 @@ vi.mock('../../../services/ai/modelDiscovery.js', () => ({
 const mockStreamWithReasoning = vi.fn();
 vi.mock('../../../services/ai/openAiReasoningStream.js', () => ({
   isReasoningStreamModel: (provider: string, model: string) =>
-    (provider === 'melious' && model === 'gemma-4-31b:balanced') ||
+    (provider === 'melious' &&
+      (model === 'gemma-4-31b:balanced' || model === 'gemma-4-31b:speed')) ||
     (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')),
   streamWithReasoning: (...args: unknown[]) => mockStreamWithReasoning(...args),
   ReasoningStreamUnavailableError: class ReasoningStreamUnavailableError extends Error {
@@ -53,6 +54,11 @@ vi.mock('../../../services/ai/openAiReasoningStream.js', () => ({
       this.status = status;
     }
   },
+}));
+
+const mockPickHealthyTarget = vi.fn((..._args: unknown[]) => null as unknown);
+vi.mock('../../../services/ai/modelSiblings.js', () => ({
+  pickHealthyTarget: (...args: unknown[]) => mockPickHealthyTarget(...args),
 }));
 
 vi.mock('./messageHelpers.js', () => ({
@@ -224,6 +230,7 @@ beforeEach(() => {
   mockResolveModelTuple.mockReset();
   mockStreamWithReasoning.mockReset();
   mockGetModel.mockReset();
+  mockPickHealthyTarget.mockReset().mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -582,6 +589,44 @@ describe('clampToModelOutputLimit', () => {
       40_000
     );
     expect(mockStreamText.mock.calls[0][0].maxOutputTokens).toBe(40_000);
+  });
+
+  it('ein zäh vermerkter Denk-Primär denkt auf dem Ausweichziel weiter (#5413)', async () => {
+    mockPickHealthyTarget.mockReturnValueOnce({ provider: 'melious', model: 'gemma-4-31b:speed' });
+    mockStreamWithReasoning.mockImplementation(async function* () {
+      yield { type: 'text', delta: 'ok' };
+    });
+    await runWithMaxTokens(
+      makeResolution({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        reasoningEffort: 'high',
+      }),
+      1000
+    );
+    expect(mockPickHealthyTarget.mock.calls[0]?.slice(0, 2)).toEqual([
+      'melious',
+      'gemma-4-31b:balanced',
+    ]);
+    expect(mockStreamWithReasoning.mock.calls[0][0]).toMatchObject({
+      provider: 'melious',
+      model: 'gemma-4-31b:speed',
+    });
+  });
+
+  it('denkt das Ausweichziel nicht über den Roh-Pfad, fährt der Zug über die SDK', async () => {
+    mockPickHealthyTarget.mockReturnValueOnce({ provider: 'mistral', model: 'mistral-large-4' });
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await runWithMaxTokens(
+      makeResolution({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        reasoningEffort: 'high',
+      }),
+      1000
+    );
+    expect(mockStreamWithReasoning).not.toHaveBeenCalled();
+    expect(mockStreamText).toHaveBeenCalledOnce();
   });
 
   it('gilt auch auf dem Reasoning-Pfad, der nicht über die AI SDK läuft', async () => {
