@@ -204,6 +204,10 @@ describe('offerToRecord', () => {
     'Ich kann dir daraus ein Sharepic zum Post machen.',
     'Soll ich dir zum Post noch ein passendes Sharepic dazu machen?',
     'Wenn du magst, kann ich dir noch ein Sharepic mit Termin und Ort der Sitzung im Rathaus erstellen.',
+    // Der Artikel steht am Ausgangsstoff, nicht am angebotenen Sharepic
+    // (Claude Review, #5417).
+    'Soll ich aus der Infografik ein Sharepic erstellen?',
+    'Soll ich das als Sharepic aufbereiten und dir machen?',
   ])('records a sharepic offer the order predicate would not read: %s', (offer) => {
     expect(
       offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
@@ -217,10 +221,22 @@ describe('offerToRecord', () => {
     'Soll ich dein Sharepic um den Termin ergänzen?',
     'Soll ich dir erklären, was ein gutes Sharepic ausmacht?',
     'Soll ich dir zeigen, wie man ein Sharepic macht?',
+    'Ich kann dir leider keine Tabelle mit allen Sharepics erstellen.',
   ])('records no sharepic for an offer that builds none: %s', (offer) => {
     expect(
       offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
     ).toBeNull();
+  });
+
+  // Das Sharepic ist hier Inhalt, angeboten wird die Tabelle (Claude Review, #5417).
+  it('records the kind the verb builds, not a sharepic inside it', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: `${post}\n\nIch kann dir eine Tabelle mit allen Sharepics erstellen.`,
+        producedArtifact: false,
+      })
+    ).toEqual({ kind: 'sheet' });
   });
 
   // Das Angebot ist frei formuliert und muss keine Frage sein.
