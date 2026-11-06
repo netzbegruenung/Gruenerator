@@ -791,15 +791,34 @@ export function isUnifiedGemma(provider: string, modelName: string): boolean {
   return provider === 'melious' && UNIFIED_GEMMA_NAME.test(modelName);
 }
 
+/** Melious' routing flavor; no suffix is `:balanced`. */
+function meliousFlavor(modelName: string): string {
+  return modelName.split(':')[1] ?? 'balanced';
+}
+
 /**
  * The lanes behind the selected one for a unified Gemma turn:
- * `UNIFIED_GEMMA_CHAIN` minus the selected stage. Empty for every other lane
- * (Mistral keeps its own repair path only).
+ * `UNIFIED_GEMMA_CHAIN` minus the selected stage — a Gemma stage counts as the
+ * selected one when it has the same Melious flavor (same upstream). Empty for
+ * every other lane (Mistral keeps its own repair path only).
  */
-export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
+export function unifiedFallbackStages(
+  provider: string,
+  modelName: string
+): (typeof UNIFIED_GEMMA_CHAIN)[number][] {
   if (!isUnifiedGemma(provider, modelName)) return [];
-  return UNIFIED_GEMMA_CHAIN.filter((stage) => !isUnifiedGemma(stage.provider, stage.model)).map(
-    (stage) => getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
+  return UNIFIED_GEMMA_CHAIN.filter(
+    (stage) =>
+      !(
+        isUnifiedGemma(stage.provider, stage.model) &&
+        meliousFlavor(stage.model) === meliousFlavor(modelName)
+      )
+  );
+}
+
+export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
+  return unifiedFallbackStages(provider, modelName).map((stage) =>
+    getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
   );
 }
 

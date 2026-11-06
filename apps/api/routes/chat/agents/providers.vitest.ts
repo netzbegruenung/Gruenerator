@@ -10,6 +10,7 @@ import {
   isUnifiedGemma,
   prefersUnifiedLoop,
   resolveModelTuple,
+  unifiedFallbackStages,
 } from './providers.js';
 import {
   GEMMA_31B_ALTERNATE,
@@ -25,6 +26,7 @@ import {
   LOOP_PLANNER_CHAIN,
   LOOP_SYNTH_FALLBACK,
   LOOP_SYNTH_PRIMARY,
+  GEMMA_31B_ON_MELIOUS_SPEED,
   mayWriteAnswer,
   resolveAutoSelection,
 } from './autoPolicy.js';
@@ -443,5 +445,33 @@ describe('das Ausweich-Veto überlebt die zweite getModel-Tür', () => {
     expect(seen[0]).toBe(veto);
     vi.doUnmock('../../../services/ai/modelSiblings.js');
     vi.resetModules();
+  });
+});
+
+describe('unifiedFallbackStages', () => {
+  it('stellt hinter Melious :balanced erst :speed, dann Mistral Large 4', () => {
+    expect(unifiedFallbackStages('melious', 'gemma-4-31b:balanced')).toEqual([
+      GEMMA_31B_ON_MELIOUS_SPEED,
+      LOOP_SYNTH_FALLBACK,
+    ]);
+  });
+
+  it('behandelt den Namen ohne Variante wie :balanced', () => {
+    expect(unifiedFallbackStages('melious', 'gemma-4-31b')).toEqual([
+      GEMMA_31B_ON_MELIOUS_SPEED,
+      LOOP_SYNTH_FALLBACK,
+    ]);
+  });
+
+  it('läuft der Turn schon auf :speed, folgen :balanced und Mistral', () => {
+    expect(unifiedFallbackStages('melious', 'gemma-4-31b:speed')).toEqual([
+      GEMMA_31B_ON_MELIOUS,
+      LOOP_SYNTH_FALLBACK,
+    ]);
+  });
+
+  it('gibt anderen Lanes keine Ausweichstufen', () => {
+    expect(unifiedFallbackStages('mistral', 'mistral-large-4')).toEqual([]);
+    expect(unifiedFallbackStages('cortecs', 'gemma-4-31b-it')).toEqual([]);
   });
 });
