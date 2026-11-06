@@ -33,6 +33,8 @@ import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
+import { buildFeedExcerpt } from './feedExcerpt.js';
+
 const log = createLogger('ContentSyncEvents');
 
 const RETENTION_DAYS = 90;
@@ -213,11 +215,12 @@ function toCorpusArticle(payload: Record<string, unknown>): WhatHappenedArticle 
   const indexedAt = pickString(payload, 'indexed_at', 'indexedAt') ?? publishedAt;
   if (!indexedAt) return null; // no date at all → can't place it on the feed
 
+  const title = pickString(payload, 'title', 'name', 'headline');
   const fullText = pickString(payload, 'full_text', 'chunk_text', 'description', 'summary');
-  const excerpt = fullText ? fullText.replace(/\s+/g, ' ').trim().slice(0, EXCERPT_CHARS) : null;
+  const excerpt = fullText ? buildFeedExcerpt(fullText, title, EXCERPT_CHARS) : null;
 
   return {
-    title: pickString(payload, 'title', 'name', 'headline') ?? 'Ohne Titel',
+    title: title ?? 'Ohne Titel',
     sourceUrl,
     sourceGroupId: LV_SOURCE_GROUP,
     sourceName: pickString(payload, 'source_name') ?? LV_FALLBACK_NAME,
