@@ -37,6 +37,7 @@ import {
   resolveLoopPlannerLane,
   getLoopSynthModel,
   getUnifiedFallbackModels,
+  unifiedFallbackStages,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -826,19 +827,25 @@ export async function streamAgenticResponse(
     const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
     // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
     // the selected host rejects or goes silent before any call or output.
+    // Was der Primär-Request auf dem Draht wirklich ist (`meliousWireModel`).
+    const unifiedWireModel = meliousGoesWide(
+      resolution.modelName,
+      estimatedRequestChars(toolSystem, messages, wrapped)
+    )
+      ? MELIOUS_WIDE_MODEL
+      : null;
+    const unifiedStages =
+      mode === 'unified'
+        ? unifiedFallbackStages(resolution.provider, resolution.modelName, unifiedWireModel)
+        : [];
     const unifiedFallbacks =
       mode === 'unified'
-        ? getUnifiedFallbackModels(
-            resolution.provider,
-            resolution.modelName,
-            meliousGoesWide(
-              resolution.modelName,
-              estimatedRequestChars(toolSystem, messages, wrapped)
-            )
-              ? MELIOUS_WIDE_MODEL
-              : null
-          )
+        ? getUnifiedFallbackModels(resolution.provider, resolution.modelName, unifiedWireModel)
         : [];
+    // Namen der Ausweich-Lanes, in der Reihenfolge von `unifiedFallbacks` —
+    // für das SSE-Event beim Wechsel.
+    const unifiedFallbackNames = unifiedStages.map((s) => s.model);
+    let unifiedSwitches = 0;
     // Whichever mode, the lane that backs up the tool-less writer.
     const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
@@ -907,7 +914,19 @@ export async function streamAgenticResponse(
               ? 'upstream_error'
               : 'synth_stall'
         );
-        if (!synthFallback) return;
+        if (!synthFallback) {
+          // Ab dem zweiten Wechsel kommt der Turn von der vorigen Ausweich-Lane.
+          const from = unifiedFallbackNames[unifiedSwitches - 1] ?? synth.name;
+          const to = unifiedFallbackNames[unifiedSwitches++];
+          if (to != null) {
+            sse.send('fallback', {
+              from: { id: from, name: from },
+              to: { id: to, name: to },
+              reason,
+            });
+          }
+          return;
+        }
         log.warn(
           `[Agentic] synth ${synth.name} ${
             reason === 'empty_completion'
