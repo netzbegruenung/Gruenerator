@@ -675,7 +675,12 @@ NUTZE WENN:
   // record once contextEnrichmentService.ts has routed and discarded its
   // local `processedMeta` — closing that gap needs a state-schema addition,
   // out of scope here.
-  if (loop && !researchBanned) {
+  //
+  // Mounted only when `threadAttachments` holds a file: the lookup below reads
+  // nothing else, so without one every call ends in "Keine Datei". Mounted on
+  // every loop turn it was a dead tool in the request (~270 tokens) and one
+  // more distractor for the planner.
+  if (loop && !researchBanned && (loop.state.threadAttachments?.length ?? 0) > 0) {
     tools.expand_attachment = tool({
       description: `Lädt mehr Inhalt aus einer Datei nach, die in einem früheren Turn dieses Gesprächs hochgeladen wurde, wenn der bisher gezeigte Auszug für die Aufgabe (z. B. einen Vergleich mehrerer Dateien) nicht ausreicht.
 
@@ -818,7 +823,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 
 Genau ein Modus je Aufruf.
 
-NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen. Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: \`expand_attachment\`.`,
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.${tools.expand_attachment ? ' Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: `expand_attachment`.' : ''}`,
         inputSchema: z.object({
           query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
           dateiname: z

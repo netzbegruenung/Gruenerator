@@ -1247,6 +1247,44 @@ describe('toolCatalog expand_attachment (M4)', () => {
     expect(toolNames).not.toContain('expand_attachment');
   });
 
+  it('is not mounted when no earlier turn left an attachment', () => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    for (const threadAttachments of [undefined, []]) {
+      const state = { intent: 'search', threadAttachments } as unknown as ChatGraphState;
+      const { toolNames } = buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse, state },
+      });
+      expect(toolNames).not.toContain('expand_attachment');
+    }
+  });
+
+  it('is named by dokumente_lesen only when it is mounted', () => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const describeDocs = (threadAttachments: unknown[]) => {
+      const state = {
+        intent: 'search',
+        documentSources: [{ kind: 'document_chat', id: 'doc-1', label: 'Neu.pdf' }],
+        threadAttachments,
+      } as unknown as ChatGraphState;
+      const { tools } = buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse, state },
+      });
+      return (tools.dokumente_lesen as { description?: string }).description ?? '';
+    };
+    expect(describeDocs([])).not.toContain('expand_attachment');
+    expect(
+      describeDocs([{ id: 'a1', name: 'Alt.pdf', extractedText: 'Text', documentId: null }])
+    ).toContain('expand_attachment');
+  });
+
   it('errors on an unknown attachment name instead of guessing', async () => {
     const { execute } = catalogWithAttachments([
       { id: 'a1', name: 'Bekannt.pdf', extractedText: 'Text', documentId: null },
