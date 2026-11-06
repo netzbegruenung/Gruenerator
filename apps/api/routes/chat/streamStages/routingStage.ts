@@ -160,6 +160,7 @@ export function runRoutingStage({
     addressesThreadSharepic:
       stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
+    threadHasSharepic: stateHasSharepic(classifiedState),
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOffer: classifiedState.acceptedOfferKind != null,
   });

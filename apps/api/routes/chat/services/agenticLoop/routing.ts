@@ -790,13 +790,20 @@ export function compoundGenerationKind(
  * das Verb die Bedingung fürs Montieren. Verneinung, Zitat und Meta-Frage fängt
  * `hasExplicitSharepicWord` ab, die Post-Vorfahrt gilt wie bei der Bestellung.
  */
-export function namesSharepicWithoutOrder(intent: string, raw: string): boolean {
+export function namesSharepicWithoutOrder(
+  intent: string,
+  raw: string,
+  /** The thread holds a sharepic. Without one, „das Sharepic" cannot mean an existing one. */
+  threadHasSharepic = true
+): boolean {
   if (intent !== 'agentic' && intent !== 'produktion' && intent !== 'direct') return false;
   const t = stripQuotedSpans(orderText(raw ?? ''));
   if (!hasExplicitSharepicWord(t) || asksForSharepic(t) || POST_NOUN_PATTERN.test(t)) return false;
   // „Danke, das Sharepic sieht super aus", „der Slider hakt": ein vorhandenes,
   // kein neues — dafür gibt es die Bearbeitungswege, kein Erstell-Werkzeug.
-  if (refersToExistingSharepic(t)) return false;
+  // Nur, wenn es eins gibt: „nimm das bild im anhang für das sharepic" nach
+  // einem gescheiterten Entwurf bekam sonst kein Werkzeug (live 06.11.2026).
+  if (threadHasSharepic && refersToExistingSharepic(t)) return false;
   // „Slider" allein ist auch ein Bedienelement („einen Slider auf der Website").
   // Ohne ein zweites Sharepic-Wort reicht es nur für eine Bestellung.
   return hasExplicitSharepicWord(t.replace(/(?<!\p{L})slider[ns]?(?!\p{L})/giu, ' '));

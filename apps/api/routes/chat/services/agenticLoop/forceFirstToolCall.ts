@@ -87,8 +87,9 @@ export function shouldForceFirstToolCall(input: {
   resumesSuspendedTurn?: boolean;
   /** `tabelle_auswerten` hängt im Katalog: der Turn rechnet über eine Tabelle. */
   tabularToolMounted?: boolean;
-  /** Ein bestelltes Artefakt über gewähltem Material, dessen Lesewerkzeug hängt
-   *  (`compoundGenerationOrdered` + `materialReaderTools`). */
+  /** Ein bestelltes Artefakt über gewähltem Material oder ein frisch gewähltes
+   *  Material mit Text (`readsPickedMaterial`), dessen Lesewerkzeug hängt
+   *  (`materialReaderTools`). */
   materialOrder?: boolean;
 }): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
@@ -292,8 +293,10 @@ export function shouldForceFirstToolCall(input: {
   // beiden Material-Zweige prüfen ihre eigene Bedingung bereits selbst.
   if (input.attachedSeedDelivered) return null;
 
-  // Elfter Weg: ein bestelltes Artefakt über gewähltem Material, und der
-  // Vorab-Abruf hat nichts geliefert. Der Klassifikator schickt diesen Turn als
+  // Elfter Weg: ein bestelltes Artefakt über gewähltem Material — oder seit
+  // 06.11.2026 jedes frisch gewählte Material mit Text, das der Klassifikator
+  // nicht mehr in die Zwangssuche schickt —, und der Vorab-Abruf hat nichts
+  // geliefert. Der Klassifikator schickt diesen Turn als
   // `agentic` statt in die Zwangssuche (`tier2_material_create_order`), also
   // greift der Intent-Weg darunter nicht mehr — ohne Zwang liesse der Planer
   // das Material liegen, und `forceCompoundGeneration` baute das Artefakt aus

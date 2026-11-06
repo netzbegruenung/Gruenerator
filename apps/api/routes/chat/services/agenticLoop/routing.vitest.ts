@@ -1873,4 +1873,13 @@ describe('namesSharepicWithoutOrder', () => {
   it('gilt nur für Prosa- und Loop-Intents', () => {
     expect(namesSharepicWithoutOrder('search', 'Dazu passt später ein Sharepic.')).toBe(false);
   });
+
+  // Live 06.11.2026: der erste Entwurf war gescheitert, der Thread hielt kein
+  // Sharepic — „das sharepic" konnte nur das noch zu bauende meinen.
+  it('liest „das Sharepic" nur als vorhandenes, wenn der Thread eins hat', () => {
+    const text = 'nimm das bild im anhang für das sharepic';
+    expect(namesSharepicWithoutOrder('agentic', text, true)).toBe(false);
+    expect(namesSharepicWithoutOrder('agentic', text, false)).toBe(true);
+    expect(namesSharepicWithoutOrder('agentic', 'das Sharepic ist zu blau', false)).toBe(true);
+  });
 });

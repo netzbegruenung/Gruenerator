@@ -1899,7 +1899,10 @@ function buildAnswerFormatRule(
     return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(state.intent);
+  // Picked material runs as `agentic` since 06.11.2026 but is the person's own
+  // documents, not external research: it keeps the form `search` gave it.
+  const isExternalResearch =
+    EXTERNAL_RESEARCH_INTENTS.has(state.intent) && state.readsPickedMaterial !== true;
   if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
     note('research_expanded');
     // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:

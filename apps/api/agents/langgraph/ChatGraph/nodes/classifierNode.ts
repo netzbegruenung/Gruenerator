@@ -333,19 +333,6 @@ const ANAPHORIC_CUE =
   /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|nochmal|noch\s+mal|erneut|stimmt\s+nicht)(?![\p{L}])/iu;
 const SHORT_FOLLOWUP_WORDS = 4;
 
-/** Does the heuristic table confidently place this turn on a route that
- *  retrieves nothing (an artifact order, a greeting)? */
-function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boolean {
-  const verdict = heuristicClassify(userContent, {
-    hasTabularAttachment: state.hasTabularAttachment ?? false,
-  });
-  return (
-    verdict.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD &&
-    verdict.intent !== 'summary' &&
-    NON_SEARCH_INTENTS.has(verdict.intent)
-  );
-}
-
 /**
  * Das eine Tor, durch das ein Prosa-Verdikt (ausser dem Gruss) zu `agentic`
  * wird. Ist die Schleife aus, bleibt das Prosa-Verdikt stehen: `agentic` hat
@@ -1083,9 +1070,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
-    // If document chat IDs are present (from @dokumentchat multi-select), force search intent
+    // @dokumentchat multi-select: material for the loop (see the Wolke branch below).
     if (hasDocumentChat && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'DocumentChat',
         docCount: state.documentChatIds.length,
         userContent,
@@ -1141,7 +1128,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // into the system prompt via respondNode regardless of intent.
 
     if (hasDocuments && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'Document',
         docCount: state.documentIds.length,
         userContent,
@@ -1153,18 +1140,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
-    // @wolke selections force search intent — the wolke file content must reach
-    // respondNode via perSourceResults, and that only happens inside the search path.
-    // Carried from earlier turns (#4112) they still force it — only the search
-    // path reads a picked file, so a question about it needs this route — except
-    // where the heuristic table confidently claims a turn that reads nothing:
-    // „Erstelle ein Sharepic …" or „Danke!" after a pick (#4897). A summary
-    // keeps the route: cloud files are not material for the summary path.
-    const cloudFilesForceSearch =
-      !state.cloudFilesCarriedOnly || !claimsNonRetrievalTurn(userContent, state);
-    if (hasWolkeFiles && cloudFilesForceSearch && userContent.length > 0) {
-      return classifyWithForcedSearch({
+    // Gewählte Wolke-/Connect-Dateien sind Material, kein Intent: die Schleife
+    // liest sie selbst (`resolveTurnMaterial`, Vorab-Abruf, `cloud_files`) und
+    // der Planer entscheidet, was der Turn will. Bis 06.11.2026 erzwangen sie
+    // `search`, und `search` montiert kein Erstell-Werkzeug — „erstelle ein bild
+    // von mir …", „nimm das bild im anhang für das sharepic" und „ja" bekamen
+    // live erfundene Ausreden statt eines Werkzeugs. Mitgeführte Dateien (#4112)
+    // beanspruchen den Turn gar nicht mehr: ihn entscheiden die Stufen darunter.
+    if (hasWolkeFiles && !state.cloudFilesCarriedOnly && userContent.length > 0) {
+      return classifyPickedMaterial({
         reason: 'Wolke',
+        hasText: !state.wolkeFiles.every(isWolkePhoto),
         docCount: state.wolkeFiles.length,
         userContent,
         conversationContext,
@@ -1175,12 +1161,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
-    // @connect selections force search intent — the connected-account file content
-    // must reach respondNode via perSourceResults, and that only happens inside the
-    // search path. Mirrors the @wolke forced-search branch above.
-    if (hasConnectFiles && cloudFilesForceSearch && userContent.length > 0) {
-      return classifyWithForcedSearch({
+    if (hasConnectFiles && !state.cloudFilesCarriedOnly && userContent.length > 0) {
+      return classifyPickedMaterial({
         reason: 'Connect',
+        hasText: !state.connectFiles.every(isWolkePhoto),
         docCount: state.connectFiles.length,
         userContent,
         conversationContext,
@@ -1198,7 +1182,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // later turn — „Erstelle ein Sharepic …" after a pick would never build
     // one, and small talk would run a search (#4861).
     if (hasNotebookSources && !state.notebookSourcesCarriedOnly && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'NotebookSource',
         docCount: state.notebookSources.length,
         userContent,
@@ -2731,9 +2715,10 @@ async function pickThreadArtifact(
 }
 
 /**
- * Helper for the six near-identical "force search intent with LLM query
- * optimization" blocks: @dokumentchat, @document, @wolke, @connect, @notebook
- * and the attachment + default-notebook path.
+ * Helper for the "refine the query, then search" blocks: @notebook and the
+ * attachment + default-notebook path, and — through `classifyPickedMaterial`,
+ * which hands the turn to the loop — @dokumentchat, @document, @wolke, @connect
+ * and notebook sources.
  *
  * Everything that must hold for ALL forced-search turns belongs in HERE, not at
  * the call sites — a field set at one of the six is a field missing from five,
@@ -2763,7 +2748,7 @@ async function classifyWithForcedSearch(opts: {
   } = opts;
 
   log.info(
-    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
+    `[Classifier] ${reason} detected (${docCount} item(s)), refining the query with the LLM${topicalContext ? ' + topical context' : ''}`
   );
 
   // The intent is already decided (forced to `search` below); the only open
@@ -2812,6 +2797,32 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     classificationTimeMs: Date.now() - startTime,
     ...(gatherSources ? { gatherSources } : {}),
+  };
+}
+
+/**
+ * Material the person picked (@dokumentchat, @document, Wolke, Connect, a
+ * notebook source from the reader) is not an intent. The unified loop reads it
+ * itself (`resolveTurnMaterial`: up-front seed plus reader tools) and the model
+ * decides what the turn wants, with every tool the turn would have without the
+ * pick. Until 06.11.2026 these picks forced `search`, which mounts no creation
+ * tool. The refined query stays: it is what the up-front seed searches with.
+ * With the loop off, `agentic` has no single pass, so the pick keeps `search`.
+ */
+async function classifyPickedMaterial(
+  opts: Parameters<typeof classifyWithForcedSearch>[0] & {
+    /** False for a pick of photos only: there is no text to read up front. */
+    hasText?: boolean;
+  }
+): Promise<Partial<ChatGraphState>> {
+  const { hasText = true, ...forced } = opts;
+  const routed = await classifyWithForcedSearch(forced);
+  if (!isAgenticLoopEnabled()) return routed;
+  return {
+    ...routed,
+    intent: 'agentic',
+    readsPickedMaterial: hasText,
+    reasoning: `${opts.reason}: picked material → loop (${routed.reasoning ?? ''})`,
   };
 }
 
