@@ -762,9 +762,13 @@ NUTZE WENN:
   // The loop's only way to see this turn's images (#3841). Not part of the
   // research ban: reading what the person attached is not new research. Mounted
   // on the same answer that makes the system prompt name it.
+  // EINE Liste je Turn: ihr Download-Cache gilt für bild_ansehen und edit_image
+  // zusammen, sonst lädt ein Turn, der erst ansieht und dann bearbeitet, das
+  // Wolke-Foto zweimal.
+  const turnImages = loop ? turnImagesOf(loop.state) : [];
   if (loop && imageVisibility(loop.state, { loop: true }) === 'tool') {
     tools[IMAGE_TOOL] = makeBildAnsehenTool({
-      images: turnImagesOf(loop.state),
+      images: turnImages,
       sourceRegistry,
     });
   }
@@ -1326,7 +1330,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
         sse,
         state,
         threadId: loop.threadId ?? null,
-        turnImages: turnImagesOf(state),
+        turnImages,
         lastImageDefault:
           state.lastToolContext?.kind === 'image' && (state.imageAttachments?.length ?? 0) === 0,
       });
