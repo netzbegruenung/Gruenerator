@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
+vi.mock('./catalog.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./catalog.js')>();
+  return { ...actual, findStockPhotos: vi.fn(actual.findStockPhotos) };
+});
 
+import { findStockPhotos } from './catalog.js';
 import { draftSharepic } from './draftAgent.js';
 import { cutOutBilder } from './draftPainting.js';
 import { berichtSaetze } from '@gruenerator/shared/image-studio';
@@ -338,5 +343,49 @@ describe('draftSharepic — no own photo vanishes unreported', () => {
       },
     ]);
     expect(berichtSaetze(draft.bericht!).join(' ')).toContain('sag mir, wo es hin soll');
+  });
+});
+
+describe('draftSharepic — an invented stock name meets the own photo', () => {
+  // Live 06.11.2026: „Sharepic mit mir …“ with a Wolke photo. Gemma sent the same invented
+  // Unsplash name three times; the own photo was only asked for after every other check passed.
+  const invented: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [
+      slide({ kind: 'foto-oben', filename: 'iccup-XNtwmcRP-gw-unsplash.jpg', panelColor: 'mint' }),
+    ],
+  };
+  const own = { id: 'upload:1', analysis: SHAREPIC_NEUTRAL_PHOTO_ANALYSIS };
+  const withOwn: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [slide({ kind: 'foto-oben', filename: 'upload:1', panelColor: 'mint' })],
+  };
+
+  it('asks for the own photo together with the unknown name, and takes it', async () => {
+    const run = answers(invented, withOwn, withOwn);
+    const { spec } = await draftSharepic('Sharepic mit mir für eine Veranstaltung', 'de-DE', null, [
+      own,
+    ]);
+    expect(run.errors).toHaveLength(1);
+    expect(run.errors[0]).toContain('gibt es nicht');
+    expect(run.errors[0]).toContain('Du hast ein eigenes Foto mitgebracht (upload:1)');
+    expect(spec.slides[0]!.background).toEqual(withOwn.slides[0]!.background);
+  });
+
+  it('repairs a listed stock name with a mistyped photographer', async () => {
+    const listed = 'benjamin-jopen-To-B9ICXPnc-unsplash.jpg';
+    vi.mocked(findStockPhotos).mockResolvedValueOnce([
+      { filename: listed, alt_text: 'Wolken', live: null },
+    ]);
+    const typo: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        slide({ kind: 'foto', filename: 'jopen-To-B9ICXPnc-unsplash.jpg', textSeite: 'unten' }),
+      ],
+    };
+    const run = answers(typo, typo, typo);
+    const { spec } = await draftSharepic('Sharepic zum Radweg', 'de-DE');
+    expect(run.errors).toEqual([]);
+    expect(spec.slides[0]!.background).toMatchObject({ kind: 'foto', filename: listed });
   });
 });
