@@ -155,7 +155,8 @@ describe('offerToRecord', () => {
   // Bis 15.10.2026 hiess es hier „records nothing without a recipe". Die
   // Prompt-Regeln lassen das Modell aber auch ohne Rezept anbieten, und das „ja"
   // darauf lief ins Leere. Gespeichert wird jetzt, was das Angebot als
-  // ERSTELLUNG formuliert — dasselbe Prädikat wie für einen Auftrag.
+  // ERSTELLUNG formuliert. Fürs Sharepic mit eigenem Prädikat (#5412), für die
+  // übrigen Arten mit dem Bestell-Prädikat.
   it('records an offer to create, even without a recipe', () => {
     expect(
       offerToRecord({
@@ -172,32 +173,54 @@ describe('offerToRecord', () => {
     'Soll ich daraus ein Sharepic mit dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?',
     'Soll ich daraus ein Sharepic zum Bauausschuss am 19. November machen?',
   ])('records an offer whose details carry dots: %s', (offer) => {
-    expect(
-      offerToRecord({
-        recipeMentions: ['instagram'],
-        text: `${post}\n\n${offer}`,
-        producedArtifact: false,
-      })
-    ).toEqual({ kind: 'sharepic' });
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
   });
 
   // Ohne Fragezeichen trägt nur der Ich-Form-Satz das Angebot: ein Trenner
   // hinter „z.B." liess „Ich kann dir z.B." übrig, ohne „Sharepic" (Claude
   // Review, #5410). Als Frage fiel es nicht auf — dort fängt `lastQuestion` den
-  // hinteren Rest mit „Sharepic" auf. Nur mit Rezept: ohne entscheidet das
-  // Bestell-Prädikat, und das liest zwei dieser Sätze nicht als Erstellung.
+  // hinteren Rest mit „Sharepic" auf.
   it.each([
     'Ich kann dir z.B. ein Sharepic daraus machen.',
     'Wenn du magst, mache ich dir ggf. noch ein Sharepic dazu.',
     'Ich kann dir daraus bzw. aus dem Post ein Sharepic machen.',
   ])('records a statement offer around an abbreviation: %s', (offer) => {
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
+  });
+
+  // Ohne Rezept las bis #5412 das Bestell-Prädikat das Angebot. Es verlangt
+  // das Verb nah am Nomen und gibt einem genannten Post den Vortritt, weil
+  // „Erstelle einen Post mit Sharepic" ein Schreibauftrag ist. Ein Angebot
+  // folgt dem fertigen Post: es nennt ihn, und das Verb steht, wo es will.
+  it.each([
+    'Ich kann dir daraus ein Sharepic zum Post machen.',
+    'Soll ich dir zum Post noch ein passendes Sharepic dazu machen?',
+    'Wenn du magst, kann ich dir noch ein Sharepic mit Termin und Ort der Sitzung im Rathaus erstellen.',
+  ])('records a sharepic offer the order predicate would not read: %s', (offer) => {
     expect(
-      offerToRecord({
-        recipeMentions: ['instagram'],
-        text: `${post}\n\n${offer}`,
-        producedArtifact: false,
-      })
+      offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
     ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Die Kehrseite: kein Verb-Fenster heisst nicht „jedes Sharepic im Satz".
+  it.each([
+    'Ich kann dir leider kein Sharepic erstellen.',
+    'Soll ich das Sharepic noch heller machen?',
+    'Soll ich dein Sharepic um den Termin ergänzen?',
+    'Soll ich dir erklären, was ein gutes Sharepic ausmacht?',
+    'Soll ich dir zeigen, wie man ein Sharepic macht?',
+  ])('records no sharepic for an offer that builds none: %s', (offer) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
+    ).toBeNull();
   });
 
   // Das Angebot ist frei formuliert und muss keine Frage sein.
