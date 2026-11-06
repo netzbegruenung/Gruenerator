@@ -22,4 +22,5 @@ export const DECK_FOLIE_SAMPLES: Record<FolienTypId, FolieSpec> = {
   },
   zitat: { typ: 'zitat', slots: { zitat: 'Hier steht das Zitat', name: 'Name' } },
   danke: { typ: 'danke', slots: { kontakt: 'Kontaktdaten' } },
+  bild: { typ: 'bild', slots: { unterschrift: 'Hier steht eine Zeile zum Bild' } },
 };

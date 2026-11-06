@@ -19,6 +19,8 @@ import {
   STOERER_MAGENTA,
   textOf,
   type DeckStilCtx,
+  bildFolie,
+  BILD_BOXES,
 } from './shared.js';
 
 const { M, W, inkFor } = slideKit;
@@ -152,6 +154,9 @@ export function buildCd(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
     case 'danke':
       dankeFolie(b, ctx.locale);
       break;
+    case 'bild':
+      bildFolie(b, folie);
+      break;
   }
   applySlots(b, folie);
   slideKit.mark(b);
@@ -190,4 +195,5 @@ export const CD_BOXES: Record<
   zitat: { 'folie-zitat': { maxHeight: 560, minScale: 0.6 } },
   // „Vielen Dank“ steht bei y 330 (DE) bzw. 365 (AT), die Zeile darunter bei 600.
   danke: { 'folie-headline': { maxHeight: 235, minScale: 0.5 } },
+  bild: BILD_BOXES,
 };

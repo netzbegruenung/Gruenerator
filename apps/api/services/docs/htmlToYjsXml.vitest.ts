@@ -160,3 +160,38 @@ describe('injectHtmlIntoFragment — code blocks', () => {
     );
   });
 });
+
+// Ein Bild aus dem Gespräch im Dokument (06.11.2026): das <img> fiel beim Seed weg,
+// das Dokument öffnete ohne Bild.
+describe('injectHtmlIntoFragment — images', () => {
+  it('seeds a top-level <img> as a BlockNote image block between its neighbours', () => {
+    const doc = new Y.Doc();
+    const fragment = doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+    injectHtmlIntoFragment(
+      fragment,
+      '<h1>Blühwiesen</h1><img src="/api/share/tok/download" alt="KI-generiertes Bild"><p>Text</p>'
+    );
+    const group = fragment.get(0) as Y.XmlElement;
+    const blocks = Array.from(
+      { length: group.length },
+      (_, i) => (group.get(i) as Y.XmlElement).get(0) as Y.XmlElement
+    );
+    expect(blocks.map((b) => b.nodeName)).toEqual(['heading', 'image', 'paragraph']);
+    expect(blocks[1]!.getAttribute('url')).toBe('/api/share/tok/download');
+    expect(blocks[1]!.getAttribute('name')).toBe('KI-generiertes Bild');
+    expect(blocks[1]!.length).toBe(0);
+  });
+
+  it.each([
+    '<img alt="x"><p>Text</p>',
+    '<img src="https://tracker.example/p.gif"><p>Text</p>',
+    '<img src="//tracker.example/p.gif"><p>Text</p>',
+    '<img src="javascript:alert(1)"><p>Text</p>',
+  ])('seeds no image for %s — only our own addresses', (html) => {
+    const doc = new Y.Doc();
+    const fragment = doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+    injectHtmlIntoFragment(fragment, html);
+    const group = fragment.get(0) as Y.XmlElement;
+    expect(group.length).toBe(1);
+  });
+});

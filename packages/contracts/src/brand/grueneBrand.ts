@@ -202,6 +202,29 @@ const GRUENE_EFFECTS = {
   outlines: ['#ffffff', '#000000', '#316049', '#e6007e'],
 };
 
+// Print values for the vector PDF: paints in these colours are written as
+// DeviceCMYK, every other colour stays RGB (BrandPack.print). Only colours with
+// an official value; none is derived.
+// DE: "Das Grundlagen-Design" (Feb 2024) p. 11, coated values; Hellgrün and
+// Magenta from design.gruene.de ("Weitere Farben"). No CMYK exists for
+// Dunkelgrau (digital only), the Störer blue or the composer inks.
+const GRUENE_DE_PRINT = {
+  cmyk: {
+    '#005538': [92, 8, 75, 58], // Tanne
+    '#008939': [93, 0, 98, 17], // Klee
+    '#8abd24': [54, 0, 100, 0], // Grashalm
+    '#0ba1dd': [75, 18, 0, 0], // Himmel
+    '#f5f1e9': [5, 5, 10, 0], // Sand
+    '#6ccd87': [60, 0, 64, 0], // Hellgrün
+    '#e6007e': [0, 100, 0, 0], // Magenta: here an outline swatch (effects)
+  },
+} as const;
+// AT has no published print spec. Dunkelgrün is the fill of the official
+// CMYK logo PDF; Hellgrün, Gelb and Magenta stay RGB until the party names values.
+const GRUENE_AT_PRINT = {
+  cmyk: { '#257639': [85, 35, 95, 10] }, // Dunkelgrün
+} as const;
+
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
   name: 'Bündnis 90/Die Grünen',
@@ -254,6 +277,7 @@ export const GRUENE_DE: GruenePack = {
   chart: [DE_DUNKELTANNE, DE_KLEE, DE_GRASGRUEN, DE_TANNE, DE_LIME],
   shapeCycle: ['tanne', 'klee', 'grashalm', 'himmel', 'hellgruen'],
   effects: GRUENE_EFFECTS,
+  print: GRUENE_DE_PRINT,
   fonts: {
     headline: 'GrueneTypeNeue',
     body: 'PT Sans',
@@ -397,6 +421,7 @@ export const GRUENE_AT: GruenePack = {
   // The colours of the posts; white and black stay in the picker.
   shapeCycle: ['dunkelgruen', 'hellgruen', 'gelb', 'magenta'],
   effects: GRUENE_EFFECTS,
+  print: GRUENE_AT_PRINT,
   fonts: {
     headline: 'GothamNarrow-Ultra',
     body: 'GothamNarrow-Book',

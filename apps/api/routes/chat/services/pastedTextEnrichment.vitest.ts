@@ -54,13 +54,14 @@ const meta = (text: string) => ({
   extractedText: text,
 });
 
-async function runEnrich(texts: string[]) {
+async function runEnrich(texts: string[], userText = '') {
   const initialState = {
     attachmentContext: texts
       .map((t) => `### ${NAME} (Volltext-Auszug)\n\n${t}`)
       .join('\n\n---\n\n'),
     documentChatIds: [] as string[],
-    messages: [],
+    messages: userText ? [{ role: 'user', content: userText }] : [],
+    threadAttachments: [],
   };
   await enrichContext({
     initialState: initialState as never,
@@ -73,6 +74,7 @@ async function runEnrich(texts: string[]) {
   return initialState as unknown as {
     attachmentContext: string | null;
     documentChatIds: string[];
+    wholeDocument?: { origin: string; fits: boolean } | null;
   };
 }
 
@@ -98,6 +100,17 @@ describe('paste with typed text — current turn routing', () => {
     const s = await runEnrich([para('A', n)]);
     expect(s.documentChatIds).toHaveLength(1);
     expect(s.attachmentContext ?? '').not.toContain('A-Satz');
+  });
+});
+
+describe('paste with a summary ask — whole-document turn', () => {
+  // Live 06.11.2026: „fasse zusammen" over a large paste got 6.000 chars of
+  // passages. The text stays in the prompt; indexed for follow-ups all the same.
+  it('30k stays inline AND is indexed', async () => {
+    const s = await runEnrich([para('A', 30_000)], 'Bitte fasse den Text kurz zusammen');
+    expect(s.documentChatIds).toHaveLength(1);
+    expect(s.attachmentContext).toContain('A-Satz');
+    expect(s.wholeDocument).toMatchObject({ origin: 'turn', fits: true });
   });
 });
 

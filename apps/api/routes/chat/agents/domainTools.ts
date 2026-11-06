@@ -93,6 +93,7 @@ import {
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
+import { threadImageInLibrary } from '../services/sharepicTurnPhotos.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
@@ -1559,11 +1560,20 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       if (!userId) {
         return { error: `${label}-Erstellung nicht möglich (keine Nutzer-Sitzung).` };
       }
+      // A sheet has no place for the thread image; a document and a deck do.
+      const image =
+        kind === 'sheet'
+          ? null
+          : await threadImageInLibrary(state).catch((err: unknown) => {
+              log.warn(`[${label}] Bild aus dem Gespräch nicht geladen: ${String(err)}`);
+              return null;
+            });
       const created = await runDocGeneration({
         kind,
         userContent: briefWithContext(prompt, state, sourceRegistry),
         req,
         userId,
+        image,
         // The loop's per-call timeout abandons but does not cancel — without
         // this the write happens anyway, into a turn that already gave up.
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
@@ -1575,10 +1585,11 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', created);
       state.createdDocument = created;
-      const imageNote = threadImageNotTaken(
-        state,
-        label === 'Dokument' ? 'im Dokument' : `in der ${label}`
-      );
+      const imageNote = image
+        ? kind === 'presentation'
+          ? ' Das Bild aus dem Gespräch steht auf einer eigenen Bildfolie.'
+          : ' Das Bild aus dem Gespräch steht im Dokument unter der Überschrift.'
+        : threadImageNotTaken(state, label === 'Dokument' ? 'im Dokument' : `in der ${label}`);
       return {
         document: created,
         note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.${imageNote}`,

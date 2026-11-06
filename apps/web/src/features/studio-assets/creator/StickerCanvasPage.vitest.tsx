@@ -40,6 +40,8 @@ vi.mock('@gruenerator/canvas-editor', () => ({
       captureActivePage: capture,
       capturePages: () => Promise.resolve([]),
       exportPptx: () => Promise.resolve(new Blob()),
+      exportSvg: () => Promise.reject(new Error('not used here')),
+      exportPdf: () => Promise.reject(new Error('not used here')),
       getPages: () => [{ configId: 'sticker', state: { additionalTexts: [] } }],
       undo: () => {},
       redo: () => {},

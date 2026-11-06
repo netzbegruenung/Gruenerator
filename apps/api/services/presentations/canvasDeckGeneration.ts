@@ -39,18 +39,23 @@ export interface CreatedCanvasDeck {
   url: string;
 }
 
-function typCatalog(): string {
-  return FOLIEN_TYP_IDS.map((id) => {
-    const def = FOLIEN_TYPEN[id];
-    const slots = Object.entries(folienSlotsOf(id))
-      .map(([name, slot]) =>
-        slot.kind === 'list'
-          ? `    - ${name}${slot.required ? '' : ' (optional)'}: Array von Texten mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
-          : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
-      )
-      .join('\n');
-    return `- "${id}" — ${def.label}: ${def.use}\n${slots}`;
-  }).join('\n');
+/** Die Typen, die das Modell wählen darf: die Bildfolie nur, wenn ein Bild dabei ist. */
+const typIds = (withPhoto: boolean) => FOLIEN_TYP_IDS.filter((id) => withPhoto || id !== 'bild');
+
+function typCatalog(withPhoto: boolean): string {
+  return typIds(withPhoto)
+    .map((id) => {
+      const def = FOLIEN_TYPEN[id];
+      const slots = Object.entries(folienSlotsOf(id))
+        .map(([name, slot]) =>
+          slot.kind === 'list'
+            ? `    - ${name}${slot.required ? '' : ' (optional)'}: Array von Texten mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
+            : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
+        )
+        .join('\n');
+      return `- "${id}" — ${def.label}: ${def.use}\n${slots}`;
+    })
+    .join('\n');
 }
 
 function vorlagenList(locale: DeckLocale): string {
@@ -63,14 +68,17 @@ const AT_BLOCK = `
 
 ÖSTERREICH: Die Präsentation ist für ein österreichisches Publikum. Schreibe österreichisches Deutsch (z. B. "Nationalrat", "Bundesland", "Gemeinde", "Landesregierung", "Jänner", "heuer"), nenne keine deutschen Institutionen (Bundestag, Bundesländer-Ministerien), wenn der Auftrag nichts anderes sagt.`;
 
-export function deckSystemPrompt(locale: DeckLocale): string {
+const PHOTO_RULE = `
+- Zum Auftrag gehört ein Bild aus dem Gespräch: setz genau eine Folie vom Typ "bild", meist direkt nach der Titelfolie. Das Bild setzt das System ein; du schreibst nur die Zeile dazu (\`unterschrift\`, darf fehlen)`;
+
+export function deckSystemPrompt(locale: DeckLocale, withPhoto = false): string {
   return `Du bist ein Präsentations-Assistent für die Grünen. Erstelle einen Foliensatz im Corporate Design: du wählst je Folie einen Typ und füllst dessen Felder. Wie die Folien aussehen, bestimmt die Vorlage, nicht du.
 
 Verfügbare Folientypen und ihre Felder:
-${typCatalog()}
+${typCatalog(withPhoto)}
 
 Regeln:
-- Ohne genannte Zahl 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
+${withPhoto ? PHOTO_RULE.trimStart() + '\n' : ''}- Ohne genannte Zahl 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
 - Nennt die Person eine Folienzahl, ist das die Gesamtzahl — Titel- und Danke-Folie zählen mit. "4 Folien" heißt genau vier Folien insgesamt, keine fünfte als Danke-Folie
 - Wähle je Folie den passenden Typ. Für drei bis sechs kurze Punkte nimm \`liste\`, nicht \`text\`.
 - \`zahl\` nur mit einer Zahl aus dem Material und ihrer Quelle. Ohne Quelle keine Zahl-Folie.
@@ -86,9 +94,9 @@ Regeln:
 }
 
 /** Loose wire schema; `deckSpecSchema` stays the strict gate. */
-export function deckToolSchema(): Record<string, unknown> {
+export function deckToolSchema(withPhoto = false): Record<string, unknown> {
   const slotShapes = new Map<string, Record<string, unknown>>();
-  for (const id of FOLIEN_TYP_IDS) {
+  for (const id of typIds(withPhoto)) {
     for (const [name, slot] of Object.entries(folienSlotsOf(id))) {
       const shape: Record<string, unknown> =
         slot.kind === 'list'
@@ -120,7 +128,7 @@ export function deckToolSchema(): Record<string, unknown> {
           type: 'object',
           required: ['typ', 'slots'],
           properties: {
-            typ: { type: 'string', enum: [...FOLIEN_TYP_IDS] },
+            typ: { type: 'string', enum: typIds(withPhoto) },
             slots: {
               type: 'object',
               description: 'Felder des Folientyps, Namen laut Typliste',
@@ -196,6 +204,43 @@ function stilFor(vorlage: string | undefined, locale: DeckLocale) {
 }
 
 /**
+ * Puts the thread image on the deck's Bildfolien. The model never names an
+ * address (the schema has no field for it); a Bildfolie without an image to
+ * show is refused, it would stand on the editor's placeholder photo.
+ */
+export function withDeckPhoto(
+  spec: DeckSpec,
+  photo: string | null
+): { ok: true; spec: DeckSpec; hasPhoto: boolean } | { ok: false; error: string } {
+  const bilder = spec.slides.filter((s) => s.typ === 'bild').length;
+  if (bilder > 0 && !photo) {
+    return {
+      ok: false,
+      error: 'Den Folientyp "bild" gibt es hier nicht: zu diesem Auftrag gehört kein Bild.',
+    };
+  }
+  return {
+    ok: true,
+    hasPhoto: bilder > 0,
+    spec: {
+      ...spec,
+      slides: spec.slides.map((s) => (s.typ === 'bild' && photo ? { ...s, bild: photo } : s)),
+    },
+  };
+}
+
+/**
+ * A Bildfolie behind the first slide. A full deck gives up its last slide for it:
+ * the chat answer says the image is in the deck, so it must be.
+ */
+export function withBildfolie(spec: DeckSpec, photo: string): DeckSpec {
+  const slides = [...spec.slides];
+  if (slides.length >= MAX_SLIDES) slides.pop();
+  slides.splice(1, 0, { typ: 'bild', slots: {}, bild: photo });
+  return { ...spec, slides };
+}
+
+/**
  * Generates, composes, measures and persists a canvas deck. Returns null when
  * the model produced no usable structure after its repair attempts.
  */
@@ -206,8 +251,11 @@ export async function generateCanvasDeck(opts: {
   /** Called once after generation succeeded, right before the DB write. */
   onCommit?: () => void;
   abandoned?: AbortSignal;
+  /** The thread image the turn means (Mediathek URL), for one Bildfolie. */
+  photo?: string;
 }): Promise<CreatedCanvasDeck | null> {
   const { prompt, userId, locale } = opts;
+  const photo = opts.photo ?? null;
   const date = new Date();
   const measure = (await prepareOverflowMeasuring(locale)) ? serverMeasureText(locale) : null;
   const compose = (spec: DeckSpec) =>
@@ -215,17 +263,26 @@ export async function generateCanvasDeck(opts: {
 
   const generated = await aiObject({
     lane: 'doc_generation',
-    system: deckSystemPrompt(locale),
+    system: deckSystemPrompt(locale, photo !== null),
     prompt,
     toolName: 'create_presentation',
     toolDescription: 'Erzeugt den Foliensatz aus Folientypen und ihren Feldern.',
-    schema: deckToolSchema(),
+    schema: deckToolSchema(photo !== null),
     validate: (raw, attempt, attempts) => {
       const input = withSlotAliases(raw);
       const parsed = deckSpecSchema.safeParse(input);
       if (!parsed.success)
         return { ok: false as const, error: describeIssues(parsed.error, input) };
-      const spec = parsed.data as DeckSpec;
+      const placed = withDeckPhoto(parsed.data as DeckSpec, photo);
+      if (!placed.ok) return { ok: false as const, error: placed.error };
+      if (photo && !placed.hasPhoto && attempt < attempts) {
+        return {
+          ok: false as const,
+          error: 'Setz eine Folie vom Typ "bild" für das Bild aus dem Gespräch.',
+        };
+      }
+      // The last attempt gets the Bildfolie behind the title instead of losing the image.
+      const spec = photo && !placed.hasPhoto ? withBildfolie(placed.spec, photo) : placed.spec;
       // The last attempt takes overflow as it is: the minimum size is the fallback.
       if (measure && attempt < attempts) {
         const { overflow } = compose(spec);
