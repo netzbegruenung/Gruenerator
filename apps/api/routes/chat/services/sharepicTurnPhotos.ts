@@ -153,6 +153,26 @@ export async function prepareSharepicPhotos(opts: {
 }
 
 /**
+ * The thread's last generated image as a Mediathek URL, when the turn means it
+ * (`takesThreadImage`) and brought no image of its own — what a document or a
+ * deck embeds. Stored once per person like a sharepic photo; null when there is
+ * no person, no thread or no image.
+ */
+export async function threadImageInLibrary(
+  state: Partial<
+    Pick<ChatGraphState, 'imageAttachments' | 'takesThreadImage' | 'threadId' | 'agentConfig'>
+  >
+): Promise<string | null> {
+  const userId = state.agentConfig?.userId ?? null;
+  if (!userId || !state.threadId || state.takesThreadImage !== true) return null;
+  if ((state.imageAttachments ?? []).length > 0) return null;
+  const image = await loadLastGeneratedImage(state.threadId);
+  if (!image) return null;
+  const buffer = Buffer.from(image.data, 'base64');
+  return storeOnce(userId, keyOf(userId, buffer), buffer, image.name, image.type);
+}
+
+/**
  * The photos a revised variant already holds. The analysis is recomputed from
  * the stored file — the props come back from the client, so only the url is
  * taken from them, and `loadOwnPhoto` checks it is the person's own.

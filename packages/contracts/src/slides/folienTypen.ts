@@ -123,6 +123,13 @@ export const FOLIEN_TYPEN = {
       name: text(50, 'folie-zitat-name', 'wer es sagt'),
     },
   },
+  bild: {
+    label: 'Bild',
+    use: 'Ein Bild über die ganze Folie, darunter eine kurze Zeile dazu',
+    slots: {
+      unterschrift: text(80, 'folie-bildunterschrift', 'kurze Zeile zum Bild'),
+    },
+  },
   danke: {
     label: 'Vielen Dank',
     use: 'Schlussfolie mit Dank und optional Kontaktdaten',
@@ -213,6 +220,12 @@ export type FolieSpec = {
     typ: T;
     slots: { [K in keyof SlotsOf<T>]?: SlotValue<SlotsOf<T>[K]> };
     notes?: string | undefined;
+    /**
+     * Das Bild einer `bild`-Folie (URL). Steht absichtlich nicht im Schema: das
+     * Modell nennt keine Adressen, der Server setzt sie (`withDeckPhoto`), und
+     * `readFolie` liest sie aus der Seite zurück. Fehlt sie, steht der Platzhalter da.
+     */
+    bild?: string | undefined;
   };
 }[FolienTypId];
 

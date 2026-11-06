@@ -9,7 +9,7 @@ import { type BrandLocale } from '../brand/grueneBrand.js';
 import { buildFolie, deckStilBoxes, type DeckStilId, DECK_STIL_IDS } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type DeckSpec, type FolieSpec, folienSlotsOf, type FolienTypId } from './folienTypen.js';
-import { slideLayoutConfigId, type SlideLayoutState } from './slideLayouts.js';
+import { slideKit, slideLayoutConfigId, type SlideLayoutState } from './slideLayouts.js';
 
 export interface ComposedSlidePage {
   id: string;
@@ -81,7 +81,15 @@ function hasAsset(state: Record<string, unknown>, id: string): boolean {
   return Array.isArray(raw) && (raw as TextEl[]).some((a) => a?.id === id);
 }
 
+function hasShape(state: Record<string, unknown>, id: string): boolean {
+  const raw = state['shapeInstances'];
+  return Array.isArray(raw) && (raw as TextEl[]).some((s) => s?.id === id);
+}
+
 function typOf(state: Record<string, unknown>, texts: Map<string, string>): FolienTypId | null {
+  // Das Band erkennt die Bildfolie, nicht das Hintergrundbild: ein Foto kann
+  // jede Folie im Editor bekommen, und ihr Inhalt ginge sonst beim Stilwechsel verloren.
+  if (hasShape(state, 'folie-bildband')) return 'bild';
   if (texts.has('folie-zahl')) return 'zahl';
   if (texts.has('folie-kernsatz')) return 'kernsatz';
   if (texts.has('folie-zitat')) return 'zitat';
@@ -129,7 +137,12 @@ export function readFolie(state: Record<string, unknown>): FolieSpec | null {
     slots[name] = value;
   }
   const notes = typeof state['notes'] === 'string' ? state['notes'].trim() : '';
-  return { typ, slots, ...(notes ? { notes } : {}) } as FolieSpec;
+  // Das Bild der Bildfolie, damit es einen Stilwechsel übersteht.
+  // Der Platzhalter ist kein Inhalt: ohne Bild baut der Stil ihn ohnehin wieder.
+  const src = state['currentImageSrc'];
+  const bild =
+    typ === 'bild' && typeof src === 'string' && src !== slideKit.PHOTO.sonnenblume ? src : '';
+  return { typ, slots, ...(notes ? { notes } : {}), ...(bild ? { bild } : {}) } as FolieSpec;
 }
 
 /** Der gültige `deckStil` einer einzelnen Seite, sonst `null` (Seite aus der Zeit vor den Stilen). */

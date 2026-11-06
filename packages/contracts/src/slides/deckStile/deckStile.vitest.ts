@@ -229,7 +229,8 @@ describe('deck stile', () => {
           // Der Störer-Text liegt auf seinem Kreis, nicht auf Band oder Sand (eigener Test).
           if (!el.accent?.fill || el.id === 'folie-stoerer-text') continue;
           // Das Band ist 640 breit; was links davon beginnt, steht auf Tanne, der Rest auf Sand.
-          const ground = el.x < 640 ? pack.colors.primary : pack.colors.surface;
+          // Die Bildfolie hat kein Tannenband: ihre Zeile liegt im hellen Bildband.
+          const ground = typ !== 'bild' && el.x < 640 ? pack.colors.primary : pack.colors.surface;
           expect(
             contrastRatio(el.accent.fill, ground),
             `${locale} ${typ} ${el.id}`
@@ -426,5 +427,41 @@ describe('projector sizes', () => {
       expect(it.y, it.id).toBeGreaterThanOrEqual(tile.y - tile.height / 2);
       expect(it.y + cell, it.id).toBeLessThanOrEqual(tile.y + tile.height / 2);
     }
+  });
+});
+
+// Ein Bild aus dem Gespräch in der Präsentation (06.11.2026): die Bildfolie.
+describe('Bildfolie', () => {
+  const PHOTO = '/api/share/abcdefghijklmnop1234/download';
+  const bild = (): FolieSpec => ({
+    typ: 'bild',
+    slots: { unterschrift: 'Blühwiese im Morgenlicht' },
+    bild: PHOTO,
+  });
+
+  it('lays the photo over the page in every stil and keeps the caption readable on its band', () => {
+    for (const stil of STILE) {
+      for (const locale of LOCALES) {
+        for (const index of [0, 1]) {
+          const state = buildFolie(stil, bild(), ctx(locale, index));
+          expect(state.currentImageSrc, `${stil} ${locale}`).toBe(PHOTO);
+          expect(state.hasBackgroundImage).toBe(true);
+          const band = state.shapeInstances.find((s) => s.id === 'folie-bildband')!;
+          for (const id of ['folie-bildunterschrift', 'folie-datum']) {
+            const text = state.additionalTexts.find((t) => t.id === id)!;
+            expect(
+              contrastRatio(band.fill, text.fill!),
+              `${stil} ${locale} ${index} ${id}`
+            ).toBeGreaterThanOrEqual(4.5);
+          }
+        }
+      }
+    }
+  });
+
+  it('stands on the placeholder without a photo, like the image layouts', () => {
+    const state = buildFolie('cd', { typ: 'bild', slots: {} }, ctx('de-DE'));
+    expect(state.currentImageSrc).toMatch(/stock-image/);
+    expect(state.additionalTexts.some((t) => t.id === 'folie-bildunterschrift')).toBe(false);
   });
 });

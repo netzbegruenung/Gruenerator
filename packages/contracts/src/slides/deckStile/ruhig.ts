@@ -21,6 +21,8 @@ import {
   STOERER_MAGENTA,
   tonesOf,
   type DeckStilCtx,
+  bildFolie,
+  BILD_BOXES,
 } from './shared.js';
 
 import { type DeckStilBox } from './index.js';
@@ -90,6 +92,9 @@ export function buildRuhig(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState
       });
       b.text('folie-kontakt', '', X + 6, 780, 1200, 28, { lineHeight: 1.3 });
       break;
+    case 'bild':
+      bildFolie(b, folie);
+      break;
   }
   return finishFolie(b, folie, ctx, 'ruhig');
 }
@@ -118,4 +123,5 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   },
   zitat: { 'folie-zitat': { maxHeight: 480, minScale: 0.5 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
+  bild: BILD_BOXES,
 };

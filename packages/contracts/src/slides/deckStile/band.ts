@@ -7,6 +7,7 @@
  */
 
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
+import { removeElement } from '../slideDeckBasics.js';
 import { SlideBuilder, slideKit, type SlideLayoutState } from '../slideLayouts.js';
 
 import {
@@ -24,6 +25,8 @@ import {
   textOf,
   tonesOf,
   type DeckStilCtx,
+  bildFolie,
+  BILD_BOXES,
 } from './shared.js';
 
 import { type DeckStilBox } from './index.js';
@@ -40,6 +43,7 @@ const BAND_RESIDENT: Record<FolienTypId, string[]> = {
   zahl: ['folie-zahl', 'folie-quelle'],
   zitat: ['folie-intro'],
   danke: ['folie-kontakt'],
+  bild: [],
 };
 
 export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
@@ -119,6 +123,11 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
       });
       b.text('folie-kontakt', '', 110, 480, 440, 28, { fill: WHITE, lineHeight: 1.3 });
       break;
+    case 'bild':
+      // Das Bild trägt die Seite; das Tannenband davor nähme ihm ein Drittel.
+      removeElement(b.state, 'folie-band');
+      bildFolie(b, folie);
+      break;
   }
   const state = finishFolie(b, folie, ctx, 'band');
   // Das Datum steht im Band und wird dort weiß.
@@ -127,9 +136,12 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
     const el = b.state.additionalTexts.find((x) => x.id === id);
     if (el) el.accent = { fill: t.lime };
   }
-  const datum = textOf(b, 'folie-datum');
-  datum.fill = WHITE;
-  datum.width = 500;
+  // Auf der Bildfolie steht das Datum im hellen Bildband, nicht im Tannenband.
+  if (folie.typ !== 'bild') {
+    const datum = textOf(b, 'folie-datum');
+    datum.fill = WHITE;
+    datum.width = 500;
+  }
   return state;
 }
 
@@ -157,4 +169,5 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   },
   zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 400, minScale: 0.6 } },
+  bild: BILD_BOXES,
 };
