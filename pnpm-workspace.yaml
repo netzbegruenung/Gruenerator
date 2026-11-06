@@ -27,17 +27,11 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # ggraphic release, published 2026-11-01 16:15 UTC.
-  # Inert from 2026-11-04 16:16 UTC, remove then.
-  - '@ggraphic/collab@0.1.0-alpha.0'
-  # Text inserts at 120/72/56 px scaled to the page width (Movm/ggraphic#181),
-  # undo kept across an own deck op (Movm/ggraphic#183).
-  # core/schema alpha.2 published 2026-11-02 11:16-11:20 UTC, inert from
-  # 2026-11-05 11:20 UTC; editor alpha.5 published 2026-11-03 10:28 UTC, inert
-  # from 2026-11-06 10:28 UTC. Remove then.
-  - '@ggraphic/core@0.1.0-alpha.2'
-  - '@ggraphic/schema@0.1.0-alpha.2'
-  - '@ggraphic/editor@0.1.0-alpha.5'
+  # Vector export (SVG, vector PDF with brand CMYK, PPTX with SVG pictures;
+  # Movm/ggraphic#187-#189, #192). core alpha.3 published 2026-11-06 14:25 UTC,
+  # editor alpha.6 2026-11-06 14:26 UTC. Inert from 2026-11-09 14:27 UTC, remove then.
+  - '@ggraphic/core@0.1.0-alpha.3'
+  - '@ggraphic/editor@0.1.0-alpha.6'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
