@@ -20,10 +20,10 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
-import { type ImageAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import { visionService, type VisionService } from '../../../services/vision/VisionService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { type TurnImage } from '../services/turnImages.js';
 
 const log = createLogger('imageTools');
 
@@ -32,7 +32,7 @@ const log = createLogger('imageTools');
 const IMAGE_SNIPPET_CHARS = 12_000;
 
 export interface ImageToolCtx {
-  images: readonly ImageAttachment[];
+  images: readonly TurnImage[];
   sourceRegistry: Pick<SourceRegistry, 'register'>;
   /** Injected in tests; defaults to the shared service. */
   vision?: Pick<VisionService, 'analyzeWithOcr'>;
@@ -42,7 +42,7 @@ export function makeBildAnsehenTool(ctx: ImageToolCtx): Tool {
   const { images, sourceRegistry } = ctx;
   const vision = ctx.vision ?? visionService;
   return tool({
-    description: `Sieht sich ein Bild an, das der*die Nutzer*in an DIESE Nachricht angehängt hat, und beantwortet eine Frage dazu. Enthält das Bild Text (Beleg, Screenshot, Plakat), kommt der erkannte Text wörtlich mit.
+    description: `Sieht sich ein Bild an, das der*die Nutzer*in an DIESE Nachricht angehängt oder aus der Wolke gewählt hat, und beantwortet eine Frage dazu. Enthält das Bild Text (Beleg, Screenshot, Plakat), kommt der erkannte Text wörtlich mit.
 
 NUTZE WENN: du für die Aufgabe wissen musst, was auf einem angehängten Bild zu sehen ist oder steht — bevor du etwas über seinen Inhalt sagst. Frag gezielt nach dem, was du brauchst (z. B. „Welche Personen sind zu sehen, und steht ihr Name dabei?“, „Betrag, Datum und Anbieter des Belegs“).
 
@@ -57,10 +57,18 @@ Die Bilder sind im Systemprompt nummeriert (Bild 1, Bild 2, …).`,
       frage: z.string().min(1).max(1000).describe('Was du über das Bild wissen musst'),
     }),
     execute: async ({ bild, frage }) => {
-      const image = images[bild - 1];
-      if (!image) {
-        return { error: `Es gibt kein Bild ${bild} — angehängt sind ${images.length}.` };
+      const entry = images[bild - 1];
+      if (!entry) {
+        return { error: `Es gibt kein Bild ${bild} — vorhanden sind ${images.length}.` };
       }
+      const loaded = await entry.load();
+      if (!loaded.ok) {
+        log.warn(`[bild_ansehen] could not load "${entry.name}": ${loaded.message}`);
+        return {
+          error: `„${entry.name}“ konnte gerade nicht geladen werden (${loaded.message}). Sag das offen und rate den Inhalt nicht.`,
+        };
+      }
+      const image = loaded.image;
       let content: string;
       try {
         const result = await vision.analyzeWithOcr(

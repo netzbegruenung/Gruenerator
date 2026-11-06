@@ -1149,6 +1149,40 @@ describe('toolCatalog bild_ansehen', () => {
   });
 });
 
+describe('toolCatalog Wolke-Foto im Loop', () => {
+  const wolke = [{ shareLinkId: 's', path: '/IMG_2601.jpg', name: 'IMG_2601.jpg' }];
+  const namesFor = (state: Record<string, unknown>) =>
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          imageAttachments: [],
+          wolkeFiles: wolke,
+          messages: [
+            { role: 'user', content: 'erstelle ein bild von mir wo ich auf einer wolke surfe' },
+          ],
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+
+  it('montiert bild_ansehen und edit_image, wenn nur ein Wolke-Foto da ist', () => {
+    const names = namesFor({});
+    expect(names).toContain('bild_ansehen');
+    expect(names).toContain('edit_image');
+    expect(names).toContain('generate_image');
+  });
+
+  it('montiert beides nicht ohne Foto oder mit Bildanalyse aus', () => {
+    expect(namesFor({ wolkeFiles: [] })).not.toContain('edit_image');
+    expect(namesFor({ enabledTools: { vision: false } })).not.toContain('edit_image');
+  });
+});
+
 /**
  * `reisekosten_abrechnung` hängt nur in Reisekosten-Turns: sein Schema ist
  * gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

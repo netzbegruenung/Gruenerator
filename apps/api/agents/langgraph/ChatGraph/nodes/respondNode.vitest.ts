@@ -1052,6 +1052,31 @@ describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalt
   });
 });
 
+describe('formatImageContext — Wolke-Fotos im Loop', () => {
+  const wolkeState = () =>
+    makeState({
+      intent: 'agentic',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools: {},
+      imageAttachments: [{ name: 'a.png', type: 'image/png', data: 'AAAA' }],
+      wolkeFiles: [{ shareLinkId: 's', path: '/IMG_2601.jpg', name: 'IMG_2601.jpg' }],
+    } as unknown as Partial<ChatGraphState>);
+
+  it('nummeriert Anhänge und Wolke-Fotos gemeinsam', async () => {
+    const out = await buildSystemMessage(wolkeState(), { retrievalExpected: true, loop: true });
+    expect(out).toContain('Bild 1: a.png, Bild 2: IMG_2601.jpg (aus der Wolke)');
+    expect(out).toContain('bild_ansehen');
+  });
+
+  it('lässt den Einzeldurchlauf unverändert: Wolke-Foto taucht nicht auf', async () => {
+    const out = await buildSystemMessage(wolkeState());
+    expect(out).not.toContain('IMG_2601.jpg');
+    expect(out).toContain('sind in der Nachricht sichtbar');
+  });
+});
+
 /**
  * Der Sharepic-Studio-Kanal. Die Seitenleiste schickte ihren Text bis #3427 als
  * gefälschtes `currentDocument`, nur um diesen einen Block zu bekommen — der

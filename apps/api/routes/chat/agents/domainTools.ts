@@ -97,10 +97,15 @@ import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
+import { type TurnImage } from '../services/turnImages.js';
 
 import { werkzeugFehler } from './toolFailure.js';
 
-import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ChatGraphState,
+  ImageAttachment,
+  SearchResult,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('DomainTools');
@@ -1273,28 +1278,60 @@ export function makeEditImageTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
   threadId: string | null;
+  /** Die Bilder dieses Turns (Anhänge, Wolke); `bild` adressiert sie per Nummer. */
+  turnImages?: readonly TurnImage[];
+  /** Ohne `bild` das zuletzt erzeugte Bild bearbeiten — nur dann sinnvoll. */
+  lastImageDefault?: boolean;
 }): Tool {
   const { sse, state, threadId } = ctx;
+  const turnImages = ctx.turnImages ?? [];
+  const lastImageDefault = ctx.lastImageDefault ?? true;
   return tool({
-    description: `Verändert das Bild, das in diesem Gespräch zuletzt erzeugt wurde (KI-Bildbearbeitung).
+    description: `Verändert ein Bild (KI-Bildbearbeitung, Bild-zu-Bild): ohne \`bild\` das Bild, das in diesem Gespräch zuletzt erzeugt wurde, mit \`bild\` ein Foto dieses Turns (angehängt oder aus der Wolke, Nummern wie im Systemprompt).
 
-NUTZE WENN der*die Nutzer*in an DIESEM Bild etwas geändert haben möchte ("passe die Grafik an", "die Mühle an den Rand", "mach den Himmel dunkler", "noch einmal, aber mit Schnee"). Übergib die gewünschte Änderung als knappe deutsche Anweisung. NICHT für ein neues, anderes Motiv (dafür generate_image) und nicht für Fragen zum Bild.`,
+NUTZE WENN der*die Nutzer*in an DIESEM Bild etwas geändert haben möchte ("passe die Grafik an", "die Mühle an den Rand", "mach den Himmel dunkler", "noch einmal, aber mit Schnee"). Übergib die gewünschte Änderung als knappe deutsche Anweisung.
+Eigenes Foto + "erstelle ein Bild von mir, wie ich X mache" / "setz mich auf …": edit_image mit \`bild\` = Nummer des Fotos, \`anweisung\` = die Szene — nur so bleibt die Person erkennbar. Ein neues Motiv ohne Foto einer Person: generate_image, nicht dieses Werkzeug. Nicht für Fragen zum Bild.${lastImageDefault ? '' : '\nOhne `bild` gibt es in diesem Turn nichts zu bearbeiten: gib immer `bild` an.'}`,
     inputSchema: z.object({
       anweisung: z.string().min(1).describe('Was sich am Bild ändern soll'),
+      bild: z
+        .number()
+        .int()
+        .min(1)
+        .max(Math.max(turnImages.length, 1))
+        .optional()
+        .describe(
+          'Nummer eines Fotos dieses Turns als Vorlage; weglassen = zuletzt erzeugtes Bild'
+        ),
     }),
-    execute: async ({ anweisung }) => {
+    execute: async ({ anweisung, bild }) => {
       if (state.generatedImage) {
         return {
           ok: true,
           note: 'In diesem Turn wurde bereits ein Bild erzeugt und angezeigt. Rufe edit_image NICHT erneut auf; beschreibe die Änderung kurz.',
         };
       }
-      const previous = threadId ? await loadLastGeneratedImage(threadId) : null;
-      if (!previous) {
-        return {
-          error:
-            'Das vorige Bild ist nicht mehr verfügbar. Sag das ehrlich und biete an, ein neues Bild zu erzeugen.',
-        };
+      let previous: ImageAttachment | null;
+      if (bild != null) {
+        const entry = turnImages[bild - 1];
+        if (!entry) {
+          return { error: `Es gibt kein Bild ${bild} — vorhanden sind ${turnImages.length}.` };
+        }
+        const loaded = await entry.load();
+        if (!loaded.ok) {
+          return {
+            error: `„${entry.name}“ konnte nicht geladen werden (${loaded.message}). Sag das ehrlich und erzeuge KEIN Bild, das so tut, als zeige es die Person.`,
+          };
+        }
+        previous = loaded.image;
+      } else {
+        previous = lastImageDefault && threadId ? await loadLastGeneratedImage(threadId) : null;
+        if (!previous) {
+          return {
+            error: lastImageDefault
+              ? 'Das vorige Bild ist nicht mehr verfügbar. Sag das ehrlich und biete an, ein neues Bild zu erzeugen.'
+              : 'Gib mit `bild` die Nummer des Fotos an, das bearbeitet werden soll.',
+          };
+        }
       }
       sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
       const injected = { role: 'user', content: anweisung } as ChatGraphState['messages'][number];

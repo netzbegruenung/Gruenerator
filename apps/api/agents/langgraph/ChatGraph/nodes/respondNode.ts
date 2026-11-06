@@ -35,6 +35,7 @@ import {
   fairShare,
   getRetrievalBudget,
 } from '../../../../routes/chat/services/messageHelpers.js';
+import { listTurnImageRefs } from '../../../../routes/chat/services/turnImageList.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
@@ -637,8 +638,13 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
   const hasEditDescriptions =
     !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
 
-  if (state.imageAttachments && state.imageAttachments.length > 0) {
-    const count = state.imageAttachments.length;
+  // Im Loop zählen auch Wolke-Fotos mit; ihre Nummern sind die von `bild_ansehen`.
+  const turnImages =
+    opts.loop === true
+      ? listTurnImageRefs(state)
+      : (state.imageAttachments ?? []).map((img) => ({ name: img.name, kind: 'anhang' as const }));
+  if (turnImages.length > 0) {
+    const count = turnImages.length;
     // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
     // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
     // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
@@ -647,8 +653,11 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
     const visibility = imageVisibility(state, { loop: opts.loop === true });
     // Numbered on the tool path: names repeat ("image.png" twice from the
     // clipboard), and `bild_ansehen` addresses an image by its number.
-    const names = state.imageAttachments
-      .map((img, i) => (visibility === 'tool' ? `Bild ${i + 1}: ${img.name}` : img.name))
+    const names = turnImages
+      .map((img, i) => {
+        const label = img.kind === 'wolke' ? `${img.name} (aus der Wolke)` : img.name;
+        return visibility === 'tool' ? `Bild ${i + 1}: ${label}` : label;
+      })
       .join(', ');
     const sentence =
       visibility === 'visible'
@@ -660,7 +669,7 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} ${turnImages.some((i) => i.kind === 'wolke') ? 'angehängt oder aus der Wolke gewählt' : 'angehängt'} (${names}). ${sentence}`);
   }
 
   if (editDescriptions && hasEditDescriptions) {
