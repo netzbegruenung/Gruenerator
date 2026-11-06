@@ -51,6 +51,7 @@ export const USAGE_FEATURES = [
   'boards',
   'sharepic',
   'subtitler',
+  'transkription',
   'search',
   'monitor',
   'sites',
@@ -115,16 +116,23 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
 
     ['/api/subtitler', 'subtitler'],
     ['/api/video', 'subtitler'],
-    // Read-aloud and the voice agent are chat surfaces, so speech synthesis is
-    // booked under chat. This wins over the '/api/voice' line below because the
-    // list is matched longest-first. The rest of /api/voice is transcription and
-    // stays with the subtitler; /api/voice/realtime is a chat surface too, but
-    // it upgrades to a WebSocket that this middleware never sees.
+    // Read-aloud and the voice agent are chat surfaces, so speech synthesis, the
+    // agent's session calls and its push-to-talk (`/transcribe`) are booked under
+    // chat. These win over the '/api/voice' line below because the list is
+    // matched longest-first; /api/voice/realtime is a chat surface too, but it
+    // upgrades to a WebSocket that this middleware never sees.
     ['/api/voice/tts', 'chat'],
+    ['/api/voice/agent-session', 'chat'],
+    ['/api/voice/transcribe', 'chat'],
     // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
     ['/api/voice/speech', 'voice'],
     ['/api/podcasts', 'voice'],
-    ['/api/voice', 'subtitler'],
+    // The rest of /api/voice is the /transkription page (upload transcription,
+    // protocol, to-do list). It has its own slug so the transparency page can
+    // tell it apart from Reels; the upload line must outrank '/transcribe' above,
+    // which is its prefix. Rows before 06.11.2026 carry 'subtitler' for both.
+    ['/api/voice/transcribe-upload', 'transkription'],
+    ['/api/voice', 'transkription'],
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],
 

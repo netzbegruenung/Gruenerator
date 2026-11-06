@@ -14,6 +14,13 @@ describe('featureFromPath', () => {
     ['/api/auth/custom_prompts', 'texte'],
     ['/api/auth/saved_prompts', 'texte'],
     ['/api/voice/tts', 'chat'],
+    ['/api/voice/transcribe', 'chat'],
+    ['/api/voice/agent-session/messages', 'chat'],
+    ['/api/voice/transcribe-upload/stream', 'transkription'],
+    ['/api/voice/protokoll', 'transkription'],
+    ['/api/voice/todo-list', 'transkription'],
+    ['/api/voice/speech/generate', 'voice'],
+    ['/api/subtitler/process', 'subtitler'],
     ['/api/auth/profile', 'other'],
   ])('%s → %s', (path, feature) => {
     expect(featureFromPath(path)).toBe(feature);
