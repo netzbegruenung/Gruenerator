@@ -12,13 +12,17 @@
  * recording) come from `wrapToolsForLoop`; force-finish and lenient arg repair
  * are configured here.
  */
-import { type ModelMessage } from 'ai';
+import { type ModelMessage, type ToolSet } from 'ai';
 
 import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import {
+  MELIOUS_WIDE_MODEL,
+  meliousGoesWide,
+} from '../../../../services/ai/meliousThinkingFetch.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
@@ -193,6 +197,29 @@ export interface AgenticResponseOutcome {
  * the caller): a hard failure with no streamed text degrades to a short German
  * apology so the turn still persists and closes cleanly.
  */
+/** Je Werkzeug-Definition neben der Beschreibung: Name, Schema, JSON-Hülle
+ *  (06.11.2026: 15 Werkzeuge ≈ 20,8k Zeichen im Request). */
+const TOOL_DEFINITION_OVERHEAD_CHARS = 600;
+
+/**
+ * Wie gross der Request an das Modell ungefähr wird — in der Einheit, in der
+ * `meliousWireModel` entscheidet (Zeichen des JSON-Bodys). Nur eine Schätzung:
+ * an der Grenze kann sie danebenliegen.
+ */
+export function estimatedRequestChars(
+  system: string,
+  messages: readonly ModelMessage[],
+  tools: ToolSet
+): number {
+  let chars = system.length + JSON.stringify(messages).length;
+  for (const t of Object.values(tools)) {
+    chars +=
+      (typeof t.description === 'string' ? t.description.length : 0) +
+      TOOL_DEFINITION_OVERHEAD_CHARS;
+  }
+  return chars;
+}
+
 export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
@@ -800,7 +827,18 @@ export async function streamAgenticResponse(
     // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
     // the selected host rejects or goes silent before any call or output.
     const unifiedFallbacks =
-      mode === 'unified' ? getUnifiedFallbackModels(resolution.provider, resolution.modelName) : [];
+      mode === 'unified'
+        ? getUnifiedFallbackModels(
+            resolution.provider,
+            resolution.modelName,
+            meliousGoesWide(
+              resolution.modelName,
+              estimatedRequestChars(toolSystem, messages, wrapped)
+            )
+              ? MELIOUS_WIDE_MODEL
+              : null
+          )
+        : [];
     // Whichever mode, the lane that backs up the tool-less writer.
     const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may

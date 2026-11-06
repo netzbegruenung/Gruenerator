@@ -470,6 +470,12 @@ describe('unifiedFallbackStages', () => {
     ]);
   });
 
+  it('lässt :speed weg, wenn :balanced auf dem Draht ohnehin als :speed rausging', () => {
+    expect(unifiedFallbackStages('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed')).toEqual([
+      LOOP_SYNTH_FALLBACK,
+    ]);
+  });
+
   it('gibt anderen Lanes keine Ausweichstufen', () => {
     expect(unifiedFallbackStages('mistral', 'mistral-large-4')).toEqual([]);
     expect(unifiedFallbackStages('cortecs', 'gemma-4-31b-it')).toEqual([]);

@@ -801,23 +801,31 @@ function meliousFlavor(modelName: string): string {
  * `UNIFIED_GEMMA_CHAIN` minus the selected stage — a Gemma stage counts as the
  * selected one when it has the same Melious flavor (same upstream). Empty for
  * every other lane (Mistral keeps its own repair path only).
+ *
+ * `wireModelName`: what the selected stage really sends (`meliousWireModel` turns
+ * a large `:balanced` request into `:speed`). Went the primary out as `:speed`,
+ * a `:speed` stage would repeat the same request on the same upstream and only
+ * add another first-response deadline before Mistral.
  */
 export function unifiedFallbackStages(
   provider: string,
-  modelName: string
+  modelName: string,
+  wireModelName: string | null = null
 ): (typeof UNIFIED_GEMMA_CHAIN)[number][] {
   if (!isUnifiedGemma(provider, modelName)) return [];
+  const sent = new Set([meliousFlavor(modelName), meliousFlavor(wireModelName ?? modelName)]);
   return UNIFIED_GEMMA_CHAIN.filter(
     (stage) =>
-      !(
-        isUnifiedGemma(stage.provider, stage.model) &&
-        meliousFlavor(stage.model) === meliousFlavor(modelName)
-      )
+      !(isUnifiedGemma(stage.provider, stage.model) && sent.has(meliousFlavor(stage.model)))
   );
 }
 
-export function getUnifiedFallbackModels(provider: string, modelName: string): LanguageModel[] {
-  return unifiedFallbackStages(provider, modelName).map((stage) =>
+export function getUnifiedFallbackModels(
+  provider: string,
+  modelName: string,
+  wireModelName: string | null = null
+): LanguageModel[] {
+  return unifiedFallbackStages(provider, modelName, wireModelName).map((stage) =>
     getModel(stage.provider, stage.model, { acceptTarget: synthTargetAllowed })
   );
 }
