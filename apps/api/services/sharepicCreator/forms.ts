@@ -12,6 +12,7 @@ import {
 
 import { calendarDays, hasTermin, namesSpeaker, NUMBER } from './briefFacts.js';
 import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
+import { hasOwnPhoto } from './ownPhoto.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
 interface FormRecipe {
@@ -291,7 +292,9 @@ export function formMismatch(
         ? null
         : `${label}: setz Mythos und Fakt als {"type":"faktencheck","paare":[…]}.`;
     case 'faktenbild':
-      if (!hasScene) {
+      // An own photo carries the number as well as a painted scene: the person
+      // brought it for this picture (live 06.11.2026, a chat-generated image).
+      if (!hasScene && !hasOwnPhoto(spec)) {
         return `${label}: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.`;
       }
       // The number makes it a Faktenbild: a number block, or one number large in the headline.

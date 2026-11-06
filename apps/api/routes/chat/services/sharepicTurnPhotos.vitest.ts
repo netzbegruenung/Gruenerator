@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn(),
   analyze: vi.fn(),
   loadOwn: vi.fn(),
+  lastImage: vi.fn(),
 }));
 
 vi.mock('../../../services/sharedMediaService.js', () => ({
@@ -17,6 +18,9 @@ vi.mock('../../../services/sharedMediaService.js', () => ({
 }));
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/wolkeRetrieval.js', () => ({
   downloadWolkeFile: mocks.download,
+}));
+vi.mock('./lastGeneratedImage.js', () => ({
+  loadLastGeneratedImage: mocks.lastImage,
 }));
 vi.mock('../../../services/sharepicCreator/photoAnalysis.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../services/sharepicCreator/photoAnalysis.js')>()),
@@ -274,6 +278,36 @@ describe('photosForTurn', () => {
       null
     );
     expect(r.photos).toHaveLength(1);
+  });
+
+  // Live 06.11.2026: „nimm dieses bild und pack es in ein Sharepic" nach einem
+  // FLUX-Bild — der Creator bekam das Bild nie zu sehen.
+  it('takes the thread’s last generated image when the turn means it', async () => {
+    mocks.lastImage.mockResolvedValue(jpeg('flux-result'));
+    const r = await photosForTurn(
+      { agentConfig: { userId: 'u-t3' } as never, threadId: 't-1', takesThreadImage: true },
+      null
+    );
+    expect(mocks.lastImage).toHaveBeenCalledWith('t-1');
+    expect(r.photos.map((p) => p.id)).toEqual(['upload:1']);
+  });
+
+  it('leaves the generated image out unless the turn means it, or an image is attached', async () => {
+    mocks.lastImage.mockResolvedValue(jpeg('flux-result'));
+    const agentConfig = { userId: 'u-t4' } as never;
+    const unmeant = await photosForTurn({ agentConfig, threadId: 't-1' }, null);
+    expect(unmeant.photos).toEqual([]);
+    const attached = await photosForTurn(
+      {
+        agentConfig,
+        threadId: 't-1',
+        takesThreadImage: true,
+        imageAttachments: [jpeg('attached')],
+      },
+      null
+    );
+    expect(attached.photos).toHaveLength(1);
+    expect(mocks.lastImage).not.toHaveBeenCalled();
   });
 
   it('keeps the revised variant’s photos and numbers new ones after them', async () => {

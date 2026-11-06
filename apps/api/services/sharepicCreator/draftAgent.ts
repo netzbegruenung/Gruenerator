@@ -408,7 +408,11 @@ export async function draftSharepic(
       const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
       if (look) return { ok: false, error: look };
       // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
-      const firstPersonable = [...personable][0];
+      // Only a photo of ONE person is that person: a crowd in a landscape is no one to paint in
+      // (live 06.11.2026, a meadow behind a sunflower became a collage).
+      const firstPersonable = ownPhotos.find(
+        (p) => personable.has(p.id) && p.analysis.personen === 1
+      )?.id;
       if (
         !current &&
         attempt < attempts &&
