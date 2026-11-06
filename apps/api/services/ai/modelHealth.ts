@@ -48,12 +48,41 @@
  *    Token wäre die genauere Messung, aber der Nicht-Stream-Pfad kennt diese
  *    Zeit nicht, und zwei Einheiten in einer Basislinie wären schlimmer.
  *
+ * ── Wie lange gemerkt wird ──
+ *
+ * Ein AUSDRÜCKLICHES Verdikt (`recordSlowVerdict`: Stillstand vor dem ersten
+ * Token, leere Antwort, Ausfall, verlorener Hedge) öffnet das Fenster sofort.
+ * Bis 06.11.2026 brauchte es zwei, und jede gesunde Probe dazwischen setzte den
+ * Zähler zurück — im Log zu #5399 stand 13 s nach dem Planer-Stillstand auf
+ * `melious/gemma-4-31b:balanced` „Success after 1 failures, resetting circuit".
+ * Bei einer Störung, die mal 2 s und mal 60 s braucht, öffnete das Fenster so
+ * nie, und jeder Zug zahlte die Frist neu. Eine zähe DURCHSATZ-Probe braucht
+ * weiter zwei in Folge: die Rate enthält die Anlaufzeit, eine einzelne ist zu
+ * oft ein kurzer Werkzeugaufruf mit ein paar Sekunden TTFT.
+ *
+ * Das Fenster wächst, solange die Störung anhält: 2 → 4 → 8 → 16 → 30 min.
+ * Läuft es ab, ist der nächste echte Aufruf die Probe — ein Verdikt öffnet
+ * sofort wieder, eine Stufe länger; eine gesunde Probe schliesst. Erst 30 min
+ * nach dem Ende des letzten Fensters ohne neues Verdikt fängt die Treppe wieder
+ * bei 2 min an. So kostet ein einzelner Ausreisser nur zwei Minuten auf der
+ * Ausweich-Lane, und eine stundenlange Störung trifft nur alle halbe Stunde
+ * einen Zug.
+ *
+ * Bewusst kein Hintergrund-Ping als Probe: ein Mini-Prompt besteht sie, während
+ * echte, lange Anfragen weiter hängen. Die Probe ist echter Verkehr, und ein
+ * Fehlschlag kostet einmal die kurze Frist des Aufrufers.
+ *
+ * Ein offenes Fenster schliesst NUR über den Ablauf. Gesunde Proben aus
+ * Anfragen, die schon vor dem Verdikt liefen, speisen die Basislinie, aber
+ * sie heben den Vermerk nicht auf; Verdikte aus solchen Anfragen verlängern
+ * ihn auch nicht.
+ *
  * Zustand liegt im Speicher, pro Worker (WORKER_COUNT steht auf 2) — dieselbe
- * bewusste Wahl wie bei den Breakern in `services/search/`.
+ * bewusste Wahl wie bei den Breakern in `services/search/`. Eine Störung kostet
+ * damit höchstens einen Zug pro Worker, bevor beide ausweichen.
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { CircuitBreaker } from '../search/searchRetryStrategy.js';
 
 const log = createLogger('modelHealth');
 
@@ -84,6 +113,18 @@ const BASELINE_ALPHA = 0.1;
 /** Ring für die p50, die in `ai_model_latency` landet. */
 const ROLLUP_WINDOW = 64;
 
+/** Zähe Durchsatz-Proben in Folge, bevor das Fenster öffnet. */
+const SLOW_SAMPLES_TO_OPEN = 2;
+
+/** Das erste Fenster; jedes weitere in derselben Störung ist doppelt so lang. */
+const FIRST_WINDOW_MS = 2 * 60 * 1000;
+
+/** Deckel für das Fenster. */
+const MAX_WINDOW_MS = 30 * 60 * 1000;
+
+/** So lange nach dem Ende des letzten Fensters ohne Verdikt gilt die Störung als vorbei. */
+const FORGET_AFTER_MS = 30 * 60 * 1000;
+
 export interface ModelSampleInput {
   provider: string;
   model: string;
@@ -100,10 +141,16 @@ interface Entry {
   model: string;
   baseline: number | null;
   baselineN: number;
-  breaker: CircuitBreaker;
-  /** Nach dem Auto-Reset des Breakers genügt EIN Verdikt zum erneuten Öffnen. */
+  /** Bis wann das Paar übersprungen wird; `null` = nicht vermerkt. */
+  openUntil: number | null;
+  /** Stufe des NÄCHSTEN Fensters: seine Länge ist FIRST_WINDOW_MS × 2^level. */
+  level: number;
+  /** Ende des zuletzt geöffneten Fensters — ab hier zählt FORGET_AFTER_MS. */
+  lastWindowEnd: number | null;
+  /** Zähe Durchsatz-Proben in Folge. */
+  slowSamplesInRow: number;
+  /** Fenster abgelaufen, noch keine gesunde Probe: jedes Zäh-Signal öffnet sofort. */
   onProbation: boolean;
-  wasOpen: boolean;
   rates: number[];
   ttfts: number[];
   samples: number;
@@ -125,9 +172,11 @@ function entryFor(provider: string, model: string): Entry {
     model,
     baseline: null,
     baselineN: 0,
-    breaker: new CircuitBreaker({ failureThreshold: 2, resetTimeMs: 5 * 60 * 1000, label: key }),
+    openUntil: null,
+    level: 0,
+    lastWindowEnd: null,
+    slowSamplesInRow: 0,
     onProbation: false,
-    wasOpen: false,
     rates: [],
     ttfts: [],
     samples: 0,
@@ -143,45 +192,54 @@ function push(ring: number[], value: number): void {
 }
 
 /**
- * `isOpen()` führt den Auto-Reset selbst aus. Der Übergang offen → zu ist
- * deshalb nur zu sehen, wenn man ihn abfragt — und genau dort beginnt die
- * Probezeit.
+ * Ist das Fenster offen? Der Ablauf wird hier festgestellt — und genau dort
+ * beginnt die Probezeit.
  */
 function currentlyOpen(entry: Entry): boolean {
-  const open = entry.breaker.isOpen();
-  if (entry.wasOpen && !open) {
-    entry.onProbation = true;
-    log.info(`[${keyOf(entry.provider, entry.model)}] Fenster abgelaufen — auf Probe`);
-  }
-  entry.wasOpen = open;
-  return open;
+  if (entry.openUntil === null) return false;
+  if (Date.now() < entry.openUntil) return true;
+  entry.openUntil = null;
+  entry.onProbation = true;
+  log.info(`[${keyOf(entry.provider, entry.model)}] Fenster abgelaufen — auf Probe`);
+  return false;
 }
 
-function markSlow(entry: Entry, grund: string): void {
-  const key = keyOf(entry.provider, entry.model);
+function openWindow(entry: Entry, grund: string): void {
+  const now = Date.now();
+  if (entry.lastWindowEnd !== null && now - entry.lastWindowEnd > FORGET_AFTER_MS) {
+    entry.level = 0;
+  }
+  const windowMs = Math.min(FIRST_WINDOW_MS * 2 ** entry.level, MAX_WINDOW_MS);
+  entry.openUntil = now + windowMs;
+  entry.lastWindowEnd = entry.openUntil;
+  if (windowMs < MAX_WINDOW_MS) entry.level++;
+  entry.onProbation = false;
+  entry.slowSamplesInRow = 0;
+  log.warn(
+    `[${keyOf(entry.provider, entry.model)}] gilt als zäh (${grund}) — wird für ${Math.round(
+      windowMs / 60_000
+    )} min übersprungen`
+  );
+}
+
+/** `explicit`: ein Verdikt aus einer gerissenen Frist, keine Durchsatz-Probe. */
+function markSlow(entry: Entry, grund: string, explicit: boolean): void {
   entry.slowVerdicts++;
-  const warOffen = currentlyOpen(entry);
-  entry.breaker.recordFailure();
-  if (entry.onProbation) {
-    // Auf Probe reicht ein Verdikt. Der Breaker öffnet erst bei zwei — die
-    // zweite Meldung ist der Verzicht darauf, das Fenster noch einmal
-    // auszusitzen, nicht ein zweiter Befund.
-    entry.breaker.recordFailure();
-    entry.onProbation = false;
+  if (currentlyOpen(entry)) return;
+  if (!explicit && !entry.onProbation) {
+    entry.slowSamplesInRow++;
+    if (entry.slowSamplesInRow < SLOW_SAMPLES_TO_OPEN) return;
   }
-  if (!warOffen && entry.breaker.isOpen()) {
-    entry.wasOpen = true;
-    log.warn(`[${key}] gilt als zäh (${grund}) — wird für 5 min übersprungen`);
-  }
+  openWindow(entry, grund);
 }
 
 function markHealthy(entry: Entry): void {
+  entry.slowSamplesInRow = 0;
+  if (currentlyOpen(entry)) return;
   if (entry.onProbation) {
     entry.onProbation = false;
     log.info(`[${keyOf(entry.provider, entry.model)}] Probe bestanden`);
   }
-  entry.breaker.recordSuccess();
-  entry.wasOpen = false;
 }
 
 /** Eine abgeschlossene Modellantwort melden. Beurteilt und zählt. */
@@ -208,7 +266,7 @@ export function recordModelSample(sample: ModelSampleInput): void {
   }
 
   if (rate < entry.baseline / SLOW_FACTOR) {
-    markSlow(entry, `${rate.toFixed(1)} statt ~${entry.baseline.toFixed(0)} tok/s`);
+    markSlow(entry, `${rate.toFixed(1)} statt ~${entry.baseline.toFixed(0)} tok/s`, false);
     return;
   }
 
@@ -224,11 +282,12 @@ function feedBaseline(entry: Entry, rate: number): void {
 
 /**
  * Ein ausdrückliches Verdikt aus einer gerissenen Frist — First-Token-Timeout,
- * Synth-Stillstand, verlorener Hedge. Fängt das Schweigen, das die Messung
- * nicht sieht, weil gar keine Tokens kamen.
+ * Synth-Stillstand, verlorener Hedge, Ausfall des Anbieters. Fängt das
+ * Schweigen, das die Messung nicht sieht, weil gar keine Tokens kamen. Öffnet
+ * das Fenster sofort.
  */
 export function recordSlowVerdict(provider: string, model: string, grund: string): void {
-  markSlow(entryFor(provider, model), grund);
+  markSlow(entryFor(provider, model), grund, true);
 }
 
 /** Gilt dieses Paar gerade als zäh? */
@@ -270,7 +329,7 @@ function p50(values: number[]): number | null {
 /**
  * Momentaufnahme für den Rollup und die Tests. `drain` setzt die Zähler
  * zurück, damit ein Fenster nicht doppelt geschrieben wird — die Basislinie und
- * der Breaker überdauern das.
+ * der Vermerk überdauern das.
  */
 export function modelHealthSnapshot(options: { drain?: boolean } = {}): ModelHealthRow[] {
   const rows: ModelHealthRow[] = [];

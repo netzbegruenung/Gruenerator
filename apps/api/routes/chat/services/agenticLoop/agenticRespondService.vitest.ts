@@ -258,7 +258,7 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
   });
 
-  it('vermerkt einen abgelehnten Aufruf als upstream_error, nicht als synth_stall', async () => {
+  it('vermerkt im unified die Stufe, die wirklich stand — nicht immer die gewählte', async () => {
     slowVerdicts.length = 0;
     const { sse } = fakeSse();
     await streamAgenticResponse(
@@ -267,13 +267,42 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         provider: 'melious',
         modelName: 'gemma-4-31b:balanced',
         onLoop: (p) => {
-          p.onSynthFallback?.('upstream_error');
+          // Die Leiter meldet ihre Stufen; der Wechsel selbst bucht nichts mehr.
           p.onSynthFallback?.('first_token_timeout');
+          p.onLaneUnhealthy?.(0, 'provider_unavailable');
+          p.onLaneUnhealthy?.(1, 'stall');
         },
       })
     );
-    expect(slowVerdicts.map((v) => v.reason)).toEqual(['upstream_error', 'synth_stall']);
-    expect(slowVerdicts[0]!.model).toBe('gemma-4-31b:balanced');
+    expect(slowVerdicts).toEqual([
+      {
+        provider: 'melious',
+        model: 'gemma-4-31b:balanced',
+        reason: 'unified:provider_unavailable',
+      },
+      { provider: 'melious', model: 'gemma-4-31b:speed', reason: 'unified:stall' },
+    ]);
+  });
+
+  it('vermerkt im split die Planer-Stufe des Index — ein Index ausserhalb der Leiter zählt nicht', async () => {
+    // Ohne Schlüssel (Testumgebung) besteht die Leiter nur aus der
+    // schlüssellosen Stufe; die Kette selbst prüft loopPlannerChain.vitest.ts.
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        modelName: 'gemma4-31b',
+        onLoop: (p) => {
+          p.onLaneUnhealthy?.(0, 'stall');
+          p.onLaneUnhealthy?.(1, 'stall');
+        },
+      })
+    );
+    expect(slowVerdicts.map((v) => `${v.provider}/${v.model}:${v.reason}`)).toEqual([
+      'mistral/mistral-large-4:split:stall',
+    ]);
   });
 
   it('läuft split auf jedem anderen Anbieter', async () => {

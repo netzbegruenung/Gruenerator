@@ -130,8 +130,14 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
  * 21.10.2026 unter neunfacher Parallellast bis 11 s). Mit den 45 s oben wartete
  * der Zug aus #4785 58 s auf seine erste Antwort. Die letzte Stufe bekommt die
  * kurze Frist nicht: ohne Ausweich gibt es nichts, wohin sie umspringen könnte.
+ *
+ * 8 s statt 15 s seit 06.11.2026 (#5399): die nächste Stufe hinter Melious
+ * `:balanced` ist `:speed` — dieselben Gewichte, erstes Token 1,5–2 s. Reisst
+ * `:balanced` die Frist unter Last, ist der Wechsel also kein Qualitätsverlust,
+ * sondern genau das Gewollte. Der Prefill-Zuschlag (`prefillAllowanceForModel`)
+ * kommt für lange Prompts weiter oben drauf.
  */
-const PLANNER_FIRST_RESPONSE_DEADLINE_MS = 15_000;
+const PLANNER_FIRST_RESPONSE_DEADLINE_MS = 8_000;
 
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
 const SDK_PREAMBLE_PARTS = new Set(['start', 'start-step']);
@@ -706,21 +712,25 @@ export interface LoopEngineParams {
    *  single-pass path does. */
   onSynthFallback?: (reason: 'first_token_timeout' | 'empty_completion' | 'upstream_error') => void;
   /**
-   * SPLIT ONLY: fires when the planner accepted the request and then sent
-   * nothing until the tool-phase deadline. Separate from `onSynthFallback`
-   * because there is nothing to fall back to here — the caller uses it to
-   * remember the lane, not to switch mid-turn.
+   * A lane of the tool phase's ladder failed in a way that says something
+   * about the LANE, not about this request: it went silent, or the provider
+   * was down or rate-limited. The caller uses it to remember the lane
+   * (`modelHealth`), not to switch — the ladder switches by itself.
    *
-   * The unified path deliberately does NOT fire it, and that is a scoping
-   * decision rather than a gap to fill in later. Two reasons: its stream is the
-   * USER's selected lane, whose health `responseStreamingService` already
-   * records, so firing here would double-count one lane while the split's fixed
-   * planner is recorded nowhere else; and a unified stall can follow a COMPLETE
+   * `laneIndex` is the position in the ladder: `[plannerModel,
+   * ...plannerFallbackModels]` in split, `[synthModel, ...unifiedFallbacks]` in
+   * unified. EVERY stage reports, not only the first: until 06.11.2026 only the
+   * turn's own planner lane was recorded, so a stalled fallback stage stayed
+   * first choice behind it and the next turn paid its deadline again.
+   *
+   * Not reported: `invalid_request` (an overfull context window is our request,
+   * not a sick model — it would block the lane for everyone), and in unified a
+   * lane that already left a trace: a unified stall can follow a COMPLETE
    * answer (a `finish` part arrived, only the stream stayed open — see the
-   * branch at the bottom of `streamWithTools`), where a slow verdict against a
-   * lane that just answered in full would simply be wrong.
+   * branch at the bottom of `streamWithTools`), where a verdict against a lane
+   * that just answered in full would simply be wrong.
    */
-  onToolPhaseStall?: () => void;
+  onLaneUnhealthy?: (laneIndex: number, grund: LaneUnhealthyReason) => void;
   /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
@@ -876,12 +886,15 @@ export async function runAgenticLoop(
     const lanes = [p.synthModel, ...(p.unifiedFallbacks ?? [])];
     const { finishReason, ...streamed } = await runLaneChain(
       lanes,
-      async (model, isLast): Promise<LaneAttempt<StreamWithToolsResult>> => {
+      async (model, isLast, index): Promise<LaneAttempt<StreamWithToolsResult>> => {
         const probe: LaneProbe = { sawToolCall: false, sawToolResult: false, sawOutput: false };
         try {
           const value = await streamWithTools(p, model, deps, probe, !isLast);
           return { ...probe, error: null, value };
         } catch (error) {
+          // Only a lane that left no trace — see `onLaneUnhealthy`.
+          const health = probe.sawToolCall || probe.sawOutput ? null : laneHealthReason(error);
+          if (health) p.onLaneUnhealthy?.(index, health);
           return { ...probe, error, value: null };
         }
       },
@@ -1090,6 +1103,17 @@ interface LaneAttempt<T> extends LaneProbe {
  *  `runLaneChain`). */
 const LANE_SWITCH_CODES = new Set(['invalid_request', 'rate_limited', 'provider_unavailable']);
 
+/** Why a lane is reported to `onLaneUnhealthy`. */
+export type LaneUnhealthyReason = 'stall' | 'provider_unavailable' | 'rate_limited';
+
+/** The subset of switchable failures that is about the lane's health — see
+ *  `onLaneUnhealthy` for why `invalid_request` is not one of them. */
+function laneHealthReason(err: unknown): LaneUnhealthyReason | null {
+  if (err instanceof ToolPhaseStallError) return 'stall';
+  const code = providerVerdict(err);
+  return code === 'provider_unavailable' || code === 'rate_limited' ? code : null;
+}
+
 /** The provider's verdict. The SDK wraps an exhausted 429/5xx retry in a
  *  `RetryError` that carries no status of its own — the last attempt does. */
 function providerVerdict(err: unknown): string {
@@ -1107,14 +1131,14 @@ function providerVerdict(err: unknown): string {
  */
 async function runLaneChain<T>(
   lanes: readonly LanguageModel[],
-  attempt: (model: LanguageModel, isLast: boolean) => Promise<LaneAttempt<T>>,
+  attempt: (model: LanguageModel, isLast: boolean, index: number) => Promise<LaneAttempt<T>>,
   onSwitch: (from: LanguageModel, to: LanguageModel, error: unknown) => void,
   aborted: () => boolean = () => false
 ): Promise<T> {
   let last: LaneAttempt<T> | null = null;
   for (const [i, model] of lanes.entries()) {
     const hasNext = i < lanes.length - 1;
-    last = await attempt(model, !hasNext);
+    last = await attempt(model, !hasNext, i);
     if (last.error == null && last.value != null) return last.value;
     if (
       !hasNext ||
@@ -1180,11 +1204,10 @@ function observeLane(
 
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcome> {
   const lanes = [p.plannerModel, ...(p.plannerFallbackModels ?? [])];
-  let tried = 0;
   return runLaneChain<GatherOutcome>(
     lanes,
-    async (model, isLast) => {
-      const attempt = await gatherOn(p, deps, model, tried++ === 0, !isLast);
+    async (model, isLast, index) => {
+      const attempt = await gatherOn(p, deps, model, index, !isLast);
       // A call may have executed — no second lane — but only a result means the
       // registry holds anything the writer can answer from.
       return {
@@ -1207,10 +1230,9 @@ async function gatherOn(
   p: LoopEngineParams,
   deps: LoopDeps,
   model: LanguageModel,
-  /** Only the turn's own planner lane is recorded as stalled — `onToolPhaseStall`
-   *  marks THAT lane, and blaming it for the fallback's stall would empty the
-   *  ladder of a healthy stage. */
-  isPrimaryLane: boolean,
+  /** Position in the ladder, reported to `onLaneUnhealthy` so the caller marks
+   *  the stage that actually failed. */
+  laneIndex: number,
   /** Another lane waits behind this one: silence before the first response
    *  then only costs PLANNER_FIRST_RESPONSE_DEADLINE_MS. */
   hasNextLane: boolean
@@ -1323,13 +1345,14 @@ async function gatherOn(
         model: modelLabel(model),
         idleMs: err.idleMs,
       });
-      // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
-      // Befund eine Einzelmeldung: `modelHealth` sah den Stillstand nie, also
-      // galt die Lane weiter als gesund und der nächste Zug wartete dieselben
-      // 45 s noch einmal ab. Genau der Preis, den das Register nicht zweimal
-      // zahlen will (siehe seinen Kopfkommentar).
-      if (isPrimaryLane) p.onToolPhaseStall?.();
     }
+    // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
+    // Befund eine Einzelmeldung: `modelHealth` sah den Stillstand nie, also
+    // galt die Lane weiter als gesund und der nächste Zug wartete dieselbe
+    // Frist noch einmal ab. Genau der Preis, den das Register nicht zweimal
+    // zahlen will (siehe seinen Kopfkommentar).
+    const health = laneHealthReason(err);
+    if (health) p.onLaneUnhealthy?.(laneIndex, health);
     return { error: err, sawToolCall, sawToolResult, sawOutput };
   } finally {
     idle.clear();

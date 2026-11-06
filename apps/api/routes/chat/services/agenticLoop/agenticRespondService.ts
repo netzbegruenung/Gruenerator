@@ -32,11 +32,11 @@ import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
-  getLoopPlannerFallbackModels,
+  getLoopPlannerFallbackStages,
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
-  getUnifiedFallbackModels,
+  resolveUnifiedLaneChain,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -825,21 +825,31 @@ export async function streamAgenticResponse(
           )
         : null;
     const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
-    // Unified Gemma: the lanes behind the selected one (Mistral Large) take over if
-    // the selected host rejects or goes silent before any call or output.
-    const unifiedFallbacks =
+    // Was ein Melious-Body dieser Grösse auf dem Draht wird: ein grosser
+    // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
+    // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
+    const wireModelFor = (modelName: string): string | null =>
+      meliousGoesWide(modelName, estimatedRequestChars(toolSystem, messages, wrapped))
+        ? MELIOUS_WIDE_MODEL
+        : null;
+    // Unified Gemma: die ganze Kette, gewählte Stufe zuerst — ist sie als zäh
+    // vermerkt, rückt sie ans Ende und der Zug startet auf `:speed`. Leer für
+    // jede andere Lane; dann fährt die eine Instanz aus `resolution`.
+    const unifiedChain =
       mode === 'unified'
-        ? getUnifiedFallbackModels(
+        ? resolveUnifiedLaneChain(
             resolution.provider,
             resolution.modelName,
-            meliousGoesWide(
-              resolution.modelName,
-              estimatedRequestChars(toolSystem, messages, wrapped)
-            )
-              ? MELIOUS_WIDE_MODEL
-              : null
+            wireModelFor(resolution.modelName)
           )
         : [];
+    if (unifiedChain[0] && unifiedChain[0].model !== resolution.modelName) {
+      log.warn(
+        `[Agentic] ${resolution.provider}/${resolution.modelName} gilt als zäh — unified startet auf ${unifiedChain[0].provider}/${unifiedChain[0].model}`
+      );
+      synthName = unifiedChain[0].model;
+    }
+    const unifiedFallbacks = unifiedChain.slice(1).map((stage) => stage.languageModel);
     // Whichever mode, the lane that backs up the tool-less writer.
     const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
@@ -848,9 +858,19 @@ export async function streamAgenticResponse(
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
-    const plannerFallbacks = plannerLane
-      ? getLoopPlannerFallbackModels(plannerLane.provider, plannerLane.model)
+    const plannerFallbackStages = plannerLane
+      ? getLoopPlannerFallbackStages(
+          plannerLane.provider,
+          plannerLane.model,
+          wireModelFor(plannerLane.model)
+        )
       : [];
+    const plannerFallbacks = plannerFallbackStages.map((stage) => stage.languageModel);
+    // Die Leiter der Werkzeugphase mit Identität, Index wie in `runLaneChain`
+    // — damit ein Stillstand die Stufe vermerkt, die wirklich stand.
+    const toolPhaseLadder: { provider: string; model: string }[] = plannerLane
+      ? [plannerLane, ...plannerFallbackStages]
+      : unifiedChain;
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -865,40 +885,35 @@ export async function streamAgenticResponse(
     const loopResult = await deps.runAgenticLoop({
       mode,
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
-      synthModel: synth.model,
+      synthModel: unifiedChain[0]?.languageModel ?? synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
       ...(repair && { repairModel: repair.model }),
       ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
       ...(repairFallback && { repairFallback: repairFallback.model }),
       producedArtifact: () => turnProducedArtifact(finalState),
       plannerFallbackModels: plannerFallbacks,
-      // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
-      // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
-      // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
-      // kostet dieselbe Frist noch einmal. `resolveLoopPlannerLane()` liefert
-      // Anbieter UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
-      //
-      // Gemeldet wird, was danach TATSÄCHLICH gilt, nicht was der Vermerk
-      // bezweckt: der Breaker öffnet erst beim zweiten Verdikt (siehe
-      // `plannerStageUsable`), ein einzelner Stillstand schaltet die Stufe also
-      // noch nicht ab. Eine Zeile, die pauschal „nächster Zug weicht aus" sagt,
-      // liesse den nächsten 45-s-Zug wie einen Fehler der Reparatur aussehen.
-      onToolPhaseStall: () => {
-        if (!plannerLane) return;
-        recordSlowVerdict(plannerLane.provider, plannerLane.model, 'gather_stall');
-        const gesperrt = isModelSlow(plannerLane.provider, plannerLane.model);
+      // Eine Stufe der Werkzeugphase stand oder fiel aus. Umgeschaltet hat die
+      // Leiter selbst; hier wird die Stufe vermerkt, damit der nächste Zug sie
+      // überspringt, statt dieselbe Frist noch einmal abzusitzen. Der Index
+      // zeigt auf die Stufe, die WIRKLICH lief — derselbe Modellname liegt auf
+      // zwei Hosts, und bis 06.11.2026 bekam immer der Primär den Vermerk.
+      onLaneUnhealthy: (laneIndex, grund) => {
+        const stage = toolPhaseLadder[laneIndex];
+        if (!stage) return;
+        recordSlowVerdict(stage.provider, stage.model, `${mode}:${grund}`);
         log.warn(
-          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — ${
-            gesperrt
-              ? 'Lane für 5 min übersprungen'
-              : 'Verdikt vermerkt, erst das zweite schaltet die Lane ab'
-          }`
+          `[Agentic] ${mode === 'split' ? 'planner' : 'unified'} ${stage.provider}/${stage.model} ${
+            grund === 'stall' ? 'lieferte nichts' : `fiel aus (${grund})`
+          } — ${isModelSlow(stage.provider, stage.model) ? 'Lane wird übersprungen' : 'nicht vermerkt'}`
         );
       },
       onSynthFallback: (reason) => {
         // Stillstand und leere Antwort sind Verdikte, die die Messung nicht
         // liefert: es kam nichts, was sich hätte messen lassen. Der
         // Einzeldurchlauf vermerkt beide genauso (streamWithFallback).
+        // Nur im Split: unified meldet seine Stufen über `onLaneUnhealthy`,
+        // mit der Stufe, die stand, statt immer der gewählten.
+        if (mode !== 'split') return;
         recordSlowVerdict(
           synth.provider,
           synth.name,
@@ -1250,7 +1265,7 @@ export async function streamAgenticResponse(
     mode,
     // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
     // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
-    // gerade selbst einen Stillstand vermerkt hat (`onToolPhaseStall`), nennt
+    // gerade selbst einen Stillstand vermerkt hat (`onLaneUnhealthy`), nennt
     // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
     // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
     // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem

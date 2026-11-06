@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import {
   LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_SPEED,
   LOOP_PLANNER_HEALTHY_ALT,
   LOOP_PLANNER_FALLBACK,
   LOOP_PLANNER_UNCONFIGURED,
@@ -44,7 +45,7 @@ vi.mock('../../../services/ai/modelHealth.js', async (importOriginal) => {
   return { ...actual, isModelSlow: (p: string, m: string) => slow.has(`${p}/${m}`) };
 });
 
-const { loopPlannerModelName, getLoopPlannerFallbackModels } = await import('./providers.js');
+const { loopPlannerModelName, getLoopPlannerFallbackStages } = await import('./providers.js');
 
 const markSlow = (stage: { provider: string; model: string }): void => {
   slow.add(`${stage.provider}/${stage.model}`);
@@ -61,13 +62,20 @@ describe('loop planner fallback chain', () => {
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_PRIMARY.model);
   });
 
-  it('weicht auf Cortecs aus, sobald der Primär als zäh vermerkt ist', () => {
+  it('weicht auf :speed aus, sobald :balanced als zäh vermerkt ist (#5399)', () => {
     markSlow(LOOP_PLANNER_PRIMARY);
+    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_SPEED.model);
+  });
+
+  it('nimmt Cortecs, wenn beide Melious-Flavors zäh sind', () => {
+    markSlow(LOOP_PLANNER_PRIMARY);
+    markSlow(LOOP_PLANNER_SPEED);
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_HEALTHY_ALT.model);
   });
 
   it('nimmt Mistral, wenn Melious und Cortecs zäh sind', () => {
     markSlow(LOOP_PLANNER_PRIMARY);
+    markSlow(LOOP_PLANNER_SPEED);
     markSlow(LOOP_PLANNER_HEALTHY_ALT);
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_FALLBACK.model);
   });
@@ -78,7 +86,12 @@ describe('loop planner fallback chain', () => {
   });
 
   it('kein GreenPT als Planer: es ignoriert einen erzwungenen tool_choice (#5113)', () => {
-    for (const s of [LOOP_PLANNER_PRIMARY, LOOP_PLANNER_HEALTHY_ALT, LOOP_PLANNER_FALLBACK]) {
+    for (const s of [
+      LOOP_PLANNER_PRIMARY,
+      LOOP_PLANNER_SPEED,
+      LOOP_PLANNER_HEALTHY_ALT,
+      LOOP_PLANNER_FALLBACK,
+    ]) {
       expect(s.provider).not.toBe('greenpt');
     }
   });
@@ -86,7 +99,12 @@ describe('loop planner fallback chain', () => {
   it('nimmt lieber eine zähe Lane als gar keine', () => {
     // Alle vermerkt: ein zäher Planer ist immer noch ein Planer, und ohne
     // diesen Zweig stünde der agentische Zug ganz ohne Werkzeugphase da.
-    for (const s of [LOOP_PLANNER_PRIMARY, LOOP_PLANNER_HEALTHY_ALT, LOOP_PLANNER_FALLBACK]) {
+    for (const s of [
+      LOOP_PLANNER_PRIMARY,
+      LOOP_PLANNER_SPEED,
+      LOOP_PLANNER_HEALTHY_ALT,
+      LOOP_PLANNER_FALLBACK,
+    ]) {
       markSlow(s);
     }
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_PRIMARY.model);
@@ -101,8 +119,11 @@ describe('loop planner fallback chain', () => {
 });
 
 describe('Ausweich-Lanes innerhalb eines Zuges', () => {
-  const ids = (models: ReturnType<typeof getLoopPlannerFallbackModels>) =>
-    models.map((m) => (typeof m === 'string' ? m : m.modelId));
+  const ids = (stages: ReturnType<typeof getLoopPlannerFallbackStages>) =>
+    stages.map((s) => `${s.provider}/${s.model}`);
+  const id = (s: { provider: string; model: string }) => `${s.provider}/${s.model}`;
+  const behind = (s: { provider: string; model: string }, wire: string | null = null) =>
+    ids(getLoopPlannerFallbackStages(s.provider as 'melious', s.model, wire));
 
   beforeEach(() => {
     configured.clear();
@@ -110,34 +131,36 @@ describe('Ausweich-Lanes innerhalb eines Zuges', () => {
     for (const p of ['melious', 'cortecs', 'greenpt', 'mistral']) configured.add(p);
   });
 
-  it('hinter dem Primär: erst Cortecs, dann Mistral', () => {
-    expect(
-      ids(getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model))
-    ).toEqual([LOOP_PLANNER_HEALTHY_ALT.model, LOOP_PLANNER_FALLBACK.model]);
+  it('hinter :balanced: :speed, dann Cortecs, dann Mistral', () => {
+    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([
+      id(LOOP_PLANNER_SPEED),
+      id(LOOP_PLANNER_HEALTHY_ALT),
+      id(LOOP_PLANNER_FALLBACK),
+    ]);
+  });
+
+  it('ging der Primär auf dem Draht schon an :speed, fällt die :speed-Stufe weg', () => {
+    // Die Falle aus #5399: `meliousWireModel` macht einen grossen
+    // `:balanced`-Body zu `:speed` — die Stufe wiederholte dieselbe Anfrage.
+    expect(behind(LOOP_PLANNER_PRIMARY, LOOP_PLANNER_SPEED.model)).toEqual([
+      id(LOOP_PLANNER_HEALTHY_ALT),
+      id(LOOP_PLANNER_FALLBACK),
+    ]);
   });
 
   it('hinter Cortecs nur noch Mistral, hinter der letzten Stufe nichts', () => {
-    expect(
-      ids(
-        getLoopPlannerFallbackModels(
-          LOOP_PLANNER_HEALTHY_ALT.provider,
-          LOOP_PLANNER_HEALTHY_ALT.model
-        )
-      )
-    ).toEqual([LOOP_PLANNER_FALLBACK.model]);
-    expect(
-      getLoopPlannerFallbackModels(LOOP_PLANNER_FALLBACK.provider, LOOP_PLANNER_FALLBACK.model)
-    ).toEqual([]);
+    expect(behind(LOOP_PLANNER_HEALTHY_ALT)).toEqual([id(LOOP_PLANNER_FALLBACK)]);
+    expect(behind(LOOP_PLANNER_FALLBACK)).toEqual([]);
   });
 
   it('lässt zähe und unkonfigurierte Stufen aus', () => {
     markSlow(LOOP_PLANNER_HEALTHY_ALT);
-    expect(
-      ids(getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model))
-    ).toEqual([LOOP_PLANNER_FALLBACK.model]);
+    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([
+      id(LOOP_PLANNER_SPEED),
+      id(LOOP_PLANNER_FALLBACK),
+    ]);
+    markSlow(LOOP_PLANNER_SPEED);
     configured.delete('mistral');
-    expect(
-      getLoopPlannerFallbackModels(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model)
-    ).toEqual([]);
+    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([]);
   });
 });

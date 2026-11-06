@@ -237,6 +237,26 @@ export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
   laneId: 'gemma-melious',
 };
 
+/**
+ * Dieselben Gewichte über Melious' `:speed`-Variante (infercom, DE). Gemessen am
+ * 06.11.2026 mit einem echten Loop-Request (~10k Tokens): ~290 Tok/s statt ~37,
+ * erstes Token 1,5–2 s ohne Prompt-Cache — und während einer Störung von
+ * `:balanced` (erstes Token 34–88 s) unverändert schnell. Deshalb der erste
+ * Ausweich für `:balanced`: in den Loop-Ketten (`autoPolicy.ts`) und als
+ * Geschwister in `modelSiblings.ts`, über das jeder Einzel-Ziel-Aufrufer einen
+ * zäh vermerkten `:balanced` überspringt.
+ *
+ * Preis UNGEPRÜFT: der Kommentar vom 06.11.2026 nannte 0,20/0,35 € gegen
+ * 0,10/0,30 € für `:balanced`, die Tabelle bei GEMMA_31B_ON_CORTECS (21.10.)
+ * führt `:balanced` mit 0,20/0,35 und `:price` mit 0,10/0,30; die Preisseite
+ * nennt am 06.11.2026 nur einen Preis für das Modell (0,10/0,30), keinen je
+ * Flavor. Kein `GemmaHost`: Fenster und Lane gehören dem Melious-Host oben.
+ */
+export const GEMMA_31B_ON_MELIOUS_SPEED = {
+  provider: 'melious' as const,
+  model: 'gemma-4-31b:speed',
+};
+
 /** Dieselben Gewichte über Cortecs, ohne Vorgabe an infercom vermittelt
  *  (Luxemburg, Verarbeitung Deutschland); `berget` steht daneben, siehe die
  *  Messung im Kopf dieser Datei.

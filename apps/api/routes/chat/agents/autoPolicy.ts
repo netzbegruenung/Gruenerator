@@ -39,6 +39,7 @@ import {
   GEMMA_31B_PRIMARY,
   GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_MELIOUS_SPEED,
 } from '../../../services/ai/gemmaHosts.js';
 
 import { getPipelineAgent } from './pipelines/index.js';
@@ -533,9 +534,26 @@ export const LOOP_PLANNER_PRIMARY = {
   contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
- * Erste Ausweichstufe: dieselben Gewichte über ein anderes Gateway (Cortecs,
+ * Erste Ausweichstufe: dieselben Gewichte über Melious' `:speed` (infercom/DE,
+ * siehe GEMMA_31B_ON_MELIOUS_SPEED). Fängt die Störung des FI-Knotens ab, an
+ * der `:balanced` am 06.11.2026 15 s schwieg (#5399), während `:speed` in
+ * 1,5–2 s antwortete. Fenster wie der Melious-Host (beide auf 123k gemessen,
+ * Nachmessung 21.10.2026 in gemmaHosts.ts).
+ *
+ * Schickt `meliousWireModel` einen grossen `:balanced`-Body schon auf dem Draht
+ * an `:speed`, lässt `getLoopPlannerFallbackModels` diese Stufe aus — sonst
+ * wiederholte sie dieselbe Anfrage am selben Upstream.
+ */
+export const LOOP_PLANNER_SPEED = {
+  provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+  model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
+};
+/**
+ * Zweite Ausweichstufe: dieselben Gewichte über ein anderes Gateway (Cortecs,
  * Verarbeitung DE). Fängt den Gateway-Ausfall ab, an dem Melious im Oktober
- * 2026 mehrfach hing (#4480), nicht ein Problem des Modells.
+ * 2026 mehrfach hing (#4480) — dann hilft auch `:speed` nicht, das über
+ * dasselbe Gateway läuft —, nicht ein Problem des Modells.
  */
 export const LOOP_PLANNER_HEALTHY_ALT = {
   provider: GEMMA_31B_ON_CORTECS.provider,
@@ -567,6 +585,7 @@ export const LOOP_PLANNER_FALLBACK = {
 /** Die Ausweichkette in Reihenfolge — ein Zug versucht sie in dieser Folge. */
 export const LOOP_PLANNER_CHAIN = [
   LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_SPEED,
   LOOP_PLANNER_HEALTHY_ALT,
   LOOP_PLANNER_FALLBACK,
 ] as const;
@@ -604,17 +623,9 @@ export const LOOP_SYNTH_PRIMARY = {
 };
 export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-large-4' };
 
-/**
- * Dieselben Gewichte über Melious' `:speed`-Variante (infercom, DE). Gemessen am
- * 06.11.2026 mit einem echten Loop-Request (~10k Tokens): ~290 Tok/s statt ~37,
- * erstes Token 1,5–2 s ohne Prompt-Cache — und während einer Störung von
- * `:balanced` (erstes Token 34–88 s) unverändert schnell. Preis 0,20/0,35 € je
- * Mio. Tokens gegen 0,10/0,30 € für `:balanced`, deshalb nur als Rückfall.
- */
-export const GEMMA_31B_ON_MELIOUS_SPEED = {
-  provider: 'melious' as const,
-  model: 'gemma-4-31b:speed',
-};
+/** Wohnt in `gemmaHosts.ts` neben den anderen Gemma-Hosts — von dort zieht
+ *  auch `modelSiblings.ts` ihn. Hier re-exportiert für die Ketten unten. */
+export { GEMMA_31B_ON_MELIOUS_SPEED };
 
 /**
  * Lane ladder for a unified Gemma turn: Gemma 4 31B on Melious, then the same
