@@ -706,6 +706,22 @@ describe('findSourceEchoCut', () => {
     expect(text.slice(0, findSourceEchoCut(text) ?? -1)).toBe(ANSWER);
   });
 
+  // Review #5415: an answer that OPENS with a marker is no legend.
+  it('keeps an answer that opens with a citation marker', () => {
+    const answer = '[1] Laut der Vereinbarung sind 666 Stellplätze vorgesehen.';
+    const text = `${answer} [2] (frühere Recherche) Heizungsgesetz <https://example.org> — Text`;
+    expect(text.slice(0, findSourceEchoCut(text) ?? -1)).toBe(answer);
+    const multi = `[1] Erster Satz.\n[1] Zweiter Satz mit Beleg.\n[2] (frühere Recherche) Titel`;
+    expect(multi.slice(0, findSourceEchoCut(multi) ?? -1)).toBe(
+      '[1] Erster Satz.\n[1] Zweiter Satz mit Beleg.'
+    );
+  });
+
+  it('never cuts to nothing', () => {
+    const text = '[1] bezieht sich auf das PDF. [2] (frühere Recherche) Titel';
+    expect(findSourceEchoCut(text)).toBeGreaterThan(0);
+  });
+
   it('keeps a citation marker inside the answer', () => {
     expect(findSourceEchoCut(ANSWER)).toBeNull();
     expect(findSourceEchoCut('Laut der früheren Recherche [2] gilt das GModG.')).toBeNull();
