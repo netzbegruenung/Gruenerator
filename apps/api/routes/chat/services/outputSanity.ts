@@ -729,6 +729,67 @@ export function stripPhantomArtifactCreation(
   return { text: out.length > 0 ? out : PHANTOM_CREATION_FALLBACK, removed };
 }
 
+/**
+ * „Der Aufruf zur Bilderstellung ist gerade fehlgeschlagen" in einem Turn ohne
+ * einen einzigen Werkzeugschritt. Live 06.11.2026 (steps=0):
+ *
+ *   [Agentic] model=gemma-4-31b:balanced mode=unified intent=search steps=0 sources=1 chars=212 scope=enforce deferred=14
+ *   Es tut mir leid, der Aufruf zur Bilderstellung ist gerade fehlgeschlagen. Ich kann dir aber anbieten, …
+ *
+ * und in einem Geschwister-Thread: „Es tut mir leid, der Aufruf zur Erstellung
+ * des Sharepics ist fehlgeschlagen, da das entsprechende Werkzeug in diesem
+ * Moment nicht zur Verfügung stand." Nichts wurde aufgerufen, also schlug nichts
+ * fehl. Eng gehalten: ein Satz muss einen Aufruf/ein Werkzeug nennen UND dessen
+ * Scheitern oder Fehlen behaupten. „Funktion" allein zählt nicht („Die
+ * Sprachfunktion ist nicht verfügbar" kann eine ehrliche Produktauskunft sein).
+ * Fragen, bedingte Sätze („falls der Aufruf fehlschlägt …"), Zitate und
+ * Verneinungen bleiben. Ein echter Fehlschlag hat einen Schritt (stepCount > 0).
+ */
+const TOOL_CALL_NOUN_RE = /(?<!\p{L})(?:aufruf\p{L}*|werkzeug\p{L}*|tool\p{L}*)|aufruf|werkzeug/iu;
+// Nur ein gescheiterter AUFRUF ist ohne Aufruf beweisbar falsch. „Das Werkzeug ist
+// hier nicht verfügbar" kann stimmen (nicht montiert) und bleibt stehen (Review #5391).
+const TOOL_FAILURE_RE =
+  /(?<!nicht\s)(?:fehlgeschlagen|gescheitert|schiefgegangen)|(?:nicht|kein\p{L}*)\s+(?:\w+\s+)?(?:geklappt|funktioniert)/iu;
+const TOOL_FAILURE_EXEMPT_RE =
+  /(?<!\p{L})(?:falls|wenn|sofern|sollte|sollten|ob)(?!\p{L})|["„“”»«‚‘']|nicht\s+fehlgeschlagen/iu;
+
+export const PHANTOM_TOOL_FAILURE_FALLBACK =
+  'In diesem Schritt wurde kein Werkzeug aufgerufen, also ist auch keins fehlgeschlagen. Sag mir noch einmal, was ich tun soll.';
+
+export function stripPhantomToolFailure(
+  text: string,
+  turn: { stepCount: number }
+): { text: string; removed: string[] } {
+  if (typeof text !== 'string' || text.length === 0) {
+    return { text: typeof text === 'string' ? text : '', removed: [] };
+  }
+  if (turn.stepCount > 0 || text.includes('```')) return { text, removed: [] };
+  const removed: string[] = [];
+  const parts = text.split(/((?<=[.!?)])[ \t]+|\s*\n\s*)/);
+  let out = '';
+  let pendingSep = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = parts[i] ?? '';
+    const sep = parts[i + 1] ?? '';
+    const trimmed = sentence.trim();
+    const hit =
+      !trimmed.endsWith('?') &&
+      !TOOL_FAILURE_EXEMPT_RE.test(trimmed) &&
+      TOOL_CALL_NOUN_RE.test(trimmed) &&
+      TOOL_FAILURE_RE.test(trimmed);
+    if (hit) {
+      removed.push(trimmed);
+      pendingSep = strongerSeparator(pendingSep, sep);
+      continue;
+    }
+    out += pendingSep + sentence;
+    pendingSep = sep;
+  }
+  if (removed.length === 0) return { text, removed };
+  out = out.trim();
+  return { text: out.length > 0 ? out : PHANTOM_TOOL_FAILURE_FALLBACK, removed };
+}
+
 export function stripPhantomSharepicEdit(
   text: string,
   turn: { sharepicToolRan: boolean }

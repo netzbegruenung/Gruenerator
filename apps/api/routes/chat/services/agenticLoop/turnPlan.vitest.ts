@@ -736,6 +736,23 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.runAgentic).toBe(true);
   });
 
+  // Live 06.11.2026: der Thread arbeitete an einem Sharepic, „denk dir daten
+  // dafür aus" trug aber kein Sharepic-Wort — ohne Werkzeug konnte der Planer
+  // nur nachfragen.
+  it.each(['denk dir daten dafür aus', 'ja'])(
+    'ein Thread, der an einem Sharepic arbeitet, montiert es auch für „%s"',
+    (lastUserText) => {
+      const p = plan({ intent: 'agentic', lastUserText, threadWorksOnSharepic: true });
+      expect(p.compoundGenerationKind).toBe('sharepic');
+      expect(p.compoundGenerationOrdered).toBe(false);
+    }
+  );
+
+  it('ohne Sharepic im Thread-Verlauf montiert „denk dir daten dafür aus" nichts', () => {
+    const p = plan({ intent: 'agentic', lastUserText: 'denk dir daten dafür aus' });
+    expect(p.compoundGenerationKind).toBeNull();
+  });
+
   it('ein bestelltes Sharepic bleibt bestellt', () => {
     const p = plan({
       intent: 'agentic',

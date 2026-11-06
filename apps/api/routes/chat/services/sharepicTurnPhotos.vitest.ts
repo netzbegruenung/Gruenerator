@@ -265,6 +265,17 @@ describe('photosForTurn', () => {
     expect(mocks.download).not.toHaveBeenCalled();
   });
 
+  // Live 06.11.2026: „nimm das bild im anhang für das sharepic", gebaut zwei Turns
+  // später — da war das Foto nur noch mitgeführt und fehlte.
+  it('takes carried Wolke photos while the thread still works on the sharepic', async () => {
+    const agentConfig = { userId: 'u-t' } as never;
+    const r = await photosForTurn(
+      { agentConfig, wolkeFiles: WOLKE, cloudFilesCarriedOnly: true, sharepicInProgress: true },
+      null
+    );
+    expect(r.photos).toHaveLength(1);
+  });
+
   it('keeps the revised variant’s photos and numbers new ones after them', async () => {
     const url = `/api/share/${TOKEN}/download`;
     mocks.loadOwn.mockResolvedValue(Buffer.from('old'));

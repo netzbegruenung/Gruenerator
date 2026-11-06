@@ -1257,6 +1257,9 @@ export interface ChatGraphState {
   // Die Art wurde bestellt, nicht nur genannt. `false` heisst: Werkzeug montiert,
   // aber `forceCompoundGeneration` holt es nicht nach — der Planer entscheidet.
   compoundGenerationOrdered?: boolean;
+  // Der Thread arbeitet noch an einem Sharepic (`threadWorksOnSharepic`): die
+  // dafür gewählten, inzwischen mitgeführten Wolke-Fotos gehören zum Auftrag.
+  sharepicInProgress?: boolean;
   // Picked material with text (not only photos) went to the loop as material
   // (`classifyPickedMaterial`): an empty up-front seed forces the first planner
   // step onto its readers, as the forced search used to guarantee.
