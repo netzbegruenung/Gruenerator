@@ -790,13 +790,20 @@ export function compoundGenerationKind(
  * das Verb die Bedingung fürs Montieren. Verneinung, Zitat und Meta-Frage fängt
  * `hasExplicitSharepicWord` ab, die Post-Vorfahrt gilt wie bei der Bestellung.
  */
+/** Die Intents ohne eigenen Dispatcher, auf denen ein genanntes Sharepic sein Werkzeug montiert. */
+export const SHAREPIC_NAMING_INTENTS: ReadonlySet<string> = new Set([
+  'agentic',
+  'produktion',
+  'direct',
+]);
+
 export function namesSharepicWithoutOrder(
   intent: string,
   raw: string,
   /** The thread holds a sharepic. Without one, „das Sharepic" cannot mean an existing one. */
   threadHasSharepic = true
 ): boolean {
-  if (intent !== 'agentic' && intent !== 'produktion' && intent !== 'direct') return false;
+  if (!SHAREPIC_NAMING_INTENTS.has(intent)) return false;
   const t = stripQuotedSpans(orderText(raw ?? ''));
   if (!hasExplicitSharepicWord(t) || asksForSharepic(t) || POST_NOUN_PATTERN.test(t)) return false;
   // „Danke, das Sharepic sieht super aus", „der Slider hakt": ein vorhandenes,
@@ -807,6 +814,25 @@ export function namesSharepicWithoutOrder(
   // „Slider" allein ist auch ein Bedienelement („einen Slider auf der Website").
   // Ohne ein zweites Sharepic-Wort reicht es nur für eine Bestellung.
   return hasExplicitSharepicWord(t.replace(/(?<!\p{L})slider[ns]?(?!\p{L})/giu, ' '));
+}
+
+/**
+ * Ein früherer Turn dieses Threads hat ein Sharepic genannt oder bestellt, und
+ * es gibt noch keins: der Thread arbeitet daran. „denk dir daten dafür aus" oder
+ * „ja" nach einer Rückfrage tragen kein Sharepic-Wort, meinen aber genau dieses
+ * (live 06.11.2026: kein Werkzeug, der Planer konnte nur nachfragen). Gelesen
+ * werden die letzten {@link EARLIER_SHAREPIC_TURNS} Nachrichten der Person vor
+ * dieser. Montiert wird nur, nicht erzwungen — der Planer entscheidet.
+ */
+export const EARLIER_SHAREPIC_TURNS = 3;
+export function threadWorksOnSharepic(
+  earlierUserTexts: readonly string[],
+  threadHasSharepic: boolean
+): boolean {
+  if (threadHasSharepic) return false;
+  return earlierUserTexts
+    .slice(-EARLIER_SHAREPIC_TURNS)
+    .some((text) => hasExplicitSharepicWord(stripQuotedSpans(orderText(text))));
 }
 
 /**
