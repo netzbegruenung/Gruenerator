@@ -31,6 +31,15 @@ function devBypassUserId(headers: Headers): string | null {
   return headers.get('x-dev-auth-bypass') === expected ? DEV_BYPASS_USER_ID : null;
 }
 
+/**
+ * Inline copy of `classifyRoom` in `packages/collab/src/lib/roomTypes.ts`
+ * (hocuspocus has no cross-package deps): `chat-*` and `group-presence-*`
+ * rooms are not `collaborative_documents` ids.
+ */
+function isDocumentRoom(documentName: string): boolean {
+  return !documentName.startsWith('chat-') && !documentName.startsWith('group-presence-');
+}
+
 export class AuthService {
   private readonly db: DbQueryFn;
   private readonly redis: RedisLike;
@@ -76,6 +85,12 @@ export class AuthService {
     documentName: string,
     requestParameters: URLSearchParams
   ): Promise<AuthenticationResult> {
+    // Guest access exists only for shared documents. Chat and presence rooms
+    // would otherwise send their room name into a uuid comparison (#5395).
+    if (!isDocumentRoom(documentName)) {
+      return { authenticated: false, reason: 'Guest access is limited to documents' };
+    }
+
     try {
       const result = await this.db(
         `SELECT id, is_public, share_mode, share_permission, is_deleted
