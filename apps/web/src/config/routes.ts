@@ -13,6 +13,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
+import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkeletons';
 import { isDesktopApp } from '../utils/platform';
 import { startTabLink } from '../utils/startpage';
 
@@ -433,7 +434,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
-  { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
+  {
+    path: '/wissen',
+    component: WissenPage,
+    layoutMode: 'sidebarOnly',
+    fallback: createElement(WissenDashboardSkeleton),
+  },
   // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag mit
   // optionalem Tab-Segment, damit der Wechsel nichts neu mountet und trotzdem
   // in der History steht. sidebarOnly hält die Leiste an ihrem Platz.
