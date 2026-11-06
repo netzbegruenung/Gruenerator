@@ -483,6 +483,20 @@ export interface ExamplesToolResult {
 }
 
 /**
+ * Ein Turn, der das GANZE Material braucht (eine Zusammenfassung). Entschieden
+ * in `routes/chat/services/wholeDocument.ts`, dort steht auch, warum.
+ */
+export interface WholeDocumentTurn {
+  /** `turn`: die Anhänge dieses Turns. `thread`: die früheren des Gesprächs. */
+  origin: 'turn' | 'thread';
+  docs: Array<{ name: string; text: string; documentId: string | null }>;
+  chars: number;
+  budgetChars: number;
+  /** Passt der Volltext ins Budget? Dann steht er im Prompt, sonst Map-Reduce. */
+  fits: boolean;
+}
+
+/**
  * Persisted thread attachment with summary for context in subsequent messages.
  */
 export interface ThreadAttachment {
@@ -830,6 +844,8 @@ export interface ChatGraphState {
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
+  /** Set by `enrichContext` when the turn needs whole documents — see `WholeDocumentTurn`. */
+  wholeDocument?: WholeDocumentTurn | null | undefined;
   hasTabularAttachment: boolean;
   /** See the input-side field: the tool-catalog gate for `cloud_files`. */
   cloudConnectionCount: number;

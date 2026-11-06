@@ -595,6 +595,7 @@ export async function streamAgenticResponse(
     });
     // Rides on the state to the `done` event (persistStage), like usedRecipes.
     finalState.loopMode = mode;
+    log.info(`[Agentic] loop mode: ${mode} (${resolvedMode.reason})`);
     if (materialHeavy) {
       log.info(
         `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`
@@ -697,7 +698,11 @@ export async function streamAgenticResponse(
     // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
     // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
     // laufen können.
-    const hasAttachedDocuments = material.qdrantDocs.length > 0;
+    // Passt das Material eines Ganzdokument-Turns, steht es ganz im Prompt und
+    // der Schreiber fasst selbst zusammen — kein erzwungenes `summarize`
+    // (Map-Reduce über Qdrant-Chunks, live 06.11.2026 41 s und verworfen).
+    const hasAttachedDocuments =
+      material.qdrantDocs.length > 0 && finalState.wholeDocument?.fits !== true;
     const summaryAsk = isSummaryAsk(lastUserText);
 
     // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine

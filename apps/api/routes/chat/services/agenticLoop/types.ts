@@ -264,6 +264,10 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // mit mehreren unbekannten Drucksachen ab, während er im Hintergrund weiterzahlte.
   // `bundestag` plant (ein Modellaufruf), prüft Deskriptoren und fragt DIP über
   // einen einzigen, getakteten Client — unter Last mehr als 20 s.
+  // Map-Reduce über ein Dokument, das nicht ganz in den Prompt passt: mehrere
+  // Modellaufrufe nacheinander. Live 06.11.2026 41 s für 30 Seiten — nach 20 s
+  // verworfen, die Antwort war die Leerfloskel.
+  summarize: 90_000,
   parlament_lesen: 80_000,
   bundestag: 40_000,
   bundestag_reden: 40_000,
