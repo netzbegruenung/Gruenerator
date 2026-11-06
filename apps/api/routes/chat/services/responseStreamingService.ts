@@ -14,6 +14,7 @@ import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
+import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   isReasoningStreamModel,
   streamWithReasoning,
@@ -1309,13 +1310,26 @@ export async function streamForResolution(params: {
   // that stream thinking by default (verdigado-pro/-think, Cortecs/Melious Gemma)
   // that is the ONLY way to actually stop them from thinking, and it is what
   // makes `direct` a real speed path.
-  if (thinking && isReasoningStreamModel(resolution.provider, resolution.modelName)) {
+  //
+  // Der Denk-Pfad ist ein rohes `fetch` und geht an `getModel` vorbei — also
+  // auch an dessen Zäh-Weiche. Bis 06.11.2026 ging ein Denk-Zug deshalb an ein
+  // als zäh vermerktes Paar und verliess es erst nach der First-Token-Frist
+  // (#5413). Hier dieselbe Frage wie in `getModel`, mit demselben Veto wie die
+  // Antwort-Lane (`mayWriteAnswer`, siehe `resolveModel`). Denkt das
+  // Ausweichziel nicht über den Roh-Pfad (z. B. Mistral), fährt der Zug unten
+  // über die SDK — deren Instanz hat `getModel` beim Auflösen schon getauscht.
+  const healthy = thinking
+    ? pickHealthyTarget(resolution.provider, resolution.modelName, mayWriteAnswer)
+    : null;
+  const thinkProvider = healthy?.provider ?? resolution.provider;
+  const thinkModel = healthy?.model ?? resolution.modelName;
+  if (thinking && isReasoningStreamModel(thinkProvider, thinkModel)) {
     // The reasoning path is a raw fetch (openAiReasoningStream), not the AI
     // SDK — it bypasses the global telemetry registration, so it stays
     // uninstrumented for now.
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
-      provider: resolution.provider,
-      modelName: resolution.modelName,
+      provider: thinkProvider,
+      modelName: thinkModel,
       messages,
       ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
       temperature,

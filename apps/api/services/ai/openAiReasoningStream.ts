@@ -118,8 +118,16 @@ const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
  *
  * DeepSeek v4.1 Flash (Lane „Panda") folgt demselben Hebel, gemessen
  * 01.10.2026: `high` streamt `reasoning_content`, `none` denkt gar nicht.
+ *
+ * `:speed` (dieselben Gewichte über infercom/DE, Ausweich für einen zähen
+ * `:balanced`) folgt demselben Hebel, gemessen 06.11.2026 mit Zwei-Satz-Frage:
+ * `high` 500 Reasoning-Tokens und `reasoning_content` im Strom, `none` 0.
  */
-const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced', 'deepseek-v4.1-flash']);
+const MELIOUS_REASONING_MODELS = new Set([
+  'gemma-4-31b:balanced',
+  'gemma-4-31b:speed',
+  'deepseek-v4.1-flash',
+]);
 
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
