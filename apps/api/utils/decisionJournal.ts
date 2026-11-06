@@ -124,6 +124,7 @@ export const DECISION_POINTS = {
       'tier3.8_existing_artifact_edit',
       // Auftrag nennt ein vorhandenes Loop-Artefakt, ohne Neues zu bestellen.
       'tier2.97_existing_artifact_order',
+      'tier2.98_single_image_order',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

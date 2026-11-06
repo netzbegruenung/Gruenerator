@@ -450,6 +450,7 @@ export function forcedFirstStepTools(input: {
         'read_explainable',
         'edit_document_text',
         'read_document',
+        'edit_image',
       ];
       break;
     case 'named_intent':

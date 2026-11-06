@@ -404,6 +404,10 @@ const SLIDE_ORDER_VERB =
 const NEW_ARTIFACT_ASK =
   /(?<!\p{L})(?:erstell|generier|neue[nsrm]?(?!\p{L})|weitere[nsrm]?(?!\p{L})|(?:noch|bau\w*|mach\w*)\s+(?:mir\s+)?(?:noch\s+)?eine?[nrms]?(?!\p{L}))/iu;
 
+/** Ein Änderungsverb an einem Bild, das `hasImageEditVerb` nicht kennt („passe … an"). */
+const IMAGE_ADJUST_VERB =
+  /(?<!\p{L})(?:pass\w*[^.?!]{0,60}?\ban|anpass\w*|überarbeit\w*|änder\w*|korrigier\w*)(?!\p{L})/iu;
+
 /** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
 const FULL_REWRITE_ASK =
   /(?<!\p{L})(?:komplett|vollständig|ganz|grundlegend)\s+(?:neu|um|überarbeit)|neu\s+(?:schreiben|schreib|formulier|fassen|aufsetzen)|schreib\w*\s+(?:es|das|ihn|sie|den|die)\b[^.?!]{0,40}\bneu(?!\p{L})|von\s+grund\s+auf/iu;
@@ -2142,6 +2146,35 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: null,
         detectedFilters: null,
         reasoning: `Auftrag an die vorhandene ${namedKind} → Loop mit ihren Werkzeugen`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // ── TIER 2.98: Auftrag an das EINE Bild des Threads ──
+    // „passe die grafik noch einmal an": „anpassen" steht in keiner Bild-Vokabel,
+    // der Turn fiel als Prosa in den Loop, und der Planer fragte per ask_human
+    // zurück (Eval ul-image-nochmal, 3/3) — obwohl der Adressat eindeutig war.
+    // Bei genau einem Bild nennt der Auftrag das Nomen, und der Loop bekommt
+    // `edit_image` als Zwang. Mehrere Bilder bleiben Sache der Rückfrage.
+    if (
+      !hasImageAttachments &&
+      state.threadArtifacts?.filter((a) => a.kind === 'image').length === 1 &&
+      ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(userContent))) &&
+      IMAGE_ADJUST_VERB.test(userContent) &&
+      !/\?\s*$/.test(userContent) &&
+      !NEW_ARTIFACT_ASK.test(userContent) &&
+      !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
+    ) {
+      recordDecision('classifier.tier', 'tier2.98_single_image_order');
+      return {
+        intent: 'agentic',
+        artifactEditOrder: true,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Auftrag an das einzige Bild des Threads → Loop mit edit_image',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

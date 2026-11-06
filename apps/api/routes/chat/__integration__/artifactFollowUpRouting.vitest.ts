@@ -461,6 +461,28 @@ describe('ohne Artefakt im Gespräch', () => {
   });
 });
 
+describe('genau ein Bild im Thread', () => {
+  // Live-Eval ul-image-nochmal: „passe die grafik noch einmal an" fragte per
+  // ask_human zurück, obwohl das Bild eindeutig war. Wie bei Tabelle & Co. gibt
+  // der Auftrag an das Artefakt den ersten Schritt vor.
+  it('zwingt den ersten Schritt auf edit_image', async () => {
+    const threadId = await artifactThread('image', true);
+    loopScript.script({ text: 'Antwort.' }, { text: 'Antwort.' });
+    await runTurn(app.baseUrl, {
+      threadId,
+      messages: [
+        userTurn(KINDS.image.created, 'm1'),
+        { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'Hier ist es.' }] },
+        userTurn('passe die grafik noch einmal an', 'm2'),
+      ],
+    });
+    const call = loopScript.calls[0];
+    expect(call?.toolNames).toContain('edit_image');
+    expect(call?.toolChoice).toBe('required');
+    expect(call?.firstStepActiveTools).toContain('edit_image');
+  });
+});
+
 describe('edit_image im Loop', () => {
   it('ändert das Bild und lässt die Behauptung stehen', async () => {
     const threadId = await artifactThread('image', true);
