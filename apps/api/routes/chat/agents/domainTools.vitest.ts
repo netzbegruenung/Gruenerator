@@ -14,6 +14,7 @@ import {
   makeImageTool,
   makeParlamentLesenTool,
   makeSummaryTool,
+  threadImageNotTaken,
 } from './domainTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -1951,5 +1952,16 @@ describe('artifact briefs carry the conversation', () => {
 
     const brief = (runBoardGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
     expect(brief).toContain('Cooling Zones');
+  });
+});
+
+// Claude-Review #5398: PDF und Explainable brauchten denselben Satz wie das Dokument.
+describe('threadImageNotTaken', () => {
+  it('names where the meant thread image is missing, and is silent otherwise', () => {
+    const meant = { takesThreadImage: true } as ChatGraphState;
+    expect(threadImageNotTaken(meant, 'im PDF')).toContain(
+      'Das Bild aus dem Gespräch ist NICHT im PDF'
+    );
+    expect(threadImageNotTaken({} as ChatGraphState, 'im PDF')).toBe('');
   });
 });
