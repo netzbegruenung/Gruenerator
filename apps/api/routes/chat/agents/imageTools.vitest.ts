@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
+import { turnImagesOf } from '../services/turnImages.js';
+
 import { makeBildAnsehenTool } from './imageTools.js';
 
 import { type VisionAnalysisResult } from '../../../services/vision/VisionService.js';
@@ -9,10 +11,11 @@ import { type VisionAnalysisResult } from '../../../services/vision/VisionServic
 type Exec = (input: unknown, options: unknown) => Promise<Record<string, unknown>>;
 const execOf = (t: unknown) => (t as { execute: Exec }).execute;
 
-const images = [
+const attachments = [
   { name: 'beleg.jpg', type: 'image/jpeg', data: 'QUJD' },
   { name: 'plakat.png', type: 'image/png', data: 'REVG' },
 ];
+const images = turnImagesOf({ imageAttachments: attachments, wolkeFiles: [] });
 
 const noText = { hasText: false, textType: 'none', confidence: 0, briefDescription: '' } as const;
 
@@ -86,5 +89,84 @@ describe('bild_ansehen', () => {
     const out = await execute({ bild: 3, frage: 'x' }, {});
     expect(out.error).toContain('kein Bild 3');
     expect(analyzeWithOcr).not.toHaveBeenCalled();
+  });
+});
+
+describe('bild_ansehen mit Wolke-Foto', () => {
+  const wolke = [{ shareLinkId: 's1', path: '/Fotos/IMG_2601.jpg', name: 'IMG_2601.jpg' }];
+  const ok = {
+    description: 'Eine Frau am Strand.',
+    textDetection: noText,
+    extractedText: null,
+  } as VisionAnalysisResult;
+
+  it('lädt das Foto beim ersten Gebrauch und fragt Vision danach', async () => {
+    const download = vi.fn(async () => ({
+      ok: true as const,
+      buffer: Buffer.from('ABC'),
+      mimeType: 'image/jpeg',
+      size: 3,
+    }));
+    const analyzeWithOcr = vi.fn(async () => ok);
+    const sourceRegistry = createSourceRegistry();
+    const turn = turnImagesOf(
+      { imageAttachments: [], wolkeFiles: wolke, agentConfig: { userId: 'u1' } },
+      download
+    );
+    const execute = execOf(
+      makeBildAnsehenTool({ images: turn, sourceRegistry, vision: { analyzeWithOcr } })
+    );
+    expect(download).not.toHaveBeenCalled();
+    const out = await execute({ bild: 1, frage: 'Wer ist zu sehen?' }, {});
+    await execute({ bild: 1, frage: 'Und der Hintergrund?' }, {});
+    expect(analyzeWithOcr).toHaveBeenCalledWith('data:image/jpeg;base64,QUJD', 'Wer ist zu sehen?');
+    expect(out.sources).toContain('Bild 1: IMG_2601.jpg');
+    expect(download).toHaveBeenCalledTimes(1);
+  });
+
+  it('meldet einen fehlgeschlagenen Download ehrlich, ohne zu werfen', async () => {
+    const download = vi.fn(async () => ({ ok: false as const, message: 'Freigabe fehlt' }));
+    const analyzeWithOcr = vi.fn();
+    const turn = turnImagesOf(
+      { imageAttachments: [], wolkeFiles: wolke, agentConfig: { userId: 'u1' } },
+      download
+    );
+    const execute = execOf(
+      makeBildAnsehenTool({
+        images: turn,
+        sourceRegistry: createSourceRegistry(),
+        vision: { analyzeWithOcr },
+      })
+    );
+    const out = await execute({ bild: 1, frage: 'x' }, {});
+    expect(out.error).toContain('IMG_2601.jpg');
+    expect(out.error).toContain('Freigabe fehlt');
+    expect(analyzeWithOcr).not.toHaveBeenCalled();
+  });
+
+  it('weist ein zu großes Foto ab', async () => {
+    const download = vi.fn(async () => ({
+      ok: true as const,
+      buffer: Buffer.from('A'),
+      mimeType: null,
+      size: 26 * 1024 * 1024,
+    }));
+    const [entry] = turnImagesOf(
+      { imageAttachments: [], wolkeFiles: wolke, agentConfig: { userId: 'u1' } },
+      download
+    );
+    expect(await entry!.load()).toMatchObject({ ok: false });
+  });
+
+  it('nummeriert Anhänge vor Wolke-Fotos und ignoriert Nicht-Fotos', () => {
+    const turn = turnImagesOf(
+      {
+        imageAttachments: attachments.slice(0, 1),
+        wolkeFiles: [...wolke, { shareLinkId: 's1', path: '/x.pdf', name: 'x.pdf' }],
+        agentConfig: { userId: 'u1' },
+      },
+      vi.fn()
+    );
+    expect(turn.map((t) => t.name)).toEqual(['beleg.jpg', 'IMG_2601.jpg']);
   });
 });

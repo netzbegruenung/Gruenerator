@@ -403,13 +403,17 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // ein Land zu nennen; 45 ist Schwedens Wert (Ember 2024) und damit die
   // günstigste Lesart einer unbestimmten Angabe. Erring high wäre die
   // vorsichtigere Wahl — die Zahl steht unter Vorbehalt, bis das Land benannt
-  // ist, nicht mehr bis der Header sie nennt.
+  // ist, nicht mehr bis der Header sie nennt. Benannt hat es inzwischen Melious:
+  // `provider_id: berget, location: SE` (06.11.2026), Live-Faktor dort ~25.
+  // Über Melious gerechnete Berget-Zeilen tragen diese Live-Messung; die 45
+  // gilt nur noch für Cortecs-Zeilen und Melious-Zeilen ohne Messung.
   berget: 45,
   // Melious' eigener Faktor, NICHT ein Landeswert: jede nicht-gestreamte
   // Antwort am 23.09.2026 (9 von 9, `location: 'FI'`) ergab carbon_g_co2 /
   // energy_kwh = 193,0 — konstant, obwohl die Doku stündliche electricity-map-
-  // Daten verspricht. Steht hier für die gestreamten Züge, damit sie mit
-  // demselben Faktor gerechnet werden wie die gemeldeten.
+  // Daten verspricht. Seit 06.11.2026 nur noch Rückfall: Melious-Zeilen tragen
+  // Melious' Live-Messung und stehen unter dem Upstream aus `provider_id`
+  // (services/ai/meliousImpact.ts); `melious` bleibt nur, wo keine Messung kam.
   melious: 193,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
@@ -615,14 +619,23 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // Melious meldet den PUE in jeder Antwort mit (`environment_impact.pue`,
   // 1,2 bei allen Aufrufen am 23.09.2026) und rechnet seine eigenen Werte damit.
   melious: 1.2,
+  // Infercom und Berget: der PUE stammt NICHT vom Betreiber, sondern von Melious,
+  // das beide als Upstream bedient und je Antwort `provider_id` + `pue` meldet —
+  // infercom/DE 1,2 (28.10.2026, #5109), berget/SE 1,2 (06.11.2026, zwei
+  // `:eco`-Aufrufe). Vorbehalt: alle drei Melious-Upstreams melden exakt 1,2;
+  // ob das je Gebäude erhoben oder ein Melious-Einheitswert ist, ist ungeklärt.
+  // Trotzdem näher an der Sache als die frühere Standortschätzung (1,5), die
+  // überhaupt keine Angabe über das Gebäude hatte. Gilt auch für Cortecs-Zeilen
+  // dieser Upstreams: gebucht wird der aufgelöste Upstream, nicht der Vermittler.
+  infercom: 1.2,
+  berget: 1.2,
   // GreenPT selbst. Steht hier als VERÖFFENTLICHTER Wert und nicht als
   // Rückfall, obwohl beide 1,25 ergäben: die GreenPT-Zeilen sind gemessen, ihre
   // Energie trägt genau diesen PUE bereits in sich. Ein Schätzwert an dieser
   // Stelle würde eine Messung nachträglich hochrechnen.
   greenpt: GREENPT_PUE,
-  // Kein Eintrag für mistral, infercom und berget — keiner der drei
-  // veröffentlicht einen PUE. Sie werden über PUE_ESTIMATE_BY_PROVIDER
-  // geschätzt und als geschätzt ausgewiesen, siehe dort.
+  // Kein Eintrag für mistral — Mistral veröffentlicht keinen PUE. Es wird über
+  // PUE_ESTIMATE_BY_PROVIDER geschätzt und als geschätzt ausgewiesen, siehe dort.
 };
 
 /**
@@ -641,20 +654,6 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
  * schönt den Fussabdruck, ein zu hoher macht ihn nur unattraktiver.
  */
 const PUE_ESTIMATE_BY_PROVIDER: Readonly<Record<string, number>> = {
-  // München. Der Standort ist belegt (SambaNova/Infercom-Partnerseite: Munich
-  // Datacenter, SambaNova SN40 RDUs, SambaRack bei ~10 kW) — das GEBÄUDE aber
-  // nicht, und ein PUE ist eine Eigenschaft des Gebäudes, nicht der Stadt.
-  //
-  // 1,5 ist deshalb keine Messung, sondern die gesetzliche Obergrenze: das
-  // Energieeffizienzgesetz (EnEfG) verlangt von Rechenzentren ab 300 kW, die vor
-  // dem 01.07.2026 in Betrieb gingen, ab dem 01.07.2027 einen PUE <= 1,5 und ab
-  // dem 01.07.2030 <= 1,3; Neubauten ab dem 01.07.2026 <= 1,2. Wir setzen die
-  // Bestandsschwelle an, weil wir das Baujahr nicht kennen. Dass sie zahlgleich
-  // mit EUROPE_PUE ist, ist Zufall — die beiden Quellen bewegen sich getrennt,
-  // deshalb steht die Zeile trotzdem hier. Ein moderner
-  // Münchner Colo liegt real eher bei 1,2-1,4 — die Schätzung ist also bewusst
-  // pessimistisch, und das ist bei einer Umweltangabe die richtige Richtung.
-  infercom: 1.5,
   // Frankreich ist eine ANNAHME, kein Beleg. Mistrals DPA nennt Frankreich nur
   // als Gerichtsstand und erlaubt Verarbeitung im gesamten EWR; die eigene
   // Zusage lautet „European Union", nicht „Frankreich". Was der DPA hergibt,
@@ -664,10 +663,6 @@ const PUE_ESTIMATE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // trägt die 22 g/kWh in GRID_INTENSITY_G_PER_KWH. Wer den Standort klärt,
   // klärt beide Zeilen.
   mistral: EUROPE_PUE,
-  // Berget nennt als Verarbeitungsort „EWR" ohne Land. Schwedische
-  // Rechenzentren liegen typischerweise deutlich darunter, aber eine ungenannte
-  // Angabe wird nicht zugunsten des Anbieters gelesen.
-  berget: EUROPE_PUE,
 };
 
 export interface Footprint {
@@ -843,6 +838,13 @@ const IMAGE_PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
   // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 1.2, // Seeweb, DHH sustainability report 2024, p. 8
+  // Melious meldet seinen PUE für Text selbst (`environment_impact.pue`, siehe
+  // PUE_BY_PROVIDER). Der Bild-Endpunkt meldet NICHTS (am 06.11.2026 erneut
+  // geprüft, nur `energy_cost`, ein Preis) — dass FLUX.2 [klein] im selben
+  // Rechenzentrum mit demselben PUE läuft, ist eine ungeprüfte Annahme. Ohne
+  // diese Zeile fiel jede Melious-Bildzeile auf EUROPE_PUE zurück und kippte
+  // über das OR in `platformUsageStats` den ganzen Anbieter auf „PUE geschätzt".
+  melious: 1.2,
 };
 
 /**
@@ -1004,7 +1006,7 @@ export function pueFor(provider: string, kind: 'tokens' | 'images' = 'tokens'): 
  */
 export function isPueEstimated(provider: string, kind: 'tokens' | 'images' = 'tokens'): boolean {
   const table = kind === 'images' ? IMAGE_PUE_BY_PROVIDER : PUE_BY_PROVIDER;
-  return !(provider in table);
+  return !Object.hasOwn(table, provider);
 }
 
 /**

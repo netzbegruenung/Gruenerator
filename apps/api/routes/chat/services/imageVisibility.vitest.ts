@@ -61,4 +61,23 @@ describe('imageVisibility', () => {
     // Die Datensatz-Semantik des ganzen Pfads ist `!== false`.
     expect(imageVisibility(state({ enabledTools: { vision: true } }))).toBe('visible');
   });
+
+  describe('Wolke-Fotos', () => {
+    const wolke = [{ shareLinkId: 's', path: '/IMG.jpg', name: 'IMG.jpg' }];
+    const only = (over: Partial<ChatGraphState> = {}) =>
+      state({ imageAttachments: [], wolkeFiles: wolke, ...over });
+
+    it('machen im Loop „tool", im Einzeldurchlauf nie „visible"', () => {
+      expect(imageVisibility(only(), { loop: true })).toBe('tool');
+      expect(imageVisibility(only())).toBe('none');
+    });
+
+    it('lassen Nicht-Fotos draußen und achten die Vorrangregeln', () => {
+      const pdf = [{ shareLinkId: 's', path: '/a.pdf', name: 'a.pdf' }];
+      expect(imageVisibility(only({ wolkeFiles: pdf }), { loop: true })).toBe('none');
+      expect(imageVisibility(only({ enabledTools: { vision: false } }), { loop: true })).toBe(
+        'vision_off'
+      );
+    });
+  });
 });

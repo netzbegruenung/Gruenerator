@@ -118,10 +118,10 @@ describe('summarizeNode — notebook sources', () => {
     expect(out.degradationNotes).toBeUndefined();
   });
 
-  it('caps the map phase and says the summary covers only the beginning', async () => {
+  const protokoll = (chars: number) => {
     serviceKind = 'user';
-    query.mockResolvedValue([{ markdown_content: 'x'.repeat(250_000) }]);
-    const out = await summarizeNode(
+    query.mockResolvedValue([{ markdown_content: 'x'.repeat(chars) }]);
+    return summarizeNode(
       stateWith([
         {
           kind: 'user',
@@ -132,10 +132,80 @@ describe('summarizeNode — notebook sources', () => {
         },
       ])
     );
-    const mapCalls = aiText.mock.calls.filter(([c]) => c.lane === 'chat_summarize_map');
-    expect(mapCalls).toHaveLength(20);
+  };
+  const mapCalls = () => aiText.mock.calls.filter(([c]) => c.lane === 'chat_summarize_map');
+
+  it('grows the segments so the map phase covers a long document whole', async () => {
+    // Until 06.11.2026 twenty fixed 6.000-char segments: a 250k Plenarprotokoll
+    // was summarised from its first 116.200 characters.
+    const out = await protokoll(250_000);
+    expect(mapCalls()).toHaveLength(20);
+    expect(out.summaryContext).not.toMatch(/Hinweis/);
+  });
+
+  it('caps the map phase past the largest segment and says so', async () => {
+    const out = await protokoll(1_000_000);
+    expect(mapCalls()).toHaveLength(20);
     expect(out.summaryContext).toMatch(
-      /Hinweis: Nur die ersten 116\.200 von 250\.000 Zeichen des Dokuments wurden zusammengefasst\.$/
+      /Hinweis: Nur die ersten 796\.200 von 1\.000\.000 Zeichen des Dokuments wurden zusammengefasst\.$/
     );
+  });
+});
+
+describe('summarizeNode — whole-document turn', () => {
+  // Live 06.11.2026, Thread f421f2a5: a pasted page next to a 30-page PDF from
+  // earlier. The node read `documentChatIds` first and summarised the PDF.
+  it('summarises the material of THIS turn and leaves the carried PDF alone', async () => {
+    // The 'user' service mock has no getMultipleDocumentsFullText: a Qdrant read
+    // of the PDF would throw and leave a `summary_partial` note behind.
+    serviceKind = 'user';
+    const out = await summarizeNode({
+      ...stateWith([]),
+      documentChatIds: ['doc-old'],
+      threadAttachments: [
+        {
+          id: 'a',
+          name: 'document.pdf',
+          mimeType: 'application/pdf',
+          isImage: false,
+          extractedText: 'x'.repeat(23_000),
+          documentId: 'doc-old',
+          summary: null,
+        },
+      ],
+      wholeDocument: {
+        origin: 'turn',
+        ask: 'summary',
+        docs: [{ name: 'Eingefügter Text.txt', text: 'Seite eins.', documentId: null }],
+        chars: 11,
+        budgetChars: 151_550,
+        fits: true,
+      },
+    } as ChatGraphState);
+    expect(out.summaryContext).toBe('## Eingefügter Text.txt\n\nsummary:chat_summarize');
+    expect(out.degradationNotes).toBeUndefined();
+  });
+});
+
+describe('summarizeNode — whole document too large for the prompt', () => {
+  // Live-Test 06.11.2026: a 233k document did not fit, `summarize` read it from
+  // its full text AND rebuilt it from 20 Qdrant chunks — two summaries of one file.
+  it('reads it once, from the full text, not again from Qdrant', async () => {
+    serviceKind = 'user';
+    const out = await summarizeNode({
+      ...stateWith([]),
+      documentChatIds: ['doc-big'],
+      wholeDocument: {
+        origin: 'turn',
+        ask: 'summary',
+        docs: [{ name: 'Protokoll.txt', text: 'Satz. '.repeat(40_000), documentId: 'doc-big' }],
+        chars: 240_000,
+        budgetChars: 151_550,
+        fits: false,
+      },
+    } as ChatGraphState);
+    expect(out.summaryContext).toMatch(/^## Protokoll\.txt/);
+    expect(out.summaryContext).not.toMatch(/---/);
+    expect(out.degradationNotes).toBeUndefined();
   });
 });

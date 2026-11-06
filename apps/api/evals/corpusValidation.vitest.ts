@@ -7,7 +7,9 @@
  * scenario then reported green having asserted nothing, which is worse than
  * red. Every case below is a line the old loader accepted.
  */
-import { dirname } from 'node:path';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, it, expect } from 'vitest';
@@ -177,5 +179,48 @@ describe('the checked-in corpus', () => {
       attachedDoc: true,
     });
     expect(new Set(all.map((s) => s.id)).size).toBe(all.length);
+  });
+});
+
+describe('promptFile', () => {
+  it('prepends the fixture text to the prompt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'evalfx-'));
+    writeFileSync(join(dir, 'a.txt'), 'MATERIAL');
+    const line = JSON.stringify({
+      id: 'pf-1',
+      category: 'x',
+      turns: [{ promptFile: 'a.txt', prompt: 'korrigiere', expect: {} }],
+    });
+    const [s] = parseCorpusText(line, 'demo.jsonl', dir);
+    expect(s.turns[0].prompt).toBe('MATERIAL\n\nkorrigiere');
+    expect(s.turns[0].promptFile).toBeUndefined();
+  });
+
+  it('rejects a missing fixture with the file label', () => {
+    const line = JSON.stringify({
+      id: 'pf-2',
+      category: 'x',
+      turns: [{ promptFile: 'nope.txt', prompt: 'p', expect: {} }],
+    });
+    expect(() => parseCorpusText(line, 'demo.jsonl', tmpdir())).toThrow(/demo\.jsonl:1.*nope\.txt/);
+  });
+});
+
+describe('unified-loop corpus gating', () => {
+  it('gates the scenario that writes memory behind the memory lane', () => {
+    const base = {
+      slow: false,
+      mcp: false,
+      notebook: false,
+      systemMcp: false,
+      deepResearch: false,
+      bgstKorpus: false,
+      userNotebook: false,
+      attachedDoc: false,
+    };
+    const ids = (memory: boolean) =>
+      loadCorpus(HERE, { ...base, memory, filter: 'unified-loop' }).map((s) => s.id);
+    expect(ids(false)).not.toContain('ul-merken');
+    expect(ids(true)).toContain('ul-merken');
   });
 });

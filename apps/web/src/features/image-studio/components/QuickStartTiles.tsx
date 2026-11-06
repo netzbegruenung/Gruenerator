@@ -28,16 +28,14 @@ export type StudioQuickStartHandlers = {
   onSharepic: () => void;
   onKiBild: () => void;
   onReel: () => void;
-  /** Admins only (config/adminOnlyTools.ts); without it the tile is left out. */
-  onVideoEditor?: () => void;
+  onVideoEditor: () => void;
 };
 
 const SHAREPIC_DESCRIPTION = 'Zitate, Headlines & Infos aus Vorlagen.';
 
 /**
- * Builds the standard Studio quick-start tiles (Sharepic / KI-Bild / Simple Reel /
- * Video Editor) with
- * consistent audience and feature-flag handling so every empty state stays in
+ * Builds the standard Studio quick-start tiles (Sharepic / KI-Bild / Untertitel /
+ * Video-Editor) with consistent audience and feature-flag handling so every empty state stays in
  * sync. AT is a first-class audience: Austrian users get the external Sharepic
  * generator. For DE the Sharepic tile is omitted when the canvas creator is
  * gated off (SHOW_SHAREPIC_STUDIO), matching the Sharepics section which then
@@ -73,21 +71,17 @@ export function buildStudioQuickStarts({
     {
       key: 'reel',
       icon: Video,
-      title: 'Simple Reel',
+      title: 'Untertitel',
       description: 'Kurze Videos für Social Media.',
       onClick: onReel,
     },
-    ...(onVideoEditor
-      ? [
-          {
-            key: 'videoeditor',
-            icon: Clapperboard,
-            title: 'Video Editor',
-            description: 'Clips schneiden, Text & Musik.',
-            onClick: onVideoEditor,
-          },
-        ]
-      : []),
+    {
+      key: 'videoeditor',
+      icon: Clapperboard,
+      title: 'Video-Editor',
+      description: 'Clips schneiden, Text & Musik.',
+      onClick: onVideoEditor,
+    },
   ];
 }
 

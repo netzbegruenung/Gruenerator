@@ -30,6 +30,7 @@ import { intentDeclineNote, isIntentAllowedForLocale } from '@gruenerator/shared
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { imageEditNode } from '../../../agents/langgraph/ChatGraph/nodes/imageEditNode.js';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import {
   retrieveAbgeordnetenwatch,
@@ -91,18 +92,35 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
+import { threadImageInLibrary } from '../services/sharepicTurnPhotos.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
+import { type TurnImage } from '../services/turnImages.js';
 
 import { werkzeugFehler } from './toolFailure.js';
 
-import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ChatGraphState,
+  ImageAttachment,
+  SearchResult,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('DomainTools');
 
+/**
+ * Der Turn meinte das Bild aus dem Gespräch, aber dieses Werkzeug nimmt keins
+ * mit. Ohne den Satz behauptete die Antwort ein eingefügtes Bild (Live-Test
+ * 06.11.2026: „schreib ein Dokument und füge das Bild ein").
+ */
+export function threadImageNotTaken(state: ChatGraphState, where: string): string {
+  return state.takesThreadImage
+    ? ` Das Bild aus dem Gespräch ist NICHT ${where} – Bilder übernimmt dieses Werkzeug nicht. Sag das ehrlich und behaupte nichts anderes.`
+    : '';
+}
 /**
  * Die Erzeugung lieferte nichts. Der Grund ist meist nicht bekannt (die
  * Generatoren geben `null` zurück) — dann steht das da, statt einer erfundenen
@@ -1207,8 +1225,8 @@ Verlinke die gefundenen Seiten in der Antwort mit ihrer vollständigen URL.`,
  * user message — that lets the loop steer the image (e.g. from search results).
  * The result is merged back onto the shared state so the router persists it via
  * the message-level `generatedImage` metadata (its rehydration path); the model
- * only gets a lean confirmation (no base64). `image_edit` stays single-pass —
- * it needs an attachment and the router gate excludes attachment turns.
+ * only gets a lean confirmation (no base64). Editing an image is `edit_image`
+ * below; an ATTACHED photo stays single-pass `image_edit` (`isPixelTurn`).
  */
 export function makeImageTool(ctx: { sse: SSEWriter; state: ChatGraphState }): Tool {
   const { sse, state } = ctx;
@@ -1249,6 +1267,104 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
         };
       }
       const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
+      sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
+      return { error: err };
+    },
+  });
+}
+
+/**
+ * `edit_image`: verändert das zuletzt im Thread erzeugte Bild (FLUX
+ * image-to-image über `imageEditNode`). Live 05.11.2026: „passe die grafik noch
+ * einmal an" traf keine Bearbeitungs-Vokabel des Klassifikators, landete ohne
+ * Bildwerkzeug — und die Antwort erzählte eine Anpassung, die nie lief. Mit dem
+ * Werkzeug im Loop entscheidet der Planer, nicht eine Wortliste.
+ *
+ * Gleiche Bauform wie `generate_image`: Ergebnis auf den geteilten State (der
+ * Router persistiert es als `generatedImage`), Karte über `image_start`/
+ * `image_complete`, und höchstens ein Bild je Turn — der Planer sieht das Bild
+ * nicht und würde sonst „noch einmal versuchen" (Baum-Budget).
+ */
+export function makeEditImageTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  threadId: string | null;
+  /** Die Bilder dieses Turns (Anhänge, Wolke); `bild` adressiert sie per Nummer. */
+  turnImages?: readonly TurnImage[];
+  /** Ohne `bild` das zuletzt erzeugte Bild bearbeiten — nur dann sinnvoll. */
+  lastImageDefault?: boolean;
+}): Tool {
+  const { sse, state, threadId } = ctx;
+  const turnImages = ctx.turnImages ?? [];
+  const lastImageDefault = ctx.lastImageDefault ?? true;
+  return tool({
+    description: `Verändert ein Bild (KI-Bildbearbeitung, Bild-zu-Bild): ohne \`bild\` das Bild, das in diesem Gespräch zuletzt erzeugt wurde, mit \`bild\` ein Foto dieses Turns (angehängt oder aus der Wolke, Nummern wie im Systemprompt).
+
+NUTZE WENN der*die Nutzer*in an DIESEM Bild etwas geändert haben möchte ("passe die Grafik an", "die Mühle an den Rand", "mach den Himmel dunkler", "noch einmal, aber mit Schnee"). Übergib die gewünschte Änderung als knappe deutsche Anweisung.
+Eigenes Foto + "erstelle ein Bild von mir, wie ich X mache" / "setz mich auf …": edit_image mit \`bild\` = Nummer des Fotos, \`anweisung\` = die Szene — nur so bleibt die Person erkennbar. Ein neues Motiv ohne Foto einer Person: generate_image, nicht dieses Werkzeug. Nicht für Fragen zum Bild.${lastImageDefault ? '' : '\nOhne `bild` gibt es in diesem Turn nichts zu bearbeiten: gib immer `bild` an.'}`,
+    inputSchema: z.object({
+      anweisung: z.string().min(1).describe('Was sich am Bild ändern soll'),
+      bild: z
+        .number()
+        .int()
+        .min(1)
+        .max(Math.max(turnImages.length, 1))
+        .optional()
+        .describe(
+          'Nummer eines Fotos dieses Turns als Vorlage; weglassen = zuletzt erzeugtes Bild'
+        ),
+    }),
+    execute: async ({ anweisung, bild }) => {
+      if (state.generatedImage) {
+        return {
+          ok: true,
+          note: 'In diesem Turn wurde bereits ein Bild erzeugt und angezeigt. Rufe edit_image NICHT erneut auf; beschreibe die Änderung kurz.',
+        };
+      }
+      let previous: ImageAttachment | null;
+      if (bild != null) {
+        const entry = turnImages[bild - 1];
+        if (!entry) {
+          return { error: `Es gibt kein Bild ${bild} — vorhanden sind ${turnImages.length}.` };
+        }
+        const loaded = await entry.load();
+        if (!loaded.ok) {
+          return {
+            error: `„${entry.name}“ konnte nicht geladen werden (${loaded.message}). Sag das ehrlich und erzeuge KEIN Bild, das so tut, als zeige es die Person.`,
+          };
+        }
+        previous = loaded.image;
+      } else {
+        previous = lastImageDefault && threadId ? await loadLastGeneratedImage(threadId) : null;
+        if (!previous) {
+          return {
+            error: lastImageDefault
+              ? 'Das vorige Bild ist nicht mehr verfügbar. Sag das ehrlich und biete an, ein neues Bild zu erzeugen.'
+              : 'Gib mit `bild` die Nummer des Fotos an, das bearbeitet werden soll.',
+          };
+        }
+      }
+      sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
+      const injected = { role: 'user', content: anweisung } as ChatGraphState['messages'][number];
+      const result = await imageEditNode({
+        ...state,
+        messages: [...state.messages, injected],
+        imageAttachments: [previous],
+        imageEditStyle: 'universal',
+      });
+      state.generatedImage = result.generatedImage ?? null;
+      if (state.generatedImage) {
+        sse.send('image_complete', {
+          message: PROGRESS_MESSAGES.imageEditComplete,
+          image: state.generatedImage,
+        });
+        return {
+          ok: true,
+          anweisung,
+          note: 'Bild bearbeitet und dem*der Nutzer*in angezeigt. Rufe edit_image NICHT erneut auf; beschreibe die Änderung in 1–2 Sätzen.',
+        };
+      }
+      const err = result.error ?? 'Bildbearbeitung fehlgeschlagen.';
       sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
       return { error: err };
     },
@@ -1444,11 +1560,20 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       if (!userId) {
         return { error: `${label}-Erstellung nicht möglich (keine Nutzer-Sitzung).` };
       }
+      // A sheet has no place for the thread image; a document and a deck do.
+      const image =
+        kind === 'sheet'
+          ? null
+          : await threadImageInLibrary(state).catch((err: unknown) => {
+              log.warn(`[${label}] Bild aus dem Gespräch nicht geladen: ${String(err)}`);
+              return null;
+            });
       const created = await runDocGeneration({
         kind,
         userContent: briefWithContext(prompt, state, sourceRegistry),
         req,
         userId,
+        image,
         // The loop's per-call timeout abandons but does not cancel — without
         // this the write happens anyway, into a turn that already gave up.
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
@@ -1460,9 +1585,14 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', created);
       state.createdDocument = created;
+      const imageNote = image
+        ? kind === 'presentation'
+          ? ' Das Bild aus dem Gespräch steht auf einer eigenen Bildfolie.'
+          : ' Das Bild aus dem Gespräch steht im Dokument unter der Überschrift.'
+        : threadImageNotTaken(state, label === 'Dokument' ? 'im Dokument' : `in der ${label}`);
       return {
         document: created,
-        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.${imageNote}`,
       };
     },
   });
@@ -1614,7 +1744,8 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
               : '') +
           (result.verification.problems.length
             ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
-            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
+            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`) +
+          threadImageNotTaken(state, 'im PDF'),
       };
     },
   });
@@ -1691,7 +1822,9 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklä
       state.createdDocument = outcome.document;
       return {
         document: outcome.document,
-        note: 'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.',
+        note:
+          'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.' +
+          threadImageNotTaken(state, 'im Explainable — seine Erklärbilder werden eigens gemalt'),
       };
     },
   });

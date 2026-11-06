@@ -38,6 +38,7 @@ import {
   isPixelTurn,
   looksLikeCompoundEdit,
   namesSharepicWithoutOrder,
+  SHAREPIC_NAMING_INTENTS,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
   type EditorSurfaceKind,
@@ -177,6 +178,10 @@ export interface TurnPlanInput {
    * baute live 11.10.2026 daneben ein zweites, neues Sharepic.
    */
   addressesThreadSharepic?: boolean;
+  /** Der Thread enthält ein Sharepic (`stateHasSharepic`). */
+  threadHasSharepic?: boolean;
+  /** Ein früherer Turn nannte ein Sharepic, gebaut ist noch keins (`threadWorksOnSharepic`). */
+  threadWorksOnSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
@@ -431,7 +436,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     !p.isSharepicRefinement &&
     !editorSurface &&
     p.addressesThreadSharepic !== true &&
-    namesSharepicWithoutOrder(proposedIntent, p.lastUserText)
+    (namesSharepicWithoutOrder(proposedIntent, p.lastUserText, p.threadHasSharepic ?? true) ||
+      (p.threadWorksOnSharepic === true && SHAREPIC_NAMING_INTENTS.has(proposedIntent)))
       ? 'sharepic'
       : null;
   const compoundKind = orderedKind ?? namedOnlyKind;
@@ -507,6 +513,25 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     intent = p.pipelineForceIntent;
   }
 
+  // Eine `@…-erstellen`-Erwähnung ohne Verbund gehört der direkten Erstellroute
+  // (`createIntentStage`), die auf einem Loop-Turn übersprungen wird. Der
+  // Klassifikator schickt jeden Prosa-Turn als `agentic`; ohne diese Korrektur
+  // träfe ihn der `agentic_to_search`-Auffang unten, statt dass er als Prosa-Turn
+  // den Erstell-Pin erreicht.
+  if (
+    intent === 'agentic' &&
+    p.mentionPinnedArtifactKind != null &&
+    compoundKind == null &&
+    pinnedTool == null &&
+    !p.agenturaCreateOrder &&
+    !connectorScoped
+  ) {
+    recordDecision('router.intent_override', 'agentic_to_produktion_pinned_create', {
+      inputs: { intentBefore: 'agentic' },
+    });
+    intent = 'produktion';
+  }
+
   // ── 3. Das Loop-Gate ──────────────────────────────────────────────────────
   // Kurzschluss-Reihenfolge unverändert: ein Pipeline-Agent vetot, danach
   // beantworten die beiden Editor-Varianten die Frage bereits, und erst zuletzt
@@ -534,6 +559,9 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         isTabularAnalysisTurn: p.isTabularAnalysisTurn === true,
         classifierContradictedResearch: p.classifierContradictedResearch,
         hasOwnMaterial: p.hasOwnMaterial,
+        pinnedArtifactCreate: p.mentionPinnedArtifactKind != null,
+        pipelineAgent: p.pipelineForceIntent != null,
+        acceptedOffer: p.acceptedOffer,
       }));
 
   // ── 4. Auffang-Intent ─────────────────────────────────────────────────────

@@ -247,6 +247,43 @@ export function logoOben(b: SlideBuilder, locale: BrandLocale, x: number, assetI
   else b.asset('folie-logo', assetId, x + 195, 164, 390);
 }
 
+/** Wo das Band der Bildfolie beginnt: darin stehen die Bildzeile und die Fußzeile. */
+const BILD_BAND_Y = 880;
+
+/**
+ * Die Bildfolie in jedem Stil: das Bild füllt die Seite, unten liegt ein Band im
+ * Grund des Stils, darin die Bildzeile (`folie-bildunterschrift`) in seiner
+ * Schrift — so hält der Text den Kontrast der anderen Folien, egal was das Bild
+ * zeigt. Ohne `folie.bild` steht der Platzhalter da, über die normale
+ * Bildauswahl ersetzbar.
+ */
+export function bildFolie(b: SlideBuilder, folie: FolieSpec) {
+  const src = folie.bild?.trim() || slideKit.PHOTO.sonnenblume;
+  b.state.backgroundMode = 'image';
+  b.state.currentImageSrc = src;
+  b.state.hasBackgroundImage = true;
+  const bandH = slideKit.H - BILD_BAND_Y;
+  b.shape(
+    'folie-bildband',
+    'rect',
+    slideKit.W / 2,
+    BILD_BAND_Y + bandH / 2,
+    slideKit.W,
+    bandH,
+    b.ink.ground
+  );
+  b.text('folie-bildunterschrift', '', M, BILD_BAND_Y + 34, W - 2 * M, 48, {
+    type: 'subheader',
+    family: b.ink.headline,
+    lineHeight: 1.1,
+  });
+}
+
+/** Die Box der Bildzeile, gleich in allen Stilen. */
+export const BILD_BOXES = {
+  'folie-bildunterschrift': { maxHeight: 110, minScale: 0.7 },
+} as const;
+
 /** Slots füllen, Fußzeile, Stil-Kennung und Notizen: das Ende jedes Stil-Builders. */
 export function finishFolie(b: SlideBuilder, folie: FolieSpec, ctx: DeckStilCtx, stil: DeckStilId) {
   applySlots(b, folie);

@@ -25,6 +25,7 @@ function trace(over: Partial<ChatTrace> = {}): ChatTrace {
   return {
     intent: 'agentic',
     agentic: true,
+    loopMode: null,
     toolCalls: [],
     sharepicGenerated: false,
     imageGenerated: false,

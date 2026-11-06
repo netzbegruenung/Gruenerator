@@ -103,14 +103,18 @@ export async function runAgenticAnswer({
   const systemMessage = await buildSystemMessage(classifiedState, {
     retrievalExpected: true,
     loop: true,
+    recallAsMessage: true,
   });
+  // Der Rückblick geht als eigene System-Nachricht mit (`turnContext`), belegt
+  // aber weiter Kontext — fürs Kürzen zählt er mit.
+  const turnContext = classifiedState.chatHistoryContext ?? null;
   // `contextWindowTokens` already carries the lane floor (turnContextWindow in
   // streamContext): this path cannot ask the resolution — `resolveModel` runs
   // inside streamAgenticResponse, i.e. after pruning.
   const prunedValidMessages = pruneMessages(
     validMessages as Parameters<typeof pruneMessages>[0],
     contextWindowTokens,
-    systemMessage
+    turnContext ? `${systemMessage}\n\n${turnContext}` : systemMessage
   );
   const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
     ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage, contextWindowTokens)
@@ -133,6 +137,7 @@ export async function runAgenticAnswer({
       const result = await streamAgenticResponse({
         finalState: classifiedState,
         systemMessage: finalSystemMessage,
+        turnContext,
         messages: contextMessages as ModelMessage[],
         ...(modelId != null && { modelId }),
         requestId,

@@ -391,13 +391,17 @@ describe('streamWithReasoning — Melious bucht Tokens samt Cache-Anteil', () =>
       // Strom leeren.
     }
 
+    // Gebucht unter dem Upstream aus `provider_id`, Messung und Tokens gleich.
     expect(recordImpact).toHaveBeenCalledWith({
-      provider: 'melious',
+      provider: 'infercom',
       model: 'gemma-4-31b:balanced',
       energyWms: 0.0025 * 3_600_000_000,
       emissionsUg: 1.5 * 1_000_000,
       inputTokens: 17,
       outputTokens: 9,
     });
+    expect(recordTokenUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'infercom', inputTokens: 17, outputTokens: 9 })
+    );
   });
 });

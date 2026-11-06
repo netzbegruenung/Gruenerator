@@ -1,4 +1,4 @@
-import { createChartInstance, type ChartInstance, type ChartType } from '@ggraphic/editor/elements';
+import { createChartInstance, type ChartInstance } from '@ggraphic/editor/elements';
 import { ChartSettingsSection } from '@ggraphic/editor/sidebar';
 import { getCanvasFormatOrDefault } from '@ggraphic/editor/templates';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -21,8 +21,7 @@ function addChartOn(config: ReturnType<typeof createFreeformFullConfig>): ChartI
     state = typeof u === 'function' ? u(state) : { ...state, ...u };
   };
   const actions = config.createActions(() => state, setState, vi.fn(), vi.fn(), {});
-  // Boundary cast: FreeformActions is Record<string, any>.
-  (actions.addChart as (type: ChartType) => void)('bar');
+  actions.addChart('bar');
   return (state.chartInstances as ChartInstance[])[0]!;
 }
 

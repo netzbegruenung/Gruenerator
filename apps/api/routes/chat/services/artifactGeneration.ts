@@ -10,6 +10,7 @@
  * exactly why both can share these.
  */
 
+import { ensureHtml } from '../../../services/docs/contentNormalization.js';
 import {
   extractLocaleFromRequest,
   type RequestWithLocale,
@@ -103,6 +104,23 @@ function abandonedBeforeCommit(signal: AbortSignal | undefined, what: string): b
   log.warn(`[ChatGraph] ${what} abandoned before commit (per-call timeout) — not writing`);
   return true;
 }
+
+/**
+ * The thread image in a generated document: under the first heading, else at
+ * the top. Set here, not by the model — it cannot see the image and would
+ * invent an address. The editor reads `<img>` as an image block.
+ */
+export function withLeadImage(content: string, url: string): string {
+  const html = ensureHtml(content);
+  const img = `<img src="${escapeHtmlAttr(url)}" alt="KI-generiertes Bild">`;
+  const heading = html.match(/<\/h[1-3]>/i);
+  if (!heading || heading.index == null) return `${img}${html}`;
+  const at = heading.index + heading[0].length;
+  return `${html.slice(0, at)}${img}${html.slice(at)}`;
+}
+
+const escapeHtmlAttr = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /**
  * PDF generation has its own entry point rather than a `runDocGeneration`
@@ -223,6 +241,9 @@ export async function runDocGeneration(opts: {
   subtypeOverride?: string | null;
   /** kind 'document' only: prior exchange save_as_doc turns into a document. */
   conversationContext?: string;
+  /** The thread image the turn means (Mediathek URL): a document carries it
+   *  under its first heading, a deck on a Bildfolie. A sheet has no place for it. */
+  image?: string | null;
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & {
@@ -248,6 +269,7 @@ export async function runDocGeneration(opts: {
       prompt: userContent,
       userId,
       locale,
+      ...(opts.image && { photo: opts.image }),
       ...(onCommit && { onCommit }),
       ...(opts.abandoned && { abandoned: opts.abandoned }),
     });
@@ -326,7 +348,8 @@ export async function runDocGeneration(opts: {
   }
   const subtype = overrideIsValid ? subtypeOverride : parsed.subtype;
 
-  const doc = await createDocumentWithContent(parsed.title, parsed.content, subtype, userId);
+  const content = opts.image ? withLeadImage(parsed.content, opts.image) : parsed.content;
+  const doc = await createDocumentWithContent(parsed.title, content, subtype, userId);
   return {
     documentId: doc.id,
     title: parsed.title,

@@ -50,6 +50,7 @@ export const PRUEFUNG_STUFE = {
   // Erlaubte und verbotene Wirkungen
   offersPersistentAction: 'hart',
   generatesSharepic: 'hart',
+  generatesImage: 'hart',
   asksClarification: 'hart',
   internalOnly: 'hart',
   noInventedUrls: 'hart',
@@ -66,6 +67,9 @@ export const PRUEFUNG_STUFE = {
   // Inhalt der Antwort
   answerMustNotContain: 'hart',
   answerMustContain: 'hart',
+  answerIsJson: 'hart',
+  answerLineCount: 'hart',
+  noDegeneration: 'hart',
   answerShouldContain: 'weich',
   // Regex auf „nein/nicht/falsch …": zu grob, um allein Rot zu tragen.
   correctsFalsePremise: 'weich',

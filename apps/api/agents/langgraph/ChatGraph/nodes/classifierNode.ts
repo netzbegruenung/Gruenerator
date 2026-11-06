@@ -24,13 +24,13 @@ import {
   resolveNotebookCollections,
 } from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { recommendedToolsFor } from '../../../../routes/chat/agents/recipeCatalog.js';
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   compoundGenerationKind,
   isDocumentContextEditAllowed,
   isReferentialFollowup,
-  looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
   reworksSuppliedText,
@@ -58,6 +58,8 @@ import {
   sharepicEditAddressed,
 } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
+import { documentChatIdsToSearch } from '../../../../routes/chat/services/wholeDocument.js';
+import { isWolkePhoto } from '../../../../routes/chat/services/wolkePhoto.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
   McpServerRegistry,
@@ -120,12 +122,14 @@ import {
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
 import {
+  addressesThreadImage,
   ARTIFACT_NOUN_BY_KIND,
   asksForChatDeliverable,
   CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
+  namesNonImageArtifact,
   stripQuotedSpans,
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
@@ -332,17 +336,24 @@ const ANAPHORIC_CUE =
   /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|nochmal|noch\s+mal|erneut|stimmt\s+nicht)(?![\p{L}])/iu;
 const SHORT_FOLLOWUP_WORDS = 4;
 
-/** Does the heuristic table confidently place this turn on a route that
- *  retrieves nothing (an artifact order, a greeting)? */
-function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boolean {
-  const verdict = heuristicClassify(userContent, {
-    hasTabularAttachment: state.hasTabularAttachment ?? false,
-  });
-  return (
-    verdict.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD &&
-    verdict.intent !== 'summary' &&
-    NON_SEARCH_INTENTS.has(verdict.intent)
-  );
+/**
+ * Das eine Tor, durch das ein Prosa-Verdikt (ausser dem Gruss) zu `agentic`
+ * wird. Ist die Schleife aus, bleibt das Prosa-Verdikt stehen: `agentic` hat
+ * keinen Einzeldurchlauf, der Entscheider fienge es mit `agentic_to_search` ab,
+ * und ein Gedicht liefe als Suche.
+ */
+function proseGoesToLoop(intent: string): boolean {
+  return NO_RETRIEVAL_VERDICTS.has(intent) && intent !== 'greeting' && isAgenticLoopEnabled();
+}
+
+/**
+ * Das Gegenstück zu `loopDemotedFromRetrieval`: ein Prosa-Verdikt, das nur in
+ * den Loop gerutscht ist, behält sein Verdikt für die Modellwahl (Lane und
+ * Denkstufe der Prosa-Zeile in `AUTO_POLICY`). Routing, Werkzeuge und
+ * `forceFirstToolCall` sehen weiter `agentic`.
+ */
+function proseOrigin(intent: SearchIntent): Partial<ChatGraphState> {
+  return proseGoesToLoop(intent) ? { loopDemotedFromProse: intent } : {};
 }
 
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
@@ -767,7 +778,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Resource presence flags
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
-    const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    // Ohne die Pastes, deren Volltext ganz im Prompt steht (#5406).
+    const documentChatToSearch = documentChatIdsToSearch(state);
+    const hasDocumentChat = documentChatToSearch.length > 0;
     const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasConnectFiles = state.connectFiles && state.connectFiles.length > 0;
     const hasNotebookSources = (state.notebookSources?.length ?? 0) > 0;
@@ -801,18 +814,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // @sheet mentions. currentDocument is shared with docs/presentations, so a
     // sheet open in its own editor is already covered by hasCurrentDocument.
     const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
-
-    // "Did the user supply the substance?" — the single answer the writing-order
-    // rule consults (Tier 3.5 below, and `decideRunAgentic` in the router). The
-    // paste threshold is the heuristics' own (NOUN_TRIGGER_MAX_LENGTH), reused
-    // rather than re-picked so "long enough to carry its own subject" means one
-    // thing across the classifier.
-    const turnCarriesOwnMaterial =
-      userContent.length > NOUN_TRIGGER_MAX_LENGTH ||
-      hasAttachmentContext ||
-      hasCurrentDocument ||
-      hasDocMentions ||
-      hasDocumentChat;
 
     // ── TIER 1: Mutation intents (resource + action keywords) ──
     // These are the most specific signals — a user explicitly requesting a change
@@ -979,6 +980,31 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Gemeinsam für Datei- und Bild-Anhang: ein Erstell-Auftrag über dem Anhang
+    // ist ein Erstell-Turn. `null` = kein Auftrag, der Aufrufer fällt weiter.
+    const classifyCreationOrderOverAttachment = (
+      decision: BranchOf<'classifier.tier'>
+    ): Partial<ChatGraphState> | null => {
+      const orderedKind = compoundGenerationKind(
+        'produktion',
+        state.lastUserTextNoMentions ?? userContent
+      );
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (!orderedKind || !orderedIntent) return null;
+      log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+      recordDecision('classifier.tier', decision, { inputs: { kind: orderedKind } });
+      return {
+        intent: orderedIntent,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    };
+
     // ── TIER 2: Context intents (resource presence, no mutation keywords) ──
     // Summary detection: when documents/attachments are present AND user asks for summary,
     // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
@@ -1000,11 +1026,60 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
-    // If document chat IDs are present (from @dokumentchat multi-select), force search intent
+    // Ein Erstell-Auftrag über gewähltem Material (Wolke, Connect, @Dokument,
+    // Dokument-Chat, Notebook-Quelle) ist ein Erstell-Turn — VOR den
+    // Zwangssuchen darunter. Die erzwingen `search`, weil der Einzeldurchlauf
+    // diese Arten nur über die Suche liest; `search` hat aber keine Erstell-Art,
+    // und „erstelle ein Sharepic mit diesem Bild" + Wolke-Foto kam live als
+    // „ich bin ein textbasiertes Modell" zurück (Prod 05.11.2026, `steps=0`).
+    // Wer das Material lesen kann, bekommt den Turn: Wolke-Fotos liest der
+    // Sharepic-Creator selbst (`photosForTurn`), also Einzeldurchlauf; alles
+    // andere liest nur die Schleife (`resolveTurnMaterial`), die die bestellte
+    // Art aus dem Auftrag ableitet und über `forceCompoundGeneration` zusichert.
+    // Eine Frage zum Material ohne Auftrag fällt weiter in die Zwangssuche.
+    const freshCloudFiles = !state.cloudFilesCarriedOnly && (hasWolkeFiles || hasConnectFiles);
+    const freshNotebookSources = hasNotebookSources && !state.notebookSourcesCarriedOnly;
+    if (
+      (hasDocumentChat || hasDocuments || freshNotebookSources || freshCloudFiles) &&
+      userContent.length > 0
+    ) {
+      const orderedKind = compoundGenerationKind(
+        'produktion',
+        state.lastUserTextNoMentions ?? userContent
+      );
+      if (orderedKind) {
+        const onlyWolkePhotos =
+          !hasDocumentChat &&
+          !hasDocuments &&
+          !freshNotebookSources &&
+          !hasConnectFiles &&
+          state.wolkeFiles.every(isWolkePhoto);
+        if (orderedKind === 'sharepic' && onlyWolkePhotos) {
+          const orderedTurn = classifyCreationOrderOverAttachment('tier2_cloud_photo_create_order');
+          if (orderedTurn) return orderedTurn;
+        }
+        log.info(`[Classifier] Creation order over picked material → loop (${orderedKind})`);
+        recordDecision('classifier.tier', 'tier2_material_create_order', {
+          inputs: { kind: orderedKind },
+        });
+        return {
+          intent: 'agentic',
+          searchSources: [],
+          searchQuery: userContent.slice(0, 500),
+          detectedFilters: null,
+          reasoning: `Erstell-Auftrag über gewähltem Material: ${artifactKind(orderedKind).label} → Schleife`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
+    // @dokumentchat multi-select: material for the loop (see the Wolke branch below).
     if (hasDocumentChat && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'DocumentChat',
-        docCount: state.documentChatIds.length,
+        docCount: documentChatToSearch.length,
         userContent,
         conversationContext,
         topicalContext,
@@ -1058,7 +1133,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // into the system prompt via respondNode regardless of intent.
 
     if (hasDocuments && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'Document',
         docCount: state.documentIds.length,
         userContent,
@@ -1070,18 +1145,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
-    // @wolke selections force search intent — the wolke file content must reach
-    // respondNode via perSourceResults, and that only happens inside the search path.
-    // Carried from earlier turns (#4112) they still force it — only the search
-    // path reads a picked file, so a question about it needs this route — except
-    // where the heuristic table confidently claims a turn that reads nothing:
-    // „Erstelle ein Sharepic …" or „Danke!" after a pick (#4897). A summary
-    // keeps the route: cloud files are not material for the summary path.
-    const cloudFilesForceSearch =
-      !state.cloudFilesCarriedOnly || !claimsNonRetrievalTurn(userContent, state);
-    if (hasWolkeFiles && cloudFilesForceSearch && userContent.length > 0) {
-      return classifyWithForcedSearch({
+    // Gewählte Wolke-/Connect-Dateien sind Material, kein Intent: die Schleife
+    // liest sie selbst (`resolveTurnMaterial`, Vorab-Abruf, `cloud_files`) und
+    // der Planer entscheidet, was der Turn will. Bis 06.11.2026 erzwangen sie
+    // `search`, und `search` montiert kein Erstell-Werkzeug — „erstelle ein bild
+    // von mir …", „nimm das bild im anhang für das sharepic" und „ja" bekamen
+    // live erfundene Ausreden statt eines Werkzeugs. Mitgeführte Dateien (#4112)
+    // beanspruchen den Turn gar nicht mehr: ihn entscheiden die Stufen darunter.
+    if (hasWolkeFiles && !state.cloudFilesCarriedOnly && userContent.length > 0) {
+      return classifyPickedMaterial({
         reason: 'Wolke',
+        hasText: !state.wolkeFiles.every(isWolkePhoto),
         docCount: state.wolkeFiles.length,
         userContent,
         conversationContext,
@@ -1092,12 +1166,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
-    // @connect selections force search intent — the connected-account file content
-    // must reach respondNode via perSourceResults, and that only happens inside the
-    // search path. Mirrors the @wolke forced-search branch above.
-    if (hasConnectFiles && cloudFilesForceSearch && userContent.length > 0) {
-      return classifyWithForcedSearch({
+    if (hasConnectFiles && !state.cloudFilesCarriedOnly && userContent.length > 0) {
+      return classifyPickedMaterial({
         reason: 'Connect',
+        hasText: !state.connectFiles.every(isWolkePhoto),
         docCount: state.connectFiles.length,
         userContent,
         conversationContext,
@@ -1115,7 +1187,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // later turn — „Erstelle ein Sharepic …" after a pick would never build
     // one, and small talk would run a search (#4861).
     if (hasNotebookSources && !state.notebookSourcesCarriedOnly && userContent.length > 0) {
-      return classifyWithForcedSearch({
+      return classifyPickedMaterial({
         reason: 'NotebookSource',
         docCount: state.notebookSources.length,
         userContent,
@@ -1384,28 +1456,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Context-only fallback branches — fire only when no search-capable
     // mention above already routed the request.
 
-    // Gemeinsam für Datei- und Bild-Anhang: ein Erstell-Auftrag über dem Anhang
-    // ist ein Erstell-Turn. `null` = kein Auftrag, der Aufrufer fällt weiter.
-    const classifyCreationOrderOverAttachment = (
-      decision: BranchOf<'classifier.tier'>
-    ): Partial<ChatGraphState> | null => {
-      const orderedKind = compoundGenerationKind('produktion', askText);
-      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
-      if (!orderedKind || !orderedIntent) return null;
-      log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
-      recordDecision('classifier.tier', decision, { inputs: { kind: orderedKind } });
-      return {
-        intent: orderedIntent,
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    };
-
     if (hasAttachmentContext && userContent.length > 0) {
       // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
       // Schreibauftrag am Material. Dieser Rückfall lief vor jeder Erstell-Regel
@@ -1436,15 +1486,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // material already here, and the forced search put it into the loop under
       // `toolChoice: required` — live 29.09.2026 the planner then summarised the
       // pasted newsletter instead of correcting it.
+      //
+      // The same holds for a chosen recipe that declares research (its
+      // `recommendedTools` name `gruenerator_search`): `@wahlpruefstein` with a
+      // pasted catalogue on the default agent has no notebook, so it used to
+      // fall through to `produktion` — eval 05.11.2026: 0 of 12 catalogues got
+      // a single search, every answer opened with "Da ich … keine Recherche
+      // durchgeführt habe".
       const defaultNotebookScopeCount =
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
+      const recipeWantsSearch =
+        state.activeSkillMention != null &&
+        recommendedToolsFor(state.activeSkillMention, () => true).includes('gruenerator_search');
       if (
-        defaultNotebookScopeCount > 0 &&
+        (defaultNotebookScopeCount > 0 || recipeWantsSearch) &&
         !reworksSuppliedText(state.lastUserTextNoMentions ?? userContent)
       ) {
         return classifyWithForcedSearch({
-          reason: 'AttachmentDefaultNotebook',
+          reason:
+            defaultNotebookScopeCount > 0
+              ? 'AttachmentDefaultNotebook'
+              : 'AttachmentResearchRecipe',
           docCount: defaultNotebookScopeCount,
           userContent,
           conversationContext,
@@ -1856,11 +1919,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // eins. `last_tool_context` bleibt „image", bis das nächste Artefakt kommt,
       // und `isImageRegenRequest` feuert auf „nochmal"/„anders": Turns später
       // wurde „Erklär das nochmal" zur Bildbearbeitung (Beta-Audit 30.09.2026).
+      //
+      // Ein Turn, der ein anderes Artefakt nennt, will das Bild DARIN, nicht ein
+      // anderes Bild: „nimm dieses bild und pack es in ein Sharepic" ging an
+      // FLUX zurück (live 06.11.2026), ebenso Dokument und Präsentation. Er
+      // fällt durch zum Weg dieses Artefakts, der das erzeugte Bild mitnimmt
+      // (`takesThreadImage`).
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
-        (state.lastTurnEditables?.includes('image') === true ||
-          ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(userContent)))) &&
+        !namesNonImageArtifact(userContent) &&
+        addressesThreadImage(userContent, state.lastTurnEditables?.includes('image') === true) &&
         (hasImageEditVerb(userContent) ||
           isImageRegenRequest(userContent) ||
           isImageEditInstruction(userContent)) &&
@@ -2094,12 +2163,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             hasTabularAttachment: state.hasTabularAttachment ?? false,
           });
 
-    // Short messages: always use heuristics (likely greetings)
+    // Ein Prosa-Verdikt (ausser dem Gruss) geht an den Loop, nie an eine Antwort
+    // ohne Werkzeug: Kurznachrichten („heller", „kürzer", „und Bayern?") sind das,
+    // was der Thread sagt, und nur der Loop sieht den Thread samt seinen
+    // Werkzeugen (`edit_image`, `edit_sharepic`, Suche). Live 05.11.2026: „die
+    // Mühle an den Rand …" lief ohne Werkzeug, und die Antwort erzählte eine
+    // Anpassung, die nie stattfand. Ein angehängtes Foto bleibt beim
+    // Einzeldurchlauf (`isPixelTurn`, im Router).
+
+    // Short messages: heuristics decide the verdict; prose goes to the loop.
     if (userContent.length < 10) {
       const result = classifyHeuristically();
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
+      if (proseGoesToLoop(result.intent)) {
+        recordDecision('classifier.tier', 'tier3_short_message_to_loop', {
+          inputs: { heuristicIntent: result.intent },
+        });
+        return {
+          intent: 'agentic',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Kurznachricht ohne Abruf-Verdikt → Loop',
+          ...proseOrigin(result.intent),
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
       recordDecision('classifier.tier', 'tier3_short_message', {
         inputs: { heuristicIntent: result.intent, confidence: result.confidence },
       });
@@ -2130,12 +2223,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
     const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
 
-    // A short message inside a running conversation carries no signal of its
-    // own. The penalty is not its only job any more: `isVagueFollowup` also
-    // feeds `selfContained` at Tier 3.5, which is what keeps "mach es blauer"
-    // out of a planner that has nothing to plan.
+    // A short message inside a running conversation carries no signal of its own,
+    // so a confident NON-prose verdict (artifact, gated) is held back from the
+    // Tier-3 early return. This penalty is all that is left of `isVagueFollowup`:
+    // it no longer feeds `selfContained` (deleted) and decides nothing about prose
+    // — every prose verdict goes to the loop regardless. Dropping it flipped three
+    // artifact and one gated census verdict, which this change must not do.
     const isVagueFollowup = conversationContext && userContent.split(/\s+/).length <= 8;
-
     const effectiveConfidence =
       heuristic.confidence - (needsDecomposition ? 0.3 : 0) - (isVagueFollowup ? 0.25 : 0);
 
@@ -2288,44 +2382,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Only retrieval-shaped intents demote — generation/platform-gated intents
     // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
     // LLM tier so their gates/HITL/routing stay intact.
-    // A writing order whose substance the user did NOT supply demotes too. The
-    // heuristic itself already draws this line — `isCreativeTask && isLongPaste`
-    // scores 0.82 while `isCreativeTask` alone scores 0.75 — it just resolved
-    // both to `direct`. Demoting the second case is what makes "schreib eine
-    // Pressemitteilung zu X" reach a planner that can search, instead of being
-    // written from parametric memory.
-    const unsourcedWriting =
-      NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-      looksLikeUnsourcedWritingOrder(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
-
-    // The default flips here: a no-retrieval verdict at this point is the
-    // heuristic table's RESIDUAL, not a finding — `direct@0.50` is what the
-    // rule table returns when nothing matched. Treating "nothing matched" as
-    // "needs no tool" is the bug class the three rescue predicates were each
-    // patching one shape of. Now the residual loops unless the turn positively
-    // shows it is self-contained (`looksLikeSelfContainedTurn`, which is also
-    // what the router's gate consults — one rule, one implementation).
-    //
-    // A short follow-up is exempt on purpose. It is the one case where the
-    // THREAD decides and the message text cannot: "mach es blauer" carries no
-    // signal at all, and the -0.25 penalty above exists precisely to send it to a
-    // tier that can read the conversation. Looping it would strand an artifact
-    // follow-up in a planner with nothing to plan.
-    //
-    // `lastToolContext` is the second half of that: mentions are stripped from
-    // message text on send, so a thread that just produced a sharepic is the
-    // ONLY evidence that "und jetzt noch die Uhrzeit ergänzen" is an edit rather
-    // than a topic. The word cap is what keeps it narrow — a full new question
-    // asked after a sharepic is not a follow-up, and its own heuristic verdict
-    // (search/web/…) demotes it regardless of this branch.
-    const isArtifactFollowup =
-      state.lastToolContext != null && userContent.split(/\s+/).filter(Boolean).length <= 12;
-
-    const selfContained =
-      isVagueFollowup ||
-      isArtifactFollowup ||
-      looksLikeSelfContainedTurn(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
-
     // Das Chat-Recall-VETO ist weg, und zwar aus demselben Grund, aus dem es
     // existierte. Es hielt jede Formulierung aus dem RECALL-Gitter aus der
     // Demotion zurück, damit die LLM-Stufe entscheiden konnte, ob wirklich ein
@@ -2368,10 +2424,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Verschiedenes zugleich: der Klassifikator liess einen abruf-förmigen Turn
     // bei `produktion`, während der `agentic_to_search`-Auffang des Entscheiders
     // für genau diesen Fall „dann such eben" vorsah und nie erreicht wurde.
+    // Jedes Prosa-Verdikt ausser dem Gruss geht in den Loop — als Zustandsregel,
+    // nicht als Textheuristik: kein Wortzähler, keine Selbstgenügsamkeits-Prüfung.
+    // Was einen Turn im Einzeldurchlauf hält, steht im Router (`keepsSinglePass`).
     const demotable =
       (isAgenticLoopEnabled() && DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent)) ||
-      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-        (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained));
+      proseGoesToLoop(heuristic.intent) ||
+      // Schleife aus: wie bisher nur der abruf-förmige Turn (→ `search` im Auffang).
+      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && looksLikeToolableQuestion(userContent));
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
@@ -2382,7 +2442,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           heuristicIntent: heuristic.intent,
           confidence: heuristic.confidence,
           effectiveConfidence,
-          selfContained,
           demotable,
         },
       });
@@ -2395,6 +2454,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
         // steps=0 and the honesty note itself as the user-facing answer.
         loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
+        ...proseOrigin(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),
@@ -2440,7 +2500,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     ) {
       const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
-        const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
+        const resolvedIntent =
+          generation === 'keine'
+            ? isAgenticLoopEnabled()
+              ? 'agentic'
+              : 'produktion'
+            : generation.intent;
         // „Da fehlt noch Marburg in der Tabelle": kein Erstell-Imperativ, die
         // Tabelle gibt es schon — das Modell las nur das Nomen und baute live
         // (11.10.2026) eine zweite. Der Loop hat edit_sheet & Co.
@@ -2478,6 +2543,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             generation === 'keine'
               ? 'Kein Artefakt gefragt (deterministisch aufgelöst)'
               : `Artefakt erkannt: ${resolvedIntent}`,
+          ...(generation === 'keine' && proseOrigin('produktion')),
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -2494,16 +2560,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     //
     // The verdict is the heuristic table's own, with one substitution. A
     // no-retrieval verdict down here is the table's RESIDUAL (`direct@0.50`
-    // means "no rule fired"), not a finding — and every rescue predicate that
-    // could turn it into a loop turn has already run and declined
-    // (`looksLikeToolableQuestion`, `unsourcedWriting`, `looksLikeSelfContained
-    // Turn`). So it is named for what it is: `produktion`, a self-contained
-    // answer. Anything else the table produced (a low-confidence artifact or
-    // gated verdict) stands — it found SOMETHING, just not confidently, and the
+    // means "no rule fired"), not a finding. "Nothing matched" is no evidence
+    // that nothing is needed, so it goes to the loop (`agentic`); the router's
+    // `keepsSinglePass` is the only place that keeps a turn out. Anything else
+    // the table produced (a low-confidence artifact or gated verdict) stands — it found SOMETHING, just not confidently, and the
     // router's licence and negative-action gates are what check it.
-    const residualIntent: SearchIntent = NO_RETRIEVAL_VERDICTS.has(heuristic.intent)
-      ? 'produktion'
-      : heuristic.intent;
+    const residualIntent: SearchIntent = proseGoesToLoop(heuristic.intent)
+      ? 'agentic'
+      : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
+        ? 'produktion'
+        : heuristic.intent;
     const classificationTimeMs = Date.now() - startTime;
     log.info(
       `[Classifier] Residual: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} → ${residualIntent} in ${classificationTimeMs}ms`
@@ -2521,6 +2587,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       ),
       detectedFilters: heuristicExtractFilters(userContent),
       reasoning: `Kein Gitter beansprucht den Turn (Heuristik ${heuristic.intent}@${effectiveConfidence.toFixed(2)})`,
+      ...proseOrigin(heuristic.intent),
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,
@@ -2659,9 +2726,10 @@ async function pickThreadArtifact(
 }
 
 /**
- * Helper for the six near-identical "force search intent with LLM query
- * optimization" blocks: @dokumentchat, @document, @wolke, @connect, @notebook
- * and the attachment + default-notebook path.
+ * Helper for the "refine the query, then search" blocks: @notebook and the
+ * attachment + default-notebook path, and — through `classifyPickedMaterial`,
+ * which hands the turn to the loop — @dokumentchat, @document, @wolke, @connect
+ * and notebook sources.
  *
  * Everything that must hold for ALL forced-search turns belongs in HERE, not at
  * the call sites — a field set at one of the six is a field missing from five,
@@ -2691,7 +2759,7 @@ async function classifyWithForcedSearch(opts: {
   } = opts;
 
   log.info(
-    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
+    `[Classifier] ${reason} detected (${docCount} item(s)), refining the query with the LLM${topicalContext ? ' + topical context' : ''}`
   );
 
   // The intent is already decided (forced to `search` below); the only open
@@ -2740,6 +2808,32 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     classificationTimeMs: Date.now() - startTime,
     ...(gatherSources ? { gatherSources } : {}),
+  };
+}
+
+/**
+ * Material the person picked (@dokumentchat, @document, Wolke, Connect, a
+ * notebook source from the reader) is not an intent. The unified loop reads it
+ * itself (`resolveTurnMaterial`: up-front seed plus reader tools) and the model
+ * decides what the turn wants, with every tool the turn would have without the
+ * pick. Until 06.11.2026 these picks forced `search`, which mounts no creation
+ * tool. The refined query stays: it is what the up-front seed searches with.
+ * With the loop off, `agentic` has no single pass, so the pick keeps `search`.
+ */
+async function classifyPickedMaterial(
+  opts: Parameters<typeof classifyWithForcedSearch>[0] & {
+    /** False for a pick of photos only: there is no text to read up front. */
+    hasText?: boolean;
+  }
+): Promise<Partial<ChatGraphState>> {
+  const { hasText = true, ...forced } = opts;
+  const routed = await classifyWithForcedSearch(forced);
+  if (!isAgenticLoopEnabled()) return routed;
+  return {
+    ...routed,
+    intent: 'agentic',
+    readsPickedMaterial: hasText,
+    reasoning: `${opts.reason}: picked material → loop (${routed.reasoning ?? ''})`,
   };
 }
 

@@ -7,6 +7,7 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { jwt } from 'better-auth/plugins/jwt';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
@@ -134,6 +135,10 @@ export const SESSION_COOKIE_PREFIX =
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
+// Siehe PostgresService: ohne Listener beendet der Fehler einer ruhenden Verbindung den Worker.
+pool.on('error', (error) => {
+  log.error('Idle client error: %s', error.message);
+});
 const db = drizzle(pool, { schema });
 
 /**
@@ -545,6 +550,21 @@ export const auth = betterAuth({
           log.info(
             `[Session] created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
           );
+          // A new session is a login — the only writer of `profiles.last_login`
+          // (admin overview, `getProfileStats().active_users`). Rolling refresh
+          // goes through `update`, not here. The row always exists, also on a
+          // first login: the user model IS `profiles`, and `ba_sessions.user_id`
+          // is a NOT NULL FK to it. Best effort: never fail the login.
+          try {
+            await db
+              .update(schema.profiles)
+              .set({ last_login: new Date() })
+              .where(eq(schema.profiles.id, session.userId));
+          } catch (err) {
+            log.warn(
+              `[Session] last_login write failed user=${session.userId}: ${(err as Error).message}`
+            );
+          }
           // Deliver one-off product announcements (e.g. new Pride avatars) on
           // login — once per user, idempotent, best-effort.
           const { deliverLoginAnnouncements } =

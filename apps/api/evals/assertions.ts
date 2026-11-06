@@ -6,6 +6,7 @@
  */
 import { sourceLinkRegex } from '@gruenerator/shared/utils';
 
+import { createDegenerationGuard } from '../routes/chat/services/agenticLoop/degeneration.js';
 import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
 import { DOCS_PAGES } from '../services/docs/docsIndex.generated.js';
@@ -407,6 +408,46 @@ export function runAssertions(
     } else {
       results.push(ok('narrationMatchesAction'));
     }
+  }
+
+  if (expect.answerIsJson) {
+    const fenced = /^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(trace.fullText.trim());
+    const body = fenced ? fenced[1] : trace.fullText.trim();
+    let parses = false;
+    try {
+      JSON.parse(body);
+      parses = true;
+    } catch {
+      parses = false;
+    }
+    results.push(
+      parses ? ok('answerIsJson') : fail('answerIsJson', 'answer does not parse as JSON')
+    );
+  }
+
+  if (expect.answerLineCount != null) {
+    const lines = trace.fullText.split('\n').filter((l) => l.trim() !== '').length;
+    results.push(
+      lines === expect.answerLineCount
+        ? ok('answerLineCount', `${lines} lines`)
+        : fail('answerLineCount', `${lines} non-empty lines, expected ${expect.answerLineCount}`)
+    );
+  }
+
+  if (expect.noDegeneration) {
+    results.push(
+      createDegenerationGuard().check(trace.fullText)
+        ? fail('noDegeneration', 'answer trips the degeneration guard')
+        : ok('noDegeneration')
+    );
+  }
+
+  if (expect.generatesImage != null) {
+    results.push(
+      trace.imageGenerated === expect.generatesImage
+        ? ok('generatesImage')
+        : fail('generatesImage', `imageGenerated=${trace.imageGenerated}`)
+    );
   }
 
   if (expect.routing != null) {

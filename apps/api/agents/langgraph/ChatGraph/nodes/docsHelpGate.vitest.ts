@@ -68,6 +68,10 @@ describe('looksLikeDocsHelpQuestion', () => {
       'Schreib einen kurzen Instagram-Post über die Pandas im Tiergarten Schönbrunn',
       'Mach ein Explainable zur Wärmepumpe',
       'Erstelle ein Sharepic mit Steckbrief für unsere Kandidatin',
+      // Live 05.11.2026 (Eval ul-expl-einfacher): the order carries its topic as a
+      // „wie funktioniert …" question, and the turn became a help question.
+      'Erstelle ein Explainable: Wie funktioniert eine Wärmepumpe?',
+      'Bitte mach ein Explainable: Was ist eine Wärmepumpe?',
     ]) {
       expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
     }
@@ -82,6 +86,23 @@ describe('looksLikeDocsHelpQuestion', () => {
       'Was ist ein gutes Rezept für Linsensuppe?',
       'Welche Projekte fördert die EU im ländlichen Raum?',
       'Wie kann ich Feuchtgebiete wiederherstellen?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
+  it('catches capability questions about a product feature (#5408)', () => {
+    for (const text of [
+      'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+      'Kann man hier Reels untertiteln?',
+      'Können wir mit dem Grünerator auch Präsentationen erstellen?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(true);
+    }
+    for (const text of [
+      'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+      'Kann ich daraus auch ein Sharepic machen?',
+      'Kann ich auch über die Verkehrswende schreiben?',
     ]) {
       expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
     }

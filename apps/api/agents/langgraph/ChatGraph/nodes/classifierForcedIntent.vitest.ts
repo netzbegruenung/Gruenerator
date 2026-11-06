@@ -361,20 +361,22 @@ describe('Tier 2 — context intents (resource presence only)', () => {
   // in der Pressemitteilung", „fasse den Antrag zusammen"), und ein daraus
   // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
   // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
+  // @document and @dokumentchat are picked material: the loop reads them and the
+  // model decides (06.11.2026). The refined query still feeds the up-front seed.
   describe('the forced search carries no Textsorte verdict', () => {
-    it.each<[string, Partial<ChatGraphState>]>([
-      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
-      ['@notebook', { notebookIds: ['nb-1'] }],
-      ['@document', { documentIds: ['doc-1'] }],
-      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
-    ])('stays a search on the %s path', async (_label, mention) => {
+    it.each<[string, Partial<ChatGraphState>, string]>([
+      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }, 'search'],
+      ['@notebook', { notebookIds: ['nb-1'] }, 'search'],
+      ['@document', { documentIds: ['doc-1'] }, 'agentic'],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }, 'agentic'],
+    ])('keeps its route on the %s path', async (_label, mention, intent) => {
       const state = buildState({
         userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
         attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
         ...mention,
       });
       const result = await classifierNode(state);
-      expect(result.intent).toBe('search');
+      expect(result.intent).toBe(intent);
       expect(result.searchQuery).not.toBeNull();
       expect(result.documentSubtype).toBeUndefined();
     });
@@ -1238,17 +1240,19 @@ describe('Follow-up on a failed tool turn runs the loop', () => {
     }
   );
 
-  // Die Gegenprobe ist die Reproduktion: derselbe Verlauf ohne das Signal
-  // landet heute dort, wo beta ihn hatte — ohne Werkzeug.
-  it.each([
-    ['finde es', 'direct'],
-    ['stimmt nicht du hast de tools', 'produktion'],
-  ])('without the signal: %s → %s (beta, #3778)', async (userMessage, intent) => {
-    const result = await classifierNode(
-      afterFailedTurn(userMessage, { lastTurnRetrievalFailed: false })
-    );
-    expect(result.intent).toBe(intent);
-  });
+  // Ohne das Signal gibt es keinen Werkzeug-Pin, aber das Prosa-Verdikt geht
+  // seit dem Loop-Standard ohnehin in den Loop — der Unterschied zum Signal ist
+  // der fehlende Pin (`mentionPinnedTool`), nicht mehr die Lane.
+  it.each(['finde es', 'stimmt nicht du hast de tools'])(
+    'without the signal: %s → loop, but no tool pin (beta, #3778)',
+    async (userMessage) => {
+      const result = await classifierNode(
+        afterFailedTurn(userMessage, { lastTurnRetrievalFailed: false })
+      );
+      expect(result.intent).toBe('agentic');
+      expect(result.mentionPinnedTool).toBeUndefined();
+    }
+  );
 
   it.each(['mach daraus einen Instagram-Post', 'danke dir', 'warum?', 'erklär mir das'])(
     'creation, thanks and questions about the failure stay out: %s',

@@ -13,6 +13,8 @@ import {
   asksForChatDeliverable,
   ARTIFACT_NOUN_BY_KIND,
   creationOrderPattern,
+  SHAREPIC_WORD_RE,
+  isCapabilityQuestion,
 } from './fastPathGuards.js';
 
 const SHAREPIC = /\b(share[\s-]?pics?|sharepics?)\b/i;
@@ -62,6 +64,67 @@ describe('isMetaQuestionAbout', () => {
   });
 });
 
+// Live 06.11.2026 (#5408): die Fähigkeitsfrage baute ein Karussell mit 4 Folien.
+const CAPABILITY_QUESTIONS = [
+  'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+  'Kann man hier Sharepics machen?',
+  'Können wir mit dem Grünerator auch Karussells erstellen?',
+  'Ist es möglich, mit dem Grünerator Sharepics zu erstellen?',
+  'Geht das überhaupt, Sharepics zu erstellen?',
+  'Kann der Grünerator auch Sharepics erstellen?',
+];
+// Höfliche Bestellungen: sie bleiben Aufträge.
+const POLITE_ORDERS = [
+  'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+  'Kann ich ein Sharepic zum Klimageld haben?',
+  'Kann ich daraus auch ein Sharepic machen?',
+  'Kann ich auch ein Sharepic dazu bekommen?',
+  'Könntest du bitte ein Sharepic erstellen?',
+  // Review #5411: Partikel ohne Auftragswort, aber mit konkretem Thema.
+  'Kann ich auch ein Sharepic zum Klimageld erstellen?',
+  'Kann ich hier ein Sharepic zu Klimaschutz erstellen?',
+  'Kann man auch ein Karussell über die Verkehrswende machen?',
+];
+
+describe('isMetaQuestionAbout — Fähigkeitsfragen (#5408)', () => {
+  it.each(CAPABILITY_QUESTIONS)('%s ist eine Frage, kein Auftrag', (text) => {
+    expect(isMetaQuestionAbout(text, SHAREPIC_WORD_RE)).toBe(true);
+    expect(asksForSharepic(text)).toBe(false);
+  });
+  it.each(POLITE_ORDERS)('%s wird keine Meta-Frage', (text) => {
+    expect(isMetaQuestionAbout(text, SHAREPIC_WORD_RE)).toBe(false);
+  });
+  it('höfliche Bestellungen mit Erstell-Verb bleiben Bestellungen', () => {
+    for (const text of [
+      'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+      'Kann ich daraus auch ein Sharepic machen?',
+      'Könntest du bitte ein Sharepic erstellen?',
+      'Kann ich auch ein Sharepic zum Klimageld erstellen?',
+      'Kann ich hier ein Sharepic zu Klimaschutz erstellen?',
+    ]) {
+      expect(asksForSharepic(text), text).toBe(true);
+    }
+  });
+  // CodeQL (#5411): die Themen-Erkennung lief über zwei \\s* hintereinander
+  // polynomiell — Nutzertext ist unkontrolliert.
+  it('bleibt linear bei langen Leerraum-Folgen', () => {
+    // Verb auf -n, viele Tabs, dann ein Zeichen, an dem das `$` scheitert:
+    // die alte Fassung brauchte bei 40.000 Tabs über eine Sekunde.
+    const text = `Kann ich auch Sharepics zu machen${'\t'.repeat(40_000)}x`;
+    const t0 = performance.now();
+    isCapabilityQuestion(text);
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+  it('gilt für jedes Artefakt, nicht nur das Sharepic', () => {
+    expect(
+      isMetaQuestionAbout(
+        'Kann ich mit dem Grünerator auch Präsentationen erstellen?',
+        ARTIFACT_NOUN_BY_KIND.presentation
+      )
+    ).toBe(true);
+  });
+});
+
 describe('negatedOrMeta', () => {
   it('combines both guards', () => {
     expect(negatedOrMeta('Was macht ein gutes Sharepic aus?', SHAREPIC)).toBe(true);
@@ -88,6 +151,9 @@ describe('hasExplicitSharepicWord', () => {
       'Mach mir einen Dreizeiler zum Radverkehr',
       'Info-Sharepic zur Kindergrundsicherung',
       'Zitat-Sharepic: Wir kämpfen für Klimaschutz',
+      // Zusammengesetzt, live 06.11.2026.
+      'pack es in ein Veranstaltungssharepic zum Thema Wolke',
+      'Ein Wahlkampfsharepic bitte',
     ]) {
       expect(hasExplicitSharepicWord(t), t).toBe(true);
     }
@@ -103,6 +169,7 @@ describe('hasExplicitSharepicWord', () => {
       'Mal mir ein Bild dazu',
       'Mach ein Poster',
       'Schreib einen Insta-Post zu Tempo 30',
+      'Wir fahren aufs Kinderkarussell',
     ]) {
       expect(hasExplicitSharepicWord(t), t).toBe(false);
     }

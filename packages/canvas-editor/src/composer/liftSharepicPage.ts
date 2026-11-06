@@ -355,7 +355,8 @@ function liftText(
     if (!Array.isArray(current) || !Array.isArray(lifted) || lifted.length !== end - start) {
       return null;
     }
-    value = [...current.slice(0, start), ...lifted, ...current.slice(end)];
+    const lines: readonly unknown[] = current;
+    value = [...lines.slice(0, start), ...lifted, ...lines.slice(end)];
   }
   const next = setAt(slide, path, value);
   // The slide alone: a carousel page's one-slide spec breaks the deck rules (seitenzahl, weiter).

@@ -27,6 +27,7 @@ import {
 } from '../../../services/sharepicCreator/photoAnalysis.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { loadLastGeneratedImage } from './lastGeneratedImage.js';
 import { collectTurnPhotos, type SharepicOwnPhotoWithUrl } from './turnPhotos.js';
 
 const log = createLogger('sharepicTurnPhotos');
@@ -152,6 +153,26 @@ export async function prepareSharepicPhotos(opts: {
 }
 
 /**
+ * The thread's last generated image as a Mediathek URL, when the turn means it
+ * (`takesThreadImage`) and brought no image of its own — what a document or a
+ * deck embeds. Stored once per person like a sharepic photo; null when there is
+ * no person, no thread or no image.
+ */
+export async function threadImageInLibrary(
+  state: Partial<
+    Pick<ChatGraphState, 'imageAttachments' | 'takesThreadImage' | 'threadId' | 'agentConfig'>
+  >
+): Promise<string | null> {
+  const userId = state.agentConfig?.userId ?? null;
+  if (!userId || !state.threadId || state.takesThreadImage !== true) return null;
+  if ((state.imageAttachments ?? []).length > 0) return null;
+  const image = await loadLastGeneratedImage(state.threadId);
+  if (!image) return null;
+  const buffer = Buffer.from(image.data, 'base64');
+  return storeOnce(userId, keyOf(userId, buffer), buffer, image.name, image.type);
+}
+
+/**
  * The photos a revised variant already holds. The analysis is recomputed from
  * the stored file — the props come back from the client, so only the url is
  * taken from them, and `loadOwnPhoto` checks it is the person's own.
@@ -188,13 +209,25 @@ export async function priorSharepicPhotos(
  * Everything a sharepic turn hands the creator as own photos: what the revised
  * variant holds (`priorProps`, null on a fresh draft) plus this turn's
  * attachments. Wolke files carried over from earlier turns are material, not
- * photos of this order. Without a person there is no library to store in.
+ * photos of this order — unless the thread is still working on the sharepic they
+ * were picked for (`sharepicInProgress`; live 06.11.2026: „nimm das bild im
+ * anhang für das sharepic", built two turns later without it). The image the
+ * thread generated last comes along when the turn means it
+ * (`takesThreadImage`; live 06.11.2026: „nimm dieses bild und pack es in
+ * ein Sharepic" after a FLUX image) — an attached image wins, it is the one
+ * „dieses Bild" points at. Without a person there is no library to store in.
  */
 export async function photosForTurn(
   state: Partial<
     Pick<
       ChatGraphState,
-      'imageAttachments' | 'wolkeFiles' | 'cloudFilesCarriedOnly' | 'agentConfig'
+      | 'imageAttachments'
+      | 'wolkeFiles'
+      | 'cloudFilesCarriedOnly'
+      | 'sharepicInProgress'
+      | 'takesThreadImage'
+      | 'threadId'
+      | 'agentConfig'
     >
   >,
   priorProps: unknown
@@ -202,10 +235,18 @@ export async function photosForTurn(
   const userId = state.agentConfig?.userId ?? null;
   if (!userId) return { photos: [], bericht: [] };
   const prior = await priorSharepicPhotos(parseSharepicChatProps(priorProps), userId);
+  const attached = state.imageAttachments ?? [];
+  const threadImage =
+    state.takesThreadImage === true && attached.length === 0 && state.threadId
+      ? await loadLastGeneratedImage(state.threadId)
+      : null;
   const turn = await prepareSharepicPhotos({
     userId,
-    images: state.imageAttachments ?? [],
-    wolke: state.cloudFilesCarriedOnly === true ? [] : (state.wolkeFiles ?? []),
+    images: threadImage ? [threadImage] : attached,
+    wolke:
+      state.cloudFilesCarriedOnly === true && state.sharepicInProgress !== true
+        ? []
+        : (state.wolkeFiles ?? []),
     prior: prior.photos,
   });
   return { photos: turn.photos, bericht: [...prior.bericht, ...turn.bericht] };

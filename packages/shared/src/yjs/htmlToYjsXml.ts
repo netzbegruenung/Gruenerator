@@ -10,7 +10,7 @@ import { stripHtmlTags } from '../utils/stripHtmlTags.js';
  * BlockNote format: blockGroup > blockContainer[id] > (heading|paragraph|bulletListItem|numberedListItem)
  *
  * Supports: h1-h3, p, ul/li (with checkbox detection → checkListItem), ol/li, blockquote, hr,
- * pre (→ codeBlock, line breaks kept).
+ * pre (→ codeBlock, line breaks kept), a top-level img[src] (→ image block).
  * Inline marks are PRESERVED — bold (strong/b), italic (em/i), code, underline (u),
  * strike (s/del) and links (a[href]) are written as BlockNote/prosemirror marks on
  * the block's Y.XmlText (see y-prosemirror `yattr2markname`: plain mark-name keys
@@ -30,7 +30,7 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
   const normalized = html.replace(/>\s+</g, '><').trim();
 
   const blockPattern =
-    /<(h[1-3]|p|blockquote|hr|table|pre)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<(h[1-3]|p|hr)(?:\s[^>]*)?\s*\/?>|<ul>([\s\S]*?)<\/ul>|<ol>([\s\S]*?)<\/ol>/gi;
+    /<(h[1-3]|p|blockquote|hr|table|pre)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<(h[1-3]|p|hr)(?:\s[^>]*)?\s*\/?>|<ul>([\s\S]*?)<\/ul>|<ol>([\s\S]*?)<\/ol>|<img(\s[^>]*?)\/?>/gi;
 
   let match;
   while ((match = blockPattern.exec(normalized)) !== null) {
@@ -55,6 +55,17 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
       for (const item of items) {
         addBlock(group, 'numberedListItem', item.html, {});
       }
+      continue;
+    }
+
+    // The thread image of a generated document (06.11.2026): without this
+    // branch the <img> vanished from the seed and the document opened without it.
+    if (match[5] !== undefined) {
+      // Only our own addresses: the same converter seeds model-written HTML,
+      // and an outside URL would load a third-party image (a tracking pixel)
+      // every time the document opens.
+      const src = attrOf(match[5], 'src');
+      if (/^\/(?!\/)/.test(src)) addImage(group, src, attrOf(match[5], 'alt'));
       continue;
     }
 
@@ -148,6 +159,29 @@ function addBlock(
 
   const delta = inlineHtmlToDelta(inlineHtml);
   if (delta.length > 0) xmlText.applyDelta(delta);
+}
+
+/** An attribute of a tag's attribute string, entities decoded; '' when absent. */
+function attrOf(attrs: string, name: string): string {
+  const m = attrs.match(new RegExp(`\\s${name}="([^"]*)"`, 'i'));
+  return m?.[1] ? decodeEntities(m[1]) : '';
+}
+
+/** BlockNote's image block: no content, the address in `url`, the alt text as `name`. */
+function addImage(group: Y.XmlElement, url: string, name: string): void {
+  const container = new Y.XmlElement('blockContainer');
+  container.setAttribute('id', randomUUID());
+  container.setAttribute('backgroundColor', 'default');
+  container.setAttribute('textAlignment', 'left');
+  container.setAttribute('textColor', 'default');
+  const block = new Y.XmlElement('image');
+  block.setAttribute('url', url);
+  block.setAttribute('name', name);
+  block.setAttribute('caption', '');
+  block.setAttribute('backgroundColor', 'default');
+  block.setAttribute('textAlignment', 'left');
+  container.insert(0, [block]);
+  group.push([container]);
 }
 
 /** BlockNote's codeBlock: plain content (no marks), `\n` for line breaks. */

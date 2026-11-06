@@ -67,11 +67,11 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'kein-dokument',
     category: 'negative-action',
-    note: 'Braucht seit dem Loeschen der LLM-Stufe keine Annahme mehr: das Verbot wird deterministisch erkannt, der Turn faellt ins Residual. Die Entscheidung ist damit eine Stufe frueher gewandert — das Gate im Router wird fuer den PRIMAERintent gar nicht mehr erreicht (es kennt nur Artefakt-Intents) und bleibt die zweite Tuer fuer secondaryIntent.',
+    note: 'Braucht seit dem Loeschen der LLM-Stufe keine Annahme mehr: das Verbot wird deterministisch erkannt. Seit dem Loop-Standard geht der Prosa-Turn in den Loop (Tier 3.5); das Dokument-Werkzeug haengt dort nur an einem Erstell-Auftrag, ein Verbot erzeugt also nichts. Die Entscheidung ist damit eine Stufe frueher gewandert — das Gate im Router wird fuer den PRIMAERintent gar nicht mehr erreicht (es kennt nur Artefakt-Intents) und bleibt die zweite Tuer fuer secondaryIntent.',
     prompt: 'Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.',
     mustDecide: [
-      { point: 'classifier.tier', chose: 'residual' },
-      { point: 'router.run_agentic', chose: 'single_pass' },
+      { point: 'classifier.tier', chose: 'tier3.5_loop_demotion' },
+      { point: 'router.run_agentic', chose: 'loop' },
     ],
     notReached: ['router.persistent_action_gate'],
   },
@@ -88,8 +88,8 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'sharepic-unlizenziert',
     category: 'sharepic-licence',
-    note: 'Nimmt an, dass der Generierungs-Aufloeser einen Wortkunst-Auftrag als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert. Prompt am 31.07.2026 gegen die Tiers gemessen: "Entwirf" triggert das Generierungs-Gitter, "Slogan" haelt den Turn in sich geschlossen (keine Demotion), und das Wort Sharepic faellt nicht. Seit #4788 endet der Turn nicht mehr in einer festen Absage, er geht als produktion weiter.',
-    prompt: 'Entwirf einen Slogan zur Kernaussage',
+    note: 'Nimmt an, dass der Generierungs-Aufloeser einen Wortkunst-Auftrag als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert. "Entwirf" triggert das Generierungs-Gitter, "visualisiere" haelt das Verdikt bei image@0.65 (kein Prosa-Verdikt, daher keine Loop-Demotion), und das Wort Sharepic faellt nicht. Ein kreativer Auftrag wie "Entwirf einen Slogan" erreicht den Aufloeser seit dem Loop-Standard nicht mehr. Seit #4788 endet der Turn nicht mehr in einer festen Absage, er geht als produktion weiter.',
+    prompt: 'Entwirf und visualisiere die Kernaussage',
     generationKind: 'sharepic',
     mustDecide: [
       { point: 'router.intent_override', chose: 'sharepic_unlicensed_to_direct' },

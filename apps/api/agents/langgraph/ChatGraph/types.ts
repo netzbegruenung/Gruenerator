@@ -483,6 +483,23 @@ export interface ExamplesToolResult {
 }
 
 /**
+ * Ein Turn, der das GANZE Material braucht (eine Zusammenfassung). Entschieden
+ * in `routes/chat/services/wholeDocument.ts`, dort steht auch, warum.
+ */
+export interface WholeDocumentTurn {
+  /** `turn`: die Anhänge dieses Turns. `thread`: die früheren des Gesprächs. */
+  origin: 'turn' | 'thread';
+  /** `summary`: der Auftrag fasst zusammen. `paste`: das Material dieses Turns
+   *  ist eingefügter Text und passt ganz ins Budget (#5406). */
+  ask: 'summary' | 'paste';
+  docs: Array<{ name: string; text: string; documentId: string | null }>;
+  chars: number;
+  budgetChars: number;
+  /** Passt der Volltext ins Budget? Dann steht er im Prompt, sonst Map-Reduce. */
+  fits: boolean;
+}
+
+/**
  * Persisted thread attachment with summary for context in subsequent messages.
  */
 export interface ThreadAttachment {
@@ -699,6 +716,16 @@ export interface ChatGraphState {
   loopDemotedFromRetrieval?: boolean | undefined;
 
   /**
+   * Counterpart for PROSE verdicts: this `agentic` turn reached the loop
+   * because the classifier's prose verdict (`produktion`, `direct`, …) goes
+   * through `proseGoesToLoop`. Carries that verdict so the auto policy keeps
+   * the prose lane and reasoning level (`reasoning: 'off'`) — without it a
+   * poem ran with the `agentic` row's `low` (E3 run B, 05.11.2026: 5.5 → 12.9 s).
+   * Only the model lookup reads it; routing and tools still see `agentic`.
+   */
+  loopDemotedFromProse?: SearchIntent | undefined;
+
+  /**
    * The LLM classifier itself said this turn needs research (`needsResearch:
    * true`) and then picked `direct` anyway. Its own reasoning gave the game
    * away live: „ist eine Web-Recherche (web) notwendig, um die aktuellen
@@ -820,6 +847,8 @@ export interface ChatGraphState {
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
+  /** Set by `enrichContext` when the turn needs whole documents — see `WholeDocumentTurn`. */
+  wholeDocument?: WholeDocumentTurn | null | undefined;
   hasTabularAttachment: boolean;
   /** See the input-side field: the tool-catalog gate for `cloud_files`. */
   cloudConnectionCount: number;
@@ -988,6 +1017,8 @@ export interface ChatGraphState {
   // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
+  /** Loop turns only: which mode ran. Surfaces on the `done` event. */
+  loopMode?: 'unified' | 'split';
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
   // Die Titel der Vorlagen, die `vorlagen_vorschlagen` in diesem Turn als
   // Galerie gezeigt hat. Der Split-Schreiber erfährt davon nur hierüber
@@ -1245,6 +1276,17 @@ export interface ChatGraphState {
   // Die Art wurde bestellt, nicht nur genannt. `false` heisst: Werkzeug montiert,
   // aber `forceCompoundGeneration` holt es nicht nach — der Planer entscheidet.
   compoundGenerationOrdered?: boolean;
+  // Der Thread arbeitet noch an einem Sharepic (`threadWorksOnSharepic`): die
+  // dafür gewählten, inzwischen mitgeführten Wolke-Fotos gehören zum Auftrag.
+  sharepicInProgress?: boolean;
+  // Der Turn meint das zuletzt im Thread erzeugte Bild (`addressesThreadImage`):
+  // ein Sharepic bekommt es als eigenes Foto, ein Dokument, eine Präsentation
+  // oder ein PDF als Bild im Material („pack dieses Bild in ein Sharepic").
+  takesThreadImage?: boolean;
+  // Picked material with text (not only photos) went to the loop as material
+  // (`classifyPickedMaterial`): an empty up-front seed forces the first planner
+  // step onto its readers, as the forced search used to guarantee.
+  readsPickedMaterial?: boolean;
   // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
   // research loop, then feeds the gathered sources to the `edit_document` tool
   // as reference material. Synth writes only a short confirm.

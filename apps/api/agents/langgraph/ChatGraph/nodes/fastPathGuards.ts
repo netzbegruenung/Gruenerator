@@ -9,6 +9,7 @@
  * Leaf module (no imports from the classifier) so both callers can share it and
  * it unit-tests in isolation (fastPathGuards.vitest.ts).
  */
+import { orderText } from '../../../../routes/chat/services/orderText.js';
 
 /**
  * Quoted spans are reported speech, not the user's own ask. Straight single
@@ -156,9 +157,38 @@ export function dictatesInlineTableColumns(text: string): boolean {
 const META_QUESTION_START_RE =
   /^\s*(was|wie|wer|warum|wieso|weshalb|welche[rsnm]?|wann|wo|woran|wodurch|gibt\s+es)\b/i;
 
-/** True when the message opens with a question word and mentions the noun. */
+// A question about what the PRODUCT can do: „Kann ich mit dem Grünerator
+// eigentlich auch Sharepics erstellen?" built a four-slide carousel (live
+// 06.11.2026, #5408). The opener alone is no question — „Kann ich ein Sharepic
+// zum Klimageld haben?" is a polite order — so it needs a capability particle
+// too. Addressing the assistant („Kannst du …") stays an order, as do a pointer
+// at the material („daraus", „dazu") and a receiving verb („haben", „bekommen").
+// So does a concrete topic („… ein Sharepic zum Klimageld erstellen?", review
+// of #5411): a question about ability names no subject. „zu" before the verb
+// („Sharepics zu erstellen") is the infinitive, not a topic.
+const CAPABILITY_OPENER_RE =
+  /^\s*(?:(?:kann|könnte|darf)\s+(?:ich|man|wir)|(?:können|könnten|dürfen)\s+wir|(?:kann|könnte)\s+(?:der\s+)?gr[üu]nerator|(?:geht|funktioniert)\s+(?:das|es)|ist\s+es\s+(?:auch\s+)?m[öo]glich|lassen\s+sich)\b/i;
+const CAPABILITY_PARTICLE_RE =
+  /(?<!\p{L})(?:eigentlich|überhaupt|auch|hier|damit|gr[üu]nerator\p{L}*)(?!\p{L})/iu;
+const CAPABILITY_ORDER_HINT_RE =
+  /(?<!\p{L})(?:dazu|daraus|davon|dafür|darüber|haben|bekommen|kriegen|bitte)(?!\p{L})/iu;
+const CAPABILITY_TOPIC_RE = /(?<!\p{L})(?:zum|zur|über|zu(?!\s+\p{L}+n[?.!]?\s*$))\s+\p{L}/iu;
+
+/** True for a question about whether the product can do something („Kann ich hier auch …?"). */
+export function isCapabilityQuestion(text: string): boolean {
+  return (
+    CAPABILITY_OPENER_RE.test(text) &&
+    CAPABILITY_PARTICLE_RE.test(text) &&
+    !CAPABILITY_ORDER_HINT_RE.test(text) &&
+    !CAPABILITY_TOPIC_RE.test(text)
+  );
+}
+
+/** True when the message opens with a question word or asks about ability, and mentions the noun. */
 export function isMetaQuestionAbout(text: string, nounPattern: RegExp): boolean {
-  return META_QUESTION_START_RE.test(text) && nounPattern.test(text);
+  return (
+    (META_QUESTION_START_RE.test(text) || isCapabilityQuestion(text)) && nounPattern.test(text)
+  );
 }
 
 /** The single conjunct a guarded fast path adds: true ⇒ stand down (defer/other). */
@@ -193,6 +223,19 @@ export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>
   board: /\b(board\w*|kanban\w*|karten?|aufgaben?|tasks?)\b/i,
   image: /\b(bild\w*|foto\w*|grafik\w*|illustration\w*)\b/i,
 };
+
+/**
+ * Meint dieser Turn das zuletzt im Thread erzeugte Bild? Ja, wenn es im Turn
+ * davor kam, oder wenn der Auftrag ein Bild nennt. `last_tool_context` bleibt
+ * „image", bis das nächste Artefakt kommt — ohne Adressaten würde jeder spätere
+ * Turn das alte Bild meinen. Zwei Leser: der Bild-Folgezweig des Klassifikators
+ * und die Fotos eines Sharepic-Turns (`photosForTurn`).
+ */
+export function addressesThreadImage(text: string, lastTurnProducedImage: boolean): boolean {
+  return (
+    lastTurnProducedImage || ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(text)))
+  );
+}
 
 /**
  * An ACTION-LEVEL prohibition: "nichts speichern", "keine Dokumentaktion",
@@ -489,9 +532,13 @@ export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, 
  * „Slider" (15.10.2026): so heissen die Karussells im Chat und im Creator
  * (`sharepicCreator/forms.ts`) — „wandle diese PM in einen Sharepic-Slider um"
  * war der Live-Fall, „mach daraus einen Slider" trug das Wort gar nicht.
+ *
+ * Zusammensetzungen (06.11.2026): „pack es in ein Veranstaltungssharepic" fand
+ * das Wort nicht, weil `\b` davor nur das freistehende Nomen zulässt. Nur für
+ * „Sharepic" selbst — „Kinderkarussell" ist kein Karussell-Sharepic.
  */
 export const SHAREPIC_NOUN_SRC =
-  'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
+  '[a-zäöüß]+share[\\s-]?pics?|share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
   '|karussell\\w*|carousels?|slider[ns]?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
@@ -523,6 +570,20 @@ export function hasExplicitSharepicWord(text: string): boolean {
     return !META_QUESTION_START_RE.test(sentences[1] ?? '');
   }
   return !isMetaQuestionAbout(firstSentence, SHAREPIC_WORD_RE);
+}
+
+/**
+ * Der Auftrag nennt ein anderes Artefakt als ein Bild: ein Sharepic, Dokument,
+ * eine Präsentation, ein PDF … „schreib ein Dokument und füge das Bild ein" will
+ * das Bild IN diesem Artefakt, nicht ein neues Bild (live 06.11.2026: daraus
+ * malte FLUX ein „Informationsplakat").
+ */
+export function namesNonImageArtifact(text: string): boolean {
+  if (hasExplicitSharepicWord(text)) return true;
+  const order = stripQuotedSpans(orderText(text));
+  return (Object.keys(ARTIFACT_NOUN_BY_KIND) as ForbiddableArtifact[]).some(
+    (kind) => kind !== 'image' && ARTIFACT_NOUN_BY_KIND[kind].test(order)
+  );
 }
 
 /**
@@ -562,8 +623,10 @@ const DEFINITE_SHAREPIC_RE = new RegExp(
  * Wunsch-Verb gefragt wird: hier zählen auch der/die/den, weil Slider und
  * Karussell maskulin bzw. neutral, Infografik feminin sind.
  */
+export const EXISTING_SHAREPIC_DET_SRC =
+  'der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*';
 const EXISTING_SHAREPIC_RE = new RegExp(
-  `\\b(?:der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  `\\b(?:${EXISTING_SHAREPIC_DET_SRC})\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
 export function refersToExistingSharepic(text: string): boolean {

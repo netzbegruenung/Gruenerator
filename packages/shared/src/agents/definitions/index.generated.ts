@@ -1218,6 +1218,37 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     systemRole: '',
   },
   {
+    identifier: 'gruenerator-wahlpruefsteine',
+    title: 'Wahlprüfsteine',
+    description:
+      'Beantwortet Wahlprüfsteine von Verbänden zur Bundestags-, Europa- oder Landtagswahl — im Format des Katalogs und im Stil der grünen Antwortdokumente.',
+    avatar: '📋',
+    backgroundColor: '#316049',
+    tags: ['Wahlprüfsteine', 'Verbände', 'Wahlkampf', 'Grüne'],
+    model: 'mistral-large-latest',
+    defaultModel: 'mistral-large-latest',
+    provider: 'mistral',
+    params: { max_tokens: 8000, temperature: 0.4 },
+    openingMessage:
+      'Hallo! Ich beantworte Wahlprüfsteine für {{partyName}} — zur Bundestagswahl, zur Europawahl oder zu einer Landtagswahl.\n\nFüge den Fragenkatalog des Verbands ein und sag mir, zu welcher Wahl er gehört. Ich recherchiere die grünen Positionen und antworte in genau dem Format, in dem der Katalog gestellt ist.',
+    welcomeQuestion: 'Welchen Katalog sollen wir beantworten — und zu welcher Wahl?',
+    openingQuestions: [
+      'Beantworte diesen Wahlprüfstein-Katalog zur Bundestagswahl: …',
+      'Ein Verband schickt uns Thesen zur Europawahl — wie antworten wir? …',
+      'Formuliere eine Antwort auf die Frage nach der Zukunft der Pflege',
+      'Prüfe diesen Antwortentwurf auf Stil und Zeichenlimit: …',
+    ],
+    locale: 'de-DE',
+    author: 'Grünerator',
+    enabledTools: ['search', 'web', 'examples', 'memory'],
+    defaultNotebookIds: ['gruene-notebook', 'bundestagsfraktion-notebook'],
+    autoRoutingHint: 'precise',
+    iconKey: 'file-text',
+    audience: 'de-DE',
+    defaultRecipeMention: 'wahlpruefstein',
+    systemRole: '',
+  },
+  {
     identifier: 'gruenerator-abgeordnetenwatch',
     title: 'Abgeordnetenwatch',
     description:

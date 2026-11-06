@@ -10,7 +10,10 @@
 import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import {
+  ownedDefaultRecipeMention,
+  roleAwareDefaultRecipeMention,
+} from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   methodPrecedenceNote,
@@ -32,11 +35,13 @@ import {
   fairShare,
   getRetrievalBudget,
 } from '../../../../routes/chat/services/messageHelpers.js';
+import { listTurnImageRefs } from '../../../../routes/chat/services/turnImageList.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
+import { wholeDocumentIdsInPrompt } from '../../../../routes/chat/services/wholeDocument.js';
 import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
@@ -69,13 +74,23 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
+import {
+  looksLikeDocsHelpQuestion,
+  looksLikeGeltungsfrage,
+  NO_RETRIEVAL_VERDICTS,
+} from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
 import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
 import { buildVisualBlocksGuidance } from './visualBlocksGuidance.js';
 
-import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
+import type {
+  ChatGraphState,
+  DocumentSource,
+  SearchResult,
+  ThreadAttachment,
+  WholeDocumentTurn,
+} from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -123,6 +138,21 @@ function retrievalQuery(state: ChatGraphState): string {
  */
 function attachmentQuery(state: ChatGraphState): string {
   return lastUserText(state) || (state.searchQuery ?? '');
+}
+
+/**
+ * Budget und Deckel für Dokumente, die ein Ganzdokument-Turn liest (siehe
+ * `routes/chat/services/wholeDocument.ts`): das Budget der Entscheidung statt
+ * des Abruf-Anteils, und kein Deckel je Dokument — die 25.000 Zeichen sind für
+ * Fragen AN ein Dokument gemacht, eine Zusammenfassung braucht das Ganze.
+ * `null`, wenn der Volltext nicht passt oder die Quelle nicht gemeint ist.
+ */
+function wholeDocumentLimits(
+  whole: WholeDocumentTurn | null | undefined,
+  origin: WholeDocumentTurn['origin']
+): { budget: number; perDocumentCap: number } | null {
+  if (!whole?.fits || whole.origin !== origin) return null;
+  return { budget: whole.budgetChars, perDocumentCap: Number.POSITIVE_INFINITY };
 }
 
 /**
@@ -206,7 +236,8 @@ export function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS,
-  query?: string | null
+  query?: string | null,
+  perDocumentCap: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
 ): string {
   budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
@@ -250,7 +281,7 @@ export function limitAttachmentContext(
       continue;
     }
 
-    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
+    const perDocLimit = Math.min(perDocumentCap, perDocBudget);
     const truncated = truncateDocument(doc.content, perDocLimit, query);
 
     limited.push(`${doc.header}\n${truncated}`);
@@ -564,11 +595,13 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
+  const whole = wholeDocumentLimits(state.wholeDocument, 'turn');
   const limitedContext = limitAttachmentContext(
     state.attachmentContext,
     state.contextWindowTokens,
-    undefined,
-    attachmentQuery(state)
+    whole?.budget,
+    attachmentQuery(state),
+    whole?.perDocumentCap
   );
 
   return `
@@ -630,8 +663,13 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
   const hasEditDescriptions =
     !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
 
-  if (state.imageAttachments && state.imageAttachments.length > 0) {
-    const count = state.imageAttachments.length;
+  // Im Loop zählen auch Wolke-Fotos mit; ihre Nummern sind die von `bild_ansehen`.
+  const turnImages =
+    opts.loop === true
+      ? listTurnImageRefs(state)
+      : (state.imageAttachments ?? []).map((img) => ({ name: img.name, kind: 'anhang' as const }));
+  if (turnImages.length > 0) {
+    const count = turnImages.length;
     // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
     // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
     // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
@@ -640,8 +678,11 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
     const visibility = imageVisibility(state, { loop: opts.loop === true });
     // Numbered on the tool path: names repeat ("image.png" twice from the
     // clipboard), and `bild_ansehen` addresses an image by its number.
-    const names = state.imageAttachments
-      .map((img, i) => (visibility === 'tool' ? `Bild ${i + 1}: ${img.name}` : img.name))
+    const names = turnImages
+      .map((img, i) => {
+        const label = img.kind === 'wolke' ? `${img.name} (aus der Wolke)` : img.name;
+        return visibility === 'tool' ? `Bild ${i + 1}: ${label}` : label;
+      })
       .join(', ');
     const sentence =
       visibility === 'visible'
@@ -653,7 +694,7 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} ${turnImages.some((i) => i.kind === 'wolke') ? 'angehängt oder aus der Wolke gewählt' : 'angehängt'} (${names}). ${sentence}`);
   }
 
   if (editDescriptions && hasEditDescriptions) {
@@ -731,11 +772,14 @@ export function formatThreadAttachmentsContext(
   contextWindowTokens?: number,
   conversationText = '',
   liveAttachmentContext = '',
-  query = ''
+  query = '',
+  wholeDocument: WholeDocumentTurn | null = null
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
+  const whole = wholeDocumentLimits(wholeDocument, 'thread');
+  const wholeIds = whole ? wholeDocumentIdsInPrompt(wholeDocument) : new Set<string>();
 
   const sections: string[] = [];
 
@@ -767,7 +811,13 @@ export function formatThreadAttachmentsContext(
     // Docs with a documentId were embedded into Qdrant — they come back via
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
-    .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
+    // Ausnahme: ein Ganzdokument-Turn liest sie ganz (`wholeDocument`).
+    .filter(
+      (a) =>
+        !a.isImage &&
+        (!a.documentId || wholeIds.has(a.documentId)) &&
+        (a.extractedText || a.summary)
+    )
     .filter((a) => !alreadyVerbatimInConversation(a.extractedText, conversationText))
     .filter((a) => {
       const body = squashWhitespace(a.extractedText ?? a.summary ?? '');
@@ -789,7 +839,13 @@ export function formatThreadAttachmentsContext(
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks, contextWindowTokens, undefined, query);
+    const docs = limitAttachmentContext(
+      docBlocks,
+      contextWindowTokens,
+      whole?.budget,
+      query,
+      whole?.perDocumentCap
+    );
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -810,7 +866,7 @@ Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF",
 
 ## FRÜHERE BILDER IN DIESEM GESPRÄCH (vom Vision-Modell beschrieben)
 
-${embedUntrusted('frueheres_dokument', images)}
+${embedUntrusted('fruehere_bilder', images)}
 
 ---
 Beziehe dich auf diese Bildbeschreibungen, wenn der Nutzer nach einem früher gesendeten Bild fragt (z.B. "das Bild", "das Foto", "was war darauf zu sehen").`);
@@ -1512,8 +1568,9 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
   );
 }
 
-export function getModeGuidance(state: ChatGraphState): string {
-  switch (state.intent) {
+export function getModeGuidance(state: ChatGraphState, opts: { proseLoop?: boolean } = {}): string {
+  // A prose turn in the loop arrives as `agentic`; it keeps its prose verdict's guidance.
+  switch (opts.proseLoop ? (state.loopDemotedFromProse ?? state.intent) : state.intent) {
     case 'edit_current_doc':
       return getDocEditGuidance(state);
     case 'summary':
@@ -1536,7 +1593,13 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'direct':
       return (
         DIRECT_GUIDANCE +
-        (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE) +
+        // Im Loop darf das Modell Werkzeuge rufen: „NICHTS recherchiert" und
+        // „Quellen aus dem Thread" wären dort falsch, also keine der beiden Notizen.
+        (opts.proseLoop
+          ? ''
+          : state.sourcesCarriedFromThread
+            ? CARRIED_SOURCES_NOTE
+            : DIRECT_HONESTY_NOTE) +
         (FILE_TALK_RE.test(state.lastUserTextNoMentions || lastUserText(state)) ||
         state.forbiddenArtifactAction
           ? NO_HANDMADE_FILE_NOTE
@@ -1655,10 +1718,12 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * branch still answers it in one or two paragraphs.
  */
 // Angebote (#4367): ein Angebot, das ein ABSCHLUSS-Hinweis des Rezepts
-// verlangt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
-// was angeboten wurde, und ein „ja" darauf baut es.
+// erlaubt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
+// was angeboten werden darf, und ein „ja" darauf baut es. „Erlaubt", nicht
+// „verlangt": die Pflicht zur Rückfrage hielt Gemma 4 31B am 06.11.2026 in
+// einer Endlosschleife aus Selbstkorrekturen.
 const SCOPE_RULE =
-  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer der einen Rückfrage, die ein ABSCHLUSS-Hinweis verlangt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer dem einen Angebot, das ein ABSCHLUSS-Hinweis erlaubt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
 
 /**
  * The syntax has to be named. Asked only for "Überschriften", the model answered
@@ -1885,7 +1950,10 @@ function buildAnswerFormatRule(
     return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(state.intent);
+  // Picked material runs as `agentic` since 06.11.2026 but is the person's own
+  // documents, not external research: it keeps the form `search` gave it.
+  const isExternalResearch =
+    EXTERNAL_RESEARCH_INTENTS.has(state.intent) && state.readsPickedMaterial !== true;
   if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
     note('research_expanded');
     // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:
@@ -1917,6 +1985,18 @@ export interface SystemMessageOptions {
    * the images are visible (`imageVisibility`).
    */
   loop?: boolean;
+  /**
+   * Prosa-Turn (`NO_RETRIEVAL_VERDICTS` ohne `greeting`) im Loop: Rezept-Rumpf
+   * und Schreibhilfe bleiben im Prompt wie im Einzelpfad. Ohne Angabe leitet
+   * `buildPromptBlockContext` es aus dem Intent ab.
+   */
+  proseIntent?: boolean;
+  /**
+   * Der Loop schickt den Rückblick auf frühere Gespräche als eigene System-
+   * Nachricht hinter dem Prompt (`turnContext`). Er ändert sich mit jeder Frage;
+   * mitten im Prompt zerschnitte er den Prefix-Cache von Prompt und Werkzeugen.
+   */
+  recallAsMessage?: boolean;
 }
 
 /**
@@ -1992,10 +2072,12 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
         // Dublette bliebe dann genau in den Fällen unerkannt, in denen sie am
         // teuersten ist.
         state.attachmentContext ?? '',
-        attachmentQuery(state)
+        attachmentQuery(state),
+        state.wholeDocument ?? null
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
-  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
+  const chatHistoryFormatted =
+    state.chatHistoryContext && !opts.recallAsMessage ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = isPinnedTransfer
@@ -2005,8 +2087,15 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
 
+  // A prose turn reaches the loop as `agentic`; its prose verdict travels in
+  // `loopDemotedFromProse` (classifier `proseGoesToLoop`).
+  const proseLoop =
+    opts.loop === true &&
+    (opts.proseIntent ??
+      (state.loopDemotedFromProse != null ||
+        (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting')));
   const intentGuidance =
-    getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
+    getModeGuidance(state, { proseLoop }) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
   // Was dieses Gespräch gebaut hat. Die EINE Naht, die beide Pfade erreicht:
   // der Loop erbt diesen `systemMessage` und hängt nur noch an, was erst in
@@ -2171,7 +2260,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Formatgeber. Dieselbe Trennung macht `catalogAssembly` für `rezept_laden`
   // im Loop. Regeln und Herleitung in `effectiveRecipeMention.ts`.
   const isWriteEligibleTurn =
-    !opts.retrievalExpected &&
+    (!opts.retrievalExpected || proseLoop) &&
     !isNeutralTurn &&
     intent !== 'greeting' &&
     !looksLikeChitchatTurn(userQuestion) &&
@@ -2218,9 +2307,20 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  const textFormFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
-    : '';
+  // Im Loop lädt die Rezept-Registry den Default eines Ein-Rezept-Agenten
+  // schon vor (`catalogAssembly`, dieselben Bedingungen) — hier stünde derselbe
+  // Rumpf sonst ein zweites Mal im Prompt.
+  const preloadedByRegistry =
+    opts.loop === true &&
+    !state.activeSkillMention &&
+    !state.activeRecipeId &&
+    !state.customSystemPrompt &&
+    resolved != null &&
+    resolved.mention === ownedDefaultRecipeMention(agentConfig);
+  const textFormFragment =
+    resolved && !preloadedByRegistry
+      ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
+      : '';
 
   // Methoden-Rezepte (`@bundestag` → Bundestag-Recherche, Rechtsstand) stehen
   // NEBEN der Textsorte, nicht an ihrer Stelle — eigene Überschrift, eigene

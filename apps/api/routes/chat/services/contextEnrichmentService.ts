@@ -16,8 +16,10 @@ import {
 } from '../../../services/presentations/PresentationGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { isPastedTextAttachment } from './attachmentProcessingService.js';
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
 import { sendChatWarning } from './sseHelpers.js';
+import { resolveWholeDocumentTurn } from './wholeDocument.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -66,6 +68,8 @@ export async function enrichContext(opts: {
   docAttachments: ProcessedAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
   contextWindowTokens: number;
+  /** Documents picked via @dokumentchat in THIS turn (not the carried ones). */
+  turnPicksDocumentChat?: boolean;
   sse: SSEWriter;
 }): Promise<void> {
   const {
@@ -80,6 +84,7 @@ export async function enrichContext(opts: {
     docAttachments,
     processedMeta,
     contextWindowTokens,
+    turnPicksDocumentChat,
     sse,
   } = opts;
 
@@ -453,13 +458,53 @@ export async function enrichContext(opts: {
     }
   }
 
+  // Braucht der Turn das GANZE Material (eine Zusammenfassung)? Nach der
+  // Vektorisierung entschieden, damit die Ids der gerade indizierten Anhänge
+  // feststehen; vor dem Leeren, weil davon abhängt, ob ihr Text im Prompt
+  // bleibt. Begründung in wholeDocument.ts.
+  const wholeDocument = resolveWholeDocumentTurn({
+    userText: lastUserText(initialState),
+    turnDocs: docAttachments.flatMap((att) => {
+      const meta = metaOf.get(att);
+      return meta?.extractedText
+        ? [
+            {
+              name: meta.name,
+              text: meta.extractedText,
+              documentId: meta.documentId ?? null,
+              pasted: isPastedTextAttachment(att.name, att.type),
+            },
+          ]
+        : [];
+    }),
+    threadAttachments: initialState.threadAttachments ?? [],
+    turnReferencesOtherMaterial:
+      (rawDocumentIds?.length ?? 0) > 0 ||
+      (rawTextIds?.length ?? 0) > 0 ||
+      (rawDocMentionIds?.length ?? 0) > 0 ||
+      (initialState.notebookSources?.length ?? 0) > 0 ||
+      turnPicksDocumentChat === true,
+    contextWindowTokens,
+  });
+  initialState.wholeDocument = wholeDocument;
+  if (wholeDocument) {
+    log.info(
+      `[ChatGraph] Whole-document turn: ${wholeDocument.docs.length} doc(s) from ${wholeDocument.origin}, ${wholeDocument.chars}/${wholeDocument.budgetChars} chars — ${wholeDocument.fits ? 'full text in prompt' : 'too large, map-reduce'}`
+    );
+  }
+  const keepWholeTurnText = wholeDocument?.origin === 'turn' && wholeDocument.fits;
+
   // Clear raw attachment text for vectorized docs only.
   // Docs below SMALL_DOC_VECTORIZATION_THRESHOLD keep their inline
   // attachmentContext — see the threshold's own comment for why that matters.
   // Gated on docAttachments.length: documentChatIds can arrive without any
   // file attachments (pre-supplied references), in which case attachmentContext
   // is the live inline content and must be preserved.
+  //
+  // Eine Ganzdokument-Aufgabe behält den Text auch großer Anhänge: indiziert
+  // sind sie trotzdem, für die Fragen der Folgeturns.
   if (
+    !keepWholeTurnText &&
     docAttachments.length > 0 &&
     initialState.documentChatIds &&
     initialState.documentChatIds.length > 0

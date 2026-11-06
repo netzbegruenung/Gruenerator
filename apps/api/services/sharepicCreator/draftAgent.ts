@@ -79,6 +79,7 @@ import {
   withPaletteColors,
 } from './paletteColors.js';
 import { ownPhotosText } from './photoAnalysis.js';
+import { repairPhotoRefs } from './photoRefRepair.js';
 import { withoutLocale, KEEP_THE_REST, focusHint } from './revisionPrompt.js';
 import {
   driftProblems,
@@ -320,6 +321,15 @@ export async function draftSharepic(
       ? ownPhotos.filter((p) => p.url && p.analysis.personen >= 1).map((p) => p.id)
       : []
   );
+  const ownPhotoUnused = () =>
+    `Du hast ein eigenes Foto mitgebracht (${ownPhotos.map((p) => p.id).join(', ')}) – setz es ein: als Hintergrund, als bild (auch ausschnitt "freigestellt") oder als "person" in der szene.`;
+  // The raw answer, before the schema: an own photo anywhere in it counts as used.
+  const usesOwnPhoto = (input: unknown) => {
+    const raw = JSON.stringify(input);
+    return ownPhotos.some((p) => raw.includes(JSON.stringify(p.id)));
+  };
+  // What the draft may name from the search: a typo in one of these gets repaired.
+  const listedPhotos = [...photos.map((p) => p.filename), ...currentPhotos];
   const photoGuard = ownPhotoGuard<Drafted>(current, photoRequestTexts(order, brief));
   // A revision filling in a missing Termin (chat gap answer or Studio words): weekday and place go on the card.
   const terminAntwort = terminAnswerOf(order, current);
@@ -347,8 +357,12 @@ export async function draftSharepic(
       if (!taken.ok) return taken;
       const datumFixed = repairDatum(taken.input, given, keptWeekdays);
       const ortFixed = repairOrt(datumFixed.input, given);
+      const photoFixed = repairPhotoRefs(ortFixed.input, listedPhotos);
+      // Not reported to the person, unlike datum/ort: those repairs drop words of the
+      // order, this one only corrects the model's copy of a name the person never saw.
+      for (const r of photoFixed.repairs) log.info(`repaired foto "${r.from}" → "${r.to}"`);
       const repaired = {
-        input: ortFixed.input,
+        input: photoFixed.input,
         repairs: [...datumFixed.repairs, ...ortFixed.repairs],
       };
       for (const r of repaired.repairs) {
@@ -367,7 +381,13 @@ export async function draftSharepic(
         painters.cutOut ? ownPhotos.filter((p) => p.url).map((p) => p.id) : [],
         terminAntwort
       );
-      if (!checked.ok) return checked;
+      if (!checked.ok) {
+        // Told only after every other check passed, the own photo never reached a model stuck on
+        // an invented stock name (06.11.2026): it comes with the first error.
+        return !current && ownPhotos.length && !usesOwnPhoto(input)
+          ? { ok: false, error: `${checked.error}\n${ownPhotoUnused()}` }
+          : checked;
+      }
       const notSingle =
         single &&
         checked.value.slides.length !== 1 &&
@@ -388,7 +408,11 @@ export async function draftSharepic(
       const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
       if (look) return { ok: false, error: look };
       // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
-      const firstPersonable = [...personable][0];
+      // Only a photo of ONE person is that person: a crowd in a landscape is no one to paint in
+      // (live 06.11.2026, a meadow behind a sunflower became a collage).
+      const firstPersonable = ownPhotos.find(
+        (p) => personable.has(p.id) && p.analysis.personen === 1
+      )?.id;
       if (
         !current &&
         attempt < attempts &&
@@ -406,13 +430,7 @@ export async function draftSharepic(
       if (!current && attempt < attempts && ownPhotos.length) {
         const used = new Set(photoNames(checked.value.slides));
         if (taken.scene?.person) used.add(taken.scene.person);
-        if (!ownPhotos.some((p) => used.has(p.id))) {
-          const ids = ownPhotos.map((p) => p.id);
-          return {
-            ok: false,
-            error: `Du hast ein eigenes Foto mitgebracht (${ids.join(', ')}) – setz es ein: als Hintergrund, als bild (auch ausschnitt "freigestellt") oder als "person" in der szene.`,
-          };
-        }
+        if (!ownPhotos.some((p) => used.has(p.id))) return { ok: false, error: ownPhotoUnused() };
       }
       // Like a drift: the last attempt passes, the reply then says the slide stayed.
       const untouched =

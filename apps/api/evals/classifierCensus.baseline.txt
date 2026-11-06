@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 400 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 430 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         42   10.5 %     0
-gated                            18    4.5 %     0
-loop                            295   73.8 %     0
-prose                            45   11.3 %    16
+artifact                         48   11.2 %     0
+gated                            18    4.2 %     0
+loop                            347   80.7 %     7
+prose                            17    4.0 %     0
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 11 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (389)
+classifier.tier  (419)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -31,6 +31,8 @@ classifier.tier  (389)
     tier2_artifact_question_accept    0
     tier2_attachment_create_order    0
     tier2_image_attachment_create_order    0
+    tier2_cloud_photo_create_order    0
+    tier2_material_create_order    0
     tier2.7_doc_targeted_edit     0
     tier3.8_existing_artifact_edit    0
     tier2.97_existing_artifact_order    6
@@ -39,21 +41,22 @@ classifier.tier  (389)
     tier2.7_sharepic_followup     8
     tier2.9_docs_help            11
     tier2.95_ambiguous_graphic    3
-    tier3_short_message           3
-    tier3_heuristic              52
+    tier3_short_message           1
+    tier3_short_message_to_loop    5
+    tier3_heuristic              59
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
-    tier3.5_loop_demotion       271
-    tier3.8_generation_scope     16
-    residual                     14
+    tier3.5_loop_demotion       310
+    tier3.8_generation_scope      7
+    residual                      4
     error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
 research                          4  loop
 compare                           0  loop
 search                            0  loop
-web                               8  loop
+web                               9  loop
 scrape_url                        0  gated
 examples                          0  loop
 pressemitteilung_examples         0  retired
@@ -69,7 +72,7 @@ wetter                            0  retired
 news                              0  retired
 image                             2  artifact
 image_edit                        1  artifact
-sharepic                         28  artifact
+sharepic                         31  artifact
 social_post                       0  retired
 summary                           4  gated
 chart                             0  artifact
@@ -81,15 +84,15 @@ edit_current_doc                  0  anchor
 edit_current_board                0  anchor
 modify_board                      0  anchor
 share_doc                         0  gated
-create_sheet                      6  artifact
+create_sheet                      7  artifact
 edit_sheet                        0  anchor
-create_presentation               4  artifact
+create_presentation               5  artifact
 create_pdf                        0  artifact
-create_explainable                1  artifact
+create_explainable                2  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       41  prose
-direct                            3  prose
-greeting                          1  prose
-agentic                         283  loop
+produktion                       13  prose
+direct                            0  prose
+greeting                          4  prose
+agentic                         334  loop

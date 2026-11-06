@@ -2,7 +2,7 @@
  * Judge tier tests. The prompt-shape tests always run; the live calibration
  * tests (fixtures replaying the historical class-6 "keine Treffer auf echten
  * Daten" and class-11 "Edit angewendet, Text leugnet ihn" bugs MUST fail the
- * judge) run only when LITELLM_BASE_URL/_API_KEY are set.
+ * judge) run only when CORTECS_API_KEY and RUN_LIVE_PROVIDER_TESTS are set.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

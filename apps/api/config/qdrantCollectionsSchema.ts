@@ -342,6 +342,20 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     ],
     handleRaceCondition: true,
   },
+  // Echte Antworten der Bundespartei auf Wahlprüfsteine (BTW 2021, EW 2024,
+  // BTW 2025), ein Punkt je Frage/Antwort-Paar — Vorlagen für Ton und Länge des
+  // Wahlprüfstein-Rezepts. Quelle: `_korpus/wahlpruefsteine/antworten.jsonl` im
+  // internen Repo, eingelesen über scripts/ingest-wahlpruefstein-examples.ts.
+  wahlpruefstein_examples: {
+    name: 'wahlpruefstein_examples',
+    store: 'content',
+    optimizer: 'large',
+    hnsw: 'enhanced',
+    indexes: [
+      { field: 'ebene', type: 'keyword' },
+      { field: 'wahl', type: 'keyword' },
+    ],
+  },
   user_texts: {
     name: 'user_texts',
     store: 'instance',

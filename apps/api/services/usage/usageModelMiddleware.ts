@@ -66,6 +66,16 @@ function effectiveProvider(provider: string, response: unknown): string {
   return resolveCortecsUpstream(headers) ?? provider;
 }
 
+/**
+ * Melious' tokens are booked at the HTTP boundary (services/ai/meliousImpact.ts),
+ * because only the response body names the upstream that served them — and the
+ * token row must sit under the same provider as Melious' live measurement.
+ * Booking them here as well would count every Melious request twice.
+ */
+function booksTokensHere(provider: string): boolean {
+  return provider !== 'melious';
+}
+
 function extractUsage(usage: unknown): {
   inputTokens: number;
   outputTokens: number;
@@ -113,7 +123,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
         durationMs: Date.now() - startedAt,
         inputTokens: usage.inputTokens,
       });
-      if (userId) {
+      if (userId && booksTokensHere(provider)) {
         recordTokenUsage({ provider: upstream, model: wrapped.modelId, feature, userId, ...usage });
       }
       return result;
@@ -145,7 +155,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
                 ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
                 inputTokens: usage.inputTokens,
               });
-              if (userId) {
+              if (userId && booksTokensHere(provider)) {
                 recordTokenUsage({
                   provider: upstream,
                   model: wrapped.modelId,

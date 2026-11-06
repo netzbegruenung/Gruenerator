@@ -285,7 +285,10 @@ class ProfileService {
             // Upsert ohne Land ein bereits bekanntes überschreiben — ein Login
             // über einen länderneutralen IdP löschte sonst die Wahl der Person.
             locale: sql`COALESCE(EXCLUDED.locale, ${profiles.locale})`,
-            last_login: sql`EXCLUDED.last_login`,
+            // COALESCE wie bei `locale`: geschrieben wird `last_login` nur vom
+            // Login-Hook in `config/betterAuth.ts`; ein Upsert ohne Wert darf ihn
+            // nicht auf NULL setzen.
+            last_login: sql`COALESCE(EXCLUDED.last_login, ${profiles.last_login})`,
             groups_enabled: sql`EXCLUDED.groups_enabled`,
             custom_generators: sql`EXCLUDED.custom_generators`,
             database_access: sql`EXCLUDED.database_access`,

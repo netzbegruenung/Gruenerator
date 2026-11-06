@@ -43,8 +43,7 @@ function creatorList() {
   const config = createFreeformFullConfig(getCanvasFormatOrDefault(null));
   const actions = config.createActions(() => state, setState, noop, noop, {});
   const list = (state.additionalTexts as AdditionalText[]).find((t) => t.text.startsWith('•'))!;
-  // Boundary cast: FreeformActions is Record<string, any>.
-  const update = actions.updateAdditionalText as (id: string, p: Partial<AdditionalText>) => void;
+  const update = actions.updateAdditionalText;
   return { update, getState: () => state, list, source };
 }
 

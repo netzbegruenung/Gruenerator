@@ -64,6 +64,27 @@ describe('turnMaterialChars', () => {
     ).toBe(3_400);
   });
 
+  it('counts a vectorised document a whole-document turn puts back in full', () => {
+    // Live 06.11.2026: "fasse zusammen" over a 30-page PDF from earlier in the
+    // thread. `formatThreadAttachmentsContext` now emits that row in full, so
+    // the number has to see it too.
+    const id = 'doc-pdf';
+    const text = 'x'.repeat(23_158);
+    expect(
+      turnMaterialChars({
+        threadAttachments: [{ isImage: false, documentId: id, extractedText: text }],
+        wholeDocument: {
+          origin: 'thread',
+          ask: 'summary',
+          docs: [{ name: 'document.pdf', text, documentId: id }],
+          chars: text.length,
+          budgetChars: 151_550,
+          fits: true,
+        },
+      })
+    ).toBe(23_158);
+  });
+
   it('ignores images', () => {
     // A picture contributes a vision description, not text to transform.
     expect(

@@ -54,6 +54,7 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
   const trace: ChatTrace = {
     intent: null,
     agentic: false,
+    loopMode: null,
     toolCalls: [],
     sharepicGenerated: false,
     imageGenerated: false,
@@ -216,6 +217,8 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
       }
       case 'done': {
         sawDone = true;
+        if (data.loopMode === 'unified' || data.loopMode === 'split')
+          trace.loopMode = data.loopMode;
         if (Array.isArray(data.citations)) {
           trace.citations = data.citations;
           trace.sources = data.citations.length;

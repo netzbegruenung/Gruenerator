@@ -11,9 +11,6 @@
  * same question ("what is this turn, and with what input?").
  */
 
-import { promises as fsPromises } from 'node:fs';
-import nodePath from 'node:path';
-
 import { isMethodSkill } from '@gruenerator/shared/agents';
 import {
   artifactKindForCreateToken,
@@ -25,9 +22,9 @@ import {
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractCompoundTopic } from '../services/compoundTopicExtractor.js';
+import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
 import { resolveReferentialQuery } from '../services/referentialTopic.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
-import { getLastGeneratedImageUrl } from '../services/threadPersistenceService.js';
 
 import { type InitialState, type StreamBody } from './types.js';
 
@@ -445,24 +442,11 @@ export async function runForcedIntentStage({
   // without this the edit node errors with "Bitte hänge ein Bild an".
   // Only local flux results are eligible (strict path shape, no traversal).
   if (classifiedState.intent === 'image_edit' && imageAttachments.length === 0 && actualThreadId) {
-    const lastUrl = await getLastGeneratedImageUrl(actualThreadId).catch(() => null);
-    const m = lastUrl?.match(/^\/uploads\/(flux\/results\/[\w.-]+\/[\w.-]+)$/);
-    if (m?.[1]) {
-      try {
-        const filePath = nodePath.join(process.cwd(), 'uploads', m[1]);
-        const data = await fsPromises.readFile(filePath);
-        imageAttachments.push({
-          name: nodePath.basename(filePath),
-          type: 'image/jpeg',
-          data: data.toString('base64'),
-        });
-        classifiedState.imageAttachments = imageAttachments;
-        log.info('[ChatGraph] Rehydrated previous generated image for image_edit');
-      } catch (err) {
-        log.warn(
-          `[ChatGraph] Could not rehydrate previous image (${err instanceof Error ? err.message : err})`
-        );
-      }
+    const previous = await loadLastGeneratedImage(actualThreadId);
+    if (previous) {
+      imageAttachments.push(previous);
+      classifiedState.imageAttachments = imageAttachments;
+      log.info('[ChatGraph] Rehydrated previous generated image for image_edit');
     }
   }
   return { isCompound, forcedTool, universalEditForced };

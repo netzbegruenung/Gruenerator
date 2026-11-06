@@ -42,10 +42,35 @@ describe('offerNote', () => {
   const state = (over: Record<string, unknown> = {}) =>
     ({ userLocale: 'de-DE', vorlagenShown: [], enabledTools: {}, ...over }) as never;
 
-  it('names the artifact in a single closing question', () => {
+  it('names the artifact in an optional closing offer', () => {
     const note = offerNote(state(), ['sprechzettel']);
-    expect(note).toContain('ABSCHLUSS');
+    expect(note).toContain('ABSCHLUSS (freiwillig)');
     expect(note).toContain('Präsentation');
+  });
+
+  // Live 06.11.2026: „schließe mit genau EINER kurzen Rückfrage … Keine andere
+  // Rückfrage" hielt Gemma 4 31B in einer Endlosschleife aus Selbstkorrekturen.
+  it('neither demands the offer nor dictates its wording', () => {
+    vorlagenCatalog.size = 0;
+    const note = offerNote(state(), ['instagram']);
+    expect(note).not.toMatch(/genau EINER|Keine andere Rückfrage|schließe mit/);
+    expect(note).toContain('als Frage oder als kurzer Satz');
+  });
+
+  it('offers nothing the thread already has, not just this turn', () => {
+    vorlagenCatalog.size = 3;
+    const withSharepic = state({ threadArtifacts: [{ kind: 'sharepic' }] });
+    // Weder die Galerie noch das Sharepic selbst.
+    expect(offerNote(withSharepic, ['instagram'])).toBe('');
+    vorlagenCatalog.size = 0;
+    expect(offerNote(withSharepic, ['instagram'])).toBe('');
+    expect(
+      offerNote(state({ threadArtifacts: [{ kind: 'presentation' }] }), ['sprechzettel'])
+    ).toBe('');
+    // Eine andere Art im Thread hält das Angebot nicht auf.
+    expect(offerNote(state({ threadArtifacts: [{ kind: 'document' }] }), ['instagram'])).toContain(
+      'Sharepic'
+    );
   });
 
   it('is empty without a fitting recipe', () => {
@@ -130,7 +155,8 @@ describe('offerToRecord', () => {
   // Bis 15.10.2026 hiess es hier „records nothing without a recipe". Die
   // Prompt-Regeln lassen das Modell aber auch ohne Rezept anbieten, und das „ja"
   // darauf lief ins Leere. Gespeichert wird jetzt, was das Angebot als
-  // ERSTELLUNG formuliert — dasselbe Prädikat wie für einen Auftrag.
+  // ERSTELLUNG formuliert. Fürs Sharepic mit eigenem Prädikat (#5412), für die
+  // übrigen Arten mit dem Bestell-Prädikat.
   it('records an offer to create, even without a recipe', () => {
     expect(
       offerToRecord({
@@ -139,6 +165,91 @@ describe('offerToRecord', () => {
         producedArtifact: false,
       })
     ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Das live gestellte Angebot (06.11.2026). Ein Trenner an jedem Punkt las es
+  // als „2026 erstellen?" — ohne „Sharepic", also ungespeichert.
+  it.each([
+    'Soll ich daraus ein Sharepic mit dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?',
+    'Soll ich daraus ein Sharepic zum Bauausschuss am 19. November machen?',
+  ])('records an offer whose details carry dots: %s', (offer) => {
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
+  });
+
+  // Ohne Fragezeichen trägt nur der Ich-Form-Satz das Angebot: ein Trenner
+  // hinter „z.B." liess „Ich kann dir z.B." übrig, ohne „Sharepic" (Claude
+  // Review, #5410). Als Frage fiel es nicht auf — dort fängt `lastQuestion` den
+  // hinteren Rest mit „Sharepic" auf.
+  it.each([
+    'Ich kann dir z.B. ein Sharepic daraus machen.',
+    'Wenn du magst, mache ich dir ggf. noch ein Sharepic dazu.',
+    'Ich kann dir daraus bzw. aus dem Post ein Sharepic machen.',
+  ])('records a statement offer around an abbreviation: %s', (offer) => {
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
+  });
+
+  // Ohne Rezept las bis #5412 das Bestell-Prädikat das Angebot. Es verlangt
+  // das Verb nah am Nomen und gibt einem genannten Post den Vortritt, weil
+  // „Erstelle einen Post mit Sharepic" ein Schreibauftrag ist. Ein Angebot
+  // folgt dem fertigen Post: es nennt ihn, und das Verb steht, wo es will.
+  it.each([
+    'Ich kann dir daraus ein Sharepic zum Post machen.',
+    'Soll ich dir zum Post noch ein passendes Sharepic dazu machen?',
+    'Wenn du magst, kann ich dir noch ein Sharepic mit Termin und Ort der Sitzung im Rathaus erstellen.',
+    // Der Artikel steht am Ausgangsstoff, nicht am angebotenen Sharepic
+    // (Claude Review, #5417).
+    'Soll ich aus der Infografik ein Sharepic erstellen?',
+    'Soll ich das als Sharepic aufbereiten und dir machen?',
+  ])('records a sharepic offer the order predicate would not read: %s', (offer) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Die Kehrseite: kein Verb-Fenster heisst nicht „jedes Sharepic im Satz".
+  it.each([
+    'Ich kann dir leider kein Sharepic erstellen.',
+    'Soll ich das Sharepic noch heller machen?',
+    'Soll ich dein Sharepic um den Termin ergänzen?',
+    'Soll ich dir erklären, was ein gutes Sharepic ausmacht?',
+    'Soll ich dir zeigen, wie man ein Sharepic macht?',
+    'Ich kann dir leider keine Tabelle mit allen Sharepics erstellen.',
+  ])('records no sharepic for an offer that builds none: %s', (offer) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `${post}\n\n${offer}`, producedArtifact: false })
+    ).toBeNull();
+  });
+
+  // Das Sharepic ist hier Inhalt, angeboten wird die Tabelle (Claude Review, #5417).
+  it('records the kind the verb builds, not a sharepic inside it', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: `${post}\n\nIch kann dir eine Tabelle mit allen Sharepics erstellen.`,
+        producedArtifact: false,
+      })
+    ).toEqual({ kind: 'sheet' });
+  });
+
+  // Das Angebot ist frei formuliert und muss keine Frage sein.
+  it.each([
+    'Wenn du magst, mache ich daraus ein Sharepic.',
+    'Gern erstelle ich dir dazu noch ein Sharepic.',
+    'Sag Bescheid, dann baue ich dir ein Sharepic daraus.',
+  ])('records a first-person offer without a question mark: %s', (offer) => {
+    for (const recipeMentions of [['instagram'], []]) {
+      expect(
+        offerToRecord({ recipeMentions, text: `${post}\n\n${offer}`, producedArtifact: false })
+      ).toEqual({ kind: 'sharepic' });
+    }
   });
 
   it('records the live offer that ended with „!" instead of a question', () => {
@@ -277,5 +388,11 @@ describe('offerTopic', () => {
         'Liebe Freund*innen, die Verkehrswende …\n\nSoll ich daraus eine Präsentation machen?'
       )
     ).toBe('Liebe Freund*innen, die Verkehrswende …');
+  });
+
+  it('drops a closing offer that is no question', () => {
+    expect(
+      offerTopic('Bist du dabei? Komm am Samstag!\n\nWenn du magst, mache ich daraus ein Sharepic.')
+    ).toBe('Bist du dabei? Komm am Samstag!');
   });
 });

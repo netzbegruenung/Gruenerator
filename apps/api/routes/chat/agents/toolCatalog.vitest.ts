@@ -296,6 +296,36 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['summarize', 'dokumente_lesen']));
   });
 
+  // #5399: the writer has the whole text; `summarize` would only re-read it, and
+  // a planner that saw a stub instead of the text called it anyway (22 s).
+  it('drops summarize when a whole-document turn has the full text in the prompt', () => {
+    const state = (fits: boolean) =>
+      ({
+        intent: 'agentic',
+        enabledTools: {},
+        messages: [{ role: 'user', content: 'Fasse die Vereinbarung zusammen' }],
+        documentSources: [{ kind: 'document', id: 'doc-1', label: 'Vereinbarung.pdf' }],
+        wholeDocument: {
+          origin: 'turn',
+          ask: 'summary',
+          docs: [{ name: 'Vereinbarung.pdf', text: 'x', documentId: 'doc-1' }],
+          chars: 68_000,
+          budgetChars: fits ? 224_000 : 40_000,
+          fits,
+        },
+      }) as unknown as ChatGraphState;
+    const names = (fits: boolean) =>
+      buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse: { send: () => {} } as never, state: state(fits) },
+      }).toolNames;
+    expect(names(true)).not.toContain('summarize');
+    expect(names(true)).toContain('dokumente_lesen');
+    // Too large for the prompt: map-reduce stays the way to the whole text.
+    expect(names(false)).toContain('summarize');
+  });
+
   it('mounts generate_image only for image + explicitly image-phrased agentic turns', () => {
     expect(catalogFor('search').toolNames).not.toContain('generate_image');
     expect(catalogFor('image').toolNames).toContain('generate_image');
@@ -1149,6 +1179,40 @@ describe('toolCatalog bild_ansehen', () => {
   });
 });
 
+describe('toolCatalog Wolke-Foto im Loop', () => {
+  const wolke = [{ shareLinkId: 's', path: '/IMG_2601.jpg', name: 'IMG_2601.jpg' }];
+  const namesFor = (state: Record<string, unknown>) =>
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          imageAttachments: [],
+          wolkeFiles: wolke,
+          messages: [
+            { role: 'user', content: 'erstelle ein bild von mir wo ich auf einer wolke surfe' },
+          ],
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+
+  it('montiert bild_ansehen und edit_image, wenn nur ein Wolke-Foto da ist', () => {
+    const names = namesFor({});
+    expect(names).toContain('bild_ansehen');
+    expect(names).toContain('edit_image');
+    expect(names).toContain('generate_image');
+  });
+
+  it('montiert beides nicht ohne Foto oder mit Bildanalyse aus', () => {
+    expect(namesFor({ wolkeFiles: [] })).not.toContain('edit_image');
+    expect(namesFor({ enabledTools: { vision: false } })).not.toContain('edit_image');
+  });
+});
+
 /**
  * `reisekosten_abrechnung` hängt nur in Reisekosten-Turns: sein Schema ist
  * gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.
@@ -1245,6 +1309,54 @@ describe('toolCatalog expand_attachment (M4)', () => {
     const sourceRegistry = createSourceRegistry();
     const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
     expect(toolNames).not.toContain('expand_attachment');
+  });
+
+  it('is not mounted when no earlier turn left a loadable attachment', () => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const imageOnly = [
+      {
+        id: 'i1',
+        name: 'foto.jpg',
+        mimeType: 'image/jpeg',
+        isImage: true,
+        extractedText: null,
+        documentId: null,
+      },
+    ];
+    for (const threadAttachments of [undefined, [], imageOnly]) {
+      const state = { intent: 'search', threadAttachments } as unknown as ChatGraphState;
+      const { toolNames } = buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse, state },
+      });
+      expect(toolNames).not.toContain('expand_attachment');
+    }
+  });
+
+  it('is named by dokumente_lesen only when it is mounted', () => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const describeDocs = (threadAttachments: unknown[]) => {
+      const state = {
+        intent: 'search',
+        documentSources: [{ kind: 'document_chat', id: 'doc-1', label: 'Neu.pdf' }],
+        threadAttachments,
+      } as unknown as ChatGraphState;
+      const { tools } = buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse, state },
+      });
+      return (tools.dokumente_lesen as { description?: string }).description ?? '';
+    };
+    expect(describeDocs([])).not.toContain('expand_attachment');
+    expect(
+      describeDocs([{ id: 'a1', name: 'Alt.pdf', extractedText: 'Text', documentId: null }])
+    ).toContain('expand_attachment');
   });
 
   it('errors on an unknown attachment name instead of guessing', async () => {
@@ -1344,8 +1456,10 @@ describe('toolCatalog expand_attachment (M4)', () => {
   });
 
   it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
+    // A loadable sibling mounts the tool; alone, `Leer.pdf` would not.
     const { execute } = catalogWithAttachments([
       { id: 'a3', name: 'Leer.pdf', extractedText: null, documentId: null },
+      { id: 'a4', name: 'Voll.pdf', extractedText: 'Text', documentId: null },
     ]);
     const out = (await execute({ attachmentName: 'Leer.pdf' }, { toolCallId: 'c1' })) as {
       error?: string;

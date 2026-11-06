@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { captureMeliousImpact } from '../meliousImpact.js';
-import { MELIOUS_WIDE_MODEL, meliousFetch, meliousWireModel } from '../meliousThinkingFetch.js';
+import {
+  MELIOUS_WIDE_MODEL,
+  meliousFetch,
+  meliousGoesWide,
+  meliousWireModel,
+} from '../meliousThinkingFetch.js';
 
 vi.mock('../meliousImpact.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../meliousImpact.js')>()),
@@ -111,6 +116,21 @@ describe('meliousFetch — Flavor auf dem Draht', () => {
     );
     expect(body.model).toBe(MELIOUS_WIDE_MODEL);
     expect(body.reasoning_effort).toBe('none');
+  });
+
+  it('keeps tools when a unified step crosses the balanced limit', async () => {
+    const tools = [{ type: 'function', function: { name: 'web_search', parameters: {} } }];
+    const body = await sentBody(
+      JSON.stringify({
+        model: 'gemma-4-31b:balanced',
+        messages: [{ role: 'user', content: 'x'.repeat(150_000) }],
+        tools,
+        tool_choice: 'auto',
+      })
+    );
+    expect(body.model).toBe(MELIOUS_WIDE_MODEL);
+    expect(body.tools).toEqual(tools);
+    expect(body.tool_choice).toBe('auto');
   });
 
   // Die Token-Zeile schreibt das SDK unter dem logischen Namen; bucht die
@@ -293,5 +313,24 @@ describe('meliousFetch — gemma-4-26b-a4b: was der Umbau NICHT anfasst', () => 
     );
     expect(body.tool_choice).toBe('auto');
     expect(body).not.toHaveProperty('response_format');
+  });
+});
+
+describe('meliousGoesWide — dieselbe Grenze wie meliousWireModel', () => {
+  it('stimmt für einen FI-Flavor mit meliousWireModel überein', () => {
+    for (const chars of [10_000, 100_000, 150_000]) {
+      const body = {
+        model: 'gemma-4-31b:balanced',
+        messages: [{ role: 'user', content: 'x'.repeat(chars) }],
+      };
+      expect(meliousGoesWide('gemma-4-31b:balanced', JSON.stringify(body).length)).toBe(
+        meliousWireModel(body) === MELIOUS_WIDE_MODEL
+      );
+    }
+  });
+
+  it('schreibt :speed und fremde Modelle nie um', () => {
+    expect(meliousGoesWide('gemma-4-31b:speed', 500_000)).toBe(false);
+    expect(meliousGoesWide('mistral-large-4', 500_000)).toBe(false);
   });
 });

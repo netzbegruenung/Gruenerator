@@ -64,6 +64,7 @@ const SHAREPIC_EDITED_TAIL =
  *  capability note — see its call site. */
 export const ARTIFACT_TOOL_NAMES = [
   'generate_image',
+  'edit_image',
   'sharepic',
   'create_presentation',
   'create_sheet',
@@ -178,6 +179,23 @@ function noEditPathNote(kind: EditorSurfaceKind): string {
   const geoeffnete = artefact.gender === 'f' ? 'die geöffnete' : 'das geöffnete';
   return `HINWEIS: In diesem Zug kann ${geoeffnete} ${artefact.noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`;
 }
+
+/** Whether this turn created or edited an artifact — the one fact the writer
+ *  (split synth, unified repair) must not contradict. */
+export function turnProducedArtifact(state: ChatGraphState): boolean {
+  return (
+    state.generatedImage != null ||
+    (state.sharepicVariants?.length ?? 0) > 0 ||
+    (state.chatSharepicEdits?.length ?? 0) > 0 ||
+    (state.chatArtifactEdits?.length ?? 0) > 0 ||
+    state.createdDocument != null ||
+    state.createdBoard != null ||
+    state.editorEditsSummary != null
+  );
+}
+
+/** The static part of `capabilityNote` — also the unified writer's capability rule. */
+export const CAPABILITY_NOTE_TEXT = `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.`;
 
 /**
  * The synth model's only channel for "what did this turn actually produce".
@@ -310,14 +328,7 @@ export function buildArtifactNotes(
   // it researched — the classic follow-up lie ("laut meiner Recherche …"
   // with zero tool calls). Skip when an artifact WAS produced (those turns
   // legitimately have their own confirmation notes above).
-  const producedArtifact =
-    state.generatedImage != null ||
-    (state.sharepicVariants?.length ?? 0) > 0 ||
-    (state.chatSharepicEdits?.length ?? 0) > 0 ||
-    (state.chatArtifactEdits?.length ?? 0) > 0 ||
-    state.createdDocument != null ||
-    state.createdBoard != null ||
-    state.editorEditsSummary != null;
+  const producedArtifact = turnProducedArtifact(state);
   // The platform CAN generate sharepics/images (via loop tools) — the synth
   // model has no tools of its own, so without this it defaults to "I'm just
   // a text model, I can't make images" and refuses (observed live).
@@ -348,8 +359,6 @@ export function buildArtifactNotes(
         ? ' In diesem Turn wurde ein Artefakt ERSTELLT: kündige es knapp an und fasse die recherchierten Kerninhalte zusammen. Behaupte unter keinen Umständen, die Erstellung sei fehlgeschlagen.'
         : ' Wurde ein Artefakt angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.';
   const capabilityNote =
-    artifactToolMounted || producedArtifact
-      ? `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.${outcomeClause}`
-      : '';
+    artifactToolMounted || producedArtifact ? `${CAPABILITY_NOTE_TEXT}${outcomeClause}` : '';
   return { notes: artifacts, capabilityNote, producedArtifact };
 }

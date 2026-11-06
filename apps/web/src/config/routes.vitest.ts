@@ -95,7 +95,7 @@ describe('studio reel paths', () => {
     expect(resolve('/studio/videoeditor')).toBe('/studio/videoeditor');
   });
 
-  it('keeps Simple Reel on its existing paths', () => {
+  it('keeps Untertitel on its existing paths', () => {
     expect(resolve('/studio/video')).toBe('/studio/video');
     expect(resolve('/reel')).toBe('/reel');
   });

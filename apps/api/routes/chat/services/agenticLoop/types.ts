@@ -257,11 +257,17 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // FLUX bei BFL: live 11.10.2026 37 s für ein Bild — nach 20 s abgeschrieben,
   // malte es unsichtbar zu Ende. Einmal pro Zug (`generate_image` idempotent).
   generate_image: 90_000,
+  // FLUX image-to-image plus zwei Vision-Beschreibungen (`imageEditNode`).
+  edit_image: 120_000,
   // Bundestag: `parlament_lesen` hat sein eigenes Budget (CHAT_BUDGET.deadlineMs =
   // 70 s: Fenster à ~60k Token plus PDF-Rückfall); die 20 s schrieben jeden Lauf
   // mit mehreren unbekannten Drucksachen ab, während er im Hintergrund weiterzahlte.
   // `bundestag` plant (ein Modellaufruf), prüft Deskriptoren und fragt DIP über
   // einen einzigen, getakteten Client — unter Last mehr als 20 s.
+  // Map-Reduce über ein Dokument, das nicht ganz in den Prompt passt: mehrere
+  // Modellaufrufe nacheinander. Live 06.11.2026 41 s für 30 Seiten — nach 20 s
+  // verworfen, die Antwort war die Leerfloskel.
+  summarize: 90_000,
   parlament_lesen: 80_000,
   bundestag: 40_000,
   bundestag_reden: 40_000,

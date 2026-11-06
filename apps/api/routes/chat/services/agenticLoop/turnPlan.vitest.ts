@@ -187,10 +187,12 @@ describe('decideTurnPlan — die Lane kommt aus der Registry', () => {
     expect(p.lane).toBe('pipeline');
   });
 
-  it('produktion: Schreibarbeit am mitgebrachten Material, ohne Pipeline-Agent', () => {
+  it('produktion: Umarbeitung des mitgebrachten Materials, ohne Pipeline-Agent', () => {
+    // Geflippt: ein Schreibauftrag MIT Material geht jetzt in den Loop; nur die
+    // Umarbeitung des Materials (`reworks_own_material`) bleibt einzeln.
     const p = plan({
       intent: 'produktion',
-      lastUserText: 'Schreib mir eine Pressemitteilung dazu',
+      lastUserText: 'Kannst du das lektorieren?',
       hasOwnMaterial: true,
     });
     expect(p.runAgentic).toBe(false);
@@ -251,11 +253,19 @@ describe('decideTurnPlan — die Kippfälle', () => {
     expect(p.intent).toBe('produktion');
   });
 
-  it('mitgebrachtes Material hält einen Schreibauftrag im Einzeldurchlauf', () => {
+  it('mitgebrachtes Material hält nur die Umarbeitung im Einzeldurchlauf, nicht jeden Schreibauftrag', () => {
     const order = 'Schreib mir eine Pressemitteilung dazu';
     expect(plan({ intent: 'produktion', lastUserText: order }).runAgentic).toBe(true);
+    // Geflippt: Material allein hält einen Schreibauftrag nicht mehr draussen.
     expect(
       plan({ intent: 'produktion', lastUserText: order, hasOwnMaterial: true }).runAgentic
+    ).toBe(true);
+    expect(
+      plan({
+        intent: 'produktion',
+        lastUserText: 'Kannst du das lektorieren?',
+        hasOwnMaterial: true,
+      }).runAgentic
     ).toBe(false);
   });
 
@@ -726,6 +736,23 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.runAgentic).toBe(true);
   });
 
+  // Live 06.11.2026: der Thread arbeitete an einem Sharepic, „denk dir daten
+  // dafür aus" trug aber kein Sharepic-Wort — ohne Werkzeug konnte der Planer
+  // nur nachfragen.
+  it.each(['denk dir daten dafür aus', 'ja'])(
+    'ein Thread, der an einem Sharepic arbeitet, montiert es auch für „%s"',
+    (lastUserText) => {
+      const p = plan({ intent: 'agentic', lastUserText, threadWorksOnSharepic: true });
+      expect(p.compoundGenerationKind).toBe('sharepic');
+      expect(p.compoundGenerationOrdered).toBe(false);
+    }
+  );
+
+  it('ohne Sharepic im Thread-Verlauf montiert „denk dir daten dafür aus" nichts', () => {
+    const p = plan({ intent: 'agentic', lastUserText: 'denk dir daten dafür aus' });
+    expect(p.compoundGenerationKind).toBeNull();
+  });
+
   it('ein bestelltes Sharepic bleibt bestellt', () => {
     const p = plan({
       intent: 'agentic',
@@ -735,14 +762,28 @@ describe('decideTurnPlan — Erstell-Auftrag unter Material, genanntes Sharepic'
     expect(p.compoundGenerationOrdered).toBe(true);
   });
 
-  it.each(['kürze die PM auf die Hälfte', 'Schreib den Text ohne Sharepic.'])(
-    'ohne Freigabe montiert nichts: %s',
-    (lastUserText) => {
-      const p = plan({ intent: 'produktion', lastUserText, hasOwnMaterial: true });
-      expect(p.compoundGenerationKind).toBeNull();
-      expect(p.runAgentic).toBe(false);
-    }
-  );
+  // Was der Klassifikator bei einem Auftrag über gewähltem Material (Wolke-PDF,
+  // @Dokument, Notebook-Quelle) liefert: `agentic` — der Loop muss die Art aus
+  // dem Auftrag ableiten und bestellt montieren, sonst antwortet er mit Text.
+  it.each([
+    ['Mach ein Sharepic aus dieser Pressemitteilung', 'sharepic'],
+    ['Erstelle eine Präsentation aus dieser Datei', 'presentation'],
+  ] as const)('ein Auftrag über gewähltem Material geht bestellt in den Loop: %s', (text, kind) => {
+    const p = plan({ intent: 'agentic', lastUserText: text });
+    expect(p.compoundGenerationKind).toBe(kind);
+    expect(p.compoundGenerationOrdered).toBe(true);
+    expect(p.runAgentic).toBe(true);
+  });
+
+  it.each([
+    ['kürze die PM auf die Hälfte', false],
+    // Geflippt: kein Umarbeiten des Materials, also Loop — nur ohne Sharepic-Werkzeug.
+    ['Schreib den Text ohne Sharepic.', true],
+  ])('ohne Freigabe montiert nichts: %s', (lastUserText, loops) => {
+    const p = plan({ intent: 'produktion', lastUserText, hasOwnMaterial: true });
+    expect(p.compoundGenerationKind).toBeNull();
+    expect(p.runAgentic).toBe(loops);
+  });
 
   // Die Frage darf weiter in den Loop (sie ist eine), aber ohne Sharepic-Werkzeug.
   it('eine Meta-Frage zum Sharepic montiert nichts', () => {

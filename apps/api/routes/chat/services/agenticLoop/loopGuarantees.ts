@@ -83,6 +83,46 @@ function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
  *  a "Tabelle"-turn was already answered inline in chat. */
 const MARKDOWN_TABLE_RE = /^\s*\|.+\|\s*\r?\n\s*\|(?:\s*:?-+:?\s*\|)+\s*$/m;
 
+/** The compound-generation guarantee is owed: a fat artifact tool was named AND
+ *  ordered (a bare mention leaves the decision to the planner). */
+function compoundGenerationOwed(state: ChatGraphState): boolean {
+  return Boolean(state.compoundGenerationKind) && state.compoundGenerationOrdered !== false;
+}
+
+/** The forced-edit guarantee is owed: the open artefact must be edited. Not the
+ *  intent alone — see the note in `afterGather` — the surface and the ask count too. */
+function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
+  const editSurface = state.editToolSurface;
+  return Boolean(
+    editSurface &&
+    (state.intent === 'edit_current_doc' ||
+      state.intent === 'edit_current_board' ||
+      state.compoundEdit === true ||
+      askNamesAnEdit(editSurface, userAsk)) &&
+    !state.editorEditsSummary &&
+    !state.editorEditUnchanged
+  );
+}
+
+/**
+ * Whether the turn owes something `createAfterGather` guarantees before the
+ * writer runs: an ordered compound artifact, a forced edit, a pinned
+ * `bundestag`, or an order to change an existing artifact. Such a turn belongs
+ * on the split loop, where the hook runs before synth; unified runs it AFTER the
+ * stream, so the answer would announce what does not exist yet.
+ *
+ * `userAsk` is the turn's last user text (the forced edit reads it too); without
+ * it only the ask-independent triggers count.
+ */
+export function turnCarriesGuarantee(state: ChatGraphState, userAsk = ''): boolean {
+  return (
+    compoundGenerationOwed(state) ||
+    editGuaranteeOwed(state, userAsk) ||
+    state.mentionPinnedTool === 'bundestag' ||
+    state.artifactEditOrder === true
+  );
+}
+
 export interface GuaranteeContext {
   state: ChatGraphState;
   messages: ModelMessage[];
@@ -126,15 +166,14 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   };
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-  // `already` check, so it is safe to call both inside afterGather (split,
-  // BEFORE synth so the synth can confirm it) AND as a post-loop net for
-  // unified mode, where afterGather never runs (loopEngine returns early).
+  // `already` check, so it is safe to call more than once. Turns that carry
+  // this guarantee run split (`turnCarriesGuarantee`), so afterGather fires
+  // BEFORE the synth and the synth can confirm the artefact.
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
-    if (!kind) return;
     // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
     // Planer. Nachholen hiesse, die blosse Erwähnung doch wieder zu erzwingen.
-    if (p.state.compoundGenerationOrdered === false) return;
+    if (!kind || !compoundGenerationOwed(p.state)) return;
     const already =
       p.state.generatedImage != null ||
       (p.state.sharepicVariants?.length ?? 0) > 0 ||
@@ -251,15 +290,7 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     //     offen?") trifft keines davon und löst weiterhin keine Änderung aus.
     const editSurface = p.state.editToolSurface;
     const userAsk = lastUserAsk();
-    if (
-      editSurface &&
-      (p.state.intent === 'edit_current_doc' ||
-        p.state.intent === 'edit_current_board' ||
-        p.state.compoundEdit === true ||
-        askNamesAnEdit(editSurface, userAsk)) &&
-      !p.state.editorEditsSummary &&
-      !p.state.editorEditUnchanged
-    ) {
+    if (editSurface && editGuaranteeOwed(p.state, userAsk)) {
       const editToolName = EDIT_TOOL_NAMES.find((name) => p.tools[name] != null);
       const editTool = (editToolName ? p.tools[editToolName] : undefined) as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }

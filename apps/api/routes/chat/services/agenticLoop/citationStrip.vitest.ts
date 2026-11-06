@@ -58,6 +58,30 @@ describe('stripOutOfRangeCitations', () => {
     });
   });
 
+  it('tidies only around a dropped marker, leaving code and spacing elsewhere intact (#5336)', () => {
+    const t =
+      'Kurz gesagt [4].\n\n```python\ndef f():\n    x = 1  # a  b\n```\n\n- Liste\n    - eingerückt  mit  Abstand ( ok )\n';
+    expect(stripOutOfRangeCitations(t, 1)).toEqual({
+      text: t.replace(' [4]', ''),
+      changed: true,
+    });
+  });
+
+  it('closes the gaps a dropped marker leaves in prose', () => {
+    const cases: Array<[string, string]> = [
+      ['Text [4].', 'Text.'],
+      ['Text [4] [5], weiter', 'Text, weiter'],
+      ['Text ([4]) weiter', 'Text weiter'],
+      ['Text [4]\nNeue Zeile [5]', 'Text\nNeue Zeile'],
+      ['[4] Am Anfang', 'Am Anfang'],
+      ['  - [4] Punkt', '  - Punkt'],
+      ['Text[4] weiter', 'Text weiter'],
+    ];
+    for (const [input, expected] of cases) {
+      expect(stripOutOfRangeCitations(input, 3).text).toBe(expected);
+    }
+  });
+
   it('does not touch non-citation brackets', () => {
     const t = 'Der Zeitraum [2020-2024] war entscheidend.';
     expect(stripOutOfRangeCitations(t, 3).changed).toBe(false);

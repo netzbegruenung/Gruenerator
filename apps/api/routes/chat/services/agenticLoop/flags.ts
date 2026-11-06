@@ -70,14 +70,14 @@ export function isLoopRerankEnabled(): boolean {
  * Ob `toolScope.ts` Werkzeuge wirklich zurückstellt oder nur protokolliert,
  * was es zurückgestellt hätte.
  *
- * Default AUS, also Schattenbetrieb: das Tor trifft seine Entscheidung auf
- * jedem Turn und schreibt sie in die Turn-Zeile (`scope=shadow`, `scopeMiss=`),
- * das Modell sieht aber weiter den vollen Katalog. Scharf schalten erst, wenn
- * die `scopeMiss`-Zeilen aus dem Betrieb zeigen, dass das Tor trägt — dann
- * dreht ein eigener, einzeiliger PR den Default, und das Flag bleibt der
- * Rückwärtsgang. Einschalten mit LOOP_TOOL_SCOPE_ENFORCE=true (ohne Deploy
- * wirksam).
+ * Default AN: das Modell sieht den gescopten Katalog, zurückgestellte
+ * Werkzeuge holt es über den Lader nach. Scharf geschaltet, nachdem der
+ * Eval-Korpus `unified-loop` im Schatten- und im scharfen Betrieb dieselben
+ * Werkzeug-Assertions bestand (Plan 2026-11-05-unified-loop, Task 6.2).
+ * Rückwärtsgang ohne Deploy: LOOP_TOOL_SCOPE_ENFORCE=false schaltet zurück in
+ * den Schattenbetrieb (`scope=shadow`, `scopeMiss=` in der Turn-Zeile, voller
+ * Katalog).
  */
 export function isToolScopeEnforced(): boolean {
-  return process.env.LOOP_TOOL_SCOPE_ENFORCE === 'true';
+  return process.env.LOOP_TOOL_SCOPE_ENFORCE !== 'false';
 }

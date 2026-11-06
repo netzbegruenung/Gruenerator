@@ -73,6 +73,7 @@ import { IMAGE_TOOL, imageVisibility } from '../services/imageVisibility.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
+import { turnImagesOf } from '../services/turnImages.js';
 
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
@@ -88,6 +89,7 @@ import {
   makeCreatePdfTool,
   makeCreateSharepicTool,
   makeDocsSearchTool,
+  makeEditImageTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
@@ -169,7 +171,11 @@ const CATALOG_TOOLS = new Set([
   'web_search',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
+  'gruenerator_wahlpruefstein_examples',
 ]);
+
+/** The recipe whose turns get `gruenerator_wahlpruefstein_examples`. */
+const WAHLPRUEFSTEIN_RECIPE = 'wahlpruefstein';
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
@@ -196,6 +202,7 @@ const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
   gruenerator_search: ['search'],
   gruenerator_examples_search: ['examples'],
   gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+  gruenerator_wahlpruefstein_examples: ['examples'],
 };
 
 /**
@@ -452,6 +459,14 @@ export function buildChatToolCatalog(params: {
     );
   }
 
+  // Die Wahlprüfstein-Beispiele braucht nur ein Turn, auf dem das Rezept gilt —
+  // gewählt oder als Default des Agenten. Sonst zahlte ihre Beschreibung auf
+  // jeden werkzeugtragenden Aufruf ein (toolScopeBudget.vitest.ts).
+  const wahlpruefsteinTurn =
+    loop?.state.activeSkillMention === WAHLPRUEFSTEIN_RECIPE ||
+    agentConfig.defaultRecipeMention === WAHLPRUEFSTEIN_RECIPE;
+  if (!wahlpruefsteinTurn) delete base.gruenerator_wahlpruefstein_examples;
+
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
@@ -661,7 +676,16 @@ NUTZE WENN:
   // record once contextEnrichmentService.ts has routed and discarded its
   // local `processedMeta` — closing that gap needs a state-schema addition,
   // out of scope here.
-  if (loop && !researchBanned) {
+  //
+  // Mounted only when `threadAttachments` holds a file it can load — one with a
+  // `documentId` or `extractedText`, the two branches of `execute` below. Without
+  // one every call ends in an error ("Keine Datei", or "keinen nachladbaren
+  // Text" for an image-only thread). Mounted on every loop turn it was a dead
+  // tool in the request (~270 tokens) and one more distractor for the planner.
+  const expandableAttachment = (loop?.state.threadAttachments ?? []).some(
+    (a) => a.documentId != null || !!a.extractedText
+  );
+  if (loop && !researchBanned && expandableAttachment) {
     tools.expand_attachment = tool({
       description: `Lädt mehr Inhalt aus einer Datei nach, die in einem früheren Turn dieses Gesprächs hochgeladen wurde, wenn der bisher gezeigte Auszug für die Aufgabe (z. B. einen Vergleich mehrerer Dateien) nicht ausreicht.
 
@@ -747,9 +771,13 @@ NUTZE WENN:
   // The loop's only way to see this turn's images (#3841). Not part of the
   // research ban: reading what the person attached is not new research. Mounted
   // on the same answer that makes the system prompt name it.
+  // EINE Liste je Turn: ihr Download-Cache gilt für bild_ansehen und edit_image
+  // zusammen, sonst lädt ein Turn, der erst ansieht und dann bearbeitet, das
+  // Wolke-Foto zweimal.
+  const turnImages = loop ? turnImagesOf(loop.state) : [];
   if (loop && imageVisibility(loop.state, { loop: true }) === 'tool') {
     tools[IMAGE_TOOL] = makeBildAnsehenTool({
-      images: loop.state.imageAttachments,
+      images: turnImages,
       sourceRegistry,
     });
   }
@@ -774,7 +802,14 @@ NUTZE WENN:
     // summary). A vectorized document is not in the prompt, so it keeps
     // `summarize` beside `dokumente_lesen` as its only full-text path; the
     // `summary` intent brings its own material (documents or the thread).
-    if (state.intent === 'summary' || attachedSources.length > 0) {
+    // A whole-document turn that fits has the full text in the writer's prompt
+    // (wholeDocument.ts) — `summarize` would only re-read it. Live 06.11.2026,
+    // once the planner saw a stub instead of the text (#5399), it picked
+    // `summarize` anyway: 22 s of map-reduce over a document the writer had.
+    if (
+      (state.intent === 'summary' || attachedSources.length > 0) &&
+      state.wholeDocument?.fits !== true
+    ) {
       tools.summarize = makeSummaryTool({ sse, state });
     }
 
@@ -804,7 +839,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 
 Genau ein Modus je Aufruf.
 
-NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen. Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: \`expand_attachment\`.`,
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.${tools.expand_attachment ? ' Für Anhänge aus FRÜHEREN Turns dieses Gesprächs, deren Auszug nicht reicht: `expand_attachment`.' : ''}`,
         inputSchema: z.object({
           query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
           dateiname: z
@@ -1278,7 +1313,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
-    // so it stays intent-scoped (and gated). image_edit stays single-pass.
+    // so it stays intent-scoped (and gated). Editing it is `edit_image` below.
     // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
     // (IMAGE_REQUEST_PATTERN) — image phrasings the confident heuristic misses
     // land there; idempotency + forceFinish cap quota at one image per turn.
@@ -1291,6 +1326,30 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
+    }
+    // Ein Bild verändern: das zuletzt erzeugte des Threads (ohne `bild`) oder
+    // ein Foto dieses Turns (mit `bild`, Wolke oder Anhang — die Vorlage für
+    // „ein Bild von mir, wie ich …"). Ob ein Turn es meint, entscheidet der
+    // Planer, nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die
+    // grafik noch einmal an" ohne Werkzeug → erfundene Anpassung). Ein
+    // ANGEHÄNGTES Foto nahm das Werkzeug früher nicht ernst genug: ohne `bild`
+    // hätte es das falsche (zuletzt erzeugte) Bild genommen. Deshalb bleibt der
+    // Standard an `lastToolContext` + „keine Anhänge" gebunden (siehe
+    // `makeEditImageTool`), und Turn-Fotos erreicht nur die ausdrückliche Nummer.
+    if (
+      !editorSurface &&
+      state.enabledTools?.['image_edit'] !== false &&
+      ((state.lastToolContext?.kind === 'image' && (state.imageAttachments?.length ?? 0) === 0) ||
+        imageVisibility(state, { loop: true }) === 'tool')
+    ) {
+      tools.edit_image = makeEditImageTool({
+        sse,
+        state,
+        threadId: loop.threadId ?? null,
+        turnImages,
+        lastImageDefault:
+          state.lastToolContext?.kind === 'image' && (state.imageAttachments?.length ?? 0) === 0,
+      });
     }
     // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
     // generation KIND the router derived (from intent OR — for a demoted

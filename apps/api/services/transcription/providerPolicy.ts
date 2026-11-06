@@ -17,10 +17,12 @@ export type TranscriptionProviderOverride = TranscriptionProvider | 'auto';
  * Callers walk the chain and skip providers whose API key is unset, so a
  * deployment missing one of them degrades instead of failing.
  *
- * Both deliver genuine per-word timestamps — Voxtral under `segments` with
- * exactly one word per entry (verified: 498 entries, median 1 word each),
- * GreenPT under `words`. The differing key names are a naming accident, not a
- * capability difference.
+ * Only GreenPT delivers genuine per-word timestamps (under `words`). Voxtral 3
+ * dropped them: `timestamp_granularities: ['word']` answers HTTP 400 "Word-level
+ * segments are not enabled for this model" (measured 2026-11-05 on
+ * voxtral-mini-transcribe-3 and voxtral-small-transcribe-3; Voxtral 2 had them).
+ * Requests that need word timings therefore go to GreenPT first, see
+ * `wordTimestamps` below.
  *
  * Voxtral leads on quality: measured on three 90 s broadcast excerpts it reads
  * proper nouns GreenPT garbles ("Katja Hoyer" vs "Kathe Heuer", "Lothar de
@@ -65,6 +67,12 @@ export interface ProviderChoiceInput {
    * the energy of every request; Voxtral stays behind it as failover.
    */
   eco?: boolean;
+  /**
+   * Word-level timestamps (subtitles): GreenPT first, because only it measures
+   * them. Voxtral stays behind it as failover — its caller estimates word timings
+   * from segments — so this reorders the chain instead of shrinking it.
+   */
+  wordTimestamps?: boolean;
   /** TRANSCRIPTION_PROVIDER; 'auto' (the default) means "apply the rules". */
   override?: TranscriptionProviderOverride;
 }
@@ -72,7 +80,7 @@ export interface ProviderChoiceInput {
 export interface ProviderChoice {
   provider: TranscriptionProvider;
   /** Why this provider won — carried into the log line, not user-facing. */
-  reason: 'override' | 'eco' | 'capability' | 'default';
+  reason: 'override' | 'eco' | 'word-timestamps' | 'capability' | 'default';
   /**
    * Every provider to try, winner first. Callers walk it and skip the ones
    * whose API key is unset.
@@ -81,7 +89,7 @@ export interface ProviderChoice {
 }
 
 export function chooseProvider(input: ProviderChoiceInput = {}): ProviderChoice {
-  const { diarize, requestedContextBias, eco, override = 'auto' } = input;
+  const { diarize, requestedContextBias, eco, wordTimestamps, override = 'auto' } = input;
 
   const needsDiarization = diarize === true;
   const needsContextBias = requestedContextBias !== undefined && requestedContextBias.length > 0;
@@ -118,14 +126,19 @@ export function chooseProvider(input: ProviderChoiceInput = {}): ProviderChoice 
     return choose('greenpt', 'eco');
   }
 
-  // 3. Capability gate. Voxtral leads the eligible list, so a diarized request
+  // 3. Word timestamps: only GreenPT measures them (see the chain comment).
+  if (wordTimestamps === true && eligible.includes('greenpt')) {
+    return choose('greenpt', 'word-timestamps');
+  }
+
+  // 4. Capability gate. Voxtral leads the eligible list, so a diarized request
   //    still lands there — GreenPT is a real failover behind it, not a silent
   //    downgrade.
   if (needsDiarization || needsContextBias) {
     return choose(eligible[0] ?? 'voxtral', 'capability');
   }
 
-  // 4. Nothing to decide: quality wins.
+  // 5. Nothing to decide: quality wins.
   return choose('voxtral', 'default');
 }
 

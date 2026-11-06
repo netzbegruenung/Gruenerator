@@ -459,7 +459,12 @@ describe('forced first planner step', () => {
   });
 
   beforeEach(() => {
-    pinChatEnv(LIVE ? { GREENPT_API_KEY: GREENPT_KEY } : {});
+    // Der Vergleich misst master (Schattenbetrieb) gegen diesen Stand — der
+    // Werkzeug-Umfang muss deshalb in beiden Armen im Schatten laufen.
+    pinChatEnv({
+      LOOP_TOOL_SCOPE_ENFORCE: 'false',
+      ...(LIVE ? { GREENPT_API_KEY: GREENPT_KEY } : {}),
+    });
     resetThreadStore();
     resetMockControls();
     respond.reset();

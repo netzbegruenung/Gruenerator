@@ -30,6 +30,7 @@ const base = {
   attachedSeedDelivered: false,
   resumesSuspendedTurn: false,
   tabularToolMounted: false,
+  materialOrder: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -837,6 +838,34 @@ describe('forcedFirstStepTools', () => {
         userText: 'Welche Buchung war die größte?',
       })
     ).toEqual(['tabelle_auswerten', 'direkt_antworten']);
+  });
+
+  // Ein bestelltes Artefakt über gewähltem Material läuft als `agentic`, nicht
+  // als `search` — ohne eigenen Zweig verlöre es den Zwang aufs Lesen, sobald der
+  // Vorab-Abruf leer bleibt, und das Artefakt entstünde aus dem Auftragssatz.
+  describe('material_order', () => {
+    it('zwingt bei leerem Seed aufs Material', () => {
+      expect(force({ materialOrder: true })).toBe('material_order');
+    });
+
+    it('nicht, wenn der Seed geliefert hat', () => {
+      expect(force({ materialOrder: true, attachedSeedDelivered: true })).toBeNull();
+    });
+
+    it('sieht nur die Lesewerkzeuge des Materials, keine Recherche', () => {
+      expect(
+        forcedFirstStepTools({
+          reason: 'material_order',
+          intent: 'agentic',
+          mounted: [...MOUNTED, 'dokumente_lesen'],
+          mcpToolNames: [],
+          priorToolNames: [],
+          isLookupTool: (name) => !NOT_LOOKUP.has(name),
+          materialTools: ['dokumente_lesen'],
+          userText: 'erstelle daraus eine tabelle',
+        })
+      ).toEqual(['dokumente_lesen']);
+    });
   });
 
   const tools = (

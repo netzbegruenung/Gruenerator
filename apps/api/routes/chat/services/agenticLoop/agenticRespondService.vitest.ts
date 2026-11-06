@@ -49,6 +49,21 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   };
 });
 
+// Die Verdikte, die der Loop beim Stillstand/Ausfall einer Lane vermerkt.
+const { slowVerdicts } = vi.hoisted(() => ({
+  slowVerdicts: [] as { provider: string; model: string; reason: string }[],
+}));
+vi.mock('../../../../services/ai/modelHealth.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../services/ai/modelHealth.js')>();
+  return {
+    ...actual,
+    recordSlowVerdict: (provider: string, model: string, reason: string) => {
+      slowVerdicts.push({ provider, model, reason });
+      actual.recordSlowVerdict(provider, model, reason);
+    },
+  };
+});
+
 // Der Vorab-Abruf der @link-Seiten (#4896) liest über den echten Crawl-Pfad;
 // gestellt wird nur das Netz.
 const { crawledSeeds } = vi.hoisted(() => ({ crawledSeeds: [] as string[][] }));
@@ -86,6 +101,7 @@ vi.mock('./clientToolRegistry.js', async (importOriginal) => {
 
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
+import { UNIFIED_GEMMA_CHAIN } from '../../agents/autoPolicy.js';
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
 import { createToolActivity, type ToolActivity } from './toolActivity.js';
@@ -106,6 +122,8 @@ import { createToolScope } from './toolScope.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
+import { embedUntrusted } from '../untrustedContent.js';
+
 import type { ModelMessage, ToolSet } from 'ai';
 
 type SentEvent = { event: string; payload: Record<string, unknown> };
@@ -199,6 +217,94 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     expect(seen!.mode).toBe('unified');
+  });
+
+  it('läuft unified auf der Standard-Lane (Gemma 4 31B auf Melious) und kennt nur Mistral Large als Ausweich', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => (seen = p),
+      })
+    );
+    expect(seen!.mode).toBe('unified');
+    expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
+  });
+
+  it('lässt die :speed-Stufe weg, wenn der Primär-Request schon als :speed rausgeht', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    // ~150k Zeichen ≈ 50k Tokens: meliousWireModel schickt :balanced als :speed.
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(150_000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => (seen = p),
+      })
+    );
+    expect(seen!.mode).toBe('unified');
+    expect(seen!.unifiedFallbacks).toHaveLength(1);
+  });
+
+  it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
+  });
+
+  it('vermerkt im unified die Stufe, die wirklich stand — nicht immer die gewählte', async () => {
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
+        onLoop: (p) => {
+          // Die Leiter meldet ihre Stufen; der Wechsel selbst bucht nichts mehr.
+          p.onSynthFallback?.('first_token_timeout');
+          p.onLaneUnhealthy?.(0, 'provider_unavailable');
+          p.onLaneUnhealthy?.(1, 'stall');
+        },
+      })
+    );
+    expect(slowVerdicts).toEqual([
+      {
+        provider: 'melious',
+        model: 'gemma-4-31b:balanced',
+        reason: 'unified:provider_unavailable',
+      },
+      { provider: 'melious', model: 'gemma-4-31b:speed', reason: 'unified:stall' },
+    ]);
+  });
+
+  it('vermerkt im split die Planer-Stufe des Index — ein Index ausserhalb der Leiter zählt nicht', async () => {
+    // Ohne Schlüssel (Testumgebung) besteht die Leiter nur aus der
+    // schlüssellosen Stufe; die Kette selbst prüft loopPlannerChain.vitest.ts.
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        modelName: 'gemma4-31b',
+        onLoop: (p) => {
+          p.onLaneUnhealthy?.(0, 'stall');
+          p.onLaneUnhealthy?.(1, 'stall');
+        },
+      })
+    );
+    expect(slowVerdicts.map((v) => `${v.provider}/${v.model}:${v.reason}`)).toEqual([
+      'mistral/mistral-large-4:split:stall',
+    ]);
   });
 
   it('läuft split auf jedem anderen Anbieter', async () => {
@@ -1016,5 +1122,79 @@ describe('streamAgenticResponse — Browser-Aufruf neben einer Freigabe (#5044)'
     expect(loopSawSuspended).toBe(true);
     expect(outcome.pendingClientTool).toEqual(HELD);
     expect(outcome.pendingApproval).toBeUndefined();
+  });
+});
+
+describe('streamAgenticResponse — turnContext', () => {
+  it('reicht den Rückblick an die Schleife weiter, ohne ihn in toolSystem zu mischen', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    const deps = fakeDeps({ onLoop: (p) => (seen = p) });
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse, turnContext: '## RÜCKBLICK' },
+      deps
+    );
+    const params = seen as LoopEngineParams | null;
+    expect(params?.turnContext).toBe('## RÜCKBLICK');
+    expect(params?.toolSystem).not.toContain('## RÜCKBLICK');
+  });
+});
+
+// #5399: im split-Modus las der Planer das ganze Dokument mit (live 06.11.2026:
+// 79.313 Zeichen, 36 s Vorlauf, kein Aufruf). Er bekommt einen Platzhalter, der
+// Schreiber den Volltext.
+describe('streamAgenticResponse — Ganzdokument im split-Modus', () => {
+  const DOC = `§1 Präambel ${'Inhalt der Vereinbarung. '.repeat(3000)}§30 Schluss`;
+  const docState = (over: Partial<ChatGraphState> = {}) =>
+    fakeState({
+      wholeDocument: {
+        origin: 'turn',
+        ask: 'summary',
+        docs: [{ name: 'Vereinbarung.pdf', text: DOC, documentId: 'doc-1' }],
+        chars: DOC.length,
+        budgetChars: 224_000,
+        fits: true,
+      },
+      documentSources: [{ id: 'doc-1', kind: 'document', label: 'Vereinbarung.pdf' }],
+      messages: [{ role: 'user', content: 'Fasse die Vereinbarung zusammen' }],
+      ...over,
+    } as Partial<ChatGraphState>);
+  const system = `Rolle.\n\n## ANGEHÄNGTE DOKUMENTE\n\n${embedUntrusted('anhang', DOC)}\n\nRegeln.`;
+  const withReader = (async () => ({
+    ...EMPTY_CATALOG,
+    // `mentions` liest der Schreiber-Prompt (Angebot nach dem Text).
+    recipeRegistry: { ...EMPTY_CATALOG.recipeRegistry, mentions: [] },
+    tools: { dokumente_lesen: { description: 'liest', inputSchema: {} } } as unknown as ToolSet,
+  })) as unknown as AgenticRespondDeps['assembleToolCatalog'];
+
+  it('der Planer sieht den Platzhalter, der Schreiber den Volltext', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(docState(), system, 'Fasse die Vereinbarung zusammen'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        modelName: 'gemma4-31b',
+        assemble: withReader,
+        onLoop: (p) => (seen = p),
+      })
+    );
+    const params = seen as LoopEngineParams | null;
+    expect(params?.mode).toBe('split');
+    expect(params?.toolSystem).not.toContain('§30 Schluss');
+    expect(params?.toolSystem).toContain('Vereinbarung.pdf');
+    expect(params?.toolSystem).toContain('dokumente_lesen');
+    expect(params?.toolSystem).toContain('Regeln.');
+    expect(params?.buildSynthSystem('')).toContain('§30 Schluss');
+  });
+
+  it('ohne montiertes Lesewerkzeug bleibt der Volltext beim Planer', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(docState(), system, 'Fasse die Vereinbarung zusammen'), sse },
+      fakeDeps({ provider: 'greenpt', modelName: 'gemma4-31b', onLoop: (p) => (seen = p) })
+    );
+    expect((seen as LoopEngineParams | null)?.toolSystem).toContain('§30 Schluss');
   });
 });

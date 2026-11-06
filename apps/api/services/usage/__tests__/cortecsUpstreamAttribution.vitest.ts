@@ -108,7 +108,8 @@ describe('Cortecs-Nutzung wird dem echten Unterauftragnehmer zugeschrieben', () 
   it('lässt jede andere Lane unangetastet', async () => {
     // Ein Aufruf eines anderen Anbieters darf sich von einem fremden Header nicht umbuchen
     // lassen — die Auflösung gilt ausschliesslich für den Router.
-    await laufen({ 'x-cortecs-provider': 'scaleway' }, 'melious');
-    expect(gebucht[0]?.provider).toBe('melious');
+    // (Nicht `melious`: dessen Tokens bucht die HTTP-Grenze, nicht die Middleware.)
+    await laufen({ 'x-cortecs-provider': 'scaleway' }, 'mistral');
+    expect(gebucht[0]?.provider).toBe('mistral');
   });
 });
