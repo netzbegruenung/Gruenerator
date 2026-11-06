@@ -21,6 +21,9 @@ export type UntrustedKind =
   | 'anhang'
   | 'aktuelles_dokument'
   | 'frueheres_dokument'
+  /** Vision-Beschreibungen früherer Bilder — eigene Art, damit ein Ersetzen der
+   *  Dokumentblöcke (Planer-Platzhalter, wholeDocument.ts) sie nicht mitnimmt. */
+  | 'fruehere_bilder'
   | 'suchergebnis'
   | 'nutzer_anweisung'
   | 'gedaechtnis'
