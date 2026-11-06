@@ -18,6 +18,8 @@ export const usageFeatureSchema = z.enum([
   'boards',
   'sharepic',
   'subtitler',
+  // The /transkription page, split off 'subtitler' (= Reels) on 06.11.2026.
+  'transkription',
   'search',
   'monitor',
   'sites',
