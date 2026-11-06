@@ -22,7 +22,7 @@ import {
   MELIOUS_WIDE_MODEL,
   meliousGoesWide,
 } from '../../../../services/ai/meliousThinkingFetch.js';
-import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
@@ -908,7 +908,7 @@ export async function streamAgenticResponse(
         log.warn(
           `[Agentic] ${mode === 'split' ? 'planner' : 'unified'} ${stage.provider}/${stage.model} ${
             grund === 'stall' ? 'lieferte nichts' : `fiel aus (${grund})`
-          } — ${isModelSlow(stage.provider, stage.model) ? 'Lane wird übersprungen' : 'nicht vermerkt'}`
+          } — Lane wird übersprungen`
         );
       },
       onSynthFallback: (reason) => {

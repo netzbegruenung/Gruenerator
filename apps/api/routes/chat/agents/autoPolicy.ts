@@ -541,7 +541,7 @@ export const LOOP_PLANNER_PRIMARY = {
  * Nachmessung 21.10.2026 in gemmaHosts.ts).
  *
  * Schickt `meliousWireModel` einen grossen `:balanced`-Body schon auf dem Draht
- * an `:speed`, lässt `getLoopPlannerFallbackModels` diese Stufe aus — sonst
+ * an `:speed`, lässt `getLoopPlannerFallbackStages` diese Stufe aus — sonst
  * wiederholte sie dieselbe Anfrage am selben Upstream.
  */
 export const LOOP_PLANNER_SPEED = {
