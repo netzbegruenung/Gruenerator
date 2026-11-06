@@ -27,6 +27,7 @@ import {
   Newspaper,
   Share2,
   Sparkles,
+  Sun,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -253,6 +254,12 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: CloudDownload,
     group: 'system',
   },
+  daily_briefing: {
+    label: 'Tagesbriefing',
+    description: 'Deine Übersicht beim ersten Besuch des Tages',
+    icon: Sun,
+    group: 'system',
+  },
   new_avatars: {
     label: 'Neue Avatare',
     description: 'Wenn neue Profil-Avatare verfügbar sind',
@@ -266,7 +273,10 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
  * types (e.g. new_avatars) have no meaningful per-user toggle — they fire once
  * and toggling them afterwards does nothing — so we keep them out of the UI.
  */
-const HIDDEN_FROM_PREFS: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
+const HIDDEN_FROM_PREFS: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'new_avatars',
+  'daily_briefing',
+]);
 
 /** Raw types grouped by category, in group order, for the expert table. */
 export function getRawTypesByGroup(): {

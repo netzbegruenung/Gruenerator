@@ -1158,6 +1158,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   boards: 'Sonstiges',
   sites: 'Sonstiges',
   monitor: 'Sonstiges',
+  briefing: 'Chat',
   other: 'Sonstiges',
 };
 

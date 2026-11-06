@@ -68,6 +68,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     boards: row.boards,
     bundestag_api_enabled: row.bundestag_api_enabled,
     memory_enabled: row.memory_enabled,
+    proactive_briefing_enabled: row.proactive_briefing_enabled,
     panda_enabled: row.panda_enabled,
 
     // Timestamps

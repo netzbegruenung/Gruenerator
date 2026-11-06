@@ -3,33 +3,23 @@
  * status is the board's done column, so the done toggle and the kanban column can never
  * disagree (planka's `closed` list type). Pure helpers — useBoardState applies them.
  */
+import { getBoardDoneStatusId } from '@gruenerator/shared/utils';
+
 import { FIELD_IDS } from '../types';
 
-import { DONE_STATUS_ID, TODO_STATUS_ID } from './boardDefaults';
+import { TODO_STATUS_ID } from './boardDefaults';
 import { computeNextDueDate, isRecurrencePattern } from './recurrence';
 
 import type { Field, Row, SelectOption } from '../types';
-
-// Boards created before `isDone` existed: the default board, the templates and the
-// chat-built boards (status-1/status-2 named "Erledigt").
-const LEGACY_DONE_IDS = new Set([DONE_STATUS_ID, 'status-erledigt']);
-const LEGACY_DONE_NAMES = new Set(['erledigt', 'done', 'fertig', 'abgeschlossen']);
 
 function statusOptions(fields: Field[]): SelectOption[] {
   const field = fields.find((f) => f.id === FIELD_IDS.STATUS);
   return (field?.typeOptions.options ?? []) as SelectOption[];
 }
 
+/** Shared with the server (Tagesbriefing), see `@gruenerator/shared/utils` `boardCards.ts`. */
 export function getDoneStatusId(fields: Field[]): string | null {
-  const options = statusOptions(fields);
-  const explicit = options.find((o) => o.isDone === true);
-  if (explicit) return explicit.id;
-  const legacy = options.find(
-    (o) =>
-      o.isDone !== false &&
-      (LEGACY_DONE_IDS.has(o.id) || LEGACY_DONE_NAMES.has(o.name.trim().toLowerCase()))
-  );
-  return legacy?.id ?? null;
+  return getBoardDoneStatusId(fields);
 }
 
 /** Make `doneId` the only done column; `null` unmarks all (and blocks the fallback). */

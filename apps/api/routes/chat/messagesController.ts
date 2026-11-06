@@ -256,6 +256,8 @@ router.get('/', async (req, res) => {
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
             sourceTier?: NotebookSourceTier;
+            followUpSuggestions?: string[];
+            briefing?: Record<string, unknown>;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -348,6 +350,16 @@ router.get('/', async (req, res) => {
             // Feld ist die Frage nach einem Reload weg und nicht beantwortbar.
             ...(meta.pendingClarification && typeof meta.pendingClarification === 'object'
               ? { pendingClarification: meta.pendingClarification as Record<string, unknown> }
+              : {}),
+            // Tagesbriefing: die Ein-Klick-Aufträge unter der Nachricht und die
+            // Briefing-Marke — ohne sie sind die Chips nach dem Laden weg.
+            ...(Array.isArray(meta.followUpSuggestions) && {
+              followUpSuggestions: meta.followUpSuggestions.filter(
+                (x): x is string => typeof x === 'string'
+              ),
+            }),
+            ...(meta.briefing && typeof meta.briefing === 'object'
+              ? { briefing: meta.briefing as Record<string, unknown> }
               : {}),
           };
           if (Array.isArray(meta.toolCalls)) {

@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 
+import { threadBriefingSchema } from './briefing.js';
 import { roleRefSchema } from './roleRef.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
@@ -48,6 +49,9 @@ export const threadSchema = z.object({
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
+  // Set when this thread is a daily briefing ("Tagesbriefing"). Optional (F0):
+  // older servers do not send it.
+  briefing: threadBriefingSchema.nullable().optional(),
 });
 
 // ── Request bodies ──────────────────────────────────────────────────────────
