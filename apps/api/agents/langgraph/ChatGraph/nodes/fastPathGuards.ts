@@ -163,19 +163,25 @@ const META_QUESTION_START_RE =
 // zum Klimageld haben?" is a polite order — so it needs a capability particle
 // too. Addressing the assistant („Kannst du …") stays an order, as do a pointer
 // at the material („daraus", „dazu") and a receiving verb („haben", „bekommen").
+// So does a concrete topic („… ein Sharepic zum Klimageld erstellen?", review
+// of #5411): a question about ability names no subject. „zu" before the verb
+// („Sharepics zu erstellen") is the infinitive, not a topic.
 const CAPABILITY_OPENER_RE =
   /^\s*(?:(?:kann|könnte|darf)\s+(?:ich|man|wir)|(?:können|könnten|dürfen)\s+wir|(?:kann|könnte)\s+(?:der\s+)?gr[üu]nerator|(?:geht|funktioniert)\s+(?:das|es)|ist\s+es\s+(?:auch\s+)?m[öo]glich|lassen\s+sich)\b/i;
 const CAPABILITY_PARTICLE_RE =
   /(?<!\p{L})(?:eigentlich|überhaupt|auch|hier|damit|gr[üu]nerator\p{L}*)(?!\p{L})/iu;
 const CAPABILITY_ORDER_HINT_RE =
   /(?<!\p{L})(?:dazu|daraus|davon|dafür|darüber|haben|bekommen|kriegen|bitte)(?!\p{L})/iu;
+const CAPABILITY_TOPIC_RE =
+  /(?<!\p{L})(?:zum|zur|über|zu(?!\s+\p{L}+(?:en|n)\s*[?.!]?\s*$))\s+\p{L}/iu;
 
 /** True for a question about whether the product can do something („Kann ich hier auch …?"). */
 export function isCapabilityQuestion(text: string): boolean {
   return (
     CAPABILITY_OPENER_RE.test(text) &&
     CAPABILITY_PARTICLE_RE.test(text) &&
-    !CAPABILITY_ORDER_HINT_RE.test(text)
+    !CAPABILITY_ORDER_HINT_RE.test(text) &&
+    !CAPABILITY_TOPIC_RE.test(text)
   );
 }
 

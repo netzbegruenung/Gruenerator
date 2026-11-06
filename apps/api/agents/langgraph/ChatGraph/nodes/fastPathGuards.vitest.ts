@@ -79,6 +79,10 @@ const POLITE_ORDERS = [
   'Kann ich daraus auch ein Sharepic machen?',
   'Kann ich auch ein Sharepic dazu bekommen?',
   'Könntest du bitte ein Sharepic erstellen?',
+  // Review #5411: Partikel ohne Auftragswort, aber mit konkretem Thema.
+  'Kann ich auch ein Sharepic zum Klimageld erstellen?',
+  'Kann ich hier ein Sharepic zu Klimaschutz erstellen?',
+  'Kann man auch ein Karussell über die Verkehrswende machen?',
 ];
 
 describe('isMetaQuestionAbout — Fähigkeitsfragen (#5408)', () => {
@@ -94,6 +98,8 @@ describe('isMetaQuestionAbout — Fähigkeitsfragen (#5408)', () => {
       'Kannst du mir ein Sharepic zum Klimageld erstellen?',
       'Kann ich daraus auch ein Sharepic machen?',
       'Könntest du bitte ein Sharepic erstellen?',
+      'Kann ich auch ein Sharepic zum Klimageld erstellen?',
+      'Kann ich hier ein Sharepic zu Klimaschutz erstellen?',
     ]) {
       expect(asksForSharepic(text), text).toBe(true);
     }
