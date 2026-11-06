@@ -188,9 +188,10 @@ describe('vorlagen_vorschlagen', () => {
 });
 
 describe('vorlagenOfferNote', () => {
-  it('bietet nach einem Social-Rezept die Vorlagen als Rückfrage an', () => {
+  it('bietet nach einem Social-Rezept die Vorlagen freiwillig an', () => {
     const note = vorlagenOfferNote(state(), ['instagram']);
-    expect(note).toContain('Rückfrage');
+    expect(note).toContain('(freiwillig)');
+    expect(note).not.toMatch(/EINER|Nur diese eine Frage/);
     expect(mentionsVorlagen('ja gern', note)).toBe(true);
   });
 
@@ -198,6 +199,10 @@ describe('vorlagenOfferNote', () => {
     expect(vorlagenOfferNote(state(), ['presse'])).toBe('');
     expect(vorlagenOfferNote(state({ enabledTools: { vorlagen: false } }), ['instagram'])).toBe('');
     expect(vorlagenOfferNote(state({ vorlagenShown: ['Titel de-zitat'] }), ['instagram'])).toBe('');
+    // Ein Sharepic aus einer früheren Nachricht zählt — nicht nur dieser Turn.
+    expect(
+      vorlagenOfferNote(state({ threadArtifacts: [{ kind: 'sharepic' }] }), ['instagram'])
+    ).toBe('');
     catalog.list.mockReturnValue([]);
     expect(vorlagenOfferNote(state(), ['instagram'])).toBe('');
   });

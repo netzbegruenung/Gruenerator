@@ -1,14 +1,22 @@
 /**
- * Das EINE Angebot am Ende einer Antwort („Soll ich daraus eine Präsentation
+ * Das eine Angebot am Ende einer Antwort („Soll ich daraus eine Präsentation
  * machen?") und das knappe „ja" danach (#4367).
  *
  * Welches Angebot passt, entscheidet der Server, nicht das Modell: das Rezept,
- * das den Text geformt hat, bestimmt die Art. Ein frei formuliertes Angebot
- * hätte sich nicht verlässlich wiedererkennen lassen — „ja gern" baute dann
+ * das den Text geformt hat, bestimmt die Art. Ohne feste Art baute „ja gern"
  * nichts, oder das Modell erfand Vorlagen, die es nicht gibt (Live-Test
- * 10.10.2026). So steht fest, was angeboten wurde: der Prompt bekommt die
- * Rückfrage, die Nachricht speichert die Art (`metadata.offer`), und der
- * nächste Turn liest sie als `lastTurnOffer`.
+ * 10.10.2026). So steht fest, was angeboten werden darf: der Prompt bekommt
+ * die Art, die Nachricht speichert sie (`metadata.offer`), und der nächste
+ * Turn liest sie als `lastTurnOffer`.
+ *
+ * Ob und wie das Modell anbietet, ist dagegen seine Sache. Bis 06.11.2026
+ * verlangte der Prompt „genau EINE kurze Rückfrage" mit vorgegebenem Wortlaut.
+ * Gemma 4 31B schrieb daraufhin eine längere Frage, hielt sie für einen
+ * Regelverstoß und „korrigierte" sie endlos („– korrigiert: …", „– ich halte
+ * mich an die Regel: …"). Seitdem ist das Angebot freiwillig, frei formuliert
+ * und nur an zwei Dinge gebunden: es nennt die Art beim Namen und steht in
+ * Ich-Form, damit `offerToRecord` es wiedererkennt. Hat der Thread die Art
+ * schon, entfällt es ganz.
  */
 
 import { SKILLS } from '@gruenerator/shared/agents';
@@ -17,6 +25,7 @@ import { vorlagenOfferNote } from '../agents/vorlagenTools.js';
 
 import { compoundGenerationKind } from './agenticLoop/routing.js';
 import { ARTIFACT_KINDS, artifactKind, type ArtifactKindId } from './artifactKindRegistry.js';
+import { FIRST_PERSON_OFFER_RE, sentences } from './offerPhrasing.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -67,18 +76,26 @@ const OFFER_EXAMPLE: Readonly<Record<ArtifactKindId, string>> = {
 };
 
 /**
- * Die EINE Rückfrage für den Prompt, oder ''. Hängt an jeder Stelle, an der ein
- * Rezept in den Prompt kommt (Einzeldurchlauf, Loop einheitlich und geteilt).
+ * Der freiwillige Angebots-Hinweis für den Prompt, oder ''. Hängt an jeder
+ * Stelle, an der ein Rezept in den Prompt kommt (Einzeldurchlauf, Loop
+ * einheitlich und geteilt).
  *
  * Nach einem Social-Post gewinnt die Vorlagen-Galerie (`vorlagenOfferNote`):
  * aus einer Vorlage wird mit einem Klick ein Sharepic mit dem Text. Das
  * Sharepic-Angebot ist der Rückfall, wenn es für das Land keine Vorlagen gibt
  * oder ein Agent sie abgeschaltet hat — und entfällt, wenn die Galerie in
- * diesem Turn schon gezeigt wurde. Die Frage nennt die Art beim Namen; daran
- * prüft `offerToRecord`, ob das Modell sie wirklich gestellt hat.
+ * diesem Turn schon gezeigt wurde.
+ *
+ * Es entfällt auch, wenn der Thread die Art schon hat (`threadArtifacts`, die
+ * jüngsten Artefakte aus den letzten Nachrichten). Bis 06.11.2026 hiess es hier
+ * nur „in diesem Turn noch kein …": ein Sharepic von vor zwei Nachrichten
+ * zählte nicht, und das Modell bot es nach dem nächsten Post erneut an.
  */
 export function offerNote(
-  state: Pick<ChatGraphState, 'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools'>,
+  state: Pick<
+    ChatGraphState,
+    'userLocale' | 'activeRole' | 'vorlagenShown' | 'enabledTools' | 'threadArtifacts'
+  >,
   recipeMentions: readonly string[]
 ): string {
   const vorlagen = vorlagenOfferNote(state, recipeMentions);
@@ -87,20 +104,20 @@ export function offerNote(
   if (!kind) return '';
   if (kind === 'sharepic' && state.vorlagenShown?.length) return '';
   if (state.enabledTools?.[artifactKind(kind).loopToolName] === false) return '';
-  return `\n\nABSCHLUSS: Ist der Text fertig und wurde in diesem Turn noch kein ${artifactKind(kind).label} erstellt, schließe mit genau EINER kurzen Rückfrage: „${OFFER_EXAMPLE[kind]}" Keine andere Rückfrage, kein weiteres Angebot.`;
+  if (state.threadArtifacts?.some((artifact) => artifact.kind === kind)) return '';
+  const label = artifactKind(kind).label;
+  return `\n\nABSCHLUSS (freiwillig): Passt es zum fertigen Text, darfst du zum Schluss ein Angebot machen, etwa: „${OFFER_EXAMPLE[kind]}" Wie du es formulierst, ist dir überlassen — als Frage oder als kurzer Satz in Ich-Form. Nenne dabei „${label}", sonst kann ein „ja" darauf nichts bauen. Biete es nur einmal an, und lass es weg, wenn in diesem Turn schon etwas daraus erstellt wurde oder du erst etwas klären musst.`;
 }
 
 /** Der letzte Satz, der eine Frage ist — dort steht das Angebot. */
 function lastQuestion(text: string): string | null {
-  const questions = text.match(/[^.!?\n]*\?/g);
-  return questions?.at(-1) ?? null;
+  return (
+    sentences(text)
+      .map((match) => match[0])
+      .filter((sentence) => sentence.trimEnd().endsWith('?'))
+      .at(-1) ?? null
+  );
 }
-
-/** Ein Angebot in Ich-Form: „Soll ich daraus …?", „Ich kann dir … erstellen."
- *  Ein Leser-Aufruf am Ende eines Posts („Möchtest du dabei sein? Erstelle dein
- *  eigenes Sharepic") ist keins — er spricht die Leser*innen an, nicht die Person. */
-const FIRST_PERSON_OFFER_RE =
-  /(?<!\p{L})(?:soll(?:en)?\s+(?:ich|wir)|kann\s+ich|k[öo]nnen\s+wir|ich\s+kann|wir\s+k[öo]nnen)(?!\p{L})/iu;
 
 /** Die letzten zwei Sätze des Schlussabsatzes, die ein Angebot in Ich-Form
  *  machen — auch ohne Fragezeichen: „Ich kann dir … erstellen. Gib mir einfach
@@ -113,8 +130,8 @@ function closingOfferSentences(text: string): string[] {
       .trim()
       .split(/\n\s*\n/)
       .at(-1) ?? '';
-  return (last.match(/[^.!?\n]+[.!?]?/g) ?? [])
-    .map((sentence) => sentence.trim())
+  return sentences(last)
+    .map((match) => match[0].trim())
     .filter((sentence) => sentence.length > 0)
     .slice(-2)
     .filter((sentence) => FIRST_PERSON_OFFER_RE.test(sentence));
@@ -209,11 +226,13 @@ export function acceptsOffer(userText: string): boolean {
 
 const OFFER_TOPIC_MAX_CHARS = 2000;
 
-/** Worum das Artefakt gehen soll: die vorige Antwort ohne ihre Rückfrage. */
+/** Worum das Artefakt gehen soll: die vorige Antwort ohne ihr Angebot. Das
+ *  steht als Satz in Ich-Form am Schluss („Wenn du magst, mache ich daraus ein
+ *  Sharepic.") oder, wie früher vorgegeben, als letzte Frage. */
 export function offerTopic(lastAssistantText: string): string {
-  const question = lastQuestion(lastAssistantText);
-  const body = question
-    ? lastAssistantText.slice(0, lastAssistantText.lastIndexOf(question))
+  const offer = closingOfferSentences(lastAssistantText).at(-1) ?? lastQuestion(lastAssistantText);
+  const body = offer
+    ? lastAssistantText.slice(0, lastAssistantText.lastIndexOf(offer))
     : lastAssistantText;
   return body.trim().slice(0, OFFER_TOPIC_MAX_CHARS);
 }
