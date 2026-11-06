@@ -133,11 +133,32 @@ describe('renderSharepicToImage', () => {
     expect(mounts.services).toEqual([{ imageUrls: webCanvasImageUrls }]);
   });
 
-  it('captures what it has at the deadline rather than giving up', async () => {
+  // #5255: a live Unsplash photo can take longer than ten seconds the first
+  // time. The card captured the template without it, cached that per version
+  // and never rendered again, so only a reload showed the photo.
+  it('keeps a chat preview waiting past ten seconds for a photo that is still loading', async () => {
     const result = render();
-    await vi.advanceTimersByTimeAsync(10_500);
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(handle.toDataURL).not.toHaveBeenCalled();
+
+    handle.settled = true;
+    await vi.advanceTimersByTimeAsync(200);
     await expect(result).resolves.toMatch(/^data:image\/png/);
+    expect(handle.toDataURL).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ['preview', 30_500],
+    ['app', 10_500],
+    ['full', 10_500],
+  ] as const)(
+    'captures what it has at the %s deadline rather than giving up',
+    async (quality, after) => {
+      const result = renderSharepicToImage('dreizeilen', { line1: `x${seq++}` }, { quality });
+      await vi.advanceTimersByTimeAsync(after);
+      await expect(result).resolves.toMatch(/^data:image\/png/);
+    }
+  );
 
   it('composes creator props and renders the requested slide with its format', async () => {
     const s0 = { marker: 's0' };
