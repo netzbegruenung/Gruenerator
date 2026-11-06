@@ -91,6 +91,23 @@ describe('looksLikeDocsHelpQuestion', () => {
     }
   });
 
+  it('catches capability questions about a product feature (#5408)', () => {
+    for (const text of [
+      'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+      'Kann man hier Reels untertiteln?',
+      'Können wir mit dem Grünerator auch Präsentationen erstellen?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(true);
+    }
+    for (const text of [
+      'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+      'Kann ich daraus auch ein Sharepic machen?',
+      'Kann ich auch über die Verkehrswende schreiben?',
+    ]) {
+      expect(looksLikeDocsHelpQuestion(text), text).toBe(false);
+    }
+  });
+
   it('handles empty input', () => {
     expect(looksLikeDocsHelpQuestion('')).toBe(false);
     expect(looksLikeDocsHelpQuestion('   ')).toBe(false);

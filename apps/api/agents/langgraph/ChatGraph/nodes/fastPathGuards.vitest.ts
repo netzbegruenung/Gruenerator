@@ -13,6 +13,7 @@ import {
   asksForChatDeliverable,
   ARTIFACT_NOUN_BY_KIND,
   creationOrderPattern,
+  SHAREPIC_WORD_RE,
 } from './fastPathGuards.js';
 
 const SHAREPIC = /\b(share[\s-]?pics?|sharepics?)\b/i;
@@ -59,6 +60,51 @@ describe('isMetaQuestionAbout', () => {
   it('does not fire on imperative create requests', () => {
     expect(isMetaQuestionAbout('Erstell ein Sharepic zu Tempo 30', SHAREPIC)).toBe(false);
     expect(isMetaQuestionAbout('Zeig mir ein Balkendiagramm', GRAFIK)).toBe(false);
+  });
+});
+
+// Live 06.11.2026 (#5408): die Fähigkeitsfrage baute ein Karussell mit 4 Folien.
+const CAPABILITY_QUESTIONS = [
+  'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+  'Kann man hier Sharepics machen?',
+  'Können wir mit dem Grünerator auch Karussells erstellen?',
+  'Ist es möglich, mit dem Grünerator Sharepics zu erstellen?',
+  'Geht das überhaupt, Sharepics zu erstellen?',
+  'Kann der Grünerator auch Sharepics erstellen?',
+];
+// Höfliche Bestellungen: sie bleiben Aufträge.
+const POLITE_ORDERS = [
+  'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+  'Kann ich ein Sharepic zum Klimageld haben?',
+  'Kann ich daraus auch ein Sharepic machen?',
+  'Kann ich auch ein Sharepic dazu bekommen?',
+  'Könntest du bitte ein Sharepic erstellen?',
+];
+
+describe('isMetaQuestionAbout — Fähigkeitsfragen (#5408)', () => {
+  it.each(CAPABILITY_QUESTIONS)('%s ist eine Frage, kein Auftrag', (text) => {
+    expect(isMetaQuestionAbout(text, SHAREPIC_WORD_RE)).toBe(true);
+    expect(asksForSharepic(text)).toBe(false);
+  });
+  it.each(POLITE_ORDERS)('%s wird keine Meta-Frage', (text) => {
+    expect(isMetaQuestionAbout(text, SHAREPIC_WORD_RE)).toBe(false);
+  });
+  it('höfliche Bestellungen mit Erstell-Verb bleiben Bestellungen', () => {
+    for (const text of [
+      'Kannst du mir ein Sharepic zum Klimageld erstellen?',
+      'Kann ich daraus auch ein Sharepic machen?',
+      'Könntest du bitte ein Sharepic erstellen?',
+    ]) {
+      expect(asksForSharepic(text), text).toBe(true);
+    }
+  });
+  it('gilt für jedes Artefakt, nicht nur das Sharepic', () => {
+    expect(
+      isMetaQuestionAbout(
+        'Kann ich mit dem Grünerator auch Präsentationen erstellen?',
+        ARTIFACT_NOUN_BY_KIND.presentation
+      )
+    ).toBe(true);
   });
 });
 
