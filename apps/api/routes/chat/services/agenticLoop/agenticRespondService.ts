@@ -698,11 +698,10 @@ export async function streamAgenticResponse(
     // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
     // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
     // laufen können.
-    // Passt das Material eines Ganzdokument-Turns, steht es ganz im Prompt und
-    // der Schreiber fasst selbst zusammen — kein erzwungenes `summarize`
-    // (Map-Reduce über Qdrant-Chunks, live 06.11.2026 41 s und verworfen).
-    const hasAttachedDocuments =
-      material.qdrantDocs.length > 0 && finalState.wholeDocument?.fits !== true;
+    // Ohne die Dokumente, die ein Ganzdokument-Turn ganz im Prompt hat
+    // (`resolveTurnMaterial`): dann fasst der Schreiber selbst zusammen, kein
+    // erzwungenes `summarize` (live 06.11.2026 41 s und verworfen).
+    const hasAttachedDocuments = material.qdrantDocs.length > 0;
     const summaryAsk = isSummaryAsk(lastUserText);
 
     // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine

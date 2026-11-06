@@ -5,6 +5,7 @@ import {
   resolveWholeDocumentTurn,
   wholeDocumentBudgetChars,
   wholeDocumentIdsInPrompt,
+  wholeDocumentReadDirectly,
   wholeDocumentSkipsRetrieval,
 } from './wholeDocument.js';
 
@@ -152,5 +153,18 @@ describe('wholeDocumentSkipsRetrieval', () => {
       threadAttachments: [row({})],
     });
     expect(wholeDocumentSkipsRetrieval(turn, [row({})]).size).toBe(0);
+  });
+});
+
+describe('wholeDocumentReadDirectly', () => {
+  it('names the documents summarize reads itself, also when they do not fit', () => {
+    const turn = resolveWholeDocumentTurn({
+      ...base,
+      contextWindowTokens: 20_000,
+      turnDocs: [{ name: 'Plenarprotokoll.pdf', text: 'z'.repeat(400_000), documentId: 'doc-new' }],
+      threadAttachments: [row({})],
+    });
+    expect([...wholeDocumentReadDirectly(turn, [row({})])].sort()).toEqual(['doc-new', 'doc-old']);
+    expect(wholeDocumentReadDirectly(null, [row({})]).size).toBe(0);
   });
 });

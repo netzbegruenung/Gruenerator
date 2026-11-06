@@ -43,7 +43,6 @@ import {
   setThreadLastMcpServer,
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
-import { wholeDocumentSkipsRetrieval } from '../wholeDocument.js';
 import { isWolkePhoto } from '../wolkePhoto.js';
 
 import { type AskHumanGate } from './askHumanGate.js';
@@ -764,13 +763,8 @@ export async function seedAttachedDocuments(params: {
 }): Promise<SeededAttachedDocuments> {
   try {
     const material = resolveTurnMaterial(params.state);
-    // Ein Ganzdokument-Turn hat sein Material ganz im Prompt (wholeDocument.ts).
-    const skip = wholeDocumentSkipsRetrieval(
-      params.state.wholeDocument,
-      params.state.threadAttachments ?? []
-    );
     const sources = [
-      ...material.qdrantDocs.filter((s) => !skip.has(s.id)),
+      ...material.qdrantDocs,
       ...(params.includeNotebooks ? material.notebooks : []),
     ];
     if (sources.length === 0) return NOTHING_SEEDED;

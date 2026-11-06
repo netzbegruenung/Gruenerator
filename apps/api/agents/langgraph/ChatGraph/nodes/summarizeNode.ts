@@ -10,7 +10,7 @@
  * - > 12,000 chars:  Map-reduce (split → parallel summarize → combine)
  */
 
-import { wholeDocumentSkipsRetrieval } from '../../../../routes/chat/services/wholeDocument.js';
+import { wholeDocumentReadDirectly } from '../../../../routes/chat/services/wholeDocument.js';
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -285,7 +285,7 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
     // höchstens 20 Qdrant-Chunks, und das dieses Turns vor dem früheren (live
     // 06.11.2026 fasste dieser Knoten statt der eingefügten Seite das alte PDF
     // zusammen, rekonstruiert aus 23.158 von 30 Seiten).
-    const skip = wholeDocumentSkipsRetrieval(state.wholeDocument, state.threadAttachments ?? []);
+    const skip = wholeDocumentReadDirectly(state.wholeDocument, state.threadAttachments ?? []);
     const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])].filter(
       (id) => !skip.has(id)
     );

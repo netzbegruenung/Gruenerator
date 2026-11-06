@@ -109,20 +109,35 @@ export function wholeDocumentIdsInPrompt(
 }
 
 /**
- * Die Dokumente, die der Loop in einem Ganzdokument-Turn NICHT als Passagen
- * vorab holen soll: was ganz im Prompt steht, und bei Material dieses Turns
- * auch die mitgeführten früheren Anhänge — gefragt ist nach dem neuen. Live
- * 06.11.2026 lagen neben der eingefügten Seite 6.000 Zeichen Passagen aus dem
- * alten PDF als Quellen im Prompt. Leer, wenn nichts passt.
+ * Die Qdrant-Ids, die ein Ganzdokument-Turn NICHT über die Suche braucht: die
+ * Dokumente, die er ganz liest, und bei Material dieses Turns auch die
+ * mitgeführten früheren Anhänge — gefragt ist nach dem neuen. Gilt für
+ * `summarize` immer (es liest `docs` direkt, auch wenn sie nicht passen; der
+ * Live-Test vom 06.11.2026 fasste dasselbe 233k-Dokument sonst zweimal
+ * zusammen, einmal aus dem Volltext, einmal aus 20 Qdrant-Chunks).
+ */
+export function wholeDocumentReadDirectly(
+  turn: WholeDocumentTurn | null | undefined,
+  threadAttachments: readonly ThreadAttachment[]
+): ReadonlySet<string> {
+  if (!turn) return new Set();
+  const ids = new Set(turn.docs.map((d) => d.documentId).filter((id): id is string => id != null));
+  if (turn.origin === 'turn') {
+    for (const a of threadAttachments) if (a.documentId) ids.add(a.documentId);
+  }
+  return ids;
+}
+
+/**
+ * Was der Loop nicht als Passagen vorab holt und wofür er kein Lesewerkzeug
+ * erzwingt: dasselbe wie oben, aber nur, wenn der Text passt — dann steht er
+ * ganz im Prompt. Live 06.11.2026 lagen neben der eingefügten Seite 6.000
+ * Zeichen Passagen aus dem alten PDF als Quellen im Prompt. Passt er nicht,
+ * bleiben Suche und `summarize` die Wege zum Inhalt.
  */
 export function wholeDocumentSkipsRetrieval(
   turn: WholeDocumentTurn | null | undefined,
   threadAttachments: readonly ThreadAttachment[]
 ): ReadonlySet<string> {
-  if (!turn?.fits) return new Set();
-  const skip = new Set(wholeDocumentIdsInPrompt(turn));
-  if (turn.origin === 'turn') {
-    for (const a of threadAttachments) if (a.documentId) skip.add(a.documentId);
-  }
-  return skip;
+  return turn?.fits ? wholeDocumentReadDirectly(turn, threadAttachments) : new Set();
 }

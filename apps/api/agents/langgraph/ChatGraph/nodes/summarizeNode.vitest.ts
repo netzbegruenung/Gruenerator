@@ -185,3 +185,25 @@ describe('summarizeNode — whole-document turn', () => {
     expect(out.degradationNotes).toBeUndefined();
   });
 });
+
+describe('summarizeNode — whole document too large for the prompt', () => {
+  // Live-Test 06.11.2026: a 233k document did not fit, `summarize` read it from
+  // its full text AND rebuilt it from 20 Qdrant chunks — two summaries of one file.
+  it('reads it once, from the full text, not again from Qdrant', async () => {
+    serviceKind = 'user';
+    const out = await summarizeNode({
+      ...stateWith([]),
+      documentChatIds: ['doc-big'],
+      wholeDocument: {
+        origin: 'turn',
+        docs: [{ name: 'Protokoll.txt', text: 'Satz. '.repeat(40_000), documentId: 'doc-big' }],
+        chars: 240_000,
+        budgetChars: 151_550,
+        fits: false,
+      },
+    } as ChatGraphState);
+    expect(out.summaryContext).toMatch(/^## Protokoll\.txt/);
+    expect(out.summaryContext).not.toMatch(/---/);
+    expect(out.degradationNotes).toBeUndefined();
+  });
+});
