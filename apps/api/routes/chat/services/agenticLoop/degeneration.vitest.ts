@@ -661,3 +661,86 @@ describe('snapToBoundary — graphemes', () => {
     expect(snapped).toBeLessThanOrEqual(505);
   });
 });
+
+// ── Repeated closing offer (live 06.11.2026) ─────────────────────────────────
+// Gemma 4 31B on the unified loop, after a finished post: the offer, then the
+// offer "corrected" again and again with a fresh connector each time. Every
+// window metric above measured it as healthy (word diversity 0.239), and the
+// long-range run never reached 480 chars in one piece.
+
+const LIVE_POST =
+  'Gute Nachricht zur LKW-Umleitung: Die Verwaltung schlägt zwei Routen vor. Route 1 führt über die Plöner Str. zur Eutiner Str., Route 2 über die Lütjenburger Str. zur Bahnhofstr. Damit wird die Ortsmitte entlastet, und der Schulweg bleibt frei vom Durchgangsverkehr. Der Bauausschuss berät am 19.11.2026 öffentlich – kommt vorbei und redet mit!\n\n';
+const LIVE_FIRST_OFFER =
+  'Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?';
+/** Transcribed from the user's screenshot, verbatim. */
+const LIVE_OFFER_LOOP =
+  ' – korrigiert: **Soll ich daraus jetzt das Sharepic mit den beiden Routen und dem BA-Hinweis (19.11.2026) erstellen?** – eine Frage: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem Hinweis auf den Bauausschuss am 19.11.2026 machen?** – so, jetzt sauber, genau eine Frage: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem BA-Hinweis am 19.11.2026 erstellen?** – final: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen (Plöner Str. → Eutiner Str., Lütjenburger Str. → Bahnhofstr.) und dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?** – ich halte mich an die Regel: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?** – das ist die einzige Frage: Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen? – so steht es fest: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem BA-Hinweis (19.11.2026) machen?** – ich wiederhole mich nicht weiter, hier die eine Frage: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?** – ENDE: **Soll ich daraus ein Sharepic mit den beiden LKW-Routen und dem BA-Hinweis 19.11.2026 erstellen?**';
+
+/** Feed `text` in small deltas, the way a token stream arrives; the length at
+ *  the first `true`, or Infinity. */
+function firstFiringDelta(guard: DegenerationGuard, text: string, delta = 12): number {
+  for (let len = delta; ; len += delta) {
+    const at = Math.min(len, text.length);
+    if (guard.check(text.slice(0, at))) return at;
+    if (at === text.length) return Infinity;
+  }
+}
+
+describe('createDegenerationGuard — repeated closing offer', () => {
+  it('reads the live loop as healthy on every window metric (why this check exists)', () => {
+    expect(isDegenerateSample(LIVE_OFFER_LOOP.slice(-2000))).toBe(false);
+  });
+
+  it('cuts the live loop right after the first offer, early and without a notice', () => {
+    const text = LIVE_POST + LIVE_FIRST_OFFER + LIVE_OFFER_LOOP;
+    const guard = createDegenerationGuard();
+    const firedAt = firstFiringDelta(guard, text);
+    // Within the third offer — not after forty-five of them.
+    expect(firedAt).toBeLessThan(LIVE_POST.length + LIVE_FIRST_OFFER.length + 400);
+    const streamed = text.slice(0, firedAt);
+    const cut = guard.cutAt(streamed);
+    expect(streamed.slice(0, cut)).toBe(LIVE_POST + LIVE_FIRST_OFFER);
+    // What the cut removed is the offer again — the answer is complete.
+    expect(trimDegenerate(streamed, cut)).toBe((LIVE_POST + LIVE_FIRST_OFFER).trimEnd());
+  });
+
+  it('keeps an emphasised first offer whole', () => {
+    const offer = '**Soll ich daraus ein Sharepic mit dem Hinweis auf den Bauausschuss machen?**';
+    const text = `${LIVE_POST}${offer} – korrigiert: ${offer} – final: ${offer} – ENDE: ${offer}`;
+    const guard = createDegenerationGuard();
+    const streamed = text.slice(0, firstFiringDelta(guard, text));
+    expect(streamed.slice(0, guard.cutAt(streamed))).toBe(LIVE_POST + offer);
+  });
+
+  it('also catches an offer the model words as a statement', () => {
+    const offer = 'Wenn du magst, mache ich dir daraus ein Sharepic zum Bauausschuss.';
+    const text = `${LIVE_POST}${offer} Also: ${offer} Wirklich: ${offer} ${offer}`;
+    const guard = createDegenerationGuard();
+    const streamed = text.slice(0, firstFiringDelta(guard, text));
+    expect(streamed.slice(0, guard.cutAt(streamed))).toBe(LIVE_POST + offer);
+  });
+
+  it('lets an offer stand that is restated once', () => {
+    const text = `${LIVE_POST}${LIVE_FIRST_OFFER} Oder kürzer: Soll ich daraus ein Sharepic mit den beiden LKW-Routen machen?`;
+    expect(firstFiringDelta(createDegenerationGuard(), text)).toBe(Infinity);
+  });
+
+  it('lets different offers in a row stand', () => {
+    const text = `${LIVE_POST}Soll ich den Post noch kürzen? Soll ich ein paar Hashtags ergänzen? Soll ich eine englische Fassung für Bluesky schreiben?`;
+    expect(firstFiringDelta(createDegenerationGuard(), text)).toBe(Infinity);
+  });
+
+  it('lets platform variants close on the same first-person line', () => {
+    const variants = ['Instagram', 'Facebook', 'Mastodon', 'Bluesky'].map(
+      (platform, i) =>
+        `## ${platform}\n\n${variedProse(i)}${variedProse(i + 10)}\nKann ich am Samstag beim Infostand auf euch zählen?\n\n`
+    );
+    expect(firstFiringDelta(createDegenerationGuard(), variants.join(''))).toBe(Infinity);
+  });
+
+  it('ignores a first-person line that offers nothing', () => {
+    const line = 'Ich kann es kaum erwarten, euch alle am Samstag zu sehen!';
+    const text = `${LIVE_POST}${line} ${line} ${line}`;
+    expect(firstFiringDelta(createDegenerationGuard(), text)).toBe(Infinity);
+  });
+});
