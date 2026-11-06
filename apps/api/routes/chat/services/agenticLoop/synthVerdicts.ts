@@ -23,6 +23,7 @@ import {
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
   stripPhantomArtifactCreation,
+  stripPhantomToolFailure,
   stripPhantomArtifactEdit,
   type EditableArtifactKind,
 } from '../outputSanity.js';
@@ -180,6 +181,16 @@ export function finalizeAnswerText(input: {
     text = phantomCreation.text;
   }
 
+  // „Der Aufruf ist fehlgeschlagen" ohne einen Werkzeugschritt: es lief nichts,
+  // also schlug nichts fehl (live 06.11.2026, steps=0).
+  const phantomFailure = stripPhantomToolFailure(text, { stepCount: input.stepCount });
+  if (phantomFailure.removed.length > 0) {
+    warnings.push(
+      `[Agentic] Removed tool failure claim without a tool step: ${phantomFailure.removed.join(' | ')}`
+    );
+    text = phantomFailure.text;
+  }
+
   if (
     defersToSearchDespiteSources(text, { sources: input.sourceCount, toolCalls: input.stepCount })
   ) {
@@ -227,7 +238,8 @@ export function finalizeAnswerText(input: {
     sanity.fabricated.length > 0 ||
     phantomNote.removed.length > 0 ||
     phantomEdit.removed.length > 0 ||
-    phantomCreation.removed.length > 0;
+    phantomCreation.removed.length > 0 ||
+    phantomFailure.removed.length > 0;
   if (replaced) text = clamp.text;
 
   return { text, replaced, warnings };

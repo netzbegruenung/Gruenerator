@@ -7,7 +7,7 @@
  * respond lane leaves no text to persist — so it reports `MaybeHandled`.
  */
 
-import { isGroundableProse } from '@gruenerator/shared/chat-intents';
+import { dispositionOf, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
   buildSystemMessage,
@@ -38,6 +38,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomToolFailure,
   stripPhantomArtifactCreation,
   stripPhantomArtifactEdit,
 } from '../services/outputSanity.js';
@@ -393,6 +394,20 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomEdit.text;
     }
+    // Ein Prosa-Turn (auch der Gruss) ruft kein Werkzeug: „der Aufruf ist
+    // fehlgeschlagen" ist hier nie wahr. Nicht auf Erzeuger-Turns (Bild, Sharepic …)
+    // — deren Fehlschlag ist echt.
+    let phantomFailureRemoved = false;
+    if (dispositionOf(finalState.intent ?? '') === 'prose') {
+      const phantomFailure = stripPhantomToolFailure(fullText, { stepCount: 0 });
+      phantomFailureRemoved = phantomFailure.removed.length > 0;
+      if (phantomFailureRemoved) {
+        log.warn(
+          `[ChatGraph] Removed tool failure claim without a tool step: ${phantomFailure.removed.join(' | ')}`
+        );
+        fullText = phantomFailure.text;
+      }
+    }
     // „Ich erstelle dir jetzt die Sharepics …" ohne Artefakt im Turn: nach dem
     // Turn läuft nichts mehr, die Erstellung findet nie statt (#4611).
     // Nur auf Prosa-Turns: ein Bearbeitungs- oder Erstell-Intent hat seinen
@@ -423,7 +438,8 @@ export async function runSinglePassAnswer({
       delivery.removed.length > 0 ||
       phantomNote.removed.length > 0 ||
       phantomEdit.removed.length > 0 ||
-      phantomCreation.removed.length > 0
+      phantomCreation.removed.length > 0 ||
+      phantomFailureRemoved
     ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });

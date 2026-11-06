@@ -355,6 +355,17 @@ describe('fallback lane with a smaller window (#4198)', () => {
    * must get the history pruned for ITS window, or Cortecs answers through
    * berget (first token after 50–80 s) or with a different model.
    */
+  // Review #5391: der Prosa-Einzeldurchlauf ruft kein Werkzeug, ein behaupteter
+  // Fehlschlag ist dort immer erfunden.
+  it('strips an invented tool failure from a single-pass prose answer', async () => {
+    respond.singlePassText =
+      'Hallo! Der Aufruf zur Bilderstellung ist leider fehlgeschlagen. Wie kann ich dir helfen?';
+    const { trace } = await runTurn(suite.baseUrl(), { messages: [userTurn('Hallo!')] });
+    expect(trace.agentic).toBe(false);
+    expect(trace.fullText).not.toContain('fehlgeschlagen');
+    expect(trace.fullText).toContain('Wie kann ich dir helfen?');
+  });
+
   it('re-prunes the single-pass history for the fallback lane', async () => {
     respond.resolution = { contextWindow: 262_144 };
     respond.singlePassText = null;
