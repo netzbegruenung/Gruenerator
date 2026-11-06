@@ -241,3 +241,50 @@ describe('slide count', () => {
     );
   });
 });
+
+// Ein Bild aus dem Gespräch in der Präsentation (06.11.2026).
+describe('generateCanvasDeck with the thread image', () => {
+  const PHOTO = '/api/share/abcdefghijklmnop1234/download';
+  type Page = { state: { currentImageSrc?: string; deckStil: string } };
+  const pages = () => created().initial_state.pages as unknown as Page[];
+
+  it('offers the Bildfolie only when there is an image', () => {
+    expect(deckSystemPrompt('de-DE')).not.toContain('"bild"');
+    expect(deckSystemPrompt('de-DE', true)).toContain('genau eine Folie vom Typ "bild"');
+    const typEnum = (withPhoto: boolean) =>
+      (
+        deckToolSchema(withPhoto).properties as Record<
+          string,
+          { items: { properties: { typ: { enum: string[] } } } }
+        >
+      ).slides!.items.properties.typ.enum;
+    expect(typEnum(false)).not.toContain('bild');
+    expect(typEnum(true)).toContain('bild');
+  });
+
+  it('puts the image on the Bildfolie the model set', async () => {
+    modelAnswers({
+      ...okSpec,
+      slides: [
+        okSpec.slides[0],
+        { typ: 'bild', slots: { unterschrift: 'Die Wiese' }, bild: 'https://evil.example/x.jpg' },
+        okSpec.slides[2],
+      ],
+    });
+    await generateCanvasDeck({ prompt: 'Blühwiesen', userId: 'u1', locale: 'de-DE', photo: PHOTO });
+    expect(pages().map((p) => p.state.currentImageSrc ?? null)).toEqual([null, PHOTO, null]);
+  });
+
+  it('asks again without a Bildfolie, and sets one behind the title on the last attempt', async () => {
+    modelAnswers(okSpec, okSpec);
+    await generateCanvasDeck({ prompt: 'Blühwiesen', userId: 'u1', locale: 'de-DE', photo: PHOTO });
+    expect(pages().map((p) => p.state.currentImageSrc ?? null)).toEqual([null, PHOTO, null, null]);
+  });
+
+  it('refuses a Bildfolie when there is no image', async () => {
+    modelAnswers({ ...okSpec, slides: [okSpec.slides[0], { typ: 'bild', slots: {} }] }, okSpec);
+    await generateCanvasDeck({ prompt: 'Blühwiesen', userId: 'u1', locale: 'de-DE' });
+    expect(pages()).toHaveLength(3);
+    expect(pages().every((p) => p.state.currentImageSrc === undefined)).toBe(true);
+  });
+});

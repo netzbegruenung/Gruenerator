@@ -129,3 +129,26 @@ describe('composeSlideDeck in a style', () => {
     });
   });
 });
+
+describe('Bildfolie beim Zurücklesen', () => {
+  it('keeps its photo through readFolie, and drops the placeholder', () => {
+    const date = new Date('2026-10-30T12:00:00Z');
+    const photo = '/api/share/abcdefghijklmnop1234/download';
+    const deck = composeSlideDeck(
+      {
+        title: 'Blühwiesen',
+        slides: [
+          { typ: 'bild', slots: {}, bild: photo },
+          { typ: 'bild', slots: {} },
+        ],
+      },
+      { locale: 'de-DE', date, stil: 'ruhig' }
+    );
+    expect(readFolie(deck.pages[0]!.state as never)).toEqual({
+      typ: 'bild',
+      slots: {},
+      bild: photo,
+    });
+    expect(readFolie(deck.pages[1]!.state as never)).toEqual({ typ: 'bild', slots: {} });
+  });
+});

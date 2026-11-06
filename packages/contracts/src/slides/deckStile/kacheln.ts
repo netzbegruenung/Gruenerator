@@ -20,6 +20,8 @@ import {
   STOERER_MAGENTA,
   tonesOf,
   type DeckStilCtx,
+  bildFolie,
+  BILD_BOXES,
 } from './shared.js';
 
 import { type DeckStilBox } from './index.js';
@@ -135,6 +137,9 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       });
       b.text('folie-kontakt', '', X + 6, 780, 1400, 28, { lineHeight: 1.3 });
       break;
+    case 'bild':
+      bildFolie(b, folie);
+      break;
   }
   return finishFolie(b, folie, ctx, 'kacheln');
 }
@@ -163,4 +168,5 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   },
   zitat: { 'folie-zitat': { maxHeight: 520, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
+  bild: BILD_BOXES,
 };

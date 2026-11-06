@@ -203,6 +203,7 @@ export function makeDocumentSpec(opts: {
         userId: ctx.userId,
         userContent: ctx.userContent,
         subtypeOverride: opts.subtypeOverride ?? null,
+        image: ctx.image ?? null,
         ...(opts.conversationContext != null && {
           conversationContext: opts.conversationContext,
         }),

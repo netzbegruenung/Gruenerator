@@ -34,6 +34,7 @@ import { CreateRefusedError } from './artifactGeneration.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
+import { threadImageInLibrary } from './sharepicTurnPhotos.js';
 import { embedUntrusted } from './untrustedContent.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -190,6 +191,9 @@ interface GenerateContext {
    *  Only a generator that stores its sources (explainable) reads it. */
   threadSources?: SearchResult[];
   threadId?: string | null;
+  /** The thread's generated image the turn means, as a Mediathek URL
+   *  (`threadImageInLibrary`). Only document and deck generators place it. */
+  image?: string | null;
 }
 
 export interface ArtifactSpec<T> {
@@ -289,6 +293,13 @@ export async function runCreateTurn<T>(
     }
   }
 
+  const image = await threadImageInLibrary(classifiedState).catch((err: unknown) => {
+    log.warn(
+      `[${spec.logLabel}] thread image skipped: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  });
+
   try {
     const result = await spec.generate(
       {
@@ -299,6 +310,7 @@ export async function runCreateTurn<T>(
         ...(opts.userLocale != null && { userLocale: opts.userLocale }),
         threadSources,
         threadId: actualThreadId ?? null,
+        image,
       },
       openStream
     );
