@@ -53,7 +53,10 @@ pnpm --filter @gruenerator/api eval:review   # evals/review.html + evals/review-
 EVAL_BYPASS_TOKEN=<dev-bypass-token> pnpm --filter @gruenerator/api eval:chat
 
 # judge pass over the traces of the last run
-LITELLM_BASE_URL=<url> LITELLM_API_KEY=<key> pnpm --filter @gruenerator/api eval:judge
+CORTECS_API_KEY=<key> pnpm --filter @gruenerator/api eval:judge
+# any OpenAI-compatible host works, e.g. Gemma 4 31B on Melious:
+CORTECS_BASE_URL=https://api.melious.ai/v1 CORTECS_API_KEY=<melious-key> \
+  EVAL_JUDGE_MODEL=gemma-4-31b:balanced pnpm --filter @gruenerator/api eval:judge
 
 # long-thread scenarios only (see compaction overrides above)
 EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:longthread
@@ -201,7 +204,9 @@ zurück, welche gemeint ist, und der Fall endet als unerwartete Rückfrage.
 | `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
 | `EVAL_RECORD_DIR`               | —                       | record raw SSE per turn (E2E fixtures)             |
 | `EVAL_DECISION_DIR`             | —                       | read decision journals back, render maps           |
-| `CORTECS_API_KEY`               | —                       | judge only (Cortecs)                               |
+| `CORTECS_API_KEY`               | —                       | judge only — key of the OpenAI-compatible host     |
+| `CORTECS_BASE_URL`              | `api.cortecs.ai/v1`     | judge only — any OpenAI-compatible host (Melious)  |
+| `EVAL_JUDGE_MODEL`              | `gemma-4-31b-it`        | judge only — model name on that host               |
 | `EVAL_JUDGE_BLOCKING=1`         | —                       | judge failures set exit code                       |
 
 ## Decision maps from a live run
@@ -386,6 +391,6 @@ latency p50/p95, per-category), and a **regression diff** vs the baseline
 - `judge/` — rubrics + runner + calibration fixtures (the historical class-6
   "keine Treffer auf echten Daten" and class-11 "Edit angewendet, Text leugnet
   ihn" bugs MUST fail the judge — `judge.vitest.ts`, live part gated on
-  `LITELLM_*`).
+  `CORTECS_API_KEY` plus `RUN_LIVE_PROVIDER_TESTS`).
 - `fixtures/fillerTurns.ts` — deterministic padding pool for `padTurns`.
 - `tools/` — adversarial generator + corpus-mining SQL.
