@@ -76,6 +76,12 @@ export class PostgresService {
       this.healthStatus = 'connecting';
 
       this.pool = new Pool(this.config);
+      // Ohne Listener wirft pg den Fehler einer ruhenden Verbindung (Postgres-
+      // Neustart, abgerissene Leitung) als uncaught — das beendet jeden Worker.
+      // Der Pool verwirft die Verbindung selbst; die nächste Abfrage öffnet eine neue.
+      this.pool.on('error', (error) => {
+        console.error('[PostgresService] Idle client error:', toLoggableDbError(error));
+      });
       await this.testConnection();
 
       this.isInitialized = true;
