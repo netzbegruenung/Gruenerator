@@ -539,8 +539,6 @@ describe('pueFor', () => {
     // provider without a published figure silently borrowed Scaleway DC5-s
     // 1.25 — and the transparency endpoint printed it as if the operator had
     // said so. An unknown PUE must land ABOVE the reference, never on it.
-    expect(pueFor('infercom')).toBe(1.5); // Munich, EnEfG ceiling
-    expect(pueFor('infercom')).toBeGreaterThan(pueFor('greenpt'));
     // European average, not the world one: every provider that lands on the
     // fallback is EEA-bound by contract, so the continent is known even where
     // the country is not.
@@ -558,7 +556,11 @@ describe('pueFor', () => {
   it('separates a published PUE from an estimated one', () => {
     expect(isPueEstimated('regolo')).toBe(false);
     expect(isPueEstimated('litellm')).toBe(false);
-    expect(isPueEstimated('infercom')).toBe(true);
+    // Reported per request by Melious, which serves both as upstreams.
+    expect(isPueEstimated('infercom')).toBe(false);
+    expect(isPueEstimated('berget')).toBe(false);
+    expect(pueFor('infercom')).toBe(1.2);
+    expect(pueFor('berget')).toBe(1.2);
     expect(isPueEstimated('mistral')).toBe(true);
     // Same provider, different lane: published for text, estimated for images.
     expect(isPueEstimated('scaleway', 'tokens')).toBe(false);
