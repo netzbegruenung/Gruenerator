@@ -220,8 +220,9 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     id: 'erinnerungen.tagesbriefing',
     tab: 'erinnerungen',
     title: 'Tagesbriefing im Chat',
+    platforms: BOTH,
     description:
-      'Beim ersten Besuch des Tages schreibt dir der Grünerator eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute.',
+      'Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute.',
   },
   {
     id: 'personalisierung.rollen',

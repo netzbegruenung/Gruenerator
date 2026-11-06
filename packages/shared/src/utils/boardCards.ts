@@ -30,7 +30,7 @@ const LEGACY_DONE_NAMES = new Set(['erledigt', 'done', 'fertig', 'abgeschlossen'
 function isStatusOption(value: unknown): value is BoardStatusOption {
   if (!value || typeof value !== 'object') return false;
   const o = value as Record<string, unknown>;
-  return typeof o.id === 'string' && typeof o.name === 'string';
+  return typeof o['id'] === 'string' && typeof o['name'] === 'string';
 }
 
 /** Die Optionen des Status-Felds, oder `[]` ohne Status-Feld. */
@@ -74,7 +74,9 @@ export function boardAssigneeUserIds(raw: unknown): string[] {
   return items.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
     const a = item as Record<string, unknown>;
-    if (typeof a.agentId === 'string' && a.agentId) return [];
-    return typeof a.id === 'string' && a.id ? [a.id] : [];
+    const agentId = a['agentId'];
+    if (typeof agentId === 'string' && agentId) return [];
+    const id = a['id'];
+    return typeof id === 'string' && id ? [id] : [];
   });
 }
