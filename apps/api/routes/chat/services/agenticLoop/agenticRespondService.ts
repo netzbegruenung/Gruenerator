@@ -607,7 +607,7 @@ export async function streamAgenticResponse(
     // instead, so injecting here too would ship the same block twice.
     const carriedNote =
       mode === 'unified' && sourceRegistry.carriedSize > 0
-        ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter:\n${sourceRegistry.renderAll()}`
+        ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter. Schreib diese Liste NICHT ab und hänge kein Quellenverzeichnis an — die Quellen erscheinen unter deiner Antwort von selbst:\n${sourceRegistry.renderAll()}`
         : '';
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
