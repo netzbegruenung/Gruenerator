@@ -1113,7 +1113,9 @@ function MethodNote({ data }: { data: GetTransparencyStatsResponseDto }) {
       einer einzelnen Person zuzuordnen: die Summen werden bereits in der Datenbank ohne
       Personenbezug gebildet, und Tage mit weniger als {data.min_group_size} aktiven Personen
       entfallen vollständig. Stand dieser Auswertung: {formatTimestamp(data.generated_at)} Uhr — sie
-      wird alle 15 Minuten neu berechnet, ist also bewusst etwas älter als dieser Seitenaufruf.{' '}
+      wird alle 15 Minuten neu berechnet, ist also bewusst etwas älter als dieser Seitenaufruf.
+      Transkriptionen der Seite „Transkription“ werden erst seit dem 06.11.2026 getrennt erfasst;
+      davor stehen sie unter „Reels“.{' '}
       <a
         href={DOCS_LINK}
         target="_blank"

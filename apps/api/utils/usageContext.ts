@@ -133,7 +133,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     // which is its prefix. Rows before 06.11.2026 carry 'subtitler' for both.
     ['/api/voice/transcribe-upload', 'transkription'],
     ['/api/voice', 'transkription'],
-    ['/api/protokoll', 'subtitler'],
+    ['/api/protokoll', 'texte'],
     ['/api/process', 'subtitler'],
 
     ['/api/search-graph', 'search'],

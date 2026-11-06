@@ -21,6 +21,7 @@ describe('featureFromPath', () => {
     ['/api/voice/todo-list', 'transkription'],
     ['/api/voice/speech/generate', 'voice'],
     ['/api/subtitler/process', 'subtitler'],
+    ['/api/protokoll', 'texte'],
     ['/api/auth/profile', 'other'],
   ])('%s → %s', (path, feature) => {
     expect(featureFromPath(path)).toBe(feature);
