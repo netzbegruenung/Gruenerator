@@ -563,6 +563,9 @@ describe('pueFor', () => {
     // Same provider, different lane: published for text, estimated for images.
     expect(isPueEstimated('scaleway', 'tokens')).toBe(false);
     expect(isPueEstimated('scaleway', 'images')).toBe(true);
+    // Melious reports its PUE itself, and runs the FLUX.2 [klein] images too.
+    expect(isPueEstimated('melious', 'images')).toBe(false);
+    expect(pueFor('melious', 'images')).toBe(1.2);
   });
 });
 
