@@ -68,17 +68,29 @@ export function materialSectionHeading(
     : `${name} (${earlier})`;
 }
 
-const UPLOAD_SECTION_RE = /^### .+ \(Volltext-Auszug\)$/m;
-
-/** Was im Material dieses Turns steht: ein eingefügter Text, eine hochgeladene Datei. */
+/**
+ * Was im Material dieses Turns steht: ein eingefügter Text, und ob daneben noch
+ * etwas anderes liegt (eine Datei — auch eine, deren Text nicht gelesen werden
+ * konnte —, eine Referenz, Kontext vom Client).
+ *
+ * Entschieden je Abschnitt, nicht an einer Überschriften-Endung: die Datei-
+ * Abschnitte haben drei Formen (`(Volltext-Auszug)`, `[Kein Text erkannt]`,
+ * `[Fehler beim Extrahieren …]`), Referenzen und Client-Kontext gar keine
+ * `###`-Zeile. Steht im Paste selbst ein `---`-Trenner, zählt sein Rest als
+ * „anderes" — der sichere Rückfall auf die alte Rahmung. Ganz verschwindet das
+ * Raten erst mit der typisierten Materialliste (#5430).
+ */
 export function describeTurnMaterial(attachmentContext: string | null | undefined): {
   pasted: boolean;
-  uploaded: boolean;
+  other: boolean;
 } {
-  if (!attachmentContext) return { pasted: false, uploaded: false };
+  if (!attachmentContext?.trim()) return { pasted: false, other: false };
+  const sections = attachmentContext.split('\n\n---\n\n');
+  const isPaste = (section: string): boolean =>
+    section.trimStart().startsWith(`### ${PASTED_TEXT_HEADING}\n`);
   return {
-    pasted: attachmentContext.includes(`### ${PASTED_TEXT_HEADING}`),
-    uploaded: UPLOAD_SECTION_RE.test(attachmentContext),
+    pasted: sections.some(isPaste),
+    other: sections.some((section) => section.trim() !== '' && !isPaste(section)),
   };
 }
 

@@ -60,7 +60,7 @@ export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
   if (state.attachmentContext) {
     const material = describeTurnMaterial(state.attachmentContext);
     if (material.pasted) anchors.push({ kind: 'paste' });
-    if (material.uploaded || !material.pasted) anchors.push({ kind: 'attachment' });
+    if (material.other) anchors.push({ kind: 'attachment' });
   }
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     anchors.push({ kind: 'image', names: state.imageAttachments.map((i) => i.name) });

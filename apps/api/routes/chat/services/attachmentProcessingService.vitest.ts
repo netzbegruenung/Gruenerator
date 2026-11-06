@@ -175,13 +175,13 @@ describe('processAttachments — eingefügter Text', () => {
     );
     expect(attachmentContext).toContain(`### ${PASTED_TEXT_HEADING}\n`);
     expect(attachmentContext).not.toContain('.txt');
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, uploaded: false });
+    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: false });
   });
 
   it('lässt eine hochgeladene Textdatei eine Datei bleiben', async () => {
     const { attachmentContext } = await processAttachments([textFile('notizen.txt')], 'req-1');
     expect(attachmentContext).toContain('### notizen.txt (Volltext-Auszug)\n');
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: false, uploaded: true });
+    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: false, other: true });
   });
 
   it('erkennt beides nebeneinander', async () => {
@@ -189,7 +189,31 @@ describe('processAttachments — eingefügter Text', () => {
       [textFile('notizen.txt'), textFile('Eingefügter Text.txt')],
       'req-1'
     );
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, uploaded: true });
+    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: true });
+  });
+
+  it('zählt eine Datei ohne lesbaren Text als Datei neben dem Paste', async () => {
+    mockExtract
+      .mockResolvedValueOnce({ text: '', pageCount: 1 })
+      .mockResolvedValueOnce({ text: '12.01. Neujahrsempfang', pageCount: 1 });
+    const { attachmentContext } = await processAttachments(
+      [textFile('scan.txt'), textFile('Eingefügter Text.txt')],
+      'req-1'
+    );
+    expect(attachmentContext).toContain('### scan.txt\n\n[Kein Text erkannt]');
+    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: true });
+  });
+
+  it('zählt Referenzen und Client-Kontext neben dem Paste mit', () => {
+    const paste = `### ${PASTED_TEXT_HEADING}\n\nTermine`;
+    expect(describeTurnMaterial(`${paste}\n\n---\n\n## REFERENZIERTE TEXTE\n\nAlt`)).toEqual({
+      pasted: true,
+      other: true,
+    });
+    expect(describeTurnMaterial(`Editor-Inhalt\n\n---\n\n${paste}`)).toEqual({
+      pasted: true,
+      other: true,
+    });
   });
 
   it('nimmt einen Upload, der nur so heisst, nicht für einen Paste', () => {
@@ -208,6 +232,6 @@ describe('processAttachments — eingefügter Text', () => {
   });
 
   it('meldet für leeres Material nichts', () => {
-    expect(describeTurnMaterial(null)).toEqual({ pasted: false, uploaded: false });
+    expect(describeTurnMaterial(null)).toEqual({ pasted: false, other: false });
   });
 });

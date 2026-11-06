@@ -613,7 +613,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
   // Der Wrapper bleibt `anhang` — der Planer ersetzt Blöcke nach Typ.
   const material = describeTurnMaterial(state.attachmentContext);
   const heading =
-    material.pasted && !material.uploaded ? 'EINGEFÜGTER TEXT' : 'ANGEHÄNGTE DOKUMENTE';
+    material.pasted && !material.other ? 'EINGEFÜGTER TEXT' : 'ANGEHÄNGTE DOKUMENTE';
 
   return `
 
