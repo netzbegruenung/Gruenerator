@@ -552,7 +552,9 @@ export const auth = betterAuth({
           );
           // A new session is a login — the only writer of `profiles.last_login`
           // (admin overview, `getProfileStats().active_users`). Rolling refresh
-          // goes through `update`, not here. Best effort: never fail the login.
+          // goes through `update`, not here. The row always exists, also on a
+          // first login: the user model IS `profiles`, and `ba_sessions.user_id`
+          // is a NOT NULL FK to it. Best effort: never fail the login.
           try {
             await db
               .update(schema.profiles)
