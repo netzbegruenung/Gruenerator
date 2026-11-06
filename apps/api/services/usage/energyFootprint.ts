@@ -838,8 +838,10 @@ const IMAGE_PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
   // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 1.2, // Seeweb, DHH sustainability report 2024, p. 8
-  // Melious meldet seinen PUE selbst (`environment_impact.pue`, siehe
-  // PUE_BY_PROVIDER) — derselbe Betreiber rechnet auch FLUX.2 [klein]. Ohne
+  // Melious meldet seinen PUE für Text selbst (`environment_impact.pue`, siehe
+  // PUE_BY_PROVIDER). Der Bild-Endpunkt meldet NICHTS (am 06.11.2026 erneut
+  // geprüft, nur `energy_cost`, ein Preis) — dass FLUX.2 [klein] im selben
+  // Rechenzentrum mit demselben PUE läuft, ist eine ungeprüfte Annahme. Ohne
   // diese Zeile fiel jede Melious-Bildzeile auf EUROPE_PUE zurück und kippte
   // über das OR in `platformUsageStats` den ganzen Anbieter auf „PUE geschätzt".
   melious: 1.2,
@@ -1004,7 +1006,7 @@ export function pueFor(provider: string, kind: 'tokens' | 'images' = 'tokens'): 
  */
 export function isPueEstimated(provider: string, kind: 'tokens' | 'images' = 'tokens'): boolean {
   const table = kind === 'images' ? IMAGE_PUE_BY_PROVIDER : PUE_BY_PROVIDER;
-  return !(provider in table);
+  return !Object.hasOwn(table, provider);
 }
 
 /**
