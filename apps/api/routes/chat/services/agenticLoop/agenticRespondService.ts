@@ -18,11 +18,11 @@ import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import {
   MELIOUS_WIDE_MODEL,
   meliousGoesWide,
 } from '../../../../services/ai/meliousThinkingFetch.js';
+import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
