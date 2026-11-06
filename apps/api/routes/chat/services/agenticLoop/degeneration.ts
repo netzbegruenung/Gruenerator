@@ -40,12 +40,15 @@
  *
  *  - It stays SILENT until {@link DEGEN_MIN_LENGTH} (8.000 chars), far past
  *    where detection alone would work. Below that the loop is cheap and the
- *    false hit is not. The one exception is a tail with no letters in it
- *    ({@link LOW_INFO_MIN_LENGTH}): there is no prose there to amputate.
+ *    false hit is not. Two exceptions, both with no prose to amputate: a tail
+ *    with no letters in it ({@link LOW_INFO_MIN_LENGTH}), and the same closing
+ *    offer made again and again (`repeatedOfferEnd`).
  *  - When it does cut, it SAYS SO — {@link DEGENERATION_NOTICE} rides along
  *    with the kept prefix. That is what turns a wrong call from silent
  *    corruption into a visible, re-runnable failure.
  */
+
+import { FIRST_PERSON_OFFER_RE, sentences } from '../offerPhrasing.js';
 
 /** Sentinel finishReason for a stream we aborted because it degenerated.
  *  Distinct from 'length' so the split retry can name the actual problem. */
@@ -578,6 +581,103 @@ function shingleHash(text: string, start: number): number {
   return h;
 }
 
+// ── Repeated closing offer ───────────────────────────────────────────────────
+//
+// The failure every check above is blind to (live 06.11.2026, Gemma 4 31B on
+// the unified loop): after a finished post the model offered the sharepic,
+// judged its own wording against the prompt's then "genau EINE kurze
+// Rückfrage", and "corrected" it — "– korrigiert: …", "– so, jetzt sauber,
+// genau eine Frage: …", "– ich halte mich an die Regel: …" — until the user
+// pressed stop. Measured on the screenshot: word diversity 0.239 (floor 0.16:
+// every connector was fresh), repeated units of 100–180 chars (the long-range
+// run needs 480 in one piece), a period near 150 (periodicity sees ≤ 60). And
+// DEGEN_MIN_LENGTH would have let ~45 repetitions stream even past a metric
+// that saw it.
+//
+// Repetition in general cannot be the signal here: templated lists and the
+// variants of a multi-platform post repeat legitimately and measured within
+// reach of this loop (48 % against 76 % shingle coverage of the tail). The
+// signal is narrower, and holds against both: the SAME OFFER, in the model's
+// own first person, made again at short distance. A post for its readers does
+// not say "Soll ich …", and no answer has a reason to make one offer three
+// times. That is also why this check may speak from the first sentence on —
+// what the cut removes is, by construction, the offer again.
+
+/** Near-identical offers that make a loop. Two can be a restatement. */
+const OFFER_REPEATS = 3;
+/** Most text between two offers of one run. The live loop put ≤ 60 chars of
+ *  connector between them, ~110 where a variant listed street names and the
+ *  sentence split at "Str.". Platform variants that close on the same line
+ *  stand further apart: each carries its own post. */
+const OFFER_MAX_GAP = 200;
+/** Word-set overlap (Jaccard) at which two offers are one. The live variants
+ *  („… und dem BA-Hinweis (19.11.2026) erstellen?" against „… und dem Hinweis
+ *  auf den Bauausschuss am 19.11.2026 machen?") measure ≥ 0.65; different
+ *  offers in a row („… kürzen?", „… Hashtags ergänzen?") stay near 0.3. */
+const OFFER_SIMILARITY = 0.6;
+const OFFER_MIN_WORDS = 4;
+/** Tail searched for the run: three offers and their gaps fit with room. */
+const OFFER_SCAN_TAIL = 1500;
+/** An offer without a question mark still addresses the person — in the Du
+ *  form the answer prompt asks for — or names its material. Keeps first-person
+ *  lines that offer nothing out of the count. Not „euch": that is how a post
+ *  speaks to its READERS („Ich kann es kaum erwarten, euch zu sehen!"). */
+const OFFER_ADDRESS = /(?<!\p{L})(?:dir|daraus|dazu)(?!\p{L})/iu;
+
+function wordSet(sentence: string): Set<string> {
+  return new Set(sentence.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared++;
+  return shared / (a.size + b.size - shared);
+}
+
+/**
+ * Where the answer ended: after the first offer of a run of
+ * {@link OFFER_REPEATS} near-identical ones, or null when there is no run.
+ *
+ * Offers form a run while the text between consecutive ones stays under
+ * {@link OFFER_MAX_GAP}. A different offer inside the run (a variant the
+ * sentence split cut short) neither counts nor breaks it. Only closed
+ * sentences count, so a stream cannot end the kept answer mid-offer.
+ */
+function repeatedOfferEnd(text: string): number | null {
+  const from = Math.max(0, text.length - OFFER_SCAN_TAIL);
+  const offers: Array<{ start: number; end: number; words: Set<string> }> = [];
+  for (const match of sentences(text.slice(from))) {
+    const sentence = match[0].trimEnd();
+    if (!/[.!?]$/.test(sentence) || !FIRST_PERSON_OFFER_RE.test(sentence)) continue;
+    if (!sentence.endsWith('?') && !OFFER_ADDRESS.test(sentence)) continue;
+    const words = wordSet(sentence);
+    if (words.size < OFFER_MIN_WORDS) continue;
+    const start = from + match.index;
+    offers.push({ start, end: start + sentence.length, words });
+  }
+  let runStart = 0;
+  for (let k = 0; k < offers.length; k++) {
+    if (k > 0 && offers[k].start - offers[k - 1].end > OFFER_MAX_GAP) runStart = k;
+    let first: number | null = null;
+    let count = 1;
+    for (let j = runStart; j < k; j++) {
+      if (jaccard(offers[j].words, offers[k].words) < OFFER_SIMILARITY) continue;
+      first ??= j;
+      count++;
+    }
+    if (first !== null && count >= OFFER_REPEATS) return closeEmphasis(text, offers[first].end);
+  }
+  return null;
+}
+
+/** Extend a cut over the markup that closes its sentence („…?**"), so an
+ *  emphasised offer does not leave the kept answer half bold. */
+function closeEmphasis(text: string, pos: number): number {
+  let end = pos;
+  while (end < text.length && (text[end] === '*' || text[end] === '_')) end++;
+  return end;
+}
+
 /**
  * The text that stands after a cut at `cut`: the healthy prefix, plus
  * {@link DEGENERATION_NOTICE} when the cut took real content with it. Empty
@@ -594,8 +694,9 @@ export interface DegenerationGuard {
    *  Internally strided — cheap enough to call per chunk. */
   check(text: string): boolean;
   /** Where the healthy prefix ends, for the text that tripped {@link check}.
-   *  Prefers the exact onset when the long-range detector fired — no backscan,
-   *  no guessing — and falls back to {@link findDegenerationCut} otherwise. */
+   *  Right after the first offer when the closing offer looped; the exact
+   *  onset when the long-range detector fired — no backscan, no guessing —
+   *  and {@link findDegenerationCut} otherwise. */
   cutAt(text: string): number;
 }
 
@@ -605,6 +706,11 @@ export function createDegenerationGuard(): DegenerationGuard {
   /** Set only by the long-range detector: the exact offset at which the model
    *  started repeating itself. */
   let repeatOnset: number | null = null;
+  /** Set only by the offer check: where the first of the repeated offers ends. */
+  let offerEnd: number | null = null;
+  /** How far the offer check has read. It reruns only when a sentence could
+   *  have closed since — a terminator in the new text. */
+  let offersReadTo = 0;
 
   /** Hash → the offset it was FIRST seen at, deliberately never updated.
    *
@@ -657,6 +763,16 @@ export function createDegenerationGuard(): DegenerationGuard {
   return {
     check(text: string): boolean {
       if (fired) return true;
+      // Ahead of the length gate: a looping offer has no prose to amputate, and
+      // every stride of waiting is another offer on the wire.
+      if (/[.!?]/.test(text.slice(offersReadTo))) {
+        offersReadTo = text.length;
+        offerEnd = repeatedOfferEnd(text);
+        if (offerEnd !== null) {
+          fired = true;
+          return true;
+        }
+      }
       if (text.length < nextCheckAt) return false;
       nextCheckAt = text.length + DEGEN_CHECK_STRIDE;
       const tail = text.slice(-DEGEN_WINDOW);
@@ -674,6 +790,8 @@ export function createDegenerationGuard(): DegenerationGuard {
       return false;
     },
     cutAt(text: string): number {
+      // Already a sentence end, with its closing markup: nothing to snap.
+      if (offerEnd !== null) return offerEnd;
       const raw = rawCut(text);
       // Snapping retreats to a sentence end so the answer does not stop
       // mid-word. Where a letterless run starts there is no word to break, and
