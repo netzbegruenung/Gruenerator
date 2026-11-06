@@ -171,8 +171,26 @@ describe('offerToRecord', () => {
   it.each([
     'Soll ich daraus ein Sharepic mit dem Hinweis auf den Bauausschuss am 19.11.2026 erstellen?',
     'Soll ich daraus ein Sharepic zum Bauausschuss am 19. November machen?',
-    'Soll ich daraus z.B. ein Sharepic machen?',
   ])('records an offer whose details carry dots: %s', (offer) => {
+    expect(
+      offerToRecord({
+        recipeMentions: ['instagram'],
+        text: `${post}\n\n${offer}`,
+        producedArtifact: false,
+      })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  // Ohne Fragezeichen trägt nur der Ich-Form-Satz das Angebot: ein Trenner
+  // hinter „z.B." liess „Ich kann dir z.B." übrig, ohne „Sharepic" (Claude
+  // Review, #5410). Als Frage fiel es nicht auf — dort fängt `lastQuestion` den
+  // hinteren Rest mit „Sharepic" auf. Nur mit Rezept: ohne entscheidet das
+  // Bestell-Prädikat, und das liest zwei dieser Sätze nicht als Erstellung.
+  it.each([
+    'Ich kann dir z.B. ein Sharepic daraus machen.',
+    'Wenn du magst, mache ich dir ggf. noch ein Sharepic dazu.',
+    'Ich kann dir daraus bzw. aus dem Post ein Sharepic machen.',
+  ])('records a statement offer around an abbreviation: %s', (offer) => {
     expect(
       offerToRecord({
         recipeMentions: ['instagram'],
