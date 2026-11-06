@@ -746,8 +746,10 @@ export function stripPhantomArtifactCreation(
  * Verneinungen bleiben. Ein echter Fehlschlag hat einen Schritt (stepCount > 0).
  */
 const TOOL_CALL_NOUN_RE = /(?<!\p{L})(?:aufruf\p{L}*|werkzeug\p{L}*|tool\p{L}*)|aufruf|werkzeug/iu;
+// Nur ein gescheiterter AUFRUF ist ohne Aufruf beweisbar falsch. „Das Werkzeug ist
+// hier nicht verfügbar" kann stimmen (nicht montiert) und bleibt stehen (Review #5391).
 const TOOL_FAILURE_RE =
-  /(?<!nicht\s)(?:fehlgeschlagen|gescheitert|schiefgegangen)|(?:nicht|kein\p{L}*)\s+(?:\w+\s+)?(?:zur\s+verfügung|verfügbar|erreichbar|geklappt|funktioniert)/iu;
+  /(?<!nicht\s)(?:fehlgeschlagen|gescheitert|schiefgegangen)|(?:nicht|kein\p{L}*)\s+(?:\w+\s+)?(?:geklappt|funktioniert)/iu;
 const TOOL_FAILURE_EXEMPT_RE =
   /(?<!\p{L})(?:falls|wenn|sofern|sollte|sollten|ob)(?!\p{L})|["„“”»«‚‘']|nicht\s+fehlgeschlagen/iu;
 

@@ -824,6 +824,9 @@ describe('stripPhantomToolFailure', () => {
     'Ist der Aufruf fehlgeschlagen?',
     'Der Aufruf ist nicht fehlgeschlagen.',
     'Die Sprachfunktion ist nicht verfügbar.',
+    // Review #5391: kann stimmen (Werkzeug nicht montiert) — kein Aufruf behauptet.
+    'Das Bildwerkzeug ist in diesem Chat nicht verfügbar. Ich kann dir aber anbieten, einen Text zu schreiben.',
+    'Das Werkzeug steht hier nicht zur Verfügung.',
     'Das Tool hat gut funktioniert.',
   ])('lässt stehen: %s', (sentence) => {
     expect(stripPhantomToolFailure(sentence, { stepCount: 0 }).removed).toEqual([]);
