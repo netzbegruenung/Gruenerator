@@ -116,6 +116,16 @@ describe('AuthService — guest access', () => {
     expect(res.authenticated).toBe(false);
   });
 
+  it.each(['chat-thread-1', 'group-presence-grp-1'])(
+    'denies guests on %s without querying collaborative_documents',
+    async (room) => {
+      const { db, captured } = makeDb({ doc: publicDoc() });
+      const res = await new AuthService({ db, redis }).authenticateConnection(guest(room));
+      expect(res.authenticated).toBe(false);
+      expect(captured.some((c) => /FROM collaborative_documents/i.test(c.sql))).toBe(false);
+    }
+  );
+
   it('honours a client-supplied guestId/guestName', async () => {
     const { db } = makeDb({ doc: publicDoc({ share_permission: 'viewer' }) });
     const res = await new AuthService({ db, redis }).authenticateConnection(
