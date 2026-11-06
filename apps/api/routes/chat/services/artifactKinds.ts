@@ -52,6 +52,7 @@ export const PRESENTATION_SPEC: ArtifactSpec<CreatedDocument> = {
     'Die Präsentation konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Folien.',
   contextKind: 'presentation',
   logLabel: 'Presentation',
+  takesImage: true,
   generate: (ctx, onCommit) => runDocGeneration({ kind: 'presentation', ...ctx, onCommit }),
   successText: (doc) => `Präsentation **"${doc.title}"** wurde erstellt.`,
   card: (doc) => doc,
@@ -196,6 +197,7 @@ export function makeDocumentSpec(opts: {
     // A generated "document" may turn out to be a presentation or a sheet.
     contextKind: (doc) => documentContextKind(doc.subtype),
     logLabel: 'Document',
+    takesImage: true,
     generate: (ctx, onCommit) =>
       runDocGeneration({
         kind: 'document',

@@ -229,10 +229,13 @@ export function withDeckPhoto(
   };
 }
 
-/** A Bildfolie behind the first slide, when the deck has room for one more. */
-function withBildfolie(spec: DeckSpec, photo: string): DeckSpec {
-  if (spec.slides.length >= MAX_SLIDES) return spec;
+/**
+ * A Bildfolie behind the first slide. A full deck gives up its last slide for it:
+ * the chat answer says the image is in the deck, so it must be.
+ */
+export function withBildfolie(spec: DeckSpec, photo: string): DeckSpec {
   const slides = [...spec.slides];
+  if (slides.length >= MAX_SLIDES) slides.pop();
   slides.splice(1, 0, { typ: 'bild', slots: {}, bild: photo });
   return { ...spec, slides };
 }

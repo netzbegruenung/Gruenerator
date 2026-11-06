@@ -110,3 +110,19 @@ describe('restyleDeck footer date', () => {
     expect(dated.every((t) => t!.text === 'Montag, 1. Januar 2024')).toBe(true);
   });
 });
+
+// Claude-Review #5404: ein Hintergrundfoto aus dem Editor machte jede Folie zur Bildfolie.
+describe('restyleDeck — a background photo on another Folientyp', () => {
+  it('keeps a zitat slide with a user-set background photo a zitat', () => {
+    const zitat = pagesOf('ruhig').find((p) => readFolie(p.state)?.typ === 'zitat')!;
+    zitat.state = {
+      ...zitat.state,
+      backgroundMode: 'image',
+      hasBackgroundImage: true,
+      currentImageSrc: '/api/share/tok/download',
+    };
+    expect(readFolie(zitat.state)?.typ).toBe('zitat');
+    const [out] = restyleDeck([zitat], 'band', ctx);
+    expect(texts(out!).find((t) => t.id === 'folie-zitat')?.text).toBe('T-zitat');
+  });
+});

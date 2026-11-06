@@ -81,9 +81,15 @@ function hasAsset(state: Record<string, unknown>, id: string): boolean {
   return Array.isArray(raw) && (raw as TextEl[]).some((a) => a?.id === id);
 }
 
+function hasShape(state: Record<string, unknown>, id: string): boolean {
+  const raw = state['shapeInstances'];
+  return Array.isArray(raw) && (raw as TextEl[]).some((s) => s?.id === id);
+}
+
 function typOf(state: Record<string, unknown>, texts: Map<string, string>): FolienTypId | null {
-  // Nur die Bildfolie trägt in den Stilen ein Hintergrundbild.
-  if (state['hasBackgroundImage'] === true && typeof state['deckStil'] === 'string') return 'bild';
+  // Das Band erkennt die Bildfolie, nicht das Hintergrundbild: ein Foto kann
+  // jede Folie im Editor bekommen, und ihr Inhalt ginge sonst beim Stilwechsel verloren.
+  if (hasShape(state, 'folie-bildband')) return 'bild';
   if (texts.has('folie-zahl')) return 'zahl';
   if (texts.has('folie-kernsatz')) return 'kernsatz';
   if (texts.has('folie-zitat')) return 'zitat';

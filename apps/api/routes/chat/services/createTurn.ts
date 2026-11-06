@@ -226,6 +226,8 @@ export interface ArtifactSpec<T> {
   ref(result: T): { ref: string; label: string };
   /** Human-readable kind for the log line ('Sheet', 'PDF', …). */
   logLabel: string;
+  /** The generator places the thread image (`GenerateContext.image`): document, deck. */
+  takesImage?: boolean;
 }
 
 /**
@@ -293,12 +295,15 @@ export async function runCreateTurn<T>(
     }
   }
 
-  const image = await threadImageInLibrary(classifiedState).catch((err: unknown) => {
-    log.warn(
-      `[${spec.logLabel}] thread image skipped: ${err instanceof Error ? err.message : err}`
-    );
-    return null;
-  });
+  // Only document and deck place an image; for any other kind it would be an upload for nothing.
+  const image = spec.takesImage
+    ? await threadImageInLibrary(classifiedState).catch((err: unknown) => {
+        log.warn(
+          `[${spec.logLabel}] thread image skipped: ${err instanceof Error ? err.message : err}`
+        );
+        return null;
+      })
+    : null;
 
   try {
     const result = await spec.generate(

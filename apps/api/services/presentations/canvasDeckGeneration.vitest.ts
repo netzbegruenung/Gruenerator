@@ -288,3 +288,20 @@ describe('generateCanvasDeck with the thread image', () => {
     expect(pages().every((p) => p.state.currentImageSrc === undefined)).toBe(true);
   });
 });
+
+describe('withBildfolie', () => {
+  it('gives a full deck its Bildfolie by dropping the last slide', async () => {
+    const { withBildfolie } = await import('./canvasDeckGeneration.js');
+    const { MAX_SLIDES } = await import('@gruenerator/contracts/slides');
+    const full = {
+      title: 'Voll',
+      slides: Array.from({ length: MAX_SLIDES }, (_, i) => ({
+        typ: 'titel',
+        slots: { headline: `F${i}` },
+      })),
+    } as never;
+    const out = withBildfolie(full, '/api/share/tok/download');
+    expect(out.slides).toHaveLength(MAX_SLIDES);
+    expect(out.slides[1]).toMatchObject({ typ: 'bild', bild: '/api/share/tok/download' });
+  });
+});
