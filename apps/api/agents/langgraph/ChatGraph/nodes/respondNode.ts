@@ -41,6 +41,7 @@ import {
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
+import { wholeDocumentIdsInPrompt } from '../../../../routes/chat/services/wholeDocument.js';
 import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
@@ -83,7 +84,13 @@ import { stripQuotedSpans } from './fastPathGuards.js';
 import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
 import { buildVisualBlocksGuidance } from './visualBlocksGuidance.js';
 
-import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
+import type {
+  ChatGraphState,
+  DocumentSource,
+  SearchResult,
+  ThreadAttachment,
+  WholeDocumentTurn,
+} from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -131,6 +138,21 @@ function retrievalQuery(state: ChatGraphState): string {
  */
 function attachmentQuery(state: ChatGraphState): string {
   return lastUserText(state) || (state.searchQuery ?? '');
+}
+
+/**
+ * Budget und Deckel für Dokumente, die ein Ganzdokument-Turn liest (siehe
+ * `routes/chat/services/wholeDocument.ts`): das Budget der Entscheidung statt
+ * des Abruf-Anteils, und kein Deckel je Dokument — die 25.000 Zeichen sind für
+ * Fragen AN ein Dokument gemacht, eine Zusammenfassung braucht das Ganze.
+ * `null`, wenn der Volltext nicht passt oder die Quelle nicht gemeint ist.
+ */
+function wholeDocumentLimits(
+  whole: WholeDocumentTurn | null | undefined,
+  origin: WholeDocumentTurn['origin']
+): { budget: number; perDocumentCap: number } | null {
+  if (!whole?.fits || whole.origin !== origin) return null;
+  return { budget: whole.budgetChars, perDocumentCap: Number.POSITIVE_INFINITY };
 }
 
 /**
@@ -214,7 +236,8 @@ export function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS,
-  query?: string | null
+  query?: string | null,
+  perDocumentCap: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
 ): string {
   budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
@@ -258,7 +281,7 @@ export function limitAttachmentContext(
       continue;
     }
 
-    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
+    const perDocLimit = Math.min(perDocumentCap, perDocBudget);
     const truncated = truncateDocument(doc.content, perDocLimit, query);
 
     limited.push(`${doc.header}\n${truncated}`);
@@ -572,11 +595,13 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
+  const whole = wholeDocumentLimits(state.wholeDocument, 'turn');
   const limitedContext = limitAttachmentContext(
     state.attachmentContext,
     state.contextWindowTokens,
-    undefined,
-    attachmentQuery(state)
+    whole?.budget,
+    attachmentQuery(state),
+    whole?.perDocumentCap
   );
 
   return `
@@ -747,11 +772,14 @@ export function formatThreadAttachmentsContext(
   contextWindowTokens?: number,
   conversationText = '',
   liveAttachmentContext = '',
-  query = ''
+  query = '',
+  wholeDocument: WholeDocumentTurn | null = null
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
+  const whole = wholeDocumentLimits(wholeDocument, 'thread');
+  const wholeIds = whole ? wholeDocumentIdsInPrompt(wholeDocument) : new Set<string>();
 
   const sections: string[] = [];
 
@@ -783,7 +811,13 @@ export function formatThreadAttachmentsContext(
     // Docs with a documentId were embedded into Qdrant — they come back via
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
-    .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
+    // Ausnahme: ein Ganzdokument-Turn liest sie ganz (`wholeDocument`).
+    .filter(
+      (a) =>
+        !a.isImage &&
+        (!a.documentId || wholeIds.has(a.documentId)) &&
+        (a.extractedText || a.summary)
+    )
     .filter((a) => !alreadyVerbatimInConversation(a.extractedText, conversationText))
     .filter((a) => {
       const body = squashWhitespace(a.extractedText ?? a.summary ?? '');
@@ -805,7 +839,13 @@ export function formatThreadAttachmentsContext(
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks, contextWindowTokens, undefined, query);
+    const docs = limitAttachmentContext(
+      docBlocks,
+      contextWindowTokens,
+      whole?.budget,
+      query,
+      whole?.perDocumentCap
+    );
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -2030,7 +2070,8 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
         // Dublette bliebe dann genau in den Fällen unerkannt, in denen sie am
         // teuersten ist.
         state.attachmentContext ?? '',
-        attachmentQuery(state)
+        attachmentQuery(state),
+        state.wholeDocument ?? null
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
   const chatHistoryFormatted =

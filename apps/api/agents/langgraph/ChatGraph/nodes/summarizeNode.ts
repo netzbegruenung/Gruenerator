@@ -10,6 +10,7 @@
  * - > 12,000 chars:  Map-reduce (split → parallel summarize → combine)
  */
 
+import { wholeDocumentReadDirectly } from '../../../../routes/chat/services/wholeDocument.js';
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -22,9 +23,11 @@ const MAP_REDUCE_THRESHOLD = 12000;
 const SEGMENT_SIZE = 6000;
 const SEGMENT_OVERLAP = 200;
 // Every segment is one parallel `heavy` call. A Plenarprotokoll runs 200k+
-// characters (35+ segments); past this many the rest is cut, and the summary
-// says so.
+// characters; instead of cutting after 20 × 6.000 the segments grow so that
+// these many cover the whole document — up to MAX_SEGMENT_SIZE each. Only past
+// that (~800k chars) is the rest cut, and the summary says so.
 const MAX_MAP_SEGMENTS = 20;
+const MAX_SEGMENT_SIZE = 40_000;
 // Below this many characters in the last user message, summary intent will
 // fall through to the conversation summary; above it the message body is
 // treated as the document to summarize (paste-to-summarize).
@@ -82,10 +85,14 @@ async function singlePassSummarize(title: string, text: string): Promise<string>
  */
 function splitIntoSegments(text: string): string[] {
   const segments: string[] = [];
+  const size = Math.min(
+    MAX_SEGMENT_SIZE,
+    Math.max(SEGMENT_SIZE, Math.ceil(text.length / MAX_MAP_SEGMENTS) + SEGMENT_OVERLAP)
+  );
   let start = 0;
 
   while (start < text.length) {
-    const end = Math.min(start + SEGMENT_SIZE, text.length);
+    const end = Math.min(start + size, text.length);
     segments.push(text.slice(start, end));
 
     if (end >= text.length) break;
@@ -254,6 +261,9 @@ function partialNote(
  * Summarize node entry point.
  *
  * Document source priority:
+ * 0. wholeDocument — the material a summary turn asked for, from its stored
+ *    full text (see routes/chat/services/wholeDocument.ts); its documents are
+ *    then taken out of the Qdrant read below
  * 1. documentChatIds (uploaded in current message, vectorized)
  * 2. documentIds (from @datei mentions)
  *    + notebookSources (handed over from the notebook reader), alongside 1–2
@@ -271,9 +281,21 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
 
   try {
     const userId = state.agentConfig.userId;
-    const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])];
+    // Das Material, nach dem der Turn fragt, aus seinem Volltext — nicht aus
+    // höchstens 20 Qdrant-Chunks, und das dieses Turns vor dem früheren (live
+    // 06.11.2026 fasste dieser Knoten statt der eingefügten Seite das alte PDF
+    // zusammen, rekonstruiert aus 23.158 von 30 Seiten).
+    const skip = wholeDocumentReadDirectly(state.wholeDocument, state.threadAttachments ?? []);
+    const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])].filter(
+      (id) => !skip.has(id)
+    );
+    // Texte, die direkt gelesen wurden: das ganze Material, dann die Notebook-Quellen.
+    const directSummaries: string[] = [];
+    for (const doc of state.wholeDocument?.docs ?? []) {
+      log.info(`[Summarize] Whole document "${doc.name}": ${doc.text.length} chars`);
+      directSummaries.push(`## ${doc.name}\n\n${await summarizeText(doc.name, doc.text)}`);
+    }
     const notebookSources = state.notebookSources ?? [];
-    const notebookSummaries: string[] = [];
     for (const src of notebookSources) {
       try {
         const text = await readNotebookSourceText(src);
@@ -282,7 +304,7 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
           continue;
         }
         log.info(`[Summarize] Notebook source "${src.title}" (${src.kind}): ${text.length} chars`);
-        notebookSummaries.push(`## ${src.title}\n\n${await summarizeText(src.title, text)}`);
+        directSummaries.push(`## ${src.title}\n\n${await summarizeText(src.title, text)}`);
       } catch (error: unknown) {
         docRetrievalFailed = true;
         log.warn(
@@ -335,10 +357,10 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
             summaries.push(`## ${title}\n\n${summary}`);
           }
 
-          const summaryContext = [...notebookSummaries, ...summaries].join('\n\n---\n\n');
+          const summaryContext = [...directSummaries, ...summaries].join('\n\n---\n\n');
           const summaryTimeMs = Date.now() - startTime;
           log.info(
-            `[Summarize] Complete: ${successfulDocs.length + notebookSummaries.length} doc(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
+            `[Summarize] Complete: ${successfulDocs.length + directSummaries.length} doc(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
           );
 
           return { summaryContext, summaryTimeMs, ...partialNote(state, docRetrievalFailed) };
@@ -358,11 +380,11 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
       }
     }
 
-    if (notebookSummaries.length > 0) {
-      const summaryContext = notebookSummaries.join('\n\n---\n\n');
+    if (directSummaries.length > 0) {
+      const summaryContext = directSummaries.join('\n\n---\n\n');
       const summaryTimeMs = Date.now() - startTime;
       log.info(
-        `[Summarize] Complete: ${notebookSummaries.length} notebook source(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
+        `[Summarize] Complete: ${directSummaries.length} directly read doc(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
       );
       return { summaryContext, summaryTimeMs, ...partialNote(state, docRetrievalFailed) };
     }
