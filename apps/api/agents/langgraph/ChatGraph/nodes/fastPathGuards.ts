@@ -623,8 +623,10 @@ const DEFINITE_SHAREPIC_RE = new RegExp(
  * Wunsch-Verb gefragt wird: hier zählen auch der/die/den, weil Slider und
  * Karussell maskulin bzw. neutral, Infografik feminin sind.
  */
+export const EXISTING_SHAREPIC_DET_SRC =
+  'der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*';
 const EXISTING_SHAREPIC_RE = new RegExp(
-  `\\b(?:der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  `\\b(?:${EXISTING_SHAREPIC_DET_SRC})\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
 export function refersToExistingSharepic(text: string): boolean {
