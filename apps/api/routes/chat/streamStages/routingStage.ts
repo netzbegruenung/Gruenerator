@@ -108,6 +108,12 @@ export function runRoutingStage({
 
   const pipelineAgent = getPipelineAgent(classifiedState.agentConfig?.identifier);
 
+  const sharepicInProgress = threadWorksOnSharepic(
+    earlierUserTexts(classifiedState.messages),
+    stateHasSharepic(classifiedState)
+  );
+  if (sharepicInProgress) classifiedState.sharepicInProgress = true;
+
   const plan = decideTurnPlan({
     // EINE Lesung des Schalters pro Turn. Vorher standen hier drei, die
     // auseinanderlaufen konnten, sobald jemand eine davon anfasst.
@@ -169,10 +175,7 @@ export function runRoutingStage({
       stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
     threadHasSharepic: stateHasSharepic(classifiedState),
-    threadWorksOnSharepic: threadWorksOnSharepic(
-      earlierUserTexts(classifiedState.messages),
-      stateHasSharepic(classifiedState)
-    ),
+    threadWorksOnSharepic: sharepicInProgress,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOffer: classifiedState.acceptedOfferKind != null,
   });

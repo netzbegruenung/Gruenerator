@@ -188,13 +188,20 @@ export async function priorSharepicPhotos(
  * Everything a sharepic turn hands the creator as own photos: what the revised
  * variant holds (`priorProps`, null on a fresh draft) plus this turn's
  * attachments. Wolke files carried over from earlier turns are material, not
- * photos of this order. Without a person there is no library to store in.
+ * photos of this order — unless the thread is still working on the sharepic they
+ * were picked for (`sharepicInProgress`; live 06.11.2026: „nimm das bild im
+ * anhang für das sharepic", built two turns later without it). Without a person
+ * there is no library to store in.
  */
 export async function photosForTurn(
   state: Partial<
     Pick<
       ChatGraphState,
-      'imageAttachments' | 'wolkeFiles' | 'cloudFilesCarriedOnly' | 'agentConfig'
+      | 'imageAttachments'
+      | 'wolkeFiles'
+      | 'cloudFilesCarriedOnly'
+      | 'sharepicInProgress'
+      | 'agentConfig'
     >
   >,
   priorProps: unknown
@@ -205,7 +212,10 @@ export async function photosForTurn(
   const turn = await prepareSharepicPhotos({
     userId,
     images: state.imageAttachments ?? [],
-    wolke: state.cloudFilesCarriedOnly === true ? [] : (state.wolkeFiles ?? []),
+    wolke:
+      state.cloudFilesCarriedOnly === true && state.sharepicInProgress !== true
+        ? []
+        : (state.wolkeFiles ?? []),
     prior: prior.photos,
   });
   return { photos: turn.photos, bericht: [...prior.bericht, ...turn.bericht] };
