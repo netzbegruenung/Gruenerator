@@ -12,6 +12,7 @@ import {
   restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
+import { replaceUntrustedBlocks } from '../../../../routes/chat/services/untrustedContent.js';
 
 import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
 import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
@@ -750,6 +751,28 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       summary: 'Kurzfassung',
       ...over,
     }) as ThreadAttachment;
+
+  // Review #5418: der Planer-Platzhalter ersetzt die Blöcke der früheren
+  // Dokumente — die Bildbeschreibungen daneben müssen stehen bleiben.
+  it('bettet frühere Bilder unter einer eigenen Art ein, nicht als Dokument', () => {
+    const out = formatThreadAttachmentsContext(
+      [
+        doc(article),
+        doc(null, {
+          id: 'img',
+          name: 'foto.jpg',
+          isImage: true,
+          summary: 'Ein Foto vom Marktplatz',
+        }),
+      ],
+      undefined,
+      'Und weiter?'
+    );
+    const planner = replaceUntrustedBlocks(out, 'frueheres_dokument', 'PLATZHALTER');
+    expect(planner).toContain('PLATZHALTER');
+    expect(planner).not.toContain('Aktionsplan gegen Hitze');
+    expect(planner).toContain('Ein Foto vom Marktplatz');
+  });
 
   it('lässt den Anhang weg, wenn sein Text schon in der Historie steht', () => {
     const out = formatThreadAttachmentsContext([doc(article)], undefined, `Nutzer: ${article}`);

@@ -2104,6 +2104,51 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
   });
 });
 
+describe('runAgenticLoop — echoed source register (#5409)', () => {
+  const ANSWER = 'Unter §18 steht: 666 Einheiten bis 2028, Budget 2.250 Tausend Euro [1].';
+  /** The answer, then the carried register copied out — endlessly, like the
+   *  live case, so the test only ends if the guard stops pulling. */
+  function echoStream(): ReturnType<LoopDeps['streamText']> {
+    return {
+      stream: (async function* () {
+        yield { type: 'text-delta', text: ANSWER };
+        yield { type: 'text-delta', text: ' [1] bezieht sich auf das PDF. [2] (frühere' };
+        for (let i = 3; ; i++) {
+          yield {
+            type: 'text-delta',
+            text: ` Recherche) Titel <https://example.org/${i}> — Snippet ${i}. [${i}] (frühere`,
+          };
+        }
+      })(),
+    } as unknown as ReturnType<LoopDeps['streamText']>;
+  }
+
+  it('unified: stops at the echo, keeps the answer, replaces the wire, no repair pass', async () => {
+    const onText = vi.fn();
+    const calls: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: (() => {
+        calls.push('stream');
+        return echoStream();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(
+      baseParams({
+        mode: 'unified',
+        onText,
+        repairModel: { id: 'repair' } as unknown as LoopEngineParams['synthModel'],
+      }),
+      deps
+    );
+    expect(calls).toEqual(['stream']);
+    expect(out.text).toBe(ANSWER);
+    expect(out.replacedStreamed).toBe(true);
+    expect(out.replacement).toBe('unified_source_echo');
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
+  });
+});
+
 describe('runAgenticLoop — repetition degeneration', () => {
   // The live incident shape (12.08.2026): a correct answer, then the model
   // cannot stop and streams terminator spam until an external cap fires.

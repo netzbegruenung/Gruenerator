@@ -866,7 +866,7 @@ Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF",
 
 ## FRÜHERE BILDER IN DIESEM GESPRÄCH (vom Vision-Modell beschrieben)
 
-${embedUntrusted('frueheres_dokument', images)}
+${embedUntrusted('fruehere_bilder', images)}
 
 ---
 Beziehe dich auf diese Bildbeschreibungen, wenn der Nutzer nach einem früher gesendeten Bild fragt (z.B. "das Bild", "das Foto", "was war darauf zu sehen").`);

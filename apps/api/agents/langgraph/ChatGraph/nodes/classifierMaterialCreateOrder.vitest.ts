@@ -214,4 +214,26 @@ describe('classifierNode — gewähltes Material ist kein Intent', () => {
     );
     expect(result.intent).toBe('search');
   });
+
+  // Live 06.11.2026 (#5408): mit Dokument im Thread wurde die Fähigkeitsfrage
+  // zur Bestellung, und das Sharepic trug die Frage als Thema.
+  it('„Kann ich … auch Sharepics erstellen?" ohne Material ist eine Hilfe-Frage', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+      })
+    );
+    expect(result.intent).toBe('hilfe');
+  });
+
+  it('dieselbe Frage mit @Dokument ist kein Erstell-Auftrag über dem Material', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Kann ich mit dem Grünerator eigentlich auch Sharepics erstellen?',
+        documentIds: ['doc-1'],
+      })
+    );
+    expect(result.intent).not.toBe('sharepic');
+    expect(result.reasoning ?? '').not.toContain('Erstell-Auftrag');
+  });
 });

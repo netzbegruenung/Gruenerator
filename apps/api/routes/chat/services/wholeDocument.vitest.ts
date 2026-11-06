@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   WHOLE_DOCUMENT_FLOOR_CHARS,
+  plannerDocumentStub,
   resolveWholeDocumentTurn,
   wholeDocumentBudgetChars,
   wholeDocumentIdsInPrompt,
@@ -9,7 +10,10 @@ import {
   wholeDocumentSkipsRetrieval,
 } from './wholeDocument.js';
 
-import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ThreadAttachment,
+  WholeDocumentTurn,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 
 const row = (over: Partial<ThreadAttachment>): ThreadAttachment => ({
   id: 'a',
@@ -166,5 +170,46 @@ describe('wholeDocumentReadDirectly', () => {
     });
     expect([...wholeDocumentReadDirectly(turn, [row({})])].sort()).toEqual(['doc-new', 'doc-old']);
     expect(wholeDocumentReadDirectly(null, [row({})]).size).toBe(0);
+  });
+});
+
+describe('plannerDocumentStub', () => {
+  const pdf = { name: 'Vereinbarung.pdf', text: 'x'.repeat(68_000), documentId: 'doc-1' };
+  const turn = (over: Partial<WholeDocumentTurn> = {}): WholeDocumentTurn => ({
+    origin: 'turn',
+    docs: [pdf],
+    chars: 68_000,
+    budgetChars: 224_000,
+    fits: true,
+    ...over,
+  });
+
+  it('stands in for the attachment block when every document can be read back', () => {
+    const stub = plannerDocumentStub(turn(), new Set(['doc-1']));
+    expect(stub?.kind).toBe('anhang');
+    expect(stub?.text).toContain('Vereinbarung.pdf');
+    expect(stub?.text).toContain('68.000 Zeichen');
+    expect(stub?.text).toContain('dokumente_lesen');
+  });
+
+  it('uses the earlier-documents block for material from the thread', () => {
+    expect(plannerDocumentStub(turn({ origin: 'thread' }), new Set(['doc-1']))?.kind).toBe(
+      'frueheres_dokument'
+    );
+  });
+
+  it('keeps the full text when a document has no read-back path', () => {
+    const paste = { name: 'Einfügung', text: 'y'.repeat(20_000), documentId: null };
+    expect(plannerDocumentStub(turn({ docs: [pdf, paste] }), new Set(['doc-1']))).toBeNull();
+    expect(plannerDocumentStub(turn(), new Set())).toBeNull();
+  });
+
+  it('keeps the full text when it is not in the prompt or too short to matter', () => {
+    expect(plannerDocumentStub(turn({ fits: false }), new Set(['doc-1']))).toBeNull();
+    const small = { ...pdf, text: 'z'.repeat(5_000) };
+    expect(
+      plannerDocumentStub(turn({ docs: [small], chars: 5_000 }), new Set(['doc-1']))
+    ).toBeNull();
+    expect(plannerDocumentStub(null, new Set(['doc-1']))).toBeNull();
   });
 });

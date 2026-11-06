@@ -282,8 +282,47 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
   const page = pageLabel(r);
   const meta = [day, page].filter(Boolean).join(', ');
   const date = meta ? ` (${meta})` : '';
-  const mark = prior ? ' (frühere Recherche)' : '';
+  const mark = prior ? ` ${PRIOR_MARK}` : '';
   return `[${index}]${mark} ${title}${url}${date}${body ? ` — ${body}` : ''}`;
+}
+
+const PRIOR_MARK = '(frühere Recherche)';
+/** A register line as {@link snippetLine} renders it — an answer never contains one. */
+const REGISTER_ECHO_RE = /\[\d+\]\s*\(frühere Recherche\)/;
+/** A sentence or line that OPENS with a marker: „[1] bezieht sich auf …". */
+const LEGEND_ENTRY_RE = /(?:^|[.!?]\s+|\n)(\[\d+\][^\n]*)$/;
+/** …and reads like a list entry, not like a claim that opens with its citation
+ *  („[1] Laut der Vereinbarung …", review of #5415). */
+const LEGEND_SHAPE_RE = /^\[\d+\]\s*(?:bezieht\s+sich|steht\s+für|verweist|[:=–—-])|<https?:\/\//i;
+const SOURCES_HEADING_RE =
+  /(?:^|\n)[ \t]*(?:#{1,6}[ \t]*|\*\*)?(?:quellen|belege|referenzen)[ \t]*:?[ \t]*(?:\*\*)?[ \t]*:?$/i;
+
+/**
+ * Where the answer ends when the writer starts copying the source register out
+ * of its prompt, or null. Live 06.11.2026 (#5409) mistral-large-4 answered
+ * correctly, then appended a reference list — „[1] bezieht sich auf …", then
+ * every carried source with URL and snippet — for 14k chars until the
+ * repetition guard fired two minutes later. The `(frühere Recherche)` mark is
+ * our own rendering, so its first appearance in the answer is the onset; the
+ * cut also drops the legend entries and the heading that opened the list.
+ * `from` limits the search to the tail a stream just appended.
+ */
+export function findSourceEchoCut(text: string, from = 0): number | null {
+  const tail = text.slice(Math.max(0, from));
+  const match = REGISTER_ECHO_RE.exec(tail);
+  if (!match) return null;
+  let kept = text.slice(0, Math.max(0, from) + match.index).trimEnd();
+  for (;;) {
+    const legend = LEGEND_ENTRY_RE.exec(kept);
+    if (legend?.[1] == null || !LEGEND_SHAPE_RE.test(legend[1])) break;
+    const shorter = kept.slice(0, kept.length - legend[1].length).trimEnd();
+    // Never down to nothing: whatever stands before the echo is all the answer.
+    if (shorter.length === 0) break;
+    kept = shorter;
+  }
+  const heading = SOURCES_HEADING_RE.exec(kept);
+  if (heading && heading.index > 0) kept = kept.slice(0, heading.index).trimEnd();
+  return kept.length;
 }
 
 /** One entry per source. `prior` is the ONLY thing separating a carried source
