@@ -1247,11 +1247,21 @@ describe('toolCatalog expand_attachment (M4)', () => {
     expect(toolNames).not.toContain('expand_attachment');
   });
 
-  it('is not mounted when no earlier turn left an attachment', () => {
+  it('is not mounted when no earlier turn left a loadable attachment', () => {
     const sse = { send: () => {} } as unknown as NonNullable<
       Parameters<typeof buildChatToolCatalog>[0]['loop']
     >['sse'];
-    for (const threadAttachments of [undefined, []]) {
+    const imageOnly = [
+      {
+        id: 'i1',
+        name: 'foto.jpg',
+        mimeType: 'image/jpeg',
+        isImage: true,
+        extractedText: null,
+        documentId: null,
+      },
+    ];
+    for (const threadAttachments of [undefined, [], imageOnly]) {
       const state = { intent: 'search', threadAttachments } as unknown as ChatGraphState;
       const { toolNames } = buildChatToolCatalog({
         agentConfig,
@@ -1382,8 +1392,10 @@ describe('toolCatalog expand_attachment (M4)', () => {
   });
 
   it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
+    // A loadable sibling mounts the tool; alone, `Leer.pdf` would not.
     const { execute } = catalogWithAttachments([
       { id: 'a3', name: 'Leer.pdf', extractedText: null, documentId: null },
+      { id: 'a4', name: 'Voll.pdf', extractedText: 'Text', documentId: null },
     ]);
     const out = (await execute({ attachmentName: 'Leer.pdf' }, { toolCallId: 'c1' })) as {
       error?: string;

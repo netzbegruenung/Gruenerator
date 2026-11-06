@@ -676,11 +676,15 @@ NUTZE WENN:
   // local `processedMeta` — closing that gap needs a state-schema addition,
   // out of scope here.
   //
-  // Mounted only when `threadAttachments` holds a file: the lookup below reads
-  // nothing else, so without one every call ends in "Keine Datei". Mounted on
-  // every loop turn it was a dead tool in the request (~270 tokens) and one
-  // more distractor for the planner.
-  if (loop && !researchBanned && (loop.state.threadAttachments?.length ?? 0) > 0) {
+  // Mounted only when `threadAttachments` holds a file it can load — one with a
+  // `documentId` or `extractedText`, the two branches of `execute` below. Without
+  // one every call ends in an error ("Keine Datei", or "keinen nachladbaren
+  // Text" for an image-only thread). Mounted on every loop turn it was a dead
+  // tool in the request (~270 tokens) and one more distractor for the planner.
+  const expandableAttachment = (loop?.state.threadAttachments ?? []).some(
+    (a) => a.documentId != null || !!a.extractedText
+  );
+  if (loop && !researchBanned && expandableAttachment) {
     tools.expand_attachment = tool({
       description: `Lädt mehr Inhalt aus einer Datei nach, die in einem früheren Turn dieses Gesprächs hochgeladen wurde, wenn der bisher gezeigte Auszug für die Aufgabe (z. B. einen Vergleich mehrerer Dateien) nicht ausreicht.
 
