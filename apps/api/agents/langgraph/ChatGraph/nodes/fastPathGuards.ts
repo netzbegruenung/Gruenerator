@@ -172,8 +172,7 @@ const CAPABILITY_PARTICLE_RE =
   /(?<!\p{L})(?:eigentlich|überhaupt|auch|hier|damit|gr[üu]nerator\p{L}*)(?!\p{L})/iu;
 const CAPABILITY_ORDER_HINT_RE =
   /(?<!\p{L})(?:dazu|daraus|davon|dafür|darüber|haben|bekommen|kriegen|bitte)(?!\p{L})/iu;
-const CAPABILITY_TOPIC_RE =
-  /(?<!\p{L})(?:zum|zur|über|zu(?!\s+\p{L}+(?:en|n)\s*[?.!]?\s*$))\s+\p{L}/iu;
+const CAPABILITY_TOPIC_RE = /(?<!\p{L})(?:zum|zur|über|zu(?!\s+\p{L}+n[?.!]?\s*$))\s+\p{L}/iu;
 
 /** True for a question about whether the product can do something („Kann ich hier auch …?"). */
 export function isCapabilityQuestion(text: string): boolean {

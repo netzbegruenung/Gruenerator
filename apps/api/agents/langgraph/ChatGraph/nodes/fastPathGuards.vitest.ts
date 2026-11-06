@@ -14,6 +14,7 @@ import {
   ARTIFACT_NOUN_BY_KIND,
   creationOrderPattern,
   SHAREPIC_WORD_RE,
+  isCapabilityQuestion,
 } from './fastPathGuards.js';
 
 const SHAREPIC = /\b(share[\s-]?pics?|sharepics?)\b/i;
@@ -103,6 +104,16 @@ describe('isMetaQuestionAbout — Fähigkeitsfragen (#5408)', () => {
     ]) {
       expect(asksForSharepic(text), text).toBe(true);
     }
+  });
+  // CodeQL (#5411): die Themen-Erkennung lief über zwei \\s* hintereinander
+  // polynomiell — Nutzertext ist unkontrolliert.
+  it('bleibt linear bei langen Leerraum-Folgen', () => {
+    // Verb auf -n, viele Tabs, dann ein Zeichen, an dem das `$` scheitert:
+    // die alte Fassung brauchte bei 40.000 Tabs über eine Sekunde.
+    const text = `Kann ich auch Sharepics zu machen${'\t'.repeat(40_000)}x`;
+    const t0 = performance.now();
+    isCapabilityQuestion(text);
+    expect(performance.now() - t0).toBeLessThan(200);
   });
   it('gilt für jedes Artefakt, nicht nur das Sharepic', () => {
     expect(
