@@ -57,7 +57,8 @@ import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
-import { withInstructionHierarchy } from '../untrustedContent.js';
+import { replaceUntrustedBlocks, withInstructionHierarchy } from '../untrustedContent.js';
+import { plannerDocumentStub } from '../wholeDocument.js';
 
 import { approvalGateEnabled } from './approvalPolicy.js';
 import {
@@ -66,7 +67,12 @@ import {
   turnProducedArtifact,
 } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
+import {
+  ATTACHED_DOCS_TOOL,
+  materialReaderTools,
+  resolveTurnMaterial,
+  retrievableAttachedSources,
+} from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
@@ -635,6 +641,25 @@ export async function streamAgenticResponse(
     const toolSystem = withInstructionHierarchy(
       `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
+    // Split: der Planer bekommt statt des Volltexts einen Platzhalter (#5399).
+    // Der Schreiber baut seinen Prompt aus `systemMessage` und sieht ihn ganz;
+    // braucht der Planer Inhalt, liest er über `dokumente_lesen` nach — nur
+    // dann, wenn das Werkzeug auch montiert ist.
+    const plannerStub =
+      mode === 'split' && ATTACHED_DOCS_TOOL in wrapped
+        ? plannerDocumentStub(
+            finalState.wholeDocument,
+            new Set(retrievableAttachedSources(finalState).map((s) => s.id))
+          )
+        : null;
+    const plannerSystem = plannerStub
+      ? replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text)
+      : toolSystem;
+    if (plannerSystem !== toolSystem) {
+      log.info(
+        `[Agentic] planner sees a stub for the whole document (${toolSystem.length} → ${plannerSystem.length} chars); the writer keeps the full text`
+      );
+    }
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
@@ -945,7 +970,7 @@ export async function streamAgenticResponse(
       },
       tools: wrapped,
       toolActivity,
-      toolSystem,
+      toolSystem: plannerSystem,
       ...(turnContext ? { turnContext } : {}),
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein

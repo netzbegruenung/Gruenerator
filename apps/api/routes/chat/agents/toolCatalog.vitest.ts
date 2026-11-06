@@ -296,6 +296,35 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).toEqual(expect.arrayContaining(['summarize', 'dokumente_lesen']));
   });
 
+  // #5399: the writer has the whole text; `summarize` would only re-read it, and
+  // a planner that saw a stub instead of the text called it anyway (22 s).
+  it('drops summarize when a whole-document turn has the full text in the prompt', () => {
+    const state = (fits: boolean) =>
+      ({
+        intent: 'agentic',
+        enabledTools: {},
+        messages: [{ role: 'user', content: 'Fasse die Vereinbarung zusammen' }],
+        documentSources: [{ kind: 'document', id: 'doc-1', label: 'Vereinbarung.pdf' }],
+        wholeDocument: {
+          origin: 'turn',
+          docs: [{ name: 'Vereinbarung.pdf', text: 'x', documentId: 'doc-1' }],
+          chars: 68_000,
+          budgetChars: fits ? 224_000 : 40_000,
+          fits,
+        },
+      }) as unknown as ChatGraphState;
+    const names = (fits: boolean) =>
+      buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry: createSourceRegistry(),
+        loop: { sse: { send: () => {} } as never, state: state(fits) },
+      }).toolNames;
+    expect(names(true)).not.toContain('summarize');
+    expect(names(true)).toContain('dokumente_lesen');
+    // Too large for the prompt: map-reduce stays the way to the whole text.
+    expect(names(false)).toContain('summarize');
+  });
+
   it('mounts generate_image only for image + explicitly image-phrased agentic turns', () => {
     expect(catalogFor('search').toolNames).not.toContain('generate_image');
     expect(catalogFor('image').toolNames).toContain('generate_image');

@@ -21,6 +21,9 @@ export type UntrustedKind =
   | 'anhang'
   | 'aktuelles_dokument'
   | 'frueheres_dokument'
+  /** Vision-Beschreibungen früherer Bilder — eigene Art, damit ein Ersetzen der
+   *  Dokumentblöcke (Planer-Platzhalter, wholeDocument.ts) sie nicht mitnimmt. */
+  | 'fruehere_bilder'
   | 'suchergebnis'
   | 'nutzer_anweisung'
   | 'gedaechtnis'
@@ -76,6 +79,20 @@ export function embedUntrusted(kind: UntrustedKind, content: string, label?: str
   const safe = preventBreakout(typeof content === 'string' ? content : '');
   const attrs = `type="${kind}"${label ? ` quelle="${label.replace(/"/g, "'")}"` : ''}`;
   return `<${TAG} ${attrs}>\n${safe}\n</${TAG}>`;
+}
+
+/**
+ * Replace every block of one kind — frame included — with plain text. Exact
+ * because {@link embedUntrusted} escapes any closing tag inside the material,
+ * so the first closing tag after an opening one is always its own.
+ */
+export function replaceUntrustedBlocks(
+  text: string,
+  kind: UntrustedKind,
+  replacement: string
+): string {
+  const block = new RegExp(`<${TAG} type="${kind}"[^>]*>\\n[\\s\\S]*?\\n</${TAG}>`, 'g');
+  return text.replace(block, () => replacement);
 }
 
 /**
