@@ -8,6 +8,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+import { refreshLagebild } from '../briefing/lagebild.js';
 import { classifyArticles } from '../nlp/nlpClient.js';
 
 import { collectArticles } from './MonitorCollectorService.js';
@@ -15,7 +16,7 @@ import { getEntitySummary } from './MonitorSummaryService.js';
 import { getPolitProPolls } from './PolitProService.js';
 import { pickTrendsForLocale, scrapeTrendsByLocale } from './TwitterTrendsScraper.js';
 import { MONITOR_LOCALES, TOPIC_CATEGORIES } from './types.js';
-import { WATCHER_ENTITIES } from './watcherEntities.js';
+import { WATCHER_ENTITIES, getEntityForLocale } from './watcherEntities.js';
 
 import type {
   KeywordEntry,
@@ -207,7 +208,19 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
           50,
           entity.excludePatterns
         );
-        return getEntitySummary(entity, articles, entity.locale);
+        const summary = await getEntitySummary(entity, articles, entity.locale);
+        // The Tagesbriefing's shared Lagebild rides on the summary just warmed
+        // (no second summary run), and is never built on a login.
+        if (getEntityForLocale(entity.locale).id === entity.id) {
+          const localeSnapshot = await getLatestSnapshot(entity.locale);
+          await refreshLagebild({
+            locale: entity.locale,
+            partySummary: summary.summary || null,
+            partyArticles: articles,
+            topics: localeSnapshot?.topics ?? [],
+          });
+        }
+        return summary;
       },
     });
   }

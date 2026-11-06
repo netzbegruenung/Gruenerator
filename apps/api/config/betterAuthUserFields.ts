@@ -78,6 +78,12 @@ export const USER_ADDITIONAL_FIELDS = {
   boards: { type: 'boolean', required: false, input: false, defaultValue: false },
   bundestag_api_enabled: { type: 'boolean', required: false, input: false, defaultValue: false },
   memory_enabled: { type: 'boolean', required: false, input: false, defaultValue: true },
+  proactive_briefing_enabled: {
+    type: 'boolean',
+    required: false,
+    input: false,
+    defaultValue: false,
+  },
 } as const;
 
 /** Feldname → deklarierter Better-Auth-Typ (`'string' | 'boolean' | 'number' | 'date'`). */

@@ -1,6 +1,10 @@
 'use client';
 
-import { isServerRestarting, isUnauthorizedError } from '@gruenerator/shared/api';
+import {
+  getContractsClient,
+  isServerRestarting,
+  isUnauthorizedError,
+} from '@gruenerator/shared/api';
 import { clampThreadTitle, sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
@@ -24,6 +28,7 @@ interface ApiThread {
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
   readOnly?: boolean | null;
+  briefing?: { day: string; unread: boolean } | null;
   createdAt: string;
   updatedAt: string;
   lastMessage?: {
@@ -92,6 +97,29 @@ export function isThreadReadOnly(remoteId: string): boolean {
   return threadReadOnlyCache.has(remoteId);
 }
 
+// Tagesbriefing threads that were not opened yet; drives the "Neu" badge.
+const unreadBriefingCache = new Set<string>();
+
+export function isBriefingUnread(remoteId: string): boolean {
+  return unreadBriefingCache.has(remoteId);
+}
+
+/**
+ * The person opened a briefing thread: flip the badge now, tell the server in
+ * the background (it clears the bell notification too). Returns whether a
+ * request went out; a failure is swallowed — the next list() restores the badge.
+ */
+export async function markBriefingOpened(remoteId: string): Promise<boolean> {
+  if (!unreadBriefingCache.delete(remoteId)) return false;
+  tagListeners.forEach((l) => l());
+  try {
+    await getContractsClient().briefing.opened({ params: { threadId: remoteId } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Whether the most recent list() call failed (network/5xx/401) rather than
 // genuinely resolving to "no such thread". assistant-ui's core swallows
 // getLoadThreadsPromise() rejections internally (logs + resolves with the
@@ -124,6 +152,7 @@ function forgetThreadCaches(remoteId: string): void {
   threadTagsCache.delete(remoteId);
   threadAccessTypeCache.delete(remoteId);
   threadReadOnlyCache.delete(remoteId);
+  unreadBriefingCache.delete(remoteId);
 }
 
 const EMPTY_TAGS: readonly string[] = [];
@@ -284,6 +313,12 @@ export function createGrueneratorThreadListAdapter(
           if (threadReadOnlyCache.has(t.id) !== readOnly) {
             if (readOnly) threadReadOnlyCache.add(t.id);
             else threadReadOnlyCache.delete(t.id);
+            shareMetaChanged = true;
+          }
+          const briefingUnread = t.briefing?.unread === true;
+          if (unreadBriefingCache.has(t.id) !== briefingUnread) {
+            if (briefingUnread) unreadBriefingCache.add(t.id);
+            else unreadBriefingCache.delete(t.id);
             shareMetaChanged = true;
           }
         }

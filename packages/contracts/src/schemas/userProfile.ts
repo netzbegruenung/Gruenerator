@@ -79,6 +79,8 @@ export const profileUpdateBodySchema = z.object({
   tts_voice_id: ttsVoiceIdSchema.nullable().optional(),
   /** The Gedächtnis switch in the Erinnerungen tab (profiles.memory_enabled). */
   memory_enabled: z.boolean().optional(),
+  /** The Tagesbriefing switch (profiles.proactive_briefing_enabled). */
+  proactive_briefing_enabled: z.boolean().optional(),
   /**
    * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
    * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
@@ -238,6 +240,7 @@ export const userProfileSchema = z.object({
   boards: z.boolean().optional(),
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
+  proactive_briefing_enabled: z.boolean().optional(),
   /**
    * „Panda" lane unlock, written only by an instance admin; null = instance
    * default. Deliberately absent from `profileUpdateBodySchema`.

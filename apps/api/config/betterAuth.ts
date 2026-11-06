@@ -570,6 +570,12 @@ export const auth = betterAuth({
           const { deliverLoginAnnouncements } =
             await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
+          // Tagesbriefing: start building today's briefing while the OAuth
+          // redirect is still on its way back — not awaited, it never blocks or
+          // fails the login (`ensureDailyBriefing` does not throw).
+          const { ensureDailyBriefing } =
+            await import('../services/briefing/ensureDailyBriefing.js');
+          void ensureDailyBriefing(session.userId);
         },
       },
       // Rolling refresh (updateAge: 24h) touches the session at most once per

@@ -18,10 +18,12 @@ import {
 } from '@assistant-ui/react';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
+import { QueryClientContext } from '@tanstack/react-query';
 import {
   type ReactNode,
   useMemo,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   type PropsWithChildren,
@@ -36,6 +38,7 @@ import { ChatNavigationProvider } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { useDailyBriefing } from '../hooks/useDailyBriefing';
 import { useInterruptSignal, useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { adoptRejection } from '../lib/adoptRejection';
 import { getDefaultAgent } from '../lib/agents';
@@ -55,6 +58,9 @@ import {
 } from './GrueneratorModelAdapter';
 import {
   createGrueneratorThreadListAdapter,
+  isBriefingUnread,
+  markBriefingOpened,
+  subscribeThreadTags,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
@@ -402,6 +408,37 @@ function MainThreadSyncEffect() {
 }
 
 /**
+ * Opening an unread Tagesbriefing marks it (and its bell notification) read.
+ * Also re-checks when the thread list lands after the thread became active.
+ */
+function BriefingOpenedEffect() {
+  // Optional: hosts without react-query simply skip the bell refresh.
+  const queryClient = useContext(QueryClientContext);
+  const mainRemoteId = useAuiState(
+    (s) => s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.remoteId ?? null
+  );
+
+  useEffect(() => {
+    if (!mainRemoteId) return;
+    const check = () => {
+      if (!isBriefingUnread(mainRemoteId)) return;
+      void markBriefingOpened(mainRemoteId).then((sent) => {
+        if (sent) void queryClient?.invalidateQueries({ queryKey: ['notifications'] });
+      });
+    };
+    check();
+    return subscribeThreadTags(check);
+  }, [mainRemoteId, queryClient]);
+
+  return null;
+}
+
+function DailyBriefingEffect() {
+  useDailyBriefing();
+  return null;
+}
+
+/**
  * Watches for first message completion and triggers title generation.
  * With lazy initialize(), assistant-ui's built-in runEnd trigger fires for
  * new threads; this effect stays as the trigger for legacy pre-created
@@ -567,6 +604,8 @@ export function GrueneratorChatRuntimeProvider({
             <ThreadTitleEffect />
             <AgentSwitchListener />
             <ThreadListReloadListener />
+            <BriefingOpenedEffect />
+            <DailyBriefingEffect />
             {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
             <ChatCollaborationBridge userId={userId} userName={userName}>
               {children}

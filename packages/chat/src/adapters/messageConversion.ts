@@ -51,6 +51,8 @@ export interface LoadedMessage {
     interrupted?: boolean;
     /** Wall time of the turn, stamped by `finalizeAssistantMessage`. */
     turnDurationMs?: number;
+    /** Folgefragen unter der letzten Antwort (z. B. Tagesbriefing). */
+    followUpSuggestions?: string[];
     /** The turn is still running server-side and can be re-attached
      *  (`resumableStream.splitLiveTurn`). Comes with `interrupted` for old clients. */
     live?: boolean;
@@ -262,6 +264,8 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       if (m.metadata?.searchImages) custom.searchImages = m.metadata.searchImages;
       if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
       if (m.metadata?.turnDurationMs) custom.turnDurationMs = m.metadata.turnDurationMs;
+      if (m.metadata?.followUpSuggestions?.length)
+        custom.followUpSuggestions = m.metadata.followUpSuggestions;
       Object.assign(custom, buildToolDerivedCustom(m.metadata?.toolCalls));
       if (m.metadata?.intent || m.metadata?.traceId)
         custom.streamMetadata = {
