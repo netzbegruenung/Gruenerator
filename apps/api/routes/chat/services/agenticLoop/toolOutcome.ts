@@ -6,8 +6,11 @@
  * Einzeln geprüft in `toolOutcome.vitest.ts`.
  */
 import { applyContextCap } from '../../../../utils/contextCap.js';
+import { ARTIFACT_KINDS } from '../artifactKindRegistry.js';
 
 import { readMcpResult, type PersistedStep } from './types.js';
+
+const CREATION_TOOLS: ReadonlySet<string> = new Set(ARTIFACT_KINDS.map((k) => k.loopToolName));
 
 /**
  * Split-mode synth is tool-less and sees only the numbered source registry — but
@@ -65,14 +68,33 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
   // (`documents` on doc A, then doc B), and a success on B must not hide A.
   const sameCall = (a: PersistedStep, b: PersistedStep) =>
     a.toolName === b.toolName && JSON.stringify(a.args ?? {}) === JSON.stringify(b.args ?? {});
-  const recovered = (i: number) =>
-    native
-      .slice(i + 1)
-      .some((later) => sameCall(later, native[i]) && readMcpResult(later.result).ok);
-  const failed = native
+  const laterOk = (i: number, match: (later: PersistedStep) => boolean) =>
+    native.slice(i + 1).some((later) => match(later) && readMcpResult(later.result).ok);
+  const unrecovered = native
     .map((s, i) => ({ step: s, view: readMcpResult(s.result), i }))
-    .filter(({ view, i }) => !view.ok && !recovered(i));
-  if (failed.length === 0) return '';
+    .filter(({ view, i }) => !view.ok && !laterOk(i, (later) => sameCall(later, native[i])));
+  // A creation tool rewords its brief on retry, so the arguments never match —
+  // yet a reworded retry and a second, different artefact look the same here.
+  // Neither fact may be dropped: the writer hears that a later call of the
+  // tool succeeded (live 05.11.2026 the sharepic retry worked and the answer
+  // said it could not be created) AND that an earlier one failed.
+  const retried = unrecovered.filter(
+    ({ step, i }) =>
+      CREATION_TOOLS.has(step.toolName) && laterOk(i, (later) => later.toolName === step.toolName)
+  );
+  const failed = unrecovered.filter((f) => !retried.includes(f));
+  const retryNote =
+    retried.length === 0
+      ? ''
+      : `\n\nWIEDERHOLTE ERSTELLUNG IN DIESEM TURN:\n${retried
+          .map(
+            ({ step, view }) =>
+              `- ${step.toolName}: ein Aufruf schlug fehl (${failureText(view.error, step.result)}), ein späterer Aufruf desselben Werkzeugs gelang`
+          )
+          .join('\n')}\n\n` +
+        'Was der gelungene Aufruf erstellt hat, gibt es: behaupte nicht, die Erstellung sei gescheitert. ' +
+        'Galten die Aufrufe verschiedenen Dingen (zwei verschiedene Grafiken, Dokumente …), sag konkret, welches davon fehlt.';
+  if (failed.length === 0) return retryNote;
   const lines = failed.map(
     ({ step, view }) =>
       `- ${step.toolName}: FEHLGESCHLAGEN — ${failureText(view.error, step.result)}`
@@ -86,7 +108,8 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
     // Live 23.09.2026: „Kein Notebook ausgewählt" wurde zu „ich habe keine
     // Funktion, das Notebook zu durchsuchen" — das Werkzeug gab es.
     'Behaupte NIE, dir fehle eine Funktion oder ein Werkzeug dafür — sag, dass der Aufruf ' +
-    'fehlgeschlagen ist und warum.'
+    'fehlgeschlagen ist und warum.' +
+    retryNote
   );
 }
 
