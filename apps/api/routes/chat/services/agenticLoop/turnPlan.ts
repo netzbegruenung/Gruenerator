@@ -38,6 +38,7 @@ import {
   isPixelTurn,
   looksLikeCompoundEdit,
   namesSharepicWithoutOrder,
+  SHAREPIC_NAMING_INTENTS,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
   type EditorSurfaceKind,
@@ -179,6 +180,8 @@ export interface TurnPlanInput {
   addressesThreadSharepic?: boolean;
   /** Der Thread enthält ein Sharepic (`stateHasSharepic`). */
   threadHasSharepic?: boolean;
+  /** Ein früherer Turn nannte ein Sharepic, gebaut ist noch keins (`threadWorksOnSharepic`). */
+  threadWorksOnSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
@@ -433,7 +436,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     !p.isSharepicRefinement &&
     !editorSurface &&
     p.addressesThreadSharepic !== true &&
-    namesSharepicWithoutOrder(proposedIntent, p.lastUserText, p.threadHasSharepic ?? true)
+    (namesSharepicWithoutOrder(proposedIntent, p.lastUserText, p.threadHasSharepic ?? true) ||
+      (p.threadWorksOnSharepic === true && SHAREPIC_NAMING_INTENTS.has(proposedIntent)))
       ? 'sharepic'
       : null;
   const compoundKind = orderedKind ?? namedOnlyKind;

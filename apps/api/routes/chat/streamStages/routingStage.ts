@@ -16,6 +16,7 @@
 import {
   isSheetFillRequest,
   NOUN_TRIGGER_MAX_LENGTH,
+  extractMessageText,
 } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/systemMcpServers.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
@@ -26,6 +27,7 @@ import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { isTabelleAuswertenMountable } from '../agents/tabelleAuswertenTool.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
 import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
+import { threadWorksOnSharepic } from '../services/agenticLoop/routing.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
 import { editToolNameFor } from '../services/agenticLoop/types.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
@@ -73,6 +75,12 @@ export interface RoutingStageResult {
   pipelineOriginal: string;
 }
 
+/** Was die Person VOR dieser Nachricht schrieb, älteste zuerst. */
+function earlierUserTexts(messages: ChatGraphState['messages']): string[] {
+  const texts = messages.filter((m) => m.role === 'user').map((m) => extractMessageText(m.content));
+  return texts.slice(0, -1);
+}
+
 /** Ab hier ist eine getippte Nachricht an einen Pipeline-Agenten selbst der Ausgangstext. */
 const MIN_TYPED_TRANSFER_CHARS = 400;
 export function runRoutingStage({
@@ -99,6 +107,13 @@ export function runRoutingStage({
   const proposedIntent = classifiedState.intent;
 
   const pipelineAgent = getPipelineAgent(classifiedState.agentConfig?.identifier);
+
+  const sharepicInProgress = threadWorksOnSharepic(
+    earlierUserTexts(classifiedState.messages),
+    stateHasSharepic(classifiedState),
+    lastUserTextNoMentions
+  );
+  if (sharepicInProgress) classifiedState.sharepicInProgress = true;
 
   const plan = decideTurnPlan({
     // EINE Lesung des Schalters pro Turn. Vorher standen hier drei, die
@@ -161,6 +176,7 @@ export function runRoutingStage({
       stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
     threadHasSharepic: stateHasSharepic(classifiedState),
+    threadWorksOnSharepic: sharepicInProgress,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOffer: classifiedState.acceptedOfferKind != null,
   });
