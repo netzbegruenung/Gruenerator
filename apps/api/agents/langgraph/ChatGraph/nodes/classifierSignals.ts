@@ -16,7 +16,7 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
 
 import { GLOSSARY_TERM_RE } from '../../../../services/chat/productGlossary.js';
 
-import { CREATION_VERB_CORE } from './fastPathGuards.js';
+import { CREATION_VERB_CORE, isCapabilityQuestion } from './fastPathGuards.js';
 
 import type { SearchIntent, SearchSource } from '../types.js';
 
@@ -504,6 +504,9 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
   const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
   if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
   if (INSTRUCTIONAL_QUESTION.test(t) && hasFeature) return true;
+  // „Kann ich mit dem Grünerator auch Sharepics erstellen?" asks what the product
+  // can do; without this it reached the sharepic rule and got a carousel (#5408).
+  if (isCapabilityQuestion(t) && hasFeature) return true;
   // The glossary path: product-only terms (Panda, Explainable, Konto …), never
   // the content nouns above — „Welche Forderungen enthält das Notebook?" asks
   // about the user's notebook, not about notebooks. And only on short turns: a
