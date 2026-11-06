@@ -1,3 +1,4 @@
+import { requestDailyBriefingNow } from '@gruenerator/chat';
 import { type ChatBackground } from '@gruenerator/contracts';
 import {
   GRUENERATOR_FRIENDS,
@@ -532,6 +533,26 @@ export function SettingsSheet() {
                 title={getSettingsEntry('allgemein.sprache').title}
                 value={LOCALE_LABELS[locale]}
                 onPress={() => setDetail('locale')}
+              />
+              <ListRow
+                icon="sunny-outline"
+                title={getSettingsEntry('erinnerungen.tagesbriefing').title}
+                value="Übersicht beim ersten Besuch des Tages"
+                accessory={
+                  <Switch
+                    value={user.proactive_briefing_enabled === true}
+                    onValueChange={(value) => {
+                      void updateProfile({ proactive_briefing_enabled: value })
+                        .then(() => {
+                          if (value) requestDailyBriefingNow();
+                        })
+                        .catch(() => {
+                          Alert.alert('Fehler', 'Einstellung konnte nicht gespeichert werden.');
+                        });
+                    }}
+                    trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                  />
+                }
               />
               <ListRow
                 icon="accessibility-outline"

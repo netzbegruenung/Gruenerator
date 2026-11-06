@@ -217,6 +217,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet.',
   },
   {
+    id: 'erinnerungen.tagesbriefing',
+    tab: 'erinnerungen',
+    title: 'Tagesbriefing im Chat',
+    platforms: BOTH,
+    description:
+      'Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute.',
+  },
+  {
     id: 'personalisierung.rollen',
     tab: 'personalisierung',
     title: 'Rollen',

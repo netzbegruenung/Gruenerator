@@ -1,3 +1,4 @@
+import { requestThreadListReload } from '@gruenerator/chat';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useCallback } from 'react';
 
@@ -32,6 +33,7 @@ const MAX_HANDSHAKE_FAILURES = 5;
 type StopReason = 'auth' | 'budget' | 'teardown';
 
 interface SSENotificationData {
+  type?: string;
   title?: string;
   body?: string;
 }
@@ -105,6 +107,7 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
 
       try {
         const data = JSON.parse((event as MessageEvent<string>).data) as SSENotificationData;
+        if (data.type === 'daily_briefing') requestThreadListReload();
         onNotificationRef.current?.(data);
       } catch {
         // ignore parse errors

@@ -5,13 +5,15 @@ import {
   useAgentStore,
   useChatConfigStore,
   createChatApiClient,
+  useDailyBriefing,
+  subscribeThreadListReload,
   createThreadHistoryAdapter,
   convertToThreadMessageLike,
   transformMessageLike,
   resumeChatTurn,
 } from '@gruenerator/chat';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useMobileChatRuntime } from './useMobileChatRuntime';
 
@@ -46,6 +48,7 @@ function useDrawerRuntimeHook() {
 const drawerRuntimeHook = useDrawerRuntimeHook;
 
 export function useChatDrawerRuntime() {
+  useDailyBriefing();
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
   const apiClient = useMemo(
@@ -78,8 +81,14 @@ export function useChatDrawerRuntime() {
     };
   }, [apiClient]);
 
-  return useRemoteThreadListRuntime({
+  const runtime = useRemoteThreadListRuntime({
     runtimeHook: drawerRuntimeHook,
     adapter,
   });
+
+  // Web mounts ThreadListReloadListener (`@assistant-ui/react`); the drawer
+  // subscribes directly, so a Tagesbriefing built after the first list() shows up.
+  useEffect(() => subscribeThreadListReload(() => void runtime.threads.reload()), [runtime]);
+
+  return runtime;
 }

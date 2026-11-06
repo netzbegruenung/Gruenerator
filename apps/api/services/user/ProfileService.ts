@@ -170,6 +170,7 @@ class ProfileService {
         'boards',
         'bundestag_api_enabled',
         'memory_enabled',
+        'proactive_briefing_enabled',
         'reduce_motion',
         'reduce_transparency',
         'show_skip_link',

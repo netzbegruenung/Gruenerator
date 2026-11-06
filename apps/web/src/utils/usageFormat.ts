@@ -63,6 +63,7 @@ export const FEATURE_LABELS: Record<UsageFeature, string> = {
   texte: 'Texte',
   notebook: 'Notebooks',
   voice: 'Voice',
+  briefing: 'Tagesbriefing',
   other: 'Sonstiges',
 };
 

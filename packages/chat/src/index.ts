@@ -159,9 +159,11 @@ export {
   isThreadReadOnly,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
+  subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 export { buildThreadPath } from './lib/threadPath';
+export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';

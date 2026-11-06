@@ -45,6 +45,7 @@ import { mountBoardSchedulesContractRouter } from './routes/boards/boardSchedule
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
+import { mountBriefingContractRouter } from './routes/briefing/briefingContractRouter.js';
 import browserAgentLlmRouter from './routes/browserAgent/llmProxyRouter.js';
 import { mountBundestagQaContractRouter } from './routes/bundestag/bundestagQaContractRouter.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
@@ -911,6 +912,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers straight on `app`.
   app.use('/api/memory', requireAuth, standardMutationLimiter);
   mountMemoryContractRouter(app);
+  // Tagesbriefing — `today` is idempotent per user and day (one read after the
+  // first call), so the mutation limiter is enough. The dev rerun 404s outside
+  // the dev auth bypass (see briefingContractRouter).
+  app.use('/api/briefing', requireAuth, standardMutationLimiter);
+  app.use('/api/dev/briefing', requireAuth);
+  mountBriefingContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
   // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is

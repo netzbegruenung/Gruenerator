@@ -119,6 +119,12 @@ export interface GreetingOptions {
    * (production, beta, local) fall through to the normal rotation, a no-op.
    */
   instanceId?: InstanceId;
+  /**
+   * Hour of day (0–23) to greet for. Defaults to the local clock — right in a
+   * browser, wrong on a server running in UTC, which passes the hour of the
+   * person's time zone instead (Tagesbriefing).
+   */
+  hour?: number;
 }
 
 export function getGreeting(
@@ -130,7 +136,8 @@ export function getGreeting(
     ? getInstance(options.instanceId).heroGreeting
     : undefined;
   const template =
-    instanceGreeting ?? pickTemplate(locale, new Date().getHours(), options.short === true);
+    instanceGreeting ??
+    pickTemplate(locale, options.hour ?? new Date().getHours(), options.short === true);
 
   if (template.includes('@Vorname')) {
     return template.replace('@Vorname', firstName ?? 'du');
