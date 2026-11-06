@@ -358,6 +358,8 @@ export async function draftSharepic(
       const datumFixed = repairDatum(taken.input, given, keptWeekdays);
       const ortFixed = repairOrt(datumFixed.input, given);
       const photoFixed = repairPhotoRefs(ortFixed.input, listedPhotos);
+      // Not reported to the person, unlike datum/ort: those repairs drop words of the
+      // order, this one only corrects the model's copy of a name the person never saw.
       for (const r of photoFixed.repairs) log.info(`repaired foto "${r.from}" → "${r.to}"`);
       const repaired = {
         input: photoFixed.input,
