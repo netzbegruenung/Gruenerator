@@ -238,7 +238,9 @@ const CASES: Case[] = [
     lane: 'loop',
     summarizeMounted: false,
   },
-  { id: 'zusammenfassen', prompt: 'fasse das zusammen', lane: 'loop', summarizeMounted: true },
+  // Geflippt (#5399): ein Ganzdokument-Turn, dessen Text ganz beim Schreiber
+  // liegt — `summarize` läse ihn nur ein zweites Mal (live 22 s Map-Reduce).
+  { id: 'zusammenfassen', prompt: 'fasse das zusammen', lane: 'loop', summarizeMounted: false },
   {
     id: 'nb-korrigieren',
     prompt: 'rechtschreibung korrigieren',
@@ -269,7 +271,7 @@ const CASES: Case[] = [
     prompt: 'fasse das zusammen',
     body: NOTEBOOK,
     lane: 'loop',
-    summarizeMounted: true,
+    summarizeMounted: false,
   },
   // Gegenprobe: dafür gibt es die erzwungene Notebook-Suche — sie bleibt.
   {
