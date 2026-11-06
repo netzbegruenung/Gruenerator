@@ -110,7 +110,8 @@ export function runRoutingStage({
 
   const sharepicInProgress = threadWorksOnSharepic(
     earlierUserTexts(classifiedState.messages),
-    stateHasSharepic(classifiedState)
+    stateHasSharepic(classifiedState),
+    lastUserTextNoMentions
   );
   if (sharepicInProgress) classifiedState.sharepicInProgress = true;
 

@@ -1892,17 +1892,27 @@ describe('threadWorksOnSharepic', () => {
   ];
 
   it('ein früherer Turn nannte ein Sharepic, gebaut ist noch keins', () => {
-    expect(threadWorksOnSharepic(EARLIER, false)).toBe(true);
+    expect(threadWorksOnSharepic(EARLIER, false, 'denk dir daten dafür aus')).toBe(true);
   });
 
   it('nicht, wenn der Thread schon ein Sharepic hält — dafür gibt es die Bearbeitungswege', () => {
-    expect(threadWorksOnSharepic(EARLIER, true)).toBe(false);
+    expect(threadWorksOnSharepic(EARLIER, true, 'ja')).toBe(false);
+  });
+
+  // Review #5393: ein neues Thema nach einem gescheiterten Sharepic.
+  it.each([
+    'Wie lang sollte ein Instagram-Post sein?',
+    'schreib mir einen Instagram-Post zum Radverkehr',
+  ])('nicht für ein neues Thema in dieser Nachricht: %s', (current) => {
+    expect(threadWorksOnSharepic(EARLIER, false, current)).toBe(false);
   });
 
   it('nicht für Verneinung, Zitat oder ältere Turns ausserhalb des Fensters', () => {
-    expect(threadWorksOnSharepic(['bitte kein Sharepic, nur Text'], false)).toBe(false);
-    expect(threadWorksOnSharepic(['Sie schrieb: „mach ein Sharepic"'], false)).toBe(false);
-    expect(threadWorksOnSharepic(['mach ein Sharepic zur Kita', 'a', 'b', 'c'], false)).toBe(false);
-    expect(threadWorksOnSharepic([], false)).toBe(false);
+    expect(threadWorksOnSharepic(['bitte kein Sharepic, nur Text'], false, 'ja')).toBe(false);
+    expect(threadWorksOnSharepic(['Sie schrieb: „mach ein Sharepic"'], false, 'ja')).toBe(false);
+    expect(threadWorksOnSharepic(['mach ein Sharepic zur Kita', 'a', 'b', 'c'], false, 'ja')).toBe(
+      false
+    );
+    expect(threadWorksOnSharepic([], false, 'ja')).toBe(false);
   });
 });
