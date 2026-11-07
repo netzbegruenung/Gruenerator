@@ -10,7 +10,7 @@
 import { dispositionOf, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
-  buildSystemMessage,
+  buildTurnPrompt,
   restoreAttachmentsDroppedWithHistory,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
@@ -33,6 +33,7 @@ import { injectImageAttachments } from '../services/attachmentProcessingService.
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { imageVisibility } from '../services/imageVisibility.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
+import { withTurnPaste } from '../services/materialItems.js';
 import {
   announcesPendingWork,
   stripFabricatedArtifactDelivery,
@@ -184,7 +185,12 @@ export async function runSinglePassAnswer({
             : ' und dass das Gedächtnis unter Einstellungen → Erinnerungen eingeschaltet werden kann'
         }. Erledige den Rest der Nachricht normal.`
       : '';
-    const systemMessage = (await buildSystemMessage(finalState)) + memoryNote;
+    // Der eingefügte Text geht in die Nachricht, nicht in den Prompt (#5431).
+    const { systemMessage: basePrompt, turnPaste } = await buildTurnPrompt(finalState);
+    const systemMessage = basePrompt + memoryNote;
+    // Kürzen rechnet mit allem, was neben dem Verlauf mitgeht — der Paste
+    // stand bis #5431 im Prompt und zählte dort.
+    const sentAlongside = (system: string) => (turnPaste ? `${system}\n\n${turnPaste}` : system);
     // Die eine Antwort auf „sieht das Modell die Bilder?“ — dieselbe, die
     // `formatImageContext` oben in den Prompt geschrieben hat (#3313).
     const imagesVisible = imageVisibility(finalState) === 'visible';
@@ -232,7 +238,7 @@ export async function runSinglePassAnswer({
     const prunedValidMessages = pruneMessages(
       validMessages as Parameters<typeof pruneMessages>[0],
       resolvedContextWindow,
-      systemMessage
+      sentAlongside(systemMessage)
     );
     const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
       ? await applyCompaction(
@@ -257,13 +263,14 @@ export async function runSinglePassAnswer({
       // Welche Züge die Bytes bekommen — und warum nicht — steht in
       // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
       // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
-      return imagesVisible
+      const withImages = imagesVisible
         ? injectImageAttachments(
             built as Parameters<typeof injectImageAttachments>[0],
             imageAttachments,
             requestId
           )
         : built;
+      return withTurnPaste(withImages, turnPaste);
     };
     const messagesForAI = assembleMessages(contextMessages);
 
@@ -290,7 +297,7 @@ export async function runSinglePassAnswer({
                 pruneMessages(
                   contextMessages as Parameters<typeof pruneMessages>[0],
                   window,
-                  finalSystemMessage
+                  sentAlongside(finalSystemMessage)
                 )
               ),
           },

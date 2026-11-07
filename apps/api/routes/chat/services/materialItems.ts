@@ -92,3 +92,41 @@ export function replaceFileItems(
   if (at === -1) return [...items, ...files];
   return [...items.slice(0, at), ...files, ...items.slice(at).filter((item) => !isFileItem(item))];
 }
+
+/**
+ * Legt den eingefügten Text (`buildTurnPrompt().turnPaste`) als eigenen
+ * Textteil hinter die letzte Nutzernachricht (#5431) — dorthin, wo das Modell
+ * nachsieht, wenn die Person „Hier sind die Termine" schreibt.
+ *
+ * Erst beim Zusammenbau für das Modell aufrufen, nach `injectImageAttachments`
+ * (das die Textteile einer Nachricht zu einem zusammenzieht): wer danach den
+ * Nutzertext aus den Nachrichten liest — Auftragserkennung, Loop-Modus —,
+ * hielte den Paste sonst für einen Teil des Auftrags.
+ */
+export function withTurnPaste<M extends { role: string; content: unknown }>(
+  messages: M[],
+  turnPaste: string | null
+): M[] {
+  if (!turnPaste) return messages;
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx === -1) return messages;
+
+  const message = messages[lastUserIdx];
+  const parts: unknown[] =
+    typeof message.content === 'string'
+      ? [{ type: 'text', text: message.content }]
+      : Array.isArray(message.content)
+        ? [...(message.content as unknown[])]
+        : [];
+  parts.push({ type: 'text', text: turnPaste });
+
+  const result = [...messages];
+  result[lastUserIdx] = { ...message, content: parts };
+  return result;
+}

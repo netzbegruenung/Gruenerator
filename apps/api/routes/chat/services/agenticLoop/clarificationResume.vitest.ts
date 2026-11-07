@@ -35,7 +35,7 @@ const {
 }));
 
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  buildSystemMessage: vi.fn(async () => 'SYSTEM'),
+  buildTurnPrompt: vi.fn(async () => ({ systemMessage: 'SYSTEM', turnPaste: null })),
 }));
 vi.mock('../../streamStages/clarificationLoopSuspend.js', () => ({
   suspendForLoopClarification: suspendClarMock,

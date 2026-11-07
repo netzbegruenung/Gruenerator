@@ -268,6 +268,9 @@ export async function runNotebookPraezisionTurn(
         const result = await deps.streamAgenticResponse({
           finalState: state,
           systemMessage,
+          // Die Notebook-Seite hat keinen Paste-Chip; der Prompt aus
+          // `buildSystemMessage` trüge ihn ohnehin selbst.
+          turnPaste: null,
           messages: loopMessages,
           requestId,
           sse: new NotebookLoopSSE(params.res, sse),

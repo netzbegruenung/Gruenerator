@@ -9,7 +9,7 @@
  * des zurückgehaltenen Aufrufs wird, entscheidet der Registry-Eintrag
  * (`toToolResult`, bei `check_sharepic` die Prüfung am Bild).
  */
-import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
+import { buildTurnPrompt } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
@@ -106,10 +106,10 @@ export async function runClientToolLoopResume(params: {
 
     const outcome = await streamAgenticResponse({
       finalState: classifiedState,
-      systemMessage: await buildSystemMessage(classifiedState, {
+      ...(await buildTurnPrompt(classifiedState, {
         retrievalExpected: true,
         loop: true,
-      }),
+      })),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId,
