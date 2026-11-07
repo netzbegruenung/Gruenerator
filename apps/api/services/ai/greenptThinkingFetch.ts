@@ -7,8 +7,7 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * 120s it used to be the SHARPEST clock in a chat turn — under the turn ceiling
  * (`turnDeadline.ts`, 360s), the loop hard cap (`types.ts`, 300s) and the tool
  * wall clock (120s). It, not any chat policy, decided when a hung request
- * ended. Live on 20.08.2026 the loop planner (which runs on GreenPT, see
- * LOOP_PLANNER_PRIMARY) went silent after its last tool returned and the turn
+ * ended. Live on 20.08.2026 the loop planner (then on GreenPT) went silent after its last tool returned and the turn
  * sat here for exactly 120s, finishing in 139.7s.
  *
  * Deliberately NOT lowered to fix that: the loop grew its own idle guard

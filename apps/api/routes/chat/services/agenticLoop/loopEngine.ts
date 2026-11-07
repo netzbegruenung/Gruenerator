@@ -171,8 +171,8 @@ function createToolPhaseIdle(
  *
  * Der HOST gehört dazu, nicht nur der Modellname. Am 28.08.2026 meldete der
  * Stall `mistral-small-3.2-24b-instruct-2506` — ein Name, den die Mistral-API
- * genauso trägt, während die Planer-Lane in Wahrheit auf GreenPT läuft
- * (`LOOP_PLANNER_PRIMARY`). Wer den Befund liest, sucht dann am falschen Host,
+ * genauso trägt, während die Planer-Lane damals in Wahrheit auf GreenPT lief.
+ * Wer den Befund liest, sucht dann am falschen Host,
  * und in Glitchtip fallen zwei verschiedene Anbieter unter denselben Namen.
  * Die Instanz weiss es: `provider` steht in der Anbieter-Spezifikation
  * ausdrücklich „for logging purposes".

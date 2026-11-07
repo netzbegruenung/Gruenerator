@@ -33,8 +33,7 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
-// Der Synth-Ausweich hängt an konfigurierten Schlüsseln (ohne sie ist es die
-// letzte Planer-Stufe, Mistral Medium). Gestellt nur, wo ein Test ihn setzt.
+// Das Geschwister des Reparatur-Schreibers. Gestellt nur, wo ein Test es setzt.
 const { synthFallbackOverride } = vi.hoisted(() => ({
   synthFallbackOverride: {
     current: null as { model: never; name: string; contextWindow: number } | null,
@@ -44,8 +43,8 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../agents/providers.js')>();
   return {
     ...actual,
-    getRepairWriterFallback: (name: string) =>
-      synthFallbackOverride.current ?? actual.getRepairWriterFallback(name),
+    getRepairWriterFallback: (writer: Parameters<typeof actual.getRepairWriterFallback>[0]) =>
+      synthFallbackOverride.current ?? actual.getRepairWriterFallback(writer),
   };
 });
 
@@ -326,9 +325,9 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
 });
 
 describe('streamAgenticResponse — synth fallback window (#4201)', () => {
-  it('re-prunes the history for the planner lane only when the fallback fires', async () => {
-    // An explicit Mistral Medium turn is pruned against 262k; the synth
-    // fallback is the planner lane, Melious Gemma at 128k.
+  it('re-prunes the history for the sibling lane only when the fallback fires', async () => {
+    // An explicit Mistral turn is pruned against 262k; the repair writer's
+    // sibling is Melious Gemma `:speed` at 128k.
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     const turn = (i: number): ModelMessage => ({
@@ -338,7 +337,7 @@ describe('streamAgenticResponse — synth fallback window (#4201)', () => {
     const history = Array.from({ length: 11 }, (_, i) => turn(i));
     synthFallbackOverride.current = {
       model: {} as never,
-      name: 'gemma-4-31b:balanced',
+      name: 'gemma-4-31b:speed',
       contextWindow: 128_000,
     };
     await streamAgenticResponse(

@@ -193,8 +193,8 @@ export {
  * GreenPTs Gemma denkt immer (~5.400 Zeichen, kein Flag schaltet es ab, siehe
  * `greenptThinkingFetch`), das Denken zählt gegen `maxOutputTokens`, und fünf
  * der neun Monitor-Aufrufe hier haben eine Decke von 1.500–2.000 — bei der
- * käme leerer Text zurück. Small denkt nicht und schreibt als
- * `LOOP_PLANNER_PRIMARY` auf genau diesem Host bereits produktiv.
+ * käme leerer Text zurück. Small denkt nicht und lief als Loop-Planer
+ * (13.08.–29.09.2026) auf genau diesem Host produktiv.
  */
 const MONITOR_GREENPT_MODEL = 'mistral-small-3.2-24b-instruct-2506';
 

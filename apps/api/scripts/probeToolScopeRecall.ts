@@ -6,8 +6,8 @@
  * sie trotzdem, und das Muster hat ihn nicht erkannt. Erwartet wird ein Aufruf
  * von `meine_inhalte_laden` — nicht eine Antwort aus dem Nichts.
  *
- * Läuft gegen LOOP_PLANNER_PRIMARY (GreenPT), also genau das Modell, das im
- * Betrieb entscheidet.
+ * Läuft gegen GEMMA_31B_ON_MELIOUS, die Standard-Gemma-Lane, also genau das
+ * Modell, das im Betrieb entscheidet.
  *
  * HÄRTER ALS DER BETRIEB, mit Absicht: ein einziger Schritt, und als System
  * steht nur `buildToolUsageBlock` — nicht die Persona, nicht `GATHER_SUFFIX`
@@ -26,16 +26,16 @@
  * Runden davor stehen in `MEINE_INHALTE_RE` — sie sind der Grund für die
  * Trennung in Produkt- und allgemeine Substantive und für den Selbstbezug.
  *
- *   GREENPT_API_KEY=… pnpm --filter @gruenerator/api exec tsx \
+ *   MELIOUS_API_KEY=… pnpm --filter @gruenerator/api exec tsx \
  *     scripts/probeToolScopeRecall.ts
  */
 import { generateText } from 'ai';
 
-import { LOOP_PLANNER_PRIMARY } from '../routes/chat/agents/autoPolicy.js';
 import { buildChatToolCatalog } from '../routes/chat/agents/toolCatalog.js';
 import { createSourceRegistry } from '../routes/chat/services/agenticLoop/sourceRegistry.js';
 import { createToolScope } from '../routes/chat/services/agenticLoop/toolScope.js';
 import { buildToolUsageBlock } from '../routes/chat/services/agenticLoop/toolUsageBlock.js';
+import { GEMMA_31B_ON_MELIOUS } from '../services/ai/gemmaHosts.js';
 import { getModel } from '../services/ai/providers.js';
 
 import type { AgentConfig } from '../routes/chat/agents/types.js';
@@ -84,7 +84,7 @@ for (const frage of FAELLE) {
   }
 
   const res = await generateText({
-    model: getModel(LOOP_PLANNER_PRIMARY.provider, LOOP_PLANNER_PRIMARY.model),
+    model: getModel(GEMMA_31B_ON_MELIOUS.provider, GEMMA_31B_ON_MELIOUS.model),
     system: buildToolUsageBlock(8, false, false, gezeigt),
     messages: [{ role: 'user', content: frage }],
     tools,
