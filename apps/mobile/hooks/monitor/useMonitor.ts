@@ -13,7 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 
 // Dieselben Abfragen, Query-Keys und `staleTime`-Werte wie die Web-Hooks in
 // `apps/web/src/features/monitor/hooks/useMonitor.ts`, aber ohne Speichern auf dem
-// Gerät: ein Kaltstart zeigt kurz die Platzhalter.
+// Gerät: ein Kaltstart zeigt kurz die Platzhalter. `refetchOnWindowFocus` ist hier
+// an (in der App sonst global aus): beim Zurückkehren in die App lädt nach, was seine
+// `staleTime` überschritten hat.
 
 function localeQuery(locale: MonitorLocale): { locale: MonitorLocale } {
   return { locale };
@@ -30,6 +32,7 @@ export function useMonitorSnapshot(locale: MonitorLocale) {
       throw apiErrorFromResponse(res, 'Monitor-Daten konnten nicht geladen werden.');
     },
     refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
     staleTime: 2 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
@@ -46,6 +49,7 @@ export function useWhatHappened(locale: MonitorLocale, opts: { days: number }) {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'Neue Inhalte konnten nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
@@ -63,6 +67,7 @@ export function useEntityResults(entityId: string, locale: MonitorLocale) {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'Entitäts-Ergebnisse konnten nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
@@ -78,6 +83,7 @@ export function useKeywordArticles(locale: MonitorLocale) {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'Artikel konnten nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
@@ -91,6 +97,7 @@ export function usePolls(parliament: string) {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'Umfragedaten konnten nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
@@ -105,6 +112,7 @@ export function usePollsOverview(country: 'DE' | 'AT') {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'Umfrageübersicht konnte nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 6 * 60 * 60 * 1000,
     gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
@@ -119,6 +127,7 @@ export function useEuGreens() {
       if (res.status === 200) return res.body;
       throw apiErrorFromResponse(res, 'EU-Daten konnten nicht geladen werden.');
     },
+    refetchOnWindowFocus: true,
     staleTime: 6 * 60 * 60 * 1000,
     gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
