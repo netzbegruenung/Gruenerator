@@ -9,15 +9,25 @@ export interface KeywordStyle {
   tone: 'accent' | 'strong' | 'muted';
 }
 
-export function keywordStyles(count: number, maxPx: number, minPx: number): KeywordStyle[] {
+/** Schriftgröße in Pixeln je Rang — die Grundlage für Web (`keywordStyles`) und App. */
+export function keywordPixels(
+  count: number,
+  maxPx: number,
+  minPx: number
+): { px: number; tone: KeywordStyle['tone'] }[] {
   return Array.from({ length: count }, (_, i) => {
     const f = Math.pow(1 - i / count, 1.6);
-    const px = Math.round(minPx + f * (maxPx - minPx));
-    const floor = Math.max(14, Math.round(px * 0.72));
     return {
-      fontSize: `clamp(${floor}px, ${(px / 13).toFixed(2)}vw, ${px}px)`,
+      px: Math.round(minPx + f * (maxPx - minPx)),
       tone: i === 0 ? 'accent' : f > 0.35 ? 'strong' : 'muted',
     };
+  });
+}
+
+export function keywordStyles(count: number, maxPx: number, minPx: number): KeywordStyle[] {
+  return keywordPixels(count, maxPx, minPx).map(({ px, tone }) => {
+    const floor = Math.max(14, Math.round(px * 0.72));
+    return { fontSize: `clamp(${floor}px, ${(px / 13).toFixed(2)}vw, ${px}px)`, tone };
   });
 }
 
