@@ -53,7 +53,7 @@ import {
 } from '../../../utils/usageFormat';
 import { useTransparencyStats } from '../hooks/useTransparency';
 
-import { PillButton } from './MonitorPageHeader';
+import { PillButton } from './PillButton';
 import {
   MONITOR_ACCENT,
   MONITOR_BODY,

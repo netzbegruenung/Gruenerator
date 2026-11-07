@@ -1,0 +1,32 @@
+/*
+ * Farben der Dashboard-Seiten (/wissen, /briefing) — die einzige Stelle, an der
+ * sie stehen. Gilt unter `.dashboard-surface`. Komponenten lesen sie über `var(--dash-…)` (Tailwind: `bg-(--dash-card)`),
+ * nie als Hex-Literal. Werte aus den Entwürfen „Wissens-Dashboard Redesign"
+ * und „Puls" (Claude Design, 06.11.2026). Rahmen, Text und Schatten kommen aus den
+ * App-Tokens (`border-border`, `text-foreground`, `shadow-md` …).
+ */
+.dashboard-surface {
+  --dash-mg: #b0005f; /* Akzent: Links, Linien, aktive Marken */
+  --dash-mg-ink: #8a004a; /* Text auf der Tönung */
+  --dash-on-mg: #ffffff; /* Text auf voller Akzentfläche */
+  --dash-mg-tint: #fce4ef; /* Kachel- und Knopffläche */
+  --dash-mg-tint-2: #f8cfe1; /* … im Hover */
+  --dash-mg-sub: #6e2a4c; /* Unterzeile auf der Tönung */
+  --dash-mg-dot: #e7c3d4; /* inaktive Slider-Punkte */
+  --dash-page: #f9f6f7;
+  --dash-card: #ffffff;
+  --dash-skeleton: #efe8eb;
+}
+
+[data-theme='dark'] .dashboard-surface {
+  --dash-mg: #f06ba8;
+  --dash-mg-ink: #f7b3d2;
+  --dash-on-mg: #161314;
+  --dash-mg-tint: #3a1a2b;
+  --dash-mg-tint-2: #4a2238;
+  --dash-mg-sub: #d9a3bd;
+  --dash-mg-dot: #5a3447;
+  --dash-page: #161314;
+  --dash-card: #242022;
+  --dash-skeleton: #332c30;
+}

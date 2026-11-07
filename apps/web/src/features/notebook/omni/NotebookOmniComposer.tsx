@@ -315,7 +315,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
   return (
     <div className="relative mx-auto w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500">
+      {/* Pille des Wissens-Dashboards; die Farben kommen aus dessen `--dash-*`-Tokens (WissenDashboardFrame). */}
+      <div className="flex items-center gap-2 rounded-full border border-border bg-(--dash-card) py-1.5 pl-[18px] pr-1.5 shadow-sm transition-colors focus-within:border-(--dash-mg) md:pl-5 lg:pl-6 lg:shadow-md">
         <div className="relative min-w-0 flex-1">
           {question.length === 0 && (
             <TypingAnimation
@@ -323,7 +324,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
                 isMobile ? OMNI_EXAMPLES_SHORT : isAustrian ? OMNI_EXAMPLES_AT : OMNI_EXAMPLES_DE
               }
               loop
-              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-muted-brand"
+              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-muted-foreground lg:text-[17px]"
               typeSpeed={45}
               deleteSpeed={20}
               pauseDelay={1400}
@@ -344,7 +345,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
             }}
             onKeyDown={onKeyDown}
             aria-label="Notebooks fragen oder durchsuchen"
-            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
+            className="w-full min-w-0 border-0 bg-transparent py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground lg:text-[17px]"
           />
         </div>
 
@@ -364,8 +365,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           onClick={runPrimary}
           disabled={question.length === 0}
           aria-label="Fragen oder suchen"
-          // Same colours as the Wissen tiles; empty, it takes the tile tone instead of fading.
-          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#C80050] text-white transition-[background,transform] enabled:hover:bg-[#A00044] enabled:active:scale-95 disabled:bg-[#FCDDE4] disabled:text-[#C80050] dark:bg-[#EE6090] dark:text-[#2C121A] dark:enabled:hover:bg-[#F2A6C0] dark:disabled:bg-[#2C121A] dark:disabled:text-[#EE6090]"
+          // Empty it takes the tile tint (as in the design); with text it fills with the accent.
+          className="flex size-11 flex-none items-center justify-center rounded-full bg-(--dash-mg) text-(--dash-card) transition-[background,transform] enabled:hover:bg-(--dash-mg-ink) enabled:active:scale-95 disabled:bg-(--dash-mg-tint) disabled:text-(--dash-mg)"
         >
           <svg
             viewBox="0 0 24 24"
@@ -374,7 +375,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
             strokeWidth={2.1}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[17px] w-[17px]"
+            className="size-5"
           >
             <path d="M5 12h14" />
             <path d="m12 5 7 7-7 7" />

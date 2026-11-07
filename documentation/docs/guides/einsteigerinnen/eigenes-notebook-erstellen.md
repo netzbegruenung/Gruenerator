@@ -11,7 +11,7 @@ In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und 
 
 ## So geht's
 
-1. **Zur Wissen-Seite.** Öffne **Wissen** (`/wissen`) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte **„Neues erstellen"**; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte **„Eigene Notebooks"** und klappt den Abschnitt **„Eigene"** mit dem Button **„Notebook erstellen"** auf.
+1. **Zur Wissen-Seite.** Öffne **Wissen** (`/wissen`) — dort liegen alle Notebooks an einem Ort. Neben der Überschrift **„Deine Notebooks"** steht der Link **„Neues erstellen"**; ein Klick öffnet den Editor. Hast du noch keins, führt auch die Kachel **„Meine Notebooks"** dorthin. Sobald du eins besitzt, klappt sie die Liste deiner Notebooks auf.
 
    ![Die Notebook-Leiste auf der Wissen-Seite mit der Karte „Neues erstellen" in der Mitte](/img/guides/wissen-notebook-leiste.webp)
 
