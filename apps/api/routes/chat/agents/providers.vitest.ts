@@ -8,7 +8,7 @@ import {
   isUnifiedGemma,
   resolveModelTuple,
   unifiedFallbackStages,
-  resolveUnifiedLaneChain,
+  resolveLoopLaneChain,
 } from './providers.js';
 import {
   GEMMA_31B_ALTERNATE,
@@ -381,7 +381,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
  * Es gibt ZWEI: die in `services/ai/providers.ts` und diese hier in
  * `routes/chat/agents/providers.ts` — und die zweite ist die, die der ganze
  * Chat-Pfad benutzt (`responseStreamingService`, Synth-Slot,
- * `getLoopSynthFallbackModel`). Beim ersten Anlauf am 19.08.2026 war nur die
+ * `getRepairWriterFallback`). Beim ersten Anlauf am 19.08.2026 war nur die
  * erste gepatcht; das Veto reiste im Options-Objekt mit und wurde hier still
  * verworfen. Der Fix bewirkte nichts.
  *
@@ -446,13 +446,13 @@ describe('unifiedFallbackStages', () => {
   });
 });
 
-describe('resolveUnifiedLaneChain', () => {
-  const ids = (chain: ReturnType<typeof resolveUnifiedLaneChain>) =>
+describe('resolveLoopLaneChain', () => {
+  const ids = (chain: ReturnType<typeof resolveLoopLaneChain>) =>
     chain.map((s) => `${s.provider}/${s.model}`);
 
   it('gesund: die gewählte Stufe zuerst, dahinter :speed und Mistral Large 4', () => {
     _resetModelHealthForTests();
-    expect(ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'))).toEqual([
+    expect(ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced'))).toEqual([
       'melious/gemma-4-31b:balanced',
       'melious/gemma-4-31b:speed',
       `mistral/${LOOP_SYNTH_FALLBACK.model}`,
@@ -462,7 +462,7 @@ describe('resolveUnifiedLaneChain', () => {
   it('ein zäher :balanced rückt ans Ende — der Zug startet auf :speed, nie auf Cortecs', () => {
     _resetModelHealthForTests();
     recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
-    const chain = ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'));
+    const chain = ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced'));
     expect(chain).toEqual([
       'melious/gemma-4-31b:speed',
       `mistral/${LOOP_SYNTH_FALLBACK.model}`,
@@ -475,7 +475,7 @@ describe('resolveUnifiedLaneChain', () => {
   it('ging :balanced auf dem Draht als :speed raus, fehlt die :speed-Stufe', () => {
     _resetModelHealthForTests();
     expect(
-      ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'))
+      ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'))
     ).toEqual(['melious/gemma-4-31b:balanced', `mistral/${LOOP_SYNTH_FALLBACK.model}`]);
   });
 
@@ -483,7 +483,7 @@ describe('resolveUnifiedLaneChain', () => {
   // steht hier, weil nur dessen Getter ohne Schlüssel baut.
   it('Mistral: die gewählte Stufe, dahinter Gemma :speed', () => {
     _resetModelHealthForTests();
-    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))).toEqual([
+    expect(ids(resolveLoopLaneChain('mistral', 'mistral-large-4'))).toEqual([
       'mistral/mistral-large-4',
       'melious/gemma-4-31b:speed',
     ]);
@@ -492,7 +492,7 @@ describe('resolveUnifiedLaneChain', () => {
   it('ein zäher Mistral bleibt vorn — die Wahl Ultra wechselt nur, wenn er schweigt', () => {
     _resetModelHealthForTests();
     recordSlowVerdict('mistral', 'mistral-large-4', 'test');
-    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
+    expect(ids(resolveLoopLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
       'mistral/mistral-large-4'
     );
     _resetModelHealthForTests();

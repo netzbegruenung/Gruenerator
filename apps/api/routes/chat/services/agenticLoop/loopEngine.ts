@@ -5,8 +5,8 @@
  *
  * One model drives the tools AND writes the answer in one streamed pass
  * (`streamWithTools`), over a lane chain that switches only before any tool
- * call or output (`runLaneChain`). A tool-less writer (`synthesize`) re-writes
- * an answer that came out unusable (`repairUnifiedAnswer`). The former split
+ * call or output (`runLaneChain`). A tool-less writer (`writeRepair`) re-writes
+ * an answer that came out unusable (`repairAnswer`). The former split
  * mode (planner gathers, writer answers) was removed in #5441.
  *
  * Tool cards, guards, timeouts, truncation and step recording are already baked
@@ -240,7 +240,7 @@ export const TOOL_USE_RULES: string = [
 ].join('\n');
 
 /** What the loop model is told about writing the answer (the repair writer gets
- *  the same through `buildSynthSystem`). */
+ *  the same through `buildRepairSystem`). */
 export const UNIFIED_WRITER_RULES: string = [
   '',
   '',
@@ -251,7 +251,7 @@ export const UNIFIED_WRITER_RULES: string = [
   'Steht in einem Werkzeugergebnis ein Feld `fuerSchreiber` oder `antwortregel`, ist das eine verbindliche Anweisung an deine Antwort — beachte sie vor allem anderen.',
 ].join('\n');
 
-export const UNIFIED_SUFFIX = TOOL_USE_RULES + UNIFIED_WRITER_RULES;
+export const LOOP_SUFFIX = TOOL_USE_RULES + UNIFIED_WRITER_RULES;
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
 function tryLenientJsonParse(raw: string): unknown {
@@ -506,23 +506,23 @@ const repairToolCall: NonNullable<
 
 export interface LoopEngineParams {
   /** Runs the tool loop and writes the user-facing answer in one stream. */
-  synthModel: LanguageModel;
+  model: LanguageModel;
   /** Repair writer only: sibling lane, tried once when the tool-less writer
-   *  goes silent or returns nothing. Set by `repairUnifiedAnswer` from `repairFallback`. */
-  synthFallbackModel?: LanguageModel;
+   *  goes silent or returns nothing. Set by `repairAnswer` from `repairFallback`. */
+  repairSiblingModel?: LanguageModel;
   /** The tool-less writer that re-writes a failed answer (`LOOP_SYNTH_PRIMARY`
    *  chain). Omit and a failed answer stays as it was. */
   repairModel?: LanguageModel;
   /** Sibling lane of `repairModel` (`LOOP_SYNTH_FALLBACK`). */
   repairFallback?: LanguageModel;
   /** Whether the turn created or edited an artifact. An empty answer after one
-   *  is confirmed by the caller, not repaired. Read AFTER `afterGather`, which
+   *  is confirmed by the caller, not repaired. Read AFTER `ensureOwedTools`, which
    *  may still produce one. */
   producedArtifact?: () => boolean;
-  /** Tried in order when `synthModel` rejects or stays silent before any tool
+  /** Tried in order when `model` rejects or stays silent before any tool
    *  call or output (see `runLaneChain`). Empty or omitted, the error
    *  surfaces. */
-  unifiedFallbacks?: readonly LanguageModel[];
+  fallbackModels?: readonly LanguageModel[];
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
   /**
@@ -537,12 +537,12 @@ export interface LoopEngineParams {
   /** Per-turn recall, sent as a second system message (see {@link withTurnContext}). */
   turnContext?: string | null;
   /** Builds the repair writer's system from the numbered sources block. */
-  buildSynthSystem: (sourcesBlock: string) => string;
+  buildRepairSystem: (sourcesBlock: string) => string;
   getSourcesBlock: () => string;
   /**
    * Recipe block for the TOOL phase, read fresh on every step because
    * `rezept_laden` fills it mid-loop. The repair writer gets the same text
-   * through `buildSynthSystem` — the caller owns that side.
+   * through `buildRepairSystem` — the caller owns that side.
    */
   getRecipeBlock?: () => string;
   messages: ModelMessage[];
@@ -552,11 +552,11 @@ export interface LoopEngineParams {
    *  tool-call/tool-result messages primes the model to imitate the pattern in
    *  prose instead of answering (observed live: the whole answer was
    *  "Let's perform web_search."). */
-  synthMessages?: ModelMessage[];
-  /** The writer history for `synthFallbackModel`, built only when
+  repairMessages?: ModelMessage[];
+  /** The writer history for `repairSiblingModel`, built only when
    *  the fallback fires, from the system prompt that pass sends — re-pruned
    *  when its window is smaller (#4201, #4204). Defaults to the synth messages. */
-  synthFallbackMessages?: (system: string) => ModelMessage[];
+  repairSiblingMessages?: (system: string) => ModelMessage[];
   maxSteps: number;
   temperature: number;
   /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
@@ -604,8 +604,8 @@ export interface LoopEngineParams {
    * was down or rate-limited. The caller uses it to remember the lane
    * (`modelHealth`), not to switch — the ladder switches by itself.
    *
-   * `laneIndex` is the position in the ladder `[synthModel,
-   * ...unifiedFallbacks]`. EVERY stage reports, not only the first: until 06.11.2026 only the
+   * `laneIndex` is the position in the ladder `[model,
+   * ...fallbackModels]`. EVERY stage reports, not only the first: until 06.11.2026 only the
    * turn's own planner lane was recorded, so a stalled fallback stage stayed
    * first choice behind it and the next turn paid its deadline again.
    *
@@ -618,7 +618,7 @@ export interface LoopEngineParams {
   /** Runs AFTER the stream: the net for an owed artifact or edit the model did
    *  not call even under the named step (`owedToolName`), e.g. on a host that
    *  ignores `tool_choice`. Idempotent — no-op when the tool already ran. */
-  afterGather?: () => Promise<boolean | void>;
+  ensureOwedTools?: () => Promise<boolean | void>;
   /**
    * Output-integrity check on the answer (after the refusal/tool-plan
    * verdicts). Returns a system suffix describing what to fix (e.g.
@@ -630,7 +630,7 @@ export interface LoopEngineParams {
   validateAnswer?: (text: string) => string | null;
   /**
    * Wahr, sobald ein Werkzeugaufruf auf eine Freigabe wartet. Wird NACH der
-   * Werkzeugphase und VOR `afterGather` und Reparatur geprüft: sonst würden
+   * Werkzeugphase und VOR `ensureOwedTools` und Reparatur geprüft: sonst würden
    * die Artefakt-Garantien Artefakte erzeugen, während die Person noch
    * entscheidet.
    */
@@ -704,7 +704,7 @@ function unifiedRepairReason(
 /** Re-write a failed answer with the tool-less writer; the caller's
  *  `completion` replace carries the result. Null when the repair produced no
  *  answer. */
-async function repairUnifiedAnswer(
+async function repairAnswer(
   p: LoopEngineParams,
   deps: LoopDeps,
   reason: UnifiedRepairReason,
@@ -718,11 +718,11 @@ async function repairUnifiedAnswer(
     inputs: { textLength: failed.text.length, finishReason: failed.finishReason },
   });
   try {
-    const repaired = await synthesize(
+    const repaired = await writeRepair(
       {
         ...p,
-        synthModel: p.repairModel,
-        ...(p.repairFallback != null && { synthFallbackModel: p.repairFallback }),
+        model: p.repairModel,
+        ...(p.repairFallback != null && { repairSiblingModel: p.repairFallback }),
       },
       deps
     );
@@ -743,7 +743,7 @@ export async function runAgenticLoop(
   p: LoopEngineParams,
   deps: LoopDeps = defaultDeps
 ): Promise<LoopResult> {
-  const lanes = [p.synthModel, ...(p.unifiedFallbacks ?? [])];
+  const lanes = [p.model, ...(p.fallbackModels ?? [])];
   const { finishReason, ...streamed } = await runLaneChain(
     lanes,
     async (model, isLast, index): Promise<LaneAttempt<StreamWithToolsResult>> => {
@@ -769,7 +769,7 @@ export async function runAgenticLoop(
   if (p.suspended?.()) throw new TurnSuspendedError();
   // The artifact/edit guarantees run AFTER the stream (idempotent — the hooks
   // no-op when the model already created/edited).
-  if (p.afterGather) await p.afterGather();
+  if (p.ensureOwedTools) await p.ensureOwedTools();
   if (p.repairModel != null && !p.abortSignal.aborted) {
     // An English decline is surfaced as a decline, never re-written.
     if (looksLikeSynthRefusal(result.text) && refusalLanguage(result.text) === 'en') {
@@ -785,7 +785,7 @@ export async function runAgenticLoop(
     }
     const reason = unifiedRepairReason(result, p);
     if (reason != null) {
-      const repaired = await repairUnifiedAnswer(p, deps, reason, result);
+      const repaired = await repairAnswer(p, deps, reason, result);
       if (repaired) return repaired;
       // Ein geleakter Werkzeugplan ist keine Antwort, auch wenn die Reparatur
       // scheitert: leer zurück, dann schreibt der Aufrufer seinen ehrlichen
@@ -810,7 +810,7 @@ async function streamWithTools(
    *  then only costs FIRST_RESPONSE_DEADLINE_MS. */
   hasNextLane: boolean
 ): Promise<StreamWithToolsResult> {
-  const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
+  const unifiedSystem = `${p.toolSystem}${LOOP_SUFFIX}`;
   const prefillMs = prefillAllowanceForModel(
     model,
     `${unifiedSystem}${p.turnContext ?? ''}`,
@@ -1146,11 +1146,11 @@ export function looksLikeToolPlanLeak(text: string, toolNames: readonly string[]
 /** The repair writer: re-writes a failed loop answer over the collected
  *  sources, without tools. Nothing of it streams — the caller's `completion`
  *  replace carries the returned text. */
-async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<string> {
+async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string> {
   // Runs WITHOUT tools, so it must not see the tool-call/tool-result replay the
-  // loop needs — see `synthMessages`.
-  const messages = p.synthMessages ?? p.messages;
-  const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
+  // loop needs — see `repairMessages`.
+  const messages = p.repairMessages ?? p.messages;
+  const baseSystem = p.buildRepairSystem(p.getSourcesBlock());
   const toolNames = Object.keys(p.tools);
 
   interface SynthPass {
@@ -1193,18 +1193,18 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<string> 
       runPass(
         system,
         fallback,
-        p.synthFallbackMessages?.(`${system}${p.turnContext ?? ''}`) ?? messages
+        p.repairSiblingMessages?.(`${system}${p.turnContext ?? ''}`) ?? messages
       );
     let pass: SynthPass;
     try {
-      pass = await runPass(system, p.synthModel, messages);
+      pass = await runPass(system, p.model, messages);
     } catch (err) {
-      if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
+      if (!isSynthStall(err) || !p.repairSiblingModel) throw err;
       log.warn(
         `[Engine] synth lane silent past its window (${err.message}) — retrying once on the fallback lane`
       );
       p.onRepairWriterUnhealthy?.('synth_stall');
-      return onFallback(p.synthFallbackModel);
+      return onFallback(p.repairSiblingModel);
     }
     // Live 03.11.2026 Mistral Large 4 closed a thinking stream three times in
     // one thread with no text and no finish reason. A degenerate pass has its
@@ -1212,7 +1212,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<string> 
     if (
       pass.text.trim().length > 0 ||
       pass.finishReason === DEGENERATE_FINISH_REASON ||
-      !p.synthFallbackModel ||
+      !p.repairSiblingModel ||
       p.abortSignal.aborted
     ) {
       return pass;
@@ -1221,7 +1221,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<string> 
       `[Engine] synth lane returned no text (finish=${pass.finishReason ?? 'none'}) — retrying once on the fallback lane`
     );
     p.onRepairWriterUnhealthy?.('synth_empty');
-    return onFallback(p.synthFallbackModel);
+    return onFallback(p.repairSiblingModel);
   };
 
   /** Why the answer is unusable as-is — a retry suffix, or null for valid. An

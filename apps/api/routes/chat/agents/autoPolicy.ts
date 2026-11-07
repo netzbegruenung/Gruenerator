@@ -472,7 +472,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * these into LanguageModel instances (it owns env + getModel).
  *
  * PLANNER-Kette — seit #5441 nur noch der Ausweich des Reparatur-Schreibers
- * (`getLoopSynthFallbackModel`): Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
+ * (`getRepairWriterFallback`): Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
  * Gewichte auf Cortecs dahinter, Mistral Small 4 bei Mistral zuletzt (seit
  * 28.10.2026, #5113; vom 21.10. an Gemma 4 auf GreenPT, davor Mistral Small 4
  * auf Melious und Mistral Large).

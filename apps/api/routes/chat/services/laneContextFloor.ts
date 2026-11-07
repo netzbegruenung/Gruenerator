@@ -41,7 +41,7 @@
  * NOT considered: the first-token-timeout `fallback` of a single lane. The
  * single-pass, resume and notebook paths re-prune for a smaller fallback
  * window per attempt (`messagesForLane`, #4198), the loop's synth fallback
- * when it fires (`synthFallbackMessages`, #4201). A floor here would only make
+ * when it fires (`repairSiblingMessages`, #4201). A floor here would only make
  * the agentic path quietly stricter than the others for the same explicit
  * model.
  */

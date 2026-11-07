@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import { createAfterGather, owedToolName, type GuaranteeContext } from './loopGuarantees.js';
+import { createEnsureOwedTools, owedToolName, type GuaranteeContext } from './loopGuarantees.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
@@ -42,7 +42,7 @@ function harness(
     onInfo: vi.fn(),
     onWarn: vi.fn(),
   };
-  return { run: createAfterGather(ctx), execute };
+  return { run: createEnsureOwedTools(ctx), execute };
 }
 
 describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der Intent', () => {

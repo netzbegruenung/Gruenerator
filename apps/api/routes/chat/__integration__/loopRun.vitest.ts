@@ -377,7 +377,7 @@ describe('unified loop', () => {
       toolName: 'sharepic',
     });
     // The scripted response ends after the research, so the post-stream net
-    // (afterGather) still delivers the sharepic.
+    // (ensureOwedTools) still delivers the sharepic.
     expect(events.map((e) => e.event)).toContain('sharepic_complete');
   });
 });

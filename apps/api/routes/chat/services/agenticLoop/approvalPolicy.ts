@@ -17,7 +17,7 @@ export type ApprovalVerdict =
  * Interne Werkzeuge mit Seiteneffekt, die das Gate abdecken soll. Bewusst klein:
  * die Schreibpfade in `personalDataTools.ts` fragen bereits über `confirm_action`
  * bzw. ihr eigenes `confirm=true`, und die Generierungswerkzeuge (`create_*`)
- * ruft `createAfterGather` am UNgewrappten Katalog auf — ein Eintrag für sie
+ * ruft `createEnsureOwedTools` am UNgewrappten Katalog auf — ein Eintrag für sie
  * würde dort stillschweigend übergangen. Wer ein Werkzeug einträgt, prüft
  * zuerst, dass die Garantie-Schicht (`loopGuarantees.ts`) es nicht direkt ruft.
  *

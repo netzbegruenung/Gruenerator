@@ -631,7 +631,7 @@ export function getModel(
   // `acceptTarget` MUSS hier durchgereicht werden. Dies ist die ZWEITE
   // `getModel`-Tür neben der in `services/ai/providers.ts`, und es ist die, die
   // der ganze Chat-Pfad benutzt (`responseStreamingService`, der Synth-Slot,
-  // `getLoopSynthFallbackModel`). Nur an der anderen Tür gesetzt, wurde das
+  // `getRepairWriterFallback`). Nur an der anderen Tür gesetzt, wurde das
   // Veto still verworfen und die Ausweichkette landete weiter auf
   // `litellm/verdigado-pro` (= gpt-oss am Proxy) — der Fix hätte nichts
   // bewirkt, und ein Test, der bloss das übergebene Options-Objekt prüft,
@@ -849,7 +849,7 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
  * ausdrückliche Wahl, ein langsames Modell bleibt dieses Modell. Gewechselt wird
  * nur, wenn es vor jeder Ausgabe schweigt oder ablehnt.
  */
-export function resolveUnifiedLaneChain(
+export function resolveLoopLaneChain(
   provider: string,
   modelName: string,
   wireModelName: string | null = null,
@@ -876,7 +876,7 @@ export function resolveUnifiedLaneChain(
 }
 
 /**
- * Repair-writer model policy: the tool-less writer (`repairUnifiedAnswer`) and
+ * Repair-writer model policy: the tool-less writer (`repairAnswer`) and
  * its sibling, the former split planner's ladder (#5441). The slot
  * DECLARATIONS live in `autoPolicy.ts` next to the intent table; this module
  * only turns them into LanguageModel instances (it owns env + getModel).
@@ -944,7 +944,7 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
 const synthTargetAllowed = mayWriteAnswer;
 
 /**
- * Sibling lane for the repair writer (`repairUnifiedAnswer`), tried once when
+ * Sibling lane for the repair writer (`repairAnswer`), tried once when
  * the chosen writer accepts the request and then goes silent.
  *
  * The first usable stage of `LOOP_PLANNER_CHAIN` — the former split planner's
@@ -952,7 +952,7 @@ const synthTargetAllowed = mayWriteAnswer;
  * writer already IS that lane, since falling back onto the stalled host would
  * only repeat the stall.
  */
-export function getLoopSynthFallbackModel(
+export function getRepairWriterFallback(
   synthName: string
 ): { model: LanguageModel; name: string; contextWindow: number } | null {
   const p = loopPlannerChoice();
@@ -995,7 +995,7 @@ export function loopSynthChoice(
   return loopSynthWriterChoice();
 }
 
-export function getLoopSynthModel(
+export function getRepairWriter(
   resolution: { model: LanguageModel; modelName: string; provider: string },
   undecided: boolean
 ): { model: LanguageModel; name: string; provider: string } {

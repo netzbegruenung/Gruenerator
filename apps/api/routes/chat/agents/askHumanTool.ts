@@ -5,7 +5,7 @@
  * Karte, Schritt und Ausführung ab und hält ihn im `askHumanGate` — der Zug
  * pausiert und fragt die Nutzer*in (Suspend/Resume wie bei der
  * Werkzeug-Freigabe). `execute` ist der defensive Rest für den Fall, dass ein
- * Aufrufer am Wrapper vorbei greift (z. B. `createAfterGather` am ungewrappten
+ * Aufrufer am Wrapper vorbei greift (z. B. `createEnsureOwedTools` am ungewrappten
  * Katalog): dann passiert nichts Schlimmes, aber auch keine Frage.
  *
  * Der Name ist Vertrag: `ask_human` ist auf Web UND in ausgelieferten

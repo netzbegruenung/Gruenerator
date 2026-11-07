@@ -85,7 +85,7 @@ function compoundGenerationOwed(state: ChatGraphState): boolean {
 }
 
 /** The forced-edit guarantee is owed: the open artefact must be edited. Not the
- *  intent alone — see the note in `afterGather` — the surface and the ask count too. */
+ *  intent alone — see the note in `ensureOwedTools` — the surface and the ask count too. */
 function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
   const editSurface = state.editToolSurface;
   return Boolean(
@@ -116,7 +116,7 @@ function turnHasArtifact(state: ChatGraphState): boolean {
  *
  * The loop forces it as a named step — at step 0 when nothing else is forced,
  * otherwise as soon as the forced first call is done (`forcedToolForStep`) — so
- * the writer sees the tool result BEFORE it writes. `afterGather` stays as the
+ * the writer sees the tool result BEFORE it writes. `ensureOwedTools` stays as the
  * net for a host that ignores `tool_choice`.
  *
  * `userAsk` is the turn's last user text (the forced edit reads it too).
@@ -159,8 +159,8 @@ export interface GuaranteeContext {
   onWarn: (message: string) => void;
 }
 
-/** Builds the `afterGather` hook loopEngine calls after the stream. */
-export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
+/** Builds the `ensureOwedTools` hook loopEngine calls after the stream. */
+export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolean> {
   // The compound turn's whole point is the artifact. If the loop produced
   // none, invoke the mounted generation tool directly with the researched
   // sources as the brief.
@@ -272,7 +272,7 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     }
   };
 
-  const afterGather = async (): Promise<boolean> => {
+  const ensureOwedTools = async (): Promise<boolean> => {
     const pinnedRan = await forcePinnedBundestag();
     // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
     //     open artefact. The loop model unreliably calls edit_document
@@ -319,5 +319,5 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     return pinnedRan;
   };
 
-  return afterGather;
+  return ensureOwedTools;
 }

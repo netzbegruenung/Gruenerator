@@ -3,7 +3,7 @@
  * was es mit dem Veröffentlichungsdatum einer Quelle anfangen soll.
  *
  * Eigene Datei, weil sie ZWEI Schreiber erreichen muss und trotzdem nur an
- * einem Ort stehen darf: den Reparatur-Schreiber (`buildSynthSystem`) und das
+ * einem Ort stehen darf: den Reparatur-Schreiber (`buildRepairSystem`) und das
  * Loop-Modell (`buildToolUsageBlock`, #2954).
  */
 export const RECENCY_RULE =
