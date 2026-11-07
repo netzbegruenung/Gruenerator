@@ -43,6 +43,7 @@ import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
+import { withTurnPaste } from '../materialItems.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { orderText } from '../orderText.js';
 import {
@@ -230,6 +231,11 @@ export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
     systemMessage: string;
+    /** Der eingefügte Text aus `buildTurnPrompt` — geht in die letzte
+     *  Nutzernachricht, erst beim Zusammenbau für das Modell (#5431). Pflicht,
+     *  damit jeder Aufrufer entscheidet: ein Prompt aus `buildSystemMessage`
+     *  trägt ihn schon und gibt `null`. */
+    turnPaste: string | null;
     /** Rückblick auf frühere Gespräche: geht als zweite System-Nachricht an das
      *  Modell, damit der Prompt-Prefix cachebar bleibt (`withTurnContext`). */
     turnContext?: string | null;
@@ -277,6 +283,7 @@ export async function streamAgenticResponse(
   const {
     finalState,
     systemMessage,
+    turnPaste,
     turnContext,
     messages,
     modelId,
@@ -578,9 +585,14 @@ export async function streamAgenticResponse(
       mcpCapabilityQuestion,
     });
 
+    // Was das Modell bekommt: Verlauf mit dem Paste in der letzten Nachricht
+    // (#5431). Alles darüber liest den Nutzertext aus `messages` — dort ist der
+    // Paste kein Teil des Auftrags. `materialDominatesTurn` rechnet weiter
+    // gegen Prompt PLUS Material: der Kanal sagt nichts über den Turn.
+    const turnMessages = withTurnPaste(messages, turnPaste);
     const materialHeavy = materialDominatesTurn(
       lastUserText,
-      `${systemMessage}${turnContext ?? ''}`,
+      `${systemMessage}${turnPaste ?? ''}${turnContext ?? ''}`,
       carriedMaterialChars
     );
     const resolvedMode = resolveLoopMode({
@@ -655,9 +667,17 @@ export async function streamAgenticResponse(
     const plannerSystem = plannerStub
       ? replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text)
       : toolSystem;
-    if (plannerSystem !== toolSystem) {
+    // Derselbe Platzhalter für den Paste in der Nachricht.
+    const plannerMessages =
+      plannerStub && turnPaste
+        ? withTurnPaste(
+            messages,
+            replaceUntrustedBlocks(turnPaste, plannerStub.kind, plannerStub.text)
+          )
+        : turnMessages;
+    if (plannerSystem !== toolSystem || plannerMessages !== turnMessages) {
       log.info(
-        `[Agentic] planner sees a stub for the whole document (${toolSystem.length} → ${plannerSystem.length} chars); the writer keeps the full text`
+        `[Agentic] planner sees a stub for the whole document (${toolSystem.length} → ${plannerSystem.length} chars system${plannerMessages !== turnMessages ? ', pasted text stubbed in the message' : ''}); the writer keeps the full text`
       );
     }
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
@@ -858,7 +878,7 @@ export async function streamAgenticResponse(
     // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
     // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
     const wireModelFor = (modelName: string): string | null =>
-      meliousGoesWide(modelName, estimatedRequestChars(toolSystem, messages, wrapped))
+      meliousGoesWide(modelName, estimatedRequestChars(toolSystem, turnMessages, wrapped))
         ? MELIOUS_WIDE_MODEL
         : null;
     // Unified Gemma: die ganze Kette, gewählte Stufe zuerst — ist sie als zäh
@@ -1017,11 +1037,11 @@ export async function streamAgenticResponse(
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
-      messages: spliceToolReplay(messages, toolReplayMessages),
+      messages: spliceToolReplay(plannerMessages, toolReplayMessages),
       // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
-      synthMessages: messages,
+      synthMessages: turnMessages,
       // The history was pruned for the selected lane — up to 262k on an
       // explicit Mistral Medium turn. The fallback is the planner lane, which
       // Melious caps near 131k (#4201).
@@ -1030,8 +1050,8 @@ export async function streamAgenticResponse(
           messagesForLane(
             { modelName: writerFallback.name, contextWindow: writerFallback.contextWindow },
             primaryWindow,
-            messages,
-            (window) => pruneMessages(messages, window, system),
+            turnMessages,
+            (window) => pruneMessages(turnMessages, window, system),
             '[Agentic]'
           ),
       }),
