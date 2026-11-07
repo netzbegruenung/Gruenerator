@@ -87,6 +87,12 @@ export interface StreamTextRecord {
    * ist sonst nirgends beobachtbar. `null` = voller Umfang.
    */
   firstStepActiveTools: readonly string[] | null;
+  /**
+   * What `prepareStep` asks for once the scripted calls have run — the step a
+   * real SDK loop would prepare next. Shows a forced follow-up step (an owed
+   * artefact after the research) that the single scripted response cannot run.
+   */
+  afterCallsToolChoice: unknown;
 }
 
 export interface LoopScript {
@@ -171,6 +177,7 @@ export function fakeLoopStreamText(options: {
     toolChoice: firstStep?.toolChoice ?? null,
     messages: options.messages ?? [],
     firstStepActiveTools: firstStep?.activeTools ?? null,
+    afterCallsToolChoice: null,
   });
 
   const response = queue.shift();
@@ -229,6 +236,10 @@ export function fakeLoopStreamText(options: {
         await Promise.all(runs.map((run) => run()));
       } else {
         for (const [i, call] of calls.entries()) await (await prepareCall(call, i))();
+      }
+      const record = loopScript.calls[callIndex];
+      if (record && calls.length > 0) {
+        record.afterCallsToolChoice = options.prepareStep?.({ stepNumber: 1 })?.toolChoice ?? null;
       }
       yield* partsOf(response);
     })(),
