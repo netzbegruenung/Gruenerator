@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { TurnMaterialItem } from '../../../agents/langgraph/ChatGraph/types.js';
+
 const uploads: Array<{ originalname: string; text: string | null | undefined; bytes: string }> = [];
 
 vi.mock('../../../services/document-services/PostgresDocumentService/index.js', () => ({
@@ -31,6 +33,7 @@ vi.mock('../../../services/document-services/DocumentProcessingService/fileProce
 
 const { enrichContext } = await import('./contextEnrichmentService.js');
 const { PASTED_TEXT_HEADING } = await import('./attachmentProcessingService.js');
+const { setTurnMaterial } = await import('./materialItems.js');
 const { formatThreadAttachmentsContext } =
   await import('../../../agents/langgraph/ChatGraph/nodes/respondNode.js');
 
@@ -55,13 +58,28 @@ const meta = (text: string) => ({
   extractedText: text,
 });
 
+const pasteItem = (text: string): TurnMaterialItem => ({
+  kind: 'paste',
+  name: NAME,
+  heading: PASTED_TEXT_HEADING,
+  text,
+});
+const uploadItem = (name: string, text: string): TurnMaterialItem => ({
+  kind: 'upload',
+  name,
+  heading: `${name} (Volltext-Auszug)`,
+  text,
+});
+
 async function runEnrich(texts: string[], userText = '') {
   const initialState = {
-    attachmentContext: texts.map((t) => `### ${PASTED_TEXT_HEADING}\n\n${t}`).join('\n\n---\n\n'),
+    attachmentContext: null as string | null,
+    turnMaterial: [] as TurnMaterialItem[],
     documentChatIds: [] as string[],
     messages: userText ? [{ role: 'user', content: userText }] : [],
     threadAttachments: [],
   };
+  setTurnMaterial(initialState, texts.map(pasteItem));
   await enrichContext({
     initialState: initialState as never,
     userId: 'u1',
@@ -153,26 +171,49 @@ describe('two pastes in ONE message (same file name)', () => {
 // (keine Ganzdokument-Aufgabe: nicht alles Material ist eingefügt). Auch dort
 // trägt der Paste seine eigene Überschrift (#5423).
 describe('paste next to a vectorized upload', () => {
-  it('keeps the paste heading when the inline block is rebuilt', async () => {
-    const big = para('GROSS', 15_000);
-    const small = para('KLEIN', 2_000);
-    const upload = { ...paste(big), name: 'bericht.txt' };
+  const big = para('GROSS', 15_000);
+  const small = para('KLEIN', 2_000);
+
+  async function rebuild(items: TurnMaterialItem[]) {
     const initialState = {
-      attachmentContext: `### bericht.txt (Volltext-Auszug)\n\n${big}\n\n---\n\n### ${PASTED_TEXT_HEADING}\n\n${small}`,
+      attachmentContext: null as string | null,
+      turnMaterial: [] as TurnMaterialItem[],
       documentChatIds: [] as string[],
       messages: [{ role: 'user', content: 'Hier sind die Termine' }],
       threadAttachments: [],
     };
+    setTurnMaterial(initialState, items);
     await enrichContext({
       initialState: initialState as never,
       userId: 'u1',
-      docAttachments: [upload, paste(small)] as never,
+      docAttachments: [{ ...paste(big), name: 'bericht.txt' }, paste(small)] as never,
       processedMeta: [{ ...meta(big), name: 'bericht.txt' }, meta(small)] as never,
       contextWindowTokens: 128_000,
       sse: { send: vi.fn() } as never,
     });
-    expect(initialState.documentChatIds).toHaveLength(1);
-    expect(initialState.attachmentContext).toBe(`### ${PASTED_TEXT_HEADING}\n\n${small}`);
+    return initialState;
+  }
+
+  it('keeps the paste heading when the inline block is rebuilt', async () => {
+    const s = await rebuild([uploadItem('bericht.txt', big), pasteItem(small)]);
+    expect(s.documentChatIds).toHaveLength(1);
+    expect(s.attachmentContext).toBe(`### ${PASTED_TEXT_HEADING}\n\n${small}`);
+  });
+
+  // Der Neuaufbau setzte den Text früher nur aus den kleinen Dateien zusammen —
+  // Kontext vom Client und Referenzen desselben Turns fielen still heraus (#5430).
+  it('keeps client context and references next to the rebuilt files', async () => {
+    const client: TurnMaterialItem = { kind: 'client', text: 'Editor-Inhalt' };
+    const ref: TurnMaterialItem = {
+      kind: 'reference',
+      heading: 'REFERENZIERTE TEXTE',
+      text: 'Gespeicherter Text',
+    };
+    const s = await rebuild([client, uploadItem('bericht.txt', big), pasteItem(small), ref]);
+    expect(s.turnMaterial).toEqual([client, pasteItem(small), ref]);
+    expect(s.attachmentContext).toBe(
+      `Editor-Inhalt\n\n---\n\n### ${PASTED_TEXT_HEADING}\n\n${small}\n\n---\n\n## REFERENZIERTE TEXTE\n\nGespeicherter Text`
+    );
   });
 });
 

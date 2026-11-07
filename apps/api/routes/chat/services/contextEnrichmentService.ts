@@ -18,6 +18,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 import { isPastedTextAttachment, materialSectionHeading } from './attachmentProcessingService.js';
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
+import { appendTurnMaterial, replaceFileItems, setTurnMaterial } from './materialItems.js';
 import { sendChatWarning } from './sseHelpers.js';
 import { resolveWholeDocumentTurn } from './wholeDocument.js';
 
@@ -26,6 +27,7 @@ import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   ProcessedAttachment,
+  TurnMaterialItem,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('ChatGraphController');
@@ -97,9 +99,11 @@ export async function enrichContext(opts: {
     try {
       const docResult = await fetchDocumentContext(userId, rawDocumentIds);
       if (docResult.text) {
-        initialState.attachmentContext = initialState.attachmentContext
-          ? `${initialState.attachmentContext}\n\n---\n\n## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`
-          : `## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`;
+        appendTurnMaterial(initialState, {
+          kind: 'reference',
+          heading: 'REFERENZIERTE DOKUMENTE',
+          text: docResult.text,
+        });
       }
       // Too large to inline: the scoped search keeps `initialState.documentIds`
       // as authorized in buildStreamContext. Narrowing it to the owned subset
@@ -117,9 +121,11 @@ export async function enrichContext(opts: {
     try {
       const textResult = await fetchTextContext(userId, rawTextIds);
       if (textResult.text) {
-        initialState.attachmentContext = initialState.attachmentContext
-          ? `${initialState.attachmentContext}\n\n---\n\n## REFERENZIERTE TEXTE\n\n${textResult.text}`
-          : `## REFERENZIERTE TEXTE\n\n${textResult.text}`;
+        appendTurnMaterial(initialState, {
+          kind: 'reference',
+          heading: 'REFERENZIERTE TEXTE',
+          text: textResult.text,
+        });
         log.info(
           `[ChatGraph] Text context injected: ${textResult.totalChars} chars from ${textResult.count} text(s)`
         );
@@ -509,20 +515,23 @@ export async function enrichContext(opts: {
     initialState.documentChatIds &&
     initialState.documentChatIds.length > 0
   ) {
-    if (largeDocAttachments.length === docAttachments.length) {
-      initialState.attachmentContext = null;
-    } else {
-      const smallDocTexts = docAttachments
-        .filter((att) => !largeDocAttachments.includes(att))
-        .map((att) => metaOf.get(att))
-        .filter((m): m is ProcessedAttachmentMeta => !!m && !!m.extractedText)
-        // Label distinguishes this inline full-text path from the vectorized
-        // (RAG-chunked) sibling files in the same turn — see
-        // SMALL_DOC_VECTORIZATION_THRESHOLD above.
-        .map((m) => `### ${materialSectionHeading(m.name, m.mimeType)}\n\n${m.extractedText}`);
-      initialState.attachmentContext =
-        smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
-    }
+    // Nur die Datei-Einträge werden ersetzt: Referenzen und Client-Kontext
+    // desselben Turns bleiben stehen. Der Neuaufbau setzte früher den ganzen
+    // Text aus den kleinen Dateien neu zusammen und verlor sie still.
+    const smallFileItems = docAttachments
+      .filter((att) => !largeDocAttachments.includes(att))
+      .map((att) => metaOf.get(att))
+      .filter((m): m is ProcessedAttachmentMeta => !!m && !!m.extractedText)
+      // Label distinguishes this inline full-text path from the vectorized
+      // (RAG-chunked) sibling files in the same turn — see
+      // SMALL_DOC_VECTORIZATION_THRESHOLD above.
+      .map((m): TurnMaterialItem => ({
+        kind: isPastedTextAttachment(m.name, m.mimeType) ? 'paste' : 'upload',
+        name: m.name,
+        heading: materialSectionHeading(m.name, m.mimeType),
+        text: m.extractedText!,
+      }));
+    setTurnMaterial(initialState, replaceFileItems(initialState.turnMaterial, smallFileItems));
     log.info(
       `[ChatGraph] Attachment routing: ${largeDocAttachments.length} vectorized (RAG), ${docAttachments.length - largeDocAttachments.length} inline`
     );
