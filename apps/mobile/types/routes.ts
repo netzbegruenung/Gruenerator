@@ -50,6 +50,10 @@ export interface ModalRouteParams {
     /** Opens one briefing card at start, e.g. `keywords`. An unknown value opens none. */
     karte?: string;
   };
+  '/(focused)/umfragen': {
+    /** A single parliament's page (`bayern`, `oesterreich` …). An unknown value leads back to the overview. */
+    land?: string;
+  };
   '/(focused)/bild-editor': {
     /** Opens in „Sharepic" mode instead of „KI-Bild". */
     mode?: 'sharepic';

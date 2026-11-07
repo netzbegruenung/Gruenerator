@@ -78,6 +78,11 @@ module.exports = {
     // need the same stub.
     '^nanoid(/non-secure)?$': '<rootDir>/test/stubs/nanoid.ts',
 
+    // d3-geo and d3-scale ship ESM only (Umfragen maps, reached through
+    // `@gruenerator/shared/monitor`); see the stubs for why they are not transformed.
+    '^d3-geo$': '<rootDir>/test/stubs/d3-geo.ts',
+    '^d3-scale$': '<rootDir>/test/stubs/d3-scale.ts',
+
     // AgentGlyph importiert einzelne Phosphor-Symbole über den Quelltext-Export
     // (`./src/icons/*`). Für Jest der fertige CommonJS-Build desselben Symbols —
     // der Quelltext bräuchte eine eigene Transform-Ausnahme.
