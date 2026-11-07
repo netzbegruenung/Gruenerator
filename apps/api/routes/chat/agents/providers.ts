@@ -36,6 +36,7 @@ import {
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
   UNIFIED_GEMMA_CHAIN,
+  UNIFIED_MISTRAL_FALLBACKS,
 } from './autoPolicy.js';
 
 import type { AgentConfig } from './types.js';
@@ -867,13 +868,22 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
  * Mistral Large 4 — und nicht, wie bis 06.11.2026 über den stillen Tausch in
  * `getModel`, auf Cortecs, das diese Kette bewusst nicht führt.
  *
- * Leer für jede andere Lane: Mistral-Unified behält seine eine Instanz.
+ * Mistral-Unified bekommt `UNIFIED_MISTRAL_FALLBACKS` dahinter, rückt aber nie
+ * nach hinten: Ultra ist eine ausdrückliche Wahl, ein langsamer Mistral bleibt
+ * Mistral. Gewechselt wird nur, wenn er vor jeder Ausgabe schweigt oder ablehnt.
+ *
+ * Leer für jede Lane, die nicht unified läuft.
  */
 export function resolveUnifiedLaneChain(
   provider: string,
   modelName: string,
   wireModelName: string | null = null
 ): LaneStage[] {
+  if (provider === 'mistral') {
+    return [{ provider: 'mistral' as const, model: modelName }, ...UNIFIED_MISTRAL_FALLBACKS].map(
+      stageModel
+    );
+  }
   if (!isUnifiedGemma(provider, modelName)) return [];
   const declared: { provider: Provider; model: string }[] = [
     { provider: 'melious', model: modelName },

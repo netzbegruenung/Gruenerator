@@ -517,7 +517,25 @@ describe('resolveUnifiedLaneChain', () => {
     ).toEqual(['melious/gemma-4-31b:balanced', `mistral/${LOOP_SYNTH_FALLBACK.model}`]);
   });
 
-  it('ist leer für jede andere Lane', () => {
-    expect(resolveUnifiedLaneChain('mistral', 'mistral-large-4')).toEqual([]);
+  it('Mistral: die gewählte Stufe, dahinter Gemma :speed', () => {
+    _resetModelHealthForTests();
+    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))).toEqual([
+      'mistral/mistral-large-4',
+      'melious/gemma-4-31b:speed',
+    ]);
+  });
+
+  it('ein zäher Mistral bleibt vorn — die Wahl Ultra wechselt nur, wenn er schweigt', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('mistral', 'mistral-large-4', 'test');
+    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
+      'mistral/mistral-large-4'
+    );
+    _resetModelHealthForTests();
+  });
+
+  it('ist leer für jede Lane, die nicht unified läuft', () => {
+    expect(resolveUnifiedLaneChain('cortecs', 'gemma-4-31b-it')).toEqual([]);
+    expect(resolveUnifiedLaneChain('greenpt', 'mistral-medium-3.5-128b')).toEqual([]);
   });
 });
