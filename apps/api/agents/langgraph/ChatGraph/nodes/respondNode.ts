@@ -612,8 +612,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
   // es bei ANGEHÄNGTE DOKUMENTE, die Abschnittsüberschrift trägt den Unterschied.
   // Der Wrapper bleibt `anhang` — der Planer ersetzt Blöcke nach Typ.
   const material = describeTurnMaterial(state.attachmentContext);
-  const heading =
-    material.pasted && !material.other ? 'EINGEFÜGTER TEXT' : 'ANGEHÄNGTE DOKUMENTE';
+  const heading = material.pasted && !material.other ? 'EINGEFÜGTER TEXT' : 'ANGEHÄNGTE DOKUMENTE';
 
   return `
 
