@@ -15,6 +15,7 @@
 import { type ModelMessage, type ToolSet } from 'ai';
 
 import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
+import { plannerAnchorView } from '../../../../agents/langgraph/ChatGraph/nodes/anchorContext.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
@@ -653,7 +654,7 @@ export async function streamAgenticResponse(
           )
         : null;
     const plannerSystem = plannerStub
-      ? replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text)
+      ? plannerAnchorView(replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text))
       : toolSystem;
     if (plannerSystem !== toolSystem) {
       log.info(
