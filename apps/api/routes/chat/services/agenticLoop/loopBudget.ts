@@ -24,7 +24,8 @@ export function resolveBudget(): LoopBudget {
 export interface TurnClocks {
   /** Absolute ceiling for the tool phase. A hang guard, not a pace. */
   abortSignal: AbortSignal;
-  /** Split mode's writer runs under its OWN ceiling. */
+  /** Split mode's writer runs under its own signal — but with the same start
+   *  and length as `abortSignal`, see `createTurnClocks`. */
   writeAbortSignal: AbortSignal;
   /** Wall-clock moment at which the SOFT tool budget is spent. */
   toolBudgetDeadline: number;
@@ -34,8 +35,11 @@ export interface TurnClocks {
  * The turn budget is SOFT: it strips the tools via `forceFinish` instead of
  * aborting the stream. Only the absolute ceiling aborts.
  *
- * Split mode's writer gets a FRESH ceiling. Sharing the turn's would mean a 60s
- * artifact generation is billed to the sentence that comes after it.
+ * Both ceilings start HERE, at the turn's start, and run equally long: the split
+ * writer's signal is a second timer, not a fresh one. A slow tool phase is billed
+ * to the sentence after it in both modes; what protects the answer is the soft
+ * budget ending the tool work early. A truly fresh writer ceiling would only move
+ * the cut to the turn ceiling (`TURN_CEILING_MS`), see #5365.
  */
 export function createTurnClocks(
   budget: LoopBudget,
