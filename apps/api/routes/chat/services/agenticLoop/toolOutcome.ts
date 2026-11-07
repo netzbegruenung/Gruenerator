@@ -1,6 +1,6 @@
 /**
  * Was dieser Turn bei den WERKZEUGEN wirklich ausgelöst hat — der einzige Kanal
- * des werkzeuglosen Schreibers (split) zu Erfolg und Fehlschlag.
+ * des werkzeuglosen Reparatur-Schreibers zu Erfolg und Fehlschlag.
  *
  * Rein: nur die persistierten Schritte gehen hinein, Prosa kommt heraus.
  * Einzeln geprüft in `toolOutcome.vitest.ts`.
@@ -13,8 +13,8 @@ import { readMcpResult, type PersistedStep } from './types.js';
 const CREATION_TOOLS: ReadonlySet<string> = new Set(ARTIFACT_KINDS.map((k) => k.loopToolName));
 
 /**
- * Split-mode synth is tool-less and sees only the numbered source registry — but
- * MCP connector tools never register sources, so without this the synth is blind
+ * The repair writer is tool-less and sees only the numbered source registry — but
+ * MCP connector tools never register sources, so without this the writer is blind
  * to what a Tally/Notion/Sally call actually RETURNED and either free-associates
  * OR says "die Daten liegen mir vor" without showing them (both observed live).
  * This embeds each MCP step's real outcome AND its result content, and tells the
@@ -47,7 +47,7 @@ function failureText(error: string | null, result: Record<string, unknown>): str
  *
  * `buildMcpOutcomeNote` below opens with `steps.filter(s => s.serverName)`, so
  * it only ever spoke for connectors. Everything else the loop runs had no
- * channel into the split synth at all: a SUCCESSFUL call reaches the writer
+ * channel into the repair writer at all: a SUCCESSFUL call reaches it
  * through the source registry, but a FAILED one registers nothing, so where a
  * tool error had been the writer saw plain silence — and filled it.
  *
@@ -115,7 +115,7 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
 
 /**
  * Native tools that ran OK and returned NOTHING. Neither note above covers that
- * (failures stop at `!ok`, empty-ok is MCP-only), so the split synth saw plain
+ * (failures stop at `!ok`, empty-ok is MCP-only), so the repair writer saw plain
  * silence — live 15.09.2026 `media` → `{ resultCount: 0 }` became "eingefügt".
  */
 export function buildEmptyResultNote(steps: PersistedStep[]): string {
@@ -186,7 +186,7 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
  * Werkzeuge, die dem Schreiber NUTZLAST liefern statt Quellen — und was von
  * ihrem Ergebnis der Text ist.
  *
- * Der werkzeuglose Schreiber (split) hat genau vier Kanäle: die nummerierte
+ * Der werkzeuglose Reparatur-Schreiber hat genau vier Kanäle: die nummerierte
  * Quellen-Registry, `buildMcpOutcomeNote` für alles mit `serverName`,
  * `buildToolFailureNote` für Fehlschläge — und diesen hier. Die Annahme, die
  * `buildToolFailureNote` oben ausspricht („a SUCCESSFUL call reaches the writer
@@ -332,8 +332,8 @@ export function buildToolPayloadNote(steps: PersistedStep[]): string {
 /**
  * Kurze Notizen, die ein Werkzeug ausdrücklich an den SCHREIBER richtet
  * (`fuerSchreiber` im Ergebnis) — etwa „dieses Werkzeug deckt nur den Bundestag
- * ab". `hinweis` bleibt Planer-Anweisung und kommt hier nie an: der Schreiber
- * des split-Modus sieht nur Quellen und diese Notizen, und eine Aussage zum
+ * ab". `hinweis` bleibt Anweisung an das Loop-Modell und kommt hier nie an: der
+ * Reparatur-Schreiber sieht nur Quellen und diese Notizen, und eine Aussage zum
  * Geltungsbereich, die nur im Ergebnis stand, verpuffte (Landtag-Frage, live
  * 28.10.2026: Websuche-Treffer wurden als Landtag-Inhalt ausgegeben).
  */

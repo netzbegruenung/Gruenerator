@@ -509,16 +509,6 @@ describe('wrapToolsForLoop', () => {
     expect('textOffset' in steps[0]).toBe(false);
   });
 
-  it('omits textOffset when getTextOffset returns null (split mode)', async () => {
-    const { ctx, steps } = makeCtx({ getTextOffset: () => null });
-    const tools = wrapToolsForLoop(
-      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
-      ctx
-    );
-    await run(tools, 'search', { query: 'x' });
-    expect('textOffset' in steps[0]).toBe(false);
-  });
-
   it('stamps textOffset=0 (falsy but valid) on the recorded step', async () => {
     const { ctx, steps } = makeCtx({ getTextOffset: () => 0 });
     const tools = wrapToolsForLoop(

@@ -623,14 +623,12 @@ describe('runAgenticLoop — unified lane chain', () => {
   const params = (over: Partial<LoopEngineParams> = {}) =>
     baseParams({ unifiedFallbacks: [fallback], ...over });
 
-  it('(a) moves to the next lane when the first rejects before any output, and says so', async () => {
+  it('(a) moves to the next lane when the first rejects before any output', async () => {
     const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
-    const onSynthFallback = vi.fn();
     const onLaneUnhealthy = vi.fn();
-    const out = await runAgenticLoop(params({ onSynthFallback, onLaneUnhealthy }), deps);
+    const out = await runAgenticLoop(params({ onLaneUnhealthy }), deps);
     expect(calls).toEqual(['synth', 'fallback']);
     expect(out.text).toBe('FALLBACK_ANSWER');
-    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('upstream_error');
     // Ein 400 ist unsere Anfrage, kein krankes Modell: kein Vermerk.
     expect(onLaneUnhealthy).not.toHaveBeenCalled();
   });
@@ -670,15 +668,10 @@ describe('runAgenticLoop — unified lane chain', () => {
     vi.useFakeTimers();
     try {
       const { deps, calls } = chainDeps(hang);
-      const onSynthFallback = vi.fn();
-      const pending = runAgenticLoop(
-        params({ onSynthFallback, abortSignal: new AbortController().signal }),
-        deps
-      );
+      const pending = runAgenticLoop(params({ abortSignal: new AbortController().signal }), deps);
       await vi.advanceTimersByTimeAsync(16_000);
       expect(calls).toEqual(['synth', 'fallback']);
       expect((await pending).text).toBe('FALLBACK_ANSWER');
-      expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
     } finally {
       vi.useRealTimers();
     }
@@ -775,7 +768,6 @@ describe('runAgenticLoop — unified repair', () => {
     expect(calls).toEqual(['synth', 'repair']);
     expect(out.text).toBe(GOOD);
     expect(out.replacement).toBe('unified_repair');
-    expect(out.replacedStreamed).toBe(true);
     // The repair is silent — the completion replace carries it.
     expect(onText).not.toHaveBeenCalled();
   });
@@ -843,7 +835,6 @@ describe('runAgenticLoop — unified repair', () => {
     expect(calls).toEqual(['synth']);
     expect(out.text).toBe(SYNTH_REFUSAL_TEXT);
     expect(out.replacement).toBe('refusal_swap');
-    expect(out.replacedStreamed).toBe(true);
   });
 
   it('calls streamText exactly once for a clean answer', async () => {
@@ -993,7 +984,6 @@ describe('repair writer — a leaked tool plan is retried, refusals are surfaced
 
     expect(out.text).toBe(GOOD);
     expect(out.replacement).toBe('unified_repair');
-    expect(out.replacedStreamed).toBe(true);
     expect(writerSystems).toHaveLength(2);
     expect(writerSystems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX.trim().slice(0, 30));
     // The repair is silent — the leaked pass never reaches the client.
@@ -1193,7 +1183,6 @@ describe('repair writer — validation retry (validateAnswer)', () => {
     const res = await out;
     expect(res.text).toBe(VALID);
     expect(res.replacement).toBe('unified_repair');
-    expect(res.replacedStreamed).toBe(true);
     expect(writerSystems).toHaveLength(2);
     expect(writerSystems[1]).toContain(SYNTH_INVALID_JSON_RETRY_SUFFIX);
   });
@@ -1232,7 +1221,7 @@ describe('repair writer — validation retry (validateAnswer)', () => {
     );
     expect(h.calls).toEqual(['synth', 'repair']);
     expect(res.text).toBe(honest);
-    expect(res.replacedStreamed).toBe(true);
+    expect(res.replacement).toBe('unified_repair');
   });
 
   // The cost of a false positive is one extra pass, never the answer: when
@@ -1300,7 +1289,6 @@ describe('runAgenticLoop — echoed source register (#5409)', () => {
     );
     expect(calls).toEqual(['stream']);
     expect(out.text).toBe(ANSWER);
-    expect(out.replacedStreamed).toBe(true);
     expect(out.replacement).toBe('unified_source_echo');
     expect(out.text).not.toContain(DEGENERATION_NOTICE);
   });
@@ -1335,7 +1323,7 @@ describe('runAgenticLoop — repetition degeneration', () => {
     };
     const out = await runAgenticLoop(baseParams({ onText }), deps);
     // Without the guard this test never terminates — the stream is endless.
-    expect(out.replacedStreamed).toBe(true);
+    expect(out.replacement).toBe('unified_degeneration');
     expect(out.text).toContain('Ausbildungsgarantie');
     // No notice: the spam repeats a handful of phrases, so nothing the reader
     // needed was removed and "may be incomplete" would be a false alarm.
@@ -1355,7 +1343,6 @@ describe('runAgenticLoop — repetition degeneration', () => {
     // A recovered answer carries NO notice — the retry discards the trimmed
     // pass wholesale, and nothing was cut from what the user ends up with.
     expect(out.text).toBe(CLEAN);
-    expect(out.replacedStreamed).toBe(true);
     expect(out.replacement).toBe('unified_repair');
     expect(h.writerSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
   });
@@ -1386,7 +1373,7 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(out.text).toContain('Ausbildungsgarantie');
     expect(out.text).not.toContain('Abschluss.**');
     expect(out.text).not.toContain(DEGENERATION_NOTICE);
-    expect(out.replacedStreamed).toBe(true);
+    expect(out.replacement).toBe('unified_repair');
   });
 
   // The notice's OTHER branch — a cut that really did take content — is unit

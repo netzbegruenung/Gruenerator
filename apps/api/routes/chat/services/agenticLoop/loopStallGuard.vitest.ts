@@ -98,17 +98,17 @@ describe('synth stall guard', () => {
       fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VON_FALLBACK' }]),
     });
     const onText = vi.fn();
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const running = runAgenticLoop(
-      params({ repairFallback: fallbackModel, onText, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onText, onRepairWriterUnhealthy }),
       deps
     );
     await vi.advanceTimersByTimeAsync(20_000);
     const out = await running;
 
     expect(out.text).toBe('ANTWORT_VON_FALLBACK');
-    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
+    expect(onRepairWriterUnhealthy).toHaveBeenCalledExactlyOnceWith('synth_stall');
     expect(seen).toEqual(['synth', 'repair', 'fallback']);
   });
 
@@ -163,7 +163,7 @@ describe('synth stall guard', () => {
 
     // The repair swallows the stall and keeps the (empty) original for the caller.
     expect(out.text).toBe('');
-    expect(out.replacedStreamed).toBeUndefined();
+    expect(out.replacement).toBeUndefined();
     expect(seen).toEqual(['synth', 'repair']);
   });
 
@@ -315,17 +315,17 @@ describe('synth empty guard', () => {
       fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VON_FALLBACK' }]),
     });
     const onText = vi.fn();
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const out = await runAgenticLoop(
-      params({ repairFallback: fallbackModel, onText, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onText, onRepairWriterUnhealthy }),
       deps
     );
 
     expect(out.text).toBe('ANTWORT_VON_FALLBACK');
     // The repair is silent — the caller's completion replace carries the text.
     expect(onText).not.toHaveBeenCalled();
-    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('empty_completion');
+    expect(onRepairWriterUnhealthy).toHaveBeenCalledExactlyOnceWith('synth_empty');
     expect(seen).toEqual(['synth', 'repair', 'fallback']);
   });
 
@@ -343,15 +343,15 @@ describe('synth empty guard', () => {
       repair: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
       fallback: () => streamOf([{ type: 'text-delta', text: 'NIE' }]),
     });
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const out = await runAgenticLoop(
-      params({ repairFallback: fallbackModel, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onRepairWriterUnhealthy }),
       deps
     );
 
     expect(out.text).toBe('ANTWORT');
-    expect(onSynthFallback).not.toHaveBeenCalled();
+    expect(onRepairWriterUnhealthy).not.toHaveBeenCalled();
     expect(seen).toEqual(['synth', 'repair']);
   });
 });

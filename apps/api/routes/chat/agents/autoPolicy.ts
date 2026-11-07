@@ -25,11 +25,8 @@
  *     fixed template in handleSheetEdit. Also absent from the table.
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
- * ── Second-order effect ─────────────────────────────────────────────────────
- * `prefersUnifiedLoop` is true for Mistral and for Gemma 4 31B on Melious.
- * Picking such a lane therefore also selects the UNIFIED loop (one model does
- * tools + prose); every other lane runs the split (fixed planner gathers,
- * synth writes). Guarantee-carrying and material-heavy turns still split.
+ * Every loop lane runs the unified loop (one model does tools + prose); the
+ * split mode was removed in #5441.
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
@@ -134,7 +131,7 @@ type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
  */
 export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // ── Content answers: Gemma 4 (31B) ──
-  // Synth summarises tool output; the planner makes the MCP calls.
+  // Reports tool output: the lane makes the MCP calls and summarises them.
   mcp: { modelId: GEMMA, reasoning: 'off' },
   // summarizeNode runs on the `heavy` intermediate stage — same tier.
   summary: { modelId: GEMMA, reasoning: 'off' },
@@ -159,7 +156,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   reise: { modelId: GEMMA, reasoning: 'off' },
   umfragen: { modelId: GEMMA, reasoning: 'off' },
   // Reporting retrieved documentation sections back — the same shape as `mcp`
-  // above (planner fetches, synth summarises).
+  // above.
   hilfe: { modelId: GEMMA, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
   // ready-made answer in two sentences. With the research/web merge the model
@@ -330,10 +327,7 @@ export interface AutoSelectionInput {
   /**
    * Output contract detected on the turn (`detectTaskShape`): machine-readable
    * output (`code`) or an explicitly checkable format order (`strict_format`).
-   * Routes the neutral intents to the precise writer — which, second-order,
-   * also flips the loop to unified mode (`prefersUnifiedLoop`), so these turns
-   * never pass through the split synth that produced the QA run's broken JSON
-   * and ignored line counts.
+   * Routes the neutral intents to the precise writer.
    */
   taskShape?: TaskShape | null | undefined;
   /**
@@ -473,17 +467,15 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 
 /**
  * ── Loop slot policy ────────────────────────────────────────────────────────
- * Declared here so planner, synth and the single-pass answer read as ONE
+ * Declared here so the loop slots and the single-pass answer read as ONE
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
  *
- * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
+ * PLANNER-Kette — seit #5441 nur noch der Ausweich des Reparatur-Schreibers
+ * (`getLoopSynthFallbackModel`): Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
  * Gewichte auf Cortecs dahinter, Mistral Small 4 bei Mistral zuletzt (seit
  * 28.10.2026, #5113; vom 21.10. an Gemma 4 auf GreenPT, davor Mistral Small 4
- * auf Melious und Mistral Large — teuer für eine Rolle, die nur Werkzeuge
- * wählt). Der Planer ruft nur Werkzeuge
- * und formuliert Suchanfragen (der Synth schreibt die Prosa), er läuft in JEDEM
- * agentischen Zug.
+ * auf Melious und Mistral Large).
  *
  * Gemessen am 29.09.2026 (Werkzeug-Probe: 12 deutsche Aufträge × 8 Läufe, sechs
  * Werkzeuge, Enum-Argumente, parallele Aufrufe, Folgeschritt nach Werkzeug-
@@ -499,11 +491,6 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * ruft ein Suchwerkzeug. Beide fallen NUR an diesem einen Fall durch.
  * Werkzeug-IDs beliebiger Länge nehmen beide Melious-Modelle an (kein
  * Neun-Zeichen-Zwang wie bei mistral-common).
- *
- * Was die Probe NICHT zeigt: den mehrstufigen Sammellauf, an dem die frühere
- * frühere Vorgabe mit „steps=0 gather" scheiterte. `afterGather` in
- * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
- * oft leere Züge, ist das der erste Ort zum Nachsehen.
  *
  * EIN EHRLICHER PREIS dieser Wahl: drei Stufen, drei Gateways, aber zweimal
  * DIESELBEN Gewichte. Ein Gateway-Ausfall trifft nur eine Stufe; ein Problem
@@ -673,9 +660,8 @@ export const AVOID_AS_SYNTH = /verdigado-think|verdigado-pro|qwen|gpt-oss/i;
  * Dieselbe Frage wie AVOID_AS_SYNTH, nur als Prädikat — damit die Stellen, die
  * ein Ausweichziel wählen, sie stellen können, ohne die Regex zu kennen. Sie
  * gilt für jede Lane, die am Ende Prosa an einen Menschen schickt: den
- * Synth-Slot des Split-Loops, die vereinheitlichte Loop-Lane und die
- * Einzeldurchlauf-Antwort. Der PLANER ist ausgenommen — der ruft Werkzeuge und
- * schreibt nichts, was jemand liest.
+ * Reparatur-Schreiber samt Ausweich, die Loop-Lane und die
+ * Einzeldurchlauf-Antwort.
  */
 export function mayWriteAnswer(target: { model: string }): boolean {
   return !AVOID_AS_SYNTH.test(target.model);

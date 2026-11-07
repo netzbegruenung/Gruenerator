@@ -269,9 +269,8 @@ export interface WrapToolsContext {
   serverNameFor?: (toolName: string) => string | undefined;
   /** Character index into the final answer text at the moment a tool call
    *  STARTS — persisted as `PersistedStep.textOffset` so thread reload can
-   *  interleave text segments and tool cards in the live order. Returns `null`
-   *  when offsets must NOT be recorded. */
-  getTextOffset?: () => number | null;
+   *  interleave text segments and tool cards in the live order. */
+  getTextOffset?: () => number;
   /** Safety-net cap on the serialized model-facing result. Default {@link DEFAULT_MAX_RESULT_CHARS}. */
   maxResultChars?: number;
   /**
