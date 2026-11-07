@@ -230,9 +230,9 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
  * trotzdem stehen: F1 (CLAUDE.md), er steckt in persistierten Thread-Zuständen
  * und wird nicht umbenannt. Was er BEDEUTET, steht hier.
  *
- * Die Lane braucht nichts aus dem Mistral-Regelwerk (`prefersUnifiedLoop`,
- * Kontextfenster, Fallback-Ketten): sie schreibt Prosa über Material, das schon
- * im Kontext steht, und ruft keine eigenen Werkzeuge auf.
+ * Die Lane braucht nichts aus dem Mistral-Regelwerk (Kontextfenster,
+ * Fallback-Ketten): sie schreibt Prosa über Material, das schon im Kontext
+ * steht, und ruft keine eigenen Werkzeuge auf.
  *
  * ── WEG VOM 26B, 21.08.2026 ──
  *
@@ -876,14 +876,10 @@ export function resolveUnifiedLaneChain(
 }
 
 /**
- * Split-mode model policy — the planner/executor split gives us two independent
- * slots, so we point each at its best NON-CHINESE model instead of forcing the
- * user's (often slow) lane model into both roles.
- *
- * The slot DECLARATIONS live in `autoPolicy.ts` alongside the intent table, so
- * planner, synth and the single-pass answer read as one policy rather than two
- * systems overriding each other. This module only turns them into
- * LanguageModel instances (it owns env + getModel).
+ * Repair-writer model policy: the tool-less writer (`repairUnifiedAnswer`) and
+ * its sibling, the former split planner's ladder (#5441). The slot
+ * DECLARATIONS live in `autoPolicy.ts` next to the intent table; this module
+ * only turns them into LanguageModel instances (it owns env + getModel).
  */
 
 /**

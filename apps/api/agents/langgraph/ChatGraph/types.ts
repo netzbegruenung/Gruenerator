@@ -1039,11 +1039,11 @@ export interface ChatGraphState {
   // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
-  /** Loop turns only: which mode ran. Surfaces on the `done` event. */
-  loopMode?: 'unified' | 'split';
+  /** Loop turns only. Surfaces on the `done` event; the only value since #5441. */
+  loopMode?: 'unified';
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
   // Die Titel der Vorlagen, die `vorlagen_vorschlagen` in diesem Turn als
-  // Galerie gezeigt hat. Der Split-Schreiber erfährt davon nur hierüber
+  // Galerie gezeigt hat. Der Reparatur-Schreiber erfährt davon nur hierüber
   // (`buildArtifactNotes`), und `vorlagenOffer` bietet sie nicht noch einmal an.
   vorlagenShown?: string[];
   /** Grant cards for drifted connector tools this turn (mcpCatalog), persisted
@@ -1341,19 +1341,19 @@ export interface ChatGraphState {
   editorEditUnchanged?: string | null;
   // The same outcome for the person: why nothing changed, when it is known.
   editorEditUnchangedReason?: string | null;
-  // Summaries of chat sharepics `edit_sharepic` revised THIS turn. Split mode
-  // has no tool returns in the writer's context — without the note it fed,
-  // the writer denied an edit that had landed (live 11.10.2026).
+  // Summaries of chat sharepics `edit_sharepic` revised THIS turn. The repair
+  // writer has no tool returns — without the note it fed, the writer denied
+  // an edit that had landed (live 11.10.2026).
   chatSharepicEdits?: string[] | null;
   /** Erfolgreiche Änderungen der Loop-Werkzeuge an Tabelle, Präsentation,
    *  Explainable oder Dokument in diesem Turn — die Sätze, die der Schreiber
-   *  bestätigen muss (artifactNotes). Der Split-Schreiber sieht keine
+   *  bestätigen muss (artifactNotes). Der werkzeuglose Schreiber sieht keine
    *  Werkzeug-Ergebnisse; ohne sie schrieb er live „kann ich nicht vornehmen". */
   chatArtifactEdits?: string[] | null;
   // The `check_sharepic` review of THIS turn (set by the client-tool resume).
   // Feeds the writer note and answers a repeated call without a second pause
-  // (live 11.10.2026: the resumed planner checked again, the writer — split
-  // mode, no tool returns — said it had not checked anything).
+  // (live 11.10.2026: the resumed loop checked again, and a writer without
+  // tool returns said it had not checked anything).
   sharepicCheck?: Record<string, unknown> | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the

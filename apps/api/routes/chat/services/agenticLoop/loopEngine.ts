@@ -6,10 +6,8 @@
  * One model drives the tools AND writes the answer in one streamed pass
  * (`streamWithTools`), over a lane chain that switches only before any tool
  * call or output (`runLaneChain`). A tool-less writer (`synthesize`) re-writes
- * an answer that came out unusable (`repairUnifiedAnswer`). Until 11/2026 a
- * second mode existed — a fixed planner gathered, the selected model wrote
- * without tools ("split") — and was removed once every chat lane passed the
- * tool probe (#5441).
+ * an answer that came out unusable (`repairUnifiedAnswer`). The former split
+ * mode (planner gathers, writer answers) was removed in #5441.
  *
  * Tool cards, guards, timeouts, truncation and step recording are already baked
  * into the wrapped `tools` (wrapToolsForLoop) and fire during the tool phase.
@@ -64,14 +62,14 @@ const SYNTH_IDLE_DEADLINE_MS = 20_000;
 /** The synth lane accepted the request and then went silent. Named
  *  `TimeoutError` so the caller's existing abort branch surfaces its friendly
  *  "das hat zu lange gedauert" text rather than the generic failure line. */
-export class SynthStallError extends Error {
+class SynthStallError extends Error {
   constructor(idleMs: number) {
     super(`Synth stream idle for ${idleMs}ms`);
     this.name = 'TimeoutError';
   }
 }
 
-export function isSynthStall(err: unknown): err is SynthStallError {
+function isSynthStall(err: unknown): err is SynthStallError {
   return err instanceof SynthStallError;
 }
 
@@ -147,7 +145,7 @@ export class ToolPhaseStallError extends Error {
   }
 }
 
-/** Die Uhr der Werkzeugphase, für beide Modi identisch gestellt. `prefillMs`
+/** Die Uhr der Werkzeugphase. `prefillMs`
  *  liegt auf dem ganzen Fenster, nicht nur dem ersten: jeder Schritt ist eine
  *  neue Anfrage mit dem ganzen Verlauf, und ihr Einlesen schweigt jedes Mal
  *  (prefillAllowance.ts). */
@@ -300,7 +298,7 @@ const errorText = (value: unknown): string =>
  * niemand. Kein erzwungener Aufruf (`toolChoice`): ist der Fehler nicht zu
  * beheben (Dienst down), soll das Modell ehrlich antworten dürfen.
  */
-export function failedStepRetryNudge(step: PreparedStepView | null): string | null {
+function failedStepRetryNudge(step: PreparedStepView | null): string | null {
   if (!step) return null;
   const outcomes = step.content.flatMap((part) => {
     if (part.type === 'tool-error') {
@@ -359,8 +357,8 @@ function withTurnContextOnSteps<
   }) as F;
 }
 
-/** prepareStep shared by both modes: on the last step (or when forceFinish
- *  trips) strip tools AND explain why via a per-step system override. */
+/** On the last step (or when forceFinish trips) strip tools AND explain why
+ *  via a per-step system override. */
 export function buildPrepareStep(
   baseSystem: string,
   finishSuffix: string,
@@ -376,7 +374,7 @@ export function buildPrepareStep(
    * not a captured string, because it fills up mid-loop (`rezept_laden`
    * registers during the run).
    *
-   * Unified mode's only channel for the recipe body. Note the branch above:
+   * The loop model's only channel for the recipe body. Note the branch above:
    * force-finish is the step where the model writes the answer WITHOUT tools,
    * so a recipe missing there is lost exactly where it matters. It has to land
    * in both branches, and in the plain `{}` one — hence the `system` override
@@ -510,20 +508,20 @@ export interface LoopEngineParams {
   /** Runs the tool loop and writes the user-facing answer in one stream. */
   synthModel: LanguageModel;
   /** Repair writer only: sibling lane, tried once when the tool-less writer
-   *  goes silent. Set by `repairUnifiedAnswer` from `repairFallback`. */
+   *  goes silent or returns nothing. Set by `repairUnifiedAnswer` from `repairFallback`. */
   synthFallbackModel?: LanguageModel;
   /** The tool-less writer that re-writes a failed answer (`LOOP_SYNTH_PRIMARY`
    *  chain). Omit and a failed answer stays as it was. */
   repairModel?: LanguageModel;
-  /** Unified mode: sibling lane of `repairModel` (`LOOP_SYNTH_FALLBACK`). */
+  /** Sibling lane of `repairModel` (`LOOP_SYNTH_FALLBACK`). */
   repairFallback?: LanguageModel;
-  /** Unified mode: whether the turn created or edited an artifact. An empty
-   *  answer after one is confirmed by the caller, not repaired. Read AFTER
-   *  `afterGather`, which may still produce one. */
+  /** Whether the turn created or edited an artifact. An empty answer after one
+   *  is confirmed by the caller, not repaired. Read AFTER `afterGather`, which
+   *  may still produce one. */
   producedArtifact?: () => boolean;
-  /** Unified mode: tried in order when `synthModel` rejects or stays silent
-   *  before any tool call or output (see `runLaneChain`). Empty or omitted, the
-   *  error surfaces as before. */
+  /** Tried in order when `synthModel` rejects or stays silent before any tool
+   *  call or output (see `runLaneChain`). Empty or omitted, the error
+   *  surfaces. */
   unifiedFallbacks?: readonly LanguageModel[];
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
@@ -574,17 +572,9 @@ export interface LoopEngineParams {
    * because `@ai-sdk/mistral` takes the effort per request, not per client.
    */
   providerOptions?: Record<string, Record<string, string>>;
+  /** The absolute turn ceiling plus request and approval gates — never the
+   *  soft tool budget, which ends tool work via `forceFinish` (loopBudget.ts). */
   abortSignal: AbortSignal;
-  /**
-   * The signal the repair writer runs under. Defaults to `abortSignal`.
-   *
-   * The writer must not be cut off by the turn budget: an
-   * abort there lands mid-word, and the stump ships as a finished answer (the
-   * `catch` only substitutes text when NOTHING was written). Give the writer
-   * the request signal plus the absolute ceiling, never the elapsed turn
-   * budget, which a slow artifact generation has already spent.
-   */
-  writeAbortSignal?: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
@@ -605,10 +595,9 @@ export interface LoopEngineParams {
   forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
-  /** Fires when the sibling lane takes over — the synth stalled, or came back
-   *  without a word — so the client can surface the switch the same way the
-   *  single-pass path does. */
-  onSynthFallback?: (reason: 'first_token_timeout' | 'empty_completion' | 'upstream_error') => void;
+  /** The repair writer's sibling took over because the writer stalled or came
+   *  back without a word. The caller remembers the writer lane (`modelHealth`). */
+  onRepairWriterUnhealthy?: (grund: 'synth_stall' | 'synth_empty') => void;
   /**
    * A lane of the tool phase's ladder failed in a way that says something
    * about the LANE, not about this request: it went silent, or the provider
@@ -621,11 +610,9 @@ export interface LoopEngineParams {
    * first choice behind it and the next turn paid its deadline again.
    *
    * Not reported: `invalid_request` (an overfull context window is our request,
-   * not a sick model — it would block the lane for everyone), and in unified a
-   * lane that already left a trace: a unified stall can follow a COMPLETE
-   * answer (a `finish` part arrived, only the stream stayed open — see the
-   * branch at the bottom of `streamWithTools`), where a verdict against a lane
-   * that just answered in full would simply be wrong.
+   * not a sick model — it would block the lane for everyone), and a lane that
+   * already left a trace: a stall can follow a COMPLETE answer (a `finish` part
+   * arrived, only the stream stayed open — see the end of `streamWithTools`).
    */
   onLaneUnhealthy?: (laneIndex: number, grund: LaneUnhealthyReason) => void;
   /** Runs AFTER the stream: the net for an owed artifact or edit the model did
@@ -669,19 +656,11 @@ export class TurnSuspendedError extends Error {
  * and production those entries do not exist at all.
  */
 export type AnswerReplacement =
-  /** Repair writer: the invalid pass never reached the client, the retry took its place. */
-  | 'validation_retry'
-  /** Repair writer: the invalid pass was already on the wire when the retry replaced it. */
-  | 'validation_retry_streamed'
-  /** Repair writer: the retry did not recover, the trimmed prefix replaces the spam. */
-  | 'degeneration_trim'
-  /** Unified: the trimmed prefix replaces the streamed spam. */
+  /** The trimmed prefix replaces the streamed spam. */
   | 'unified_degeneration'
-  /** Unified: the answer before the copied source register replaces the stream. */
+  /** The answer before the copied source register replaces the stream. */
   | 'unified_source_echo'
-  /** Repair writer: the answer before the copied source register replaces it. */
-  | 'source_echo_trim'
-  /** Unified: the tool-less writer re-wrote an empty, invalid, leaked or cut-off answer. */
+  /** The tool-less writer re-wrote an empty, invalid, leaked or cut-off answer. */
   | 'unified_repair'
   /** A foreign-language refusal swapped for the canned German one (needs a
    *  repair lane). */
@@ -691,13 +670,9 @@ export type AnswerReplacement =
 export interface LoopResult {
   text: string;
   /**
-   * True when a validation retry produced `text` AFTER part of the first
-   * (invalid) pass had already reached the client. The caller must replace the
-   * streamed answer (`completion` event) — the deltas on the wire are the
-   * invalid pass, not this text.
+   * Set whenever `text` is not what was streamed. The caller must then replace
+   * the streamed answer (`completion` event); the turn summary names it.
    */
-  replacedStreamed?: boolean;
-  /** Set whenever `text` is not what the first pass wrote. Log-only. */
   replacement?: AnswerReplacement;
 }
 
@@ -708,7 +683,7 @@ type StreamWithToolsResult = LoopResult & { finishReason: string | null };
 
 /** Why a unified answer is unusable as written. An empty answer after an artifact is NOT one:
  *  the caller confirms the artifact instead. */
-export function unifiedRepairReason(
+function unifiedRepairReason(
   result: StreamWithToolsResult,
   p: LoopEngineParams
 ): UnifiedRepairReason | null {
@@ -726,9 +701,9 @@ export function unifiedRepairReason(
   return null;
 }
 
-/** Unified: re-write a failed answer with the tool-less writer. Silent — the bad
- *  text is already on the wire (or there is none), so the caller's `completion`
- *  replace carries the result. Null when the repair did not produce an answer. */
+/** Re-write a failed answer with the tool-less writer; the caller's
+ *  `completion` replace carries the result. Null when the repair produced no
+ *  answer. */
 async function repairUnifiedAnswer(
   p: LoopEngineParams,
   deps: LoopDeps,
@@ -748,16 +723,14 @@ async function repairUnifiedAnswer(
         ...p,
         synthModel: p.repairModel,
         ...(p.repairFallback != null && { synthFallbackModel: p.repairFallback }),
-        // Nothing of the repair streams: the completion replace shows it.
-        onText: () => {},
       },
       deps
     );
-    if (repaired.text.trim().length === 0) {
+    if (repaired.trim().length === 0) {
       log.warn('[Engine] unified repair produced no answer — keeping the original');
       return null;
     }
-    return { text: repaired.text, replacedStreamed: true, replacement: 'unified_repair' };
+    return { text: repaired, replacement: 'unified_repair' };
   } catch (err) {
     log.warn(
       `[Engine] unified repair failed (${err instanceof Error ? err.message : String(err)}) — keeping the original`
@@ -789,20 +762,15 @@ export async function runAgenticLoop(
       log.warn(
         `[Engine] unified ${modelLabel(from)} ${error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the request'} before any call or output — retrying on ${modelLabel(to)}`
       );
-      p.onSynthFallback?.(
-        error instanceof ToolPhaseStallError ? 'first_token_timeout' : 'upstream_error'
-      );
     },
     () => p.abortSignal.aborted
   );
   const result: StreamWithToolsResult = { ...streamed, finishReason };
   if (p.suspended?.()) throw new TurnSuspendedError();
-  // Unified mode has no separate synth phase, so the artifact/edit guarantees
-  // run AFTER the stream (idempotent — the hooks no-op when the model already
-  // created/edited). Without this, a Mistral turn that only searched left the
-  // compound sharepic/doc uncreated.
+  // The artifact/edit guarantees run AFTER the stream (idempotent — the hooks
+  // no-op when the model already created/edited).
   if (p.afterGather) await p.afterGather();
-  if (p.repairModel != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
+  if (p.repairModel != null && !p.abortSignal.aborted) {
     // An English decline is surfaced as a decline, never re-written.
     if (looksLikeSynthRefusal(result.text) && refusalLanguage(result.text) === 'en') {
       log.info(
@@ -813,7 +781,7 @@ export async function runAgenticLoop(
       recordDecision('loop.synth_verdict', 'refusal_swapped', {
         inputs: { refusalLanguage: 'en' },
       });
-      return { text: SYNTH_REFUSAL_TEXT, replacedStreamed: true, replacement: 'refusal_swap' };
+      return { text: SYNTH_REFUSAL_TEXT, replacement: 'refusal_swap' };
     }
     const reason = unifiedRepairReason(result, p);
     if (reason != null) {
@@ -821,35 +789,35 @@ export async function runAgenticLoop(
       if (repaired) return repaired;
       // Ein geleakter Werkzeugplan ist keine Antwort, auch wenn die Reparatur
       // scheitert: leer zurück, dann schreibt der Aufrufer seinen ehrlichen
-      // Kein-Antwort-Satz, wie bis 11/2026 der Split-Schreiber (#5441).
+      // Kein-Antwort-Satz (#5441).
       if (reason === 'plan_leak') {
-        return { text: '', replacedStreamed: true, replacement: 'unified_repair' };
+        return { text: '', replacement: 'unified_repair' };
       }
     }
   }
   return streamed;
 }
 
-/** Unified mode: one model holds the tools and streams the answer. */
+/** One model holds the tools and streams the answer. */
 async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
   deps: LoopDeps,
   /** Filled while the stream is read, so a thrown error still says how far the
    *  lane got (see `runLaneChain`). */
-  probe: LaneProbe = { sawToolCall: false, sawToolResult: false, sawOutput: false },
+  probe: LaneProbe,
   /** Another lane waits behind this one: silence before the first response
    *  then only costs FIRST_RESPONSE_DEADLINE_MS. */
-  hasNextLane = false
+  hasNextLane: boolean
 ): Promise<StreamWithToolsResult> {
   const unifiedSystem = `${p.toolSystem}${UNIFIED_SUFFIX}`;
-  const { idle, idleMs } = createToolPhaseIdle(
-    p,
-    prefillAllowanceForModel(model, `${unifiedSystem}${p.turnContext ?? ''}`, p.messages)
+  const prefillMs = prefillAllowanceForModel(
+    model,
+    `${unifiedSystem}${p.turnContext ?? ''}`,
+    p.messages
   );
-  const firstResponseMs =
-    FIRST_RESPONSE_DEADLINE_MS +
-    prefillAllowanceForModel(model, `${unifiedSystem}${p.turnContext ?? ''}`, p.messages);
+  const { idle, idleMs } = createToolPhaseIdle(p, prefillMs);
+  const firstResponseMs = FIRST_RESPONSE_DEADLINE_MS + prefillMs;
   let firstResponse: IdleDeadline | null = hasNextLane
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
@@ -863,7 +831,7 @@ async function streamWithTools(
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
     ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
     // Kombiniert, damit eine verstummte Lane wirklich abgebaut wird statt nur
-    // verlassen — dieselbe Form wie in gather und synth.
+    // verlassen.
     abortSignal: AbortSignal.any([
       p.abortSignal,
       idle.signal,
@@ -888,10 +856,8 @@ async function streamWithTools(
     ...phaseTelemetry('unified'),
     onError: logStreamError('unified'),
   });
-  // Der unified-Pfad hatte gar keine Steuertoken-Säuberung: er schreibt MIT
-  // gemounteten Werkzeugen, also genau dort, wo das Chat-Template das Token
-  // erzeugt. Dass der Ausfall bisher nur im split-Modus auffiel, heißt nur, dass
-  // Mistral seltener geprüft wurde — nicht, dass der Pfad sauber ist.
+  // Er schreibt MIT gemounteten Werkzeugen, also genau dort, wo das
+  // Chat-Template Steuertoken erzeugt.
   const unifiedFilter = createControlTokenFilter();
   const emitFiltered = (delta: string) => {
     const clean = unifiedFilter.push(delta);
@@ -935,15 +901,13 @@ async function streamWithTools(
     if (finishReason == null) throw new ToolPhaseStallError(idleMs);
   }
   if (finishReason === DEGENERATE_FINISH_REASON) {
-    // Unified streams live, so the spam is already on the wire — drain has
-    // trimmed the returned text back to the healthy prefix, and the caller's
-    // `completion` replace (the same channel the split validation retry uses)
-    // swaps what the client shows and what gets persisted.
-    return { text, finishReason, replacedStreamed: true, replacement: 'unified_degeneration' };
+    // The spam is already on the wire; drain trimmed `text` to the healthy
+    // prefix, and the caller's `completion` replace swaps it in.
+    return { text, finishReason, replacement: 'unified_degeneration' };
   }
   if (echoCut) {
     // The start of the copied register is already on the wire.
-    return { text, finishReason, replacedStreamed: true, replacement: 'unified_source_echo' };
+    return { text, finishReason, replacement: 'unified_source_echo' };
   }
   return { text, finishReason };
 }
@@ -1078,9 +1042,8 @@ function observeLane(
   };
 }
 
-/** Answers at or below this length are candidates for the tool-plan check, and
- *  the gate holds them back until the verdict is in. Above it the answer is real
- *  prose by definition and streams through unbuffered. */
+/** Answers at or below this length are candidates for the tool-plan and
+ *  refusal checks. Above it the answer is real prose by definition. */
 const SHORT_ANSWER_MAX_CHARS = 200;
 
 /** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
@@ -1112,8 +1075,7 @@ export const SYNTH_REFUSAL_TEXT =
 
 /**
  * Retry nudges for an INVALID accepted answer (see `validateAnswer`). The
- * validation retry runs silently — nothing of it reaches the client unless it
- * comes back valid — so these can be blunt about what went wrong.
+ * repair writer never streams, so these can be blunt about what went wrong.
  */
 export const SYNTH_CUTOFF_RETRY_SUFFIX =
   '\n\nWICHTIG: Dein letzter Versuch brach mitten im Satz ab. Schreibe die Antwort JETZT vollständig zu Ende — gleiche Sprache, gleiches Format, aber mit einem echten Schluss.';
@@ -1136,10 +1098,8 @@ export const SYNTH_RETRY_SYSTEM_SUFFIX =
  * the outside — short and English — but they need opposite handling: a leaked
  * plan is retried, a refusal must be surfaced as a refusal and never retried.
  *
- * Bounded by {@link SHORT_ANSWER_MAX_CHARS} for two reasons. Precision: a long
- * answer that merely contains a refusal-shaped clause is prose, not a decline.
- * And correctness: past that length the emitter gate has already opened and the
- * text is on the wire, so it can no longer be swapped for the German message.
+ * Bounded by {@link SHORT_ANSWER_MAX_CHARS}: a long answer that merely contains
+ * a refusal-shaped clause is prose, not a decline.
  *
  * The length bound alone is not enough, hence {@link isWholesaleRefusal} rather
  * than `looksLikeRefusal`: a short summary that ends by calling out an injected
@@ -1183,58 +1143,10 @@ export function looksLikeToolPlanLeak(text: string, toolNames: readonly string[]
   return PLAN_ANNOUNCEMENT_RE.test(trimmed);
 }
 
-/**
- * Holds the first {@link SHORT_ANSWER_MAX_CHARS} of the answer back so a leaked
- * plan can be discarded and retried before the client ever sees it. Once the
- * answer grows past the threshold the gate opens and every delta passes straight
- * through — so normal answers only pay a one-paragraph delay on first token, and
- * long answers stream as before.
- */
-function createGatedEmitter(
-  onText: (delta: string) => void,
-  holdChars: number
-): { push: (d: string) => void; flush: () => void; discard: () => void; isOpen: () => boolean } {
-  let buffer = '';
-  let open = false;
-  // Der Steuertoken-Filter läuft über den GANZEN Strom, nicht nur über das
-  // Haltefenster. Die frühere Fassung säuberte allein den Puffer, weil sie
-  // annahm, das Token stehe immer vor der ersten Prosa — am 13.08.2026 kam es in
-  // einem Turn mit Werkzeugschritt erneut durch, nachdem das Gitter offen war.
-  const filter = createControlTokenFilter();
-  const emit = (text: string) => {
-    if (text.length > 0) onText(text);
-  };
-  return {
-    push(delta) {
-      if (open) {
-        emit(filter.push(delta));
-        return;
-      }
-      buffer += delta;
-      if (buffer.length > holdChars) {
-        emit(filter.push(buffer));
-        buffer = '';
-        open = true;
-      }
-    },
-    flush() {
-      if (buffer.length > 0) emit(filter.push(buffer));
-      emit(filter.flush());
-      buffer = '';
-      open = true;
-    },
-    discard() {
-      buffer = '';
-    },
-    // Whether anything has reached the client — decides if a validation retry
-    // can swap the answer silently or must go through a `completion` replace.
-    isOpen: () => open,
-  };
-}
-
 /** The repair writer: re-writes a failed loop answer over the collected
- *  sources — no tools. One retry when the first pass leaks its tool plan. */
-async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResult> {
+ *  sources, without tools. Nothing of it streams — the caller's `completion`
+ *  replace carries the returned text. */
+async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<string> {
   // Runs WITHOUT tools, so it must not see the tool-call/tool-result replay the
   // loop needs — see `synthMessages`.
   const messages = p.synthMessages ?? p.messages;
@@ -1244,22 +1156,13 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   interface SynthPass {
     text: string;
     finishReason: string | null;
-    /** The pass was cut where it started copying the source register. */
-    echoCut: boolean;
-    flush: () => void;
-    discard: () => void;
-    isOpen: () => boolean;
   }
 
   const runPass = async (
     system: string,
     model: LanguageModel,
-    passMessages: ModelMessage[],
-    /** Validation retry: collect the text without emitting anything — the
-     *  caller decides afterwards whether it replaces the first pass. */
-    silent = false
+    passMessages: ModelMessage[]
   ): Promise<SynthPass> => {
-    const gate = createGatedEmitter(silent ? () => {} : p.onText, SHORT_ANSWER_MAX_CHARS);
     // Plus das Einlesen: Synthese schweigt sonst nur beim Denken oder Sterben,
     // aber vor dem ersten Delta liest der Anbieter den ganzen Verlauf ein.
     const idleMs =
@@ -1274,82 +1177,57 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
       // Combined so a stalled provider call is torn down, not just abandoned.
-      // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
-      abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
+      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
       ...phaseTelemetry('synth'),
       onError: logStreamError('synth'),
     });
-    try {
-      const { text, finishReason, echoCut } = await drain(result, gate.push, p.onReasoning, idle);
-      // Stripped again on the accumulated text: `drain` collects it from the
-      // SDK independently of the gate, and this copy is what gets persisted and
-      // what every validator downstream reads.
-      return {
-        text: stripToolControlTokens(text),
-        finishReason,
-        echoCut,
-        flush: gate.flush,
-        discard: gate.discard,
-        isOpen: gate.isOpen,
-      };
-    } catch (err) {
-      // Nothing buffered may leak on the error path — the caller's catch writes
-      // its own user-facing message.
-      gate.discard();
-      throw err;
-    }
+    const { text, finishReason } = await drain(result, () => {}, p.onReasoning, idle);
+    // What gets persisted and what every validator downstream reads.
+    return { text: stripToolControlTokens(text), finishReason };
   };
 
-  /**
-   * A stalled lane costs the user the whole turn, so try the sibling once —
-   * the same move `streamWithFallback` makes on the single-pass path. Safe to
-   * restart rather than resume because the gated emitter has held everything
-   * back: the client has seen nothing from the dead pass.
-   */
-  const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
+  /** A stalled or empty pass costs the user the whole turn, so try the sibling
+   *  once — the same move `streamWithFallback` makes on the single-pass path. */
+  const runPassWithFallback = async (system: string): Promise<SynthPass> => {
     const onFallback = (fallback: LanguageModel) =>
       runPass(
         system,
         fallback,
-        p.synthFallbackMessages?.(`${system}${p.turnContext ?? ''}`) ?? messages,
-        silent
+        p.synthFallbackMessages?.(`${system}${p.turnContext ?? ''}`) ?? messages
       );
     let pass: SynthPass;
     try {
-      pass = await runPass(system, p.synthModel, messages, silent);
+      pass = await runPass(system, p.synthModel, messages);
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
         `[Engine] synth lane silent past its window (${err.message}) — retrying once on the fallback lane`
       );
-      p.onSynthFallback?.('first_token_timeout');
+      p.onRepairWriterUnhealthy?.('synth_stall');
       return onFallback(p.synthFallbackModel);
     }
-    // A pass that ended without a word — what the single-pass path calls
-    // `empty_completion` and hands to the sibling. Live 03.11.2026 Mistral
-    // Large 4 closed a thinking stream three times in one thread with no text
-    // and no finish reason, and each turn ended on „keine passende Antwort"
-    // without a log line. A degenerate pass has its own retry below.
+    // Live 03.11.2026 Mistral Large 4 closed a thinking stream three times in
+    // one thread with no text and no finish reason. A degenerate pass has its
+    // own retry below.
     if (
       pass.text.trim().length > 0 ||
       pass.finishReason === DEGENERATE_FINISH_REASON ||
       !p.synthFallbackModel ||
-      (p.writeAbortSignal ?? p.abortSignal).aborted
+      p.abortSignal.aborted
     ) {
       return pass;
     }
     log.warn(
       `[Engine] synth lane returned no text (finish=${pass.finishReason ?? 'none'}) — retrying once on the fallback lane`
     );
-    pass.discard();
-    p.onSynthFallback?.('empty_completion');
+    p.onRepairWriterUnhealthy?.('synth_empty');
     return onFallback(p.synthFallbackModel);
   };
 
   /** Why the answer is unusable as-is — a retry suffix, or null for valid. An
    *  abnormal finishReason means the upstream cut the stream; the caller's
    *  validators see the text alone and cannot know that. */
-  const invalidReason = (pass: { text: string; finishReason: string | null }): string | null => {
+  const invalidReason = (pass: SynthPass): string | null => {
     if (pass.finishReason === DEGENERATE_FINISH_REASON) {
       return SYNTH_DEGENERATE_RETRY_SUFFIX;
     }
@@ -1364,24 +1242,18 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   };
 
   /**
-   * One silent re-run for an answer that is syntactically broken (cut off
-   * mid-sentence, invalid JSON). The retry replaces the first pass only when it
-   * is demonstrably better: non-empty, itself valid, no tool-plan leak, no
-   * refusal (a long streamed answer must never be swapped for a canned decline).
+   * One re-run for an answer that is syntactically broken (cut off, invalid
+   * JSON, degenerate). The retry replaces the first pass only when it is
+   * demonstrably better: non-empty, itself valid, no tool-plan leak, no refusal.
    */
-  const retryInvalidAnswer = async (
-    first: SynthPass,
-    reason: string
-  ): Promise<LoopResult | null> => {
-    log.warn(
-      `[Engine] synth answer failed validation (${first.text.length} chars) — one silent retry`
-    );
+  const retryInvalidAnswer = async (first: SynthPass, reason: string): Promise<string | null> => {
+    log.warn(`[Engine] synth answer failed validation (${first.text.length} chars) — one retry`);
     recordDecision('loop.synth_verdict', 'invalid_retried', {
-      inputs: { textLength: first.text.length, alreadyStreamed: first.isOpen() },
+      inputs: { textLength: first.text.length },
     });
     let retry: SynthPass;
     try {
-      retry = await runPassWithFallback(`${baseSystem}${reason}`, true);
+      retry = await runPassWithFallback(`${baseSystem}${reason}`);
     } catch (err) {
       log.warn(
         `[Engine] validation retry failed (${err instanceof Error ? err.message : String(err)}) — keeping the first answer`
@@ -1400,50 +1272,25 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       });
       return null;
     }
-    const streamed = first.isOpen();
     recordDecision('loop.synth_verdict', 'invalid_replaced', {
-      inputs: { retryTextLength: retry.text.length, alreadyStreamed: streamed },
+      inputs: { retryTextLength: retry.text.length },
     });
-    // The one path here that changes the answer a human reads the MOST — a whole
-    // answer swapped for another — was the only silent one: every neighbour logs
-    // (both retry failures, the decline, the tool-plan leak) while the SUCCESS
-    // wrote nothing outside the development-only decision journal. From the
-    // operational log a swapped turn then looked exactly like an ordinary one;
-    // ruling it out took a stopwatch (a second synth pass costs ~10s), which
-    // stops working as soon as a retry is fast or a first pass is slow.
+    // Logged because the decision journal is development-only.
     log.warn(
-      `[Engine] validation retry replaced the answer (${first.text.length} → ${retry.text.length} chars, ` +
-        `${streamed ? 'already streamed — client sees a completion replace' : 'not yet streamed — swapped silently'})`
+      `[Engine] validation retry replaced the answer (${first.text.length} → ${retry.text.length} chars)`
     );
-    if (!streamed) {
-      // The invalid pass never reached the client — swap it silently.
-      first.discard();
-      p.onText(retry.text);
-      return { text: retry.text, replacement: 'validation_retry' };
-    }
-    // The invalid pass is already on the wire; the caller must replace it.
-    return {
-      text: retry.text,
-      replacedStreamed: true,
-      replacement: 'validation_retry_streamed',
-    };
+    return retry.text;
   };
 
   const first = await runPassWithFallback(baseSystem);
-  // A decline is checked BEFORE degeneracy: an English refusal trips the
-  // no-German-marker rule, so without this it would be retried (a second model
-  // call that refuses again) and then reported as "keine Antwort gefunden".
-  //
-  // Only an ENGLISH decline is swapped. A German one is already readable and
-  // says what it declines — and whether that is a policy decline or a missing
-  // capability ("Ich kann keine Websuche durchführen", #3799) cannot be read
-  // reliably from prose, so it goes out in the model's own words.
+  // A decline is checked BEFORE degeneracy, or it would be retried (a second
+  // call that refuses again). Only an ENGLISH decline is swapped: whether a
+  // German one is a policy decline or a missing capability ("Ich kann keine
+  // Websuche durchführen", #3799) cannot be read reliably from prose.
   const refusalLang = looksLikeSynthRefusal(first.text) ? refusalLanguage(first.text) : null;
   if (refusalLang === 'en') {
-    first.discard();
-    // The discarded text goes into the line on purpose: an over-refusal is
-    // invisible without it — the wire only ever shows the canned message, so a
-    // wrongly swapped answer looks exactly like a correct decline in the logs.
+    // The discarded text goes into the line on purpose: without it a wrongly
+    // swapped answer looks exactly like a correct decline in the logs.
     log.info(
       `[Engine] synth declined the request (en) — ` +
         `surfacing the German refusal instead of retrying; discarded: ${JSON.stringify(
@@ -1453,8 +1300,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     recordDecision('loop.synth_verdict', 'refusal_swapped', {
       inputs: { refusalLanguage: refusalLang },
     });
-    p.onText(SYNTH_REFUSAL_TEXT);
-    return { text: SYNTH_REFUSAL_TEXT, replacement: 'refusal_swap' };
+    return SYNTH_REFUSAL_TEXT;
   }
   if (refusalLang === 'de') {
     log.info(
@@ -1465,34 +1311,21 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
     // A degenerate pass earns the retry even when the trim left NOTHING — spam
-    // from the first token is the most complete failure, exactly where a fresh
-    // pass helps most. Plain-empty answers stay the caller's fallback case.
+    // from the first token is where a fresh pass helps most. Plain-empty
+    // answers stay the caller's fallback case.
     const reason =
       first.text.trim().length > 0 || first.finishReason === DEGENERATE_FINISH_REASON
         ? invalidReason(first)
         : null;
-    if (reason != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
+    if (reason != null && !p.abortSignal.aborted) {
       const replaced = await retryInvalidAnswer(first, reason);
-      if (replaced) return replaced;
+      if (replaced != null) return replaced;
     }
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
-    // Captured BEFORE flush() — flush opens the gate unconditionally, so
-    // afterwards isOpen() no longer says whether the CLIENT saw anything.
-    const spamReachedWire = first.isOpen();
-    first.flush();
-    if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
-      // The retry didn't recover, so the trimmed text stands — but the wire
-      // still carries the degenerate tail drain cut off. Replace it.
-      return { text: first.text, replacedStreamed: true, replacement: 'degeneration_trim' };
-    }
-    // Whether or not the gate was open, flush() just put the buffered deltas
-    // on the wire — and they run past the cut.
-    if (first.echoCut) {
-      return { text: first.text, replacedStreamed: true, replacement: 'source_echo_trim' };
-    }
-    return { text: first.text };
+    // A degenerate pass keeps its trimmed prefix (`drain`).
+    return first.text;
   }
 
   log.warn(
@@ -1505,17 +1338,15 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   });
   const retry = await runPassWithFallback(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
   if (retry.text.trim().length === 0 || looksLikeToolPlanLeak(retry.text, toolNames)) {
-    // Neither pass produced an answer — emit NEITHER (both are still buffered)
-    // and return empty, so the caller's honest no-answer fallback fires instead
-    // of a leaked tool-planning line.
+    // Empty, so the caller's honest no-answer fallback fires instead of a
+    // leaked tool-planning line.
     log.warn('[Engine] synth retry did not recover — degrading to the no-answer fallback');
     recordDecision('loop.synth_verdict', 'retry_failed_empty', {
       inputs: { retryTextLength: retry.text.length },
     });
-    return { text: '' };
+    return '';
   }
-  retry.flush();
-  return { text: retry.text };
+  return retry.text;
 }
 
 type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string };
@@ -1597,7 +1428,7 @@ async function drain(
         // set no maxOutputTokens, so without this it streams until the PROVIDER's
         // cap fires (live 12.08.2026: 32.826 chars over 263s). Cut it here, keep
         // the healthy prefix, and let the caller's finishReason handling take
-        // over (repair writer: silent retry; loop: completion replace).
+        // over (repair writer: retry; loop: completion replace).
         if (degeneration.check(text)) {
           // The guard's own cut: when the long-range detector fired it knows
           // the exact offset where the repetition began. No backscan can
@@ -1608,14 +1439,9 @@ async function drain(
             `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
           );
           finishReason = DEGENERATE_FINISH_REASON;
-          // The kept prefix says it was cut. Both answer paths replace what the
-          // client shows with this string (unified always, split when the
-          // silent retry fails), so the note travels with the trim instead of
-          // the trim passing for a finished answer. A successful split retry
-          // discards this text wholesale — and with it the note, correctly.
-          // ...but only when there is something to warn about. Removing a run
-          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
-          // it would be a false alarm about a correct result.
+          // The kept prefix says it was cut, so the trim does not pass for a
+          // finished answer — but only when there is something to warn about:
+          // removing a run of dashes leaves a COMPLETE answer.
           text = trimDegenerate(text, cut);
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream

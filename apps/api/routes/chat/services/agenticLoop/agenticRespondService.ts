@@ -26,7 +26,6 @@ import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
-import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -598,7 +597,7 @@ export async function streamAgenticResponse(
     const toolSystem = withInstructionHierarchy(
       `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
-    const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
+    const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
       AbortSignal.any([approvalGate.signal, askGate.signal, clientToolGate.signal])
@@ -843,6 +842,16 @@ export async function streamAgenticResponse(
           } — Lane wird übersprungen`
         );
       },
+      // Der Reparatur-Schreiber stand oder blieb stumm, sein Geschwister
+      // übernahm: Verdikte, die die Messung nicht liefert, weil nichts kam.
+      onRepairWriterUnhealthy: (grund) => {
+        recordSlowVerdict(repair.provider, repair.name, grund);
+        log.warn(
+          `[Agentic] repair writer ${repair.provider}/${repair.name} ${
+            grund === 'synth_empty' ? 'returned no text' : 'stalled'
+          } → falling back to ${repairFallback?.name ?? 'sibling'}`
+        );
+      },
       tools: wrapped,
       toolActivity,
       toolSystem,
@@ -925,24 +934,16 @@ export async function streamAgenticResponse(
       // (cached input is billed at 10 %). Ignored by every non-Mistral client.
       ...(mistralOptions != null && { providerOptions: { mistral: mistralOptions } }),
       abortSignal,
-      writeAbortSignal,
       afterGather,
       forceFinish: () =>
         // The turn budget lands HERE rather than on the abort signal: spending
-        // it must end the tool work, not the sentence being written. In unified
-        // mode this is also what protects the answer — one stream holds tools
-        // and text there, so a hard timeout could only ever cut prose.
+        // it must end the tool work, not the sentence being written — one
+        // stream holds tools and text, so a hard timeout could only cut prose.
         Date.now() >= toolBudgetDeadline ||
         finalState.generatedImage != null ||
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
         finalState.createdDocument != null ||
         finalState.createdBoard != null,
-      // Every answer delta runs through the opening dedupe: the synth is told
-      // not to restate the already-streamed opening sentence, but the small
-      // lanes do it anyway ("Hallo zusammen, Hallo zusammen …"). The dedupe
-      // holds the head of the answer only while a duplicate is still possible,
-      // then streams normally; in unified mode (no narrated opening) it is a
-      // pure passthrough from the first delta.
       onText: (delta) => emitter.pushAnswer(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       validateAnswer: createAnswerValidator(),
@@ -953,24 +954,22 @@ export async function streamAgenticResponse(
     });
     answerReplaced = loopResult.replacement ?? null;
 
-    if (loopResult.replacedStreamed) {
-      // The validation retry replaced an answer that was already on the wire.
-      // Same replacement channel the citation clamp uses: `completion` swaps
-      // the streamed deltas for the corrected text, and the recorded offsets
-      // (which index into the discarded stream) are dropped.
+    if (loopResult.replacement != null) {
+      // The answer on the wire was replaced. Same channel the citation clamp
+      // uses: `completion` swaps the streamed deltas for the corrected text,
+      // and the recorded offsets (which index into the discarded stream) are
+      // dropped.
       emitter.setText(loopResult.text);
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
     }
 
-    // Unified: an answer written before its edit landed says what came of it.
+    // An answer written before its edit landed says what came of it.
     const editTail = editOutcomeAfterPreamble(finalState, steps, emitter.text);
     if (editTail) emitter.appendAndStream(`\n\n${editTail}`);
 
-    // Edit + compound-generation guarantees now run inside afterGather in BOTH
-    // loop modes (loopEngine calls it post-stream for unified), so no separate
-    // post-loop net is needed here. The hooks are idempotent via
-    // editorEditsSummary / the `already` artifact check.
+    // Edit + compound-generation guarantees run inside afterGather (loopEngine
+    // calls it post-stream), so no post-loop net is needed here.
 
     if (emitter.text.trim().length === 0) {
       // An edit that succeeded but left the model silent must NOT surface the

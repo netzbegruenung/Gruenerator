@@ -1,14 +1,9 @@
 /**
- * Die zwei Zusicherungen, die ein Turn einlöst, wenn der Planer es nicht tut.
- *
- * Beide entstanden aus demselben beobachteten Verhalten: der geteilte Planer
- * behandelt einen Erstellungs- oder Bearbeitungsauftrag als reine Recherche und
- * hört nach dem Suchen auf. Was der Turn ZUGESAGT hat, kann davon nicht
- * abhängen — also führt der Turn das Werkzeug selbst aus.
- *
- * Beide sind idempotent (der `already`-Test bzw. `editorEditsSummary`), damit
- * `afterGather` in BEIDEN Modi laufen kann: split ruft es vor der Synthese,
- * unified nach dem Strom.
+ * Die zwei Zusicherungen, die ein Turn einlöst, wenn das Loop-Modell es nicht
+ * tut: es behandelt einen Erstellungs- oder Bearbeitungsauftrag als reine
+ * Recherche und hört nach dem Suchen auf. Was der Turn ZUGESAGT hat, kann davon
+ * nicht abhängen — also führt der Turn das Werkzeug selbst aus. Idempotent (der
+ * `already`-Test bzw. `editorEditsSummary`); loopEngine ruft sie nach dem Strom.
  */
 import {
   BOARD_MODIFY_PATTERN,
@@ -121,9 +116,7 @@ function turnHasArtifact(state: ChatGraphState): boolean {
  *
  * The loop forces it as a named step — at step 0 when nothing else is forced,
  * otherwise as soon as the forced first call is done (`forcedToolForStep`) — so
- * the writer sees the tool result BEFORE it writes, in both modes. Until 11/2026
- * such a turn ran split instead (`turnCarriesGuarantee`), because unified ran
- * `afterGather` only after the answer was written. `afterGather` stays as the
+ * the writer sees the tool result BEFORE it writes. `afterGather` stays as the
  * net for a host that ignores `tool_choice`.
  *
  * `userAsk` is the turn's last user text (the forced edit reads it too).
@@ -159,25 +152,18 @@ export interface GuaranteeContext {
   wrappedTools: ToolSet;
   /** Welche Werkzeuge in diesem Turn schon gelaufen sind (Name je Schritt). */
   calledToolNames: () => readonly string[];
-  /** A forced generation is "a tool actually runs" too — the held-back opening
-   *  streams before its card, same as a planner-issued call. */
-  /** Read at CALL time: in unified mode the answer is already written when this
-   *  runs, and that is exactly what the inline-table check asks about. */
+  /** Read at CALL time: the answer is already written when this runs, and
+   *  that is exactly what the inline-table check asks about. */
   answerText: () => string;
   onInfo: (message: string) => void;
   onWarn: (message: string) => void;
 }
 
-/**
- * Builds the `afterGather` hook loopEngine calls between the tool phase and the
- * answer.
- */
+/** Builds the `afterGather` hook loopEngine calls after the stream. */
 export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
-  // The compound turn's whole point is the artifact — but the split planner
-  // unreliably calls the generation fat tool (it treats the turn as pure
-  // research and stops). GUARANTEE it: after gather, if the planner produced
-  // no artifact, invoke the mounted generation tool directly with the
-  // researched sources as the brief. The synth then announces it.
+  // The compound turn's whole point is the artifact. If the loop produced
+  // none, invoke the mounted generation tool directly with the researched
+  // sources as the brief.
   const lastUserAsk = (): string => {
     const lastUser = [...p.messages].reverse().find((m) => m.role === 'user');
     return typeof lastUser?.content === 'string'
@@ -289,10 +275,10 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   const afterGather = async (): Promise<boolean> => {
     const pinnedRan = await forcePinnedBundestag();
     // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
-    //     open artefact. The split planner unreliably calls edit_document
-    //     (observed live: steps=0 on most sheet/deck edits) — force it here,
-    //     BEFORE synth, so editorEditsSummary is set and the synth confirms the
-    //     change instead of writing empty text (→ fallback) or a false refusal.
+    //     open artefact. The loop model unreliably calls edit_document
+    //     (observed live: steps=0 on most sheet/deck edits) — force it here, so
+    //     editorEditsSummary is set and the caller confirms the change instead
+    //     of the no-answer fallback or a false refusal.
     //     Der Intent ist NICHT das Kriterium, sondern nur eines von dreien: das
     //     Werkzeug hängt an der FLÄCHE, nicht am Intent, und der Klassifikator
     //     verfehlt seine `edit_current_*`-Schnellbahn regelmässig (live am

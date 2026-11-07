@@ -3,11 +3,11 @@
  *
  * The `rezept_laden` tool is a SWITCH, not a carrier: it registers here and
  * returns a tiny acknowledgement. The prompt body travels through the system
- * message instead — `buildSynthSystem` in split mode, `buildPrepareStep` in
- * unified mode. Three reasons, all load-bearing:
+ * message instead — `buildPrepareStep` for the loop model, `buildSynthSystem`
+ * for the repair writer. Three reasons, all load-bearing:
  *
- *  1. In split mode the model that WRITES has no tools at all, so a body
- *     returned from `execute()` would reach the planner and never the writer.
+ *  1. The repair writer has no tools at all, so a body returned from
+ *     `execute()` would never reach it.
  *  2. `truncateResultForModel` caps every string field of every tool result at
  *     PER_FIELD_FLOOR (400 chars). A half-arrived recipe is worse than none —
  *     the tone survives, the length limit does not.

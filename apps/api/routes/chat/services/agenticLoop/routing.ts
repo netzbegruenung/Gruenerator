@@ -1152,10 +1152,9 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
 }
 
 /**
- * Single source of truth for the runAgentic gate. Note there is NO
- * tool-capability check: with the planner/executor split (see loopEngine), a
- * fixed fast planner does every tool call, so ANY selected model can drive the
- * loop — the model choice only decides unified-vs-split MODE inside the loop.
+ * Single source of truth for the runAgentic gate. There is NO tool-capability
+ * check: every chat lane passed the tool probe and drives the loop itself
+ * (#5441).
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // Eine zurückgewonnene Art hebt den Turn in die Schleife, wo ihr Werkzeug

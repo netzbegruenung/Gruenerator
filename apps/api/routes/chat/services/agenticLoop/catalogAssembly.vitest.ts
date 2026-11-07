@@ -581,7 +581,7 @@ describe('wrapAssembledTools — Labels der Verbindungs-Werkzeuge', () => {
         perCallTimeoutMs: 20_000,
         toolActivity: createToolActivity(),
         toolLabels,
-        getTextOffset: () => null,
+        getTextOffset: () => 0,
       }
     );
     return { wrapped, sent, steps };

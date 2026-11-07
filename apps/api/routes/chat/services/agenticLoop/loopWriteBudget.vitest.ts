@@ -1,115 +1,28 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import { resolveAbortOutcome, TRUNCATION_NOTE } from './agenticRespondService.js';
 import { pdfProblemNote } from './synthVerdicts.js';
-import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
 import { DEFAULT_LOOP_BUDGET, type PersistedStep } from './types.js';
 
 /**
  * The turn budget must not be able to cut the sentence being written.
  *
- * QA, 28.07.2026: two turns in one session ended mid-word — one after
- * "Aktuelles Budget: 13.500 Euro", one after "…des öffentlichen Nah". Both had
- * created an artifact first. That was the tell: a sheet or a PDF costs 30–60s
- * in the tool phase, and the whole turn ran under ONE
- * `AbortSignal.timeout(wallClockMs)`, so the writer inherited whatever was left
- * of the 120s. When it ran out, the stream was torn down mid-token — and the
- * caller only substitutes text when NOTHING was written, so the stump shipped
- * looking like a finished answer. The QA report duly filed the missing halves
- * as content defects ("Konsistenzprüfung enthielt nur das Budget").
- *
- * These tests pin the separation: tool work is bounded by the turn budget, the
- * writer runs under its own signal.
+ * QA, 28.07.2026: two turns ended mid-word after an artifact had eaten 30–60 s
+ * of the tool phase, and the stump shipped looking like a finished answer.
+ * The budget is soft since (`forceFinish`, loopBudget.ts); these tests pin the
+ * ordering and the note on a stump.
  */
-
-const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
-const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
-
-type Part = { type: string; text?: string };
-
-function streamOf(parts: Part[]): ReturnType<LoopDeps['streamText']> {
-  return {
-    stream: (async function* () {
-      yield* parts;
-    })(),
-  } as unknown as ReturnType<LoopDeps['streamText']>;
-}
-
-/** Records the abortSignal each pass was handed, keyed by model id; the writer is `repair`. */
-function recordingDeps(): { deps: LoopDeps; signals: Record<string, AbortSignal> } {
-  const signals: Record<string, AbortSignal> = {};
-  const deps: LoopDeps = {
-    streamText: ((o: { model: { id: string }; abortSignal: AbortSignal }) => {
-      signals[o.model.id] = o.abortSignal;
-      // The unified pass ends empty, so the tool-less repair writer takes over.
-      return streamOf(o.model.id === 'repair' ? [{ type: 'text-delta', text: 'ANTWORT' }] : []);
-    }) as unknown as LoopDeps['streamText'],
-    generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-  };
-  return { deps, signals };
-}
-
-function params(over: Partial<LoopEngineParams>): LoopEngineParams {
-  return {
-    synthModel,
-    repairModel,
-    tools: { web_search: {} } as unknown as LoopEngineParams['tools'],
-    toolSystem: 'TOOLSYS',
-    buildSynthSystem: (s) => `SYNTHSYS::${s}`,
-    getSourcesBlock: () => '[1] Quelle — Inhalt',
-    messages: [],
-    maxSteps: 6,
-    temperature: 0.3,
-    abortSignal: new AbortController().signal,
-    forceFinish: () => false,
-    onText: vi.fn(),
-    onReasoning: vi.fn(),
-    ...over,
-  };
-}
-
-describe('write phase budget', () => {
-  /**
-   * The regression itself. A turn whose tool budget is already spent must still
-   * be able to write — otherwise every turn that generates an artifact first
-   * gambles its answer against the leftover milliseconds.
-   */
-  it('does not abort the writer when the turn budget is spent', async () => {
-    const spent = new AbortController();
-    spent.abort();
-    const write = new AbortController();
-    const { deps, signals } = recordingDeps();
-
-    const out = await runAgenticLoop(
-      params({ abortSignal: spent.signal, writeAbortSignal: write.signal }),
-      deps
-    );
-
-    expect(out.text).toBe('ANTWORT');
-    expect(signals.repair?.aborted).toBe(false);
-  });
-
-  it('falls back to the turn signal when no write signal is given', async () => {
-    const turn = new AbortController();
-    const { deps, signals } = recordingDeps();
-
-    await runAgenticLoop(params({ abortSignal: turn.signal }), deps);
-
-    turn.abort();
-    expect(signals.repair?.aborted).toBe(true);
-  });
-});
 
 describe('loop budget shape', () => {
   /** A ceiling below the tool budget would put the hard abort back inside the
-   *  tool phase, which is the ordering this whole split exists to prevent. */
+   *  tool phase. */
   it('keeps the hard ceiling above the tool budget', () => {
     expect(DEFAULT_LOOP_BUDGET.hardCapMs).toBeGreaterThan(DEFAULT_LOOP_BUDGET.wallClockMs);
   });
 });
 
 /**
- * The second half of the fix: even with the budgets separated, a turn can still
+ * Even with a soft budget, a turn can still
  * die mid-answer (client disconnect, the absolute ceiling, a wedged provider).
  * When it does, the stump must say so.
  */

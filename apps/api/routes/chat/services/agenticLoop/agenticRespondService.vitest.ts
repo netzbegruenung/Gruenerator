@@ -174,7 +174,7 @@ function fakeDeps(opts: {
   modelName?: string;
   contextWindow?: number;
   onLoop?: (p: LoopEngineParams) => void;
-  loopResult?: { text: string; replacedStreamed?: boolean; replacement?: AnswerReplacement };
+  loopResult?: { text: string; replacement?: AnswerReplacement };
   assemble?: AgenticRespondDeps['assembleToolCatalog'];
 }): AgenticRespondDeps {
   return {
@@ -194,7 +194,7 @@ function fakeDeps(opts: {
       const text = opts.loopResult?.text ?? 'Fertige Antwort.';
       // Mirror what the real engine does for the caller's `text`: the loop
       // streams the answer through onText.
-      if (!opts.loopResult?.replacedStreamed) p.onText(text);
+      if (opts.loopResult?.replacement == null) p.onText(text);
       return opts.loopResult ?? { text };
     }) as unknown as AgenticRespondDeps['runAgenticLoop'],
   };
@@ -267,8 +267,6 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         provider: 'melious',
         modelName: 'gemma-4-31b:balanced',
         onLoop: (p) => {
-          // Die Leiter meldet ihre Stufen; der Wechsel selbst bucht nichts mehr.
-          p.onSynthFallback?.('first_token_timeout');
           p.onLaneUnhealthy?.(0, 'provider_unavailable');
           p.onLaneUnhealthy?.(1, 'stall');
         },
@@ -281,6 +279,26 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         reason: 'unified:provider_unavailable',
       },
       { provider: 'melious', model: 'gemma-4-31b:speed', reason: 'unified:stall' },
+    ]);
+  });
+
+  it('vermerkt den Reparatur-Schreiber, wenn sein Geschwister übernimmt', async () => {
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'mistral',
+        modelName: 'mistral-large-4',
+        onLoop: (p) => {
+          p.onRepairWriterUnhealthy?.('synth_stall');
+          p.onRepairWriterUnhealthy?.('synth_empty');
+        },
+      })
+    );
+    expect(slowVerdicts.map((v) => `${v.provider}/${v.model}:${v.reason}`)).toEqual([
+      'mistral/mistral-large-4:synth_stall',
+      'mistral/mistral-large-4:synth_empty',
     ]);
   });
 
@@ -399,7 +417,7 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
   });
 
   it('ersetzt die bereits gestreamte Antwort, wenn die Wiederholung gegriffen hat', async () => {
-    // `replacedStreamed` heißt: auf der Leitung liegt der VERWORFENE Durchlauf.
+    // Ein `replacement` heißt: auf der Leitung liegt der VERWORFENE Durchlauf.
     // Der Turn muss die korrigierte Fassung über `completion` nachreichen und
     // die Text-Offsets fallen lassen — sie zeigen in den verworfenen Strom.
     const { sse, sent } = fakeSse();
@@ -407,7 +425,7 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
       fakeDeps({
         provider: 'mistral',
-        loopResult: { text: 'Die korrigierte Antwort.', replacedStreamed: true },
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'unified_repair' },
       })
     );
     const completion = sent.filter((e) => e.event === 'completion');
@@ -590,11 +608,11 @@ describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', ()
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
       fakeDeps({
         provider: 'mistral',
-        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'validation_retry' },
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'unified_repair' },
       })
     );
     const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
-    expect(summary).toContain('replaced=validation_retry');
+    expect(summary).toContain('replaced=unified_repair');
   });
 
   it('schweigt über einen Ersatz, den es nicht gab', async () => {
@@ -897,7 +915,7 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       perCallTimeoutMs: 20_000,
       toolActivity,
       toolLabels: new Map(),
-      getTextOffset: () => null,
+      getTextOffset: () => 0,
     });
     return Object.assign(tools, { __activity: toolActivity });
   };

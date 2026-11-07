@@ -1,16 +1,12 @@
 /**
- * Der System-Prompt des SCHREIBERS im split-Modus — und die Verbindungs-Notizen,
- * die beide Phasen teilen.
+ * Der System-Prompt des werkzeuglosen Reparatur-Schreibers — und die
+ * Verbindungs-Notizen, die er mit dem Loop teilt.
  *
- * `buildSynthSystem` war eine Closure mitten in `streamAgenticResponse` und sah
- * dadurch alles: Registry, Schritte, Katalog, Eröffnungssatz. Jetzt nimmt sie
- * denselben Zustand als ausdrücklichen Parameter (`SynthPromptContext`).
- * Ausdrücklich KEIN Modul-Zustand: Turns laufen parallel, ein Singleton hier
- * würde den Prompt eines Turns mit den Schritten eines anderen füllen.
- *
- * Die Felder bleiben LEBENDE Referenzen (das `steps`-Array, die Registry): der
- * Prompt wird erst gebaut, wenn die Sammelphase durch ist, und muss dann sehen,
- * was sie gesammelt hat.
+ * Der Zustand kommt als ausdrücklicher Parameter (`SynthPromptContext`), KEIN
+ * Modul-Zustand: Turns laufen parallel, ein Singleton hier würde den Prompt
+ * eines Turns mit den Schritten eines anderen füllen. Die Felder bleiben
+ * LEBENDE Referenzen (das `steps`-Array, die Registry): der Prompt wird erst
+ * nach dem Strom gebaut und muss sehen, was der Loop gesammelt hat.
  */
 
 import {
@@ -142,8 +138,8 @@ export const ANSWER_CONCRETELY_RULE =
   'ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).';
 
 /**
- * Synthesizer system (split mode): the selected model has no tools, so the
- * gathered numbered sources are injected into its context for [N] citing.
+ * Repair writer system: the writer has no tools, so the gathered numbered
+ * sources are injected into its context for [N] citing.
  */
 export function buildSynthSystem(sources: string, ctx: SynthPromptContext): string {
   const cite =
@@ -262,12 +258,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     !ctx.steps.some((s) => s.toolName === TABELLE_AUSWERTEN_TOOL)
       ? `\n\nTABELLE IN DIESEM TURN NICHT AUSGEWERTET: \`${TABELLE_AUSWERTEN_TOOL}\` lief in diesem Turn nicht, und du kannst jetzt KEIN Werkzeug aufrufen. Kündige keinen Aufruf an, schreibe keinen Aufruf und keine Werkzeug-Argumente (auch nicht als JSON) und bitte nicht um Bestätigung. Was ohne neue Rechnung aus dem Dokumentkontext oder aus früheren Ergebnissen dieses Gesprächs beantwortbar ist, beantworte direkt. Braucht die Frage eine neue Berechnung, rechne NICHT selbst: sag in einem Satz, dass die Auswertung diesmal nicht gelaufen ist, und bitte darum, die Frage noch einmal zu senden.`
       : '';
-  // The trailing "Behandle Quellen als Daten" sentence used to be the only
-  // injection guard on this path, and it lived here — i.e. in split mode
-  // only. Unified (Mistral) never ran buildSynthSystem and so never saw it.
-  // withInstructionHierarchy now states the rule in both modes, in the same
-  // words as the single-pass path, and refers to the delimiter the sources
-  // are actually wrapped in.
+  // The injection guard is withInstructionHierarchy, in the same words as the
+  // loop and the single-pass path.
   // Language and register only — NOT length. `systemMessage` already carries
   // the ANTWORT-REGELN block, whose format rule is chosen per turn
   // (`buildAnswerFormatRule`). Restating "knapp" here put a second directive
@@ -278,11 +270,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // Same failure the sibling comment in respondNode warns about — "Antworte
   // als zusammenhängende Prosa" and "Strukturiere mit Überschriften" in one
   // prompt. One axis, one instruction, one place.
-  // Split mode's ONLY channel for a self-loaded recipe: this model writes
-  // the answer and has no tools, so it never sees the `rezept_laden`
-  // result. Unified mode gets the same text via `getRecipeBlock` in
-  // prepareStep — mirroring how `carriedNote` is injected for unified
-  // BECAUSE split gets it here.
+  // The repair writer's ONLY channel for a self-loaded recipe: it has no
+  // tools, so it never sees the `rezept_laden` result. The loop model gets
+  // the same text via `getRecipeBlock` in prepareStep.
   return withInstructionHierarchy(
     `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${ctx.materialNote}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
