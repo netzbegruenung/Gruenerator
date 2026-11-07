@@ -529,79 +529,11 @@ describe('wrapToolsForLoop', () => {
     expect(steps[0].textOffset).toBe(0);
   });
 
-  it('drains takeNarration at start and stamps it on the card + recorded step', async () => {
-    const { ctx, events, steps } = makeCtx({ takeNarration: () => 'Ich suche jetzt danach.' });
-    const tools = wrapToolsForLoop(
-      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
-      ctx
-    );
-    await run(tools, 'search', { query: 'x' });
-    const start = events.find((e) => e.event === 'tool_step_start');
-    expect(start?.data).toMatchObject({ narration: 'Ich suche jetzt danach.' });
-    expect(steps[0].narration).toBe('Ich suche jetzt danach.');
-  });
-
-  it('omits narration when takeNarration returns null (no announcement buffered)', async () => {
-    const { ctx, events, steps } = makeCtx({ takeNarration: () => null });
-    const tools = wrapToolsForLoop(
-      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
-      ctx
-    );
-    await run(tools, 'search', { query: 'x' });
-    const start = events.find((e) => e.event === 'tool_step_start');
-    expect('narration' in (start?.data ?? {})).toBe(false);
-    expect('narration' in steps[0]).toBe(false);
-  });
-
-  it('drains the narration buffer once — parallel siblings after it get none', async () => {
-    let drained = false;
-    const takeNarration = () => {
-      if (drained) return null;
-      drained = true;
-      return 'Ankündigung für beide Aufrufe.';
-    };
-    const { ctx, steps } = makeCtx({ takeNarration });
-    const tools = wrapToolsForLoop(
-      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
-      ctx
-    );
-    await run(tools, 'search', { query: 'a' }, 'call_a');
-    await run(tools, 'search', { query: 'b' }, 'call_b');
-    expect(steps[0].narration).toBe('Ankündigung für beide Aufrufe.');
-    expect('narration' in steps[1]).toBe(false);
-  });
-
   /**
    * A blocked call must not consume the announcement: the planner said "Ich
    * schaue kurz nach" once, and the call that actually runs is the one it
    * announced. Draining it into a step nobody ever sees loses the sentence.
    */
-  it('leaves the narration buffer undrained on a guard-blocked call', async () => {
-    let drains = 0;
-    const { ctx, steps } = makeCtx({
-      takeNarration: () => {
-        drains += 1;
-        return 'Kurz geprüft.';
-      },
-    });
-    ctx.guards.noteFailure('search');
-    ctx.guards.noteFailure('search'); // at cap
-    const tools = wrapToolsForLoop(
-      {
-        search: { execute: async () => ({ results: [] }) },
-        other: { execute: async () => ({ results: [] }) },
-      } as unknown as ToolSet,
-      ctx
-    );
-    await run(tools, 'search', { query: 'x' });
-    expect(drains).toBe(0);
-    expect(steps).toHaveLength(0);
-
-    // The next call that really runs gets the announcement.
-    await run(tools, 'other', { query: 'x' }, 'call_2');
-    expect(steps[0].narration).toBe('Kurz geprüft.');
-  });
-
   it('passes title/serverName onto the start card', async () => {
     const { ctx, events } = makeCtx({
       titleFor: () => 'Suche Notion…',

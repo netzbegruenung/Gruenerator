@@ -63,7 +63,6 @@ function ctx(over: Partial<SynthPromptContext> = {}): SynthPromptContext {
     tools: {} as ToolSet,
     sourceRegistry: createSourceRegistry(),
     recipeRegistry: createRecipeRegistry(),
-    opening: () => null,
     materialNote: '',
     ...over,
   };
@@ -357,20 +356,7 @@ describe('buildSynthSystem — Quellenblock', () => {
   });
 });
 
-describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
-  it('nennt den bereits gezeigten Eröffnungssatz, damit er nicht doppelt kommt', () => {
-    const prompt = buildSynthSystem('', ctx({ opening: () => 'Ich schaue kurz nach.' }));
-    expect(prompt).toContain('"Ich schaue kurz nach."');
-    expect(prompt).toContain('Wiederhole diesen Satz NICHT');
-  });
-
-  it('schweigt, wenn der Eröffnungssatz nie beim Client ankam', () => {
-    const prompt = buildSynthSystem('', ctx({ opening: () => null }));
-    // Der Satz wurde zurückgehalten. Ihn hier anzukündigen liesse den Schreiber
-    // seinen eigenen ersten Satz überspringen.
-    expect(prompt).not.toContain('Deine Antwort beginnt bereits');
-  });
-
+describe('buildSynthSystem — Rezept', () => {
   it('trägt ein selbst geladenes Rezept in den Prompt', () => {
     const recipeRegistry = createRecipeRegistry();
     recipeRegistry.register({

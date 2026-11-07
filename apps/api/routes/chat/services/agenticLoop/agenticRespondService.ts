@@ -32,9 +32,7 @@ import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
-  getLoopPlannerFallbackStages,
   getLoopSynthFallbackModel,
-  resolveLoopPlannerLane,
   getLoopSynthModel,
   resolveUnifiedLaneChain,
 } from '../../agents/providers.js';
@@ -58,8 +56,7 @@ import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
-import { replaceUntrustedBlocks, withInstructionHierarchy } from '../untrustedContent.js';
-import { plannerDocumentStub } from '../wholeDocument.js';
+import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { approvalGateEnabled } from './approvalPolicy.js';
 import {
@@ -68,12 +65,7 @@ import {
   turnProducedArtifact,
 } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import {
-  ATTACHED_DOCS_TOOL,
-  materialReaderTools,
-  resolveTurnMaterial,
-  retrievableAttachedSources,
-} from './attachedDocuments.js';
+import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
@@ -95,18 +87,12 @@ import {
   shouldForceFirstToolCall,
 } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
-import {
-  runAgenticLoop,
-  TurnSuspendedError,
-  type AnswerReplacement,
-  type LoopMode,
-} from './loopEngine.js';
+import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
 import { createAfterGather, owedToolName } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
-import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
+import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
-import { stripDuplicatedOpening } from './openingDedupe.js';
 import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
@@ -311,7 +297,6 @@ export async function streamAgenticResponse(
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
-  let mode: LoopMode = 'unified';
   let synthName = '';
   // Außerhalb des try, damit die Attribution nach dem Loop noch erreichbar ist
   // — auch wenn der Loop selbst abgebrochen wurde (das Rezept war dann
@@ -341,17 +326,6 @@ export async function streamAgenticResponse(
   // (precise + reasoning on) and, further down, whether the writer gives up the
   // tool catalog. Two computations could disagree — see turnMaterial.ts.
   const carriedMaterialChars = turnMaterialChars(finalState);
-
-  /**
-   * Die Planer-Lane dieses Zuges, EINMAL aufgelöst.
-   *
-   * Die Bindung steht vor dem `try`, weil die Turn-Zusammenfassung unten
-   * dahinter liegt und dieselbe Lane nennen muss — nicht das Ergebnis einer
-   * zweiten Auflösung. Zugewiesen wird erst dort, wo der Loop startet: der Wert
-   * ist zeitabhängig (`isModelSlow`), und gemeint ist die Lane, mit der dieser
-   * Zug tatsächlich losfuhr.
-   */
-  let plannerLane: ReturnType<typeof resolveLoopPlannerLane> | null = null;
 
   try {
     resolution = await deps.resolveModel(
@@ -501,9 +475,7 @@ export async function streamAgenticResponse(
       approvalGate,
       askGate,
       clientToolGate,
-      // Reads `mode` lazily: it's finalized further down, before the loop runs.
-      getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
-      takeNarration: () => emitter.takeNarration(),
+      getTextOffset: () => emitter.text.length,
     });
 
     // Fortsetzung nach der Entscheidung: die freigegebenen Aufrufe laufen DURCH
@@ -591,89 +563,41 @@ export async function streamAgenticResponse(
       `${systemMessage}${turnPaste ?? ''}${turnContext ?? ''}`,
       carriedMaterialChars
     );
-    const resolvedMode = resolveLoopMode({
-      provider: resolution.provider,
-      modelName: resolution.modelName,
-      materialHeavy,
-    });
-    mode = resolvedMode.mode;
-    recordDecision('loop.mode', mode, {
-      inputs: {
-        provider: resolution.provider,
-        model: resolution.modelName,
-        materialHeavy,
-        reason: resolvedMode.reason,
-      },
-    });
-    // Rides on the state to the `done` event (persistStage), like usedRecipes.
-    finalState.loopMode = mode;
-    log.info(`[Agentic] loop mode: ${mode} (${resolvedMode.reason})`);
-    if (materialHeavy) {
-      log.info(
-        `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`
-      );
-    }
+    // Rides on the state to the `done` event (persistStage), like usedRecipes:
+    // the eval traces tell loop turns from single-pass turns by it.
+    finalState.loopMode = 'unified';
 
-    // Unified mode has no synth phase, so it never sees `renderAll()` — the
-    // carried sources would be numbered, chip-backed and completely invisible to
-    // the model that writes the answer. Split mode gets them via buildSynthSystem
-    // instead, so injecting here too would ship the same block twice.
+    // The loop has no synth phase, so it never sees `renderAll()` — the carried
+    // sources would be numbered, chip-backed and completely invisible to the
+    // model that writes the answer.
     const carriedNote =
-      mode === 'unified' && sourceRegistry.carriedSize > 0
+      sourceRegistry.carriedSize > 0
         ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter. Schreib diese Liste NICHT ab und hänge kein Quellenverzeichnis an — die Quellen erscheinen unter deiner Antwort von selbst:\n${sourceRegistry.renderAll()}`
         : '';
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
     // Editor sidebar, artefact open — toggle off, or toggle on but no edit
-    // path this turn. Split mode gets both via `buildArtifactNotes` in the
-    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // path this turn. The loop has no synth prompt, so they have to arrive
     // here or the model promises an edit that nothing will make (or hides
     // that editing is off).
-    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
+    const preLoopEditNotes = buildPreLoopEditNotes(finalState);
     // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
     const promptNotebook = notebookForPrompt(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
-    // The product vocabulary — term names only, so the planner recognises a
+    // The product vocabulary — term names only, so the model recognises a
     // question about the Grünerator itself and decides to look it up. The
-    // definitions of named terms ride in systemMessage (respondNode), where the
-    // split-mode writer sees them too. Only when a lookup tool is mounted.
+    // definitions of named terms ride in systemMessage (respondNode). Only when
+    // a lookup tool is mounted.
     const glossaryNote =
       'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
-    // Split: der Planer bekommt statt des Volltexts einen Platzhalter (#5399).
-    // Der Schreiber baut seinen Prompt aus `systemMessage` und sieht ihn ganz;
-    // braucht der Planer Inhalt, liest er über `dokumente_lesen` nach — nur
-    // dann, wenn das Werkzeug auch montiert ist.
-    const plannerStub =
-      mode === 'split' && ATTACHED_DOCS_TOOL in wrapped
-        ? plannerDocumentStub(
-            finalState.wholeDocument,
-            new Set(retrievableAttachedSources(finalState).map((s) => s.id))
-          )
-        : null;
-    const plannerSystem = plannerStub
-      ? replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text)
-      : toolSystem;
-    // Derselbe Platzhalter für den Paste in der Nachricht.
-    const plannerMessages =
-      plannerStub && turnPaste
-        ? withTurnPaste(
-            messages,
-            replaceUntrustedBlocks(turnPaste, plannerStub.kind, plannerStub.text)
-          )
-        : turnMessages;
-    if (plannerSystem !== toolSystem || plannerMessages !== turnMessages) {
-      log.info(
-        `[Agentic] planner sees a stub for the whole document (${toolSystem.length} → ${plannerSystem.length} chars system${plannerMessages !== turnMessages ? ', pasted text stubbed in the message' : ''}); the writer keeps the full text`
-      );
-    }
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
@@ -692,32 +616,15 @@ export async function streamAgenticResponse(
       tools,
       sourceRegistry,
       recipeRegistry,
-      opening: () => (emitter.openingEmitted ? emitter.openingSentence : null),
       materialNote: seeded.writerNote,
     };
 
-    // Split slots pick the best model per phase (fast tool-caller plans, best
-    // writer synthesizes). Unified (Mistral) uses one model for both.
-    //
     // `undecided` used to mean "the user sent auto" — but the auto policy now
     // resolves auto to a concrete lane BEFORE this runs, using the classifier's
-    // intent. That IS a deliberate choice, so we let it reach the synth slot
-    // instead of blanket-replacing it with the writer lane. AVOID_AS_SYNTH
-    // still guards the slow think-lanes either way, so a policy pointing at
-    // gemma-litellm (→ verdigado-think) is still rewritten to gemma4-31b.
+    // intent. That IS a deliberate choice, so we let it reach the repair writer
+    // instead of blanket-replacing it with the writer lane.
     const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
-    const synth =
-      mode === 'split'
-        ? getLoopSynthModel(
-            {
-              model: resolution.model,
-              modelName: resolution.modelName,
-              provider: resolution.provider,
-            },
-            undecided
-          )
-        : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
-    synthName = synth.name;
+    synthName = resolution.modelName;
 
     const afterGather = createAfterGather({
       state: finalState,
@@ -728,7 +635,6 @@ export async function streamAgenticResponse(
       recordStep: (step) => steps.push(step),
       wrappedTools: wrapped,
       calledToolNames: () => steps.map((s) => s.toolName),
-      emitOpeningBeforeTool: () => emitter.emitOpeningBeforeTool(),
       answerText: () => emitter.text,
       onInfo: (m) => log.info(m),
       onWarn: (m) => log.warn(m),
@@ -865,25 +771,17 @@ export async function streamAgenticResponse(
     }
     if (owedAtStart) log.info(`[Agentic] geschuldetes ${owedAtStart} ist der erste Aufruf`);
 
-    // The synth phase emits nothing between the last tool result and the first
-    // answer token. Until this guard existed a lane that stalled there took the
-    // whole turn down: no text, no error, no heartbeat, for the full 120s wall
-    // clock — users read that as "it just aborts".
-    const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
-    // Unified: the same tool-less writer chain split mode uses re-writes an
-    // answer the one-model pass got wrong (empty, cut off, leaked plan, spam).
-    const repair =
-      mode === 'unified'
-        ? getLoopSynthModel(
-            {
-              model: resolution.model,
-              modelName: resolution.modelName,
-              provider: resolution.provider,
-            },
-            undecided
-          )
-        : null;
-    const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
+    // The tool-less writer chain re-writes an answer the loop got wrong (empty,
+    // cut off, leaked plan, spam).
+    const repair = getLoopSynthModel(
+      {
+        model: resolution.model,
+        modelName: resolution.modelName,
+        provider: resolution.provider,
+      },
+      undecided
+    );
+    const repairFallback = getLoopSynthFallbackModel(repair.name);
     // Was ein Melious-Body dieser Grösse auf dem Draht wird: ein grosser
     // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
     // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
@@ -894,14 +792,12 @@ export async function streamAgenticResponse(
     // Unified Gemma: die ganze Kette, gewählte Stufe zuerst — ist sie als zäh
     // vermerkt, rückt sie ans Ende und der Zug startet auf `:speed`. Leer für
     // jede andere Lane; dann fährt die eine Instanz aus `resolution`.
-    const unifiedChain =
-      mode === 'unified'
-        ? resolveUnifiedLaneChain(
-            resolution.provider,
-            resolution.modelName,
-            wireModelFor(resolution.modelName)
-          )
-        : [];
+    const unifiedChain = resolveUnifiedLaneChain(
+      resolution.provider,
+      resolution.modelName,
+      wireModelFor(resolution.modelName),
+      resolution.model
+    );
     if (unifiedChain[0] && unifiedChain[0].model !== resolution.modelName) {
       log.warn(
         `[Agentic] ${resolution.provider}/${resolution.modelName} gilt als zäh — unified startet auf ${unifiedChain[0].provider}/${unifiedChain[0].model}`
@@ -909,27 +805,12 @@ export async function streamAgenticResponse(
       synthName = unifiedChain[0].model;
     }
     const unifiedFallbacks = unifiedChain.slice(1).map((stage) => stage.languageModel);
-    // Whichever mode, the lane that backs up the tool-less writer.
-    const writerFallback = synthFallback ?? repairFallback;
     // Unknown: the history was budgeted against the lane floor, which may
     // exceed the fallback's window — rebuild rather than guess.
     const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
-    // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
-    // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
-    plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
-    const plannerFallbackStages = plannerLane
-      ? getLoopPlannerFallbackStages(
-          plannerLane.provider,
-          plannerLane.model,
-          wireModelFor(plannerLane.model)
-        )
-      : [];
-    const plannerFallbacks = plannerFallbackStages.map((stage) => stage.languageModel);
-    // Die Leiter der Werkzeugphase mit Identität, Index wie in `runLaneChain`
-    // — damit ein Stillstand die Stufe vermerkt, die wirklich stand.
-    const toolPhaseLadder: { provider: string; model: string }[] = plannerLane
-      ? [plannerLane, ...plannerFallbackStages]
-      : unifiedChain;
+    // Die Leiter mit Identität, Index wie in `runLaneChain` — damit ein
+    // Stillstand die Stufe vermerkt, die wirklich stand.
+    const toolPhaseLadder: { provider: string; model: string }[] = unifiedChain;
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -942,15 +823,11 @@ export async function streamAgenticResponse(
         : null;
 
     const loopResult = await deps.runAgenticLoop({
-      mode,
-      plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
-      synthModel: unifiedChain[0]?.languageModel ?? synth.model,
-      ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      ...(repair && { repairModel: repair.model }),
+      synthModel: unifiedChain[0]?.languageModel ?? resolution.model,
+      repairModel: repair.model,
       ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
       ...(repairFallback && { repairFallback: repairFallback.model }),
       producedArtifact: () => turnProducedArtifact(finalState),
-      plannerFallbackModels: plannerFallbacks,
       // Eine Stufe der Werkzeugphase stand oder fiel aus. Umgeschaltet hat die
       // Leiter selbst; hier wird die Stufe vermerkt, damit der nächste Zug sie
       // überspringt, statt dieselbe Frist noch einmal abzusitzen. Der Index
@@ -959,48 +836,16 @@ export async function streamAgenticResponse(
       onLaneUnhealthy: (laneIndex, grund) => {
         const stage = toolPhaseLadder[laneIndex];
         if (!stage) return;
-        recordSlowVerdict(stage.provider, stage.model, `${mode}:${grund}`);
+        recordSlowVerdict(stage.provider, stage.model, `unified:${grund}`);
         log.warn(
-          `[Agentic] ${mode === 'split' ? 'planner' : 'unified'} ${stage.provider}/${stage.model} ${
+          `[Agentic] unified ${stage.provider}/${stage.model} ${
             grund === 'stall' ? 'lieferte nichts' : `fiel aus (${grund})`
           } — Lane wird übersprungen`
         );
       },
-      onSynthFallback: (reason) => {
-        // Stillstand und leere Antwort sind Verdikte, die die Messung nicht
-        // liefert: es kam nichts, was sich hätte messen lassen. Der
-        // Einzeldurchlauf vermerkt beide genauso (streamWithFallback).
-        // Nur im Split: unified meldet seine Stufen über `onLaneUnhealthy`,
-        // mit der Stufe, die stand, statt immer der gewählten.
-        if (mode !== 'split') return;
-        recordSlowVerdict(
-          synth.provider,
-          synth.name,
-          reason === 'empty_completion'
-            ? 'synth_empty'
-            : reason === 'upstream_error'
-              ? 'upstream_error'
-              : 'synth_stall'
-        );
-        if (!synthFallback) return;
-        log.warn(
-          `[Agentic] synth ${synth.name} ${
-            reason === 'empty_completion'
-              ? 'returned no text'
-              : reason === 'upstream_error'
-                ? 'rejected the request'
-                : 'stalled'
-          } → falling back to ${synthFallback.name}`
-        );
-        sse.send('fallback', {
-          from: { id: synth.name, name: synth.name },
-          to: { id: synthFallback.name, name: synthFallback.name },
-          reason,
-        });
-      },
       tools: wrapped,
       toolActivity,
-      toolSystem: plannerSystem,
+      toolSystem,
       ...(turnContext ? { turnContext } : {}),
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
@@ -1016,7 +861,7 @@ export async function streamAgenticResponse(
         const toolName = guards.emptyResultFallback();
         if (toolName && toolName in wrapped) {
           log.info(
-            `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the planner`
+            `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the model`
           );
           return toolName;
         }
@@ -1026,19 +871,17 @@ export async function streamAgenticResponse(
       },
       buildSynthSystem: (sources) => buildSynthSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
-      // the synth phase sees of the gathering — it gets no tool results, so the
-      // note the planner received in its tool result would never reach the model
-      // that actually writes the answer. Appended, never registered: an image has
-      // no text, so it must not become a numbered `[N]`.
+      // the tool-less repair writer sees of the tool work — it gets no tool
+      // results. Appended, never registered: an image has no text, so it must
+      // not become a numbered `[N]`.
       getSourcesBlock: () => {
         const sources = sourceRegistry.renderAll();
         const note = imageDeliveryNote(finalState.webImageResults?.length ?? 0);
         return note ? `${sources}\n\n${note}` : sources;
       },
-      // Unified mode only — read per step because `rezept_laden` fills the
-      // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
-      // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
-      // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
+      // Read per step because `rezept_laden` fills the registry mid-loop; the
+      // repair writer gets the same via buildSynthSystem. Auch die Notiz
+      // „Gegenstand ohne Quelle" (#5141) läuft für das Loop-Modell nur hierüber.
       // Ebenso die Notiz über nicht lesbares Material (#5286): der Seed-Replay
       // fehlt ohne montiertes Lesewerkzeug ganz.
       getRecipeBlock: () =>
@@ -1051,18 +894,18 @@ export async function streamAgenticResponse(
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
-      messages: spliceToolReplay(plannerMessages, toolReplayMessages),
-      // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
+      messages: spliceToolReplay(turnMessages, toolReplayMessages),
+      // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
       synthMessages: turnMessages,
       // The history was pruned for the selected lane — up to 262k on an
-      // explicit Mistral Medium turn. The fallback is the planner lane, which
-      // Melious caps near 131k (#4201).
-      ...(writerFallback && {
+      // explicit Mistral turn. The repair writer's fallback is the Melious Gemma
+      // lane, capped near 131k (#4201).
+      ...(repairFallback && {
         synthFallbackMessages: (system: string) =>
           messagesForLane(
-            { modelName: writerFallback.name, contextWindow: writerFallback.contextWindow },
+            { modelName: repairFallback.name, contextWindow: repairFallback.contextWindow },
             primaryWindow,
             turnMessages,
             (window) => pruneMessages(turnMessages, window, system),
@@ -1102,24 +945,12 @@ export async function streamAgenticResponse(
       // pure passthrough from the first delta.
       onText: (delta) => emitter.pushAnswer(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
-      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
-      // The FIRST sentence — the model's opening plan — crosses into the real
-      // answer text, but only once a tool actually starts (see
-      // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
-      // announces nothing and only duplicates the synth's own opening. Every
-      // later sentence stays on the existing side channel, held until a tool
-      // call starts: the planner's final, tool-less step drafts the answer the
-      // synth writes, and must not reach the status line. Repeating the opening
-      // line per tool call would be noise the tool card already carries.
-      onNarration: (s) => emitter.handleNarration(s),
-      onToolCallStart: () => emitter.releaseNarration(),
       validateAnswer: createAnswerValidator(),
       suspended: () =>
         (approvalGate?.hasPending() ?? false) ||
         (askGate?.hasPending() ?? false) ||
         (clientToolGate?.hasPending() ?? false),
     });
-    emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
 
     if (loopResult.replacedStreamed) {
@@ -1127,16 +958,13 @@ export async function streamAgenticResponse(
       // Same replacement channel the citation clamp uses: `completion` swaps
       // the streamed deltas for the corrected text, and the recorded offsets
       // (which index into the discarded stream) are dropped.
-      const shownOpening = emitter.openingEmitted ? emitter.openingSentence : null;
-      const prefix = shownOpening ? `${shownOpening} ` : '';
-      emitter.setText(prefix + stripDuplicatedOpening(loopResult.text, shownOpening));
+      emitter.setText(loopResult.text);
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
     }
 
     // Unified: an answer written before its edit landed says what came of it.
-    const editTail =
-      mode === 'unified' ? editOutcomeAfterPreamble(finalState, steps, emitter.text) : null;
+    const editTail = editOutcomeAfterPreamble(finalState, steps, emitter.text);
     if (editTail) emitter.appendAndStream(`\n\n${editTail}`);
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
@@ -1170,9 +998,6 @@ export async function streamAgenticResponse(
       }
     }
   } catch (err) {
-    // Anything the dedupe still holds is real answer text — release it before
-    // the outcome logic reads `text`.
-    emitter.flush();
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
@@ -1325,15 +1150,6 @@ export async function streamAgenticResponse(
 
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
-    mode,
-    // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
-    // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
-    // gerade selbst einen Stillstand vermerkt hat (`onLaneUnhealthy`), nennt
-    // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
-    // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
-    // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem
-    // gleichen Grund wie in `modelLabel`.
-    plannerName: plannerLane ? `${plannerLane.provider}/${plannerLane.model}` : null,
     synthName,
     intent: finalState.intent,
     steps,

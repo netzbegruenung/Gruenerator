@@ -34,8 +34,9 @@ export interface LoopScenario {
   note: string;
   prompt: string;
   /**
-   * One scripted response per expected `streamText` call, in order. Split mode
-   * calls twice (gather, synth) and a third time when the synth is retried; an
+   * One scripted response per expected `streamText` call, in order. Der Normalfall ist EIN
+   * Aufruf (Werkzeuge und Antwort); weitere Eintraege gibt es nur, wo der
+   * Reparatur-Schreiber laeuft (je Durchlauf einer); ein
    * unconsumed entry fails the run, because it would mean the turn took a
    * different shape than the scenario claims.
    */
@@ -46,7 +47,7 @@ export interface LoopScenario {
   backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
   /**
-   * Der `toolChoice` des ERSTEN Planer-Schritts, als Name oder `'required'`.
+   * Der `toolChoice` des ERSTEN Schritts des Loop-Aufrufs, als Name oder `'required'`.
    *
    * Die einzige Stelle, an der ein BENANNTER erster Aufruf beobachtbar wird: die
    * Entscheidungskarte zeigt nur, welches Werkzeug lief, und das steht im Skript
@@ -55,17 +56,17 @@ export interface LoopScenario {
    */
   firstToolChoice?: string;
   /**
-   * Das `activeTools` des ERSTEN Planer-Schritts: jedes Werkzeug darin muss aus
+   * Das `activeTools` des ERSTEN Schritts des Loop-Aufrufs: jedes Werkzeug darin muss aus
    * `within` stammen, keines aus `without`.
    *
    * Gegenstück zu `firstToolChoice` für den Zwang OHNE benanntes Werkzeug
    * (#3880): `'required'` allein sagt nicht, unter WELCHEN Werkzeugen der
-   * Planer wählen muss — und genau dort griff er zu `media`, `read_pdf_form`
+   * Modell wählen muss — und genau dort griff es zu `media`, `read_pdf_form`
    * und `summarize`.
    */
   firstStepActiveTools?: { within: readonly string[]; without: readonly string[] };
   /**
-   * Ein Textstück, das im Systemtext des ersten Planer-Schritts stehen MUSS.
+   * Ein Textstück, das im Systemtext des Loop-Aufrufs stehen MUSS.
    *
    * Gegenstück zu `firstToolChoice` für die zweite Hälfte einer umgehängten
    * Erwähnung: der Pin sagt, WORAUS der Turn holt, das Rezept sagt, WIE er
@@ -75,28 +76,6 @@ export interface LoopScenario {
    * Mehrere Stücke als Liste — jedes muss vorkommen (Methode UND Textsorte).
    */
   systemIncludes?: string | readonly string[];
-  /**
-   * Ein Textstück, das im Systemtext des SCHREIBERS stehen MUSS (split: der
-   * letzte Aufruf des Turns).
-   *
-   * Eigenes Feld statt `systemIncludes`, weil Planer und Schreiber getrennte
-   * Kontexte haben und genau dazwischen der Ausfall vom 24.08.2026 sass: der
-   * `summarize`-Digest ging an den Planer, der Schreiber sah ihn nie — und
-   * bekam obendrein die Zeile „du hast NICHTS recherchiert" zu lesen. Ein
-   * Prädikat, das nur den ersten Schritt anschaut, kann das nicht sehen.
-   */
-  synthSystemIncludes?: string;
-  /**
-   * Das Gegenstück für die Unified-Schwester: dieselben Texte, aber im
-   * Systemtext des EINEN Aufrufs (unified hat keinen Schreiber-Kontext). Gilt
-   * nur für unified; `synthSystemIncludes` nur für split.
-   */
-  unifiedSystemIncludes?: string;
-  /**
-   * Die Modell-Auflösung dieses Szenarios (`respond.resolution`). Ohne Angabe
-   * gilt `SPLIT_LANE`; die Unified-Schwestern setzen `UNIFIED_LANE`.
-   */
-  resolution?: RespondScript['resolution'];
   /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
@@ -135,54 +114,46 @@ const GERMAN_ANSWER =
 /** Reaches tier 3.5 loop demotion, so every scenario below enters the loop. */
 const LOOP_PROMPT = 'Was ist die Position der Gruenen zur Windkraft?';
 
-/**
- * Die Split-Lane der Harness, ausdrücklich: Anbieter `stub` ist kein
- * Unified-Modell, `prefersUnifiedLoop` ist false, der Turn läuft als Planer +
- * Schreiber. Bis zur Unified-Umstellung (Gemma 4 31B auf Melious) war das die
- * unbenannte Vorgabe von `respond.resolution`; jetzt steht sie da.
- */
-export const SPLIT_LANE = { provider: 'stub', modelName: 'stub-model' } as const;
-
 /** Die Standard-Lane in Produktion: Gemma 4 31B auf Melious, ein Unified-Modell. */
 export const UNIFIED_LANE = { provider: 'melious', modelName: 'gemma-4-31b:balanced' } as const;
 
-const SPLIT_SCENARIOS: readonly LoopScenario[] = [
+const SCENARIOS: readonly LoopScenario[] = [
   {
     id: 'loop-synth-akzeptiert',
     category: 'synth-verdict',
-    note: 'Der Kontrollfall und das Gegenstueck zu allen drei Ersetzungen: deutsche Prosa passiert unveraendert. Ohne ihn zeigt kein Diff, dass eine Ersetzung ANGEFANGEN hat zu greifen.',
+    note: 'Der Kontrollfall und das Gegenstueck zu allen Ersetzungen: deutsche Prosa im EINEN Unified-Aufruf passiert unveraendert, weder Reparatur noch Verdikt greifen. Ohne ihn zeigt kein Diff, dass eine Ersetzung ANGEFANGEN hat zu greifen.',
     prompt: LOOP_PROMPT,
-    streams: [{ text: '' }, { text: GERMAN_ANSWER }],
-    mustDecide: [
-      { point: 'router.run_agentic', chose: 'loop' },
-      // The harness reports a stub model, so the mode is split.
-      { point: 'loop.mode', chose: 'split' },
-      { point: 'loop.synth_verdict', chose: 'accepted' },
-    ],
+    streams: [{ text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    notReached: ['loop.synth_verdict', 'loop.unified_repair'],
   },
   {
     id: 'loop-synth-ablehnung-getauscht',
     category: 'synth-verdict',
-    note: 'Englische Ablehnung. Geprueft gegen ENGLISH_REFUSAL_RE, nicht geraten. Die Reihenfolge traegt: die Ablehnungspruefung laeuft VOR der Degeneriertheitspruefung, sonst wuerde eine englische Absage als Degeneration noch einmal beim Modell nachgefragt.',
+    note: 'Englische Ablehnung im Unified-Aufruf. Geprueft gegen ENGLISH_REFUSAL_RE, nicht geraten. Die Ablehnung wird VOR jeder Reparatur getauscht: sonst fragte der Reparatur-Schreiber noch einmal nach und der Nutzer bekaeme eine Antwort, die das Modell ablehnte.',
     prompt: LOOP_PROMPT,
-    streams: [{ text: '' }, { text: ENGLISH_REFUSAL }],
+    streams: [{ text: ENGLISH_REFUSAL }],
     mustDecide: [{ point: 'loop.synth_verdict', chose: 'refusal_swapped' }],
+    notReached: ['loop.unified_repair'],
   },
   {
     id: 'loop-synth-werkzeugplan-wiederholt',
     category: 'synth-verdict',
-    note: 'Geleakter Plan statt Antwort — der live beobachtete Fall. Der zweite Versuch liefert Prosa, der Nutzer sieht den geleakten Plan nie, weil der Emitter den ersten Absatz zurueckhaelt.',
+    note: 'Geleakter Plan statt Antwort — der live beobachtete Fall, jetzt im Unified-Aufruf. Der werkzeuglose Reparatur-Schreiber liefert Prosa, die den gestreamten Text ersetzt (`completion`).',
     prompt: LOOP_PROMPT,
-    streams: [{ text: '' }, { text: LEAKED_PLAN }, { text: GERMAN_ANSWER }],
-    mustDecide: [{ point: 'loop.synth_verdict', chose: 'tool_plan_retried' }],
+    streams: [{ text: LEAKED_PLAN }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'loop.unified_repair', chose: 'plan_leak' }],
   },
   {
     id: 'loop-synth-zweimal-werkzeugplan',
     category: 'synth-verdict',
-    note: 'Beide Versuche nur Plan. Der Loop gibt dann bewusst LEEREN Text zurueck, damit der ehrliche Keine-Antwort-Pfad des Aufrufers greift statt eine geleakte Planungszeile auszuliefern.',
+    note: 'Der Unified-Aufruf leakt, und der Reparatur-Schreiber leakt in BEIDEN Durchlaeufen. Der Loop gibt dann bewusst LEEREN Text zurueck, damit der ehrliche Keine-Antwort-Pfad des Aufrufers greift statt eine geleakte Planungszeile auszuliefern.',
     prompt: LOOP_PROMPT,
-    streams: [{ text: '' }, { text: LEAKED_PLAN }, { text: LEAKED_PLAN }],
-    mustDecide: [{ point: 'loop.synth_verdict', chose: 'retry_failed_empty' }],
+    streams: [{ text: LEAKED_PLAN }, { text: LEAKED_PLAN }, { text: LEAKED_PLAN }],
+    mustDecide: [
+      { point: 'loop.unified_repair', chose: 'plan_leak' },
+      { point: 'loop.synth_verdict', chose: 'retry_failed_empty' },
+    ],
   },
 
   // ── Tool guards ────────────────────────────────────────────────────────────
@@ -202,8 +173,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau Kommunen' } },
           { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'duplicate', count: 1 }],
   },
@@ -218,8 +189,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau Kommunen' } },
           { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'near_duplicate', count: 1 }],
   },
@@ -239,8 +210,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_search', args: { query: 'Kohleausstieg Datum' } },
           { tool: 'gruenerator_search', args: { query: 'Wasserstoff Industrie' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_budget', count: 1 }],
   },
@@ -257,8 +228,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
           { tool: 'gruenerator_search', args: { query: 'Mietendeckel Staedte' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'failure_cap', count: 1 }],
   },
@@ -278,8 +249,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_examples_search', args: { query: 'Buergergeld Reform' } },
           { tool: 'gruenerator_examples_search', args: { query: 'Kohleausstieg Datum' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'failure_budget', count: 1 }],
   },
@@ -296,8 +267,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
           { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
           { tool: 'gruenerator_search', args: { query: 'Mietendeckel Staedte' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_concurrency', count: 1 }],
   },
@@ -315,8 +286,7 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['bundestag'] },
     streams: [
-      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }] },
-      { text: GERMAN_ANSWER },
+      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'bundestag',
@@ -336,8 +306,7 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     prompt: 'Recherchiere im Bundestag zum Heizungsgesetz und beantworte diese Buergeranfrage.',
     body: { forcedTools: ['bundestag'], activeSkillMention: 'buerger-berlin' },
     streams: [
-      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }] },
-      { text: GERMAN_ANSWER },
+      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'bundestag',
@@ -371,8 +340,10 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['search'] },
     streams: [
-      { calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }] },
-      { text: GERMAN_ANSWER },
+      {
+        calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }],
+        text: GERMAN_ANSWER,
+      },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'gruenerator_search',
@@ -384,8 +355,7 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['research'] },
     streams: [
-      { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }] },
-      { text: GERMAN_ANSWER },
+      { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'web_search',
@@ -419,7 +389,7 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     note: 'Keine Modellannahme: `@umfragen` traegt keinen Intent mehr (er ist stillgelegt), sondern zurrt ueber die Registry das WERKZEUG fest. Der Turn laeuft deshalb als `agentic` — und dass er ueberhaupt in die Schleife kommt, entscheidet allein der Pin. Der PolitPro-Abruf ist gestubbt wie jedes andere Suchbackend.',
     prompt: 'Wie stehen die Gruenen aktuell in Umfragen?',
     body: { forcedTools: ['umfragen'] },
-    streams: [{ calls: [{ tool: 'umfragen', args: { topic: '' } }] }, { text: GERMAN_ANSWER }],
+    streams: [{ calls: [{ tool: 'umfragen', args: { topic: '' } }], text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     // Der benannte erste Aufruf, den `agentic` allein nicht mehr hergaebe: kein
     // Werkzeug heisst `agentic`, und aus NAMED_RETRIEVAL_INTENTS ist es
@@ -440,8 +410,8 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
         calls: [
           { tool: 'gruenerator_pressemitteilung_examples', args: { query: 'Heizungsgesetz' } },
         ],
+        text: GERMAN_ANSWER,
       },
-      { text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     // Wie bei `@umfragen`: `agentic` allein gaebe den benannten ersten Aufruf
@@ -461,8 +431,10 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
     prompt: 'Ich komme mit den Notebooks nicht weiter.',
     body: { forcedTools: ['hilfe'] },
     streams: [
-      { calls: [{ tool: 'gruenerator_docs_search', args: { query: 'Notebook anlegen' } }] },
-      { text: GERMAN_ANSWER },
+      {
+        calls: [{ tool: 'gruenerator_docs_search', args: { query: 'Notebook anlegen' } }],
+        text: GERMAN_ANSWER,
+      },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'gruenerator_docs_search',
@@ -473,21 +445,21 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
   {
     id: 'anhang-zusammenfassung-loop',
     category: 'mention-lane',
-    note: 'Keine Modellannahme: der Turn haengt an zwei Gittern, die beide ohne das Modell entscheiden. Ein Dokument am Turn (`documentChatIds`) plus eine Zusammenfassungs-Bitte zwingen den ersten Aufruf auf `summarize` — das ist der achte Weg in `shouldForceFirstToolCall` und der zweite Grund in `pinnedFirstTool`. Gemessener Ausfall am 23.08.2026: dasselbe Prompt, ein vektorisiertes 21.785-Zeichen-PDF, und der Planer rief `media`/`find_content` und fasste ein fremdes Konto-Dokument zusammen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf; griffe er daneben, bliebe ein Stream unverbraucht und der Lauf faellt.',
+    note: 'Keine Modellannahme: der Turn haengt an zwei Gittern, die beide ohne das Modell entscheiden. Ein Dokument am Turn (`documentChatIds`) plus eine Zusammenfassungs-Bitte zwingen den ersten Aufruf auf `summarize` — das ist der achte Weg in `shouldForceFirstToolCall` und der zweite Grund in `pinnedFirstTool`. Gemessener Ausfall am 23.08.2026: dasselbe Prompt, ein vektorisiertes 21.785-Zeichen-PDF, und das Modell rief `media`/`find_content` und fasste ein fremdes Konto-Dokument zusammen. Das Skript traegt NUR den `summarize`-Aufruf samt Antworttext in einem Eintrag; griffe der Turn daneben, bliebe ein Stream unverbraucht und der Lauf faellt.',
     prompt: 'fasse das pdf zusammen',
     body: { documentChatIds: ['doc-1'] },
-    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    streams: [{ calls: [{ tool: 'summarize', args: {} }], text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'summarize',
-    // Die zweite Haelfte desselben Turns: `summarize` registriert keine Quellen,
-    // sein Digest erreicht den Schreiber also nur ueber diesen Block. Ohne ihn
-    // war die teure Map-Reduce ueber den Volltext umsonst.
-    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
+    // Die zweite Haelfte desselben Turns: der EINE Aufruf traegt die Werkzeuge
+    // und schreibt die Antwort, also muessen die Antwortregeln im selben
+    // Systemtext stehen (`UNIFIED_WRITER_RULES`), sonst schriebe niemand sie vor.
+    systemIncludes: 'ANTWORTPHASE',
   },
   {
     id: 'notebook-dokument-zusammenfassung-loop',
     category: 'mention-lane',
-    note: 'Keine Modellannahme: dasselbe Gitter wie `anhang-zusammenfassung-loop`, nur kommt das Dokument aus dem Notebook-Reader („Mit KI zusammenfassen") als `notebookSourceRefs`-Verweis auf ein System-Dokument. streamContext prueft den Verweis mit der Regel des Readers (Sammlung + Standardfilter, Qdrant-Scroll gestubbt) und reicht ihn als `system_document`-Quelle weiter; `retrievableAttachedSources` zaehlt ihn, also wird `summarize` montiert und als erster Aufruf erzwungen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf.',
+    note: 'Keine Modellannahme: dasselbe Gitter wie `anhang-zusammenfassung-loop`, nur kommt das Dokument aus dem Notebook-Reader („Mit KI zusammenfassen") als `notebookSourceRefs`-Verweis auf ein System-Dokument. streamContext prueft den Verweis mit der Regel des Readers (Sammlung + Standardfilter, Qdrant-Scroll gestubbt) und reicht ihn als `system_document`-Quelle weiter; `retrievableAttachedSources` zaehlt ihn, also wird `summarize` montiert und als erster Aufruf erzwungen. Das Skript traegt NUR den `summarize`-Aufruf samt Antworttext.',
     prompt: 'Fasse dieses Dokument zusammen.',
     body: {
       notebookSourceRefs: [
@@ -497,19 +469,21 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
         },
       ],
     },
-    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    streams: [{ calls: [{ tool: 'summarize', args: {} }], text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'summarize',
-    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
+    systemIncludes: 'ANTWORTPHASE',
   },
   {
     id: 'recherche-auftrag-zuschnitt',
     category: 'forced-scope',
-    note: 'Keine Modellannahme: ein ausdruecklicher Rechercheauftrag zwingt den ersten Aufruf (`research_order` in `shouldForceFirstToolCall`), und `forcedFirstStepTools` schneidet den Schritt auf die Recherche-Familie zu. Beides entscheidet ohne Modell. Gemessener Ausfall (#3880): `required` ueber den vollen Katalog, und der Planer griff zu `media`, `read_pdf_form` oder `summarize`. Das Skript ruft `web_search`; die Websuche ist gestubbt. `read_pdf_form` montiert diese Harness nicht (kein ausfuellbares PDF am Turn) — die Negativ-Zusicherung tragen `media` und `summarize`, die hier montiert sind.',
+    note: 'Keine Modellannahme: ein ausdruecklicher Rechercheauftrag zwingt den ersten Aufruf (`research_order` in `shouldForceFirstToolCall`), und `forcedFirstStepTools` schneidet den Schritt auf die Recherche-Familie zu. Beides entscheidet ohne Modell. Gemessener Ausfall (#3880): `required` ueber den vollen Katalog, und das Modell griff zu `media`, `read_pdf_form` oder `summarize`. Das Skript ruft `web_search`; die Websuche ist gestubbt. `read_pdf_form` montiert diese Harness nicht (kein ausfuellbares PDF am Turn) — die Negativ-Zusicherung tragen `media` und `summarize`, die hier montiert sind.',
     prompt: 'recherchiere aktuelle Zahlen zu Windkraft',
     streams: [
-      { calls: [{ tool: 'web_search', args: { query: 'Windkraft aktuelle Zahlen' } }] },
-      { text: GERMAN_ANSWER },
+      {
+        calls: [{ tool: 'web_search', args: { query: 'Windkraft aktuelle Zahlen' } }],
+        text: GERMAN_ANSWER,
+      },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'required',
@@ -520,80 +494,4 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
   },
 ];
 
-/**
- * Szenarien, die die Standard-Lane meinen und dort unified laufen. Nicht dabei:
- * die Einzeldurchlauf-Szenarien (kein Loop) und die beiden
- * Wiederholungs-Fälle der Synth-Verdikte, deren zweiter Versuch ein eigener
- * Reparaturaufruf mit eigenem Skript-Eintrag ist.
- */
-const UNIFIED_SISTER_IDS: readonly string[] = [
-  'loop-synth-akzeptiert',
-  'loop-synth-ablehnung-getauscht',
-  'loop-guard-duplikat',
-  'loop-guard-aehnliche-suche',
-  'loop-guard-suchbudget',
-  'loop-guard-fehlerdeckel',
-  'loop-guard-fehlerbudget',
-  'loop-guard-nebenlaeufig',
-  'mention-bundestag-loop',
-  'mention-dokumente-loop',
-  'mention-recherche-loop',
-  'mention-umfragen-loop',
-  'mention-pressemitteilungen-loop',
-  'mention-doku-loop',
-  'anhang-zusammenfassung-loop',
-  'notebook-dokument-zusammenfassung-loop',
-  'recherche-auftrag-zuschnitt',
-];
-
-/**
- * Dieselbe Frage auf der Standard-Lane. Unified kennt keine zwei Phasen, also
- * trägt EIN Skript-Eintrag die Werkzeugaufrufe des Splits und den Antworttext
- * (die Aufrufe laufen vor dem Text, wie in einem echten Schritt-Lauf).
- */
-function unifiedSister(base: LoopScenario): LoopScenario {
-  const last = base.streams[base.streams.length - 1];
-  const calls = base.streams.flatMap((stream) => stream.calls ?? []);
-  const parallel = base.streams.some((stream) => stream.parallel === true);
-  const { synthSystemIncludes, mustDecide, ...rest } = base;
-  // `synthSystemIncludes` prüft im Split, dass der Digest eines Werkzeugs den
-  // Schreiber erreicht (`buildToolPayloadNote`: „der Schreiber sieht das
-  // tool-result nicht"). Unified hat diesen Block nicht und braucht ihn nicht —
-  // der EINE Aufruf sieht das Ergebnis selbst. Was dort stattdessen zu
-  // beobachten ist: dass derselbe Systemtext, der die Werkzeuge trägt, auch die
-  // Antwortregeln trägt (`UNIFIED_WRITER_RULES`), sonst schriebe niemand sie vor.
-  return {
-    ...rest,
-    id: `${base.id}-unified`,
-    note: `Unified-Schwester von \`${base.id}\`: dieselbe Frage auf Gemma 4 31B (Melious), also ein Aufruf statt Planer + Schreiber. ${base.note}`,
-    resolution: UNIFIED_LANE,
-    streams: [
-      {
-        ...(calls.length > 0 && { calls }),
-        ...(parallel && { parallel }),
-        ...(last?.text !== undefined && { text: last.text }),
-      },
-    ],
-    mustDecide: [
-      // Der saubere unified-Pfad vermerkt kein `accepted`: ein Verdikt fällt nur,
-      // wenn die Reparatur anspringt oder eine Ablehnung getauscht wird.
-      ...(mustDecide ?? []).filter(
-        (entry) => entry.point !== 'loop.mode' && entry.chose !== 'accepted'
-      ),
-      { point: 'loop.mode', chose: 'unified' },
-    ],
-    ...(mustDecide?.some((entry) => entry.chose === 'accepted') && {
-      notReached: ['loop.synth_verdict'] satisfies DecisionPointId[],
-    }),
-    ...(synthSystemIncludes && { unifiedSystemIncludes: 'ANTWORTPHASE' }),
-  };
-}
-
-export const LOOP_SCENARIOS: readonly LoopScenario[] = [
-  ...SPLIT_SCENARIOS,
-  ...UNIFIED_SISTER_IDS.map((id) => {
-    const base = SPLIT_SCENARIOS.find((scenario) => scenario.id === id);
-    if (!base) throw new Error(`unknown unified sister base: ${id}`);
-    return unifiedSister(base);
-  }),
-];
+export const LOOP_SCENARIOS: readonly LoopScenario[] = SCENARIOS;

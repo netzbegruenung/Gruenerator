@@ -38,7 +38,6 @@ function harness(
     recordStep: vi.fn(),
     wrappedTools: { [toolName]: { execute } } as unknown as ToolSet,
     calledToolNames: () => [],
-    emitOpeningBeforeTool: vi.fn(),
     answerText: () => '',
     onInfo: vi.fn(),
     onWarn: vi.fn(),

@@ -1,11 +1,9 @@
 /**
- * Die Modus-Wahl des Turns: unified (ein Modell hält die Werkzeuge UND schreibt
- * die Antwort in einem Strom) oder split (fester schneller Planer sammelt, das
- * gewählte Modell schreibt danach ohne Werkzeuge).
+ * Ob der Stoff des Turns die Anweisungen um ihn herum überwiegt. Bis 11/2026
+ * wählte dieses Prädikat den Split-Modus (der Schreiber ohne Werkzeugkatalog);
+ * seit dem Abbau des Split-Modus (#5441) steuert es nur noch, ob der erste
+ * Werkzeugaufruf erzwungen wird (`shouldForceFirstToolCall`).
  */
-import { prefersUnifiedLoop } from '../../agents/providers.js';
-
-import { type LoopMode } from './loopEngine.js';
 
 /**
  * Whether the turn's own material outweighs the instructions around it.
@@ -50,8 +48,9 @@ import { type LoopMode } from './loopEngine.js';
  * Measured 05.11.2026 (plan unified-loop, task 6.1): with this predicate forced
  * to false, `ul-paste-umbau` ran ten times as a unified Gemma 4 31B turn on
  * Melious with `noDegeneration` green 10/10 (`ul-paste-lektorat` routes single
- * pass and never reached it). The exception stays anyway: a degenerated answer
- * over pasted material costs more than the split writer's extra step.
+ * pass and never reached it). Mistral Large 4 ran the same turns unified only
+ * after the split mode went (#5441) — the measurement is the PR's phase 4. The
+ * net for a degenerated answer is the unified repair (`'degenerate'`).
  */
 export function materialDominatesTurn(
   userText: string,
@@ -59,41 +58,4 @@ export function materialDominatesTurn(
   carriedMaterialChars = 0
 ): boolean {
   return userText.length + carriedMaterialChars > systemMessage.length - carriedMaterialChars;
-}
-
-/**
- * Mistral (fast native tool-caller) runs the unified single-model loop; every
- * other model runs the planner/executor split — the fast planner (`standard`
- * intermediate stage) gathers, the selected model writes the answer.
- *
- * ...unless the turn's own material outweighs the instructions around it. Then
- * split wins for a different reason: its writer runs WITHOUT the tool catalog,
- * and that is the only configuration in which this failure has never been
- * observed (see materialDominatesTurn). The caller computes
- * `carriedMaterialChars` BEFORE resolving the model, so the lane and the loop
- * mode cannot read different numbers.
- *
- * Guarantee turns (an ordered artifact, a forced edit, a pinned tool) used to
- * split as well, because unified ran the `afterGather` hook only after the
- * answer. They run the owed tool as a named step inside the stream now
- * (`owedToolName`), so the writer sees the result first. Dropped 11/2026 (#5441).
- *
- * Headless runs (recurring task, board agent, notebook precision) used to split
- * too, on the reasoning that nobody reads a streamed-then-replaced answer. That
- * did not hold: they read `outcome.fullText`, which a unified repair rewrites
- * (`emitter.setText`), and the notebook client takes the closing `completion`
- * over the streamed deltas (`parseSSEStream`). Dropped 11/2026 (#5441).
- */
-export type LoopModeReason = 'unified_model' | 'not_unified_model' | 'material_heavy';
-
-export function resolveLoopMode(input: {
-  provider: string;
-  modelName: string;
-  materialHeavy: boolean;
-}): { mode: LoopMode; reason: LoopModeReason } {
-  if (!prefersUnifiedLoop(input.provider, input.modelName)) {
-    return { mode: 'split', reason: 'not_unified_model' };
-  }
-  if (input.materialHeavy) return { mode: 'split', reason: 'material_heavy' };
-  return { mode: 'unified', reason: 'unified_model' };
 }

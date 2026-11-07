@@ -36,7 +36,7 @@ import {
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
   UNIFIED_GEMMA_CHAIN,
-  UNIFIED_MISTRAL_FALLBACKS,
+  UNIFIED_LANE_FALLBACKS,
 } from './autoPolicy.js';
 
 import type { AgentConfig } from './types.js';
@@ -757,26 +757,11 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
 }
 
 /**
- * Whether the SELECTED model drives the tool loop directly (unified single-model
- * pass) vs. delegating tool orchestration to the fast planner (planner/executor
- * split: the `standard` intermediate stage gathers, selected model writes the answer).
- *
- * Unified: Mistral (our fast native tool-caller) and Gemma 4 31B on Melious
- * (`isUnifiedGemma`, the default lane). Everything else splits: the fixed fast
- * planner does every tool call (so tool-calling reliability no longer depends
- * on the user's model) and the selected model only writes prose — which is why
- * ANY model, including slow "thinking" lanes and non-tool-callers, is selectable
- * for the loop.
- */
-export function prefersUnifiedLoop(provider: string, modelName: string): boolean {
-  return provider === 'mistral' || isUnifiedGemma(provider, modelName);
-}
-
-/**
  * Gemma 4 31B on Melious, in any routing flavor (`:balanced`/`:speed`/`:eco`,
- * also when the name comes from `MELIOUS_DEFAULT_MODEL`). Deliberately Melious
- * only: Cortecs' `gemma-4-31b-it`, the 26B variants, GreenPT and the
- * DeepSeek/Panda lane stay on the split (decision 05.11.2026).
+ * also when the name comes from `MELIOUS_DEFAULT_MODEL`) — the lanes that get
+ * `UNIFIED_GEMMA_CHAIN` behind them. Cortecs' `gemma-4-31b-it`, GreenPT and the
+ * DeepSeek/Panda lane run the loop without a chain (since the split mode went,
+ * #5441, every lane runs the unified loop).
  */
 const UNIFIED_GEMMA_NAME = /^gemma-4-31b(?::balanced|:speed|:eco)?$/;
 export function isUnifiedGemma(provider: string, modelName: string): boolean {
@@ -859,23 +844,28 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
  * Mistral Large 4 — und nicht, wie bis 06.11.2026 über den stillen Tausch in
  * `getModel`, auf Cortecs, das diese Kette bewusst nicht führt.
  *
- * Mistral-Unified bekommt `UNIFIED_MISTRAL_FALLBACKS` dahinter, rückt aber nie
- * nach hinten: Ultra ist eine ausdrückliche Wahl, ein langsamer Mistral bleibt
- * Mistral. Gewechselt wird nur, wenn er vor jeder Ausgabe schweigt oder ablehnt.
- *
- * Leer für jede Lane, die nicht unified läuft.
+ * Jede andere Lane (Mistral, Panda, GreenPT, Cortecs) bekommt
+ * `UNIFIED_LANE_FALLBACKS` dahinter, rückt aber nie nach hinten: sie ist eine
+ * ausdrückliche Wahl, ein langsames Modell bleibt dieses Modell. Gewechselt wird
+ * nur, wenn es vor jeder Ausgabe schweigt oder ablehnt.
  */
 export function resolveUnifiedLaneChain(
   provider: string,
   modelName: string,
-  wireModelName: string | null = null
+  wireModelName: string | null = null,
+  /** Die schon aufgelöste Instanz der gewählten Lane (`resolveModel`). Trägt
+   *  die erste Stufe jeder Lane ausser Mistral und Melious-Gemma: deren Getter
+   *  baut die Kette selbst, alle anderen Anbieter (Panda, GreenPT, Cortecs)
+   *  fahren mit dem, was die Auflösung schon gebaut hat. */
+  selected: LanguageModel | null = null
 ): LaneStage[] {
-  if (provider === 'mistral') {
-    return [{ provider: 'mistral' as const, model: modelName }, ...UNIFIED_MISTRAL_FALLBACKS].map(
-      stageModel
-    );
+  if (!isUnifiedGemma(provider, modelName)) {
+    const first: LaneStage =
+      provider === 'mistral' || selected == null
+        ? stageModel({ provider: provider as Provider, model: modelName })
+        : { provider: provider as Provider, model: modelName, languageModel: selected };
+    return [first, ...UNIFIED_LANE_FALLBACKS.map(stageModel)];
   }
-  if (!isUnifiedGemma(provider, modelName)) return [];
   const declared: { provider: Provider; model: string }[] = [
     { provider: 'melious', model: modelName },
     ...unifiedFallbackStages(provider, modelName, wireModelName),
@@ -958,88 +948,13 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
 const synthTargetAllowed = mayWriteAnswer;
 
 /**
- * Nur der Modellname der Planer-Lane.
+ * Sibling lane for the repair writer (`repairUnifiedAnswer`), tried once when
+ * the chosen writer accepts the request and then goes silent.
  *
- * NICHT im Ablauf eines Zuges verwenden — dafür ist `resolveLoopPlannerLane()`
- * da. Diese Tür löst die Lane neu auf, und seit die Wahl an `isModelSlow`
- * hängt, kann das mitten im Zug etwas anderes liefern als das, was lief: die
- * Turn-Zusammenfassung nannte so nach einem Stillstand die Ausweichstufe statt
- * der stehengebliebenen Lane. Sie bleibt für Prüfungen, die nur die POLICY
- * lesen wollen (welche Stufe wählt die Kette gerade) und dabei keine
- * Provider-Instanz bauen dürfen — `resolveLoopPlannerLane` ruft `getModel` und
- * bräuchte dafür Schlüssel, die eine CI nicht hat.
- */
-export function loopPlannerModelName(): string {
-  return loopPlannerChoice().model;
-}
-
-/**
- * Die Planer-Lane dieses Zuges — Anbieter, Modellname und Instanz in EINER
- * Auflösung.
- *
- * Warum zusammen und nicht zwei Aufrufe: `loopPlannerChoice` entscheidet nun
- * anhand von `isModelSlow`, und dieser Zustand ändert sich im laufenden
- * Prozess. Wer das Modell hier und den Namen später separat holt, kann bei
- * einem Vermerk dazwischen zwei VERSCHIEDENE Lanes in der Hand haben — und
- * würde beim Stillstand die Stufe vermerken, die gar nicht lief. Das ist der
- * Weg, auf dem eine Ausweichkette sich selbst leerräumt.
- */
-export function resolveLoopPlannerLane(): {
-  provider: Provider;
-  model: string;
-  languageModel: LanguageModel;
-} {
-  const p = loopPlannerChoice();
-  // Ohne Tausch: die Kette hat schon gewählt — sind alle Stufen zäh, wäre der
-  // stille Tausch in `getModel` ein Ziel, das in dieser Kette nichts zu suchen
-  // hat, unter dem Namen der Stufe.
-  const stage = stageModel(p);
-  return { provider: stage.provider, model: stage.model, languageModel: stage.languageModel };
-}
-
-/**
- * Ausweich-Stufen für den Werkzeugschritt, der Reihe nach versucht, wenn die
- * Planer-Lane ablehnt (400/429/5xx) oder schweigt, bevor ein Werkzeug lief.
- *
- * Die Stufen der Kette HINTER der laufenden: `:speed` (anderer Upstream bei
- * Melious), Cortecs (anderes Gateway), Mistral Small (andere Familie).
- * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist —
- * und `:speed`, wenn der Primär schon dorthin ging (`wireModelName`: ein
- * grosser `:balanced`-Body wird auf dem Draht zu `:speed`, siehe
- * `meliousWireModel`; die Stufe wiederholte sonst dieselbe Anfrage).
- *
- * Mit Identität, damit `agenticRespondService` den Stillstand der Stufe
- * vermerkt, die wirklich stand.
- */
-export function getLoopPlannerFallbackStages(
-  plannerProvider: Provider,
-  plannerName: string,
-  wireModelName: string | null = null
-): LaneStage[] {
-  const at = LOOP_PLANNER_CHAIN.findIndex(
-    (stage) => stage.provider === plannerProvider && stage.model === plannerName
-  );
-  if (at < 0) return [];
-  const sentToMelious = isUnifiedGemma(plannerProvider, plannerName);
-  return LOOP_PLANNER_CHAIN.slice(at + 1)
-    .filter(
-      (stage) =>
-        !(sentToMelious && reachesSameMeliousUpstream(stage, plannerName, wireModelName)) &&
-        isProviderConfigured(stage.provider) &&
-        !isModelSlow(stage.provider, stage.model)
-    )
-    .map(stageModel);
-}
-
-/**
- * Sibling lane for the split's WRITE phase, tried once when the chosen synth
- * lane accepts the request and then goes silent.
- *
- * The planner lane is the deliberate pick: it is already resolved for this
- * turn, it is the confirmed fast responder, and it has just read every gathered
- * source — so it can answer over them without any new configuration or a second
- * slot. Returns null when the synth already IS that lane, since falling back
- * onto the stalled host would only repeat the stall.
+ * The first usable stage of `LOOP_PLANNER_CHAIN` — the former split planner's
+ * ladder, kept as the fast tool-less fallback writer. Returns null when the
+ * writer already IS that lane, since falling back onto the stalled host would
+ * only repeat the stall.
  */
 export function getLoopSynthFallbackModel(
   synthName: string
@@ -1059,7 +974,7 @@ export function getLoopSynthFallbackModel(
 }
 
 /**
- * Synthesizer for the split's write phase. Pure DECISION (no model
+ * The repair writer's lane. Pure DECISION (no model
  * instantiation) — env-free & unit-testable. `null` provider means "honor the
  * resolved model as-is".
  *

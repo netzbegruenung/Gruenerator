@@ -20,9 +20,8 @@ export interface ForceScopeSummary {
 
 export function logTurnSummary(input: {
   modelName: string;
-  mode: string;
-  /** Split mode only — null in unified. */
-  plannerName: string | null;
+  /** The lane that actually ran — differs from `modelName` when a stage marked
+   *  slow made the unified chain start on its fallback. */
   synthName: string;
   intent: SearchIntent;
   steps: PersistedStep[];
@@ -92,8 +91,8 @@ export function logTurnSummary(input: {
     ? ` force=${force.reason}:${force.named ?? (force.tools ? String(force.tools.length) : 'none')}`
     : '';
   input.onInfo(
-    `[Agentic] model=${input.modelName} mode=${input.mode}${
-      input.plannerName ? ` planner=${input.plannerName} synth=${input.synthName}` : ''
+    `[Agentic] model=${input.modelName}${
+      input.synthName && input.synthName !== input.modelName ? ` ran=${input.synthName}` : ''
     } intent=${input.intent} steps=${input.steps.length} sources=${input.sourceCount}${
       input.carriedCount > 0 ? `(carried=${input.carriedCount})` : ''
     } chars=${input.answerChars}${

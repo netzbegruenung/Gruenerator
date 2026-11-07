@@ -3,11 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   runAgenticLoop,
   buildPrepareStep,
-  createSentenceChunker,
   looksLikeToolPlanLeak,
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
-  FORCE_FINISH_GATHER_SUFFIX,
   TOOL_USE_RULES,
   UNIFIED_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
@@ -23,9 +21,7 @@ import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
 import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
-import { createHash } from 'node:crypto';
-
-import { APICallError, RetryError, type ModelMessage } from 'ai';
+import { APICallError, type ModelMessage } from 'ai';
 
 describe('buildPrepareStep — forceFirstToolCall', () => {
   const never = () => false;
@@ -484,7 +480,6 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
 // model drove which phase.
-const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerModel'];
 const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
 
 type Part = { type: string; text?: string; error?: unknown; finishReason?: string };
@@ -494,7 +489,7 @@ type StreamOpts = {
   system?: string;
 };
 // `before` simulates the real SDK's tool loop: the tool call happens WHILE the
-// stream is being drained (gather consumes result.stream), not before.
+// stream is being drained, not before.
 function streamOf(parts: Part[], before?: () => Promise<void>): ReturnType<LoopDeps['streamText']> {
   return {
     stream: (async function* () {
@@ -506,8 +501,6 @@ function streamOf(parts: Part[], before?: () => Promise<void>): ReturnType<LoopD
 
 function baseParams(over: Partial<LoopEngineParams>): LoopEngineParams {
   return {
-    mode: 'split',
-    plannerModel,
     synthModel,
     tools: {},
     toolSystem: 'TOOLSYS',
@@ -525,6 +518,40 @@ function baseParams(over: Partial<LoopEngineParams>): LoopEngineParams {
   };
 }
 
+type WriterPass = Part[] | (() => ReturnType<LoopDeps['streamText']>);
+
+/**
+ * Drives the repair path: `unified` answers the tool pass (model `synth`, with
+ * tools), the model `repair` is the tool-less writer whose passes are scripted
+ * in order (the last one repeats). Records the writer's system prompts and the
+ * messages it saw.
+ */
+function repairDeps(unified: Part[], passes: WriterPass[]) {
+  const calls: string[] = [];
+  const writerSystems: string[] = [];
+  const writerMessages: ModelMessage[][] = [];
+  const writerOpts: StreamOpts[] = [];
+  let writerCall = 0;
+  const deps: LoopDeps = {
+    generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    streamText: ((o: StreamOpts & { messages: ModelMessage[] }) => {
+      calls.push(o.model.id);
+      if (o.model.id !== 'repair') return streamOf(unified);
+      writerSystems.push(o.system ?? '');
+      writerMessages.push(o.messages);
+      writerOpts.push(o);
+      const pass = passes[Math.min(writerCall++, passes.length - 1)] ?? [];
+      return typeof pass === 'function' ? pass() : streamOf(pass);
+    }) as unknown as LoopDeps['streamText'],
+  };
+  return { deps, calls, writerSystems, writerMessages, writerOpts, writerCalls: () => writerCall };
+}
+const repairLane = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
+const repairTools = { web_search: {} } as unknown as LoopEngineParams['tools'];
+const repairParams = (over: Partial<LoopEngineParams> = {}) =>
+  baseParams({ repairModel: repairLane, tools: repairTools, ...over });
+const text = (t: string): Part[] => (t.length > 0 ? [{ type: 'text-delta', text: t }] : []);
+
 describe('runAgenticLoop — unified mode', () => {
   it('runs ONE streamText with tools on the selected model and streams its text', async () => {
     const calls: string[] = [];
@@ -540,11 +567,11 @@ describe('runAgenticLoop — unified mode', () => {
       }) as unknown as LoopDeps['generateText'],
     };
 
-    const out = await runAgenticLoop(baseParams({ mode: 'unified', onText }), deps);
+    const out = await runAgenticLoop(baseParams({ onText }), deps);
 
     expect(out.text).toBe('UNIFIED_ANSWER');
     expect(onText).toHaveBeenCalledWith('UNIFIED_ANSWER');
-    // No planner phase; one streamText on the selected model WITH tools.
+    // One streamText on the selected model WITH tools.
     expect(calls).toEqual(['streamText:synth:tools=true']);
   });
 
@@ -555,7 +582,7 @@ describe('runAgenticLoop — unified mode', () => {
         streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    await runAgenticLoop(baseParams({ mode: 'unified', afterGather }), deps);
+    await runAgenticLoop(baseParams({ afterGather }), deps);
     // Regression: afterGather never fired in unified mode, so a compound sharepic
     // turn that only searched left the artifact uncreated.
     expect(afterGather).toHaveBeenCalledTimes(1);
@@ -594,7 +621,7 @@ describe('runAgenticLoop — unified lane chain', () => {
     return { deps, calls };
   }
   const params = (over: Partial<LoopEngineParams> = {}) =>
-    baseParams({ mode: 'unified', unifiedFallbacks: [fallback], ...over });
+    baseParams({ unifiedFallbacks: [fallback], ...over });
 
   it('(a) moves to the next lane when the first rejects before any output, and says so', async () => {
     const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
@@ -673,23 +700,6 @@ describe('runAgenticLoop — unified lane chain', () => {
 });
 
 describe('unified suffix — tool and writer rules', () => {
-  it('keeps the gather suffix byte-identical', async () => {
-    const systems: string[] = [];
-    const deps: LoopDeps = {
-      streamText: ((o: StreamOpts) => {
-        systems.push(o.system ?? '');
-        return streamOf([{ type: 'text-delta', text: '' }]);
-      }) as unknown as LoopDeps['streamText'],
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-    };
-    await runAgenticLoop(baseParams({ mode: 'split', toolSystem: '' }), deps);
-    const gatherSystem = systems[0] ?? '';
-    expect(gatherSystem.length).toBe(2459);
-    expect(createHash('sha256').update(gatherSystem).digest('hex')).toBe(
-      'bbf396270f6ed10a61f6bda98e94129639aa8e67dc1d80f7994ffd8ed62590ac'
-    );
-  });
-
   it('gives the unified stream the tool and writer rules', async () => {
     let seen:
       (StreamOpts & { prepareStep?: (a: { stepNumber: number }) => { system?: string } }) | null =
@@ -701,17 +711,17 @@ describe('unified suffix — tool and writer rules', () => {
       }) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    await runAgenticLoop(baseParams({ mode: 'unified', maxSteps: 1 }), deps);
+    await runAgenticLoop(baseParams({ maxSteps: 1 }), deps);
     expect(seen).not.toBeNull();
     const system = seen!.system ?? '';
     expect(system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
     expect(system).toContain(TOOL_USE_RULES);
     expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
     expect(system).toContain('ANTWORTE KONKRET');
-    // Hinweise der Werkzeuge binden die Antwort (im Split trägt das der Schreiber-Block).
+    // Hinweise der Werkzeuge binden die Antwort.
     expect(system).toContain('`fuerSchreiber`');
     expect(system).toContain('`antwortregel`');
-    // The unified model writes the answer — the gather-only ban must not reach it.
+    // The unified model writes the answer — no tool-phase-only ban may reach it.
     expect(system).not.toContain('Schreibe in dieser Phase KEINE finale Antwort');
     // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.
     const override = seen!.prepareStep?.({ stepNumber: 0 }).system ?? '';
@@ -730,7 +740,7 @@ describe('unified suffix — tool and writer rules', () => {
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
     await runAgenticLoop(
-      baseParams({ mode: 'unified', toolSystem: 'BASE\n\n## LÄNDERKONTEXT: ÖSTERREICH\nAT' }),
+      baseParams({ toolSystem: 'BASE\n\n## LÄNDERKONTEXT: ÖSTERREICH\nAT' }),
       deps
     );
     expect(system).toContain('## LÄNDERKONTEXT: ÖSTERREICH');
@@ -756,7 +766,7 @@ describe('runAgenticLoop — unified repair', () => {
     return { deps, calls };
   }
   const params = (over: Partial<LoopEngineParams> = {}) =>
-    baseParams({ mode: 'unified', repairModel, tools, ...over });
+    baseParams({ repairModel, tools, ...over });
 
   it('re-writes an empty answer on the repair lane when no artifact was produced', async () => {
     const onText = vi.fn();
@@ -807,6 +817,14 @@ describe('runAgenticLoop — unified repair', () => {
     expect(out.text).toBe(GOOD);
   });
 
+  it('repairs a unified answer that leaked its tool plan', async () => {
+    const { deps, calls } = setup([{ type: 'text-delta', text: "Let's perform web_search." }]);
+    const out = await runAgenticLoop(params(), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
+  });
+
   it('repairs an answer that ended on finishReason length', async () => {
     const { deps, calls } = setup([
       { type: 'text-delta', text: 'Eine lange Antwort, die abgeschnitten wurde' },
@@ -841,571 +859,46 @@ describe('runAgenticLoop — unified repair', () => {
 
   it("keeps today's behaviour without a repair lane", async () => {
     const { deps, calls } = setup([]);
-    const out = await runAgenticLoop(baseParams({ mode: 'unified', tools }), deps);
+    const out = await runAgenticLoop(baseParams({ tools }), deps);
     expect(calls).toEqual(['synth']);
     expect(out.text).toBe('');
   });
 });
 
-describe('runAgenticLoop — split (planner/executor)', () => {
-  it('planner gathers (streamText+tools) then the SELECTED model synthesizes (streamText, no tools)', async () => {
-    const order: string[] = [];
-    const onText = vi.fn();
-    let synthSystem = '';
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        const phase = o.model.id === 'planner' ? 'gather' : 'synth';
-        order.push(`${phase}:${o.model.id}:tools=${!!o.tools}`);
-        if (phase === 'synth') synthSystem = o.system ?? '';
-        return streamOf([
-          {
-            type: 'text-delta',
-            text: phase === 'gather' ? 'PLANNER_DRAFT_DISCARDED' : 'SYNTH_ANSWER',
-          },
-        ]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    const out = await runAgenticLoop(baseParams({ mode: 'split', onText }), deps);
-
-    // The user-facing answer comes from the synth model; the planner's draft is
-    // never routed to onText (with no onNarration it is drained silently).
-    expect(out.text).toBe('SYNTH_ANSWER');
-    expect(onText).toHaveBeenCalledWith('SYNTH_ANSWER');
-    expect(onText).not.toHaveBeenCalledWith('PLANNER_DRAFT_DISCARDED');
-    // Order + which model + tools-per-phase (gather has tools, synth does not).
-    expect(order).toEqual(['gather:planner:tools=true', 'synth:synth:tools=false']);
-    // Gathered sources are injected into the (tool-less) synth context.
-    expect(synthSystem).toContain('[1] Quelle');
-  });
-
-  it('runs the tool loop on the planner (gather drains its stream, executing tools)', async () => {
-    const probe = vi.fn().mockResolvedValue({ ok: true });
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') {
-          return streamOf([{ type: 'text-delta', text: '' }], async () => {
-            await o.tools?.probe?.execute?.({}, { toolCallId: 'c1' });
-          });
-        }
-        return streamOf([{ type: 'text-delta', text: 'A' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(
-      baseParams({
-        mode: 'split',
-        tools: { probe: { execute: probe } } as unknown as LoopEngineParams['tools'],
-      }),
-      deps
-    );
-
-    expect(probe).toHaveBeenCalledOnce();
-  });
-
-  it('drains the whole planner stream even without onNarration (so the tool loop runs)', async () => {
-    let consumed = 0;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') {
-          return {
-            stream: (async function* () {
-              for (const part of [
-                { type: 'text-delta', text: 'a. ' },
-                { type: 'reasoning-delta', text: 'r' },
-                { type: 'text-delta', text: 'b.' },
-              ]) {
-                consumed += 1;
-                yield part;
-              }
-            })(),
-          } as unknown as ReturnType<LoopDeps['streamText']>;
-        }
-        return streamOf([{ type: 'text-delta', text: 'X' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split' }), deps); // no onNarration
-
-    expect(consumed).toBe(3);
-  });
-
-  it('degrades to synthesis when the gather phase errors (partial evidence still answers)', async () => {
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') {
-          return streamOf([{ type: 'error', error: new Error('planner boom') }]);
-        }
-        return streamOf([{ type: 'text-delta', text: 'RECOVERED' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    const out = await runAgenticLoop(baseParams({ mode: 'split' }), deps);
-
-    expect(out.text).toBe('RECOVERED');
-  });
-
-  /**
-   * 02.10.2026, Typeform: Melious rejected the tool phase ("The request was
-   * rejected as malformed", 400) before a single call, the turn fell through to
-   * synthesis with nothing, and the writer explained the missing results as a
-   * missing ability. A rejected request gets one more lane; a turn that still
-   * has nothing tells the writer why.
-   */
-  describe('planner rejected before any tool call', () => {
-    const rejected = () =>
-      new APICallError({
-        message: 'The request was rejected as malformed.',
-        url: 'https://melious.example/v1/chat/completions',
-        requestBodyValues: {},
-        statusCode: 400,
-      });
-    const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'];
-
-    function recordingDeps(plannerParts: (id: string) => Part[]) {
-      const calls: string[] = [];
-      const synthSystems: string[] = [];
-      const deps: LoopDeps = {
-        generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-        streamText: ((o: StreamOpts) => {
-          if (o.model.id !== 'synth') {
-            calls.push(o.model.id);
-            return streamOf(plannerParts(o.model.id));
-          }
-          synthSystems.push(o.system ?? '');
-          return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
-        }) as unknown as LoopDeps['streamText'],
-      };
-      return { deps, calls, synthSystems };
-    }
-
-    it('retries the tool phase once on the fallback lane', async () => {
-      const { deps, calls, synthSystems } = recordingDeps((id) =>
-        id === 'planner' ? [{ type: 'error', error: rejected() }] : []
-      );
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      expect(calls).toEqual(['planner', 'fallback']);
-      expect(synthSystems[0]).not.toContain('technisch gescheitert');
-    });
-
-    it('tells the writer the tool phase failed when no lane got through', async () => {
-      const { deps, calls, synthSystems } = recordingDeps(() => [
-        { type: 'error', error: rejected() },
-      ]);
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      expect(calls).toEqual(['planner', 'fallback']);
-      expect(synthSystems[0]).toContain('technisch gescheitert');
-      expect(synthSystems[0]).toContain('Behaupte NICHT, du hättest keinen Zugriff');
-    });
-
-    it('drops the failure note when afterGather rescued the pinned tool', async () => {
-      const { deps, synthSystems } = recordingDeps(() => [{ type: 'error', error: rejected() }]);
-      await runAgenticLoop(
-        baseParams({
-          mode: 'split',
-          plannerFallbackModels: [fallbackModel],
-          afterGather: async () => true,
-        }),
-        deps
-      );
-      expect(synthSystems[0]).not.toContain('technisch gescheitert');
-    });
-
-    it('never repeats a phase that already emitted a tool call', async () => {
-      const { deps, calls, synthSystems } = recordingDeps(() => [
-        { type: 'tool-call' },
-        { type: 'tool-result', toolName: 'web_search', output: { results: [] } },
-        { type: 'error', error: rejected() },
-      ]);
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      expect(calls).toEqual(['planner']);
-      expect(synthSystems[0]).not.toContain('technisch gescheitert');
-    });
-
-    // Live 28.10.2026: GreenPT ignored the pinned `bundestag` and called
-    // `web_search`; the SDK threw ToolChoiceViolationError after the tool-call
-    // part. Nothing ran — but the writer, never told, wrote a research plan with
-    // tool names and asked „Soll ich diese Recherche jetzt starten?".
-    it('tells the writer the phase failed when a call came back without a result', async () => {
-      const { deps, calls, synthSystems } = recordingDeps(() => [
-        { type: 'tool-call', toolName: 'web_search' },
-        {
-          type: 'error',
-          error: new Error("did not contain a call to the required tool 'bundestag'"),
-        },
-      ]);
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      // Still no second lane: the call may have executed.
-      expect(calls).toEqual(['planner']);
-      expect(synthSystems[0]).toContain('technisch gescheitert');
-    });
-
-    it('reads the status behind an exhausted SDK retry (503 → RetryError)', async () => {
-      const exhausted = new RetryError({
-        message: 'Failed after 3 attempts.',
-        reason: 'maxRetriesExceeded',
-        errors: [
-          new APICallError({
-            message: 'Service Unavailable',
-            url: 'https://melious.example/v1/chat/completions',
-            requestBodyValues: {},
-            statusCode: 503,
-          }),
-        ],
-      });
-      const { deps, calls } = recordingDeps((id) =>
-        id === 'planner' ? [{ type: 'error', error: exhausted }] : []
-      );
-      const onLaneUnhealthy = vi.fn();
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel], onLaneUnhealthy }),
-        deps
-      );
-      expect(calls).toEqual(['planner', 'fallback']);
-      expect(onLaneUnhealthy).toHaveBeenCalledExactlyOnceWith(0, 'provider_unavailable');
-    });
-
-    it('does not retry once reasoning already reached the client', async () => {
-      const { deps, calls } = recordingDeps(() => [
-        { type: 'reasoning-delta', text: 'Ich schaue nach …' },
-        { type: 'error', error: rejected() },
-      ]);
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      expect(calls).toEqual(['planner']);
-    });
-
-    it('does not switch lanes on an error that is not a provider verdict', async () => {
-      const { deps, calls, synthSystems } = recordingDeps(() => [
-        { type: 'error', error: new Error('planner boom') },
-      ]);
-      await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
-        deps
-      );
-      expect(calls).toEqual(['planner']);
-      expect(synthSystems[0]).toContain('technisch gescheitert');
-    });
-  });
-
-  /**
-   * The 20.08.2026 stall: the planner went silent after its last tool returned
-   * and nothing in the loop noticed. The effective deadline was GreenPT's own
-   * 120s fetch timeout — the turn finished in 139.7s.
-   *
-   * Silence is only a hang once nothing could legitimately still be running, so
-   * the window is derived from the longest per-call timeout among the tools
-   * MOUNTED THIS TURN (see `mountedToolCeilingMs`).
-   */
-  describe('gather stall guard', () => {
-    it('gives up on a silent planner and still answers from what was gathered', async () => {
-      vi.useFakeTimers();
-      try {
-        const deps: LoopDeps = {
-          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-          streamText: ((o: StreamOpts) => {
-            if (o.model.id === 'planner') {
-              // Accepts the request, then never yields anything.
-              return {
-                stream: (async function* () {
-                  await new Promise(() => {});
-                })(),
-              } as unknown as ReturnType<LoopDeps['streamText']>;
-            }
-            return streamOf([{ type: 'text-delta', text: 'RECOVERED' }]);
-          }) as unknown as LoopDeps['streamText'],
-        };
-
-        const pending = runAgenticLoop(
-          baseParams({ mode: 'split', abortSignal: new AbortController().signal }),
-          deps
-        );
-        // No tools mounted → the tight window (per-call timeout + slack = 35s).
-        await vi.advanceTimersByTimeAsync(40_000);
-
-        expect((await pending).text).toBe('RECOVERED');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('retries a silent planner once on the fallback lane (#4480)', async () => {
-      vi.useFakeTimers();
-      try {
-        const calls: string[] = [];
-        const synthSystems: string[] = [];
-        const deps: LoopDeps = {
-          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-          streamText: ((o: StreamOpts) => {
-            if (o.model.id === 'planner') {
-              calls.push('planner');
-              return {
-                stream: (async function* () {
-                  await new Promise(() => {});
-                })(),
-              } as unknown as ReturnType<LoopDeps['streamText']>;
-            }
-            if (o.model.id === 'fallback') {
-              calls.push('fallback');
-              return streamOf([]);
-            }
-            synthSystems.push(o.system ?? '');
-            return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
-          }) as unknown as LoopDeps['streamText'],
-        };
-        const onLaneUnhealthy = vi.fn();
-
-        const pending = runAgenticLoop(
-          baseParams({
-            mode: 'split',
-            plannerFallbackModels: [
-              { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'],
-            ],
-            onLaneUnhealthy,
-            abortSignal: new AbortController().signal,
-          }),
-          deps
-        );
-        await vi.advanceTimersByTimeAsync(40_000);
-
-        expect((await pending).text).toBe('ANSWER');
-        expect(calls).toEqual(['planner', 'fallback']);
-        // Erst der Primär (Index 0) stand; die Ausweichstufe lieferte.
-        expect(onLaneUnhealthy).toHaveBeenCalledExactlyOnceWith(0, 'stall');
-        expect(synthSystems[0]).not.toContain('technisch gescheitert');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    describe('first-response window before a fallback lane (#4785)', () => {
-      const hang = () =>
-        ({
-          stream: (async function* () {
-            await new Promise(() => {});
-          })(),
-        }) as unknown as ReturnType<LoopDeps['streamText']>;
-      const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['plannerModel'];
-
-      function chainDeps(planner: (id: string) => ReturnType<LoopDeps['streamText']> | null) {
-        const calls: string[] = [];
-        const deps: LoopDeps = {
-          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-          streamText: ((o: StreamOpts) => {
-            if (o.model.id === 'synth') return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
-            calls.push(o.model.id);
-            return planner(o.model.id) ?? streamOf([]);
-          }) as unknown as LoopDeps['streamText'],
-        };
-        return { deps, calls };
-      }
-
-      it('switches after 8 s, not after the full idle window (#5399)', async () => {
-        vi.useFakeTimers();
-        try {
-          const { deps, calls } = chainDeps((id) => (id === 'planner' ? hang() : null));
-          const pending = runAgenticLoop(
-            baseParams({
-              mode: 'split',
-              plannerFallbackModels: [lane('fallback')],
-              abortSignal: new AbortController().signal,
-            }),
-            deps
-          );
-          await vi.advanceTimersByTimeAsync(7_500);
-          expect(calls).toEqual(['planner']);
-          await vi.advanceTimersByTimeAsync(1_000);
-          expect(calls).toEqual(['planner', 'fallback']);
-          expect((await pending).text).toBe('ANSWER');
-        } finally {
-          vi.useRealTimers();
-        }
-      });
-
-      it('the SDK preamble is not a response from the provider', async () => {
-        vi.useFakeTimers();
-        try {
-          const { deps, calls } = chainDeps((id) =>
-            id === 'planner'
-              ? ({
-                  stream: (async function* () {
-                    yield { type: 'start' };
-                    yield { type: 'start-step' };
-                    await new Promise(() => {});
-                  })(),
-                } as unknown as ReturnType<LoopDeps['streamText']>)
-              : null
-          );
-          const pending = runAgenticLoop(
-            baseParams({
-              mode: 'split',
-              plannerFallbackModels: [lane('fallback')],
-              abortSignal: new AbortController().signal,
-            }),
-            deps
-          );
-          await vi.advanceTimersByTimeAsync(16_000);
-          expect(calls).toEqual(['planner', 'fallback']);
-          await pending;
-        } finally {
-          vi.useRealTimers();
-        }
-      });
-
-      it('walks the whole chain and reports EVERY stage that stalled', async () => {
-        vi.useFakeTimers();
-        try {
-          const { deps, calls } = chainDeps((id) => (id === 'mistral' ? null : hang()));
-          const onLaneUnhealthy = vi.fn();
-          const pending = runAgenticLoop(
-            baseParams({
-              mode: 'split',
-              plannerFallbackModels: [lane('speed'), lane('cortecs'), lane('mistral')],
-              abortSignal: new AbortController().signal,
-              onLaneUnhealthy,
-            }),
-            deps
-          );
-          await vi.advanceTimersByTimeAsync(31_000);
-          expect(calls).toEqual(['planner', 'speed', 'cortecs', 'mistral']);
-          expect((await pending).text).toBe('ANSWER');
-          // Bis 06.11.2026 bekam nur der Primär den Vermerk; die stockende
-          // Ausweichstufe blieb im nächsten Zug erste Wahl dahinter.
-          expect(onLaneUnhealthy.mock.calls).toEqual([
-            [0, 'stall'],
-            [1, 'stall'],
-            [2, 'stall'],
-          ]);
-        } finally {
-          vi.useRealTimers();
-        }
-      });
-
-      it('the last lane keeps the full window: there is nowhere left to switch to', async () => {
-        vi.useFakeTimers();
-        try {
-          const { deps, calls } = chainDeps(() => hang());
-          let settled = false;
-          const pending = runAgenticLoop(
-            baseParams({
-              mode: 'split',
-              plannerFallbackModels: [lane('fallback')],
-              abortSignal: new AbortController().signal,
-            }),
-            deps
-          ).finally(() => {
-            settled = true;
-          });
-          // 8 s on the planner, then the fallback runs past its own 8 s.
-          await vi.advanceTimersByTimeAsync(32_000);
-          expect(calls).toEqual(['planner', 'fallback']);
-          expect(settled).toBe(false);
-          await vi.advanceTimersByTimeAsync(40_000);
-          await pending;
-        } finally {
-          vi.useRealTimers();
-        }
-      });
-    });
-
-    it('waits out a slow tool instead of calling it a stall', async () => {
-      vi.useFakeTimers();
-      try {
-        const deps: LoopDeps = {
-          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-          streamText: ((o: StreamOpts) => {
-            if (o.model.id === 'planner') {
-              // 80s of silence — legitimate while `create_pdf` (90s cap) runs.
-              return streamOf([{ type: 'text-delta', text: 'plane…' }], async () => {
-                await vi.advanceTimersByTimeAsync(80_000);
-              });
-            }
-            return streamOf([{ type: 'text-delta', text: 'FERTIG' }]);
-          }) as unknown as LoopDeps['streamText'],
-        };
-
-        const pending = runAgenticLoop(
-          baseParams({
-            mode: 'split',
-            // Mounting the generation tool is what buys the wider window.
-            tools: { create_pdf: {} } as unknown as LoopEngineParams['tools'],
-            abortSignal: new AbortController().signal,
-          }),
-          deps
-        );
-        await vi.advanceTimersByTimeAsync(120_000);
-
-        expect((await pending).text).toBe('FERTIG');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-  });
-});
-
-describe('synthMessages — the tool replay must not reach the tool-less synth', () => {
+describe('repair writer — synthMessages: the tool replay must not reach the tool-less writer', () => {
   const userMsg: ModelMessage = { role: 'user', content: 'recherchiere X' };
   const replayAssistant: ModelMessage = {
     role: 'assistant',
     content: [{ type: 'tool-call', toolCallId: 'c1', toolName: 'web_search', input: {} }],
   };
 
-  it('gather gets the replay history, synth gets the plain one', async () => {
+  it('the tool pass gets the replay history, the writer gets the plain one', async () => {
     const seen: Record<string, ModelMessage[]> = {};
     const deps: LoopDeps = {
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
       streamText: ((o: StreamOpts & { messages: ModelMessage[] }) => {
         seen[o.model.id] = o.messages;
-        return streamOf([{ type: 'text-delta', text: 'Die Antwort steht hier.' }]);
+        return streamOf(o.model.id === 'repair' ? text('Die Antwort steht hier.') : []);
       }) as unknown as LoopDeps['streamText'],
     };
 
     await runAgenticLoop(
-      baseParams({
-        mode: 'split',
-        messages: [replayAssistant, userMsg],
-        synthMessages: [userMsg],
-      }),
+      repairParams({ messages: [replayAssistant, userMsg], synthMessages: [userMsg] }),
       deps
     );
 
-    expect(seen['planner']).toHaveLength(2);
-    // Regression: with the replay in its context and no tools mounted, the synth
+    expect(seen['synth']).toHaveLength(2);
+    // Regression: with the replay in its context and no tools mounted, the writer
     // imitated the tool-call pattern ("Let's perform web_search.") instead of answering.
-    expect(seen['synth']).toEqual([userMsg]);
+    expect(seen['repair']).toEqual([userMsg]);
   });
 
   it('falls back to `messages` when synthMessages is omitted', async () => {
-    const seen: Record<string, ModelMessage[]> = {};
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts & { messages: ModelMessage[] }) => {
-        seen[o.model.id] = o.messages;
-        return streamOf([{ type: 'text-delta', text: 'Die Antwort steht hier.' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
+    const { deps, writerMessages } = repairDeps([], [text('Die Antwort steht hier.')]);
 
-    await runAgenticLoop(baseParams({ mode: 'split', messages: [userMsg] }), deps);
+    await runAgenticLoop(repairParams({ messages: [userMsg] }), deps);
 
-    expect(seen['synth']).toEqual([userMsg]);
+    expect(writerMessages).toEqual([[userMsg]]);
   });
 });
 
@@ -1487,304 +980,103 @@ describe('looksLikeSynthRefusal', () => {
   });
 });
 
-describe('split synthesis — a leaked tool plan is retried, never streamed', () => {
-  function synthDeps(answers: string[]): { deps: LoopDeps; systems: string[] } {
-    const systems: string[] = [];
-    let call = 0;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') return streamOf([{ type: 'text-delta', text: '' }]);
-        systems.push(o.system ?? '');
-        const text = answers[Math.min(call, answers.length - 1)] ?? '';
-        call += 1;
-        return streamOf(text.length > 0 ? [{ type: 'text-delta', text }] : []);
-      }) as unknown as LoopDeps['streamText'],
-    };
-    return { deps, systems };
-  }
+describe('repair writer — a leaked tool plan is retried, refusals are surfaced', () => {
+  // The unified pass answers nothing (-> repair); the writer's passes are scripted.
+  const writer = (answers: string[]) => repairDeps([], answers.map(text));
+  const GOOD = 'Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].';
 
-  const tools = { web_search: {} } as unknown as LoopEngineParams['tools'];
-
-  it('retries once with the strict suffix and streams ONLY the recovered answer', async () => {
+  it('retries once with the strict suffix and returns ONLY the recovered answer', async () => {
     const onText = vi.fn();
-    const { deps, systems } = synthDeps([
-      "Let's perform web_search.",
-      'Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].',
-    ]);
+    const { deps, writerSystems } = writer(["Let's perform web_search.", GOOD]);
 
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+    const out = await runAgenticLoop(repairParams({ onText }), deps);
 
-    expect(out.text).toBe('Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].');
-    expect(systems).toHaveLength(2);
-    expect(systems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX.trim().slice(0, 30));
-    // The leaked first pass stayed buffered — the client never saw it.
-    const streamed = onText.mock.calls.map((c) => c[0] as string).join('');
-    expect(streamed).toBe('Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].');
-    expect(streamed).not.toContain('web_search');
-  });
-
-  it('emits nothing at all when both passes leak a plan (caller fallback takes over)', async () => {
-    const onText = vi.fn();
-    const { deps } = synthDeps(["Let's perform web_search.", 'Now calling web_search again.']);
-
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
-
-    expect(out.text).toBe('');
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
+    expect(out.replacedStreamed).toBe(true);
+    expect(writerSystems).toHaveLength(2);
+    expect(writerSystems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX.trim().slice(0, 30));
+    // The repair is silent — the leaked pass never reaches the client.
     expect(onText).not.toHaveBeenCalled();
   });
 
-  it('streams a healthy answer without a second pass', async () => {
-    const onText = vi.fn();
-    const { deps, systems } = synthDeps(['Die Antwort steht hier und ist auf Deutsch.']);
+  it('keeps the original when both writer passes leak a plan (caller fallback takes over)', async () => {
+    const { deps } = writer(["Let's perform web_search.", 'Now calling web_search again.']);
 
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+    const out = await runAgenticLoop(repairParams(), deps);
+
+    expect(out.text).toBe('');
+    expect(out.replacement).toBeUndefined();
+  });
+
+  it('runs a healthy writer answer without a second pass', async () => {
+    const { deps, writerSystems } = writer(['Die Antwort steht hier und ist auf Deutsch.']);
+
+    const out = await runAgenticLoop(repairParams(), deps);
 
     expect(out.text).toBe('Die Antwort steht hier und ist auf Deutsch.');
-    expect(systems).toHaveLength(1);
-    expect(onText).toHaveBeenCalledWith('Die Antwort steht hier und ist auf Deutsch.');
+    expect(writerSystems).toHaveLength(1);
   });
 
   it('surfaces a REFUSAL as a German refusal and never retries it', async () => {
-    const onText = vi.fn();
-    const { deps, systems } = synthDeps([
+    const { deps, writerSystems } = writer([
       "I'm sorry, but I can't help with that.",
       'Diese zweite Antwort darf gar nicht erst angefordert werden.',
     ]);
 
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+    const out = await runAgenticLoop(repairParams(), deps);
 
-    // One synth call only — a decline is an answer, not a failure to retry.
-    expect(systems).toHaveLength(1);
+    // One writer call only — a decline is an answer, not a failure to retry.
+    expect(writerSystems).toHaveLength(1);
     expect(out.text).toBe(SYNTH_REFUSAL_TEXT);
-    expect(onText).toHaveBeenCalledWith(SYNTH_REFUSAL_TEXT);
-    // The English boilerplate stayed buffered and never reached the client.
-    const streamed = onText.mock.calls.map((c) => c[0] as string).join('');
-    expect(streamed).not.toMatch(/i'?m sorry/i);
     // And it must NOT read as "nothing found, try rephrasing".
     expect(out.text).not.toMatch(/anders formulieren/i);
   });
 
-  it("streams a GERMAN decline in the model's own words — policy or capability alike", async () => {
+  it("passes a GERMAN decline through in the model's own words — policy or capability alike", async () => {
     for (const decline of [
       'Leider kann ich dabei nicht helfen — ein erfundenes Zitat schreibe ich nicht.',
       // #3799: a capability decline read as a policy decline and was swapped.
       'Ich kann keine Websuche durchführen. In den mir vorliegenden Quellen gibt es keine Informationen dazu.',
     ]) {
-      const onText = vi.fn();
-      const { deps, systems } = synthDeps([decline, 'Eine zweite Antwort darf es nicht geben.']);
+      const { deps, writerSystems } = writer([decline, 'Eine zweite Antwort darf es nicht geben.']);
 
-      const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+      const out = await runAgenticLoop(repairParams(), deps);
 
       expect(out.text, decline).toBe(decline);
-      expect(systems, decline).toHaveLength(1);
-      expect(onText, decline).toHaveBeenCalledWith(decline);
-      expect(out.replacement, decline).toBeUndefined();
+      expect(writerSystems, decline).toHaveLength(1);
     }
   });
 
-  it('streams the summary when only the injected instruction was declined', async () => {
-    const onText = vi.fn();
+  it('keeps the summary when only the injected instruction was declined', async () => {
     const compliant =
       'Die Planung der Radwegverbindung stockt seit zwei Jahren. Den eingefügten Systemhinweis setze ich nicht um.';
-    const { deps, systems } = synthDeps([compliant, 'Eine zweite Antwort darf es nicht geben.']);
+    const { deps, writerSystems } = writer([compliant, 'Eine zweite Antwort darf es nicht geben.']);
 
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+    const out = await runAgenticLoop(repairParams(), deps);
 
     // Not swapped, not retried — the user gets the answer they asked for.
     expect(out.text).toBe(compliant);
-    expect(systems).toHaveLength(1);
-    expect(onText).toHaveBeenCalledWith(compliant);
-    expect(out.text).not.toBe(SYNTH_REFUSAL_TEXT);
-  });
-
-  it('streams a capability decline instead of the canned policy refusal (#3799)', async () => {
-    const onText = vi.fn();
-    const honest =
-      'Ich kann keine Websuche durchführen. In den mir vorliegenden Quellen gibt es keine Informationen dazu.';
-    const { deps, systems } = synthDeps([honest, 'Eine zweite Antwort darf es nicht geben.']);
-
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
-
-    expect(out.text).toBe(honest);
-    expect(systems).toHaveLength(1);
-    expect(onText).toHaveBeenCalledWith(honest);
-    expect(out.text).not.toBe(SYNTH_REFUSAL_TEXT);
+    expect(writerSystems).toHaveLength(1);
   });
 
   it('still retries a leaked tool plan — the refusal path must not swallow it', async () => {
-    const onText = vi.fn();
-    const { deps, systems } = synthDeps([
+    const { deps, writerSystems } = writer([
       "Let's perform web_search.",
       'Die Antwort steht hier und ist auf Deutsch.',
     ]);
 
-    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+    const out = await runAgenticLoop(repairParams(), deps);
 
-    expect(systems).toHaveLength(2);
+    expect(writerSystems).toHaveLength(2);
     expect(out.text).toBe('Die Antwort steht hier und ist auf Deutsch.');
-  });
-
-  it('opens the gate mid-stream for a long answer (no full-answer buffering)', async () => {
-    const onText = vi.fn();
-    const tail = ' und hier kommt der Rest der Antwort.';
-    // Longer than the 200-char gate threshold, so the gate opens mid-stream.
-    const head = 'Das Wachstum liegt laut OeNB bei 0,6 Prozent. '.repeat(6);
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) =>
-        o.model.id === 'planner'
-          ? streamOf([{ type: 'text-delta', text: '' }])
-          : streamOf([
-              { type: 'text-delta', text: head },
-              { type: 'text-delta', text: tail },
-            ])) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
-
-    // First flush carries the buffered head; once open, later deltas pass through
-    // one by one instead of being held to the end.
-    expect(onText).toHaveBeenCalledTimes(2);
-    expect(onText).toHaveBeenLastCalledWith(tail);
-  });
-});
-
-describe('runAgenticLoop — split gather narration', () => {
-  it('streams planner prose to onNarration sentence-wise, NOT to onText', async () => {
-    const onNarration = vi.fn();
-    const onText = vi.fn();
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') {
-          return streamOf([
-            { type: 'text-delta', text: 'Ich suche ' },
-            { type: 'text-delta', text: 'im Wahlprogramm. ' },
-            { type: 'text-delta', text: 'Jetzt prüfe ich die Quelle.' },
-          ]);
-        }
-        return streamOf([{ type: 'text-delta', text: 'FINAL' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split', onNarration, onText }), deps);
-
-    expect(onNarration).toHaveBeenCalledWith('Ich suche im Wahlprogramm.');
-    expect(onNarration).toHaveBeenCalledWith('Jetzt prüfe ich die Quelle.');
-    // Narration must never leak into the answer channel.
-    expect(onText).not.toHaveBeenCalledWith('Ich suche im Wahlprogramm.');
-    expect(onText).toHaveBeenCalledWith('FINAL');
-  });
-
-  it('flushes the narration buffered up to a stream error, then degrades without throwing', async () => {
-    const onNarration = vi.fn();
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') {
-          return streamOf([
-            { type: 'text-delta', text: 'Erster Schritt. ' },
-            { type: 'error', error: new Error('boom') },
-            { type: 'text-delta', text: 'nie erreicht' },
-          ]);
-        }
-        return streamOf([{ type: 'text-delta', text: 'SYNTH' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-
-    const out = await runAgenticLoop(baseParams({ mode: 'split', onNarration }), deps);
-
-    expect(out.text).toBe('SYNTH');
-    expect(onNarration).toHaveBeenCalledWith('Erster Schritt.');
-    expect(onNarration).not.toHaveBeenCalledWith('nie erreicht');
-  });
-
-  it('forwards the planner’s thinking — the tool phase used to have none', async () => {
-    // Split mode runs the thinking lanes (GreenPT gpt-oss). Dropping the
-    // gather reasoning left every one of those turns with an empty "Gedanken"
-    // panel until the answer was already being written.
-    const onReasoning = vi.fn();
-    const onText = vi.fn();
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) =>
-        o.model.id === 'planner'
-          ? streamOf([
-              { type: 'reasoning-delta', text: 'Ich brauche erst die Quelle.' },
-              { type: 'text-delta', text: 'Ich suche.' },
-            ])
-          : streamOf([
-              { type: 'reasoning-delta', text: 'Jetzt formulieren.' },
-              { type: 'text-delta', text: 'FINAL' },
-            ])) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split', onReasoning, onText }), deps);
-
-    expect(onReasoning).toHaveBeenCalledWith('Ich brauche erst die Quelle.');
-    expect(onReasoning).toHaveBeenCalledWith('Jetzt formulieren.');
-    // The planner's thinking is thinking, not answer text.
-    expect(onText).not.toHaveBeenCalledWith('Ich brauche erst die Quelle.');
-  });
-
-  it('delivers the sentences before a tool call, then signals the call', async () => {
-    const events: string[] = [];
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) =>
-        o.model.id === 'planner'
-          ? streamOf([
-              { type: 'text-delta', text: 'Ich suche im Wahlprogramm' },
-              { type: 'tool-input-start' },
-              { type: 'tool-call' },
-              { type: 'text-delta', text: 'Die Antwort lautet so.' },
-            ])
-          : streamOf([{ type: 'text-delta', text: 'S' }])) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(
-      baseParams({
-        mode: 'split',
-        onNarration: (s) => events.push(s),
-        onToolCallStart: () => events.push('<tool>'),
-      }),
-      deps
-    );
-
-    // The partial pre-call sentence is flushed BEFORE the signal, so the caller
-    // can release it as narration; the tool-less tail comes after every signal.
-    expect(events).toEqual([
-      'Ich suche im Wahlprogramm',
-      '<tool>',
-      '<tool>',
-      'Die Antwort lautet so.',
-    ]);
-  });
-
-  it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {
-    const onNarration = vi.fn();
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) =>
-        o.model.id === 'planner'
-          ? streamOf([{ type: 'text-delta', text: 'Kein Satzende hier' }])
-          : streamOf([{ type: 'text-delta', text: 'S' }])) as unknown as LoopDeps['streamText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split', onNarration }), deps);
-
-    expect(onNarration).toHaveBeenCalledWith('Kein Satzende hier');
   });
 });
 
 describe('runAgenticLoop — force-finish (prepareStep)', () => {
   type PrepareStep = (a: { stepNumber: number }) => { toolChoice?: string; system?: string };
 
-  function capturePrepareStep(mode: 'unified' | 'split', params: Partial<LoopEngineParams>) {
-    // Both modes drive tools via streamText now (unified: the one pass; split:
-    // the gather pass). Synthesis streamText carries no prepareStep, so capture
-    // the call that actually has one.
+  function capturePrepareStep(params: Partial<LoopEngineParams>) {
     let streamPrepare: PrepareStep | undefined;
     const deps: LoopDeps = {
       streamText: ((o: StreamOpts & { prepareStep?: PrepareStep }) => {
@@ -1793,12 +1085,12 @@ describe('runAgenticLoop — force-finish (prepareStep)', () => {
       }) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({ text: '' })) as unknown as LoopDeps['generateText'],
     };
-    const run = runAgenticLoop(baseParams({ mode, ...params }), deps);
+    const run = runAgenticLoop(baseParams({ ...params }), deps);
     return { run, prepare: () => streamPrepare };
   }
 
   it('unified: last step strips tools AND injects the finish instruction', async () => {
-    const { run, prepare } = capturePrepareStep('unified', { maxSteps: 6 });
+    const { run, prepare } = capturePrepareStep({ maxSteps: 6 });
     await run;
     const p = prepare();
     expect(p).toBeDefined();
@@ -1814,7 +1106,7 @@ describe('runAgenticLoop — force-finish (prepareStep)', () => {
 
   it('unified: forceFinish() trips the finish instruction on ANY step (e.g. image generated)', async () => {
     let generated = false;
-    const { run, prepare } = capturePrepareStep('unified', {
+    const { run, prepare } = capturePrepareStep({
       maxSteps: 6,
       forceFinish: () => generated,
     });
@@ -1827,33 +1119,8 @@ describe('runAgenticLoop — force-finish (prepareStep)', () => {
     expect(forced.system).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
   });
 
-  it('split gather: finish override keeps the GATHER system (incl. strategy block) + gather suffix', async () => {
-    const { run, prepare } = capturePrepareStep('split', { maxSteps: 4 });
-    await run;
-    const final = prepare()!({ stepNumber: 3 });
-    expect(final.toolChoice).toBe('none');
-    // The override must extend the gather system, not replace it with the bare tool system.
-    expect(final.system).toContain('TOOLSYS');
-    expect(final.system).toContain('ARBEITSPHASE');
-    expect(final.system).toContain(FORCE_FINISH_GATHER_SUFFIX.trim().slice(0, 20));
-    expect(final.system).not.toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(-30));
-  });
-
-  it('split synthesis has NO prepareStep (no tools to strip)', async () => {
-    let synthHadPrepare: boolean | null = null;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({ text: '' })) as unknown as LoopDeps['generateText'],
-      streamText: ((o: { prepareStep?: unknown }) => {
-        synthHadPrepare = o.prepareStep != null;
-        return streamOf([{ type: 'text-delta', text: 'A' }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-    await runAgenticLoop(baseParams({ mode: 'split' }), deps);
-    expect(synthHadPrepare).toBe(false);
-  });
-
   it('maxSteps=1 force-finishes immediately (degenerate budget still answers)', async () => {
-    const { run, prepare } = capturePrepareStep('unified', { maxSteps: 1 });
+    const { run, prepare } = capturePrepareStep({ maxSteps: 1 });
     await run;
     const first = prepare()!({ stepNumber: 0 });
     expect(first.toolChoice).toBe('none');
@@ -1872,92 +1139,8 @@ describe('runAgenticLoop — stream draining', () => {
         ])) as unknown as LoopDeps['streamText'],
     };
 
-    await expect(
-      runAgenticLoop(baseParams({ mode: 'unified', onReasoning }), deps)
-    ).rejects.toThrow('stream fail');
+    await expect(runAgenticLoop(baseParams({ onReasoning }), deps)).rejects.toThrow('stream fail');
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
-  });
-});
-
-describe('createSentenceChunker', () => {
-  function collect(): { c: ReturnType<typeof createSentenceChunker>; out: string[] } {
-    const out: string[] = [];
-    return { c: createSentenceChunker((s) => out.push(s)), out };
-  }
-
-  it('flushes on a sentence-end char followed by whitespace', () => {
-    const { c, out } = collect();
-    c.push('Hallo Welt. ');
-    expect(out).toEqual(['Hallo Welt.']);
-  });
-
-  it('treats . ! ? … : as sentence ends', () => {
-    for (const [text, expected] of [
-      ['Punkt. ', 'Punkt.'],
-      ['Ruf! ', 'Ruf!'],
-      ['Frage? ', 'Frage?'],
-      ['Ellipse… ', 'Ellipse…'],
-      ['Doppelpunkt: ', 'Doppelpunkt:'],
-    ] as const) {
-      const { c, out } = collect();
-      c.push(text);
-      expect(out).toEqual([expected]);
-    }
-  });
-
-  it('flushes on a sentence end at the very end of the buffer (no trailing space)', () => {
-    const { c, out } = collect();
-    c.push('Satz zu Ende.');
-    expect(out).toEqual(['Satz zu Ende.']);
-  });
-
-  it('flushes on a newline and buffers the remainder', () => {
-    const { c, out } = collect();
-    c.push('Zeile eins\nZeile zwei');
-    expect(out).toEqual(['Zeile eins']);
-    c.flush();
-    expect(out).toEqual(['Zeile eins', 'Zeile zwei']);
-  });
-
-  it('flushes when the buffer grows past 160 chars without a boundary', () => {
-    const { c, out } = collect();
-    const long = 'a'.repeat(200);
-    c.push(long);
-    expect(out).toEqual([long]);
-  });
-
-  it('trims each emitted sentence and drops empty/whitespace-only deltas', () => {
-    const { c, out } = collect();
-    c.push('   ');
-    c.push('');
-    expect(out).toEqual([]);
-    c.push('   Wort.   ');
-    expect(out).toEqual(['Wort.']);
-  });
-
-  it('emits only up to a mid-buffer sentence end and keeps the rest', () => {
-    const { c, out } = collect();
-    c.push('Erster Satz. Zweiter');
-    expect(out).toEqual(['Erster Satz.']);
-    c.flush();
-    expect(out).toEqual(['Erster Satz.', 'Zweiter']);
-  });
-
-  it('reassembles a sentence split across multiple deltas', () => {
-    const { c, out } = collect();
-    c.push('Ich suche ');
-    c.push('im Wahlprogramm. ');
-    expect(out).toEqual(['Ich suche im Wahlprogramm.']);
-  });
-
-  it('flush() emits the trailing buffer; flush() on an empty buffer emits nothing', () => {
-    const { c, out } = collect();
-    c.push('Ohne Ende');
-    expect(out).toEqual([]);
-    c.flush();
-    expect(out).toEqual(['Ohne Ende']);
-    c.flush();
-    expect(out).toEqual(['Ohne Ende']);
   });
 });
 
@@ -1988,119 +1171,94 @@ describe('looksLikeToolPlanLeak — markup is not a leaked plan', () => {
   });
 });
 
-describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
-  const LONG_INVALID = `${'Viel Text vorab. '.repeat(20)}[{"kaputt": ,{`; // > 200 chars, gate open
+describe('repair writer — validation retry (validateAnswer)', () => {
   const SHORT_INVALID = '[{"kaputt": ,{';
   const VALID = '[{"name": "Anna", "stunden": 4}]';
-
-  /** streamText fake: planner streams nothing useful; synth pass N streams
-   *  synthTexts[N]. Records each synth call's system prompt. */
-  function synthSequence(synthTexts: string[], finishReasons: (string | null)[] = []) {
-    const synthSystems: string[] = [];
-    let synthCall = 0;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') return streamOf([]);
-        const idx = synthCall++;
-        synthSystems.push(o.system ?? '');
-        const parts: Part[] = [{ type: 'text-delta', text: synthTexts[idx] ?? '' }];
-        const fr = finishReasons[idx];
-        if (fr) parts.push({ type: 'finish', finishReason: fr });
-        return streamOf(parts);
-      }) as unknown as LoopDeps['streamText'],
-    };
-    return { deps, synthSystems, calls: () => synthCall };
-  }
 
   const validateJson = (t: string): string | null =>
     t.includes('kaputt') ? SYNTH_INVALID_JSON_RETRY_SUFFIX : null;
 
-  it('swaps a still-buffered invalid answer silently for the valid retry', async () => {
-    const { deps, synthSystems, calls } = synthSequence([SHORT_INVALID, VALID]);
-    const onText = vi.fn();
-    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
-    expect(out.text).toBe(VALID);
-    expect(out.replacedStreamed).toBeUndefined();
-    // Der Tausch muss aus dem Ergebnis ablesbar bleiben: er ist die stärkste
-    // Änderung an dem, was ein Mensch liest, und sonst im Betrieb spurlos.
-    expect(out.replacement).toBe('validation_retry');
-    // The invalid pass never reached the client — only the retry did.
-    const streamed = onText.mock.calls.map((c) => c[0]).join('');
-    expect(streamed).toBe(VALID);
-    expect(calls()).toBe(2);
-    expect(synthSystems[1]).toContain(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+  // The unified answer is rejected by the validator, so the writer takes over;
+  // `passes` are the writer's own passes (a second one is its silent retry).
+  const run = (passes: Part[][], over: Partial<LoopEngineParams> = {}) => {
+    const h = repairDeps(text(SHORT_INVALID), passes);
+    return {
+      ...h,
+      out: runAgenticLoop(repairParams({ validateAnswer: validateJson, ...over }), h.deps),
+    };
+  };
+
+  it('retries once with the validator suffix when the writer answer is invalid too', async () => {
+    const { out, writerSystems } = run([text(SHORT_INVALID), text(VALID)]);
+    const res = await out;
+    expect(res.text).toBe(VALID);
+    expect(res.replacement).toBe('unified_repair');
+    expect(res.replacedStreamed).toBe(true);
+    expect(writerSystems).toHaveLength(2);
+    expect(writerSystems[1]).toContain(SYNTH_INVALID_JSON_RETRY_SUFFIX);
   });
 
-  it('flags an already-streamed invalid answer for completion replacement', async () => {
-    const { deps } = synthSequence([LONG_INVALID, VALID]);
-    const onText = vi.fn();
-    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
-    expect(out.text).toBe(VALID);
-    expect(out.replacedStreamed).toBe(true);
-    expect(out.replacement).toBe('validation_retry_streamed');
-    // The invalid pass was on the wire; the retry itself stays silent.
-    const streamed = onText.mock.calls.map((c) => c[0]).join('');
-    expect(streamed).toBe(LONG_INVALID);
+  it('keeps the writer first answer when its retry is invalid too', async () => {
+    const { out, writerCalls } = run([
+      text(`${SHORT_INVALID} eins`),
+      text(`${SHORT_INVALID} zwei`),
+    ]);
+    const res = await out;
+    expect(res.text).toBe(`${SHORT_INVALID} eins`);
+    expect(writerCalls()).toBe(2);
   });
 
-  it('keeps the first answer when the retry is invalid too', async () => {
-    const { deps, calls } = synthSequence([SHORT_INVALID, SHORT_INVALID]);
-    const onText = vi.fn();
-    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
-    expect(out.text).toBe(SHORT_INVALID);
-    expect(out.replacedStreamed).toBeUndefined();
-    expect(out.replacement).toBeUndefined();
-    expect(calls()).toBe(2);
-    // First answer flushes after the failed retry — nothing is lost.
-    expect(onText.mock.calls.map((c) => c[0]).join('')).toBe(SHORT_INVALID);
+  it('never swaps the writer answer for a canned refusal from its retry', async () => {
+    const { out } = run([text(SHORT_INVALID), text('Ich kann diese Anfrage nicht erfüllen.')]);
+    expect((await out).text).toBe(SHORT_INVALID);
   });
 
-  it('never swaps a streamed answer for a canned refusal from the retry', async () => {
-    const { deps } = synthSequence([SHORT_INVALID, 'Ich kann diese Anfrage nicht erfüllen.']);
-    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
-    expect(out.text).toBe(SHORT_INVALID);
+  it('does not run a writer retry for a valid writer answer', async () => {
+    const { out, writerCalls } = run([text(VALID)]);
+    const res = await out;
+    expect(res.text).toBe(VALID);
+    expect(writerCalls()).toBe(1);
   });
 
-  // #5289 with the REAL validator: the 30.10.2026 answer is long enough to be
-  // on the wire before the verdict, so the retry must come back as a replace.
-  it('replaces a streamed request to wait with the retry', async () => {
+  // #5289 with the REAL validator: the unified answer asks the reader to wait.
+  it('repairs a request to wait with the writer', async () => {
     const waiting = `${'Ich habe nur Ausschnitte der Rede. '.repeat(8)}Einen Moment bitte.`;
     const honest =
       'Den vollständigen Wortlaut habe ich nicht gefunden; hier die Ausschnitte von vorhin.';
-    const { deps, synthSystems } = synthSequence([waiting, honest]);
-    const out = await runAgenticLoop(baseParams({ validateAnswer: createAnswerValidator() }), deps);
-    expect(out.text).toBe(honest);
-    expect(out.replacedStreamed).toBe(true);
-    expect(synthSystems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX);
+    const h = repairDeps(text(waiting), [text(honest)]);
+    const res = await runAgenticLoop(
+      repairParams({ validateAnswer: createAnswerValidator() }),
+      h.deps
+    );
+    expect(h.calls).toEqual(['synth', 'repair']);
+    expect(res.text).toBe(honest);
+    expect(res.replacedStreamed).toBe(true);
   });
 
   // The cost of a false positive is one extra pass, never the answer: when
-  // the message itself asks for the phrase, the retry carries it too.
+  // the message itself asks for the phrase, the writer retry carries it too.
   it('keeps an answer whose request to wait was asked for', async () => {
     const script =
       'Telefonskript: „Guten Tag, hier ist das Grüne Büro. Einen Moment bitte, ich verbinde."';
-    const { deps, calls } = synthSequence([script, script]);
-    const out = await runAgenticLoop(baseParams({ validateAnswer: createAnswerValidator() }), deps);
-    expect(out.text).toBe(script);
-    expect(out.replacement).toBeUndefined();
-    expect(calls()).toBe(2);
+    const h = repairDeps(text(script), [text(script)]);
+    const res = await runAgenticLoop(
+      repairParams({ validateAnswer: createAnswerValidator() }),
+      h.deps
+    );
+    expect(res.text).toBe(script);
+    expect(h.writerCalls()).toBe(2);
   });
 
-  it('does not run a second pass for a valid answer', async () => {
-    const { deps, calls } = synthSequence([VALID]);
-    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
-    expect(out.text).toBe(VALID);
-    expect(calls()).toBe(1);
-  });
-
-  it('retries on an abnormal finishReason even without validateAnswer', async () => {
+  it('retries on an abnormal finishReason of the writer even without validateAnswer', async () => {
     const CUT = 'Dieser Satz endet mitten im';
     const DONE = 'Dieser Satz endet mitten im Wort — jetzt aber vollständig zu Ende geschrieben.';
-    const { deps, synthSystems } = synthSequence([CUT, DONE], ['length', null]);
-    const out = await runAgenticLoop(baseParams({}), deps);
-    expect(out.text).toBe(DONE);
-    expect(synthSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
+    const h = repairDeps(
+      [],
+      [[...text(CUT), { type: 'finish', finishReason: 'length' }], text(DONE)]
+    );
+    const res = await runAgenticLoop(repairParams(), h.deps);
+    expect(res.text).toBe(DONE);
+    expect(h.writerSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
   });
 });
 
@@ -2135,7 +1293,6 @@ describe('runAgenticLoop — echoed source register (#5409)', () => {
     };
     const out = await runAgenticLoop(
       baseParams({
-        mode: 'unified',
         onText,
         repairModel: { id: 'repair' } as unknown as LoopEngineParams['synthModel'],
       }),
@@ -2176,7 +1333,7 @@ describe('runAgenticLoop — repetition degeneration', () => {
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
       streamText: (() => endlessSpamStream()) as unknown as LoopDeps['streamText'],
     };
-    const out = await runAgenticLoop(baseParams({ mode: 'unified', onText }), deps);
+    const out = await runAgenticLoop(baseParams({ onText }), deps);
     // Without the guard this test never terminates — the stream is endless.
     expect(out.replacedStreamed).toBe(true);
     expect(out.text).toContain('Ausbildungsgarantie');
@@ -2189,69 +1346,43 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(streamed.length).toBeLessThan(PROSE_TOTAL + 8000);
   });
 
-  it('split: a degenerate first pass triggers the dedicated retry suffix and a completion replace', async () => {
-    const synthSystems: string[] = [];
-    let synthCall = 0;
-    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') return streamOf([]);
-        synthSystems.push(o.system ?? '');
-        if (synthCall++ === 0) return endlessSpamStream();
-        return streamOf([{ type: 'text-delta', text: CLEAN }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-    const out = await runAgenticLoop(baseParams({}), deps);
+  const repairedWith = (passes: WriterPass[]) => repairDeps([], passes);
+  const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+
+  it('repair writer: a degenerate first pass triggers the dedicated retry suffix', async () => {
+    const h = repairedWith([() => endlessSpamStream(), text(CLEAN)]);
+    const out = await runAgenticLoop(repairParams(), h.deps);
     // A recovered answer carries NO notice — the retry discards the trimmed
     // pass wholesale, and nothing was cut from what the user ends up with.
     expect(out.text).toBe(CLEAN);
-    // The degenerate pass had already opened the gate → completion replace.
     expect(out.replacedStreamed).toBe(true);
-    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+    expect(out.replacement).toBe('unified_repair');
+    expect(h.writerSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
   });
 
-  it('split: retries even when the trim left NOTHING (spam from the first token)', async () => {
-    const synthSystems: string[] = [];
-    let synthCall = 0;
-    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') return streamOf([]);
-        synthSystems.push(o.system ?? '');
-        if (synthCall++ === 0) {
-          // No healthy prefix at all — the most complete degeneration.
-          return {
-            stream: (async function* () {
-              while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
-            })(),
-          } as unknown as ReturnType<LoopDeps['streamText']>;
-        }
-        return streamOf([{ type: 'text-delta', text: CLEAN }]);
-      }) as unknown as LoopDeps['streamText'],
-    };
-    const out = await runAgenticLoop(baseParams({}), deps);
+  it('repair writer: retries even when the trim left NOTHING (spam from the first token)', async () => {
+    const h = repairedWith([
+      () =>
+        ({
+          stream: (async function* () {
+            // No healthy prefix at all — the most complete degeneration.
+            while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+      text(CLEAN),
+    ]);
+    const out = await runAgenticLoop(repairParams(), h.deps);
     // Regression (review finding): the empty-text gate used to skip the retry
     // here, shipping the generic no-answer fallback instead.
-    expect(synthCall).toBe(2);
+    expect(h.writerCalls()).toBe(2);
     expect(out.text).toBe(CLEAN);
-    expect(out.replacedStreamed).toBe(true);
-    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+    expect(h.writerSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
   });
 
-  it('split: keeps the TRIMMED text and still replaces the wire when the retry degenerates too', async () => {
-    let synthCall = 0;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((o: StreamOpts) => {
-        if (o.model.id === 'planner') return streamOf([]);
-        synthCall++;
-        return endlessSpamStream();
-      }) as unknown as LoopDeps['streamText'],
-    };
-    const out = await runAgenticLoop(baseParams({}), deps);
-    expect(synthCall).toBe(2);
+  it('repair writer: keeps the TRIMMED text when the retry degenerates too', async () => {
+    const h = repairedWith([() => endlessSpamStream()]);
+    const out = await runAgenticLoop(repairParams(), h.deps);
+    expect(h.writerCalls()).toBe(2);
     expect(out.text).toContain('Ausbildungsgarantie');
     expect(out.text).not.toContain('Abschluss.**');
     expect(out.text).not.toContain(DEGENERATION_NOTICE);
@@ -2284,30 +1415,18 @@ describe('runAgenticLoop — reasoning reaches the writing phases', () => {
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
 
-    await runAgenticLoop(baseParams({ mode: 'unified', providerOptions: REASONING }), deps);
+    await runAgenticLoop(baseParams({ providerOptions: REASONING }), deps);
 
     expect(seen).toEqual([REASONING]);
   });
 
-  it('forwards it to the synth pass but NOT to the planner', async () => {
-    // The planner is a fixed lane reached through an OpenAI-compat client — a
-    // `mistral` block would be dropped there in silence, and the planner has no
-    // prose to think about anyway.
-    const seen: { model: string; providerOptions?: Record<string, unknown> }[] = [];
-    const deps: LoopDeps = {
-      streamText: ((o: OptsWithProvider) => {
-        seen.push({
-          model: o.model.id,
-          ...(o.providerOptions && { providerOptions: o.providerOptions }),
-        });
-        return streamOf([{ type: 'text-delta', text: 'ok' }]);
-      }) as unknown as LoopDeps['streamText'],
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-    };
+  it('forwards it to the repair writer too', async () => {
+    const h = repairDeps([], [text('Die Antwort steht hier.')]);
 
-    await runAgenticLoop(baseParams({ mode: 'split', providerOptions: REASONING }), deps);
+    await runAgenticLoop(repairParams({ providerOptions: REASONING }), h.deps);
 
-    expect(seen).toEqual([{ model: 'planner' }, { model: 'synth', providerOptions: REASONING }]);
+    expect(h.calls).toEqual(['synth', 'repair']);
+    expect(h.writerOpts.map((o) => (o as OptsWithProvider).providerOptions)).toEqual([REASONING]);
   });
 
   it('sends nothing when the turn does not think', async () => {
@@ -2320,16 +1439,15 @@ describe('runAgenticLoop — reasoning reaches the writing phases', () => {
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
 
-    await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
+    await runAgenticLoop(baseParams({}), deps);
 
     expect(seen).toEqual([undefined]);
   });
 });
 
-// Eine Freigabe-Pause muss den Zug WIRKLICH beenden. Der Nachweis ist nötig,
-// weil `gather()` jeden Fehler fängt und danach zur Synthese degradiert: ohne
-// die ausdrückliche Prüfung schriebe der Zug eine Antwort, während die Person
-// noch entscheidet — und `afterGather` erzeugte dabei Artefakte.
+// Eine Freigabe-Pause muss den Zug WIRKLICH beenden: ohne die ausdrückliche
+// Prüfung schriebe der Zug eine Antwort, während die Person noch entscheidet —
+// und `afterGather` erzeugte dabei Artefakte.
 describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
   const deps: LoopDeps = {
     streamText: (() =>
@@ -2339,28 +1457,17 @@ describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
     generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
   };
 
-  it('bricht im geteilten Modus vor Synthese und Artefakt-Garantie ab', async () => {
+  it('bricht vor der Artefakt-Garantie ab', async () => {
     const afterGather = vi.fn(async () => {});
     await expect(
-      runAgenticLoop(baseParams({ mode: 'split', afterGather, suspended: () => true }), deps)
-    ).rejects.toThrow(TurnSuspendedError);
-    expect(afterGather).not.toHaveBeenCalled();
-  });
-
-  it('bricht im vereinten Modus vor der Artefakt-Garantie ab', async () => {
-    const afterGather = vi.fn(async () => {});
-    await expect(
-      runAgenticLoop(baseParams({ mode: 'unified', afterGather, suspended: () => true }), deps)
+      runAgenticLoop(baseParams({ afterGather, suspended: () => true }), deps)
     ).rejects.toThrow(TurnSuspendedError);
     expect(afterGather).not.toHaveBeenCalled();
   });
 
   it('lässt einen Zug ohne Pause unverändert laufen', async () => {
     const afterGather = vi.fn(async () => {});
-    const out = await runAgenticLoop(
-      baseParams({ mode: 'unified', afterGather, suspended: () => false }),
-      deps
-    );
+    const out = await runAgenticLoop(baseParams({ afterGather, suspended: () => false }), deps);
     expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
     expect(afterGather).toHaveBeenCalledTimes(1);
   });
@@ -2384,7 +1491,6 @@ describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
     };
     return runAgenticLoop(
       baseParams({
-        mode: 'unified',
         maxSteps: 3,
         ...(turnContext ? { turnContext } : {}),
       }),

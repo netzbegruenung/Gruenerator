@@ -1,5 +1,5 @@
 /**
- * Earlier action steps reach the planner as compact digests.
+ * Earlier action steps reach the loop model as compact digests.
  *
  * A persisted `edit_sharepic` step from the turn before used to be filtered out
  * of the cross-turn replay, so on a follow-up ("und jetzt kürzer") the model had
@@ -184,8 +184,8 @@ beforeEach(() => {
 });
 
 describe('action steps in the replay', () => {
-  it('shows the previous edit_sharepic run to the planner', async () => {
-    loopScript.script({ text: 'ok' }, { text: 'ok' });
+  it('shows the previous edit_sharepic run to the loop model', async () => {
+    loopScript.script({ text: 'ok' });
     const first = await runTurn(app.baseUrl, { messages: [userTurn('Hallo!')] });
     const threadId = first.trace.threadId;
     loopScript.reset();
@@ -208,7 +208,7 @@ describe('action steps in the replay', () => {
     setThreadArtifactsFixture(threadId!, sharepic);
     setLastTurnArtifactsFixture(threadId!, sharepic);
 
-    loopScript.script({ text: 'ok' }, { text: 'ok' });
+    loopScript.script({ text: 'ok' });
     await runTurn(app.baseUrl, {
       messages: [
         userTurn('Hallo!', 'm1'),
@@ -217,14 +217,14 @@ describe('action steps in the replay', () => {
       threadId,
     });
 
-    const planner = loopScript.calls[0]?.messages ?? [];
-    const call = planner
+    const loopCall = loopScript.calls[0]?.messages ?? [];
+    const call = loopCall
       .filter((m) => m.role === 'assistant' && Array.isArray(m.content))
       .flatMap((m) => m.content as Array<{ type: string; toolName?: string }>)
       .find((part) => part.type === 'tool-call' && part.toolName === 'edit_sharepic');
     expect(call).toBeDefined();
 
-    const result = planner
+    const result = loopCall
       .filter((m) => m.role === 'tool' && Array.isArray(m.content))
       .flatMap((m) => m.content as Array<{ type: string; toolName?: string; output?: unknown }>)
       .find((part) => part.type === 'tool-result' && part.toolName === 'edit_sharepic');
@@ -232,10 +232,5 @@ describe('action steps in the replay', () => {
       type: 'text',
       value: '{"ok":true,"summary":"Headline gekürzt"}',
     });
-
-    // The split-synth call gets the history without tool messages.
-    const synth = loopScript.calls[1]?.messages ?? [];
-    expect(synth.length).toBeGreaterThan(0);
-    expect(synth.some((m) => m.role === 'tool')).toBe(false);
   });
 });
