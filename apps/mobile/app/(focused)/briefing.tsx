@@ -29,11 +29,10 @@ export default function BriefingScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await queryClient.invalidateQueries({ queryKey: ['monitor'] });
-    } finally {
-      setRefreshing(false);
-    }
+    // `.finally()` statt try/finally: der React Compiler übersetzt kein try ohne catch.
+    await queryClient
+      .invalidateQueries({ queryKey: ['monitor'] })
+      .finally(() => setRefreshing(false));
   }, [queryClient]);
 
   const handleRetry = useCallback(() => {

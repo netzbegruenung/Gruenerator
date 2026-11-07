@@ -38,12 +38,11 @@ export default function UmfragenScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      // Nur die Umfragen; die Geodaten ändern sich nicht.
-      await queryClient.invalidateQueries({ queryKey: ['monitor', 'polls'] });
-    } finally {
-      setRefreshing(false);
-    }
+    // Nur die Umfragen; die Geodaten ändern sich nicht. `.finally()` statt try/finally:
+    // der React Compiler übersetzt kein try ohne catch.
+    await queryClient
+      .invalidateQueries({ queryKey: ['monitor', 'polls'] })
+      .finally(() => setRefreshing(false));
   }, [queryClient]);
 
   return (

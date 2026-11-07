@@ -119,15 +119,12 @@ export default function NotebooksScreen() {
   // saved notebooks and the user's own.
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['monitor'] }),
-        queryClient.invalidateQueries({ queryKey: ['notebookCollections'] }),
-        refetchCollections(),
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
+    // `.finally()` statt try/finally: der React Compiler übersetzt kein try ohne catch.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['monitor'] }),
+      queryClient.invalidateQueries({ queryKey: ['notebookCollections'] }),
+      refetchCollections(),
+    ]).finally(() => setRefreshing(false));
   }, [queryClient, refetchCollections]);
 
   // The hero composer starts a notebook chat (scoped to the notebook, it
