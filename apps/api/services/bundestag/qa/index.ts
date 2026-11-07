@@ -21,6 +21,7 @@ import { fetchTexts, resolveRefs, type Fehlgrund, type TextCache } from './fetch
 import { findCandidates, type FindDip, type FindMcp, type FindResult } from './find.js';
 import { keywordsFromQuestion, planFilters } from './plan.js';
 import { readDocuments, type ReadResult } from './read.js';
+import { suggestRelaxations, type Relaxation } from './relax.js';
 
 type DocumentInfo = BundestagAnswerResponse['documents'][number];
 export type ReadDocumentInfo = DocumentInfo &
@@ -286,6 +287,14 @@ export async function countBundestagDocs(args: {
     ...(args.gruppieren ? { gruppieren: args.gruppieren } : {}),
     dip,
   });
+}
+
+/** Lockerungen einer leeren Suche, je eine gezählte Variante (siehe `relax.ts`). */
+export async function suggestBundestagRelaxations(args: {
+  filters: BundestagFilter;
+  deps?: Pick<QaDeps, 'dip'>;
+}): Promise<Relaxation[]> {
+  return suggestRelaxations({ filters: args.filters, dip: args.deps?.dip ?? getDip() });
 }
 
 /** Mehr als die 6 der Liste: eine Gesetzgebungs-Familie hat Entwurf, Beschlussempfehlung, Lesungen, Bundesrat. */

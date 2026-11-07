@@ -42,7 +42,11 @@ import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { einheitLabel, formatCount } from '../../../services/bundestag/qa/count.js';
 import { bundestagDocTitle } from '../../../services/bundestag/qa/docTitle.js';
 import { type Fehlgrund } from '../../../services/bundestag/qa/fetchTexts.js';
-import { countBundestagDocs, readBundestagRefs } from '../../../services/bundestag/qa/index.js';
+import {
+  countBundestagDocs,
+  readBundestagRefs,
+  suggestBundestagRelaxations,
+} from '../../../services/bundestag/qa/index.js';
 import {
   detectFromWording,
   drucksachetypAusTitel,
@@ -93,10 +97,10 @@ import {
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
-import { threadImageInLibrary } from '../services/sharepicTurnPhotos.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
+import { threadImageInLibrary } from '../services/sharepicTurnPhotos.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 import { type TurnImage } from '../services/turnImages.js';
 
@@ -254,6 +258,12 @@ export function describeBundestagFilter(filters: BundestagFilter | undefined): s
   return lines;
 }
 
+/** Die Filter einer Lockerung als Werkzeug-Argumente: ohne die Steuerfelder, die das Modell nicht setzt. */
+function nextBundestagArgs(filters: BundestagFilter): BundestagFilter {
+  const { dokumentnummer: _n, mitBeratung: _b, ...args } = filters;
+  return args;
+}
+
 /** Schnipselkappe der Bundestag-Liste; die Kappe der Zeile selbst steht in `candidateToSearchResult`. */
 const BUNDESTAG_SNIPPET_CHARS = 3500;
 
@@ -335,6 +345,12 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         ),
       // `mitBeratung` steuert nur den Kern (Beratungsabschnitte im Volltext), kein Modellargument.
       ...bundestagFilterSchema.omit({ dokumentnummer: true, mitBeratung: true }).shape,
+      deskriptor: bundestagFilterSchema.shape.deskriptor.describe(
+        'Thema als Thesaurus-Schlagwort im Singular (Radverkehr, Wärmepumpe). Mehrere müssen ALLE zugleich passen, meist genügt einer.'
+      ),
+      titel: bundestagFilterSchema.shape.titel.describe(
+        'Trifft nur ganze Wörter im Titel, keine Zusammensetzungen („Radverkehr" findet nicht „Radverkehrsförderung"). Für ein Thema `deskriptor` nehmen; neben einem Deskriptor wird der Titel weggelassen.'
+      ),
     }),
     execute: async ({ query, modus, gruppieren, ref, ...args }) => {
       // `bundestag` ist von der Near-Duplicate-Sperre ausgenommen (Verfeinerungen müssen
@@ -494,13 +510,30 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         };
       }
       if (leerDurchFilter) {
-        const zeilen = describeBundestagFilter(applied ?? filters);
+        const used = applied ?? filters;
+        const zeilen = describeBundestagFilter(used);
+        // Nicht „lockere irgendeinen Filter": je Variante gezählt, welche Lockerung trifft (#5445).
+        const lockerungen = await suggestBundestagRelaxations({ filters: used }).catch(
+          (err: unknown) => {
+            log.warn(`[bundestag] Lockerungen nicht gezählt: ${String(err)}`);
+            return [];
+          }
+        );
+        const best = lockerungen
+          .filter((l) => l.treffer > 0)
+          .sort((a, b) => b.treffer - a.treffer)[0];
         return {
           resultCount: 0,
           sources: '',
           error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}.`,
-          naechsterSchritt:
-            'Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".',
+          ...(lockerungen.length > 0
+            ? { lockerungen: lockerungen.map((l) => `${l.aenderung}: ${l.treffer} ${l.einheit}`) }
+            : {}),
+          naechsterSchritt: best
+            ? `Erneut \`bundestag\` aufrufen, mit derselben query und genau diesen Filtern (${best.aenderung}, ${best.treffer} ${best.einheit}): ${JSON.stringify(nextBundestagArgs(best.filters))}. Passt die Lockerung nicht mehr zur Frage (etwa ohne die gefragte Fraktion), stattdessen sagen, dass es mit diesen Filtern nichts gibt, und die Zahl als Hinweis nennen.`
+            : lockerungen.length > 0
+              ? 'Auch mit gelockerten Filtern keine Treffer: das Thema anders fassen (anderer Deskriptor, Oberbegriff) oder `bundestag_reden` probieren; ohne Treffer zählt das nicht als „es gibt nichts".'
+              : 'Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".',
         };
       }
       if (results.length === 0) {

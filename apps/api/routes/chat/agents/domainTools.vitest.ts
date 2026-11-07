@@ -27,6 +27,7 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
 const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
 const countBundestagDocs = vi.fn<(o: unknown) => Promise<unknown>>();
+const suggestBundestagRelaxations = vi.fn<(o: unknown) => Promise<unknown>>(async () => []);
 const readLandtagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -35,6 +36,7 @@ vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
 vi.mock('../../../services/bundestag/qa/index.js', () => ({
   readBundestagRefs: (o: unknown): Promise<unknown> => readBundestagRefs(o),
   countBundestagDocs: (o: unknown): Promise<unknown> => countBundestagDocs(o),
+  suggestBundestagRelaxations: (o: unknown): Promise<unknown> => suggestBundestagRelaxations(o),
 }));
 // Nur die Suche ist Attrappe; Filter, Titel und URL laufen echt.
 const searchBundestagReden = vi.fn<(s: unknown) => Promise<unknown>>();
@@ -688,6 +690,75 @@ describe('makeBundestagTool', () => {
     expect(out.error).toContain('Zeitraum: 22.10.2026 bis 29.10.2026');
     expect(out.error).not.toContain('lockern');
     expect(out.naechsterSchritt).toContain('lockern');
+  });
+
+  it('leer wegen Filtern: nennt gezählte Lockerungen und die beste als nächsten Aufruf (#5445)', async () => {
+    const used = {
+      wahlperiode: [21],
+      drucksachetyp: ['Kleine Anfrage'],
+      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      deskriptor: ['Radverkehr', 'Radschnellweg'],
+    };
+    retrieveBundestag.mockResolvedValue({
+      results: [],
+      totals: null,
+      leerDurchFilter: true,
+      filters: used,
+    });
+    suggestBundestagRelaxations.mockResolvedValueOnce([
+      {
+        aenderung: 'nur Deskriptor „Radverkehr"',
+        filters: { ...used, deskriptor: ['Radverkehr'] },
+        treffer: 6,
+        einheit: 'Vorgänge',
+      },
+      {
+        aenderung: 'nur Deskriptor „Radschnellweg"',
+        filters: { ...used, deskriptor: ['Radschnellweg'] },
+        treffer: 0,
+        einheit: 'Vorgänge',
+      },
+    ]);
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Radverkehr' }
+    )) as { error?: string; lockerungen?: string[]; naechsterSchritt?: string };
+    expect(suggestBundestagRelaxations).toHaveBeenLastCalledWith({ filters: used });
+    expect(out.lockerungen).toEqual([
+      'nur Deskriptor „Radverkehr": 6 Vorgänge',
+      'nur Deskriptor „Radschnellweg": 0 Vorgänge',
+    ]);
+    expect(out.naechsterSchritt).toContain('6 Vorgänge');
+    expect(out.naechsterSchritt).toContain('"deskriptor":["Radverkehr"]');
+    expect(out.naechsterSchritt).toContain('"drucksachetyp":["Kleine Anfrage"]');
+  });
+
+  it('leer wegen Filtern, auch gelockert nichts: anders fassen statt lockern', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [],
+      totals: null,
+      leerDurchFilter: true,
+      filters: { wahlperiode: [21], urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'] },
+    });
+    suggestBundestagRelaxations.mockResolvedValueOnce([
+      {
+        aenderung: 'ohne Urheber',
+        filters: { wahlperiode: [21] },
+        treffer: 0,
+        einheit: 'Drucksachen',
+      },
+    ]);
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { naechsterSchritt?: string };
+    expect(out.naechsterSchritt).toContain('anders fassen');
   });
 
   it('returns an error shape when the search comes back empty', async () => {

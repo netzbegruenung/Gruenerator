@@ -48,6 +48,21 @@ export function drucksachetypAusTitel(titel: string): Typ | null {
   return null;
 }
 
+/**
+ * DIP verknüpft `f.titel` mit `f.deskriptor` per UND, und der Titel trifft nur
+ * ganze Wörter: „Radverkehr" findet „Aktueller Stand der Radverkehrsförderung"
+ * nicht, obwohl der Deskriptor „Radverkehr" sie trägt (live 07.11.2026, WP 21:
+ * Deskriptor allein 15 Vorgänge, mit gleichlautendem Titel 2, #5445). Trägt ein
+ * Deskriptor das Thema, fällt der Titel deshalb weg — egal, wer ihn gesetzt hat.
+ * Gibt die Notiz zurück, wenn etwas wegfiel.
+ */
+export function dropTitelBesideDeskriptor(f: BundestagFilter): string | null {
+  if (!f.titel || !f.deskriptor?.length) return null;
+  const titel = f.titel;
+  delete f.titel;
+  return `Der Titelfilter „${titel}" wurde weggelassen: Der Deskriptor trägt das Thema, und DIP findet im Titel nur ganze Wörter (keine Zusammensetzungen).`;
+}
+
 export function detectDrucksachetyp(question: string): Typ[] {
   const out: Typ[] = [];
   for (const [re, typ] of TYP_RULES) if (re.test(question) && !out.includes(typ)) out.push(typ);
