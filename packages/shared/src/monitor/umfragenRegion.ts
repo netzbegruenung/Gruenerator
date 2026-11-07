@@ -1,6 +1,6 @@
-import { BUNDESLAENDER } from './bundeslaender';
+import { type MonitorLocale } from '@gruenerator/contracts';
 
-import type { MonitorLocale } from './hooks/useMonitor';
+import { BUNDESLAENDER } from './bundeslaender.js';
 
 /** A parliament with its own page under `/umfragen/:land`. */
 export interface UmfragenRegion {

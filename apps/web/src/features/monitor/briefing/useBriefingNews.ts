@@ -1,33 +1,11 @@
-import { type MonitorArticle, type MonitorLocale } from '@gruenerator/contracts';
+import { type MonitorLocale } from '@gruenerator/contracts';
+import {
+  type BriefingNewsList,
+  landesverbandNewsItems,
+  monitorNewsItems,
+} from '@gruenerator/shared/monitor';
 
 import { useEntityResults, useKeywordArticles, useWhatHappened } from '../hooks/useMonitor';
-
-import { timeAgo } from '@/components/dashboard/timeAgo';
-
-/** Eine Meldung, wie die Nachrichtenkarten sie zeigen. */
-export interface BriefingNewsItem {
-  key: string;
-  source: string;
-  time: string;
-  title: string;
-  href: string;
-}
-
-export interface BriefingNewsList {
-  items: BriefingNewsItem[];
-  pending: boolean;
-}
-
-/** Mehr zeigt keine Nachrichtenkarte, auch aufgeklappt nicht. */
-export const NEWS_LIMIT = 10;
-
-const fromMonitor = (a: MonitorArticle): BriefingNewsItem => ({
-  key: a.url,
-  source: a.source,
-  time: timeAgo(a.publishedAt),
-  title: a.title,
-  href: a.url,
-});
 
 /**
  * Die drei Nachrichtenströme von /briefing — dieselben Abfragen (und Query-Keys)
@@ -47,11 +25,11 @@ export function useBriefingNews(locale: MonitorLocale) {
   const greensArticles = greens.data?.articles ?? [];
   return {
     important: {
-      items: (important.data?.articles ?? []).slice(0, NEWS_LIMIT).map(fromMonitor),
+      items: monitorNewsItems(important.data?.articles ?? []),
       pending: important.isPending,
     } satisfies BriefingNewsList,
     greens: {
-      items: greensArticles.slice(0, NEWS_LIMIT).map(fromMonitor),
+      items: monitorNewsItems(greensArticles),
       pending: greens.isPending,
     } satisfies BriefingNewsList,
     /** Die vollen Grünen-Treffer, für den Leitsatz und die Trend-Hervorhebung. */
@@ -59,16 +37,7 @@ export function useBriefingNews(locale: MonitorLocale) {
     greensPending: greens.isPending,
     landesverbaende: lvAvailable
       ? ({
-          items: (lv.data?.days ?? [])
-            .flatMap((d) => d.articles)
-            .slice(0, NEWS_LIMIT)
-            .map((a) => ({
-              key: a.sourceUrl,
-              source: a.sourceName,
-              time: timeAgo(a.publishedAt ?? a.indexedAt),
-              title: a.title,
-              href: a.sourceUrl,
-            })),
+          items: landesverbandNewsItems(lv.data?.days ?? []),
           pending: lv.isPending,
         } satisfies BriefingNewsList)
       : null,

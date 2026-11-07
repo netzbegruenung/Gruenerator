@@ -1,11 +1,11 @@
 import { type TopicCategory } from '@gruenerator/contracts';
+import { type BriefingLead } from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 import { Fragment, type ReactNode } from 'react';
 
 import { TOPIC_CONFIG } from '../topicConfig';
 
 import { type BriefingCardId } from './BriefingCard';
-import { type BriefingLead } from './briefingLead';
 
 import { Bone } from '@/components/dashboard/Bone';
 import { DASH_DISPLAY, DASH_FOCUS, DASH_HEADING } from '@/components/dashboard/dashboardStyles';

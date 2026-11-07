@@ -1,5 +1,6 @@
 import { type TopicCategory } from '@gruenerator/contracts';
 import { LANDESVERBAENDE, LV_HUBS, getSystemAgentsForLocale } from '@gruenerator/shared/agents';
+import { umfragenRegion } from '@gruenerator/shared/monitor';
 import { Skeleton, cn } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import { FiExternalLink } from 'react-icons/fi';
@@ -9,7 +10,6 @@ import withAuthRequired from '../../../../components/common/LoginRequired/withAu
 import PageContainer from '../../../../components/common/PageContainer';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
-import { umfragenRegion } from '../../../monitor/umfragenRegion';
 import {
   getNotebookPath,
   getSystemNotebookConfig,

@@ -1,6 +1,14 @@
 import { type NotebookInstagramPost, type TopicCategory } from '@gruenerator/contracts';
 import { getAgentSlug, type Agent } from '@gruenerator/shared/agents';
 import {
+  deltaText,
+  formatPollDate,
+  grueneSnapshot,
+  pct,
+  type UmfragenRegion,
+  umfragenPath,
+} from '@gruenerator/shared/monitor';
+import {
   formatOverviewDate,
   formatOverviewMonth,
   formatOverviewShare,
@@ -31,9 +39,7 @@ import { Link } from 'react-router-dom';
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
 import { TrendSparkline } from '../../../monitor/components/TrendSparkline';
 import { usePolls } from '../../../monitor/hooks/useMonitor';
-import { deltaText, formatPollDate, grueneSnapshot, pct } from '../../../monitor/pollFormat';
 import { TOPIC_CONFIG } from '../../../monitor/topicConfig';
-import { type UmfragenRegion, umfragenPath } from '../../../monitor/umfragenRegion';
 import { type NotebookOverview } from '../../hooks/useNotebookOverview';
 import {
   NOTEBOOK_CARD,
