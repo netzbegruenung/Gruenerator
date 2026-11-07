@@ -85,7 +85,7 @@ export function resolveLoopLanes(input: {
     { model: resolution.model, modelName: resolution.modelName, provider: resolution.provider },
     undecided
   );
-  const repairFallback = getRepairWriterFallback(repair.name);
+  const repairFallback = getRepairWriterFallback(repair);
   // Was ein Melious-Body dieser Grösse auf dem Draht wird: ein grosser
   // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
   // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
@@ -143,8 +143,8 @@ export function resolveLoopLanes(input: {
       );
     },
     // The history was pruned for the selected lane — up to 262k on an
-    // explicit Mistral turn. The repair writer's fallback is the Melious Gemma
-    // lane, capped near 131k (#4201).
+    // explicit Mistral turn. The repair writer's sibling is usually Gemma
+    // `:speed`, capped at 128k (#4201).
     repairSiblingMessages: repairFallback
       ? (system) =>
           messagesForLane(

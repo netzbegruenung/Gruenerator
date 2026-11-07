@@ -31,8 +31,6 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   AVOID_AS_SYNTH,
   mayWriteAnswer,
-  LOOP_PLANNER_CHAIN,
-  LOOP_PLANNER_UNCONFIGURED,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
   UNIFIED_GEMMA_CHAIN,
@@ -409,7 +407,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // This USER-SELECTABLE lane stays off by default (catalog `offByDefault`), so
   // nothing picks it as an answer model unless asked for by id. The greenpt
   // PROVIDER is no longer unused though: from 13.08.2026 to 29.09.2026 the loop
-  // planner ran there (LOOP_PLANNER_PRIMARY), without going through this entry.
+  // planner ran there, without going through this entry.
   greenpt: {
     kind: 'single',
     provider: 'greenpt',
@@ -876,63 +874,6 @@ export function resolveLoopLaneChain(
 }
 
 /**
- * Repair-writer model policy: the tool-less writer (`repairAnswer`) and
- * its sibling, the former split planner's ladder (#5441). The slot
- * DECLARATIONS live in `autoPolicy.ts` next to the intent table; this module
- * only turns them into LanguageModel instances (it owns env + getModel).
- */
-
-/**
- * Eine Planer-Stufe ist wählbar, wenn ihr Anbieter konfiguriert ist UND sie
- * nicht gerade als zäh vermerkt ist.
- *
- * Der zweite Teil ist neu und der Grund für diesen Zweig überhaupt: die Kette
- * fragte bis zum 28.08.2026 nur nach der Konfiguration. Eine Lane, die die
- * Anfrage annimmt und dann schweigt, ist aber konfiguriert — sie blieb also
- * erste Wahl, ohne jede Obergrenze dafür, wie oft ein Zug die volle
- * Werkzeugfrist absitzt (gemessen: 45 s Leerlauf in einem Zug von 47,9 s).
- *
- * WAS DAS KOSTET, GENAU: ein Stillstand. `modelHealth` vermerkt ab dem ersten
- * ausdrücklichen Verdikt (seit 06.11.2026, #5399; vorher erst ab dem zweiten,
- * und jede gesunde Probe dazwischen löschte den ersten). Danach überspringt
- * jeder Zug dieses Workers die Stufe, 2 min beim ersten Mal und länger, solange
- * die Störung anhält (2 → 4 → 8 → 16 → 30 min). Läuft das Fenster ab, ist der
- * nächste Zug die Probe; die Wahl fällt pro Zug neu, das Ausweichen endet also
- * von selbst.
- *
- * Ein einzelner Stillstand kann ein Netz-Schluckauf sein. Der Preis dafür sind
- * zwei Minuten auf `:speed` — dieselben Gewichte, etwas teurer —, und das ist
- * billiger, als einen weiteren Zug die Frist absitzen zu lassen.
- */
-function plannerStageUsable(stage: { provider: Provider; model: string }): boolean {
-  if (!isProviderConfigured(stage.provider)) return false;
-  if (isModelSlow(stage.provider, stage.model)) {
-    log.warn(`[LoopPlanner] ${stage.provider}/${stage.model} gilt als zäh — nächste Stufe`);
-    return false;
-  }
-  return true;
-}
-
-function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious, Cortecs, Mistral — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
-  // why and for the measurements.
-  const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
-  if (usable) return usable;
-  // Ab hier zählt nur noch die Konfiguration: ein zäher Planer ist besser als
-  // keiner. Ist gar nichts konfiguriert, bleibt nur die schlüssellose Stufe.
-  return (
-    LOOP_PLANNER_CHAIN.find((stage) => isProviderConfigured(stage.provider)) ??
-    LOOP_PLANNER_UNCONFIGURED
-  );
-}
-
-function loopSynthWriterChoice(): { provider: Provider; model: string } {
-  return isProviderConfigured(LOOP_SYNTH_PRIMARY.provider)
-    ? LOOP_SYNTH_PRIMARY
-    : LOOP_SYNTH_FALLBACK;
-}
-
-/**
  * Das Veto, das die antwortschreibenden Slots der Ausweichkette mitgeben.
  *
  * AVOID_AS_SYNTH entschied bis 19.08.2026 nur, WELCHES Modell ein Slot wählt.
@@ -944,28 +885,27 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
 const synthTargetAllowed = mayWriteAnswer;
 
 /**
- * Sibling lane for the repair writer (`repairAnswer`), tried once when
- * the chosen writer accepts the request and then goes silent.
- *
- * The first usable stage of `LOOP_PLANNER_CHAIN` — the former split planner's
- * ladder, kept as the fast tool-less fallback writer. Returns null when the
- * writer already IS that lane, since falling back onto the stalled host would
- * only repeat the stall.
+ * Sibling lane for the repair writer (`repairAnswer`), tried once when the
+ * writer accepts the request and then goes silent: the first stage of the
+ * writer's own loop chain (`resolveLoopLaneChain`) that is a different model —
+ * `:speed` behind a Gemma `:balanced`, `UNIFIED_LANE_FALLBACKS` behind any other
+ * lane. Null when no such stage may write answers.
  */
-export function getRepairWriterFallback(
-  synthName: string
-): { model: LanguageModel; name: string; contextWindow: number } | null {
-  const p = loopPlannerChoice();
-  if (p.model === synthName) return null;
-  // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
-  // Planer-Ausweich, den der Synth-Slot ablehnt, ist deshalb auch hier keiner:
-  // `loopPlannerChoice` endet ohne konfigurierten Planer auf litellm/verdigado-pro
-  // (= gpt-oss), dessen Planer-Text sonst als Antwort beim Menschen landet.
-  if (!synthTargetAllowed(p)) return null;
+export function getRepairWriterFallback(writer: {
+  provider: string;
+  name: string;
+  model: LanguageModel;
+}): { model: LanguageModel; name: string; contextWindow: number } | null {
+  const sibling = resolveLoopLaneChain(writer.provider, writer.name, null, writer.model).find(
+    (stage) => stage.model !== writer.name
+  );
+  if (!sibling || !synthTargetAllowed(sibling)) return null;
   return {
-    model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
-    name: p.model,
-    contextWindow: p.contextWindow,
+    model: sibling.languageModel,
+    name: sibling.model,
+    contextWindow: isUnifiedGemma(sibling.provider, sibling.model)
+      ? GEMMA_31B_ON_MELIOUS.contextWindow
+      : getContextWindow(sibling.model, sibling.provider),
   };
 }
 
@@ -992,7 +932,9 @@ export function loopSynthChoice(
 ): { provider: Provider | null; model: string } {
   const useWriter = undecided || AVOID_AS_SYNTH.test(resolvedModelName);
   if (!useWriter) return { provider: null, model: resolvedModelName };
-  return loopSynthWriterChoice();
+  return isProviderConfigured(LOOP_SYNTH_PRIMARY.provider)
+    ? LOOP_SYNTH_PRIMARY
+    : LOOP_SYNTH_FALLBACK;
 }
 
 export function getRepairWriter(

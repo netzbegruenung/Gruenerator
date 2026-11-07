@@ -35,7 +35,6 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
 import {
   GEMMA_31B_PRIMARY,
   GEMMA_31B_ON_MELIOUS,
-  GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS_SPEED,
 } from '../../../services/ai/gemmaHosts.js';
 
@@ -470,124 +469,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * Declared here so the loop slots and the single-pass answer read as ONE
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
- *
- * PLANNER-Kette — seit #5441 nur noch der Ausweich des Reparatur-Schreibers
- * (`getRepairWriterFallback`): Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
- * Gewichte auf Cortecs dahinter, Mistral Small 4 bei Mistral zuletzt (seit
- * 28.10.2026, #5113; vom 21.10. an Gemma 4 auf GreenPT, davor Mistral Small 4
- * auf Melious und Mistral Large).
- *
- * Gemessen am 29.09.2026 (Werkzeug-Probe: 12 deutsche Aufträge × 8 Läufe, sechs
- * Werkzeuge, Enum-Argumente, parallele Aufrufe, Folgeschritt nach Werkzeug-
- * Ergebnis; seriell, Temperatur 0; Skript nicht im Repo):
- *
- *   melious/gemma-4-31b:balanced   96/96, p50 602 ms, p90 963 ms
- *   melious/gemma-4-31b:eco        96/96, p50 758 ms
- *   melious/mistral-small-4        33/36, p50 574 ms
- *   greenpt-Mistral-Small-3.2      33/36, p50 500–970 ms (bisheriger Primär)
- *
- * Gemma ist das einzige der kleinen Modelle, das den unklaren Auftrag („Mach
- * was Schönes.") an `ask_human` gibt; Small 3.2 antwortet mit Prosa, Small 4
- * ruft ein Suchwerkzeug. Beide fallen NUR an diesem einen Fall durch.
- * Werkzeug-IDs beliebiger Länge nehmen beide Melious-Modelle an (kein
- * Neun-Zeichen-Zwang wie bei mistral-common).
- *
- * EIN EHRLICHER PREIS dieser Wahl: drei Stufen, drei Gateways, aber zweimal
- * DIESELBEN Gewichte. Ein Gateway-Ausfall trifft nur eine Stufe; ein Problem
- * des Modells selbst trifft Melious und Cortecs gleich. Gemessen am 21.10.2026
- * (#4785): ein erzwungener Schritt, der dem Prompt widerspricht, hing auf
- * beiden 3/3 Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
- * 3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie) oder
- * der Zuschnitt (`forcedFirstStepTools`).
- *
- * Bis 28.10.2026 stand hier eine zweite: Melious meldete `environment_impact`
- * nur nicht-gestreamt, also fragte `meliousFetch` die Werkzeugphase
- * nicht-gestreamt und spielte sie als Strom vor. Seitdem kommt der Wert im
- * letzten Chunk, und die Werkzeugphase streamt (74a7463822,
- * meliousThinkingFetch.ts).
- *
- * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
- * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
- * gleiche Zuverlässigkeit, aber langsamer.
- *
- * `mistral-small-3.2` auf GreenPT und Gemma auf Cortecs standen bis dahin als
- * Stufen 1 und 2 hier. Cortecs fiel am 29.09.2026 weg, weil es dieselben
- * Gewichte wie der Primär bedient, und kam am 21.10.2026 als zweite Stufe
- * zurück: die Ausfälle seitdem waren die des Melious-Gateways (siehe Punkt 2).
  */
-export const LOOP_PLANNER_PRIMARY = {
-  provider: GEMMA_31B_ON_MELIOUS.provider,
-  model: GEMMA_31B_ON_MELIOUS.model,
-  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
-};
-/**
- * Erste Ausweichstufe: dieselben Gewichte über Melious' `:speed` (infercom/DE,
- * siehe GEMMA_31B_ON_MELIOUS_SPEED). Fängt die Störung des FI-Knotens ab, an
- * der `:balanced` am 06.11.2026 15 s schwieg (#5399), während `:speed` in
- * 1,5–2 s antwortete. Fenster wie der Melious-Host (beide auf 123k gemessen,
- * Nachmessung 21.10.2026 in gemmaHosts.ts).
- *
- * Schickt `meliousWireModel` einen grossen `:balanced`-Body schon auf dem Draht
- * an `:speed`, lässt `getLoopPlannerFallbackStages` diese Stufe aus — sonst
- * wiederholte sie dieselbe Anfrage am selben Upstream.
- */
-export const LOOP_PLANNER_SPEED = {
-  provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
-  model: GEMMA_31B_ON_MELIOUS_SPEED.model,
-  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
-};
-/**
- * Zweite Ausweichstufe: dieselben Gewichte über ein anderes Gateway (Cortecs,
- * Verarbeitung DE). Fängt den Gateway-Ausfall ab, an dem Melious im Oktober
- * 2026 mehrfach hing (#4480) — dann hilft auch `:speed` nicht, das über
- * dasselbe Gateway läuft —, nicht ein Problem des Modells.
- */
-export const LOOP_PLANNER_HEALTHY_ALT = {
-  provider: GEMMA_31B_ON_CORTECS.provider,
-  model: GEMMA_31B_ON_CORTECS.model,
-  contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
-};
-/**
- * Die letzte Stufe: Mistral Small 4 direkt bei Mistral — eine andere
- * Modellfamilie und ein drittes Gateway.
- *
- * Bis 28.10.2026 stand hier Gemma 4 auf GreenPT. GreenPT behandelt einen
- * benannten und einen `required`-`tool_choice` nur als Bitte (#5113, direkt
- * gemessen, je 3 Läufe): auf die passende Frage kam der Aufruf, auf „Hallo"
- * Prosa, bei `required` sogar mit `finish_reason: tool_calls` ohne Aufruf.
- * Live hiess das: eine @-Erwähnung lief nicht, sobald GreenPT den Zug übernahm.
- *
- * Mistral Small 4 in derselben Messung: auf die passende Frage 9/9 Aufrufe
- * (~0,6 s). Erzwingen kann es einen Aufruf GEGEN den Prompt aber auch nicht —
- * auf „Hallo" kam unter beiden Wahlen 9/9 Prosa bis `length` (~10 s). Das
- * erzwingt nur Mistral Large 4 (18/18); bis 21.10.2026 stand Large hier und
- * fiel aus Kostengründen weg (#4785).
- */
-export const LOOP_PLANNER_FALLBACK = {
-  provider: 'mistral' as const,
-  model: 'mistral-small-latest',
-  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
-  contextWindow: 262_144,
-};
-/** Die Ausweichkette in Reihenfolge — ein Zug versucht sie in dieser Folge. */
-export const LOOP_PLANNER_CHAIN = [
-  LOOP_PLANNER_PRIMARY,
-  LOOP_PLANNER_SPEED,
-  LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_FALLBACK,
-] as const;
-/**
- * Nur, wenn KEIN Planer-Anbieter konfiguriert ist (CI, lokale Setups): der
- * Mistral-Getter wirft ohne Schlüssel nicht, die der Gemma-Stufen schon. Ein
- * werfender Getter tötete am 14.08.2026 jeden agentischen Zug, bevor er den
- * ersten Modellaufruf erreichte.
- */
-export const LOOP_PLANNER_UNCONFIGURED = {
-  provider: 'mistral' as const,
-  model: 'mistral-large-4',
-  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
-  contextWindow: 262_144,
-};
 
 /** SYNTH: best German writer, and never a reasoning lane (latency).
  *

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
+import { type LanguageModel } from 'ai';
 
 import {
   AVAILABLE_MODELS,
   getContextWindow,
+  getRepairWriterFallback,
   loopSynthChoice,
   getModelConfig,
   isUnifiedGemma,
@@ -20,7 +22,6 @@ import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
 
 import {
-  LOOP_PLANNER_CHAIN,
   LOOP_SYNTH_FALLBACK,
   LOOP_SYNTH_PRIMARY,
   GEMMA_31B_ON_MELIOUS_SPEED,
@@ -77,36 +78,7 @@ describe('the real default lane resolves to a unified loop', () => {
   );
 });
 
-describe('repair writer policy (loopSynthChoice / LOOP_PLANNER_CHAIN)', () => {
-  it('planner is a verified NON-Chinese tool-caller', () => {
-    // Die deklarierten Stufen (autoPolicy.ts): Melious Gemma 4 31B zuerst,
-    // dann Melious Mistral Small 4, zuletzt Mistral Large 4.
-    // Die letzte Stufe war bis zum 29.08.2026 `litellm/verdigado-pro`, also
-    // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
-    // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
-    // Werkzeugaufrufe beider Melious-Stufen wurden am 29.09.2026 live geprüft.
-    // Seit 28.10.2026 (#5113) ist die letzte Stufe Mistral Small 4 bei Mistral.
-    const planner = LOOP_PLANNER_CHAIN[0].model;
-    expect([
-      GEMMA_31B_ON_MELIOUS.model,
-      'mistral-small-4-119b-instruct',
-      'mistral-small-latest',
-      'mistral-large-4',
-    ]).toContain(planner);
-    // The invariant behind that list, spelled out so widening the constants
-    // cannot quietly slip a banned lane into the slot.
-    expect(planner).not.toMatch(/qwen|glm|kimi|minimax|deepseek|think/i);
-  });
-
-  it('bills the Mistral API for the planner only on its last stage', () => {
-    // `mistral-small-latest` bills the Mistral API. Since 28.10.2026 (#5113) it
-    // is the last planner stage on purpose — GreenPT, its predecessor, ignored
-    // a forced tool_choice — and it must stay there: reached only after both
-    // Gemma gateways failed, never as a first choice.
-    const vendorSmall = LOOP_PLANNER_CHAIN.map((s) => s.model === 'mistral-small-latest');
-    expect(vendorSmall).toEqual([...vendorSmall.slice(0, -1).map(() => false), true]);
-  });
-
+describe('repair writer policy (loopSynthChoice)', () => {
   it('auto selection writes with the best writer, NEVER a think model', () => {
     const choice = loopSynthChoice('verdigado-think', true);
     expect(choice.provider).not.toBeNull();
@@ -495,6 +467,38 @@ describe('resolveLoopLaneChain', () => {
     expect(ids(resolveLoopLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
       'mistral/mistral-large-4'
     );
+    _resetModelHealthForTests();
+  });
+});
+
+describe("getRepairWriterFallback (sibling = next stage of the writer's lane chain)", () => {
+  const sibling = (provider: string, name: string) =>
+    getRepairWriterFallback({ provider, name, model: {} as LanguageModel });
+
+  it.each([
+    ['melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'],
+    ['mistral', 'mistral-large-4', 'gemma-4-31b:speed'],
+    ['melious', 'gemma-4-31b:speed', 'gemma-4-31b:balanced'],
+  ])('%s/%s -> %s', (provider, name, expected) => {
+    _resetModelHealthForTests();
+    const s = sibling(provider, name);
+    expect(s?.name).toBe(expected);
+    expect(s?.contextWindow).toBe(GEMMA_31B_ON_MELIOUS.contextWindow);
+  });
+
+  it('a slow :balanced writer still gets :speed, not itself', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
+    expect(sibling('melious', 'gemma-4-31b:balanced')?.name).toBe('gemma-4-31b:speed');
+    _resetModelHealthForTests();
+  });
+
+  it(':speed slow behind :balanced -> Mistral Large 4 with its own window', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('melious', 'gemma-4-31b:speed', 'test');
+    const s = sibling('melious', 'gemma-4-31b:balanced');
+    expect(s?.name).toBe(LOOP_SYNTH_FALLBACK.model);
+    expect(s?.contextWindow).toBe(262_144);
     _resetModelHealthForTests();
   });
 });
