@@ -21,7 +21,7 @@ import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
 import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
-import { APICallError, type ModelMessage } from 'ai';
+import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 
 describe('buildPrepareStep — forceFirstToolCall', () => {
   const never = () => false;
@@ -770,6 +770,23 @@ describe('runAgenticLoop — unified repair', () => {
     expect(out.replacement).toBe('unified_repair');
     // The repair is silent — the completion replace carries it.
     expect(onText).not.toHaveBeenCalled();
+  });
+
+  it('ends the stream, not the turn, when the model ignores a forced tool step', async () => {
+    const violation = new ToolChoiceViolationError({
+      toolChoice: { type: 'tool', toolName: 'create_sheet' },
+    } as unknown as ConstructorParameters<typeof ToolChoiceViolationError>[0]);
+    const ensureOwedTools = vi.fn(async () => {});
+    const { deps, calls } = setup([{ type: 'error', error: violation }]);
+    const out = await runAgenticLoop(
+      params({ ensureOwedTools, producedArtifact: () => true }),
+      deps
+    );
+    // The net creates the owed artefact, the repair writes the answer.
+    expect(ensureOwedTools).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
   });
 
   it('does not repair an empty answer after an artifact (the caller confirms it)', async () => {
