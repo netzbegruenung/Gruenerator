@@ -113,7 +113,7 @@ Aus den Skills `animate-expo`, `expo-native-ui`, `expo-design-system`, `expo-dat
   - `components/navigation/ScreenScaffold.tsx`;
   - `hooks/useTheme.ts` und `theme/` (`spacing`, `typography`, `scale`);
   - `components/notebook/NotebookTile.tsx` und `NotebookCoverArt.tsx` für die Notebook-Bilder.
-- **Nicht als Vorbild nehmen:** `components/image-studio/sharepic/SlideCarousel.tsx`, weil es `setState` in `onScroll` setzt. Das gute Vorbild für UI-Thread-Werte ist `components/workplace/WorkplacePager.tsx`.
+- **Nicht als Vorbild nehmen:** `components/image-studio/sharepic/SlideCarousel.tsx`. Es ist eine andere Bauart, eine waagerecht scrollende `FlatList`, die den Index im JS-`onScroll` berechnet. Gerendert wird dort nur beim Einrasten auf eine neue Folie, für ein reines Wisch-Karussell ist das in Ordnung. Für einen überblendenden, selbst wechselnden Slider ist das gute Vorbild `components/workplace/WorkplacePager.tsx`: Die Bewegung läuft auf dem UI-Thread, React erfährt nur den fertigen Wechsel.
 - **Gefühl und Ruckeln beurteilen** nur im Release-Build (`--no-dev --minify`) auf dem Android-Emulator, nicht im Dev-Build.
 
 ## Review Focus
@@ -319,6 +319,11 @@ expect(toMonitorLocale(null)).toBe('de');
 - [ ] **Step 4:** Implementieren.
 - [ ] **Step 5:** Beide Tests grün, `tsc` für mobile grün.
 - [ ] **Step 6: Commit** `feat(mobile): add slide state, dots and swipeable slide stack`
+- [ ] **Step 7: Monitor-Daten beim Zurückkehren in die App auffrischen**
+  - In `apps/mobile/services/queryClient.ts` `focusManager.setEventListener((setFocused) => AppState.addEventListener('change', (s) => setFocused(s === 'active')).remove)` eintragen, nach dem React-Native-Rezept von TanStack Query v5.
+  - Die globale Vorgabe `refetchOnWindowFocus: false` bleibt. Nur die Hooks in `apps/mobile/hooks/monitor/useMonitor.ts` setzen `refetchOnWindowFocus: true`. Ob sie wirklich neu laden, entscheidet ihre `staleTime`.
+  - Test `apps/mobile/services/queryClient.test.ts` (jest-expo): Eine Abfrage mit `refetchOnWindowFocus: true` und abgelaufener `staleTime` lädt nach `focusManager.setFocused(true)` neu, eine Abfrage mit den Vorgaben nicht.
+  - Commit: `feat(mobile): refresh monitor data when the app returns to the foreground`
 
 ### Task 5: Wissen-Screen
 
