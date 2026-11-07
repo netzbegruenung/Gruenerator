@@ -67,6 +67,7 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
 
 const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
   await import('./respondNode.js');
+const { plannerAnchorView } = await import('./anchorContext.js');
 const { PASTED_TEXT_HEADING } =
   await import('../../../../routes/chat/services/attachmentProcessingService.js');
 const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
@@ -678,6 +679,19 @@ async function runGoldenCase(testCase: Case) {
     decisions: journal.entries.map((e) => `${e.point}=${e.chose}`),
   };
 }
+
+// Der Planer sieht den Paste nur als Platzhalter. Steht dort „arbeite direkt
+// damit", holt er ihn erst mit `dokumente_lesen` — live 10/10 auf „Klein".
+describe('plannerAnchorView', () => {
+  it('ersetzt im Paste-Prompt den Hinweis durch die Planer-Fassung', async () => {
+    const pasteCase = GOLDEN_CASES.find((c) => c.name === 'mit eingefuegtem text')!;
+    const { prompt } = await runGoldenCase(pasteCase);
+    expect(prompt).toContain('arbeite direkt damit, statt nachzufragen');
+    const planner = plannerAnchorView(prompt);
+    expect(planner).not.toContain('arbeite direkt damit, statt nachzufragen');
+    expect(planner).toContain('du musst ihn nicht lesen');
+  });
+});
 
 describe('buildSystemMessage — Golden', () => {
   for (const testCase of GOLDEN_CASES) {
