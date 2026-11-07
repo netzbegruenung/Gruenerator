@@ -40,11 +40,12 @@ function useFlash(): [string | null, (msg: string) => void] {
 }
 
 /**
- * Aktionen an einem eigenen Notebook: Bearbeiten, Link kopieren, in ein
- * Projekt teilen, in den Papierkorb legen. Braucht einen
- * `ConfirmDialogProvider` darüber.
+ * Die Einträge des Menüs. Eigene Komponente, weil Radix den Inhalt erst beim
+ * Öffnen einhängt: die Abfragen (Notebooks, Projekte) laufen so nur bei
+ * geöffnetem Menü — sonst rendert jede Karte der Liste bei jedem Ladeschritt
+ * mit. Das Löschen läuft nach dem Schließen weiter (`mutateAsync`).
  */
-export function OwnNotebookMenu({ collection }: { collection: NotebookCollection }) {
+function OwnNotebookActions({ collection }: { collection: NotebookCollection }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const showTrashUndo = useTrashUndoToast();
@@ -97,6 +98,46 @@ export function OwnNotebookMenu({ collection }: { collection: NotebookCollection
   };
 
   return (
+    <>
+      <DropdownMenuItem onClick={() => void navigate(`/notebooks/${slug}/bearbeiten`)}>
+        <HiPencil />
+        Bearbeiten
+      </DropdownMenuItem>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <HiShare />
+          {shareFlash ?? 'Teilen'}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuItem onClick={copyLink}>
+            <HiShare />
+            Link kopieren
+          </DropdownMenuItem>
+          {groups.length > 0 && <DropdownMenuSeparator />}
+          {groups.map((group) => (
+            <DropdownMenuItem key={group.id} onClick={() => void shareToGroup(group.id)}>
+              <HiUserGroup />
+              {group.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive" onClick={() => void remove()}>
+        <HiOutlineTrash />
+        {deleteFlash ?? (deleting ? 'Wird gelöscht…' : 'Löschen')}
+      </DropdownMenuItem>
+    </>
+  );
+}
+
+/**
+ * Aktionen an einem eigenen Notebook: Bearbeiten, Link kopieren, in ein
+ * Projekt teilen, in den Papierkorb legen. Braucht einen
+ * `ConfirmDialogProvider` darüber.
+ */
+export function OwnNotebookMenu({ collection }: { collection: NotebookCollection }) {
+  return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -111,34 +152,7 @@ export function OwnNotebookMenu({ collection }: { collection: NotebookCollection
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => void navigate(`/notebooks/${slug}/bearbeiten`)}>
-          <HiPencil />
-          Bearbeiten
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <HiShare />
-            {shareFlash ?? 'Teilen'}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem onClick={copyLink}>
-              <HiShare />
-              Link kopieren
-            </DropdownMenuItem>
-            {groups.length > 0 && <DropdownMenuSeparator />}
-            {groups.map((group) => (
-              <DropdownMenuItem key={group.id} onClick={() => void shareToGroup(group.id)}>
-                <HiUserGroup />
-                {group.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={() => void remove()}>
-          <HiOutlineTrash />
-          {deleteFlash ?? (deleting ? 'Wird gelöscht…' : 'Löschen')}
-        </DropdownMenuItem>
+        <OwnNotebookActions collection={collection} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

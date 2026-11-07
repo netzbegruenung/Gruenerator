@@ -1,7 +1,7 @@
 import { landesverbandCoverForNotebook } from '@gruenerator/shared/marketplace';
 import { ConfirmDialogProvider, ShowcasePhotoCard, cn } from '@gruenerator/ui';
 import { ChevronDown } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { memo, useCallback, useId, useState, type ReactNode } from 'react';
 import { HiExclamation } from 'react-icons/hi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -91,7 +91,7 @@ function describeEntry(entry: ShelfEntry): {
  * Ein Eintrag der aufgeklappten Liste — eine kleinere Ausgabe der Kachel
  * darüber: getönte Fläche, Name und Zeile unten, Aktion oben rechts.
  */
-function ShelfItem({ entry }: { entry: ShelfEntry }) {
+const ShelfItem = memo(function ShelfItem({ entry }: { entry: ShelfEntry }) {
   const prefetch = useNotebookPrefetch();
   const { title, meta, to, prefetchSlug, action } = describeEntry(entry);
   const warm = () => (prefetchSlug ? prefetch(prefetchSlug) : prefetch());
@@ -123,7 +123,7 @@ function ShelfItem({ entry }: { entry: ShelfEntry }) {
       {action && <div className="absolute right-1.5 top-1.5">{action}</div>}
     </li>
   );
-}
+});
 
 // Fotoreihe wie im Marktplatz: Kachelbreite = (Reihe − Abstände) ÷ eine
 // .5-Anzahl, damit die nächste Karte halb sichtbar bleibt und das Scrollen zeigt.
@@ -135,7 +135,7 @@ const PHOTO_ITEM =
  * Ein Landesverband als Fotokarte — dasselbe Foto wie im Marktplatz. Ohne Foto
  * (z. B. der Bundesverband) bleibt es die Textkarte.
  */
-function PhotoShelfItem({ entry }: { entry: ShelfEntry }) {
+const PhotoShelfItem = memo(function PhotoShelfItem({ entry }: { entry: ShelfEntry }) {
   const navigate = useNavigate();
   const prefetch = useNotebookPrefetch();
   const notebook = entry.kind === 'system' ? entry.notebook : null;
@@ -176,7 +176,7 @@ function PhotoShelfItem({ entry }: { entry: ShelfEntry }) {
       </div>
     </li>
   );
-}
+});
 
 /** Kachel-Inhalt: Chevron (nur aufklappbare) oben rechts, Name und Zeile unten. `expanded: null` = klappt nichts auf. */
 function TileBody({ shelf, expanded }: { shelf: Shelf; expanded: boolean | null }) {
@@ -229,16 +229,109 @@ const tileClass = (open: boolean) =>
   );
 
 /**
+ * Eine Kachel. `memo` mit stabilem `onToggle`: beim Auf- und Zuklappen rendern
+ * nur die alte und die neue offene Kachel, nicht alle.
+ */
+const ShelfTile = memo(function ShelfTile({
+  shelf,
+  isOpen,
+  panelId,
+  onToggle,
+}: {
+  shelf: Shelf;
+  isOpen: boolean;
+  panelId: string;
+  onToggle: (id: string) => void;
+}) {
+  const prefetch = useNotebookPrefetch();
+  if (shelf.kind === 'group') {
+    return (
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        {...(isOpen ? { 'aria-controls': panelId } : {})}
+        onClick={() => onToggle(shelf.id)}
+        className={tileClass(isOpen)}
+      >
+        <TileBody shelf={shelf} expanded={isOpen} />
+      </button>
+    );
+  }
+  const to = shelf.kind === 'notebook' ? shelf.notebook.path : CREATE_PATH;
+  return (
+    <Link
+      to={to}
+      state={shelf.kind === 'notebook' ? OPEN_STATE : null}
+      onPointerEnter={() => shelf.kind === 'notebook' && prefetch()}
+      className={tileClass(false)}
+    >
+      <TileBody shelf={shelf} expanded={null} />
+    </Link>
+  );
+});
+
+type GroupShelf = Extract<Shelf, { kind: 'group' }>;
+
+/** Die aufgeklappte Liste einer Gruppe. `memo`: rendert nur, wenn eine andere Gruppe aufgeht. */
+const ShelfPanel = memo(function ShelfPanel({ shelf, id }: { shelf: GroupShelf; id: string }) {
+  return (
+    <div id={id} className="flex flex-col gap-3">
+      <h3 className={cn('m-0 text-lg max-lg:sr-only', DASH_HEADING)}>{shelf.title}</h3>
+      {shelf.layout === 'photos' ? (
+        <ul className={PHOTO_ROW}>
+          {shelf.entries.map((entry) => (
+            <PhotoShelfItem key={entry.key} entry={entry} />
+          ))}
+        </ul>
+      ) : (
+        <ConfirmDialogProvider>
+          <ul className="m-0 grid list-none grid-cols-2 gap-2.5 p-0 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
+            {shelf.entries.map((entry) => (
+              <ShelfItem key={entry.key} entry={entry} />
+            ))}
+          </ul>
+        </ConfirmDialogProvider>
+      )}
+    </div>
+  );
+});
+
+/**
+ * Kacheln und aufgeklappte Liste mit dem Klappzustand. Er liegt hier statt in
+ * `NotebookShelf`, damit Überschrift, „Neues erstellen" und Hinweis beim
+ * Auf- und Zuklappen nicht mitrendern.
+ */
+function ShelfBrowser({ shelves }: { shelves: Shelf[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const toggle = useCallback((id: string) => setOpenId((cur) => (cur === id ? null : id)), []);
+  const panelId = useId();
+  const open = shelves.find((s): s is GroupShelf => s.id === openId && s.kind === 'group') ?? null;
+  return (
+    <>
+      <div className={SHELF_GRID}>
+        {shelves.map((shelf) => (
+          <ShelfTile
+            key={shelf.id}
+            shelf={shelf}
+            isOpen={open?.id === shelf.id}
+            panelId={panelId}
+            onToggle={toggle}
+          />
+        ))}
+      </div>
+
+      {open && <ShelfPanel shelf={open} id={panelId} />}
+    </>
+  );
+}
+
+/**
  * „Deine Notebooks": Kacheln für die Notebook-Gruppen. Eine Gruppe klappt
  * darunter ihre Liste auf (immer nur eine; die Landesverbände als Fotoreihe),
  * ein einzelnes Notebook öffnet direkt.
  */
 export function NotebookShelf() {
   const { shelves, vectorStoreDown } = useNotebookShelves();
-  const prefetch = useNotebookPrefetch();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const panelId = useId();
-  const open = shelves.find((s) => s.id === openId && s.kind === 'group') ?? null;
 
   return (
     <ShelfSection
@@ -266,58 +359,7 @@ export function NotebookShelf() {
         </div>
       )}
 
-      <div className={SHELF_GRID}>
-        {shelves.map((shelf) => {
-          if (shelf.kind === 'group') {
-            const isOpen = open?.id === shelf.id;
-            return (
-              <button
-                key={shelf.id}
-                type="button"
-                aria-expanded={isOpen}
-                {...(isOpen ? { 'aria-controls': panelId } : {})}
-                onClick={() => setOpenId(isOpen ? null : shelf.id)}
-                className={tileClass(isOpen)}
-              >
-                <TileBody shelf={shelf} expanded={isOpen} />
-              </button>
-            );
-          }
-          const to = shelf.kind === 'notebook' ? shelf.notebook.path : CREATE_PATH;
-          return (
-            <Link
-              key={shelf.id}
-              to={to}
-              state={shelf.kind === 'notebook' ? OPEN_STATE : null}
-              onPointerEnter={() => shelf.kind === 'notebook' && prefetch()}
-              className={tileClass(false)}
-            >
-              <TileBody shelf={shelf} expanded={null} />
-            </Link>
-          );
-        })}
-      </div>
-
-      {open?.kind === 'group' && (
-        <div id={panelId} className="flex flex-col gap-3">
-          <h3 className={cn('m-0 text-lg max-lg:sr-only', DASH_HEADING)}>{open.title}</h3>
-          {open.layout === 'photos' ? (
-            <ul className={PHOTO_ROW}>
-              {open.entries.map((entry) => (
-                <PhotoShelfItem key={entry.key} entry={entry} />
-              ))}
-            </ul>
-          ) : (
-            <ConfirmDialogProvider>
-              <ul className="m-0 grid list-none grid-cols-2 gap-2.5 p-0 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
-                {open.entries.map((entry) => (
-                  <ShelfItem key={entry.key} entry={entry} />
-                ))}
-              </ul>
-            </ConfirmDialogProvider>
-          )}
-        </div>
-      )}
+      <ShelfBrowser shelves={shelves} />
     </ShelfSection>
   );
 }
