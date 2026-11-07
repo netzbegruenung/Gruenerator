@@ -1,12 +1,18 @@
 import { type PollsOverviewResponse } from '@gruenerator/contracts';
+import {
+  BUNDESLAENDER,
+  deltaText,
+  formatPollDate,
+  grueneSnapshot,
+  isGruene,
+  pct,
+  type UmfragenRegion,
+} from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { BUNDESLAENDER } from '../bundeslaender';
 import { usePolls, usePollsOverview, useEuGreens } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
-import { deltaText, formatPollDate, grueneSnapshot, isGruene, pct } from '../pollFormat';
-import { type UmfragenRegion } from '../umfragenRegion';
 
 import { DeutschlandMap, EuropaMap, type ChoroplethValues } from './GreensChoropleth';
 import { PillButton } from './PillButton';

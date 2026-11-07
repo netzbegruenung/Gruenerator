@@ -1,4 +1,5 @@
 import { type MonitorLocale, type MonitorSnapshot } from '@gruenerator/contracts';
+import { buildBriefingLead, standLine } from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 
 import {
@@ -7,7 +8,6 @@ import {
   type BriefingCardId,
   type BriefingCardState,
 } from './BriefingCard';
-import { buildBriefingLead } from './briefingLead';
 import { BriefingLeadLine } from './BriefingLeadLine';
 import { NewsCard } from './NewsCard';
 import { KeywordsCard, ThemenCard, XTrendsCard } from './SignalCards';
@@ -27,14 +27,6 @@ export interface BriefingViewProps {
   open: BriefingCardId | null;
   onToggle: (card: BriefingCardId) => void;
   onOpen: (card: BriefingCardId) => void;
-}
-
-function standLine(snapshot: MonitorSnapshot): string {
-  const time = new Date(snapshot.createdAt).toLocaleTimeString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  return `Stand ${time} · ${snapshot.totalArticles.toLocaleString('de-DE')} Artikel aus ${snapshot.sources.length} Quellen`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { keywordStyles, trendInTheNews } from './briefingSignals';
+import { keywordStyles, trendInTheNews } from './briefingSignals.js';
 
 describe('keywordStyles', () => {
   it('shrinks by rank, accents the first word and fades the tail', () => {

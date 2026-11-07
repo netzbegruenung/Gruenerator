@@ -1,7 +1,7 @@
 import { type MonitorArticle, type TopicCategory, type TopicScore } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { buildBriefingLead } from './briefingLead';
+import { buildBriefingLead } from './briefingLead.js';
 
 const topic = (t: TopicCategory, articleCount: number): TopicScore => ({
   topic: t,

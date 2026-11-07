@@ -1,7 +1,7 @@
+import { type BriefingNewsList } from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 
 import { BriefingCard, type BriefingCardState } from './BriefingCard';
-import { type BriefingNewsList } from './useBriefingNews';
 
 import { Bone } from '@/components/dashboard/Bone';
 import { DASH_DISPLAY, DASH_FOCUS, DASH_MUTED } from '@/components/dashboard/dashboardStyles';

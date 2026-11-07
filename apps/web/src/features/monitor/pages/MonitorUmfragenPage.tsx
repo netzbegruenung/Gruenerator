@@ -1,9 +1,9 @@
+import { umfragenRegion } from '@gruenerator/shared/monitor';
 import { Link, Navigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { UmfragenView } from '../components/UmfragenView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
-import { umfragenRegion } from '../umfragenRegion';
 
 import { DashboardPage, DASH_PAGE_TITLE } from '@/components/dashboard/DashboardPage';
 import { DASH_LINK } from '@/components/dashboard/dashboardStyles';

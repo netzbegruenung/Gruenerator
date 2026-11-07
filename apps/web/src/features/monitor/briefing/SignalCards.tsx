@@ -4,6 +4,7 @@ import {
   type SocialTrend,
   type TopicScore,
 } from '@gruenerator/contracts';
+import { keywordStyles, trendInTheNews } from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 import { Link } from 'react-router-dom';
 
@@ -11,7 +12,6 @@ import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import { TOPIC_CONFIG } from '../topicConfig';
 
 import { BriefingCard, type BriefingCardState } from './BriefingCard';
-import { keywordStyles, trendInTheNews } from './briefingSignals';
 
 import { Bone } from '@/components/dashboard/Bone';
 import { DASH_DISPLAY, DASH_FOCUS, DASH_MUTED } from '@/components/dashboard/dashboardStyles';
