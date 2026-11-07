@@ -19,7 +19,7 @@ function parseCard(value: string | null): BriefingCardId | null {
  * Pfade leiten hierher). Immer höchstens eine Karte offen.
  */
 function MonitorBriefingPage() {
-  const { locale } = useMonitorLocaleParam();
+  const { locale, withLocale } = useMonitorLocaleParam();
   const snapshot = useMonitorSnapshot(locale);
   const news = useBriefingNews(locale);
   const [params, setParams] = useSearchParams();
@@ -45,6 +45,7 @@ function MonitorBriefingPage() {
       open={open}
       onToggle={(card) => setOpen(open === card ? null : card)}
       onOpen={setOpen}
+      withLocale={withLocale}
     />
   );
 }

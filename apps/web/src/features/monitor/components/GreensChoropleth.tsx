@@ -1,84 +1,22 @@
-import { geoMercator, geoPath } from 'd3-geo';
-import { scaleLinear } from 'd3-scale';
+import {
+  buildChoropleth,
+  europeFeatures,
+  EU_FIT,
+  fmtValue as fmt,
+  LABEL_INK,
+  RAMP_HIGH,
+  RAMP_LOW,
+  RAMP_MID,
+  type ChoroplethValues,
+} from '@gruenerator/shared/monitor';
 import { useEffect, useMemo, useState } from 'react';
 import { feature } from 'topojson-client';
 
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import type { Topology } from 'topojson-specification';
 
-/** Value + labels for one geo region; `v === null` renders as "keine Daten". */
-export interface ChoroplethValue {
-  v: number | null;
-  label?: string;
-  sub?: string;
-  date?: string;
-  /**
-   * Broad-alliance value (greens a minority partner): rendered hatched and
-   * excluded from the color scale + numeric labels so it isn't read as pure
-   * green strength.
-   */
-  marked?: boolean;
-}
-export type ChoroplethValues = Record<string, ChoroplethValue>;
-
 const DE_URL = '/geo/de-bundeslaender.geo.json';
 const EU_URL = '/geo/europe-110m.json';
-
-// EU/near-EU countries the Europe map draws (names as they appear in the
-// world-atlas countries-110m `properties.name`).
-const EU_NAMES = new Set([
-  'Germany',
-  'Austria',
-  'Finland',
-  'Sweden',
-  'Ireland',
-  'France',
-  'Spain',
-  'Portugal',
-  'Italy',
-  'Switzerland',
-  'Belgium',
-  'Netherlands',
-  'Luxembourg',
-  'Denmark',
-  'Norway',
-  'United Kingdom',
-  'Poland',
-  'Czechia',
-  'Slovakia',
-  'Hungary',
-  'Slovenia',
-  'Croatia',
-  'Bosnia and Herz.',
-  'Serbia',
-  'Montenegro',
-  'Albania',
-  'Macedonia',
-  'North Macedonia',
-  'Greece',
-  'Bulgaria',
-  'Romania',
-  'Moldova',
-  'Lithuania',
-  'Latvia',
-  'Estonia',
-  'Kosovo',
-]);
-
-// Label anchors (lon/lat) for regions whose polygon centroid lands somewhere
-// unusable — Brandenburg's centroid falls exactly on the Berlin enclave, so its
-// number would render on top of Berlin. Norway's is pulled off the map by
-// Svalbard, the UK's onto the Irish Sea by Northern Ireland, and Croatia's
-// crescent puts it in Bosnia.
-const LABEL_ANCHORS: Record<string, [number, number]> = {
-  Brandenburg: [13.75, 52.05],
-  Norway: [8.8, 61.2],
-  'United Kingdom': [-1.6, 52.6],
-  Croatia: [16.2, 45.6],
-};
-
-const fmt = (v: number | null | undefined): string =>
-  v == null ? 'keine Daten' : `${String(v).replace('.', ',')}%`;
 
 function useJson<T>(url: string): T | 'error' | null {
   const [data, setData] = useState<T | 'error' | null>(null);
@@ -108,60 +46,21 @@ interface MapChartProps {
   domain: [number, number];
 }
 
-// Farbrampe der grünen Stärke in den Dashboard-Farben (Magenta wie /briefing):
-// hell = schwach, dunkel = stark. d3 interpoliert keine CSS-Variablen, darum
-// feste Werte; beide Enden lesen sich im hellen wie im dunklen Modus. Die
-// Werte stehen im Tailwind-Verlauf der Legende noch einmal literal.
-const RAMP_LOW = '#f8cfe1';
-const RAMP_MID = '#c2457f';
-const RAMP_HIGH = '#8a004a';
-/** Zahl auf hellen Flächen. */
-const LABEL_INK = '#3a0d24';
-
 function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
-  // Scale the color ramp to the actual PolitPro values (min..max) so a spread
-  // like Thüringen 4 % → Baden-Württemberg 30 % uses the full gradient instead
-  // of clamping against a fixed range. Fall back to `domain` until data loads.
-  const scale = useMemo<[number, number]>(() => {
-    // Broad-alliance values (marked) are excluded so e.g. FR NFP 24 % doesn't
-    // stretch the ramp and dwarf real green results.
-    const vals = Object.values(values)
-      .filter((x) => !x.marked)
-      .map((x) => x.v)
-      .filter((v): v is number => v != null);
-    if (vals.length < 2) return domain;
-    const lo = Math.floor(Math.min(...vals));
-    const hi = Math.ceil(Math.max(...vals));
-    return lo === hi ? [lo, lo + 1] : [lo, hi];
-  }, [values, domain]);
-
-  const feats = useMemo(() => {
-    const proj = geoMercator().fitSize([width, height], fitGeo ?? geo);
-    const path = geoPath(proj);
-    const color = scaleLinear<string>().domain(scale).range([RAMP_LOW, RAMP_HIGH]).clamp(true);
-    return geo.features.map((f, i) => {
-      const name = String(f.properties?.name ?? '');
-      const d: Partial<ChoroplethValue> = values[name] ?? {};
-      const anchor = LABEL_ANCHORS[name];
-      const centroid = anchor ? (proj(anchor) ?? path.centroid(f)) : path.centroid(f);
-      const marked = d.marked ?? false;
-      return {
-        i,
-        d: path(f) ?? '',
-        name: d.label ?? name,
-        sub: d.sub,
-        v: d.v ?? null,
-        date: d.date,
-        marked,
-        area: path.area(f),
-        cx: centroid[0],
-        cy: centroid[1],
-        fill: d.v == null ? 'var(--map-nodata)' : marked ? 'url(#alliance-hatch)' : color(d.v),
-      };
-    });
-  }, [geo, fitGeo, width, height, values, scale]);
+  const { scale, shapes } = useMemo(
+    () => buildChoropleth({ geo, fitGeo, width, height, values, domain }),
+    [geo, fitGeo, width, height, values, domain]
+  );
+  const feats = useMemo(
+    () =>
+      shapes.map((s) => ({
+        ...s,
+        fill: s.v == null ? 'var(--map-nodata)' : s.marked ? 'url(#alliance-hatch)' : s.fill,
+      })),
+    [shapes]
+  );
 
   const active = hover != null ? feats[hover] : null;
   const mid = (scale[0] + scale[1]) / 2;
@@ -297,26 +196,12 @@ export function DeutschlandMap({ values = {}, width = 380, height = 470 }: Green
   );
 }
 
-// Fixed lon/lat frame so Europe stays centred regardless of which countries carry data.
-const EU_FIT: Geometry = {
-  type: 'MultiPoint',
-  coordinates: [
-    [-11, 35],
-    [31, 35],
-    [31, 66],
-    [-11, 66],
-  ],
-};
-
 export function EuropaMap({ values = {}, width = 380, height = 470 }: GreensMapProps) {
   const topo = useJson<Topology>(EU_URL);
   if (topo === 'error') return <MapError />;
   if (!topo) return <MapSkeleton width={width} height={height} />;
   const all = feature(topo, topo.objects.countries) as unknown as FeatureCollection;
-  const geo: FeatureCollection = {
-    type: 'FeatureCollection',
-    features: all.features.filter((f) => EU_NAMES.has(String(f.properties?.name ?? ''))),
-  };
+  const geo = europeFeatures(all);
   return (
     <div className="overflow-hidden">
       <MapChart

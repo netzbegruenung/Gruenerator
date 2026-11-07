@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { teaser, trimTeaser } from './teaser';
+import { teaser, trimTeaser } from './teaser.js';
 
 // Echte Anreißer aus /api/monitor/what-happened (gruenerator.eu, 06.11.2026),
 // wie die API sie liefert: 500 Zeichen, mitten im Wort abgeschnitten.

@@ -1,8 +1,8 @@
+import { deltaText, grueneSnapshot, isGruene, pct } from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 import { Link } from 'react-router-dom';
 
 import { useEuGreens, usePolls } from '../../monitor/hooks/useMonitor';
-import { deltaText, grueneSnapshot, isGruene, pct } from '../../monitor/pollFormat';
 
 import { ASIDE_TITLE, ASIDE_TITLE_LINK, AsideCard } from './WissenLayout';
 import { PollSkeleton } from './WissenSkeletons';

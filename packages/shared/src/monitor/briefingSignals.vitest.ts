@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { keywordStyles, trendInTheNews } from './briefingSignals';
+import { keywordPixels, keywordStyles, trendInTheNews } from './briefingSignals.js';
 
 describe('keywordStyles', () => {
   it('shrinks by rank, accents the first word and fades the tail', () => {
@@ -9,6 +9,16 @@ describe('keywordStyles', () => {
     expect(styles[1].tone).toBe('strong');
     expect(styles[11].tone).toBe('muted');
     expect(styles[11].fontSize).toBe('clamp(14px, 1.31vw, 17px)');
+  });
+});
+
+describe('keywordPixels', () => {
+  it('is the pixel size and tone behind keywordStyles', () => {
+    const px = keywordPixels(12, 40, 17);
+    expect(px[0]).toEqual({ px: 40, tone: 'accent' });
+    expect(px[11].tone).toBe('muted');
+    expect(px.every((p, i) => p.tone === keywordStyles(12, 40, 17)[i].tone)).toBe(true);
+    expect(px[11].px).toBeGreaterThanOrEqual(17);
   });
 });
 

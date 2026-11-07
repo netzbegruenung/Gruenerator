@@ -1,14 +1,21 @@
-import { type PollsOverviewResponse } from '@gruenerator/contracts';
+import {
+  deltaText,
+  europaGrueneValues,
+  formatPollDate,
+  grueneSnapshot,
+  isGruene,
+  laenderGrueneValues,
+  partyOrder,
+  pct,
+  type UmfragenRegion,
+} from '@gruenerator/shared/monitor';
 import { cn } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { BUNDESLAENDER } from '../bundeslaender';
 import { usePolls, usePollsOverview, useEuGreens } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
-import { deltaText, formatPollDate, grueneSnapshot, isGruene, pct } from '../pollFormat';
-import { type UmfragenRegion } from '../umfragenRegion';
 
-import { DeutschlandMap, EuropaMap, type ChoroplethValues } from './GreensChoropleth';
+import { DeutschlandMap, EuropaMap } from './GreensChoropleth';
 import { PillButton } from './PillButton';
 import { TrendSparkline } from './TrendSparkline';
 
@@ -30,46 +37,6 @@ import {
 const CARD = cn('rounded-[20px] px-[clamp(20px,3vw,32px)] py-[clamp(22px,3vw,30px)]', DASH_CARD);
 /** Kartenüberschrift wie auf /briefing. */
 const CARD_TITLE = cn('m-0 text-[clamp(19px,2.2vw,22px)] font-bold', DASH_DISPLAY, DASH_HEADING);
-
-// PolitPro country code → world-atlas English geo name (Europe choropleth join).
-const EU_CODE_GEO: Record<string, string> = {
-  de: 'Germany',
-  at: 'Austria',
-  fi: 'Finland',
-  se: 'Sweden',
-  ie: 'Ireland',
-  nl: 'Netherlands',
-  lu: 'Luxembourg',
-  it: 'Italy',
-  hr: 'Croatia',
-  pt: 'Portugal',
-  lv: 'Latvia',
-  ro: 'Romania',
-  ee: 'Estonia',
-  be: 'Belgium',
-  dk: 'Denmark',
-  no: 'Norway',
-  ch: 'Switzerland',
-  gb: 'United Kingdom',
-  uk: 'United Kingdom',
-  pl: 'Poland',
-  cz: 'Czechia',
-  sk: 'Slovakia',
-  hu: 'Hungary',
-  si: 'Slovenia',
-  gr: 'Greece',
-  bg: 'Bulgaria',
-  lt: 'Lithuania',
-  es: 'Spain',
-  fr: 'France',
-};
-
-function partyOrder(average: Record<string, number>): string[] {
-  return Object.entries(average)
-    .filter(([, v]) => v > 0)
-    .sort(([, a], [, b]) => b - a)
-    .map(([k]) => k);
-}
 
 function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLabel: string }) {
   const { data, isPending } = usePolls(parliament);
@@ -208,28 +175,6 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
   );
 }
 
-/**
- * Per-Bundesland Grüne value keyed by geo name — ONE request for all 16.
- *
- * This used to call `usePolls(b.id)` inside a loop over BUNDESLAENDER. Each of
- * those hits three PolitPro endpoints, so mounting the map fired 48 upstream
- * requests within a second against a 30 req/min budget; the resulting 429s were
- * cached as real answers for 12 h (live on 20.08.2026: Bayern showed 4 parties
- * instead of 8). The backend now fetches the same data paced, in one call.
- */
-function laenderGrueneValues(data: PollsOverviewResponse): ChoroplethValues {
-  const values: ChoroplethValues = {};
-  const byParliament = new Map(data.entries.map((e) => [e.parliament, e]));
-  for (const b of BUNDESLAENDER) {
-    const entry = byParliament.get(b.id);
-    values[b.name] = {
-      v: entry?.gruene ?? null,
-      date: entry?.latestPollDate ? formatPollDate(entry.latestPollDate) : undefined,
-    };
-  }
-  return values;
-}
-
 /** Platzhalter in der Größe der Karte (380 × 470). */
 function MapBone() {
   return <Bone className="aspect-[380/470] w-full max-w-[380px] rounded-2xl" />;
@@ -254,13 +199,7 @@ function EuropaMapPanel() {
   if (!data) {
     return <p className={cn('text-sm', DASH_MUTED)}>Europadaten konnten nicht geladen werden.</p>;
   }
-  const values: ChoroplethValues = {};
-  for (const r of data.results) {
-    const geo = EU_CODE_GEO[r.countryCode];
-    if (!geo) continue;
-    values[geo] = { v: r.percent, label: r.countryName, sub: r.party, marked: r.broadAlliance };
-  }
-  return <EuropaMap values={values} />;
+  return <EuropaMap values={europaGrueneValues(data)} />;
 }
 
 function LaenderMapPanel({ locale }: { locale: MonitorLocale }) {

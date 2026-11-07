@@ -1,7 +1,7 @@
-import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
+import { LANDESVERBAENDE } from '../agents/index.js';
 import { describe, expect, it } from 'vitest';
 
-import { umfragenPath, umfragenRegion } from './umfragenRegion';
+import { umfragenPath, umfragenRegion } from './umfragenRegion.js';
 
 describe('umfragenRegion', () => {
   // The notebook overview links `/umfragen/<lv.id>` — an LV whose id is no

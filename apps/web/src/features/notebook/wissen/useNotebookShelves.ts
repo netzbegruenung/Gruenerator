@@ -1,6 +1,12 @@
 import { type MarketplaceItemOf } from '@gruenerator/contracts';
 import { ApiError } from '@gruenerator/shared/api';
 import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
+import {
+  SHELF_HIDDEN_NOTEBOOK_IDS,
+  buildNotebookShelves,
+  type Shelf as SharedShelf,
+  type ShelfEntry as SharedShelfEntry,
+} from '@gruenerator/shared/notebooks';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { useMemo } from 'react';
 
@@ -18,41 +24,24 @@ import { useSharedNotebookCollections } from '../hooks/useSharedNotebookCollecti
 import type { NotebookCollection } from '../../../types/notebook';
 
 /** Ein Eintrag in der aufgeklappten Liste einer Kachel. */
-export type ShelfEntry =
-  | { kind: 'system'; key: string; notebook: NotebookConfigEntry }
-  | { kind: 'own'; key: string; collection: NotebookCollection }
-  | { kind: 'shared'; key: string; collection: NotebookCollection }
-  | { kind: 'saved'; key: string; item: MarketplaceItemOf<'notebook'> };
+export type ShelfEntry = SharedShelfEntry<
+  NotebookConfigEntry,
+  NotebookCollection,
+  MarketplaceItemOf<'notebook'>
+>;
 
 /**
  * Eine Kachel unter „Deine Notebooks": klappt eine Liste auf (`entries`) oder
  * öffnet direkt ein Notebook (`notebook`). `meta` ist `null`, solange die
  * Zählung noch lädt.
  */
-export type Shelf =
-  | {
-      id: string;
-      kind: 'group';
-      title: string;
-      meta: string | null;
-      entries: ShelfEntry[];
-      /** `photos`: Fotokarten in einer Scroll-Reihe (Landesverbände), sonst Textkarten. */
-      layout: 'photos' | 'cards';
-    }
-  | { id: string; kind: 'notebook'; title: string; meta: string; notebook: NotebookConfigEntry }
-  | { id: string; kind: 'create'; title: string; meta: string };
-
-// Notebooks, die auf /wissen keine eigene Kachel bekommen.
-const HIDDEN_NOTEBOOK_IDS: readonly string[] = [
-  'gruenerator-notebook',
-  'gruenblog-notebook',
-  'boell-stiftung-notebook',
-  'abgeordnetenwatch-notebook',
-];
+export type Shelf = SharedShelf<
+  NotebookConfigEntry,
+  NotebookCollection,
+  MarketplaceItemOf<'notebook'>
+>;
 
 const EMPTY: NotebookCollection[] = [];
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** URL-Fragment eines Nutzer-Notebooks: Notion-Slug, für Altzeilen ohne Suffix die UUID. */
 export const collectionSlug = (c: NotebookCollection): string =>
@@ -112,79 +101,20 @@ export function useNotebookShelves() {
   const shelves = useMemo<Shelf[]>(() => {
     const visible = (nbs: NotebookConfigEntry[]) =>
       nbs.filter(
-        (nb) => isNotebookVisibleForLocale(nb, locale) && !HIDDEN_NOTEBOOK_IDS.includes(nb.id)
+        (nb) => isNotebookVisibleForLocale(nb, locale) && !SHELF_HIDDEN_NOTEBOOK_IDS.includes(nb.id)
       );
-    const system = (nb: NotebookConfigEntry): ShelfEntry => ({
-      kind: 'system',
-      key: nb.id,
-      notebook: nb,
+    return buildNotebookShelves({
+      austrian: isAustrian,
+      austrianNotebooks: visible(getAustrianNotebooks()),
+      laender: visible(getNotebooksByCategory('landesebene')),
+      bundesverband: listed('gruene-notebook'),
+      parlamente: visible(getNotebooksByCategory('parlamente')),
+      wiki: listed('kommunalwiki-notebook'),
+      own,
+      shared,
+      saved,
+      mineLoading,
     });
-
-    const mineEntries: ShelfEntry[] = [
-      ...own.map((c): ShelfEntry => ({ kind: 'own', key: `own-${c.id}`, collection: c })),
-      ...shared.map((c): ShelfEntry => ({ kind: 'shared', key: `shared-${c.id}`, collection: c })),
-      ...saved.map((item): ShelfEntry => ({ kind: 'saved', key: `saved-${item.ref}`, item })),
-    ];
-    const mine: Shelf =
-      mineLoading || mineEntries.length > 0
-        ? {
-            id: 'meine',
-            kind: 'group',
-            title: 'Meine Notebooks',
-            meta: mineLoading ? null : plural(mineEntries.length, 'Notebook', 'Notebooks'),
-            entries: mineEntries,
-            layout: 'cards',
-          }
-        : {
-            id: 'meine',
-            kind: 'create',
-            title: 'Meine Notebooks',
-            meta: 'Erstes Notebook anlegen',
-          };
-
-    const direct = (nb: NotebookConfigEntry): Shelf => ({
-      id: nb.id,
-      kind: 'notebook',
-      title: nb.title,
-      meta: nb.meta,
-      notebook: nb,
-    });
-
-    if (isAustrian) return [...visible(getAustrianNotebooks()).map(direct), mine];
-
-    const laender = visible(getNotebooksByCategory('landesebene'));
-    const bundesverband = listed('gruene-notebook');
-    const parlamente = visible(getNotebooksByCategory('parlamente'));
-    const wiki = listed('kommunalwiki-notebook');
-
-    const out: Shelf[] = [];
-    if (laender.length > 0) {
-      out.push({
-        id: 'laender',
-        kind: 'group',
-        title: 'Landesverbände',
-        meta: plural(laender.length, 'Landesverband', 'Landesverbände'),
-        entries: [...(bundesverband ? [system(bundesverband)] : []), ...laender.map(system)],
-        layout: 'photos',
-      });
-    } else if (bundesverband) {
-      // bgst blendet die Landesverbände aus und ist zugleich die einzige
-      // Instanz mit dem Bundesverband — dort steht er als eigene Kachel.
-      out.push(direct(bundesverband));
-    }
-    if (parlamente.length > 0) {
-      out.push({
-        id: 'parlamente',
-        kind: 'group',
-        title: 'Parlamente',
-        meta: plural(parlamente.length, 'Parlament', 'Parlamente'),
-        entries: parlamente.map(system),
-        layout: 'cards',
-      });
-    }
-    out.push(mine);
-    if (wiki) out.push(direct(wiki));
-    return out;
   }, [isAustrian, locale, own, shared, saved, mineLoading]);
 
   return { shelves, vectorStoreDown };

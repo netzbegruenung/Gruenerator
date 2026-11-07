@@ -24,6 +24,8 @@ export type AppRoute =
   | '/(focused)/uebersetzer'
   // Wissen
   | '/(focused)/wissen'
+  | '/(focused)/briefing'
+  | '/(focused)/umfragen'
   // Auth routes
   | '/(auth)/login'
   | '/(auth)/onboarding'
@@ -44,6 +46,14 @@ export type AppRoute =
  * Modal routes that accept parameters
  */
 export interface ModalRouteParams {
+  '/(focused)/briefing': {
+    /** Opens one briefing card at start, e.g. `keywords`. An unknown value opens none. */
+    karte?: string;
+  };
+  '/(focused)/umfragen': {
+    /** A single parliament's page (`bayern`, `oesterreich` …). An unknown value leads back to the overview. */
+    land?: string;
+  };
   '/(focused)/bild-editor': {
     /** Opens in „Sharepic" mode instead of „KI-Bild". */
     mode?: 'sharepic';
