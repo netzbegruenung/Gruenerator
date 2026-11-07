@@ -24,6 +24,7 @@ export {
   pandasComputeNode,
   respondNode,
   buildSystemMessage,
+  buildTurnPrompt,
   restoreAttachmentsDroppedWithHistory,
 } from './nodes/index.js';
 export {

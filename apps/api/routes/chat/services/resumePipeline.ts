@@ -10,7 +10,7 @@ import { type chatGraphContract } from '@gruenerator/contracts';
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import {
-  buildSystemMessage,
+  buildTurnPrompt,
   briefGeneratorNode,
   wantsResearchBrief,
   classifierNode,
@@ -41,6 +41,7 @@ import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { loopClarificationStateStore } from './loopClarificationStateStore.js';
 import { loopClientToolStateStore } from './loopClientToolStateStore.js';
+import { withTurnPaste } from './materialItems.js';
 import { extractTextContent, lastUserText } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -470,7 +471,9 @@ export async function runChatGraphResume({
     // === Response ===
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-    const systemMessage = await buildSystemMessage(finalState);
+    // Der eingefügte Text geht in die Nachricht, nicht in den Prompt (#5431).
+    const { systemMessage, turnPaste } = await buildTurnPrompt(finalState);
+    const sentAlongside = (system: string) => (turnPaste ? `${system}\n\n${turnPaste}` : system);
     const resumeImageAttachments = requestContext.imageAttachments ?? [];
     // Dieselbe Frage wie im Einzeldurchlauf, dieselbe Antwort: sieht das Modell
     // die Bilder? Dieser Pfad baute die Nachrichtenliste bisher OHNE sie und
@@ -516,7 +519,7 @@ export async function runChatGraphResume({
       requestContext.actualThreadId
         ? await applyCompaction(
             requestContext.actualThreadId,
-            pruneMessages(validMessages, resumeWindow, systemMessage),
+            pruneMessages(validMessages, resumeWindow, sentAlongside(systemMessage)),
             systemMessage,
             resumeWindow
           )
@@ -530,15 +533,16 @@ export async function runChatGraphResume({
     const assembleMessages = (contextWindow: number) => {
       const built = buildMessagesForAI(
         resumeSystemMessage,
-        pruneMessages(resumeHistory, contextWindow, resumeSystemMessage)
+        pruneMessages(resumeHistory, contextWindow, sentAlongside(resumeSystemMessage))
       );
-      return resumeImagesVisible
+      const withImages = resumeImagesVisible
         ? injectImageAttachments(
             built as Parameters<typeof injectImageAttachments>[0],
             resumeImageAttachments,
             resumeRequestId
           )
         : built;
+      return withTurnPaste(withImages, turnPaste);
     };
     const messagesForAI = assembleMessages(resumeWindow);
     const userText = lastUserText(validMessages);

@@ -203,6 +203,7 @@ function fakeDeps(opts: {
 const baseParams = (state: ChatGraphState, systemMessage: string, userText: string) => ({
   finalState: state,
   systemMessage,
+  turnPaste: null as string | null,
   messages: [{ role: 'user' as const, content: userText }] satisfies ModelMessage[],
   requestId: 'req-1',
   threadId: null,
@@ -1196,5 +1197,67 @@ describe('streamAgenticResponse — Ganzdokument im split-Modus', () => {
       fakeDeps({ provider: 'greenpt', modelName: 'gemma4-31b', onLoop: (p) => (seen = p) })
     );
     expect((seen as LoopEngineParams | null)?.toolSystem).toContain('§30 Schluss');
+  });
+
+  // #5431: ein eingefügter Text steht in der Nachricht, nicht im Prompt — der
+  // Platzhalter muss ihm dorthin folgen.
+  it('ein eingefügter Text: Platzhalter in der Planer-Nachricht, Volltext beim Schreiber', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    const turnPaste = `## EINGEFÜGTER TEXT\n\n${embedUntrusted('anhang', DOC)}`;
+    await streamAgenticResponse(
+      {
+        ...baseParams(docState(), 'Rolle.\n\nRegeln.', 'Fasse die Vereinbarung zusammen'),
+        turnPaste,
+        sse,
+      },
+      fakeDeps({
+        provider: 'greenpt',
+        modelName: 'gemma4-31b',
+        assemble: withReader,
+        onLoop: (p) => (seen = p),
+      })
+    );
+    const params = seen as LoopEngineParams | null;
+    const lastUser = (messages: readonly ModelMessage[] | undefined) =>
+      JSON.stringify(messages?.filter((m) => m.role === 'user').at(-1)?.content);
+    expect(params?.mode).toBe('split');
+    expect(params?.toolSystem).not.toContain('§30 Schluss');
+    expect(lastUser(params?.messages)).not.toContain('§30 Schluss');
+    expect(lastUser(params?.messages)).toContain('dokumente_lesen');
+    expect(lastUser(params?.synthMessages)).toContain('§30 Schluss');
+  });
+});
+
+describe('streamAgenticResponse — eingefügter Text in der Nachricht (#5431)', () => {
+  const PASTE = '12.01.2027 Neujahrsempfang, Rathaus';
+  const turnPaste = `## EINGEFÜGTER TEXT\n\n${embedUntrusted('anhang', PASTE)}`;
+
+  it('legt den Paste hinter den Nutzertext der letzten Nachricht', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Hier sind die Termine'), turnPaste, sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    const params = seen as LoopEngineParams | null;
+    for (const messages of [params?.messages, params?.synthMessages]) {
+      expect(messages?.at(-1)?.content).toEqual([
+        { type: 'text', text: 'Hier sind die Termine' },
+        { type: 'text', text: turnPaste },
+      ]);
+    }
+  });
+
+  it('ohne Paste bleibt die Nachricht unverändert', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Hier sind die Termine'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect((seen as LoopEngineParams | null)?.synthMessages?.at(-1)?.content).toBe(
+      'Hier sind die Termine'
+    );
   });
 });

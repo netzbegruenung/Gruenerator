@@ -10,7 +10,7 @@
  * tool-result des eigenen ask_human-Aufrufs — nicht als neue User-Nachricht,
  * die die Frage aus dem Zusammenhang risse.
  */
-import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
+import { buildTurnPrompt } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
@@ -111,10 +111,10 @@ export async function runClarificationLoopResume(params: {
     const outcome = await streamAgenticResponse({
       finalState: classifiedState,
       // Neu gebaut statt aus Redis geholt: derselbe Weg wie im Erst-Zug.
-      systemMessage: await buildSystemMessage(classifiedState, {
+      ...(await buildTurnPrompt(classifiedState, {
         retrievalExpected: true,
         loop: true,
-      }),
+      })),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId,
