@@ -9,9 +9,9 @@ import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS,
+  GEMMA_31B_ON_MELIOUS_ECO,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
-import { CORTECS_SMALL_32 } from '../../../services/ai/intermediateLanes.js';
 import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { isModelSlow } from '../../../services/ai/modelHealth.js';
@@ -132,36 +132,27 @@ const CTX_PANDA = 880_000;
 /**
  * „Klein" — die kleine Antwort-Lane.
  *
- * Sie war bis zum 29.08.2026 eine ÜBERLAUF-Lane: `litellm/verdigado-pro` als
- * Primär, gpt-oss 120B beim zweiten Host als Überlauf, dazwischen der Verdigado-Slot.
- * Beide Seiten waren dasselbe Modell — gpt-oss 120B —, und das ist genau das
- * Modell, das `AVOID_AS_SYNTH` vom Antwortschreiben ausschliesst. Die Lane, die
- * der Modellwähler als „Klein · Schnell, für kurze Aufgaben" anbietet, lief
- * also auf einem Denkmodell, dessen Denk-Tokens gegen `max_tokens` zählen
- * (#3064: 64 Text-Tokens für einen 23-Zeichen-Titel).
+ * Seit 07.11.2026 Gemma 4 31B über Melious' `:eco`-Flavor (berget/SE, siehe
+ * gemmaHosts.ts). Bis dahin `mistral-small-3.2-24b` auf Cortecs, davor bis
+ * 29.08.2026 gpt-oss 120B (#3064). Der Wechsel kam mit dem Abbau des
+ * Split-Modus: in der Werkzeug-Probe vom 07.11.2026 (zwölf Aufträge, je acht
+ * Läufe, `tool_choice: auto`) rief Mistral Small 3.2 auf „ausführlicher" in
+ * 0 von 8 Läufen das Bearbeitungswerkzeug und kam auf 80/88. `:eco` kam auf
+ * 88/88 wie `:balanced`, p50 734 ms, p90 2,7 s. Damit läuft Klein unified wie
+ * Mittel (`isUnifiedGemma`), mit derselben Ausweichkette dahinter.
  *
- * Jetzt ist es das kleine Modell der Zwischenstufen, auf Cortecs — dieselben
- * Gewichte, die `intermediateLanes.ts` für `trivial`/`standard` fährt, damit
- * „Klein" und die Hintergrundarbeit nicht zwei verschiedene Antworten auf
- * dieselbe Frage sind. Am 29.08.2026 mit dem ECHTEN Thread-Titel-Prompt aus
- * #3064 gemessen, `max_tokens: 64`, dreimal: HTTP 200, `finish_reason: stop`,
- * **8** Ausgabe-Tokens, 358/579/597 ms, Unteranbieter `ovh`. Derselbe Aufruf
- * auf `verdigado-pro` verbrauchte alle 64 und endete auf `length`.
- *
- * Kontextfenster: 131.000 — was der ENDPUNKT annimmt, aus Cortecs'
- * `GET /v1/models` am 29.08.2026 (`context_size: 131000`), nicht aus dem
- * Modellsteckbrief. Kein Ollama mehr: die stille Kürzung, für die
- * `CTX_VERDIGADO` als gemessene Decke existierte, ist mit dem Host weg.
- *
- * Der Ausweich bleibt in der Modellfamilie und wechselt den Vertragspartner —
- * dieselbe Regel wie bei den Zwischenstufen.
+ * Fenster 128k wie die übrigen Gemma-Lanes: Melious vermittelt `:eco` zwar bis
+ * ~198k an berget, aber Budgets und Fristen sind gegen 128k bemessen
+ * (Begründung bei GEMMA_31B_ON_CORTECS). Grosse Bodies gehen auf dem Draht an
+ * `:speed` (`meliousGoesWide`). Ausweich wie bei Mittel: dieselben Gewichte bei
+ * Cortecs.
  */
 const SMALL_ANSWER_LANE: ModelConfigSingle = {
   kind: 'single',
-  provider: 'cortecs',
-  model: CORTECS_SMALL_32.model,
-  contextWindow: 131_000,
-  fallback: 'mistral-small-4',
+  provider: 'melious',
+  model: GEMMA_31B_ON_MELIOUS_ECO,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
+  fallback: GEMMA_31B_ALTERNATE.laneId,
 };
 
 /**

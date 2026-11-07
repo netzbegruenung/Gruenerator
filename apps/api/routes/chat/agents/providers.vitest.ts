@@ -254,7 +254,7 @@ describe('getContextWindow', () => {
     // `mistral-small-3.2-24b-instruct-2506` meldet. Die 120k davor waren
     // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
     // Lane nicht mehr (services/ai/litellmRetired.ts).
-    expect(getContextWindow('gpt-oss')).toBe(131_000);
+    expect(getContextWindow('gpt-oss')).toBe(128_000);
     // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
     // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
@@ -279,11 +279,11 @@ describe('getContextWindow', () => {
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
     // `litellm` wird nur noch als Name gelesen und bedient Cortecs.
-    expect(getContextWindow('auto', 'litellm')).toBe(131_000);
+    expect(getContextWindow('auto', 'litellm')).toBe(128_000);
   });
 
   it('legacy litellm ID resolves to the small answer lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(131_000);
+    expect(getContextWindow('litellm', 'mistral')).toBe(128_000);
   });
 
   // The unknown-model fallback stays conservative on purpose: an unrecognised
@@ -314,9 +314,9 @@ describe('getModelConfig', () => {
     const config = getModelConfig('gpt-oss');
     expect(config).not.toBeNull();
     expect(config!.kind).toBe('single');
-    expect(config!.provider).toBe('cortecs');
-    expect(config!.model).toBe('mistral-small-3.2-24b-instruct-2506');
-    expect(config!.contextWindow).toBe(131_000);
+    expect(config!.provider).toBe('melious');
+    expect(config!.model).toBe('gemma-4-31b:eco');
+    expect(config!.contextWindow).toBe(128_000);
   });
 
   it('aliases legacy IDs to the small answer lane', () => {
