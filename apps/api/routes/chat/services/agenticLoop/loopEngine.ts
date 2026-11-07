@@ -18,6 +18,7 @@ import {
   isStepCount,
   InvalidToolInputError,
   RetryError,
+  ToolChoiceViolationError,
 } from 'ai';
 
 import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
@@ -135,6 +136,9 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 const FIRST_RESPONSE_DEADLINE_MS = 8_000;
 
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
+/** finishReason, wenn das Modell einen erzwungenen Werkzeugschritt ignorierte. */
+const TOOL_CHOICE_VIOLATION_FINISH = 'tool_choice_violation';
+
 const SDK_PREAMBLE_PARTS = new Set(['start', 'start-step']);
 
 /** Das Loop-Modell hat die Anfrage angenommen und dann geschwiegen. */
@@ -874,13 +878,32 @@ async function streamWithTools(
       }
     ),
   };
-  const { text, finishReason, stalled, echoCut } = await drain(
-    observed,
-    emitFiltered,
-    p.onReasoning,
-    idle,
-    'stop'
-  );
+  // Was schon auf dem Draht ist, falls `drain` wirft.
+  let streamed = '';
+  let drained: Awaited<ReturnType<typeof drain>>;
+  try {
+    drained = await drain(
+      observed,
+      (delta) => {
+        streamed += delta;
+        emitFiltered(delta);
+      },
+      p.onReasoning,
+      idle,
+      'stop'
+    );
+  } catch (error) {
+    // Ein Modell, das den erzwungenen Schritt ignoriert (benannter
+    // `toolChoice` für ein geschuldetes Artefakt), beendet nur den Strom, nicht
+    // den Zug: danach legt `ensureOwedTools` das Artefakt an, und die
+    // Reparatur schreibt die Antwort (`abnormal_finish`). Live 07.11.2026:
+    // Mistral Large 4 ohne `create_sheet` → Fehlermeldung statt Tabelle.
+    if (!ToolChoiceViolationError.isInstance(error)) throw error;
+    log.warn(`[Engine] ${modelLabel(model)} ignored the forced tool step — ${error.message}`);
+    firstResponse?.clear();
+    return { text: streamed, finishReason: TOOL_CHOICE_VIOLATION_FINISH };
+  }
+  const { text, finishReason, stalled, echoCut } = drained;
   firstResponse?.clear();
   const tail = unifiedFilter.flush();
   if (tail.length > 0) p.onText(tail);
