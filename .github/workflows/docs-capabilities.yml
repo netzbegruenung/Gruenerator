@@ -1,6 +1,6 @@
 name: Docs Chat Capabilities
 
-# Keeps documentation/docs/gruenerieren/was-kann-ich-fragen.mdx honest about what
+# Keeps documentation/docs/chat/was-kann-ich-fragen.mdx honest about what
 # the chat can do. The article's capability list is generated from the chat's own
 # registries (intent enum, mentionables, tool picker, system MCP sources); the
 # example questions per capability are hand-written.
