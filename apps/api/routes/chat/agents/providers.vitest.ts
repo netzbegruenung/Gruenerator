@@ -94,7 +94,6 @@ describe('the real default lane resolves to a unified loop', () => {
           modelName: tuple!.model,
           materialHeavy: false,
           carriesGuarantee: false,
-          headless: false,
         })
       ).toEqual({ mode: 'unified', reason: 'unified_model' });
     }
