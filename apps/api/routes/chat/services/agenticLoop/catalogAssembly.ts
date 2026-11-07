@@ -1071,7 +1071,7 @@ export async function seedTurnMaterial(params: {
  *
  * Ohne diese Notiz hatte er keine Spur der Datei: der Fehlertext stand nur im
  * `cloud_files`-Replay des Planers (ohne Mount gar nicht), die Registry blieb
- * leer, und der Split-Schreiber las „du hast NICHTS recherchiert". Live
+ * leer, und der werkzeuglose Schreiber las „du hast NICHTS recherchiert". Live
  * 04.11.2026 antwortete er „Da du mir bisher keine Datei hochgeladen … hast".
  *
  * Bewusst NICHT über `sourceRegistry.seedAttached`: eine Fehlermeldung als
@@ -1107,12 +1107,8 @@ export function wrapAssembledTools(
     /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ das Tool tut nichts. */
     askGate?: Pick<AskHumanGate, 'hold'>;
     clientToolGate?: Pick<ClientToolGate, 'hold'>;
-    /** Only unified mode streams answer text WHILE tools run, so its `text`
-     *  length is a meaningful per-tool offset. In split mode the answer stays
-     *  empty through the whole gather phase → return null so no (all-0) offsets
-     *  are recorded, and reload falls back to the legacy cards-first layout. */
-    getTextOffset: () => number | null;
-    takeNarration: () => string | null;
+    /** Length of the answer streamed so far — the per-tool offset. */
+    getTextOffset: () => number;
     /** Beobachtungspunkt um die Werkzeugausführung — heute die Kostenrechnung
      *  des Turns. Nicht gesetzt ⇒ Verhalten unverändert. */
     hooks?: ToolHooks;
@@ -1138,7 +1134,6 @@ export function wrapAssembledTools(
     perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
     nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
     getTextOffset: ctx.getTextOffset,
-    takeNarration: ctx.takeNarration,
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
     ...(ctx.askGate ? { askGate: ctx.askGate } : {}),

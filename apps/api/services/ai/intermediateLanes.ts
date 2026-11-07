@@ -176,7 +176,7 @@ const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:balanced' } a
  * Modell.
  *
  * `greenpt/mistral-small-3.2-24b` ist NICHT neu im System: es bedient seit dem
- * 13.08.2026 den Planer des agentischen Loops (`LOOP_PLANNER_PRIMARY`) und seit
+ * 13.08.2026 den damaligen Planer des agentischen Loops und seit
  * dem 19.08.2026 den Monitor. Es denkt nicht (verbrennt das kleine
  * Ausgabebudget also nicht im `reasoning`-Feld), ruft nachweislich Werkzeuge
  * auf (genau das ist die Planer-Rolle) und meldet als einziges Glied seinen

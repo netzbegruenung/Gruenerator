@@ -14,7 +14,7 @@
  *   - model aliasing / `AVAILABLE_MODELS` (chat-facing catalogue),
  *   - context windows (`CTX_FULL`/`CTX_VERDIGADO` — measured, not datasheet),
  *   - overflow lanes and the Verdigado slot,
- *   - loop policy (`prefersUnifiedLoop`, …).
+ *   - loop policy (`autoPolicy.ts`).
  * Those are genuinely per-surface decisions and stay where they are.
  */
 import { createMistral } from '@ai-sdk/mistral';

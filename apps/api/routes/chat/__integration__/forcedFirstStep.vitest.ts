@@ -10,7 +10,7 @@
  * unter dem vollen Katalog griff (`media`, `read_pdf_form`, `summarize` …).
  *
  * LIVE (`FORCE_LIVE=1` + echter `GREENPT_API_KEY`): derselbe Schritt 0 geht
- * zweimal an das Produktionsmodell der Planer-Lane (`LOOP_PLANNER_PRIMARY`) —
+ * zweimal an das Produktionsmodell der Standard-Gemma-Lane (`GEMMA_31B_ON_MELIOUS`) —
  * mit dem Zuschnitt und ohne (master: `required` über den ganzen Katalog, weil
  * `toolScope` im Schattenbetrieb läuft). Gezählt wird, welches Werkzeug der
  * Planer als erstes ruft; kein Werkzeug läuft, die Aufrufe gehen ohne
@@ -166,7 +166,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 });
 
 const { generateText } = await vi.importActual<typeof import('ai')>('ai');
-const { LOOP_PLANNER_PRIMARY } = await import('../agents/autoPolicy.js');
+const { GEMMA_31B_ON_MELIOUS } = await import('../../../services/ai/gemmaHosts.js');
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
 const { createProviderStub } = await import('./harness/providerStub.js');
@@ -423,7 +423,7 @@ function render(): string {
   const count = (picks: string[], fits: readonly string[]) =>
     `${fitCount(picks, fits)}/${picks.length}`;
   const lines = [
-    `# Erzwungener erster Schritt, live — ${LOOP_PLANNER_PRIMARY.provider}/${LOOP_PLANNER_PRIMARY.model}, ${REPS} Wiederholungen`,
+    `# Erzwungener erster Schritt, live — ${GEMMA_31B_ON_MELIOUS.provider}/${GEMMA_31B_ON_MELIOUS.model}, ${REPS} Wiederholungen`,
     '',
     '| Fall | Zwang | Katalog | Zuschnitt | passt master | passt Zuschnitt | master | Zuschnitt |',
     '|---|---|---|---|---|---|---|---|',
@@ -528,7 +528,7 @@ describe('forced first planner step', () => {
       if (!LIVE) return;
       const model = planner.model as { modelId?: string };
       expect(model.modelId, `${c.id}: nicht die Produktions-Lane des Planers`).toBe(
-        LOOP_PLANNER_PRIMARY.model
+        GEMMA_31B_ON_MELIOUS.model
       );
 
       const row: Row = {

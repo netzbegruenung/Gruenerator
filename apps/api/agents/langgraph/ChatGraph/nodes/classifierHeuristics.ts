@@ -521,7 +521,7 @@ export const DOC_MODIFY_PATTERN =
  * word chars. `u` flag enables \p{L}.
  *
  * Two readers, and they must agree: the classifier's `edit_current_board`
- * fast-path, and the loop's edit guarantee (`loopGuarantees.createAfterGather`),
+ * fast-path, and the loop's edit guarantee (`loopGuarantees.createEnsureOwedTools`),
  * which forces `edit_document` when the planner skipped it. A copy in the second
  * place would drift, and the failure is silent — the turn ends with the generic
  * "keine passende Antwort" instead of the edit the user asked for.

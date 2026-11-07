@@ -780,7 +780,7 @@ describe('delete', () => {
 
 /**
  * Gegen die ECHTE Registry: wo `renderAll()` den Text hinschreibt und was
- * `freshSize` sagt, entscheidet in `buildSynthSystem`, ob der Schreiber die
+ * `freshSize` sagt, entscheidet in `buildRepairSystem`, ob der Schreiber die
  * Anweisung bekommt, er habe nicht recherchiert (`carriedOnly`).
  */
 describe('was der Schreiber im split-Modus wirklich sieht', () => {

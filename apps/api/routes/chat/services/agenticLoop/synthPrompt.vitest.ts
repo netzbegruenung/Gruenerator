@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 
 import { createRecipeRegistry } from './recipeRegistry.js';
 import { createSourceRegistry } from './sourceRegistry.js';
-import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
+import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
 import { type PersistedStep } from './types.js';
 
 import {
@@ -63,7 +63,6 @@ function ctx(over: Partial<SynthPromptContext> = {}): SynthPromptContext {
     tools: {} as ToolSet,
     sourceRegistry: createSourceRegistry(),
     recipeRegistry: createRecipeRegistry(),
-    opening: () => null,
     materialNote: '',
     ...over,
   };
@@ -79,7 +78,7 @@ function carriedRegistry() {
   return registry;
 }
 
-describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
+describe('buildRepairSystem — Schreiber-Notizen der Werkzeuge', () => {
   it('trägt `fuerSchreiber` des Werkzeugergebnisses als Anweisung in den Prompt', () => {
     const steps: PersistedStep[] = [
       {
@@ -89,7 +88,7 @@ describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
         result: { resultCount: 2, fuerSchreiber: 'Sag ZUERST: nur Bundestag.' },
       },
     ];
-    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx({ steps }));
+    const prompt = buildRepairSystem('[1] Antrag — https://example.org/a', ctx({ steps }));
     expect(prompt).toContain('Sag ZUERST: nur Bundestag.');
   });
 
@@ -97,20 +96,20 @@ describe('buildSynthSystem — Schreiber-Notizen der Werkzeuge', () => {
     const steps: PersistedStep[] = [
       { toolCallId: 'c1', toolName: 'bundestag', args: {}, result: { hinweis: 'Planer-Text' } },
     ];
-    const prompt = buildSynthSystem('[1] Antrag', ctx({ steps }));
+    const prompt = buildRepairSystem('[1] Antrag', ctx({ steps }));
     expect(prompt).not.toContain('Planer-Text');
     expect(prompt).not.toContain('ANWEISUNG DER WERKZEUGE');
   });
 });
 
-describe('buildSynthSystem — Quellenblock', () => {
+describe('buildRepairSystem — Quellenblock', () => {
   // #5141: „Marskolonie" stand in keiner Quelle, die Antwort band trotzdem
   // eine Mars-Aussage an das Regierungsprogramm.
   it('meldet den Gegenstand der Frage, den keine Quelle kennt', () => {
     const state = fakeState({
       messages: [{ role: 'user', content: 'Was sagen die Grünen zur Marskolonie-Steuer?' }],
     });
-    const prompt = buildSynthSystem(
+    const prompt = buildRepairSystem(
       '[1] Regierungsprogramm — Milliardärssteuer und Vermögenssteuer',
       ctx({ state })
     );
@@ -124,12 +123,12 @@ describe('buildSynthSystem — Quellenblock', () => {
     const state = fakeState({
       messages: [{ role: 'user', content: 'Was sagen die Grünen zur Vermögensteuer?' }],
     });
-    const prompt = buildSynthSystem('[1] Regierungsprogramm — Vermögenssteuer', ctx({ state }));
+    const prompt = buildRepairSystem('[1] Regierungsprogramm — Vermögenssteuer', ctx({ state }));
     expect(prompt).not.toContain('GEGENSTAND OHNE QUELLE');
   });
 
   it('hängt Liste und Zitiergebot an, wenn Quellen da sind', () => {
-    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
+    const prompt = buildRepairSystem('[1] Antrag — https://example.org/a', ctx());
     expect(prompt).toContain('GESAMMELTE QUELLEN (nummeriert):');
     expect(prompt).toContain('[1] Antrag — https://example.org/a');
     expect(prompt).toContain('ZITIER-REGELN');
@@ -145,7 +144,7 @@ describe('buildSynthSystem — Quellenblock', () => {
    * Schreiber des split-Modus, in `toolUsageBlock.vitest.ts` am unified-Modell.
    */
   it('stellt dem Schreiber die Datumsregel zu, sobald Quellen da sind', () => {
-    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
+    const prompt = buildRepairSystem('[1] Antrag — https://example.org/a', ctx());
     expect(prompt).toContain('AKTUALITÄT:');
     expect(prompt).toContain('dann gilt die NEUESTE');
   });
@@ -155,14 +154,14 @@ describe('buildSynthSystem — Quellenblock', () => {
   // überhaupt eine Datei angehängt war.
   it('gibt die Notiz über unlesbares Material weiter statt „nichts recherchiert"', () => {
     const materialNote = '\n\nANGEHÄNGTE DATEI NICHT LESBAR: „Protokoll.docx"';
-    const prompt = buildSynthSystem('', ctx({ materialNote }));
+    const prompt = buildRepairSystem('', ctx({ materialNote }));
     expect(prompt).toContain(materialNote);
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
     expect(prompt).not.toContain('GESAMMELTE QUELLEN');
   });
 
   it('lässt bei leerem Block kein Zitiergebot stehen und sagt es ehrlich', () => {
-    const prompt = buildSynthSystem('   ', ctx());
+    const prompt = buildRepairSystem('   ', ctx());
     expect(prompt).not.toContain('GESAMMELTE QUELLEN');
     expect(prompt).not.toContain('ZITIER-REGELN');
     expect(prompt).toContain('hast du NICHTS recherchiert');
@@ -184,7 +183,7 @@ describe('buildSynthSystem — Quellenblock', () => {
         ok: false,
       },
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).toContain('FEHLGESCHLAGENE WERKZEUGE');
     expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
   });
@@ -201,7 +200,7 @@ describe('buildSynthSystem — Quellenblock', () => {
         result: { resultCount: 0, results: [] },
       },
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).toContain('LEERE ERGEBNISSE');
     expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
@@ -221,14 +220,14 @@ describe('buildSynthSystem — Quellenblock', () => {
         },
       },
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).toContain('Anfragen sind von der Lizenz ausgenommen.');
     expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
   });
 
   it('unterscheidet mitgeführte von gar keinen Quellen', () => {
-    const prompt = buildSynthSystem('[1] Antrag', ctx({ sourceRegistry: carriedRegistry() }));
+    const prompt = buildRepairSystem('[1] Antrag', ctx({ sourceRegistry: carriedRegistry() }));
     // Der Turn HAT Material — die „nichts recherchiert"-Zeile daneben war die
     // Aussage, mit der das Modell dem*der Nutzer*in sichtbar angehängte Quellen
     // ins Gesicht abstritt.
@@ -255,7 +254,7 @@ describe('buildSynthSystem — Quellenblock', () => {
           ...outcome,
         },
       ];
-      const prompt = buildSynthSystem(
+      const prompt = buildRepairSystem(
         '[1] Antrag',
         ctx({ steps, sourceRegistry: carriedRegistry() })
       );
@@ -271,7 +270,7 @@ describe('buildSynthSystem — Quellenblock', () => {
     const steps: PersistedStep[] = [
       { toolName: 'sally_ticket', serverName: 'Sally', result: { ok: true } } as never,
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     // Ein MCP-Tool registriert keine Quellen. „Nichts recherchiert" wäre hier
     // wahr im Buchstaben und falsch in der Sache.
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
@@ -286,7 +285,7 @@ describe('buildSynthSystem — Quellenblock', () => {
     const steps: PersistedStep[] = [
       { toolName: 'summarize', result: { summary: 'Der Beschluss regelt …' } } as never,
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
     expect(prompt).toContain('Der Beschluss regelt …');
   });
@@ -312,7 +311,7 @@ describe('buildSynthSystem — Quellenblock', () => {
         },
       } as never,
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
     expect(prompt).toContain('in 5 Schritten bedient');
     expect(prompt).toContain('homepage.png, klimaschutz.png');
@@ -336,7 +335,7 @@ describe('buildSynthSystem — Quellenblock', () => {
         },
       } as never,
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
     expect(prompt).toContain('Teilergebnis – Zeitlimit erreicht');
     expect(prompt).toContain('homepage.png');
@@ -350,27 +349,14 @@ describe('buildSynthSystem — Quellenblock', () => {
         result: { error: 'Kein Text zum Zusammenfassen gefunden' },
       } as never,
     ];
-    const prompt = buildSynthSystem('', ctx({ steps }));
+    const prompt = buildRepairSystem('', ctx({ steps }));
     // Ein Fehlschlag ist kein Ergebnis — sonst schaltete ein gescheiterter
     // Aufruf die Ehrlichkeit ab, statt sie zu erübrigen.
     expect(prompt).toContain('hast du NICHTS recherchiert');
   });
 });
 
-describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
-  it('nennt den bereits gezeigten Eröffnungssatz, damit er nicht doppelt kommt', () => {
-    const prompt = buildSynthSystem('', ctx({ opening: () => 'Ich schaue kurz nach.' }));
-    expect(prompt).toContain('"Ich schaue kurz nach."');
-    expect(prompt).toContain('Wiederhole diesen Satz NICHT');
-  });
-
-  it('schweigt, wenn der Eröffnungssatz nie beim Client ankam', () => {
-    const prompt = buildSynthSystem('', ctx({ opening: () => null }));
-    // Der Satz wurde zurückgehalten. Ihn hier anzukündigen liesse den Schreiber
-    // seinen eigenen ersten Satz überspringen.
-    expect(prompt).not.toContain('Deine Antwort beginnt bereits');
-  });
-
+describe('buildRepairSystem — Rezept', () => {
   it('trägt ein selbst geladenes Rezept in den Prompt', () => {
     const recipeRegistry = createRecipeRegistry();
     recipeRegistry.register({
@@ -378,7 +364,7 @@ describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
       title: 'Pressemitteilung',
       body: 'REZEPTTEXT',
     } as never);
-    const prompt = buildSynthSystem('', ctx({ recipeRegistry }));
+    const prompt = buildRepairSystem('', ctx({ recipeRegistry }));
     // Split-Modus ist der EINZIGE Kanal dafür: dieses Modell hat keine Tools
     // und sieht das `rezept_laden`-Ergebnis nie.
     expect(prompt).toContain('REZEPTTEXT');
@@ -391,17 +377,17 @@ describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
       title: 'Instagram',
       body: 'REZEPTTEXT',
     } as never);
-    const prompt = buildSynthSystem('', ctx({ recipeRegistry }));
+    const prompt = buildRepairSystem('', ctx({ recipeRegistry }));
     expect(prompt).toContain('ABSCHLUSS');
     expect(prompt).toContain('Soll ich daraus ein Sharepic machen?');
   });
 });
 
-describe('buildSynthSystem — Tabellen-Werkzeug (#5042)', () => {
+describe('buildRepairSystem — Tabellen-Werkzeug (#5042)', () => {
   const tabelleTools = { tabelle_auswerten: {} } as unknown as ToolSet;
 
   it('sagt dem werkzeuglosen Schreiber, dass die Auswertung nicht lief', () => {
-    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools }));
+    const prompt = buildRepairSystem('', ctx({ tools: tabelleTools }));
     expect(prompt).toContain('TABELLE IN DIESEM TURN NICHT AUSGEWERTET');
     expect(prompt).toContain('auch nicht als JSON');
   });
@@ -410,24 +396,24 @@ describe('buildSynthSystem — Tabellen-Werkzeug (#5042)', () => {
     const steps = [
       { toolCallId: 't1', toolName: 'tabelle_auswerten', args: {}, result: { ergebnis: '42' } },
     ] as PersistedStep[];
-    const prompt = buildSynthSystem('', ctx({ tools: tabelleTools, steps }));
+    const prompt = buildRepairSystem('', ctx({ tools: tabelleTools, steps }));
     expect(prompt).not.toContain('NICHT AUSGEWERTET');
   });
 
   it('schweigt ohne montiertes Werkzeug', () => {
-    expect(buildSynthSystem('', ctx())).not.toContain('NICHT AUSGEWERTET');
+    expect(buildRepairSystem('', ctx())).not.toContain('NICHT AUSGEWERTET');
   });
 });
 
-describe('buildSynthSystem — Reihenfolge und Rahmen', () => {
+describe('buildRepairSystem — Reihenfolge und Rahmen', () => {
   it('setzt Systemnachricht, Connector-Notiz und Quellen in dieser Folge', () => {
-    const prompt = buildSynthSystem('[1] Antrag', ctx({ mcpNote: '\n\nMCPNOTE' }));
+    const prompt = buildRepairSystem('[1] Antrag', ctx({ mcpNote: '\n\nMCPNOTE' }));
     expect(prompt.indexOf('SYSTEM')).toBeLessThan(prompt.indexOf('MCPNOTE'));
     expect(prompt.indexOf('MCPNOTE')).toBeLessThan(prompt.indexOf('GESAMMELTE QUELLEN'));
   });
 
   it('schliesst mit Sprachregel und Anweisungs-Hierarchie ab', () => {
-    const prompt = buildSynthSystem('', ctx());
+    const prompt = buildRepairSystem('', ctx());
     expect(prompt).toContain('Antworte auf Deutsch (Du-Form, Genderstern).');
     // Der einzige Injektionsschutz auf diesem Pfad — vor der Vereinheitlichung
     // lief der unified-Modus ganz ohne ihn.
@@ -537,10 +523,10 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
   });
 });
 
-describe('buildSynthSystem — Erinnerungs-Behauptung ohne Werkzeug (#3914)', () => {
+describe('buildRepairSystem — Erinnerungs-Behauptung ohne Werkzeug (#3914)', () => {
   it('trägt auf einem Turn ohne Schritte die Regel samt notiert/gemerkt-Formen', () => {
     // Beta 30.09.2026: steps=0, „Ich habe mir das notiert." — kein memory-Aufruf.
-    const prompt = buildSynthSystem('', ctx({ steps: [] }));
+    const prompt = buildRepairSystem('', ctx({ steps: [] }));
     expect(prompt).toContain(NO_PHANTOM_ACTION_RULE);
     expect(prompt).toContain('Ich habe mir das notiert/gemerkt/gespeichert');
     expect(prompt).toContain('nur, wenn das Werkzeug `memory` in diesem Turn gelaufen ist');

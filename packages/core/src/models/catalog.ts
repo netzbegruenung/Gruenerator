@@ -98,13 +98,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gruenerator-small',
     name: 'Klein',
     description: 'Schnell, für kurze Aufgaben',
-    // Bis zum 29.08.2026 `litellm/verdigado-pro` — am Proxy gemessen
-    // `gpt-oss:120b-ctx128k`, ein Denkmodell, dessen Denk-Tokens gegen
-    // `max_tokens` zählen. Für eine Lane, die „schnell, für kurze Aufgaben"
-    // verspricht, war das die falsche Wahl (#3064). Jetzt dasselbe kleine
-    // Modell, das die Zwischenstufen fahren.
-    model: 'mistral-small-3.2-24b-instruct-2506',
-    provider: 'cortecs',
+    // Seit 07.11.2026 Gemma 4 31B über Melious `:eco` (berget/SE), vorher
+    // `mistral-small-3.2` auf Cortecs, bis 29.08.2026 gpt-oss 120B (#3064).
+    // Begründung und Messung: `SMALL_ANSWER_LANE` in apps/api.
+    model: 'gemma-4-31b:eco',
+    provider: 'melious',
     icon: 'zap',
     region: 'self-hosted',
   },

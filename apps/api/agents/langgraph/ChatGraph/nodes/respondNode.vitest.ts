@@ -13,7 +13,6 @@ import {
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 import { PASTED_TEXT_HEADING } from '../../../../routes/chat/services/attachmentProcessingService.js';
-import { replaceUntrustedBlocks } from '../../../../routes/chat/services/untrustedContent.js';
 
 import type {
   ChatGraphState,
@@ -791,8 +790,8 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       ...over,
     }) as ThreadAttachment;
 
-  // Review #5418: der Planer-Platzhalter ersetzt die Blöcke der früheren
-  // Dokumente — die Bildbeschreibungen daneben müssen stehen bleiben.
+  // Review #5418: Bildbeschreibungen stehen nicht in den Blöcken der früheren
+  // Dokumente.
   it('bettet frühere Bilder unter einer eigenen Art ein, nicht als Dokument', () => {
     const out = formatThreadAttachmentsContext(
       [
@@ -807,10 +806,12 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       undefined,
       'Und weiter?'
     );
-    const planner = replaceUntrustedBlocks(out, 'frueheres_dokument', 'PLATZHALTER');
-    expect(planner).toContain('PLATZHALTER');
-    expect(planner).not.toContain('Aktionsplan gegen Hitze');
-    expect(planner).toContain('Ein Foto vom Marktplatz');
+    const docBlocks = [...out.matchAll(/<[^>]*type="frueheres_dokument"[^>]*>[\s\S]*?<\/[^>]+>/g)]
+      .map((m) => m[0])
+      .join('\n');
+    expect(docBlocks).toContain('Aktionsplan gegen Hitze');
+    expect(docBlocks).not.toContain('Ein Foto vom Marktplatz');
+    expect(out).toContain('Ein Foto vom Marktplatz');
   });
 
   it('lässt den Anhang weg, wenn sein Text schon in der Historie steht', () => {

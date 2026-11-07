@@ -10,11 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import {
-  createAfterGather,
-  turnCarriesGuarantee,
-  type GuaranteeContext,
-} from './loopGuarantees.js';
+import { createEnsureOwedTools, owedToolName, type GuaranteeContext } from './loopGuarantees.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
@@ -42,12 +38,11 @@ function harness(
     recordStep: vi.fn(),
     wrappedTools: { [toolName]: { execute } } as unknown as ToolSet,
     calledToolNames: () => [],
-    emitOpeningBeforeTool: vi.fn(),
     answerText: () => '',
     onInfo: vi.fn(),
     onWarn: vi.fn(),
   };
-  return { run: createAfterGather(ctx), execute };
+  return { run: createEnsureOwedTools(ctx), execute };
 }
 
 describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der Intent', () => {
@@ -282,65 +277,91 @@ describe('Pin-Zusicherung — ein benanntes bundestag läuft, auch wenn der Plan
   });
 });
 
-describe('turnCarriesGuarantee — wann ein Turn auf den Split-Loop gehört', () => {
+describe('owedToolName — welches Werkzeug der Turn noch schuldet', () => {
   const state = (over: Partial<ChatGraphState>): ChatGraphState => over as ChatGraphState;
+  const mounted =
+    (...names: string[]) =>
+    (name: string) =>
+      names.includes(name);
 
-  it('ordered compound generation carries a guarantee', () => {
+  it('an ordered compound generation owes its fat tool', () => {
     expect(
-      turnCarriesGuarantee(
-        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: true })
+      owedToolName(
+        state({ compoundGenerationKind: 'sheet', compoundGenerationOrdered: true }),
+        '',
+        mounted('create_sheet'),
+        []
       )
-    ).toBe(true);
-    expect(turnCarriesGuarantee(state({ compoundGenerationKind: 'sharepic' }))).toBe(true);
+    ).toBe('create_sheet');
   });
 
-  it('a merely named artifact (compoundGenerationOrdered: false) does not', () => {
+  it('a merely named artifact (compoundGenerationOrdered: false) owes nothing', () => {
     expect(
-      turnCarriesGuarantee(
-        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: false })
+      owedToolName(
+        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: false }),
+        '',
+        mounted('sharepic'),
+        []
       )
-    ).toBe(false);
+    ).toBeNull();
   });
 
-  it('an artifact edit order carries none — its first step is forced in the stream', () => {
-    expect(turnCarriesGuarantee(state({ artifactEditOrder: true }))).toBe(false);
+  it('owes nothing once the tool ran or an artifact exists', () => {
+    const compound = {
+      compoundGenerationKind: 'sharepic',
+      compoundGenerationOrdered: true,
+    } as const;
+    expect(owedToolName(state(compound), '', mounted('sharepic'), ['sharepic'])).toBeNull();
+    expect(
+      owedToolName(
+        state({ ...compound, sharepicVariants: [{}] } as Partial<ChatGraphState>),
+        '',
+        mounted('sharepic'),
+        []
+      )
+    ).toBeNull();
   });
 
-  it('the forced edit precondition carries one — by intent, and by the ask', () => {
+  it('a forced edit owes the mounted edit tool — by intent, and by the ask', () => {
     expect(
-      turnCarriesGuarantee(state({ editToolSurface: 'board', intent: 'edit_current_board' }))
-    ).toBe(true);
+      owedToolName(
+        state({ editToolSurface: 'board', intent: 'edit_current_board' }),
+        '',
+        mounted('edit_document'),
+        []
+      )
+    ).toBe('edit_document');
     expect(
-      turnCarriesGuarantee(
+      owedToolName(
         state({ editToolSurface: 'board', intent: 'agentic' }),
-        'Erstelle eine Aufgabe „Plakate bestellen" in To-Do'
+        'Erstelle eine Aufgabe „Plakate bestellen" in To-Do',
+        mounted('edit_document'),
+        []
       )
-    ).toBe(true);
+    ).toBe('edit_document');
     // A question to the board is no edit.
     expect(
-      turnCarriesGuarantee(
+      owedToolName(
         state({ editToolSurface: 'board', intent: 'agentic' }),
-        'Wie viele Aufgaben sind offen?'
+        'Wie viele Aufgaben sind offen?',
+        mounted('edit_document'),
+        []
       )
-    ).toBe(false);
-    // Already edited: nothing is owed any more.
+    ).toBeNull();
+  });
+
+  it('owes nothing the turn cannot call', () => {
     expect(
-      turnCarriesGuarantee(
-        state({
-          editToolSurface: 'board',
-          intent: 'edit_current_board',
-          editorEditsSummary: 'x',
-        } as Partial<ChatGraphState>)
+      owedToolName(
+        state({ compoundGenerationKind: 'sheet', compoundGenerationOrdered: true }),
+        '',
+        mounted(),
+        []
       )
-    ).toBe(false);
+    ).toBeNull();
   });
 
-  it('a pinned tool carries none — the named first call is forced in the stream', () => {
-    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'bundestag' }))).toBe(false);
-    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'web_search' }))).toBe(false);
-  });
-
-  it('a plain turn carries none', () => {
-    expect(turnCarriesGuarantee(state({ intent: 'agentic' }))).toBe(false);
+  it('a plain turn owes nothing', () => {
+    expect(owedToolName(state({ intent: 'agentic' }), '', mounted('sharepic'), [])).toBeNull();
   });
 });

@@ -232,8 +232,8 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0.14,
     basis: 'measured',
   },
-  // The SAME model under GreenPT's own id, because the loop PLANNER runs there
-  // since 13.08.2026 (LOOP_PLANNER_PRIMARY) and usage records the id we asked
+  // The SAME model under GreenPT's own id, because the loop PLANNER ran there
+  // from 13.08.2026 to 29.09.2026 and usage records the id we asked
   // for. GreenPT returns `impact` per request, so this entry is only the
   // fallback for a turn whose impact capture came back empty — without it such
   // a row would count as uncovered rather than estimated.
