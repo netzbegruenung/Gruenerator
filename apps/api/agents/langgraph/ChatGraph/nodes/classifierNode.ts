@@ -2678,6 +2678,8 @@ function formatTopicalContext(state: ChatGraphState): string | null {
         return ['- Ein Board ist referenziert (siehe Boardkontext im Gespräch).'];
       case 'attachment':
         return ['- Hochgeladene Datei(en) liegen vor.'];
+      case 'paste':
+        return ['- Die Person hat Text in ihre Nachricht eingefügt.'];
       case 'image':
         return [`- Bilder angehängt: ${a.names.join(', ')}`];
       case 'documentChat':

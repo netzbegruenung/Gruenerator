@@ -141,6 +141,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,
+    turnMaterial: input.turnMaterial ?? [],
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,

@@ -185,6 +185,7 @@ function buildState(
     threadArtifacts: artifacts,
     lastTurnEditables,
     attachmentContext: null,
+    turnMaterial: [],
     imageAttachments: [],
     threadAttachments: [],
     pdfFormAttachments: [],

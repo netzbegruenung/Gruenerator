@@ -22,7 +22,7 @@ import {
 } from '../../../../utils/decisionJournal.js';
 
 import type * as productKnowledge from '../../../../services/chat/productKnowledge.js';
-import type { ChatGraphState } from '../types.js';
+import type { ChatGraphState, TurnMaterialItem } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -67,6 +67,14 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
 
 const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
   await import('./respondNode.js');
+const { PASTED_TEXT_HEADING } =
+  await import('../../../../routes/chat/services/attachmentProcessingService.js');
+const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
+
+const material = (items: TurnMaterialItem[]) => ({
+  turnMaterial: items,
+  attachmentContext: renderTurnMaterial(items),
+});
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -349,6 +357,51 @@ const GOLDEN_CASES: readonly Case[] = [
     state: makeState({
       attachmentContext: '### Antrag.pdf\n\nDer Antrag fordert ein Tempolimit.',
       threadAttachments: [protokoll],
+    } as never),
+  },
+  // #5423: ein Paste ist Teil der Nachricht, keine hochgeladene Datei.
+  {
+    name: 'mit eingefuegtem text',
+    state: makeState({
+      intent: 'produktion',
+      ...material([
+        {
+          kind: 'paste',
+          name: 'Eingefügter Text.txt',
+          heading: PASTED_TEXT_HEADING,
+          text: '12.01.2027 Neujahrsempfang, Rathaus',
+        },
+      ]),
+      threadAttachments: [
+        {
+          ...protokoll,
+          id: 'att-paste',
+          name: 'Eingefügter Text.txt',
+          mimeType: 'text/plain',
+          extractedText: '05.01.2027 Klausur, Parteibüro',
+        },
+      ],
+      messages: [{ role: 'user', content: 'Hier sind die Termine' }],
+    } as never),
+  },
+  {
+    name: 'eingefuegter text neben datei',
+    state: makeState({
+      intent: 'produktion',
+      ...material([
+        {
+          kind: 'upload',
+          name: 'Antrag.pdf',
+          heading: 'Antrag.pdf (Volltext-Auszug)',
+          text: 'Der Antrag fordert ein Tempolimit.',
+        },
+        {
+          kind: 'paste',
+          name: 'Eingefügter Text.txt',
+          heading: PASTED_TEXT_HEADING,
+          text: 'Unsere Begründung: weniger Lärm.',
+        },
+      ]),
     } as never),
   },
   {

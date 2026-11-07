@@ -16,7 +16,7 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
 
 const { classifierNode } = await import('./classifierNode.js');
 
-import type { ChatGraphState, SearchIntent } from '../types.js';
+import type { ChatGraphState, SearchIntent, TurnMaterialItem } from '../types.js';
 
 const STUB_AGENT_CONFIG = {
   identifier: 'gruenerator-universal',
@@ -63,6 +63,14 @@ function buildState(
 }
 
 const { getActiveAnchors } = await import('./anchorContext.js');
+const { PASTED_TEXT_HEADING } =
+  await import('../../../../routes/chat/services/attachmentProcessingService.js');
+const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
+
+const material = (items: TurnMaterialItem[]) => ({
+  turnMaterial: items,
+  attachmentContext: renderTurnMaterial(items),
+});
 
 /**
  * #5406: ein eingefügter Text, der ganz im Prompt steht (`wholeDocument.ask ===
@@ -76,7 +84,9 @@ const PASTE = 'y'.repeat(13_300);
 const pasteTurn = (over: Partial<ChatGraphState> = {}) =>
   buildState({
     userMessage: 'Hier sind die Termine',
-    attachmentContext: `### Eingefügter Text.txt (Volltext-Auszug)\n\n${PASTE}`,
+    ...material([
+      { kind: 'paste', name: 'Eingefügter Text.txt', heading: PASTED_TEXT_HEADING, text: PASTE },
+    ]),
     documentChatIds: ['doc-paste'],
     wholeDocument: {
       origin: 'turn',
@@ -105,9 +115,38 @@ describe('paste read whole — not a document chat', () => {
     expect(result.reasoning ?? '').toContain('DocumentChat');
   });
 
-  it('the prompt says „attachment", not „limited to selected documents"', () => {
+  it('the prompt says „pasted into this message", not „limited to selected documents"', () => {
     const kinds = getActiveAnchors(pasteTurn()).map((a) => a.kind);
-    expect(kinds).toContain('attachment');
+    expect(kinds).toContain('paste');
     expect(kinds).not.toContain('documentChat');
+  });
+
+  // #5423: „Hochgeladene Dateien … soweit relevant" las das Modell als
+  // Hintergrund neben der Nachricht und fragte zurück.
+  it('a paste alone is not framed as an uploaded file', () => {
+    const kinds = getActiveAnchors(pasteTurn()).map((a) => a.kind);
+    expect(kinds).not.toContain('attachment');
+  });
+
+  it('a paste next to an upload carries both anchors', () => {
+    const kinds = getActiveAnchors(
+      pasteTurn(
+        material([
+          {
+            kind: 'upload',
+            name: 'Antrag.pdf',
+            heading: 'Antrag.pdf (Volltext-Auszug)',
+            text: 'Text',
+          },
+          {
+            kind: 'paste',
+            name: 'Eingefügter Text.txt',
+            heading: PASTED_TEXT_HEADING,
+            text: PASTE,
+          },
+        ])
+      )
+    ).map((a) => a.kind);
+    expect(kinds).toEqual(expect.arrayContaining(['paste', 'attachment']));
   });
 });

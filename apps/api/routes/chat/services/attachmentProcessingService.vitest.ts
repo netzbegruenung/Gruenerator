@@ -25,7 +25,8 @@ vi.mock('../../../services/pdfForm/pdfFormService.js', () => ({
   fillFormFields: vi.fn(),
 }));
 
-const { processAttachments } = await import('./attachmentProcessingService.js');
+const { processAttachments, materialSectionHeading, PASTED_TEXT_HEADING } =
+  await import('./attachmentProcessingService.js');
 
 const pdf = (over: { name?: string; data?: string; isImage?: boolean } = {}) => ({
   name: over.name ?? 'Antrag.pdf',
@@ -148,5 +149,84 @@ describe('processAttachments — Seitenmarken', () => {
     expect(processedMeta[0].extractedText).toBe('## Seite 1\n\nPräambel\n\n## Seite 2\n\nA1');
     expect(processedMeta[0].pageCount).toBe(2);
     expect(attachmentContext).toContain('## Seite 2\n\nA1');
+  });
+});
+
+// #5423: ein Paste stand als `### Eingefügter Text.txt (Volltext-Auszug)` unter
+// ANGEHÄNGTE DOKUMENTE, und das Modell fragte zurück, ob die Liste „aus dem
+// angehängten Dokument" gemeint sei. Die Überschrift sagt jetzt, was er ist.
+describe('processAttachments — eingefügter Text', () => {
+  const textFile = (name: string, type = 'text/plain') => ({
+    name,
+    type,
+    size: 10,
+    isImage: false,
+    data: Buffer.from('12.01. Neujahrsempfang', 'utf8').toString('base64'),
+  });
+
+  beforeEach(() => {
+    mockExtract.mockReset().mockResolvedValue({ text: '12.01. Neujahrsempfang', pageCount: 1 });
+  });
+
+  const kinds = (items: { kind: string }[]): string[] => items.map((item) => item.kind);
+
+  it('überschreibt den Paste als Teil der Nachricht, nicht als Datei', async () => {
+    const { attachmentContext, turnMaterial } = await processAttachments(
+      [textFile('Eingefügter Text.txt')],
+      'req-1'
+    );
+    expect(attachmentContext).toContain(`### ${PASTED_TEXT_HEADING}\n`);
+    expect(attachmentContext).not.toContain('.txt');
+    expect(kinds(turnMaterial)).toEqual(['paste']);
+  });
+
+  it('lässt eine hochgeladene Textdatei eine Datei bleiben', async () => {
+    const { attachmentContext, turnMaterial } = await processAttachments(
+      [textFile('notizen.txt')],
+      'req-1'
+    );
+    expect(attachmentContext).toContain('### notizen.txt (Volltext-Auszug)\n');
+    expect(kinds(turnMaterial)).toEqual(['upload']);
+  });
+
+  it('erkennt beides nebeneinander', async () => {
+    const { turnMaterial } = await processAttachments(
+      [textFile('notizen.txt'), textFile('Eingefügter Text.txt')],
+      'req-1'
+    );
+    expect(kinds(turnMaterial)).toEqual(['upload', 'paste']);
+  });
+
+  it('führt eine Datei ohne lesbaren Text als Datei neben dem Paste', async () => {
+    mockExtract
+      .mockResolvedValueOnce({ text: '', pageCount: 1 })
+      .mockResolvedValueOnce({ text: '12.01. Neujahrsempfang', pageCount: 1 });
+    const { attachmentContext, turnMaterial } = await processAttachments(
+      [textFile('scan.txt'), textFile('Eingefügter Text.txt')],
+      'req-1'
+    );
+    expect(attachmentContext).toContain('### scan.txt\n\n[Kein Text erkannt]');
+    expect(kinds(turnMaterial)).toEqual(['upload', 'paste']);
+  });
+
+  it('nimmt einen Upload, der nur so heisst, nicht für einen Paste', () => {
+    expect(materialSectionHeading('Eingefügter Text.txt', 'application/pdf')).toBe(
+      'Eingefügter Text.txt (Volltext-Auszug)'
+    );
+  });
+
+  it('nennt einen früheren Paste als solchen, mit Voll- oder Kurzfassung', () => {
+    expect(materialSectionHeading('Eingefügter Text.txt', 'text/plain', 'Volltext-Auszug')).toBe(
+      'Eingefügter Text aus einer früheren Nachricht (Volltext-Auszug)'
+    );
+    expect(materialSectionHeading('bericht.pdf', 'application/pdf', 'Zusammenfassung')).toBe(
+      'bericht.pdf (Zusammenfassung)'
+    );
+  });
+
+  it('meldet für leeres Material nichts', async () => {
+    const { attachmentContext, turnMaterial } = await processAttachments([], 'req-1');
+    expect(attachmentContext).toBe('');
+    expect(turnMaterial).toEqual([]);
   });
 });

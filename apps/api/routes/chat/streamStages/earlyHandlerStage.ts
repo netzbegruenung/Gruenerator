@@ -14,6 +14,7 @@ import { parseSharepicChatProps } from '@gruenerator/contracts';
 import { hasTermin } from '../../../services/sharepicCreator/briefFacts.js';
 import { terminGapInstruction } from '../../../services/sharepicCreator/terminGap.js';
 import { createLogger } from '../../../utils/logger.js';
+import { appendTurnMaterial, setTurnMaterial } from '../services/materialItems.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
 import {
@@ -394,10 +395,8 @@ export async function runEarlyHandlerStage({
       rawCurrentSharepic.variantId
     );
     if (sharepicContext) {
-      classifiedState.attachmentContext = classifiedState.attachmentContext
-        ? `${classifiedState.attachmentContext}\n\n${sharepicContext}`
-        : sharepicContext;
-      initialState.attachmentContext = classifiedState.attachmentContext;
+      appendTurnMaterial(classifiedState, { kind: 'sharepic', text: sharepicContext });
+      setTurnMaterial(initialState, classifiedState.turnMaterial);
     }
   }
   return { handled: false, sharepicRefinement, forcedTool };
