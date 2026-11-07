@@ -179,9 +179,18 @@ describe('pandasComputeNode', () => {
   it('recovers the exact filename from a labeled first-turn header in fill mode', async () => {
     // Regression: `### name.xlsx (Volltext-Auszug)` used to fail the tabular
     // extension check, dropping the file from the fill-mode prompt entirely.
+    // The name now comes from the material item, not from the heading.
     const state = makeState('{"related": true, "code": "print(1)"}', {
       threadAttachments: [],
       attachmentContext: '### Ausgaben.xlsx (Volltext-Auszug)\n\nRegion | Umsatz\nNord | 100',
+      turnMaterial: [
+        {
+          kind: 'upload',
+          name: 'Ausgaben.xlsx',
+          heading: 'Ausgaben.xlsx (Volltext-Auszug)',
+          text: 'Region | Umsatz\nNord | 100',
+        },
+      ],
     } as Partial<ChatGraphState>);
     await pandasComputeNode(state, { mode: 'fill' });
     const call = requestAt(0);

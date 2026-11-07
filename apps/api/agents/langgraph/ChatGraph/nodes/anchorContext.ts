@@ -1,3 +1,4 @@
+import { turnMaterialOf } from '../../../../routes/chat/services/materialItems.js';
 import { documentChatIdsToSearch } from '../../../../routes/chat/services/wholeDocument.js';
 
 import type { ChatGraphState } from '../types.js';
@@ -15,6 +16,8 @@ export type AnchorDescriptor =
   | { kind: 'documentChat' }
   | { kind: 'board' }
   | { kind: 'attachment' }
+  /** Text, den die Person in diese Nachricht eingefügt hat — kein Upload (#5423). */
+  | { kind: 'paste' }
   | { kind: 'image'; names: string[] };
 
 const DOC_MENTION_TITLE_RE = /^### (.+)$/gm;
@@ -54,7 +57,9 @@ export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
     anchors.push({ kind: 'documentChat' });
   }
   if (state.boardContext) anchors.push({ kind: 'board' });
-  if (state.attachmentContext) anchors.push({ kind: 'attachment' });
+  const material = turnMaterialOf(state);
+  if (material.some((item) => item.kind === 'paste')) anchors.push({ kind: 'paste' });
+  if (material.some((item) => item.kind !== 'paste')) anchors.push({ kind: 'attachment' });
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     anchors.push({ kind: 'image', names: state.imageAttachments.map((i) => i.name) });
   }

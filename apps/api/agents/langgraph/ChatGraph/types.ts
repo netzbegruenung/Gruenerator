@@ -542,6 +542,24 @@ export interface CurrentDocument {
   selectionText: string | null;
 }
 
+/**
+ * Ein Stück Material, das dieser Turn mitbringt — der Text, an dem das Modell
+ * arbeiten soll. Die Liste ist die Wahrheit; `attachmentContext` ist ihre
+ * gerenderte Fassung (`renderTurnMaterial`) und wird nur über
+ * `routes/chat/services/materialItems.ts` geschrieben (#5430).
+ *
+ * - `upload` / `paste`: eine Datei bzw. ein eingefügter Text. `heading` ist die
+ *   Abschnittsüberschrift ohne Rauten; bei einer Datei ohne lesbaren Text trägt
+ *   `text` den Platzhalter.
+ * - `reference`: per `@datei` / `@text` gewählte gespeicherte Inhalte.
+ * - `client`: Kontext, den der Client mitschickt (Docs-Editor, Auswahl).
+ * - `sharepic`: der Stand des offenen Sharepics.
+ */
+export type TurnMaterialItem =
+  | { kind: 'upload' | 'paste'; name: string; heading: string; text: string }
+  | { kind: 'reference'; heading: 'REFERENZIERTE DOKUMENTE' | 'REFERENZIERTE TEXTE'; text: string }
+  | { kind: 'client' | 'sharepic'; text: string };
+
 export interface ChatGraphInput {
   messages: ModelMessage[];
   threadId?: string | undefined;
@@ -554,6 +572,8 @@ export interface ChatGraphInput {
   userId?: string | undefined;
   enabledTools: Record<string, boolean>;
   attachmentContext?: string | undefined;
+  /** The items `attachmentContext` was rendered from — see `TurnMaterialItem`. */
+  turnMaterial?: TurnMaterialItem[] | undefined;
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
   /**
@@ -844,7 +864,9 @@ export interface ChatGraphState {
   onResearchProgress?: ((message: string) => void) | undefined;
 
   // Attachment context
+  /** Rendered from `turnMaterial` — read it, never assemble it by hand. */
   attachmentContext: string | null;
+  turnMaterial: TurnMaterialItem[];
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   /** Set by `enrichContext` when the turn needs whole documents — see `WholeDocumentTurn`. */

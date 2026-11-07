@@ -12,6 +12,7 @@
  */
 
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
+import { isFileItem, turnMaterialOf } from '../../../../routes/chat/services/materialItems.js';
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -152,8 +153,8 @@ function buildTableContext(state: ChatGraphState): string {
  * Exact upload names of the tabular attachments. Fill mode needs them verbatim
  * for `load_workbook(...)` — `buildTableContext` only carries them as a `###`
  * heading inside a possibly truncated blob, which is not a reliable source for
- * a file path. Falls back to parsing those headings when the thread-attachment
- * rows are not loaded yet (first turn).
+ * a file path. Falls back to the names in this turn's material when the
+ * thread-attachment rows are not loaded yet (first turn).
  */
 function tabularFileNames(state: ChatGraphState): string[] {
   const fromAttachments = (state.threadAttachments ?? [])
@@ -163,8 +164,9 @@ function tabularFileNames(state: ChatGraphState): string[] {
   const fromTurn = (state.turnTabularTexts ?? []).map((t) => t.name);
   if (fromTurn.length > 0) return fromTurn;
 
-  return [...(state.attachmentContext ?? '').matchAll(/^### (.+)$/gm)]
-    .map((m) => m[1].trim().replace(/\s*\([^)]*\)\s*$/, ''))
+  return turnMaterialOf(state)
+    .filter(isFileItem)
+    .map((item) => item.name)
     .filter((name) => isTabularAttachment(name, ''));
 }
 

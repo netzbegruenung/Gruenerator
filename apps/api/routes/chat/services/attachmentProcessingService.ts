@@ -10,11 +10,13 @@
 import { OCRService } from '../../../services/OcrService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { renderTurnMaterial } from './materialItems.js';
 import { describeWorkbookSheets } from './xlsxSheetNames.js';
 
 import type {
   ProcessedAttachment,
   ImageAttachment,
+  TurnMaterialItem,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 
@@ -34,6 +36,34 @@ export const PASTED_TEXT_ATTACHMENT_NAME = 'Eingefügter Text.txt';
 /** Is this attachment the composer's synthetic paste file? */
 export function isPastedTextAttachment(name: string, mimeType: string): boolean {
   return name === PASTED_TEXT_ATTACHMENT_NAME && mimeType === 'text/plain';
+}
+
+/**
+ * Überschrift eines eingefügten Texts im Material dieses Turns.
+ *
+ * Ein Paste ist keine hochgeladene Datei, sondern ein Teil der Nachricht. Stand
+ * er als `### Eingefügter Text.txt (Volltext-Auszug)` unter ANGEHÄNGTE DOKUMENTE,
+ * las das Modell „Hier sind die Termine" als Nachricht OHNE Termine und fragte
+ * zurück, ob die Liste „aus dem angehängten Dokument" gemeint sei — 2 von 3
+ * Läufen, lokal wie auf gruenerator.eu (#5423).
+ */
+export const PASTED_TEXT_HEADING = 'Eingefügter Text (von der Person in diese Nachricht eingefügt)';
+
+/**
+ * Die `###`-Überschrift eines Material-Abschnitts, ohne die Rauten. `earlier`
+ * gesetzt: der Abschnitt stammt aus einem früheren Turn und trägt, ob er voll
+ * oder nur zusammengefasst vorliegt.
+ */
+export function materialSectionHeading(
+  name: string,
+  mimeType: string,
+  earlier?: 'Volltext-Auszug' | 'Zusammenfassung'
+): string {
+  const pasted = isPastedTextAttachment(name, mimeType);
+  if (!earlier) return pasted ? PASTED_TEXT_HEADING : `${name} (Volltext-Auszug)`;
+  return pasted
+    ? `Eingefügter Text aus einer früheren Nachricht (${earlier})`
+    : `${name} (${earlier})`;
 }
 
 /**
@@ -128,6 +158,19 @@ export interface ProcessedAttachmentMeta {
   documentId?: string;
 }
 
+function fileItem(
+  attachment: { name: string; type: string },
+  heading: string,
+  text: string
+): TurnMaterialItem {
+  return {
+    kind: isPastedTextAttachment(attachment.name, attachment.type) ? 'paste' : 'upload',
+    name: attachment.name,
+    heading,
+    text,
+  };
+}
+
 /**
  * Process attachments: separate images from documents, extract text from documents.
  */
@@ -135,7 +178,9 @@ export async function processAttachments(
   attachments: ProcessedAttachment[] | undefined,
   requestId: string
 ): Promise<{
+  /** `turnMaterial` gerendert; leer ohne Dokument. */
   attachmentContext: string;
+  turnMaterial: TurnMaterialItem[];
   imageAttachments: ImageAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
   /** Dieses Turns Kandidaten für die PDF-Formularwerkzeuge (`streamContext` →
@@ -152,6 +197,7 @@ export async function processAttachments(
   if (!attachments || attachments.length === 0) {
     return {
       attachmentContext: '',
+      turnMaterial: [],
       imageAttachments: [],
       processedMeta: [],
       pdfFormCandidates: [],
@@ -159,7 +205,7 @@ export async function processAttachments(
   }
 
   const imageAttachments: ImageAttachment[] = [];
-  const documentTexts: string[] = [];
+  const turnMaterial: TurnMaterialItem[] = [];
   const processedMeta: ProcessedAttachmentMeta[] = [];
   const pdfFormCandidates: Array<{ name: string; data: string }> = [];
 
@@ -239,7 +285,9 @@ export async function processAttachments(
           // vectorized doc's RAG chunks (see contextEnrichmentService's
           // SMALL_DOC_VECTORIZATION_THRESHOLD routing) — the model otherwise
           // can't tell whether it's seeing everything or an excerpt.
-          documentTexts.push(`### ${attachment.name} (Volltext-Auszug)\n\n${text}`);
+          turnMaterial.push(
+            fileItem(attachment, materialSectionHeading(attachment.name, attachment.type), text)
+          );
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,
@@ -255,7 +303,7 @@ export async function processAttachments(
           // Without this branch the file vanished from both the context and
           // processedMeta — so it was never even persisted.
           log.warn(`[${requestId}] No text extracted from: ${attachment.name}`);
-          documentTexts.push(`### ${attachment.name}\n\n[Kein Text erkannt]`);
+          turnMaterial.push(fileItem(attachment, attachment.name, '[Kein Text erkannt]'));
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,
@@ -268,7 +316,9 @@ export async function processAttachments(
         }
       } catch (error) {
         log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, error);
-        documentTexts.push(`### ${attachment.name}\n\n[Fehler beim Extrahieren des Textes]`);
+        turnMaterial.push(
+          fileItem(attachment, attachment.name, '[Fehler beim Extrahieren des Textes]')
+        );
         processedMeta.push({
           name: attachment.name,
           mimeType: attachment.type,
@@ -282,7 +332,8 @@ export async function processAttachments(
   }
 
   return {
-    attachmentContext: documentTexts.join('\n\n---\n\n'),
+    attachmentContext: renderTurnMaterial(turnMaterial) ?? '',
+    turnMaterial,
     imageAttachments,
     processedMeta,
     pdfFormCandidates,

@@ -65,6 +65,7 @@ import { authorizeDocumentScope } from './documentScopeAccess.js';
 import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
 import { turnContextWindow } from './laneContextFloor.js';
+import { renderTurnMaterial } from './materialItems.js';
 import {
   extractTextContent,
   filterEmptyAssistantMessages,
@@ -119,6 +120,7 @@ import type {
   ChatGraphInput,
   ProcessedAttachment,
   ResolvedNotebookSource,
+  TurnMaterialItem,
   WolkeFileRef,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -939,7 +941,7 @@ export async function buildStreamContext({
 
   // === Process attachments ===
   const {
-    attachmentContext: derivedAttachmentContext,
+    turnMaterial: derivedTurnMaterial,
     imageAttachments,
     processedMeta,
     pdfFormCandidates,
@@ -949,10 +951,13 @@ export async function buildStreamContext({
   // with what processAttachments derived from uploaded files.
   const clientAttachmentContext =
     (rawClientAttachmentContext as string | null | undefined)?.trim() || undefined;
-  const attachmentContext =
-    clientAttachmentContext && derivedAttachmentContext
-      ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
-      : clientAttachmentContext || derivedAttachmentContext;
+  const turnMaterial: TurnMaterialItem[] = [
+    ...(clientAttachmentContext
+      ? [{ kind: 'client' as const, text: clientAttachmentContext }]
+      : []),
+    ...derivedTurnMaterial,
+  ];
+  const attachmentContext = renderTurnMaterial(turnMaterial);
 
   const inlineMaterial = inlineMaterialAttachment(
     lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
@@ -1115,6 +1120,7 @@ export async function buildStreamContext({
       memory: true,
     },
     attachmentContext: attachmentContext ?? undefined,
+    turnMaterial,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,

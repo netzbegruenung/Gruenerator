@@ -5,7 +5,7 @@
  * Ganzen. Bis zum 06.11.2026 bekam sie trotzdem nur, was die Ablage für Fragen
  * vorsieht: über 12.000 Zeichen wird ein Anhang vektorisiert und kommt per
  * Passagensuche zurück (6.000 Zeichen im Loop), darunter kappt
- * `limitAttachmentContext` jedes Dokument bei 25.000 Zeichen, und
+ * `limitMaterialTexts` jedes Dokument bei 25.000 Zeichen, und
  * `summarizeNode` setzte den Volltext aus höchstens 20 Qdrant-Chunks zusammen.
  * Live 06.11.2026 (Thread f421f2a5): ein 30-seitiges PDF kam mit 23.158 Zeichen
  * an, die Map-Reduce-Zusammenfassung brauchte 41 s und wurde als Werkzeug nach
