@@ -54,7 +54,11 @@ const desktopBearerFetch: typeof fetch = async (input, init) => {
   return fetch(input, init);
 };
 
+// `window` guard: route modules import this transitively, and the node test
+// lane (routes.vitest.ts) loads them without a DOM.
+const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+
 export const authClient = createAuthClient({
-  baseURL: new URL(`${apiBase}/auth/v2`, window.location.origin).toString(),
+  baseURL: new URL(`${apiBase}/auth/v2`, origin).toString(),
   fetchOptions: { customFetchImpl: desktopBearerFetch },
 });
