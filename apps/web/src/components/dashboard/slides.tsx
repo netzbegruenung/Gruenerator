@@ -1,5 +1,6 @@
 import { cn } from '@gruenerator/ui';
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -66,11 +67,16 @@ export function useAutoAdvance(count: number, intervalMs: number | null) {
 
   // Kommen weniger Folien als vorher, bleibt der Index gültig.
   const active = count > 0 ? index % count : 0;
-  const select = (i: number) => {
-    setStopped(true);
-    setManual(true);
-    setIndex(((i % count) + count) % count);
-  };
+  // Stabil (useCallback), damit memoisierte Punkte und Pause-Knopf beim Folienwechsel nicht mitrendern.
+  const select = useCallback(
+    (i: number) => {
+      setStopped(true);
+      setManual(true);
+      setIndex(((i % count) + count) % count);
+    },
+    [count]
+  );
+  const togglePlaying = useCallback(() => setStopped((v) => !v), []);
 
   return {
     active,
@@ -80,7 +86,7 @@ export function useAutoAdvance(count: number, intervalMs: number | null) {
     /** Läuft das Durchwechseln gerade (nicht angehalten, nicht von Hand gestellt)? */
     playing: intervalMs !== null && !stopped && count > 1,
     /** Pause/Weiter — WCAG 2.2.2 verlangt einen sichtbaren Weg, das Durchwechseln anzuhalten. */
-    togglePlaying: () => setStopped((v) => !v),
+    togglePlaying,
     containerProps: {
       onTouchStart: (e: TouchEvent) => {
         const t = e.touches[0];

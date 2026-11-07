@@ -85,30 +85,41 @@ const HeadlineSlide = memo(function HeadlineSlide({
   );
 });
 
-export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
+/** Pause/Weiter — WCAG 2.2.2. `memo`: ändert sich nur, wenn jemand ihn drückt. */
+const PlayButton = memo(function PlayButton({
+  playing,
+  onToggle,
+}: {
+  playing: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={playing ? 'Durchwechseln anhalten' : 'Durchwechseln fortsetzen'}
+      className={cn(
+        'ml-auto flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground hover:text-(--dash-mg)',
+        DASH_FOCUS
+      )}
+    >
+      {playing ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
+    </button>
+  );
+});
+
+/**
+ * Folien, Punkte und Pause-Knopf mit dem Folienstand. Er liegt hier statt im
+ * Slider, damit Karte und Überschrift beim Wechsel nicht mitrendern; Wischen
+ * und Anhalten per Mauszeiger/Fokus gelten deshalb für Folien und Fußzeile.
+ */
+function SliderBody({ items }: { items: WissenArticle[] }) {
   const { active, select, playing, togglePlaying, announced, containerProps } = useAutoAdvance(
     items.length,
     SLIDE_INTERVAL_MS
   );
-
-  if (items.length === 0) {
-    return (
-      <SliderCard aria-label={SLIDER_TITLE} aria-busy={loading}>
-        <SliderTitle to={to} />
-        {loading ? (
-          <SliderSkeleton />
-        ) : (
-          <p className={cn('m-0 px-[18px] pb-6 pt-3 md:px-[26px] lg:px-8', DASH_MUTED)}>
-            Gerade keine neuen Schlagzeilen.
-          </p>
-        )}
-      </SliderCard>
-    );
-  }
-
   return (
-    <SliderCard aria-roledescription="Karussell" aria-label={SLIDER_TITLE} {...containerProps}>
-      <SliderTitle to={to} />
+    <div {...containerProps} className="flex flex-col">
       <div
         className="flex transition-transform duration-[900ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none"
         style={{ transform: `translateX(-${active * 100}%)` }}
@@ -129,24 +140,32 @@ export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
           onSelect={select}
         />
         <SlideStatus text={announced === null ? null : (items[announced]?.title ?? null)} />
-        {items.length > 1 && (
-          <button
-            type="button"
-            onClick={togglePlaying}
-            aria-label={playing ? 'Durchwechseln anhalten' : 'Durchwechseln fortsetzen'}
-            className={cn(
-              'ml-auto flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground hover:text-(--dash-mg)',
-              DASH_FOCUS
-            )}
-          >
-            {playing ? (
-              <Pause aria-hidden className="size-4" />
-            ) : (
-              <Play aria-hidden className="size-4" />
-            )}
-          </button>
-        )}
+        {items.length > 1 && <PlayButton playing={playing} onToggle={togglePlaying} />}
       </div>
+    </div>
+  );
+}
+
+export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
+  if (items.length === 0) {
+    return (
+      <SliderCard aria-label={SLIDER_TITLE} aria-busy={loading}>
+        <SliderTitle to={to} />
+        {loading ? (
+          <SliderSkeleton />
+        ) : (
+          <p className={cn('m-0 px-[18px] pb-6 pt-3 md:px-[26px] lg:px-8', DASH_MUTED)}>
+            Gerade keine neuen Schlagzeilen.
+          </p>
+        )}
+      </SliderCard>
+    );
+  }
+
+  return (
+    <SliderCard aria-roledescription="Karussell" aria-label={SLIDER_TITLE}>
+      <SliderTitle to={to} />
+      <SliderBody items={items} />
     </SliderCard>
   );
 }
