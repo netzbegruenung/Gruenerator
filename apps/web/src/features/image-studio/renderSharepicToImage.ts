@@ -75,6 +75,23 @@ const PIXEL_RATIO: Record<RenderQuality, number> = {
  */
 const PREPARE_TIMEOUT_MS = 10_000;
 
+/**
+ * How long a capture waits for the canvas images before it takes what it has.
+ *
+ * A chat card waits longest. The first load of a live Unsplash photo goes
+ * through the API, which asks Unsplash for the record and redirects, and on a
+ * busy machine that took longer than ten seconds. The card then captured the
+ * template without its photo, cached that per version and never rendered it
+ * again; only a reload showed the photo (#5255). Waiting costs the card a
+ * longer placeholder, nothing else. The app's render page keeps ten seconds:
+ * its attempts have 30 s (see `PREPARE_TIMEOUT_MS`).
+ */
+const CAPTURE_WAIT_MS: Record<RenderQuality, number> = {
+  preview: 30_000,
+  app: 10_000,
+  full: 10_000,
+};
+
 interface CanvasHandle {
   toDataURL: (options?: { pixelRatio?: number }) => string | undefined;
   imagesSettled?: () => boolean;
@@ -92,9 +109,10 @@ function cleanup(root: Root | null, container: HTMLDivElement | null) {
 function runRender(
   canvasType: string,
   initialProps: Record<string, unknown>,
-  pixelRatio: number,
+  quality: RenderQuality,
   formatId: string | null
 ): Promise<string | null> {
+  const pixelRatio = PIXEL_RATIO[quality];
   const prepare = async () => {
     const editor = await import('@gruenerator/canvas-editor');
     // The page's icons resolve from their sets; load them before the first
@@ -171,7 +189,7 @@ function runRender(
       // Poll for canvas readiness instead of blind timeout. The ceiling is
       // generous because a stock background is a multi-MB JPEG, and a capture
       // taken before it arrives is the template without its photo.
-      const maxWaitMs = 10000;
+      const maxWaitMs = CAPTURE_WAIT_MS[quality];
       const pollIntervalMs = 100;
       const startTime = Date.now();
 
@@ -271,8 +289,7 @@ export function renderSharepicToImage(
     return creator ? renderCreatorSlide(creator, quality) : Promise.resolve(null);
   }
   const formatId = options?.formatId ?? null;
-  const pixelRatio = PIXEL_RATIO[quality];
   return queue.run(keyFor(canvasType, initialProps, quality, formatId), () =>
-    runRender(canvasType, initialProps, pixelRatio, formatId)
+    runRender(canvasType, initialProps, quality, formatId)
   );
 }

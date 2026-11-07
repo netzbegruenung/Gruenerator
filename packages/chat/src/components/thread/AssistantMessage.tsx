@@ -26,6 +26,7 @@ import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
+import { FollowUpSuggestions } from '../message-parts/FollowUpSuggestions';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
@@ -387,6 +388,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
                 : {})}
             />
           )}
+
+          {!isStreaming && <FollowUpSuggestions />}
 
           {showSearchResults && (
             <SearchResultsSection

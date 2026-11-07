@@ -33,7 +33,11 @@ const EMAIL_HANDLED_ELSEWHERE: ReadonlySet<NotificationType> = new Set<Notificat
 
 // Types delivered exclusively in-app (no push, no email) regardless of importance
 // tier — e.g. one-off product announcements where a mass email/push is unwanted.
-const IN_APP_ONLY: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
+const IN_APP_ONLY: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'new_avatars',
+  // Daily — a daily email would be spam; the sidebar marks it too.
+  'daily_briefing',
+]);
 
 type NotificationRow = InferSelectModel<typeof notifications>;
 
@@ -399,6 +403,29 @@ export async function markAllAsRead(userId: string): Promise<void> {
     .update(notifications)
     .set({ is_read: true, read_at: new Date() })
     .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)));
+}
+
+/** Mark every notification of one group (`group_key`) of this user as read. */
+export async function markGroupAsRead(groupKey: string, userId: string): Promise<void> {
+  const db = getDrizzleInstance();
+  await db
+    .update(notifications)
+    .set({ is_read: true, read_at: new Date() })
+    .where(
+      and(
+        eq(notifications.user_id, userId),
+        eq(notifications.group_key, groupKey),
+        eq(notifications.is_read, false)
+      )
+    );
+}
+
+/** Delete every notification of one group (`group_key`) of this user. */
+export async function dismissGroup(groupKey: string, userId: string): Promise<void> {
+  const db = getDrizzleInstance();
+  await db
+    .delete(notifications)
+    .where(and(eq(notifications.user_id, userId), eq(notifications.group_key, groupKey)));
 }
 
 export async function dismissNotification(notificationId: string, userId: string): Promise<void> {

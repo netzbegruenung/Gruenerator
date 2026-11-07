@@ -26,6 +26,8 @@ export const usageFeatureSchema = z.enum([
   'texte',
   'notebook',
   'voice',
+  // The daily briefing (Tagesbriefing), one model call per person and day.
+  'briefing',
   'other',
 ]);
 

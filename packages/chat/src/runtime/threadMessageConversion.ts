@@ -73,6 +73,7 @@ export interface LoadedMessage {
     searchCount?: number;
     traceId?: string;
     citations?: Citation[];
+    followUpSuggestions?: string[];
     /** Notebook answers only: the collection/document entries the answer drew
      *  on, persisted beside the citations and read by the sources panel. */
     sources?: unknown[];
@@ -268,6 +269,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'roleName',
   'interrupted',
   'turnDurationMs',
+  'followUpSuggestions',
 ] as const;
 
 /**

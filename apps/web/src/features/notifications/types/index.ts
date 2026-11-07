@@ -10,6 +10,7 @@ import {
   Newspaper,
   Share2,
   Sparkles,
+  Sun,
   UserCheck,
   UserPlus,
   Users,
@@ -227,6 +228,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: CloudDownload,
     group: 'system',
     actions: (ctx) => [openLinkAction('Notebook öffnen')(ctx)],
+  },
+  daily_briefing: {
+    label: 'Tagesbriefing',
+    description: 'Deine Übersicht beim ersten Besuch des Tages',
+    icon: Sun,
+    group: 'system',
+    actions: (ctx) => [openLinkAction('Briefing öffnen')(ctx)],
   },
   new_avatars: {
     label: 'Neue Avatare',

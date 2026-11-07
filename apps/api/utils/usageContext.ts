@@ -58,6 +58,7 @@ export const USAGE_FEATURES = [
   'texte',
   'notebook',
   'voice',
+  'briefing',
   'other',
 ] as const;
 

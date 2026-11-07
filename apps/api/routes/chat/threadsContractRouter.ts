@@ -91,8 +91,10 @@ export const threadsContractRouter = s.router(threadsContract, {
                       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
                   ), true)
                 END as read_only,
-                m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
+                m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at,
+                db.day::text as briefing_day, (db.opened_at IS NULL) as briefing_unread
          FROM chat_threads t
+         LEFT JOIN daily_briefings db ON db.thread_id = t.id AND db.user_id::text = $1
          LEFT JOIN LATERAL (
            SELECT content, role, created_at
            FROM chat_messages
@@ -143,6 +145,9 @@ export const threadsContractRouter = s.router(threadsContract, {
               created_at: row.last_msg_created_at as Date | string,
             }
           : null,
+        briefing: row.briefing_day
+          ? { day: row.briefing_day as string, unread: row.briefing_unread === true }
+          : null,
       }));
 
       // Serialise Date fields → ISO strings for the wire (contract expects strings)
@@ -169,6 +174,7 @@ export const threadsContractRouter = s.router(threadsContract, {
               created_at: toIsoString(t.lastMessage.created_at),
             }
           : null,
+        briefing: t.briefing,
       }));
 
       return { status: 200 as const, body: serialised };

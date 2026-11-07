@@ -332,6 +332,31 @@ async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
 }
 
 /**
+ * The newest articles of some Landesverband short codes (e.g. `['BY','BY-F']`)
+ * published within the last `days` days, newest first — for the Tagesbriefing.
+ * Reads the same cached corpus scroll as the feed, so it costs no extra Qdrant call.
+ */
+export async function getRecentLvArticlesFor(
+  codes: readonly string[],
+  days: number,
+  limit: number
+): Promise<WhatHappenedArticle[]> {
+  if (codes.length === 0) return [];
+  const wanted = new Set(codes);
+  const recent = await loadRecentLvArticles();
+  const today = utcToday();
+  const cutoffDay = utcDayOffset(today, -(days - 1));
+  return recent
+    .filter((a) => {
+      if (!a.landesverband || !wanted.has(a.landesverband)) return false;
+      const day = dayOf(a);
+      return day !== null && day >= cutoffDay && day <= today;
+    })
+    .slice(0, limit)
+    .map((a) => ({ ...a, sourceUrl: resolveWolkeDisplayUrl(a.sourceUrl) }));
+}
+
+/**
  * Day-grouped feed of recently published Landesverband articles. The
  * landesverbaende facet is computed before the expert-mode filters so the
  * filter options stay stable while a filter is active. The `locale` query is

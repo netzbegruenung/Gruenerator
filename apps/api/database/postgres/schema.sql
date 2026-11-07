@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
     memory_enabled BOOLEAN DEFAULT TRUE,
+    proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     panda_enabled BOOLEAN,
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
@@ -114,6 +115,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS panda_enabled BOOLEAN;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
@@ -1559,3 +1561,26 @@ CREATE TABLE IF NOT EXISTS collection_subscriptions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, collection_id)
 );
+
+-- zz_20261106_daily_briefing.sql
+CREATE TABLE IF NOT EXISTS daily_briefings (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    day DATE NOT NULL,
+    thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'created', 'skipped', 'failed')),
+    opened_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, day)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_briefings_thread ON daily_briefings(thread_id) WHERE thread_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS monitor_lagebilder (
+    id BIGSERIAL PRIMARY KEY,
+    locale TEXT NOT NULL CHECK (locale IN ('de', 'at')),
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    payload JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitor_lagebilder_locale_generated ON monitor_lagebilder(locale, generated_at DESC);

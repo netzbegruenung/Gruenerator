@@ -66,6 +66,8 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   // admin verdict — always deliver (incl. email) regardless of level.
   template_approved: 1,
   template_rejected: 1,
+  // Tagesbriefing: in-app only (IN_APP_ONLY), its own switch lives in the profile.
+  daily_briefing: 2,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';
