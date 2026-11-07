@@ -101,7 +101,7 @@ import {
   type AnswerReplacement,
   type LoopMode,
 } from './loopEngine.js';
-import { createAfterGather, turnCarriesGuarantee } from './loopGuarantees.js';
+import { createAfterGather, owedToolName } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
@@ -595,7 +595,6 @@ export async function streamAgenticResponse(
       provider: resolution.provider,
       modelName: resolution.modelName,
       materialHeavy,
-      carriesGuarantee: turnCarriesGuarantee(finalState, lastUserText),
     });
     mode = resolvedMode.mode;
     recordDecision('loop.mode', mode, {
@@ -800,20 +799,35 @@ export async function streamAgenticResponse(
           finalState.readsPickedMaterial === true) &&
         materialReaderTools(material).some((name) => name in wrapped),
     });
-    const forceFirstToolCall = forceReason !== null;
+    // Was der Turn noch schuldet (bestelltes Artefakt, erzwungene Bearbeitung):
+    // als benannter Schritt im Strom, damit auch unified die Antwort erst nach
+    // dem Werkzeugergebnis schreibt. Erzwingt der Turn ohnehin einen ersten
+    // Aufruf (etwa die Recherche vor dem Sharepic), kommt das Geschuldete im
+    // nächsten Schritt (`forcedToolForStep`).
+    const owedTool = (): string | null =>
+      owedToolName(
+        finalState,
+        lastUserText,
+        (name) => name in wrapped,
+        steps.map((step) => step.toolName)
+      );
+    const owedAtStart = forceReason === null ? owedTool() : null;
+    const forceFirstToolCall = forceReason !== null || owedAtStart !== null;
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
     // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
     // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt, das
     // Modell kann die Wahl also gar nicht mehr sehen.
-    const firstToolName = forceReason
-      ? pinnedFirstTool({
-          pinnedTool,
-          hasAttachedDocuments,
-          summaryAsk,
-          isMounted: (name) => name in wrapped,
-        })
-      : null;
+    const firstToolName =
+      owedAtStart ??
+      (forceReason
+        ? pinnedFirstTool({
+            pinnedTool,
+            hasAttachedDocuments,
+            summaryAsk,
+            isMounted: (name) => name in wrapped,
+          })
+        : null);
     // Ohne benanntes Werkzeug bekommt der erzwungene Schritt nur die Werkzeuge,
     // die seinen Grund erfüllen (#3880) — sonst wählt der Planer unter zwanzig.
     const firstStepTools =
@@ -849,6 +863,7 @@ export async function streamAgenticResponse(
     if (forceReason) {
       forceScope = { reason: forceReason, tools: firstStepTools, named: firstToolName };
     }
+    if (owedAtStart) log.info(`[Agentic] geschuldetes ${owedAtStart} ist der erste Aufruf`);
 
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the
@@ -999,11 +1014,15 @@ export async function streamAgenticResponse(
       // forced into a tool it doesn't have.
       forcedToolForStep: () => {
         const toolName = guards.emptyResultFallback();
-        if (!toolName || !(toolName in wrapped)) return null;
-        log.info(
-          `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the planner`
-        );
-        return toolName;
+        if (toolName && toolName in wrapped) {
+          log.info(
+            `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the planner`
+          );
+          return toolName;
+        }
+        const owed = owedTool();
+        if (owed) log.info(`[Agentic] geschuldetes ${owed} wird jetzt erzwungen`);
+        return owed;
       },
       buildSynthSystem: (sources) => buildSynthSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing

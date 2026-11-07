@@ -104,23 +104,47 @@ function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
   );
 }
 
+/** An artefact this turn already produced: the creation guarantee is met. */
+function turnHasArtifact(state: ChatGraphState): boolean {
+  return (
+    state.generatedImage != null ||
+    (state.sharepicVariants?.length ?? 0) > 0 ||
+    state.createdDocument != null ||
+    state.createdBoard != null
+  );
+}
+
 /**
- * Whether the turn owes something `createAfterGather` guarantees before the
- * writer runs: an ordered compound artifact or a forced edit. Such a turn belongs
- * on the split loop, where the hook runs before synth; unified runs it AFTER the
- * stream, so the answer would announce what does not exist yet.
+ * The tool this turn still owes: the fat tool of an ordered compound
+ * generation, or the edit tool of an open surface the ask wants changed. Null
+ * once that tool ran (`calledToolNames`) or the artefact exists.
  *
- * Not here any more: a pinned `bundestag` and an order to change an existing
- * artifact. Both have their first step forced inside the stream
- * (`forceFirstToolCall`: `pinned`, `artifact_edit_order`), so a unified writer
- * sees the tool result before it writes. The pinned-bundestag rescue in
- * `afterGather` stays as the net for a host that ignores `tool_choice`.
+ * The loop forces it as a named step — at step 0 when nothing else is forced,
+ * otherwise as soon as the forced first call is done (`forcedToolForStep`) — so
+ * the writer sees the tool result BEFORE it writes, in both modes. Until 11/2026
+ * such a turn ran split instead (`turnCarriesGuarantee`), because unified ran
+ * `afterGather` only after the answer was written. `afterGather` stays as the
+ * net for a host that ignores `tool_choice`.
  *
- * `userAsk` is the turn's last user text (the forced edit reads it too); without
- * it only the ask-independent triggers count.
+ * `userAsk` is the turn's last user text (the forced edit reads it too).
  */
-export function turnCarriesGuarantee(state: ChatGraphState, userAsk = ''): boolean {
-  return compoundGenerationOwed(state) || editGuaranteeOwed(state, userAsk);
+export function owedToolName(
+  state: ChatGraphState,
+  userAsk: string,
+  isMounted: (name: string) => boolean,
+  calledToolNames: readonly string[]
+): string | null {
+  const ran = (name: string): boolean => calledToolNames.includes(name);
+  const kind = state.compoundGenerationKind;
+  if (kind && compoundGenerationOwed(state) && !turnHasArtifact(state)) {
+    const name = artifactKind(kind).loopToolName;
+    if (isMounted(name) && !ran(name)) return name;
+  }
+  if (editGuaranteeOwed(state, userAsk)) {
+    const name = EDIT_TOOL_NAMES.find(isMounted);
+    if (name && !ran(name)) return name;
+  }
+  return null;
 }
 
 export interface GuaranteeContext {
@@ -166,20 +190,15 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   };
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-  // `already` check, so it is safe to call more than once. Turns that carry
-  // this guarantee run split (`turnCarriesGuarantee`), so afterGather fires
-  // BEFORE the synth and the synth can confirm the artefact.
+  // artefact check, so it is safe to call more than once. The loop forces the
+  // tool itself first (`owedToolName`); this only catches a host that ignored
+  // the named step.
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
     // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
     // Planer. Nachholen hiesse, die blosse Erwähnung doch wieder zu erzwingen.
     if (!kind || !compoundGenerationOwed(p.state)) return;
-    const already =
-      p.state.generatedImage != null ||
-      (p.state.sharepicVariants?.length ?? 0) > 0 ||
-      p.state.createdDocument != null ||
-      p.state.createdBoard != null;
-    if (already) return; // planner already created it
+    if (turnHasArtifact(p.state)) return; // planner already created it
     // The model's own inline answer can BE the deliverable. In unified mode
     // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
     // with a markdown table in chat, spawning a spreadsheet on top duplicates

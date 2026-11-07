@@ -372,27 +372,30 @@ describe('unified loop', () => {
     expect(trace.fullText).toContain('Antwort mit');
   });
 
-  it('runs a compound sharepic turn on the split loop, so the writer announces the sharepic', async () => {
-    // Inverted in Task 3.4 (it pinned afterGather-after-the-stream): a turn that
-    // owes a guaranteed artifact is split even on Mistral — the guarantee runs
-    // BEFORE the writer, which is therefore told the sharepic exists.
+  it('runs a compound sharepic turn unified and forces the sharepic right after the research', async () => {
+    // Until 11/2026 a turn that owed an artefact ran split, because unified ran
+    // the guarantee only after the answer. Now the owed tool is the next named
+    // step after the research, so the writer sees the sharepic before it writes.
     respond.resolution = MISTRAL;
-    loopScript.script(
-      { calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }], text: '' },
-      { text: 'Hier die Recherche zur Windkraft [1] — dazu habe ich ein Sharepic erstellt.' }
-    );
+    loopScript.script({
+      calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }],
+      text: 'Hier die Recherche zur Windkraft [1].',
+    });
 
-    const { trace, events } = await runTurn(app.baseUrl, {
+    const { events } = await runTurn(app.baseUrl, {
       messages: [userTurn('Recherchiere zur Windkraft und erstelle ein Sharepic dazu')],
     });
 
     const mode = capture.last().entries.find((e) => e.point === 'loop.mode');
-    expect(mode?.chose).toBe('split');
-    expect(mode?.inputs?.reason).toBe('guarantee');
+    expect(mode?.chose).toBe('unified');
+    expect(loopScript.calls).toHaveLength(1);
+    // The step after the research is the named sharepic call.
+    expect(loopScript.calls[0]?.afterCallsToolChoice).toEqual({
+      type: 'tool',
+      toolName: 'sharepic',
+    });
+    // The scripted response ends after the research, so the post-stream net
+    // (afterGather) still delivers the sharepic.
     expect(events.map((e) => e.event)).toContain('sharepic_complete');
-    // Planner pass, then the writer: two calls, the second one without the unified tool rules.
-    expect(loopScript.calls).toHaveLength(2);
-    expect(loopScript.calls[1]?.system ?? '').not.toContain('ANTWORTPHASE');
-    expect(trace.fullText).toMatch(/sharepic/i);
   });
 });

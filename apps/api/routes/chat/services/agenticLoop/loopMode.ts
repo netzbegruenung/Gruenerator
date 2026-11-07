@@ -73,9 +73,10 @@ export function materialDominatesTurn(
  * `carriedMaterialChars` BEFORE resolving the model, so the lane and the loop
  * mode cannot read different numbers.
  *
- * Split also wins for a turn that carries a guarantee (a forced artifact, edit
- * or pinned tool): the hook runs BEFORE the writer there, so the writer
- * announces what exists instead of what is still to come.
+ * Guarantee turns (an ordered artifact, a forced edit, a pinned tool) used to
+ * split as well, because unified ran the `afterGather` hook only after the
+ * answer. They run the owed tool as a named step inside the stream now
+ * (`owedToolName`), so the writer sees the result first. Dropped 11/2026 (#5441).
  *
  * Headless runs (recurring task, board agent, notebook precision) used to split
  * too, on the reasoning that nobody reads a streamed-then-replaced answer. That
@@ -83,20 +84,16 @@ export function materialDominatesTurn(
  * (`emitter.setText`), and the notebook client takes the closing `completion`
  * over the streamed deltas (`parseSSEStream`). Dropped 11/2026 (#5441).
  */
-export type LoopModeReason = 'unified_model' | 'not_unified_model' | 'material_heavy' | 'guarantee';
+export type LoopModeReason = 'unified_model' | 'not_unified_model' | 'material_heavy';
 
 export function resolveLoopMode(input: {
   provider: string;
   modelName: string;
   materialHeavy: boolean;
-  /** The turn owes an artifact/edit/tool the split loop's `afterGather` hook
-   *  guarantees BEFORE the writer runs (see `turnCarriesGuarantee`). */
-  carriesGuarantee: boolean;
 }): { mode: LoopMode; reason: LoopModeReason } {
   if (!prefersUnifiedLoop(input.provider, input.modelName)) {
     return { mode: 'split', reason: 'not_unified_model' };
   }
   if (input.materialHeavy) return { mode: 'split', reason: 'material_heavy' };
-  if (input.carriesGuarantee) return { mode: 'split', reason: 'guarantee' };
   return { mode: 'unified', reason: 'unified_model' };
 }
