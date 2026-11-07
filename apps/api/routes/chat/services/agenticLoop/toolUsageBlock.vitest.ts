@@ -180,7 +180,7 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
 });
 
 /**
- * #2954: die Regel stand nur im Quellenblock von `buildSynthSystem` — dem
+ * #2954: die Regel stand nur im Quellenblock von `buildRepairSystem` — dem
  * Prompt der split-Schreibphase. Unified hat keine solche Phase und bekam die
  * Datumsangaben ohne jede Anweisung dazu. Die Gatter der beiden Orte müssen
  * sich ausschliessen: doppelt ausgegeben wäre der Befund nur umgedreht.

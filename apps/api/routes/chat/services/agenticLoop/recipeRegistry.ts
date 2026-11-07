@@ -3,7 +3,7 @@
  *
  * The `rezept_laden` tool is a SWITCH, not a carrier: it registers here and
  * returns a tiny acknowledgement. The prompt body travels through the system
- * message instead — `buildPrepareStep` for the loop model, `buildSynthSystem`
+ * message instead — `buildPrepareStep` for the loop model, `buildRepairSystem`
  * for the repair writer. Three reasons, all load-bearing:
  *
  *  1. The repair writer has no tools at all, so a body returned from

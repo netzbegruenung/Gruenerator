@@ -9,7 +9,7 @@ import {
 } from './autoPolicy.js';
 
 /**
- * Die Ausweichkette hinter dem Reparatur-Schreiber (`getLoopSynthFallbackModel`).
+ * Die Ausweichkette hinter dem Reparatur-Schreiber (`getRepairWriterFallback`).
  * Bis 11/2026 war sie die Kette des Split-Planers (#5441); sie wählt weiter
  * die erste gesunde Stufe.
  *
@@ -47,12 +47,12 @@ vi.mock('../../../services/ai/modelHealth.js', async (importOriginal) => {
   return { ...actual, isModelSlow: (p: string, m: string) => slow.has(`${p}/${m}`) };
 });
 
-const { getLoopSynthFallbackModel } = await import('./providers.js');
+const { getRepairWriterFallback } = await import('./providers.js');
 
 // Ein Schreiber ausserhalb der Kette — sonst gäbe die Funktion für die
 // Stufe selbst null zurück.
 const loopPlannerModelName = (): string | null =>
-  getLoopSynthFallbackModel('mistral-large-4')?.name ?? null;
+  getRepairWriterFallback('mistral-large-4')?.name ?? null;
 
 const markSlow = (stage: { provider: string; model: string }): void => {
   slow.add(`${stage.provider}/${stage.model}`);

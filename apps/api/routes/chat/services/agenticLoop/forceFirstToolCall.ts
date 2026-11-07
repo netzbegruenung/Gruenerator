@@ -4,10 +4,24 @@
  * verhindert.
  */
 import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
+import { type ModelMessage, type ToolSet } from 'ai';
 
+import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
+import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
+import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
+import { type McpCatalog } from '../../agents/mcpCatalog.js';
+import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
+import { extractTextContent } from '../messageHelpers.js';
 import { orderText } from '../orderText.js';
+import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
+import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
+import { type ThreadToolHistory } from '../threadPersistenceService.js';
 
+import { materialReaderTools, type TurnMaterial } from './attachedDocuments.js';
+import { isLookupTool, priorToolNames, priorTurnRetrieved } from './catalogAssembly.js';
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
+import { owedToolName } from './loopGuarantees.js';
 import {
   asksAboutOwnPastAction,
   asksAboutSuppliedMaterial,
@@ -17,6 +31,10 @@ import {
   reworksSuppliedText,
 } from './routing.js';
 import { DEFERRABLE_GROUPS } from './toolScope.js';
+import { type ForceScopeSummary } from './turnSummary.js';
+import { type PersistedStep } from './types.js';
+
+import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 /**
  * WARUM der erste Schritt einen Aufruf verlangt — je ein Wert pro Weg unten.
@@ -172,7 +190,7 @@ export function shouldForceFirstToolCall(input: {
   // einer 739-Zeichen-Prüfliste 0,30 ab (0,65 → 0,35), die Demotion setzte das
   // Flag, und der Planer MUSSTE suchen — nach dem Artikel, der zwei Nachrichten
   // weiter oben vollständig im Kontext stand. Die acht Snippets landen über
-  // `buildSynthSystem` im Prompt des Schreibers, der damit zwei verschiedene
+  // `buildRepairSystem` im Prompt des Schreibers, der damit zwei verschiedene
   // „Originale" gegeneinander las: er beanstandete eine vorhandene Überschrift
   // und zitierte „Pflanzen spendeten", während er zugleich Präsens im Original
   // behauptete.
@@ -518,4 +536,164 @@ export function forcedFirstStepTools(input: {
     input.reason !== 'artifact_edit_order' &&
     mounted.has('rezept_laden');
   return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
+}
+
+export interface FirstStepDecision {
+  forceFirstToolCall: boolean;
+  firstToolName: string | null;
+  firstStepTools: readonly string[] | null;
+  forceScope: ForceScopeSummary | null;
+  /** Was der Turn noch schuldet — liest die lebende `steps`-Liste bei jedem Aufruf. */
+  owedTool: () => string | null;
+}
+
+/** Ob, womit und mit welchem Zuschnitt der erste Schritt einen Aufruf abverlangt. */
+export async function decideFirstStep(ctx: {
+  state: ChatGraphState;
+  /** Der gewrappte Katalog — „montiert" heisst: steht hier drin. */
+  tools: ToolSet;
+  messages: readonly ModelMessage[];
+  lastUserText: string;
+  threadId: string | null | undefined;
+  researchBanned: boolean;
+  mcpCapabilityQuestion: boolean;
+  mcpCatalog: McpCatalog | null;
+  toolHistory: ThreadToolHistory | null | undefined;
+  materialHeavy: boolean;
+  carriedMaterialChars: number;
+  material: TurnMaterial;
+  attachedSeedDelivered: boolean;
+  resumesSuspendedTurn: boolean;
+  threadNotebook: boolean;
+  /** Lebende Referenz: füllt sich, während der Loop läuft. */
+  steps: readonly PersistedStep[];
+  onInfo: (message: string) => void;
+  onWarn: (message: string) => void;
+}): Promise<FirstStepDecision> {
+  const { state, tools, lastUserText } = ctx;
+  const isMounted = (name: string): boolean => name in tools;
+
+  // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
+  // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
+  // laufen können.
+  // Ohne die Dokumente, die ein Ganzdokument-Turn ganz im Prompt hat
+  // (`resolveTurnMaterial`): dann fasst der Schreiber selbst zusammen, kein
+  // erzwungenes `summarize` (live 06.11.2026 41 s und verworfen).
+  const hasAttachedDocuments = ctx.material.qdrantDocs.length > 0;
+  const summaryAsk = isSummaryAsk(lastUserText);
+
+  // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
+  // @-Erwähnung. Ohne Zwang liess der kleine Planer ein montiertes Werkzeug
+  // in 2 von 5 Fällen liegen (toolScope-Rundlauf) — und eine Speicherung, die
+  // die Antwort bestätigt, aber nie stattfand, ist die teuerste Ausfallform.
+  // Nur pinnen, wenn das Werkzeug wirklich montiert ist: ein benanntes
+  // Werkzeug, das nicht in `activeTools` steht, verlangt einen Aufruf, dessen
+  // Definition nie mitgeschickt wird.
+  const memoryPin =
+    state.mentionPinnedTool == null && isMounted('memory') && looksLikeMemoryRequest(lastUserText)
+      ? 'memory'
+      : null;
+  const pinnedTool = state.mentionPinnedTool ?? memoryPin;
+
+  // Ein Auftrag ans Sharepic: er nennt es, oder er zitiert einen Text, der
+  // darauf steht (die Abfrage nur, wenn überhaupt etwas zitiert wird).
+  const isSharepicOrder = async (): Promise<boolean> => {
+    if (!isMounted('edit_sharepic')) return false;
+    const order = orderText(lastUserText);
+    if (looksLikeSharepicOrder(order)) return true;
+    if (!ctx.threadId || !/[„"»“‚]/.test(order)) return false;
+    const target = await resolveLoopSharepicTarget(ctx.threadId, state.currentSharepic);
+    return target != null && quotesSharepicText(order, target.props.creatorSpec);
+  };
+  const forceReason = shouldForceFirstToolCall({
+    researchBanned: ctx.researchBanned,
+    intent: state.intent,
+    hasMcpScope: state.mcpServerScope != null,
+    isMcpCapabilityQuestion: ctx.mcpCapabilityQuestion,
+    mcpToolCount: ctx.mcpCatalog?.labels.size ?? 0,
+    lastUserText,
+    loopDemotedFromRetrieval: state.loopDemotedFromRetrieval === true,
+    priorTurnRetrieved: priorTurnRetrieved(ctx.toolHistory),
+    classifierContradictedResearch: state.classifierContradictedResearch === true,
+    materialHeavy: ctx.materialHeavy,
+    carriesMaterial:
+      ctx.carriedMaterialChars > 0 ||
+      ctx.messages.some(
+        (m) => m.role === 'user' && extractTextContent(m.content).length > NOUN_TRIGGER_MAX_LENGTH
+      ),
+    pinnedTool,
+    hasAttachedDocuments,
+    summaryAsk,
+    sharepicOrder: await isSharepicOrder(),
+    artifactEditOrder: state.artifactEditOrder === true,
+    attachedSeedDelivered: ctx.attachedSeedDelivered,
+    resumesSuspendedTurn: ctx.resumesSuspendedTurn,
+    tabularToolMounted: isMounted('tabelle_auswerten'),
+    materialOrder:
+      (state.compoundGenerationOrdered === true || state.readsPickedMaterial === true) &&
+      materialReaderTools(ctx.material).some(isMounted),
+  });
+  // Was der Turn noch schuldet (bestelltes Artefakt, erzwungene Bearbeitung):
+  // als benannter Schritt im Strom, damit die Antwort erst nach dem
+  // Werkzeugergebnis kommt. Erzwingt der Turn ohnehin einen ersten Aufruf
+  // (etwa die Recherche vor dem Sharepic), kommt das Geschuldete im nächsten
+  // Schritt (`forcedToolForStep`).
+  const owedTool = (): string | null =>
+    owedToolName(
+      state,
+      lastUserText,
+      isMounted,
+      ctx.steps.map((step) => step.toolName)
+    );
+  const owedAtStart = forceReason === null ? owedTool() : null;
+  const forceFirstToolCall = forceReason !== null || owedAtStart !== null;
+
+  // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
+  // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
+  // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt.
+  const firstToolName =
+    owedAtStart ??
+    (forceReason
+      ? pinnedFirstTool({ pinnedTool, hasAttachedDocuments, summaryAsk, isMounted })
+      : null);
+  // Ohne benanntes Werkzeug bekommt der erzwungene Schritt nur die Werkzeuge,
+  // die seinen Grund erfüllen (#3880) — sonst wählt der Planer unter zwanzig.
+  const userText = state.lastUserTextNoMentions ?? lastUserText;
+  const firstStepTools =
+    forceReason && !firstToolName
+      ? forcedFirstStepTools({
+          reason: forceReason,
+          intent: state.intent,
+          mounted: Object.keys(tools),
+          mcpToolNames: Object.keys(ctx.mcpCatalog?.tools ?? {}),
+          priorToolNames: priorToolNames(ctx.toolHistory),
+          isLookupTool,
+          materialTools: materialReaderTools(ctx.material).filter(isMounted),
+          userText,
+          threadNotebook: ctx.threadNotebook,
+          recipeOrder:
+            deriveImplicitRecipeMention(orderText(userText), state.userLocale ?? null) != null,
+        })
+      : null;
+  if (firstToolName) {
+    ctx.onInfo(`[Agentic] ${firstToolName} ist als erster Werkzeugaufruf festgelegt`);
+  } else if (firstStepTools) {
+    ctx.onInfo(
+      `[Agentic] erzwungener erster Aufruf (${forceReason}) sieht nur [${firstStepTools.join(', ')}]`
+    );
+  } else if (forceReason) {
+    ctx.onWarn(
+      `[Agentic] erzwungener erster Aufruf (${forceReason}) ohne passendes Werkzeug — voller Katalog`
+    );
+  }
+  if (owedAtStart) ctx.onInfo(`[Agentic] geschuldetes ${owedAtStart} ist der erste Aufruf`);
+  return {
+    forceFirstToolCall,
+    firstToolName,
+    firstStepTools,
+    forceScope: forceReason
+      ? { reason: forceReason, tools: firstStepTools, named: firstToolName }
+      : null,
+    owedTool,
+  };
 }

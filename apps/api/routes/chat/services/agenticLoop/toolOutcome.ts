@@ -196,7 +196,7 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
  *
  * Live am 24.08.2026: ein 11.559-Zeichen-PDF, `summarize` lief, fuhr
  * Map-Reduce über den Volltext und gab 2.442 Zeichen Digest an den PLANER
- * zurück. Der Schreiber bekommt `synthMessages` ohne Werkzeug-Replay, sah davon
+ * zurück. Der Schreiber bekommt `repairMessages` ohne Werkzeug-Replay, sah davon
  * also nichts, wurde vom Ehrlichkeitshinweis zusätzlich belehrt, er habe nichts
  * erhalten — und eröffnete die Antwort mit „Da du keine konkreten Informationen
  * oder ein Dokument genannt hast".

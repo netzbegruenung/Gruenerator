@@ -12,45 +12,25 @@
  * recording) come from `wrapToolsForLoop`; force-finish and lenient arg repair
  * are configured here.
  */
-import { type ModelMessage, type ToolSet } from 'ai';
+import { type ModelMessage } from 'ai';
 
-import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
-import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  MELIOUS_WIDE_MODEL,
-  meliousGoesWide,
-} from '../../../../services/ai/meliousThinkingFetch.js';
-import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
-import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
-import {
-  getLoopSynthFallbackModel,
-  getLoopSynthModel,
-  resolveUnifiedLaneChain,
-} from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
-import { pruneMessages } from '../contextPruningService.js';
 import { withTurnPaste } from '../materialItems.js';
 import { extractTextContent } from '../messageHelpers.js';
-import { orderText } from '../orderText.js';
 import {
-  messagesForLane,
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
-import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
-import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
 import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
@@ -64,13 +44,10 @@ import {
   turnProducedArtifact,
 } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import { materialReaderTools, resolveTurnMaterial } from './attachedDocuments.js';
+import { resolveTurnMaterial } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
-  isLookupTool,
-  priorToolNames,
-  priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
   seedTurnMaterial,
@@ -79,16 +56,12 @@ import {
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
-import {
-  forcedFirstStepTools,
-  isMcpCapabilityQuestion,
-  pinnedFirstTool,
-  shouldForceFirstToolCall,
-} from './forceFirstToolCall.js';
+import { decideFirstStep, isMcpCapabilityQuestion } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
-import { createAfterGather, owedToolName } from './loopGuarantees.js';
+import { createEnsureOwedTools } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
+import { resolveLoopLanes } from './loopLanes.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
@@ -97,7 +70,7 @@ import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
-import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
+import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
@@ -189,29 +162,6 @@ export interface AgenticResponseOutcome {
  * the caller): a hard failure with no streamed text degrades to a short German
  * apology so the turn still persists and closes cleanly.
  */
-/** Je Werkzeug-Definition neben der Beschreibung: Name, Schema, JSON-Hülle
- *  (06.11.2026: 15 Werkzeuge ≈ 20,8k Zeichen im Request). */
-const TOOL_DEFINITION_OVERHEAD_CHARS = 600;
-
-/**
- * Wie gross der Request an das Modell ungefähr wird — in der Einheit, in der
- * `meliousWireModel` entscheidet (Zeichen des JSON-Bodys). Nur eine Schätzung:
- * an der Grenze kann sie danebenliegen.
- */
-export function estimatedRequestChars(
-  system: string,
-  messages: readonly ModelMessage[],
-  tools: ToolSet
-): number {
-  let chars = system.length + JSON.stringify(messages).length;
-  for (const t of Object.values(tools)) {
-    chars +=
-      (typeof t.description === 'string' ? t.description.length : 0) +
-      TOOL_DEFINITION_OVERHEAD_CHARS;
-  }
-  return chars;
-}
-
 export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
@@ -618,14 +568,9 @@ export async function streamAgenticResponse(
       materialNote: seeded.writerNote,
     };
 
-    // `undecided` used to mean "the user sent auto" — but the auto policy now
-    // resolves auto to a concrete lane BEFORE this runs, using the classifier's
-    // intent. That IS a deliberate choice, so we let it reach the repair writer
-    // instead of blanket-replacing it with the writer lane.
-    const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
     synthName = resolution.modelName;
 
-    const afterGather = createAfterGather({
+    const ensureOwedTools = createEnsureOwedTools({
       state: finalState,
       messages,
       tools,
@@ -639,177 +584,36 @@ export async function streamAgenticResponse(
       onWarn: (m) => log.warn(m),
     });
 
-    // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
-    // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
-    // laufen können.
-    // Ohne die Dokumente, die ein Ganzdokument-Turn ganz im Prompt hat
-    // (`resolveTurnMaterial`): dann fasst der Schreiber selbst zusammen, kein
-    // erzwungenes `summarize` (live 06.11.2026 41 s und verworfen).
-    const hasAttachedDocuments = material.qdrantDocs.length > 0;
-    const summaryAsk = isSummaryAsk(lastUserText);
-
-    // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
-    // @-Erwähnung. Ohne Zwang liess der kleine Planer ein montiertes Werkzeug
-    // in 2 von 5 Fällen liegen (toolScope-Rundlauf) — und eine Speicherung, die
-    // die Antwort bestätigt, aber nie stattfand, ist die teuerste Ausfallform.
-    // Nur pinnen, wenn das Werkzeug wirklich montiert ist: ein benanntes
-    // Werkzeug, das nicht in `activeTools` steht, verlangt einen Aufruf, dessen
-    // Definition nie mitgeschickt wird.
-    const memoryPin =
-      finalState.mentionPinnedTool == null &&
-      'memory' in wrapped &&
-      looksLikeMemoryRequest(lastUserText)
-        ? 'memory'
-        : null;
-    const pinnedTool = finalState.mentionPinnedTool ?? memoryPin;
-
-    // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
-    // Live-Ausfälle, die jeden einzelnen erzwungen haben.
-    // Ein Auftrag ans Sharepic: er nennt es, oder er zitiert einen Text, der
-    // darauf steht (die Abfrage nur, wenn überhaupt etwas zitiert wird).
-    const isSharepicOrder = async (): Promise<boolean> => {
-      if (!('edit_sharepic' in wrapped)) return false;
-      const order = orderText(lastUserText);
-      if (looksLikeSharepicOrder(order)) return true;
-      if (!threadId || !/[„"»“‚]/.test(order)) return false;
-      const target = await resolveLoopSharepicTarget(threadId, finalState.currentSharepic);
-      return target != null && quotesSharepicText(order, target.props.creatorSpec);
-    };
-    const forceReason = shouldForceFirstToolCall({
-      researchBanned,
-      intent: finalState.intent,
-      hasMcpScope: finalState.mcpServerScope != null,
-      isMcpCapabilityQuestion: mcpCapabilityQuestion,
-      mcpToolCount: mcpCatalog?.labels.size ?? 0,
+    const firstStep = await decideFirstStep({
+      state: finalState,
+      tools: wrapped,
+      messages,
       lastUserText,
-      loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
-      priorTurnRetrieved: priorTurnRetrieved(toolHistory),
-      classifierContradictedResearch: finalState.classifierContradictedResearch === true,
+      threadId,
+      researchBanned,
+      mcpCapabilityQuestion,
+      mcpCatalog,
+      toolHistory,
       materialHeavy,
-      carriesMaterial:
-        carriedMaterialChars > 0 ||
-        messages.some(
-          (m) => m.role === 'user' && extractTextContent(m.content).length > NOUN_TRIGGER_MAX_LENGTH
-        ),
-      pinnedTool,
-      hasAttachedDocuments,
-      summaryAsk,
-      sharepicOrder: await isSharepicOrder(),
-      artifactEditOrder: finalState.artifactEditOrder === true,
+      carriedMaterialChars,
+      material,
       attachedSeedDelivered: seeded.delivered,
       resumesSuspendedTurn: resumeApproval != null,
-      tabularToolMounted: 'tabelle_auswerten' in wrapped,
-      materialOrder:
-        (finalState.compoundGenerationOrdered === true ||
-          finalState.readsPickedMaterial === true) &&
-        materialReaderTools(material).some((name) => name in wrapped),
+      threadNotebook: promptNotebook != null,
+      steps,
+      onInfo: (m) => log.info(m),
+      onWarn: (m) => log.warn(m),
     });
-    // Was der Turn noch schuldet (bestelltes Artefakt, erzwungene Bearbeitung):
-    // als benannter Schritt im Strom, damit auch unified die Antwort erst nach
-    // dem Werkzeugergebnis schreibt. Erzwingt der Turn ohnehin einen ersten
-    // Aufruf (etwa die Recherche vor dem Sharepic), kommt das Geschuldete im
-    // nächsten Schritt (`forcedToolForStep`).
-    const owedTool = (): string | null =>
-      owedToolName(
-        finalState,
-        lastUserText,
-        (name) => name in wrapped,
-        steps.map((step) => step.toolName)
-      );
-    const owedAtStart = forceReason === null ? owedTool() : null;
-    const forceFirstToolCall = forceReason !== null || owedAtStart !== null;
+    forceScope = firstStep.forceScope;
 
-    // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
-    // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
-    // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt, das
-    // Modell kann die Wahl also gar nicht mehr sehen.
-    const firstToolName =
-      owedAtStart ??
-      (forceReason
-        ? pinnedFirstTool({
-            pinnedTool,
-            hasAttachedDocuments,
-            summaryAsk,
-            isMounted: (name) => name in wrapped,
-          })
-        : null);
-    // Ohne benanntes Werkzeug bekommt der erzwungene Schritt nur die Werkzeuge,
-    // die seinen Grund erfüllen (#3880) — sonst wählt der Planer unter zwanzig.
-    const firstStepTools =
-      forceReason && !firstToolName
-        ? forcedFirstStepTools({
-            reason: forceReason,
-            intent: finalState.intent,
-            mounted: Object.keys(wrapped),
-            mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
-            priorToolNames: priorToolNames(toolHistory),
-            isLookupTool,
-            materialTools: materialReaderTools(material).filter((name) => name in wrapped),
-            userText: finalState.lastUserTextNoMentions ?? lastUserText,
-            threadNotebook: promptNotebook != null,
-            recipeOrder:
-              deriveImplicitRecipeMention(
-                orderText(finalState.lastUserTextNoMentions ?? lastUserText),
-                finalState.userLocale ?? null
-              ) != null,
-          })
-        : null;
-    if (firstToolName) {
-      log.info(`[Agentic] ${firstToolName} ist als erster Werkzeugaufruf festgelegt`);
-    } else if (firstStepTools) {
-      log.info(
-        `[Agentic] erzwungener erster Aufruf (${forceReason}) sieht nur [${firstStepTools.join(', ')}]`
-      );
-    } else if (forceReason) {
-      log.warn(
-        `[Agentic] erzwungener erster Aufruf (${forceReason}) ohne passendes Werkzeug — voller Katalog`
-      );
-    }
-    if (forceReason) {
-      forceScope = { reason: forceReason, tools: firstStepTools, named: firstToolName };
-    }
-    if (owedAtStart) log.info(`[Agentic] geschuldetes ${owedAtStart} ist der erste Aufruf`);
-
-    // The tool-less writer chain re-writes an answer the loop got wrong (empty,
-    // cut off, leaked plan, spam).
-    const repair = getLoopSynthModel(
-      {
-        model: resolution.model,
-        modelName: resolution.modelName,
-        provider: resolution.provider,
-      },
-      undecided
-    );
-    const repairFallback = getLoopSynthFallbackModel(repair.name);
-    // Was ein Melious-Body dieser Grösse auf dem Draht wird: ein grosser
-    // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
-    // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
-    const wireModelFor = (modelName: string): string | null =>
-      meliousGoesWide(modelName, estimatedRequestChars(toolSystem, turnMessages, wrapped))
-        ? MELIOUS_WIDE_MODEL
-        : null;
-    // Unified Gemma: die ganze Kette, gewählte Stufe zuerst — ist sie als zäh
-    // vermerkt, rückt sie ans Ende und der Zug startet auf `:speed`. Leer für
-    // jede andere Lane; dann fährt die eine Instanz aus `resolution`.
-    const unifiedChain = resolveUnifiedLaneChain(
-      resolution.provider,
-      resolution.modelName,
-      wireModelFor(resolution.modelName),
-      resolution.model
-    );
-    if (unifiedChain[0] && unifiedChain[0].model !== resolution.modelName) {
-      log.warn(
-        `[Agentic] ${resolution.provider}/${resolution.modelName} gilt als zäh — unified startet auf ${unifiedChain[0].provider}/${unifiedChain[0].model}`
-      );
-      synthName = unifiedChain[0].model;
-    }
-    const unifiedFallbacks = unifiedChain.slice(1).map((stage) => stage.languageModel);
-    // Unknown: the history was budgeted against the lane floor, which may
-    // exceed the fallback's window — rebuild rather than guess.
-    const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
-    // Die Leiter mit Identität, Index wie in `runLaneChain` — damit ein
-    // Stillstand die Stufe vermerkt, die wirklich stand.
-    const toolPhaseLadder: { provider: string; model: string }[] = unifiedChain;
+    const lanes = resolveLoopLanes({
+      resolution,
+      modelId,
+      toolSystem,
+      messages: turnMessages,
+      tools: wrapped,
+    });
+    synthName = lanes.laneName;
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -822,36 +626,13 @@ export async function streamAgenticResponse(
         : null;
 
     const loopResult = await deps.runAgenticLoop({
-      synthModel: unifiedChain[0]?.languageModel ?? resolution.model,
-      repairModel: repair.model,
-      ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
-      ...(repairFallback && { repairFallback: repairFallback.model }),
+      model: lanes.model,
+      repairModel: lanes.repairModel,
+      ...(lanes.fallbackModels.length > 0 && { fallbackModels: lanes.fallbackModels }),
+      ...(lanes.repairFallback && { repairFallback: lanes.repairFallback }),
       producedArtifact: () => turnProducedArtifact(finalState),
-      // Eine Stufe der Werkzeugphase stand oder fiel aus. Umgeschaltet hat die
-      // Leiter selbst; hier wird die Stufe vermerkt, damit der nächste Zug sie
-      // überspringt, statt dieselbe Frist noch einmal abzusitzen. Der Index
-      // zeigt auf die Stufe, die WIRKLICH lief — derselbe Modellname liegt auf
-      // zwei Hosts, und bis 06.11.2026 bekam immer der Primär den Vermerk.
-      onLaneUnhealthy: (laneIndex, grund) => {
-        const stage = toolPhaseLadder[laneIndex];
-        if (!stage) return;
-        recordSlowVerdict(stage.provider, stage.model, `unified:${grund}`);
-        log.warn(
-          `[Agentic] unified ${stage.provider}/${stage.model} ${
-            grund === 'stall' ? 'lieferte nichts' : `fiel aus (${grund})`
-          } — Lane wird übersprungen`
-        );
-      },
-      // Der Reparatur-Schreiber stand oder blieb stumm, sein Geschwister
-      // übernahm: Verdikte, die die Messung nicht liefert, weil nichts kam.
-      onRepairWriterUnhealthy: (grund) => {
-        recordSlowVerdict(repair.provider, repair.name, grund);
-        log.warn(
-          `[Agentic] repair writer ${repair.provider}/${repair.name} ${
-            grund === 'synth_empty' ? 'returned no text' : 'stalled'
-          } → falling back to ${repairFallback?.name ?? 'sibling'}`
-        );
-      },
+      onLaneUnhealthy: lanes.onLaneUnhealthy,
+      onRepairWriterUnhealthy: lanes.onRepairWriterUnhealthy,
       tools: wrapped,
       toolActivity,
       toolSystem,
@@ -860,9 +641,9 @@ export async function streamAgenticResponse(
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
       activeTools: (steps) => assembled.toolScope.activeTools(steps),
-      forceFirstToolCall,
-      firstToolName,
-      firstStepTools,
+      forceFirstToolCall: firstStep.forceFirstToolCall,
+      firstToolName: firstStep.firstToolName,
+      firstStepTools: firstStep.firstStepTools,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
       // is actually mounted — a restricted agent without web_search must not be
       // forced into a tool it doesn't have.
@@ -874,11 +655,11 @@ export async function streamAgenticResponse(
           );
           return toolName;
         }
-        const owed = owedTool();
+        const owed = firstStep.owedTool();
         if (owed) log.info(`[Agentic] geschuldetes ${owed} wird jetzt erzwungen`);
         return owed;
       },
-      buildSynthSystem: (sources) => buildSynthSystem(sources, synthContext),
+      buildRepairSystem: (sources) => buildRepairSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
       // the tool-less repair writer sees of the tool work — it gets no tool
       // results. Appended, never registered: an image has no text, so it must
@@ -889,7 +670,7 @@ export async function streamAgenticResponse(
         return note ? `${sources}\n\n${note}` : sources;
       },
       // Read per step because `rezept_laden` fills the registry mid-loop; the
-      // repair writer gets the same via buildSynthSystem. Auch die Notiz
+      // repair writer gets the same via buildRepairSystem. Auch die Notiz
       // „Gegenstand ohne Quelle" (#5141) läuft für das Loop-Modell nur hierüber.
       // Ebenso die Notiz über nicht lesbares Material (#5286): der Seed-Replay
       // fehlt ohne montiertes Lesewerkzeug ganz.
@@ -907,20 +688,8 @@ export async function streamAgenticResponse(
       // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
-      synthMessages: turnMessages,
-      // The history was pruned for the selected lane — up to 262k on an
-      // explicit Mistral turn. The repair writer's fallback is the Melious Gemma
-      // lane, capped near 131k (#4201).
-      ...(repairFallback && {
-        synthFallbackMessages: (system: string) =>
-          messagesForLane(
-            { modelName: repairFallback.name, contextWindow: repairFallback.contextWindow },
-            primaryWindow,
-            turnMessages,
-            (window) => pruneMessages(turnMessages, window, system),
-            '[Agentic]'
-          ),
-      }),
+      repairMessages: turnMessages,
+      ...(lanes.repairSiblingMessages && { repairSiblingMessages: lanes.repairSiblingMessages }),
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       // No output cap (OpenWebUI-style): the model window is the backstop.
@@ -934,7 +703,7 @@ export async function streamAgenticResponse(
       // (cached input is billed at 10 %). Ignored by every non-Mistral client.
       ...(mistralOptions != null && { providerOptions: { mistral: mistralOptions } }),
       abortSignal,
-      afterGather,
+      ensureOwedTools,
       forceFinish: () =>
         // The turn budget lands HERE rather than on the abort signal: spending
         // it must end the tool work, not the sentence being written — one
@@ -968,7 +737,7 @@ export async function streamAgenticResponse(
     const editTail = editOutcomeAfterPreamble(finalState, steps, emitter.text);
     if (editTail) emitter.appendAndStream(`\n\n${editTail}`);
 
-    // Edit + compound-generation guarantees run inside afterGather (loopEngine
+    // Edit + compound-generation guarantees run inside ensureOwedTools (loopEngine
     // calls it post-stream), so no post-loop net is needed here.
 
     if (emitter.text.trim().length === 0) {

@@ -44,8 +44,8 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../agents/providers.js')>();
   return {
     ...actual,
-    getLoopSynthFallbackModel: (name: string) =>
-      synthFallbackOverride.current ?? actual.getLoopSynthFallbackModel(name),
+    getRepairWriterFallback: (name: string) =>
+      synthFallbackOverride.current ?? actual.getRepairWriterFallback(name),
   };
 });
 
@@ -230,7 +230,7 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
+    expect(seen!.fallbackModels).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
   });
 
   it('lässt die :speed-Stufe weg, wenn der Primär-Request schon als :speed rausgeht', async () => {
@@ -245,7 +245,7 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.unifiedFallbacks).toHaveLength(1);
+    expect(seen!.fallbackModels).toHaveLength(1);
   });
 
   it('gibt Mistral Gemma :speed als eine Ausweichstufe', async () => {
@@ -255,7 +255,7 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect(seen!.unifiedFallbacks).toHaveLength(1);
+    expect(seen!.fallbackModels).toHaveLength(1);
   });
 
   it('vermerkt im unified die Stufe, die wirklich stand — nicht immer die gewählte', async () => {
@@ -354,8 +354,8 @@ describe('streamAgenticResponse — synth fallback window (#4201)', () => {
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.synthMessages).toBe(history);
-    const forFallback = seen!.synthFallbackMessages!('kurzer Synth-Systemprompt');
+    expect(seen!.repairMessages).toBe(history);
+    const forFallback = seen!.repairSiblingMessages!('kurzer Synth-Systemprompt');
     expect(forFallback.length).toBeLessThan(history.length);
     expect(forFallback.at(-1)).toBe(history.at(-1));
     synthFallbackOverride.current = null;
@@ -1145,7 +1145,7 @@ describe('streamAgenticResponse — eingefügter Text in der Nachricht (#5431)',
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     const params = seen as LoopEngineParams | null;
-    for (const messages of [params?.messages, params?.synthMessages]) {
+    for (const messages of [params?.messages, params?.repairMessages]) {
       expect(messages?.at(-1)?.content).toEqual([
         { type: 'text', text: 'Hier sind die Termine' },
         { type: 'text', text: turnPaste },
@@ -1160,7 +1160,7 @@ describe('streamAgenticResponse — eingefügter Text in der Nachricht (#5431)',
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Hier sind die Termine'), sse },
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect((seen as LoopEngineParams | null)?.synthMessages?.at(-1)?.content).toBe(
+    expect((seen as LoopEngineParams | null)?.repairMessages?.at(-1)?.content).toBe(
       'Hier sind die Termine'
     );
   });

@@ -11,9 +11,9 @@ import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngi
  * tier-3.5 demotion routes most turns through, had none.
  */
 
-const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
-const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
-const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['synthModel'];
+const repairModel = { id: 'repair' } as unknown as LoopEngineParams['model'];
+const model = { id: 'synth' } as unknown as LoopEngineParams['model'];
+const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['model'];
 const repairTools = { web_search: {} } as unknown as LoopEngineParams['tools'];
 
 type Part = { type: string; text?: string };
@@ -70,11 +70,11 @@ function depsFor(byModel: Record<string, () => ReturnType<LoopDeps['streamText']
 
 function params(over: Partial<LoopEngineParams>): LoopEngineParams {
   return {
-    synthModel,
+    model,
     repairModel,
     tools: repairTools,
     toolSystem: 'TOOLSYS',
-    buildSynthSystem: (s) => `SYNTHSYS::${s}`,
+    buildRepairSystem: (s) => `SYNTHSYS::${s}`,
     getSourcesBlock: () => '[1] Quelle — Inhalt',
     messages: [],
     maxSteps: 6,
@@ -125,10 +125,10 @@ describe('synth stall guard', () => {
       }) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    const synthFallbackMessages = vi.fn((_system: string) => pruned);
+    const repairSiblingMessages = vi.fn((_system: string) => pruned);
 
     const running = runAgenticLoop(
-      params({ synthMessages: full, repairFallback: fallbackModel, synthFallbackMessages }),
+      params({ repairMessages: full, repairFallback: fallbackModel, repairSiblingMessages }),
       deps
     );
     await vi.advanceTimersByTimeAsync(20_000);
@@ -136,7 +136,7 @@ describe('synth stall guard', () => {
 
     expect(sent.repair).toBe(full);
     expect(sent.fallback).toBe(pruned);
-    expect(synthFallbackMessages).toHaveBeenCalledExactlyOnceWith('SYNTHSYS::[1] Quelle — Inhalt');
+    expect(repairSiblingMessages).toHaveBeenCalledExactlyOnceWith('SYNTHSYS::[1] Quelle — Inhalt');
   });
 
   it('emits nothing from the stalled pass — the user sees one clean answer', async () => {

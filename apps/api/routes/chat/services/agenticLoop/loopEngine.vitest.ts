@@ -7,7 +7,7 @@ import {
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   TOOL_USE_RULES,
-  UNIFIED_SUFFIX,
+  LOOP_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
   SYNTH_CUTOFF_RETRY_SUFFIX,
@@ -480,7 +480,7 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
 // model drove which phase.
-const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
+const model = { id: 'synth' } as unknown as LoopEngineParams['model'];
 
 type Part = { type: string; text?: string; error?: unknown; finishReason?: string };
 type StreamOpts = {
@@ -501,10 +501,10 @@ function streamOf(parts: Part[], before?: () => Promise<void>): ReturnType<LoopD
 
 function baseParams(over: Partial<LoopEngineParams>): LoopEngineParams {
   return {
-    synthModel,
+    model,
     tools: {},
     toolSystem: 'TOOLSYS',
-    buildSynthSystem: (s) => `SYNTHSYS::${s}`,
+    buildRepairSystem: (s) => `SYNTHSYS::${s}`,
     getSourcesBlock: () => '[1] Quelle — Inhalt',
     messages: [],
     maxSteps: 6,
@@ -546,7 +546,7 @@ function repairDeps(unified: Part[], passes: WriterPass[]) {
   };
   return { deps, calls, writerSystems, writerMessages, writerOpts, writerCalls: () => writerCall };
 }
-const repairLane = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
+const repairLane = { id: 'repair' } as unknown as LoopEngineParams['model'];
 const repairTools = { web_search: {} } as unknown as LoopEngineParams['tools'];
 const repairParams = (over: Partial<LoopEngineParams> = {}) =>
   baseParams({ repairModel: repairLane, tools: repairTools, ...over });
@@ -575,22 +575,22 @@ describe('runAgenticLoop — unified mode', () => {
     expect(calls).toEqual(['streamText:synth:tools=true']);
   });
 
-  it('runs the afterGather guarantee AFTER the stream (compound artifact net)', async () => {
-    const afterGather = vi.fn(async () => {});
+  it('runs the ensureOwedTools guarantee AFTER the stream (compound artifact net)', async () => {
+    const ensureOwedTools = vi.fn(async () => {});
     const deps: LoopDeps = {
       streamText: (() =>
         streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    await runAgenticLoop(baseParams({ afterGather }), deps);
-    // Regression: afterGather never fired in unified mode, so a compound sharepic
+    await runAgenticLoop(baseParams({ ensureOwedTools }), deps);
+    // Regression: ensureOwedTools never fired in unified mode, so a compound sharepic
     // turn that only searched left the artifact uncreated.
-    expect(afterGather).toHaveBeenCalledTimes(1);
+    expect(ensureOwedTools).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('runAgenticLoop — unified lane chain', () => {
-  const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['synthModel'];
+  const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['model'];
   const fallback = lane('fallback');
   const rejected = () =>
     new APICallError({
@@ -621,7 +621,7 @@ describe('runAgenticLoop — unified lane chain', () => {
     return { deps, calls };
   }
   const params = (over: Partial<LoopEngineParams> = {}) =>
-    baseParams({ unifiedFallbacks: [fallback], ...over });
+    baseParams({ fallbackModels: [fallback], ...over });
 
   it('(a) moves to the next lane when the first rejects before any output', async () => {
     const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
@@ -687,7 +687,7 @@ describe('runAgenticLoop — unified lane chain', () => {
 
   it('the last lane gets no short first-response window and its error surfaces', async () => {
     const { deps, calls } = chainDeps(() => streamOf([{ type: 'error', error: rejected() }]));
-    await expect(runAgenticLoop(params({ unifiedFallbacks: [] }), deps)).rejects.toBeDefined();
+    await expect(runAgenticLoop(params({ fallbackModels: [] }), deps)).rejects.toBeDefined();
     expect(calls).toEqual(['synth']);
   });
 });
@@ -707,7 +707,7 @@ describe('unified suffix — tool and writer rules', () => {
     await runAgenticLoop(baseParams({ maxSteps: 1 }), deps);
     expect(seen).not.toBeNull();
     const system = seen!.system ?? '';
-    expect(system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(system).toBe(`TOOLSYS${LOOP_SUFFIX}`);
     expect(system).toContain(TOOL_USE_RULES);
     expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
     expect(system).toContain('ANTWORTE KONKRET');
@@ -741,7 +741,7 @@ describe('unified suffix — tool and writer rules', () => {
 });
 
 describe('runAgenticLoop — unified repair', () => {
-  const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
+  const repairModel = { id: 'repair' } as unknown as LoopEngineParams['model'];
   const tools = { web_search: {} } as unknown as LoopEngineParams['tools'];
   const GOOD = 'Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].';
 
@@ -856,7 +856,7 @@ describe('runAgenticLoop — unified repair', () => {
   });
 });
 
-describe('repair writer — synthMessages: the tool replay must not reach the tool-less writer', () => {
+describe('repair writer — repairMessages: the tool replay must not reach the tool-less writer', () => {
   const userMsg: ModelMessage = { role: 'user', content: 'recherchiere X' };
   const replayAssistant: ModelMessage = {
     role: 'assistant',
@@ -874,7 +874,7 @@ describe('repair writer — synthMessages: the tool replay must not reach the to
     };
 
     await runAgenticLoop(
-      repairParams({ messages: [replayAssistant, userMsg], synthMessages: [userMsg] }),
+      repairParams({ messages: [replayAssistant, userMsg], repairMessages: [userMsg] }),
       deps
     );
 
@@ -884,7 +884,7 @@ describe('repair writer — synthMessages: the tool replay must not reach the to
     expect(seen['repair']).toEqual([userMsg]);
   });
 
-  it('falls back to `messages` when synthMessages is omitted', async () => {
+  it('falls back to `messages` when repairMessages is omitted', async () => {
     const { deps, writerMessages } = repairDeps([], [text('Die Antwort steht hier.')]);
 
     await runAgenticLoop(repairParams({ messages: [userMsg] }), deps);
@@ -1283,7 +1283,7 @@ describe('runAgenticLoop — echoed source register (#5409)', () => {
     const out = await runAgenticLoop(
       baseParams({
         onText,
-        repairModel: { id: 'repair' } as unknown as LoopEngineParams['synthModel'],
+        repairModel: { id: 'repair' } as unknown as LoopEngineParams['model'],
       }),
       deps
     );
@@ -1434,7 +1434,7 @@ describe('runAgenticLoop — reasoning reaches the writing phases', () => {
 
 // Eine Freigabe-Pause muss den Zug WIRKLICH beenden: ohne die ausdrückliche
 // Prüfung schriebe der Zug eine Antwort, während die Person noch entscheidet —
-// und `afterGather` erzeugte dabei Artefakte.
+// und `ensureOwedTools` erzeugte dabei Artefakte.
 describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
   const deps: LoopDeps = {
     streamText: (() =>
@@ -1445,18 +1445,18 @@ describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
   };
 
   it('bricht vor der Artefakt-Garantie ab', async () => {
-    const afterGather = vi.fn(async () => {});
+    const ensureOwedTools = vi.fn(async () => {});
     await expect(
-      runAgenticLoop(baseParams({ afterGather, suspended: () => true }), deps)
+      runAgenticLoop(baseParams({ ensureOwedTools, suspended: () => true }), deps)
     ).rejects.toThrow(TurnSuspendedError);
-    expect(afterGather).not.toHaveBeenCalled();
+    expect(ensureOwedTools).not.toHaveBeenCalled();
   });
 
   it('lässt einen Zug ohne Pause unverändert laufen', async () => {
-    const afterGather = vi.fn(async () => {});
-    const out = await runAgenticLoop(baseParams({ afterGather, suspended: () => false }), deps);
+    const ensureOwedTools = vi.fn(async () => {});
+    const out = await runAgenticLoop(baseParams({ ensureOwedTools, suspended: () => false }), deps);
     expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
-    expect(afterGather).toHaveBeenCalledTimes(1);
+    expect(ensureOwedTools).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1488,7 +1488,7 @@ describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
   it('schickt system als Array, die zweite Nachricht trägt den Rückblick', async () => {
     const [call] = await run(RECALL);
     expect(call.system).toEqual([
-      { role: 'system', content: `TOOLSYS${UNIFIED_SUFFIX}` },
+      { role: 'system', content: `TOOLSYS${LOOP_SUFFIX}` },
       { role: 'system', content: RECALL },
     ]);
   });
@@ -1504,7 +1504,7 @@ describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
 
   it('ohne turnContext bleibt system ein String', async () => {
     const [call] = await run(null);
-    expect(call.system).toBe(`TOOLSYS${UNIFIED_SUFFIX}`);
+    expect(call.system).toBe(`TOOLSYS${LOOP_SUFFIX}`);
     expect(typeof call.prepareStep!({ stepNumber: 2 }).system).toBe('string');
   });
 });
