@@ -57,6 +57,20 @@ export function setTurnMaterial(state: MaterialHolder, items: TurnMaterialItem[]
   state.attachmentContext = renderTurnMaterial(items);
 }
 
+/**
+ * Die Liste zum Lesen. Ein Zustand, den eine Fassung vor #5430 in Redis abgelegt
+ * hat (Freigabe-, Rückfrage- und Client-Werkzeug-Pausen leben bis zu 24 h), kennt
+ * sie nicht und trägt nur den Text: der zählt dann als ein Stück Client-Kontext —
+ * ungeteilt, also ohne Rätselraten über seine Abschnitte.
+ */
+export function turnMaterialOf(state: {
+  attachmentContext?: string | null | undefined;
+  turnMaterial?: readonly TurnMaterialItem[] | undefined;
+}): readonly TurnMaterialItem[] {
+  if (state.turnMaterial) return state.turnMaterial;
+  return state.attachmentContext ? [{ kind: 'client', text: state.attachmentContext }] : [];
+}
+
 export function appendTurnMaterial(state: MaterialHolder, item: TurnMaterialItem): void {
   setTurnMaterial(state, [...state.turnMaterial, item]);
 }

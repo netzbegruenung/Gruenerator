@@ -25,7 +25,7 @@ vi.mock('../../../services/pdfForm/pdfFormService.js', () => ({
   fillFormFields: vi.fn(),
 }));
 
-const { processAttachments, describeTurnMaterial, materialSectionHeading, PASTED_TEXT_HEADING } =
+const { processAttachments, materialSectionHeading, PASTED_TEXT_HEADING } =
   await import('./attachmentProcessingService.js');
 
 const pdf = (over: { name?: string; data?: string; isImage?: boolean } = {}) => ({
@@ -168,52 +168,45 @@ describe('processAttachments — eingefügter Text', () => {
     mockExtract.mockReset().mockResolvedValue({ text: '12.01. Neujahrsempfang', pageCount: 1 });
   });
 
+  const kinds = (items: { kind: string }[]): string[] => items.map((item) => item.kind);
+
   it('überschreibt den Paste als Teil der Nachricht, nicht als Datei', async () => {
-    const { attachmentContext } = await processAttachments(
+    const { attachmentContext, turnMaterial } = await processAttachments(
       [textFile('Eingefügter Text.txt')],
       'req-1'
     );
     expect(attachmentContext).toContain(`### ${PASTED_TEXT_HEADING}\n`);
     expect(attachmentContext).not.toContain('.txt');
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: false });
+    expect(kinds(turnMaterial)).toEqual(['paste']);
   });
 
   it('lässt eine hochgeladene Textdatei eine Datei bleiben', async () => {
-    const { attachmentContext } = await processAttachments([textFile('notizen.txt')], 'req-1');
+    const { attachmentContext, turnMaterial } = await processAttachments(
+      [textFile('notizen.txt')],
+      'req-1'
+    );
     expect(attachmentContext).toContain('### notizen.txt (Volltext-Auszug)\n');
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: false, other: true });
+    expect(kinds(turnMaterial)).toEqual(['upload']);
   });
 
   it('erkennt beides nebeneinander', async () => {
-    const { attachmentContext } = await processAttachments(
+    const { turnMaterial } = await processAttachments(
       [textFile('notizen.txt'), textFile('Eingefügter Text.txt')],
       'req-1'
     );
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: true });
+    expect(kinds(turnMaterial)).toEqual(['upload', 'paste']);
   });
 
-  it('zählt eine Datei ohne lesbaren Text als Datei neben dem Paste', async () => {
+  it('führt eine Datei ohne lesbaren Text als Datei neben dem Paste', async () => {
     mockExtract
       .mockResolvedValueOnce({ text: '', pageCount: 1 })
       .mockResolvedValueOnce({ text: '12.01. Neujahrsempfang', pageCount: 1 });
-    const { attachmentContext } = await processAttachments(
+    const { attachmentContext, turnMaterial } = await processAttachments(
       [textFile('scan.txt'), textFile('Eingefügter Text.txt')],
       'req-1'
     );
     expect(attachmentContext).toContain('### scan.txt\n\n[Kein Text erkannt]');
-    expect(describeTurnMaterial(attachmentContext)).toEqual({ pasted: true, other: true });
-  });
-
-  it('zählt Referenzen und Client-Kontext neben dem Paste mit', () => {
-    const paste = `### ${PASTED_TEXT_HEADING}\n\nTermine`;
-    expect(describeTurnMaterial(`${paste}\n\n---\n\n## REFERENZIERTE TEXTE\n\nAlt`)).toEqual({
-      pasted: true,
-      other: true,
-    });
-    expect(describeTurnMaterial(`Editor-Inhalt\n\n---\n\n${paste}`)).toEqual({
-      pasted: true,
-      other: true,
-    });
+    expect(kinds(turnMaterial)).toEqual(['upload', 'paste']);
   });
 
   it('nimmt einen Upload, der nur so heisst, nicht für einen Paste', () => {
@@ -231,7 +224,9 @@ describe('processAttachments — eingefügter Text', () => {
     );
   });
 
-  it('meldet für leeres Material nichts', () => {
-    expect(describeTurnMaterial(null)).toEqual({ pasted: false, other: false });
+  it('meldet für leeres Material nichts', async () => {
+    const { attachmentContext, turnMaterial } = await processAttachments([], 'req-1');
+    expect(attachmentContext).toBe('');
+    expect(turnMaterial).toEqual([]);
   });
 });

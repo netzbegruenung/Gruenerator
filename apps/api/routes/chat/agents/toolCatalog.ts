@@ -665,7 +665,7 @@ NUTZE WENN:
   }
 
   // expand_attachment: recovers from the fair-split budget in
-  // limitAttachmentContext (respondNode.ts) and the fan-out's per-source chunk
+  // limitMaterialTexts (respondNode.ts) and the fan-out's per-source chunk
   // cap (executeMultiDocFanout, searchNode.ts) by pulling more content for ONE
   // named attachment on demand — see docs/chat-context-memory-paths.md,
   // "Mehrdokument-Fan-out" (M4).

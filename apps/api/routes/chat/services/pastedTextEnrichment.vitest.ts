@@ -235,7 +235,7 @@ describe('earlier pastes in the same thread', () => {
       [row(para('ALT1', 2_000)), row(para('ALT2', 2_000))],
       128_000,
       '',
-      '',
+      [],
       ''
     );
     expect(out).toContain('ALT1');
@@ -246,7 +246,7 @@ describe('earlier pastes in the same thread', () => {
 
   // #5423: in Folge-Turns stand er als „Eingefügter Text.txt (Volltext-Auszug)".
   it('an earlier paste is named as text from an earlier message, not as a file', () => {
-    const out = formatThreadAttachmentsContext([row(para('ALT', 2_000))], 128_000, '', '', '');
+    const out = formatThreadAttachmentsContext([row(para('ALT', 2_000))], 128_000, '', [], '');
     expect(out).toContain('### 1. Eingefügter Text aus einer früheren Nachricht (Volltext-Auszug)');
     expect(out).not.toContain('Eingefügter Text.txt');
   });
@@ -256,7 +256,7 @@ describe('earlier pastes in the same thread', () => {
       [row(para('ALT', 20_000), 'doc-old')],
       128_000,
       '',
-      `### ${PASTED_TEXT_HEADING}\n\n${para('NEU', 3_000)}`,
+      [pasteItem(para('NEU', 3_000))],
       ''
     );
     expect(out).not.toContain('ALT-Satz');

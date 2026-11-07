@@ -16,7 +16,7 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
 
 const { classifierNode } = await import('./classifierNode.js');
 
-import type { ChatGraphState, SearchIntent } from '../types.js';
+import type { ChatGraphState, SearchIntent, TurnMaterialItem } from '../types.js';
 
 const STUB_AGENT_CONFIG = {
   identifier: 'gruenerator-universal',
@@ -65,6 +65,12 @@ function buildState(
 const { getActiveAnchors } = await import('./anchorContext.js');
 const { PASTED_TEXT_HEADING } =
   await import('../../../../routes/chat/services/attachmentProcessingService.js');
+const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
+
+const material = (items: TurnMaterialItem[]) => ({
+  turnMaterial: items,
+  attachmentContext: renderTurnMaterial(items),
+});
 
 /**
  * #5406: ein eingefügter Text, der ganz im Prompt steht (`wholeDocument.ask ===
@@ -78,7 +84,9 @@ const PASTE = 'y'.repeat(13_300);
 const pasteTurn = (over: Partial<ChatGraphState> = {}) =>
   buildState({
     userMessage: 'Hier sind die Termine',
-    attachmentContext: `### ${PASTED_TEXT_HEADING}\n\n${PASTE}`,
+    ...material([
+      { kind: 'paste', name: 'Eingefügter Text.txt', heading: PASTED_TEXT_HEADING, text: PASTE },
+    ]),
     documentChatIds: ['doc-paste'],
     wholeDocument: {
       origin: 'turn',
@@ -122,9 +130,22 @@ describe('paste read whole — not a document chat', () => {
 
   it('a paste next to an upload carries both anchors', () => {
     const kinds = getActiveAnchors(
-      pasteTurn({
-        attachmentContext: `### Antrag.pdf (Volltext-Auszug)\n\nText\n\n---\n\n### ${PASTED_TEXT_HEADING}\n\n${PASTE}`,
-      })
+      pasteTurn(
+        material([
+          {
+            kind: 'upload',
+            name: 'Antrag.pdf',
+            heading: 'Antrag.pdf (Volltext-Auszug)',
+            text: 'Text',
+          },
+          {
+            kind: 'paste',
+            name: 'Eingefügter Text.txt',
+            heading: PASTED_TEXT_HEADING,
+            text: PASTE,
+          },
+        ])
+      )
     ).map((a) => a.kind);
     expect(kinds).toEqual(expect.arrayContaining(['paste', 'attachment']));
   });

@@ -22,7 +22,7 @@ import {
 } from '../../../../utils/decisionJournal.js';
 
 import type * as productKnowledge from '../../../../services/chat/productKnowledge.js';
-import type { ChatGraphState } from '../types.js';
+import type { ChatGraphState, TurnMaterialItem } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -69,6 +69,12 @@ const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
   await import('./respondNode.js');
 const { PASTED_TEXT_HEADING } =
   await import('../../../../routes/chat/services/attachmentProcessingService.js');
+const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
+
+const material = (items: TurnMaterialItem[]) => ({
+  turnMaterial: items,
+  attachmentContext: renderTurnMaterial(items),
+});
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -358,7 +364,14 @@ const GOLDEN_CASES: readonly Case[] = [
     name: 'mit eingefuegtem text',
     state: makeState({
       intent: 'produktion',
-      attachmentContext: `### ${PASTED_TEXT_HEADING}\n\n12.01.2027 Neujahrsempfang, Rathaus`,
+      ...material([
+        {
+          kind: 'paste',
+          name: 'Eingefügter Text.txt',
+          heading: PASTED_TEXT_HEADING,
+          text: '12.01.2027 Neujahrsempfang, Rathaus',
+        },
+      ]),
       threadAttachments: [
         {
           ...protokoll,
@@ -375,10 +388,20 @@ const GOLDEN_CASES: readonly Case[] = [
     name: 'eingefuegter text neben datei',
     state: makeState({
       intent: 'produktion',
-      attachmentContext: [
-        '### Antrag.pdf (Volltext-Auszug)\n\nDer Antrag fordert ein Tempolimit.',
-        `### ${PASTED_TEXT_HEADING}\n\nUnsere Begründung: weniger Lärm.`,
-      ].join('\n\n---\n\n'),
+      ...material([
+        {
+          kind: 'upload',
+          name: 'Antrag.pdf',
+          heading: 'Antrag.pdf (Volltext-Auszug)',
+          text: 'Der Antrag fordert ein Tempolimit.',
+        },
+        {
+          kind: 'paste',
+          name: 'Eingefügter Text.txt',
+          heading: PASTED_TEXT_HEADING,
+          text: 'Unsere Begründung: weniger Lärm.',
+        },
+      ]),
     } as never),
   },
   {

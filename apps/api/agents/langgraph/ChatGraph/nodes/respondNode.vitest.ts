@@ -7,7 +7,7 @@ import {
   getModeGuidance,
   citableSourcesAvailable,
   truncateDocument,
-  limitAttachmentContext,
+  limitMaterialTexts,
   formatThreadAttachmentsContext,
   restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
@@ -15,7 +15,13 @@ import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 import { PASTED_TEXT_HEADING } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { replaceUntrustedBlocks } from '../../../../routes/chat/services/untrustedContent.js';
 
-import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
+import type {
+  ChatGraphState,
+  ComputeData,
+  SearchResult,
+  ThreadAttachment,
+  TurnMaterialItem,
+} from '../types.js';
 import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
@@ -143,43 +149,50 @@ describe('truncateDocument — mit Anfrage (#2824)', () => {
   });
 });
 
-describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
-  function doc(name: string, chars: number): string {
-    return `### ${name}\n\n${'A'.repeat(chars)}`;
-  }
+describe('limitMaterialTexts — fair per-document split (M1/M3)', () => {
+  const total = (texts: string[]): number => texts.reduce((n, t) => n + t.length, 0);
 
   it('keeps all N documents instead of dropping the last one under budget pressure', () => {
-    const context = [doc('A.pdf', 8000), doc('B.pdf', 8000), doc('C.pdf', 8000)].join(
-      '\n\n---\n\n'
-    );
     // Old first-come-first-served behavior exhausted the budget on A and B,
     // dropping C entirely — the exact failure mode of a 3-file comparison.
-    const out = limitAttachmentContext(context, undefined, 10_000);
-    expect(out).toContain('A.pdf');
-    expect(out).toContain('B.pdf');
-    expect(out).toContain('C.pdf');
-    expect(out).not.toContain('nicht einbezogen');
-  });
-
-  it('names omitted documents instead of only counting them', () => {
-    const context = [doc('Real.pdf', 500), '### Empty.pdf\n\n'].join('\n\n---\n\n');
-    const out = limitAttachmentContext(context, undefined, 200);
-    expect(out).toContain('nicht einbezogen');
-    expect(out).toContain('Empty.pdf');
+    const out = limitMaterialTexts(
+      ['A'.repeat(8000), 'B'.repeat(8000), 'C'.repeat(8000)],
+      undefined,
+      10_000
+    );
+    expect(out).toHaveLength(3);
+    for (const text of out) expect(text.length).toBeGreaterThan(1000);
   });
 
   it('leaves a single document untouched under a generous budget', () => {
-    const context = doc('Solo.pdf', 500);
-    const out = limitAttachmentContext(context, undefined, 10_000);
-    expect(out).toBe(context);
+    const solo = 'A'.repeat(500);
+    expect(limitMaterialTexts([solo], undefined, 10_000)).toEqual([solo]);
   });
 
   it('gives every document at least the minimum floor even with many attachments', () => {
-    const many = Array.from({ length: 10 }, (_, i) => doc(`F${i}.pdf`, 5000));
-    const out = limitAttachmentContext(many.join('\n\n---\n\n'), undefined, 5_000);
-    for (let i = 0; i < 10; i++) {
-      expect(out).toContain(`F${i}.pdf`);
-    }
+    const out = limitMaterialTexts(
+      Array.from({ length: 10 }, (_, i) => `F${i} ${'x'.repeat(5000)}`),
+      undefined,
+      5_000
+    );
+    out.forEach((text, i) => expect(text).toContain(`F${i}`));
+  });
+
+  // #5429: gemessen auf master 7d9fdb0260 — 34.405 Zeichen rein, 34.522 raus bei
+  // 20.000 Budget, 30 `---` im Text, und jede `### Termin N`-Zeile im Hinweis
+  // „nicht einbezogen", obwohl ihr Text im Prompt stand.
+  it('treats ### headings inside a paste as text, not as documents', () => {
+    const paste = Array.from(
+      { length: 30 },
+      (_, i) =>
+        `### Termin ${i + 1}\n### Ort ${i + 1}\n${'Beschreibung der Veranstaltung. '.repeat(35)}`
+    ).join('\n\n');
+    const [out] = limitMaterialTexts([paste], undefined, 20_000);
+    expect(paste.length).toBeGreaterThan(30_000);
+    expect(out!.length).toBeLessThan(paste.length);
+    expect(out).not.toContain('nicht einbezogen');
+    expect(out).not.toContain('---');
+    expect(total([out!])).toBeLessThanOrEqual(20_000);
   });
 });
 
@@ -190,17 +203,16 @@ describe('whole-document turn — the full text reaches the prompt', () => {
   const pdf = 'Absatz über die Löschfristen. '.repeat(3_000); // 90.000 Zeichen
 
   it('keeps a document whole under the whole-document budget', () => {
-    const context = `### document.pdf\n\n${pdf}`;
-    expect(limitAttachmentContext(context, 86_600).length).toBeLessThan(30_000);
-    expect(limitAttachmentContext(context, 86_600, 151_550, null, Infinity)).toBe(context);
+    expect(limitMaterialTexts([pdf], 86_600)[0]!.length).toBeLessThan(30_000);
+    expect(limitMaterialTexts([pdf], 86_600, 151_550, null, Infinity)).toEqual([pdf]);
   });
 
   it('splits an over-budget pair by budget, not by the 25.000 cap', () => {
-    const context = [`### a.pdf\n\n${pdf}`, `### b.pdf\n\n${pdf}`].join('\n\n---\n\n');
-    const capped = limitAttachmentContext(context, 86_600, 151_550);
-    const whole = limitAttachmentContext(context, 86_600, 151_550, null, Infinity);
-    expect(capped.length).toBeLessThan(55_000);
-    expect(whole.length).toBeGreaterThan(140_000);
+    const size = (texts: string[]): number => texts.reduce((n, t) => n + t.length, 0);
+    const capped = limitMaterialTexts([pdf, pdf], 86_600, 151_550);
+    const whole = limitMaterialTexts([pdf, pdf], 86_600, 151_550, null, Infinity);
+    expect(size(capped)).toBeLessThan(55_000);
+    expect(size(whole)).toBeGreaterThan(140_000);
   });
 
   it('puts a vectorised earlier document back in full', () => {
@@ -213,7 +225,7 @@ describe('whole-document turn — the full text reaches the prompt', () => {
       summary: null,
     } as ThreadAttachment;
     expect(formatThreadAttachmentsContext([row], 86_600)).toBe('');
-    const out = formatThreadAttachmentsContext([row], 86_600, '', '', '', {
+    const out = formatThreadAttachmentsContext([row], 86_600, '', [], '', {
       origin: 'thread',
       ask: 'summary',
       docs: [{ name: 'document.pdf', text: pdf, documentId: 'doc-old' }],
@@ -826,8 +838,21 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
   // Die Historie-Prüfung darüber konnte beides nicht sehen: `sanitizeUIFileParts`
   // entfernt die File-Parts, bevor die Historie gebaut wird.
   describe('derselbe Text nur einmal im Prompt', () => {
+    const pasteItem = (text: string): TurnMaterialItem => ({
+      kind: 'paste',
+      name: 'Eingefügter Text.txt',
+      heading: PASTED_TEXT_HEADING,
+      text,
+    });
+    const uploadItem = (name: string, text: string): TurnMaterialItem => ({
+      kind: 'upload',
+      name,
+      heading: `${name} (Volltext-Auszug)`,
+      text,
+    });
+
     it('lässt die gespeicherte Zeile weg, wenn der Live-Anhang denselben Text trägt', () => {
-      const live = `### ${PASTED_TEXT_HEADING}\n\n${article}`;
+      const live = [pasteItem(article)];
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
@@ -844,7 +869,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
 
     it('lässt einen anderen Anhang neben dem Live-Anhang stehen', () => {
       const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
-      const live = `### ${PASTED_TEXT_HEADING}\n\n${article}`;
+      const live = [pasteItem(article)];
       const out = formatThreadAttachmentsContext(
         [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
         undefined,
@@ -866,7 +891,7 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
     // aus dem Prompt — ohne Log, ohne Budget-Warnung.
     it('verschluckt keine kurze gespeicherte Zeile, die zufällig im Live-Text steht', () => {
       const notiz = 'Gesamt: 12,50 €';
-      const live = `### Quartalsbericht.pdf (Volltext-Auszug)\n\n${article} Gesamt: 12,50 € Ende.`;
+      const live = [uploadItem('Quartalsbericht.pdf', `${article} Gesamt: 12,50 € Ende.`)];
       const out = formatThreadAttachmentsContext(
         [doc(notiz, { name: 'Notiz.txt' })],
         undefined,
@@ -881,17 +906,14 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       // Der gespeicherte Volltext ist ungekürzt, der Live-Block kann es nicht
       // sein — deshalb zählt die Überdeckung in beide Richtungen, sobald sie
       // lang genug ist, um kein Zufall mehr zu sein.
-      const live = `### ${PASTED_TEXT_HEADING}\n\n${article.slice(0, 1200)}`;
+      const live = [pasteItem(article.slice(0, 1200))];
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
 
     it('erkennt die Dublette, wenn der Live-Block mehrere Dokumente trägt', () => {
       const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
-      const live = [
-        `### Radwege.txt (Volltext-Auszug)\n\n${other}`,
-        `### ${PASTED_TEXT_HEADING}\n\n${article}`,
-      ].join('\n\n---\n\n');
+      const live = [uploadItem('Radwege.txt', other), pasteItem(article)];
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });

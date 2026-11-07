@@ -1,4 +1,4 @@
-import { describeTurnMaterial } from '../../../../routes/chat/services/attachmentProcessingService.js';
+import { turnMaterialOf } from '../../../../routes/chat/services/materialItems.js';
 import { documentChatIdsToSearch } from '../../../../routes/chat/services/wholeDocument.js';
 
 import type { ChatGraphState } from '../types.js';
@@ -57,11 +57,9 @@ export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
     anchors.push({ kind: 'documentChat' });
   }
   if (state.boardContext) anchors.push({ kind: 'board' });
-  if (state.attachmentContext) {
-    const material = describeTurnMaterial(state.attachmentContext);
-    if (material.pasted) anchors.push({ kind: 'paste' });
-    if (material.other) anchors.push({ kind: 'attachment' });
-  }
+  const material = turnMaterialOf(state);
+  if (material.some((item) => item.kind === 'paste')) anchors.push({ kind: 'paste' });
+  if (material.some((item) => item.kind !== 'paste')) anchors.push({ kind: 'attachment' });
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     anchors.push({ kind: 'image', names: state.imageAttachments.map((i) => i.name) });
   }

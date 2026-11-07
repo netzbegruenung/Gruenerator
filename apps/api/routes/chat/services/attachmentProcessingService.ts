@@ -46,17 +46,13 @@ export function isPastedTextAttachment(name: string, mimeType: string): boolean 
  * las das Modell „Hier sind die Termine" als Nachricht OHNE Termine und fragte
  * zurück, ob die Liste „aus dem angehängten Dokument" gemeint sei — 2 von 3
  * Läufen, lokal wie auf gruenerator.eu (#5423).
- *
- * Zugleich der Erkennungsschlüssel für Rubrik und Anker (`describeTurnMaterial`):
- * der Materialblock reist als Text, die Art des Abschnitts steht nur hier (#5430).
  */
 export const PASTED_TEXT_HEADING = 'Eingefügter Text (von der Person in diese Nachricht eingefügt)';
 
 /**
  * Die `###`-Überschrift eines Material-Abschnitts, ohne die Rauten. `earlier`
  * gesetzt: der Abschnitt stammt aus einem früheren Turn und trägt, ob er voll
- * oder nur zusammengefasst vorliegt. Der `###`-Präfix davor ist tragend:
- * `limitAttachmentContext` schneidet daran die Dokumente.
+ * oder nur zusammengefasst vorliegt.
  */
 export function materialSectionHeading(
   name: string,
@@ -68,32 +64,6 @@ export function materialSectionHeading(
   return pasted
     ? `Eingefügter Text aus einer früheren Nachricht (${earlier})`
     : `${name} (${earlier})`;
-}
-
-/**
- * Was im Material dieses Turns steht: ein eingefügter Text, und ob daneben noch
- * etwas anderes liegt (eine Datei — auch eine, deren Text nicht gelesen werden
- * konnte —, eine Referenz, Kontext vom Client).
- *
- * Entschieden je Abschnitt, nicht an einer Überschriften-Endung: die Datei-
- * Abschnitte haben drei Formen (`(Volltext-Auszug)`, `[Kein Text erkannt]`,
- * `[Fehler beim Extrahieren …]`), Referenzen und Client-Kontext gar keine
- * `###`-Zeile. Steht im Paste selbst ein `---`-Trenner, zählt sein Rest als
- * „anderes" — der sichere Rückfall auf die alte Rahmung. Ganz verschwindet das
- * Raten erst mit der typisierten Materialliste (#5430).
- */
-export function describeTurnMaterial(attachmentContext: string | null | undefined): {
-  pasted: boolean;
-  other: boolean;
-} {
-  if (!attachmentContext?.trim()) return { pasted: false, other: false };
-  const sections = attachmentContext.split('\n\n---\n\n');
-  const isPaste = (section: string): boolean =>
-    section.trimStart().startsWith(`### ${PASTED_TEXT_HEADING}\n`);
-  return {
-    pasted: sections.some(isPaste),
-    other: sections.some((section) => section.trim() !== '' && !isPaste(section)),
-  };
 }
 
 /**
