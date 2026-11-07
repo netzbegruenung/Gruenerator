@@ -108,6 +108,16 @@ interface MapChartProps {
   domain: [number, number];
 }
 
+// Farbrampe der grünen Stärke in den Dashboard-Farben (Magenta wie /briefing):
+// hell = schwach, dunkel = stark. d3 interpoliert keine CSS-Variablen, darum
+// feste Werte; beide Enden lesen sich im hellen wie im dunklen Modus. Die
+// Werte stehen im Tailwind-Verlauf der Legende noch einmal literal.
+const RAMP_LOW = '#f8cfe1';
+const RAMP_MID = '#c2457f';
+const RAMP_HIGH = '#8a004a';
+/** Zahl auf hellen Flächen. */
+const LABEL_INK = '#3a0d24';
+
 function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -130,7 +140,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
   const feats = useMemo(() => {
     const proj = geoMercator().fitSize([width, height], fitGeo ?? geo);
     const path = geoPath(proj);
-    const color = scaleLinear<string>().domain(scale).range(['#dceae2', '#2c5741']).clamp(true);
+    const color = scaleLinear<string>().domain(scale).range([RAMP_LOW, RAMP_HIGH]).clamp(true);
     return geo.features.map((f, i) => {
       const name = String(f.properties?.name ?? '');
       const d: Partial<ChoroplethValue> = values[name] ?? {};
@@ -158,7 +168,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
   const hasMarked = feats.some((s) => s.marked);
 
   return (
-    <div className="relative [--map-stroke:#fff] [--map-nodata:#eceeec] dark:[--map-stroke:#1b2b23] dark:[--map-nodata:#243029]">
+    <div className="relative [--map-nodata:var(--dash-skeleton,#efe8eb)] [--map-stroke:var(--dash-card,#fff)]">
       <svg
         width={width}
         height={height}
@@ -173,8 +183,8 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <rect width={6} height={6} fill="#dceae2" />
-            <line x1={0} y1={0} x2={0} y2={6} stroke="#52907a" strokeWidth={2.5} />
+            <rect width={6} height={6} fill={RAMP_LOW} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke={RAMP_MID} strokeWidth={2.5} />
           </pattern>
         </defs>
         {feats.map((s) => (
@@ -205,8 +215,8 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                fill: (s.v ?? 0) >= mid ? '#fff' : '#22382e',
-                stroke: (s.v ?? 0) >= mid ? '#2c5741' : '#fff',
+                fill: (s.v ?? 0) >= mid ? '#fff' : LABEL_INK,
+                stroke: (s.v ?? 0) >= mid ? RAMP_HIGH : '#fff',
                 strokeWidth: 3,
                 strokeLinejoin: 'round',
                 paintOrder: 'stroke',
@@ -219,7 +229,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
 
       {active && active.cx > 0 && active.cx < width && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#22382e] px-3 py-1.5 text-[13px] text-white shadow-[0_4px_14px_rgba(0,0,0,0.25)]"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#2a0f1d] px-3 py-1.5 text-[13px] text-white shadow-[0_4px_14px_rgba(0,0,0,0.25)]"
           style={{
             left: Math.min(Math.max(active.cx, 70), width - 70),
             top: Math.max(active.cy - 34, 0),
@@ -231,9 +241,9 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 text-[12px] text-[#5c6b63] dark:text-grey-400">
+      <div className="mt-3 flex items-center gap-2 text-[12px] text-muted-foreground">
         <span>{scale[0]}%</span>
-        <div className="h-2 max-w-[140px] flex-1 rounded bg-gradient-to-r from-[#dceae2] to-[#2c5741]" />
+        <div className="h-2 max-w-[140px] flex-1 rounded bg-gradient-to-r from-[#f8cfe1] to-[#8a004a]" />
         <span>{scale[1]}%</span>
         <span className="ml-2 inline-flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded bg-[var(--map-nodata)]" />
@@ -241,7 +251,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
         </span>
         {hasMarked && (
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded bg-[repeating-linear-gradient(45deg,#52907a_0_2px,#dceae2_2px_5px)]" />
+            <span className="inline-block h-2.5 w-2.5 rounded bg-[repeating-linear-gradient(45deg,#c2457f_0_2px,#f8cfe1_2px_5px)]" />
             Bündnis
           </span>
         )}
@@ -254,7 +264,7 @@ function MapSkeleton({ width, height }: { width: number; height: number }) {
   return (
     <div
       style={{ width, height, maxWidth: '100%' }}
-      className="animate-pulse rounded-2xl bg-grey-100 dark:bg-grey-800/50"
+      className="animate-pulse rounded-2xl bg-(--dash-skeleton)"
     />
   );
 }

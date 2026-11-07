@@ -36,7 +36,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
-    note: 'Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Hier liegt auch der Monitor mit Themen und Umfragen.',
+    note: 'Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen.',
     platform: ['web', 'desktop', 'mobile'],
   },
 

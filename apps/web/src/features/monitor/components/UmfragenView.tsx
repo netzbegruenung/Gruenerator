@@ -1,5 +1,5 @@
 import { type PollsOverviewResponse } from '@gruenerator/contracts';
-import { cn, LoadingSection } from '@gruenerator/ui';
+import { cn } from '@gruenerator/ui';
 import { useState } from 'react';
 
 import { BUNDESLAENDER } from '../bundeslaender';
@@ -9,18 +9,27 @@ import { deltaText, formatPollDate, grueneSnapshot, isGruene, pct } from '../pol
 import { type UmfragenRegion } from '../umfragenRegion';
 
 import { DeutschlandMap, EuropaMap, type ChoroplethValues } from './GreensChoropleth';
-import { PillButton } from './MonitorPageHeader';
-import {
-  MONITOR_ACCENT,
-  MONITOR_CARD,
-  MONITOR_FAINT,
-  MONITOR_HEADING,
-  MONITOR_MUTED,
-  MONITOR_PILL_TRACK,
-} from './theme';
+import { PillButton } from './PillButton';
 import { TrendSparkline } from './TrendSparkline';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
+
+import { Bone } from '@/components/dashboard/Bone';
+import {
+  DASH_ACCENT_TEXT,
+  DASH_CARD,
+  DASH_DISPLAY,
+  DASH_HEADING,
+  DASH_MUTED,
+} from '@/components/dashboard/dashboardStyles';
+
+// Farben und Karten wie /briefing (Dashboard-Tokens, `.dashboard-surface` setzt
+// die Seite); Parteifarben bleiben die der Parteien.
+
+/** Weiße Karte mit dem Innenmaß der Briefing-Karten. */
+const CARD = cn('rounded-[20px] px-[clamp(20px,3vw,32px)] py-[clamp(22px,3vw,30px)]', DASH_CARD);
+/** Kartenüberschrift wie auf /briefing. */
+const CARD_TITLE = cn('m-0 text-[clamp(19px,2.2vw,22px)] font-bold', DASH_DISPLAY, DASH_HEADING);
 
 // PolitPro country code → world-atlas English geo name (Europe choropleth join).
 const EU_CODE_GEO: Record<string, string> = {
@@ -63,34 +72,41 @@ function partyOrder(average: Record<string, number>): string[] {
 }
 
 function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLabel: string }) {
-  const { data } = usePolls(parliament);
+  const { data, isPending } = usePolls(parliament);
   const g = grueneSnapshot(data);
-  if (!g) return null;
+  if (!g) {
+    return isPending ? (
+      <div aria-hidden className={cn(CARD, 'flex flex-col gap-3')}>
+        <Bone className="h-3.5 w-32" />
+        <Bone className="h-16 w-48" />
+        <Bone className="h-4 w-72 max-w-full" />
+      </div>
+    ) : null;
+  }
 
   return (
-    <div
-      className={cn('mb-10 flex flex-wrap items-center justify-between gap-8 p-8', MONITOR_CARD)}
-    >
+    <div className={cn(CARD, 'flex flex-wrap items-center justify-between gap-8')}>
       <div>
-        <p className="m-0 mb-1 text-[13px] font-bold uppercase tracking-[0.12em] text-[#52907a] dark:text-[#7fae9c]">
+        <p className="m-0 mb-1 text-[13px] font-bold uppercase tracking-[0.04em] text-(--dash-mg-ink)">
           Grüne · {regionLabel}
         </p>
         <div className="flex items-baseline gap-3.5">
           <span
             className={cn(
-              'text-[4.4rem] font-semibold leading-none tracking-[-0.03em]',
-              MONITOR_HEADING
+              'text-[clamp(52px,8vw,70px)] font-bold leading-none tracking-[-0.03em]',
+              DASH_DISPLAY,
+              DASH_HEADING
             )}
           >
             {pct(g.value)}
           </span>
           {deltaText(g.delta) && (
-            <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>
+            <span className={cn('text-[1.1rem] font-bold', DASH_ACCENT_TEXT)}>
               {deltaText(g.delta)}
             </span>
           )}
         </div>
-        <p className={cn('m-0 mt-2.5 text-[0.9rem]', MONITOR_MUTED)}>
+        <p className={cn('m-0 mt-2.5 text-[0.9rem]', DASH_MUTED)}>
           {g.lastPoll ? `Letzte Umfrage: ${formatPollDate(g.lastPoll)} · ` : ''}
           Wöchentlich aggregierter Durchschnitt
         </p>
@@ -98,7 +114,7 @@ function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLab
       {g.trend.length >= 2 && (
         <div className="flex flex-col items-end gap-1.5">
           <TrendSparkline points={g.trend} />
-          <span className={cn('text-[12px]', MONITOR_FAINT)}>Trend · letzte 12 Wochen</span>
+          <span className={cn('text-[12px]', DASH_MUTED)}>Trend · letzte 12 Wochen</span>
         </div>
       )}
     </div>
@@ -107,9 +123,18 @@ function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLab
 
 function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subtitle: string }) {
   const { data, isLoading } = usePolls(parliament);
-  if (isLoading) return <LoadingSection />;
+  if (isLoading) {
+    return (
+      <div aria-hidden className="flex flex-col gap-3.5">
+        <Bone className="h-6 w-40" />
+        {['w-full', 'w-4/5', 'w-3/5', 'w-1/2', 'w-2/5', 'w-1/4'].map((w) => (
+          <Bone key={w} className={cn('h-[22px]', w)} />
+        ))}
+      </div>
+    );
+  }
   if (!data || Object.keys(data.average).length === 0) {
-    return <p className={cn('text-sm', MONITOR_MUTED)}>Keine Umfragedaten verfügbar.</p>;
+    return <p className={cn('text-sm', DASH_MUTED)}>Keine Umfragedaten verfügbar.</p>;
   }
 
   const order = partyOrder(data.average);
@@ -117,12 +142,8 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
 
   return (
     <div>
-      <h2
-        className={cn('m-0 mb-1 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}
-      >
-        Sonntagsfrage
-      </h2>
-      <p className={cn('m-0 mb-6 text-[0.9rem]', MONITOR_MUTED)}>{subtitle}</p>
+      <h2 className={cn(CARD_TITLE, 'mb-1')}>Sonntagsfrage</h2>
+      <p className={cn('m-0 mb-6 text-[0.9rem]', DASH_MUTED)}>{subtitle}</p>
 
       <div className="flex flex-col gap-3.5">
         {order.map((party) => {
@@ -134,13 +155,13 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
               key={party}
               className={cn(
                 'flex items-center gap-3.5 rounded-[10px]',
-                hi ? '-mx-3.5 bg-[#eaf3ee] px-3.5 py-2.5 dark:bg-[#1e2f27]' : ''
+                hi ? '-mx-3.5 bg-(--dash-mg-tint) px-3.5 py-2.5' : ''
               )}
             >
-              <span className={cn('w-[86px] flex-none text-[0.95rem] font-bold', MONITOR_HEADING)}>
+              <span className={cn('w-[86px] flex-none text-[0.95rem] font-bold', DASH_HEADING)}>
                 {party}
               </span>
-              <div className="h-[22px] flex-1 overflow-hidden rounded-md bg-[#eef2ef] dark:bg-grey-800">
+              <div className="h-[22px] flex-1 overflow-hidden rounded-md bg-(--dash-skeleton)">
                 <div
                   className="h-full rounded-md transition-[width] duration-500"
                   style={{
@@ -152,16 +173,17 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
               <span
                 className={cn(
                   'w-14 flex-none text-right text-[1rem] font-bold tabular-nums',
-                  MONITOR_HEADING
+                  DASH_HEADING
                 )}
               >
                 {pct(value)}
               </span>
               <span
-                className="w-11 flex-none text-[0.85rem] font-bold"
-                style={{
-                  color: delta == null ? '#a3ada7' : delta >= 0 ? '#316049' : '#b4442f',
-                }}
+                className={cn(
+                  'w-11 flex-none text-[0.85rem] font-bold',
+                  // Gewinne im Akzent, Verluste grau — Rot läge zu nah am Magenta.
+                  delta != null && delta > 0 ? 'text-(--dash-mg-ink)' : DASH_MUTED
+                )}
               >
                 {deltaText(delta)}
               </span>
@@ -170,13 +192,13 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
         })}
       </div>
 
-      <p className={cn('m-0 mt-[22px] text-[0.8rem]', MONITOR_FAINT)}>
+      <p className={cn('m-0 mt-[22px] text-[0.8rem]', DASH_MUTED)}>
         Daten:{' '}
         <a
           href="https://politpro.eu"
           target="_blank"
           rel="noopener noreferrer"
-          className={cn('no-underline hover:underline', MONITOR_ACCENT)}
+          className={cn('font-bold no-underline hover:underline', DASH_ACCENT_TEXT)}
         >
           PolitPro
         </a>{' '}
@@ -208,28 +230,29 @@ function laenderGrueneValues(data: PollsOverviewResponse): ChoroplethValues {
   return values;
 }
 
+/** Platzhalter in der Größe der Karte (380 × 470). */
+function MapBone() {
+  return <Bone className="aspect-[380/470] w-full max-w-[380px] rounded-2xl" />;
+}
+
 // Split into per-view components so the Bundesland overview is only fetched
 // while the German map is actually mounted (AT shows Europe only).
 // A cold overview is paced upstream and takes seconds; drawing the map before
 // it lands painted every Land as "keine Daten".
 function DeutschlandMapPanel() {
   const { data, isLoading } = usePollsOverview('DE');
-  if (isLoading) return <LoadingSection />;
+  if (isLoading) return <MapBone />;
   if (!data) {
-    return (
-      <p className={cn('text-sm', MONITOR_MUTED)}>Länderdaten konnten nicht geladen werden.</p>
-    );
+    return <p className={cn('text-sm', DASH_MUTED)}>Länderdaten konnten nicht geladen werden.</p>;
   }
   return <DeutschlandMap values={laenderGrueneValues(data)} />;
 }
 
 function EuropaMapPanel() {
   const { data, isLoading } = useEuGreens();
-  if (isLoading) return <LoadingSection />;
+  if (isLoading) return <MapBone />;
   if (!data) {
-    return (
-      <p className={cn('text-sm', MONITOR_MUTED)}>Europadaten konnten nicht geladen werden.</p>
-    );
+    return <p className={cn('text-sm', DASH_MUTED)}>Europadaten konnten nicht geladen werden.</p>;
   }
   const values: ChoroplethValues = {};
   for (const r of data.results) {
@@ -248,11 +271,9 @@ function LaenderMapPanel({ locale }: { locale: MonitorLocale }) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
-          {showDE ? 'Grüne in den Ländern' : 'Grüne in Europa'}
-        </h2>
+        <h2 className={CARD_TITLE}>{showDE ? 'Grüne in den Ländern' : 'Grüne in Europa'}</h2>
         {!isAT && (
-          <div className={MONITOR_PILL_TRACK}>
+          <div className="flex items-center gap-1 rounded-full bg-(--dash-mg-tint) p-1">
             <PillButton size="sm" active={view === 'de'} onClick={() => setView('de')}>
               Bundesländer
             </PillButton>
@@ -262,14 +283,14 @@ function LaenderMapPanel({ locale }: { locale: MonitorLocale }) {
           </div>
         )}
       </div>
-      <p className={cn('m-0 mb-6 text-[0.9rem]', MONITOR_MUTED)}>
+      <p className={cn('m-0 mb-6 text-[0.9rem]', DASH_MUTED)}>
         {showDE
           ? 'Aktuelle Umfragewerte je Bundesland'
           : 'Wahltrends grüner Parteien in nationalen Parlamenten'}
       </p>
       {showDE ? <DeutschlandMapPanel /> : <EuropaMapPanel />}
       {!showDE && (
-        <p className={cn('m-0 mt-4 text-[0.78rem] leading-[1.5]', MONITOR_FAINT)}>
+        <p className={cn('m-0 mt-4 text-[0.78rem] leading-[1.5]', DASH_MUTED)}>
           Schraffierte Länder zeigen einen Bündniswert, in dem Grüne nur Teil einer breiteren Liste
           sind (z.&nbsp;B. Frankreich NFP, Spanien Sumar). Graue Länder haben kein separat
           ausgewiesenes grünes Ergebnis.
@@ -296,12 +317,16 @@ export function UmfragenView({ locale, region }: UmfragenViewProps) {
       : 'Wenn am nächsten Sonntag Wahl wäre …');
 
   return (
-    <div>
+    <>
       <GlanceHero parliament={parliament} regionLabel={regionLabel} />
-      <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.45fr_1fr]">
-        <SonntagsfrageBars parliament={parliament} subtitle={subtitle} />
-        <LaenderMapPanel locale={isAT ? 'at' : 'de'} />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.45fr_1fr]">
+        <section className={CARD}>
+          <SonntagsfrageBars parliament={parliament} subtitle={subtitle} />
+        </section>
+        <section className={CARD}>
+          <LaenderMapPanel locale={isAT ? 'at' : 'de'} />
+        </section>
       </div>
-    </div>
+    </>
   );
 }

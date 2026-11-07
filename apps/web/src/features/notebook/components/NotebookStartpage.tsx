@@ -14,9 +14,9 @@ import { cn } from '@gruenerator/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
-import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
+import { WissenDashboardFrame } from '../wissen/WissenLayout';
 
 import { NotebookLiveSearch } from './NotebookLiveSearch';
 
@@ -131,21 +131,13 @@ export function NotebookStartpage({
       ? detectMagicIntent(composerText)
       : null;
 
-  // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
-  //     only. ---
+  // --- Overview surface (/wissen): the dashboard frame with the omni composer
+  //     on top; the dashboard itself comes in as `footer`. ---
   if (omniComposer) {
     return (
-      <PageContainer
-        maxWidth="lg"
-        noPadTop
-        gradient={false}
-        bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
-      >
-        <WorkplaceHero title={title}>
-          <NotebookOmniComposer />
-        </WorkplaceHero>
+      <WissenDashboardFrame title={title} composer={<NotebookOmniComposer />}>
         {footer}
-      </PageContainer>
+      </WissenDashboardFrame>
     );
   }
 

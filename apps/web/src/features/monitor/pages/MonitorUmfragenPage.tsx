@@ -1,13 +1,14 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../../components/common/PageContainer';
-import { MonitorPageHeader } from '../components/MonitorPageHeader';
 import { UmfragenView } from '../components/UmfragenView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import { umfragenRegion } from '../umfragenRegion';
 
-/** /umfragen — Sonntagsfrage + Ländertrends als Choropleth.
+import { DashboardPage, DASH_PAGE_TITLE } from '@/components/dashboard/DashboardPage';
+import { DASH_LINK } from '@/components/dashboard/dashboardStyles';
+
+/** /umfragen — eigene Seite im Dashboard-Stil wie /briefing: Sonntagsfrage + Ländertrends als Choropleth.
  * Land richtet sich automatisch nach dem Profil-Locale (kein DE/AT-Umschalter).
  * /umfragen/:land zeigt dasselbe für ein einzelnes Parlament (Einstieg aus den
  * Landesverband-Notebooks). */
@@ -19,23 +20,17 @@ function MonitorUmfragenPage() {
   if (land && !region) return <Navigate to="/umfragen" replace />;
 
   return (
-    <PageContainer maxWidth="lg">
-      <MonitorPageHeader
-        current="umfragen"
-        title={region ? `Umfragen · ${region.label}` : 'Umfragen'}
-        right={
-          region && (
-            <Link
-              to="/umfragen"
-              className="text-[0.9rem] font-semibold text-[#52907a] no-underline hover:underline dark:text-[#7fae9c]"
-            >
-              Alle Umfragen
-            </Link>
-          )
-        }
-      />
+    <DashboardPage>
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <h1 className={DASH_PAGE_TITLE}>{region ? `Umfragen · ${region.label}` : 'Umfragen'}</h1>
+        {region && (
+          <Link to="/umfragen" className={DASH_LINK}>
+            Alle Umfragen
+          </Link>
+        )}
+      </div>
       <UmfragenView locale={locale} region={region} />
-    </PageContainer>
+    </DashboardPage>
   );
 }
 

@@ -12,7 +12,10 @@ import {
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
+import { type BriefingCardId } from '../features/monitor/briefing/BriefingCard';
+import { BriefingSkeleton } from '../features/monitor/briefing/BriefingView';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
+import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkeletons';
 import { isDesktopApp } from '../utils/platform';
 import { startTabLink } from '../utils/startpage';
 
@@ -142,6 +145,28 @@ const LegacyMonitorTopicRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyMonitorTopicRedirect = lazy(() =>
   Promise.resolve({ default: LegacyMonitorTopicRedirectComponent })
 );
+
+// Alte Monitor-Pfade → /briefing mit der Karte, die die alte Seite ersetzt.
+// Die übrige Query (?locale=at) bleibt erhalten.
+const briefingRedirect = (card: BriefingCardId) =>
+  lazy(() =>
+    Promise.resolve({
+      default: (() => {
+        const params = new URLSearchParams(useLocation().search);
+        params.set('karte', card);
+        return createElement(Navigate, {
+          to: { pathname: '/briefing', search: `?${params}` },
+          replace: true,
+        });
+      }) as FC<Record<string, unknown>>,
+    })
+  );
+const BriefingRedirect = {
+  themen: briefingRedirect('themen'),
+  trends: briefingRedirect('trends'),
+  gruene: briefingRedirect('gruene'),
+  landesverbaende: briefingRedirect('landesverbaende'),
+};
 // Legacy custom-generator links: /gruenerator/:slug → the converted agent's
 // chat at /agents/cg-:slug (custom generators are now `cg-<slug>` user agents).
 const LegacyGeneratorSlugRedirectComponent: FC<Record<string, unknown>> = () => {
@@ -370,13 +395,12 @@ const PodcastPage = lazy(() => import('../features/podcasts/PodcastPage'));
 const CollabCanvasStudioPage = lazy(loadCanvasStudioPage);
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
-const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
+const MonitorBriefingPage = lazy(() => import('../features/monitor/pages/MonitorBriefingPage'));
+const MonitorTopicPage = lazy(() => import('../features/monitor/pages/MonitorTopicPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorTransparenzPage = lazy(
   () => import('../features/monitor/pages/MonitorTransparenzPage')
 );
-const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
-const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
@@ -433,7 +457,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
-  { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
+  {
+    path: '/wissen',
+    component: WissenPage,
+    layoutMode: 'sidebarOnly',
+    fallback: createElement(WissenDashboardSkeleton),
+  },
   // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag mit
   // optionalem Tab-Segment, damit der Wechsel nichts neu mountet und trotzdem
   // in der History steht. sidebarOnly hält die Leiste an ihrem Platz.
@@ -516,62 +545,44 @@ const standardRoutes: RouteConfig[] = [
   // Before the slug route: the first matching entry wins.
   { path: '/reisekosten/neu', component: ReisekostenEventPage },
   { path: '/reisekosten/:slug', component: ReisekostenAbrechnungPage },
-  // The former Monitor pages are standalone top-level pages — the "/monitor"
-  // grouping segment is gone from the URLs and the navigation.
-  { path: '/themen', component: MonitorThemenPage },
-  { path: '/themen/:topic', component: MonitorThemenPage },
-  // /trends was merged into /themen; old links keep working.
+  // Feed, Watcher und Themen & Trends sind seit 07.11.2026 eine Seite: /briefing.
+  // Ihre Pfade (und die älteren /monitor*- und /experiments/monitor*-Pfade)
+  // leiten für immer dorthin weiter und öffnen die Karte, die sie ersetzt.
   {
-    path: '/trends',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
+    path: '/briefing',
+    component: MonitorBriefingPage,
+    layoutMode: 'sidebarOnly',
+    fallback: createElement(BriefingSkeleton),
   },
-  { path: '/umfragen', component: MonitorUmfragenPage },
-  { path: '/umfragen/:land', component: MonitorUmfragenPage },
+  { path: '/themen/:topic', component: MonitorTopicPage },
+  { path: '/umfragen', component: MonitorUmfragenPage, layoutMode: 'sidebarOnly' },
+  { path: '/umfragen/:land', component: MonitorUmfragenPage, layoutMode: 'sidebarOnly' },
   { path: '/transparenz', component: MonitorTransparenzPage },
-  { path: '/watcher', component: MonitorWatcherPage },
-  { path: '/feed', component: MonitorFeedPage },
-  // Legacy /monitor* and /experiments/monitor* redirects (old links/bookmarks).
-  {
-    path: '/monitor',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
-  },
-  {
-    path: '/monitor/themen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
-  },
+  ...(
+    [
+      ['/themen', 'themen'],
+      ['/trends', 'trends'],
+      ['/watcher', 'gruene'],
+      ['/feed', 'landesverbaende'],
+      ['/monitor', 'themen'],
+      ['/monitor/themen', 'themen'],
+      ['/monitor/watcher', 'gruene'],
+      ['/monitor/feed', 'landesverbaende'],
+      ['/experiments/monitor', 'themen'],
+      ['/experiments/monitor/themen', 'themen'],
+      ['/experiments/monitor/watcher', 'gruene'],
+      ['/experiments/monitor/feed', 'landesverbaende'],
+    ] as const
+  ).map(([path, card]) => ({ path, component: BriefingRedirect[card] })),
   { path: '/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
+  { path: '/experiments/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
   {
     path: '/monitor/umfragen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
   },
   {
-    path: '/monitor/watcher',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
-  },
-  {
-    path: '/monitor/feed',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
-  },
-  {
-    path: '/experiments/monitor',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
-  },
-  {
-    path: '/experiments/monitor/themen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
-  },
-  { path: '/experiments/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
-  {
     path: '/experiments/monitor/umfragen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
-  },
-  {
-    path: '/experiments/monitor/watcher',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
-  },
-  {
-    path: '/experiments/monitor/feed',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
   },
   { path: '/admin', component: AdminPage },
   { path: '/admin/skills', component: AdminSkillsPage },

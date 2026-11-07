@@ -20,7 +20,7 @@ function isMonitorLocale(value: string | null): value is MonitorLocale {
 export function useMonitorLocaleParam(): {
   locale: MonitorLocale;
   setLocale: (locale: MonitorLocale) => void;
-  /** Append `?locale=` to an internal path when the locale is non-default. */
+  /** Append `locale=` to an internal path (which may carry a query) when the locale is non-default. */
   withLocale: (pathname: string) => string;
 } {
   const authLocale = useAuthStore((s) => s.locale);
@@ -50,7 +50,10 @@ export function useMonitorLocaleParam(): {
   );
 
   const withLocale = useCallback(
-    (pathname: string) => (locale === defaultLocale ? pathname : `${pathname}?${PARAM}=${locale}`),
+    (path: string) =>
+      locale === defaultLocale
+        ? path
+        : `${path}${path.includes('?') ? '&' : '?'}${PARAM}=${locale}`,
     [locale, defaultLocale]
   );
 
