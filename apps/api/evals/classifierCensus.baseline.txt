@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 430 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 434 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         48   11.2 %     0
-gated                            18    4.2 %     0
-loop                            347   80.7 %     7
-prose                            17    4.0 %     0
+artifact                         49   11.3 %     0
+gated                            18    4.1 %     0
+loop                            350   80.6 %     7
+prose                            17    3.9 %     0
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 11 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (419)
+classifier.tier  (423)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -43,11 +43,11 @@ classifier.tier  (419)
     tier2.95_ambiguous_graphic    3
     tier3_short_message           1
     tier3_short_message_to_loop    5
-    tier3_heuristic              59
+    tier3_heuristic              60
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
-    tier3.5_loop_demotion       310
+    tier3.5_loop_demotion       313
     tier3.8_generation_scope      7
     residual                      4
     error_fallback                0
@@ -84,7 +84,7 @@ edit_current_doc                  0  anchor
 edit_current_board                0  anchor
 modify_board                      0  anchor
 share_doc                         0  gated
-create_sheet                      7  artifact
+create_sheet                      8  artifact
 edit_sheet                        0  anchor
 create_presentation               5  artifact
 create_pdf                        0  artifact
@@ -95,4 +95,4 @@ mcp                               0  retired
 produktion                       13  prose
 direct                            0  prose
 greeting                          4  prose
-agentic                         334  loop
+agentic                         337  loop
