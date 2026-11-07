@@ -18,18 +18,18 @@ import {
   type ShelfEntry,
 } from './useNotebookShelves';
 import { SHELF_GRID, SHELF_TILE, ShelfSection } from './WissenLayout';
-import { Bone } from './WissenSkeletons';
+
+import { Bone } from '@/components/dashboard/Bone';
 import {
-  WD_DISPLAY,
-  WD_FOCUS,
-  WD_HEADING,
-  WD_INK_TEXT,
-  WD_LINK,
-  WD_MUTED,
-  WD_SUB_TEXT,
-  WD_TINT,
-  WD_TINT_HOVER,
-} from './wissenStyles';
+  DASH_DISPLAY,
+  DASH_FOCUS,
+  DASH_HEADING,
+  DASH_INK_TEXT,
+  DASH_LINK,
+  DASH_SUB_TEXT,
+  DASH_TINT,
+  DASH_TINT_HOVER,
+} from '@/components/dashboard/dashboardStyles';
 
 const CREATE_PATH = '/notebooks/neu';
 const OPEN_STATE = { freshConversation: true };
@@ -88,45 +88,43 @@ function describeEntry(entry: ShelfEntry): {
 }
 
 /**
- * Ein Eintrag der aufgeklappten Liste: ab Tablet eine umrandete Karte (Aktion
- * oben rechts), auf dem Smartphone eine Zeile (Aktion am Ende).
+ * Ein Eintrag der aufgeklappten Liste — eine kleinere Ausgabe der Kachel
+ * darüber: getönte Fläche, Name und Zeile unten, Aktion oben rechts.
  */
 function ShelfItem({ entry }: { entry: ShelfEntry }) {
   const prefetch = useNotebookPrefetch();
   const { title, meta, to, prefetchSlug, action } = describeEntry(entry);
   const warm = () => (prefetchSlug ? prefetch(prefetchSlug) : prefetch());
   return (
-    <li className="group relative flex items-center gap-1 max-md:min-h-12 max-md:border-b max-md:border-border max-md:last:border-b-0">
+    <li className="relative flex">
       <Link
         to={to}
         state={OPEN_STATE}
         onPointerEnter={warm}
         className={cn(
-          'flex min-w-0 flex-1 no-underline max-md:items-center max-md:justify-between max-md:gap-2.5 max-md:py-2',
-          'md:min-h-[76px] md:flex-col md:justify-end md:gap-[3px] md:rounded-[14px] md:border md:border-border md:bg-(--wd-card) md:px-4 md:py-3.5 md:pr-9 md:transition-colors md:hover:border-(--wd-mg)',
-          'lg:min-h-[88px] lg:gap-1 lg:px-[18px] lg:py-4 lg:pr-10',
-          WD_FOCUS
+          'flex min-h-[84px] min-w-0 flex-1 flex-col justify-end gap-0.5 rounded-2xl px-4 py-3.5 pr-10 no-underline transition-colors',
+          'md:min-h-[96px] md:gap-[3px] md:px-[18px] md:py-4 md:pr-11 lg:min-h-[108px] lg:gap-1 lg:p-5 lg:pr-12',
+          DASH_TINT,
+          DASH_TINT_HOVER,
+          DASH_FOCUS
         )}
       >
         <span
           className={cn(
-            'min-w-0 text-[15px] font-bold leading-[1.25] md:text-base lg:text-[17px]',
-            'md:font-[family-name:Raleway,PT_Sans,Arial,sans-serif]',
-            WD_INK_TEXT
+            'break-words text-[15px] font-bold leading-[1.2] hyphens-auto md:text-base lg:text-[17px]',
+            DASH_DISPLAY,
+            DASH_INK_TEXT
           )}
         >
           {title}
         </span>
-        <span className={cn('text-[13px] max-md:shrink-0 max-md:text-right', WD_MUTED)}>
-          {meta}
-        </span>
+        <span className={cn('text-[13px]', DASH_SUB_TEXT)}>{meta}</span>
       </Link>
-      {action && <div className="shrink-0 md:absolute md:right-1.5 md:top-1.5">{action}</div>}
+      {action && <div className="absolute right-1.5 top-1.5">{action}</div>}
     </li>
   );
 }
 
-/** Kachel-Inhalt: Chevron (nur aufklappbare) oben rechts, Name und Zeile unten. */
 // Fotoreihe wie im Marktplatz: Kachelbreite = (Reihe − Abstände) ÷ eine
 // .5-Anzahl, damit die nächste Karte halb sichtbar bleibt und das Scrollen zeigt.
 const PHOTO_ROW = 'm-0 flex list-none gap-3 overflow-x-auto p-0 pt-1 pb-3 sm:gap-4';
@@ -180,7 +178,7 @@ function PhotoShelfItem({ entry }: { entry: ShelfEntry }) {
   );
 }
 
-/** `expanded: null` = Kachel klappt nichts auf, kein Chevron. */
+/** Kachel-Inhalt: Chevron (nur aufklappbare) oben rechts, Name und Zeile unten. `expanded: null` = klappt nichts auf. */
 function TileBody({ shelf, expanded }: { shelf: Shelf; expanded: boolean | null }) {
   return (
     <>
@@ -191,7 +189,7 @@ function TileBody({ shelf, expanded }: { shelf: Shelf; expanded: boolean | null 
             aria-hidden
             className={cn(
               'size-4 transition-transform duration-200 motion-reduce:transition-none',
-              'text-(--wd-mg)',
+              'text-(--dash-mg)',
               expanded && 'rotate-180'
             )}
           />
@@ -204,16 +202,16 @@ function TileBody({ shelf, expanded }: { shelf: Shelf; expanded: boolean | null 
             // Tablet, 18 auf dem schmalen Desktop, 21 erst ab xl. Trennen nur als
             // Notnagel auf sehr schmalen Telefonen („Landes-verbände" bei 320 px).
             'break-words text-[17px] font-bold leading-[1.2] hyphens-auto md:text-base lg:text-lg xl:text-[21px]',
-            WD_DISPLAY,
-            WD_INK_TEXT
+            DASH_DISPLAY,
+            DASH_INK_TEXT
           )}
         >
           {shelf.title}
         </span>
         {shelf.meta === null ? (
-          <Bone className="h-3.5 w-24 bg-(--wd-mg-tint-2)" />
+          <Bone className="h-3.5 w-24 bg-(--dash-mg-tint-2)" />
         ) : (
-          <span className={cn('text-[13px] lg:text-sm', WD_SUB_TEXT)}>{shelf.meta}</span>
+          <span className={cn('text-[13px] lg:text-sm', DASH_SUB_TEXT)}>{shelf.meta}</span>
         )}
       </span>
     </>
@@ -223,40 +221,33 @@ function TileBody({ shelf, expanded }: { shelf: Shelf; expanded: boolean | null 
 const tileClass = (open: boolean) =>
   cn(
     SHELF_TILE,
-    WD_TINT,
-    WD_TINT_HOVER,
+    DASH_TINT,
+    DASH_TINT_HOVER,
     'cursor-pointer border-0 transition-colors',
-    open && 'shadow-[inset_0_0_0_2px_var(--wd-mg)]',
-    WD_FOCUS
+    open && 'shadow-[inset_0_0_0_2px_var(--dash-mg)]',
+    DASH_FOCUS
   );
-
-type PhotoRow = Extract<Shelf, { kind: 'group' }>;
-// Bewusst kein Typ-Guard: negiert würde er für TypeScript alle Gruppen ausschließen.
-const isPhotoRow = (s: Shelf): boolean => s.kind === 'group' && s.layout === 'photos';
 
 /**
  * „Deine Notebooks": Kacheln für die Notebook-Gruppen. Eine Gruppe klappt
- * darunter ihre Liste auf (immer nur eine), ein einzelnes Notebook öffnet direkt.
+ * darunter ihre Liste auf (immer nur eine; die Landesverbände als Fotoreihe),
+ * ein einzelnes Notebook öffnet direkt.
  */
 export function NotebookShelf() {
   const { shelves, vectorStoreDown } = useNotebookShelves();
   const prefetch = useNotebookPrefetch();
   const [openId, setOpenId] = useState<string | null>(null);
   const panelId = useId();
-  // Fotogruppen (Landesverbände) stehen als eigene, immer sichtbare Reihe unter
-  // den Kacheln; alle übrigen sind Kacheln.
-  const photoRows = shelves.filter((s): s is PhotoRow => isPhotoRow(s));
-  const tiles = shelves.filter((s) => !isPhotoRow(s));
-  const open = tiles.find((s) => s.id === openId && s.kind === 'group') ?? null;
+  const open = shelves.find((s) => s.id === openId && s.kind === 'group') ?? null;
 
   return (
     <ShelfSection
       header={
         <>
-          <h2 className={cn('m-0 text-[19px] md:text-[22px] lg:text-2xl', WD_HEADING)}>
+          <h2 className={cn('m-0 text-[19px] md:text-[22px] lg:text-2xl', DASH_HEADING)}>
             Deine Notebooks
           </h2>
-          <Link to={CREATE_PATH} className={cn('py-3 text-[15px] lg:py-0', WD_LINK)}>
+          <Link to={CREATE_PATH} className={cn('py-3 text-[15px] lg:py-0', DASH_LINK)}>
             Neues erstellen
           </Link>
         </>
@@ -276,7 +267,7 @@ export function NotebookShelf() {
       )}
 
       <div className={SHELF_GRID}>
-        {tiles.map((shelf) => {
+        {shelves.map((shelf) => {
           if (shelf.kind === 'group') {
             const isOpen = open?.id === shelf.id;
             return (
@@ -309,39 +300,24 @@ export function NotebookShelf() {
 
       {open?.kind === 'group' && (
         <div id={panelId} className="flex flex-col gap-3">
-          <h3 className={cn('m-0 text-lg max-lg:sr-only', WD_HEADING)}>{open.title}</h3>
-          <ConfirmDialogProvider>
-            <ul
-              className={cn(
-                'm-0 list-none p-0',
-                'max-md:flex max-md:flex-col max-md:rounded-2xl max-md:bg-(--wd-card) max-md:px-[18px] max-md:py-0.5',
-                'md:grid md:grid-cols-3 md:gap-2.5 lg:grid-cols-4 lg:gap-3'
-              )}
-            >
+          <h3 className={cn('m-0 text-lg max-lg:sr-only', DASH_HEADING)}>{open.title}</h3>
+          {open.layout === 'photos' ? (
+            <ul className={PHOTO_ROW}>
               {open.entries.map((entry) => (
-                <ShelfItem key={entry.key} entry={entry} />
+                <PhotoShelfItem key={entry.key} entry={entry} />
               ))}
             </ul>
-          </ConfirmDialogProvider>
+          ) : (
+            <ConfirmDialogProvider>
+              <ul className="m-0 grid list-none grid-cols-2 gap-2.5 p-0 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
+                {open.entries.map((entry) => (
+                  <ShelfItem key={entry.key} entry={entry} />
+                ))}
+              </ul>
+            </ConfirmDialogProvider>
+          )}
         </div>
       )}
-
-      {photoRows.map((row) => (
-        <section
-          key={row.id}
-          aria-labelledby={`${panelId}-${row.id}`}
-          className="flex flex-col gap-3"
-        >
-          <h3 id={`${panelId}-${row.id}`} className={cn('m-0 text-lg md:text-xl', WD_HEADING)}>
-            {row.title}
-          </h3>
-          <ul className={PHOTO_ROW}>
-            {row.entries.map((entry) => (
-              <PhotoShelfItem key={entry.key} entry={entry} />
-            ))}
-          </ul>
-        </section>
-      ))}
     </ShelfSection>
   );
 }

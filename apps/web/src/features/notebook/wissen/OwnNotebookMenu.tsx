@@ -22,9 +22,10 @@ import { useGroups } from '../../groups/hooks/useGroups';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 
 import { collectionSlug } from './useNotebookShelves';
-import { WD_FOCUS } from './wissenStyles';
 
 import type { NotebookCollection } from '../../../types/notebook';
+
+import { DASH_FOCUS } from '@/components/dashboard/dashboardStyles';
 
 /** Kurze Rückmeldung im Menüeintrag selbst („Link kopiert!"), dann wieder der normale Text. */
 function useFlash(): [string | null, (msg: string) => void] {
@@ -102,8 +103,8 @@ export function OwnNotebookMenu({ collection }: { collection: NotebookCollection
           type="button"
           aria-label={`Aktionen für ${collection.name}`}
           className={cn(
-            'flex size-7 cursor-pointer items-center justify-center rounded-full text-(--wd-mg) transition-colors hover:bg-(--wd-mg-tint)',
-            WD_FOCUS
+            'flex size-7 cursor-pointer items-center justify-center rounded-full text-(--dash-mg) transition-colors hover:bg-(--dash-mg-tint)',
+            DASH_FOCUS
           )}
         >
           <HiDotsVertical size={14} />

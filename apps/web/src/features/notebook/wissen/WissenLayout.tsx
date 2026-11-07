@@ -3,7 +3,7 @@ import { type ComponentProps, type ReactNode } from 'react';
 
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 
-import { WD_CARD } from './wissenStyles';
+import { DASH_CARD } from '@/components/dashboard/dashboardStyles';
 
 // Das Gerüst des Wissens-Dashboards — Seite, Raster, Kartenhüllen. Die echte
 // Seite und ihr Skeleton bauen beide daraus, damit Abstände und Breakpoints an
@@ -32,7 +32,7 @@ export function WissenDashboardFrame({
     // shrink-0: der Rahmen sitzt als Flex-Kind im scrollenden Chat-Container; ohne
     // es staucht `min-h-dvh` ihn auf Fensterhöhe und die Seitenfläche endet mitten im Inhalt.
     <div
-      className="wissen-dashboard min-h-dvh shrink-0 bg-(--wd-page) text-foreground"
+      className="dashboard-surface min-h-dvh shrink-0 bg-(--dash-page) text-foreground"
       aria-busy={busy}
     >
       <div
@@ -51,8 +51,8 @@ export function WissenDashboardFrame({
   );
 }
 
-// Breiter Desktop (ab xl, 1280 px): eine Zeile — Slider, Umfragen, Im
-// Gespräch. Die Kennzahl-Karten nehmen die Zeilenhöhe an, tragen sie aber nicht
+// Breiter Desktop (ab xl, 1280 px): eine Zeile — Slider, Trends,
+// Umfragen. Die Kennzahl-Karten nehmen die Zeilenhöhe an, tragen sie aber nicht
 // (h-0 + min-h-full): die Höhe bestimmt der Slider. Darunter — Smartphone,
 // Tablet und schmaler Desktop — Slider oben, die beiden Karten nebeneinander;
 // zwischen 1024 und 1280 px blieben dem Slider sonst kaum 340 px.
@@ -73,8 +73,8 @@ export function WissenMainGrid({
   return (
     <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 md:gap-x-3 md:gap-y-[18px] lg:gap-x-5 lg:gap-y-5 xl:grid-cols-[minmax(0,1fr)_240px_240px]">
       <div className="col-span-2 min-w-0 xl:col-span-1">{slider}</div>
-      <div className={ASIDE_SLOT}>{poll}</div>
       <div className={ASIDE_SLOT}>{trends}</div>
+      <div className={ASIDE_SLOT}>{poll}</div>
     </div>
   );
 }
@@ -89,14 +89,14 @@ export function SliderCard({ children, ...rest }: { children: ReactNode } & Sect
     // ist je nach Raster unterschiedlich breit.
     <section
       {...rest}
-      className={cn('@container flex flex-col overflow-hidden rounded-[20px]', WD_CARD)}
+      className={cn('@container flex flex-col overflow-hidden rounded-[20px]', DASH_CARD)}
     >
       {children}
     </section>
   );
 }
 
-/** Kennzahl-Karte rechts (Umfrage, Im Gespräch). */
+/** Kennzahl-Karte rechts (Umfrage, Trends). */
 export function AsideCard({
   children,
   className,
@@ -107,7 +107,7 @@ export function AsideCard({
       {...rest}
       className={cn(
         'flex min-w-0 flex-1 flex-col gap-2.5 rounded-2xl p-[18px] md:rounded-[20px] md:px-6 md:py-[22px] xl:min-h-0 xl:justify-between xl:overflow-hidden xl:px-[26px] xl:py-6',
-        WD_CARD,
+        DASH_CARD,
         className
       )}
     >
@@ -116,8 +116,19 @@ export function AsideCard({
   );
 }
 
-/** Überschrift einer Kennzahl-Karte. */
+/** Überschrift einer Kennzahl-Karte — und des Sliders, damit alle drei Köpfe gleich aussehen. */
 export const ASIDE_TITLE = 'm-0 text-sm font-bold text-foreground md:text-[15px] xl:text-base';
+
+/**
+ * Link in einer Kartenüberschrift: Zielfläche 24 px hoch (WCAG 2.5.8) über
+ * Innenabstand, den ein gleich großer negativer Außenabstand wieder aufhebt —
+ * die Zeile bleibt so hoch wie die Schrift.
+ */
+export const ASIDE_TITLE_LINK =
+  'inline-block rounded py-1 -my-1 text-inherit no-underline hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--dash-mg) focus-visible:ring-offset-2 focus-visible:ring-offset-(--dash-card)';
+
+/** Abstand der Slider-Überschrift zum Kartenrand, wie das Innenmaß der Kennzahl-Karten. */
+export const SLIDER_HEAD = 'px-[18px] pt-[18px] md:px-[26px] md:pt-[22px] lg:px-8 xl:pt-6';
 
 /** „Deine Notebooks"-Block: Kopfzeile, Kacheln, aufgeklappte Liste. */
 export function ShelfSection({ header, children }: { header: ReactNode; children: ReactNode }) {

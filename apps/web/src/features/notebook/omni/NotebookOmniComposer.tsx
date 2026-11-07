@@ -315,8 +315,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
   return (
     <div className="relative mx-auto w-full max-w-[760px]">
-      {/* Pille des Wissens-Dashboards; die Farben kommen aus dessen `--wd-*`-Tokens (WissenDashboardFrame). */}
-      <div className="flex items-center gap-2 rounded-full border border-border bg-(--wd-card) py-1.5 pl-[18px] pr-1.5 shadow-sm transition-colors focus-within:border-(--wd-mg) md:pl-5 lg:pl-6 lg:shadow-md">
+      {/* Pille des Wissens-Dashboards; die Farben kommen aus dessen `--dash-*`-Tokens (WissenDashboardFrame). */}
+      <div className="flex items-center gap-2 rounded-full border border-border bg-(--dash-card) py-1.5 pl-[18px] pr-1.5 shadow-sm transition-colors focus-within:border-(--dash-mg) md:pl-5 lg:pl-6 lg:shadow-md">
         <div className="relative min-w-0 flex-1">
           {question.length === 0 && (
             <TypingAnimation
@@ -366,7 +366,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           disabled={question.length === 0}
           aria-label="Fragen oder suchen"
           // Empty it takes the tile tint (as in the design); with text it fills with the accent.
-          className="flex size-11 flex-none items-center justify-center rounded-full bg-(--wd-mg) text-(--wd-card) transition-[background,transform] enabled:hover:bg-(--wd-mg-ink) enabled:active:scale-95 disabled:bg-(--wd-mg-tint) disabled:text-(--wd-mg)"
+          className="flex size-11 flex-none items-center justify-center rounded-full bg-(--dash-mg) text-(--dash-card) transition-[background,transform] enabled:hover:bg-(--dash-mg-ink) enabled:active:scale-95 disabled:bg-(--dash-mg-tint) disabled:text-(--dash-mg)"
         >
           <svg
             viewBox="0 0 24 24"

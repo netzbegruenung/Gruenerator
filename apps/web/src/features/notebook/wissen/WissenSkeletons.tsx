@@ -1,29 +1,27 @@
-import { Skeleton, cn } from '@gruenerator/ui';
+import { cn } from '@gruenerator/ui';
 
 import {
   AsideCard,
   SHELF_GRID,
   SHELF_TILE,
   ShelfSection,
+  SLIDER_HEAD,
   SliderCard,
   WissenDashboardFrame,
   WissenMainGrid,
 } from './WissenLayout';
-import { WD_CARD, WD_TINT } from './wissenStyles';
+
+import { Bone } from '@/components/dashboard/Bone';
+import { DASH_CARD, DASH_TINT } from '@/components/dashboard/dashboardStyles';
 
 // Ladezustände des Wissens-Dashboards. Jeder Abschnitt hat seinen Platzhalter
 // in der Form des späteren Inhalts, damit beim Eintreffen nichts springt; der
 // Routen-Fallback setzt dieselben Teile zur ganzen Seite zusammen. Dieses Modul
 // zieht keinen Chat-Code nach, damit der Fallback sofort steht.
 
-/** Ein grauer Balken in der Tönung der Seite. */
-export function Bone({ className }: { className?: string }) {
-  return <Skeleton className={cn('rounded bg-(--wd-skeleton)', className)} />;
-}
-
 export function SliderSkeleton() {
   return (
-    <div className="flex flex-col gap-2 px-[18px] pb-3 pt-4 md:px-[26px] md:pb-5 md:pt-6 lg:px-8 lg:pb-[22px] lg:pt-7">
+    <div className="flex flex-col gap-2 px-[18px] pb-3 pt-2.5 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px] lg:pt-3.5">
       <Bone className="h-3.5 w-48" />
       <Bone className="h-6 w-11/12 md:h-7" />
       <Bone className="h-6 w-3/5 md:h-7" />
@@ -70,9 +68,9 @@ export function ShelfSkeleton() {
   return (
     <div className={SHELF_GRID}>
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className={cn(SHELF_TILE, 'justify-end gap-1.5', WD_TINT)}>
-          <Bone className="h-5 w-3/4 bg-(--wd-mg-tint-2)" />
-          <Bone className="h-3.5 w-1/2 bg-(--wd-mg-tint-2)" />
+        <div key={i} className={cn(SHELF_TILE, 'justify-end gap-1.5', DASH_TINT)}>
+          <Bone className="h-5 w-3/4 bg-(--dash-mg-tint-2)" />
+          <Bone className="h-3.5 w-1/2 bg-(--dash-mg-tint-2)" />
         </div>
       ))}
     </div>
@@ -85,11 +83,11 @@ function ComposerSkeleton() {
     <div
       className={cn(
         'mx-auto flex w-full max-w-[760px] items-center gap-2 rounded-full border border-border py-1.5 pl-6 pr-1.5 shadow-md max-md:shadow-sm max-md:pl-[18px]',
-        WD_CARD
+        DASH_CARD
       )}
     >
       <Bone className="h-4 w-48 flex-1" />
-      <span className={cn('size-11 shrink-0 rounded-full', WD_TINT)} />
+      <span className={cn('size-11 shrink-0 rounded-full', DASH_TINT)} />
     </div>
   );
 }
@@ -103,7 +101,7 @@ export function WissenDashboardSkeleton() {
       title={
         <span
           aria-hidden
-          className="inline-block h-[1em] w-[12em] max-w-full animate-pulse rounded bg-(--wd-skeleton) align-middle"
+          className="inline-block h-[1em] w-[12em] max-w-full animate-pulse rounded bg-(--dash-skeleton) align-middle"
         />
       }
       composer={<ComposerSkeleton />}
@@ -112,6 +110,9 @@ export function WissenDashboardSkeleton() {
       <WissenMainGrid
         slider={
           <SliderCard>
+            <div className={SLIDER_HEAD}>
+              <Bone className="h-4 w-24" />
+            </div>
             <SliderSkeleton />
           </SliderCard>
         }

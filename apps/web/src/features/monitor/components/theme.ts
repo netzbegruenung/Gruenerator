@@ -1,5 +1,5 @@
 /**
- * Shared class fragments for the redesigned monitor pages (Themen/Umfragen).
+ * Shared class fragments for the redesigned monitor pages (Umfragen/Transparenz).
  * A calm editorial forest-green palette from the Claude-Design import, with
  * dark-mode variants added (the source design was light-only). Kept as literal
  * Tailwind strings so the JIT keeps the arbitrary-value classes.
@@ -8,10 +8,6 @@
 /** Card surface (hero + section panels). */
 export const MONITOR_CARD =
   'rounded-2xl border border-[#e2eae5] bg-white shadow-[0_6px_20px_rgba(49,96,73,0.06)] dark:border-grey-700/60 dark:bg-grey-900/40 dark:shadow-none';
-
-/** Smaller tile surface (ranking/bluesky tiles) with a hover border lift. */
-export const MONITOR_TILE =
-  'rounded-2xl border border-[#e2eae5] bg-white shadow-[0_3px_12px_rgba(49,96,73,0.04)] transition-colors hover:border-[#b9d0c5] dark:border-grey-700/60 dark:bg-grey-900/40 dark:shadow-none dark:hover:border-grey-600';
 
 export const MONITOR_EYEBROW =
   'text-[12px] font-bold uppercase tracking-[0.14em] text-[#52907a] dark:text-[#7fae9c]';

@@ -1,4 +1,7 @@
-/** 12-week trend sparkline (area + line + end dot). */
+/**
+ * 12-week trend sparkline (area + line + end dot). Takes the surface's accent:
+ * magenta under `.dashboard-surface`, forest green elsewhere (notebook overview).
+ */
 export function TrendSparkline({
   points,
   width = 260,
@@ -30,16 +33,16 @@ export function TrendSparkline({
       aria-hidden
       className="max-w-full overflow-visible"
     >
-      <path d={fill} fill="rgba(82,144,122,0.12)" />
+      <path d={fill} fill="var(--dash-mg-tint, rgba(82,144,122,0.12))" />
       <path
         d={line}
         fill="none"
-        stroke="#52907a"
+        stroke="var(--dash-mg, #52907a)"
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx={last[0]} cy={last[1]} r={4} fill="#316049" />
+      <circle cx={last[0]} cy={last[1]} r={4} fill="var(--dash-mg-ink, #316049)" />
     </svg>
   );
 }

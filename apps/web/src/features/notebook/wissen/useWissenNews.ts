@@ -1,26 +1,24 @@
 import { type MonitorLocale } from '@gruenerator/contracts';
 import { useMemo } from 'react';
 
-import { lvName } from '../../monitor/bundeslaender';
 import { useEntityResults, useWhatHappened } from '../../monitor/hooks/useMonitor';
 
-import { timeAgo } from './timeAgo';
-
-export type WissenNewsKind = 'Watcher' | 'Feed';
+import { teaser } from '@/components/dashboard/teaser';
+import { timeAgo } from '@/components/dashboard/timeAgo';
 
 /** Ein Artikel aus Feed oder Watcher, auf die Felder gebracht, die das Dashboard zeigt. */
 export interface WissenArticle {
   key: string;
-  kind: WissenNewsKind;
   title: string;
   text: string;
-  /** Medium (Watcher) bzw. Landesverband (Feed). */
+  /** Medium (Watcher) bzw. Absender im Landesverband (Feed), wie auf /briefing. */
   source: string;
   time: string;
   href: string;
 }
 
-const HEADLINE_COUNT = 4;
+const HEADLINE_COUNT = 6;
+
 // Je Strom so viele, dass der Slider voll wird, auch wenn der andere leer ist.
 const ITEMS_PER_KIND = HEADLINE_COUNT;
 
@@ -36,9 +34,9 @@ function interleave(a: WissenArticle[], b: WissenArticle[], count: number): Wiss
 
 /**
  * Schlagzeilen für den Kopf-Slider: Feed (neue Beiträge der Landesverbände) und
- * Watcher (Berichterstattung über die Grünen), abwechselnd gemischt. Dieselben Query-Keys wie /feed und /watcher,
- * ein Besuch dort ist also schon geladen. Der Feed ist rein deutsch: unter `at`
- * gibt es ihn nicht (`feedAvailable: false`).
+ * Watcher (Berichterstattung über die Grünen), abwechselnd gemischt. Dieselben
+ * Query-Keys wie /briefing, ein Besuch dort ist also schon geladen. Der Feed ist
+ * rein deutsch: unter `at` mischt der Slider nur den Watcher.
  */
 export function useWissenNews(locale: MonitorLocale) {
   const feedAvailable = locale !== 'at';
@@ -53,10 +51,9 @@ export function useWissenNews(locale: MonitorLocale) {
             .slice(0, ITEMS_PER_KIND)
             .map((a) => ({
               key: a.sourceUrl,
-              kind: 'Feed',
               title: a.title,
-              text: a.excerpt ?? '',
-              source: a.landesverband ? lvName(a.landesverband) : a.sourceName,
+              text: teaser(a.title, a.excerpt ?? ''),
+              source: a.sourceName,
               time: timeAgo(a.publishedAt ?? a.indexedAt),
               href: a.sourceUrl,
             }))
@@ -68,9 +65,8 @@ export function useWissenNews(locale: MonitorLocale) {
     () =>
       (watcherQuery.data?.articles ?? []).slice(0, ITEMS_PER_KIND).map((a) => ({
         key: a.url,
-        kind: 'Watcher',
         title: a.title,
-        text: a.excerpt,
+        text: teaser(a.title, a.excerpt),
         source: a.source,
         time: timeAgo(a.publishedAt),
         href: a.url,
@@ -88,5 +84,5 @@ export function useWissenNews(locale: MonitorLocale) {
     [headlinesPending, feed, watcher]
   );
 
-  return { headlines, headlinesPending, feedAvailable };
+  return { headlines, headlinesPending };
 }

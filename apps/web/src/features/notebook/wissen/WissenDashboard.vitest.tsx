@@ -15,6 +15,7 @@ const SHARED_ENDPOINT = 'http://localhost/api/auth/notebook-collections/shared';
 const LIKES_ENDPOINT = 'http://localhost/api/auth/notebook-collections/likes';
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
 const MONITOR_POLLS = 'http://localhost/api/monitor/polls';
+const MONITOR_EU_GREENS = 'http://localhost/api/monitor/polls/eu-greens';
 const MONITOR_FEED = 'http://localhost/api/monitor/what-happened';
 const MONITOR_ENTITY = 'http://localhost/api/monitor/entities/:id';
 
@@ -104,6 +105,7 @@ interface Serve {
   monitor?: Record<string, unknown>;
   feed?: Record<string, unknown>;
   polls?: Record<string, unknown>;
+  euGreens?: Record<string, unknown>;
   entity?: Record<string, unknown> | null;
 }
 
@@ -114,6 +116,7 @@ function serve({
   monitor = { topics: [] },
   feed = EMPTY_FEED,
   polls = { average: {} },
+  euGreens = { results: [], fetchedAt: '2026-11-06T08:00:00Z' },
   entity = null,
 }: Serve = {}) {
   server.use(
@@ -126,6 +129,7 @@ function serve({
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(MONITOR_LATEST, () => HttpResponse.json(monitor)),
     http.get(MONITOR_POLLS, () => HttpResponse.json(polls)),
+    http.get(MONITOR_EU_GREENS, () => HttpResponse.json(euGreens)),
     http.get(MONITOR_FEED, () => HttpResponse.json(feed)),
     http.get(MONITOR_ENTITY, () =>
       entity ? HttpResponse.json(entity) : new HttpResponse(null, { status: 404 })
@@ -171,20 +175,18 @@ describe('WissenDashboard — „Deine Notebooks"', () => {
     expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
   });
 
-  it('shows the Landesverbände as their own row of Marktplatz photos', async () => {
+  it('expands the Landesverbände tile into a row of Marktplatz photos', async () => {
     serve();
 
-    renderWithProviders(<WissenDashboard />);
+    const { user } = renderWithProviders(<WissenDashboard />);
 
-    const row = await screen.findByRole('region', { name: 'Landesverbände' });
+    const row = await openShelf(user, /Landesverbände/);
     expect(within(row).getByRole('link', { name: /Berlin/ })).toBeInTheDocument();
     const photos = [...row.querySelectorAll('img')].map((img) => img.getAttribute('src'));
     expect(photos.length).toBeGreaterThan(0);
     expect(photos.every((src) => src?.startsWith('/images/marketplace/landesverbaende/'))).toBe(
       true
     );
-    // A row, not a tile: nothing to expand.
-    expect(screen.queryByRole('button', { name: /Landesverbände/ })).not.toBeInTheDocument();
   });
 
   it('expands Parlamente into the parliament notebooks in registry order', async () => {
@@ -244,7 +246,7 @@ describe('WissenDashboard — „Deine Notebooks"', () => {
 
     expect(await screen.findByRole('link', { name: /Meine Notebooks/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Parlamente/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Landesverbände' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Landesverbände/ })).not.toBeInTheDocument();
   });
 });
 
@@ -254,45 +256,33 @@ describe('WissenDashboard — Nachrichten und Kennzahlen', () => {
 
     renderWithProviders(<WissenDashboard />);
 
-    const slider = await screen.findByRole('region', { name: 'Schlagzeilen' });
+    const slider = await screen.findByRole('region', { name: 'Briefing' });
     const slides = await within(slider).findAllByRole('article');
     expect(slides.map((s) => s.querySelector('h3')?.textContent)).toEqual([
       'Landesparteitag beschliesst Wohnraumprogramm',
       'Grüne fordern Klimageld',
     ]);
-    expect(within(slides[0]).getByText(/^Feed · Bayern/)).toBeInTheDocument();
+    // Absender und Zeit über der Schlagzeile, ohne den Namen des Stroms davor.
+    expect(slides[0]).toHaveTextContent(/^Grüne Bayern · vor /);
+    expect(slides[0]).not.toHaveTextContent(/Feed|Watcher/);
     // Only the visible slide is reachable.
     expect(slides[1]).toHaveAttribute('inert');
   });
 
-  it('links Watcher and Feed under the slider', async () => {
-    serve({ feed: FEED, entity: ENTITY });
-
-    renderWithProviders(<WissenDashboard />);
-
-    const slider = await screen.findByRole('region', { name: 'Schlagzeilen' });
-    expect(await within(slider).findByRole('link', { name: 'Watcher' })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/watcher')
-    );
-    expect(within(slider).getByRole('link', { name: 'Feed' })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/feed')
-    );
-  });
-
-  it('offers no Feed link to Austrian users — the feed is German only', async () => {
+  // Watcher und Feed sind seit 07.11.2026 Karten auf /briefing; dorthin führt die Überschrift.
+  it('titles the slider „Briefing" and links it to /briefing, also for Austrian users', async () => {
     useAuthStore.setState({ locale: 'de-AT' });
     serve({ entity: ENTITY });
 
     renderWithProviders(<WissenDashboard />);
 
-    const slider = await screen.findByRole('region', { name: 'Schlagzeilen' });
-    expect(await within(slider).findByRole('link', { name: 'Watcher' })).toBeInTheDocument();
-    expect(within(slider).queryByRole('link', { name: 'Feed' })).not.toBeInTheDocument();
+    const slider = await screen.findByRole('region', { name: 'Briefing' });
+    const title = within(slider).getByRole('heading', { name: 'Briefing' });
+    expect(within(title).getByRole('link')).toHaveAttribute('href', '/briefing');
+    expect(within(slider).queryByRole('link', { name: /Watcher|Feed/ })).not.toBeInTheDocument();
   });
 
-  it('shows the top keywords under „Im Gespräch"', async () => {
+  it('shows the top keywords under „Trends"', async () => {
     serve({
       monitor: {
         topics: [],
@@ -305,9 +295,14 @@ describe('WissenDashboard — Nachrichten und Kennzahlen', () => {
 
     renderWithProviders(<WissenDashboard />);
 
-    const card = await screen.findByRole('region', { name: 'Im Gespräch' });
+    const card = await screen.findByRole('region', { name: 'Trends' });
     expect(await within(card).findByText('Kohleausstieg')).toBeInTheDocument();
     expect(within(card).getByText('Klimageld')).toBeInTheDocument();
+    // Öffnet auf /briefing gleich die Keyword-Karte.
+    expect(within(card).getByRole('link', { name: 'Trends' })).toHaveAttribute(
+      'href',
+      '/briefing?karte=keywords'
+    );
   });
 
   it('holds every section with a skeleton while loading', async () => {
@@ -322,11 +317,67 @@ describe('WissenDashboard — Nachrichten und Kennzahlen', () => {
 
     renderWithProviders(<WissenDashboard />);
 
-    for (const name of ['Schlagzeilen', 'Umfragen', 'Im Gespräch']) {
+    for (const name of ['Briefing', 'Umfragen', 'Trends']) {
       const region = await screen.findByRole('region', { name });
       expect(region).toHaveAttribute('aria-busy', 'true');
       expect(region.querySelector('[data-slot="skeleton"]')).not.toBeNull();
     }
+  });
+
+  it('rotates the polls into the strongest Greens in Europe, navigable by dots', async () => {
+    const eu = (countryCode: string, countryName: string, percent: number, extra = {}) => ({
+      countryCode,
+      countryName,
+      party: 'Grüne',
+      percent,
+      diff: null,
+      electionDiff: null,
+      date: '2026-11-01',
+      note: null,
+      ...extra,
+    });
+    serve({
+      polls: {
+        polls: [{ institute: 'INSA', date: '2026-11-01', parties: {} }],
+        lastElection: null,
+        average: { GRÜNE: 15.2, 'CDU/CSU': 20.1 },
+        scrapedAt: '2026-11-06T08:00:00Z',
+      },
+      euGreens: {
+        results: [
+          eu('de', 'Deutschland', 15.2),
+          eu('eu', 'EU-Parlament', 9),
+          eu('fr', 'Frankreich', 25, { broadAlliance: true }),
+          eu('fi', 'Finnland', 12),
+          eu('se', 'Schweden', 6),
+          eu('nl', 'Niederlande', 14),
+          eu('lu', 'Luxemburg', 10),
+          eu('ie', 'Irland', 4),
+        ],
+        fetchedAt: '2026-11-06T08:00:00Z',
+      },
+    });
+
+    const { user } = renderWithProviders(<WissenDashboard />);
+
+    const card = await screen.findByRole('region', { name: 'Umfragen' });
+    const europe = await within(card).findByLabelText('Grüne in Europa', { selector: 'div' });
+    // Ohne das eigene Land, das EU-Parlament und breite Bündnisse; stärkste zuerst.
+    expect(
+      within(europe)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+    ).toEqual(['Niederlande14,0%', 'Finnland12,0%', 'Luxemburg10,0%', 'Schweden6,0%']);
+    const national = within(card).getByLabelText('Umfragen in Deutschland', { selector: 'div' });
+    expect(europe).toHaveAttribute('inert');
+
+    await user.click(within(card).getByRole('button', { name: 'Grüne in Europa' }));
+    expect(europe).not.toHaveAttribute('inert');
+    expect(national).toHaveAttribute('inert');
+    expect(within(card).getByRole('button', { name: 'Grüne in Europa' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
   });
 
   it('survives shapeless 200 answers from every monitor endpoint (E2E fixtures)', async () => {
@@ -362,7 +413,7 @@ describe('WissenDashboard — Nachrichten und Kennzahlen', () => {
 
     renderWithProviders(<WissenDashboard />);
 
-    const slider = await screen.findByRole('region', { name: 'Schlagzeilen' });
+    const slider = await screen.findByRole('region', { name: 'Briefing' });
     expect(await within(slider).findByText('Gespeicherte Schlagzeile')).toBeInTheDocument();
   });
 });

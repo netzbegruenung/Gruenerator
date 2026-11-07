@@ -1,71 +1,53 @@
 import { cn } from '@gruenerator/ui';
-import { useEffect, useState, type FocusEvent } from 'react';
+import { Pause, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { SliderCard } from './WissenLayout';
+import { ASIDE_TITLE, ASIDE_TITLE_LINK, SLIDER_HEAD, SliderCard } from './WissenLayout';
 import { SliderSkeleton } from './WissenSkeletons';
-import { WD_FOCUS, WD_HEADING, WD_LINK, WD_MUTED } from './wissenStyles';
 
 import type { WissenArticle } from './useWissenNews';
+
+import { DASH_FOCUS, DASH_HEADING, DASH_MUTED } from '@/components/dashboard/dashboardStyles';
+import { NewsMeta } from '@/components/dashboard/NewsMeta';
+import { SlideDots, SlideStatus, useAutoAdvance } from '@/components/dashboard/slides';
 
 /** So lange steht eine Folie, bevor die nächste kommt (Entwurf: 6 s). */
 export const SLIDE_INTERVAL_MS = 6000;
 
-const reducedMotionQuery = () =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/**
- * Wechselt alle `intervalMs` zur nächsten Folie — außer der Mauszeiger oder der
- * Fokus steht darin, jemand hat einen Punkt gewählt (dann bleibt die Folie),
- * oder das System wünscht weniger Bewegung.
- */
-function useAutoAdvance(count: number, intervalMs: number) {
-  const [index, setIndex] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [stopped, setStopped] = useState(reducedMotionQuery);
-
-  useEffect(() => {
-    if (stopped || hovered || focused || count < 2) return;
-    const timer = setInterval(() => setIndex((i) => (i + 1) % count), intervalMs);
-    return () => clearInterval(timer);
-  }, [stopped, hovered, focused, count, intervalMs]);
-
-  return {
-    // Kommen weniger Folien als vorher, bleibt der Index gültig.
-    active: count > 0 ? index % count : 0,
-    select: (i: number) => {
-      setStopped(true);
-      setIndex(i);
-    },
-    containerProps: {
-      onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
-      onFocus: () => setFocused(true),
-      onBlur: (e: FocusEvent) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
-      },
-    },
-  };
-}
-
 interface HeadlineSliderProps {
   items: WissenArticle[];
   loading: boolean;
-  /** Links unten rechts im Slider zu den vollen Seiten (Watcher, Feed). */
-  moreLinks: { label: string; to: string }[];
+  /** Ziel der Überschrift: die Seite mit allen Meldungen (/briefing). */
+  to: string;
 }
 
-export function HeadlineSlider({ items, loading, moreLinks }: HeadlineSliderProps) {
-  const { active, select, containerProps } = useAutoAdvance(items.length, SLIDE_INTERVAL_MS);
+/** Überschrift und Name der Region — wie „Trends" und „Umfragen" ein Link auf die volle Seite. */
+export const SLIDER_TITLE = 'Briefing';
+
+function SliderTitle({ to }: { to: string }) {
+  return (
+    <h2 className={cn(ASIDE_TITLE, SLIDER_HEAD)}>
+      <Link to={to} className={ASIDE_TITLE_LINK}>
+        {SLIDER_TITLE}
+      </Link>
+    </h2>
+  );
+}
+
+export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
+  const { active, select, playing, togglePlaying, announced, containerProps } = useAutoAdvance(
+    items.length,
+    SLIDE_INTERVAL_MS
+  );
 
   if (items.length === 0) {
     return (
-      <SliderCard aria-label="Schlagzeilen" aria-busy={loading}>
+      <SliderCard aria-label={SLIDER_TITLE} aria-busy={loading}>
+        <SliderTitle to={to} />
         {loading ? (
           <SliderSkeleton />
         ) : (
-          <p className={cn('m-0 px-[18px] py-6 md:px-[26px] lg:px-8', WD_MUTED)}>
+          <p className={cn('m-0 px-[18px] pb-6 pt-3 md:px-[26px] lg:px-8', DASH_MUTED)}>
             Gerade keine neuen Schlagzeilen.
           </p>
         )}
@@ -74,7 +56,8 @@ export function HeadlineSlider({ items, loading, moreLinks }: HeadlineSliderProp
   }
 
   return (
-    <SliderCard aria-roledescription="Karussell" aria-label="Schlagzeilen" {...containerProps}>
+    <SliderCard aria-roledescription="Karussell" aria-label={SLIDER_TITLE} {...containerProps}>
+      <SliderTitle to={to} />
       <div
         className="flex transition-transform duration-[900ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none"
         style={{ transform: `translateX(-${active * 100}%)` }}
@@ -85,63 +68,58 @@ export function HeadlineSlider({ items, loading, moreLinks }: HeadlineSliderProp
             aria-roledescription="Folie"
             aria-label={`${i + 1} von ${items.length}`}
             inert={i !== active}
-            className="box-border flex flex-[0_0_100%] flex-col gap-2 px-[18px] pb-1 pt-4 max-md:gap-1.5 md:px-[26px] md:pb-2 md:pt-6 lg:px-8 lg:pb-3 lg:pt-7 @3xl:grid @3xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] @3xl:items-end @3xl:gap-8"
+            className="box-border flex flex-[0_0_100%] flex-col gap-2 px-[18px] pb-1 pt-2.5 max-md:gap-1.5 md:px-[26px] md:pb-2 md:pt-3 lg:px-8 lg:pb-3 lg:pt-3.5 @3xl:grid @3xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] @3xl:items-end @3xl:gap-8"
           >
             <div className="flex flex-col gap-1.5 md:gap-2">
-              <span className={cn('text-[13px]', WD_MUTED)}>
-                {a.kind} · {[a.source, a.time].filter(Boolean).join(' · ')}
-              </span>
+              <NewsMeta source={a.source} time={a.time} />
               <h3
                 className={cn(
                   'm-0 text-[19px] leading-[1.28] [text-wrap:pretty] max-md:line-clamp-3 md:text-2xl md:leading-[1.22] lg:text-[28px] lg:leading-[1.2]',
-                  WD_HEADING
+                  DASH_HEADING
                 )}
               >
                 <a
                   href={a.href}
                   target="_blank"
                   rel="noreferrer"
-                  className={cn('rounded text-inherit no-underline hover:underline', WD_FOCUS)}
+                  className={cn('rounded text-inherit no-underline hover:underline', DASH_FOCUS)}
                 >
                   {a.title}
                 </a>
               </h3>
             </div>
             {a.text && (
-              <p className="m-0 hidden text-[15px] leading-[1.55] text-foreground [text-wrap:pretty] md:line-clamp-2 lg:leading-[1.6] @3xl:line-clamp-none">
+              <p className="m-0 hidden text-[15px] leading-[1.55] text-foreground [text-wrap:pretty] md:line-clamp-3 lg:leading-[1.6] @3xl:line-clamp-4">
                 {a.text}
               </p>
             )}
           </article>
         ))}
       </div>
-      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pb-1 pl-[18px] pr-2 pt-0.5 md:mt-0 md:border-0 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px]">
-        <div className="flex">
-          {items.map((a, i) => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => select(i)}
-              aria-label={`Meldung ${i + 1} von ${items.length}`}
-              aria-current={i === active}
-              className={cn('flex h-6 items-center px-[3px] first:pl-0', WD_FOCUS)}
-            >
-              <span
-                className={cn(
-                  'block h-2 rounded-full transition-all duration-300 motion-reduce:transition-none',
-                  i === active ? 'w-[22px] bg-(--wd-mg)' : 'w-2 bg-(--wd-mg-dot)'
-                )}
-              />
-            </button>
-          ))}
-        </div>
-        <div className="flex">
-          {moreLinks.map((l) => (
-            <Link key={l.to} to={l.to} className={cn('px-2.5 py-3 text-[15px]', WD_LINK)}>
-              {l.label}
-            </Link>
-          ))}
-        </div>
+      <div className="flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px]">
+        <SlideDots
+          labels={items.map((_, i) => `Meldung ${i + 1} von ${items.length}`)}
+          active={active}
+          onSelect={select}
+        />
+        <SlideStatus text={announced === null ? null : (items[announced]?.title ?? null)} />
+        {items.length > 1 && (
+          <button
+            type="button"
+            onClick={togglePlaying}
+            aria-label={playing ? 'Durchwechseln anhalten' : 'Durchwechseln fortsetzen'}
+            className={cn(
+              'ml-auto flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground hover:text-(--dash-mg)',
+              DASH_FOCUS
+            )}
+          >
+            {playing ? (
+              <Pause aria-hidden className="size-4" />
+            ) : (
+              <Play aria-hidden className="size-4" />
+            )}
+          </button>
+        )}
       </div>
     </SliderCard>
   );
