@@ -729,3 +729,5 @@ export const getNotebookQueryAliases = (nb: { id: string; title: string }): stri
 ];
 
 export * from './overviewFormat.js';
+
+export * from './shelves.js';

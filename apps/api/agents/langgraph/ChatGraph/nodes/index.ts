@@ -15,5 +15,6 @@ export { pandasComputeNode } from './pandasComputeNode.js';
 export {
   respondNode,
   buildSystemMessage,
+  buildTurnPrompt,
   restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';

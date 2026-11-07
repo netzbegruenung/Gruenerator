@@ -8,7 +8,7 @@
  */
 
 import {
-  buildSystemMessage,
+  buildTurnPrompt,
   restoreAttachmentsDroppedWithHistory,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
@@ -100,7 +100,8 @@ export async function runAgenticAnswer({
   // single tool, so the citation count it would otherwise read is 0 on
   // every agentic turn — not because the answer will be thin, but because
   // the search has not happened yet.
-  const systemMessage = await buildSystemMessage(classifiedState, {
+  // Der eingefügte Text geht in die Nachricht, nicht in den Prompt (#5431).
+  const { systemMessage, turnPaste } = await buildTurnPrompt(classifiedState, {
     retrievalExpected: true,
     loop: true,
     recallAsMessage: true,
@@ -114,7 +115,7 @@ export async function runAgenticAnswer({
   const prunedValidMessages = pruneMessages(
     validMessages as Parameters<typeof pruneMessages>[0],
     contextWindowTokens,
-    turnContext ? `${systemMessage}\n\n${turnContext}` : systemMessage
+    [systemMessage, turnContext, turnPaste].filter(Boolean).join('\n\n')
   );
   const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
     ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage, contextWindowTokens)
@@ -137,6 +138,7 @@ export async function runAgenticAnswer({
       const result = await streamAgenticResponse({
         finalState: classifiedState,
         systemMessage: finalSystemMessage,
+        turnPaste,
         turnContext,
         messages: contextMessages as ModelMessage[],
         ...(modelId != null && { modelId }),

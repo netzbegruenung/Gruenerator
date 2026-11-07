@@ -25,7 +25,7 @@ vi.mock('../threadPersistenceService.js', () => ({
 const streamAgenticResponse = vi.fn();
 vi.mock('./agenticRespondService.js', () => ({ streamAgenticResponse }));
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  buildSystemMessage: vi.fn(async () => 'SYSTEM'),
+  buildTurnPrompt: vi.fn(async () => ({ systemMessage: 'SYSTEM', turnPaste: null })),
 }));
 vi.mock('../../streamStages/toolApprovalSuspend.js', () => ({
   suspendForToolApproval: vi.fn(),

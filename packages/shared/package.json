@@ -46,6 +46,12 @@
       "import": "./dist/icons/index.js",
       "default": "./dist/icons/index.js"
     },
+    "./monitor": {
+      "development": "./src/monitor/index.ts",
+      "types": "./src/monitor/index.ts",
+      "import": "./dist/monitor/index.js",
+      "default": "./dist/monitor/index.js"
+    },
     "./utils": {
       "development": "./src/utils/index.ts",
       "types": "./src/utils/index.ts",
@@ -343,6 +349,8 @@
     "@ts-rest/core": "^3.52.1",
     "axios": "^1.21.0",
     "clsx": "^2.1.1",
+    "d3-geo": "^3.1.2",
+    "d3-scale": "^4.0.3",
     "nanoid": "^6.0.2",
     "react-icons": "^5.7.0",
     "tailwind-merge": "^3.7.0",
@@ -354,6 +362,9 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@tanstack/react-query": "^5.105.1",
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-scale": "^4.0.9",
+    "@types/geojson": "^7946.0.16",
     "@types/react": "19.3.0",
     "chokidar": "^6.0.0",
     "cross-env": "^10.1.0",

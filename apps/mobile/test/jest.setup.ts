@@ -37,6 +37,7 @@ jest.mock('expo-router', () => {
     useSegments: () => [],
     usePathname: () => '/',
     useFocusEffect: jest.fn(),
+    useIsFocused: jest.fn(() => true),
     Link: 'Link',
     Stack: { Screen: 'Stack.Screen' },
   };

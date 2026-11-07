@@ -9,6 +9,7 @@ import {
   renderTurnMaterial,
   replaceFileItems,
   setTurnMaterial,
+  withTurnPaste,
 } from './materialItems.js';
 
 import type { TurnMaterialItem } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -107,5 +108,42 @@ describe('Schreibweg von attachmentContext', () => {
     };
     walk(apiRoot);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('withTurnPaste (#5431)', () => {
+  const PASTE = '## EINGEFÜGTER TEXT\n\n<untrusted_content type="anhang">\n…\n</untrusted_content>';
+
+  it('hängt den Paste als eigenen Textteil an die letzte Nutzernachricht', () => {
+    const messages = [
+      { role: 'user', content: 'Format: Datum, Ort' },
+      { role: 'assistant', content: 'Schick mir die Termine' },
+      { role: 'user', content: 'Hier sind die Termine' },
+    ];
+    const out = withTurnPaste(messages, PASTE);
+    expect(out[2].content).toEqual([
+      { type: 'text', text: 'Hier sind die Termine' },
+      { type: 'text', text: PASTE },
+    ]);
+    expect(out.slice(0, 2)).toEqual(messages.slice(0, 2));
+    expect(messages[2].content).toBe('Hier sind die Termine');
+  });
+
+  it('lässt Bildteile stehen und hängt dahinter an', () => {
+    const image = { type: 'image', image: 'AAA', mimeType: 'image/png' };
+    const out = withTurnPaste(
+      [{ role: 'user', content: [{ type: 'text', text: 'Schau' }, image] }],
+      PASTE
+    );
+    expect(out[0].content).toEqual([
+      { type: 'text', text: 'Schau' },
+      image,
+      { type: 'text', text: PASTE },
+    ]);
+  });
+
+  it('ohne Paste bleibt die Liste dieselbe', () => {
+    const messages = [{ role: 'user', content: 'Hallo' }];
+    expect(withTurnPaste(messages, null)).toBe(messages);
   });
 });
