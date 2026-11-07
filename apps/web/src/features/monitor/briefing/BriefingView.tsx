@@ -27,6 +27,12 @@ export interface BriefingViewProps {
   open: BriefingCardId | null;
   onToggle: (card: BriefingCardId) => void;
   onOpen: (card: BriefingCardId) => void;
+  /**
+   * Hängt `?locale=` an interne Links (`useMonitorLocaleParam`). Als Prop statt als Hook
+   * in der Karte, damit der Routen-Fallback ohne Auth-Store auskommt — `routes.ts`
+   * importiert `BriefingSkeleton` direkt.
+   */
+  withLocale: (path: string) => string;
 }
 
 function standLine(snapshot: MonitorSnapshot): string {
@@ -51,6 +57,7 @@ export function BriefingView({
   open,
   onToggle,
   onOpen,
+  withLocale,
 }: BriefingViewProps) {
   const card = (id: BriefingCardId): BriefingCardState => ({
     id,
@@ -78,7 +85,11 @@ export function BriefingView({
       />
 
       <BriefingRow hasOpen={signalOpen}>
-        <ThemenCard state={card('themen')} topics={pick((s) => s.topics, [])} />
+        <ThemenCard
+          state={card('themen')}
+          topics={pick((s) => s.topics, [])}
+          withLocale={withLocale}
+        />
         <KeywordsCard state={card('keywords')} keywords={pick((s) => s.keywords, [])} />
         <XTrendsCard
           state={card('trends')}
@@ -137,6 +148,7 @@ export function BriefingSkeleton() {
         landesverbaende: PENDING_LIST,
       }}
       open={null}
+      withLocale={(path) => path}
       onToggle={noop}
       onOpen={noop}
     />

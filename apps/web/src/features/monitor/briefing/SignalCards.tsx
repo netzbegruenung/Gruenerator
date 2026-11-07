@@ -7,7 +7,6 @@ import {
 import { cn } from '@gruenerator/ui';
 import { Link } from 'react-router-dom';
 
-import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import { TOPIC_CONFIG } from '../topicConfig';
 
 import { BriefingCard, type BriefingCardState } from './BriefingCard';
@@ -29,11 +28,12 @@ const INLINE_LINK = cn(
 export function ThemenCard({
   state,
   topics,
+  withLocale,
 }: {
   state: BriefingCardState;
   topics: TopicScore[] | null;
+  withLocale: (path: string) => string;
 }) {
-  const { withLocale } = useMonitorLocaleParam();
   const sorted = [...(topics ?? [])].sort((a, b) => b.articleCount - a.articleCount);
   const shown = state.open ? sorted : sorted.slice(0, 5);
   const max = sorted[0]?.articleCount || 1;
