@@ -257,9 +257,6 @@ export async function streamAgenticResponse(
      *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
      *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
     disableMcp?: boolean;
-    /** Hintergrundlauf ohne Leser (Wiederkehrende Aufgabe, Board-Agent,
-     *  Notebook-Präzision): läuft immer im Split-Modus. */
-    headless?: boolean;
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
@@ -294,7 +291,6 @@ export async function streamAgenticResponse(
     threadId,
     toolHistory,
     disableMcp,
-    headless,
     searchToolKeys,
     toolAllowlist,
     grantedOnce,
@@ -600,7 +596,6 @@ export async function streamAgenticResponse(
       modelName: resolution.modelName,
       materialHeavy,
       carriesGuarantee: turnCarriesGuarantee(finalState, lastUserText),
-      headless: headless === true,
     });
     mode = resolvedMode.mode;
     recordDecision('loop.mode', mode, {

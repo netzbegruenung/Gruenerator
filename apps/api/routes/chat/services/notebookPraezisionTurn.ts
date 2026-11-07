@@ -277,7 +277,6 @@ export async function runNotebookPraezisionTurn(
           reqSignal: AbortSignal.any([deadline.signal, clientGone.signal]),
           threadId,
           disableMcp: true,
-          headless: true,
           toolAllowlist: [TOOL],
         });
         trace.update({ input: question, output: result.fullText });

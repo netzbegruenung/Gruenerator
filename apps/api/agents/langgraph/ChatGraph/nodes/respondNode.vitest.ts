@@ -297,6 +297,31 @@ describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
  * (Bildanhang, Notebook, Zweit-Intent). Der alte Text versprach trotzdem eine
  * Änderung — die Stufe, die sie ausgelöst hätte, gibt es nicht mehr.
  */
+describe('getModeGuidance — compute im Loop', () => {
+  it('verweist im Loop auf das Werkzeug statt auf ein fehlendes Ergebnis', () => {
+    const out = getModeGuidance(makeState({ intent: 'compute' }), { loop: true });
+    expect(out).toContain('`rechnen`');
+    expect(out).not.toMatch(/kein sicheres Ergebnis/);
+  });
+
+  it('behält im Einzeldurchlauf die Ehrlichkeitsregel ohne Ergebnis', () => {
+    const out = getModeGuidance(makeState({ intent: 'compute' }));
+    expect(out).toMatch(/kein sicheres Ergebnis/);
+  });
+
+  it('nimmt im Loop das frische Tabellenergebnis, sobald eines vorliegt', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'compute',
+        computedResult: { operation: 'Summe', entries: [], summary: 'x' },
+        computedResultFresh: true,
+      }),
+      { loop: true }
+    );
+    expect(out).toContain('BERECHNUNGSERGEBNIS');
+  });
+});
+
 describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
   it('verspricht keine Bearbeitung mehr, sondern bestellt den Vorschlag als Text', () => {
     const out = getModeGuidance(makeState({ intent: 'edit_current_doc' }));

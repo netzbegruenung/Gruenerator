@@ -682,6 +682,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'sparkles',
     accent: 'neutral',
   },
+  rechnen: {
+    label: 'Berechnung',
+    activeLabel: 'Rechne exakt nach',
+    iconKey: 'chart',
+    accent: 'neutral',
+  },
   vertonen: {
     label: 'Vertonung',
     activeLabel: 'Vertone den Text',

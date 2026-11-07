@@ -18,7 +18,7 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  * würde ohne jede Recherche beantwortet. `dispositionSets.vitest.ts` hat genau
  * das bisher als Test erzwungen — abgeleitet kann es gar nicht mehr eintreten.
  *
- * Diese drei sind die Gegenrichtung, die NICHT gilt, und deshalb bleiben sie
+ * Diese vier sind die Gegenrichtung, die NICHT gilt, und deshalb bleiben sie
  * ausgeschrieben: sie laufen IM Loop, aber ihr Verdikt muss vorher feststehen,
  * weil es steuert, was dort montiert wird (`hilfe`/`summary` mounten ihr
  * eigenes Domain-Tool über `buildChatToolCatalog`) bzw. weil es Geld kostet
@@ -27,6 +27,12 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  * Eine Eigenheit, die nur hier steht:
  *  - `image` (generate) betritt ihn nur für anhanglose Turns; `image_edit`
  *    braucht einen Anhang, und das Router-Gate schliesst die aus.
+ *  - `compute` (seit 11/2026, #5441) rechnet im Loop über das Werkzeug
+ *    `rechnen` — derselbe Plan- und JS-Kern wie der Einzeldurchlauf-Zweig, der
+ *    nur noch als Ausweichziel bei abgeschaltetem Loop läuft. Das Modell
+ *    entscheidet, wann es rechnet; erzwungen wird nichts, weil die Regel
+ *    `compute` auch über eingefügten Text greift und ein Lektorat sonst eine
+ *    Zeichenzählung bekäme.
  *
  * Nicht im Loop und ausdrücklich so gewollt: `direct`/`greeting`/`produktion`
  * (Disposition `prose`) behalten den werkzeuglosen Schnellpfad, damit „hallo"
@@ -47,7 +53,12 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  *    stillgelegt (#4043); ein Konnektor-Turn ist `agentic` (über die
  *    Ableitung drin), und den Durchlass trägt der Scope (`turnPlan.ts`).
  */
-const AGENTIC_EXTRA_IDS = ['summary', 'hilfe', 'image'] as const satisfies readonly ChatIntentId[];
+const AGENTIC_EXTRA_IDS = [
+  'summary',
+  'hilfe',
+  'image',
+  'compute',
+] as const satisfies readonly ChatIntentId[];
 
 /**
  * `loop`-Disposition + die drei Zusätze. Abgeleitet statt aufgezählt: ein neuer

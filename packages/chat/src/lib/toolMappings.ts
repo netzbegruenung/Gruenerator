@@ -80,6 +80,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   user_agents: ['Agenten-Zugriff', 'Agenten-Zugriffe'],
   recipes: ['Rezept-Zugriff', 'Rezept-Zugriffe'],
   vertonen: ['Vertonung', 'Vertonungen'],
+  rechnen: ['Berechnung', 'Berechnungen'],
 };
 
 /**
