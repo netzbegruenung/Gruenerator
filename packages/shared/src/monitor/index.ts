@@ -1,6 +1,7 @@
 export * from './briefingLead.js';
 export * from './briefingSignals.js';
 export * from './bundeslaender.js';
+export * from './choropleth.js';
 export * from './news.js';
 export * from './pollFormat.js';
 export * from './teaser.js';
