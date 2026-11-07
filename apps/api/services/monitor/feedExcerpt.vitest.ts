@@ -65,6 +65,23 @@ describe('buildFeedExcerpt', () => {
     expect(out!.endsWith('Inhalt.')).toBe(true);
   });
 
+  it('does not end on a day ordinal or an abbreviation near the budget edge', () => {
+    // First sentence ends at ~312 chars; the tail's period sits at ~470.
+    // Live case: Grüne Fraktion Bayern Presse, "… am 27. und 28. Oktober".
+    const first = `Anfang ${'wort '.repeat(60)}Ende.`;
+    const tails = [
+      'am 27. und 28. Oktober',
+      'Dr. Müller',
+      'ca. 40 Leute',
+      'z. B. hier',
+      'Art. 5 gilt',
+    ];
+    for (const tail of tails) {
+      const text = `${first} Mehr ${'mehr '.repeat(29)}${tail} ${'wort '.repeat(40)}`;
+      expect(buildFeedExcerpt(text, null, MAX)).toBe(first);
+    }
+  });
+
   it('keeps a closing quote with the sentence', () => {
     const text = `${'a'.repeat(300)} „Das ist gesagt.“ ${'b '.repeat(200)}`;
     expect(buildFeedExcerpt(text, null, MAX)!.endsWith('gesagt.“')).toBe(true);
