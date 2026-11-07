@@ -321,7 +321,7 @@ describe('„ja" on an offer that was never recorded', () => {
     'Ich erstelle dir jetzt die Sharepics für den Slider basierend auf dem Entwurf. Da ein Slider aus mehreren Bildern besteht, generiere ich diese nacheinander für dich.\n\n(Hier erfolgt nun die Erstellung der Sharepics durch die entsprechenden Werkzeuge des Grünerators)';
 
   it('replaces the phantom announcement with an honest sentence', async () => {
-    loopScript.script(ANSWER, { text: PHANTOM });
+    loopScript.script({ text: PHANTOM });
     respond.singlePassText = PHANTOM;
     const { trace } = await runTurn(app.baseUrl, {
       messages: [

@@ -641,13 +641,15 @@ export const UNIFIED_GEMMA_CHAIN = [
 ] as const;
 
 /**
- * Behind a unified Mistral turn (Ultra, and auto turns on Large 4): the mirror
- * of the Gemma ladder above, which ends on Mistral. Taken only if Mistral
- * rejects or stays silent before any tool call or output (`runLaneChain`); a
- * Large 4 stream that hangs that way otherwise sat until the hard cap (#5422
- * pattern). `:speed` because it is the fast Gemma upstream and takes wide bodies.
+ * Behind every loop lane that is not a Melious Gemma (Ultra and auto turns on
+ * Large 4, Panda, GreenPT, Cortecs Gemma): the mirror of the Gemma ladder above,
+ * which ends on Mistral. Taken only if the lane rejects or stays silent before
+ * any tool call or output (`runLaneChain`); a stream that hangs that way
+ * otherwise sat until the hard cap (#5422 pattern). `:speed` because it is the
+ * fast Gemma upstream and takes wide bodies. Until the split mode went (#5441)
+ * the non-Mistral lanes had the planner ladder behind their tool phase instead.
  */
-export const UNIFIED_MISTRAL_FALLBACKS = [GEMMA_31B_ON_MELIOUS_SPEED] as const;
+export const UNIFIED_LANE_FALLBACKS = [GEMMA_31B_ON_MELIOUS_SPEED] as const;
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch

@@ -11,7 +11,7 @@ import { DEFAULT_LOOP_BUDGET, type PersistedStep } from './types.js';
  * QA, 28.07.2026: two turns in one session ended mid-word — one after
  * "Aktuelles Budget: 13.500 Euro", one after "…des öffentlichen Nah". Both had
  * created an artifact first. That was the tell: a sheet or a PDF costs 30–60s
- * in the gather phase, and the whole turn ran under ONE
+ * in the tool phase, and the whole turn ran under ONE
  * `AbortSignal.timeout(wallClockMs)`, so the writer inherited whatever was left
  * of the 120s. When it ran out, the stream was torn down mid-token — and the
  * caller only substitutes text when NOTHING was written, so the stump shipped
@@ -19,10 +19,10 @@ import { DEFAULT_LOOP_BUDGET, type PersistedStep } from './types.js';
  * as content defects ("Konsistenzprüfung enthielt nur das Budget").
  *
  * These tests pin the separation: tool work is bounded by the turn budget, the
- * write phase runs under its own signal.
+ * writer runs under its own signal.
  */
 
-const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerModel'];
+const repairModel = { id: 'repair' } as unknown as LoopEngineParams['synthModel'];
 const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
 
 type Part = { type: string; text?: string };
@@ -35,13 +35,14 @@ function streamOf(parts: Part[]): ReturnType<LoopDeps['streamText']> {
   } as unknown as ReturnType<LoopDeps['streamText']>;
 }
 
-/** Records the abortSignal each phase was handed, keyed by model id. */
+/** Records the abortSignal each pass was handed, keyed by model id; the writer is `repair`. */
 function recordingDeps(): { deps: LoopDeps; signals: Record<string, AbortSignal> } {
   const signals: Record<string, AbortSignal> = {};
   const deps: LoopDeps = {
     streamText: ((o: { model: { id: string }; abortSignal: AbortSignal }) => {
       signals[o.model.id] = o.abortSignal;
-      return streamOf([{ type: 'text-delta', text: 'ANTWORT' }]);
+      // The unified pass ends empty, so the tool-less repair writer takes over.
+      return streamOf(o.model.id === 'repair' ? [{ type: 'text-delta', text: 'ANTWORT' }] : []);
     }) as unknown as LoopDeps['streamText'],
     generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
   };
@@ -50,10 +51,9 @@ function recordingDeps(): { deps: LoopDeps; signals: Record<string, AbortSignal>
 
 function params(over: Partial<LoopEngineParams>): LoopEngineParams {
   return {
-    mode: 'split',
-    plannerModel,
     synthModel,
-    tools: {},
+    repairModel,
+    tools: { web_search: {} } as unknown as LoopEngineParams['tools'],
     toolSystem: 'TOOLSYS',
     buildSynthSystem: (s) => `SYNTHSYS::${s}`,
     getSourcesBlock: () => '[1] Quelle — Inhalt',
@@ -86,23 +86,7 @@ describe('write phase budget', () => {
     );
 
     expect(out.text).toBe('ANTWORT');
-    expect(signals.synth?.aborted).toBe(false);
-  });
-
-  it('still hands the gather phase the turn budget', async () => {
-    const turn = new AbortController();
-    const write = new AbortController();
-    const { deps, signals } = recordingDeps();
-
-    await runAgenticLoop(
-      params({ abortSignal: turn.signal, writeAbortSignal: write.signal }),
-      deps
-    );
-
-    turn.abort();
-    expect(signals.planner?.aborted).toBe(true);
-    // Same act, opposite verdict — proof the two phases really are separate.
-    expect(signals.synth?.aborted).toBe(false);
+    expect(signals.repair?.aborted).toBe(false);
   });
 
   it('falls back to the turn signal when no write signal is given', async () => {
@@ -112,7 +96,7 @@ describe('write phase budget', () => {
     await runAgenticLoop(params({ abortSignal: turn.signal }), deps);
 
     turn.abort();
-    expect(signals.synth?.aborted).toBe(true);
+    expect(signals.repair?.aborted).toBe(true);
   });
 });
 

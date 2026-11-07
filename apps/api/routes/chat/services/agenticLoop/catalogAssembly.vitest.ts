@@ -582,7 +582,6 @@ describe('wrapAssembledTools — Labels der Verbindungs-Werkzeuge', () => {
         toolActivity: createToolActivity(),
         toolLabels,
         getTextOffset: () => null,
-        takeNarration: () => null,
       }
     );
     return { wrapped, sent, steps };

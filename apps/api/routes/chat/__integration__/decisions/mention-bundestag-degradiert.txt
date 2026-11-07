@@ -5,7 +5,6 @@
 
 ## turn 0: "Was liegt zum Heizungsgesetz vor?"
 router.run_agentic               = single_pass                    forcedLoop=true forcedTool=true gateOpen=false hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=bundestag isCompound=false isPdfFillRequest=false loopEnabled=false memoryRequest=false mustLoop=false secondaryAllowed=true singlePassReason=loop_disabled
-loop.mode                        = (not reached)
 router.intent_override           = loop_only_degraded             degradeTo=web intentBefore=bundestag runAgentic=false
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)

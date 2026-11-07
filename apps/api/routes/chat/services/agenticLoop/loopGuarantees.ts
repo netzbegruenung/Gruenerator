@@ -161,7 +161,6 @@ export interface GuaranteeContext {
   calledToolNames: () => readonly string[];
   /** A forced generation is "a tool actually runs" too — the held-back opening
    *  streams before its card, same as a planner-issued call. */
-  emitOpeningBeforeTool: () => void;
   /** Read at CALL time: in unified mode the answer is already written when this
    *  runs, and that is exactly what the inline-table check asks about. */
   answerText: () => string;
@@ -242,9 +241,6 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     // fallback is intentional and must fire even when the loop already spent its
     // failure/search budget (exactly the turns where the planner never reached
     // the generation tool). The `already` check above keeps it idempotent.
-    // A forced generation is "a tool actually runs" too — the held-back
-    // opening streams before its card, same as a planner-issued call.
-    p.emitOpeningBeforeTool();
     p.sse.send('tool_step_start', { stepId, toolName, args });
     let result: unknown;
     try {
@@ -278,7 +274,6 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
       { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
     if (!tool?.execute) return false;
     p.onInfo('[Agentic] pinned bundestag not called — running it before synth');
-    p.emitOpeningBeforeTool();
     try {
       const result = await tool.execute({}, { toolCallId: 'forced-pinned-bundestag' });
       const error = (result as { error?: unknown } | null)?.error;

@@ -9,7 +9,9 @@ import {
 } from './autoPolicy.js';
 
 /**
- * Die Ausweichkette der Planer-Lane.
+ * Die Ausweichkette hinter dem Reparatur-Schreiber (`getLoopSynthFallbackModel`).
+ * Bis 11/2026 war sie die Kette des Split-Planers (#5441); sie wählt weiter
+ * die erste gesunde Stufe.
  *
  * Warum gemockt statt gegen die echte Umgebung: die Wahl hängt an
  * konfigurierten Schlüsseln. Lokal (`.env` mit allen Anbietern) und in der CI
@@ -45,13 +47,18 @@ vi.mock('../../../services/ai/modelHealth.js', async (importOriginal) => {
   return { ...actual, isModelSlow: (p: string, m: string) => slow.has(`${p}/${m}`) };
 });
 
-const { loopPlannerModelName, getLoopPlannerFallbackStages } = await import('./providers.js');
+const { getLoopSynthFallbackModel } = await import('./providers.js');
+
+// Ein Schreiber ausserhalb der Kette — sonst gäbe die Funktion für die
+// Stufe selbst null zurück.
+const loopPlannerModelName = (): string | null =>
+  getLoopSynthFallbackModel('mistral-large-4')?.name ?? null;
 
 const markSlow = (stage: { provider: string; model: string }): void => {
   slow.add(`${stage.provider}/${stage.model}`);
 };
 
-describe('loop planner fallback chain', () => {
+describe('Ausweich-Schreiber der Reparatur', () => {
   beforeEach(() => {
     configured.clear();
     slow.clear();
@@ -110,57 +117,11 @@ describe('loop planner fallback chain', () => {
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_PRIMARY.model);
   });
 
-  it('landet auf der schlüssellosen Stufe, wenn nichts konfiguriert ist', () => {
-    // Der Zweig, der am 14.08.2026 jeden agentischen Zug tötete: eine Stufe,
-    // deren Getter ohne Schlüssel wirft, darf hier nicht stehen.
+  it('gibt ohne konfigurierte Stufe keinen Schreiber her, der nicht schreiben darf', () => {
+    // Die schlüssellose Stufe (LOOP_PLANNER_UNCONFIGURED) ist gpt-oss, das
+    // AVOID_AS_SYNTH vom Antwortschreiben ausschliesst.
     configured.clear();
-    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_UNCONFIGURED.model);
-  });
-});
-
-describe('Ausweich-Lanes innerhalb eines Zuges', () => {
-  const ids = (stages: ReturnType<typeof getLoopPlannerFallbackStages>) =>
-    stages.map((s) => `${s.provider}/${s.model}`);
-  const id = (s: { provider: string; model: string }) => `${s.provider}/${s.model}`;
-  const behind = (s: { provider: string; model: string }, wire: string | null = null) =>
-    ids(getLoopPlannerFallbackStages(s.provider as 'melious', s.model, wire));
-
-  beforeEach(() => {
-    configured.clear();
-    slow.clear();
-    for (const p of ['melious', 'cortecs', 'greenpt', 'mistral']) configured.add(p);
-  });
-
-  it('hinter :balanced: :speed, dann Cortecs, dann Mistral', () => {
-    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([
-      id(LOOP_PLANNER_SPEED),
-      id(LOOP_PLANNER_HEALTHY_ALT),
-      id(LOOP_PLANNER_FALLBACK),
-    ]);
-  });
-
-  it('ging der Primär auf dem Draht schon an :speed, fällt die :speed-Stufe weg', () => {
-    // Die Falle aus #5399: `meliousWireModel` macht einen grossen
-    // `:balanced`-Body zu `:speed` — die Stufe wiederholte dieselbe Anfrage.
-    expect(behind(LOOP_PLANNER_PRIMARY, LOOP_PLANNER_SPEED.model)).toEqual([
-      id(LOOP_PLANNER_HEALTHY_ALT),
-      id(LOOP_PLANNER_FALLBACK),
-    ]);
-  });
-
-  it('hinter Cortecs nur noch Mistral, hinter der letzten Stufe nichts', () => {
-    expect(behind(LOOP_PLANNER_HEALTHY_ALT)).toEqual([id(LOOP_PLANNER_FALLBACK)]);
-    expect(behind(LOOP_PLANNER_FALLBACK)).toEqual([]);
-  });
-
-  it('lässt zähe und unkonfigurierte Stufen aus', () => {
-    markSlow(LOOP_PLANNER_HEALTHY_ALT);
-    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([
-      id(LOOP_PLANNER_SPEED),
-      id(LOOP_PLANNER_FALLBACK),
-    ]);
-    markSlow(LOOP_PLANNER_SPEED);
-    configured.delete('mistral');
-    expect(behind(LOOP_PLANNER_PRIMARY)).toEqual([]);
+    expect(LOOP_PLANNER_UNCONFIGURED.provider).toBeDefined();
+    expect(loopPlannerModelName()).toBeNull();
   });
 });

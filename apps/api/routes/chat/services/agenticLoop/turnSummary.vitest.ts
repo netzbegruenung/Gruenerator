@@ -17,8 +17,6 @@ function line(overrides: Partial<Parameters<typeof logTurnSummary>[0]> = {}): st
   let out = '';
   logTurnSummary({
     modelName: 'mistral-medium-2604',
-    mode: 'split',
-    plannerName: 'mistral-small-3.2-24b-instruct-2506',
     synthName: 'mistral-medium-2604',
     intent: 'agentic',
     steps: [] as PersistedStep[],

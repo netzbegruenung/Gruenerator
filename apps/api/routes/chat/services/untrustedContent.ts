@@ -82,20 +82,6 @@ export function embedUntrusted(kind: UntrustedKind, content: string, label?: str
 }
 
 /**
- * Replace every block of one kind — frame included — with plain text. Exact
- * because {@link embedUntrusted} escapes any closing tag inside the material,
- * so the first closing tag after an opening one is always its own.
- */
-export function replaceUntrustedBlocks(
-  text: string,
-  kind: UntrustedKind,
-  replacement: string
-): string {
-  const block = new RegExp(`<${TAG} type="${kind}"[^>]*>\\n[\\s\\S]*?\\n</${TAG}>`, 'g');
-  return text.replace(block, () => replacement);
-}
-
-/**
  * The hierarchy statement. Goes into the system prompt ONCE, wherever untrusted
  * material may follow, so the delimiter has a documented meaning instead of
  * being an unexplained tag.

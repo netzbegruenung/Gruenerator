@@ -270,14 +270,8 @@ export interface WrapToolsContext {
   /** Character index into the final answer text at the moment a tool call
    *  STARTS — persisted as `PersistedStep.textOffset` so thread reload can
    *  interleave text segments and tool cards in the live order. Returns `null`
-   *  when offsets must NOT be recorded (split mode: text stays empty during
-   *  gather, so every offset would be a meaningless 0). */
+   *  when offsets must NOT be recorded. */
   getTextOffset?: () => number | null;
-  /** Drains the planner narration buffered since the previous tool call and
-   *  returns it (or `null` if none). Called once at each tool START, so the
-   *  announcement sentence(s) are associated with the tool they preceded.
-   *  Split mode only; unified mode narration flows through the answer text. */
-  takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default {@link DEFAULT_MAX_RESULT_CHARS}. */
   maxResultChars?: number;
   /**
@@ -492,18 +486,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const title = ctx.titleFor?.(toolName);
     const serverName = ctx.serverNameFor?.(toolName);
 
-    const sendStart = (
-      stepId: string,
-      args: Record<string, unknown>,
-      narration?: string | null
-    ): void => {
+    const sendStart = (stepId: string, args: Record<string, unknown>): void => {
       ctx.sse.send('tool_step_start', {
         stepId,
         toolName,
         args,
         ...(title ? { title } : {}),
         ...(serverName ? { serverName } : {}),
-        ...(narration ? { narration } : {}),
       });
     };
     const sendResult = (stepId: string, ok: boolean, result: unknown): void => {
@@ -558,9 +547,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         // not run, so a card claiming it did — captioned with steering text
         // meant for the planner ("Formuliere eine WIRKLICH ANDERE Suche …") — is
         // a false statement about the turn. It also skips `noteCall`, so a blocked
-        // call costs neither a search-budget slot nor a failure. The narration
-        // buffer stays undrained on purpose: the announcement belongs to
-        // whichever call actually runs next.
+        // call costs neither a search-budget slot nor a failure.
         const verb = block.kind === 'defer' ? 'zurückgestellt' : 'blockiert';
         log.info(`[Tool] ${toolName} ${verb} (${block.guard}) — ${block.modelMessage}`);
         recordDecision('loop.tool_guard', block.guard, {
@@ -605,18 +592,12 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       // Captured at tool START (before execution) — the semantics of textOffset.
       const textOffset = ctx.getTextOffset?.();
-      // Drained once at START: the planner sentence(s) that announced this call.
-      // Parallel siblings in one model step share the announcement, so only the
-      // first sendStart gets it — the rest drain empty. Split mode only.
-      const narration = ctx.takeNarration?.() ?? null;
 
       // MUSS vor dem Hook-Await gebucht sein: `checkSearchConcurrency` verlässt
       // sich darauf, dass Guard-Kette und `noteCall` EIN synchroner Block sind
       // (siehe Kommentar dort) — parallele Geschwister-Aufrufe eines Model-Steps
       // sehen sich sonst gegenseitig nicht und das Concurrency-Limit greift
-      // nicht mehr, sobald ein `beforeToolCall`-Handler konfiguriert ist. Aus
-      // demselben Fenster: die Narration wird hier gedrained, damit sie
-      // deterministisch beim ersten Aufruf des Steps landet.
+      // nicht mehr, sobald ein `beforeToolCall`-Handler konfiguriert ist.
       ctx.guards.noteCall(toolName);
 
       // Eigener Halter statt einer `let`-Variablen: gesetzt wird in einer
@@ -661,7 +642,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         }
       }
 
-      sendStart(stepId, args, narration);
+      sendStart(stepId, args);
 
       let output: unknown;
       // A timed-out call is ABANDONED, not cancelled: `withTimeout` stops
@@ -755,7 +736,6 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ...(ok ? {} : { ok: false as const }),
         ...serverMeta,
         ...(textOffset != null && { textOffset }),
-        ...(narration ? { narration } : {}),
       });
       sendResult(stepId, ok, output);
 

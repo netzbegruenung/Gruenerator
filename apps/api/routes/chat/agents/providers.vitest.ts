@@ -5,10 +5,7 @@ import {
   getContextWindow,
   loopSynthChoice,
   getModelConfig,
-  resolveLoopPlannerLane,
-  loopPlannerModelName,
   isUnifiedGemma,
-  prefersUnifiedLoop,
   resolveModelTuple,
   unifiedFallbackStages,
   resolveUnifiedLaneChain,
@@ -21,8 +18,6 @@ import {
 } from '../../../services/ai/gemmaHosts.js';
 import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
-
-import { resolveLoopMode } from '../services/agenticLoop/loopMode.js';
 
 import {
   LOOP_PLANNER_CHAIN,
@@ -48,11 +43,7 @@ const WRITER_MODELS = new Set([
   'mistral-large-4',
 ]);
 
-describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split)', () => {
-  it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
-    expect(prefersUnifiedLoop('mistral', 'mistral-medium-2604')).toBe(true);
-  });
-
+describe('isUnifiedGemma (lanes with the Gemma ladder behind them)', () => {
   it.each([
     ['melious', 'gemma-4-31b', true],
     ['melious', 'gemma-4-31b:balanced', true],
@@ -67,12 +58,6 @@ describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split
     ['melious', 'deepseek-v4.1-flash', false],
   ])('%s/%s -> unified %s', (provider, model, expected) => {
     expect(isUnifiedGemma(provider, model)).toBe(expected);
-    expect(prefersUnifiedLoop(provider, model)).toBe(expected);
-  });
-
-  it('every other provider runs the split (planner does tools, selection writes)', () => {
-    expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
-    expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
   });
 
   it('honours a MELIOUS_DEFAULT_MODEL name', () => {
@@ -88,18 +73,11 @@ describe('the real default lane resolves to a unified loop', () => {
       const tuple = await resolveModelTuple(selection.modelId, 'req-default-lane');
       expect(tuple).toMatchObject({ provider: 'melious' });
       expect(isUnifiedGemma(tuple!.provider, tuple!.model)).toBe(true);
-      expect(
-        resolveLoopMode({
-          provider: tuple!.provider,
-          modelName: tuple!.model,
-          materialHeavy: false,
-        })
-      ).toEqual({ mode: 'unified', reason: 'unified_model' });
     }
   );
 });
 
-describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
+describe('repair writer policy (loopSynthChoice / LOOP_PLANNER_CHAIN)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
     // Die deklarierten Stufen (autoPolicy.ts): Melious Gemma 4 31B zuerst,
     // dann Melious Mistral Small 4, zuletzt Mistral Large 4.
@@ -108,7 +86,7 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
     // Werkzeugaufrufe beider Melious-Stufen wurden am 29.09.2026 live geprüft.
     // Seit 28.10.2026 (#5113) ist die letzte Stufe Mistral Small 4 bei Mistral.
-    const planner = loopPlannerModelName();
+    const planner = LOOP_PLANNER_CHAIN[0].model;
     expect([
       GEMMA_31B_ON_MELIOUS.model,
       'mistral-small-4-119b-instruct',
@@ -127,20 +105,6 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // Gemma gateways failed, never as a first choice.
     const vendorSmall = LOOP_PLANNER_CHAIN.map((s) => s.model === 'mistral-small-latest');
     expect(vendorSmall).toEqual([...vendorSmall.slice(0, -1).map(() => false), true]);
-  });
-
-  it('resolves to a usable model even when NO provider is configured', () => {
-    // The slot must never land on a lane whose getter throws on a missing key.
-    // It did between 13. and 14.08.2026: the last-resort branch returned the
-    // GreenPT tier, so with nothing configured every agentic turn died with
-    // "GREENPT_API_KEY environment variable is required" before its first model
-    // call — ten loop scenarios red, and in production a deployment that forgot
-    // the key would have lost the whole loop rather than one lane.
-    //
-    // This assertion holds in both worlds: with a key the primary builds, and
-    // in a keyless CI the litellm tier does (default base URL, empty key
-    // tolerated). What it forbids is the throw.
-    expect(() => resolveLoopPlannerLane()).not.toThrow();
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {
@@ -515,6 +479,8 @@ describe('resolveUnifiedLaneChain', () => {
     ).toEqual(['melious/gemma-4-31b:balanced', `mistral/${LOOP_SYNTH_FALLBACK.model}`]);
   });
 
+  // Gilt für jede Lane ausser Melious-Gemma (Panda, GreenPT, Cortecs) — Mistral
+  // steht hier, weil nur dessen Getter ohne Schlüssel baut.
   it('Mistral: die gewählte Stufe, dahinter Gemma :speed', () => {
     _resetModelHealthForTests();
     expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))).toEqual([
@@ -530,10 +496,5 @@ describe('resolveUnifiedLaneChain', () => {
       'mistral/mistral-large-4'
     );
     _resetModelHealthForTests();
-  });
-
-  it('ist leer für jede Lane, die nicht unified läuft', () => {
-    expect(resolveUnifiedLaneChain('cortecs', 'gemma-4-31b-it')).toEqual([]);
-    expect(resolveUnifiedLaneChain('greenpt', 'mistral-medium-3.5-128b')).toEqual([]);
   });
 });

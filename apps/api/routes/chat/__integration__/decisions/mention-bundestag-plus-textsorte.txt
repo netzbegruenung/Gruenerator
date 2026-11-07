@@ -5,14 +5,13 @@
 
 ## turn 0: "Recherchiere im Bundestag zum Heizungsgesetz und beantworte diese Buergeranfrage."
 router.run_agentic               = loop                           forcedLoop=true forcedTool=true gateOpen=true hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=bundestag isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
-loop.mode                        = split                          materialHeavy=false model=stub-model provider=stub reason=not_unified_model
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = residual                       heuristicIntent=research resolved=research
 respond.answer_format            = own_format                     complexity=moderate formatOwner=textform:Bürger*innen-Mail Berlin intent=bundestag retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
-loop.synth_verdict               = accepted                       textLength=135
+loop.synth_verdict               = (not reached)
 loop.unified_repair              = (not reached)
 notebook.answer_mode             = (not reached)
 -- wire --

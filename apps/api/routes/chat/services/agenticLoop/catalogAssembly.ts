@@ -1112,7 +1112,6 @@ export function wrapAssembledTools(
      *  empty through the whole gather phase → return null so no (all-0) offsets
      *  are recorded, and reload falls back to the legacy cards-first layout. */
     getTextOffset: () => number | null;
-    takeNarration: () => string | null;
     /** Beobachtungspunkt um die Werkzeugausführung — heute die Kostenrechnung
      *  des Turns. Nicht gesetzt ⇒ Verhalten unverändert. */
     hooks?: ToolHooks;
@@ -1138,7 +1137,6 @@ export function wrapAssembledTools(
     perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
     nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
     getTextOffset: ctx.getTextOffset,
-    takeNarration: ctx.takeNarration,
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
     ...(ctx.askGate ? { askGate: ctx.askGate } : {}),
