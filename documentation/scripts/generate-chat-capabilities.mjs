@@ -662,7 +662,7 @@ function generate() {
 // ── Audit: what the code can do vs. what the article documents ──────────────
 
 const EXAMPLES_FILE = 'documentation/src/components/ChatCapabilities/examples.ts';
-const ARTICLE = 'documentation/docs/gruenerieren/was-kann-ich-fragen.mdx';
+const ARTICLE = 'documentation/docs/chat/was-kann-ich-fragen.mdx';
 const ISSUE_LABEL = 'docs-freshness';
 const ISSUE_TITLE = 'Docs freshness: Chat-Fähigkeiten ohne Musterfragen';
 const ISSUE_MARKER = '<!-- docs-capabilities -->';
