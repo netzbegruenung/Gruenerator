@@ -522,8 +522,7 @@ const SPLIT_SCENARIOS: readonly LoopScenario[] = [
 
 /**
  * Szenarien, die die Standard-Lane meinen und dort unified laufen. Nicht dabei:
- * `@bundestag` (trägt eine Garantie, bleibt split — das deckt `loopRun`s
- * Mistral-Fall), die Einzeldurchlauf-Szenarien (kein Loop) und die beiden
+ * die Einzeldurchlauf-Szenarien (kein Loop) und die beiden
  * Wiederholungs-Fälle der Synth-Verdikte, deren zweiter Versuch ein eigener
  * Reparaturaufruf mit eigenem Skript-Eintrag ist.
  */
@@ -536,6 +535,7 @@ const UNIFIED_SISTER_IDS: readonly string[] = [
   'loop-guard-fehlerdeckel',
   'loop-guard-fehlerbudget',
   'loop-guard-nebenlaeufig',
+  'mention-bundestag-loop',
   'mention-dokumente-loop',
   'mention-recherche-loop',
   'mention-umfragen-loop',

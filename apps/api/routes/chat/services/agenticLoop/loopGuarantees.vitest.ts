@@ -302,8 +302,8 @@ describe('turnCarriesGuarantee — wann ein Turn auf den Split-Loop gehört', ()
     ).toBe(false);
   });
 
-  it('an artifact edit order carries a guarantee', () => {
-    expect(turnCarriesGuarantee(state({ artifactEditOrder: true }))).toBe(true);
+  it('an artifact edit order carries none — its first step is forced in the stream', () => {
+    expect(turnCarriesGuarantee(state({ artifactEditOrder: true }))).toBe(false);
   });
 
   it('the forced edit precondition carries one — by intent, and by the ask', () => {
@@ -335,8 +335,8 @@ describe('turnCarriesGuarantee — wann ein Turn auf den Split-Loop gehört', ()
     ).toBe(false);
   });
 
-  it('a pinned bundestag carries a guarantee, another pinned tool does not', () => {
-    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'bundestag' }))).toBe(true);
+  it('a pinned tool carries none — the named first call is forced in the stream', () => {
+    expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'bundestag' }))).toBe(false);
     expect(turnCarriesGuarantee(state({ mentionPinnedTool: 'web_search' }))).toBe(false);
   });
 

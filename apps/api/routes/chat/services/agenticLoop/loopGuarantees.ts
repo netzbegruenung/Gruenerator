@@ -106,21 +106,21 @@ function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
 
 /**
  * Whether the turn owes something `createAfterGather` guarantees before the
- * writer runs: an ordered compound artifact, a forced edit, a pinned
- * `bundestag`, or an order to change an existing artifact. Such a turn belongs
+ * writer runs: an ordered compound artifact or a forced edit. Such a turn belongs
  * on the split loop, where the hook runs before synth; unified runs it AFTER the
  * stream, so the answer would announce what does not exist yet.
+ *
+ * Not here any more: a pinned `bundestag` and an order to change an existing
+ * artifact. Both have their first step forced inside the stream
+ * (`forceFirstToolCall`: `pinned`, `artifact_edit_order`), so a unified writer
+ * sees the tool result before it writes. The pinned-bundestag rescue in
+ * `afterGather` stays as the net for a host that ignores `tool_choice`.
  *
  * `userAsk` is the turn's last user text (the forced edit reads it too); without
  * it only the ask-independent triggers count.
  */
 export function turnCarriesGuarantee(state: ChatGraphState, userAsk = ''): boolean {
-  return (
-    compoundGenerationOwed(state) ||
-    editGuaranteeOwed(state, userAsk) ||
-    state.mentionPinnedTool === 'bundestag' ||
-    state.artifactEditOrder === true
-  );
+  return compoundGenerationOwed(state) || editGuaranteeOwed(state, userAsk);
 }
 
 export interface GuaranteeContext {
