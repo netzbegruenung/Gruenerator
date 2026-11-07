@@ -27,6 +27,17 @@ describe('countBundestag', () => {
     });
   });
 
+  it('zählt neben einem Deskriptor ohne Titel und sagt es (#5445)', async () => {
+    const { dip, list } = dipWith(() => 15);
+    const r = await countBundestag({
+      filters: { deskriptor: ['Radverkehr'], titel: 'Radverkehr', wahlperiode: [21] },
+      dip,
+    });
+    expect(list.mock.calls[0]![1]).not.toHaveProperty('f.titel');
+    expect(r.filters.titel).toBeUndefined();
+    expect(r.notes.join(' ')).toContain('Titelfilter „Radverkehr"');
+  });
+
   it('nimmt ohne Wahlperiode die 21 an und sagt es', async () => {
     const { dip, list } = dipWith(() => 5);
     const r = await countBundestag({ filters: {}, dip });
