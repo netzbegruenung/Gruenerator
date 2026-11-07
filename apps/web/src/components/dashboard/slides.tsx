@@ -28,18 +28,41 @@ const SWIPE_MIN_PX = 40;
  */
 export function useAutoAdvance(count: number, intervalMs: number | null) {
   const [index, setIndex] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [stopped, setStopped] = useState(reducedMotionQuery);
   const touch = useRef<{ x: number; y: number } | null>(null);
+  // Mauszeiger/Fokus halten das Durchwechseln an. Bewusst Refs statt State: sonst
+  // rendert jedes Hineinfahren die ganze Karte samt Folien neu — auch dort, wo gar
+  // nichts durchwechselt (Trends, Umfragen).
+  const held = useRef({ hover: false, focus: false });
+  const restart = useRef<() => void>(() => {});
   // Nur von Hand gewechselte Folien werden angesagt — Durchwechseln bliebe sonst ein Dauerrauschen.
   const [manual, setManual] = useState(false);
 
   useEffect(() => {
-    if (intervalMs === null || stopped || hovered || focused || count < 2) return;
-    const timer = setInterval(() => setIndex((i) => (i + 1) % count), intervalMs);
-    return () => clearInterval(timer);
-  }, [stopped, hovered, focused, count, intervalMs]);
+    if (intervalMs === null || stopped || count < 2) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (!held.current.hover && !held.current.focus) setIndex((i) => (i + 1) % count);
+        schedule();
+      }, intervalMs);
+    };
+    schedule();
+    // Nach dem Loslassen bekommt die Folie wieder die volle Zeit.
+    restart.current = () => {
+      clearTimeout(timer);
+      schedule();
+    };
+    return () => {
+      clearTimeout(timer);
+      restart.current = () => {};
+    };
+  }, [stopped, count, intervalMs]);
+
+  const release = (key: 'hover' | 'focus') => {
+    held.current[key] = false;
+    restart.current();
+  };
 
   // Kommen weniger Folien als vorher, bleibt der Index gültig.
   const active = count > 0 ? index % count : 0;
@@ -73,11 +96,15 @@ export function useAutoAdvance(count: number, intervalMs: number | null) {
         if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(t.clientY - start.y)) return;
         select(active + (dx < 0 ? 1 : -1));
       },
-      onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
-      onFocus: () => setFocused(true),
+      onMouseEnter: () => {
+        held.current.hover = true;
+      },
+      onMouseLeave: () => release('hover'),
+      onFocus: () => {
+        held.current.focus = true;
+      },
       onBlur: (e: FocusEvent) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
+        if (!e.currentTarget.contains(e.relatedTarget)) release('focus');
       },
     },
   };
@@ -137,7 +164,7 @@ export function SlideDots({
         >
           <span
             className={cn(
-              'block h-2 rounded-full transition-all duration-300 motion-reduce:transition-none',
+              'block h-2 rounded-full transition-[width,background-color] duration-300 motion-reduce:transition-none',
               i === active ? 'w-[22px] bg-(--dash-mg)' : 'w-2 bg-(--dash-mg-dot)'
             )}
           />

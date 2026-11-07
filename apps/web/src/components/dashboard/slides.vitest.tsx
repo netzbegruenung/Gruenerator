@@ -102,6 +102,57 @@ describe('useAutoAdvance', () => {
     expect(screen.getByTestId('active')).toHaveTextContent('2');
   });
 
+  it('pauses while the pointer rests on it and gives the slide its full time after', async () => {
+    vi.useFakeTimers();
+    function Hovered() {
+      const { active, containerProps } = useAutoAdvance(3, 1000);
+      return (
+        <div data-testid="box" {...containerProps}>
+          {active}
+        </div>
+      );
+    }
+    renderWithProviders(<Hovered />);
+    const box = screen.getByTestId('box');
+
+    fireEvent.mouseEnter(box);
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(box).toHaveTextContent('0');
+
+    fireEvent.mouseLeave(box);
+    await act(async () => {
+      vi.advanceTimersByTime(900);
+    });
+    expect(box).toHaveTextContent('0');
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(box).toHaveTextContent('1');
+  });
+
+  it('does not re-render on hover or focus', () => {
+    let renders = 0;
+    function Counted() {
+      const { containerProps } = useAutoAdvance(3, null);
+      renders += 1;
+      return (
+        <div data-testid="box" {...containerProps}>
+          <button type="button">Punkt</button>
+        </div>
+      );
+    }
+    renderWithProviders(<Counted />);
+    const before = renders;
+    const box = screen.getByTestId('box');
+    fireEvent.mouseEnter(box);
+    fireEvent.focus(screen.getByRole('button'));
+    fireEvent.blur(screen.getByRole('button'));
+    fireEvent.mouseLeave(box);
+    expect(renders).toBe(before);
+  });
+
   it('does not rotate at all without an interval', async () => {
     vi.useFakeTimers();
     function Manual() {
