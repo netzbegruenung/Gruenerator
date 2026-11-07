@@ -25,7 +25,8 @@ interface HeadlineSliderProps {
 /** Überschrift und Name der Region — wie „Trends" und „Umfragen" ein Link auf die volle Seite. */
 export const SLIDER_TITLE = 'Briefing';
 
-function SliderTitle({ to }: { to: string }) {
+// `memo`: die Überschrift ändert sich beim Folienwechsel nicht.
+const SliderTitle = memo(function SliderTitle({ to }: { to: string }) {
   return (
     <h2 className={cn(ASIDE_TITLE, SLIDER_HEAD)}>
       <Link to={to} className={ASIDE_TITLE_LINK}>
@@ -33,7 +34,7 @@ function SliderTitle({ to }: { to: string }) {
       </Link>
     </h2>
   );
-}
+});
 
 /**
  * Eine Folie. `memo`: beim Wechsel ändern sich nur `active` der alten und der
