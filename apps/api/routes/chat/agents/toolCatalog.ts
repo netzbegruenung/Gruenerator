@@ -114,6 +114,7 @@ import {
   type PersonalToolCtx,
 } from './personalDataTools.js';
 import { makeEditPresentationTool, makeReadPresentationTool } from './presentationLoopTools.js';
+import { makeRechnenTool } from './rechnenTool.js';
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
@@ -1305,6 +1306,12 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
         sse,
         voiceId: loop.req?.user?.tts_voice_id ?? null,
       });
+    }
+    // Exaktes Rechnen und Zählen (Plan auf der Lane `compute`, Rechnung in JS).
+    // Ersetzt im Loop den Einzeldurchlauf-Zweig `compute`; das Modell entscheidet,
+    // wann es rechnet, auch mitten in einer Recherche.
+    if (!editorSurface && state.enabledTools?.['rechnen'] !== false) {
+      tools.rechnen = makeRechnenTool({ state, sse });
     }
     // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
     // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.

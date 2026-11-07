@@ -31,7 +31,7 @@ import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:Compute');
 
-type ComputeOperation =
+export type ComputeOperation =
   'text_metrics' | 'arithmetic' | 'unit_convert' | 'date_diff' | 'date_add' | 'unsupported';
 
 interface PlanCheck {
@@ -160,6 +160,45 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
   }
 }
 
+/**
+ * The plan-then-execute core, shared by the single-pass `computeNode` and the
+ * loop tool `rechnen`. The model only reads the request into a plan (lane
+ * `compute`, Mistral Large first — picked by hit rate, because a mistake here
+ * is a WRONG NUMBER); every figure comes from computeEngine.
+ *
+ * `request` is what the plan model reads; `sourceText` is the text the counts
+ * and the echoed target are measured against (the turn's raw text on the
+ * single-pass path, the text the loop model handed over in the tool).
+ * Throws when the model call fails; returns null when nothing is computable.
+ */
+export async function planAndCompute(
+  request: string,
+  sourceText: string
+): Promise<{ result: ComputeResult | null; operation: ComputeOperation | null }> {
+  const todayISO = new Date().toISOString().slice(0, 10);
+  // Kein `maxOutputTokens`: seit der Plan eine Konsistenzprüfung tragen kann,
+  // hat er keine vorhersagbare Länge mehr — er listet jede nachrechenbare
+  // Angabe des Materials. Ein abgeschnittener Plan wäre ein STILLER Verlust:
+  // das JSON endet einfach, und die weggefallenen Zeilen sehen aus wie Zeilen,
+  // die stimmen. Provider und Kontextfenster sind der Backstop — dieselbe
+  // Regel wie auf allen Antwortpfaden (PR #2002).
+  const content = await aiText({
+    lane: 'chat_intent_classification',
+    pinned: 'compute',
+    system: buildExtractionPrompt(todayISO),
+    prompt: request,
+    temperature: 0,
+    json: true,
+  });
+
+  const plan = parsePlan(content);
+  if (!plan) {
+    log.warn('[Compute] Could not parse plan — returning null result');
+    return { result: null, operation: null };
+  }
+  return { result: executePlan(plan, sourceText), operation: plan.operation };
+}
+
 export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const { messages } = state;
@@ -167,42 +206,20 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
   const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
   const rawUserText = extractMessageText(lastUserMessage?.content);
   const conversationContext = formatConversationHistory(messages);
-  const todayISO = new Date().toISOString().slice(0, 10);
 
   try {
     const userContent = conversationContext
       ? `${conversationContext}\n\nAktuelle Anfrage: "${rawUserText}"`
       : `Anfrage: "${rawUserText}"`;
 
-    // Kein `maxOutputTokens`: seit der Plan eine Konsistenzprüfung tragen kann,
-    // hat er keine vorhersagbare Länge mehr — er listet jede nachrechenbare
-    // Angabe des Materials. Ein abgeschnittener Plan wäre ein STILLER Verlust:
-    // das JSON endet einfach, und die weggefallenen Zeilen sehen aus wie Zeilen,
-    // die stimmen. Provider und Kontextfenster sind der Backstop — dieselbe
-    // Regel wie auf allen Antwortpfaden (PR #2002).
-    const content = await aiText({
-      lane: 'chat_intent_classification',
-      pinned: 'compute',
-      system: buildExtractionPrompt(todayISO),
-      prompt: userContent,
-      temperature: 0,
-      json: true,
-    });
-
-    const plan = parsePlan(content);
-    if (!plan) {
-      log.warn('[Compute] Could not parse plan — returning null result');
-      return { computedResult: null, computedResultTimeMs: Date.now() - startTime };
-    }
-
-    const result = executePlan(plan, rawUserText);
+    const { result, operation } = await planAndCompute(userContent, rawUserText);
     const timeMs = Date.now() - startTime;
     if (!result) {
-      log.info(`[Compute] operation=${plan.operation} produced no result in ${timeMs}ms`);
+      log.info(`[Compute] operation=${operation ?? 'none'} produced no result in ${timeMs}ms`);
       return { computedResult: null, computedResultTimeMs: timeMs };
     }
 
-    log.info(`[Compute] ${plan.operation} → "${result.summary}" in ${timeMs}ms`);
+    log.info(`[Compute] ${operation} → "${result.summary}" in ${timeMs}ms`);
     return { computedResult: result, computedResultTimeMs: timeMs };
   } catch (error) {
     log.error(
