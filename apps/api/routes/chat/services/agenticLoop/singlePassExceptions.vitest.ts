@@ -38,15 +38,12 @@ describe('keepsSinglePass — jeder Grund hält einen Prosa-Turn draussen', () =
     ['secondary_intent', { secondaryIntent: 'image' }],
     ['pixel_turn', { hasImageAttachments: true, intent: 'image' }],
     ['image_only_ask', { hasImageAttachments: true, lastUserText: 'Was steht auf dem Plakat?' }],
-    ['pipeline_agent', { pipelineAgent: true }],
-    ['accepted_offer', { acceptedOffer: true }],
     [
       // Live 29.09.2026: ein eingefügter Newsletter kam zusammengefasst statt
       // korrigiert zurück, weil der Planer nach Werkzeugen griff statt zum Text.
       'reworks_own_material',
       { hasOwnMaterial: true, lastUserText: 'Kannst du das lektorieren?' },
     ],
-    ['editor_surface', { editorSurfaceHeldBack: true }],
   ];
   for (const [expected, input] of cases) {
     it(`${expected}: bleibt im Einzeldurchlauf`, () => {

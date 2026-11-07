@@ -1075,13 +1075,6 @@ export interface AgenticDecisionInput {
    *  (`mentionPinnedArtifactKind`). Ohne Verbund (Recherche + Erzeugung) gehört der
    *  Turn der direkten Erstellroute, die auf einem Loop-Turn übersprungen wird. */
   pinnedArtifactCreate?: boolean;
-  /** Ein Pipeline-Agent (Einfache/Leichte Sprache) führt den Turn mit eigener Kette aus. */
-  pipelineAgent?: boolean;
-  /** Der Turn ist das „ja" auf ein Artefakt-Angebot (`acceptedOfferKind`). */
-  acceptedOffer?: boolean;
-  /** Eine Editor-Fläche mit offenem Ziel hält den Turn über ihren eigenen Pfad
-   *  (`decideEditToolLoop`/`compoundEdit`), nicht über das allgemeine Gate. */
-  editorSurfaceHeldBack?: boolean;
 }
 
 /**
@@ -1098,11 +1091,7 @@ export type SinglePassReason =
   | 'secondary_intent'
   | 'pixel_turn'
   | 'image_only_ask'
-  | 'pipeline_agent'
-  | 'accepted_offer'
-  | 'reworks_own_material'
-  // Editor-Flächen entscheiden früher in `decideTurnPlan`; das Flag wird heute nie gesetzt.
-  | 'editor_surface';
+  | 'reworks_own_material';
 
 /** Alles, was einen Turn UNABHÄNGIG vom Intent in die Schleife hebt. */
 function hasExplicitLoopReason(p: AgenticDecisionInput): boolean {
@@ -1116,11 +1105,13 @@ function hasExplicitLoopReason(p: AgenticDecisionInput): boolean {
 }
 
 /**
- * Der eine Ort, an dem ein Turn im Einzeldurchlauf BLEIBT. `null` heisst: nichts
- * hält ihn draussen, ein Prosa-Intent geht in den Loop.
+ * Der eine Ort, an dem ein Prosa-Turn im Einzeldurchlauf BLEIBT. `null` heisst:
+ * nichts hält ihn draussen, ein Prosa-Intent geht in den Loop. Zwei Vetos fallen
+ * schon vorher in `decideTurnPlan`, bevor das Gate gefragt wird: ein
+ * Pipeline-Agent (eigene Kette) und das „ja" auf ein Artefakt-Angebot.
  *
- * Gegründet auf Zustand: Intent, Schalter, Anhänge, Pins, gewähltes Notebook,
- * Pipeline-Agent, angenommenes Angebot. Textgegründet sind nur noch
+ * Gegründet auf Zustand: Intent, Schalter, Anhänge, Pins, gewähltes Notebook.
+ * Textgegründet sind nur noch
  * `image_only_ask` (`looksLikeImageOnlyAsk`) und `reworks_own_material`
  * (`reworksSuppliedText`) — beide waren schon vorher so erkannt und sind hier
  * unverändert übernommen.
@@ -1144,8 +1135,6 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
   if (p.hasImageAttachments && !hasExplicitLoopReason(p) && looksLikeImageOnlyAsk(p.lastUserText)) {
     return 'image_only_ask';
   }
-  if (p.pipelineAgent === true) return 'pipeline_agent';
-  if (p.acceptedOffer === true) return 'accepted_offer';
   // Nur wenn nichts anderes den Turn in die Schleife hebt: eine mitgenannte Art
   // („Dazu passt später ein Sharepic") montiert ihr Werkzeug auch an einer
   // Umarbeitung des eigenen Materials.
@@ -1159,8 +1148,6 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
   ) {
     return 'reworks_own_material';
   }
-  // Nie gesetzt: Editor-Flächen kurzschliessen früher in `decideTurnPlan`.
-  if (p.editorSurfaceHeldBack === true) return 'editor_surface';
   return null;
 }
 

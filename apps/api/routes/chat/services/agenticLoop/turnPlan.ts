@@ -560,8 +560,6 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         classifierContradictedResearch: p.classifierContradictedResearch,
         hasOwnMaterial: p.hasOwnMaterial,
         pinnedArtifactCreate: p.mentionPinnedArtifactKind != null,
-        pipelineAgent: p.pipelineForceIntent != null,
-        acceptedOffer: p.acceptedOffer,
       }));
 
   // ── 4. Auffang-Intent ─────────────────────────────────────────────────────
