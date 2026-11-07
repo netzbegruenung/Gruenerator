@@ -1,5 +1,6 @@
 import { cn } from '@gruenerator/ui';
 import { Pause, Play } from 'lucide-react';
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ASIDE_TITLE, ASIDE_TITLE_LINK, SLIDER_HEAD, SliderCard } from './WissenLayout';
@@ -34,6 +35,55 @@ function SliderTitle({ to }: { to: string }) {
   );
 }
 
+/**
+ * Eine Folie. `memo`: beim Wechsel ändern sich nur `active` der alten und der
+ * neuen Folie — die übrigen bleiben unberührt. (React Compiler läuft nur im
+ * Build und memoisiert keine einzelnen Einträge einer `map`.)
+ */
+const HeadlineSlide = memo(function HeadlineSlide({
+  article: a,
+  position,
+  active,
+}: {
+  article: WissenArticle;
+  /** z. B. „2 von 6" — zugänglicher Name der Folie. */
+  position: string;
+  active: boolean;
+}) {
+  return (
+    <article
+      aria-roledescription="Folie"
+      aria-label={position}
+      inert={!active}
+      className="box-border flex flex-[0_0_100%] flex-col gap-2 px-[18px] pb-1 pt-2.5 max-md:gap-1.5 md:px-[26px] md:pb-2 md:pt-3 lg:px-8 lg:pb-3 lg:pt-3.5 @3xl:grid @3xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] @3xl:items-end @3xl:gap-8"
+    >
+      <div className="flex flex-col gap-1.5 md:gap-2">
+        <NewsMeta source={a.source} time={a.time} />
+        <h3
+          className={cn(
+            'm-0 text-[19px] leading-[1.28] [text-wrap:pretty] max-md:line-clamp-3 md:text-2xl md:leading-[1.22] lg:text-[28px] lg:leading-[1.2]',
+            DASH_HEADING
+          )}
+        >
+          <a
+            href={a.href}
+            target="_blank"
+            rel="noreferrer"
+            className={cn('rounded text-inherit no-underline hover:underline', DASH_FOCUS)}
+          >
+            {a.title}
+          </a>
+        </h3>
+      </div>
+      {a.text && (
+        <p className="m-0 hidden text-[15px] leading-[1.55] text-foreground [text-wrap:pretty] md:line-clamp-3 lg:leading-[1.6] @3xl:line-clamp-4">
+          {a.text}
+        </p>
+      )}
+    </article>
+  );
+});
+
 export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
   const { active, select, playing, togglePlaying, announced, containerProps } = useAutoAdvance(
     items.length,
@@ -63,37 +113,12 @@ export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
         style={{ transform: `translateX(-${active * 100}%)` }}
       >
         {items.map((a, i) => (
-          <article
+          <HeadlineSlide
             key={a.key}
-            aria-roledescription="Folie"
-            aria-label={`${i + 1} von ${items.length}`}
-            inert={i !== active}
-            className="box-border flex flex-[0_0_100%] flex-col gap-2 px-[18px] pb-1 pt-2.5 max-md:gap-1.5 md:px-[26px] md:pb-2 md:pt-3 lg:px-8 lg:pb-3 lg:pt-3.5 @3xl:grid @3xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] @3xl:items-end @3xl:gap-8"
-          >
-            <div className="flex flex-col gap-1.5 md:gap-2">
-              <NewsMeta source={a.source} time={a.time} />
-              <h3
-                className={cn(
-                  'm-0 text-[19px] leading-[1.28] [text-wrap:pretty] max-md:line-clamp-3 md:text-2xl md:leading-[1.22] lg:text-[28px] lg:leading-[1.2]',
-                  DASH_HEADING
-                )}
-              >
-                <a
-                  href={a.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn('rounded text-inherit no-underline hover:underline', DASH_FOCUS)}
-                >
-                  {a.title}
-                </a>
-              </h3>
-            </div>
-            {a.text && (
-              <p className="m-0 hidden text-[15px] leading-[1.55] text-foreground [text-wrap:pretty] md:line-clamp-3 lg:leading-[1.6] @3xl:line-clamp-4">
-                {a.text}
-              </p>
-            )}
-          </article>
+            article={a}
+            position={`${i + 1} von ${items.length}`}
+            active={i === active}
+          />
         ))}
       </div>
       <div className="flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px]">
