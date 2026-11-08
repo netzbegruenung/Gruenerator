@@ -25,9 +25,25 @@ const readVectorHandles = vi.fn();
 const deleteVectors = vi.fn();
 const setVectorsDeletedAt = vi.fn();
 const reportBackgroundError = vi.fn();
+/** Every statement and side store, in the order it ran (delete tests). */
+const effects: string[] = [];
 
 vi.mock('../../database/services/PostgresService.js', () => ({
-  getPostgresInstance: () => ({ query: queryMock }),
+  getPostgresInstance: () => ({
+    query: queryMock,
+    // One client per transaction, backed by the same mock: statements land in
+    // the same effect log, results come back in pg's `{ rows }` shape.
+    transaction: async <T>(cb: (client: unknown) => Promise<T>) => {
+      effects.push('BEGIN');
+      const result = await cb({
+        query: async (sql: string, params?: unknown[]) => ({
+          rows: (await queryMock(sql, params)) as unknown[],
+        }),
+      });
+      effects.push('COMMIT');
+      return result;
+    },
+  }),
 }));
 
 vi.mock('../../services/chat/threadRecallEmbeddingService.js', () => ({
@@ -143,15 +159,14 @@ describe('update — thread recall point follows the archive state', () => {
 });
 
 describe('delete — the Papierkorb for chat threads', () => {
-  /** Every statement and side store, in the order it ran. */
-  const effects: string[] = [];
-
   function givenDb(opts: {
     owner?: string | null;
     docId?: string | null;
     hasMessages?: boolean;
     deleted?: unknown[];
     trashed?: Record<string, unknown> | null;
+    /** false: the row vanished between the ownership check and the lock. */
+    locked?: boolean;
   }) {
     queryMock.mockImplementation((sql: string) => {
       const s = sql.replace(/\s+/g, ' ').trim();
@@ -160,6 +175,11 @@ describe('delete — the Papierkorb for chat threads', () => {
         return Promise.resolve(
           opts.owner ? [{ user_id: opts.owner, doc_id: opts.docId ?? null }] : []
         );
+      }
+      if (
+        s.startsWith('SELECT id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL FOR UPDATE')
+      ) {
+        return Promise.resolve(opts.locked === false ? [] : [{ id: THREAD_ID }]);
       }
       if (s.startsWith('SELECT 1 FROM chat_messages')) {
         return Promise.resolve(opts.hasMessages ? [{ '?column?': 1 }] : []);
@@ -175,8 +195,8 @@ describe('delete — the Papierkorb for chat threads', () => {
     });
   }
 
-  function remove(threadId = THREAD_ID) {
-    return threadsContractRouter.delete({ req, query: { threadId } } as never);
+  function remove(threadId = THREAD_ID, extra: Record<string, string> = {}) {
+    return threadsContractRouter.delete({ req, query: { threadId, ...extra } } as never);
   }
 
   const HANDLES = [{ documentId: 'doc-a', userId: OWNER }];
@@ -236,6 +256,53 @@ describe('delete — the Papierkorb for chat threads', () => {
       'delete recall point',
     ]);
     expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  // #5465: the client's cleanup decided from a list in which a running turn's
+  // NULL placeholder made a live conversation look empty, and trashed it.
+  it('onlyIfEmpty locks the row, then leaves a thread with messages alone (409)', async () => {
+    givenDb({ owner: OWNER, hasMessages: true });
+
+    const res = await remove(THREAD_ID, { onlyIfEmpty: 'true' });
+
+    expect(res).toMatchObject({ status: 409 });
+    expect(effects).toEqual([
+      'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'read attachment handles',
+      'BEGIN',
+      'SELECT id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+      'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
+      'COMMIT',
+    ]);
+    expect(deleteVectors).not.toHaveBeenCalled();
+  });
+
+  it('onlyIfEmpty removes a thread without messages, the check after the lock', async () => {
+    givenDb({ owner: OWNER, hasMessages: false });
+
+    const res = await remove(THREAD_ID, { onlyIfEmpty: 'true' });
+
+    expect(res).toMatchObject({ status: 200, body: { trashed: false } });
+    expect(effects).toEqual([
+      'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'read attachment handles',
+      'BEGIN',
+      'SELECT id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+      'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
+      'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'COMMIT',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
+  });
+
+  it('onlyIfEmpty answers 404, not 409, when the row vanished before the lock', async () => {
+    givenDb({ owner: OWNER, locked: false });
+
+    const res = await remove(THREAD_ID, { onlyIfEmpty: 'true' });
+
+    expect(res).toMatchObject({ status: 404 });
+    expect(effects.some((e) => e.startsWith('DELETE'))).toBe(false);
   });
 
   it('hard-deletes a doc chat even with messages — it never enters the Papierkorb', async () => {

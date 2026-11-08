@@ -281,8 +281,13 @@ export function createGrueneratorThreadListAdapter(
             (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
           const stale = rest.filter((t) => !isProtected(t));
+          // `onlyIfEmpty`: this list can predate the thread's first message,
+          // so the server re-checks inside the DELETE and answers 409 for a
+          // thread that has one (#5465).
           for (const t of stale) {
-            apiClient.delete(`/api/chat-service/threads?threadId=${t.id}`).catch(() => {});
+            apiClient
+              .delete(`/api/chat-service/threads?threadId=${t.id}&onlyIfEmpty=true`)
+              .catch(() => {});
           }
           const staleIds = new Set(stale.map((t) => t.id));
           cachedThreads = threads.filter((t) => !staleIds.has(t.id));
