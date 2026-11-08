@@ -1586,7 +1586,18 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
   );
 }
 
-export function getModeGuidance(state: ChatGraphState, opts: { proseLoop?: boolean } = {}): string {
+/**
+ * A `compute` turn in the loop: the number comes from the `rechnen` tool during
+ * the turn, so the single-pass text ("no safe result, ask for a clarification")
+ * would be wrong before the tool has even run.
+ */
+const COMPUTE_LOOP_GUIDANCE =
+  '\nDer*die Nutzer*in möchte etwas berechnet oder gezählt haben. Rechne und zähle NIE selbst: nutze dafür das Werkzeug `rechnen` (bei einer angehängten Tabelle das Tabellen-Werkzeug) und übernimm dessen Werte exakt. Ist keine Rechnung nötig, beantworte die Bitte ohne Werkzeug.';
+
+export function getModeGuidance(
+  state: ChatGraphState,
+  opts: { proseLoop?: boolean; loop?: boolean } = {}
+): string {
   // A prose turn in the loop arrives as `agentic`; it keeps its prose verdict's guidance.
   switch (opts.proseLoop ? (state.loopDemotedFromProse ?? state.intent) : state.intent) {
     case 'edit_current_doc':
@@ -1598,7 +1609,9 @@ export function getModeGuidance(state: ChatGraphState, opts: { proseLoop?: boole
     case 'artifact':
       return ARTIFACT_GUIDANCE;
     case 'compute':
-      return getComputeGuidance(state);
+      return opts.loop && !state.computedResultFresh
+        ? COMPUTE_LOOP_GUIDANCE
+        : getComputeGuidance(state);
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
@@ -2131,7 +2144,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
       (state.loopDemotedFromProse != null ||
         (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting')));
   const intentGuidance =
-    getModeGuidance(state, { proseLoop }) +
+    getModeGuidance(state, { proseLoop, loop: opts.loop === true }) +
     getAnchorAdjuncts(state, opts) +
     getSynthesisGuidance(state);
 
