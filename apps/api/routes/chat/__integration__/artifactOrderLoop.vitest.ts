@@ -472,3 +472,24 @@ describe('the edges of the pure order', () => {
     expect(loopScript.calls[0]?.messagesJson).not.toContain('ordered-artifact');
   });
 });
+
+describe('@verlauf runs in the loop', () => {
+  it.each([
+    ['the mention', { forcedTools: ['chat_history'] }, 'Was steht zum Radweg drin?'],
+    ['the classified intent', {}, 'Was haben wir letzte Woche zum Radweg besprochen?'],
+  ])('%s forces search_threads as the first call', async (_name, extra, prompt) => {
+    loopScript.script({ text: ANSWER });
+    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(prompt)], ...extra });
+
+    expect(trace.agentic, `intent=${trace.intent}`).toBe(true);
+    // Named (`@verlauf` pin) or required over exactly the history search.
+    const first = loopScript.calls[0];
+    const forcedName = (first?.toolChoice as { toolName?: string } | null)?.toolName ?? null;
+    expect(
+      forcedName === 'search_threads' ||
+        (first?.toolChoice === 'required' &&
+          JSON.stringify(first.firstStepActiveTools) === JSON.stringify(['search_threads'])),
+      `toolChoice=${JSON.stringify(first?.toolChoice)} active=${JSON.stringify(first?.firstStepActiveTools)}`
+    ).toBe(true);
+  });
+});

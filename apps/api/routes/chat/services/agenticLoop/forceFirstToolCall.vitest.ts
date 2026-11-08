@@ -744,7 +744,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('neun Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('zehn Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
@@ -762,6 +762,8 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
       // `@wiederkehrend` (#3221): stillgelegter Intent, dessen Erwähnung das
       // Loop-Werkzeug pinnt — dieselbe Bauform wie `@umfragen`.
       'recurring_tasks',
+      // `@verlauf` (#5456): der Chatverlauf läuft im Loop über `search_threads`.
+      'search_threads',
       'umfragen',
       'web_search',
     ]);
@@ -777,7 +779,10 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // `@notion` ist ein ganzer Server und meint kein EINZELNES Werkzeug.
   it('schweigt, wo eine Erwähnung kein einzelnes Werkzeug meint', () => {
     expect(pinnedToolForMention('examples')).toBe(null);
-    expect(pinnedToolForMention('chat_history')).toBe(null);
+  });
+
+  it('`@verlauf` pinnt die Verlaufssuche', () => {
+    expect(pinnedToolForMention('chat_history')).toBe('search_threads');
   });
 
   // Die Variante erbt den Pin von `research` nicht: `@deepresearch` ersetzt

@@ -15,8 +15,8 @@
 disposition                       n   anteil  davon mit Modell
 anchor                            1    0.2 %     0
 artifact                         51   11.5 %     0
-gated                            21    4.8 %     0
-loop                            352   79.6 %     7
+gated                            20    4.5 %     0
+loop                            353   79.9 %     7
 prose                            17    3.8 %     0
 (unbekannt)                       0    0.0 %     0
 
@@ -90,7 +90,7 @@ create_presentation               5  artifact
 create_pdf                        0  artifact
 create_explainable                2  artifact
 create_recurring_task             0  retired
-chat_history                      1  gated
+chat_history                      1  loop
 mcp                               0  retired
 produktion                       13  prose
 direct                            0  prose
