@@ -16,6 +16,7 @@
  * up front keeps `[N]` in lockstep).
  */
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
+import { citedReferenceIds } from '../../../../services/search/SearchResultProcessor.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { INSTRUCTION_HIERARCHY_RULE, embedUntrusted } from '../untrustedContent.js';
 
@@ -150,9 +151,11 @@ export interface SourceRegistry {
    *  mit, bekäme ein Folge-Turn gesagt, er habe „schon genug gefunden", und die
    *  Websuche bliebe aus. */
   readonly freshSize: number;
-  /** All accumulated results (capped) for persistence/UI — this turn's first, so
-   *  a long carry can never push fresh research out of the capped slice. */
-  getResults(limit?: number): SearchResult[];
+  /** All accumulated results (capped) for persistence/UI — what `answer` cites
+   *  first (stamped `cited`), then this turn's own, then the carried ones, so a
+   *  long carry can never push fresh research out of the capped slice and a
+   *  thorough turn can never push out the sources its answer stands on. */
+  getResults(limit?: number, answer?: string): SearchResult[];
   /** The full numbered snippet block for ALL accumulated results — injected into
    *  the synthesizer's context in the planner/executor split (the synth model
    *  has no tools, so it can't see results via tool returns). Carried
@@ -437,13 +440,29 @@ export function createSourceRegistry(): SourceRegistry {
       const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
       if (!notes.includes(line)) notes.push(line);
     },
-    getResults(limit = 10) {
-      // This turn's own research first: a thread carrying ten prior sources
+    getResults(limit = 10, answer = '') {
+      // What the answer cites comes first. Live 07.11.2026 (#5458): a turn
+      // gathered 37 sources and cited [29], [31] and [37] — the 20-slice kept
+      // registry order, so two of the three were never persisted, and the next
+      // turn told the user its own research was "nicht verfügbar".
+      //
+      // Then this turn's own research: a thread carrying ten prior sources
       // would otherwise fill the persisted slice before a single fresh result
       // reached it, and the next turn would rehydrate the same stale set.
-      const fresh = entries.filter((e) => !e.prior).map((e) => e.result);
-      const prior = entries.filter((e) => e.prior).map((e) => e.result);
-      return [...fresh, ...prior].slice(0, limit);
+      //
+      // `cited` is re-stamped every turn — a carried source arrives with the
+      // flag of the turn that persisted it and keeps it only if THIS answer
+      // cites it again. Each row's flag thus says what that row's answer used.
+      const cited = new Set(citedReferenceIds(answer).map(Number));
+      const ranked = entries.map((e, i) => ({ e, cited: cited.has(i + 1) }));
+      const rank = (r: (typeof ranked)[number]) => (r.cited ? 0 : r.e.prior ? 2 : 1);
+      return ranked
+        .sort((a, b) => rank(a) - rank(b))
+        .slice(0, limit)
+        .map(({ e, cited: isCited }) => {
+          const { cited: _stale, ...result } = e.result;
+          return isCited ? { ...result, cited: true as const } : result;
+        });
     },
     renderAll() {
       // Total budget across ALL sources, not a per-source cap.
@@ -517,8 +536,14 @@ export function createSourceRegistry(): SourceRegistry {
       // Marked, not fenced off: the model may cite them, but a sentence like
       // "meine Recherche ergab" about a source found three turns ago is the
       // dishonesty this note prevents.
+      //
+      // The second sentence: the numbers are assigned afresh every turn, while
+      // the earlier answers in the history keep the markers of THEIR list. Live
+      // 07.11.2026 (#5458), reproduced locally in 2 of 4 runs: the model saw
+      // its own earlier "[29]" next to a list ending at [10], called the marker
+      // invented and took a correct, sourced answer back.
       const priorNote = entries.some((e) => e.prior)
-        ? 'Mit „(frühere Recherche)" markierte Quellen stammen aus einem früheren Turn dieses Gesprächs — zitierbar wie die übrigen, aber behaupte NICHT, sie gerade gefunden zu haben.'
+        ? 'Mit „(frühere Recherche)" markierte Quellen stammen aus einem früheren Turn dieses Gesprächs — zitierbar wie die übrigen, aber behaupte NICHT, sie gerade gefunden zu haben. Die Nummern sind für diesen Turn neu vergeben: ein [N] in einer früheren Antwort zählt nach der damaligen Liste und ist kein Fehler — nimm deshalb nichts zurück und entschuldige dich nicht dafür.'
         : '';
       return [current, priorNote, notesBlock].filter((p) => p).join('\n\n');
     },

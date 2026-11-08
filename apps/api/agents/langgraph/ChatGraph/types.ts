@@ -311,6 +311,10 @@ export interface SearchResult {
   charEnd?: number | null;
   /** Der belegte Wortlaut, wenn er nicht der Anfang von `content` ist. */
   citedText?: string;
+  /** Persistiert: die Antwort DES Turns, der die Zeile geschrieben hat, hat
+   *  diese Quelle zitiert. Gesetzt nur von `SourceRegistry.getResults`; die
+   *  Übernahme in spätere Turns (`toSources`) holt zitierte Quellen zuerst. */
+  cited?: true;
   [key: string]: unknown;
 }
 

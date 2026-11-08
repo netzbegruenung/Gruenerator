@@ -7,7 +7,7 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 
 const { getRecentThreadSources } = await import('./threadPersistenceService.js');
 
-function row(...sources: Array<{ title: string; url?: string; content?: string }>) {
+function row(...sources: Array<{ title: string; url?: string; content?: string; cited?: true }>) {
   return {
     tool_results: {
       searchResults: sources.map((s) => ({
@@ -15,6 +15,7 @@ function row(...sources: Array<{ title: string; url?: string; content?: string }
         title: s.title,
         content: s.content ?? 'inhalt',
         ...(s.url != null && { url: s.url }),
+        ...(s.cited && { cited: true }),
       })),
     },
   };
@@ -76,6 +77,26 @@ describe('getRecentThreadSources', () => {
     ]);
     const out = await getRecentThreadSources('t1');
     expect(out.map((r) => r.title)).toEqual(['Voll']);
+  });
+
+  // #5458: Turn A zitiert Stöglehner, Turn B sucht zu etwas anderem — Turn C
+  // bekam nur B's zehn Treffer und erklärte A's Antwort für unbelegt.
+  it('carries what an older answer cited ahead of a newer uncited search', async () => {
+    query.mockResolvedValue([
+      row(
+        { title: 'B-zitiert', url: 'https://b/0', cited: true },
+        ...Array.from({ length: 12 }, (_, i) => ({ title: `B${i}`, url: `https://b/${i + 1}` }))
+      ),
+      row(
+        { title: 'Stöglehner 1', url: 'https://a/1', cited: true },
+        { title: 'Stöglehner 2', url: 'https://a/2', cited: true },
+        { title: 'A-unzitiert', url: 'https://a/3' }
+      ),
+    ]);
+    const out = (await getRecentThreadSources('t1')).map((r) => r.title);
+    expect(out).toHaveLength(10);
+    expect(out.slice(0, 3)).toEqual(['B-zitiert', 'Stöglehner 1', 'Stöglehner 2']);
+    expect(out).not.toContain('A-unzitiert');
   });
 
   it('returns an empty array when nothing was ever persisted', async () => {
