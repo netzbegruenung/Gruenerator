@@ -182,12 +182,16 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      # The sync runs on the server; this job only posts the request and wraps
+      # the response. wrap-sync-result.ts needs nothing but Node 22 (type
+      # stripping), so no pnpm install: each matrix job used to pull the whole
+      # API tree (~1700 packages) and died with it on a GitHub-releases 504
+      # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run LV sync (sends own email if anything changed)
         id: sync
@@ -224,7 +228,7 @@ jobs:
           WRAP_FLAGS="--id landesverband-${{ matrix.lv }} --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | node apps/api/wrap-sync-result.ts $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary-lv-${{ matrix.lv }}.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
@@ -270,12 +274,16 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      # The sync runs on the server; this job only posts the request and wraps
+      # the response. wrap-sync-result.ts needs nothing but Node 22 (type
+      # stripping), so no pnpm install: each matrix job used to pull the whole
+      # API tree (~1700 packages) and died with it on a GitHub-releases 504
+      # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run content sync
         id: sync
@@ -296,7 +304,7 @@ jobs:
           WRAP_FLAGS="--id ${{ matrix.source }} --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | node apps/api/wrap-sync-result.ts $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary-source-${{ matrix.source }}.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
@@ -340,7 +348,11 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+      # The digest needs the API tree (email service), but never ffmpeg:
+      # ffmpeg-static's install script downloads ~80 MB from GitHub releases,
+      # and a 504 there failed the whole run (#5452). `!` denies the build for
+      # this install only.
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api... --allow-build '!ffmpeg-static'
 
       - name: Download all summaries
         uses: actions/download-artifact@v8
@@ -555,12 +567,16 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      # The sync runs on the server; this job only posts the request and wraps
+      # the response. wrap-sync-result.ts needs nothing but Node 22 (type
+      # stripping), so no pnpm install: each matrix job used to pull the whole
+      # API tree (~1700 packages) and died with it on a GitHub-releases 504
+      # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run content sync
         id: sync
@@ -599,7 +615,7 @@ jobs:
           WRAP_FLAGS="--id $WRAP_ID --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | node apps/api/wrap-sync-result.ts $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
