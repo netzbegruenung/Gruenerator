@@ -22,11 +22,10 @@ import { MarketplaceNotebooksTile } from '../../components/notebook/MarketplaceN
 import { NotebookCreator } from '../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../components/notebook/NotebookSection';
 import { useNotebookTileGrid } from '../../components/notebook/NotebookTile';
-import { HeadlineSlider } from '../../components/wissen/HeadlineSlider';
 import { NotebookShelf, type NotebookTarget } from '../../components/wissen/NotebookShelf';
 import { PollCard } from '../../components/wissen/PollCard';
 import { TrendsCard } from '../../components/wissen/TrendsCard';
-import { useNotebookShelves } from '../../components/wissen/useNotebookShelves';
+import { WissenHeadlines } from '../../components/wissen/WissenHeadlines';
 import { CARD_GAP, PAGE_GAP } from '../../components/wissen/WissenLayout';
 import {
   getResearchRegions,
@@ -34,7 +33,6 @@ import {
   type MobileNotebookEntry,
 } from '../../config/notebooksConfig';
 import { useMonitorLocale } from '../../hooks/monitor/monitorLocale';
-import { useWissenNews } from '../../hooks/monitor/useWissenNews';
 import { useNotebookSharing } from '../../hooks/notebook/useNotebookSharing';
 import { useContentColumn } from '../../hooks/useLayout';
 import { useNotebookCollections } from '../../hooks/useNotebookCollections';
@@ -66,8 +64,6 @@ export default function NotebooksScreen() {
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const monitorLocale = useMonitorLocale();
-  const news = useWissenNews(monitorLocale);
-  const { shelves } = useNotebookShelves();
   const {
     createCollection,
     deleteCollection,
@@ -225,13 +221,7 @@ export default function NotebooksScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />
           }
         >
-          <HeadlineSlider
-            items={news.headlines}
-            loading={news.headlinesPending}
-            error={news.error}
-            onRetry={news.refetch}
-            onOpenBriefing={openBriefing}
-          />
+          <WissenHeadlines locale={monitorLocale} onOpenBriefing={openBriefing} />
 
           <View style={styles.cards}>
             <TrendsCard locale={monitorLocale} onOpen={openKeywords} />
@@ -239,7 +229,6 @@ export default function NotebooksScreen() {
           </View>
 
           <NotebookShelf
-            shelves={shelves}
             onOpen={handleOpen}
             onCreate={openCreator}
             onOwnActions={handleCollectionActions}
