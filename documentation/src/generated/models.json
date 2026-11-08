@@ -53,21 +53,21 @@
       "task": "Schnelle Antworten",
       "models": [
         {
-          "model": "mistral-small-3.2-24b-instruct-2506",
-          "code": "mistral-small-3.2-24b-instruct-2506",
-          "label": "Mistral Small 3.2",
-          "provider": "cortecs",
-          "host": "Cortecs",
-          "flag": "🇱🇺",
+          "model": "gemma-4-31b:eco",
+          "code": "gemma-4-31b:eco",
+          "label": "Gemma 4 (31 Mrd., Melious Eco)",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "primary"
         },
         {
-          "model": "mistral-small-latest",
-          "code": "mistral-small-latest",
-          "label": "Mistral Small",
-          "provider": "mistral",
-          "host": "Mistral AI",
-          "flag": "🇫🇷",
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "fallback"
         }
       ]
@@ -97,21 +97,6 @@
           "label": "Mistral Small 3.2",
           "provider": "greenpt",
           "host": "GreenPT",
-          "flag": "🇪🇺",
-          "role": "primary"
-        }
-      ]
-    },
-    {
-      "id": "werkzeuge",
-      "task": "Werkzeuge planen und aufrufen",
-      "models": [
-        {
-          "model": "gemma-4-31b:balanced",
-          "code": "gemma-4-31b:balanced",
-          "label": "Gemma 4 (31 Mrd., Melious Balanced)",
-          "provider": "melious",
-          "host": "Melious",
           "flag": "🇪🇺",
           "role": "primary"
         }
