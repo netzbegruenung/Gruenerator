@@ -1889,7 +1889,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         tc.ref &&
         !hasCurrentDocument &&
         !hasSheetMentions &&
-        !hasAnyDocuments &&
+        // A spreadsheet file in the thread does not block: with a CSV AND a
+        // chat-made sheet, an edit order goes to the editable sheet, not into
+        // a new copy of the file (decision 08.11.2026). Calculation questions
+        // carry no modify verb and stay with the file.
+        (!hasAnyDocuments || state.hasTabularAttachment === true) &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
         docFollowUpAddressed(state, 'sheet', userContent, tc) &&
