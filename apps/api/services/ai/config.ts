@@ -65,8 +65,9 @@ const PLATFORM_TEMPERATURE: Record<string, number> = {
 };
 
 /**
- * Platform-specific max tokens for social media
- * Based on platform character limits and typical content length
+ * Max tokens for social media types. A flat 8000 since #5467 (08.11.2026): the
+ * length of a post belongs in its prompt, and a tight cap made reasoning models
+ * spend the whole budget on hidden thinking and answer empty.
  */
 const PLATFORM_MAX_TOKENS: Record<string, number> = {
   pressemitteilung: 8000,
@@ -218,7 +219,7 @@ export function determineMaxTokens(options: GenerationOptions): number | null {
     return 8000;
   }
 
-  // Image picker needs limited output
+  // Image picker: the answer is short by its prompt, not by the cap (#5467).
   if (type === 'image_picker') {
     return 8000;
   }
