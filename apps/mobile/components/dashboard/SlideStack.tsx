@@ -4,6 +4,7 @@ import { AccessibilityInfo, StyleSheet, View, type StyleProp, type ViewStyle } f
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
+  makeMutable,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -50,9 +51,7 @@ export interface Slide {
 const SlideLayer = memo(function SlideLayer({
   index,
   activeSV,
-  outgoingSV,
-  dragX,
-  outX,
+  offset,
   hidden,
   onMeasure,
   testID,
@@ -60,9 +59,9 @@ const SlideLayer = memo(function SlideLayer({
 }: {
   index: number;
   activeSV: SharedValue<number>;
-  outgoingSV: SharedValue<number>;
-  dragX: SharedValue<number>;
-  outX: SharedValue<number>;
+  /** Waagerechte Lage dieser Folie — eigene, damit eine hinausgetragene Folie ihre
+   *  Feder zu Ende fährt, auch wenn schon die nächste gewischt wird. */
+  offset: SharedValue<number>;
   hidden: boolean;
   onMeasure: (index: number, height: number) => void;
   testID: string;
@@ -74,12 +73,7 @@ const SlideLayer = memo(function SlideLayer({
   // Eigener Stil: läge die Verschiebung mit im Fade, startete jedes Bild der
   // Bewegung das `withTiming` neu, und die Überblendung käme nie an.
   const move = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX:
-          activeSV.get() === index ? dragX.get() : outgoingSV.get() === index ? outX.get() : 0,
-      },
-    ],
+    transform: [{ translateX: offset.get() }],
   }));
   return (
     <Animated.View
@@ -125,19 +119,20 @@ export function SlideStack({
   const carousel = count > 1;
 
   const activeSV = useSharedValue(active);
-  // Die Folie, die eine Wischgeste gerade hinausträgt (sonst -1), und ihre Lage.
-  const outgoingSV = useSharedValue(-1);
-  const outX = useSharedValue(0);
-  // Lage der aktiven Folie: folgt dem Finger, solange er liegt.
-  const dragX = useSharedValue(0);
+  // Je Folie ihre Lage: die aktive folgt dem Finger, eine hinausgetragene fährt
+  // ihre Feder zu Ende, auch wenn längst die nächste gewischt wird.
+  const offsets = useMemo(() => Array.from({ length: count }, () => makeMutable(0)), [count]);
+  // Wo der Finger die aktive Folie aufgenommen hat — eine noch hereinfedernde
+  // Folie springt sonst unter den Finger.
+  const dragStart = useSharedValue(0);
   const width = useSharedValue(0);
   useEffect(() => {
     // Eine Wischgeste hat den Wechsel auf dem UI-Thread schon vollzogen. Jeder
-    // andere (Punkt, Durchwechseln) blendet nur über, ohne Verschiebung.
+    // andere (Punkt, Durchwechseln) blendet nur über: die neue Folie steht mittig.
     if (activeSV.get() === active) return;
-    outgoingSV.set(-1);
+    offsets[active]?.set(0);
     activeSV.set(active);
-  }, [active, activeSV, outgoingSV]);
+  }, [active, activeSV, offsets]);
 
   // Wechsel von Hand: genau eine Rückmeldung, nie beim Durchwechseln.
   const selectByHand = useCallback(
@@ -165,36 +160,46 @@ export function SlideStack({
           'worklet';
           scheduleOnRN(hold);
         })
+        .onStart(() => {
+          'worklet';
+          dragStart.set(offsets[activeSV.get()]?.get() ?? 0);
+        })
         .onUpdate((e) => {
           'worklet';
-          dragX.set(e.translationX);
+          offsets[activeSV.get()]?.set(dragStart.get() + e.translationX);
         })
         .onEnd((e, success) => {
           'worklet';
           const far = Math.abs(e.translationX) >= SWIPE_MIN_PX;
           const fast = Math.abs(e.velocityX) >= SWIPE_MIN_VELOCITY;
+          const current = offsets[activeSV.get()];
+          if (!current) return;
           if (!success || !(far || fast)) {
-            dragX.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
+            current.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
             return;
           }
           const direction = e.translationX < 0 ? 1 : -1;
           const side = -direction;
-          const offset = width.get() * TRAVEL;
+          const travel = width.get() * TRAVEL;
           // Die alte Folie verlässt den Finger mit seiner Geschwindigkeit …
-          outgoingSV.set(activeSV.get());
-          outX.set(dragX.get());
-          outX.set(withSpring(dragX.get() + side * offset, { ...SETTLE, velocity: e.velocityX }));
+          current.set(
+            withSpring(current.get() + side * travel, { ...SETTLE, velocity: e.velocityX })
+          );
           // … die neue kommt von der Gegenseite. Gleiche Rechnung wie `slideReducer`.
-          activeSV.set((((activeSV.get() + direction) % count) + count) % count);
-          dragX.set(-side * offset);
-          dragX.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
+          const next = (((activeSV.get() + direction) % count) + count) % count;
+          activeSV.set(next);
+          const incoming = offsets[next];
+          if (incoming) {
+            incoming.set(-side * travel);
+            incoming.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
+          }
           scheduleOnRN(swipe, direction);
         })
         .onFinalize(() => {
           'worklet';
           scheduleOnRN(release);
         }),
-    [carousel, count, hold, release, swipe, activeSV, outgoingSV, outX, dragX, width]
+    [carousel, count, hold, release, swipe, activeSV, offsets, dragStart, width]
   );
 
   // Die Karte behält die Höhe der höchsten Folie, damit sie beim Wechsel nicht springt.
@@ -225,21 +230,23 @@ export function SlideStack({
           style={[styles.track, { minHeight: tallest }]}
           onLayout={(e) => width.set(e.nativeEvent.layout.width)}
         >
-          {slides.map((slide, i) => (
-            <SlideLayer
-              key={slide.key}
-              index={i}
-              activeSV={activeSV}
-              outgoingSV={outgoingSV}
-              dragX={dragX}
-              outX={outX}
-              hidden={i !== active}
-              onMeasure={onMeasure}
-              testID={`slide-${slide.key}`}
-            >
-              {slide.content}
-            </SlideLayer>
-          ))}
+          {slides.map((slide, i) => {
+            // `offsets` is built from the same `count`, so every slide has one.
+            const offset = offsets[i];
+            return offset ? (
+              <SlideLayer
+                key={slide.key}
+                index={i}
+                activeSV={activeSV}
+                offset={offset}
+                hidden={i !== active}
+                onMeasure={onMeasure}
+                testID={`slide-${slide.key}`}
+              >
+                {slide.content}
+              </SlideLayer>
+            ) : null;
+          })}
         </View>
       </GestureDetector>
       {carousel ? (
