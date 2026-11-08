@@ -189,6 +189,15 @@ const KINDS = [
     edit: ['edit_explainable'],
     again: 'Erstelle ein neues Explainable zur Windkraft',
   },
+  {
+    kind: 'document',
+    tool: 'create_document',
+    generator: 'doc',
+    order: 'Erstelle ein Dokument: Antrag für mehr Radwege',
+    followUp: 'mach das förmlicher',
+    edit: ['edit_document_text', 'edit_document'],
+    again: 'Erstelle ein neues Dokument: Antrag für mehr Bänke',
+  },
 ] as const;
 
 const ANSWER = 'Fertig, schau es dir an.';
@@ -312,6 +321,25 @@ describe('a pure PDF order runs in the loop', () => {
     ).toMatchObject({
       aendert_letztes_pdf: true,
     });
+  });
+});
+
+describe('a pure board order runs in the loop', () => {
+  it('builds the board before the answer and points the thread at it', async () => {
+    loopScript.script({ text: ANSWER });
+    const { trace, events } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Erstelle ein Board für den Wahlkampf')],
+    });
+
+    assertEventOrder(events);
+    expect(generatorControl.calls).toHaveLength(1);
+    expect(generatorControl.calls[0]?.generator).toBe('board');
+    expect(loopScript.calls).toHaveLength(1);
+    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    // Boards have no card: the client seeds the board from `done`.
+    const done = events.find((e) => e.event === 'done');
+    expect(done?.data.boardId).toBeTruthy();
+    expect(trace.fullText).toContain(ANSWER);
   });
 });
 

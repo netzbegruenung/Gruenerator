@@ -786,6 +786,8 @@ export const LOOP_ORDER_KINDS: ReadonlySet<CompoundGenerationKind> = new Set([
   'presentation',
   'explainable',
   'pdf',
+  'document',
+  'board',
 ]);
 
 /**
