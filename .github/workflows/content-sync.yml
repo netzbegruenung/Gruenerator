@@ -189,7 +189,9 @@ jobs:
       # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run LV sync (sends own email if anything changed)
         id: sync
@@ -279,7 +281,9 @@ jobs:
       # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run content sync
         id: sync
@@ -570,7 +574,9 @@ jobs:
       # for the ffmpeg-static download (#5452).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          # A floor, not '22': type stripping is on by default only from
+          # 22.18, and a cached older 22.x would otherwise be picked silently.
+          node-version: '>=22.18.0 <23'
 
       - name: Run content sync
         id: sync
