@@ -24,9 +24,10 @@ import { BODY_FONT, colors, spacing } from '../../theme';
 
 const BLOB = 240;
 const BLOB_SMALL = 96;
-/** Drag distance that moves the view all the way between blob and chat. */
-const SWIPE_RANGE = 280;
+/** After a drag: the release velocity carries on, with a slight settle. */
 const SNAP = { damping: 22, stiffness: 180 };
+/** After a tap: no force was applied, so no bounce either. */
+const SNAP_TAP = { duration: 450, dampingRatio: 1 };
 
 /** Room below the chat's last message for the docked blob. */
 export const VOICE_DOCK_INSET = BLOB_SMALL + spacing.medium * 2;
@@ -113,8 +114,8 @@ function Blob({ working }: { working: boolean }) {
 
 /**
  * The voice call, laid over the chat it runs in: a large blob to talk to, and
- * the chat itself one swipe away (up for the chat, down for the blob again).
- * Swiped up, the blob docks small below the last message and the chat is the
+ * the chat itself one drag away. The blob follows the finger: pulled down, it
+ * docks small below the last message and the chat is the
  * real one — every line the call speaks and every card it creates is a message
  * of it. The blob breathes deeper while the agent works with a tool.
  */
@@ -133,6 +134,13 @@ export function VoiceCallOverlay() {
   const progress = useSharedValue(0);
   const dragStart = useSharedValue(0);
 
+  // Centre of the blob, big over the cover and docked below the chat.
+  const bigY = height * 0.42;
+  const smallY = height - BLOB_SMALL / 2 - spacing.medium;
+  // The drag moves the blob exactly as far as the finger: its whole way down
+  // is one full `progress`.
+  const travel = Math.max(1, smallY - bigY);
+
   // The cover takes the swipe while it shows; once it is gone the chat scrolls
   // freely and only the docked blob still answers a drag.
   const swipe = () =>
@@ -143,16 +151,16 @@ export function VoiceCallOverlay() {
         dragStart.value = progress.value;
       })
       .onUpdate((e) => {
-        progress.value = Math.min(1, Math.max(0, dragStart.value - e.translationY / SWIPE_RANGE));
+        progress.value = Math.min(1, Math.max(0, dragStart.value + e.translationY / travel));
       })
       .onEnd((e) => {
-        const target = e.velocityY < -500 ? 1 : e.velocityY > 500 ? 0 : Math.round(progress.value);
-        progress.value = withSpring(target, SNAP);
+        const target = e.velocityY > 500 ? 1 : e.velocityY < -500 ? 0 : Math.round(progress.value);
+        progress.value = withSpring(target, { ...SNAP, velocity: e.velocityY / travel });
         runOnJS(setShowChat)(target === 1);
       });
 
   const show = (chat: boolean) => {
-    progress.value = withSpring(chat ? 1 : 0, SNAP);
+    progress.value = withSpring(chat ? 1 : 0, SNAP_TAP);
     setShowChat(chat);
   };
   const toggle = () => show(!showChat);
@@ -172,18 +180,16 @@ export function VoiceCallOverlay() {
 
   const coverStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
   const blobStyle = useAnimatedStyle(() => {
-    const big = height * 0.42;
-    const small = height - BLOB_SMALL / 2 - spacing.medium;
     return {
       transform: [
-        { translateY: interpolate(progress.value, [0, 1], [big, small]) - BLOB / 2 },
+        { translateY: interpolate(progress.value, [0, 1], [bigY, smallY]) - BLOB / 2 },
         { scale: interpolate(progress.value, [0, 1], [1, BLOB_SMALL / BLOB]) },
       ],
     };
   });
   const captionStyle = useAnimatedStyle(() => ({
     opacity: 1 - progress.value,
-    transform: [{ translateY: height * 0.42 + BLOB / 2 + spacing.large }],
+    transform: [{ translateY: bigY + BLOB / 2 + spacing.large }],
   }));
 
   const caption = tool
