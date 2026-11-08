@@ -78,7 +78,7 @@ import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { toolResultBudget } from './toolResultBudgets.js';
 import { type ToolScope } from './toolScope.js';
-import { buildToolUsageBlock } from './toolUsageBlock.js';
+import { buildToolUsageBlock, NOTEBOOK_BARE_TOPIC_NOTE } from './toolUsageBlock.js';
 import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
 import {
   type PendingAskRequest,
@@ -545,7 +545,7 @@ export async function streamAgenticResponse(
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,

@@ -272,14 +272,6 @@ describe('buildToolUsageBlock — Notebook des Threads', () => {
     expect(block.indexOf('notebook_quellen')).toBeLessThan(block.indexOf('interne Dokumentsuche'));
   });
 
-  it('liest ein bloßes Thema als Frage an das Notebook (Phase 7, 08.11.2026)', () => {
-    const block = buildToolUsageBlock(6, false, TOOLS, false, berlin);
-    expect(block).toContain(
-      'Ein bloßes Thema oder Stichwort ist in diesem Chat eine Frage an das Notebook'
-    );
-    expect(buildToolUsageBlock(6, false, TOOLS)).not.toContain('bloßes Thema');
-  });
-
   it('nennt bei einem eigenen Notebook ohne Namen nur die id', () => {
     const block = buildToolUsageBlock(6, false, TOOLS, false, { id: 'nb-1', name: null });
     expect(block).toContain('notebookId: nb-1');

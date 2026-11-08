@@ -532,3 +532,32 @@ describe('prose with a typed address runs in the loop', () => {
     expect(loopScript.calls[0]?.messagesJson).toContain('12 km neue Radwege');
   });
 });
+
+describe('a chosen notebook runs in the loop (phase 7)', () => {
+  // Live 08.11.2026: on the umbrella notebook a bare topic got a help menu,
+  // because `notebookForPrompt` does not resolve it and the notebook line was
+  // missing. The bare-topic rule hangs on the choice itself.
+  it.each(['gruenerator-notebook', 'berlin-notebook'])(
+    '%s: a bare topic is a question to the notebook',
+    async (notebookId) => {
+      loopScript.script({ text: ANSWER });
+      const { trace } = await runTurn(app.baseUrl, {
+        messages: [userTurn('Förderung beim Heizungstausch und Wärmepumpen')],
+        notebookIds: [notebookId],
+      });
+
+      expect(trace.agentic, `intent=${trace.intent}`).toBe(true);
+      expect(loopScript.calls[0]?.system).toContain(
+        'Ein bloßes Thema oder Stichwort ist in diesem Chat eine Frage an das gewählte Notebook'
+      );
+    }
+  );
+
+  it('without a chosen notebook the rule stays out', async () => {
+    loopScript.script({ text: ANSWER });
+    await runTurn(app.baseUrl, {
+      messages: [userTurn('Förderung beim Heizungstausch und Wärmepumpen')],
+    });
+    expect(loopScript.calls[0]?.system ?? '').not.toContain('bloßes Thema');
+  });
+});
