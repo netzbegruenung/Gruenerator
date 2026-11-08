@@ -1520,15 +1520,19 @@ describe('reworksSuppliedText', () => {
     'kürz mal',
     'verkürz das auf zwei Absätze',
     'straff das etwas',
+    'kuerz das auf die Hälfte',
   ])('reads "%s" as text work on the supplied material', (text) => {
     expect(reworksSuppliedText(text)).toBe(true);
   });
 
-  // The bare stem must not swallow „kürzlich" (#5476).
-  it('does not read "kürzlich" as a shortening order', () => {
-    expect(reworksSuppliedText('Was hat der Stadtrat kürzlich zum Radweg beschlossen?')).toBe(
-      false
-    );
+  // The bare stem must not swallow „kürzlich" or the adverb „kurz" (#5476).
+  it.each([
+    'Was hat der Stadtrat kürzlich zum Radweg beschlossen?',
+    'Erkläre mir kurz die Windkraft-Debatte',
+    'Was fordert die Partei, kurz gesagt?',
+    'Kurz gesagt: Was steht im Wahlprogramm zur Mobilität?',
+  ])('does not read "%s" as a shortening order', (text) => {
+    expect(reworksSuppliedText(text)).toBe(false);
   });
 
   // Each of these carries a rewrite word — `k[üu]rze…` also matches the
