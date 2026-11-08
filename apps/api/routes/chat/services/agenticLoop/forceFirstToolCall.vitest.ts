@@ -61,7 +61,14 @@ describe('shouldForceFirstToolCall', () => {
   // rechnete aus dem Auszug (#5042). Der Zwang ist eine Wahl zwischen
   // `tabelle_auswerten` und `direkt_antworten`, nie eine Suche.
   it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent/followup', () => {
-    expect(force({ intent: 'search', tabularToolMounted: true })).toBe('tabular_decision');
+    expect(
+      force({
+        intent: 'search',
+        lastUserText: 'Wie viele Fahrten gab es im Juli?',
+        tabularToolMounted: true,
+      })
+    ).toBe('tabular_decision');
+    expect(force({ intent: 'compute', tabularToolMounted: true })).toBe('tabular_decision');
     expect(
       force({
         intent: 'agentic',
@@ -70,6 +77,17 @@ describe('shouldForceFirstToolCall', () => {
         tabularToolMounted: true,
       })
     ).toBe('tabular_decision');
+  });
+
+  it('Themenwechsel neben einer Tabelle erzwingt keine Rechnung (live 08.11.2026)', () => {
+    expect(
+      force({
+        intent: 'agentic',
+        lastUserText:
+          'Kurz was anderes: Was fordern die Grünen im Grundsatzprogramm zum Radverkehr?',
+        tabularToolMounted: true,
+      })
+    ).not.toBe('tabular_decision');
   });
 
   it('Tabellen-Turn: Fortsetzung und Recherche-Bann vetoen die Wahl', () => {
