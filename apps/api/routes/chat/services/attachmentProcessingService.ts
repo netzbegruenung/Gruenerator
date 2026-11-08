@@ -204,6 +204,28 @@ export function isPastePointer(typedText: string): boolean {
   return words.length > 0 && words.every((w) => PASTE_POINTER_WORDS.has(w));
 }
 
+/** Auftrags- und Verknüpfungswörter: ein Wort daraus macht aus „Hier die Liste" einen Auftrag. */
+const PRESENTING_ORDER_WORD_RE =
+  /(?<!\p{L})(?:bitte|und|oder|mach\p{L}*|erstell\p{L}*|schreib\p{L}*|fass\p{L}*|k[üu]rz\p{L}*|[üu]bersetz\p{L}*|korrigier\p{L}*|pr[üu]f\p{L}*|check\p{L}*|antwort\p{L}*|beantwort\p{L}*|zusammen\p{L}*|daraus|draus|kannst|k[öo]nntest|soll\p{L}*|zum|zur|wie|was|welche\p{L}*|warum)(?!\p{L})/iu;
+
+const PRESENTING_LINE_RE =
+  /^(?:hier|anbei)(?:\s+(?:sind|ist))?(?:\s+(?:der|die|das|den|dem|ein|eine|mein|meine|meinen|deine|unsere|unser|alle))?(?:\s+[\p{L}-]+){1,3}\s*[:.]?$/iu;
+
+/**
+ * Stellt die getippte Zeile den Paste nur vor („Hier sind die Termine", „Anbei
+ * die Liste", „Hier der Text:") und sagt sonst nichts? Strenger als
+ * {@link isPastePointer} und absichtlich getrennt: der Zeiger macht den Paste
+ * zur Nachricht (der Inhalt wird als Auftrag ausgeführt, #5459), eine bloß
+ * vorstellende Zeile lässt ihn Material bleiben. Nur der Klassifikator liest
+ * das, um dafür keine erzwungene Notebook-Suche zu bezahlen (#5484). Keine
+ * Frage, kein Satzzeichen im Innern, kein Auftragswort.
+ */
+export function presentsPasteOnly(typedText: string): boolean {
+  const text = typedText.trim();
+  if (text.length === 0 || text.length > PASTE_POINTER_MAX_CHARS) return false;
+  return PRESENTING_LINE_RE.test(text) && !PRESENTING_ORDER_WORD_RE.test(text);
+}
+
 /**
  * When the composer text is empty, the paste IS the prompt: return its decoded
  * text plus the attachment list without the paste files, so the caller can
