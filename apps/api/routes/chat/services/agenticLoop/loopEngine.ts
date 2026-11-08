@@ -229,6 +229,13 @@ const phaseTelemetry = (phase: 'unified' | 'synth') => {
  *  toolChoice:'none' it can't interpret). */
 export const FORCE_FINISH_SYSTEM_SUFFIX =
   '\n\nWICHTIG: Du hast das Schritt-Limit erreicht. Rufe KEINE Tools mehr auf. Fasse zusammen, was du herausgefunden hast, und gib JETZT die endgültige Antwort auf Basis der vorhandenen Belege. Wenn etwas offen bleibt, sag ehrlich, was fehlt.';
+/**
+ * The finish step after the turn's artefact exists — not a step limit. The
+ * limit wording („Fasse zusammen, was du herausgefunden hast") made a pure
+ * order end on a second, empty success line („Tabelle erstellt: Erfolg.").
+ */
+export const ARTIFACT_FINISH_SYSTEM_SUFFIX =
+  '\n\nWICHTIG: Das Artefakt dieses Turns ist erstellt und der*dem Nutzer*in als Karte angezeigt (siehe Werkzeugergebnis). Rufe KEINE Tools mehr auf. Antworte kurz: nenne in einem Satz, was entstanden ist, und schließe nicht mit einer zweiten Erfolgsmeldung. Meldet das Werkzeugergebnis Probleme, nenne sie.';
 /** Tool rules of the loop. Every rule line is preceded by a newline. */
 export const TOOL_USE_RULES: string = [
   '',
@@ -365,7 +372,8 @@ function withTurnContextOnSteps<
  *  via a per-step system override. */
 export function buildPrepareStep(
   baseSystem: string,
-  finishSuffix: string,
+  /** A getter: the wording depends on WHY the step finishes (artefact vs. limit). */
+  finishSuffix: string | (() => string),
   maxSteps: number,
   forceFinish: () => boolean,
   forceFirstToolCall: boolean,
@@ -449,7 +457,7 @@ export function buildPrepareStep(
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
-        system: `${baseSystem}${extraSystem()}${finishSuffix}`,
+        system: `${baseSystem}${extraSystem()}${typeof finishSuffix === 'function' ? finishSuffix() : finishSuffix}`,
         ...scope,
       };
     }
@@ -844,7 +852,7 @@ async function streamWithTools(
     prepareStep: withTurnContextOnSteps(
       buildPrepareStep(
         unifiedSystem,
-        FORCE_FINISH_SYSTEM_SUFFIX,
+        () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
         p.maxSteps,
         p.forceFinish,
         p.forceFirstToolCall ?? false,

@@ -252,9 +252,12 @@ describe.each(KINDS)('a pure $kind order runs in the loop', (k) => {
     expect(generatorControl.calls[0]?.userContent).toContain(k.order);
     expect(loopScript.calls).toHaveLength(1);
     loopScript.assertScriptsConsumed();
-    // The one model call sees the result and may not call a tool again.
+    // The one model call sees the result and may not call a tool again, and
+    // is told the artefact is done — not that it ran out of steps.
     expect(loopScript.calls[0]?.messagesJson).toContain(k.tool);
     expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    expect(loopScript.calls[0]?.system).toContain('Das Artefakt dieses Turns ist erstellt');
+    expect(loopScript.calls[0]?.system).not.toContain('Schritt-Limit');
     // The card, the tool step and the model's own sentence.
     expect(trace.documentCreated).toBe(true);
     expect(trace.toolCalls.map((c) => c.toolName)).toContain(k.tool);
