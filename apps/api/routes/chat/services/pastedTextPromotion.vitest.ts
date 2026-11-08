@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractPromotablePasteText,
   isPastePointer,
+  presentsPasteOnly,
   isPastedTextAttachment,
   PASTED_TEXT_ATTACHMENT_NAME,
 } from './attachmentProcessingService.js';
@@ -122,5 +123,32 @@ describe('isPastePointer', () => {
     'schau in das file: '.repeat(6),
   ])('does not read %j as a bare pointer', (typed) => {
     expect(isPastePointer(typed)).toBe(false);
+  });
+});
+
+describe('presentsPasteOnly', () => {
+  it.each([
+    'Hier sind die Termine',
+    'Anbei die Liste',
+    'Hier der Text:',
+    'hier meine Notizen',
+    'Hier ist die Mail.',
+  ])('reads %j as a line that only presents the paste', (typed) => {
+    expect(presentsPasteOnly(typed)).toBe(true);
+  });
+
+  it.each([
+    '',
+    'Hier sind die Termine – welche sind am Wochenende?',
+    'Hier sind die Termine, welche liegen am Wochenende',
+    'Antworte auf diese Mail',
+    'Hier der Text, mach eine PM draus',
+    'Hier sind die Termine. Fasse sie zusammen',
+    'Anbei die Liste bitte kürzen',
+    'kürz das',
+    'schau in das file:',
+    'Hier sind die Termine zum Zusammenfassen',
+  ])('does not read %j as presenting only', (typed) => {
+    expect(presentsPasteOnly(typed)).toBe(false);
   });
 });

@@ -247,6 +247,27 @@ export function deniesSearchAbilityDespiteSearching(
 }
 
 /**
+ * The answer claims something is absent ("kommt … nicht vor", "finde ich keine
+ * Aussagen"), in a turn in which no tool ran at all (#5458: 05.11.2026, a
+ * factual question about a named person, `toolCalls` empty, answered "In den
+ * vorliegenden Unterlagen … kommt Gernot Stöglehner nicht vor").
+ *
+ * Telemetry only. KNOWN FALSE POSITIVES: the counter also includes questions
+ * that are only about pasted material ("Kommt im Text eine Frist vor?") —
+ * answering those from the paste with no tool call is legitimate. We accept
+ * that noise rather than try to tell the two apart here.
+ *
+ * `(?<!\p{L})…(?!\p{L})` rather than `\b` (umlauts, see above).
+ */
+const CLAIMS_ABSENCE_RE =
+  /(?<!\p{L})(?:kommt\s+(?:\p{L}+\s+){0,6}?nicht\s+vor|(?:finde|fand)\s+ich\s+(?:\p{L}+\s+){0,3}?keine\p{L}*\s+(?:\p{L}+\s+){0,2}?(?:aussage|angabe|information|erwähnung|hinweis)\p{L}*|(?:wird|werden)\s+(?:\p{L}+\s+){0,3}?nicht\s+erwähnt|nicht\s+erwähnt|keine\s+(?:\p{L}+\s+){0,2}?(?:aussage|angabe|information|erwähnung)\p{L}*\s+(?:zu|von|über)|taucht\s+(?:\p{L}+\s+){0,6}?nicht\s+auf|liegen\s+(?:mir\s+)?keine\s+(?:\p{L}+\s+){0,3}?vor)(?!\p{L})/iu;
+
+export function claimsAbsenceWithoutSearching(text: string, opts: { toolCalls: number }): boolean {
+  if (opts.toolCalls > 0) return false;
+  return CLAIMS_ABSENCE_RE.test(text);
+}
+
+/**
  * The answer asks the person to WAIT for the assistant's own work — which never
  * comes, nothing runs after a turn ends (live 15.09.2026: "wird in diesem
  * Moment generiert … Moment bitte"). Bound to first-person / generation
