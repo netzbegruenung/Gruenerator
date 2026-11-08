@@ -42,6 +42,7 @@ import {
   offerTopic,
   QUESTION_EDITABLE_KINDS,
 } from '../../../../routes/chat/services/artifactOffer.js';
+import { presentsPasteOnly } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import {
   namedLoopArtifact,
   namesDocumentTarget,
@@ -1507,15 +1508,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const recipeWantsSearch =
         state.activeSkillMention != null &&
         recommendedToolsFor(state.activeSkillMention, () => true).includes('gruenerator_search');
-      if (
-        (defaultNotebookScopeCount > 0 || recipeWantsSearch) &&
-        !reworksSuppliedText(state.lastUserTextNoMentions ?? userContent)
-      ) {
+      //
+      // Und nicht, wenn die Zeile den Paste nur vorstellt („Hier sind die
+      // Termine"): sie fragt nichts und bestellt nichts, die erzwungene Suche
+      // holte Programme zu einer Terminliste (#5484). Gilt nur fürs Notebook;
+      // ein Rezept mit Recherche sucht auch bei „Hier der Katalog:" weiter.
+      const typedForAttachment = state.lastUserTextNoMentions ?? userContent;
+      const notebookSearchWanted =
+        defaultNotebookScopeCount > 0 && !presentsPasteOnly(typedForAttachment);
+      if ((notebookSearchWanted || recipeWantsSearch) && !reworksSuppliedText(typedForAttachment)) {
         return classifyWithForcedSearch({
-          reason:
-            defaultNotebookScopeCount > 0
-              ? 'AttachmentDefaultNotebook'
-              : 'AttachmentResearchRecipe',
+          reason: notebookSearchWanted ? 'AttachmentDefaultNotebook' : 'AttachmentResearchRecipe',
           docCount: defaultNotebookScopeCount,
           userContent,
           conversationContext,

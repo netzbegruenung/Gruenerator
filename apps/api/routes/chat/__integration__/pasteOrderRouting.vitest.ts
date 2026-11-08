@@ -194,6 +194,8 @@ interface Case {
   lane: 'loop' | 'single_pass';
   /** Only asserted on loop turns. */
   summarizeMounted?: boolean;
+  /** Asserted when set: did the classifier force the notebook search (#5484)? */
+  forcedSearch?: boolean;
 }
 
 const CASES: Case[] = [
@@ -312,6 +314,26 @@ const CASES: Case[] = [
     body: { activeSkillMention: 'wahlpruefstein' },
     lane: 'single_pass',
   },
+  // #5484: die Zeile stellt den Paste nur vor — keine erzwungene Suche, der
+  // Paste bleibt Material (Einzeldurchlauf wie ohne Notebook gibt es nicht, der
+  // Turn läuft im Loop, aber ohne Zwangs-Suche).
+  {
+    id: 'nb-nur-vorgestellt',
+    prompt: 'Hier sind die Termine',
+    body: NOTEBOOK,
+    lane: 'loop',
+    summarizeMounted: false,
+    forcedSearch: false,
+  },
+  // Gegenprobe: eine Antwort-Bestellung behält die Suche.
+  {
+    id: 'nb-antwort-auf-mail',
+    prompt: 'Antworte auf diese Mail',
+    body: NOTEBOOK,
+    lane: 'loop',
+    summarizeMounted: false,
+    forcedSearch: true,
+  },
   // Der Auftrag steht im Turn davor, dieser Turn traegt keinen: die Notebook-
   // Suche bleibt, aber ohne `summarize` als Koeder.
   {
@@ -399,6 +421,10 @@ describe('pasted text + an order about it', () => {
       expect(planner?.toolNames.includes('summarize'), `${c.id}: summarize on offer`).toBe(
         c.summarizeMounted
       );
+      // Die erzwungene Notebook-Suche setzt `toolChoice: required` im ersten Schritt.
+      if (c.forcedSearch !== undefined) {
+        expect(planner?.toolChoice === 'required', `${c.id}: forced search`).toBe(c.forcedSearch);
+      }
       // System ODER Nachrichten: bei einem Turn ohne Auftragstext steht das
       // Eingefügte in der Nutzernachricht, nicht im Systemprompt.
       expect(
