@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -134,21 +133,8 @@ export function SlideStack({
     activeSV.set(active);
   }, [active, activeSV, offsets]);
 
-  // Wechsel von Hand: genau eine Rückmeldung, nie beim Durchwechseln.
-  const selectByHand = useCallback(
-    (index: number) => {
-      void Haptics.selectionAsync();
-      select(index);
-    },
-    [select]
-  );
-  const swipe = useCallback(
-    (direction: 1 | -1) => {
-      void Haptics.selectionAsync();
-      step(direction);
-    },
-    [step]
-  );
+  // Kein Haptik-Feedback beim Wechsel: Folien sind Gleichrangige, die man oft
+  // hintereinander durchwischt — ein Ruck je Folie war Lärm, keine Rückmeldung.
 
   const pan = useMemo(
     () =>
@@ -193,13 +179,13 @@ export function SlideStack({
             incoming.set(-side * travel);
             incoming.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
           }
-          scheduleOnRN(swipe, direction);
+          scheduleOnRN(step, direction);
         })
         .onFinalize(() => {
           'worklet';
           scheduleOnRN(release);
         }),
-    [carousel, count, hold, release, swipe, activeSV, offsets, dragStart, width]
+    [carousel, count, hold, release, step, activeSV, offsets, dragStart, width]
   );
 
   // Die Karte behält die Höhe der höchsten Folie, damit sie beim Wechsel nicht springt.
@@ -251,7 +237,7 @@ export function SlideStack({
       </GestureDetector>
       {carousel ? (
         <View style={[styles.footer, footerStyle]}>
-          <SlideDots labels={labels} active={active} onSelect={selectByHand} />
+          <SlideDots labels={labels} active={active} onSelect={select} />
           {ctl.canPlay
             ? renderControls?.({ playing: ctl.playing, togglePlaying: ctl.togglePlaying })
             : null}

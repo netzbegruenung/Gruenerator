@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { type ReactNode } from 'react';
 import {
   Pressable,
@@ -39,7 +38,10 @@ export function Button({
 
   const handlePress = () => {
     if (isDisabled) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // No haptic: a button is pressed dozens of times a session (onboarding's
+    // „Weiter" six times in a row), and a buzz on every one is noise, not
+    // feedback. The press state is the feedback; haptics are for commits and
+    // detents (a sheet dragged away, a guide snapping).
     onPress();
   };
 

@@ -1,6 +1,8 @@
 import { focusManager, QueryClient } from '@tanstack/react-query';
 import { AppState } from 'react-native';
 
+import { persistMonitorQueries } from './monitorCache';
+
 // React-Native-Rezept von TanStack Query v5: „im Vordergrund“ heißt hier `AppState`
 // `active`. Ohne das meldet die App nie „Fokus“ und `refetchOnWindowFocus` bliebe
 // wirkungslos.
@@ -22,3 +24,5 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+persistMonitorQueries(queryClient);
