@@ -325,6 +325,16 @@ const CASES: Case[] = [
     summarizeMounted: false,
     forcedSearch: false,
   },
+  // Gegenprobe: ein Ein-Rezept-Agent, dessen Rezept die Recherche verlangt
+  // (Bürger*innenanfragen), sucht auch bei einer bloß vorstellenden Zeile.
+  {
+    id: 'buerger-nur-vorgestellt',
+    prompt: 'Hier ist die Mail',
+    body: { ...NOTEBOOK, agentId: 'gruenerator-buergeranfragen-berlin' },
+    lane: 'loop',
+    summarizeMounted: false,
+    forcedSearch: true,
+  },
   // Gegenprobe: eine Antwort-Bestellung behält die Suche.
   {
     id: 'nb-antwort-auf-mail',

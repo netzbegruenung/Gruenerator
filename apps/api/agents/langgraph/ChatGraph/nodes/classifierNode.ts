@@ -24,6 +24,7 @@ import {
   resolveNotebookCollections,
 } from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { ownedDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { recommendedToolsFor } from '../../../../routes/chat/agents/recipeCatalog.js';
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
@@ -1505,9 +1506,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const defaultNotebookScopeCount =
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
+      // Auch das vorab geladene Rezept eines Ein-Rezept-Agenten zählt
+      // (Bürger*innenanfragen): es steht nicht in `activeSkillMention`, verlangt
+      // aber die Recherche — „Hier ist die Mail" bleibt dort eine Suche.
+      const turnRecipe =
+        state.activeSkillMention ??
+        (state.agentConfig ? ownedDefaultRecipeMention(state.agentConfig) : null);
       const recipeWantsSearch =
-        state.activeSkillMention != null &&
-        recommendedToolsFor(state.activeSkillMention, () => true).includes('gruenerator_search');
+        turnRecipe != null &&
+        recommendedToolsFor(turnRecipe, () => true).includes('gruenerator_search');
       //
       // Und nicht, wenn die Zeile den Paste nur vorstellt („Hier sind die
       // Termine"): sie fragt nichts und bestellt nichts, die erzwungene Suche
