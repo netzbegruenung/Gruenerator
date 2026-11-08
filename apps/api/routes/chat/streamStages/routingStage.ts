@@ -190,6 +190,7 @@ export function runRoutingStage({
     editsThreadPdf:
       classifiedState.lastToolContext?.kind === 'pdf' && isPdfEditAsk(lastUserTextNoMentions),
     threadWorksOnSharepic: sharepicInProgress,
+    artifactEditOrder: classifiedState.artifactEditOrder === true,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOfferKind: classifiedState.acceptedOfferKind ?? null,
   });

@@ -226,7 +226,8 @@ const KINDS = [
     tool: 'create_presentation',
     generator: 'doc',
     order: 'Erstelle eine Präsentation zur Verkehrswende',
-    followUp: 'Mach die Folien kürzer',
+    // Live 08.11.2026: the noun „Folien“ made this a second pure order.
+    followUp: 'mach sie kürzer, maximal 4 Folien',
     edit: ['edit_presentation'],
     again: 'Erstelle eine neue Präsentation zur Windkraft',
   },
@@ -319,6 +320,8 @@ describe.each(KINDS)('a pure $kind order runs in the loop', (k) => {
       true
     );
     expect(generatorControl.calls).toHaveLength(1);
+    // Not even a refused create step before the edit.
+    expect(second.trace.toolCalls.map((c) => c.toolName)).not.toContain(k.tool);
 
     loopScript.script({ text: 'Das zweite steht.' });
     const third = await runTurn(app.baseUrl, {

@@ -188,6 +188,10 @@ export interface TurnPlanInput {
    * montiert, und das PDF liess sich aus dem Loop nicht ändern.
    */
   editsThreadPdf?: boolean;
+  /** The classifier read the turn as an order to an existing artefact
+   *  („mach sie kürzer, maximal 4 Folien“): its noun names the artefact to
+   *  change, not one to build, so it is no creation order. */
+  artifactEditOrder?: boolean;
   /** Ein früherer Turn nannte ein Sharepic, gebaut ist noch keins (`threadWorksOnSharepic`). */
   threadWorksOnSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
@@ -434,7 +438,9 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // gewonnen, damit „mach mir eine Tabelle draus" das Tabellen-Werkzeug montiert.
   const proposedKind =
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
-      ? (compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind) ??
+      ? ((p.artifactEditOrder === true
+          ? null
+          : compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)) ??
         (p.editsThreadPdf === true ? 'pdf' : null) ??
         p.acceptedOfferKind)
       : null;
