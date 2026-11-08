@@ -602,6 +602,25 @@ export async function buildStreamContext({
       // Nothing to persist, so no thread to mint: run the turn thread-less.
       log.warn('[StreamContext] Dropping unwritable threadId on a turn without a user message');
       actualThreadId = undefined;
+    } else if (validMessages.length > 1) {
+      // The request carries earlier turns, so the person is mid-conversation in
+      // a thread that was trashed/expired/unshared. A fresh thread would have
+      // none of that history or its attachments, while the browser keeps showing
+      // the old conversation — refuse instead of forking silently (#5471).
+      // Nothing has been written yet: the user message is persisted further down.
+      captureSseError({
+        code: 'thread-gone-refused',
+        message: 'Send to an unwritable thread with prior turns refused',
+        level: 'warning',
+        extras: { staleThreadId: actualThreadId, userId, agentId },
+      });
+      sse.send('error', {
+        error: PROGRESS_MESSAGES.threadGone,
+        code: 'invalid_request',
+        retryable: false,
+      });
+      sse.end();
+      return { done: true };
     } else {
       // The client-supplied threadId is gone or not writable — most often a
       // freshly-created empty thread reaped by the sidebar's auto-cleanup race
