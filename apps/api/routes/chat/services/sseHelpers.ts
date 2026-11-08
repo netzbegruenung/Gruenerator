@@ -463,8 +463,10 @@ export const PROGRESS_MESSAGES = {
   aiUnavailable:
     'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es in einem Moment erneut.',
   messagesRequired: 'Die Anfrage enthielt keine Nachrichten.',
+  // Covers both ways `canWriteThread` says no: the thread is gone (trashed,
+  // expired share) or it is shared with you read-only (review #5492).
   threadGone:
-    'Diese Unterhaltung wurde gelöscht oder ist nicht mehr verfügbar. Starte eine neue Unterhaltung – gelöschte findest du 30 Tage im Papierkorb.',
+    'In dieser Unterhaltung kannst du nicht weiterschreiben: Sie wurde gelöscht oder ist nur zum Lesen mit dir geteilt. Starte eine neue Unterhaltung – gelöschte findest du 30 Tage im Papierkorb.',
   internalError: 'Es ist ein interner Fehler aufgetreten. Bitte versuche es erneut.',
 };
 
