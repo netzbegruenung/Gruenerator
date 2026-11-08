@@ -16,7 +16,7 @@ Im Modus **Automatisch** wählt der Grünerator das passende Modell für deine j
 
 ## Verfügbare Modelle
 
-Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl.
+Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Das Excel-Add-in bietet zwei Modelle unter ihrem eigenen Namen an: **Gemma 4 31B** (Standard, dasselbe Modell wie Mittel) und **Mistral Small 3.2**.
 
 **Klein** – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter.
 
