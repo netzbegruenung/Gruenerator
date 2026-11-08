@@ -29,7 +29,7 @@ import {
   insertThreadWithSlugRetry,
   updateThreadSettings,
 } from './services/threadPersistenceService.js';
-import { trashThread } from './services/threadTrashService.js';
+import { deleteThreadIfEmpty, trashThread } from './services/threadTrashService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -138,9 +138,13 @@ export const threadsContractRouter = s.router(threadsContract, {
         agent_id: row.agent_id as string,
         created_at: row.created_at as Date | string,
         updated_at: row.updated_at as Date | string,
-        lastMessage: row.last_msg_content
+        // Keyed on the row, not its text: a turn in flight ends in a
+        // placeholder with `content = NULL` (createPendingAssistantMessage),
+        // and so does an aborted one. Reading that as "no messages" made the
+        // client's empty-thread cleanup trash a live conversation (#5465).
+        lastMessage: row.last_msg_created_at
           ? {
-              content: row.last_msg_content as string,
+              content: (row.last_msg_content as string | null) ?? '',
               role: row.last_msg_role as string,
               created_at: row.last_msg_created_at as Date | string,
             }
@@ -349,7 +353,13 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       // A thread with messages moves to the Papierkorb; an empty one is
       // removed outright (see trashThread).
-      const result = await trashThread(threadId, userId);
+      const result =
+        args.query.onlyIfEmpty === 'true'
+          ? await deleteThreadIfEmpty(threadId, userId)
+          : await trashThread(threadId, userId);
+      if (result === 'not_empty') {
+        return { status: 409 as const, body: { error: 'Thread has messages' } };
+      }
       if (result === 'not_found') {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }

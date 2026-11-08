@@ -83,12 +83,18 @@ export const threadsContract = c.router(
     /**
      * DELETE /api/chat-service/threads?threadId=<id>
      * Delete a thread owned by the authenticated user.
+     *
+     * `onlyIfEmpty=true` is the client's empty-thread cleanup: the server then
+     * removes the thread only if it has no message at all and answers 409
+     * otherwise. Its list may be older than the thread's first message; the
+     * check has to sit in the DELETE itself (#5465).
      */
     delete: {
       method: 'DELETE',
       path: '/api/chat-service/threads',
       query: z.object({
         threadId: z.string(),
+        onlyIfEmpty: z.enum(['true']).optional(),
       }),
       body: c.noBody(),
       responses: {
@@ -97,6 +103,7 @@ export const threadsContract = c.router(
         401: errorResponseSchema,
         403: errorResponseSchema,
         404: errorResponseSchema,
+        409: errorResponseSchema,
         500: errorResponseSchema,
       },
       summary: 'Delete a chat thread',
