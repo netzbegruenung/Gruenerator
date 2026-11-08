@@ -76,7 +76,7 @@ import {
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type NotebookSourceCheck, resolveNotebookSources } from './resolveNotebookSources.js';
-import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
+import { type createSSEStream, PROGRESS_MESSAGES, sseFail } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
   type ThreadCloudFiles,
@@ -607,19 +607,15 @@ export async function buildStreamContext({
       // a thread that was trashed/expired/unshared. A fresh thread would have
       // none of that history or its attachments, while the browser keeps showing
       // the old conversation — refuse instead of forking silently (#5471).
-      // Nothing has been written yet: the user message is persisted further down.
+      // No thread or message row has been written yet (both come further down);
+      // only the agent/notebook usage counters above already ran.
       captureSseError({
         code: 'thread-gone-refused',
         message: 'Send to an unwritable thread with prior turns refused',
         level: 'warning',
         extras: { staleThreadId: actualThreadId, userId, agentId },
       });
-      sse.send('error', {
-        error: PROGRESS_MESSAGES.threadGone,
-        code: 'invalid_request',
-        retryable: false,
-      });
-      sse.end();
+      sseFail(sse, PROGRESS_MESSAGES.threadGone, { code: 'invalid_request', retryable: false });
       return { done: true };
     } else {
       // The client-supplied threadId is gone or not writable — most often a
