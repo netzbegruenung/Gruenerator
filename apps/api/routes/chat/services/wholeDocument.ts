@@ -113,13 +113,22 @@ function latestPasteOfThread(
  * `document_indexed` je Thread und schickt sie in jedem Folgeturn mit
  * (`documentChatStore`) — sein eigener Paste kam so als „gewähltes Material"
  * zurück, und kein Folgeturn las mehr ganz, auch keine Zusammenfassung (#5478).
+ *
+ * `windowDocIds` sind die Anhänge im Prompt-Fenster (die jüngsten fünf), das
+ * Echo des Clients ist ungedeckelt. Erst wenn eine Id außerhalb des Fensters
+ * liegt, werden alle Anhänge des Threads gefragt — sonst wäre ein alter Paste
+ * nach dem sechsten Anhang wieder „anderes Material".
  */
-export function picksOtherDocumentChat(
+export async function picksOtherDocumentChat(
   pickedIds: readonly string[],
-  threadAttachmentDocIds: readonly string[]
-): boolean {
-  const own = new Set(threadAttachmentDocIds);
-  return pickedIds.some((id) => !own.has(id));
+  windowDocIds: readonly string[],
+  loadAllThreadDocIds: () => Promise<readonly string[]>
+): Promise<boolean> {
+  const inWindow = new Set(windowDocIds);
+  const outside = pickedIds.filter((id) => !inWindow.has(id));
+  if (outside.length === 0) return false;
+  const own = new Set(await loadAllThreadDocIds());
+  return outside.some((id) => !own.has(id));
 }
 
 export function resolveWholeDocumentTurn(input: {

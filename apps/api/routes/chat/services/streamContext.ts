@@ -53,7 +53,10 @@ import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { clientCanUseTabularToolFrom } from '../agents/tabelleAuswertenTool.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
-import { getThreadAttachments } from './attachmentPersistenceService.js';
+import {
+  getThreadAttachmentDocumentIds,
+  getThreadAttachments,
+} from './attachmentPersistenceService.js';
 import {
   extractPromotablePasteText,
   isTabularAttachment,
@@ -1021,6 +1024,11 @@ export async function buildStreamContext({
   const mergedDocumentChatIds = [
     ...new Set([...authorizedDocumentChatIds, ...embeddedAttachmentDocIds]),
   ];
+  const turnPicksDocumentChat = await picksOtherDocumentChat(
+    authorizedDocumentChatIds,
+    embeddedAttachmentDocIds,
+    () => (actualThreadId ? getThreadAttachmentDocumentIds(actualThreadId) : Promise.resolve([]))
+  );
 
   // === Memory retrieval (explicit user memory) ===
   // Honor the profile switch (profiles.memory_enabled): off means no block in
@@ -1306,10 +1314,7 @@ export async function buildStreamContext({
     docAttachments,
     processedMeta,
     contextWindowTokens,
-    turnPicksDocumentChat: picksOtherDocumentChat(
-      authorizedDocumentChatIds,
-      embeddedAttachmentDocIds
-    ),
+    turnPicksDocumentChat,
     sse,
   });
 

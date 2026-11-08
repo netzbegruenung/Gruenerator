@@ -123,6 +123,7 @@ export function attachmentPersistenceMock(
   return {
     ...original,
     getThreadAttachments: () => Promise.resolve([]),
+    getThreadAttachmentDocumentIds: () => Promise.resolve([]),
     getThreadTabularFiles: () => Promise.resolve([]),
     getThreadPdfFiles: () => Promise.resolve([]),
     saveThreadAttachment: vi.fn(() => Promise.resolve('attachment-1')),

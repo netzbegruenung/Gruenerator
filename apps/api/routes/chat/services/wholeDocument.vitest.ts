@@ -243,13 +243,29 @@ describe('resolveWholeDocumentTurn — the latest paste in a follow-up', () => {
 describe('picksOtherDocumentChat', () => {
   // The web client echoes every id from `document_indexed` back in each later
   // turn; its own paste must not count as „other material" (#5478).
-  it('does not count the thread attachments the client echoes back', () => {
-    expect(picksOtherDocumentChat(['doc-p'], ['doc-p', 'doc-old'])).toBe(false);
-    expect(picksOtherDocumentChat([], ['doc-p'])).toBe(false);
+  const noLoad = () => Promise.reject(new Error('must not load the whole thread'));
+
+  it('does not count the thread attachments the client echoes back', async () => {
+    await expect(picksOtherDocumentChat(['doc-p'], ['doc-p', 'doc-old'], noLoad)).resolves.toBe(
+      false
+    );
+    await expect(picksOtherDocumentChat([], ['doc-p'], noLoad)).resolves.toBe(false);
   });
 
-  it('counts a document the turn picked beyond the thread attachments', () => {
-    expect(picksOtherDocumentChat(['doc-p', 'doc-picked'], ['doc-p'])).toBe(true);
+  it('counts a document the turn picked beyond the thread attachments', async () => {
+    const all = () => Promise.resolve(['doc-p']);
+    await expect(picksOtherDocumentChat(['doc-p', 'doc-picked'], ['doc-p'], all)).resolves.toBe(
+      true
+    );
+  });
+
+  // The prompt window holds the five most recent attachments, the echo is
+  // uncapped: an older paste of the same thread is still its own material.
+  it('does not count an echoed attachment that fell out of the window', async () => {
+    const all = () => Promise.resolve(['doc-first', 'doc-p']);
+    await expect(picksOtherDocumentChat(['doc-first', 'doc-p'], ['doc-p'], all)).resolves.toBe(
+      false
+    );
   });
 });
 

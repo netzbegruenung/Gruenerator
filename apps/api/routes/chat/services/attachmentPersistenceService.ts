@@ -250,6 +250,22 @@ export async function getThreadAttachments(
 }
 
 /**
+ * Document ids of ALL attachments of a thread, uncapped. `getThreadAttachments`
+ * keeps only the most recent rows, but the web client echoes every
+ * `document_indexed` id it ever saw for the thread — an id older than the
+ * window is still the thread's own material, not a pick (#5478).
+ */
+export async function getThreadAttachmentDocumentIds(threadId: string): Promise<string[]> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT DISTINCT document_id FROM chat_thread_attachments
+     WHERE thread_id = $1 AND document_id IS NOT NULL`,
+    [threadId]
+  );
+  return result.map((row) => row.document_id as string);
+}
+
+/**
  * Generate a concise summary of an attachment's content.
  * This runs asynchronously after the initial response is sent.
  */
