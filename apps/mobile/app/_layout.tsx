@@ -21,6 +21,7 @@ import { AppUpdateBanner } from '../components/common/AppUpdateBanner';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
+import { PushBridge } from '../components/push/PushBridge';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { useReduceMotion } from '../hooks/useAccessibilityPreferences';
@@ -285,6 +286,8 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
+                {/* App-Push: Registrierung pflegen und getippte Meldungen öffnen. */}
+                {user ? <PushBridge userId={user.id} /> : null}
                 {/* Zeichnet Sharepics für den Chat in einer versteckten WebView
                     — die App kann Konva nicht selbst rendern. Mountet sich nur,
                     solange es etwas zu zeichnen gibt (`useRenderHostDemand`),

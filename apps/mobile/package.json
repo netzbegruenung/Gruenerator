@@ -1,7 +1,7 @@
 {
   "name": "@gruenerator/mobile",
   "version": "0.1.0",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "private": true,
   "expo": {
     "install": {
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@assistant-ui/react-native": "0.1.51",
+    "@bacons/apple-targets": "^5.0.0",
     "@config-plugins/react-native-webrtc": "^15.0.2",
     "@expo/dom-webview": "~58.0.2",
     "@expo/metro-runtime": "~58.0.15",
@@ -61,6 +62,7 @@
     "d3-geo": "^3.1.2",
     "d3-scale": "^4.0.3",
     "expo": "~58.0.19",
+    "expo-application": "~58.1.2",
     "expo-audio": "~58.0.10",
     "expo-auth-session": "~58.0.14",
     "expo-blur": "~58.0.5",
@@ -91,6 +93,7 @@
     "expo-splash-screen": "~58.0.11",
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.6",
+    "expo-task-manager": "~58.0.13",
     "expo-updates": "~58.0.18",
     "expo-video": "~58.0.12",
     "expo-web-browser": "~58.0.6",
