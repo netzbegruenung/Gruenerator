@@ -137,6 +137,35 @@ export function briefWordsFor(wert: number, given: string): string | null {
   return match ? match[1]! : null;
 }
 
+/** A word that says a figure went up or down, saved or added. */
+const DIRECTION =
+  /(?<!\p{L})(?:weniger|mehr|minder|gesunken|gestiegen|gesenkt|gesteigert|gespart|eingespart|ersparnis|rückgang|anstieg|zuwachs|plus|minus|sank|sinkt|sinken|stieg|steigt|steigen|reduziert|reduzierung|senkung|steigerung|zusätzlich\w*)(?!\p{L})/iu;
+/** Words on either side of a figure that count as „next to it". */
+const NEAR = 4;
+
+/** Each number of `text` that has a direction word within a few words (or a +/− sign). */
+function directedNumbers(text: string): string[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const found: string[] = [];
+  tokens.forEach((token, i) => {
+    const num = token.match(NUMBER)?.[0];
+    if (!num) return;
+    const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
+    if (/^[+\-−–]\d/.test(token) || DIRECTION.test(window)) found.push(digits(num));
+  });
+  return found;
+}
+
+/**
+ * Numbers of `text` that carry a direction („17 Unfälle weniger“, „−5 %“)
+ * the brief does not give next to that number. The figure may be in the brief
+ * — a hotspot count — and still not mean a reduction.
+ */
+export function invertedNumbers(text: string, given: string): string[] {
+  const inGiven = new Set(directedNumbers(given));
+  return [...new Set(directedNumbers(text))].filter((n) => !inGiven.has(n));
+}
+
 /** Digits glued to letters are part of a name (CO2, A7), not a figure. */
 export const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */

@@ -32,3 +32,52 @@ describe('numbers in a draft', () => {
     expect(!result.ok && result.error).toMatch(/nennt 300/);
   });
 });
+
+describe('a figure keeps its meaning in an infographic', () => {
+  const tiles = (...punkte: { titel: string; text?: string }[]) => ({
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'hellgrau' },
+        position: 'oben',
+        align: 'zentriert',
+        items: [
+          { type: 'headline', lines: ['Zurück zum', 'Radweg'] },
+          {
+            type: 'infografik',
+            form: 'raster',
+            punkte: punkte.map((p) => ({ ...p, icon: 'fahrrad', motiv: 'a city bicycle' })),
+          },
+        ],
+        logo: false,
+      },
+    ],
+  });
+  const hotspot = 'Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.';
+
+  it('rejects a direction the brief does not give next to the figure', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      hotspot
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  it('accepts the direction when the brief says it', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Die Zahl der Unfälle sank um 17.'
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts plain figures', () => {
+    const result = validateDraft(
+      tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),
+      'de-DE',
+      'Der Radweg ist 2,4 km lang und wird mit 1,26 Mio. € gefördert.'
+    );
+    expect(result.ok).toBe(true);
+  });
+});
