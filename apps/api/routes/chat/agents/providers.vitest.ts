@@ -1,17 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
+import { type LanguageModel } from 'ai';
 
 import {
   AVAILABLE_MODELS,
   getContextWindow,
+  getRepairWriterFallback,
   loopSynthChoice,
   getModelConfig,
-  resolveLoopPlannerLane,
-  loopPlannerModelName,
   isUnifiedGemma,
-  prefersUnifiedLoop,
   resolveModelTuple,
   unifiedFallbackStages,
-  resolveUnifiedLaneChain,
+  resolveLoopLaneChain,
 } from './providers.js';
 import {
   GEMMA_31B_ALTERNATE,
@@ -22,10 +21,7 @@ import {
 import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
 
-import { resolveLoopMode } from '../services/agenticLoop/loopMode.js';
-
 import {
-  LOOP_PLANNER_CHAIN,
   LOOP_SYNTH_FALLBACK,
   LOOP_SYNTH_PRIMARY,
   GEMMA_31B_ON_MELIOUS_SPEED,
@@ -48,11 +44,7 @@ const WRITER_MODELS = new Set([
   'mistral-large-4',
 ]);
 
-describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split)', () => {
-  it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
-    expect(prefersUnifiedLoop('mistral', 'mistral-medium-2604')).toBe(true);
-  });
-
+describe('isUnifiedGemma (lanes with the Gemma ladder behind them)', () => {
   it.each([
     ['melious', 'gemma-4-31b', true],
     ['melious', 'gemma-4-31b:balanced', true],
@@ -67,12 +59,6 @@ describe('isUnifiedGemma / prefersUnifiedLoop (unified vs planner/executor split
     ['melious', 'deepseek-v4.1-flash', false],
   ])('%s/%s -> unified %s', (provider, model, expected) => {
     expect(isUnifiedGemma(provider, model)).toBe(expected);
-    expect(prefersUnifiedLoop(provider, model)).toBe(expected);
-  });
-
-  it('every other provider runs the split (planner does tools, selection writes)', () => {
-    expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
-    expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
   });
 
   it('honours a MELIOUS_DEFAULT_MODEL name', () => {
@@ -88,62 +74,11 @@ describe('the real default lane resolves to a unified loop', () => {
       const tuple = await resolveModelTuple(selection.modelId, 'req-default-lane');
       expect(tuple).toMatchObject({ provider: 'melious' });
       expect(isUnifiedGemma(tuple!.provider, tuple!.model)).toBe(true);
-      expect(
-        resolveLoopMode({
-          provider: tuple!.provider,
-          modelName: tuple!.model,
-          materialHeavy: false,
-          carriesGuarantee: false,
-        })
-      ).toEqual({ mode: 'unified', reason: 'unified_model' });
     }
   );
 });
 
-describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
-  it('planner is a verified NON-Chinese tool-caller', () => {
-    // Die deklarierten Stufen (autoPolicy.ts): Melious Gemma 4 31B zuerst,
-    // dann Melious Mistral Small 4, zuletzt Mistral Large 4.
-    // Die letzte Stufe war bis zum 29.08.2026 `litellm/verdigado-pro`, also
-    // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
-    // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
-    // Werkzeugaufrufe beider Melious-Stufen wurden am 29.09.2026 live geprüft.
-    // Seit 28.10.2026 (#5113) ist die letzte Stufe Mistral Small 4 bei Mistral.
-    const planner = loopPlannerModelName();
-    expect([
-      GEMMA_31B_ON_MELIOUS.model,
-      'mistral-small-4-119b-instruct',
-      'mistral-small-latest',
-      'mistral-large-4',
-    ]).toContain(planner);
-    // The invariant behind that list, spelled out so widening the constants
-    // cannot quietly slip a banned lane into the slot.
-    expect(planner).not.toMatch(/qwen|glm|kimi|minimax|deepseek|think/i);
-  });
-
-  it('bills the Mistral API for the planner only on its last stage', () => {
-    // `mistral-small-latest` bills the Mistral API. Since 28.10.2026 (#5113) it
-    // is the last planner stage on purpose — GreenPT, its predecessor, ignored
-    // a forced tool_choice — and it must stay there: reached only after both
-    // Gemma gateways failed, never as a first choice.
-    const vendorSmall = LOOP_PLANNER_CHAIN.map((s) => s.model === 'mistral-small-latest');
-    expect(vendorSmall).toEqual([...vendorSmall.slice(0, -1).map(() => false), true]);
-  });
-
-  it('resolves to a usable model even when NO provider is configured', () => {
-    // The slot must never land on a lane whose getter throws on a missing key.
-    // It did between 13. and 14.08.2026: the last-resort branch returned the
-    // GreenPT tier, so with nothing configured every agentic turn died with
-    // "GREENPT_API_KEY environment variable is required" before its first model
-    // call — ten loop scenarios red, and in production a deployment that forgot
-    // the key would have lost the whole loop rather than one lane.
-    //
-    // This assertion holds in both worlds: with a key the primary builds, and
-    // in a keyless CI the litellm tier does (default base URL, empty key
-    // tolerated). What it forbids is the throw.
-    expect(() => resolveLoopPlannerLane()).not.toThrow();
-  });
-
+describe('repair writer policy (loopSynthChoice)', () => {
   it('auto selection writes with the best writer, NEVER a think model', () => {
     const choice = loopSynthChoice('verdigado-think', true);
     expect(choice.provider).not.toBeNull();
@@ -255,7 +190,7 @@ describe('getContextWindow', () => {
     // `mistral-small-3.2-24b-instruct-2506` meldet. Die 120k davor waren
     // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
     // Lane nicht mehr (services/ai/litellmRetired.ts).
-    expect(getContextWindow('gpt-oss')).toBe(131_000);
+    expect(getContextWindow('gpt-oss')).toBe(128_000);
     // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
     // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
@@ -280,11 +215,11 @@ describe('getContextWindow', () => {
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
     // `litellm` wird nur noch als Name gelesen und bedient Cortecs.
-    expect(getContextWindow('auto', 'litellm')).toBe(131_000);
+    expect(getContextWindow('auto', 'litellm')).toBe(128_000);
   });
 
   it('legacy litellm ID resolves to the small answer lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(131_000);
+    expect(getContextWindow('litellm', 'mistral')).toBe(128_000);
   });
 
   // The unknown-model fallback stays conservative on purpose: an unrecognised
@@ -315,9 +250,9 @@ describe('getModelConfig', () => {
     const config = getModelConfig('gpt-oss');
     expect(config).not.toBeNull();
     expect(config!.kind).toBe('single');
-    expect(config!.provider).toBe('cortecs');
-    expect(config!.model).toBe('mistral-small-3.2-24b-instruct-2506');
-    expect(config!.contextWindow).toBe(131_000);
+    expect(config!.provider).toBe('melious');
+    expect(config!.model).toBe('gemma-4-31b:eco');
+    expect(config!.contextWindow).toBe(128_000);
   });
 
   it('aliases legacy IDs to the small answer lane', () => {
@@ -418,7 +353,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
  * Es gibt ZWEI: die in `services/ai/providers.ts` und diese hier in
  * `routes/chat/agents/providers.ts` — und die zweite ist die, die der ganze
  * Chat-Pfad benutzt (`responseStreamingService`, Synth-Slot,
- * `getLoopSynthFallbackModel`). Beim ersten Anlauf am 19.08.2026 war nur die
+ * `getRepairWriterFallback`). Beim ersten Anlauf am 19.08.2026 war nur die
  * erste gepatcht; das Veto reiste im Options-Objekt mit und wurde hier still
  * verworfen. Der Fix bewirkte nichts.
  *
@@ -483,13 +418,13 @@ describe('unifiedFallbackStages', () => {
   });
 });
 
-describe('resolveUnifiedLaneChain', () => {
-  const ids = (chain: ReturnType<typeof resolveUnifiedLaneChain>) =>
+describe('resolveLoopLaneChain', () => {
+  const ids = (chain: ReturnType<typeof resolveLoopLaneChain>) =>
     chain.map((s) => `${s.provider}/${s.model}`);
 
   it('gesund: die gewählte Stufe zuerst, dahinter :speed und Mistral Large 4', () => {
     _resetModelHealthForTests();
-    expect(ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'))).toEqual([
+    expect(ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced'))).toEqual([
       'melious/gemma-4-31b:balanced',
       'melious/gemma-4-31b:speed',
       `mistral/${LOOP_SYNTH_FALLBACK.model}`,
@@ -499,7 +434,7 @@ describe('resolveUnifiedLaneChain', () => {
   it('ein zäher :balanced rückt ans Ende — der Zug startet auf :speed, nie auf Cortecs', () => {
     _resetModelHealthForTests();
     recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
-    const chain = ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced'));
+    const chain = ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced'));
     expect(chain).toEqual([
       'melious/gemma-4-31b:speed',
       `mistral/${LOOP_SYNTH_FALLBACK.model}`,
@@ -512,13 +447,15 @@ describe('resolveUnifiedLaneChain', () => {
   it('ging :balanced auf dem Draht als :speed raus, fehlt die :speed-Stufe', () => {
     _resetModelHealthForTests();
     expect(
-      ids(resolveUnifiedLaneChain('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'))
+      ids(resolveLoopLaneChain('melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'))
     ).toEqual(['melious/gemma-4-31b:balanced', `mistral/${LOOP_SYNTH_FALLBACK.model}`]);
   });
 
+  // Gilt für jede Lane ausser Melious-Gemma (Panda, GreenPT, Cortecs) — Mistral
+  // steht hier, weil nur dessen Getter ohne Schlüssel baut.
   it('Mistral: die gewählte Stufe, dahinter Gemma :speed', () => {
     _resetModelHealthForTests();
-    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))).toEqual([
+    expect(ids(resolveLoopLaneChain('mistral', 'mistral-large-4'))).toEqual([
       'mistral/mistral-large-4',
       'melious/gemma-4-31b:speed',
     ]);
@@ -527,14 +464,41 @@ describe('resolveUnifiedLaneChain', () => {
   it('ein zäher Mistral bleibt vorn — die Wahl Ultra wechselt nur, wenn er schweigt', () => {
     _resetModelHealthForTests();
     recordSlowVerdict('mistral', 'mistral-large-4', 'test');
-    expect(ids(resolveUnifiedLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
+    expect(ids(resolveLoopLaneChain('mistral', 'mistral-large-4'))[0]).toBe(
       'mistral/mistral-large-4'
     );
     _resetModelHealthForTests();
   });
+});
 
-  it('ist leer für jede Lane, die nicht unified läuft', () => {
-    expect(resolveUnifiedLaneChain('cortecs', 'gemma-4-31b-it')).toEqual([]);
-    expect(resolveUnifiedLaneChain('greenpt', 'mistral-medium-3.5-128b')).toEqual([]);
+describe("getRepairWriterFallback (sibling = next stage of the writer's lane chain)", () => {
+  const sibling = (provider: string, name: string) =>
+    getRepairWriterFallback({ provider, name, model: {} as LanguageModel });
+
+  it.each([
+    ['melious', 'gemma-4-31b:balanced', 'gemma-4-31b:speed'],
+    ['mistral', 'mistral-large-4', 'gemma-4-31b:speed'],
+    ['melious', 'gemma-4-31b:speed', 'gemma-4-31b:balanced'],
+  ])('%s/%s -> %s', (provider, name, expected) => {
+    _resetModelHealthForTests();
+    const s = sibling(provider, name);
+    expect(s?.name).toBe(expected);
+    expect(s?.contextWindow).toBe(GEMMA_31B_ON_MELIOUS.contextWindow);
+  });
+
+  it('a slow :balanced writer still gets :speed, not itself', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('melious', 'gemma-4-31b:balanced', 'test');
+    expect(sibling('melious', 'gemma-4-31b:balanced')?.name).toBe('gemma-4-31b:speed');
+    _resetModelHealthForTests();
+  });
+
+  it(':speed slow behind :balanced -> Mistral Large 4 with its own window', () => {
+    _resetModelHealthForTests();
+    recordSlowVerdict('melious', 'gemma-4-31b:speed', 'test');
+    const s = sibling('melious', 'gemma-4-31b:balanced');
+    expect(s?.name).toBe(LOOP_SYNTH_FALLBACK.model);
+    expect(s?.contextWindow).toBe(262_144);
+    _resetModelHealthForTests();
   });
 });

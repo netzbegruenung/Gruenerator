@@ -257,6 +257,14 @@ export const GEMMA_31B_ON_MELIOUS_SPEED = {
   model: 'gemma-4-31b:speed',
 };
 
+/**
+ * Dieselben Gewichte über Melious' `:eco` (am 21.10.2026 an berget/SE
+ * vermittelt, siehe die Nachmessung bei GEMMA_31B_ON_CORTECS). Fährt seit
+ * 07.11.2026 die Lane „Klein" (`SMALL_ANSWER_LANE`). Werkzeug-Probe am selben
+ * Tag: 88/88, p50 734 ms, p90 2,7 s. Preis laut Tabelle unten 0,25/0,50 €.
+ */
+export const GEMMA_31B_ON_MELIOUS_ECO = 'gemma-4-31b:eco';
+
 /** Dieselben Gewichte über Cortecs, ohne Vorgabe an infercom vermittelt
  *  (Luxemburg, Verarbeitung Deutschland); `berget` steht daneben, siehe die
  *  Messung im Kopf dieser Datei.

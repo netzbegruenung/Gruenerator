@@ -32,19 +32,16 @@
  * gemessen wurde, ist damit ebenfalls weg — sie war eine Eigenschaft von
  * Ollama, nicht des Modells.
  *
- * WHAT THE FLOOR BUYS BEYOND THE NUMBER. It also keeps the split-mode PLANNER
- * inside its own window. The planner (Melious Gemma 4 31B, see LOOP_PLANNER_PRIMARY;
- * `meliousFetch` routes oversized bodies to `:speed`) does not go through `AVAILABLE_MODELS` at
- * all — nothing bounds what the loop sends it, and until now only the 32k
- * accident kept it safe. Budgeting against the SMALLEST lane keeps the history
- * under that model's window too. Anyone raising this to the resolved lane's
- * real window (262k on the Gemma lanes) must measure the planner first — a
- * needle test.
+ * WHAT THE FLOOR BUYS BEYOND THE NUMBER. It also keeps the unified lane
+ * fallbacks (`UNIFIED_LANE_FALLBACKS`, Melious Gemma `:speed`) inside their
+ * window: they take over the same message list, unpruned. Anyone raising this
+ * to the resolved lane's real window (262k on the Gemma lanes) must measure
+ * those first — a needle test.
  *
  * NOT considered: the first-token-timeout `fallback` of a single lane. The
  * single-pass, resume and notebook paths re-prune for a smaller fallback
  * window per attempt (`messagesForLane`, #4198), the loop's synth fallback
- * when it fires (`synthFallbackMessages`, #4201). A floor here would only make
+ * when it fires (`repairSiblingMessages`, #4201). A floor here would only make
  * the agentic path quietly stricter than the others for the same explicit
  * model.
  */

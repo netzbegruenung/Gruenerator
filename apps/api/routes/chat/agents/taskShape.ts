@@ -11,9 +11,7 @@
  * `detectTaskShape` is the third, orthogonal input signal next to intent and
  * complexity: deterministic (regex/structure, no model call), computed once
  * after classification, consumed by `resolveAutoSelection` as a lane override
- * on the NEUTRAL intents only. Routing a shape to Mistral Medium also flips
- * the loop to unified mode (`prefersUnifiedLoop`), so these turns skip the
- * split synth entirely.
+ * on the NEUTRAL intents only.
  *
  * Two shapes, by strength of the contract:
  *  - `code`: the answer IS machine-readable text (JSON/YAML/SQL/…, code,

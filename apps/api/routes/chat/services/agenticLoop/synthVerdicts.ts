@@ -3,8 +3,8 @@
  * lässt, und was er hinterher am Text korrigiert.
  *
  * Zwei Zeitpunkte, ein Belang:
- *  - `createAnswerValidator` läuft IM Loop (loopEngine ruft es auf der
- *    akzeptierten split-Antwort) und darf eine stille Wiederholung anordnen.
+ *  - `createAnswerValidator` läuft IM Loop (loopEngine prüft damit die
+ *    Antwort) und schickt sie zum Reparatur-Schreiber.
  *  - `finalizeAnswerText` läuft NACH dem Loop, wenn nichts mehr nachgeschrieben
  *    werden kann: dann bleibt nur, die Antwort zu beschneiden.
  *
@@ -37,9 +37,8 @@ import {
 import { type PersistedStep } from './types.js';
 
 /**
- * Output-integrity check on the accepted split answer: broken JSON,
- * mid-sentence cut-offs and a request to wait earn ONE silent synth retry
- * (loopEngine). All three shapes shipped verbatim.
+ * Output-integrity check on the loop answer: broken JSON, mid-sentence
+ * cut-offs and a request to wait send it to the repair writer (loopEngine).
  */
 export function createAnswerValidator(): (text: string) => string | null {
   return (text) => {

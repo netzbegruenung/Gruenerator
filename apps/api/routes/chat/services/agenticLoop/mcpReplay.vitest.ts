@@ -52,9 +52,12 @@ describe('buildToolObservationReplay', () => {
   });
 
   it('never leaks a step narration into the replayed model messages', () => {
-    // Narration is a UI-only field; the model must not see the announcement
-    // prose as part of cross-turn tool observations.
-    const withNarration = mcpStep({ narration: 'Ich suche jetzt nach Klima-Beschlüssen.' });
+    // Split-mode turns (#5441) persisted a UI-only `narration`; old rows still
+    // carry it, and the model must not see it in cross-turn observations.
+    const withNarration = {
+      ...mcpStep(),
+      narration: 'Ich suche jetzt nach Klima-Beschlüssen.',
+    } as PersistedStep;
     const serialized = JSON.stringify(buildToolObservationReplay([withNarration], catalog));
     expect(serialized).not.toContain('Ich suche jetzt');
     expect(serialized).not.toContain('narration');
