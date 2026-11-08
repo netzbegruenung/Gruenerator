@@ -29,12 +29,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      # No pnpm install: the sync runs on the server, and wrap-sync-result.ts
+      # needs nothing but Node 22 (type stripping). See content-sync.yml (#5452).
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
       - name: Run social media sync
         id: sync
@@ -58,7 +57,7 @@ jobs:
           WRAP_FLAGS="--id social-media --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | node apps/api/wrap-sync-result.ts $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
