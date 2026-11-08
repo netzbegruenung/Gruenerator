@@ -247,8 +247,42 @@ describe('earlier pastes in the same thread', () => {
   // #5423: in Folge-Turns stand er als „Eingefügter Text.txt (Volltext-Auszug)".
   it('an earlier paste is named as text from an earlier message, not as a file', () => {
     const out = formatThreadAttachmentsContext([row(para('ALT', 2_000))], 128_000, '', [], '');
-    expect(out).toContain('### 1. Eingefügter Text aus einer früheren Nachricht (Volltext-Auszug)');
+    expect(out).toContain('### 1. Eingefügter Text aus einer früheren Nachricht vom ');
     expect(out).not.toContain('Eingefügter Text.txt');
+  });
+
+  // Thread 68fbdea9 (02.11.2026): fünf gleich überschriebene Pastes, und auf
+  // „ganze text bitte" kam der Mail-Entwurf vom 30.10. statt des Pressespiegels.
+  it('tells earlier pastes apart by time and opening, and marks the newest', () => {
+    const at = (iso: string, text: string) => ({ ...row(text), createdAt: new Date(iso) });
+    const out = formatThreadAttachmentsContext(
+      [
+        at('2026-10-30T13:11:01Z', 'Betreff: Ihr Interview mit dem Leiter der MA 31 zur Lobau'),
+        at('2026-11-02T06:05:54Z', 'Liebe alle, anbei der LobAu-Pressespiegel Oktober 2026.'),
+      ],
+      128_000,
+      '',
+      [],
+      ''
+    );
+    expect(out).toContain(
+      '### 1. Eingefügter Text aus einer früheren Nachricht vom 30.10., 14:11, beginnt mit „Betreff: Ihr Interview mit dem Leiter der MA 31 zur Lobau“ (Volltext-Auszug)'
+    );
+    expect(out).toContain(
+      '### 2. Eingefügter Text aus einer früheren Nachricht vom 02.11., 07:05, beginnt mit „Liebe alle, anbei der LobAu-Pressespiegel Oktober 2026.“ (zuletzt eingefügt, Volltext-Auszug)'
+    );
+  });
+
+  it('survives a createdAt that came back from JSON as a string', () => {
+    const rehydrated = { ...row(para('ALT', 2_000)), createdAt: '2026-11-02T06:05:54.000Z' };
+    const out = formatThreadAttachmentsContext(
+      [rehydrated as unknown as ReturnType<typeof row>],
+      128_000,
+      '',
+      [],
+      ''
+    );
+    expect(out).toContain('vom 02.11., 07:05, beginnt mit „ALT ALT-Satz');
   });
 
   it('an older vectorized paste does not shadow the current inline one', () => {

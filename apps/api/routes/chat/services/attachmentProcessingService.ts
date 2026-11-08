@@ -49,21 +49,59 @@ export function isPastedTextAttachment(name: string, mimeType: string): boolean 
  */
 export const PASTED_TEXT_HEADING = 'Eingefügter Text (von der Person in diese Nachricht eingefügt)';
 
+/** Wie viele Zeichen vom Anfang eines eingefügten Texts seine Überschrift trägt. */
+const PASTE_OPENING_CHARS = 70;
+
+const PASTE_TIME_FORMAT = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Die ersten Worte eines eingefügten Texts, an einer Wortgrenze gekürzt. */
+export function pasteOpening(text: string): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= PASTE_OPENING_CHARS) return flat;
+  const cut = flat.slice(0, PASTE_OPENING_CHARS);
+  const space = cut.lastIndexOf(' ');
+  return `${space > PASTE_OPENING_CHARS / 2 ? cut.slice(0, space) : cut}…`;
+}
+
+/**
+ * Was einen eingefügten Text aus einem früheren Turn von den anderen
+ * unterscheidet. Jeder Paste heisst `Eingefügter Text.txt` (der Name ist F0):
+ * ohne Zeitpunkt und Anfang standen in einem Thread fünf gleich überschriebene
+ * Blöcke, und auf „ganze text bitte" nahm das Modell den Mail-Entwurf vom 30.10.
+ * statt des Pressespiegels von eben (Thread 68fbdea9, 02.11.2026).
+ */
+export interface EarlierPaste {
+  text: string;
+  createdAt: Date;
+  /** Der jüngste eingefügte Text unter den früheren. */
+  newest: boolean;
+}
+
 /**
  * Die `###`-Überschrift eines Material-Abschnitts, ohne die Rauten. `earlier`
  * gesetzt: der Abschnitt stammt aus einem früheren Turn und trägt, ob er voll
- * oder nur zusammengefasst vorliegt.
+ * oder nur zusammengefasst vorliegt. `paste` macht einen früheren eingefügten
+ * Text unterscheidbar (siehe {@link EarlierPaste}).
  */
 export function materialSectionHeading(
   name: string,
   mimeType: string,
-  earlier?: 'Volltext-Auszug' | 'Zusammenfassung'
+  earlier?: 'Volltext-Auszug' | 'Zusammenfassung',
+  paste?: EarlierPaste
 ): string {
   const pasted = isPastedTextAttachment(name, mimeType);
   if (!earlier) return pasted ? PASTED_TEXT_HEADING : `${name} (Volltext-Auszug)`;
-  return pasted
-    ? `Eingefügter Text aus einer früheren Nachricht (${earlier})`
-    : `${name} (${earlier})`;
+  if (!pasted) return `${name} (${earlier})`;
+  if (!paste) return `Eingefügter Text aus einer früheren Nachricht (${earlier})`;
+  const when = PASTE_TIME_FORMAT.format(paste.createdAt);
+  const status = paste.newest ? `zuletzt eingefügt, ${earlier}` : earlier;
+  return `Eingefügter Text aus einer früheren Nachricht vom ${when}, beginnt mit „${pasteOpening(paste.text)}“ (${status})`;
 }
 
 /**
