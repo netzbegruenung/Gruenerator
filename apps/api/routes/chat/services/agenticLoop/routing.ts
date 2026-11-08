@@ -781,7 +781,11 @@ export function compoundGenerationKind(
  * instead of its single-pass dispatcher. Migrated one kind per PR (#5456); the
  * dispatcher stays as the door while the loop is off (`loop_disabled`).
  */
-export const LOOP_ORDER_KINDS: ReadonlySet<CompoundGenerationKind> = new Set(['sheet']);
+export const LOOP_ORDER_KINDS: ReadonlySet<CompoundGenerationKind> = new Set([
+  'sheet',
+  'presentation',
+  'explainable',
+]);
 
 /**
  * A pure artefact order: the kind is ordered, the order carries no research

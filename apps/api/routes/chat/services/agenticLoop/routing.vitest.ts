@@ -1812,10 +1812,10 @@ describe('compoundGenerationKind — Explainable', () => {
     expect(compoundGenerationKind('agentic', ask)).toBe('explainable');
   });
 
-  it('leaves a plain create to the single-pass route', () => {
+  it('runs a plain create in the loop (LOOP_ORDER_KINDS, #5456)', () => {
     expect(
       compoundGenerationKind('create_explainable', 'Erstelle ein Explainable zur Schwammstadt')
-    ).toBe(null);
+    ).toBe('explainable');
   });
 
   it('honours the mention pin', () => {

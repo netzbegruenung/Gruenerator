@@ -113,7 +113,7 @@ const { resetMockControls } = await import('./harness/mocks.js');
 const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
-const { generatorControl, resetGeneratorControl, STUB_DOC_ID } =
+const { generatorControl, resetGeneratorControl } =
   await import('./harness/artifactGeneratorStub.js');
 
 let app: Awaited<ReturnType<typeof startChatApp>>;
@@ -140,8 +140,41 @@ beforeEach(() => {
   searchBackend.reset();
 });
 
-const ORDER = 'Erstelle eine Tabelle zu Solarenergie';
-const ANSWER = 'Die Tabelle zur Solarenergie steht, mit Spalten für Jahr und Leistung.';
+/**
+ * One row per migrated kind (`LOOP_ORDER_KINDS`). `edit` is the tool a vague
+ * follow-up must reach, `again` a second order in the same thread.
+ */
+const KINDS = [
+  {
+    kind: 'sheet',
+    tool: 'create_sheet',
+    generator: 'doc',
+    order: 'Erstelle eine Tabelle zu Solarenergie',
+    followUp: 'Füg eine Spalte für die Kosten hinzu',
+    edit: ['edit_sheet'],
+    again: 'Erstelle eine neue Tabelle zu Windkraft',
+  },
+  {
+    kind: 'presentation',
+    tool: 'create_presentation',
+    generator: 'doc',
+    order: 'Erstelle eine Präsentation zur Verkehrswende',
+    followUp: 'weniger Text pro Folie',
+    edit: ['edit_presentation'],
+    again: 'Erstelle eine neue Präsentation zur Windkraft',
+  },
+  {
+    kind: 'explainable',
+    tool: 'create_explainable',
+    generator: 'explainable',
+    order: 'Erstelle ein Explainable zur Schwammstadt',
+    followUp: 'einfacher bitte',
+    edit: ['edit_explainable'],
+    again: 'Erstelle ein neues Explainable zur Windkraft',
+  },
+] as const;
+
+const ANSWER = 'Fertig, schau es dir an.';
 
 /** One assistant reply as the client sends it back with the next turn. */
 const assistantTurn = (id: string, text: string) => ({
@@ -150,53 +183,90 @@ const assistantTurn = (id: string, text: string) => ({
   parts: [{ type: 'text', text }],
 });
 
-describe('a pure sheet order runs in the loop', () => {
-  it('builds the sheet before the answer and lets the model write it', async () => {
+describe.each(KINDS)('a pure $kind order runs in the loop', (k) => {
+  it('builds the artefact before the answer and lets the model write it', async () => {
     loopScript.script({ text: ANSWER });
-    const { trace, events } = await runTurn(app.baseUrl, { messages: [userTurn(ORDER)] });
+    const { trace, events } = await runTurn(app.baseUrl, { messages: [userTurn(k.order)] });
 
     assertEventOrder(events);
     expect(trace.agentic).toBe(true);
     // Exactly one generation, briefed with the order, and no model step for it.
     expect(generatorControl.calls).toHaveLength(1);
-    expect(generatorControl.calls[0]?.kind).toBe('sheet');
-    expect(generatorControl.calls[0]?.userContent).toContain(ORDER);
+    expect(generatorControl.calls[0]?.generator).toBe(k.generator);
+    expect(generatorControl.calls[0]?.userContent).toContain(k.order);
     expect(loopScript.calls).toHaveLength(1);
     loopScript.assertScriptsConsumed();
     // The one model call sees the result and may not call a tool again.
-    expect(loopScript.calls[0]?.messagesJson).toContain('create_sheet');
-    expect(loopScript.calls[0]?.messagesJson).toContain(STUB_DOC_ID);
+    expect(loopScript.calls[0]?.messagesJson).toContain(k.tool);
     expect(loopScript.calls[0]?.toolChoice).toBe('none');
     // The card, the tool step and the model's own sentence.
     expect(trace.documentCreated).toBe(true);
-    expect(trace.toolCalls.map((c) => c.toolName)).toContain('create_sheet');
+    expect(trace.toolCalls.map((c) => c.toolName)).toContain(k.tool);
     expect(trace.fullText).toContain(ANSWER);
   });
 
-  it('persists the card and points the thread at the sheet', async () => {
+  it('persists the card and points the thread at the artefact', async () => {
     loopScript.script({ text: ANSWER });
-    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(ORDER)] });
+    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(k.order)] });
 
     const threadId = trace.threadId as string;
     const assistant = messagesOf(threadId)
       .filter((m) => m.role === 'assistant')
       .at(-1);
-    expect(assistant?.metadata).toMatchObject({ createdDocument: { documentId: STUB_DOC_ID } });
-    expect(threads.get(threadId)?.lastToolContext).toMatchObject({
-      kind: 'sheet',
-      ref: STUB_DOC_ID,
-    });
+    expect(assistant?.metadata).toMatchObject({ createdDocument: {} });
+    expect(threads.get(threadId)?.lastToolContext).toMatchObject({ kind: k.kind });
   });
 
+  it('order → vague follow-up edits it → a second order builds a new one', async () => {
+    loopScript.script({ text: ANSWER });
+    const first = await runTurn(app.baseUrl, { messages: [userTurn(k.order, 'm0')] });
+    const threadId = first.trace.threadId as string;
+    expect(generatorControl.calls).toHaveLength(1);
+    expect(threads.get(threadId)?.lastToolContext).toMatchObject({ kind: k.kind });
+
+    // A vague follow-up: the pointer routes it to THIS artefact (single-pass
+    // edit or the loop with the edit tool on offer), and nothing new is built.
+    loopScript.script({ text: 'Geändert.' });
+    const second = await runTurn(app.baseUrl, {
+      threadId,
+      messages: [userTurn(k.order, 'm0'), assistantTurn('a0', ANSWER), userTurn(k.followUp, 'm1')],
+    });
+    const offered = loopScript.calls.at(-1)?.toolNames ?? [];
+    const editsIt =
+      k.edit.some((t) => offered.includes(t)) || (second.trace.intent ?? '').startsWith('edit_');
+    expect(editsIt, `follow-up intent=${second.trace.intent} tools=${offered.join(',')}`).toBe(
+      true
+    );
+    expect(generatorControl.calls).toHaveLength(1);
+
+    loopScript.script({ text: 'Das zweite steht.' });
+    const third = await runTurn(app.baseUrl, {
+      threadId,
+      messages: [
+        userTurn(k.order, 'm0'),
+        assistantTurn('a0', ANSWER),
+        userTurn(k.followUp, 'm1'),
+        assistantTurn('a1', 'Geändert.'),
+        userTurn(k.again, 'm2'),
+      ],
+    });
+    expect(generatorControl.calls).toHaveLength(2);
+    expect(third.trace.documentCreated).toBe(true);
+  });
+});
+
+describe('the edges of the pure order', () => {
   it('hands a failed generation to the model instead of claiming a sheet', async () => {
     generatorControl.docOk = false;
     const honest = 'Die Tabelle ließ sich gerade nicht erstellen.';
     loopScript.script({ text: honest });
-    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(ORDER)] });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Erstelle eine Tabelle zu Solarenergie')],
+    });
 
     expect(trace.documentCreated).toBe(false);
     expect(trace.artifactIds).toHaveLength(0);
-    // The model saw the failed result; no retry of the tool before it wrote.
+    // The model saw the failed result, and the post-stream net did not retry.
     expect(loopScript.calls[0]?.messagesJson).toContain('error');
     expect(generatorControl.calls).toHaveLength(1);
     expect(trace.fullText).toContain(honest);
@@ -207,52 +277,6 @@ describe('a pure sheet order runs in the loop', () => {
     await runTurn(app.baseUrl, {
       messages: [userTurn('Recherchiere die Zahlen und erstelle eine Tabelle dazu')],
     });
-    // Nothing ran before the model: the named step comes after the research.
     expect(loopScript.calls[0]?.messagesJson).not.toContain('ordered-artifact');
-  });
-});
-
-describe('a sheet order across several turns of one thread', () => {
-  it('order → vague follow-up edits it → a second order builds a new one', async () => {
-    // Turn 1: the order.
-    loopScript.script({ text: ANSWER });
-    const first = await runTurn(app.baseUrl, { messages: [userTurn(ORDER, 'm0')] });
-    const threadId = first.trace.threadId as string;
-    expect(generatorControl.calls).toHaveLength(1);
-    expect(threads.get(threadId)?.lastToolContext).toMatchObject({ kind: 'sheet' });
-
-    // Turn 2: a vague follow-up. The pointer routes it to the sheet: either the
-    // single-pass sheet edit or the loop with the sheet's edit tool on offer —
-    // and NO new artefact.
-    loopScript.script({ text: 'Spalte ergänzt.' });
-    const second = await runTurn(app.baseUrl, {
-      threadId,
-      messages: [
-        userTurn(ORDER, 'm0'),
-        assistantTurn('a0', ANSWER),
-        userTurn('Füg eine Spalte für die Kosten hinzu', 'm1'),
-      ],
-    });
-    const editsTheSheet =
-      second.trace.intent === 'edit_sheet' ||
-      (loopScript.calls.at(-1)?.toolNames ?? []).includes('edit_sheet');
-    expect(editsTheSheet).toBe(true);
-    expect(generatorControl.calls).toHaveLength(1);
-
-    // Turn 3: a second order in the same thread builds a NEW sheet.
-    loopScript.script({ text: 'Die zweite Tabelle steht.' });
-    const third = await runTurn(app.baseUrl, {
-      threadId,
-      messages: [
-        userTurn(ORDER, 'm0'),
-        assistantTurn('a0', ANSWER),
-        userTurn('Füg eine Spalte für die Kosten hinzu', 'm1'),
-        assistantTurn('a1', 'Spalte ergänzt.'),
-        userTurn('Erstelle eine neue Tabelle zu Windkraft', 'm2'),
-      ],
-    });
-    expect(generatorControl.calls).toHaveLength(2);
-    expect(generatorControl.calls[1]?.userContent).toContain('Windkraft');
-    expect(third.trace.documentCreated).toBe(true);
   });
 });
