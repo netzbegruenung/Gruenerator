@@ -7,7 +7,7 @@
 import { type ReactNode } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { colors, spacing } from '../../theme';
@@ -31,11 +31,9 @@ interface DraggableSplitViewProps {
   dividerHeight?: number;
 }
 
-const SPRING_CONFIG = {
-  damping: 20,
-  stiffness: 300,
-  mass: 0.5,
-};
+/** The handle widens while the divider is held — the only sign it was grabbed. */
+const HANDLE_GRABBED_SCALE = 1.5;
+const GRAB_TIMING = { duration: 150 };
 
 export function DraggableSplitView({
   topContent,
@@ -53,12 +51,17 @@ export function DraggableSplitView({
   const usableHeight = containerHeight - dividerHeight;
   const ratio = useSharedValue(initialRatio);
   const startRatio = useSharedValue(initialRatio);
+  const grabbed = useSharedValue(0);
 
   const notifyRatioChange = (newRatio: number) => {
     onRatioChange?.(newRatio);
   };
 
+  // The divider stops where the finger lets go: no momentum, no spring.
   const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      grabbed.value = withTiming(1, GRAB_TIMING);
+    })
     .onStart(() => {
       startRatio.value = ratio.value;
     })
@@ -68,8 +71,10 @@ export function DraggableSplitView({
       ratio.value = newRatio;
     })
     .onEnd(() => {
-      ratio.value = withSpring(ratio.value, SPRING_CONFIG);
       scheduleOnRN(notifyRatioChange, ratio.value);
+    })
+    .onFinalize(() => {
+      grabbed.value = withTiming(0, GRAB_TIMING);
     });
 
   const topStyle = useAnimatedStyle(() => ({
@@ -80,8 +85,8 @@ export function DraggableSplitView({
     height: usableHeight * (1 - ratio.value),
   }));
 
-  const dividerActiveStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: 1 }],
+  const handleStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: 1 + (HANDLE_GRABBED_SCALE - 1) * grabbed.value }],
   }));
 
   return (
@@ -94,10 +99,11 @@ export function DraggableSplitView({
             styles.divider,
             { height: dividerHeight },
             isDark ? styles.dividerDark : styles.dividerLight,
-            dividerActiveStyle,
           ]}
         >
-          <View style={[styles.handle, isDark ? styles.handleDark : styles.handleLight]} />
+          <Animated.View
+            style={[styles.handle, isDark ? styles.handleDark : styles.handleLight, handleStyle]}
+          />
         </Animated.View>
       </GestureDetector>
 

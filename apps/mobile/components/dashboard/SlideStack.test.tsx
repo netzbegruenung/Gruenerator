@@ -14,6 +14,7 @@ jest.mock('react-native-reanimated', () => ({
   useSharedValue: (v: number) => ({ get: () => v, set: () => {} }),
   useAnimatedStyle: () => ({}),
   withTiming: (v: number) => v,
+  withSpring: (v: number) => v,
 }));
 // Gesture Handler's worklet gestures need the Reanimated runtime too. The swipe itself
 // is a device check; here the detector passes its child through.

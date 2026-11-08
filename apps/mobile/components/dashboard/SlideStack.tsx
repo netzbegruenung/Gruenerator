@@ -6,6 +6,7 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -23,6 +24,14 @@ const SWIPE_MIN_PX = 40;
 const SWIPE_MIN_VELOCITY = 500;
 
 const FADE = { duration: 280, easing: Easing.bezier(0.23, 1, 0.32, 1) };
+/** Nach dem Loslassen: die Geschwindigkeit des Fingers trägt weiter, ohne Nachfedern. */
+const SETTLE = { duration: 350, dampingRatio: 1 };
+/**
+ * So weit (Anteil der Kartenbreite) zieht die alte Folie über den Finger hinaus
+ * weiter, und von so weit her kommt die neue — beides verblasst dabei, ein voller
+ * Weg über die Karte ist nicht nötig.
+ */
+const TRAVEL = 0.3;
 
 export interface Slide {
   key: string;
@@ -41,6 +50,9 @@ export interface Slide {
 const SlideLayer = memo(function SlideLayer({
   index,
   activeSV,
+  outgoingSV,
+  dragX,
+  outX,
   hidden,
   onMeasure,
   testID,
@@ -48,6 +60,9 @@ const SlideLayer = memo(function SlideLayer({
 }: {
   index: number;
   activeSV: SharedValue<number>;
+  outgoingSV: SharedValue<number>;
+  dragX: SharedValue<number>;
+  outX: SharedValue<number>;
   hidden: boolean;
   onMeasure: (index: number, height: number) => void;
   testID: string;
@@ -56,12 +71,22 @@ const SlideLayer = memo(function SlideLayer({
   const fade = useAnimatedStyle(() => ({
     opacity: withTiming(activeSV.get() === index ? 1 : 0, FADE),
   }));
+  // Eigener Stil: läge die Verschiebung mit im Fade, startete jedes Bild der
+  // Bewegung das `withTiming` neu, und die Überblendung käme nie an.
+  const move = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX:
+          activeSV.get() === index ? dragX.get() : outgoingSV.get() === index ? outX.get() : 0,
+      },
+    ],
+  }));
   return (
     <Animated.View
       testID={testID}
       onLayout={(e) => onMeasure(index, e.nativeEvent.layout.height)}
       // Die erste Folie bestimmt die Breite und hält die Karte offen; die übrigen liegen darüber.
-      style={[index === 0 ? null : styles.overlay, fade]}
+      style={[index === 0 ? null : styles.overlay, fade, move]}
       // Eine unsichtbare Folie nimmt weder Berührungen noch Screenreader-Fokus.
       pointerEvents={hidden ? 'none' : 'auto'}
       accessibilityElementsHidden={hidden}
@@ -100,9 +125,19 @@ export function SlideStack({
   const carousel = count > 1;
 
   const activeSV = useSharedValue(active);
+  // Die Folie, die eine Wischgeste gerade hinausträgt (sonst -1), und ihre Lage.
+  const outgoingSV = useSharedValue(-1);
+  const outX = useSharedValue(0);
+  // Lage der aktiven Folie: folgt dem Finger, solange er liegt.
+  const dragX = useSharedValue(0);
+  const width = useSharedValue(0);
   useEffect(() => {
+    // Eine Wischgeste hat den Wechsel auf dem UI-Thread schon vollzogen. Jeder
+    // andere (Punkt, Durchwechseln) blendet nur über, ohne Verschiebung.
+    if (activeSV.get() === active) return;
+    outgoingSV.set(-1);
     activeSV.set(active);
-  }, [active, activeSV]);
+  }, [active, activeSV, outgoingSV]);
 
   // Wechsel von Hand: genau eine Rückmeldung, nie beim Durchwechseln.
   const selectByHand = useCallback(
@@ -130,18 +165,36 @@ export function SlideStack({
           'worklet';
           scheduleOnRN(hold);
         })
+        .onUpdate((e) => {
+          'worklet';
+          dragX.set(e.translationX);
+        })
         .onEnd((e, success) => {
           'worklet';
-          if (!success) return;
           const far = Math.abs(e.translationX) >= SWIPE_MIN_PX;
           const fast = Math.abs(e.velocityX) >= SWIPE_MIN_VELOCITY;
-          if (far || fast) scheduleOnRN(swipe, e.translationX < 0 ? 1 : -1);
+          if (!success || !(far || fast)) {
+            dragX.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
+            return;
+          }
+          const direction = e.translationX < 0 ? 1 : -1;
+          const side = -direction;
+          const offset = width.get() * TRAVEL;
+          // Die alte Folie verlässt den Finger mit seiner Geschwindigkeit …
+          outgoingSV.set(activeSV.get());
+          outX.set(dragX.get());
+          outX.set(withSpring(dragX.get() + side * offset, { ...SETTLE, velocity: e.velocityX }));
+          // … die neue kommt von der Gegenseite. Gleiche Rechnung wie `slideReducer`.
+          activeSV.set((((activeSV.get() + direction) % count) + count) % count);
+          dragX.set(-side * offset);
+          dragX.set(withSpring(0, { ...SETTLE, velocity: e.velocityX }));
+          scheduleOnRN(swipe, direction);
         })
         .onFinalize(() => {
           'worklet';
           scheduleOnRN(release);
         }),
-    [carousel, hold, release, swipe]
+    [carousel, count, hold, release, swipe, activeSV, outgoingSV, outX, dragX, width]
   );
 
   // Die Karte behält die Höhe der höchsten Folie, damit sie beim Wechsel nicht springt.
@@ -167,12 +220,19 @@ export function SlideStack({
   return (
     <View style={[styles.root, style]}>
       <GestureDetector gesture={pan}>
-        <View style={{ minHeight: tallest }}>
+        <View
+          // Die wandernde Folie bleibt in der Karte.
+          style={[styles.track, { minHeight: tallest }]}
+          onLayout={(e) => width.set(e.nativeEvent.layout.width)}
+        >
           {slides.map((slide, i) => (
             <SlideLayer
               key={slide.key}
               index={i}
               activeSV={activeSV}
+              outgoingSV={outgoingSV}
+              dragX={dragX}
+              outX={outX}
               hidden={i !== active}
               onMeasure={onMeasure}
               testID={`slide-${slide.key}`}
@@ -196,6 +256,7 @@ export function SlideStack({
 
 const styles = StyleSheet.create({
   root: { minHeight: 0 },
+  track: { overflow: 'hidden' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   footer: { flexDirection: 'row', alignItems: 'center' },
 });
