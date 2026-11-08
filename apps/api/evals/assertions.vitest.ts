@@ -682,6 +682,30 @@ describe('narrationMatchesAction — behauptete oder angekündigte Aktion ohne E
     expect(names(rs)['narrationMatchesAction']).toBe(false);
   });
 
+  it('fällt, wenn die Antwort eine Bearbeitung behauptet, deren Aufruf scheiterte (#5451)', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [{ toolName: 'edit_explainable', ok: false } as ChatTrace['toolCalls'][number]],
+        fullText:
+          'Das Explainable wurde angepasst und ist nun einfacher formuliert. (Die Erklärbilder werden gerade noch generiert.)',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(false);
+  });
+
+  it('besteht, wenn die Antwort den gescheiterten Aufruf ehrlich meldet', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [{ toolName: 'edit_explainable', ok: false } as ChatTrace['toolCalls'][number]],
+        fullText:
+          'Die Erklärbilder werden gerade noch gemalt – bitte versuche es gleich noch einmal, dann kann ich die Anpassung vornehmen.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
   it('fällt, wenn der Text um Geduld für Arbeit bittet, die nie kommt', () => {
     const rs = runAssertions(
       trace({

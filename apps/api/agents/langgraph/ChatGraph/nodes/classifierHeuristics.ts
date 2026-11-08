@@ -15,6 +15,7 @@
 
 import { findBestMatch, isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { compoundGenerationKind } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -1375,7 +1376,12 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'allow',
     requiresTabularAttachment: true,
     guard: 'none',
-    match: (m) => isTabularComputeQuestion(m.lower),
+    // An order to BUILD something from the file („Erstelle daraus eine Tabelle …
+    // pro 10.000 Einwohner") is a creation turn: its measure words made it an
+    // aggregation question, and the order was answered with a table in the
+    // chat (live 08.11.2026). Same predicate as `tier2_attachment_create_order`.
+    match: (m) =>
+      isTabularComputeQuestion(m.lower) && compoundGenerationKind('produktion', m.stripped) == null,
     result: (m) => ({
       intent: 'compute',
       searchQuery: m.raw,

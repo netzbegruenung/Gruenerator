@@ -525,6 +525,19 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('lets a creation order over an attached spreadsheet build instead of compute', () => {
+    // Live 08.11.2026: „pro 10.000 Einwohner" made the order an aggregation.
+    const order = heuristicClassify(
+      'Erstelle daraus eine Tabelle zum Bearbeiten, mit Gemeinde, Einwohner und Unfällen pro 10.000 Einwohner',
+      { hasTabularAttachment: true }
+    );
+    expect(order.intent).toBe('create_sheet');
+    const question = heuristicClassify('Wie viele Radunfälle pro 10.000 Einwohner hat Seefeld?', {
+      hasTabularAttachment: true,
+    });
+    expect(question.intent).toBe('compute');
+  });
+
   it('does NOT fire the tabular compute rule without an attached spreadsheet', () => {
     const result = heuristicClassify('produkt mit höchstem gesamtgewinn?');
     expect(result.intent === 'compute' && result.reasoning.includes('Tabular aggregation')).toBe(

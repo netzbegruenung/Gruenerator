@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 439 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 442 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -13,16 +13,16 @@
 
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
-anchor                            0    0.0 %     0
-artifact                         49   11.2 %     0
-gated                            21    4.8 %     0
-loop                            352   80.2 %     7
-prose                            17    3.9 %     0
+anchor                            1    0.2 %     0
+artifact                         51   11.5 %     0
+gated                            20    4.5 %     0
+loop                            353   79.9 %     7
+prose                            17    3.8 %     0
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
-(ohne Tier-Eintrag: 11 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (428)
+(ohne Tier-Eintrag: 12 — Tier-1/2-Zweige journalisieren nicht)
+classifier.tier  (430)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -43,7 +43,7 @@ classifier.tier  (428)
     tier2.95_ambiguous_graphic    3
     tier3_short_message           1
     tier3_short_message_to_loop    5
-    tier3_heuristic              63
+    tier3_heuristic              65
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.4_own_notebook          4
@@ -84,13 +84,13 @@ edit_current_doc                  0  anchor
 edit_current_board                0  anchor
 modify_board                      0  anchor
 share_doc                         0  gated
-create_sheet                      8  artifact
-edit_sheet                        0  anchor
+create_sheet                     10  artifact
+edit_sheet                        1  anchor
 create_presentation               5  artifact
 create_pdf                        0  artifact
 create_explainable                2  artifact
 create_recurring_task             0  retired
-chat_history                      1  gated
+chat_history                      1  loop
 mcp                               0  retired
 produktion                       13  prose
 direct                            0  prose

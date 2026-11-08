@@ -159,7 +159,7 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     }
   });
 
-  it('lässt genau research und agentic aus', () => {
+  it('lässt genau research, chat_history und agentic aus', () => {
     // Der Rest der Aussage — und der Grund, warum diese Menge NICHT abgeleitet
     // wird. Jede der beiden Ausnahmen hat ihren eigenen Grund:
     //  - `research` behält seinen Namen bis ins Residual und damit den Zwang
@@ -180,7 +180,9 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     const notDemotable = [...intentsWithDisposition('loop')].filter(
       (id) => !DEMOTABLE_HEURISTIC_INTENTS.has(id)
     );
-    expect(sorted(notDemotable)).toEqual(['agentic', 'research']);
+    // `chat_history` (seit 11/2026 `loop`, #5456) aus demselben Grund wie
+    // `research`: sein Name trägt den erzwungenen ersten Aufruf `search_threads`.
+    expect(sorted(notDemotable)).toEqual(['agentic', 'chat_history', 'research']);
     expect(dispositionOf('umfragen')).toBe('retired');
     expect(SYSTEM_TOOL_INTENTS.has('umfragen')).toBe(true);
     // Derselbe Weg für den Dauerauftrag (09/2026): das Werkzeug heißt
@@ -206,7 +208,7 @@ describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Dispositio
     expect(missing('prose')).toEqual([]);
     expect(missing('artifact')).toEqual([]);
     expect(missing('anchor')).toEqual(['edit_current_board', 'edit_current_doc', 'edit_sheet']);
-    expect(missing('gated')).toEqual(['chat_history', 'hilfe', 'scrape_url']);
+    expect(missing('gated')).toEqual(['hilfe', 'scrape_url']);
   });
 
   it('trägt keinen Intent, den es nicht gibt', () => {

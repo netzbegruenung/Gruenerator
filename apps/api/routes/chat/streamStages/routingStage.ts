@@ -33,6 +33,7 @@ import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.
 import { editToolNameFor } from '../services/agenticLoop/types.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
 import { orderText } from '../services/orderText.js';
+import { isPdfEditAsk } from '../services/pdfEditContext.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { looksLikeSharepicOrder } from '../services/sharepicEditHeuristics.js';
@@ -186,9 +187,12 @@ export function runRoutingStage({
       stateHasSharepic(classifiedState) &&
       looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
     threadHasSharepic: stateHasSharepic(classifiedState),
+    editsThreadPdf:
+      classifiedState.lastToolContext?.kind === 'pdf' && isPdfEditAsk(lastUserTextNoMentions),
     threadWorksOnSharepic: sharepicInProgress,
+    artifactEditOrder: classifiedState.artifactEditOrder === true,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
-    acceptedOffer: classifiedState.acceptedOfferKind != null,
+    acceptedOfferKind: classifiedState.acceptedOfferKind ?? null,
   });
 
   if (plan.compoundGenerationKind) {

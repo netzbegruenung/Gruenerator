@@ -59,7 +59,7 @@ import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js'
 import { decideFirstStep, isMcpCapabilityQuestion } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
-import { createEnsureOwedTools } from './loopGuarantees.js';
+import { createEnsureOwedTools, runOrderedArtifact } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { resolveLoopLanes } from './loopLanes.js';
 import { createAnswerEmitter } from './loopSse.js';
@@ -68,7 +68,7 @@ import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
-import { rewritesSuppliedText } from './routing.js';
+import { isPureArtifactOrder, rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
@@ -78,7 +78,7 @@ import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { toolResultBudget } from './toolResultBudgets.js';
 import { type ToolScope } from './toolScope.js';
-import { buildToolUsageBlock } from './toolUsageBlock.js';
+import { buildToolUsageBlock, NOTEBOOK_BARE_TOPIC_NOTE } from './toolUsageBlock.js';
 import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
 import {
   type PendingAskRequest,
@@ -545,7 +545,7 @@ export async function streamAgenticResponse(
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
@@ -570,19 +570,27 @@ export async function streamAgenticResponse(
 
     synthName = resolution.modelName;
 
-    const ensureOwedTools = createEnsureOwedTools({
+    const guaranteeContext = {
       state: finalState,
       messages,
       tools,
       sourceRegistry,
       sse,
-      recordStep: (step) => steps.push(step),
+      recordStep: (step: PersistedStep) => steps.push(step),
       wrappedTools: wrapped,
       calledToolNames: () => steps.map((s) => s.toolName),
       answerText: () => emitter.text,
-      onInfo: (m) => log.info(m),
-      onWarn: (m) => log.warn(m),
-    });
+      onInfo: (m: string) => log.info(m),
+      onWarn: (m: string) => log.warn(m),
+    };
+    const ensureOwedTools = createEnsureOwedTools(guaranteeContext);
+    // A pure order builds its artefact before the stream; the model only writes.
+    const orderedArtifactReplay = isPureArtifactOrder(
+      finalState.compoundGenerationKind,
+      lastUserText
+    )
+      ? await runOrderedArtifact(guaranteeContext)
+      : [];
 
     const firstStep = await decideFirstStep({
       state: finalState,
@@ -684,7 +692,7 @@ export async function streamAgenticResponse(
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
-      messages: spliceToolReplay(turnMessages, toolReplayMessages),
+      messages: [...spliceToolReplay(turnMessages, toolReplayMessages), ...orderedArtifactReplay],
       // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").

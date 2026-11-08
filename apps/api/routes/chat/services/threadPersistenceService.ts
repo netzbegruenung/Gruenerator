@@ -14,7 +14,6 @@ import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
 import { toJsonbParam, toTextParam } from './jsonbParam.js';
-import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import {
   type ThreadMentionRefs,
@@ -22,7 +21,13 @@ import {
   parseThreadMentionRefs,
 } from './threadMentionRefs.js';
 import { parseThreadNotebookSources } from './threadNotebookSources.js';
-import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
+import {
+  type ArtifactMetadataShape,
+  ROW_WINDOW,
+  toArtifacts,
+  toSources,
+  toToolSteps,
+} from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
@@ -749,78 +754,6 @@ export async function listThreadArtifacts(
   limit = 4
 ): Promise<ThreadToolContext[]> {
   return toArtifacts((await readThreadToolRows(threadId)).rows, limit);
-}
-
-function toArtifacts(rows: ThreadToolRow[], limit: number): ThreadToolContext[] {
-  const artifacts: ThreadToolContext[] = [];
-  const seen = new Set<string>();
-  for (const row of rows.slice(0, ROW_WINDOW.artifacts)) {
-    const artifact = artifactFromMessageMetadata(row);
-    if (!artifact) continue;
-    // Two turns editing the same document are one artifact. A sharepic carries
-    // no stable id across turns, so its kind alone dedupes — the thread's
-    // sharepic is a single editable thing, not one per refinement.
-    const key = `${artifact.kind}:${artifact.ref ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    artifacts.push(artifact);
-    if (artifacts.length >= limit) break;
-  }
-  return artifacts;
-}
-
-interface ArtifactMetadataShape {
-  generatedImage?: { url?: string; prompt?: string } | null;
-  createdDocument?: { documentId?: string; title?: string; subtype?: string } | null;
-  toolCalls?: Array<{
-    toolName?: string;
-    result?: { variants?: Array<{ initialProps?: Record<string, unknown> }> };
-  }> | null;
-}
-
-/** The one artifact an assistant message produced, or null for a plain turn. */
-function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
-  if (!meta || typeof meta !== 'object') return null;
-  const m = meta as ArtifactMetadataShape;
-
-  const imageUrl = m.generatedImage?.url;
-  if (typeof imageUrl === 'string' && imageUrl) {
-    return { kind: 'image', ref: imageUrl, label: labelOf(m.generatedImage?.prompt) };
-  }
-
-  const variant = sharepicVariantCall(m.toolCalls)?.result?.variants?.[0];
-  if (variant) {
-    const p = variant.initialProps ?? {};
-    const text = [p['line1'], p['line2'] ?? p['accent'], p['line3'], p['quote'], p['header']]
-      .filter((v): v is string => typeof v === 'string' && v.length > 0)
-      .join(' ');
-    return { kind: 'sharepic', ref: null, label: labelOf(text) };
-  }
-
-  const doc = m.createdDocument;
-  if (doc?.documentId) {
-    const sub = doc.subtype ?? '';
-    const kind = sub.startsWith('presentation')
-      ? 'presentation'
-      : sub.startsWith('sheet')
-        ? 'sheet'
-        : sub.startsWith('pdf')
-          ? 'pdf'
-          : // Live 11.10.2026: an explainable read as a document, so the
-            // explainable tools never mounted and read_document got its id.
-            sub.startsWith('explainable')
-            ? 'explainable'
-            : 'document';
-    return { kind, ref: doc.documentId, label: labelOf(doc.title) };
-  }
-  return null;
-}
-
-/** Short, single-line label for prompt injection; null when there is nothing to show. */
-function labelOf(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const clean = value.replace(/\s+/g, ' ').trim();
-  return clean ? clean.slice(0, 60) : null;
 }
 
 /**

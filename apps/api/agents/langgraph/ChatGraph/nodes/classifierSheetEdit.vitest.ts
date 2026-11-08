@@ -83,6 +83,29 @@ describe('Tier 2.7 — Folgeauftrag auf die letzte Tabelle', () => {
     expect(result.sheetEditId).toBe('sheet-1');
   });
 
+  // Live 08.11.2026: CSV im Thread UND eine im Chat erstellte Tabelle. „füg …
+  // hinzu" schrieb eine neue CSV-Datei; bearbeitet werden soll die Tabelle.
+  it('greift auch, wenn eine Tabellendatei im Thread hängt', async () => {
+    const result = await classifierNode(
+      buildState('Zurück zur Tabelle: füg eine Spalte Radbudget pro Einwohner hinzu', {
+        lastToolContext: AFTER_SHEET,
+        hasTabularAttachment: true,
+      })
+    );
+    expect(result.intent).toBe('edit_sheet');
+    expect(result.sheetEditId).toBe('sheet-1');
+  });
+
+  it('eine Rechenfrage zur Datei bleibt bei der Datei, auch mit Tabelle im Thread', async () => {
+    const result = await classifierNode(
+      buildState('Wie viele Radunfälle pro 10.000 Einwohner hat Seefeld?', {
+        lastToolContext: AFTER_SHEET,
+        hasTabularAttachment: true,
+      })
+    );
+    expect(result.intent).not.toBe('edit_sheet');
+  });
+
   it('steht still, wenn der Turn eine Tabellenaktion ausschließt', async () => {
     const result = await classifierNode(
       buildState('Mach die erste Zeile fett, aber keine Tabellenaktion', {

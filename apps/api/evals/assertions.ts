@@ -68,9 +68,9 @@ const CLAIMED_WORK_RE =
  *  search turn may truthfully say "ich habe recherchiert"). Needs an artifact
  *  noun in the text: "Ich habe den Absatz angepasst:" is prose, not a claim. */
 const CLAIMED_ACTION_RE =
-  /ich habe (?:\S+\s+){0,6}?(?:eingefügt|eingetragen|ergänzt|geändert|angepasst|erstellt|bearbeitet|aktualisiert|gespeichert|gekürzt|entfernt|ersetzt|hinzugefügt)|(?:ist|sind) (?:nun|jetzt) (?:fertig|angepasst|aktualisiert|eingefügt)|habe ich (?:\S+\s+){0,6}?(?:eingefügt|geändert|angepasst|erstellt|aktualisiert)/i;
+  /ich habe (?:\S+\s+){0,6}?(?:eingefügt|eingetragen|ergänzt|geändert|angepasst|erstellt|bearbeitet|aktualisiert|gespeichert|gekürzt|entfernt|ersetzt|hinzugefügt)|(?:ist|sind) (?:nun|jetzt) (?:fertig|angepasst|aktualisiert|eingefügt)|(?:wurde|wurden) (?:\S+\s+){0,3}?(?:angepasst|geändert|aktualisiert|gekürzt|ergänzt|überarbeitet|vereinfacht)|habe ich (?:\S+\s+){0,6}?(?:eingefügt|geändert|angepasst|erstellt|aktualisiert)/i;
 const ARTIFACT_NOUN_RE =
-  /sharepic|variante|bild|grafik|dokument|pr(?:ä|ae)sentation|tabelle|board|pdf|datei|folie|karussell/i;
+  /sharepic|variante|bild|grafik|dokument|pr(?:ä|ae)sentation|tabelle|board|pdf|datei|folie|karussell|explainable|erkl(?:ä|ae)rseite/i;
 /** Tools whose call IS the action; a claim after one of them is for the judge, not a mechanical fail. */
 const ACTION_TOOL_RE =
   /^(?:create_|edit_document$|edit_current_sharepic$|edit_sharepic$|edit_sheet$|edit_presentation$|edit_explainable$|edit_document_text$|sharepic$|generate_image$|image_edit$|social_post$)/;
@@ -379,7 +379,9 @@ export function runAssertions(
 
   if (expect.narrationMatchesAction) {
     const actionHappened = hasActionEvent(trace);
-    const actionToolRan = trace.toolCalls.some((t) => ACTION_TOOL_RE.test(t.toolName));
+    // A FAILED action call is no cover: „wurde angepasst" after `edit_explainable`
+    // ok=false claims an edit that never happened (#5451).
+    const actionToolRan = trace.toolCalls.some((t) => ACTION_TOOL_RE.test(t.toolName) && t.ok);
     const denial = trace.fullText.match(ACTION_DENIAL_RE);
     const claimed = trace.fullText.match(CLAIMED_WORK_RE);
     const claimedAction = claimsArtifactAction(trace.fullText)

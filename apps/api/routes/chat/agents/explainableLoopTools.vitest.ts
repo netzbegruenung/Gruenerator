@@ -64,6 +64,17 @@ describe('edit_explainable', () => {
     );
   });
 
+  it('says plainly that nothing changed when the revision fails (#5451)', async () => {
+    mocks.reviseExplainable.mockResolvedValue({
+      status: 'failed',
+      message: 'Die Erklärbilder werden gerade noch gemalt.',
+    });
+    const out = await run(edit(stateWith('einfacher bitte')), { anweisung: 'x', confirm: false });
+    expect(out.error).toBe('Die Erklärbilder werden gerade noch gemalt.');
+    expect(out.geaendert).toBe(false);
+    expect(out.antwortregel).toMatch(/NICHTS wurde geändert/);
+  });
+
   it('edits the explainable that holds the quoted section, whatever id the model passed', async () => {
     mocks.getOwnExplainable.mockImplementation(async (_u, id) => ({
       content: id === 'e-co2' ? { sections: [{ heading: 'Was passiert mit dem Geld?' }] } : {},

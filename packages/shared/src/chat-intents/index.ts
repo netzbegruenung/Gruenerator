@@ -624,6 +624,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Frühere Chats nach Inhalten durchsuchen',
       avatar: '🕘',
       backgroundColor: '#4B5563',
+      pinsTool: 'search_threads',
     },
   },
   // Stillgelegt (10/2026, #4043). Seit #4040 montiert ein Konnektor nur, wenn
