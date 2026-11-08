@@ -359,8 +359,11 @@ const CREATIVE_FORM_RE =
 const REGENERATE_RE =
   /\b(nochmal|noch\s+einmal|erneut|nochmals)\b[^.?!]*\b(auf\s+(englisch|deutsch|franz[öo]sisch|spanisch|italienisch|t[üu]rkisch)|k[üu]rzer|l[äa]nger|anders|f[öo]rmlicher|freundlicher|einfacher|in\s+stichpunkten)\b/i;
 
+// The bare imperatives („kürz das", „verkürz", „straff das") are the usual chat
+// form and were missing (#5476). Bound by `\b` right after the ASCII stem end,
+// so „kürzlich" stays out.
 const REWRITE_TARGET_RE =
-  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(?:verk[üu]rz|k[üu]rz|straff)\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
 
 // The umlaut-initial rewrite verbs, split out of REWRITE_TARGET_RE because they
 // were DEAD there: `\b` before `ü` is no word boundary without the `u` flag (the
