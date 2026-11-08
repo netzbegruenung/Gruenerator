@@ -17,6 +17,7 @@ import {
   announcesPendingWork,
   asksUserToWait,
   containsBrokenJsonPayload,
+  claimsAbsenceWithoutSearching,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   stripFabricatedArtifactDelivery,
@@ -206,6 +207,15 @@ export function finalizeAnswerText(input: {
   ) {
     warnings.push(
       `[Agentic] Answer denies being able to search although ${input.stepCount} step(s) gathered ${input.sourceCount} source(s) — synth prompt read as a capability limit`
+    );
+  }
+
+  // #5458: Abwesenheitsbehauptung ohne einen einzigen Werkzeugaufruf. Nur Zähler;
+  // enthält auch reine Paste-Fragen („Kommt im Text eine Frist vor?"), die
+  // legitim ohne Suche beantwortet werden.
+  if (claimsAbsenceWithoutSearching(text, { toolCalls: input.stepCount })) {
+    warnings.push(
+      `[Agentic] absence claim without searching (#5458) — ${input.stepCount} tool call(s): ${JSON.stringify(text.trim().slice(0, 100))}`
     );
   }
 
