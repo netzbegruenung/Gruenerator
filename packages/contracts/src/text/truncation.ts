@@ -74,9 +74,24 @@ function endsInList(trimmed: string): boolean {
   return LIST_ITEM_RE.test(last) && LIST_ITEM_RE.test(previous) && last.length <= LIST_ITEM_MAX;
 }
 
+const CONTACT_TAIL_RE = /(?:\S+@[\w-]+(?:\.[\w-]+)+|(?:https?:\/\/|www\.)\S+)$/u;
+const CONTACT_LINE_MAX = 120;
+
+/**
+ * A press release ends on its contact line ("Kontakt: Pressestelle …,
+ * presse@…"), a post or answer on a link. Both end on a letter and are
+ * finished: live 08.11.2026 a verbatim press release was rewritten twice for
+ * nothing, 43 s instead of 12 (#5477). Only a short last line counts — a long
+ * one is a sentence that can be cut after an address like any other.
+ */
+function endsInContactLine(trimmed: string): boolean {
+  const last = trimmed.slice(trimmed.lastIndexOf('\n') + 1).trim();
+  return last.length <= CONTACT_LINE_MAX && CONTACT_TAIL_RE.test(last);
+}
+
 export function looksCutOff(text: string): boolean {
   const trimmed = text.trimEnd();
   if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
   if (!/[\p{L}\p{N}]$/u.test(trimmed)) return false;
-  return !endsInClosingBlock(trimmed) && !endsInList(trimmed);
+  return !endsInClosingBlock(trimmed) && !endsInList(trimmed) && !endsInContactLine(trimmed);
 }
