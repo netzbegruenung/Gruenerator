@@ -311,6 +311,8 @@ describe('runClarificationLoopResume — Erfolg', () => {
         pendingId: 'msg-1',
       })
     );
+    const [params] = suspendClarMock.mock.calls[0] as unknown as [{ priorSteps: object[] }];
+    expect(params.priorSteps[0]).not.toHaveProperty('textOffset');
     expect(finalizeMock).not.toHaveBeenCalled();
     expect(generateTitleMock).not.toHaveBeenCalled();
   });

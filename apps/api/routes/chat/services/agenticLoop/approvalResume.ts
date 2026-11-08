@@ -139,6 +139,9 @@ export async function runToolApprovalResume(params: {
 
     // Eine Blase: die pausierte Zeile wird fortgeschrieben, nicht ergänzt.
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
+    // Die Versätze zeigen in die Fortsetzung, nicht in die zusammengeführte Blase
+    // (#5442) — wie in loopResumeEnd fallen lassen, dann lädt sie karten-zuerst.
+    if (stored.partialText.trim()) for (const step of outcome.steps) delete step.textOffset;
 
     // Die entschiedene Freigabe als eigene Größe: jede weitere Pause schreibt
     // sie in die pausierte Nachricht (sonst verschwindet die Karte beim
