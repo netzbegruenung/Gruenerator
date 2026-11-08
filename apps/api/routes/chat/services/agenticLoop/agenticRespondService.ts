@@ -314,6 +314,7 @@ export async function streamAgenticResponse(
       ...(toolAllowlist ? { toolAllowlist } : {}),
       threadId: threadId ?? null,
       toolHistory: toolHistory ?? null,
+      ...(params.resumeApproval && { resumedSteps: params.resumeApproval.priorSteps }),
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
