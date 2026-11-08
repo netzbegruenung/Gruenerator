@@ -22,6 +22,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 
 import { MAX_SOURCES } from './agenticLoop/loopGuards.js';
+import { documentContextKind } from './artifactGeneration.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { offerToRecord } from './artifactOffer.js';
 import {
@@ -285,24 +286,15 @@ function deriveToolContext(p: {
   if (p.generatedImage) return { kind: 'image' };
   if (p.sharepicVariants.length > 0) return { kind: 'sharepic' };
   if (p.createdDocument) {
-    const sub = p.createdDocument.subtype;
-    // 'pdf' must be matched BEFORE the 'document' default. Without it a created
-    // PDF was stored as {kind:'document', ref:'<uuid>.pdf'}, and the classifier's
-    // Tier-2.7 doc-edit gate then emitted modify_doc carrying an asset FILE NAME
-    // where a collaborative-document UUID was expected.
-    const kind = sub.startsWith('presentation')
-      ? 'presentation'
-      : sub.startsWith('sheet')
-        ? 'sheet'
-        : sub.startsWith('pdf')
-          ? 'pdf'
-          : // Same reason as 'pdf': the ref is an explainable id, not a
-            // collaborative-document UUID, so no doc-edit gate may see it.
-            sub === 'explainable'
-            ? 'explainable'
-            : 'document';
-    return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
+    return {
+      kind: documentContextKind(p.createdDocument.subtype),
+      ref: p.createdDocument.documentId,
+      label: p.createdDocument.title,
+    };
   }
+  // A loop board turn — the single-pass door points here too (BOARD_SPEC).
+  const board = p.finalState.createdBoard;
+  if (board) return { kind: 'board', ref: board.boardId, label: board.title };
   const mcpStep = p.agenticSteps?.find((s) => s.serverName);
   // Hier stand `intent === 'mcp'`. Seit #4043 ist ein Konnektor-Turn `agentic`
   // mit `mcpServerScope`; nur an `agentic`, weil `@notion @beispiele` als
@@ -594,8 +586,10 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       createdDocument: createdDocument ?? null,
       agenticSteps,
     });
+    // Awaited like `rememberArtifact`: the next turn's classifier reads this
+    // pointer, so it must land before the stream closes.
     if (toolContext) {
-      void setThreadToolContext(threadId, toolContext).catch((err) =>
+      await setThreadToolContext(threadId, toolContext).catch((err) =>
         log.warn('[ChatGraph] Failed to persist thread tool context:', err)
       );
     }
@@ -856,8 +850,10 @@ export async function persistResumedResponse(params: {
       sharepicVariants: params.sharepicVariants ?? [],
       createdDocument: params.createdDocument ?? null,
     });
+    // Awaited like `rememberArtifact`: the next turn's classifier reads this
+    // pointer, so it must land before the stream closes.
     if (toolContext) {
-      void setThreadToolContext(threadId, toolContext).catch((err) =>
+      await setThreadToolContext(threadId, toolContext).catch((err) =>
         log.warn('[ChatGraph:Resume] Failed to persist thread tool context:', err)
       );
     }
