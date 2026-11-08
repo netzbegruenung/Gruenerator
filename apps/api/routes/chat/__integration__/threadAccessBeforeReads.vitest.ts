@@ -76,7 +76,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
-const { threadReads } = await import('./harness/fakeThreadStore.js');
+const { threadReads, threads, messages } = await import('./harness/fakeThreadStore.js');
 const { threadAccess } = await import('./harness/mocks.js');
 
 const suite = useChatApp();
@@ -127,13 +127,63 @@ describe('thread access is checked before any thread read', () => {
     const foreignId = await seedThread();
     threadAccess.allow = false;
 
-    const turn = await runTurn(suite.baseUrl(), {
-      threadId: foreignId,
-      messages: [emptyUserTurn('m1'), assistantTurn('Antwort', 'm2'), userTurn('Und 2028?', 'm3')],
-    });
+    // Prior turns in the body: a real conversation, so the send is refused
+    // (#5471) rather than recovered onto a history-less thread.
+    await runTurn(
+      suite.baseUrl(),
+      {
+        threadId: foreignId,
+        messages: [
+          emptyUserTurn('m1'),
+          assistantTurn('Antwort', 'm2'),
+          userTurn('Und 2028?', 'm3'),
+        ],
+      },
+      { expectError: true }
+    );
 
     expect(readsOf(foreignId)).toEqual([]);
-    // The turn recovered onto a fresh thread of its own.
+  });
+
+  it('refuses a send with prior turns to an unwritable thread: error, no new thread', async () => {
+    const foreignId = await seedThread();
+    threadAccess.allow = false;
+    const threadsBefore = threads.size;
+    const messagesBefore = messages.size;
+
+    const turn = await runTurn(
+      suite.baseUrl(),
+      {
+        threadId: foreignId,
+        messages: [
+          userTurn(FIRST_QUESTION, 'm1'),
+          assistantTurn('Antwort', 'm2'),
+          userTurn('Und 2028?', 'm3'),
+        ],
+      },
+      { expectError: true }
+    );
+
+    const events = turn.events.map((e) => e.event);
+    expect(events).not.toContain('thread_created');
+    const err = turn.events.find((e) => e.event === 'error');
+    expect(err?.data).toMatchObject({ code: 'invalid_request', retryable: false });
+    expect(String((err?.data as { error: string }).error)).toContain('gelöscht');
+    expect(threads.size).toBe(threadsBefore);
+    expect(messages.size).toBe(messagesBefore);
+  });
+
+  it('still recovers a first message sent with a stale thread id onto a fresh thread', async () => {
+    const foreignId = await seedThread();
+    threadAccess.allow = false;
+
+    const turn = await runTurn(suite.baseUrl(), {
+      threadId: foreignId,
+      messages: [userTurn('Und 2028?', 'm1')],
+    });
+
+    expect(turn.events.map((e) => e.event)).toContain('thread_created');
+    expect(turn.trace.threadId).toBeTruthy();
     expect(turn.trace.threadId).not.toBe(foreignId);
   });
 
