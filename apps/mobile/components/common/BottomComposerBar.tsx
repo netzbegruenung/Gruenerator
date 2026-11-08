@@ -1,6 +1,9 @@
-import { type ReactNode, useEffect, useState } from 'react';
-import { Keyboard, Platform, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { type ReactNode } from 'react';
+import {
+  KeyboardAvoidingView,
+  useReanimatedKeyboardAnimation,
+} from 'react-native-keyboard-controller';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { spacing, typeScale } from '../../theme';
@@ -61,28 +64,27 @@ export function BottomComposerBar({
   /** Rides on top of the composer, up with the keyboard (filter chips, a hint). */
   header?: ReactNode;
 }) {
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const edge = useComposerEdge();
 
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
   // Keyboard open → collapse to the seam and let KeyboardAvoidingView lift the
-  // composer (the tab bar hides, so there is nothing left to clear). The seam is
-  // `COMPOSER_BOTTOM_INSET_RAISED` — the same number the thread's composer and the
-  // start screen's docking spacer dock onto. This bar carried its own `spacing.xsmall`
-  // from before that constant was measured, which put it 3.5dp tighter than the other
-  // two composers on the same handset.
+  // composer. The seam is `COMPOSER_BOTTOM_INSET_RAISED` — the same number the
+  // thread's composer and the start screen's docking spacer dock onto. This bar
+  // carried its own `spacing.xsmall` from before that constant was measured, which
+  // put it 3.5dp tighter than the other two composers on the same handset.
+  //
+  // `behavior="padding"` lifts the bar until its bottom meets the keyboard, so the
+  // gap above the keyboard IS this padding. It used to switch between the two
+  // numbers on `keyboardWillShow`/`keyboardDidShow` — a React render that dropped
+  // the composer 16dp in one frame (measured on a Pixel 7, 08.11.2026) and threw
+  // it back up on close. Interpolated with the keyboard's own progress on the UI
+  // thread instead, it changes with the keyboard and never in a step. Both ends
+  // are numbers computed here: the worklet must not call `typeScale`.
   const idlePadding = useTabBarClearance(spacing.xsmall);
-  const paddingBottom = keyboardVisible ? typeScale(COMPOSER_BOTTOM_INSET_RAISED) : idlePadding;
+  const raisedPadding = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
+  const keyboard = useReanimatedKeyboardAnimation();
+  const dockPadding = useAnimatedStyle(() => ({
+    paddingBottom: idlePadding + (raisedPadding - idlePadding) * keyboard.progress.get(),
+  }));
 
   return (
     // `automaticOffset`: the bar is nested below the header + inside a flex column,
@@ -94,7 +96,7 @@ export function BottomComposerBar({
       automaticOffset
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
-      <View style={[edge, { paddingBottom }]}>
+      <Animated.View style={[edge, dockPadding]}>
         {header}
         <Composer
           variant={variant}
@@ -117,7 +119,7 @@ export function BottomComposerBar({
           accessoryBesideAction={accessoryBesideAction}
           accentColor={accentColor}
         />
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
