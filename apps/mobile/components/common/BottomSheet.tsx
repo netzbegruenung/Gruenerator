@@ -63,6 +63,9 @@ function SheetModal({
   // Drag-to-dismiss on the handle row. Only there: most sheets scroll, and a
   // pan over the whole sheet would fight the ScrollView for every drag.
   const translateY = useSharedValue(0);
+  // Where the drag picked the sheet up: a sheet caught while it is still
+  // springing continues from there instead of jumping under the finger.
+  const dragStart = useSharedValue(0);
   const sheetHeight = useSharedValue(0);
   // A sheet dragged away stays off screen until the Modal is gone; the next
   // open has to start from its resting place again — before the first paint.
@@ -80,10 +83,13 @@ function SheetModal({
     const commitHaptic = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     return Gesture.Pan()
       .activeOffsetY([-8, 8])
+      .onStart(() => {
+        dragStart.set(translateY.get());
+      })
       .onUpdate((e) => {
         // Downward only: lifted above its rest the sheet would bare the page
         // under its bottom edge.
-        translateY.set(Math.max(0, e.translationY));
+        translateY.set(Math.max(0, dragStart.get() + e.translationY));
       })
       .onEnd((e) => {
         const height = sheetHeight.get();
@@ -108,7 +114,7 @@ function SheetModal({
           );
         }
       });
-  }, [onClose, translateY, sheetHeight, shown]);
+  }, [onClose, translateY, dragStart, sheetHeight, shown]);
 
   const dragStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.get() }],

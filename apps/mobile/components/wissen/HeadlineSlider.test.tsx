@@ -14,8 +14,10 @@ jest.mock('react-native-reanimated', () => ({
   default: { View: MockView, createAnimatedComponent: (c: unknown) => c },
   Easing: { bezier: () => () => 0 },
   useSharedValue: (v: number) => ({ get: () => v, set: () => {} }),
+  makeMutable: (v: number) => ({ get: () => v, set: () => {} }),
   useAnimatedStyle: () => ({}),
   withTiming: (v: number) => v,
+  withSpring: (v: number) => v,
 }));
 jest.mock('react-native-worklets', () => ({
   scheduleOnRN: (fn: (...a: unknown[]) => unknown, ...args: unknown[]) => fn(...args),
