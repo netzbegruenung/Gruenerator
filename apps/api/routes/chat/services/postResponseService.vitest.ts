@@ -339,3 +339,113 @@ describe('persistAssistantResponse — browser session', () => {
     expect(metadata.browserSession?.status).toBe('done');
   });
 });
+
+/**
+ * Two doors create the same artifacts: the single-pass `runCreateTurn` (its
+ * pointer and metadata come from the `ArtifactSpec`) and the loop's fat tools
+ * (they leave `createdDocument` / `createdPdfSpec` / `createdBoard` on the state,
+ * and this persistence derives the rest). A follow-up turn must find the same
+ * pointer whichever door built the artifact — the loop board used to leave none.
+ */
+describe('loop door persists what the single-pass spec would', async () => {
+  const {
+    BOARD_SPEC,
+    EXPLAINABLE_SPEC,
+    PDF_SPEC,
+    PRESENTATION_SPEC,
+    SHEET_SPEC,
+    makeDocumentSpec,
+  } = await import('./artifactKinds.js');
+
+  const doc = (subtype: string, documentId = 'doc-1') => ({
+    documentId,
+    title: 'Radwege',
+    subtype,
+    url: `/office/${documentId}`,
+  });
+  const pdfSpec = { kind: 'merkblatt' };
+  const board = { boardId: 'board-1', title: 'Wahlkampf', boardGeneratedStructure: {} };
+
+  type Case = {
+    name: string;
+    state: Record<string, unknown>;
+    createdDocument?: ReturnType<typeof doc>;
+    expected: { kind: string; ref: string; label: string };
+    metadata: Record<string, unknown>;
+  };
+  const pointerOf = <T>(
+    spec: { contextKind: unknown; ref(r: T): { ref: string; label: string } },
+    r: T
+  ) => ({
+    kind:
+      typeof spec.contextKind === 'function'
+        ? (spec.contextKind as (r: T) => string)(r)
+        : spec.contextKind,
+    ...spec.ref(r),
+  });
+  const pdfResult = { document: doc('pdf', 'a.pdf'), spec: pdfSpec } as never;
+  const cases: Case[] = [
+    {
+      name: 'sheet',
+      state: {},
+      createdDocument: doc('sheets'),
+      expected: pointerOf(SHEET_SPEC, doc('sheets')) as never,
+      metadata: { createdDocument: doc('sheets') },
+    },
+    {
+      name: 'presentation',
+      state: {},
+      createdDocument: doc('presentation'),
+      expected: pointerOf(PRESENTATION_SPEC, doc('presentation')) as never,
+      metadata: { createdDocument: doc('presentation') },
+    },
+    {
+      name: 'document',
+      state: {},
+      createdDocument: doc('text'),
+      expected: pointerOf(makeDocumentSpec({ intent: 'create_document' }), doc('text')) as never,
+      metadata: { createdDocument: doc('text') },
+    },
+    {
+      name: 'explainable',
+      state: {},
+      createdDocument: doc('explainable'),
+      expected: pointerOf(EXPLAINABLE_SPEC, doc('explainable')) as never,
+      metadata: { createdDocument: doc('explainable') },
+    },
+    {
+      name: 'pdf',
+      state: { createdPdfSpec: pdfSpec },
+      createdDocument: doc('pdf', 'a.pdf'),
+      expected: pointerOf(PDF_SPEC, pdfResult) as never,
+      metadata: { createdDocument: doc('pdf', 'a.pdf'), pdfSpec },
+    },
+    {
+      name: 'board',
+      state: { createdBoard: board },
+      expected: pointerOf(BOARD_SPEC, board as never) as never,
+      metadata: {},
+    },
+  ];
+
+  it.each(cases)('$name', async ({ state, createdDocument, expected, metadata }) => {
+    await persistAssistantResponse({
+      threadId: 'thread-1',
+      userId: 'user-1',
+      fullText: 'Erledigt.',
+      finalState: { ...finalState, ...state },
+      classifiedState: finalState,
+      generatedImage: null,
+      sharepicVariants: [],
+      ...(createdDocument && { createdDocument }),
+      isNewThread: false,
+      lastUserMessage: { role: 'user', content: 'x' },
+      processedMeta: [],
+      requestId: 'r1',
+      pendingMessageId: 'pending-1',
+    });
+
+    expect(setThreadToolContext).toHaveBeenCalledWith('thread-1', expected);
+    expect(finalizeAssistantMessage.mock.calls[0]![2]).toMatchObject(metadata);
+  });
+});
