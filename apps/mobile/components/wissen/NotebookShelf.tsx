@@ -11,9 +11,13 @@ import { BODY_FONT, HEADING_FONT_BOLD, useDashboardColors } from '../../theme';
 import { PressableCard } from '../dashboard/PressableCard';
 import { NotebookTile } from '../notebook/NotebookTile';
 
+import {
+  useNotebookShelves,
+  type Shelf,
+  type ShelfCollection,
+  type ShelfEntry,
+} from './useNotebookShelves';
 import { CARD_GAP } from './WissenLayout';
-
-import type { Shelf, ShelfCollection, ShelfEntry } from './useNotebookShelves';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -261,18 +265,19 @@ function ShelfBrowser({
  * Notebook öffnet direkt.
  */
 export function NotebookShelf({
-  shelves,
   onOpen,
   onCreate,
   onOwnActions,
 }: {
-  shelves: Shelf[];
   onOpen: (target: NotebookTarget) => void;
   onCreate: () => void;
   onOwnActions: (collection: ShelfCollection) => void;
 }) {
   const theme = useTheme();
   const c = useDashboardColors();
+  // Its own subscription: in the screen, each of the three notebook queries
+  // re-rendered the whole Wissen page as it arrived.
+  const { shelves } = useNotebookShelves();
   return (
     <View style={styles.section}>
       <View style={styles.header}>

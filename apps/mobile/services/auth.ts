@@ -9,6 +9,7 @@ import { getErrorMessage } from '../utils/errors';
 
 import { getGlobalApiClient, API_ENDPOINTS } from './api';
 import { type AuthSource } from './loginProviders';
+import { clearPersistedMonitorQueries } from './monitorCache';
 import { queryClient } from './queryClient';
 import { secureStorage } from './storage';
 
@@ -57,6 +58,7 @@ export function configureAuthStore(): void {
       // unter einem kontounabhängigen Schlüssel und würde den Store beim
       // nächsten Mount sofort wieder damit füllen.
       queryClient.clear();
+      void clearPersistedMonitorQueries();
       useUserProfileStore.getState().reset();
     },
 
