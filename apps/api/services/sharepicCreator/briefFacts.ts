@@ -151,16 +151,24 @@ const NEAR = 4;
  */
 const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
 
+/** A directed figure: its digits and the word after it („17 Unfälle" → `unfälle`), if any. */
+interface DirectedFigure {
+  num: string;
+  noun: string | null;
+}
+
 /** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
-function directedNumbers(text: string): string[] {
-  const found: string[] = [];
+function directedNumbers(text: string): DirectedFigure[] {
+  const found: DirectedFigure[] = [];
   for (const clause of text.split(CLAUSE_END)) {
     const tokens = clause.split(/\s+/).filter(Boolean);
     tokens.forEach((token, i) => {
       const num = token.match(NUMBER)?.[0];
       if (!num) return;
       const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
-      if (/^[+\-−–]\d/.test(token) || DIRECTION.test(window)) found.push(digits(num));
+      if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
+      const next = tokens[i + 1]?.toLowerCase().replace(/[^\p{L}]/gu, '');
+      found.push({ num: digits(num), noun: next || null });
     });
   }
   return found;
@@ -169,11 +177,22 @@ function directedNumbers(text: string): string[] {
 /**
  * Numbers of `text` that carry a direction („17 Unfälle weniger“, „−5 %“)
  * the brief does not give next to that number. The figure may be in the brief
- * — a hotspot count — and still not mean a reduction.
+ * — a hotspot count — and still not mean a reduction. The brief's direction
+ * only covers the same figure: „sank um 17 Prozent" says nothing about „17
+ * Unfälle" (review #5490), so the word after the number has to match too
+ * when both sides have one.
  */
 export function invertedNumbers(text: string, given: string): string[] {
-  const inGiven = new Set(directedNumbers(given));
-  return [...new Set(directedNumbers(text))].filter((n) => !inGiven.has(n));
+  const inGiven = directedNumbers(given);
+  const covered = (f: DirectedFigure) =>
+    inGiven.some((g) => g.num === f.num && (g.noun == null || f.noun == null || g.noun === f.noun));
+  return [
+    ...new Set(
+      directedNumbers(text)
+        .filter((f) => !covered(f))
+        .map((f) => f.num)
+    ),
+  ];
 }
 
 /** Digits glued to letters are part of a name (CO2, A7), not a figure. */

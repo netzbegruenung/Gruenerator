@@ -94,6 +94,16 @@ describe('a figure keeps its meaning in an infographic', () => {
     expect(!result.ok && result.error).toMatch(/Richtung/);
   });
 
+  // Review #5490: a direction on another „17" in the brief does not cover this one.
+  it('does not let a direction on another figure with the same number count', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 Prozent. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
   it('accepts plain figures', () => {
     const result = validateDraft(
       tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),
