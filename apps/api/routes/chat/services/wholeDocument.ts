@@ -37,6 +37,7 @@
  */
 import { isSummaryAsk } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 
+import { isPastedTextAttachment } from './attachmentProcessingService.js';
 import { CHARS_PER_TOKEN } from './messageHelpers.js';
 
 import type {
@@ -70,6 +71,66 @@ export function wholeDocumentBudgetChars(contextWindowTokens: number | undefined
   );
 }
 
+/**
+ * Ein Folgeturn ohne eigenes Material liest den JÜNGSTEN Paste des Gesprächs
+ * ganz, wenn er vektorisiert wurde und ins Budget passt (#5478). Ein Paste unter
+ * der Vektorisierungsschwelle steht ohnehin in jedem Folgeturn ganz im Prompt;
+ * darüber kam er nur noch als Passage (6.000 Zeichen) zurück. Live 08.11.2026:
+ * „Gib mir alle Termine vom Team Verkehr … Keinen weglassen" über der Liste des
+ * Vorturns lieferte 7 von 18 als „alle".
+ *
+ * Nur der jüngste, und nur wenn er der jüngste Anhang ist: ein später
+ * hochgeladenes PDF meint der Turn eher als den Paste davor, und ältere Pastes
+ * bleiben bei der Suche — sonst kostete jeder Paste jeden Folgeturn seine
+ * volle Länge.
+ */
+function latestPasteOfThread(
+  input: Pick<
+    Parameters<typeof resolveWholeDocumentTurn>[0],
+    'userText' | 'threadAttachments' | 'turnReferencesOtherMaterial'
+  >,
+  budgetChars: number
+): WholeDocumentTurn | null {
+  if (input.turnReferencesOtherMaterial) return null;
+  if (input.userText.trim().length > MESSAGE_IS_MATERIAL_CHARS) return null;
+  const latest = input.threadAttachments.filter((a) => !a.isImage).at(-1);
+  if (!latest?.documentId || !isPastedTextAttachment(latest.name, latest.mimeType)) return null;
+  const text = latest.extractedText ?? '';
+  if (text.trim().length === 0 || text.length > budgetChars) return null;
+  return {
+    origin: 'thread',
+    ask: 'paste',
+    docs: [{ name: latest.name, text, documentId: latest.documentId }],
+    chars: text.length,
+    budgetChars,
+    fits: true,
+  };
+}
+
+/**
+ * Ob die Dokument-Chat-Ids des Requests ANDERES Material wählen als die
+ * Anhänge des Gesprächs. Der Web-Client merkt sich jede Id aus
+ * `document_indexed` je Thread und schickt sie in jedem Folgeturn mit
+ * (`documentChatStore`) — sein eigener Paste kam so als „gewähltes Material"
+ * zurück, und kein Folgeturn las mehr ganz, auch keine Zusammenfassung (#5478).
+ *
+ * `windowDocIds` sind die Anhänge im Prompt-Fenster (die jüngsten fünf), das
+ * Echo des Clients ist ungedeckelt. Erst wenn eine Id außerhalb des Fensters
+ * liegt, werden alle Anhänge des Threads gefragt — sonst wäre ein alter Paste
+ * nach dem sechsten Anhang wieder „anderes Material".
+ */
+export async function picksOtherDocumentChat(
+  pickedIds: readonly string[],
+  windowDocIds: readonly string[],
+  loadAllThreadDocIds: () => Promise<readonly string[]>
+): Promise<boolean> {
+  const inWindow = new Set(windowDocIds);
+  const outside = pickedIds.filter((id) => !inWindow.has(id));
+  if (outside.length === 0) return false;
+  const own = new Set(await loadAllThreadDocIds());
+  return outside.some((id) => !own.has(id));
+}
+
 export function resolveWholeDocumentTurn(input: {
   userText: string;
   /** Die Dokument-Anhänge dieses Turns mit ihrem extrahierten Text; `pasted`
@@ -90,7 +151,8 @@ export function resolveWholeDocumentTurn(input: {
   const budgetChars = wholeDocumentBudgetChars(input.contextWindowTokens);
 
   if (!isSummaryAsk(input.userText)) {
-    if (turnDocs.length === 0 || !turnDocs.every((d) => d.pasted === true)) return null;
+    if (turnDocs.length === 0) return latestPasteOfThread(input, budgetChars);
+    if (!turnDocs.every((d) => d.pasted === true)) return null;
     const docs = turnDocs.map((d) => ({
       name: d.name,
       text: d.text,
