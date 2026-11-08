@@ -114,6 +114,25 @@ describe('threadsContractRouter.list — share metadata on the wire', () => {
     expect(sql).toContain("COALESCE((gcs.permissions->>'read')::boolean, true)");
   });
 
+  // #5465: a running (or aborted) turn ends in a NULL placeholder row. Reported
+  // as "no message", it let the client's empty-thread cleanup trash the thread.
+  it('reports a last message for a thread whose newest row has no text yet', async () => {
+    query.mockResolvedValueOnce([
+      row({ last_msg_content: null, last_msg_role: 'assistant' }),
+      row({
+        id: '550e8400-e29b-41d4-a716-446655440003',
+        last_msg_content: null,
+        last_msg_role: null,
+        last_msg_created_at: null,
+      }),
+    ]);
+
+    const parsed = z.array(threadSchema).parse(await callList());
+
+    expect(parsed[0]?.lastMessage).toMatchObject({ content: '', role: 'assistant' });
+    expect(parsed[1]?.lastMessage).toBeNull();
+  });
+
   // #4024: the aggregate notebook is named by its full collection set only.
   it('carries every collection a notebook thread asked, not just the first', async () => {
     const ids = ['grundsatz-system', 'bundestagsfraktion-system', 'gruene-de-system'];

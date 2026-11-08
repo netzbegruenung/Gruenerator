@@ -252,3 +252,31 @@ describe('delete', () => {
     expect(await deleteListedThread(null)).not.toHaveBeenCalled();
   });
 });
+
+describe('list — empty-thread cleanup', () => {
+  it('asks the server to delete only if the thread is still empty (#5465)', async () => {
+    // The list can predate a thread's first message; only the DELETE itself
+    // can check emptiness, so a user's delete and the cleanup must differ.
+    const apiClient = makeApiClient();
+    const old = (ms: number) => new Date(Date.now() - ms).toISOString();
+    apiClient.get = vi.fn().mockResolvedValue([
+      { id: 'leer-neu', agentId: 'chat', title: null, updatedAt: old(120_000), lastMessage: null },
+      {
+        id: 'leer-alt',
+        agentId: 'chat',
+        title: null,
+        updatedAt: old(3_600_000),
+        lastMessage: null,
+      },
+    ]);
+    useAgentStore.setState({ currentThreadId: null });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.list();
+
+    expect(apiClient.delete).toHaveBeenCalledTimes(1);
+    expect(apiClient.delete).toHaveBeenCalledWith(
+      '/api/chat-service/threads?threadId=leer-alt&onlyIfEmpty=true'
+    );
+  });
+});

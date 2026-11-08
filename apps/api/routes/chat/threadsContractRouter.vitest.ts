@@ -175,8 +175,8 @@ describe('delete — the Papierkorb for chat threads', () => {
     });
   }
 
-  function remove(threadId = THREAD_ID) {
-    return threadsContractRouter.delete({ req, query: { threadId } } as never);
+  function remove(threadId = THREAD_ID, extra: Record<string, string> = {}) {
+    return threadsContractRouter.delete({ req, query: { threadId, ...extra } } as never);
   }
 
   const HANDLES = [{ documentId: 'doc-a', userId: OWNER }];
@@ -236,6 +236,29 @@ describe('delete — the Papierkorb for chat threads', () => {
       'delete recall point',
     ]);
     expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  // #5465: the client's cleanup decided from a list in which a running turn's
+  // NULL placeholder made a live conversation look empty, and trashed it.
+  it('onlyIfEmpty leaves a thread with messages alone and answers 409', async () => {
+    givenDb({ owner: OWNER, hasMessages: true, deleted: [] });
+
+    const res = await remove(THREAD_ID, { onlyIfEmpty: 'true' });
+
+    expect(res).toMatchObject({ status: 409 });
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+    const del = effects.find((e) => e.startsWith('DELETE FROM chat_threads'));
+    expect(del).toContain('NOT EXISTS (SELECT 1 FROM chat_messages WHERE thread_id = $1)');
+    expect(deleteVectors).not.toHaveBeenCalled();
+  });
+
+  it('onlyIfEmpty still removes a thread that has no message', async () => {
+    givenDb({ owner: OWNER, deleted: [{ id: THREAD_ID }] });
+
+    const res = await remove(THREAD_ID, { onlyIfEmpty: 'true' });
+
+    expect(res).toMatchObject({ status: 200, body: { trashed: false } });
+    expect(effects).toContain('delete attachment vectors');
   });
 
   it('hard-deletes a doc chat even with messages — it never enters the Papierkorb', async () => {

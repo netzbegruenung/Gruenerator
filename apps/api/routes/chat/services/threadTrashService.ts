@@ -54,18 +54,48 @@ export type TrashedThreadLookup =
  */
 export type TrashThreadResult = 'trashed' | 'deleted' | 'not_found' | 'forbidden';
 
-export async function trashThread(threadId: string, userId: string): Promise<TrashThreadResult> {
+async function ownThreadRow(
+  threadId: string,
+  userId: string
+): Promise<{ doc_id: string | null } | 'not_found' | 'forbidden'> {
   if (!UUID_RE.test(threadId)) return 'not_found';
-  const db = getPostgresInstance();
-  const rows = await db.query<{ user_id: string; doc_id: string | null }>(
+  const rows = await getPostgresInstance().query<{ user_id: string; doc_id: string | null }>(
     'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
     [threadId]
   );
   if (rows.length === 0) return 'not_found';
   if (rows[0].user_id !== userId) return 'forbidden';
+  return rows[0];
+}
+
+/**
+ * The client's empty-thread cleanup. It decides from a list that can be older
+ * than the thread's first message, so the emptiness check runs inside the
+ * DELETE: a thread with any message is left alone (`not_empty`), never
+ * trashed (#5465).
+ */
+export async function deleteThreadIfEmpty(
+  threadId: string,
+  userId: string
+): Promise<'deleted' | 'not_empty' | 'not_found' | 'forbidden'> {
+  const row = await ownThreadRow(threadId, userId);
+  if (typeof row === 'string') return row;
+  const removed = await removeThread(
+    threadId,
+    `DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM chat_messages WHERE thread_id = $1) RETURNING id`,
+    [threadId]
+  );
+  return removed ? 'deleted' : 'not_empty';
+}
+
+export async function trashThread(threadId: string, userId: string): Promise<TrashThreadResult> {
+  const row = await ownThreadRow(threadId, userId);
+  if (typeof row === 'string') return row;
+  const db = getPostgresInstance();
 
   const hardDelete =
-    rows[0].doc_id !== null ||
+    row.doc_id !== null ||
     (await db.query('SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1', [threadId]))
       .length === 0;
   if (hardDelete) {
