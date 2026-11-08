@@ -98,7 +98,7 @@ export async function refineSearchQuery({
         pinned: 'standard',
         system: REFINE_PROMPT,
         prompt: userMessage,
-        maxOutputTokens: 200,
+        maxOutputTokens: 8000,
         temperature: 0.1,
         json: true,
       }),

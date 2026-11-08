@@ -129,7 +129,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       pinned: 'standard',
       system: QUALITY_PROMPT,
       prompt: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
-      maxOutputTokens: 80,
+      maxOutputTokens: 8000,
       temperature: 0.0,
       json: true,
     });

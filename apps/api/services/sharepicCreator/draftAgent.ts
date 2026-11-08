@@ -221,7 +221,7 @@ export async function draftSharepic(
       'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
     schema: NEEDS_SCHEMA,
     validate: (input) => fromZod(needsSchema, input),
-    maxOutputTokens: 800,
+    maxOutputTokens: 8000,
     label: 'sharepicCreator:needs',
   });
   if (!needs.ok) {

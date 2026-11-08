@@ -112,7 +112,7 @@ export async function expandQuery(
       prompt: historyContext
         ? `Gesprächsverlauf:\n${historyContext}\n\nAnschlussfrage: "${query}"`
         : `Suchanfrage: "${query}"`,
-      maxOutputTokens: historyContext ? (wantsAlternatives ? 200 : 80) : 100,
+      maxOutputTokens: 8000,
       temperature: 0.3,
       json: true,
       // Without a per-call bound this falls back to `env.REQUEST_TIMEOUT`
@@ -225,7 +225,7 @@ export async function extractSearchTerms(question: string): Promise<string[]> {
       pinned: 'standard',
       system: SUBJECT_TERMS_PROMPT,
       prompt: `Frage: "${question}"`,
-      maxOutputTokens: 80,
+      maxOutputTokens: 8000,
       temperature: 0,
       json: true,
       // Wie expandQuery: gemessen meist 0,4–1,5 s, einmal über 3 s.

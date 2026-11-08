@@ -69,13 +69,13 @@ const PLATFORM_TEMPERATURE: Record<string, number> = {
  * Based on platform character limits and typical content length
  */
 const PLATFORM_MAX_TOKENS: Record<string, number> = {
-  pressemitteilung: 700,
-  twitter: 120,
-  linkedin: 250,
-  facebook: 250,
-  instagram: 250,
-  reelScript: 550,
-  actionIdeas: 400,
+  pressemitteilung: 8000,
+  twitter: 8000,
+  linkedin: 8000,
+  facebook: 8000,
+  instagram: 8000,
+  reelScript: 8000,
+  actionIdeas: 8000,
 };
 
 /**
@@ -215,12 +215,12 @@ export function determineMaxTokens(options: GenerationOptions): number | null {
 
   // Social media with multiple platforms - use larger buffer
   if (type === 'social' && platforms?.length) {
-    return 800;
+    return 8000;
   }
 
   // Image picker needs limited output
   if (type === 'image_picker') {
-    return 300;
+    return 8000;
   }
 
   // Artifact types run without a cap (see UNCAPPED_TYPES).

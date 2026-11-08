@@ -82,7 +82,7 @@ export async function classifyDocsIntentTiebreak({
         pinned: 'standard',
         system: TIEBREAK_PROMPT,
         prompt: userMessage,
-        maxOutputTokens: 16,
+        maxOutputTokens: 8000,
         temperature: 0,
       }),
       TIEBREAK_TIMEOUT_MS,

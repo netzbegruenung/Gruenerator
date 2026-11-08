@@ -246,7 +246,7 @@ export async function extractDocumentMeta(
         : { ok: false, error: parsed.error.issues.map((i) => i.message).join('; ') };
     },
     temperature: 0,
-    maxOutputTokens: 800,
+    maxOutputTokens: 8000,
     label: 'docmeta',
   });
   if (!result.ok) {

@@ -382,8 +382,19 @@ export const INTERMEDIATE_LANES = {
    * FALSCHE ZAHL beim Nutzer ankommt — überall sonst wird eine schwächere
    * Antwort nur schwächer.
    *
-   * Mistral Medium 3.5 auf der Mistral-API.
-   * Gemessen (17 Fälle × 3) schlägt es beide Alternativen auf JEDER Achse:
+   * Primär ist Mistral Large 4 (`MISTRAL_LARGE`) — Entscheidung, nicht Messung.
+   * Large 4 denkt IMMER mit `reasoning_effort: "low"` (`providerInstances.ts`
+   * schreibt `none` darauf um, weil Mistral `none` für Large 4 ablehnt), und
+   * `low` kostet noch ~100–200 versteckte Tokens, die gegen `max_tokens`
+   * zählen. Sonde 08.11.2026 (Drahtkörper mitgeschnitten): mit `max_tokens`
+   * 200 scheiterte der Verifizierer mit finish_reason=length, mit 500 kam eine
+   * triviale JSON-Antwort in 3,5 s. Aufrufer dieser Stufe brauchen deshalb ein
+   * großzügiges `maxOutputTokens` (Verifizierer 8000, Codegen 16000).
+   *
+   * Die Tabelle unten ist die HISTORISCHE Messung mit Mistral Medium 3.5 auf
+   * der Mistral-API, die diese Stufe ursprünglich gewählt hat (bis 12.10.2026
+   * war Medium Primär). Gemessen (17 Fälle × 3) schlug es beide Alternativen
+   * auf JEDER Achse:
    *
    *            Treffer   p50       out-tok   mgCO₂/Aufruf
    *   Small 4   94,1 %    540 ms     68      nicht bezifferbar

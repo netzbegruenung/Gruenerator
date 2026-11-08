@@ -75,7 +75,7 @@ async function singlePassSummarize(title: string, text: string): Promise<string>
     pinned: 'heavy',
     system: SINGLE_PASS_PROMPT,
     prompt: `Dokument: "${title}"\n\n${text}`,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 8000,
     temperature: 0.2,
   });
 }
@@ -129,7 +129,7 @@ async function mapReduceSegments(title: string, segments: string[]): Promise<str
           pinned: 'heavy',
           system: MAP_PROMPT,
           prompt: `Abschnitt ${i + 1}/${segments.length} von "${title}":\n\n${segment}`,
-          maxOutputTokens: 400,
+          maxOutputTokens: 8000,
           temperature: 0.2,
         });
       } catch (error: unknown) {
@@ -159,7 +159,7 @@ async function mapReduceSegments(title: string, segments: string[]): Promise<str
     pinned: 'heavy',
     system: REDUCE_PROMPT,
     prompt: `Dokument: "${title}"\n\nTeilzusammenfassungen:\n\n${combinedInput}`,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 8000,
     temperature: 0.2,
   });
 }
@@ -196,7 +196,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
     pinned: 'heavy',
     system: CONVERSATION_SUMMARY_PROMPT,
     prompt: conversationText,
-    maxOutputTokens: 800,
+    maxOutputTokens: 8000,
     temperature: 0.2,
   });
 }

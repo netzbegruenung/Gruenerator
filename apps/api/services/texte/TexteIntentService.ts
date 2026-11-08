@@ -305,7 +305,7 @@ Antworte NUR mit JSON:
       lane: 'texte_intent_classification',
       system: 'Du bist ein präziser Texttyp-Klassifikator. Antworte NUR mit validem JSON.',
       prompt: classificationPrompt,
-      maxOutputTokens: 150,
+      maxOutputTokens: 8000,
       temperature: 0.2,
     });
 

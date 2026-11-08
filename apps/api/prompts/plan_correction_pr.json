@@ -8,7 +8,7 @@
   "generationPrompt": "Wende die folgenden Korrekturen auf den Plan an:\n\n## Aktueller Plan\n{{originalPlan}}\n\n## Gewünschte Korrekturen\n{{userCorrections}}\n\n---\n\n## AUFGABE\n\nSetze die Korrekturen präzise um:\n\n1. **Änderungen anwenden**: Nur das ändern, was explizit genannt wird\n2. **Bestehendes erhalten**: Alles andere bleibt unverändert\n3. **Ton beibehalten**: Passe Formulierungen an wenn nötig, aber halte den Stil konsistent\n\n## WICHTIGE REGELN\n\n- Ändere NUR genannte Aspekte\n- Erfinde KEINE neuen Inhalte\n- Lösche nur wenn explizit gewünscht\n- Ergänze nur wenn explizit gewünscht\n- Halte die ursprüngliche Struktur bei\n- Beachte Plattform-spezifische Vorgaben\n\n## ÄNDERUNGEN MARKIEREN\n\n- Geänderte Stellen mit \"KORRIGIERT:\" am Zeilenanfang kennzeichnen\n- Neue Abschnitte mit \"NEU:\" kennzeichnen\n\n---\n\n## FORMATIERUNG\n\nSchreibe in schönem, fließendem Markdown-Text:\n- Nutze einfache Aufzählungen mit Spiegelstrichen (-)\n- Nutze klare Überschriften und kurze Absätze\n\nVERBOTEN:\n- Markdown-Tabellen\n- Übermäßige Emoji-Nutzung\n\n---\n\n## AUSGABE\nGib den vollständigen korrigierten Plan aus, mit allen Markierungen.",
 
   "options": {
-    "max_tokens": 3000,
+    "max_tokens": 8000,
     "temperature": 0.4
   }
 }

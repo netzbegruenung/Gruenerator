@@ -113,7 +113,7 @@ describe('sampling is the same wherever the request lands', () => {
     }
   });
 
-  it('a twitter post is capped at 120 tokens on every provider', async () => {
+  it('a twitter post is capped at 8000 tokens on every provider', async () => {
     // The clearest case of the old split: capped on mistral by
     // PLATFORM_MAX_TOKENS, uncapped everywhere else — so the same post came out
     // a different length depending on which lane the fallback chain reached.
@@ -127,7 +127,7 @@ describe('sampling is the same wherever the request lands', () => {
     for (const name of PROVIDERS) {
       generateText.mockClear();
       await run(name, social);
-      expect(sentToSdk().maxOutputTokens, name).toBe(120);
+      expect(sentToSdk().maxOutputTokens, name).toBe(8000);
     }
   });
 

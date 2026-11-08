@@ -156,7 +156,7 @@ Regeln:
 - Neutral und analytisch, keine Parteinahme
 - Fließtext, keine Aufzählungen oder Überschriften`,
       temperature: 0.3,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 8000,
     });
 
     // Leerer Text ist kein SDK-Fehler, aber einer für uns: ein Modell, das sein
@@ -282,7 +282,7 @@ Analysiere die Berichterstattung und identifiziere:
 
 Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).`,
       temperature: 0.3,
-      maxOutputTokens: 1500,
+      maxOutputTokens: 8000,
     });
 
     const analysis = result.object;

@@ -137,7 +137,7 @@ describe('resolveNotebookAnswerMode — auto', () => {
     expect(aiText.mock.calls[0]![0]).toMatchObject({
       lane: 'chat_intent_classification',
       pinned: 'standard',
-      maxOutputTokens: 16,
+      maxOutputTokens: 8000,
       temperature: 0,
       prompt: 'Letzte Nachricht: "Was fordern die Quellen zum Klimaschutz?"',
     });

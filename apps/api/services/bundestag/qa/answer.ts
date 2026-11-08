@@ -220,7 +220,7 @@ export async function composeAnswer({
     system: ANSWER_SYSTEM,
     prompt,
     temperature: 0.2,
-    maxOutputTokens: 2000,
+    maxOutputTokens: 8000,
     ...(timeoutMs != null ? { timeoutMs } : {}),
   });
   const { text, invalid } = stripInvalidCitations(raw, citations.length);

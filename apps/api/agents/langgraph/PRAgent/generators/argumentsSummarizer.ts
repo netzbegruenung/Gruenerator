@@ -48,7 +48,7 @@ Halte die Zusammenfassung kurz (max. 200 Wörter), präzise und sofort nutzbar.`
           content: prompt,
         },
       ],
-      maxTokens: 500,
+      maxTokens: 8000,
       temperature: 0.3,
     });
 

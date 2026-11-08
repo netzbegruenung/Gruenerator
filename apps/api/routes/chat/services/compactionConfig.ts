@@ -23,7 +23,7 @@ const CARRY_SHARE = 0.2;
 /** Chars per token of the estimator the budgets are measured with (TokenCounter). */
 const CHARS_PER_ESTIMATED_TOKEN = 4;
 
-export const SUMMARY_MAX_TOKENS = 2000;
+export const SUMMARY_MAX_TOKENS = 8000;
 /** One summary call's transcript. The heavy lane is Gemma at 128k (budget 86,6k);
  *  a longer delta — a thread that predates these thresholds — is folded in chunks. */
 export const SUMMARY_INPUT_MAX_TOKENS = 80_000;

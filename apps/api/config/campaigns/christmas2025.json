@@ -23,7 +23,7 @@
     "options": {
       "temperature": 0.9,
       "useBedrock": true,
-      "max_tokens": 1000
+      "max_tokens": 8000
     }
   },
   "defaultResponseParser": {

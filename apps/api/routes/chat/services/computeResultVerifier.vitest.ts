@@ -36,7 +36,7 @@ describe('verifyComputeResult', () => {
     expect(call.lane).toBe('chat_compute_verify');
     expect(call.pinned).toBe('compute');
     expect(call.json).toBe(true);
-    expect(call.maxOutputTokens).toBe(200);
+    expect(call.maxOutputTokens).toBe(8000);
     expect(typeof call.timeoutMs).toBe('number');
     // Frage der Person UND Auftrag des Modells gehen mit.
     expect(String(call.prompt)).toContain('Wie hoch ist der Gesamtumsatz?');
