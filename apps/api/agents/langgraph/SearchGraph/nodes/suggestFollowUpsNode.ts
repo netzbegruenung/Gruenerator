@@ -43,7 +43,7 @@ export async function suggestFollowUpsNode(
       prompt: `Suchanfrage: "${state.searchQuery}"\nGefundene Themen: ${topTitles}`,
       // Wie queryPlannerNode: die benannte Zwischenstufe statt eines Hosts.
       pinned: 'standard',
-      maxOutputTokens: 150,
+      maxOutputTokens: 8000,
       temperature: 0.5,
     });
 

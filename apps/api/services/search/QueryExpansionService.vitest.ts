@@ -83,7 +83,7 @@ describe('expandQuery with history context', () => {
     expect(result).toEqual({ primary: 'Hitzeschutz Bayern', alternatives: [] });
     const call = aiText.mock.calls[0][0] as { system: string; maxOutputTokens: number };
     expect(call.system).not.toContain('alternative Formulierungen');
-    expect(call.maxOutputTokens).toBe(80);
+    expect(call.maxOutputTokens).toBe(8000);
   });
 });
 

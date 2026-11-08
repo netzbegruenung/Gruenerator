@@ -99,7 +99,7 @@ export async function analyzePhoto(image: Buffer): Promise<SharepicPhotoAnalysis
       toolDescription: 'Gib die Beschreibung des Fotos ab.',
       schema: SCHEMA,
       validate,
-      maxOutputTokens: 600,
+      maxOutputTokens: 8000,
       label: 'sharepicCreator:photo',
     });
     if (result.ok) {

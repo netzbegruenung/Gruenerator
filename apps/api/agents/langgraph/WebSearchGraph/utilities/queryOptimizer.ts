@@ -64,7 +64,7 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
       // damit ein Host-Wechsel nicht wieder je Aufrufstelle nachgezogen werden
       // muss — siehe services/ai/intermediateLanes.ts.
       pinned: 'standard',
-      maxOutputTokens: 300,
+      maxOutputTokens: 8000,
       temperature: 0.3,
     });
 

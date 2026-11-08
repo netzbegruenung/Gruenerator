@@ -89,7 +89,7 @@ ${context}`,
       // bis zum 29.08.2026 auf `litellm/verdigado-pro` — einem Denkmodell, das
       // 80 Tokens allein für seinen Denkblock ausgibt.
       pinned: 'standard',
-      maxOutputTokens: 80,
+      maxOutputTokens: 8000,
       temperature: 0.0,
     });
     const reformulated = result.replace(/^["']|["']$/g, '').trim();

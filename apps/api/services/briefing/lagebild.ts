@@ -197,7 +197,7 @@ export async function buildLagebild(source: LagebildSource): Promise<Lagebild | 
     schema: TOOL_SCHEMA,
     validate: (input) => validateLagebildOutput(input, candidates),
     temperature: 0.3,
-    maxOutputTokens: 600,
+    maxOutputTokens: 8000,
     timeoutMs: 30_000,
     label: 'briefing:lagebild',
   });

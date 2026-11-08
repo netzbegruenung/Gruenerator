@@ -73,7 +73,7 @@ export async function generateTaskList(sourceText: string): Promise<GeneratedTas
       system: TASK_LIST_PROMPT,
       prompt: sourceText,
       temperature: 0.3,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 8000,
       json: true,
     });
     return parseTaskList(content);

@@ -159,7 +159,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     const editedDataUri = result.base64;
     const describe = (uri: string, label: string) =>
       visionService
-        .analyzeImage(uri, groundingInstruction, { maxTokens: 200 })
+        .analyzeImage(uri, groundingInstruction, { maxTokens: 8000 })
         .catch((err: unknown) => {
           log.warn(
             `[ImageEditNode] vision describe(${label}) failed:`,

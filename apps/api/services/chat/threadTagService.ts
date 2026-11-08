@@ -121,7 +121,7 @@ export async function generateThreadTags(
       model: getIntermediateModel('trivial'),
       system: TAG_PROMPT,
       prompt: `Nutzerfrage: ${userSnippet}\nAntwort: ${assistantSnippet}`,
-      maxOutputTokens: 40,
+      maxOutputTokens: 8000,
       temperature: 0.2,
     });
 

@@ -79,7 +79,7 @@ export async function checkCanvasEdit(
       toolDescription: 'Gib das Prüfergebnis mit den sichtbaren Problemen ab.',
       schema: CHECK_SCHEMA,
       validate: validateCheck,
-      maxOutputTokens: 500,
+      maxOutputTokens: 8000,
       label: 'canvas:ai-check',
     });
     if (result.ok) return result.data;

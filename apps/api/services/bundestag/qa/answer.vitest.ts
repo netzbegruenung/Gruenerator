@@ -94,7 +94,7 @@ describe('composeAnswer', () => {
     const call = aiText.mock.calls[0]![0];
     expect(call.lane).toBe('bundestag_answer');
     expect(call.temperature).toBe(0.2);
-    expect(call.maxOutputTokens).toBe(2000);
+    expect(call.maxOutputTokens).toBe(8000);
     expect(call.prompt).toContain(
       '[1] 21/1 · Antrag · 2025-01-01 · Fraktion der SPD: A21/1-0 — „Z21/1-0“'
     );

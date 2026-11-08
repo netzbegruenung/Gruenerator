@@ -308,7 +308,7 @@ export async function generatePersonalLines(
           allowIdea,
         }),
       temperature: 0.6,
-      maxOutputTokens: 800,
+      maxOutputTokens: 8000,
       timeoutMs: TIMEOUT_MS,
       attempts: 2,
       label: 'briefing:personal',

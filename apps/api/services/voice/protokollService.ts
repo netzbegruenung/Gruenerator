@@ -94,7 +94,7 @@ Beispiel-Antwort:
 {"speaker_0": "Markus Lanz", "speaker_1": "Eva Dunz", "speaker_2": "Roderich Kiesewetter"}`,
     prompt: `Identifiziere die Sprecher*innen in dieser Transkription:\n\n${sampleForSpeakerIdentification(diarizedText)}\n\nSpeaker-IDs: ${speakerIds.join(', ')}\n\nAntwort als JSON:`,
     temperature: 0.1,
-    maxOutputTokens: 500,
+    maxOutputTokens: 8000,
   });
 
   // A failure here degrades to `Sprecher*in N` labels rather than breaking the

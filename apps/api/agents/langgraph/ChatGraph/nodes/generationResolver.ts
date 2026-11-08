@@ -165,7 +165,7 @@ export async function resolveGenerationScope({
         pinned: 'standard',
         system: RESOLVE_PROMPT,
         prompt: userMessage,
-        maxOutputTokens: 16,
+        maxOutputTokens: 8000,
         temperature: 0,
       }),
       RESOLVE_TIMEOUT_MS,

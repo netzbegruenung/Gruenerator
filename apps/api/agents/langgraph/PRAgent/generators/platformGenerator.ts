@@ -59,7 +59,7 @@ export async function generatePlatformContent(
       lane: 'social',
       system: promptResult.system,
       messages: promptResult.messages,
-      maxOutputTokens: platformConfig.maxLength * 2,
+      maxOutputTokens: Math.max(platformConfig.maxLength * 2, 8000),
       temperature: socialConfig.options?.temperature || 0.6,
       topP: platformConfig.top_p || 0.9,
     });

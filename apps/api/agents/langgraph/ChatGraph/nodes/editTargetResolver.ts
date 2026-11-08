@@ -79,7 +79,7 @@ export async function resolveEditTarget({
         pinned: 'standard',
         system: RESOLVE_PROMPT,
         prompt: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
-        maxOutputTokens: 8,
+        maxOutputTokens: 8000,
         temperature: 0,
       }),
       RESOLVE_TIMEOUT_MS,

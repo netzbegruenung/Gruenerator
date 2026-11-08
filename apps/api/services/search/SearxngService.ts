@@ -312,7 +312,7 @@ Verfügbare Informationen:
 ${contentForSummary}
 
 Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 8000,
         temperature: 0.3,
       });
 

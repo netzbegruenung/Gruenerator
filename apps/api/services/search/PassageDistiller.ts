@@ -107,7 +107,7 @@ const DEFAULT_FAITHFUL_TIMEOUT_MS = 9000;
 /** Below this the cross-encoder self-skips without saying so — see selectChunks. */
 const RERANK_SKIP_THRESHOLD = 2;
 const MAX_LLM_CHUNKS = 8;
-const LLM_MAX_TOKENS = 700;
+const LLM_MAX_TOKENS = 8000;
 
 const EXTRACTOR_PROMPT = `Du bist ein Fakten-Extraktor. Du bekommst einen Ausschnitt einer Webseite und die Frage, für die er gelesen wird. Gib die Fakten aus dem Ausschnitt wieder, die zur Beantwortung beitragen.
 

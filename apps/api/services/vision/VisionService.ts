@@ -116,7 +116,7 @@ export class VisionService {
           content: [{ type: 'text', text: instruction }, imageContent],
         },
       ],
-      maxOutputTokens: options?.maxTokens ?? 2000,
+      maxOutputTokens: options?.maxTokens ?? 8000,
       temperature: options?.temperature ?? 0.3,
     });
 
@@ -152,7 +152,7 @@ export class VisionService {
           content: [{ type: 'text', text: TEXT_DETECTION_PROMPT }, imageContent],
         },
       ],
-      maxOutputTokens: 200,
+      maxOutputTokens: 8000,
       temperature: 0.1,
     });
 
@@ -250,7 +250,7 @@ export class VisionService {
           content: [imageContent, { type: 'text', text: userPrompt }],
         },
       ],
-      maxOutputTokens: options?.maxTokens ?? 2000,
+      maxOutputTokens: options?.maxTokens ?? 8000,
       temperature: options?.temperature ?? 0.3,
     });
 
@@ -284,7 +284,7 @@ export class VisionService {
           ],
         },
       ],
-      maxOutputTokens: options?.maxTokens ?? 1200,
+      maxOutputTokens: options?.maxTokens ?? 8000,
       temperature: options?.temperature ?? 0.2,
     });
 

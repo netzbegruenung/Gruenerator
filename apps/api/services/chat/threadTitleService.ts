@@ -280,10 +280,9 @@ export async function generateThreadTitle(
     pinned: 'trivial',
     system: TITLE_PROMPT,
     prompt: `Nutzerfrage: ${userSnippet}\nAntwort: ${assistantSnippet}`,
-    // 80 chars of German title tokenize well past 30 — that cap cut answers
-    // off mid-title (finish_reason=length), which the provider chain then
-    // read as an empty response and failed over for nothing.
-    maxOutputTokens: 64,
+    // Length lives in TITLE_PROMPT, not in the cap: a reasoning model's hidden
+    // thinking counts against max_tokens, and a tight cap made it return empty.
+    maxOutputTokens: 8000,
     temperature: 0.3,
   })
     .then(async (content: string) => {
