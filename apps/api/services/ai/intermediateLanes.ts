@@ -251,18 +251,22 @@ export const INTERMEDIATE_LANES = {
    * Der Hot Path: kurze Ausgabe, harte Zeitsperren, Routing-Wirkung.
    * Verschiebt nur, wer die Latenz unter Last gemessen hat.
    *
-   * Die Aufrufer und ihre Sperren, weil genau die den Spielraum dieser Stufe
-   * bestimmen (Stand 29.08.2026, alle über `pinned: 'standard'` an der
-   * Fassade):
+   * Die Aufrufer und ihre Zeitsperren, weil genau die den Spielraum dieser
+   * Stufe bestimmen (alle über `pinned: 'standard'` an der Fassade). Die
+   * Ausgabegrenze ist seit #5467 (08.11.2026) überall 8000 Tokens: eine enge
+   * Grenze liess denkende Modelle leer antworten, die Kürze steht im Prompt.
    *
-   *   editTargetResolver        8 Tokens    900 ms   ← engste Sperre
-   *   generationResolver       16 Tokens   1500 ms
-   *   docsIntentTiebreak       16 Tokens   1500 ms
-   *   queryRefineResolver     200 Tokens   2500 ms
-   *   PassageDistiller           —         3500 ms
-   *   qualityGateNode          80 Tokens     —
-   *   briefGeneratorNode      200 Tokens     —
-   *   QueryExpansionService      —            —
+   *   editTargetResolver      900 ms   ← engste Sperre
+   *   generationResolver     1500 ms
+   *   docsIntentTiebreak     1500 ms
+   *   queryRefineResolver    2500 ms
+   *   PassageDistiller       3500 ms
+   *   qualityGateNode          —
+   *   briefGeneratorNode       —
+   *   QueryExpansionService    —
+   *
+   * Die Zeitsperren setzen voraus, dass diese Stufe NICHT denkt. Wer hier ein
+   * denkendes Modell einsetzt, misst die Sperren neu.
    *
    * Dazu ZWEI Konstanten, die die Stufe weiterreichen und beim Zählen leicht
    * übersehen werden: `LANE` in `services/ai/lanes.ts` (bedient `image_picker`,
