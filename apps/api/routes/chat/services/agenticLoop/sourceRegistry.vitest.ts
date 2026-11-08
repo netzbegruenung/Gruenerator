@@ -262,6 +262,47 @@ describe('createSourceRegistry', () => {
       expect(reg.getResults(2).map((r) => r.title)).toEqual(['FRESH', 'P0']);
     });
 
+    // #5458: 37 Quellen, zitiert [29][31][37] — der 20er-Ausschnitt verlor zwei davon.
+    it('persists what the answer cites first, even past the cap', () => {
+      const reg = createSourceRegistry();
+      reg.register(
+        Array.from({ length: 37 }, (_, i) =>
+          result({ title: `S${i + 1}`, content: `inhalt ${i + 1}`, url: `https://s/${i + 1}` })
+        )
+      );
+      const persisted = reg.getResults(20, 'Er fordert Netto-Null [29], und zwar rasch [31, 37].');
+      expect(persisted).toHaveLength(20);
+      expect(persisted.slice(0, 3).map((r) => [r.title, r.cited])).toEqual([
+        ['S29', true],
+        ['S31', true],
+        ['S37', true],
+      ]);
+      expect(persisted[3]).toMatchObject({ title: 'S1' });
+      expect(persisted[3]).not.toHaveProperty('cited');
+    });
+
+    it('re-stamps `cited` per turn: a carried source keeps it only if cited again', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([
+        result({ title: 'ALT-A', content: 'a', url: 'https://a', cited: true }),
+        result({ title: 'ALT-B', content: 'b', url: 'https://b', cited: true }),
+      ]);
+      reg.register([result({ title: 'NEU', content: 'n', url: 'https://n' })]);
+      const persisted = reg.getResults(10, 'Siehe [2].');
+      expect(persisted.map((r) => [r.title, r.cited ?? null])).toEqual([
+        ['ALT-B', true],
+        ['NEU', null],
+        ['ALT-A', null],
+      ]);
+    });
+
+    it('an answer without markers keeps fresh-before-carried', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([result({ title: 'P', content: 'p', url: 'https://p' })]);
+      reg.register([result({ title: 'F', content: 'f', url: 'https://f' })]);
+      expect(reg.getResults(10, 'Kein Beleg.').map((r) => r.title)).toEqual(['F', 'P']);
+    });
+
     it('renderReference keeps the numbered LINES clean — they brief generators', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);

@@ -54,19 +54,36 @@ export function toToolSteps(rows: ToolStepRow[], limit: number): PersistedStep[]
   return steps.slice(0, limit).reverse();
 }
 
+/**
+ * Newest first, in two passes. First what the answers CITED (the `cited` stamp
+ * of `SourceRegistry.getResults`), then everything else.
+ *
+ * One pass by recency let a single intervening search evict the research the
+ * conversation stood on. Live 07.11.2026 (#5458): turn A found and cited
+ * Stöglehner, turn B ran a forced search on another topic, and turn C
+ * rehydrated B's ten hits. It then told the user its own answer from turn A was
+ * unfounded ("nimm diese Angaben bitte zurück").
+ *
+ * Rows from before the stamp carry no `cited`, so they read exactly as before.
+ */
 export function toSources(rows: ToolStepRow[], limit: number): SearchResult[] {
+  const window = rows
+    .slice(0, ROW_WINDOW.sources)
+    .map((row) => (Array.isArray(row.searchResults) ? row.searchResults : []) as SearchResult[]);
   const collected: SearchResult[] = [];
   const seen = new Set<string>();
-  for (const row of rows.slice(0, ROW_WINDOW.sources)) {
-    const results = (Array.isArray(row.searchResults) ? row.searchResults : []) as SearchResult[];
-    for (const r of results) {
-      if (!r || typeof r !== 'object') continue;
-      if (typeof r.content !== 'string' || r.content.trim() === '') continue;
-      const key = `${r.url ?? ''}::${r.title ?? ''}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      collected.push(r);
-      if (collected.length >= limit) return collected;
+  for (const citedOnly of [true, false]) {
+    for (const results of window) {
+      for (const r of results) {
+        if (!r || typeof r !== 'object') continue;
+        if (citedOnly && r.cited !== true) continue;
+        if (typeof r.content !== 'string' || r.content.trim() === '') continue;
+        const key = `${r.url ?? ''}::${r.title ?? ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        collected.push(r);
+        if (collected.length >= limit) return collected;
+      }
     }
   }
   return collected;

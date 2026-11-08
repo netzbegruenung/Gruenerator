@@ -829,7 +829,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingAsk,
     };
@@ -845,7 +845,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingClientTool,
     };
@@ -856,7 +856,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingApproval: approvalGate.pending(),
       ...(pendingClientTool ? { heldClientTool: pendingClientTool } : {}),
@@ -951,7 +951,7 @@ export async function streamAgenticResponse(
     // MAX_SOURCES, not 10: this is what gets persisted and what a later turn
     // rehydrates. Capping here below the loop's own gathering budget silently
     // threw away half the research of a thorough turn.
-    sources: sourceRegistry.getResults(MAX_SOURCES),
+    sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
     modelName: resolution?.modelName ?? agentConfig.model,
     ...(degraded != null ? { degraded } : {}),
   };

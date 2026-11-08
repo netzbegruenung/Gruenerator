@@ -25,7 +25,7 @@ vi.mock('../../../services/pdfForm/pdfFormService.js', () => ({
   fillFormFields: vi.fn(),
 }));
 
-const { processAttachments, materialSectionHeading, PASTED_TEXT_HEADING } =
+const { processAttachments, materialSectionHeading, pasteOpening, PASTED_TEXT_HEADING } =
   await import('./attachmentProcessingService.js');
 
 const pdf = (over: { name?: string; data?: string; isImage?: boolean } = {}) => ({
@@ -221,6 +221,15 @@ describe('processAttachments — eingefügter Text', () => {
     );
     expect(materialSectionHeading('bericht.pdf', 'application/pdf', 'Zusammenfassung')).toBe(
       'bericht.pdf (Zusammenfassung)'
+    );
+  });
+
+  it('kürzt den Anfang eines Pastes an einer Wortgrenze', () => {
+    expect(pasteOpening('kurz  und\n\nknapp')).toBe('kurz und knapp');
+    const long =
+      'es geht um den weltbodentag, dafür brauche ich ein forderungspapier für unsere bezirksgruppe';
+    expect(pasteOpening(long)).toBe(
+      'es geht um den weltbodentag, dafür brauche ich ein forderungspapier…'
     );
   });
 

@@ -390,6 +390,20 @@ function referenceIds(linkId: string | undefined, markerIds: string | undefined)
   return linkId !== undefined ? [linkId] : splitMarkerIds(markerIds ?? '');
 }
 
+/** Every id the draft cites (`[3]`, `[2, 5]`, `[Titel](quelle:4)`), in order of
+ *  first appearance, each once. */
+export function citedReferenceIds(draft: string): string[] {
+  const seenOrder: string[] = [];
+  let match;
+  const scan = citationReferenceRegex();
+  while ((match = scan.exec(draft)) !== null) {
+    for (const id of referenceIds(match[2], match[3])) {
+      if (!seenOrder.includes(id)) seenOrder.push(id);
+    }
+  }
+  return seenOrder;
+}
+
 /**
  * Renumber citations in order of appearance for logical UX.
  *
@@ -402,17 +416,7 @@ export function renumberCitationsInOrder<T>(
   draft: string,
   originalReferencesMap: Record<string, T>
 ): { renumberedDraft: string; newReferencesMap: Record<string, T> } {
-  const seenOrder: string[] = [];
-  let match;
-
-  const scan = citationReferenceRegex();
-  while ((match = scan.exec(draft)) !== null) {
-    for (const id of referenceIds(match[2], match[3])) {
-      if (!seenOrder.includes(id) && originalReferencesMap[id]) {
-        seenOrder.push(id);
-      }
-    }
-  }
+  const seenOrder = citedReferenceIds(draft).filter((id) => originalReferencesMap[id]);
 
   const oldToNew: { [oldId: string]: string } = {};
   seenOrder.forEach((oldId, index) => {
