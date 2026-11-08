@@ -10,6 +10,7 @@ import {
   DOC_MODIFY_PATTERN,
 } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { artifactKind } from '../artifactKindRegistry.js';
+import { isPdfEditAsk } from '../pdfEditContext.js';
 
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
 import { EDIT_TOOL_NAMES } from './types.js';
@@ -193,8 +194,14 @@ async function runOwedGeneration(
   const brief = selfSourcing
     ? userAsk
     : withResearchedSources(userAsk, p.sourceRegistry.renderAll());
-  // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
-  const args = { prompt: brief, text: brief };
+  // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`. A
+  // PDF edit ask („Ändere das PDF: …") re-renders the stored spec, as on the
+  // single-pass door (`PDF_SPEC`), instead of building a new one from the ask.
+  const args = {
+    prompt: brief,
+    text: brief,
+    ...(kind === 'pdf' && isPdfEditAsk(userAsk) && { aendert_letztes_pdf: true }),
+  };
   p.sse.send('tool_step_start', { stepId, toolName, args });
   let result: unknown;
   try {

@@ -20,6 +20,22 @@ vi.mock('../services/artifactGeneration.js', async (orig) => {
   const { artifactGenerationStub } = await import('./harness/artifactGeneratorStub.js');
   return artifactGenerationStub((await orig()) as Record<string, unknown>);
 });
+// The sheet edit itself (write access, Yjs state, the planner) is not under
+// test: the follow-up turn must REACH it, with the sheet the pointer names.
+const sheetEdits = vi.hoisted(() => [] as Array<{ sheetId: string; instruction: string }>);
+vi.mock('../services/sheetEditCore.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
+  planAndQueueSheetEdit: async (opts: { sheetId: string; instruction: string }) => {
+    sheetEdits.push({ sheetId: opts.sheetId, instruction: opts.instruction });
+    return {
+      status: 'queued',
+      title: 'Tabelle',
+      summary: '1 Spalte',
+      live: true,
+      operationCount: 1,
+    };
+  },
+}));
 vi.mock('../../../database/services/PostgresService.js', async () => ({
   getPostgresInstance: () => ({
     query: (sql: string) => {
@@ -138,6 +154,7 @@ beforeEach(() => {
   respond.reset();
   loopScript.reset();
   searchBackend.reset();
+  sheetEdits.length = 0;
 });
 
 /**
@@ -233,7 +250,9 @@ describe.each(KINDS)('a pure $kind order runs in the loop', (k) => {
     });
     const offered = loopScript.calls.at(-1)?.toolNames ?? [];
     const editsIt =
-      k.edit.some((t) => offered.includes(t)) || (second.trace.intent ?? '').startsWith('edit_');
+      k.edit.some((t) => offered.includes(t)) ||
+      (second.trace.intent ?? '').startsWith('edit_') ||
+      sheetEdits.length > 0;
     expect(editsIt, `follow-up intent=${second.trace.intent} tools=${offered.join(',')}`).toBe(
       true
     );
@@ -252,6 +271,47 @@ describe.each(KINDS)('a pure $kind order runs in the loop', (k) => {
     });
     expect(generatorControl.calls).toHaveLength(2);
     expect(third.trace.documentCreated).toBe(true);
+  });
+});
+
+describe('a pure PDF order runs in the loop', () => {
+  it("builds the PDF before the answer, with the self-check in the model's view", async () => {
+    loopScript.script({ text: ANSWER });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Erstelle ein PDF mit unseren Forderungen zur Kitafinanzierung')],
+    });
+
+    expect(generatorControl.calls).toHaveLength(1);
+    expect(generatorControl.calls[0]?.generator).toBe('pdf');
+    expect(loopScript.calls).toHaveLength(1);
+    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    expect(loopScript.calls[0]?.messagesJson).toContain('geprueft');
+    expect(trace.documentCreated).toBe(true);
+    expect(threads.get(trace.threadId as string)?.lastToolContext).toMatchObject({ kind: 'pdf' });
+  });
+
+  it('turns „Ändere das PDF: …" in the next turn into an edit of the stored PDF', async () => {
+    const order = 'Erstelle ein PDF mit unseren Forderungen zur Kitafinanzierung';
+    loopScript.script({ text: ANSWER });
+    const first = await runTurn(app.baseUrl, { messages: [userTurn(order, 'm0')] });
+
+    loopScript.script({ text: 'Angepasst.' });
+    const second = await runTurn(app.baseUrl, {
+      threadId: first.trace.threadId as string,
+      messages: [
+        userTurn(order, 'm0'),
+        assistantTurn('a0', ANSWER),
+        userTurn('Ändere das PDF: Titel kürzer', 'm1'),
+      ],
+    });
+
+    const call = second.trace.toolCalls.find((c) => c.toolName === 'create_pdf');
+    expect(
+      call?.args,
+      `intent=${second.trace.intent} tools=${loopScript.calls.at(-1)?.toolNames.join(',')}`
+    ).toMatchObject({
+      aendert_letztes_pdf: true,
+    });
   });
 });
 

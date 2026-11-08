@@ -180,6 +180,14 @@ export interface TurnPlanInput {
   addressesThreadSharepic?: boolean;
   /** Der Thread enthält ein Sharepic (`stateHasSharepic`). */
   threadHasSharepic?: boolean;
+  /**
+   * Der Zeiger des Threads steht auf einem PDF, und der Auftrag ändert es
+   * („Ändere das PDF: Titel kürzer", `isPdfEditAsk`). Ein PDF ist unveränderliche
+   * Bytes: geändert wird es, indem `create_pdf` die gespeicherte Spec neu
+   * erzeugt. Ohne diese Angabe war das Werkzeug auf so einem Loop-Turn gar nicht
+   * montiert, und das PDF liess sich aus dem Loop nicht ändern.
+   */
+  editsThreadPdf?: boolean;
   /** Ein früherer Turn nannte ein Sharepic, gebaut ist noch keins (`threadWorksOnSharepic`). */
   threadWorksOnSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
@@ -425,7 +433,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // gewonnen, damit „mach mir eine Tabelle draus" das Tabellen-Werkzeug montiert.
   const proposedKind =
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
-      ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
+      ? (compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind) ??
+        (p.editsThreadPdf === true ? 'pdf' : null))
       : null;
   const orderedKind =
     proposedKind === 'sharepic' && p.addressesThreadSharepic === true ? null : proposedKind;
