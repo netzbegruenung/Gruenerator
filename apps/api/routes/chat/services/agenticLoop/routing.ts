@@ -721,15 +721,14 @@ export function compoundGenerationKind(
   // Newsletter hat so ein Sharepic unter jede Korrektur gesetzt (Beta 30.09.2026).
   const t = orderText(raw ?? '');
   // A NAMED generation intent with a research signal is a compound turn of its
-  // kind. Without the signal it is a pure order: for the kinds in
-  // `LOOP_ORDER_KINDS` it takes the same order test as the prose intents below
-  // and runs in the loop, where the tool runs before the answer
-  // (`runOrderedArtifact`); any other kind keeps its single-pass dispatcher.
+  // kind. Without the signal it is a pure order: it takes the same order test as
+  // the prose intents below and runs in the loop, where the tool runs before the
+  // answer (`runOrderedArtifact`, #5456). Its single-pass dispatcher stays the
+  // door while the loop is off (`loop_disabled`).
   const named = isCompoundGenerationIntent(intent)
     ? (ARTIFACT_KINDS.find((k) => k.intent === intent)?.id ?? null)
     : null;
   if (named != null && looksLikeCompoundGeneration(t)) return pinnedKind ?? named;
-  if (named != null && !LOOP_ORDER_KINDS.has(named)) return null;
   if (named != null || intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
     // No research gate on this branch, and the asymmetry is the whole point:
     // none of these three has a dispatcher behind it. Here `null` means the loop
@@ -777,29 +776,15 @@ export function compoundGenerationKind(
 }
 
 /**
- * The kinds whose pure order („Erstelle eine Tabelle zu …") runs in the loop
- * instead of its single-pass dispatcher. Migrated one kind per PR (#5456); the
- * dispatcher stays as the door while the loop is off (`loop_disabled`).
- */
-export const LOOP_ORDER_KINDS: ReadonlySet<CompoundGenerationKind> = new Set([
-  'sheet',
-  'presentation',
-  'explainable',
-  'pdf',
-  'document',
-  'board',
-]);
-
-/**
- * A pure artefact order: the kind is ordered, the order carries no research
- * signal, and the kind is migrated. The loop then runs the tool before the
- * answer (`runOrderedArtifact`) instead of asking the model for its arguments.
+ * A pure artefact order: the kind is ordered and the order carries no research
+ * signal. The loop then runs the tool before the answer (`runOrderedArtifact`)
+ * instead of asking the model for its arguments.
  */
 export function isPureArtifactOrder(
   kind: CompoundGenerationKind | null | undefined,
   raw: string
 ): boolean {
-  return kind != null && LOOP_ORDER_KINDS.has(kind) && !looksLikeCompoundGeneration(orderText(raw));
+  return kind != null && !looksLikeCompoundGeneration(orderText(raw));
 }
 
 /** Die Intents ohne eigenen Dispatcher, auf denen ein genanntes Sharepic sein Werkzeug montiert. */

@@ -11,7 +11,6 @@
  * as the only one missing `await cleanupPending(true)`.
  */
 
-import { LOOP_ORDER_KINDS } from '../services/agenticLoop/routing.js';
 import {
   artifactKind,
   skipsOnAgenticForKind,
@@ -152,12 +151,11 @@ export async function runCreateIntentStage({
 
   for (const route of createRoutes) {
     const { mentionToken, intent } = artifactKind(route.kind);
-    // The loop builds it: an intent kind marked `skipOnAgentic`, or a migrated
-    // kind whose order the loop took (`LOOP_ORDER_KINDS`, #5456).
+    // The loop builds it: an intent kind marked `skipOnAgentic`, or any kind
+    // whose order the loop took (#5456).
     if (
       runAgentic &&
-      (skipsOnAgenticForKind(route.kind) ||
-        (LOOP_ORDER_KINDS.has(route.kind) && classifiedState.compoundGenerationKind === route.kind))
+      (skipsOnAgenticForKind(route.kind) || classifiedState.compoundGenerationKind === route.kind)
     )
       continue;
     // Das angenommene Angebot zählt wie die Mention: `document` hat keinen

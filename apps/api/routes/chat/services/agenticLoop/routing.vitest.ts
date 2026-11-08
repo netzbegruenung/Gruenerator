@@ -991,7 +991,7 @@ describe('compoundGenerationKind', () => {
     ).toBe('sharepic');
   });
 
-  it('runs a pure order of a migrated kind in the loop (LOOP_ORDER_KINDS, #5456)', () => {
+  it('runs a pure order in the loop (#5456)', () => {
     expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
       'sheet'
     );
@@ -1002,9 +1002,12 @@ describe('compoundGenerationKind', () => {
     );
   });
 
-  it('leaves a pure order of a kind not yet migrated to its dispatcher', () => {
-    expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
-    expect(isPureArtifactOrder('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(false);
+  it('runs a pure sharepic order in the loop as well', () => {
+    expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(
+      'sharepic'
+    );
+    // The classifier may name the kind from a word the order does not carry.
+    expect(compoundGenerationKind('sharepic', 'Mach was Schönes dazu')).toBeNull();
   });
 
   it('builds only the named kind and needs the order, not a mere mention', () => {
@@ -1812,7 +1815,7 @@ describe('compoundGenerationKind — Explainable', () => {
     expect(compoundGenerationKind('agentic', ask)).toBe('explainable');
   });
 
-  it('runs a plain create in the loop (LOOP_ORDER_KINDS, #5456)', () => {
+  it('runs a plain create in the loop (#5456)', () => {
     expect(
       compoundGenerationKind('create_explainable', 'Erstelle ein Explainable zur Schwammstadt')
     ).toBe('explainable');

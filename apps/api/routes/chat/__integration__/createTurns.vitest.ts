@@ -102,9 +102,9 @@ const suite = useChatApp();
 
 beforeEach(() => {
   resetGeneratorControl();
-  // This file pins the SINGLE-PASS door. Pure orders of the kinds in
-  // `LOOP_ORDER_KINDS` run in the loop while it is on (artifactOrderLoop.vitest.ts);
-  // the dispatcher stays their door while it is off, so that is the state here.
+  // This file pins the SINGLE-PASS door. Pure orders run in the loop while it
+  // is on (artifactOrderLoop.vitest.ts); the dispatcher stays their door while
+  // it is off, so that is the state here.
   vi.stubEnv('CHAT_AGENT_LOOP', 'false');
 });
 

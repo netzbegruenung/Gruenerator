@@ -6,6 +6,7 @@
  */
 
 import { type PersistedStep } from './agenticLoop/types.js';
+import { documentContextKind } from './artifactGeneration.js';
 import { sharepicVariantCall } from './sharepicToolCalls.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -124,18 +125,7 @@ function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
 
   const doc = m.createdDocument;
   if (doc?.documentId) {
-    const sub = doc.subtype ?? '';
-    const kind = sub.startsWith('presentation')
-      ? 'presentation'
-      : sub.startsWith('sheet')
-        ? 'sheet'
-        : sub.startsWith('pdf')
-          ? 'pdf'
-          : // Live 11.10.2026: an explainable read as a document, so the
-            // explainable tools never mounted and read_document got its id.
-            sub.startsWith('explainable')
-            ? 'explainable'
-            : 'document';
+    const kind = documentContextKind(doc.subtype ?? '');
     return { kind, ref: doc.documentId, label: labelOf(doc.title) };
   }
   return null;

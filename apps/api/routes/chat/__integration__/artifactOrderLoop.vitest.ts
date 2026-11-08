@@ -2,8 +2,7 @@
  * A pure artefact order through the REAL loop — classifier, router, catalog
  * and `agenticRespondService` — with the model scripted (#5456).
  *
- * For the kinds in `LOOP_ORDER_KINDS` the order no longer goes to its
- * single-pass dispatcher: the loop runs the fat tool BEFORE the answer, with
+ * The order no longer goes to its single-pass dispatcher: the loop runs the fat tool BEFORE the answer, with
  * the order as the brief, and the model then writes the answer with the result
  * in view. This file pins that door, across several turns of one thread:
  * the order, a vague follow-up that must edit THAT artefact, and a second
@@ -36,6 +35,27 @@ vi.mock('../services/sheetEditCore.js', async (orig) => ({
     };
   },
 }));
+// The sharepic generator (creator, review, photo catalog) is not under test:
+// the order must REACH it, once, before the answer.
+const sharepicCalls = vi.hoisted(() => [] as Array<{ text: string }>);
+vi.mock('../services/intentHandlers/sharepic.js', async (orig) => {
+  const original = (await orig()) as typeof import('../services/intentHandlers/sharepic.js');
+  return {
+    ...original,
+    runSharepicGeneration: async (opts: Parameters<typeof original.runSharepicGeneration>[0]) => {
+      sharepicCalls.push({ text: String((opts as { text?: unknown }).text ?? '') });
+      const variants = [
+        {
+          id: 'v1',
+          canvasType: 'dreizeilen',
+          initialProps: { line1: 'Mehr', line2: 'Radwege', line3: 'jetzt' },
+        },
+      ] as never[];
+      opts.sse.send('sharepic_complete', { message: 'stub', variants });
+      return { variants, failure: null } as never;
+    },
+  };
+});
 vi.mock('../../../database/services/PostgresService.js', async () => ({
   getPostgresInstance: () => ({
     query: (sql: string) => {
@@ -155,10 +175,11 @@ beforeEach(() => {
   loopScript.reset();
   searchBackend.reset();
   sheetEdits.length = 0;
+  sharepicCalls.length = 0;
 });
 
 /**
- * One row per migrated kind (`LOOP_ORDER_KINDS`). `edit` is the tool a vague
+ * One row per kind with a document card. `edit` is the tool a vague
  * follow-up must reach, `again` a second order in the same thread.
  */
 const KINDS = [
@@ -340,6 +361,46 @@ describe('a pure board order runs in the loop', () => {
     const done = events.find((e) => e.event === 'done');
     expect(done?.data.boardId).toBeTruthy();
     expect(trace.fullText).toContain(ANSWER);
+    expect(threads.get(trace.threadId as string)?.lastToolContext).toMatchObject({
+      kind: 'board',
+    });
+  });
+
+  it('routes a vague follow-up to the board it built', async () => {
+    const order = 'Erstelle ein Board für den Wahlkampf';
+    loopScript.script({ text: ANSWER });
+    const first = await runTurn(app.baseUrl, { messages: [userTurn(order, 'm0')] });
+
+    loopScript.script({ text: 'Aufgabe ergänzt.' });
+    await runTurn(app.baseUrl, {
+      threadId: first.trace.threadId as string,
+      messages: [
+        userTurn(order, 'm0'),
+        assistantTurn('a0', ANSWER),
+        userTurn('noch eine Aufgabe: Plakate bestellen', 'm1'),
+      ],
+    });
+    expect(loopScript.calls.at(-1)?.toolNames ?? []).toContain('boards_tasks');
+    expect(generatorControl.calls).toHaveLength(1);
+  });
+});
+
+describe('a pure sharepic order runs in the loop', () => {
+  it('builds the sharepic before the answer and lets the model write it', async () => {
+    loopScript.script({ text: ANSWER });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Mach ein Sharepic: Mehr Radwege jetzt')],
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(sharepicCalls).toHaveLength(1);
+    expect(loopScript.calls).toHaveLength(1);
+    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    expect(trace.toolCalls.map((c) => c.toolName)).toContain('sharepic');
+    expect(trace.fullText).toContain(ANSWER);
+    expect(threads.get(trace.threadId as string)?.lastToolContext).toMatchObject({
+      kind: 'sharepic',
+    });
   });
 });
 

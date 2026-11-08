@@ -174,11 +174,17 @@ describe('decideTurnPlan — die Lane kommt aus der Registry', () => {
   // leitet `runAgentic` sich aus ihr ab — eine falsche Lane ist ab hier ein
   // falscher Ausführungspfad.
 
-  it('pipeline: ein Artefakt-Verdikt im Einzeldurchlauf', () => {
-    // Disposition `artifact` — kostet Kontingent, eigene deterministische Route.
-    const p = plan({ intent: 'sharepic', lastUserText: 'Mach ein Sharepic dazu' });
+  it('pipeline: ein Artefakt-Verdikt ohne Auftrag im Text bleibt im Einzeldurchlauf', () => {
+    // Disposition `artifact` — der Klassifikator nennt die Art, der Satz bestellt sie nicht.
+    const p = plan({ intent: 'sharepic', lastUserText: 'Mach was Schönes dazu' });
     expect(p.runAgentic).toBe(false);
     expect(p.lane).toBe('pipeline');
+  });
+
+  it('eine reine Artefakt-Bestellung läuft im Loop (#5456)', () => {
+    const p = plan({ intent: 'sharepic', lastUserText: 'Mach ein Sharepic dazu' });
+    expect(p.runAgentic).toBe(true);
+    expect(p.compoundGenerationKind).toBe('sharepic');
   });
 
   it('pipeline: auch die Bearbeitungs-Familie (Disposition anchor)', () => {
