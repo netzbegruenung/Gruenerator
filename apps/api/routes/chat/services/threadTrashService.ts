@@ -70,9 +70,15 @@ async function ownThreadRow(
 
 /**
  * The client's empty-thread cleanup. It decides from a list that can be older
- * than the thread's first message, so the emptiness check runs inside the
- * DELETE: a thread with any message is left alone (`not_empty`), never
- * trashed (#5465).
+ * than the thread's first message, so emptiness is re-checked here and a
+ * thread with any message is left alone (`not_empty`), never trashed (#5465).
+ *
+ * The row lock comes first, in its own statement: a single
+ * `DELETE … WHERE NOT EXISTS (…)` keeps the snapshot it started with, so a
+ * first message committed while the DELETE waited on the FK's row lock stays
+ * invisible to it, and `ON DELETE CASCADE` would take the message along. After
+ * `FOR UPDATE`, the message check runs on a fresh snapshot (READ COMMITTED),
+ * and a message insert arriving later waits for this decision.
  */
 export async function deleteThreadIfEmpty(
   threadId: string,
@@ -80,13 +86,25 @@ export async function deleteThreadIfEmpty(
 ): Promise<'deleted' | 'not_empty' | 'not_found' | 'forbidden'> {
   const row = await ownThreadRow(threadId, userId);
   if (typeof row === 'string') return row;
-  const removed = await removeThread(
-    threadId,
-    `DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL
-     AND NOT EXISTS (SELECT 1 FROM chat_messages WHERE thread_id = $1) RETURNING id`,
-    [threadId]
-  );
-  return removed ? 'deleted' : 'not_empty';
+  const attachments = await readThreadAttachmentVectorHandles(threadId);
+
+  const outcome = await getPostgresInstance().transaction(async (client) => {
+    const locked = await client.query(
+      'SELECT id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+      [threadId]
+    );
+    if (locked.rows.length === 0) return 'not_found' as const;
+    const messages = await client.query(
+      'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
+      [threadId]
+    );
+    if (messages.rows.length > 0) return 'not_empty' as const;
+    await client.query('DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL', [threadId]);
+    return 'deleted' as const;
+  });
+
+  if (outcome === 'deleted') await clearThreadSideStores(threadId, attachments);
+  return outcome;
 }
 
 export async function trashThread(threadId: string, userId: string): Promise<TrashThreadResult> {
@@ -241,7 +259,18 @@ async function removeThread(
 
   const deleted = await runQuery<{ id: string }>(deleteSql, params);
   if (deleted.length === 0) return false;
+  await clearThreadSideStores(threadId, attachments);
+  return true;
+}
 
+/**
+ * The Qdrant side stores of a removed thread, best-effort — the row cannot
+ * come back, so a failure is reported, never thrown.
+ */
+async function clearThreadSideStores(
+  threadId: string,
+  attachments: Awaited<ReturnType<typeof readThreadAttachmentVectorHandles>>
+): Promise<void> {
   const sideStore = async (store: string, work: () => Promise<unknown>): Promise<void> => {
     try {
       await work();
@@ -256,5 +285,4 @@ async function removeThread(
   };
   await sideStore('attachment_vectors', () => deleteAttachmentVectors(threadId, attachments));
   await sideStore('chat_thread_recall', () => deleteThreadRecallPoint(threadId));
-  return true;
 }
