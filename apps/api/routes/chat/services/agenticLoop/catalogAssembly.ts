@@ -13,6 +13,8 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { skillRole } from '@gruenerator/shared/agents';
+
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
@@ -361,6 +363,9 @@ export async function assembleToolCatalog(
   // Schritt-Auszug zurück, ohne Rumpf. Ohne Neuladen schrieb die Fortsetzung
   // ohne die Vorgaben — live 08.11.2026 nach „Lücke lassen" ein „Wir prüfen
   // derzeit …" statt des Platzhalters, den das Rezept verlangt (#5479).
+  // Registriert wie `rezept_laden` selbst: als Wahl des Modells (nicht
+  // `preloaded`), damit eine gewählte Textsorte den Agent-Default wieder
+  // verdrängt, und mit ihrer Rolle, damit eine Methode keine Textsorte wird.
   for (const step of resumedSteps ?? []) {
     const mention = step.result['rezept'];
     if (step.toolName !== 'rezept_laden' || step.result['geladen'] !== true) continue;
@@ -373,7 +378,7 @@ export async function assembleToolCatalog(
       body: resolved.body,
       source: resolved.source,
       recommendedTools: recommendedToolsFor(mention, isMounted),
-      preloaded: true,
+      rolle: skillRole(mention),
     });
     log.info(`[Rezept] aus dem pausierten Zug wieder geladen=${mention}`);
   }

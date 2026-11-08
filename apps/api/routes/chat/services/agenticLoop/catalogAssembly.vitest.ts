@@ -453,6 +453,29 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
     );
   });
 
+  // Review #5486: die Fortsetzung registriert die Wahl des Modells nicht als
+  // `preloaded` — sonst stünden Default und gewählte Textsorte nebeneinander.
+  it('lässt eine im pausierten Zug gewählte Textsorte den Default wieder verdrängen', async () => {
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: buergerBerlin,
+        lastUserTextNoMentions: 'Frau M. fragt nach der U-Bahn …',
+      }),
+      withSearch(),
+      {
+        resumedSteps: [
+          {
+            toolCallId: 'c1',
+            toolName: 'rezept_laden',
+            args: { rezept: 'presse' },
+            result: { rezept: 'presse', geladen: true },
+          },
+        ],
+      }
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['presse']);
+  });
+
   it('lädt nichts, wenn die Person selbst ein Rezept gewählt hat', async () => {
     const resolveRecipe = vi.fn();
     const assembled = await assemble(
