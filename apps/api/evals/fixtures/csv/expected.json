@@ -1,0 +1,42 @@
+{
+  "radwege-kreis-s.csv": {
+    "rows": 10,
+    "budget_sum_eur": 5680000,
+    "max_budget_per_inhabitant": ["Rheinau", 32.76],
+    "second_budget_per_inhabitant": ["Waldkirch", 32.61],
+    "seefeld_accidents_per_10k": 13.0,
+    "max_accidents_per_10k": "Seefeld"
+  },
+  "haushalt-s.csv": {
+    "rows": 7,
+    "sum_2025": 34140000,
+    "sum_2026": 36220000,
+    "radverkehr_change_percent": 44.9,
+    "cuts": ["ÖPNV", "Kultur"]
+  },
+  "mitglieder-m.csv": {
+    "rows": 240,
+    "total_members_dec": 49293,
+    "largest_kv_dec": "Bochum",
+    "best_net_growth_kv": ["Gelsenkirchen", 246],
+    "total_eintritte": 6970,
+    "koeln_dec": 1687
+  },
+  "radzaehlung-l.csv": {
+    "rows": 5110,
+    "total_rides": 9116728,
+    "busiest_station": "Zählstelle Klinikum",
+    "july_total": 922658,
+    "january_total": 635989,
+    "mean_rain_day": 1228.4,
+    "mean_dry_day": 2017.8
+  },
+  "antraege-fallen.csv": {
+    "data_rows": 5,
+    "has_sum_row": true,
+    "sum_known_costs_eur": 1466400,
+    "accepted_cost_eur": 1221400,
+    "missing_cost_row": 2,
+    "accepted_count": 3
+  }
+}
