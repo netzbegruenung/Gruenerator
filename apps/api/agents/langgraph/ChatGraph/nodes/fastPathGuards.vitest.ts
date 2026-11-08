@@ -625,6 +625,14 @@ describe('asksForSharepic', () => {
       asksForSharepic('Was anderes: Erstelle ein Sharepic "Mehr Geld für sichere Radwege"')
     ).toBe(true);
     expect(asksForSharepic('Was ist ein Sharepic: erklär mir das')).toBe(false);
+    expect(
+      hasExplicitSharepicWord('Was anderes: Erstelle ein Sharepic "Mehr Geld für sichere Radwege"')
+    ).toBe(true);
+    // The question after the lead-in still guards the noun (PR review #5469).
+    expect(
+      hasExplicitSharepicWord('Kurz vorab: Was macht eigentlich ein gutes Sharepic aus?')
+    ).toBe(false);
+    expect(hasExplicitSharepicWord('Was ist ein Sharepic: erklär mir das')).toBe(false);
   });
 
   it.each(SHAREPIC_ORDERS)('bestellt: %s', (text) => {

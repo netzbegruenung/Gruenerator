@@ -564,10 +564,16 @@ export function hasExplicitSharepicWord(text: string): boolean {
   // first word would refuse a perfectly explicit ask.
   // A sentence that is nothing but the noun belongs to the question behind it:
   // „Sharepic? Was ist das?" asks, „Sharepic? Mach eins dazu." orders (#4118).
-  // A colon ends a lead-in too: „Was anderes: Erstelle ein Sharepic …" opens
-  // with a topic switch, not a question about sharepics (live 08.11.2026).
-  const sentences = t.split(/[.!?:]+/);
-  const firstSentence = sentences[0] ?? t;
+  // A lead-in before a colon that does not name the sharepic is skipped:
+  // „Was anderes: Erstelle ein Sharepic …" opens with a topic switch, not a
+  // question about sharepics (live 08.11.2026), while „Kurz vorab: Was macht
+  // ein gutes Sharepic aus?" still asks one — the question sits after the colon.
+  const sentences = t.split(/[.!?]+/);
+  let firstSentence = sentences[0] ?? t;
+  for (let colon = firstSentence.indexOf(':'); colon >= 0; colon = firstSentence.indexOf(':')) {
+    if (SHAREPIC_WORD_RE.test(firstSentence.slice(0, colon))) break;
+    firstSentence = firstSentence.slice(colon + 1);
+  }
   if (BARE_SHAREPIC_NOUN_RE.test(firstSentence)) {
     return !META_QUESTION_START_RE.test(sentences[1] ?? '');
   }
