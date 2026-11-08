@@ -65,9 +65,8 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
   buildProductKnowledgeBlock: async () => '\n\n<<PRODUKTWISSEN>>',
 }));
 
-const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
+const { buildSystemMessage, buildTurnPrompt, activePromptBlocks, PROMPT_BLOCK_ORDER } =
   await import('./respondNode.js');
-const { plannerAnchorView } = await import('./anchorContext.js');
 const { PASTED_TEXT_HEADING } =
   await import('../../../../routes/chat/services/attachmentProcessingService.js');
 const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
@@ -680,19 +679,6 @@ async function runGoldenCase(testCase: Case) {
   };
 }
 
-// Der Planer sieht den Paste nur als Platzhalter. Steht dort „arbeite direkt
-// damit", holt er ihn erst mit `dokumente_lesen` — live 10/10 auf „Klein".
-describe('plannerAnchorView', () => {
-  it('ersetzt im Paste-Prompt den Hinweis durch die Planer-Fassung', async () => {
-    const pasteCase = GOLDEN_CASES.find((c) => c.name === 'mit eingefuegtem text')!;
-    const { prompt } = await runGoldenCase(pasteCase);
-    expect(prompt).toContain('arbeite direkt damit, statt nachzufragen');
-    const planner = plannerAnchorView(prompt);
-    expect(planner).not.toContain('arbeite direkt damit, statt nachzufragen');
-    expect(planner).toContain('du musst ihn nicht lesen');
-  });
-});
-
 describe('buildSystemMessage — Golden', () => {
   for (const testCase of GOLDEN_CASES) {
     it(testCase.name, async () => {
@@ -993,5 +979,76 @@ describe('recallAsMessage', () => {
     const without = await buildSystemMessage(state(), { ...OPTS, recallAsMessage: true });
     expect(without).not.toContain('RELEVANTE VERGANGENE GESPRÄCHE');
     expect(withRecall.replace(`\n\n${RECALL}`, '')).toBe(without);
+  });
+});
+
+describe('buildTurnPrompt — eingefügter Text in die Nachricht (#5431)', () => {
+  const PASTE = '12.01.2027 Neujahrsempfang, Rathaus';
+  const paste: TurnMaterialItem = {
+    kind: 'paste',
+    name: 'Eingefügter Text.txt',
+    heading: PASTED_TEXT_HEADING,
+    text: PASTE,
+  };
+  const upload: TurnMaterialItem = {
+    kind: 'upload',
+    name: 'Antrag.pdf',
+    heading: 'Antrag.pdf (Volltext-Auszug)',
+    text: 'Der Antrag fordert ein Tempolimit.',
+  };
+  const OPTS = { retrievalExpected: true, loop: true } as const;
+  const pasteState = (items: TurnMaterialItem[] = [paste], over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'produktion',
+      ...material(items),
+      messages: [{ role: 'user', content: 'Hier sind die Termine' }],
+      ...over,
+    } as never);
+
+  it('nimmt den Paste aus dem Prompt und gibt ihn eingefasst daneben zurück', async () => {
+    const { systemMessage, turnPaste } = await buildTurnPrompt(pasteState(), OPTS);
+    expect(systemMessage).not.toContain(PASTE);
+    expect(systemMessage).not.toContain('## EINGEFÜGTER TEXT\n');
+    expect(turnPaste).toMatch(/^## EINGEFÜGTER TEXT\n\n<untrusted_content type="anhang">\n/);
+    expect(turnPaste).toContain(`### ${PASTED_TEXT_HEADING}\n\n${PASTE}`);
+  });
+
+  it('behält die Regelhierarchie, obwohl das Material jetzt in der Nachricht steht', async () => {
+    const { systemMessage } = await buildTurnPrompt(pasteState(), OPTS);
+    expect(systemMessage).toContain('REGELHIERARCHIE');
+  });
+
+  it('zeigt im Zusatzkontext auf die Nachricht statt nach „oben"', async () => {
+    const { systemMessage } = await buildTurnPrompt(pasteState(), OPTS);
+    expect(systemMessage).toContain('in ihrer Nachricht unter „EINGEFÜGTER TEXT"');
+    expect(systemMessage).not.toContain('oben als „Eingefügter Text"');
+  });
+
+  it('lässt eine hochgeladene Datei im Prompt und nimmt nur den Paste heraus', async () => {
+    const { systemMessage, turnPaste } = await buildTurnPrompt(pasteState([upload, paste]), OPTS);
+    expect(systemMessage).toContain('## ANGEHÄNGTE DOKUMENTE');
+    expect(systemMessage).toContain('Der Antrag fordert ein Tempolimit.');
+    expect(systemMessage).not.toContain(PASTE);
+    expect(turnPaste).toContain(PASTE);
+    expect(turnPaste).not.toContain('Tempolimit');
+  });
+
+  it('ohne Paste ist der Prompt derselbe wie aus buildSystemMessage', async () => {
+    const state = pasteState([upload]);
+    const { systemMessage, turnPaste } = await buildTurnPrompt(state, OPTS);
+    expect(turnPaste).toBeNull();
+    expect(systemMessage).toBe(await buildSystemMessage(pasteState([upload]), OPTS));
+  });
+
+  it('buildSystemMessage trägt den Paste weiter selbst — Pfade ohne Nachrichten-Naht verlieren nichts', async () => {
+    expect(await buildSystemMessage(pasteState(), OPTS)).toContain(PASTE);
+  });
+
+  it('ein angehefteter Pipeline-Text schweigt das Material weiter ab — auch in der Nachricht', async () => {
+    const { turnPaste } = await buildTurnPrompt(
+      pasteState([paste], { pipelineSourceText: 'Original' } as never),
+      OPTS
+    );
+    expect(turnPaste).toBeNull();
   });
 });

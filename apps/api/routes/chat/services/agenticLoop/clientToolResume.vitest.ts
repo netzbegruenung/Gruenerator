@@ -27,7 +27,7 @@ const { storeMock, streamMock, reviewMock, suspendToolMock, finishMock } = vi.ho
 }));
 
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  buildSystemMessage: vi.fn(async () => 'SYSTEM'),
+  buildTurnPrompt: vi.fn(async () => ({ systemMessage: 'SYSTEM', turnPaste: null })),
 }));
 vi.mock('../../streamStages/clarificationLoopSuspend.js', () => ({
   suspendForLoopClarification: vi.fn(),
@@ -203,6 +203,24 @@ describe('runClientToolLoopResume', () => {
       expect.objectContaining({ pendingClientTool: again, pendingId: 'msg-1' })
     );
     expect(finishMock).not.toHaveBeenCalled();
+  });
+
+  it('erneute Pause nach Vortext: Schrittversätze fallen weg (#5442)', async () => {
+    const again = { toolCallId: 'c2', toolName: 'check_sharepic', args: {} };
+    streamMock.mockResolvedValue({
+      fullText: 'Noch ein Blick.',
+      steps: [
+        { toolCallId: 'c1', toolName: 'check_sharepic', args: {}, result: {}, textOffset: 4 },
+      ],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingClientTool: again,
+    });
+    await run({ image: IMAGE }).promise;
+
+    const params = suspendToolMock.mock.calls[0]?.[0] as { priorSteps: object[] };
+    expect(params.priorSteps[0]).not.toHaveProperty('textOffset');
   });
 
   it('reicht eine entschiedene Freigabe an die neue Pause und ans Ende weiter', async () => {

@@ -12,54 +12,30 @@
  * recording) come from `wrapToolsForLoop`; force-finish and lenient arg repair
  * are configured here.
  */
-import { type ModelMessage, type ToolSet } from 'ai';
+import { type ModelMessage } from 'ai';
 
-import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
-import { plannerAnchorView } from '../../../../agents/langgraph/ChatGraph/nodes/anchorContext.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
-import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  MELIOUS_WIDE_MODEL,
-  meliousGoesWide,
-} from '../../../../services/ai/meliousThinkingFetch.js';
-import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
-import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
-import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
-import {
-  getLoopPlannerFallbackStages,
-  getLoopSynthFallbackModel,
-  resolveLoopPlannerLane,
-  getLoopSynthModel,
-  resolveUnifiedLaneChain,
-} from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
-import { pruneMessages } from '../contextPruningService.js';
+import { withTurnPaste } from '../materialItems.js';
 import { extractTextContent } from '../messageHelpers.js';
-import { orderText } from '../orderText.js';
 import {
-  messagesForLane,
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
-import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
-import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
 import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
-import { replaceUntrustedBlocks, withInstructionHierarchy } from '../untrustedContent.js';
-import { plannerDocumentStub } from '../wholeDocument.js';
+import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { approvalGateEnabled } from './approvalPolicy.js';
 import {
@@ -68,18 +44,10 @@ import {
   turnProducedArtifact,
 } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import {
-  ATTACHED_DOCS_TOOL,
-  materialReaderTools,
-  resolveTurnMaterial,
-  retrievableAttachedSources,
-} from './attachedDocuments.js';
+import { resolveTurnMaterial } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
-  isLookupTool,
-  priorToolNames,
-  priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
   seedTurnMaterial,
@@ -88,31 +56,21 @@ import {
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
-import {
-  forcedFirstStepTools,
-  isMcpCapabilityQuestion,
-  pinnedFirstTool,
-  shouldForceFirstToolCall,
-} from './forceFirstToolCall.js';
+import { decideFirstStep, isMcpCapabilityQuestion } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
-import {
-  runAgenticLoop,
-  TurnSuspendedError,
-  type AnswerReplacement,
-  type LoopMode,
-} from './loopEngine.js';
-import { createAfterGather, turnCarriesGuarantee } from './loopGuarantees.js';
+import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
+import { createEnsureOwedTools } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
-import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
+import { resolveLoopLanes } from './loopLanes.js';
 import { createAnswerEmitter } from './loopSse.js';
+import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
-import { stripDuplicatedOpening } from './openingDedupe.js';
 import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
-import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
+import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
@@ -204,33 +162,15 @@ export interface AgenticResponseOutcome {
  * the caller): a hard failure with no streamed text degrades to a short German
  * apology so the turn still persists and closes cleanly.
  */
-/** Je Werkzeug-Definition neben der Beschreibung: Name, Schema, JSON-Hülle
- *  (06.11.2026: 15 Werkzeuge ≈ 20,8k Zeichen im Request). */
-const TOOL_DEFINITION_OVERHEAD_CHARS = 600;
-
-/**
- * Wie gross der Request an das Modell ungefähr wird — in der Einheit, in der
- * `meliousWireModel` entscheidet (Zeichen des JSON-Bodys). Nur eine Schätzung:
- * an der Grenze kann sie danebenliegen.
- */
-export function estimatedRequestChars(
-  system: string,
-  messages: readonly ModelMessage[],
-  tools: ToolSet
-): number {
-  let chars = system.length + JSON.stringify(messages).length;
-  for (const t of Object.values(tools)) {
-    chars +=
-      (typeof t.description === 'string' ? t.description.length : 0) +
-      TOOL_DEFINITION_OVERHEAD_CHARS;
-  }
-  return chars;
-}
-
 export async function streamAgenticResponse(
   params: {
     finalState: ChatGraphState;
     systemMessage: string;
+    /** Der eingefügte Text aus `buildTurnPrompt` — geht in die letzte
+     *  Nutzernachricht, erst beim Zusammenbau für das Modell (#5431). Pflicht,
+     *  damit jeder Aufrufer entscheidet: ein Prompt aus `buildSystemMessage`
+     *  trägt ihn schon und gibt `null`. */
+    turnPaste: string | null;
     /** Rückblick auf frühere Gespräche: geht als zweite System-Nachricht an das
      *  Modell, damit der Prompt-Prefix cachebar bleibt (`withTurnContext`). */
     turnContext?: string | null;
@@ -252,9 +192,6 @@ export async function streamAgenticResponse(
      *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
      *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
     disableMcp?: boolean;
-    /** Hintergrundlauf ohne Leser (Wiederkehrende Aufgabe, Board-Agent,
-     *  Notebook-Präzision): läuft immer im Split-Modus. */
-    headless?: boolean;
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
@@ -278,6 +215,7 @@ export async function streamAgenticResponse(
   const {
     finalState,
     systemMessage,
+    turnPaste,
     turnContext,
     messages,
     modelId,
@@ -288,7 +226,6 @@ export async function streamAgenticResponse(
     threadId,
     toolHistory,
     disableMcp,
-    headless,
     searchToolKeys,
     toolAllowlist,
     grantedOnce,
@@ -309,7 +246,6 @@ export async function streamAgenticResponse(
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
-  let mode: LoopMode = 'unified';
   let synthName = '';
   // Außerhalb des try, damit die Attribution nach dem Loop noch erreichbar ist
   // — auch wenn der Loop selbst abgebrochen wurde (das Rezept war dann
@@ -339,17 +275,6 @@ export async function streamAgenticResponse(
   // (precise + reasoning on) and, further down, whether the writer gives up the
   // tool catalog. Two computations could disagree — see turnMaterial.ts.
   const carriedMaterialChars = turnMaterialChars(finalState);
-
-  /**
-   * Die Planer-Lane dieses Zuges, EINMAL aufgelöst.
-   *
-   * Die Bindung steht vor dem `try`, weil die Turn-Zusammenfassung unten
-   * dahinter liegt und dieselbe Lane nennen muss — nicht das Ergebnis einer
-   * zweiten Auflösung. Zugewiesen wird erst dort, wo der Loop startet: der Wert
-   * ist zeitabhängig (`isModelSlow`), und gemeint ist die Lane, mit der dieser
-   * Zug tatsächlich losfuhr.
-   */
-  let plannerLane: ReturnType<typeof resolveLoopPlannerLane> | null = null;
 
   try {
     resolution = await deps.resolveModel(
@@ -499,9 +424,7 @@ export async function streamAgenticResponse(
       approvalGate,
       askGate,
       clientToolGate,
-      // Reads `mode` lazily: it's finalized further down, before the loop runs.
-      getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
-      takeNarration: () => emitter.takeNarration(),
+      getTextOffset: () => emitter.text.length,
     });
 
     // Fortsetzung nach der Entscheidung: die freigegebenen Aufrufe laufen DURCH
@@ -579,89 +502,52 @@ export async function streamAgenticResponse(
       mcpCapabilityQuestion,
     });
 
+    // Was das Modell bekommt: Verlauf mit dem Paste in der letzten Nachricht
+    // (#5431). Alles darüber liest den Nutzertext aus `messages` — dort ist der
+    // Paste kein Teil des Auftrags. `materialDominatesTurn` rechnet weiter
+    // gegen Prompt PLUS Material: der Kanal sagt nichts über den Turn.
+    const turnMessages = withTurnPaste(messages, turnPaste);
     const materialHeavy = materialDominatesTurn(
       lastUserText,
-      `${systemMessage}${turnContext ?? ''}`,
+      `${systemMessage}${turnPaste ?? ''}${turnContext ?? ''}`,
       carriedMaterialChars
     );
-    const resolvedMode = resolveLoopMode({
-      provider: resolution.provider,
-      modelName: resolution.modelName,
-      materialHeavy,
-      carriesGuarantee: turnCarriesGuarantee(finalState, lastUserText),
-      headless: headless === true,
-    });
-    mode = resolvedMode.mode;
-    recordDecision('loop.mode', mode, {
-      inputs: {
-        provider: resolution.provider,
-        model: resolution.modelName,
-        materialHeavy,
-        reason: resolvedMode.reason,
-      },
-    });
-    // Rides on the state to the `done` event (persistStage), like usedRecipes.
-    finalState.loopMode = mode;
-    log.info(`[Agentic] loop mode: ${mode} (${resolvedMode.reason})`);
-    if (materialHeavy) {
-      log.info(
-        `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`
-      );
-    }
+    // Rides on the state to the `done` event (persistStage), like usedRecipes:
+    // the eval traces tell loop turns from single-pass turns by it.
+    finalState.loopMode = 'unified';
 
-    // Unified mode has no synth phase, so it never sees `renderAll()` — the
-    // carried sources would be numbered, chip-backed and completely invisible to
-    // the model that writes the answer. Split mode gets them via buildSynthSystem
-    // instead, so injecting here too would ship the same block twice.
+    // The loop has no synth phase, so it never sees `renderAll()` — the carried
+    // sources would be numbered, chip-backed and completely invisible to the
+    // model that writes the answer.
     const carriedNote =
-      mode === 'unified' && sourceRegistry.carriedSize > 0
+      sourceRegistry.carriedSize > 0
         ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter. Schreib diese Liste NICHT ab und hänge kein Quellenverzeichnis an — die Quellen erscheinen unter deiner Antwort von selbst:\n${sourceRegistry.renderAll()}`
         : '';
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
     // Editor sidebar, artefact open — toggle off, or toggle on but no edit
-    // path this turn. Split mode gets both via `buildArtifactNotes` in the
-    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // path this turn. The loop has no synth prompt, so they have to arrive
     // here or the model promises an edit that nothing will make (or hides
     // that editing is off).
-    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
+    const preLoopEditNotes = buildPreLoopEditNotes(finalState);
     // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
     const promptNotebook = notebookForPrompt(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
-    // The product vocabulary — term names only, so the planner recognises a
+    // The product vocabulary — term names only, so the model recognises a
     // question about the Grünerator itself and decides to look it up. The
-    // definitions of named terms ride in systemMessage (respondNode), where the
-    // split-mode writer sees them too. Only when a lookup tool is mounted.
+    // definitions of named terms ride in systemMessage (respondNode). Only when
+    // a lookup tool is mounted.
     const glossaryNote =
       'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
     );
-    // Split: der Planer bekommt statt des Volltexts einen Platzhalter (#5399).
-    // Der Schreiber baut seinen Prompt aus `systemMessage` und sieht ihn ganz;
-    // braucht der Planer Inhalt, liest er über `dokumente_lesen` nach — nur
-    // dann, wenn das Werkzeug auch montiert ist.
-    const plannerStub =
-      mode === 'split' && ATTACHED_DOCS_TOOL in wrapped
-        ? plannerDocumentStub(
-            finalState.wholeDocument,
-            new Set(retrievableAttachedSources(finalState).map((s) => s.id))
-          )
-        : null;
-    const plannerSystem = plannerStub
-      ? plannerAnchorView(replaceUntrustedBlocks(toolSystem, plannerStub.kind, plannerStub.text))
-      : toolSystem;
-    if (plannerSystem !== toolSystem) {
-      log.info(
-        `[Agentic] planner sees a stub for the whole document (${toolSystem.length} → ${plannerSystem.length} chars); the writer keeps the full text`
-      );
-    }
-    const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
+    const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
       AbortSignal.any([approvalGate.signal, askGate.signal, clientToolGate.signal])
@@ -679,34 +565,12 @@ export async function streamAgenticResponse(
       tools,
       sourceRegistry,
       recipeRegistry,
-      opening: () => (emitter.openingEmitted ? emitter.openingSentence : null),
       materialNote: seeded.writerNote,
     };
 
-    // Split slots pick the best model per phase (fast tool-caller plans, best
-    // writer synthesizes). Unified (Mistral) uses one model for both.
-    //
-    // `undecided` used to mean "the user sent auto" — but the auto policy now
-    // resolves auto to a concrete lane BEFORE this runs, using the classifier's
-    // intent. That IS a deliberate choice, so we let it reach the synth slot
-    // instead of blanket-replacing it with the writer lane. AVOID_AS_SYNTH
-    // still guards the slow think-lanes either way, so a policy pointing at
-    // gemma-litellm (→ verdigado-think) is still rewritten to gemma4-31b.
-    const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
-    const synth =
-      mode === 'split'
-        ? getLoopSynthModel(
-            {
-              model: resolution.model,
-              modelName: resolution.modelName,
-              provider: resolution.provider,
-            },
-            undecided
-          )
-        : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
-    synthName = synth.name;
+    synthName = resolution.modelName;
 
-    const afterGather = createAfterGather({
+    const ensureOwedTools = createEnsureOwedTools({
       state: finalState,
       messages,
       tools,
@@ -715,192 +579,41 @@ export async function streamAgenticResponse(
       recordStep: (step) => steps.push(step),
       wrappedTools: wrapped,
       calledToolNames: () => steps.map((s) => s.toolName),
-      emitOpeningBeforeTool: () => emitter.emitOpeningBeforeTool(),
       answerText: () => emitter.text,
       onInfo: (m) => log.info(m),
       onWarn: (m) => log.warn(m),
     });
 
-    // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
-    // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
-    // laufen können.
-    // Ohne die Dokumente, die ein Ganzdokument-Turn ganz im Prompt hat
-    // (`resolveTurnMaterial`): dann fasst der Schreiber selbst zusammen, kein
-    // erzwungenes `summarize` (live 06.11.2026 41 s und verworfen).
-    const hasAttachedDocuments = material.qdrantDocs.length > 0;
-    const summaryAsk = isSummaryAsk(lastUserText);
-
-    // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
-    // @-Erwähnung. Ohne Zwang liess der kleine Planer ein montiertes Werkzeug
-    // in 2 von 5 Fällen liegen (toolScope-Rundlauf) — und eine Speicherung, die
-    // die Antwort bestätigt, aber nie stattfand, ist die teuerste Ausfallform.
-    // Nur pinnen, wenn das Werkzeug wirklich montiert ist: ein benanntes
-    // Werkzeug, das nicht in `activeTools` steht, verlangt einen Aufruf, dessen
-    // Definition nie mitgeschickt wird.
-    const memoryPin =
-      finalState.mentionPinnedTool == null &&
-      'memory' in wrapped &&
-      looksLikeMemoryRequest(lastUserText)
-        ? 'memory'
-        : null;
-    const pinnedTool = finalState.mentionPinnedTool ?? memoryPin;
-
-    // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
-    // Live-Ausfälle, die jeden einzelnen erzwungen haben.
-    // Ein Auftrag ans Sharepic: er nennt es, oder er zitiert einen Text, der
-    // darauf steht (die Abfrage nur, wenn überhaupt etwas zitiert wird).
-    const isSharepicOrder = async (): Promise<boolean> => {
-      if (!('edit_sharepic' in wrapped)) return false;
-      const order = orderText(lastUserText);
-      if (looksLikeSharepicOrder(order)) return true;
-      if (!threadId || !/[„"»“‚]/.test(order)) return false;
-      const target = await resolveLoopSharepicTarget(threadId, finalState.currentSharepic);
-      return target != null && quotesSharepicText(order, target.props.creatorSpec);
-    };
-    const forceReason = shouldForceFirstToolCall({
-      researchBanned,
-      intent: finalState.intent,
-      hasMcpScope: finalState.mcpServerScope != null,
-      isMcpCapabilityQuestion: mcpCapabilityQuestion,
-      mcpToolCount: mcpCatalog?.labels.size ?? 0,
+    const firstStep = await decideFirstStep({
+      state: finalState,
+      tools: wrapped,
+      messages,
       lastUserText,
-      loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
-      priorTurnRetrieved: priorTurnRetrieved(toolHistory),
-      classifierContradictedResearch: finalState.classifierContradictedResearch === true,
+      threadId,
+      researchBanned,
+      mcpCapabilityQuestion,
+      mcpCatalog,
+      toolHistory,
       materialHeavy,
-      carriesMaterial:
-        carriedMaterialChars > 0 ||
-        messages.some(
-          (m) => m.role === 'user' && extractTextContent(m.content).length > NOUN_TRIGGER_MAX_LENGTH
-        ),
-      pinnedTool,
-      hasAttachedDocuments,
-      summaryAsk,
-      sharepicOrder: await isSharepicOrder(),
-      artifactEditOrder: finalState.artifactEditOrder === true,
+      carriedMaterialChars,
+      material,
       attachedSeedDelivered: seeded.delivered,
       resumesSuspendedTurn: resumeApproval != null,
-      tabularToolMounted: 'tabelle_auswerten' in wrapped,
-      materialOrder:
-        (finalState.compoundGenerationOrdered === true ||
-          finalState.readsPickedMaterial === true) &&
-        materialReaderTools(material).some((name) => name in wrapped),
+      threadNotebook: promptNotebook != null,
+      steps,
+      onInfo: (m) => log.info(m),
+      onWarn: (m) => log.warn(m),
     });
-    const forceFirstToolCall = forceReason !== null;
+    forceScope = firstStep.forceScope;
 
-    // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
-    // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
-    // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt, das
-    // Modell kann die Wahl also gar nicht mehr sehen.
-    const firstToolName = forceReason
-      ? pinnedFirstTool({
-          pinnedTool,
-          hasAttachedDocuments,
-          summaryAsk,
-          isMounted: (name) => name in wrapped,
-        })
-      : null;
-    // Ohne benanntes Werkzeug bekommt der erzwungene Schritt nur die Werkzeuge,
-    // die seinen Grund erfüllen (#3880) — sonst wählt der Planer unter zwanzig.
-    const firstStepTools =
-      forceReason && !firstToolName
-        ? forcedFirstStepTools({
-            reason: forceReason,
-            intent: finalState.intent,
-            mounted: Object.keys(wrapped),
-            mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
-            priorToolNames: priorToolNames(toolHistory),
-            isLookupTool,
-            materialTools: materialReaderTools(material).filter((name) => name in wrapped),
-            userText: finalState.lastUserTextNoMentions ?? lastUserText,
-            threadNotebook: promptNotebook != null,
-            recipeOrder:
-              deriveImplicitRecipeMention(
-                orderText(finalState.lastUserTextNoMentions ?? lastUserText),
-                finalState.userLocale ?? null
-              ) != null,
-          })
-        : null;
-    if (firstToolName) {
-      log.info(`[Agentic] ${firstToolName} ist als erster Werkzeugaufruf festgelegt`);
-    } else if (firstStepTools) {
-      log.info(
-        `[Agentic] erzwungener erster Aufruf (${forceReason}) sieht nur [${firstStepTools.join(', ')}]`
-      );
-    } else if (forceReason) {
-      log.warn(
-        `[Agentic] erzwungener erster Aufruf (${forceReason}) ohne passendes Werkzeug — voller Katalog`
-      );
-    }
-    if (forceReason) {
-      forceScope = { reason: forceReason, tools: firstStepTools, named: firstToolName };
-    }
-
-    // The synth phase emits nothing between the last tool result and the first
-    // answer token. Until this guard existed a lane that stalled there took the
-    // whole turn down: no text, no error, no heartbeat, for the full 120s wall
-    // clock — users read that as "it just aborts".
-    const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
-    // Unified: the same tool-less writer chain split mode uses re-writes an
-    // answer the one-model pass got wrong (empty, cut off, leaked plan, spam).
-    const repair =
-      mode === 'unified'
-        ? getLoopSynthModel(
-            {
-              model: resolution.model,
-              modelName: resolution.modelName,
-              provider: resolution.provider,
-            },
-            undecided
-          )
-        : null;
-    const repairFallback = repair ? getLoopSynthFallbackModel(repair.name) : null;
-    // Was ein Melious-Body dieser Grösse auf dem Draht wird: ein grosser
-    // `:balanced`-Request geht als `:speed` raus (`meliousWireModel`), und eine
-    // `:speed`-Stufe dahinter wiederholte nur dieselbe Anfrage.
-    const wireModelFor = (modelName: string): string | null =>
-      meliousGoesWide(modelName, estimatedRequestChars(toolSystem, messages, wrapped))
-        ? MELIOUS_WIDE_MODEL
-        : null;
-    // Unified Gemma: die ganze Kette, gewählte Stufe zuerst — ist sie als zäh
-    // vermerkt, rückt sie ans Ende und der Zug startet auf `:speed`. Leer für
-    // jede andere Lane; dann fährt die eine Instanz aus `resolution`.
-    const unifiedChain =
-      mode === 'unified'
-        ? resolveUnifiedLaneChain(
-            resolution.provider,
-            resolution.modelName,
-            wireModelFor(resolution.modelName)
-          )
-        : [];
-    if (unifiedChain[0] && unifiedChain[0].model !== resolution.modelName) {
-      log.warn(
-        `[Agentic] ${resolution.provider}/${resolution.modelName} gilt als zäh — unified startet auf ${unifiedChain[0].provider}/${unifiedChain[0].model}`
-      );
-      synthName = unifiedChain[0].model;
-    }
-    const unifiedFallbacks = unifiedChain.slice(1).map((stage) => stage.languageModel);
-    // Whichever mode, the lane that backs up the tool-less writer.
-    const writerFallback = synthFallback ?? repairFallback;
-    // Unknown: the history was budgeted against the lane floor, which may
-    // exceed the fallback's window — rebuild rather than guess.
-    const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
-    // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
-    // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
-    plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
-    const plannerFallbackStages = plannerLane
-      ? getLoopPlannerFallbackStages(
-          plannerLane.provider,
-          plannerLane.model,
-          wireModelFor(plannerLane.model)
-        )
-      : [];
-    const plannerFallbacks = plannerFallbackStages.map((stage) => stage.languageModel);
-    // Die Leiter der Werkzeugphase mit Identität, Index wie in `runLaneChain`
-    // — damit ein Stillstand die Stufe vermerkt, die wirklich stand.
-    const toolPhaseLadder: { provider: string; model: string }[] = plannerLane
-      ? [plannerLane, ...plannerFallbackStages]
-      : unifiedChain;
+    const lanes = resolveLoopLanes({
+      resolution,
+      modelId,
+      toolSystem,
+      messages: turnMessages,
+      tools: wrapped,
+    });
+    synthName = lanes.laneName;
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -913,99 +626,52 @@ export async function streamAgenticResponse(
         : null;
 
     const loopResult = await deps.runAgenticLoop({
-      mode,
-      plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
-      synthModel: unifiedChain[0]?.languageModel ?? synth.model,
-      ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      ...(repair && { repairModel: repair.model }),
-      ...(unifiedFallbacks.length > 0 && { unifiedFallbacks }),
-      ...(repairFallback && { repairFallback: repairFallback.model }),
+      model: lanes.model,
+      repairModel: lanes.repairModel,
+      ...(lanes.fallbackModels.length > 0 && { fallbackModels: lanes.fallbackModels }),
+      ...(lanes.repairFallback && { repairFallback: lanes.repairFallback }),
       producedArtifact: () => turnProducedArtifact(finalState),
-      plannerFallbackModels: plannerFallbacks,
-      // Eine Stufe der Werkzeugphase stand oder fiel aus. Umgeschaltet hat die
-      // Leiter selbst; hier wird die Stufe vermerkt, damit der nächste Zug sie
-      // überspringt, statt dieselbe Frist noch einmal abzusitzen. Der Index
-      // zeigt auf die Stufe, die WIRKLICH lief — derselbe Modellname liegt auf
-      // zwei Hosts, und bis 06.11.2026 bekam immer der Primär den Vermerk.
-      onLaneUnhealthy: (laneIndex, grund) => {
-        const stage = toolPhaseLadder[laneIndex];
-        if (!stage) return;
-        recordSlowVerdict(stage.provider, stage.model, `${mode}:${grund}`);
-        log.warn(
-          `[Agentic] ${mode === 'split' ? 'planner' : 'unified'} ${stage.provider}/${stage.model} ${
-            grund === 'stall' ? 'lieferte nichts' : `fiel aus (${grund})`
-          } — Lane wird übersprungen`
-        );
-      },
-      onSynthFallback: (reason) => {
-        // Stillstand und leere Antwort sind Verdikte, die die Messung nicht
-        // liefert: es kam nichts, was sich hätte messen lassen. Der
-        // Einzeldurchlauf vermerkt beide genauso (streamWithFallback).
-        // Nur im Split: unified meldet seine Stufen über `onLaneUnhealthy`,
-        // mit der Stufe, die stand, statt immer der gewählten.
-        if (mode !== 'split') return;
-        recordSlowVerdict(
-          synth.provider,
-          synth.name,
-          reason === 'empty_completion'
-            ? 'synth_empty'
-            : reason === 'upstream_error'
-              ? 'upstream_error'
-              : 'synth_stall'
-        );
-        if (!synthFallback) return;
-        log.warn(
-          `[Agentic] synth ${synth.name} ${
-            reason === 'empty_completion'
-              ? 'returned no text'
-              : reason === 'upstream_error'
-                ? 'rejected the request'
-                : 'stalled'
-          } → falling back to ${synthFallback.name}`
-        );
-        sse.send('fallback', {
-          from: { id: synth.name, name: synth.name },
-          to: { id: synthFallback.name, name: synthFallback.name },
-          reason,
-        });
-      },
+      onLaneUnhealthy: lanes.onLaneUnhealthy,
+      onRepairWriterUnhealthy: lanes.onRepairWriterUnhealthy,
       tools: wrapped,
       toolActivity,
-      toolSystem: plannerSystem,
+      toolSystem,
       ...(turnContext ? { turnContext } : {}),
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
       activeTools: (steps) => assembled.toolScope.activeTools(steps),
-      forceFirstToolCall,
-      firstToolName,
-      firstStepTools,
+      forceFirstToolCall: firstStep.forceFirstToolCall,
+      firstToolName: firstStep.firstToolName,
+      firstStepTools: firstStep.firstStepTools,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
       // is actually mounted — a restricted agent without web_search must not be
       // forced into a tool it doesn't have.
       forcedToolForStep: () => {
         const toolName = guards.emptyResultFallback();
-        if (!toolName || !(toolName in wrapped)) return null;
-        log.info(
-          `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the planner`
-        );
-        return toolName;
+        if (toolName && toolName in wrapped) {
+          log.info(
+            `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the model`
+          );
+          return toolName;
+        }
+        const owed = firstStep.owedTool();
+        if (owed) log.info(`[Agentic] geschuldetes ${owed} wird jetzt erzwungen`);
+        return owed;
       },
-      buildSynthSystem: (sources) => buildSynthSystem(sources, synthContext),
+      buildRepairSystem: (sources) => buildRepairSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
-      // the synth phase sees of the gathering — it gets no tool results, so the
-      // note the planner received in its tool result would never reach the model
-      // that actually writes the answer. Appended, never registered: an image has
-      // no text, so it must not become a numbered `[N]`.
+      // the tool-less repair writer sees of the tool work — it gets no tool
+      // results. Appended, never registered: an image has no text, so it must
+      // not become a numbered `[N]`.
       getSourcesBlock: () => {
         const sources = sourceRegistry.renderAll();
         const note = imageDeliveryNote(finalState.webImageResults?.length ?? 0);
         return note ? `${sources}\n\n${note}` : sources;
       },
-      // Unified mode only — read per step because `rezept_laden` fills the
-      // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
-      // Auch die Notiz „Gegenstand ohne Quelle" (#5141): im Split-Modus trägt
-      // sie buildSynthSystem, hier ist dieser Getter der einzige Kanal.
+      // Read per step because `rezept_laden` fills the registry mid-loop; the
+      // repair writer gets the same via buildRepairSystem. Auch die Notiz
+      // „Gegenstand ohne Quelle" (#5141) läuft für das Loop-Modell nur hierüber.
       // Ebenso die Notiz über nicht lesbares Material (#5286): der Seed-Replay
       // fehlt ohne montiertes Lesewerkzeug ganz.
       getRecipeBlock: () =>
@@ -1018,24 +684,12 @@ export async function streamAgenticResponse(
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.
-      messages: spliceToolReplay(messages, toolReplayMessages),
-      // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
+      messages: spliceToolReplay(turnMessages, toolReplayMessages),
+      // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
-      synthMessages: messages,
-      // The history was pruned for the selected lane — up to 262k on an
-      // explicit Mistral Medium turn. The fallback is the planner lane, which
-      // Melious caps near 131k (#4201).
-      ...(writerFallback && {
-        synthFallbackMessages: (system: string) =>
-          messagesForLane(
-            { modelName: writerFallback.name, contextWindow: writerFallback.contextWindow },
-            primaryWindow,
-            messages,
-            (window) => pruneMessages(messages, window, system),
-            '[Agentic]'
-          ),
-      }),
+      repairMessages: turnMessages,
+      ...(lanes.repairSiblingMessages && { repairSiblingMessages: lanes.repairSiblingMessages }),
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       // No output cap (OpenWebUI-style): the model window is the backstop.
@@ -1049,67 +703,42 @@ export async function streamAgenticResponse(
       // (cached input is billed at 10 %). Ignored by every non-Mistral client.
       ...(mistralOptions != null && { providerOptions: { mistral: mistralOptions } }),
       abortSignal,
-      writeAbortSignal,
-      afterGather,
+      ensureOwedTools,
       forceFinish: () =>
         // The turn budget lands HERE rather than on the abort signal: spending
-        // it must end the tool work, not the sentence being written. In unified
-        // mode this is also what protects the answer — one stream holds tools
-        // and text there, so a hard timeout could only ever cut prose.
+        // it must end the tool work, not the sentence being written — one
+        // stream holds tools and text, so a hard timeout could only cut prose.
         Date.now() >= toolBudgetDeadline ||
         finalState.generatedImage != null ||
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
         finalState.createdDocument != null ||
         finalState.createdBoard != null,
-      // Every answer delta runs through the opening dedupe: the synth is told
-      // not to restate the already-streamed opening sentence, but the small
-      // lanes do it anyway ("Hallo zusammen, Hallo zusammen …"). The dedupe
-      // holds the head of the answer only while a duplicate is still possible,
-      // then streams normally; in unified mode (no narrated opening) it is a
-      // pure passthrough from the first delta.
       onText: (delta) => emitter.pushAnswer(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
-      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
-      // The FIRST sentence — the model's opening plan — crosses into the real
-      // answer text, but only once a tool actually starts (see
-      // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
-      // announces nothing and only duplicates the synth's own opening. Every
-      // later sentence stays on the existing side channel, held until a tool
-      // call starts: the planner's final, tool-less step drafts the answer the
-      // synth writes, and must not reach the status line. Repeating the opening
-      // line per tool call would be noise the tool card already carries.
-      onNarration: (s) => emitter.handleNarration(s),
-      onToolCallStart: () => emitter.releaseNarration(),
       validateAnswer: createAnswerValidator(),
       suspended: () =>
         (approvalGate?.hasPending() ?? false) ||
         (askGate?.hasPending() ?? false) ||
         (clientToolGate?.hasPending() ?? false),
     });
-    emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
 
-    if (loopResult.replacedStreamed) {
-      // The validation retry replaced an answer that was already on the wire.
-      // Same replacement channel the citation clamp uses: `completion` swaps
-      // the streamed deltas for the corrected text, and the recorded offsets
-      // (which index into the discarded stream) are dropped.
-      const shownOpening = emitter.openingEmitted ? emitter.openingSentence : null;
-      const prefix = shownOpening ? `${shownOpening} ` : '';
-      emitter.setText(prefix + stripDuplicatedOpening(loopResult.text, shownOpening));
+    if (loopResult.replacement != null) {
+      // The answer on the wire was replaced. Same channel the citation clamp
+      // uses: `completion` swaps the streamed deltas for the corrected text,
+      // and the recorded offsets (which index into the discarded stream) are
+      // dropped.
+      emitter.setText(loopResult.text);
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
     }
 
-    // Unified: an answer written before its edit landed says what came of it.
-    const editTail =
-      mode === 'unified' ? editOutcomeAfterPreamble(finalState, steps, emitter.text) : null;
+    // An answer written before its edit landed says what came of it.
+    const editTail = editOutcomeAfterPreamble(finalState, steps, emitter.text);
     if (editTail) emitter.appendAndStream(`\n\n${editTail}`);
 
-    // Edit + compound-generation guarantees now run inside afterGather in BOTH
-    // loop modes (loopEngine calls it post-stream for unified), so no separate
-    // post-loop net is needed here. The hooks are idempotent via
-    // editorEditsSummary / the `already` artifact check.
+    // Edit + compound-generation guarantees run inside ensureOwedTools (loopEngine
+    // calls it post-stream), so no post-loop net is needed here.
 
     if (emitter.text.trim().length === 0) {
       // An edit that succeeded but left the model silent must NOT surface the
@@ -1137,9 +766,6 @@ export async function streamAgenticResponse(
       }
     }
   } catch (err) {
-    // Anything the dedupe still holds is real answer text — release it before
-    // the outcome logic reads `text`.
-    emitter.flush();
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
@@ -1195,7 +821,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingAsk,
     };
@@ -1211,7 +837,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingClientTool,
     };
@@ -1222,7 +848,7 @@ export async function streamAgenticResponse(
       fullText: emitter.text,
       steps,
       citations: sourceRegistry.getCitations(),
-      sources: sourceRegistry.getResults(MAX_SOURCES),
+      sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
       modelName: resolution?.modelName ?? agentConfig.model,
       pendingApproval: approvalGate.pending(),
       ...(pendingClientTool ? { heldClientTool: pendingClientTool } : {}),
@@ -1292,15 +918,6 @@ export async function streamAgenticResponse(
 
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
-    mode,
-    // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
-    // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
-    // gerade selbst einen Stillstand vermerkt hat (`onLaneUnhealthy`), nennt
-    // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
-    // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
-    // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem
-    // gleichen Grund wie in `modelLabel`.
-    plannerName: plannerLane ? `${plannerLane.provider}/${plannerLane.model}` : null,
     synthName,
     intent: finalState.intent,
     steps,
@@ -1326,7 +943,7 @@ export async function streamAgenticResponse(
     // MAX_SOURCES, not 10: this is what gets persisted and what a later turn
     // rehydrates. Capping here below the loop's own gathering budget silently
     // threw away half the research of a thorough turn.
-    sources: sourceRegistry.getResults(MAX_SOURCES),
+    sources: sourceRegistry.getResults(MAX_SOURCES, emitter.text),
     modelName: resolution?.modelName ?? agentConfig.model,
     ...(degraded != null ? { degraded } : {}),
   };

@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "gruenerator",
+    "platforms": ["ios", "android"],
     "runtimeVersion": {
       "policy": "appVersion"
     },

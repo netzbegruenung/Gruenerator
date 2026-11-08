@@ -12,7 +12,7 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
-import { CURRENT_WAHLPERIODE, detectFromWording } from './planDetect.js';
+import { CURRENT_WAHLPERIODE, detectFromWording, dropTitelBesideDeskriptor } from './planDetect.js';
 
 const log = createLogger('BundestagQaPlan');
 
@@ -254,6 +254,8 @@ export async function planFilters({
     }
     if (kept.length) filters.deskriptor = kept;
     else delete filters.deskriptor;
+    const titelNote = dropTitelBesideDeskriptor(filters);
+    if (titelNote) notes.push(titelNote);
   }
 
   // Ohne tragenden Deskriptor wäre die Suche themenlos: aus den Suchwörtern ableiten.

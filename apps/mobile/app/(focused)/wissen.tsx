@@ -2,81 +2,58 @@ import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { findNamedRegion } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  useColorScheme,
-  Pressable,
   Alert,
-  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  useColorScheme,
 } from 'react-native';
 
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
-import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { MarketplaceNotebooksTile } from '../../components/notebook/MarketplaceNotebooksTile';
-import { NotebookCoverArt } from '../../components/notebook/NotebookCoverArt';
 import { NotebookCreator } from '../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../components/notebook/NotebookSection';
+import { useNotebookTileGrid } from '../../components/notebook/NotebookTile';
+import { HeadlineSlider } from '../../components/wissen/HeadlineSlider';
+import { NotebookShelf, type NotebookTarget } from '../../components/wissen/NotebookShelf';
+import { PollCard } from '../../components/wissen/PollCard';
+import { TrendsCard } from '../../components/wissen/TrendsCard';
+import { useNotebookShelves } from '../../components/wissen/useNotebookShelves';
+import { CARD_GAP, PAGE_GAP } from '../../components/wissen/WissenLayout';
 import {
-  NotebookTile,
-  notebookTileGridStyle,
-  useNotebookTileGrid,
-} from '../../components/notebook/NotebookTile';
-import {
-  getMobileNotebooksByCategory,
   getResearchRegions,
   getVisibleNotebooks,
   type MobileNotebookEntry,
 } from '../../config/notebooksConfig';
+import { useMonitorLocale } from '../../hooks/monitor/monitorLocale';
+import { useWissenNews } from '../../hooks/monitor/useWissenNews';
 import { useNotebookSharing } from '../../hooks/notebook/useNotebookSharing';
 import { useContentColumn } from '../../hooks/useLayout';
-import {
-  collectionIndexingState,
-  useNotebookCollections,
-  type MobileNotebookCollection,
-} from '../../hooks/useNotebookCollections';
+import { useNotebookCollections } from '../../hooks/useNotebookCollections';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useFavoritesStore } from '../../stores/favoritesStore';
-import {
-  colors,
-  spacing,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  HEADING_FONT_BOLD,
-} from '../../theme';
+import { colors, spacing, useDashboardColors } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
-import { routeWithParams } from '../../types/routes';
+import { route, routeWithParams } from '../../types/routes';
 import { goBackOr } from '../../utils/navigation';
 
-/**
- * "12 Dokumente · Beschreibung" line for a user's own notebook card.
- *
- * Readiness displaces the description rather than joining it: the card gives
- * this one truncated line, and a notebook that cannot answer yet is the more
- * useful thing to read there. Wording matches the web notebook cards.
- */
-function collectionSubtitle(c: MobileNotebookCollection): string {
-  const docs = `${c.document_count} Dokument${c.document_count === 1 ? '' : 'e'}`;
-  const state = collectionIndexingState(c);
-  if (state === 'indexing') return `${docs} · Wird indexiert`;
-  if (state === 'failed') return `${docs} · Nicht durchsuchbar`;
-  if (state === 'partial') return `${docs} · Teilweise indexiert`;
-  return c.description ? `${docs} · ${c.description}` : docs;
-}
+type NotebookRef = { id: string; name: string };
 
 export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { size: tileSize } = useNotebookTileGrid();
   const gridColumn = useContentColumn('grid');
+  const dash = useDashboardColors();
   // Without this the last shelf scrolls to a stop underneath the tab bar.
   const bottomClearance = useTabBarClearance(spacing.xxlarge);
   const fabBottom = useTabBarClearance(spacing.small);
@@ -85,9 +62,17 @@ export default function NotebooksScreen() {
   // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
   // and a permanently pinned bar ate a sixth of the screen for it.
   const [askVisible, setAskVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const { collections, isLoading, createCollection, deleteCollection } = useNotebookCollections();
+  const monitorLocale = useMonitorLocale();
+  const news = useWissenNews(monitorLocale);
+  const { shelves } = useNotebookShelves();
+  const {
+    createCollection,
+    deleteCollection,
+    refetch: refetchCollections,
+  } = useNotebookCollections();
   const { showActionSheetWithOptions } = useActionSheet();
   const { listGroups, shareToGroup, getShareUrl } = useNotebookSharing();
   const { favouriteIds, load: loadFavourites, toggle: toggleFavourite } = useFavoritesStore();
@@ -96,27 +81,12 @@ export default function NotebooksScreen() {
     void loadFavourites();
   }, [loadFavourites]);
 
-  // Hoisted out of the five section props below: an inline arrow there is a new
-  // function on every render, which would defeat the tiles' `memo` and re-render
-  // all 19 covers whenever anything on this screen changed.
+  // Hoisted out of the section props below: an inline arrow there is a new function
+  // on every render, which would defeat the tiles' `memo`.
   const handleToggleFavourite = useCallback(
     (nb: MobileNotebookEntry) => toggleFavourite(nb.id),
     [toggleFavourite]
   );
-
-  // Die Galerie ist NICHT nach der Rolle „Mitarbeiter*in Landesgeschäftsstelle"
-  // gefiltert — dieselbe Regel wie im Web, wo `NotebooksIndexPage` alle elf
-  // Landesverbände listet und nur `audience` (Locale) und `enabled` prüft. Ein
-  // Notebook ist Lesestoff: die Zuteilung entscheidet, wer im Namen eines
-  // Landesverbands SCHREIBT, also über Agenten und Rezepte (`Agentur`,
-  // `@`-Erwähnungen), nicht darüber, wer die Beschlüsse eines Verbands lesen
-  // darf. Der `@`-Picker filtert Notebooks aus demselben Grund nicht mehr
-  // (`visibleNotebookMentionables`).
-  const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
-  const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
-  const parlamente = useMemo(() => getMobileNotebooksByCategory('parlamente', locale), [locale]);
-  const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
-  const oesterreich = useMemo(() => getMobileNotebooksByCategory('oesterreich', locale), [locale]);
 
   const favouriteNotebooks = useMemo(
     () => getVisibleNotebooks(locale).filter((nb) => favouriteIds.includes(nb.id)),
@@ -130,12 +100,32 @@ export default function NotebooksScreen() {
     [router]
   );
 
-  const handleCollectionPress = useCallback(
-    (collectionId: string, name: string) => {
-      router.push(routeWithParams('/notebook/[id]', { id: collectionId, title: name }));
+  const handleOpen = useCallback(
+    ({ id, title }: NotebookTarget) => {
+      router.push(routeWithParams('/notebook/[id]', { id, title }));
     },
     [router]
   );
+
+  const openBriefing = useCallback(() => router.push(route('/(focused)/briefing')), [router]);
+  const openKeywords = useCallback(
+    () => router.push(routeWithParams('/(focused)/briefing', { karte: 'keywords' })),
+    [router]
+  );
+  const openPolls = useCallback(() => router.push(route('/(focused)/umfragen')), [router]);
+  const openCreator = useCallback(() => setCreatorVisible(true), []);
+
+  // Pull to refresh reloads everything on the screen: the monitor cards, the shared and
+  // saved notebooks and the user's own.
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // `.finally()` statt try/finally: der React Compiler übersetzt kein try ohne catch.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['monitor'] }),
+      queryClient.invalidateQueries({ queryKey: ['notebookCollections'] }),
+      refetchCollections(),
+    ]).finally(() => setRefreshing(false));
+  }, [queryClient, refetchCollections]);
 
   // The hero composer starts a notebook chat (scoped to the notebook, it
   // auto-sends `initialMessage`), with the notebook page beneath it. Route Austrian users
@@ -172,7 +162,7 @@ export default function NotebooksScreen() {
   );
 
   const handleShareCollection = useCallback(
-    async (c: MobileNotebookCollection) => {
+    async (c: NotebookRef) => {
       const groups = await listGroups();
       const options = ['Link kopieren', ...groups.map((g) => `An „${g.name}" teilen`), 'Abbrechen'];
       showActionSheetWithOptions(
@@ -201,29 +191,24 @@ export default function NotebooksScreen() {
   );
 
   const handleCollectionActions = useCallback(
-    (c: MobileNotebookCollection) => {
+    (c: NotebookRef) => {
       const options = ['Öffnen', 'Teilen', 'Löschen', 'Abbrechen'];
       showActionSheetWithOptions(
         { title: c.name, options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
         (i) => {
-          if (i === 0) handleCollectionPress(c.id, c.name);
+          if (i === 0) handleOpen({ id: c.id, title: c.name });
           else if (i === 1) void handleShareCollection(c);
           else if (i === 2) handleDeleteCollection(c.id, c.name);
         }
       );
     },
-    [
-      showActionSheetWithOptions,
-      handleCollectionPress,
-      handleShareCollection,
-      handleDeleteCollection,
-    ]
+    [showActionSheetWithOptions, handleOpen, handleShareCollection, handleDeleteCollection]
   );
 
   return (
     <ScreenScaffold
       title="Wissen"
-      backdrop={<NeutralBackdrop />}
+      backdrop={<View style={[StyleSheet.absoluteFill, { backgroundColor: dash.page }]} />}
       // Opened from its tile on Arbeiten; a cold link has nothing beneath it.
       onBack={() => goBackOr('/start')}
     >
@@ -236,107 +221,43 @@ export default function NotebooksScreen() {
             { paddingBottom: bottomClearance },
           ]}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />
+          }
         >
-          <View>
-            <NotebookSection
-              title="Favoriten"
-              notebooks={favouriteNotebooks}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-            />
-            <NotebookSection
-              title="Bundesebene"
-              notebooks={bundesebene}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-            />
-            <NotebookSection
-              title="Landesebene"
-              notebooks={landesebene}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-            />
-            <NotebookSection
-              title="Parlamente"
-              notebooks={parlamente}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-            />
-            <NotebookSection
-              title="Weitere"
-              notebooks={weitere}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-              trailing={<MarketplaceNotebooksTile enabled={!!user} size={tileSize} />}
-            />
-            <NotebookSection
-              title="Österreich"
-              notebooks={oesterreich}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={handleToggleFavourite}
-            />
+          <HeadlineSlider
+            items={news.headlines}
+            loading={news.headlinesPending}
+            error={news.error}
+            onRetry={news.refetch}
+            onOpenBriefing={openBriefing}
+          />
 
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-              {isLoading ? (
-                <View style={notebookTileGridStyle}>
-                  {[0, 1, 2].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.skeletonTile,
-                        {
-                          width: tileSize,
-                          height: tileSize,
-                          backgroundColor: theme.surface,
-                          borderColor: theme.cardBorder,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View style={notebookTileGridStyle}>
-                  {collections.map((c) => (
-                    <NotebookTile
-                      key={c.id}
-                      icon="book"
-                      title={c.name}
-                      size={tileSize}
-                      coverNode={
-                        <NotebookCoverArt
-                          title={c.name}
-                          subtitle={collectionSubtitle(c)}
-                          size={tileSize}
-                          // The spinner below occupies the same corner, and
-                          // `overlay` draws over the cover — so the title has
-                          // to step aside for exactly as long as it is there.
-                          reserveTopRight={collectionIndexingState(c) === 'indexing'}
-                        />
-                      }
-                      onPress={() => handleCollectionPress(c.id, c.name)}
-                      onLongPress={() => handleCollectionActions(c)}
-                      // The subtitle already says "Wird indexiert", but it is
-                      // the fourth thing read on the tile; the spinner is what
-                      // the row card gave at a glance and what web's badge gives.
-                      overlay={
-                        collectionIndexingState(c) === 'indexing' ? (
-                          <ActivityIndicator size="small" color={colors.white} />
-                        ) : null
-                      }
-                    />
-                  ))}
-                  <NotebookTile
-                    icon="add"
-                    title="Neues erstellen"
-                    meta="Eigene Quellen sammeln und befragen."
-                    size={tileSize}
-                    onPress={() => setCreatorVisible(true)}
-                  />
-                </View>
-              )}
-            </View>
+          <View style={styles.cards}>
+            <TrendsCard locale={monitorLocale} onOpen={openKeywords} />
+            <PollCard locale={monitorLocale} onOpen={openPolls} />
           </View>
+
+          <NotebookShelf
+            shelves={shelves}
+            onOpen={handleOpen}
+            onCreate={openCreator}
+            onOwnActions={handleCollectionActions}
+          />
+
+          {/* The app keeps its favourites (the web page has none) and the way into the
+              Marktplatz' public notebooks. */}
+          <NotebookSection
+            title="Favoriten"
+            notebooks={favouriteNotebooks}
+            onNotebookPress={handleNotebookPress}
+            onNotebookLongPress={handleToggleFavourite}
+          />
+          {user ? (
+            <View style={styles.marketplace}>
+              <MarketplaceNotebooksTile enabled size={tileSize} />
+            </View>
+          ) : null}
 
           <NotebookCreator
             visible={creatorVisible}
@@ -394,26 +315,20 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
-  // Horizontal margin comes from the content column; only the vertical rhythm
-  // is this screen's own.
+  // Horizontal margin comes from the content column; the blocks are spaced by `gap`.
+  // `paddingBottom` is not here: it depends on the safe-area inset and on the Android
+  // tab capsule, neither of which a StyleSheet evaluated at import can see. See
+  // `bottomClearance`.
   scrollContent: {
-    // The hero above the first section is gone, so the sections carry the top
-    // spacing themselves — without this the first heading sits on the header.
-    // `paddingBottom` is not here: it depends on the safe-area inset and on the
-    // Android tab capsule, neither of which a StyleSheet evaluated at import can
-    // see. See `bottomClearance`.
     paddingTop: spacing.small,
+    gap: PAGE_GAP,
   },
-  section: {
-    marginBottom: spacing.large,
+  // Trends and Umfragen side by side, equally high.
+  cards: {
+    flexDirection: 'row',
+    gap: CARD_GAP,
   },
-  sectionTitle: {
-    fontFamily: HEADING_FONT_BOLD,
-    fontSize: 17,
-    marginBottom: spacing.small,
-  },
-  skeletonTile: {
-    borderRadius: borderRadius.large,
-    borderWidth: StyleSheet.hairlineWidth,
+  marketplace: {
+    flexDirection: 'row',
   },
 });

@@ -79,7 +79,6 @@ export type SSEEventType =
   | 'progress_step'
   | 'text_delta'
   | 'reasoning_delta'
-  | 'gather_narration'
   | 'fallback'
   | 'interrupt'
   | 'document_indexed'
@@ -238,7 +237,6 @@ export interface SSEEventPayloads {
     args?: Record<string, unknown>;
     title?: string;
     serverName?: string;
-    narration?: string;
   };
   tool_step_result: {
     stepId: string;
@@ -252,7 +250,6 @@ export interface SSEEventPayloads {
   progress_step: ProgressStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
-  gather_narration: { text: string };
   fallback: {
     from: { id: string; name: string };
     to: { id: string; name: string };
@@ -331,7 +328,7 @@ export interface SSEEventPayloads {
     generatedImage?: GeneratedImageResult | null;
     interrupted?: boolean;
     /** Loop turns only. */
-    loopMode?: 'unified' | 'split';
+    loopMode?: 'unified';
     metadata?: {
       intent: SearchIntent;
       searchCount: number;

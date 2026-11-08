@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { lvName } from '../bundeslaender';
+import { lvName } from '@gruenerator/shared/monitor';
 
 import { persistedMonitorQuery } from './persistedMonitorQuery';
 

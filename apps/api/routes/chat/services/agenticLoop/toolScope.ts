@@ -69,7 +69,7 @@ import type { ToolSet } from 'ai';
 /**
  * Wann die eigenen Inhalte gemeint sind.
  *
- * Live gemessen am 25.08.2026 gegen LOOP_PLANNER_PRIMARY
+ * Live gemessen am 25.08.2026 gegen den damaligen Loop-Planer (GreenPT)
  * (`scripts/probeToolScopeRecall.ts`): ein blosser Possessiv-Test reichte NICHT.
  * Von fünf Turns ohne Possessiv fand der Planer den Lader dreimal — und lag
  * zweimal daneben, davon einmal auf die teuerste Art:

@@ -861,7 +861,8 @@ export async function getRecentToolSteps(threadId: string, limit = 6): Promise<P
  * when the user says "trag die recherchierten Zahlen ein" turns after the search.
  *
  * Accumulates newest-first across the recent assistant messages until `limit`
- * is reached, deduped by URL+title.
+ * is reached, deduped by URL+title — what the answers cited before the rest
+ * (see `toSources`).
  *
  * It used to return at the FIRST message carrying any sources at all, which
  * made a single incidental lookup shadow the research before it: turn 5 does a

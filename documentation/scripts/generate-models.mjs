@@ -42,7 +42,6 @@ import { runGenerator } from './lib/audit.mjs';
 
 const SRC = {
   chatProviders: 'apps/api/routes/chat/agents/providers.ts',
-  autoPolicy: 'apps/api/routes/chat/agents/autoPolicy.ts',
   intermediate: 'apps/api/services/ai/intermediateLanes.ts',
   // Wer Gemma 4 bedient, steht seit dem 25.08.2026 nur noch hier; die
   // Lane-Konfigurationen in `chatProviders` leiten Provider, Modellname,
@@ -90,6 +89,7 @@ const MODEL_LABELS = {
   // so soll es dort stehen.
   'gemma-4-31b-it': 'Gemma 4 (31 Mrd.)',
   'gemma-4-31b:balanced': 'Gemma 4 (31 Mrd., Melious Balanced)',
+  'gemma-4-31b:eco': 'Gemma 4 (31 Mrd., Melious Eco)',
   'gemma-4-26b-a4b-it': 'Gemma 4 (26 Mrd., MoE)',
   gemma4: 'Gemma 4',
   'gpt-oss-120b': 'GPT-OSS 120B',
@@ -413,7 +413,6 @@ function generate() {
   crossFileSources.push(parse(SRC.embeddingConstants));
 
   const chat = parse(SRC.chatProviders);
-  const policy = parse(SRC.autoPolicy);
   const lanes = parse(SRC.intermediate);
   const selector = parse(SRC.selector);
   const transcription = parse(SRC.transcription);
@@ -517,13 +516,6 @@ function generate() {
     model: constString(selector, 'ARTIFACT_MODEL', SRC.selector),
   };
 
-  const planner = readLane(
-    policy,
-    findDeclaration(policy, 'LOOP_PLANNER_PRIMARY'),
-    SRC.autoPolicy,
-    'LOOP_PLANNER_PRIMARY'
-  );
-
   // The German task wording is the hand-written half — see the header note.
   const rows = [
     {
@@ -552,11 +544,6 @@ function generate() {
       models: [
         entry(lane('standard').provider, lane('standard').model, `${SRC.intermediate} standard`),
       ],
-    },
-    {
-      id: 'werkzeuge',
-      task: 'Werkzeuge planen und aufrufen',
-      models: [entry(planner.provider, planner.model, `${SRC.autoPolicy} LOOP_PLANNER_PRIMARY`)],
     },
     {
       id: 'artefakte',

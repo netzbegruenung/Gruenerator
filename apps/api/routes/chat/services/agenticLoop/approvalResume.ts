@@ -7,7 +7,7 @@
  * Schritte von vorher als Beobachtung einspielen, die freigegebenen Aufrufe
  * ausführen, die abgelehnten als Fehler einspeisen, weiterschreiben.
  */
-import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
+import { buildTurnPrompt } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
@@ -118,10 +118,10 @@ export async function runToolApprovalResume(params: {
       finalState: classifiedState,
       // Neu gebaut statt aus Redis geholt: derselbe Weg wie im Erst-Zug, und
       // die Nachricht hängt an Zustandsfeldern, die sich geändert haben können.
-      systemMessage: await buildSystemMessage(classifiedState, {
+      ...(await buildTurnPrompt(classifiedState, {
         retrievalExpected: true,
         loop: true,
-      }),
+      })),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId,
@@ -139,6 +139,9 @@ export async function runToolApprovalResume(params: {
 
     // Eine Blase: die pausierte Zeile wird fortgeschrieben, nicht ergänzt.
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
+    // Die Versätze zeigen in die Fortsetzung, nicht in die zusammengeführte Blase
+    // (#5442) — wie in loopResumeEnd fallen lassen, dann lädt sie karten-zuerst.
+    if (stored.partialText.trim()) for (const step of outcome.steps) delete step.textOffset;
 
     // Die entschiedene Freigabe als eigene Größe: jede weitere Pause schreibt
     // sie in die pausierte Nachricht (sonst verschwindet die Karte beim

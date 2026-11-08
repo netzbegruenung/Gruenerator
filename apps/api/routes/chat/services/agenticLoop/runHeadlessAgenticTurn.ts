@@ -199,6 +199,9 @@ export async function runHeadlessAgenticTurn(
         const res = await deps.streamAgenticResponse({
           finalState,
           systemMessage,
+          // Ein Hintergrundlauf hat keinen Composer, also keinen Paste; der
+          // Prompt aus `buildSystemMessage` trüge ihn ohnehin selbst.
+          turnPaste: null,
           messages,
           requestId: p.slotLabel,
           sse: createNullSSE(),
@@ -206,7 +209,6 @@ export async function runHeadlessAgenticTurn(
           threadId: null,
           toolHistory: null,
           disableMcp: true,
-          headless: true,
           ...(searchToolKeys ? { searchToolKeys } : {}),
         });
         trace.update({ input: p.instruction, output: res.fullText });

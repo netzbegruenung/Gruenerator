@@ -110,6 +110,7 @@ export const UI_TOOL_NAMES = z.enum([
   'vorlagen_vorschlagen',
   'check_sharepic',
   'tabelle_auswerten',
+  'rechnen',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
@@ -1305,6 +1306,12 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   tabelle_auswerten: entry('tabelle_auswerten', 'text-note', (_a, r) => ({
     kind: 'text-note',
     text: getString(r, 'error') ?? getString(r, 'ergebnis') ?? '',
+  })),
+  // Like tabelle_auswerten: the numbers render in the compute card; the step
+  // card carries the error or the one-line summary.
+  rechnen: entry('rechnen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? getString(r, 'zusammenfassung') ?? '',
   })),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),

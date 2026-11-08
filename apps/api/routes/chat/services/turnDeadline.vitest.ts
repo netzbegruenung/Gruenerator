@@ -69,13 +69,12 @@ describe('turn deadline', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('deckelt BEIDE Uhren des Loops — Werkzeugphase und Schreibphase', () => {
+  it('deckelt die Uhr des Loops', () => {
     const { signal } = createTurnDeadline('req_beide');
     const clocks = createTurnClocks(DEFAULT_LOOP_BUDGET, signal);
 
     vi.advanceTimersByTime(TURN_CEILING_MS);
 
     expect(clocks.abortSignal.aborted).toBe(true);
-    expect(clocks.writeAbortSignal.aborted).toBe(true);
   });
 });

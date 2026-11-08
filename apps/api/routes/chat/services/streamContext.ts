@@ -481,7 +481,8 @@ export async function buildStreamContext({
   // hast mir keine Aufgabe gestellt" (QA 08/2026). Text pasted into the
   // composer is the user's own input, so with no other prompt text it becomes
   // the user message itself (classifier, title, persistence and prompts all see
-  // it); alongside typed text it stays reference material as before.
+  // it); a typed line that only points at it ("schau in das file:") counts as
+  // empty. Alongside typed text of its own it stays reference material.
   let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
   let promptIsPastedText = false;
   if (lastUserMessage) {
@@ -493,7 +494,9 @@ export async function buildStreamContext({
       lastUserMessage.content = promotion.pasteText;
       effectiveAttachments = promotion.remaining;
       promptIsPastedText = true;
-      log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
+      log.info(
+        '[StreamContext] Pasted text promoted to user prompt (composer text empty or only pointing at it)'
+      );
     }
   }
 

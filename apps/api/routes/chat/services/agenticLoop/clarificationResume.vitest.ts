@@ -35,7 +35,7 @@ const {
 }));
 
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  buildSystemMessage: vi.fn(async () => 'SYSTEM'),
+  buildTurnPrompt: vi.fn(async () => ({ systemMessage: 'SYSTEM', turnPaste: null })),
 }));
 vi.mock('../../streamStages/clarificationLoopSuspend.js', () => ({
   suspendForLoopClarification: suspendClarMock,
@@ -311,6 +311,8 @@ describe('runClarificationLoopResume — Erfolg', () => {
         pendingId: 'msg-1',
       })
     );
+    const [params] = suspendClarMock.mock.calls[0] as unknown as [{ priorSteps: object[] }];
+    expect(params.priorSteps[0]).not.toHaveProperty('textOffset');
     expect(finalizeMock).not.toHaveBeenCalled();
     expect(generateTitleMock).not.toHaveBeenCalled();
   });

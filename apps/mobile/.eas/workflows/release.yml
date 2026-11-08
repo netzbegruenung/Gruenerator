@@ -15,7 +15,7 @@ on:
         options:
           - production
           - open-testing
-        default: production
+        default: open-testing
 
 jobs:
   build_android:

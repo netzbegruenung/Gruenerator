@@ -1,12 +1,10 @@
 /**
- * Der einzige Kanal des werkzeuglosen Schreibers (split) zu den ARTEFAKTEN
+ * Der einzige Kanal des werkzeuglosen Reparatur-Schreibers zu den ARTEFAKTEN
  * dieses Turns — ein Artefakt, das er nicht sieht, ist eines, das er leugnet.
  *
  * Rein: Turn-Zustand plus zwei Flags. Einzeln geprüft in
- * `artifactNotes.vitest.ts`.
- *
- * Unified mode gets only `buildPreLoopEditNotes`; see there for why the rest
- * is split-only.
+ * `artifactNotes.vitest.ts`. Das Loop-Modell bekommt nur
+ * `buildPreLoopEditNotes`; siehe dort.
  */
 import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
@@ -141,17 +139,14 @@ function readEditSurface(state: ChatGraphState): EditSurfaceReading {
 
 /**
  * The two notes whose facts exist BEFORE the loop runs: the sidebar's AI-edit
- * toggle and the router's edit-path decision. Split mode gets them through
- * {@link buildArtifactNotes}; unified mode has no synth prompt and gets them
- * spliced into its system prompt (agenticRespondService). One builder, so both
- * modes print the same sentence and the two notes stay mutually exclusive.
+ * toggle and the router's edit-path decision. The repair writer gets them
+ * through {@link buildArtifactNotes}; the loop model gets them spliced into
+ * its system prompt (agenticRespondService). One builder, so both print the
+ * same sentence and the two notes stay mutually exclusive.
  *
- * Every other note in this module keys on tool RESULTS (`generatedImage`,
- * `sharepicVariants`, `createdDocument`, `createdBoard`, `editorEditsSummary`),
- * which the tool handlers write mid-loop. Unified mode sees those as the tool
- * results themselves — each producing tool returns a `note` with the same
- * instruction (domainTools.ts, editorTools.ts) — so they are split-only on
- * purpose (#3439).
+ * Every other note in this module keys on tool RESULTS, which the loop model
+ * sees as the tool results themselves (each producing tool returns a `note`),
+ * so they are repair-writer-only on purpose (#3439).
  */
 export function buildPreLoopEditNotes(state: ChatGraphState): string {
   const note = preLoopEditNote(state, readEditSurface(state));
@@ -173,7 +168,7 @@ function editToggleOffNote(kind: EditorSurfaceKind): string {
   return `HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst ${geoeffnete} ${artefact.noun} nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.`;
 }
 
-/** One sentence, one place — both loop modes print the same thing. */
+/** One sentence, one place — loop and repair writer print the same thing. */
 function noEditPathNote(kind: EditorSurfaceKind): string {
   const artefact = EDITOR_SURFACE_NOUNS[kind];
   const geoeffnete = artefact.gender === 'f' ? 'die geöffnete' : 'das geöffnete';
@@ -181,7 +176,7 @@ function noEditPathNote(kind: EditorSurfaceKind): string {
 }
 
 /** Whether this turn created or edited an artifact — the one fact the writer
- *  (split synth, unified repair) must not contradict. */
+ *  must not contradict. */
 export function turnProducedArtifact(state: ChatGraphState): boolean {
   return (
     state.generatedImage != null ||
@@ -198,12 +193,11 @@ export function turnProducedArtifact(state: ChatGraphState): boolean {
 export const CAPABILITY_NOTE_TEXT = `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.`;
 
 /**
- * The synth model's only channel for "what did this turn actually produce".
+ * The repair writer's only channel for "what did this turn actually produce".
  *
- * Split mode runs the writer WITHOUT tools and without the tool-result replay,
- * so an artifact it cannot see is an artifact it will deny. Extracted from
- * `buildSynthSystem` to be testable on its own after two live failures that both
- * came down to what this string does or does not say — see the notes inside.
+ * It runs WITHOUT tools and without the tool-result replay, so an artifact it
+ * cannot see is an artifact it will deny. See the notes inside for the two live
+ * failures behind it.
  */
 export function buildArtifactNotes(
   state: ChatGraphState,
@@ -219,8 +213,6 @@ export function buildArtifactNotes(
   // Surface + AI-edit toggle, read ONCE and passed on — see `EditSurfaceReading`.
   const surface = readEditSurface(state);
   const noEditPathKind = noEditPathSurface(state, surface);
-  // Split mode has no tool returns in the synth context — without these
-  // notes the synthesizer is blind to artifacts the gather phase produced.
   const artifacts = [
     state.generatedImage
       ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an. Behaupte NIEMALS, die Bildgenerierung sei fehlgeschlagen: sie ist geglückt, das Bild steht sichtbar im Chat.'
@@ -300,9 +292,9 @@ export function buildArtifactNotes(
     //
     // The doc surface adds one clause, because its apply path ends somewhere
     // else: BlockNote writes suggestion MARKS, and the change is only in the
-    // document once the person accepts them. The unified loop reads the same
-    // fact off the tool result (`note`); split mode has no tool results in the
-    // writing context, so it has to be said here.
+    // document once the person accepts them. The loop model reads the same
+    // fact off the tool result (`note`); the repair writer has no tool results,
+    // so it has to be said here.
     //
     // A sharepic is the exception: the client applies the change (ops or a
     // recomposed deck) and raises the keep/discard banner before the answer

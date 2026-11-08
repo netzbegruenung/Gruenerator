@@ -1,14 +1,9 @@
 /**
- * Die zwei Zusicherungen, die ein Turn einlöst, wenn der Planer es nicht tut.
- *
- * Beide entstanden aus demselben beobachteten Verhalten: der geteilte Planer
- * behandelt einen Erstellungs- oder Bearbeitungsauftrag als reine Recherche und
- * hört nach dem Suchen auf. Was der Turn ZUGESAGT hat, kann davon nicht
- * abhängen — also führt der Turn das Werkzeug selbst aus.
- *
- * Beide sind idempotent (der `already`-Test bzw. `editorEditsSummary`), damit
- * `afterGather` in BEIDEN Modi laufen kann: split ruft es vor der Synthese,
- * unified nach dem Strom.
+ * Die zwei Zusicherungen, die ein Turn einlöst, wenn das Loop-Modell es nicht
+ * tut: es behandelt einen Erstellungs- oder Bearbeitungsauftrag als reine
+ * Recherche und hört nach dem Suchen auf. Was der Turn ZUGESAGT hat, kann davon
+ * nicht abhängen — also führt der Turn das Werkzeug selbst aus. Idempotent (der
+ * `already`-Test bzw. `editorEditsSummary`); loopEngine ruft sie nach dem Strom.
  */
 import {
   BOARD_MODIFY_PATTERN,
@@ -90,7 +85,7 @@ function compoundGenerationOwed(state: ChatGraphState): boolean {
 }
 
 /** The forced-edit guarantee is owed: the open artefact must be edited. Not the
- *  intent alone — see the note in `afterGather` — the surface and the ask count too. */
+ *  intent alone — see the note in `ensureOwedTools` — the surface and the ask count too. */
 function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
   const editSurface = state.editToolSurface;
   return Boolean(
@@ -104,23 +99,45 @@ function editGuaranteeOwed(state: ChatGraphState, userAsk: string): boolean {
   );
 }
 
-/**
- * Whether the turn owes something `createAfterGather` guarantees before the
- * writer runs: an ordered compound artifact, a forced edit, a pinned
- * `bundestag`, or an order to change an existing artifact. Such a turn belongs
- * on the split loop, where the hook runs before synth; unified runs it AFTER the
- * stream, so the answer would announce what does not exist yet.
- *
- * `userAsk` is the turn's last user text (the forced edit reads it too); without
- * it only the ask-independent triggers count.
- */
-export function turnCarriesGuarantee(state: ChatGraphState, userAsk = ''): boolean {
+/** An artefact this turn already produced: the creation guarantee is met. */
+function turnHasArtifact(state: ChatGraphState): boolean {
   return (
-    compoundGenerationOwed(state) ||
-    editGuaranteeOwed(state, userAsk) ||
-    state.mentionPinnedTool === 'bundestag' ||
-    state.artifactEditOrder === true
+    state.generatedImage != null ||
+    (state.sharepicVariants?.length ?? 0) > 0 ||
+    state.createdDocument != null ||
+    state.createdBoard != null
   );
+}
+
+/**
+ * The tool this turn still owes: the fat tool of an ordered compound
+ * generation, or the edit tool of an open surface the ask wants changed. Null
+ * once that tool ran (`calledToolNames`) or the artefact exists.
+ *
+ * The loop forces it as a named step — at step 0 when nothing else is forced,
+ * otherwise as soon as the forced first call is done (`forcedToolForStep`) — so
+ * the writer sees the tool result BEFORE it writes. `ensureOwedTools` stays as the
+ * net for a host that ignores `tool_choice`.
+ *
+ * `userAsk` is the turn's last user text (the forced edit reads it too).
+ */
+export function owedToolName(
+  state: ChatGraphState,
+  userAsk: string,
+  isMounted: (name: string) => boolean,
+  calledToolNames: readonly string[]
+): string | null {
+  const ran = (name: string): boolean => calledToolNames.includes(name);
+  const kind = state.compoundGenerationKind;
+  if (kind && compoundGenerationOwed(state) && !turnHasArtifact(state)) {
+    const name = artifactKind(kind).loopToolName;
+    if (isMounted(name) && !ran(name)) return name;
+  }
+  if (editGuaranteeOwed(state, userAsk)) {
+    const name = EDIT_TOOL_NAMES.find(isMounted);
+    if (name && !ran(name)) return name;
+  }
+  return null;
 }
 
 export interface GuaranteeContext {
@@ -135,26 +152,18 @@ export interface GuaranteeContext {
   wrappedTools: ToolSet;
   /** Welche Werkzeuge in diesem Turn schon gelaufen sind (Name je Schritt). */
   calledToolNames: () => readonly string[];
-  /** A forced generation is "a tool actually runs" too — the held-back opening
-   *  streams before its card, same as a planner-issued call. */
-  emitOpeningBeforeTool: () => void;
-  /** Read at CALL time: in unified mode the answer is already written when this
-   *  runs, and that is exactly what the inline-table check asks about. */
+  /** Read at CALL time: the answer is already written when this runs, and
+   *  that is exactly what the inline-table check asks about. */
   answerText: () => string;
   onInfo: (message: string) => void;
   onWarn: (message: string) => void;
 }
 
-/**
- * Builds the `afterGather` hook loopEngine calls between the tool phase and the
- * answer.
- */
-export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
-  // The compound turn's whole point is the artifact — but the split planner
-  // unreliably calls the generation fat tool (it treats the turn as pure
-  // research and stops). GUARANTEE it: after gather, if the planner produced
-  // no artifact, invoke the mounted generation tool directly with the
-  // researched sources as the brief. The synth then announces it.
+/** Builds the `ensureOwedTools` hook loopEngine calls after the stream. */
+export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolean> {
+  // The compound turn's whole point is the artifact. If the loop produced
+  // none, invoke the mounted generation tool directly with the researched
+  // sources as the brief.
   const lastUserAsk = (): string => {
     const lastUser = [...p.messages].reverse().find((m) => m.role === 'user');
     return typeof lastUser?.content === 'string'
@@ -166,20 +175,15 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
   };
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-  // `already` check, so it is safe to call more than once. Turns that carry
-  // this guarantee run split (`turnCarriesGuarantee`), so afterGather fires
-  // BEFORE the synth and the synth can confirm the artefact.
+  // artefact check, so it is safe to call more than once. The loop forces the
+  // tool itself first (`owedToolName`); this only catches a host that ignored
+  // the named step.
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
     // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
     // Planer. Nachholen hiesse, die blosse Erwähnung doch wieder zu erzwingen.
     if (!kind || !compoundGenerationOwed(p.state)) return;
-    const already =
-      p.state.generatedImage != null ||
-      (p.state.sharepicVariants?.length ?? 0) > 0 ||
-      p.state.createdDocument != null ||
-      p.state.createdBoard != null;
-    if (already) return; // planner already created it
+    if (turnHasArtifact(p.state)) return; // planner already created it
     // The model's own inline answer can BE the deliverable. In unified mode
     // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
     // with a markdown table in chat, spawning a spreadsheet on top duplicates
@@ -223,9 +227,6 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     // fallback is intentional and must fire even when the loop already spent its
     // failure/search budget (exactly the turns where the planner never reached
     // the generation tool). The `already` check above keeps it idempotent.
-    // A forced generation is "a tool actually runs" too — the held-back
-    // opening streams before its card, same as a planner-issued call.
-    p.emitOpeningBeforeTool();
     p.sse.send('tool_step_start', { stepId, toolName, args });
     let result: unknown;
     try {
@@ -259,7 +260,6 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
       { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
     if (!tool?.execute) return false;
     p.onInfo('[Agentic] pinned bundestag not called — running it before synth');
-    p.emitOpeningBeforeTool();
     try {
       const result = await tool.execute({}, { toolCallId: 'forced-pinned-bundestag' });
       const error = (result as { error?: unknown } | null)?.error;
@@ -272,13 +272,13 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     }
   };
 
-  const afterGather = async (): Promise<boolean> => {
+  const ensureOwedTools = async (): Promise<boolean> => {
     const pinnedRan = await forcePinnedBundestag();
     // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
-    //     open artefact. The split planner unreliably calls edit_document
-    //     (observed live: steps=0 on most sheet/deck edits) — force it here,
-    //     BEFORE synth, so editorEditsSummary is set and the synth confirms the
-    //     change instead of writing empty text (→ fallback) or a false refusal.
+    //     open artefact. The loop model unreliably calls edit_document
+    //     (observed live: steps=0 on most sheet/deck edits) — force it here, so
+    //     editorEditsSummary is set and the caller confirms the change instead
+    //     of the no-answer fallback or a false refusal.
     //     Der Intent ist NICHT das Kriterium, sondern nur eines von dreien: das
     //     Werkzeug hängt an der FLÄCHE, nicht am Intent, und der Klassifikator
     //     verfehlt seine `edit_current_*`-Schnellbahn regelmässig (live am
@@ -319,5 +319,5 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<boolean> {
     return pinnedRan;
   };
 
-  return afterGather;
+  return ensureOwedTools;
 }

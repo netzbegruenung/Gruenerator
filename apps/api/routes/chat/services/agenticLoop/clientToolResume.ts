@@ -9,7 +9,7 @@
  * des zurückgehaltenen Aufrufs wird, entscheidet der Registry-Eintrag
  * (`toToolResult`, bei `check_sharepic` die Prüfung am Bild).
  */
-import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
+import { buildTurnPrompt } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
@@ -106,10 +106,10 @@ export async function runClientToolLoopResume(params: {
 
     const outcome = await streamAgenticResponse({
       finalState: classifiedState,
-      systemMessage: await buildSystemMessage(classifiedState, {
+      ...(await buildTurnPrompt(classifiedState, {
         retrievalExpected: true,
         loop: true,
-      }),
+      })),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId,
@@ -124,6 +124,9 @@ export async function runClientToolLoopResume(params: {
     });
 
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
+    // Die Versätze zeigen in die Fortsetzung, nicht in die zusammengeführte Blase
+    // (#5442) — wie in loopResumeEnd fallen lassen, dann lädt sie karten-zuerst.
+    if (stored.partialText.trim()) for (const step of outcome.steps) delete step.textOffset;
 
     // Die Fortsetzung pausiert selbst wieder. Der alte Zustand ist verbraucht —
     // löschen, die neue Pause schreibt ihren eigenen.

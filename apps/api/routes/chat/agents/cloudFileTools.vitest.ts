@@ -593,7 +593,7 @@ describe('add_connection', () => {
  * Das ist die eigentliche Behauptung der Reparatur, und sie hängt an zwei
  * Dingen, die eine Attrappe bauartbedingt nicht zeigt: wo `renderAll()` den
  * Text hinschreibt, und was `freshSize` danach sagt. Beides entscheidet in
- * `buildSynthSystem`, ob der Schreiber die Anweisung bekommt, er habe nicht
+ * `buildRepairSystem`, ob der Schreiber die Anweisung bekommt, er habe nicht
  * recherchiert und solle sagen, er müsse nachschlagen (`carriedOnly`).
  */
 describe('was der Schreiber im split-Modus wirklich sieht', () => {

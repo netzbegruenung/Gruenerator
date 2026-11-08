@@ -25,7 +25,7 @@ vi.mock('../threadPersistenceService.js', () => ({
 const streamAgenticResponse = vi.fn();
 vi.mock('./agenticRespondService.js', () => ({ streamAgenticResponse }));
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  buildSystemMessage: vi.fn(async () => 'SYSTEM'),
+  buildTurnPrompt: vi.fn(async () => ({ systemMessage: 'SYSTEM', turnPaste: null })),
 }));
 vi.mock('../../streamStages/toolApprovalSuspend.js', () => ({
   suspendForToolApproval: vi.fn(),
@@ -353,6 +353,28 @@ describe('runToolApprovalResume — mehrere Pausen in einem Zug (#5051)', () => 
     expect(vi.mocked(suspendForToolApproval).mock.calls[0]?.[0].resolvedPause).toEqual(
       expectedPause
     );
+  });
+
+  it('erneute Pause nach Vortext: Schrittversätze fallen weg (#5442)', async () => {
+    const { suspendForLoopClarification } =
+      await import('../../streamStages/clarificationLoopSuspend.js');
+    get.mockResolvedValueOnce({ ...(await get()), partialText: 'Ich frage kurz nach.' });
+    streamAgenticResponse.mockResolvedValue({
+      fullText: 'Kurz:',
+      steps: [
+        { toolCallId: 'c1', toolName: 'tabelle_auswerten', args: {}, result: {}, textOffset: 2 },
+      ],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingAsk: { toolCallId: 'ask-1', question: 'Welches Blatt?' },
+    });
+
+    await resume();
+
+    const params = vi.mocked(suspendForLoopClarification).mock.calls[0]?.[0];
+    expect(params?.partialText).toBe('Ich frage kurz nach.\n\nKurz:');
+    expect(params?.priorSteps[0]).not.toHaveProperty('textOffset');
   });
 
   it('Rückfrage nach der Freigabe: pausiert statt still zu enden', async () => {

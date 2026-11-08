@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { materialDominatesTurn } from './loopMode.js';
+import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 
 describe('buildToolUsageBlock', () => {
@@ -8,10 +8,10 @@ describe('buildToolUsageBlock', () => {
 
   it('prescribes the sharepic recipe only when edit_sharepic is mounted', () => {
     expect(block).not.toContain('SHAREPIC-REZEPT');
-    const withEdit = buildToolUsageBlock(6, false, false, ['read_sharepic', 'edit_sharepic']);
+    const withEdit = buildToolUsageBlock(6, false, ['read_sharepic', 'edit_sharepic']);
     expect(withEdit).toContain('SHAREPIC-REZEPT');
     expect(withEdit).not.toContain('check_sharepic');
-    const withCheck = buildToolUsageBlock(6, false, false, ['edit_sharepic', 'check_sharepic']);
+    const withCheck = buildToolUsageBlock(6, false, ['edit_sharepic', 'check_sharepic']);
     expect(withCheck).toContain('check_sharepic');
   });
 
@@ -30,17 +30,6 @@ describe('buildToolUsageBlock', () => {
   it('no longer blanket-permits skipping tools for "einfache Folgefrage"', () => {
     expect(block).not.toContain('einfache Folgefrage');
   });
-
-  it("omits the artifact-outcome rules by default (split mode's gather phase reuses this block)", () => {
-    // Regression: this block is reused verbatim as split mode's gather-phase
-    // system prompt (`gatherSystem = toolSystem + GATHER_SUFFIX`). The closing
-    // rule ("schließe deine Antwort ... ab") directly contradicted
-    // GATHER_SUFFIX's "Schreibe in dieser Phase KEINE finale Antwort" a few
-    // lines later in the same prompt; the opening-plan rule merely duplicated
-    // GATHER_SUFFIX's own identical instruction. Both must stay opt-in.
-    expect(block).not.toMatch(/MEHR ALS EIN Artefakt/);
-    expect(block).not.toMatch(/MEHRERE Erstellungen/);
-  });
 });
 
 describe('buildToolUsageBlock — Aktion ohne Werkzeug', () => {
@@ -49,23 +38,18 @@ describe('buildToolUsageBlock — Aktion ohne Werkzeug', () => {
     // Medienbibliothek und meldete den Edit als erledigt. Die Regel hängt an
     // keinem Tool, denn sie gilt genau dann, wenn das Tool FEHLT.
     for (const block of [
-      buildToolUsageBlock(5, false, true, []),
-      buildToolUsageBlock(5, true, true, ['media']),
+      buildToolUsageBlock(5, false, []),
+      buildToolUsageBlock(5, true, ['media']),
     ]) {
       expect(block).toContain('hast du dafür kein passendes Tool, sag das in EINEM Satz');
       expect(block).toContain('kündige nichts für „gleich" an');
     }
   });
-
-  it('fehlt in der Sammelphase des Split-Modus — die schreibt keine Antwort', () => {
-    expect(buildToolUsageBlock(5)).not.toContain('kündige nichts für „gleich" an');
-    expect(buildToolUsageBlock(5, true)).not.toContain('kündige nichts für „gleich" an');
-  });
 });
 
 describe('buildToolUsageBlock — ask_human-Regel', () => {
   it('nur wenn das Tool wirklich montiert ist', () => {
-    const withAsk = buildToolUsageBlock(6, false, false, ['gruenerator_search', 'ask_human']);
+    const withAsk = buildToolUsageBlock(6, false, ['gruenerator_search', 'ask_human']);
     expect(withAsk).toContain('RÜCKFRAGE MIT ask_human');
     expect(withAsk).toContain('EINZIGER Aufruf des Schritts');
   });
@@ -73,7 +57,7 @@ describe('buildToolUsageBlock — ask_human-Regel', () => {
   it('fehlt ohne Montage — auch wenn die Werkzeugnamen unbekannt sind', () => {
     // Anders als die übrigen Gates (Default: Regel behalten): eine Anweisung
     // auf ein fehlendes Tool wäre eine Anweisung ins Leere.
-    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toContain(
+    expect(buildToolUsageBlock(6, false, ['gruenerator_search'])).not.toContain(
       'RÜCKFRAGE MIT ask_human'
     );
     expect(buildToolUsageBlock(6)).not.toContain('RÜCKFRAGE MIT ask_human');
@@ -82,10 +66,10 @@ describe('buildToolUsageBlock — ask_human-Regel', () => {
 
 describe('buildToolUsageBlock — Vorlagen-Regel', () => {
   it('nimmt Designfragen aus der „kreativen Aufgabe" heraus, nur mit montiertem Werkzeug', () => {
-    expect(buildToolUsageBlock(6, false, false, ['vorlagen_vorschlagen'])).toContain(
+    expect(buildToolUsageBlock(6, false, ['vorlagen_vorschlagen'])).toContain(
       'DESIGN UND VORLAGEN'
     );
-    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toContain(
+    expect(buildToolUsageBlock(6, false, ['gruenerator_search'])).not.toContain(
       'DESIGN UND VORLAGEN'
     );
     expect(buildToolUsageBlock(6)).not.toContain('DESIGN UND VORLAGEN');
@@ -93,7 +77,7 @@ describe('buildToolUsageBlock — Vorlagen-Regel', () => {
 });
 
 describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', () => {
-  const unifiedBlock = buildToolUsageBlock(6, false, true);
+  const unifiedBlock = buildToolUsageBlock(6, false);
 
   it('requires one outcome sentence per artifact on a multi-artifact turn', () => {
     // Unified mode has no separate synth step and no buildArtifactNotes note —
@@ -144,7 +128,7 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
   const WITH_SEARCH = [...SEARCHLESS, 'gruenerator_search', 'web_search'];
 
   it('drops the search rules when no search tool is mounted', () => {
-    const block = buildToolUsageBlock(6, false, false, SEARCHLESS);
+    const block = buildToolUsageBlock(6, false, SEARCHLESS);
     expect(block).not.toMatch(/interne Dokumentsuche/);
     expect(block).not.toMatch(/SUCHEN BAUEN AUFEINANDER AUF/);
     expect(block).not.toMatch(/KEINE belegte Quelle/);
@@ -152,30 +136,28 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
   });
 
   it('keeps them as soon as one search tool is there', () => {
-    const block = buildToolUsageBlock(6, false, false, WITH_SEARCH);
+    const block = buildToolUsageBlock(6, false, WITH_SEARCH);
     expect(block).toMatch(/interne Dokumentsuche/);
     expect(block).toMatch(/KEINE belegte Quelle/);
   });
 
   it('ties the web_search scope rule to web_search itself', () => {
-    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toMatch(
+    expect(buildToolUsageBlock(6, false, ['gruenerator_search'])).not.toMatch(
       /SCOPE GEHÖRT IN DIE PARAMETER/
     );
-    expect(buildToolUsageBlock(6, false, false, ['web_search'])).toMatch(
-      /SCOPE GEHÖRT IN DIE PARAMETER/
-    );
+    expect(buildToolUsageBlock(6, false, ['web_search'])).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
   });
 
   it('drops the artifact rules when nothing can create an artifact', () => {
-    expect(buildToolUsageBlock(6, false, true, SEARCHLESS)).not.toMatch(/MEHR ALS EIN Artefakt/);
-    expect(buildToolUsageBlock(6, false, true, [...SEARCHLESS, 'create_board'])).toMatch(
+    expect(buildToolUsageBlock(6, false, SEARCHLESS)).not.toMatch(/MEHR ALS EIN Artefakt/);
+    expect(buildToolUsageBlock(6, false, [...SEARCHLESS, 'create_board'])).toMatch(
       /MEHR ALS EIN Artefakt/
     );
   });
 
   it('keeps every rule when the caller does not know the toolset', () => {
     // Omitting the list must never silently lose guidance.
-    const block = buildToolUsageBlock(6, false, true);
+    const block = buildToolUsageBlock(6, false);
     expect(block).toMatch(/interne Dokumentsuche/);
     expect(block).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
     expect(block).toMatch(/MEHR ALS EIN Artefakt/);
@@ -185,20 +167,20 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
     // The dropped inventory sentence named DIP and abgeordnetenwatch; neither
     // was among the 19 tools of the live turn. It duplicated the schemata and
     // invited calls to tools that did not exist.
-    const block = buildToolUsageBlock(6, false, true, WITH_SEARCH);
+    const block = buildToolUsageBlock(6, false, WITH_SEARCH);
     expect(block).not.toMatch(/abgeordnetenwatch/);
     expect(block).not.toMatch(/\(DIP\)/);
   });
 
   it('saves real length on a tool-less turn', () => {
-    const full = buildToolUsageBlock(8, false, true);
-    const lean = buildToolUsageBlock(8, false, true, SEARCHLESS);
+    const full = buildToolUsageBlock(8, false);
+    const lean = buildToolUsageBlock(8, false, SEARCHLESS);
     expect(full.length - lean.length).toBeGreaterThan(1800);
   });
 });
 
 /**
- * #2954: die Regel stand nur im Quellenblock von `buildSynthSystem` — dem
+ * #2954: die Regel stand nur im Quellenblock von `buildRepairSystem` — dem
  * Prompt der split-Schreibphase. Unified hat keine solche Phase und bekam die
  * Datumsangaben ohne jede Anweisung dazu. Die Gatter der beiden Orte müssen
  * sich ausschliessen: doppelt ausgegeben wäre der Befund nur umgedreht.
@@ -208,31 +190,24 @@ describe('buildToolUsageBlock — die Datumsregel (AKTUALITÄT)', () => {
   const WITH_SEARCH = [...SEARCHLESS, 'web_search'];
 
   it('stellt sie dem unified-Modell zu, das die Antwort selbst schreibt', () => {
-    expect(buildToolUsageBlock(6, false, true, WITH_SEARCH)).toMatch(/AKTUALITÄT:/);
-  });
-
-  it('hält sie aus der Sammelphase des split-Modus heraus', () => {
-    // Dieser Block IST dort das gather-Prompt; der Schreiber bekommt die Regel
-    // über `buildSynthSystem`. Beides zusammen wäre sie zweimal im Turn.
-    expect(buildToolUsageBlock(6, false, false, WITH_SEARCH)).not.toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, false, WITH_SEARCH)).toMatch(/AKTUALITÄT:/);
   });
 
   it('gilt auch ohne Suchwerkzeug, sobald mitgeführte Quellen da sind', () => {
     // Der material-heavy Turn: Anhang plus Quellen aus früheren Turns, null
     // Werkzeuge — genau dort steht eine alte Quelle ohne Regel daneben.
-    expect(buildToolUsageBlock(6, false, true, SEARCHLESS)).not.toMatch(/AKTUALITÄT:/);
-    expect(buildToolUsageBlock(6, false, true, SEARCHLESS, true)).toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, false, SEARCHLESS)).not.toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, false, SEARCHLESS, true)).toMatch(/AKTUALITÄT:/);
   });
 
   it('gilt erst recht unter dem Recherche-Bann', () => {
     // Nichts wird nachgeschlagen — es zählt nur noch, wie ALTE Quellen gelesen
     // werden.
-    expect(buildToolUsageBlock(6, true, true)).toMatch(/AKTUALITÄT:/);
-    expect(buildToolUsageBlock(6, true, false)).not.toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, true)).toMatch(/AKTUALITÄT:/);
   });
 });
 
-describe('materialDominatesTurn — when the writer gives up the tool catalog', () => {
+describe('materialDominatesTurn', () => {
   // The live system prompt of 13.08.2026, 22:12 measured 3.164 chars before
   // the tool block was appended.
   const SYSTEM = 'x'.repeat(3164);
@@ -291,21 +266,21 @@ describe('buildToolUsageBlock — Notebook des Threads', () => {
   const berlin = { id: 'berlin', name: 'Berlin' };
 
   it('nennt das Notebook samt id und stellt es vor die allgemeine Suchregel', () => {
-    const block = buildToolUsageBlock(6, false, false, TOOLS, false, berlin);
+    const block = buildToolUsageBlock(6, false, TOOLS, false, berlin);
     expect(block).toContain('„Berlin"');
     expect(block).toContain('notebookId: berlin');
     expect(block.indexOf('notebook_quellen')).toBeLessThan(block.indexOf('interne Dokumentsuche'));
   });
 
   it('nennt bei einem eigenen Notebook ohne Namen nur die id', () => {
-    const block = buildToolUsageBlock(6, false, false, TOOLS, false, { id: 'nb-1', name: null });
+    const block = buildToolUsageBlock(6, false, TOOLS, false, { id: 'nb-1', name: null });
     expect(block).toContain('notebookId: nb-1');
   });
 
   it('fehlt ohne Notebook und ohne montiertes notebook_quellen', () => {
-    expect(buildToolUsageBlock(6, false, false, TOOLS)).not.toContain('notebookId:');
+    expect(buildToolUsageBlock(6, false, TOOLS)).not.toContain('notebookId:');
     expect(
-      buildToolUsageBlock(6, false, false, ['gruenerator_search', 'web_search'], false, berlin)
+      buildToolUsageBlock(6, false, ['gruenerator_search', 'web_search'], false, berlin)
     ).not.toContain('notebookId:');
   });
 });

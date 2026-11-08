@@ -6,12 +6,15 @@
  * unchanged now that CI triggers the sync over HTTP instead of running the
  * scraper in-runner (CI has no direct Qdrant network access).
  *
- * Usage: echo '<api response json>' | npx tsx wrap-sync-result.ts \
+ * Usage: echo '<api response json>' | node wrap-sync-result.ts \
  *          --id <id> --http-code <code> [--dry-run] [--force]
  */
 import { fileURLToPath } from 'node:url';
 
-import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
+// `import type`, not inline `type`: CI runs this file with plain Node (type
+// stripping, no install), and an inline-type import would survive as a
+// runtime import of a .js file that does not exist.
+import type { SourceGroupResult, SyncSummary } from './types/syncTypes.js';
 
 interface Args {
   id: string;

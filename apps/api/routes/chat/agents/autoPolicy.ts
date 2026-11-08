@@ -25,11 +25,8 @@
  *     fixed template in handleSheetEdit. Also absent from the table.
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
- * ── Second-order effect ─────────────────────────────────────────────────────
- * `prefersUnifiedLoop` is true for Mistral and for Gemma 4 31B on Melious.
- * Picking such a lane therefore also selects the UNIFIED loop (one model does
- * tools + prose); every other lane runs the split (fixed planner gathers,
- * synth writes). Guarantee-carrying and material-heavy turns still split.
+ * Every loop lane runs the unified loop (one model does tools + prose); the
+ * split mode was removed in #5441.
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
@@ -38,7 +35,6 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
 import {
   GEMMA_31B_PRIMARY,
   GEMMA_31B_ON_MELIOUS,
-  GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS_SPEED,
 } from '../../../services/ai/gemmaHosts.js';
 
@@ -134,7 +130,7 @@ type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
  */
 export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // ── Content answers: Gemma 4 (31B) ──
-  // Synth summarises tool output; the planner makes the MCP calls.
+  // Reports tool output: the lane makes the MCP calls and summarises them.
   mcp: { modelId: GEMMA, reasoning: 'off' },
   // summarizeNode runs on the `heavy` intermediate stage — same tier.
   summary: { modelId: GEMMA, reasoning: 'off' },
@@ -159,7 +155,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   reise: { modelId: GEMMA, reasoning: 'off' },
   umfragen: { modelId: GEMMA, reasoning: 'off' },
   // Reporting retrieved documentation sections back — the same shape as `mcp`
-  // above (planner fetches, synth summarises).
+  // above.
   hilfe: { modelId: GEMMA, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
   // ready-made answer in two sentences. With the research/web merge the model
@@ -330,10 +326,7 @@ export interface AutoSelectionInput {
   /**
    * Output contract detected on the turn (`detectTaskShape`): machine-readable
    * output (`code`) or an explicitly checkable format order (`strict_format`).
-   * Routes the neutral intents to the precise writer — which, second-order,
-   * also flips the loop to unified mode (`prefersUnifiedLoop`), so these turns
-   * never pass through the split synth that produced the QA run's broken JSON
-   * and ignored line counts.
+   * Routes the neutral intents to the precise writer.
    */
   taskShape?: TaskShape | null | undefined;
   /**
@@ -473,134 +466,10 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 
 /**
  * ── Loop slot policy ────────────────────────────────────────────────────────
- * Declared here so planner, synth and the single-pass answer read as ONE
+ * Declared here so the loop slots and the single-pass answer read as ONE
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
- *
- * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
- * Gewichte auf Cortecs dahinter, Mistral Small 4 bei Mistral zuletzt (seit
- * 28.10.2026, #5113; vom 21.10. an Gemma 4 auf GreenPT, davor Mistral Small 4
- * auf Melious und Mistral Large — teuer für eine Rolle, die nur Werkzeuge
- * wählt). Der Planer ruft nur Werkzeuge
- * und formuliert Suchanfragen (der Synth schreibt die Prosa), er läuft in JEDEM
- * agentischen Zug.
- *
- * Gemessen am 29.09.2026 (Werkzeug-Probe: 12 deutsche Aufträge × 8 Läufe, sechs
- * Werkzeuge, Enum-Argumente, parallele Aufrufe, Folgeschritt nach Werkzeug-
- * Ergebnis; seriell, Temperatur 0; Skript nicht im Repo):
- *
- *   melious/gemma-4-31b:balanced   96/96, p50 602 ms, p90 963 ms
- *   melious/gemma-4-31b:eco        96/96, p50 758 ms
- *   melious/mistral-small-4        33/36, p50 574 ms
- *   greenpt-Mistral-Small-3.2      33/36, p50 500–970 ms (bisheriger Primär)
- *
- * Gemma ist das einzige der kleinen Modelle, das den unklaren Auftrag („Mach
- * was Schönes.") an `ask_human` gibt; Small 3.2 antwortet mit Prosa, Small 4
- * ruft ein Suchwerkzeug. Beide fallen NUR an diesem einen Fall durch.
- * Werkzeug-IDs beliebiger Länge nehmen beide Melious-Modelle an (kein
- * Neun-Zeichen-Zwang wie bei mistral-common).
- *
- * Was die Probe NICHT zeigt: den mehrstufigen Sammellauf, an dem die frühere
- * frühere Vorgabe mit „steps=0 gather" scheiterte. `afterGather` in
- * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
- * oft leere Züge, ist das der erste Ort zum Nachsehen.
- *
- * EIN EHRLICHER PREIS dieser Wahl: drei Stufen, drei Gateways, aber zweimal
- * DIESELBEN Gewichte. Ein Gateway-Ausfall trifft nur eine Stufe; ein Problem
- * des Modells selbst trifft Melious und Cortecs gleich. Gemessen am 21.10.2026
- * (#4785): ein erzwungener Schritt, der dem Prompt widerspricht, hing auf
- * beiden 3/3 Mal über 50 s, GreenPTs Gemma (damals dritte Stufe) antwortete in
- * 3–10 s. Gegen diese Klasse hilft erst die dritte Stufe (andere Familie) oder
- * der Zuschnitt (`forcedFirstStepTools`).
- *
- * Bis 28.10.2026 stand hier eine zweite: Melious meldete `environment_impact`
- * nur nicht-gestreamt, also fragte `meliousFetch` die Werkzeugphase
- * nicht-gestreamt und spielte sie als Strom vor. Seitdem kommt der Wert im
- * letzten Chunk, und die Werkzeugphase streamt (74a7463822,
- * meliousThinkingFetch.ts).
- *
- * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
- * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
- * gleiche Zuverlässigkeit, aber langsamer.
- *
- * `mistral-small-3.2` auf GreenPT und Gemma auf Cortecs standen bis dahin als
- * Stufen 1 und 2 hier. Cortecs fiel am 29.09.2026 weg, weil es dieselben
- * Gewichte wie der Primär bedient, und kam am 21.10.2026 als zweite Stufe
- * zurück: die Ausfälle seitdem waren die des Melious-Gateways (siehe Punkt 2).
  */
-export const LOOP_PLANNER_PRIMARY = {
-  provider: GEMMA_31B_ON_MELIOUS.provider,
-  model: GEMMA_31B_ON_MELIOUS.model,
-  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
-};
-/**
- * Erste Ausweichstufe: dieselben Gewichte über Melious' `:speed` (infercom/DE,
- * siehe GEMMA_31B_ON_MELIOUS_SPEED). Fängt die Störung des FI-Knotens ab, an
- * der `:balanced` am 06.11.2026 15 s schwieg (#5399), während `:speed` in
- * 1,5–2 s antwortete. Fenster wie der Melious-Host (beide auf 123k gemessen,
- * Nachmessung 21.10.2026 in gemmaHosts.ts).
- *
- * Schickt `meliousWireModel` einen grossen `:balanced`-Body schon auf dem Draht
- * an `:speed`, lässt `getLoopPlannerFallbackStages` diese Stufe aus — sonst
- * wiederholte sie dieselbe Anfrage am selben Upstream.
- */
-export const LOOP_PLANNER_SPEED = {
-  provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
-  model: GEMMA_31B_ON_MELIOUS_SPEED.model,
-  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
-};
-/**
- * Zweite Ausweichstufe: dieselben Gewichte über ein anderes Gateway (Cortecs,
- * Verarbeitung DE). Fängt den Gateway-Ausfall ab, an dem Melious im Oktober
- * 2026 mehrfach hing (#4480) — dann hilft auch `:speed` nicht, das über
- * dasselbe Gateway läuft —, nicht ein Problem des Modells.
- */
-export const LOOP_PLANNER_HEALTHY_ALT = {
-  provider: GEMMA_31B_ON_CORTECS.provider,
-  model: GEMMA_31B_ON_CORTECS.model,
-  contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
-};
-/**
- * Die letzte Stufe: Mistral Small 4 direkt bei Mistral — eine andere
- * Modellfamilie und ein drittes Gateway.
- *
- * Bis 28.10.2026 stand hier Gemma 4 auf GreenPT. GreenPT behandelt einen
- * benannten und einen `required`-`tool_choice` nur als Bitte (#5113, direkt
- * gemessen, je 3 Läufe): auf die passende Frage kam der Aufruf, auf „Hallo"
- * Prosa, bei `required` sogar mit `finish_reason: tool_calls` ohne Aufruf.
- * Live hiess das: eine @-Erwähnung lief nicht, sobald GreenPT den Zug übernahm.
- *
- * Mistral Small 4 in derselben Messung: auf die passende Frage 9/9 Aufrufe
- * (~0,6 s). Erzwingen kann es einen Aufruf GEGEN den Prompt aber auch nicht —
- * auf „Hallo" kam unter beiden Wahlen 9/9 Prosa bis `length` (~10 s). Das
- * erzwingt nur Mistral Large 4 (18/18); bis 21.10.2026 stand Large hier und
- * fiel aus Kostengründen weg (#4785).
- */
-export const LOOP_PLANNER_FALLBACK = {
-  provider: 'mistral' as const,
-  model: 'mistral-small-latest',
-  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
-  contextWindow: 262_144,
-};
-/** Die Ausweichkette in Reihenfolge — ein Zug versucht sie in dieser Folge. */
-export const LOOP_PLANNER_CHAIN = [
-  LOOP_PLANNER_PRIMARY,
-  LOOP_PLANNER_SPEED,
-  LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_FALLBACK,
-] as const;
-/**
- * Nur, wenn KEIN Planer-Anbieter konfiguriert ist (CI, lokale Setups): der
- * Mistral-Getter wirft ohne Schlüssel nicht, die der Gemma-Stufen schon. Ein
- * werfender Getter tötete am 14.08.2026 jeden agentischen Zug, bevor er den
- * ersten Modellaufruf erreichte.
- */
-export const LOOP_PLANNER_UNCONFIGURED = {
-  provider: 'mistral' as const,
-  model: 'mistral-large-4',
-  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
-  contextWindow: 262_144,
-};
 
 /** SYNTH: best German writer, and never a reasoning lane (latency).
  *
@@ -640,6 +509,17 @@ export const UNIFIED_GEMMA_CHAIN = [
   LOOP_SYNTH_FALLBACK,
 ] as const;
 
+/**
+ * Behind every loop lane that is not a Melious Gemma (Ultra and auto turns on
+ * Large 4, Panda, GreenPT, Cortecs Gemma): the mirror of the Gemma ladder above,
+ * which ends on Mistral. Taken only if the lane rejects or stays silent before
+ * any tool call or output (`runLaneChain`); a stream that hangs that way
+ * otherwise sat until the hard cap (#5422 pattern). `:speed` because it is the
+ * fast Gemma upstream and takes wide bodies. Until the split mode went (#5441)
+ * the non-Mistral lanes had the planner ladder behind their tool phase instead.
+ */
+export const UNIFIED_LANE_FALLBACKS = [GEMMA_31B_ON_MELIOUS_SPEED] as const;
+
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch
  *  trainierten Lanes. Letztere sind heute nirgends mehr wählbar — der Zweig
@@ -662,9 +542,8 @@ export const AVOID_AS_SYNTH = /verdigado-think|verdigado-pro|qwen|gpt-oss/i;
  * Dieselbe Frage wie AVOID_AS_SYNTH, nur als Prädikat — damit die Stellen, die
  * ein Ausweichziel wählen, sie stellen können, ohne die Regex zu kennen. Sie
  * gilt für jede Lane, die am Ende Prosa an einen Menschen schickt: den
- * Synth-Slot des Split-Loops, die vereinheitlichte Loop-Lane und die
- * Einzeldurchlauf-Antwort. Der PLANER ist ausgenommen — der ruft Werkzeuge und
- * schreibt nichts, was jemand liest.
+ * Reparatur-Schreiber samt Ausweich, die Loop-Lane und die
+ * Einzeldurchlauf-Antwort.
  */
 export function mayWriteAnswer(target: { model: string }): boolean {
   return !AVOID_AS_SYNTH.test(target.model);

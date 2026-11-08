@@ -33,8 +33,7 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
-// Der Synth-Ausweich hängt an konfigurierten Schlüsseln (ohne sie ist es die
-// letzte Planer-Stufe, Mistral Medium). Gestellt nur, wo ein Test ihn setzt.
+// Das Geschwister des Reparatur-Schreibers. Gestellt nur, wo ein Test es setzt.
 const { synthFallbackOverride } = vi.hoisted(() => ({
   synthFallbackOverride: {
     current: null as { model: never; name: string; contextWindow: number } | null,
@@ -44,8 +43,8 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../agents/providers.js')>();
   return {
     ...actual,
-    getLoopSynthFallbackModel: (name: string) =>
-      synthFallbackOverride.current ?? actual.getLoopSynthFallbackModel(name),
+    getRepairWriterFallback: (writer: Parameters<typeof actual.getRepairWriterFallback>[0]) =>
+      synthFallbackOverride.current ?? actual.getRepairWriterFallback(writer),
   };
 });
 
@@ -174,7 +173,7 @@ function fakeDeps(opts: {
   modelName?: string;
   contextWindow?: number;
   onLoop?: (p: LoopEngineParams) => void;
-  loopResult?: { text: string; replacedStreamed?: boolean; replacement?: AnswerReplacement };
+  loopResult?: { text: string; replacement?: AnswerReplacement };
   assemble?: AgenticRespondDeps['assembleToolCatalog'];
 }): AgenticRespondDeps {
   return {
@@ -192,9 +191,9 @@ function fakeDeps(opts: {
     runAgenticLoop: (async (p: LoopEngineParams) => {
       opts.onLoop?.(p);
       const text = opts.loopResult?.text ?? 'Fertige Antwort.';
-      // Mirror what the real engine does for the caller's `text`: unified and
-      // split both stream the answer through onText.
-      if (!opts.loopResult?.replacedStreamed) p.onText(text);
+      // Mirror what the real engine does for the caller's `text`: the loop
+      // streams the answer through onText.
+      if (opts.loopResult?.replacement == null) p.onText(text);
       return opts.loopResult ?? { text };
     }) as unknown as AgenticRespondDeps['runAgenticLoop'],
   };
@@ -203,6 +202,7 @@ function fakeDeps(opts: {
 const baseParams = (state: ChatGraphState, systemMessage: string, userText: string) => ({
   finalState: state,
   systemMessage,
+  turnPaste: null as string | null,
   messages: [{ role: 'user' as const, content: userText }] satisfies ModelMessage[],
   requestId: 'req-1',
   threadId: null,
@@ -216,7 +216,6 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect(seen!.mode).toBe('unified');
   });
 
   it('läuft unified auf der Standard-Lane (Gemma 4 31B auf Melious) und kennt nur Mistral Large als Ausweich', async () => {
@@ -230,8 +229,7 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.mode).toBe('unified');
-    expect(seen!.unifiedFallbacks).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
+    expect(seen!.fallbackModels).toHaveLength(UNIFIED_GEMMA_CHAIN.length - 1);
   });
 
   it('lässt die :speed-Stufe weg, wenn der Primär-Request schon als :speed rausgeht', async () => {
@@ -246,18 +244,17 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.mode).toBe('unified');
-    expect(seen!.unifiedFallbacks).toHaveLength(1);
+    expect(seen!.fallbackModels).toHaveLength(1);
   });
 
-  it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {
+  it('gibt Mistral Gemma :speed als eine Ausweichstufe', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
+    expect(seen!.fallbackModels).toHaveLength(1);
   });
 
   it('vermerkt im unified die Stufe, die wirklich stand — nicht immer die gewählte', async () => {
@@ -269,8 +266,6 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
         provider: 'melious',
         modelName: 'gemma-4-31b:balanced',
         onLoop: (p) => {
-          // Die Leiter meldet ihre Stufen; der Wechsel selbst bucht nichts mehr.
-          p.onSynthFallback?.('first_token_timeout');
           p.onLaneUnhealthy?.(0, 'provider_unavailable');
           p.onLaneUnhealthy?.(1, 'stall');
         },
@@ -286,16 +281,36 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     ]);
   });
 
-  it('vermerkt im split die Planer-Stufe des Index — ein Index ausserhalb der Leiter zählt nicht', async () => {
-    // Ohne Schlüssel (Testumgebung) besteht die Leiter nur aus der
-    // schlüssellosen Stufe; die Kette selbst prüft loopPlannerChain.vitest.ts.
+  it('vermerkt den Reparatur-Schreiber, wenn sein Geschwister übernimmt', async () => {
     slowVerdicts.length = 0;
     const { sse } = fakeSse();
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
       fakeDeps({
-        provider: 'greenpt',
-        modelName: 'gemma4-31b',
+        provider: 'mistral',
+        modelName: 'mistral-large-4',
+        onLoop: (p) => {
+          p.onRepairWriterUnhealthy?.('synth_stall');
+          p.onRepairWriterUnhealthy?.('synth_empty');
+        },
+      })
+    );
+    expect(slowVerdicts.map((v) => `${v.provider}/${v.model}:${v.reason}`)).toEqual([
+      'mistral/mistral-large-4:synth_stall',
+      'mistral/mistral-large-4:synth_empty',
+    ]);
+  });
+
+  it('vermerkt die Stufe des Index — ein Index ausserhalb der Leiter zählt nicht', async () => {
+    // Jede Lane ausser Melious-Gemma bekommt Gemma :speed dahinter
+    // (UNIFIED_LANE_FALLBACKS).
+    slowVerdicts.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({
+        provider: 'mistral',
+        modelName: 'mistral-large-4',
         onLoop: (p) => {
           p.onLaneUnhealthy?.(0, 'stall');
           p.onLaneUnhealthy?.(1, 'stall');
@@ -303,40 +318,16 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       })
     );
     expect(slowVerdicts.map((v) => `${v.provider}/${v.model}:${v.reason}`)).toEqual([
-      'mistral/mistral-large-4:split:stall',
+      'mistral/mistral-large-4:unified:stall',
+      'melious/gemma-4-31b:speed:unified:stall',
     ]);
-  });
-
-  it('läuft split auf jedem anderen Anbieter', async () => {
-    const { sse } = fakeSse();
-    let seen: LoopEngineParams | null = null;
-    await streamAgenticResponse(
-      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
-      fakeDeps({ provider: 'greenpt', modelName: 'gemma4-31b', onLoop: (p) => (seen = p) })
-    );
-    expect(seen!.mode).toBe('split');
-  });
-
-  it('kippt auch auf mistral nach split, sobald der Turn seinen Stoff selbst mitbringt', async () => {
-    // Der gemessene Ausfall: unified + voller Katalog im Schreibkontext + viel
-    // eigener Stoff. Split ist die einzige Anordnung, in der er nie auftrat.
-    const { sse } = fakeSse();
-    let seen: LoopEngineParams | null = null;
-    await streamAgenticResponse(
-      {
-        ...baseParams(fakeState(), 'kurzer Systemprompt', 'M'.repeat(12_000)),
-        sse,
-      },
-      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
-    );
-    expect(seen!.mode).toBe('split');
   });
 });
 
 describe('streamAgenticResponse — synth fallback window (#4201)', () => {
-  it('re-prunes the history for the planner lane only when the fallback fires', async () => {
-    // An explicit Mistral Medium turn is pruned against 262k; the synth
-    // fallback is the planner lane, Melious Gemma at 128k.
+  it('re-prunes the history for the sibling lane only when the fallback fires', async () => {
+    // An explicit Mistral turn is pruned against 262k; the repair writer's
+    // sibling is Melious Gemma `:speed` at 128k.
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     const turn = (i: number): ModelMessage => ({
@@ -346,7 +337,7 @@ describe('streamAgenticResponse — synth fallback window (#4201)', () => {
     const history = Array.from({ length: 11 }, (_, i) => turn(i));
     synthFallbackOverride.current = {
       model: {} as never,
-      name: 'gemma-4-31b:balanced',
+      name: 'gemma-4-31b:speed',
       contextWindow: 128_000,
     };
     await streamAgenticResponse(
@@ -356,15 +347,14 @@ describe('streamAgenticResponse — synth fallback window (#4201)', () => {
         sse,
       },
       fakeDeps({
-        provider: 'greenpt',
-        modelName: 'gemma4-31b',
+        provider: 'mistral',
+        modelName: 'mistral-large-4',
         contextWindow: 262_144,
         onLoop: (p) => (seen = p),
       })
     );
-    expect(seen!.mode).toBe('split');
-    expect(seen!.synthMessages).toBe(history);
-    const forFallback = seen!.synthFallbackMessages!('kurzer Synth-Systemprompt');
+    expect(seen!.repairMessages).toBe(history);
+    const forFallback = seen!.repairSiblingMessages!('kurzer Synth-Systemprompt');
     expect(forFallback.length).toBeLessThan(history.length);
     expect(forFallback.at(-1)).toBe(history.at(-1));
     synthFallbackOverride.current = null;
@@ -417,7 +407,7 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
     let seen: LoopEngineParams | null = null;
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
-      fakeDeps({ provider: 'greenpt', onLoop: (p) => (seen = p) })
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     const validate = seen!.validateAnswer!;
     expect(validate('{"titel": "abgeschnitten')).toBe(SYNTH_INVALID_JSON_RETRY_SUFFIX);
@@ -426,15 +416,15 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
   });
 
   it('ersetzt die bereits gestreamte Antwort, wenn die Wiederholung gegriffen hat', async () => {
-    // `replacedStreamed` heißt: auf der Leitung liegt der VERWORFENE Durchlauf.
+    // Ein `replacement` heißt: auf der Leitung liegt der VERWORFENE Durchlauf.
     // Der Turn muss die korrigierte Fassung über `completion` nachreichen und
     // die Text-Offsets fallen lassen — sie zeigen in den verworfenen Strom.
     const { sse, sent } = fakeSse();
     const outcome = await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
       fakeDeps({
-        provider: 'greenpt',
-        loopResult: { text: 'Die korrigierte Antwort.', replacedStreamed: true },
+        provider: 'mistral',
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'unified_repair' },
       })
     );
     const completion = sent.filter((e) => e.event === 'completion');
@@ -447,7 +437,7 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
     const { sse, sent } = fakeSse();
     const outcome = await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
-      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+      fakeDeps({ provider: 'mistral', loopResult: { text: '   ' } })
     );
     expect(outcome.fullText).toContain('keine passende Antwort');
     expect(sent.some((e) => e.event === 'response_start')).toBe(true);
@@ -461,7 +451,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     const { sse } = fakeSse();
     const outcome = await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
-      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+      fakeDeps({ provider: 'mistral', loopResult: { text: '   ' } })
     );
     expect(outcome.degraded).toBe('no_answer');
   });
@@ -477,7 +467,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
         ),
         sse,
       },
-      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+      fakeDeps({ provider: 'mistral', loopResult: { text: '   ' } })
     );
     expect(outcome.degraded).toBeUndefined();
     expect(outcome.fullText).toContain('Erledigt');
@@ -500,7 +490,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
         ),
         sse,
       },
-      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+      fakeDeps({ provider: 'mistral', loopResult: { text: '   ' } })
     );
     expect(outcome.degraded).toBeUndefined();
     expect(outcome.fullText).not.toContain('Erledigt');
@@ -513,7 +503,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
       ['AbortError', 'aborted'],
     ] as const) {
       const { sse } = fakeSse();
-      const deps = fakeDeps({ provider: 'greenpt' });
+      const deps = fakeDeps({ provider: 'mistral' });
       deps.runAgenticLoop = (async () => {
         const err = new Error('kaputt');
         err.name = errName;
@@ -531,7 +521,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     const { sse } = fakeSse();
     const outcome = await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
-      fakeDeps({ provider: 'greenpt' })
+      fakeDeps({ provider: 'mistral' })
     );
     expect(outcome.degraded).toBeUndefined();
   });
@@ -541,7 +531,7 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     // komplett, erst ein Nachschritt warf. Ein headless Aufrufer würde sie
     // mit degraded='failed' wegwerfen und einen Fehlschlag melden.
     const { sse } = fakeSse();
-    const deps = fakeDeps({ provider: 'greenpt' });
+    const deps = fakeDeps({ provider: 'mistral' });
     deps.runAgenticLoop = (async (p: LoopEngineParams) => {
       p.onText('Die vollständige Antwort steht.');
       throw new Error('Artefakt-Hook danach geworfen');
@@ -616,12 +606,12 @@ describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', ()
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
       fakeDeps({
-        provider: 'greenpt',
-        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'validation_retry' },
+        provider: 'mistral',
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'unified_repair' },
       })
     );
     const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
-    expect(summary).toContain('replaced=validation_retry');
+    expect(summary).toContain('replaced=unified_repair');
   });
 
   it('schweigt über einen Ersatz, den es nicht gab', async () => {
@@ -629,7 +619,7 @@ describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', ()
     const { sse } = fakeSse();
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
-      fakeDeps({ provider: 'greenpt' })
+      fakeDeps({ provider: 'mistral' })
     );
     const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
     expect(summary).toBeDefined();
@@ -924,8 +914,7 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       perCallTimeoutMs: 20_000,
       toolActivity,
       toolLabels: new Map(),
-      getTextOffset: () => null,
-      takeNarration: () => null,
+      getTextOffset: () => 0,
     });
     return Object.assign(tools, { __activity: toolActivity });
   };
@@ -1143,58 +1132,35 @@ describe('streamAgenticResponse — turnContext', () => {
 // #5399: im split-Modus las der Planer das ganze Dokument mit (live 06.11.2026:
 // 79.313 Zeichen, 36 s Vorlauf, kein Aufruf). Er bekommt einen Platzhalter, der
 // Schreiber den Volltext.
-describe('streamAgenticResponse — Ganzdokument im split-Modus', () => {
-  const DOC = `§1 Präambel ${'Inhalt der Vereinbarung. '.repeat(3000)}§30 Schluss`;
-  const docState = (over: Partial<ChatGraphState> = {}) =>
-    fakeState({
-      wholeDocument: {
-        origin: 'turn',
-        ask: 'summary',
-        docs: [{ name: 'Vereinbarung.pdf', text: DOC, documentId: 'doc-1' }],
-        chars: DOC.length,
-        budgetChars: 224_000,
-        fits: true,
-      },
-      documentSources: [{ id: 'doc-1', kind: 'document', label: 'Vereinbarung.pdf' }],
-      messages: [{ role: 'user', content: 'Fasse die Vereinbarung zusammen' }],
-      ...over,
-    } as Partial<ChatGraphState>);
-  const system = `Rolle.\n\n## ANGEHÄNGTE DOKUMENTE\n\n${embedUntrusted('anhang', DOC)}\n\nRegeln.`;
-  const withReader = (async () => ({
-    ...EMPTY_CATALOG,
-    // `mentions` liest der Schreiber-Prompt (Angebot nach dem Text).
-    recipeRegistry: { ...EMPTY_CATALOG.recipeRegistry, mentions: [] },
-    tools: { dokumente_lesen: { description: 'liest', inputSchema: {} } } as unknown as ToolSet,
-  })) as unknown as AgenticRespondDeps['assembleToolCatalog'];
+describe('streamAgenticResponse — eingefügter Text in der Nachricht (#5431)', () => {
+  const PASTE = '12.01.2027 Neujahrsempfang, Rathaus';
+  const turnPaste = `## EINGEFÜGTER TEXT\n\n${embedUntrusted('anhang', PASTE)}`;
 
-  it('der Planer sieht den Platzhalter, der Schreiber den Volltext', async () => {
+  it('legt den Paste hinter den Nutzertext der letzten Nachricht', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     await streamAgenticResponse(
-      { ...baseParams(docState(), system, 'Fasse die Vereinbarung zusammen'), sse },
-      fakeDeps({
-        provider: 'greenpt',
-        modelName: 'gemma4-31b',
-        assemble: withReader,
-        onLoop: (p) => (seen = p),
-      })
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Hier sind die Termine'), turnPaste, sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     const params = seen as LoopEngineParams | null;
-    expect(params?.mode).toBe('split');
-    expect(params?.toolSystem).not.toContain('§30 Schluss');
-    expect(params?.toolSystem).toContain('Vereinbarung.pdf');
-    expect(params?.toolSystem).toContain('dokumente_lesen');
-    expect(params?.toolSystem).toContain('Regeln.');
-    expect(params?.buildSynthSystem('')).toContain('§30 Schluss');
+    for (const messages of [params?.messages, params?.repairMessages]) {
+      expect(messages?.at(-1)?.content).toEqual([
+        { type: 'text', text: 'Hier sind die Termine' },
+        { type: 'text', text: turnPaste },
+      ]);
+    }
   });
 
-  it('ohne montiertes Lesewerkzeug bleibt der Volltext beim Planer', async () => {
+  it('ohne Paste bleibt die Nachricht unverändert', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     await streamAgenticResponse(
-      { ...baseParams(docState(), system, 'Fasse die Vereinbarung zusammen'), sse },
-      fakeDeps({ provider: 'greenpt', modelName: 'gemma4-31b', onLoop: (p) => (seen = p) })
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Hier sind die Termine'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect((seen as LoopEngineParams | null)?.toolSystem).toContain('§30 Schluss');
+    expect((seen as LoopEngineParams | null)?.repairMessages?.at(-1)?.content).toBe(
+      'Hier sind die Termine'
+    );
   });
 });

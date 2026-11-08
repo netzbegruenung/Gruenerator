@@ -5,7 +5,6 @@
 
 ## turn 0: "Was ist die Position der Gruenen zur Windkraft?"
 router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=agentic isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
-loop.mode                        = split                          materialHeavy=false model=stub-model provider=stub reason=not_unified_model
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
@@ -13,7 +12,7 @@ classifier.tier                  = tier3.5_loop_demotion          confidence=0.8
 respond.answer_format            = research_expanded              complexity=moderate intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = 1 recorded
     · search_concurrency toolName=gruenerator_search
-loop.synth_verdict               = accepted                       textLength=135
+loop.synth_verdict               = (not reached)
 loop.unified_repair              = (not reached)
 notebook.answer_mode             = (not reached)
 -- wire --

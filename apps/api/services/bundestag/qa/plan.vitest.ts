@@ -93,6 +93,30 @@ describe('planFilters', () => {
     expect(r.notes.some((n) => n.includes('Fantasiewort'))).toBe(true);
   });
 
+  // #5445: DIP verknüpft Titel und Deskriptor per UND, der Titel trifft nur ganze Wörter.
+  it('lässt einen Titel neben einem tragenden Deskriptor weg, auch vom Werkzeug-Aufrufer', async () => {
+    model({ keywords: ['radverkehr', 'anfragen'] });
+    const r = await planFilters({
+      question: 'Kleine Anfragen der Grünen zum Radverkehr',
+      explicit: { deskriptor: ['Radverkehr'], titel: 'Radverkehr' },
+      dip: dipWith({ Radverkehr: 15 }),
+    });
+    expect(r.filters.deskriptor).toEqual(['Radverkehr']);
+    expect(r.filters.titel).toBeUndefined();
+    expect(r.notes.some((n) => n.includes('Titelfilter „Radverkehr"'))).toBe(true);
+  });
+
+  it('behält den Titel, wenn kein Deskriptor trägt', async () => {
+    model({ keywords: ['radverkehr'] });
+    const r = await planFilters({
+      question: 'Radverkehr',
+      explicit: { deskriptor: ['Fantasiewort'], titel: 'Radverkehrsförderung' },
+      dip: dipWith({}),
+    });
+    expect(r.filters.deskriptor).toBeUndefined();
+    expect(r.filters.titel).toBe('Radverkehrsförderung');
+  });
+
   it('setzt ohne Wahlperiode [21] mit Notiz', async () => {
     model({ keywords: ['klima', 'schutz', 'gesetz'] });
     const r = await planFilters({ question: 'Klimaschutz', explicit: {}, dip: dipWith({}) });

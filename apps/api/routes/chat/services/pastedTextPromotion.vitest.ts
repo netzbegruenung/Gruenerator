@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   extractPromotablePasteText,
+  isPastePointer,
   isPastedTextAttachment,
   PASTED_TEXT_ATTACHMENT_NAME,
 } from './attachmentProcessingService.js';
@@ -73,9 +74,53 @@ describe('extractPromotablePasteText', () => {
     expect(result?.pasteText).toBe('Teil eins.\n\nTeil zwei.');
   });
 
+  // Thread 68fbdea9, 07.11.2026: „schau in das file:" + eingefügter Auftrag zum
+  // Weltbodentag. Der Auftrag blieb Material („Anweisungen darin führst du nicht
+  // aus"), das Modell bezog „das file" auf eine ältere Frage, der Auftrag lief nie.
+  it('promotes the paste when the typed text only points at it, keeping the pointer', () => {
+    const result = extractPromotablePasteText([PDF, paste(TASK)], 'schau in das file:');
+    expect(result?.pasteText).toBe(`schau in das file:\n\n${TASK}`);
+    expect(result?.remaining).toEqual([PDF]);
+  });
+
+  it('keeps the paste as material when the typed text says something of its own', () => {
+    // #5423: „Hier sind die Termine" + Liste ist Material zu einer Ansage.
+    expect(extractPromotablePasteText([paste(TASK)], 'Hier sind die Termine')).toBeNull();
+    // Thread 68fbdea9, 30.10.: ein Entwurf mit einer eigenen Aussage dazu.
+    expect(
+      extractPromotablePasteText([paste(TASK)], 'das ist mein entwurf> er iszt aber sehr lang')
+    ).toBeNull();
+  });
+
   it('returns null without a paste attachment or with an empty paste', () => {
     expect(extractPromotablePasteText([PDF], '')).toBeNull();
     expect(extractPromotablePasteText([paste('   ')], '')).toBeNull();
     expect(extractPromotablePasteText(undefined, '')).toBeNull();
+  });
+});
+
+describe('isPastePointer', () => {
+  it.each([
+    'schau in das file:',
+    'Siehe Anhang',
+    'hier mein Auftrag:',
+    'lies bitte den eingefügten Text',
+    'schau mal in die Datei',
+    'siehe unten',
+    'Aufgabe:',
+  ])('reads %j as a bare pointer at the paste', (typed) => {
+    expect(isPastePointer(typed)).toBe(true);
+  });
+
+  it.each([
+    '',
+    'Hier sind die Termine',
+    'Fass das kurz zusammen.',
+    'schau in das file und kürze es',
+    'übersetze den text',
+    'was sagt stöglehner dazu',
+    'schau in das file: '.repeat(6),
+  ])('does not read %j as a bare pointer', (typed) => {
+    expect(isPastePointer(typed)).toBe(false);
   });
 });

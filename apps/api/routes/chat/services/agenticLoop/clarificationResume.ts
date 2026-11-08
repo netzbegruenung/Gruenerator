@@ -10,7 +10,7 @@
  * tool-result des eigenen ask_human-Aufrufs — nicht als neue User-Nachricht,
  * die die Frage aus dem Zusammenhang risse.
  */
-import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
+import { buildTurnPrompt } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
@@ -111,10 +111,10 @@ export async function runClarificationLoopResume(params: {
     const outcome = await streamAgenticResponse({
       finalState: classifiedState,
       // Neu gebaut statt aus Redis geholt: derselbe Weg wie im Erst-Zug.
-      systemMessage: await buildSystemMessage(classifiedState, {
+      ...(await buildTurnPrompt(classifiedState, {
         retrievalExpected: true,
         loop: true,
-      }),
+      })),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId,
@@ -133,6 +133,9 @@ export async function runClarificationLoopResume(params: {
 
     // Eine Blase: die pausierte Zeile wird fortgeschrieben, nicht ergänzt.
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
+    // Die Versätze zeigen in die Fortsetzung, nicht in die zusammengeführte Blase
+    // (#5442) — wie in loopResumeEnd fallen lassen, dann lädt sie karten-zuerst.
+    if (stored.partialText.trim()) for (const step of outcome.steps) delete step.textOffset;
 
     // Die Fortsetzung pausiert selbst wieder. Der Rückfrage-Zustand ist mit der
     // Antwort verbraucht — löschen, damit er keine spätere ask_human-Antwort

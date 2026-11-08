@@ -28,14 +28,10 @@ export interface PersistedStep {
   serverName?: string;
   /** Character index into the FINAL answer text at the moment this tool call
    *  started — lets thread reload interleave text segments and tool cards in
-   *  the live order. Monotonically non-decreasing across a turn's steps. Only
-   *  set in unified mode; absent on legacy messages, split-mode turns, and
-   *  after a citation clamp rewrote the text (offset drift protection). */
+   *  the live order. Monotonically non-decreasing across a turn's steps.
+   *  Absent on legacy messages, split-mode turns (#5441), and after a
+   *  citation clamp rewrote the text (offset drift protection). */
   textOffset?: number;
-  /** Planner announcement sentence(s) streamed before this tool call started
-   *  (split-gather mode only). Rendered as muted text above the card and
-   *  persisted with the turn; never replayed into model context. */
-  narration?: string;
 }
 
 /** Herkunft eines Konnektor-Werkzeugs, soweit die Freigabe sie unterscheidet. */
@@ -108,7 +104,7 @@ export interface PendingClientToolRequest {
 /**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
- * shape (`{ content } | { error }`), so it is the contract the split synth
+ * shape (`{ content } | { error }`), so it is the contract the repair writer
  * relays from and reports on. A discriminated union (not a loose bag) so the
  * relay code can't silently confuse "the connector returned an empty string"
  * with "there is no content field" — the exact ambiguity behind a synth that
