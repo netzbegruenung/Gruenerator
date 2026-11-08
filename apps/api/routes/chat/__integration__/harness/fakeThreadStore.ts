@@ -380,7 +380,8 @@ export async function getUserMessageTexts(threadId: string, limit = 20): Promise
 
 export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
   threadReads.push({ read: 'getThreadToolContext', threadId });
-  return threadToolContextFixtures.get(threadId) ?? null;
+  // The fixture, else what a turn wrote (`setThreadToolContext`) — one column, as in Postgres.
+  return threadToolContextFixtures.get(threadId) ?? threads.get(threadId)?.lastToolContext ?? null;
 }
 
 export async function listThreadArtifacts(
