@@ -730,6 +730,20 @@ describe('stripPhantomArtifactCreation', () => {
     expect(stripPhantomArtifactCreation(LIVE, { createdArtifact: true }).removed).toEqual([]);
   });
 
+  it('streicht auch die Erfolgsmeldung im Perfekt (live 08.11.2026)', () => {
+    const text =
+      'Das Sharepic mit dem Text „Mehr Geld für sichere Radwege!“ habe ich dir erstellt.\n\nSoll ich dir passende Sharepic-Vorlagen zeigen?';
+    const out = stripPhantomArtifactCreation(text, { createdArtifact: false });
+    expect(out.removed).toHaveLength(1);
+    expect(out.text).toBe('Soll ich dir passende Sharepic-Vorlagen zeigen?');
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: true }).removed).toEqual([]);
+  });
+
+  it('lässt ein Perfekt über fremde Arbeit stehen', () => {
+    const text = 'Den Antrag hat der Kreisverband erstellt, ich habe ihn nur gelesen.';
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).removed).toEqual([]);
+  });
+
   it.each([
     'Gerne erstelle ich dir jetzt die Präsentation.',
     'Ich werde dir gleich eine Tabelle mit den Zahlen erstellen.',

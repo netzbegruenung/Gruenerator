@@ -564,7 +564,9 @@ export function hasExplicitSharepicWord(text: string): boolean {
   // first word would refuse a perfectly explicit ask.
   // A sentence that is nothing but the noun belongs to the question behind it:
   // „Sharepic? Was ist das?" asks, „Sharepic? Mach eins dazu." orders (#4118).
-  const sentences = t.split(/[.!?]+/);
+  // A colon ends a lead-in too: „Was anderes: Erstelle ein Sharepic …" opens
+  // with a topic switch, not a question about sharepics (live 08.11.2026).
+  const sentences = t.split(/[.!?:]+/);
   const firstSentence = sentences[0] ?? t;
   if (BARE_SHAREPIC_NOUN_RE.test(firstSentence)) {
     return !META_QUESTION_START_RE.test(sentences[1] ?? '');
