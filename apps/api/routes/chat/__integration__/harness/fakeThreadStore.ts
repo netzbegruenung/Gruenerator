@@ -18,7 +18,13 @@ import {
   isEmptyThreadMentionRefs,
 } from '../../services/threadMentionRefs.js';
 import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
-import { toSources, toToolSteps, type ToolStepRow } from '../../services/threadToolProjections.js';
+import {
+  type ArtifactMetadataShape,
+  toArtifacts,
+  toSources,
+  toToolSteps,
+  type ToolStepRow,
+} from '../../services/threadToolProjections.js';
 
 import type {
   SearchResult,
@@ -374,7 +380,8 @@ export async function getUserMessageTexts(threadId: string, limit = 20): Promise
 
 export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
   threadReads.push({ read: 'getThreadToolContext', threadId });
-  return threadToolContextFixtures.get(threadId) ?? null;
+  // The fixture, else what a turn wrote (`setThreadToolContext`) — one column, as in Postgres.
+  return threadToolContextFixtures.get(threadId) ?? threads.get(threadId)?.lastToolContext ?? null;
 }
 
 export async function listThreadArtifacts(
@@ -386,7 +393,18 @@ export async function listThreadArtifacts(
   // An unscripted thread behaves like one holding just its tool-context slot —
   // which is what every test written before the list existed assumes.
   const tc = threadToolContextFixtures.get(threadId);
-  return tc ? [tc] : [];
+  if (tc) return [tc];
+  // Neither scripted: what the thread's own turns persisted, through the real
+  // projection — so a multi-turn test sees the artefact turn 1 built.
+  return toArtifacts(assistantMetadataOf(threadId), limit);
+}
+
+/** The persisted assistant metadata of a thread, newest first. */
+function assistantMetadataOf(threadId: string): ArtifactMetadataShape[] {
+  return messagesOf(threadId)
+    .filter((m) => m.role === 'assistant' && m.metadata && typeof m.metadata === 'object')
+    .reverse()
+    .map((m) => m.metadata as ArtifactMetadataShape);
 }
 
 /**
@@ -423,7 +441,11 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
     lastTurnToolSteps: () =>
       (lastTurnToolStepFixtures.get(threadId) as PersistedStep[] | undefined) ??
       (newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : []),
-    lastTurnArtifacts: () => lastTurnArtifactFixtures.get(threadId) ?? [],
+    lastTurnArtifacts: () =>
+      lastTurnArtifactFixtures.get(threadId) ??
+      (newestIsLastTurn
+        ? toArtifacts(assistantMetadataOf(threadId).slice(0, 1), Number.MAX_SAFE_INTEGER)
+        : []),
     lastTurnIntent: () => {
       const intent = newestIsLastTurn
         ? (rows[0] as { intent?: unknown } | undefined)?.intent

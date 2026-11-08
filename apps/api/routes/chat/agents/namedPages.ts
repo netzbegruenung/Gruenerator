@@ -87,19 +87,22 @@ export async function readNamedPages(urls: string[]): Promise<NamedPagesRead> {
 }
 
 /**
- * Die @link-Seiten, die der Loop vorab liest — dieselbe Auswahl, die der
+ * Die Seiten, die der Loop vorab liest — dieselbe Auswahl, die der
  * Klassifikator für den Einzeldurchlauf trifft (`classifierNode`, „URL
- * context"): die Chips DIESES Turns; nur wenn es keine gibt und auch keine
- * Adresse im Text steht, die mitgeführten Seiten früherer Turns (#4888). Ein
+ * context"): die Chips und die getippten Adressen DIESES Turns; nur wenn es
+ * keine gibt, die mitgeführten Seiten früherer Turns (#4888). Ein
  * Wolke-Freigabe-Link fällt heraus, er liefert beim Crawlen nur die SPA-Hülle
- * (`cloud_files` liest ihn). Eine getippte Adresse steht im Nachrichtentext,
- * den der Planer sieht — sie braucht keinen Seed.
+ * (`cloud_files` liest ihn). Die getippte Adresse gehört dazu, seit
+ * „Schreib einen Tweet zu <url>" im Loop läuft (#5456): der Einzeldurchlauf
+ * las sie über `scrape_url` vorab, und ob der Planer sie liest, war Glück.
  */
 export function attachedPageUrls(state: ChatGraphState): string[] {
   if (state.enabledTools?.['scrape'] === false) return [];
-  const attached = (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url));
-  if (attached.length > 0) return [...new Set(attached)].slice(0, MAX_NAMED_PAGES);
-  if (crawlableUrls(state.lastUserTextNoMentions ?? '').length > 0) return [];
+  const own = [
+    ...(state.attachedWebpageUrls ?? []),
+    ...crawlableUrls(state.lastUserTextNoMentions ?? ''),
+  ].filter((url) => !isCloudShareUrl(url));
+  if (own.length > 0) return [...new Set(own)].slice(0, MAX_NAMED_PAGES);
   const carried = (state.carriedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url));
   return [...new Set(carried)].slice(0, MAX_NAMED_PAGES);
 }

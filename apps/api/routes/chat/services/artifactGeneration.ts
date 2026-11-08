@@ -431,7 +431,8 @@ export async function runBoardGeneration(opts: {
 export function documentContextKind(
   subtype: string
 ): 'presentation' | 'sheet' | 'pdf' | 'explainable' | 'document' {
-  if (subtype.startsWith('presentation')) return 'presentation';
+  // A canvas deck (`canvasDeckGeneration`) is stored as subtype 'canvas'.
+  if (subtype.startsWith('presentation') || subtype === 'canvas') return 'presentation';
   if (subtype.startsWith('sheet')) return 'sheet';
   // 'pdf' and 'explainable' before the 'document' default: their ref is an
   // asset file name or an explainable id, not a collaborative-document UUID,

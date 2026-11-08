@@ -460,6 +460,35 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Hinweis:');
   }, 120_000);
 
+  it('reads thousands dots without a decimal comma as German numbers (live 08.11.2026)', async () => {
+    // Same as apps/api/evals/fixtures/csv/antraege-fallen.csv: BOM, quoted
+    // separators, an empty cell, thousands dots and a sum row. With no comma in
+    // the column the normalization skipped it, and "12.500" became 12.5.
+    const file = csvFile(
+      'antraege.csv',
+      '﻿Nr;Titel;Antragsteller*in;Kosten_EUR;Status\n' +
+        '1;"Mehr Bänke, mehr Schatten";KV Neustadt;12.500;angenommen\n' +
+        '2;"Tempo 30 vor Schulen; sofort";OV Bergheim;;abgelehnt\n' +
+        '3;Radweg Lindenallee;KV Neustadt;245.000;vertagt\n' +
+        '4;"Trinkbrunnen ""Am Markt""";Grüne Jugend;8.900;angenommen\n' +
+        '5;Solar auf Schuldächern;Fraktion;1.200.000;angenommen\n' +
+        ';Summe;;1.466.400;\n'
+    );
+    const result = await runPythonCore(
+      py,
+      [
+        'a = df[df["Status"] == "angenommen"]',
+        'print("Angenommen:", int(a["Kosten_EUR"].sum()))',
+        'print("Ohne Kosten:", ",".join(df[df["Kosten_EUR"].isna()]["Nr"].astype(int).astype(str)))',
+      ].join('\n'),
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Angenommen: 1221400');
+    expect(result.stdout).toContain('Ohne Kosten: 2');
+  }, 120_000);
+
   it('removes trailing sum AND mean rows together (aggregate block)', async () => {
     const file = csvFile(
       'mit-summe-und-mittel.csv',

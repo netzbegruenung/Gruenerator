@@ -159,7 +159,12 @@ def _gruen_load_csv(_path):
         if not (_df[_col].dtype == object or pd.api.types.is_string_dtype(_df[_col])):
             continue
         _vals = _df[_col].dropna().astype(str)
-        if len(_vals) and _vals.str.contains(',').any() and _vals.str.match(_german).all():
+        # A comma, or a dot before exactly three digits: thousands dots alone
+        # ("12.500", "1.200.000") also mean German numbers. pandas already
+        # turned a column of plain decimals into floats, so a text column whose
+        # every value fits _german is never English.
+        _grouped = _vals.str.contains(',').any() or _vals.str.contains(r'\\d\\.\\d{3}(?!\\d)').any()
+        if len(_vals) and _grouped and _vals.str.match(_german).all():
             _df[_col] = pd.to_numeric(
                 _df[_col].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False),
                 errors='coerce',

@@ -116,12 +116,17 @@ function producedSomething(step: {
 // alte Tabelle nicht.
 const DEFINITE_TARGET_DET =
   '(?:d(?:as|ie|er|en|em|es)|im|ins|diese[snrm]?|mein\\p{L}*|unser\\p{L}*)\\s+(?:\\p{L}+\\s+)?';
+// Vor dem Gattungsnomen nennen auch Verschmelzungen das Artefakt: „Zurück zur
+// Tabelle: füg …" (live 08.11.2026). Vor einem Titelwort nicht: „zum Radverkehr"
+// ist ein Thema, kein Verweis auf den Antrag „Radverkehr".
+const DEFINITE_NOUN_DET =
+  '(?:d(?:as|ie|er|en|em|es)|im|ins|zur|zum|vom|beim|am|diese[snrm]?|mein\\p{L}*|unser\\p{L}*)\\s+(?:\\p{L}+\\s+)?';
 const DOCUMENT_TARGET_RE = new RegExp(
-  `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:text)?dokument(?:e?s)?(?!\\p{L})`,
+  `(?<!\\p{L})${DEFINITE_NOUN_DET}(?:text)?dokument(?:e?s)?(?!\\p{L})`,
   'iu'
 );
 const SHEET_TARGET_RE = new RegExp(
-  `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:tabelle|kalkulation|sheet)(?!\\p{L})`,
+  `(?<!\\p{L})${DEFINITE_NOUN_DET}(?:tabelle|kalkulation|sheet)(?!\\p{L})`,
   'iu'
 );
 
@@ -159,11 +164,11 @@ const LOOP_ARTIFACT_TARGET_RE = {
   sheet: SHEET_TARGET_RE,
   // „Mach Folie 3 kürzer": eine nummerierte Folie braucht keinen Artikel.
   presentation: new RegExp(
-    `(?<!\\p{L})(?:${DEFINITE_TARGET_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})|folien?\\s+\\d)`,
+    `(?<!\\p{L})(?:${DEFINITE_NOUN_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})|folien?\\s+\\d)`,
     'iu'
   ),
   explainable: new RegExp(
-    `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:explainable|erklärseite|erklaerseite)(?!\\p{L})`,
+    `(?<!\\p{L})${DEFINITE_NOUN_DET}(?:explainable|erklärseite|erklaerseite)(?!\\p{L})`,
     'iu'
   ),
 } as const;

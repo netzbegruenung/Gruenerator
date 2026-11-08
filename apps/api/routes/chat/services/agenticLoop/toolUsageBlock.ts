@@ -102,6 +102,16 @@ const hasAny = (names: readonly string[], set: ReadonlySet<string>): boolean =>
  *   tools — would be exactly the turn most likely to read a stale source as
  *   current AND the one with no recency rule.
  */
+/**
+ * Ein gewähltes Notebook macht ein bloßes Thema zur Frage an das Notebook.
+ * Live 08.11.2026 (Phase-7-Messung): auf „Förderung beim Heizungstausch und
+ * Wärmepumpen" kam ein Hilfe-Menü statt des Notebook-Inhalts. Hängt an der
+ * WAHL, nicht an `notebookForPrompt`: das Dach-Notebook `gruenerator-notebook`
+ * löst dort nicht auf, und genau dort kam das Menü.
+ */
+export const NOTEBOOK_BARE_TOPIC_NOTE =
+  '\n\n- Ein bloßes Thema oder Stichwort ist in diesem Chat eine Frage an das gewählte Notebook: fasse zusammen, was die Quellen dazu sagen. Kein Hilfe-Menü, keine Begrüßung, keine Rückfrage, was die Person damit vorhat.';
+
 export function buildToolUsageBlock(
   maxSteps: number,
   researchBanned = false,

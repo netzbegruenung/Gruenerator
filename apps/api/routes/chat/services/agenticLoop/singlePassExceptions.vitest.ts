@@ -34,7 +34,6 @@ describe('keepsSinglePass — jeder Grund hält einen Prosa-Turn draussen', () =
     ['loop_disabled', { loopEnabled: false }],
     ['pinned_tool_without_loop', { forcedTool: true, forcedLoop: false }],
     ['compound', { isCompound: true }],
-    ['selected_notebook', { hasSelectedNotebook: true }],
     ['secondary_intent', { secondaryIntent: 'image' }],
     ['pixel_turn', { hasImageAttachments: true, intent: 'image' }],
     ['image_only_ask', { hasImageAttachments: true, lastUserText: 'Was steht auf dem Plakat?' }],
@@ -51,6 +50,13 @@ describe('keepsSinglePass — jeder Grund hält einen Prosa-Turn draussen', () =
       expect(decide(input)).toBe(false);
     });
   }
+});
+
+describe('gewähltes Notebook (Phase 7, gemessen 08.11.2026)', () => {
+  it('läuft im Loop', () => {
+    expect(reason({ hasSelectedNotebook: true })).toBeNull();
+    expect(decide({ hasSelectedNotebook: true, intent: 'search' })).toBe(true);
+  });
 });
 
 describe('Gegenproben — alte Textheuristiken, die jetzt in den Loop führen', () => {

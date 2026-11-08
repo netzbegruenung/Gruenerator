@@ -126,6 +126,8 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // ── D4 loop — Recherche-Familie. Der Planer entscheidet die Werkzeuge neu;
   // die Feinunterscheidung hier ist genau die Arbeit, die der Umbau streicht.
   research: 'loop',
+  // Seit 11/2026 im Loop: der erste Schritt ruft `search_threads` (#5456).
+  chat_history: 'loop',
   compare: 'loop',
   search: 'loop',
   web: 'loop',
@@ -199,7 +201,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // (hilfe/summary), aber ihr Verdikt steuert, was dort montiert wird.
   scrape_url: 'gated',
   share_doc: 'gated',
-  chat_history: 'gated',
   hilfe: 'gated',
   summary: 'gated',
   compute: 'gated',

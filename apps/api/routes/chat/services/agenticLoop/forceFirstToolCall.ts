@@ -7,7 +7,10 @@ import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-inte
 import { type ModelMessage, type ToolSet } from 'ai';
 
 import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
-import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  isSummaryAsk,
+  isTabularComputeQuestion,
+} from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -66,6 +69,15 @@ export type ForceReason =
  * Der Rückgabewert benennt den Weg (`ForceReason`), damit der erste Schritt
  * daran seinen Werkzeug-Zuschnitt ableiten kann.
  */
+/** Rechenfrage, `compute`-Intent oder Anschlussfrage an die vorige Rechnung. */
+function asksAboutTheTable(intent: string | null | undefined, text: string): boolean {
+  return (
+    intent === 'compute' ||
+    isTabularComputeQuestion(text.toLowerCase()) ||
+    isReferentialFollowup(text)
+  );
+}
+
 export function shouldForceFirstToolCall(input: {
   researchBanned: boolean;
   intent: string | null | undefined;
@@ -260,7 +272,12 @@ export function shouldForceFirstToolCall(input: {
   // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
   // Ganz ohne Zwang schwieg er dagegen bei Anschlussfragen, und der Schreiber
   // rechnete aus dem Auszug (#5042) — also eine Wahl zwischen zwei Werkzeugen.
-  if (input.tabularToolMounted) return 'tabular_decision';
+  // Nur, wenn der Turn die Tabelle meint: ein Themenwechsel („Kurz was anderes:
+  // Was fordert das Grundsatzprogramm …") rechnete sonst die vorige Aufgabe im
+  // Browser noch einmal, bevor er suchte (live 08.11.2026, +30 s).
+  if (input.tabularToolMounted && asksAboutTheTable(input.intent, input.lastUserText)) {
+    return 'tabular_decision';
+  }
 
   if (
     input.priorTurnRetrieved &&

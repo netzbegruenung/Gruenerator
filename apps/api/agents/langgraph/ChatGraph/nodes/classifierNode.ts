@@ -599,11 +599,19 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     detectedUrls = carriedUrls;
   }
   if (detectedUrls.length > 0) {
-    if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
+    // A writing order keeps its verdict: „Schreib einen Tweet zu <url>" runs in
+    // the loop, which reads the typed page up front (`seedAttachedPages`).
+    // Until 11/2026 it became `scrape_url` and stayed single-pass (#5456).
+    if (!intent || (NO_RETRIEVAL_VERDICTS.has(intent) && intent !== 'produktion')) {
       intent = 'scrape_url';
-    } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
+    } else if (
+      !secondaryIntent &&
+      intent !== 'scrape_url' &&
+      intent !== 'agentic' &&
+      intent !== 'produktion'
+    ) {
       // 'agentic' turns keep secondary null: the loop has its own scrape_url
-      // tool and reads @link pages up front (`seedAttachedPages`), and a
+      // tool and reads the pages up front (`seedAttachedPages`), and a
       // secondary would kick the turn out of the loop (routing.ts).
       secondaryIntent = 'scrape_url';
     }
@@ -1881,7 +1889,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         tc.ref &&
         !hasCurrentDocument &&
         !hasSheetMentions &&
-        !hasAnyDocuments &&
+        // A spreadsheet file in the thread does not block: with a CSV AND a
+        // chat-made sheet, an edit order goes to the editable sheet, not into
+        // a new copy of the file (decision 08.11.2026). Calculation questions
+        // carry no modify verb and stay with the file.
+        (!hasAnyDocuments || state.hasTabularAttachment === true) &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
         docFollowUpAddressed(state, 'sheet', userContent, tc) &&

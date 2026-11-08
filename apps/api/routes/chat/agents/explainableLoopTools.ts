@@ -116,7 +116,16 @@ NUTZE bei JEDER Änderung an einem vorhandenen Explainable. "anweisung" ist der 
         locale: ctx.state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         removalAllowed: confirm,
       });
-      if (outcome.status === 'failed') return { error: outcome.message };
+      // „Die Erklärbilder werden noch gemalt" las das Modell als „fertig, Bilder
+      // folgen" und meldete eine Änderung, die nie stattfand (#5451).
+      if (outcome.status === 'failed') {
+        return {
+          error: outcome.message,
+          geaendert: false,
+          antwortregel:
+            'NICHTS wurde geändert. Sag der*dem Nutzer*in klar, dass die Änderung nicht gemacht wurde, und warum — behaupte keine Anpassung.',
+        };
+      }
       if (outcome.status === 'needs_confirmation') {
         return confirmGate({
           state: ctx.state,

@@ -129,15 +129,10 @@ describe('seedTurnMaterial', () => {
     expect(seeded.writerNote).toBe('');
   });
 
-  it('nimmt das Notebook nur mit, wenn tabelle_auswerten montiert ist', async () => {
+  // Phase 7 (08.11.2026): das gewählte Notebook kommt immer mit, nicht nur
+  // auf einem Tabellen-Turn — der Loop beantwortet Notebook-Fragen jetzt selbst.
+  it('nimmt das gewählte Notebook immer mit', async () => {
     await run(stateWith({ documentSources: [doc, notebook] }), ['dokumente_lesen']);
-    expect((fanout.mock.calls[0]?.[1] as DocumentSource[]).map((s) => s.id)).toEqual(['doc-1']);
-
-    fanout.mockClear();
-    await run(stateWith({ documentSources: [doc, notebook] }), [
-      'dokumente_lesen',
-      'tabelle_auswerten',
-    ]);
     expect((fanout.mock.calls[0]?.[1] as DocumentSource[]).map((s) => s.id)).toEqual([
       'doc-1',
       'nb-1',

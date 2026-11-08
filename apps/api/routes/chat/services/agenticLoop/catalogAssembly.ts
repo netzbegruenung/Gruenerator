@@ -754,19 +754,15 @@ export async function seedAttachedDocuments(params: {
   isMounted: boolean;
   /** `tabelle_auswerten` hängt: eine Tabelle wird gerechnet, nicht zitiert. */
   skipTables?: boolean;
-  /** Ein Tabellen-Turn mit gewähltem Notebook läuft im Loop statt im
-   *  Einzeldurchlauf (routing.ts) — das Notebook kommt über denselben Fan-out
-   *  wie in `searchNode`, sonst würde die Frage daran vorbei beantwortet. */
-  includeNotebooks?: boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
   try {
     const material = resolveTurnMaterial(params.state);
-    const sources = [
-      ...material.qdrantDocs,
-      ...(params.includeNotebooks ? material.notebooks : []),
-    ];
+    // Ein gewähltes Notebook kommt über denselben Fan-out wie in `searchNode`:
+    // der Turn läuft im Loop (seit Phase 7, gemessen 08.11.2026), und ohne den
+    // Vorab-Abruf würde die Frage am Notebook vorbei beantwortet.
+    const sources = [...material.qdrantDocs, ...material.notebooks];
     if (sources.length === 0) return NOTHING_SEEDED;
 
     const query = attachedDocsQuery(params.state);
@@ -1041,7 +1037,6 @@ export async function seedTurnMaterial(params: {
     toolName: ATTACHED_DOCS_TOOL,
     isMounted: isMounted(ATTACHED_DOCS_TOOL),
     skipTables: tabular,
-    includeNotebooks: tabular,
     onInfo,
     onError,
   });

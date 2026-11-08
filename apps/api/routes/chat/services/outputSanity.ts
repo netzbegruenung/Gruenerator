@@ -670,6 +670,8 @@ const CREATE_PARTICIPLE =
 const CREATION_ANNOUNCEMENT_RE = new RegExp(
   `(?<!\\p{L})(?:ich\\s+(?:${CREATE_VERB_1SG})|(?:${CREATE_VERB_1SG})\\s+ich)(?!\\p{L})` +
     `|(?<!\\p{L})ich\\s+werde\\s+[^.!?\\n]{0,80}?(?<!\\p{L})(?:${CREATE_VERB_INF})(?!\\p{L})` +
+    // Ich-Perfekt: „Das Sharepic … habe ich dir erstellt." ohne Artefakt (live 08.11.2026).
+    `|(?<!\\p{L})(?:ich\\s+habe|habe\\s+ich)\\s+[^.!?\\n]{0,80}?(?<!\\p{L})(?:${CREATE_PARTICIPLE})(?!\\p{L})` +
     `|(?<!\\p{L})(?:wird|werden)\\s+(?:jetzt|nun|gerade|gleich|sofort)\\s+(?:[^.!?\\n]{0,40}?\\s)?(?:${CREATE_PARTICIPLE})(?!\\p{L})` +
     `|(?<!\\p{L})erfolgt\\s+(?:jetzt\\s+|nun\\s+|gleich\\s+)?die\\s+(?:erstellung|generierung|umsetzung)(?!\\p{L})`,
   'iu'

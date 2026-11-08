@@ -4,15 +4,15 @@
 # about what a real model would have done.
 
 ## turn 0: "Erstelle ein Sharepic zur Windkraft"
-router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=false hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=false intent=sharepic isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
+router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=sharepic isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3_heuristic                confidence=0.93 effectiveConfidence=0.93 heuristicIntent=sharepic isVagueFollowup=null needsDecomposition=false
-respond.answer_format            = (not reached)
+respond.answer_format            = standard                       complexity=moderate intent=sharepic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 loop.unified_repair              = (not reached)
 notebook.answer_mode             = (not reached)
 -- wire --
-intent=sharepic agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=133
+intent=sharepic agentic=true tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24
