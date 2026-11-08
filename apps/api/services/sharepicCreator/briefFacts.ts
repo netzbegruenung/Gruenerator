@@ -143,16 +143,26 @@ const DIRECTION =
 /** Words on either side of a figure that count as „next to it". */
 const NEAR = 4;
 
-/** Each number of `text` that has a direction word within a few words (or a +/− sign). */
+/**
+ * Clause ends: sentence punctuation, or a comma/colon followed by a space —
+ * the decimal comma of „2,4" has none. A direction word only counts for a
+ * figure in its own clause: „Mehr Radwege. 2,4 km Länge" says nothing about
+ * the 2,4 (review #5490).
+ */
+const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
+
+/** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
 function directedNumbers(text: string): string[] {
-  const tokens = text.split(/\s+/).filter(Boolean);
   const found: string[] = [];
-  tokens.forEach((token, i) => {
-    const num = token.match(NUMBER)?.[0];
-    if (!num) return;
-    const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
-    if (/^[+\-−–]\d/.test(token) || DIRECTION.test(window)) found.push(digits(num));
-  });
+  for (const clause of text.split(CLAUSE_END)) {
+    const tokens = clause.split(/\s+/).filter(Boolean);
+    tokens.forEach((token, i) => {
+      const num = token.match(NUMBER)?.[0];
+      if (!num) return;
+      const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
+      if (/^[+\-−–]\d/.test(token) || DIRECTION.test(window)) found.push(digits(num));
+    });
+  }
   return found;
 }
 

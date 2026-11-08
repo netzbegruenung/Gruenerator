@@ -409,8 +409,9 @@ export function validateDraft(
         );
       }
       // A figure keeps the meaning it has in the brief: „17 Unfälle“ at a hotspot is not „17 Unfälle weniger“.
+      // Title and text are separate clauses, so the title's „Mehr …“ does not reach the text's figure.
       const turned = item.punkte.flatMap((p) =>
-        invertedNumbers([p.titel, p.text].filter(Boolean).join(' '), given).map(
+        invertedNumbers([p.titel, p.text].filter(Boolean).join('. '), given).map(
           (n) => `${n} (${p.titel})`
         )
       );

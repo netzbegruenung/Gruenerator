@@ -72,6 +72,28 @@ describe('a figure keeps its meaning in an infographic', () => {
     expect(result.ok).toBe(true);
   });
 
+  // Review #5490: the title's „Mehr …" is another clause than the text's figure.
+  it('does not lend a direction word to a figure in another clause', () => {
+    const result = validateDraft(
+      tiles({ titel: 'Mehr Radwege', text: '2,4 km Länge' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Radweg ist 2,4 km lang.'
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('still rejects the direction inside the same field', () => {
+    const result = validateDraft(
+      tiles(
+        { titel: '17 Unfälle', text: 'Das sind 17 weniger als 2024.' },
+        { titel: 'Start im April' }
+      ),
+      'de-DE',
+      hotspot
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
   it('accepts plain figures', () => {
     const result = validateDraft(
       tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),
