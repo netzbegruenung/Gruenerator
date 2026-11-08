@@ -154,8 +154,17 @@ const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
 /** A directed figure: its digits and the word after it („17 Unfälle" → `unfälle`), if any. */
 interface DirectedFigure {
   num: string;
+  /** The word after the number, lower-cased; `%` for a percent sign. */
   noun: string | null;
+  /** The words of the figure's clause, lower-cased — to find the noun elsewhere in it. */
+  clause: string[];
 }
+
+const wordOf = (token: string | undefined): string | null => {
+  if (token == null) return null;
+  if (token.startsWith('%')) return '%';
+  return token.toLowerCase().replace(/[^\p{L}]/gu, '') || null;
+};
 
 /** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
 function directedNumbers(text: string): DirectedFigure[] {
@@ -167,8 +176,9 @@ function directedNumbers(text: string): DirectedFigure[] {
       if (!num) return;
       const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
       if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
-      const next = tokens[i + 1]?.toLowerCase().replace(/[^\p{L}]/gu, '');
-      found.push({ num: digits(num), noun: next || null });
+      const noun = token.endsWith('%') ? '%' : wordOf(tokens[i + 1]);
+      const clauseWords = tokens.map(wordOf).filter((w): w is string => w != null);
+      found.push({ num: digits(num), noun, clause: clauseWords });
     });
   }
   return found;
@@ -184,8 +194,17 @@ function directedNumbers(text: string): DirectedFigure[] {
  */
 export function invertedNumbers(text: string, given: string): string[] {
   const inGiven = directedNumbers(given);
+  // A brief figure without a word after it („sank um 17.") only covers the
+  // tile's figure when the tile's word stands in that clause („Die Zahl der
+  // Unfälle sank um 17") — otherwise „Der Verkehr sank um 17." would cover
+  // „17 Unfälle weniger" again (review #5490). A tile figure without a word
+  // is vaguer than the brief and stays covered by any directed same number.
   const covered = (f: DirectedFigure) =>
-    inGiven.some((g) => g.num === f.num && (g.noun == null || f.noun == null || g.noun === f.noun));
+    inGiven.some(
+      (g) =>
+        g.num === f.num &&
+        (f.noun == null || g.noun === f.noun || (g.noun == null && g.clause.includes(f.noun)))
+    );
   return [
     ...new Set(
       directedNumbers(text)

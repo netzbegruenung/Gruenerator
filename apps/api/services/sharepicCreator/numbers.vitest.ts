@@ -104,6 +104,25 @@ describe('a figure keeps its meaning in an infographic', () => {
     expect(!result.ok && result.error).toMatch(/Richtung/);
   });
 
+  // Review #5490: a figure at the clause end covers only a tile whose word is in that clause.
+  it('does not let a bare directed number in the brief cover another noun', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  it('keeps a percent figure apart from a count with the same digits', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
   it('accepts plain figures', () => {
     const result = validateDraft(
       tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),
