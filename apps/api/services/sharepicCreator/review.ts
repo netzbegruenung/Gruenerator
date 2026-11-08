@@ -404,7 +404,7 @@ export async function reviewSharepic(
         const issues = checked.value.issues.filter((issue) => !ownFolie(issue));
         return { ok: true, value: { ...checked.value, issues } };
       },
-      maxOutputTokens: 1500,
+      maxOutputTokens: 8000,
       label: 'sharepicCreator:review',
     });
     if (result.ok) {

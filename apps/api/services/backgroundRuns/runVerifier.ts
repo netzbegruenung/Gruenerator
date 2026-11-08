@@ -77,7 +77,7 @@ Ist das Ergebnis ok?`;
       lane: 'background_verify',
       system: VERIFIER_PROMPT,
       prompt: userMessage,
-      maxOutputTokens: 200,
+      maxOutputTokens: 8000,
       temperature: 0,
       json: true,
     });

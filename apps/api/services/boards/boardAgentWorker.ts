@@ -543,7 +543,7 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
       pinned: 'heavy',
       system: DELIVERABLE_PROMPT,
       prompt: taskText,
-      maxOutputTokens: 20,
+      maxOutputTokens: 8000,
       temperature: 0,
       json: true,
     });

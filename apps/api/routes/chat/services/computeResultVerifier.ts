@@ -98,7 +98,7 @@ Ergebnis:
 ${entriesText}
 
 Ist das plausibel?`,
-      maxOutputTokens: 200,
+      maxOutputTokens: 8000,
       temperature: 0,
       timeoutMs: VERIFIER_TIMEOUT_MS,
       json: true,

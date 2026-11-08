@@ -63,7 +63,7 @@ export async function analyzeNode(state: FlyerToSiteState): Promise<Partial<Flye
       lane: 'flyer-analysis',
       system: systemPrompt,
       prompt: userPrompt,
-      maxOutputTokens: 3000,
+      maxOutputTokens: 8000,
       temperature: 0.3,
     });
 

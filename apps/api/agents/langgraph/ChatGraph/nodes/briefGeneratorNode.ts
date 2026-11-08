@@ -112,7 +112,7 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
       pinned: 'standard',
       system: BRIEF_PROMPT,
       prompt: userMessage,
-      maxOutputTokens: 200,
+      maxOutputTokens: 8000,
       temperature: 0.2,
     });
 

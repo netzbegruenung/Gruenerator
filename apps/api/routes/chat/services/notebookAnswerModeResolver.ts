@@ -182,7 +182,7 @@ export async function classifyNotebookAnswerMode(
         pinned: 'standard',
         system: GUARD_PROMPT,
         prompt: formatGuardPrompt(question, history),
-        maxOutputTokens: 16,
+        maxOutputTokens: 8000,
         temperature: 0,
       }),
       GUARD_TIMEOUT_MS,

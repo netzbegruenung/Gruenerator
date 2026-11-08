@@ -112,7 +112,7 @@ export async function analyzeTextForm(
     schema: StyleSchema,
     system: SYSTEM_PROMPT,
     prompt: `## ${label} — Beispiele\n\n${examplesText}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
-    maxOutputTokens: 2000,
+    maxOutputTokens: 8000,
     temperature: 0.25,
     // Bis zu ~40k Token Eingabe: der alte 45-s-Deckel reichte für fünf kurze
     // Beispiele, nicht für zwanzig lange.

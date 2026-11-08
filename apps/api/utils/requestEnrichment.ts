@@ -262,7 +262,7 @@ class RequestEnricher {
         lane: 'notebook_enrich',
         prompt: userPrompt,
         system: systemPrompt,
-        maxOutputTokens: 500,
+        maxOutputTokens: 8000,
         temperature: 0.4,
         topP: 0.9,
       });

@@ -49,7 +49,7 @@ describe('generateTaskList', () => {
         prompt: 'Plane die Kampagne',
         json: true,
         temperature: 0.3,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 8000,
       })
     );
   });

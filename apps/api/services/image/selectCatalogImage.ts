@@ -75,7 +75,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
     system: systemPrompt,
     prompt: userPrompt,
     temperature: 0.6,
-    maxOutputTokens: 200,
+    maxOutputTokens: 8000,
   });
 
   console.log(`[ImageSelection] Raw AI response:`, content);

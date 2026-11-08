@@ -771,7 +771,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const description = await visionService.analyzeImage(
         image_url,
         TEMPLATE_DESCRIPTION_INSTRUCTION,
-        { maxTokens: 600, temperature: 0.3 }
+        { maxTokens: 8000, temperature: 0.3 }
       );
 
       return {

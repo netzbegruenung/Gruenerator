@@ -462,7 +462,7 @@ async function runDocumentQnA(
     const resp = await mistralClient!.chat!.complete({
       model: 'mistral-small-latest',
       messages: [{ role: 'user', content }],
-      maxTokens: 800,
+      maxTokens: 8000,
       temperature: 0.2,
       topP: 0.85,
     });

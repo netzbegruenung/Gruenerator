@@ -219,7 +219,7 @@ Schreibe den Python-Code.`;
       pinned: 'compute',
       system: isFill ? FILL_PROMPT : CODEGEN_PROMPT,
       prompt: userMessage,
-      maxOutputTokens: isFill ? 1500 : 500,
+      maxOutputTokens: 16000,
       temperature: 0.1,
       json: true,
     });

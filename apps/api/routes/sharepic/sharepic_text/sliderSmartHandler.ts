@@ -42,7 +42,7 @@ async function analyzeSlideCount(thema: string, details: string): Promise<number
     details: details || '',
   });
 
-  const sampling = sliderConfig.countAnalysisOptions ?? { max_tokens: 10, temperature: 0.3 };
+  const sampling = sliderConfig.countAnalysisOptions ?? { max_tokens: 8000, temperature: 0.3 };
 
   try {
     const answer = await aiText({

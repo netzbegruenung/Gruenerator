@@ -97,7 +97,7 @@ Respond with JSON:
   ],
   "reasoning": "Overall strategy for this query and why these sources were chosen"
 }`,
-      maxOutputTokens: 600,
+      maxOutputTokens: 8000,
       temperature: 0.1,
     });
 

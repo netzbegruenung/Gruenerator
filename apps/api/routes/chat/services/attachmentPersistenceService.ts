@@ -30,7 +30,7 @@ import { isTabularAttachment } from './attachmentProcessingService.js';
 
 const log = createLogger('AttachmentPersistenceService');
 
-const SUMMARY_MAX_TOKENS = 400;
+const SUMMARY_MAX_TOKENS = 8000;
 const MAX_ATTACHMENTS_IN_CONTEXT = 5;
 
 /**

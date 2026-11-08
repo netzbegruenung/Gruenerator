@@ -280,7 +280,7 @@ export async function readDocuments({
             ...(target ? { pinned: target } : {}),
             // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
             temperature: 0,
-            maxOutputTokens: 1500,
+            maxOutputTokens: 8000,
             timeoutMs: remaining,
             // Bricht die Schleife ab (Zeitlimit von `parlament_lesen`), endet auch das laufende Fenster.
             ...(signal ? { signal } : {}),

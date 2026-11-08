@@ -44,7 +44,7 @@
     }
   },
   "options": {
-    "max_tokens": 800,
+    "max_tokens": 8000,
     "temperature": 0.5,
     "tool_choice": "any"
   },
