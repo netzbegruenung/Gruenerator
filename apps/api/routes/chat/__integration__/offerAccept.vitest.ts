@@ -106,6 +106,9 @@ const suite = useChatApp();
 
 beforeEach(() => {
   resetGeneratorControl();
+  // The single-pass door, i.e. the loop off. With the loop on the offered kind
+  // is built by the loop (artifactOrderLoop.vitest.ts, #5456).
+  vi.stubEnv('CHAT_AGENT_LOOP', 'false');
 });
 
 const SPEECH =

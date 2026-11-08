@@ -193,12 +193,13 @@ export interface TurnPlanInput {
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
-   * Der Turn ist das „ja" auf ein Artefakt-Angebot (`acceptedOfferKind`). Er
-   * gehört dem Single-Pass-Builder: vier der Arten überspringen ihre Route auf
-   * einem Loop-Turn (`skipOnAgentic`), und ein „ja" sagt dem Planer nicht, was
-   * er bauen soll.
+   * Der Turn ist das „ja" auf ein Artefakt-Angebot: die angebotene Art. Sie gilt
+   * als bestellt, der Loop baut sie vor der Antwort (`runOrderedArtifact`, mit
+   * dem aufgelösten Auftrag). Bis 11/2026 blieb ein „ja" im Einzeldurchlauf,
+   * weil der Planer aus „ja" nicht ablesen konnte, was er bauen soll (#4367) —
+   * diese Frage stellt sich ihm nicht mehr.
    */
-  acceptedOffer: boolean;
+  acceptedOfferKind: CompoundGenerationKind | null;
   /**
    * Das Werkzeug, das eine @-Erwähnung festgezurrt hat (`mentionPinnedTool`).
    * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
@@ -434,7 +435,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   const proposedKind =
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
       ? (compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind) ??
-        (p.editsThreadPdf === true ? 'pdf' : null))
+        (p.editsThreadPdf === true ? 'pdf' : null) ??
+        p.acceptedOfferKind)
       : null;
   const orderedKind =
     proposedKind === 'sharepic' && p.addressesThreadSharepic === true ? null : proposedKind;
@@ -547,7 +549,6 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // wird das allgemeine Gate befragt (und protokolliert).
   const runAgentic =
     p.pipelineForceIntent == null &&
-    !p.acceptedOffer &&
     (editToolLoop ||
       compoundEdit ||
       decideRunAgentic({

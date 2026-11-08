@@ -11,6 +11,7 @@ import {
 } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { artifactKind } from '../artifactKindRegistry.js';
 import { isPdfEditAsk } from '../pdfEditContext.js';
+import { resolveReferentialTopic } from '../referentialTopic.js';
 
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
 import { EDIT_TOOL_NAMES } from './types.js';
@@ -237,7 +238,11 @@ async function runOwedGeneration(
 export async function runOrderedArtifact(p: GuaranteeContext): Promise<ModelMessage[]> {
   const kind = p.state.compoundGenerationKind;
   if (!kind || !compoundGenerationOwed(p.state) || turnHasArtifact(p.state)) return [];
-  const step = await runOwedGeneration(p, kind, lastUserAskOf(p.messages), 'ordered-artifact');
+  // The brief the single-pass door gives (`createTopic`): the classifier's
+  // topic, or the referred-to subject for „ja" / „mach eine Tabelle daraus".
+  const ask = lastUserAskOf(p.messages);
+  const brief = p.state.creationTopic || resolveReferentialTopic(ask, p.messages).text;
+  const step = await runOwedGeneration(p, kind, brief, 'ordered-artifact');
   if (!step) return [];
   p.onInfo(`[Agentic] ${step.toolName} ran before the answer (pure order)`);
   return [

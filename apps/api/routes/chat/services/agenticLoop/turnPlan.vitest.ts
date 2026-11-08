@@ -49,7 +49,7 @@ const base: TurnPlanInput = {
   hasNamedBoard: false,
   isSharepicRefinement: false,
   pipelineForceIntent: null,
-  acceptedOffer: false,
+  acceptedOfferKind: null,
   mentionPinnedTool: null,
   mentionPinnedArtifactKind: null,
   agenturaCreateOrder: false,
@@ -275,16 +275,15 @@ describe('decideTurnPlan — die Kippfälle', () => {
     ).toBe(false);
   });
 
-  it('ein angenommenes Angebot bleibt im Single-Pass, auch wo sonst die Schleife liefe (#4367)', () => {
-    // Ohne Veto überspränge `createIntentStage` die Präsentation (`skipOnAgentic`),
-    // und den Planer erreicht nur ein „ja". Hier hebt das Recherche-Signal den
-    // Turn als Verbund in die Schleife.
-    const loopTurn = {
-      intent: 'create_presentation' as ChatIntentId,
-      lastUserText: 'Recherchiere die aktuellen Zahlen und erstelle eine Präsentation dazu',
-    };
-    expect(plan(loopTurn).runAgentic).toBe(true);
-    expect(plan({ ...loopTurn, acceptedOffer: true }).runAgentic).toBe(false);
+  it('ein angenommenes Angebot läuft im Loop, mit der angebotenen Art bestellt (#5456)', () => {
+    const p = plan({
+      intent: 'agentic',
+      lastUserText: 'ja gerne',
+      acceptedOfferKind: 'presentation',
+    });
+    expect(p.runAgentic).toBe(true);
+    expect(p.compoundGenerationKind).toBe('presentation');
+    expect(p.compoundGenerationOrdered).toBe(true);
   });
 
   it('ein gewähltes Notebook hält den Turn einzeln — nur searchNode liest Notebooks', () => {

@@ -144,7 +144,16 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard, assertEventOrder } = await import('./harness/trace.js');
 const { pinChatEnv } = await import('./harness/env.js');
-const { resetThreadStore, messagesOf, threads } = await import('./harness/fakeThreadStore.js');
+const {
+  resetThreadStore,
+  messagesOf,
+  threads,
+  createThread,
+  createMessage,
+  createPendingAssistantMessage,
+  finalizeAssistantMessage,
+} = await import('./harness/fakeThreadStore.js');
+const { TEST_USER } = await import('./harness/fakeUser.js');
 const { resetMockControls } = await import('./harness/mocks.js');
 const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
@@ -401,6 +410,40 @@ describe('a pure sharepic order runs in the loop', () => {
     expect(threads.get(trace.threadId as string)?.lastToolContext).toMatchObject({
       kind: 'sharepic',
     });
+  });
+});
+
+describe('„ja" on an artefact offer runs in the loop', () => {
+  const SPEECH =
+    'Liebe Freund*innen, die Verkehrswende beginnt vor unserer Haustür: sichere Radwege, ein Bus im Takt und ein Klimaticket, das sich alle leisten können.';
+  const offerAnswer = `${SPEECH}\n\nSoll ich daraus eine Präsentation machen?`;
+
+  it('builds the offered kind from the previous answer, and the model writes', async () => {
+    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Angebot');
+    await createMessage(thread.id, 'user', 'Schreib mir eine kurze Rede zur Verkehrswende');
+    const assistantId = await createPendingAssistantMessage(thread.id);
+    await finalizeAssistantMessage(assistantId, offerAnswer, {
+      intent: 'produktion',
+      offer: { kind: 'presentation' },
+    });
+
+    loopScript.script({ text: ANSWER });
+    const { trace } = await runTurn(app.baseUrl, {
+      threadId: thread.id,
+      messages: [
+        userTurn('Schreib mir eine kurze Rede zur Verkehrswende', 'm0'),
+        assistantTurn('a0', offerAnswer),
+        userTurn('ja gern', 'm1'),
+      ],
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(generatorControl.calls).toHaveLength(1);
+    expect(generatorControl.calls[0]?.kind).toBe('presentation');
+    expect(generatorControl.calls[0]?.userContent).toContain('sichere Radwege');
+    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    expect(trace.documentCreated).toBe(true);
+    expect(trace.fullText).toContain(ANSWER);
   });
 });
 

@@ -191,7 +191,7 @@ export function runRoutingStage({
       classifiedState.lastToolContext?.kind === 'pdf' && isPdfEditAsk(lastUserTextNoMentions),
     threadWorksOnSharepic: sharepicInProgress,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
-    acceptedOffer: classifiedState.acceptedOfferKind != null,
+    acceptedOfferKind: classifiedState.acceptedOfferKind ?? null,
   });
 
   if (plan.compoundGenerationKind) {
