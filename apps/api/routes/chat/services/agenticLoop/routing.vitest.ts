@@ -11,6 +11,7 @@ import {
   hasDocumentContextEditTool,
   isDocumentContextEditAllowed,
   compoundGenerationKind,
+  isPureArtifactOrder,
   decideRunAgentic,
   resolveEditorSurfaceKind,
   decideEditToolLoop,
@@ -990,13 +991,26 @@ describe('compoundGenerationKind', () => {
     ).toBe('sharepic');
   });
 
-  it('returns null for a NAMED generation intent without a research signal', () => {
-    // These keep their single-pass dispatcher: null means "the dispatcher builds
-    // it", which is the correct and faster route.
+  it('runs a pure order of a migrated kind in the loop (LOOP_ORDER_KINDS, #5456)', () => {
     expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
-      null
+      'sheet'
     );
+    expect(isPureArtifactOrder('sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(true);
+    // A research signal makes it a compound turn: the tool runs after the research.
+    expect(isPureArtifactOrder('sheet', 'Recherchiere die Zahlen und erstelle eine Tabelle')).toBe(
+      false
+    );
+  });
+
+  it('leaves a pure order of a kind not yet migrated to its dispatcher', () => {
     expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
+    expect(isPureArtifactOrder('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(false);
+  });
+
+  it('builds only the named kind and needs the order, not a mere mention', () => {
+    // The intent names a sheet; a noun of another kind does not swap the artefact.
+    expect(compoundGenerationKind('create_sheet', 'Erstelle eine Präsentation dazu')).toBe(null);
+    expect(compoundGenerationKind('create_sheet', 'Wie erstelle ich eine Tabelle?')).toBe(null);
   });
 
   // The mirror of the case above, and deliberately the OPPOSITE answer. A
@@ -1049,10 +1063,10 @@ describe('compoundGenerationKind', () => {
     });
 
     it('verschiebt aber KEIN Gitter — die Verbund-Frage bleibt dieselbe', () => {
-      // Benannter Intent ohne Recherchesignal: der Einzeldurchlauf baut es.
+      // Benannter Intent ohne Recherchesignal: eine migrierte Art baut der Loop.
       expect(
         compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie', 'sheet')
-      ).toBe(null);
+      ).toBe('sheet');
       // Demotierter Turn ohne Recherchesignal und ohne Erstell-Auftrag: eine
       // hängengebliebene Erwähnung darf kein Artefakt garantieren,
       // `forceCompoundGeneration` täte genau das.

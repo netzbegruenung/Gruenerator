@@ -14,7 +14,7 @@ import { artifactKind } from '../artifactKindRegistry.js';
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
 import { EDIT_TOOL_NAMES } from './types.js';
 
-import type { EditorSurfaceKind } from './routing.js';
+import type { CompoundGenerationKind, EditorSurfaceKind } from './routing.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PersistedStep } from './types.js';
@@ -159,20 +159,112 @@ export interface GuaranteeContext {
   onWarn: (message: string) => void;
 }
 
+/** The last user message as plain text: the order the generation is briefed with. */
+function lastUserAskOf(messages: ModelMessage[]): string {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  return typeof lastUser?.content === 'string'
+    ? lastUser.content
+    : (lastUser?.content ?? [])
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join(' ')
+        .trim();
+}
+
+/**
+ * Runs the kind's fat tool directly and records it as a first-class tool step
+ * (the same `tool_step_*` SSE and persisted step a model-issued call leaves).
+ * It bypasses the loop guards on purpose: both callers run it because the
+ * model is not asked for the call. Null when the tool is not mounted.
+ */
+async function runOwedGeneration(
+  p: GuaranteeContext,
+  kind: CompoundGenerationKind,
+  userAsk: string,
+  stepId: string
+): Promise<PersistedStep | null> {
+  // The tool name comes from the registry: a missing kind does not compile.
+  const toolName = artifactKind(kind).loopToolName;
+  const genTool = p.tools[toolName] as
+    { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
+  if (!genTool?.execute) return null;
+  // The doc/PDF tools append the source block themselves, so their brief stays
+  // the bare ask; `sharepic`/`board` have no registry of their own.
+  const selfSourcing = kind !== 'sharepic' && kind !== 'board';
+  const brief = selfSourcing
+    ? userAsk
+    : withResearchedSources(userAsk, p.sourceRegistry.renderAll());
+  // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
+  const args = { prompt: brief, text: brief };
+  p.sse.send('tool_step_start', { stepId, toolName, args });
+  let result: unknown;
+  try {
+    result = await genTool.execute(args, { toolCallId: stepId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    p.onWarn(`[Agentic] ${toolName} failed: ${message}`);
+    result = { error: message };
+  }
+  const resultRecord =
+    result && typeof result === 'object' && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : { value: result };
+  p.sse.send('tool_step_result', {
+    stepId,
+    toolName,
+    ok: resultRecord.error == null,
+    result: resultRecord,
+  });
+  const step: PersistedStep = { toolCallId: stepId, toolName, args, result: resultRecord };
+  p.recordStep(step);
+  return step;
+}
+
+/**
+ * A pure artefact order (`isPureArtifactOrder`): build the artefact BEFORE the
+ * stream, with the order as the brief — the single-pass dispatcher's input,
+ * without a model step for the arguments. Returns the call and its result as
+ * messages to append after the order, so the model writes the answer with the
+ * result in view; the artefact then trips `forceFinish`, which strips the tools
+ * from that step. Empty when nothing ran.
+ */
+export async function runOrderedArtifact(p: GuaranteeContext): Promise<ModelMessage[]> {
+  const kind = p.state.compoundGenerationKind;
+  if (!kind || !compoundGenerationOwed(p.state) || turnHasArtifact(p.state)) return [];
+  const step = await runOwedGeneration(p, kind, lastUserAskOf(p.messages), 'ordered-artifact');
+  if (!step) return [];
+  p.onInfo(`[Agentic] ${step.toolName} ran before the answer (pure order)`);
+  return [
+    {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool-call',
+          toolCallId: step.toolCallId,
+          toolName: step.toolName,
+          input: step.args,
+        },
+      ],
+    },
+    {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: step.toolCallId,
+          toolName: step.toolName,
+          output: { type: 'json', value: step.result as never },
+        },
+      ],
+    },
+  ];
+}
+
 /** Builds the `ensureOwedTools` hook loopEngine calls after the stream. */
 export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolean> {
   // The compound turn's whole point is the artifact. If the loop produced
   // none, invoke the mounted generation tool directly with the researched
   // sources as the brief.
-  const lastUserAsk = (): string => {
-    const lastUser = [...p.messages].reverse().find((m) => m.role === 'user');
-    return typeof lastUser?.content === 'string'
-      ? lastUser.content
-      : (lastUser?.content ?? [])
-          .map((part) => (part.type === 'text' ? part.text : ''))
-          .join(' ')
-          .trim();
-  };
+  const lastUserAsk = (): string => lastUserAskOf(p.messages);
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
   // artefact check, so it is safe to call more than once. The loop forces the
@@ -184,6 +276,10 @@ export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolea
     // Planer. Nachholen hiesse, die blosse Erwähnung doch wieder zu erzwingen.
     if (!kind || !compoundGenerationOwed(p.state)) return;
     if (turnHasArtifact(p.state)) return; // planner already created it
+    // The tool ran and failed: the answer already says so, and a second try
+    // after it would put a card under „ging nicht“. The net is for a host that
+    // never made the call.
+    if (p.calledToolNames().includes(artifactKind(kind).loopToolName)) return;
     // The model's own inline answer can BE the deliverable. In unified mode
     // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
     // with a markdown table in chat, spawning a spreadsheet on top duplicates
@@ -197,52 +293,10 @@ export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolea
       );
       return;
     }
-    // Der Werkzeugname kommt aus der Registry, nicht aus einer eigenen Tabelle:
-    // die hier war `Record<string, string>`, also ergab eine fehlende oder
-    // vertippte Art `undefined` — und diese Zusicherung tat dann still nichts,
-    // ausgerechnet auf dem Pfad, der einspringt, WEIL der Planer schon versagt
-    // hat. `artifactKind` nimmt die Literal-Union, ein Nichtmitglied kompiliert
-    // nicht mehr.
-    const toolName = artifactKind(kind).loopToolName;
-    const genTool = p.tools[toolName] as
-      { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
-    if (!genTool?.execute) return;
-    // The brief stays the bare ask: the doc/PDF tools append the source block
-    // themselves (withResearchedSources), so enriching it here would emit the
-    // sources twice. `sharepic`/`board` have no registry of their own, so they
-    // still get the enriched form.
-    const userAsk = lastUserAsk();
-    const selfSourcing = kind !== 'sharepic' && kind !== 'board';
-    const brief = selfSourcing
-      ? userAsk
-      : withResearchedSources(userAsk, p.sourceRegistry.renderAll());
-    // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
-    const args = { prompt: brief, text: brief };
-    const stepId = 'forced-generation';
-    p.onInfo(`[Agentic] ${toolName} not called — forcing compound generation`);
-    // Emit the same tool_step_start/result SSE + persisted step a planner-issued
-    // call would, so a forced generation is a first-class tool step in the
-    // trace, the UI tool-card, and the persisted history — NOT an invisible
-    // out-of-band side effect. It bypasses the loop GUARDS on purpose: the
-    // fallback is intentional and must fire even when the loop already spent its
-    // failure/search budget (exactly the turns where the planner never reached
-    // the generation tool). The `already` check above keeps it idempotent.
-    p.sse.send('tool_step_start', { stepId, toolName, args });
-    let result: unknown;
-    try {
-      result = await genTool.execute(args, { toolCallId: stepId });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      p.onWarn(`[Agentic] forced ${toolName} failed: ${message}`);
-      result = { error: message };
-    }
-    const resultRecord =
-      result && typeof result === 'object' && !Array.isArray(result)
-        ? (result as Record<string, unknown>)
-        : { value: result };
-    const ok = resultRecord.error == null;
-    p.sse.send('tool_step_result', { stepId, toolName, ok, result: resultRecord });
-    p.recordStep({ toolCallId: stepId, toolName, args, result: resultRecord });
+    p.onInfo(
+      `[Agentic] ${artifactKind(kind).loopToolName} not called — forcing compound generation`
+    );
+    await runOwedGeneration(p, kind, lastUserAsk(), 'forced-generation');
   };
 
   // Pin-Zusicherung: eine @-Erwähnung hat `bundestag` benannt, der Planer hat es

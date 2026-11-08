@@ -720,16 +720,17 @@ export function compoundGenerationKind(
   // und „die neue Suche findet …" oder „Sharepics" in einem eingefügten
   // Newsletter hat so ein Sharepic unter jede Korrektur gesetzt (Beta 30.09.2026).
   const t = orderText(raw ?? '');
-  // A NAMED generation intent has a single-pass dispatcher of its own, so only a
-  // turn that ALSO carries a research signal is lifted into the loop; without it
-  // `null` means "the dispatcher builds it", which is correct and faster.
-  if (isCompoundGenerationIntent(intent)) {
-    if (!looksLikeCompoundGeneration(t)) return null;
-    if (pinnedKind) return pinnedKind;
-    const named = ARTIFACT_KINDS.find((k) => k.intent === intent);
-    if (named) return named.id;
-  }
-  if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
+  // A NAMED generation intent with a research signal is a compound turn of its
+  // kind. Without the signal it is a pure order: for the kinds in
+  // `LOOP_ORDER_KINDS` it takes the same order test as the prose intents below
+  // and runs in the loop, where the tool runs before the answer
+  // (`runOrderedArtifact`); any other kind keeps its single-pass dispatcher.
+  const named = isCompoundGenerationIntent(intent)
+    ? (ARTIFACT_KINDS.find((k) => k.intent === intent)?.id ?? null)
+    : null;
+  if (named != null && looksLikeCompoundGeneration(t)) return pinnedKind ?? named;
+  if (named != null && !LOOP_ORDER_KINDS.has(named)) return null;
+  if (named != null || intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
     // No research gate on this branch, and the asymmetry is the whole point:
     // none of these three has a dispatcher behind it. Here `null` means the loop
     // runs with no generation tool mounted at all — which is how "das bitte
@@ -768,9 +769,30 @@ export function compoundGenerationKind(
     // mit Briefkopf?" bekam über diese Garantie ein PDF, obwohl die
     // Klassifikator-Regel mit ihrem Wächter schon Text daraus machte.
     if (!pinnedKind && family && isMetaQuestionAbout(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
+    // A pure order of a named intent builds only the kind the intent names.
+    if (named != null && kind !== named) return null;
     return kind;
   }
   return null;
+}
+
+/**
+ * The kinds whose pure order („Erstelle eine Tabelle zu …") runs in the loop
+ * instead of its single-pass dispatcher. Migrated one kind per PR (#5456); the
+ * dispatcher stays as the door while the loop is off (`loop_disabled`).
+ */
+export const LOOP_ORDER_KINDS: ReadonlySet<CompoundGenerationKind> = new Set(['sheet']);
+
+/**
+ * A pure artefact order: the kind is ordered, the order carries no research
+ * signal, and the kind is migrated. The loop then runs the tool before the
+ * answer (`runOrderedArtifact`) instead of asking the model for its arguments.
+ */
+export function isPureArtifactOrder(
+  kind: CompoundGenerationKind | null | undefined,
+  raw: string
+): boolean {
+  return kind != null && LOOP_ORDER_KINDS.has(kind) && !looksLikeCompoundGeneration(orderText(raw));
 }
 
 /** Die Intents ohne eigenen Dispatcher, auf denen ein genanntes Sharepic sein Werkzeug montiert. */

@@ -102,6 +102,10 @@ const suite = useChatApp();
 
 beforeEach(() => {
   resetGeneratorControl();
+  // This file pins the SINGLE-PASS door. Pure orders of the kinds in
+  // `LOOP_ORDER_KINDS` run in the loop while it is on (artifactOrderLoop.vitest.ts);
+  // the dispatcher stays their door while it is off, so that is the state here.
+  vi.stubEnv('CHAT_AGENT_LOOP', 'false');
 });
 
 /**
@@ -210,6 +214,8 @@ describe('create turns — the mention door', () => {
 });
 
 describe('create turns — where the compound boundary runs', () => {
+  beforeEach(() => vi.stubEnv('CHAT_AGENT_LOOP', 'true'));
+
   it('hands a research+create ask to the loop instead of this stage', async () => {
     // The same mention, the same artifact — but the ask now names research, so
     // `compoundGenerationKind` claims the turn and the loop builds the sheet
