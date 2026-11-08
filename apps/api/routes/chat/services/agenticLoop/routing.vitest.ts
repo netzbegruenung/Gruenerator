@@ -1515,8 +1515,20 @@ describe('reworksSuppliedText', () => {
     'kürze den Text auf die Hälfte',
     'gendere den Text',
     'kannst du das lektorieren?',
+    // The bare imperative is the usual chat form (#5476, live 08.11.2026).
+    'Kürz das bitte auf maximal 800 Zeichen, die Zahlen müssen alle drin bleiben',
+    'kürz mal',
+    'verkürz das auf zwei Absätze',
+    'straff das etwas',
   ])('reads "%s" as text work on the supplied material', (text) => {
     expect(reworksSuppliedText(text)).toBe(true);
+  });
+
+  // The bare stem must not swallow „kürzlich" (#5476).
+  it('does not read "kürzlich" as a shortening order', () => {
+    expect(reworksSuppliedText('Was hat der Stadtrat kürzlich zum Radweg beschlossen?')).toBe(
+      false
+    );
   });
 
   // Each of these carries a rewrite word — `k[üu]rze…` also matches the

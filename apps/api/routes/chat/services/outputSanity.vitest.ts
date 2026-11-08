@@ -225,6 +225,31 @@ describe('looksCutOff — a list ending on a value is finished', () => {
   });
 });
 
+describe('looksCutOff — a contact line is finished (#5477)', () => {
+  const body = 'Die 46 Linden bleiben vollständig erhalten.\n\n';
+
+  it('accepts the live press release ending in an e-mail address (08.11.2026)', () => {
+    expect(
+      looksCutOff(
+        `${body}Kontakt: Pressestelle der Grünen Fraktion, presse@gruene-waldkirchen.example`
+      )
+    ).toBe(false);
+  });
+
+  it('accepts a closing line that ends in a URL', () => {
+    expect(looksCutOff(`${body}Mehr Infos: https://www.gruene.de/regierungsprogramm`)).toBe(false);
+    expect(looksCutOff(`${body}Alle Termine unter www.gruene-waldkirchen.de`)).toBe(false);
+  });
+
+  it('still flags a long last line that only happens to contain an address', () => {
+    expect(
+      looksCutOff(
+        `${body}Wer Fragen hat, schreibt an presse@gruene-waldkirchen.example oder kommt am Samstag zum Infostand am Marktplatz, wo wir über den Radweg und die Pa`
+      )
+    ).toBe(true);
+  });
+});
+
 const SEARCHED = { sources: 10, toolCalls: 2 };
 
 describe('deniesSearchAbilityDespiteSearching', () => {

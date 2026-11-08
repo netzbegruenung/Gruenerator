@@ -23,6 +23,9 @@ import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGrap
 
 import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 
+const { reportBackgroundError } = vi.hoisted(() => ({ reportBackgroundError: vi.fn() }));
+vi.mock('../../../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+
 describe('buildPrepareStep — forceFirstToolCall', () => {
   const never = () => false;
   it('requires a tool call on step 0 when forced', () => {
@@ -642,10 +645,15 @@ describe('runAgenticLoop — unified lane chain', () => {
         params({ onLaneUnhealthy, abortSignal: new AbortController().signal }),
         deps
       );
+      reportBackgroundError.mockClear();
       await vi.advanceTimersByTimeAsync(9_000);
       expect(calls).toEqual(['synth', 'fallback']);
       expect((await pending).text).toBe('FALLBACK_ANSWER');
       expect(onLaneUnhealthy).toHaveBeenCalledExactlyOnceWith(0, 'stall');
+      // The report names the deadline that fired, not the 45 s idle window (#5481).
+      const [error, context] = reportBackgroundError.mock.calls[0] as [Error, { idleMs: number }];
+      expect(context.idleMs).toBeLessThanOrEqual(9_000);
+      expect(error.message).toBe(`Tool phase stream idle for ${context.idleMs}ms`);
     } finally {
       vi.useRealTimers();
     }

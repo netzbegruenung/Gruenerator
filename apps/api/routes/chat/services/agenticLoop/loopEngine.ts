@@ -912,24 +912,27 @@ async function streamWithTools(
     return { text: streamed, finishReason: TOOL_CHOICE_VIOLATION_FINISH };
   }
   const { text, finishReason, stalled, echoCut } = drained;
+  // Which window fired: the first-response deadline (still armed, aborted) or
+  // the idle window. The log said 45 s for 8 s misses (#5481).
+  const silentMs = firstResponse?.signal.aborted === true ? firstResponseMs : idleMs;
   firstResponse?.clear();
   const tail = unifiedFilter.flush();
   if (tail.length > 0) p.onText(tail);
   if (stalled) {
     log.warn(
-      `[Engine] unified stream silent for ${idleMs}ms after ${text.length} chars (finishReason=${finishReason ?? 'none'}) — tearing it down`
+      `[Engine] unified stream silent for ${silentMs}ms after ${text.length} chars (finishReason=${finishReason ?? 'none'}) — tearing it down`
     );
-    reportBackgroundError(new ToolPhaseStallError(idleMs), {
+    reportBackgroundError(new ToolPhaseStallError(silentMs), {
       job: 'agentic-unified-stall',
       model: modelLabel(model),
-      idleMs,
+      idleMs: silentMs,
     });
     // Ein `finish`-Part heisst: die Generierung war fertig, nur der Stream ging
     // nicht zu. Dann ist die Antwort vollständig und darf NICHT die
     // Abbruch-Fussnote des Aufrufers bekommen — genau diese Lüge produzierte
     // #2948, wo alle sechs Deckel-Züge inhaltlich richtig geantwortet hatten.
     // Ohne `finish` steht der Text mitten im Satz: als Abbruch melden.
-    if (finishReason == null) throw new ToolPhaseStallError(idleMs);
+    if (finishReason == null) throw new ToolPhaseStallError(silentMs);
   }
   if (finishReason === DEGENERATE_FINISH_REASON) {
     // The spam is already on the wire; drain trimmed `text` to the healthy
