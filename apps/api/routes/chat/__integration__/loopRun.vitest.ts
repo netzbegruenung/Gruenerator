@@ -169,7 +169,7 @@ const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
-const { LOOP_SCENARIOS, SPLIT_LANE } = await import('./loopScenarios.js');
+const { LOOP_SCENARIOS, UNIFIED_LANE } = await import('./loopScenarios.js');
 
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');
 const UPDATE = process.env.SIM_UPDATE === '1';
@@ -209,9 +209,9 @@ beforeEach(() => {
   capture.reset();
   loopScript.reset();
   searchBackend.reset();
-  // Ausdrücklich: ohne Angabe liefe jeder Turn auf dem Anbieter `stub`, also
-  // split — das ist hier die benannte Split-Lane, nicht ein Zufall der Vorgabe.
-  respond.resolution = SPLIT_LANE;
+  // Ausdrücklich: jede Lane läuft unified, die Vorgabe ist die Produktions-Lane
+  // (Gemma 4 31B auf Melious), kein Zufall des Anbieters `stub`.
+  respond.resolution = UNIFIED_LANE;
 });
 
 describe('loop decision maps', () => {
@@ -223,7 +223,6 @@ describe('loop decision maps', () => {
 
     // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
     if (scenario.env) pinChatEnv(scenario.env);
-    if (scenario.resolution) respond.resolution = scenario.resolution;
 
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
@@ -238,7 +237,7 @@ describe('loop decision maps', () => {
     });
 
     // A queued stream nobody consumed means the turn took a different shape than
-    // the scenario claims — unified instead of split, or a retry that never
+    // the scenario claims — one call fewer or more than scripted, or a repair that never
     // happened. Without this the scenario pins a path it never took.
     loopScript.assertScriptsConsumed();
 
@@ -290,7 +289,7 @@ describe('loop decision maps', () => {
           : choice;
       expect(
         named,
-        `${scenario.id}: der erste Planer-Schritt sollte ${scenario.firstToolChoice} verlangen`
+        `${scenario.id}: der erste Schritt des Loop-Aufrufs sollte ${scenario.firstToolChoice} verlangen`
       ).toBe(scenario.firstToolChoice);
     }
 
@@ -298,7 +297,7 @@ describe('loop decision maps', () => {
       const active = loopScript.calls[0]?.firstStepActiveTools ?? null;
       expect(
         active,
-        `${scenario.id}: der erste Planer-Schritt sollte einen zugeschnittenen Katalog sehen`
+        `${scenario.id}: der erste Schritt des Loop-Aufrufs sollte einen zugeschnittenen Katalog sehen`
       ).not.toBeNull();
       for (const name of active ?? []) {
         expect(
@@ -314,22 +313,8 @@ describe('loop decision maps', () => {
     for (const needle of [scenario.systemIncludes ?? []].flat()) {
       expect(
         loopScript.calls[0]?.system ?? '',
-        `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${needle}" enthalten`
+        `${scenario.id}: der Systemtext des Loop-Aufrufs sollte "${needle}" enthalten`
       ).toContain(needle);
-    }
-
-    if (scenario.synthSystemIncludes) {
-      expect(
-        loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
-        `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
-      ).toContain(scenario.synthSystemIncludes);
-    }
-
-    if (scenario.unifiedSystemIncludes) {
-      expect(
-        loopScript.calls[0]?.system ?? '',
-        `${scenario.id}: der Systemtext des Unified-Aufrufs sollte "${scenario.unifiedSystemIncludes}" enthalten`
-      ).toContain(scenario.unifiedSystemIncludes);
     }
 
     for (const point of scenario.notReached ?? []) {
@@ -368,31 +353,31 @@ describe('unified loop', () => {
 
     loopScript.assertScriptsConsumed();
     expect(loopScript.calls).toHaveLength(1);
-    expect(capture.last().entries.find((e) => e.point === 'loop.mode')?.chose).toBe('unified');
     expect(trace.fullText).toContain('Antwort mit');
   });
 
-  it('runs a compound sharepic turn on the split loop, so the writer announces the sharepic', async () => {
-    // Inverted in Task 3.4 (it pinned afterGather-after-the-stream): a turn that
-    // owes a guaranteed artifact is split even on Mistral — the guarantee runs
-    // BEFORE the writer, which is therefore told the sharepic exists.
+  it('runs a compound sharepic turn unified and forces the sharepic right after the research', async () => {
+    // Until 11/2026 a turn that owed an artefact ran split, because unified ran
+    // the guarantee only after the answer. Now the owed tool is the next named
+    // step after the research, so the writer sees the sharepic before it writes.
     respond.resolution = MISTRAL;
-    loopScript.script(
-      { calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }], text: '' },
-      { text: 'Hier die Recherche zur Windkraft [1] — dazu habe ich ein Sharepic erstellt.' }
-    );
+    loopScript.script({
+      calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }],
+      text: 'Hier die Recherche zur Windkraft [1].',
+    });
 
-    const { trace, events } = await runTurn(app.baseUrl, {
+    const { events } = await runTurn(app.baseUrl, {
       messages: [userTurn('Recherchiere zur Windkraft und erstelle ein Sharepic dazu')],
     });
 
-    const mode = capture.last().entries.find((e) => e.point === 'loop.mode');
-    expect(mode?.chose).toBe('split');
-    expect(mode?.inputs?.reason).toBe('guarantee');
+    expect(loopScript.calls).toHaveLength(1);
+    // The step after the research is the named sharepic call.
+    expect(loopScript.calls[0]?.afterCallsToolChoice).toEqual({
+      type: 'tool',
+      toolName: 'sharepic',
+    });
+    // The scripted response ends after the research, so the post-stream net
+    // (ensureOwedTools) still delivers the sharepic.
     expect(events.map((e) => e.event)).toContain('sharepic_complete');
-    // Planner pass, then the writer: two calls, the second one without the unified tool rules.
-    expect(loopScript.calls).toHaveLength(2);
-    expect(loopScript.calls[1]?.system ?? '').not.toContain('ANTWORTPHASE');
-    expect(trace.fullText).toMatch(/sharepic/i);
   });
 });

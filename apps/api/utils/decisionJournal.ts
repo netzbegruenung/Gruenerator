@@ -50,9 +50,6 @@ export const DECISION_POINTS = {
   /** Loop vs. single-pass. The highest fan-in decision in the chat stack. */
   'router.run_agentic': { branches: ['loop', 'single_pass'] },
 
-  /** Unified (one model plans and writes) vs. split (planner + synth). */
-  'loop.mode': { branches: ['unified', 'split'] },
-
   /** The router overruling the classifier. The wire shows only the result. */
   'router.intent_override': {
     branches: [

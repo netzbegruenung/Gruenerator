@@ -273,7 +273,7 @@ interface Row {
 }
 
 async function probe(prompt: string, threadId: string, context: string): Promise<Row> {
-  loopScript.script({ text: 'Antwort.' }, { text: 'Antwort.' });
+  loopScript.script({ text: 'Antwort.' });
   const { trace } = await runTurn(app.baseUrl, {
     threadId,
     messages: [
@@ -331,10 +331,10 @@ describe('Folgeauftrag auf ein erzeugtes Bild', () => {
 describe('edit_image im Loop', () => {
   it('ändert das Bild und lässt die Behauptung stehen', async () => {
     const threadId = await imageThread(true);
-    loopScript.script(
-      { calls: [{ tool: 'edit_image', args: { anweisung: 'Mühle an den Rand' } }], text: '' },
-      { text: 'Ich habe die Grafik angepasst: Die Mühle steht jetzt am Rand.' }
-    );
+    loopScript.script({
+      calls: [{ tool: 'edit_image', args: { anweisung: 'Mühle an den Rand' } }],
+      text: 'Ich habe die Grafik angepasst: Die Mühle steht jetzt am Rand.',
+    });
     const { trace, events } = await runTurn(app.baseUrl, {
       threadId,
       messages: [userTurn('Die Mühle soll ganz an den Rand')],
@@ -346,12 +346,11 @@ describe('edit_image im Loop', () => {
     expect(trace.fullText).toContain('Ich habe die Grafik angepasst');
   });
 
-  it('streicht „Ich habe die Grafik angepasst", wenn der Planer das Werkzeug nicht rief', async () => {
+  it('streicht „Ich habe die Grafik angepasst", wenn das Modell das Werkzeug nicht rief', async () => {
     const threadId = await imageThread(true);
-    loopScript.script(
-      { text: '' },
-      { text: 'Ich habe die Grafik noch einmal angepasst. Soll ich daraus ein Sharepic machen?' }
-    );
+    loopScript.script({
+      text: 'Ich habe die Grafik noch einmal angepasst. Soll ich daraus ein Sharepic machen?',
+    });
     const { trace } = await runTurn(app.baseUrl, {
       threadId,
       messages: [userTurn('Die Mühle soll ganz an den Rand')],

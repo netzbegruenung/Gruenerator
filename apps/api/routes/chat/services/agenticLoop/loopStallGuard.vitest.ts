@@ -1,11 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  runAgenticLoop,
-  isSynthStall,
-  type LoopDeps,
-  type LoopEngineParams,
-} from './loopEngine.js';
+import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
 
 /**
  * The silent-stall class. A lane accepts the request, returns a stream, and then
@@ -16,9 +11,10 @@ import {
  * tier-3.5 demotion routes most turns through, had none.
  */
 
-const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerModel'];
-const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
-const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['synthModel'];
+const repairModel = { id: 'repair' } as unknown as LoopEngineParams['model'];
+const model = { id: 'synth' } as unknown as LoopEngineParams['model'];
+const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['model'];
+const repairTools = { web_search: {} } as unknown as LoopEngineParams['tools'];
 
 type Part = { type: string; text?: string };
 
@@ -54,7 +50,8 @@ function thinkingStream(gapMs: number): ReturnType<LoopDeps['streamText']> {
   } as unknown as ReturnType<LoopDeps['streamText']>;
 }
 
-/** Routes by model tag: gather always completes, synth/fallback per the map. */
+/** Routes by model tag: the unified pass (`synth`) ends empty unless mapped, so the
+ *  repair writer (`repair`) and its sibling (`fallback`) take over per the map. */
 function depsFor(byModel: Record<string, () => ReturnType<LoopDeps['streamText']>>): {
   deps: LoopDeps;
   seen: string[];
@@ -73,12 +70,11 @@ function depsFor(byModel: Record<string, () => ReturnType<LoopDeps['streamText']
 
 function params(over: Partial<LoopEngineParams>): LoopEngineParams {
   return {
-    mode: 'split',
-    plannerModel,
-    synthModel,
-    tools: {},
+    model,
+    repairModel,
+    tools: repairTools,
     toolSystem: 'TOOLSYS',
-    buildSynthSystem: (s) => `SYNTHSYS::${s}`,
+    buildRepairSystem: (s) => `SYNTHSYS::${s}`,
     getSourcesBlock: () => '[1] Quelle — Inhalt',
     messages: [],
     maxSteps: 6,
@@ -91,28 +87,29 @@ function params(over: Partial<LoopEngineParams>): LoopEngineParams {
   };
 }
 
+/** The writer's sibling fallback, reached through the unified-repair path. */
 describe('synth stall guard', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
   it('falls back to the sibling lane when the synth goes silent', async () => {
     const { deps, seen } = depsFor({
-      synth: stallingStream,
+      repair: stallingStream,
       fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VON_FALLBACK' }]),
     });
     const onText = vi.fn();
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const running = runAgenticLoop(
-      params({ synthFallbackModel: fallbackModel, onText, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onText, onRepairWriterUnhealthy }),
       deps
     );
     await vi.advanceTimersByTimeAsync(20_000);
     const out = await running;
 
     expect(out.text).toBe('ANTWORT_VON_FALLBACK');
-    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('first_token_timeout');
-    expect(seen).toEqual(['planner', 'synth', 'fallback']);
+    expect(onRepairWriterUnhealthy).toHaveBeenCalledExactlyOnceWith('synth_stall');
+    expect(seen).toEqual(['synth', 'repair', 'fallback']);
   });
 
   it('hands the fallback its own history, built only when it fires (#4201)', async () => {
@@ -122,120 +119,66 @@ describe('synth stall guard', () => {
     const deps: LoopDeps = {
       streamText: ((o: { model: { id: string }; messages: unknown }) => {
         sent[o.model.id] = o.messages;
-        if (o.model.id === 'synth') return stallingStream();
+        if (o.model.id === 'repair') return stallingStream();
+        if (o.model.id === 'synth') return streamOf([]);
         return streamOf([{ type: 'text-delta', text: 'OK' }]);
       }) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    const synthFallbackMessages = vi.fn((_system: string) => pruned);
+    const repairSiblingMessages = vi.fn((_system: string) => pruned);
 
     const running = runAgenticLoop(
-      params({ synthMessages: full, synthFallbackModel: fallbackModel, synthFallbackMessages }),
+      params({ repairMessages: full, repairFallback: fallbackModel, repairSiblingMessages }),
       deps
     );
     await vi.advanceTimersByTimeAsync(20_000);
     await running;
 
-    expect(sent.synth).toBe(full);
+    expect(sent.repair).toBe(full);
     expect(sent.fallback).toBe(pruned);
-    expect(synthFallbackMessages).toHaveBeenCalledExactlyOnceWith('SYNTHSYS::[1] Quelle — Inhalt');
+    expect(repairSiblingMessages).toHaveBeenCalledExactlyOnceWith('SYNTHSYS::[1] Quelle — Inhalt');
   });
 
   it('emits nothing from the stalled pass — the user sees one clean answer', async () => {
     const { deps } = depsFor({
-      synth: stallingStream,
+      repair: stallingStream,
       fallback: () => streamOf([{ type: 'text-delta', text: 'SAUBER' }]),
     });
     const onText = vi.fn();
 
-    const running = runAgenticLoop(params({ synthFallbackModel: fallbackModel, onText }), deps);
+    const running = runAgenticLoop(params({ repairFallback: fallbackModel, onText }), deps);
     await vi.advanceTimersByTimeAsync(20_000);
-    await running;
+    const out = await running;
 
-    expect(onText.mock.calls.flat().join('')).toBe('SAUBER');
+    expect(out.text).toBe('SAUBER');
+    expect(onText).not.toHaveBeenCalled();
   });
 
-  it('surfaces a typed stall when no sibling is configured', async () => {
-    const { deps } = depsFor({ synth: stallingStream });
+  it('keeps the original answer when the writer stalls and no sibling is configured', async () => {
+    const { deps, seen } = depsFor({ repair: stallingStream });
 
-    const running = runAgenticLoop(params({}), deps).catch((e: unknown) => e);
+    const running = runAgenticLoop(params({}), deps);
     await vi.advanceTimersByTimeAsync(20_000);
-    const err = await running;
+    const out = await running;
 
-    expect(isSynthStall(err)).toBe(true);
-    // Named TimeoutError so the caller's abort branch shows its friendly text.
-    expect((err as Error).name).toBe('TimeoutError');
+    // The repair swallows the stall and keeps the (empty) original for the caller.
+    expect(out.text).toBe('');
+    expect(out.replacement).toBeUndefined();
+    expect(seen).toEqual(['synth', 'repair']);
   });
 
   it('does NOT trip on a thinking model — reasoning counts as liveness', async () => {
     // 15s silent, reasoning, 15s silent, answer: 30s total, never 20s idle.
-    const { deps, seen } = depsFor({ synth: () => thinkingStream(15_000) });
+    const { deps, seen } = depsFor({ repair: () => thinkingStream(15_000) });
     const onReasoning = vi.fn();
 
-    const running = runAgenticLoop(
-      params({ synthFallbackModel: fallbackModel, onReasoning }),
-      deps
-    );
+    const running = runAgenticLoop(params({ repairFallback: fallbackModel, onReasoning }), deps);
     await vi.advanceTimersByTimeAsync(31_000);
     const out = await running;
 
     expect(out.text).toBe('SPAETE_ANTWORT');
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
     expect(seen).not.toContain('fallback');
-  });
-});
-
-/**
- * Der Planer schweigt — und der Zug soll das ÜBERLEBEN und es MELDEN.
- *
- * Am 28.08.2026 nahm die Planer-Lane (GreenPT) die Anfrage an und schickte
- * nichts: 45 s Leerlauf in einem Zug von 47,9 s, danach eine korrekte Antwort
- * aus den mitgeführten Quellen. Das Degradieren funktionierte also; was fehlte,
- * war das Gedächtnis. Ohne Vermerk blieb dieselbe Lane erste Wahl, und der
- * nächste Zug hätte die Frist erneut abgesessen.
- */
-describe('gather stall — degradieren UND vermerken', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  /** Der Planer stellt sich tot, der Synth antwortet normal. */
-  const stalledPlanner = (): { deps: LoopDeps; seen: string[] } =>
-    depsFor({
-      planner: stallingStream,
-      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_AUS_QUELLEN' }]),
-    });
-
-  it('meldet die Werkzeugphase EINMAL, damit der Aufrufer die Lane vermerken kann', async () => {
-    const { deps } = stalledPlanner();
-    const onLaneUnhealthy = vi.fn();
-
-    const running = runAgenticLoop(params({ onLaneUnhealthy }), deps);
-    await vi.advanceTimersByTimeAsync(60_000);
-    await running;
-
-    expect(onLaneUnhealthy).toHaveBeenCalledExactlyOnceWith(0, 'stall');
-  });
-
-  it('antwortet trotzdem — der Stillstand kostet den Zug nicht', async () => {
-    const { deps } = stalledPlanner();
-
-    const running = runAgenticLoop(params({ onLaneUnhealthy: vi.fn() }), deps);
-    await vi.advanceTimersByTimeAsync(60_000);
-    const out = await running;
-
-    expect(out.text).toBe('ANTWORT_AUS_QUELLEN');
-  });
-
-  it('meldet NICHT, wenn der Planer normal liefert', async () => {
-    const { deps } = depsFor({
-      planner: () => streamOf([{ type: 'text-delta', text: 'ich suche' }]),
-      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
-    });
-    const onLaneUnhealthy = vi.fn();
-
-    await runAgenticLoop(params({ onLaneUnhealthy }), deps);
-
-    expect(onLaneUnhealthy).not.toHaveBeenCalled();
   });
 });
 
@@ -254,8 +197,10 @@ describe('tool phase stall guard (unified)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams =>
-    params({ mode: 'unified', ...over });
+  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams => {
+    const { repairModel: _repair, ...rest } = params(over);
+    return rest;
+  };
 
   /** Ohne `toolActivity` gilt der Deckel aus den gemounteten Werkzeugen: ohne
    *  Werkzeuge sind das 20 s Aufruf-Timeout + 15 s Vorlauf = 35 s. */
@@ -366,46 +311,47 @@ describe('synth empty guard', () => {
 
   it('hands an empty pass to the sibling lane once', async () => {
     const { deps, seen } = depsFor({
-      synth: emptyStream,
+      repair: emptyStream,
       fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VON_FALLBACK' }]),
     });
     const onText = vi.fn();
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const out = await runAgenticLoop(
-      params({ synthFallbackModel: fallbackModel, onText, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onText, onRepairWriterUnhealthy }),
       deps
     );
 
     expect(out.text).toBe('ANTWORT_VON_FALLBACK');
-    expect(onText.mock.calls.flat().join('')).toBe('ANTWORT_VON_FALLBACK');
-    expect(onSynthFallback).toHaveBeenCalledExactlyOnceWith('empty_completion');
-    expect(seen).toEqual(['planner', 'synth', 'fallback']);
+    // The repair is silent — the caller's completion replace carries the text.
+    expect(onText).not.toHaveBeenCalled();
+    expect(onRepairWriterUnhealthy).toHaveBeenCalledExactlyOnceWith('synth_empty');
+    expect(seen).toEqual(['synth', 'repair', 'fallback']);
   });
 
   it('leaves an empty pass to the caller when no sibling is configured', async () => {
-    const { deps, seen } = depsFor({ synth: emptyStream });
+    const { deps, seen } = depsFor({ repair: emptyStream });
 
     const out = await runAgenticLoop(params({}), deps);
 
     expect(out.text).toBe('');
-    expect(seen).toEqual(['planner', 'synth']);
+    expect(seen).toEqual(['synth', 'repair']);
   });
 
   it('does not touch a pass that wrote an answer', async () => {
     const { deps, seen } = depsFor({
-      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
+      repair: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
       fallback: () => streamOf([{ type: 'text-delta', text: 'NIE' }]),
     });
-    const onSynthFallback = vi.fn();
+    const onRepairWriterUnhealthy = vi.fn();
 
     const out = await runAgenticLoop(
-      params({ synthFallbackModel: fallbackModel, onSynthFallback }),
+      params({ repairFallback: fallbackModel, onRepairWriterUnhealthy }),
       deps
     );
 
     expect(out.text).toBe('ANTWORT');
-    expect(onSynthFallback).not.toHaveBeenCalled();
-    expect(seen).toEqual(['planner', 'synth']);
+    expect(onRepairWriterUnhealthy).not.toHaveBeenCalled();
+    expect(seen).toEqual(['synth', 'repair']);
   });
 });

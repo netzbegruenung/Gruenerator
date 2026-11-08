@@ -9,9 +9,9 @@ import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS,
+  GEMMA_31B_ON_MELIOUS_ECO,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
-import { CORTECS_SMALL_32 } from '../../../services/ai/intermediateLanes.js';
 import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { isModelSlow } from '../../../services/ai/modelHealth.js';
@@ -31,12 +31,10 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   AVOID_AS_SYNTH,
   mayWriteAnswer,
-  LOOP_PLANNER_CHAIN,
-  LOOP_PLANNER_UNCONFIGURED,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
   UNIFIED_GEMMA_CHAIN,
-  UNIFIED_MISTRAL_FALLBACKS,
+  UNIFIED_LANE_FALLBACKS,
 } from './autoPolicy.js';
 
 import type { AgentConfig } from './types.js';
@@ -132,36 +130,27 @@ const CTX_PANDA = 880_000;
 /**
  * „Klein" — die kleine Antwort-Lane.
  *
- * Sie war bis zum 29.08.2026 eine ÜBERLAUF-Lane: `litellm/verdigado-pro` als
- * Primär, gpt-oss 120B beim zweiten Host als Überlauf, dazwischen der Verdigado-Slot.
- * Beide Seiten waren dasselbe Modell — gpt-oss 120B —, und das ist genau das
- * Modell, das `AVOID_AS_SYNTH` vom Antwortschreiben ausschliesst. Die Lane, die
- * der Modellwähler als „Klein · Schnell, für kurze Aufgaben" anbietet, lief
- * also auf einem Denkmodell, dessen Denk-Tokens gegen `max_tokens` zählen
- * (#3064: 64 Text-Tokens für einen 23-Zeichen-Titel).
+ * Seit 07.11.2026 Gemma 4 31B über Melious' `:eco`-Flavor (berget/SE, siehe
+ * gemmaHosts.ts). Bis dahin `mistral-small-3.2-24b` auf Cortecs, davor bis
+ * 29.08.2026 gpt-oss 120B (#3064). Der Wechsel kam mit dem Abbau des
+ * Split-Modus: in der Werkzeug-Probe vom 07.11.2026 (zwölf Aufträge, je acht
+ * Läufe, `tool_choice: auto`) rief Mistral Small 3.2 auf „ausführlicher" in
+ * 0 von 8 Läufen das Bearbeitungswerkzeug und kam auf 80/88. `:eco` kam auf
+ * 88/88 wie `:balanced`, p50 734 ms, p90 2,7 s. Damit läuft Klein unified wie
+ * Mittel (`isUnifiedGemma`), mit derselben Ausweichkette dahinter.
  *
- * Jetzt ist es das kleine Modell der Zwischenstufen, auf Cortecs — dieselben
- * Gewichte, die `intermediateLanes.ts` für `trivial`/`standard` fährt, damit
- * „Klein" und die Hintergrundarbeit nicht zwei verschiedene Antworten auf
- * dieselbe Frage sind. Am 29.08.2026 mit dem ECHTEN Thread-Titel-Prompt aus
- * #3064 gemessen, `max_tokens: 64`, dreimal: HTTP 200, `finish_reason: stop`,
- * **8** Ausgabe-Tokens, 358/579/597 ms, Unteranbieter `ovh`. Derselbe Aufruf
- * auf `verdigado-pro` verbrauchte alle 64 und endete auf `length`.
- *
- * Kontextfenster: 131.000 — was der ENDPUNKT annimmt, aus Cortecs'
- * `GET /v1/models` am 29.08.2026 (`context_size: 131000`), nicht aus dem
- * Modellsteckbrief. Kein Ollama mehr: die stille Kürzung, für die
- * `CTX_VERDIGADO` als gemessene Decke existierte, ist mit dem Host weg.
- *
- * Der Ausweich bleibt in der Modellfamilie und wechselt den Vertragspartner —
- * dieselbe Regel wie bei den Zwischenstufen.
+ * Fenster 128k wie die übrigen Gemma-Lanes: Melious vermittelt `:eco` zwar bis
+ * ~198k an berget, aber Budgets und Fristen sind gegen 128k bemessen
+ * (Begründung bei GEMMA_31B_ON_CORTECS). Grosse Bodies gehen auf dem Draht an
+ * `:speed` (`meliousGoesWide`). Ausweich wie bei Mittel: dieselben Gewichte bei
+ * Cortecs.
  */
 const SMALL_ANSWER_LANE: ModelConfigSingle = {
   kind: 'single',
-  provider: 'cortecs',
-  model: CORTECS_SMALL_32.model,
-  contextWindow: 131_000,
-  fallback: 'mistral-small-4',
+  provider: 'melious',
+  model: GEMMA_31B_ON_MELIOUS_ECO,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
+  fallback: GEMMA_31B_ALTERNATE.laneId,
 };
 
 /**
@@ -239,9 +228,9 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
  * trotzdem stehen: F1 (CLAUDE.md), er steckt in persistierten Thread-Zuständen
  * und wird nicht umbenannt. Was er BEDEUTET, steht hier.
  *
- * Die Lane braucht nichts aus dem Mistral-Regelwerk (`prefersUnifiedLoop`,
- * Kontextfenster, Fallback-Ketten): sie schreibt Prosa über Material, das schon
- * im Kontext steht, und ruft keine eigenen Werkzeuge auf.
+ * Die Lane braucht nichts aus dem Mistral-Regelwerk (Kontextfenster,
+ * Fallback-Ketten): sie schreibt Prosa über Material, das schon im Kontext
+ * steht, und ruft keine eigenen Werkzeuge auf.
  *
  * ── WEG VOM 26B, 21.08.2026 ──
  *
@@ -418,7 +407,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // This USER-SELECTABLE lane stays off by default (catalog `offByDefault`), so
   // nothing picks it as an answer model unless asked for by id. The greenpt
   // PROVIDER is no longer unused though: from 13.08.2026 to 29.09.2026 the loop
-  // planner ran there (LOOP_PLANNER_PRIMARY), without going through this entry.
+  // planner ran there, without going through this entry.
   greenpt: {
     kind: 'single',
     provider: 'greenpt',
@@ -640,7 +629,7 @@ export function getModel(
   // `acceptTarget` MUSS hier durchgereicht werden. Dies ist die ZWEITE
   // `getModel`-Tür neben der in `services/ai/providers.ts`, und es ist die, die
   // der ganze Chat-Pfad benutzt (`responseStreamingService`, der Synth-Slot,
-  // `getLoopSynthFallbackModel`). Nur an der anderen Tür gesetzt, wurde das
+  // `getRepairWriterFallback`). Nur an der anderen Tür gesetzt, wurde das
   // Veto still verworfen und die Ausweichkette landete weiter auf
   // `litellm/verdigado-pro` (= gpt-oss am Proxy) — der Fix hätte nichts
   // bewirkt, und ein Test, der bloss das übergebene Options-Objekt prüft,
@@ -766,26 +755,11 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
 }
 
 /**
- * Whether the SELECTED model drives the tool loop directly (unified single-model
- * pass) vs. delegating tool orchestration to the fast planner (planner/executor
- * split: the `standard` intermediate stage gathers, selected model writes the answer).
- *
- * Unified: Mistral (our fast native tool-caller) and Gemma 4 31B on Melious
- * (`isUnifiedGemma`, the default lane). Everything else splits: the fixed fast
- * planner does every tool call (so tool-calling reliability no longer depends
- * on the user's model) and the selected model only writes prose — which is why
- * ANY model, including slow "thinking" lanes and non-tool-callers, is selectable
- * for the loop.
- */
-export function prefersUnifiedLoop(provider: string, modelName: string): boolean {
-  return provider === 'mistral' || isUnifiedGemma(provider, modelName);
-}
-
-/**
  * Gemma 4 31B on Melious, in any routing flavor (`:balanced`/`:speed`/`:eco`,
- * also when the name comes from `MELIOUS_DEFAULT_MODEL`). Deliberately Melious
- * only: Cortecs' `gemma-4-31b-it`, the 26B variants, GreenPT and the
- * DeepSeek/Panda lane stay on the split (decision 05.11.2026).
+ * also when the name comes from `MELIOUS_DEFAULT_MODEL`) — the lanes that get
+ * `UNIFIED_GEMMA_CHAIN` behind them. Cortecs' `gemma-4-31b-it`, GreenPT and the
+ * DeepSeek/Panda lane run the loop without a chain (since the split mode went,
+ * #5441, every lane runs the unified loop).
  */
 const UNIFIED_GEMMA_NAME = /^gemma-4-31b(?::balanced|:speed|:eco)?$/;
 export function isUnifiedGemma(provider: string, modelName: string): boolean {
@@ -868,23 +842,28 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
  * Mistral Large 4 — und nicht, wie bis 06.11.2026 über den stillen Tausch in
  * `getModel`, auf Cortecs, das diese Kette bewusst nicht führt.
  *
- * Mistral-Unified bekommt `UNIFIED_MISTRAL_FALLBACKS` dahinter, rückt aber nie
- * nach hinten: Ultra ist eine ausdrückliche Wahl, ein langsamer Mistral bleibt
- * Mistral. Gewechselt wird nur, wenn er vor jeder Ausgabe schweigt oder ablehnt.
- *
- * Leer für jede Lane, die nicht unified läuft.
+ * Jede andere Lane (Mistral, Panda, GreenPT, Cortecs) bekommt
+ * `UNIFIED_LANE_FALLBACKS` dahinter, rückt aber nie nach hinten: sie ist eine
+ * ausdrückliche Wahl, ein langsames Modell bleibt dieses Modell. Gewechselt wird
+ * nur, wenn es vor jeder Ausgabe schweigt oder ablehnt.
  */
-export function resolveUnifiedLaneChain(
+export function resolveLoopLaneChain(
   provider: string,
   modelName: string,
-  wireModelName: string | null = null
+  wireModelName: string | null = null,
+  /** Die schon aufgelöste Instanz der gewählten Lane (`resolveModel`). Trägt
+   *  die erste Stufe jeder Lane ausser Mistral und Melious-Gemma: deren Getter
+   *  baut die Kette selbst, alle anderen Anbieter (Panda, GreenPT, Cortecs)
+   *  fahren mit dem, was die Auflösung schon gebaut hat. */
+  selected: LanguageModel | null = null
 ): LaneStage[] {
-  if (provider === 'mistral') {
-    return [{ provider: 'mistral' as const, model: modelName }, ...UNIFIED_MISTRAL_FALLBACKS].map(
-      stageModel
-    );
+  if (!isUnifiedGemma(provider, modelName)) {
+    const first: LaneStage =
+      provider === 'mistral' || selected == null
+        ? stageModel({ provider: provider as Provider, model: modelName })
+        : { provider: provider as Provider, model: modelName, languageModel: selected };
+    return [first, ...UNIFIED_LANE_FALLBACKS.map(stageModel)];
   }
-  if (!isUnifiedGemma(provider, modelName)) return [];
   const declared: { provider: Provider; model: string }[] = [
     { provider: 'melious', model: modelName },
     ...unifiedFallbackStages(provider, modelName, wireModelName),
@@ -892,67 +871,6 @@ export function resolveUnifiedLaneChain(
   const slow = (s: { provider: Provider; model: string }): boolean =>
     isModelSlow(s.provider, s.model);
   return [...declared.filter((s) => !slow(s)), ...declared.filter(slow)].map(stageModel);
-}
-
-/**
- * Split-mode model policy — the planner/executor split gives us two independent
- * slots, so we point each at its best NON-CHINESE model instead of forcing the
- * user's (often slow) lane model into both roles.
- *
- * The slot DECLARATIONS live in `autoPolicy.ts` alongside the intent table, so
- * planner, synth and the single-pass answer read as one policy rather than two
- * systems overriding each other. This module only turns them into
- * LanguageModel instances (it owns env + getModel).
- */
-
-/**
- * Eine Planer-Stufe ist wählbar, wenn ihr Anbieter konfiguriert ist UND sie
- * nicht gerade als zäh vermerkt ist.
- *
- * Der zweite Teil ist neu und der Grund für diesen Zweig überhaupt: die Kette
- * fragte bis zum 28.08.2026 nur nach der Konfiguration. Eine Lane, die die
- * Anfrage annimmt und dann schweigt, ist aber konfiguriert — sie blieb also
- * erste Wahl, ohne jede Obergrenze dafür, wie oft ein Zug die volle
- * Werkzeugfrist absitzt (gemessen: 45 s Leerlauf in einem Zug von 47,9 s).
- *
- * WAS DAS KOSTET, GENAU: ein Stillstand. `modelHealth` vermerkt ab dem ersten
- * ausdrücklichen Verdikt (seit 06.11.2026, #5399; vorher erst ab dem zweiten,
- * und jede gesunde Probe dazwischen löschte den ersten). Danach überspringt
- * jeder Zug dieses Workers die Stufe, 2 min beim ersten Mal und länger, solange
- * die Störung anhält (2 → 4 → 8 → 16 → 30 min). Läuft das Fenster ab, ist der
- * nächste Zug die Probe; die Wahl fällt pro Zug neu, das Ausweichen endet also
- * von selbst.
- *
- * Ein einzelner Stillstand kann ein Netz-Schluckauf sein. Der Preis dafür sind
- * zwei Minuten auf `:speed` — dieselben Gewichte, etwas teurer —, und das ist
- * billiger, als einen weiteren Zug die Frist absitzen zu lassen.
- */
-function plannerStageUsable(stage: { provider: Provider; model: string }): boolean {
-  if (!isProviderConfigured(stage.provider)) return false;
-  if (isModelSlow(stage.provider, stage.model)) {
-    log.warn(`[LoopPlanner] ${stage.provider}/${stage.model} gilt als zäh — nächste Stufe`);
-    return false;
-  }
-  return true;
-}
-
-function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious, Cortecs, Mistral — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
-  // why and for the measurements.
-  const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
-  if (usable) return usable;
-  // Ab hier zählt nur noch die Konfiguration: ein zäher Planer ist besser als
-  // keiner. Ist gar nichts konfiguriert, bleibt nur die schlüssellose Stufe.
-  return (
-    LOOP_PLANNER_CHAIN.find((stage) => isProviderConfigured(stage.provider)) ??
-    LOOP_PLANNER_UNCONFIGURED
-  );
-}
-
-function loopSynthWriterChoice(): { provider: Provider; model: string } {
-  return isProviderConfigured(LOOP_SYNTH_PRIMARY.provider)
-    ? LOOP_SYNTH_PRIMARY
-    : LOOP_SYNTH_FALLBACK;
 }
 
 /**
@@ -967,108 +885,32 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
 const synthTargetAllowed = mayWriteAnswer;
 
 /**
- * Nur der Modellname der Planer-Lane.
- *
- * NICHT im Ablauf eines Zuges verwenden — dafür ist `resolveLoopPlannerLane()`
- * da. Diese Tür löst die Lane neu auf, und seit die Wahl an `isModelSlow`
- * hängt, kann das mitten im Zug etwas anderes liefern als das, was lief: die
- * Turn-Zusammenfassung nannte so nach einem Stillstand die Ausweichstufe statt
- * der stehengebliebenen Lane. Sie bleibt für Prüfungen, die nur die POLICY
- * lesen wollen (welche Stufe wählt die Kette gerade) und dabei keine
- * Provider-Instanz bauen dürfen — `resolveLoopPlannerLane` ruft `getModel` und
- * bräuchte dafür Schlüssel, die eine CI nicht hat.
+ * Sibling lane for the repair writer (`repairAnswer`), tried once when the
+ * writer accepts the request and then goes silent: the first stage of the
+ * writer's own loop chain (`resolveLoopLaneChain`) that is a different model —
+ * `:speed` behind a Gemma `:balanced`, `UNIFIED_LANE_FALLBACKS` behind any other
+ * lane. Null when no such stage may write answers.
  */
-export function loopPlannerModelName(): string {
-  return loopPlannerChoice().model;
-}
-
-/**
- * Die Planer-Lane dieses Zuges — Anbieter, Modellname und Instanz in EINER
- * Auflösung.
- *
- * Warum zusammen und nicht zwei Aufrufe: `loopPlannerChoice` entscheidet nun
- * anhand von `isModelSlow`, und dieser Zustand ändert sich im laufenden
- * Prozess. Wer das Modell hier und den Namen später separat holt, kann bei
- * einem Vermerk dazwischen zwei VERSCHIEDENE Lanes in der Hand haben — und
- * würde beim Stillstand die Stufe vermerken, die gar nicht lief. Das ist der
- * Weg, auf dem eine Ausweichkette sich selbst leerräumt.
- */
-export function resolveLoopPlannerLane(): {
-  provider: Provider;
-  model: string;
-  languageModel: LanguageModel;
-} {
-  const p = loopPlannerChoice();
-  // Ohne Tausch: die Kette hat schon gewählt — sind alle Stufen zäh, wäre der
-  // stille Tausch in `getModel` ein Ziel, das in dieser Kette nichts zu suchen
-  // hat, unter dem Namen der Stufe.
-  const stage = stageModel(p);
-  return { provider: stage.provider, model: stage.model, languageModel: stage.languageModel };
-}
-
-/**
- * Ausweich-Stufen für den Werkzeugschritt, der Reihe nach versucht, wenn die
- * Planer-Lane ablehnt (400/429/5xx) oder schweigt, bevor ein Werkzeug lief.
- *
- * Die Stufen der Kette HINTER der laufenden: `:speed` (anderer Upstream bei
- * Melious), Cortecs (anderes Gateway), Mistral Small (andere Familie).
- * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist —
- * und `:speed`, wenn der Primär schon dorthin ging (`wireModelName`: ein
- * grosser `:balanced`-Body wird auf dem Draht zu `:speed`, siehe
- * `meliousWireModel`; die Stufe wiederholte sonst dieselbe Anfrage).
- *
- * Mit Identität, damit `agenticRespondService` den Stillstand der Stufe
- * vermerkt, die wirklich stand.
- */
-export function getLoopPlannerFallbackStages(
-  plannerProvider: Provider,
-  plannerName: string,
-  wireModelName: string | null = null
-): LaneStage[] {
-  const at = LOOP_PLANNER_CHAIN.findIndex(
-    (stage) => stage.provider === plannerProvider && stage.model === plannerName
+export function getRepairWriterFallback(writer: {
+  provider: string;
+  name: string;
+  model: LanguageModel;
+}): { model: LanguageModel; name: string; contextWindow: number } | null {
+  const sibling = resolveLoopLaneChain(writer.provider, writer.name, null, writer.model).find(
+    (stage) => stage.model !== writer.name
   );
-  if (at < 0) return [];
-  const sentToMelious = isUnifiedGemma(plannerProvider, plannerName);
-  return LOOP_PLANNER_CHAIN.slice(at + 1)
-    .filter(
-      (stage) =>
-        !(sentToMelious && reachesSameMeliousUpstream(stage, plannerName, wireModelName)) &&
-        isProviderConfigured(stage.provider) &&
-        !isModelSlow(stage.provider, stage.model)
-    )
-    .map(stageModel);
-}
-
-/**
- * Sibling lane for the split's WRITE phase, tried once when the chosen synth
- * lane accepts the request and then goes silent.
- *
- * The planner lane is the deliberate pick: it is already resolved for this
- * turn, it is the confirmed fast responder, and it has just read every gathered
- * source — so it can answer over them without any new configuration or a second
- * slot. Returns null when the synth already IS that lane, since falling back
- * onto the stalled host would only repeat the stall.
- */
-export function getLoopSynthFallbackModel(
-  synthName: string
-): { model: LanguageModel; name: string; contextWindow: number } | null {
-  const p = loopPlannerChoice();
-  if (p.model === synthName) return null;
-  // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
-  // Planer-Ausweich, den der Synth-Slot ablehnt, ist deshalb auch hier keiner:
-  // `loopPlannerChoice` endet ohne konfigurierten Planer auf litellm/verdigado-pro
-  // (= gpt-oss), dessen Planer-Text sonst als Antwort beim Menschen landet.
-  if (!synthTargetAllowed(p)) return null;
+  if (!sibling || !synthTargetAllowed(sibling)) return null;
   return {
-    model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
-    name: p.model,
-    contextWindow: p.contextWindow,
+    model: sibling.languageModel,
+    name: sibling.model,
+    contextWindow: isUnifiedGemma(sibling.provider, sibling.model)
+      ? GEMMA_31B_ON_MELIOUS.contextWindow
+      : getContextWindow(sibling.model, sibling.provider),
   };
 }
 
 /**
- * Synthesizer for the split's write phase. Pure DECISION (no model
+ * The repair writer's lane. Pure DECISION (no model
  * instantiation) — env-free & unit-testable. `null` provider means "honor the
  * resolved model as-is".
  *
@@ -1090,10 +932,12 @@ export function loopSynthChoice(
 ): { provider: Provider | null; model: string } {
   const useWriter = undecided || AVOID_AS_SYNTH.test(resolvedModelName);
   if (!useWriter) return { provider: null, model: resolvedModelName };
-  return loopSynthWriterChoice();
+  return isProviderConfigured(LOOP_SYNTH_PRIMARY.provider)
+    ? LOOP_SYNTH_PRIMARY
+    : LOOP_SYNTH_FALLBACK;
 }
 
-export function getLoopSynthModel(
+export function getRepairWriter(
   resolution: { model: LanguageModel; modelName: string; provider: string },
   undecided: boolean
 ): { model: LanguageModel; name: string; provider: string } {

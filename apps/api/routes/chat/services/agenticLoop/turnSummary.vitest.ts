@@ -17,8 +17,6 @@ function line(overrides: Partial<Parameters<typeof logTurnSummary>[0]> = {}): st
   let out = '';
   logTurnSummary({
     modelName: 'mistral-medium-2604',
-    mode: 'split',
-    plannerName: 'mistral-small-3.2-24b-instruct-2506',
     synthName: 'mistral-medium-2604',
     intent: 'agentic',
     steps: [] as PersistedStep[],
@@ -35,16 +33,10 @@ function line(overrides: Partial<Parameters<typeof logTurnSummary>[0]> = {}): st
 }
 
 describe('logTurnSummary — der Antwort-Ersatz', () => {
-  it('benennt den stillen Tausch, der vorher gar keine Spur hinterließ', () => {
+  it('benennt den Tausch, der vorher gar keine Spur hinterließ', () => {
     // Genau die Signatur des gemeldeten Ausfalls (24.08.2026, chars=2992): ohne
     // diesen Zusatz war der Ersatz nur über die Stoppuhr auszuschließen.
-    expect(line({ answerReplaced: 'validation_retry' })).toContain('replaced=validation_retry');
-  });
-
-  it('unterscheidet den Tausch auf der Leitung vom stillen', () => {
-    expect(line({ answerReplaced: 'validation_retry_streamed' })).toContain(
-      'replaced=validation_retry_streamed'
-    );
+    expect(line({ answerReplaced: 'unified_repair' })).toContain('replaced=unified_repair');
   });
 
   it('schweigt, wenn die erste Antwort stehen geblieben ist', () => {
