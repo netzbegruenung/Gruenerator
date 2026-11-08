@@ -25,7 +25,10 @@ import {
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
-import { materialSectionHeading } from '../../../../routes/chat/services/attachmentProcessingService.js';
+import {
+  isPastedTextAttachment,
+  materialSectionHeading,
+} from '../../../../routes/chat/services/attachmentProcessingService.js';
 import {
   IMAGE_TOOL,
   type ImageVisibility,
@@ -835,13 +838,30 @@ export function formatThreadAttachmentsContext(
       query,
       whole?.perDocumentCap
     );
+    // Jeder Paste heisst gleich; Zeitpunkt, Anfang und „zuletzt eingefügt"
+    // machen sie unterscheidbar (EarlierPaste). `createdAt` kann nach einer
+    // Rehydrierung aus JSON ein String sein — darum über `new Date`, und ein
+    // ungültiges Datum lässt die Unterscheidung weg statt zu werfen.
+    const pasteTimes = docRows.map((a) =>
+      isPastedTextAttachment(a.name, a.mimeType) ? new Date(a.createdAt).getTime() : NaN
+    );
+    const newestPaste = Math.max(...pasteTimes.filter((t) => !Number.isNaN(t)));
     const docs = docRows
       .map((a, i) => {
         // Tells the model whether it sees the full document or only a digest —
         // otherwise it can't tell an inline full-text extract apart from a
         // vectorized doc's RAG chunks and may present a partial view as complete.
         const label = a.extractedText ? 'Volltext-Auszug' : 'Zusammenfassung';
-        return `### ${i + 1}. ${materialSectionHeading(a.name, a.mimeType, label)}\n\n${texts[i]}`;
+        const time = pasteTimes[i];
+        const paste =
+          time !== undefined && !Number.isNaN(time)
+            ? {
+                text: a.extractedText ?? a.summary ?? '',
+                createdAt: new Date(time),
+                newest: time === newestPaste,
+              }
+            : undefined;
+        return `### ${i + 1}. ${materialSectionHeading(a.name, a.mimeType, label, paste)}\n\n${texts[i]}`;
       })
       .join('\n\n');
     sections.push(`
