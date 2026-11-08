@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   WHOLE_DOCUMENT_FLOOR_CHARS,
   documentChatIdsToSearch,
+  picksOtherDocumentChat,
   resolveWholeDocumentTurn,
   wholeDocumentBudgetChars,
   wholeDocumentIdsInPrompt,
@@ -156,6 +157,99 @@ describe('resolveWholeDocumentTurn', () => {
     });
     expect(turn?.fits).toBe(false);
     expect(turn?.budgetChars).toBe(WHOLE_DOCUMENT_FLOOR_CHARS);
+  });
+});
+
+// #5478: live 08.11.2026 a 16k event list was pasted in one turn and asked about
+// in the next („alle Termine vom Team Verkehr … Keinen weglassen") — the
+// follow-up got a 6,000-char passage and listed 7 of 18 as „alle".
+describe('resolveWholeDocumentTurn — the latest paste in a follow-up', () => {
+  const paste = (over: Partial<ThreadAttachment>): ThreadAttachment =>
+    row({ name: 'Eingefügter Text.txt', mimeType: 'text/plain', ...over });
+  const followUp = {
+    ...base,
+    userText: 'Gib mir alle Termine vom Team Verkehr als Liste. Keinen weglassen.',
+  };
+
+  it('reads the latest paste whole when it was vectorized', () => {
+    const turn = resolveWholeDocumentTurn({
+      ...followUp,
+      threadAttachments: [
+        paste({ id: 'p', extractedText: 'y'.repeat(16_475), documentId: 'doc-p' }),
+      ],
+    });
+    expect(turn).toMatchObject({ origin: 'thread', ask: 'paste', chars: 16_475, fits: true });
+    expect(turn?.docs.map((d) => d.documentId)).toEqual(['doc-p']);
+  });
+
+  it('takes only the latest paste, older ones stay with retrieval', () => {
+    const turn = resolveWholeDocumentTurn({
+      ...followUp,
+      threadAttachments: [
+        paste({ id: 'old', documentId: 'doc-old-paste' }),
+        paste({ id: 'new', extractedText: 'y'.repeat(16_475), documentId: 'doc-new-paste' }),
+      ],
+    });
+    expect(turn?.docs.map((d) => d.documentId)).toEqual(['doc-new-paste']);
+    expect(
+      documentChatIdsToSearch({
+        documentChatIds: ['doc-old-paste', 'doc-new-paste'],
+        wholeDocument: turn,
+      })
+    ).toEqual(['doc-old-paste']);
+  });
+
+  it('leaves an uploaded file as the latest attachment to retrieval', () => {
+    expect(
+      resolveWholeDocumentTurn({ ...followUp, threadAttachments: [paste({}), row({ id: 'pdf' })] })
+    ).toBeNull();
+  });
+
+  it('changes nothing for a small paste, which already rides in the prompt', () => {
+    expect(
+      resolveWholeDocumentTurn({ ...followUp, threadAttachments: [paste({ documentId: null })] })
+    ).toBeNull();
+  });
+
+  it('leaves a paste beyond the budget to retrieval', () => {
+    expect(
+      resolveWholeDocumentTurn({
+        ...followUp,
+        contextWindowTokens: 20_000,
+        threadAttachments: [paste({ extractedText: 'y'.repeat(400_000) })],
+      })
+    ).toBeNull();
+  });
+
+  it('leaves the thread alone when the turn names other material or is material itself', () => {
+    const threadAttachments = [paste({})];
+    expect(
+      resolveWholeDocumentTurn({
+        ...followUp,
+        threadAttachments,
+        turnReferencesOtherMaterial: true,
+      })
+    ).toBeNull();
+    expect(
+      resolveWholeDocumentTurn({
+        ...followUp,
+        userText: `Vergleiche damit:\n${'Absatz. '.repeat(100)}`,
+        threadAttachments,
+      })
+    ).toBeNull();
+  });
+});
+
+describe('picksOtherDocumentChat', () => {
+  // The web client echoes every id from `document_indexed` back in each later
+  // turn; its own paste must not count as „other material" (#5478).
+  it('does not count the thread attachments the client echoes back', () => {
+    expect(picksOtherDocumentChat(['doc-p'], ['doc-p', 'doc-old'])).toBe(false);
+    expect(picksOtherDocumentChat([], ['doc-p'])).toBe(false);
+  });
+
+  it('counts a document the turn picked beyond the thread attachments', () => {
+    expect(picksOtherDocumentChat(['doc-p', 'doc-picked'], ['doc-p'])).toBe(true);
   });
 });
 

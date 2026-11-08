@@ -115,6 +115,7 @@ import {
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
 import { partitionTurnRecipes } from './turnRecipes.js';
+import { picksOtherDocumentChat } from './wholeDocument.js';
 
 import type {
   ChatGraphInput,
@@ -1305,7 +1306,10 @@ export async function buildStreamContext({
     docAttachments,
     processedMeta,
     contextWindowTokens,
-    turnPicksDocumentChat: authorizedDocumentChatIds.length > 0,
+    turnPicksDocumentChat: picksOtherDocumentChat(
+      authorizedDocumentChatIds,
+      embeddedAttachmentDocIds
+    ),
     sse,
   });
 
