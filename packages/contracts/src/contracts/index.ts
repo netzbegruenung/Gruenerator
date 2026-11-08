@@ -79,6 +79,7 @@ export { userAgentsContract } from './userAgentsContract.js';
 export { userTextFormsContract } from './userTextFormsContract.js';
 export { recurringTasksContract } from './recurringTasksContract.js';
 export { briefingContract } from './briefingContract.js';
+export { pushContract } from './pushContract.js';
 export { userAgentsSharingContract } from './userAgentsSharingContract.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';

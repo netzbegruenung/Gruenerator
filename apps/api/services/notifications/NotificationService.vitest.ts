@@ -46,6 +46,8 @@ vi.mock('../../services/email/index.js', () => ({
   sendDocumentNotificationEmail: vi.fn(async () => {}),
 }));
 vi.mock('../user/ProfileService.js', () => ({ getProfileService: vi.fn() }));
+const deliverPush = vi.fn(async (_rows: Array<{ user_id: string }>) => {});
+vi.mock('../push/pushDelivery.js', () => ({ deliverPush }));
 const warn = vi.fn();
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ warn, info: vi.fn(), debug: vi.fn(), error: vi.fn() }),
@@ -74,6 +76,7 @@ const base = {
 };
 
 const insertedUsers = () => inserted.flat().map((r) => r.user_id);
+const pushed = () => deliverPush.mock.calls.flatMap(([rows]) => rows.map((r) => r.user_id));
 const emailed = () =>
   (sendNotificationEmail.mock.calls as unknown as [{ recipientEmail: string }][]).map(
     ([a]) => a.recipientEmail
@@ -141,5 +144,53 @@ describe('createNotificationsForUsers', () => {
   it('does nothing for an empty list', async () => {
     expect(await createNotificationsForUsers([], base)).toEqual([]);
     expect(db.select).not.toHaveBeenCalled();
+  });
+});
+
+describe('push channel', () => {
+  it('pushes an allowlisted type in one batch for the whole chunk', async () => {
+    recipients = [user('a'), user('b')];
+    await createNotificationsForUsers(['a', 'b'], base);
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+    expect(pushed()).toEqual(['a', 'b']);
+  });
+
+  it('never pushes into a muted project', async () => {
+    recipients = [user('a'), user('m', { muted: true })];
+    await createNotificationsForUsers(['a', 'm'], base);
+    expect(pushed()).toEqual(['a']);
+  });
+
+  it('keeps the system project free of mass pushes', async () => {
+    recipients = [user('a'), user('b')];
+    await createNotificationsForUsers(['a', 'b'], {
+      ...base,
+      channelOverride: { email: false, push: false },
+    });
+    expect(insertedUsers()).toEqual(['a', 'b']);
+    expect(deliverPush).not.toHaveBeenCalled();
+  });
+
+  it('does not push a type the user switched off in the bell', async () => {
+    // The web UI had no push column from 08/2026 on, so a stored push value
+    // is a preset default, not a decision — in_app off must silence push too.
+    recipients = [user('a', { stored: { in_app: false, email: false, push: true } })];
+    await createNotificationsForUsers(['a'], base);
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(deliverPush).not.toHaveBeenCalled();
+  });
+
+  it('respects a push-only switch-off from the app', async () => {
+    recipients = [user('a', { stored: { push: false } })];
+    await createNotificationsForUsers(['a'], base);
+    expect(insertedUsers()).toEqual(['a']);
+    expect(deliverPush).not.toHaveBeenCalled();
+  });
+
+  it('never pushes types outside the allowlist', async () => {
+    recipients = [user('a', { stored: { in_app: true, email: true, push: true } })];
+    await createNotificationsForUsers(['a'], { ...base, type: 'group_member_joined' });
+    expect(insertedUsers()).toEqual(['a']);
+    expect(deliverPush).not.toHaveBeenCalled();
   });
 });

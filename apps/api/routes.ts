@@ -102,6 +102,7 @@ import { mountPodcastsContractRouter } from './routes/podcasts/podcastsContractR
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { mountPushContractRouter } from './routes/push/pushContractRouter.js';
 import { mountRecurringTasksContractRouter } from './routes/recurringTasks/recurringTasksContractRouter.js';
 import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -918,6 +919,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/briefing', requireAuth, standardMutationLimiter);
   app.use('/api/dev/briefing', requireAuth);
   mountBriefingContractRouter(app);
+  // App push devices — registration is rare (opt-in, token change, weekly heartbeat).
+  app.use('/api/push', requireAuth, standardMutationLimiter);
+  mountPushContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
   // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is

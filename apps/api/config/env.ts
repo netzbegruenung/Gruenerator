@@ -377,6 +377,15 @@ const envSchema = z.object({
   BREVO_API_KEY: z.string().trim().optional(),
   EMAIL_FROM: z.string().trim().optional(),
 
+  // ── App push (direct to APNs / FCM, never via Expo) ────────────────────
+  // Both secrets are base64 so they fit on one env line (a PEM and a JSON
+  // with embedded newlines do not survive every env-file parser). A missing
+  // set switches that platform off; the other keeps working.
+  APNS_KEY_P8_BASE64: z.string().trim().optional(),
+  APNS_KEY_ID: z.string().trim().optional(),
+  APNS_TEAM_ID: z.string().trim().optional(),
+  FCM_SERVICE_ACCOUNT_JSON_BASE64: z.string().trim().optional(),
+
   // ── Credential encryption ──────────────────────────────────────────────
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
 
