@@ -66,9 +66,10 @@ export function resetGeneratorControl(): void {
   generatorControl.calls.length = 0;
 }
 
+// The subtypes the real generators store (canvasDeckGeneration, createSheet).
 const SUBTYPE_BY_KIND: Readonly<Record<'presentation' | 'sheet' | 'document', string>> = {
-  presentation: 'presentation',
-  sheet: 'sheet',
+  presentation: 'canvas',
+  sheet: 'sheets',
   document: 'text',
 };
 
