@@ -82,8 +82,8 @@ describe('seedAttachedPages', () => {
     expect(crawl).toHaveBeenCalledTimes(1);
   });
 
-  it('lässt mitgeführte Seiten liegen, wenn der Text selbst eine Adresse nennt', async () => {
-    const { delivered } = await run(
+  it('liest die getippte Adresse statt der mitgeführten Seiten (#5456)', async () => {
+    await run(
       stateWith({
         attachedWebpageUrls: [],
         carriedWebpageUrls: [PAGE],
@@ -91,8 +91,9 @@ describe('seedAttachedPages', () => {
       })
     );
 
-    expect(delivered).toBe(false);
-    expect(crawl).not.toHaveBeenCalled();
+    const crawled = JSON.stringify(crawl.mock.calls);
+    expect(crawled).toContain('https://example.com/neu');
+    expect(crawled).not.toContain(PAGE);
   });
 
   it('geht nicht ins Netz, wenn scrape_url nicht montiert ist', async () => {

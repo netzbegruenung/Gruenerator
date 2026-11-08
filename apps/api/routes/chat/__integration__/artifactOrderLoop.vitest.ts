@@ -56,6 +56,25 @@ vi.mock('../services/intentHandlers/sharepic.js', async (orig) => {
     },
   };
 });
+// The page read itself (URL check, crawl) is not under test: the turn must
+// read the typed address before the answer.
+const pageReads = vi.hoisted(() => [] as string[][]);
+vi.mock('../agents/namedPages.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
+  readNamedPages: async (urls: string[]) => {
+    pageReads.push(urls);
+    return {
+      validated: urls,
+      rejected: [],
+      results: urls.map((url) => ({
+        source: 'web',
+        url,
+        title: 'Radwege-Beschluss',
+        content: 'Der Stadtrat beschließt 12 km neue Radwege bis 2027.',
+      })),
+    };
+  },
+}));
 vi.mock('../../../database/services/PostgresService.js', async () => ({
   getPostgresInstance: () => ({
     query: (sql: string) => {
@@ -185,6 +204,7 @@ beforeEach(() => {
   searchBackend.reset();
   sheetEdits.length = 0;
   sharepicCalls.length = 0;
+  pageReads.length = 0;
 });
 
 /**
@@ -494,5 +514,18 @@ describe('@verlauf runs in the loop', () => {
           JSON.stringify(first.firstStepActiveTools) === JSON.stringify(['search_threads'])),
       `toolChoice=${JSON.stringify(first?.toolChoice)} active=${JSON.stringify(first?.firstStepActiveTools)}`
     ).toBe(true);
+  });
+});
+
+describe('prose with a typed address runs in the loop', () => {
+  it('„Schreib einen Tweet zu <url>" reads the page before the answer', async () => {
+    loopScript.script({ text: 'Zwölf Kilometer neue Radwege bis 2027!' });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn('Schreib einen Tweet zu https://example.org/radwege-beschluss')],
+    });
+
+    expect(trace.agentic, `intent=${trace.intent}`).toBe(true);
+    expect(pageReads.flat()).toContain('https://example.org/radwege-beschluss');
+    expect(loopScript.calls[0]?.messagesJson).toContain('12 km neue Radwege');
   });
 });
