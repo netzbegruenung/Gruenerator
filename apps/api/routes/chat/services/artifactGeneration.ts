@@ -428,9 +428,16 @@ export async function runBoardGeneration(opts: {
 }
 
 /** presentation/sheet subtypes route the sticky pointer to their own kind. */
-export function documentContextKind(subtype: string): 'presentation' | 'sheet' | 'document' {
+export function documentContextKind(
+  subtype: string
+): 'presentation' | 'sheet' | 'pdf' | 'explainable' | 'document' {
   if (subtype.startsWith('presentation')) return 'presentation';
   if (subtype.startsWith('sheet')) return 'sheet';
+  // 'pdf' and 'explainable' before the 'document' default: their ref is an
+  // asset file name or an explainable id, not a collaborative-document UUID,
+  // so no doc-edit gate may dereference it.
+  if (subtype.startsWith('pdf')) return 'pdf';
+  if (subtype === 'explainable') return 'explainable';
   return 'document';
 }
 

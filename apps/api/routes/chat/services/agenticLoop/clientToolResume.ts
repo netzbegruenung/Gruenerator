@@ -124,6 +124,9 @@ export async function runClientToolLoopResume(params: {
     });
 
     const mergedText = [stored.partialText, outcome.fullText].filter((t) => t.trim()).join('\n\n');
+    // Die Versätze zeigen in die Fortsetzung, nicht in die zusammengeführte Blase
+    // (#5442) — wie in loopResumeEnd fallen lassen, dann lädt sie karten-zuerst.
+    if (stored.partialText.trim()) for (const step of outcome.steps) delete step.textOffset;
 
     // Die Fortsetzung pausiert selbst wieder. Der alte Zustand ist verbraucht —
     // löschen, die neue Pause schreibt ihren eigenen.

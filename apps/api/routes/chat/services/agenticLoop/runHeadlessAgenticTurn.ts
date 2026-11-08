@@ -209,7 +209,6 @@ export async function runHeadlessAgenticTurn(
           threadId: null,
           toolHistory: null,
           disableMcp: true,
-          headless: true,
           ...(searchToolKeys ? { searchToolKeys } : {}),
         });
         trace.update({ input: p.instruction, output: res.fullText });

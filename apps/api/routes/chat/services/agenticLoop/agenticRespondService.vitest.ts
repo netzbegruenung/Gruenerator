@@ -251,14 +251,14 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
     expect(seen!.unifiedFallbacks).toHaveLength(1);
   });
 
-  it('gibt Mistral keine zusätzliche Ausweichstufe', async () => {
+  it('gibt Mistral Gemma :speed als eine Ausweichstufe', async () => {
     const { sse } = fakeSse();
     let seen: LoopEngineParams | null = null;
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
-    expect(seen!.unifiedFallbacks ?? []).toHaveLength(0);
+    expect(seen!.unifiedFallbacks).toHaveLength(1);
   });
 
   it('vermerkt im unified die Stufe, die wirklich stand — nicht immer die gewählte', async () => {

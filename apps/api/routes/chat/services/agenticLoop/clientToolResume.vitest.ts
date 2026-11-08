@@ -205,6 +205,24 @@ describe('runClientToolLoopResume', () => {
     expect(finishMock).not.toHaveBeenCalled();
   });
 
+  it('erneute Pause nach Vortext: Schrittversätze fallen weg (#5442)', async () => {
+    const again = { toolCallId: 'c2', toolName: 'check_sharepic', args: {} };
+    streamMock.mockResolvedValue({
+      fullText: 'Noch ein Blick.',
+      steps: [
+        { toolCallId: 'c1', toolName: 'check_sharepic', args: {}, result: {}, textOffset: 4 },
+      ],
+      citations: [],
+      sources: [],
+      modelName: 'm',
+      pendingClientTool: again,
+    });
+    await run({ image: IMAGE }).promise;
+
+    const params = suspendToolMock.mock.calls[0]?.[0] as { priorSteps: object[] };
+    expect(params.priorSteps[0]).not.toHaveProperty('textOffset');
+  });
+
   it('reicht eine entschiedene Freigabe an die neue Pause und ans Ende weiter', async () => {
     const resolvedPause = { pendingApproval: { approvalTurnId: 'a1', resolved: true } };
     storeMock.get.mockResolvedValue({ ...storedState(), resolvedPause });
