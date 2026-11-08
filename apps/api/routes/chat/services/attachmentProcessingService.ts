@@ -105,19 +105,126 @@ export function materialSectionHeading(
 }
 
 /**
+ * Die Wörter, aus denen eine getippte Zeile bestehen darf, die nur auf den
+ * eingefügten Text zeigt: Blick-Verben, Namen für den Text, Füllwörter. Bewusst
+ * eine geschlossene Liste — jedes Wort mit eigenem Inhalt („Termine", „kürze",
+ * „Stöglehner") macht die Zeile zu einer Aussage, und dann bleibt der Paste
+ * Material zu ihr (#5423).
+ */
+const PASTE_POINTER_WORDS = new Set([
+  // schauen, lesen
+  'schau',
+  'schaue',
+  'schaut',
+  'sieh',
+  'siehe',
+  'seht',
+  'lies',
+  'lest',
+  'guck',
+  'gucke',
+  'check',
+  'checke',
+  'beachte',
+  // der Text selbst
+  'file',
+  'datei',
+  'anhang',
+  'anlage',
+  'text',
+  'dokument',
+  'nachricht',
+  'auftrag',
+  'aufgabe',
+  'eingefügt',
+  'eingefügte',
+  'eingefügten',
+  'eingefügter',
+  'eingefügtes',
+  'folgend',
+  'folgende',
+  'folgenden',
+  'folgendes',
+  'unten',
+  'oben',
+  'hier',
+  'anbei',
+  // Füllwörter
+  'in',
+  'ins',
+  'im',
+  'an',
+  'auf',
+  'nach',
+  'da',
+  'darin',
+  'drin',
+  'rein',
+  'hinein',
+  'und',
+  'mal',
+  'bitte',
+  'doch',
+  'noch',
+  'nochmal',
+  'einmal',
+  'das',
+  'die',
+  'den',
+  'dem',
+  'der',
+  'des',
+  'mein',
+  'meine',
+  'meinen',
+  'meinem',
+  'meiner',
+  'dein',
+  'deine',
+  'ich',
+  'du',
+  'dir',
+]);
+
+/** Länger als das ist keine Zeile, die nur zeigt. */
+const PASTE_POINTER_MAX_CHARS = 60;
+
+/**
+ * Zeigt die getippte Zeile nur auf den eingefügten Text, ohne selbst etwas zu
+ * sagen („schau in das file:", „siehe Anhang", „hier mein Auftrag:")? Dann trägt
+ * sie nicht mehr als eine leere Eingabezeile, und der Paste ist die Nachricht.
+ */
+export function isPastePointer(typedText: string): boolean {
+  const text = typedText.trim();
+  if (text.length === 0 || text.length > PASTE_POINTER_MAX_CHARS) return false;
+  const words = text
+    .toLowerCase()
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+  return words.length > 0 && words.every((w) => PASTE_POINTER_WORDS.has(w));
+}
+
+/**
  * When the composer text is empty, the paste IS the prompt: return its decoded
  * text plus the attachment list without the paste files, so the caller can
  * promote the text into the user message instead of the untrusted-material
  * channel (whose hierarchy rule forbids executing instructions found there —
  * the model then answers "du hast mir keine Aufgabe gestellt", QA 08/2026).
- * Returns null when there is typed text (the paste stays reference material)
- * or no promotable paste.
+ *
+ * A typed line that only points at the paste ({@link isPastePointer}) counts as
+ * empty; it stays in front of the promoted text. Live 07.11.2026 (thread
+ * 68fbdea9): „schau in das file:" kept a pasted order as material, the model
+ * read „das file" as an earlier question, and the order never ran.
+ *
+ * Returns null when there is typed text of its own (the paste stays reference
+ * material) or no promotable paste.
  */
 export function extractPromotablePasteText(
   attachments: ProcessedAttachment[] | undefined,
   typedText: string
 ): { pasteText: string; remaining: ProcessedAttachment[] } | null {
-  if (!attachments?.length || typedText.trim().length > 0) return null;
+  const typed = typedText.trim();
+  if (!attachments?.length || (typed.length > 0 && !isPastePointer(typed))) return null;
   const pasteText = attachments
     .filter((a) => isPastedTextAttachment(a.name, a.type))
     .map((a) => Buffer.from(a.data, 'base64').toString('utf8').trim())
@@ -125,7 +232,7 @@ export function extractPromotablePasteText(
     .join('\n\n');
   if (pasteText.length === 0) return null;
   return {
-    pasteText,
+    pasteText: typed.length > 0 ? `${typed}\n\n${pasteText}` : pasteText,
     remaining: attachments.filter((a) => !isPastedTextAttachment(a.name, a.type)),
   };
 }
