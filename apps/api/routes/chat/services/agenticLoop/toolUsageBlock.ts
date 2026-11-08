@@ -163,6 +163,9 @@ export function buildToolUsageBlock(
     ...(notebook && hasNotebookTool
       ? [
           `- DIESER CHAT ARBEITET MIT ${notebook.name ? `DEM NOTEBOOK „${notebook.name}"` : 'EINEM NOTEBOOK'} (notebookId: ${notebook.id}). Fragen zu seinen Inhalten — Positionen, Beschlüsse, Pressemitteilungen, „die neuesten Beiträge" — beantwortest du ZUERST mit notebook_quellen (find für Inhalte, list mit sortBy date für das Neueste). Die Websuche nur ergänzend oder für Themen, die nicht im Notebook stehen.`,
+          // Live 08.11.2026 (Phase-7-Messung): auf „Förderung beim Heizungstausch
+          // und Wärmepumpen" kam ein Hilfe-Menü statt des Notebook-Inhalts.
+          '- Ein bloßes Thema oder Stichwort ist in diesem Chat eine Frage an das Notebook: fasse zusammen, was die Quellen dazu sagen. Kein Hilfe-Menü, keine Begrüßung, keine Rückfrage, was die Person damit vorhat.',
         ]
       : []),
     // Search rules, gated on the mounted toolset. A turn without a search tool

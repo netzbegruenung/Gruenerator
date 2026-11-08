@@ -205,12 +205,10 @@ describe('decideTurnPlan — die Lane kommt aus der Registry', () => {
     expect(p.lane).toBe('produktion');
   });
 
-  it('single-pass: die Recherche-Familie, solange sie eigene Executoren hat', () => {
-    // Das benannte Restproblem — diese Lane verschwindet mit der
-    // Recherche-Konsolidierung, nicht vorher.
+  it('loop: eine Recherche mit gewähltem Notebook (Phase 7, 08.11.2026)', () => {
     const p = plan({ intent: 'search', hasSelectedNotebook: true });
-    expect(p.runAgentic).toBe(false);
-    expect(p.lane).toBe('single-pass');
+    expect(p.runAgentic).toBe(true);
+    expect(p.lane).toBe('loop');
   });
 });
 
@@ -286,8 +284,8 @@ describe('decideTurnPlan — die Kippfälle', () => {
     expect(p.compoundGenerationOrdered).toBe(true);
   });
 
-  it('ein gewähltes Notebook hält den Turn einzeln — nur searchNode liest Notebooks', () => {
-    expect(plan({ intent: 'search', hasSelectedNotebook: true }).runAgentic).toBe(false);
+  it('ein gewähltes Notebook hält den Turn nicht mehr einzeln — der Loop liest es vorab', () => {
+    expect(plan({ intent: 'search', hasSelectedNotebook: true }).runAgentic).toBe(true);
   });
 
   it('modify_board ohne benanntes und ohne offenes Board wird zu agentic demotiert', () => {
@@ -424,14 +422,14 @@ describe('decideTurnPlan — Anlegeauftrag für die Agentura (#3679)', () => {
     const p = plan({ ...order, hasSelectedNotebook: true });
     expect(p.runAgentic).toBe(true);
     expect(p.intent).toBe('agentic');
-    // Ohne den Auftrag hält die Notebook-Sperre denselben Turn draußen.
+    // Ohne den Auftrag ebenso: ein gewähltes Notebook sperrt seit Phase 7 nicht mehr.
     const plain = plan({ ...order, agenturaCreateOrder: false, hasSelectedNotebook: true });
-    expect(plain.runAgentic).toBe(false);
+    expect(plain.runAgentic).toBe(true);
   });
 
   it('wirkt nur auf einen `agentic`-Vorschlag', () => {
     const p = plan({ ...order, intent: 'search', hasSelectedNotebook: true });
-    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('search');
   });
 
   it('ein Verbund-Agent sperrt ihn trotzdem aus', () => {
@@ -569,7 +567,6 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
   // Gates sitzen und einzeln wegbrechen können.
   const killSwitches: [string, Partial<TurnPlanInput>][] = [
     ['ausgeschaltete Schleife', { loopEnabled: false }],
-    ['gewählte Wissenssammlung', { hasSelectedNotebook: true }],
     ['Verbund-Turn', { isCompound: true }],
     // Seit #3841 nur noch mit einer Frage, die das Bild allein beantwortet.
     ['Bildanhang', { hasImageAttachments: true, lastUserText: 'Was siehst du auf dem Bild?' }],
@@ -649,17 +646,13 @@ describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad', () => {
     expect(p.intent).toBe(intent);
   });
 
-  // `forcedLoop` hebt nur den forcedTool-Notausschalter auf, nicht die
-  // Notebook-Sperre: eine Frage an ein gewähltes Notebook bleibt auf dessen
-  // RAG-Pfad. In die Schleife kommt ein Notebook-Turn nur als Werkzeugauftrag
-  // (Pin `notebook_quellen` auf `agentic`, siehe unten).
+  // Seit Phase 7 (08.11.2026) liest der Loop ein gewähltes Notebook selbst.
   it.each([
     ['search', 'gruenerator_search'],
     ['research', 'web_search'],
-  ] as const)('%s-Erwähnung mit gewähltem Notebook bleibt einzeln', (intent, pin) => {
+  ] as const)('%s-Erwähnung mit gewähltem Notebook läuft im Loop', (intent, pin) => {
     const p = plan({ intent, forcedTool: true, mentionPinnedTool: pin, hasSelectedNotebook: true });
-    expect(p.lane).toBe('single-pass');
-    expect(p.intent).toBe(intent);
+    expect(p.lane).toBe('loop');
   });
 
   it.each([
@@ -697,14 +690,13 @@ describe('decideTurnPlan — Notebook-Werkzeugauftrag', () => {
     expect(p.intent).toBe('agentic');
   });
 
-  it('eine gewöhnliche Notebook-Frage bleibt im Einzeldurchlauf', () => {
+  it('eine gewöhnliche Notebook-Frage läuft im Loop (Phase 7)', () => {
     const p = plan({
       intent: 'search',
       hasSelectedNotebook: true,
       lastUserText: 'Was steht im Notebook zur Wärmewende?',
     });
-    expect(p.runAgentic).toBe(false);
-    expect(p.intent).toBe('search');
+    expect(p.runAgentic).toBe(true);
   });
 
   // Darum pinnt der Klassifikator bei benannten Agenten nicht: `isCompound`

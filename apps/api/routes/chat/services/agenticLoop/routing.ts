@@ -1023,33 +1023,16 @@ export interface AgenticDecisionInput {
    */
   forcedLoop: boolean;
   /** Notebook gather pipeline — stays single-pass. Except a table turn
-   *  (`isTabularAnalysisTurn`), for the same reason as the notebook exception
-   *  on {@link hasSelectedNotebook}: the pipeline has no `tabelle_auswerten`
+   *  (`isTabularAnalysisTurn`): the pipeline has no `tabelle_auswerten`
    *  and answered from the excerpt, while the loop seeds the notebook itself
    *  and keeps the named agent's role (#5063). */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
-   *  Stays single-pass — but no longer because the loop CANNOT reach a user
-   *  notebook. That was the original reason: `gruenerator_search` takes
-   *  `collection` as a closed `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which
-   *  addresses SYSTEM collections by key and has no parameter for a USER
-   *  notebook. Since 09/2026 the `notebooks` tool has `search` (id + query, via
-   *  `runNotebookSearch`), so the capability now exists in the loop.
-   *  What has NOT been done is the measurement: `searchNode` owns the notebook
-   *  retrieval path with its own citation and rerank behaviour, and the
-   *  classifier's `gatherSources: ['notebook-search']` is still read by nobody
-   *  here, so a turn that entered the loop would be answered around the chosen
-   *  notebook unless the model happens to call `notebooks(search)` itself.
-   *  Flipping this flag is therefore a deliberate, measured change — not a
-   *  leftover. Do not remove it on the strength of the tool existing.
-   *  One measured exception: a table turn (`isTabularAnalysisTurn`). Single-pass
-   *  has no `tabelle_auswerten` and answered from the excerpt; the loop seeds the
-   *  notebook through the same fan-out `searchNode` uses (`seedAttachedDocuments`
-   *  with `includeNotebooks`), so the notebook is read without the model.
-   *  `isCompound` covered only the NAMED-agent half of this; the universal agent
-   *  reached the loop unguarded. Separate flag rather than a widened
-   *  `isCompound`, because that name means "gather-then-apply pipeline" and
-   *  drives topic extraction and a progress event that this does not. */
+   *  Since phase 7 (measured 08.11.2026, 30 cases, blind judge) such a turn runs
+   *  in the loop: `seedTurnMaterial` reads the notebook through the same fan-out
+   *  `searchNode` uses, before the model's first step. Loop vs single-pass:
+   *  9 wins, 6 ties, 7 losses; p50 14.0 s vs 33.7 s; 16.3 vs 11.6 citations per
+   *  answer; invented sources 1 vs 2. Kept as a decision input only. */
   hasSelectedNotebook: boolean;
   /** A generation secondaryIntent (search + image/chart/...): single-pass
    *  fan-out — entering the loop would silently drop the secondary. Exception:
@@ -1101,7 +1084,6 @@ export type SinglePassReason =
   | 'loop_disabled'
   | 'pinned_tool_without_loop'
   | 'compound'
-  | 'selected_notebook'
   | 'secondary_intent'
   | 'pixel_turn'
   | 'image_only_ask'
@@ -1141,7 +1123,6 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
     return 'pinned_tool_without_loop';
   }
   if (p.isCompound && !tabular) return 'compound';
-  if (p.hasSelectedNotebook && !p.mustLoop && !tabular) return 'selected_notebook';
   if (!(p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url'))) {
     return 'secondary_intent';
   }

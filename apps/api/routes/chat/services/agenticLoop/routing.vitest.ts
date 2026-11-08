@@ -196,14 +196,14 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'produktion', lastUserText: 'Nein, ab jetzt immer kürzer.' })).toBe(
       true
     );
-    // The kill-switches still win — the single-pass honesty note covers that case.
+    // A chosen notebook no longer holds it back (phase 7).
     expect(
       decide({
         intent: 'direct',
         lastUserText: 'Merk dir, dass ich für den KV Köln schreibe.',
         hasSelectedNotebook: true,
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('runs the loop for a whitelisted intent', () => {
@@ -314,9 +314,8 @@ describe('decideRunAgentic', () => {
     // Ohne Schleife bleibt es beim Einzeldurchlauf — anders als bei `mustLoop`,
     // wo es gar keinen gäbe.
     expect(decide({ ...forcedBundestag, loopEnabled: false })).toBe(false);
-    // Eine gewählte Wissenssammlung liest nur `searchNode`; `forcedLoop` darf
-    // sie nicht übergehen.
-    expect(decide({ ...forcedBundestag, hasSelectedNotebook: true })).toBe(false);
+    // Eine gewählte Wissenssammlung liest der Loop seit Phase 7 selbst.
+    expect(decide({ ...forcedBundestag, hasSelectedNotebook: true })).toBe(true);
   });
 
   it('multi-intent / notebook-compound stay single-pass', () => {
@@ -325,22 +324,18 @@ describe('decideRunAgentic', () => {
     expect(decide({ isCompound: true })).toBe(false);
   });
 
-  it('keeps a turn with a chosen notebook single-pass — on EVERY agent', () => {
-    // `searchNode` is the only place that retrieves notebook content; no loop
-    // tool can address a notebook (`gruenerator_search` takes `collection` from
-    // a closed ALL_COLLECTIONS enum). `isCompound` held back only the named
-    // agents, so on the universal one the chosen notebook was silently answered
-    // around — the classifier even sets `gatherSources: ['notebook-search']`
-    // there and nobody reads it.
-    expect(decide({ hasSelectedNotebook: true })).toBe(false);
-    expect(decide({ intent: 'agentic', hasSelectedNotebook: true })).toBe(false);
+  it('runs a turn with a chosen notebook in the loop — on EVERY agent (phase 7)', () => {
+    // Measured 08.11.2026: the loop seeds the notebook through the same fan-out
+    // `searchNode` uses; 9 wins, 6 ties, 7 losses, p50 14.0 s vs 33.7 s.
+    expect(decide({ hasSelectedNotebook: true })).toBe(true);
+    expect(decide({ intent: 'agentic', hasSelectedNotebook: true })).toBe(true);
     expect(
       decide({
         intent: 'direct',
         lastUserText: 'Was steht dazu im Notebook?',
         hasSelectedNotebook: true,
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('still lets an MCP turn with a notebook into the loop', () => {
@@ -407,8 +402,8 @@ describe('decideRunAgentic', () => {
     expect(
       decide({ ...ask, intent: 'search', isTabularAnalysisTurn: true, hasSelectedNotebook: true })
     ).toBe(true);
-    // Without the table the notebook still keeps the turn single-pass.
-    expect(decide({ ...ask, intent: 'search', hasSelectedNotebook: true })).toBe(false);
+    // Without the table the notebook turn runs in the loop too (phase 7).
+    expect(decide({ ...ask, intent: 'search', hasSelectedNotebook: true })).toBe(true);
     // A named agent with a notebook (compound) too: the pipeline has no
     // `tabelle_auswerten` either (#5063).
     expect(

@@ -372,16 +372,21 @@ const SCENARIOS: readonly LoopScenario[] = [
     streams: [],
     mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
   },
-  // Eine Frage an ein gewähltes Notebook bleibt auf dessen RAG-Pfad, auch mit
-  // Erwähnung: `forcedLoop` hebt die Notebook-Sperre nicht auf.
+  // Eine Frage an ein gewähltes Notebook läuft seit Phase 7 (08.11.2026) im
+  // Loop, auch mit Erwähnung: der Loop liest das Notebook vorab.
   {
-    id: 'mention-dokumente-notebook-einzeln',
+    id: 'mention-dokumente-notebook-loop',
     category: 'mention-lane',
-    note: 'Gemessen wird allein die LANE; die Sperre haengt an der Anwesenheit der Sammlung im Request. Die id muss eine echte Systemsammlung sein, sonst filtert `buildStreamContext` sie vor dem Entscheider weg.',
+    note: 'Gemessen wird allein die LANE. Die id muss eine echte Systemsammlung sein, sonst filtert `buildStreamContext` sie vor dem Entscheider weg.',
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['search'], notebookIds: ['gruenerator-notebook'] },
-    streams: [],
-    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+    streams: [
+      {
+        calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }],
+        text: GERMAN_ANSWER,
+      },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
   },
   {
     id: 'mention-umfragen-loop',
