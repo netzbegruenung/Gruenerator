@@ -101,7 +101,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
 function assemble(
   state: ChatGraphState,
   d: CatalogDeps,
-  opts: { threadId?: string | null; sse?: SSEWriter } = {}
+  opts: { threadId?: string | null; sse?: SSEWriter; resumedSteps?: PersistedStep[] } = {}
 ) {
   return assembleToolCatalog(
     {
@@ -109,6 +109,7 @@ function assemble(
       sourceRegistry: createSourceRegistry(),
       sse: opts.sse ?? fakeSse().sse,
       threadId: opts.threadId ?? null,
+      ...(opts.resumedSteps && { resumedSteps: opts.resumedSteps }),
     },
     d
   );
@@ -326,6 +327,36 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     );
     expect(assembled.tools.rezept_laden).toBeUndefined();
     expect(assembled.recipeRegistry.mentions).toEqual(['bundestagsrecherche']);
+  });
+
+  // #5479: nach einer ask_human-Rückfrage schrieb die Fortsetzung ohne das
+  // Rezept, das der pausierte Zug geladen hatte — „Lücke lassen" ergab dann
+  // „Wir prüfen derzeit …" statt eines Platzhalters.
+  it('lädt die Rezepte des pausierten Zuges bei der Fortsetzung wieder', async () => {
+    const step = (result: Record<string, unknown>): PersistedStep => ({
+      toolCallId: 'c1',
+      toolName: 'rezept_laden',
+      args: { rezept: 'buergermail' },
+      result,
+    });
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({
+        resolveRecipe: async ({ mention }) => ({
+          title: `Titel ${mention}`,
+          body: 'Rezeptrumpf',
+          source: 'system',
+        }),
+      } as Partial<CatalogDeps>),
+      {
+        resumedSteps: [
+          step({ rezept: 'buergermail', geladen: true }),
+          step({ rezept: 'presse', geladen: false, grund: 'abgelehnt' }),
+        ],
+      }
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['buergermail']);
+    expect(assembled.recipeRegistry.render()).toContain('Rezeptrumpf');
   });
 
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {

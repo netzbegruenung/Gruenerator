@@ -197,6 +197,9 @@ export async function assembleToolCatalog(
     /** Frühere Werkzeugschritte des Threads: eine Gruppe, die dort schon
      *  gebraucht wurde, bleibt offen (siehe `createToolScope`). */
     toolHistory?: ThreadToolHistory | null;
+    /** Die Schritte eines pausierten Zuges, den dieser fortsetzt (Rückfrage,
+     *  Freigabe): seine geladenen Rezepte gelten weiter. */
+    resumedSteps?: readonly PersistedStep[];
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
@@ -210,6 +213,7 @@ export async function assembleToolCatalog(
     toolAllowlist,
     threadId,
     toolHistory,
+    resumedSteps,
   } = params;
   const allowed = (name: string): boolean => !toolAllowlist || toolAllowlist.includes(name);
   const agentConfig = state.agentConfig;
@@ -350,6 +354,28 @@ export async function assembleToolCatalog(
       rolle: 'methode',
     });
     log.info(`[Rezept] Methode vorab geladen=${mention} (${outcome})`);
+  }
+
+  // Eine Fortsetzung (Rückfrage, Freigabe) ist ein frischer Zug mit leerer
+  // Registry; das `rezept_laden` des pausierten Zuges kommt nur als
+  // Schritt-Auszug zurück, ohne Rumpf. Ohne Neuladen schrieb die Fortsetzung
+  // ohne die Vorgaben — live 08.11.2026 nach „Lücke lassen" ein „Wir prüfen
+  // derzeit …" statt des Platzhalters, den das Rezept verlangt (#5479).
+  for (const step of resumedSteps ?? []) {
+    const mention = step.result['rezept'];
+    if (step.toolName !== 'rezept_laden' || step.result['geladen'] !== true) continue;
+    if (typeof mention !== 'string' || recipeRegistry.mentions.includes(mention)) continue;
+    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    if (!resolved) continue;
+    recipeRegistry.register({
+      mention,
+      title: resolved.title,
+      body: resolved.body,
+      source: resolved.source,
+      recommendedTools: recommendedToolsFor(mention, isMounted),
+      preloaded: true,
+    });
+    log.info(`[Rezept] aus dem pausierten Zug wieder geladen=${mention}`);
   }
 
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
