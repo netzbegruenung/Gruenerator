@@ -25,16 +25,17 @@ const { makeRechnenTool } = await import('./rechnenTool.js');
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
-function setup() {
-  const state = {} as ChatGraphState;
+type RunInput = { auftrag: string; text?: string; anhang?: string };
+
+function setup(state = {} as ChatGraphState) {
   const sent: { event: string; data: unknown }[] = [];
   const sse = {
     send: (event: string, data: unknown) => sent.push({ event, data }),
   } as unknown as SSEWriter;
   const t = makeRechnenTool({ state, sse }) as unknown as {
-    execute: (input: { auftrag: string; text?: string }, opts: unknown) => Promise<unknown>;
+    execute: (input: RunInput, opts: unknown) => Promise<unknown>;
   };
-  return { state, sent, run: (input: { auftrag: string; text?: string }) => t.execute(input, {}) };
+  return { state, sent, run: (input: RunInput) => t.execute(input, {}) };
 }
 
 const RESULT = {
@@ -69,6 +70,34 @@ describe('rechnen', () => {
     expect(calls).toEqual([
       ['Anfrage: "Zähle die Zeichen"\n\nText:\nMehr Radwege jetzt', 'Mehr Radwege jetzt'],
     ]);
+  });
+
+  // #5493: a paste is read by name, not copied into the call.
+  it('reads the newest attachment of that name instead of a copied text', async () => {
+    planAndCompute.mockResolvedValue({ result: RESULT, operation: 'text_metrics' });
+    const { run } = setup({
+      threadAttachments: [
+        { name: 'Eingefügter Text.txt', isImage: false, extractedText: 'alter Paste' },
+      ],
+      wholeDocument: { docs: [{ name: 'Eingefügter Text.txt', text: 'Termine 2027' }] },
+    } as unknown as ChatGraphState);
+
+    await run({ auftrag: 'Zähle die Termine', anhang: 'eingefügter text.txt' });
+
+    expect(calls).toEqual([
+      ['Anfrage: "Zähle die Termine"\n\nText:\nTermine 2027', 'Termine 2027'],
+    ]);
+  });
+
+  it('names the available attachments when the name does not match', async () => {
+    const { run } = setup({
+      threadAttachments: [{ name: 'Programm.pdf', isImage: false, extractedText: 'x' }],
+    } as unknown as ChatGraphState);
+
+    const out = (await run({ auftrag: 'Zähle', anhang: 'Liste.txt' })) as Record<string, unknown>;
+
+    expect(out.error).toMatch(/Verfügbar: Programm\.pdf/);
+    expect(calls).toEqual([]);
   });
 
   it('returns an error and no card when nothing is computable', async () => {
