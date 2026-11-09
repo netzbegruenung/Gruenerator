@@ -125,6 +125,7 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
         landesverband: answer(shelves.landesverband),
         neu: answer(shelves.neu),
         beliebt: answer(shelves.beliebt),
+        rezepte: [],
         gestalten: [],
       },
       curated: featured ? { feature: MARKETPLACE_FEATURES[0], item: featured } : null,
