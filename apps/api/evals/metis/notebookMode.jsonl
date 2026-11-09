@@ -38,3 +38,13 @@
 {"id": "ho-08", "text": "und was sagt das andere Dokument dazu?", "label": "chat", "history": [{"role": "user", "content": "Was sagt das Wahlprogramm zur Verkehrswende?", "answerMode": null}, {"role": "assistant", "content": "Das Programm setzt auf den Ausbau des ÖPNV, sichere Radwege und Tempo 30 in Wohngebieten …", "answerMode": "chat"}]}
 {"id": "ho-09", "text": "Welches Dokument ist das älteste?", "label": "praezision"}
 {"id": "ho-10", "text": "Was bedeutet Konnexität im Haushaltsantrag?", "label": "chat"}
+{"id": "h2-01", "text": "Welche Position hat das Programm zum Ehrenamt?", "label": "chat"}
+{"id": "h2-02", "text": "Wie viele PDFs sind im Notebook?", "label": "praezision"}
+{"id": "h2-03", "text": "Fasse das Positionspapier zur Wärmewende zusammen", "label": "chat"}
+{"id": "h2-04", "text": "Wie oft taucht 'Bürgerbeteiligung' im Leitantrag auf?", "label": "praezision"}
+{"id": "h2-05", "text": "Was kostet laut Haushalt die Sanierung des Hallenbads?", "label": "chat"}
+{"id": "h2-06", "text": "Lies mir Kapitel 2 des Wahlprogramms vor", "label": "praezision"}
+{"id": "h2-07", "text": "und das dritte?", "label": "praezision", "history": [{"role": "user", "content": "Liste alle Protokolle aus 2025 auf", "answerMode": null}, {"role": "assistant", "content": "1. Protokoll Januar 2025\n2. Protokoll März 2025\n3. Protokoll Juni 2025", "answerMode": "praezision"}]}
+{"id": "h2-08", "text": "was heißt das konkret für Eltern?", "label": "chat", "history": [{"role": "user", "content": "Was sagt der Leitantrag zur Kita-Finanzierung?", "answerMode": null}, {"role": "assistant", "content": "Der Leitantrag will die Elternbeiträge schrittweise abschaffen …", "answerMode": "chat"}]}
+{"id": "h2-09", "text": "Steht der Satz 'Klimaschutz ist Menschenschutz' genau so im Programm?", "label": "praezision"}
+{"id": "h2-10", "text": "Welche Argumente nennt der Antrag für mehr Radwege?", "label": "chat"}

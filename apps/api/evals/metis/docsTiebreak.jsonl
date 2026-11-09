@@ -38,3 +38,13 @@
 {"id": "ho-08", "text": "Wie würde die SPD darauf reagieren?", "label": "question"}
 {"id": "ho-09", "text": "nochmal, aber kürzer", "label": "edit"}
 {"id": "ho-10", "text": "Warum hast du das so geschrieben?", "label": "question"}
+{"id": "h2-01", "text": "Schreib den Schluss etwas hoffnungsvoller", "label": "edit"}
+{"id": "h2-02", "text": "Was meinst du, überzeugt das die Fraktion?", "label": "question"}
+{"id": "h2-03", "text": "Der Absatz über Fördermittel muss raus", "label": "edit"}
+{"id": "h2-04", "text": "Kannst du erklären, was eine Haushaltssperre ist?", "label": "question"}
+{"id": "h2-05", "text": "auf Leichte Sprache bitte", "label": "edit"}
+{"id": "h2-06", "text": "Fehlt hier ein wichtiges Gegenargument?", "label": "question"}
+{"id": "h2-07", "text": "Die Anrede passt nicht, wir duzen uns im OV", "label": "edit"}
+{"id": "h2-08", "text": "Wie lange liest man an dem Text ungefähr?", "label": "question"}
+{"id": "h2-09", "text": "too long, cut it down", "label": "edit"}
+{"id": "h2-10", "text": "Gibt es dazu schon einen Beschluss im Kreistag?", "label": "question"}

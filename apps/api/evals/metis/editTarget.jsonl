@@ -30,3 +30,11 @@
 {"id": "ho-06", "text": "Die Summe in Zeile 12 ist falsch", "artifacts": [{"kind": "presentation", "label": "Haushalt"}, {"kind": "sheet", "label": "Haushalt 2026"}], "label": "2"}
 {"id": "ho-07", "text": "Bitte nichts mehr ändern", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "keines"}
 {"id": "ho-08", "text": "Mach den Hintergrund dunkler", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}
+{"id": "h2-01", "text": "Setz das Zitat auf der Grafik in Anführungszeichen", "artifacts": [{"kind": "document", "label": "Antrag Tempo 30"}, {"kind": "sharepic", "label": "Tempo 30 vor Schulen"}], "label": "2"}
+{"id": "h2-02", "text": "Im Antrag fehlt noch die Begründung zur Lärmbelastung", "artifacts": [{"kind": "sharepic", "label": "Tempo 30 vor Schulen"}, {"kind": "document", "label": "Antrag Tempo 30"}], "label": "2"}
+{"id": "h2-03", "text": "Was ist eigentlich der Unterschied zwischen Antrag und Anfrage?", "artifacts": [{"kind": "sharepic", "label": "Tempo 30 vor Schulen"}, {"kind": "document", "label": "Antrag Tempo 30"}], "label": "keines"}
+{"id": "h2-04", "text": "Füg in der Tabelle eine Zeile für Oktober ein", "artifacts": [{"kind": "sheet", "label": "Spenden 2026"}, {"kind": "presentation", "label": "Jahresbericht"}], "label": "1"}
+{"id": "h2-05", "text": "Die zweite Folie ist zu voll", "artifacts": [{"kind": "document", "label": "Rede Jahresempfang"}, {"kind": "presentation", "label": "Jahresbericht"}], "label": "2"}
+{"id": "h2-06", "text": "Das Foto soll im Winter spielen", "artifacts": [{"kind": "image", "label": "Marktplatz Sommerfest"}, {"kind": "document", "label": "Antrag Tempo 30"}], "label": "1"}
+{"id": "h2-07", "text": "Danke, passt so", "artifacts": [{"kind": "sharepic", "label": "Tempo 30 vor Schulen"}, {"kind": "document", "label": "Antrag Tempo 30"}], "label": "keines"}
+{"id": "h2-08", "text": "Die Hintergrundfarbe der Grafik bitte dunkelgrün", "artifacts": [{"kind": "document", "label": "Antrag Tempo 30"}, {"kind": "sharepic", "label": "Tempo 30 vor Schulen"}], "label": "2"}
