@@ -354,11 +354,9 @@ export const INTERMEDIATE_LANES = {
    * als Ganzes gesund ist. Der Preis der MoE-Ablösung: sie antwortete
    * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
-   * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
-   * weist `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
-   * cortecsRequestPolicy.ts es bewusst nicht führt. Es denkt von sich aus
-   * nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne
-   * jeden Parameter), die Falle unten greift hier also nicht.
+   * KEIN Denk-Pin für dieses Modell: über Cortecs denkt es ohne Vorgabe nicht
+   * (Messreihe in openAiReasoningStream.ts), die Falle unten greift hier also
+   * nicht.
    *
    * MUSS MITKOMMEN, wenn diese Stufe je wieder ein DENKENDES Modell fährt: der
    * Client braucht dann einen erzwungenen `reasoning_effort: 'none'`

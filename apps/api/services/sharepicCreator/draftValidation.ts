@@ -25,6 +25,7 @@ import {
   nameInBrief,
   wordInBrief,
   briefWordsFor,
+  invertedNumbers,
   NUMBER,
   digits,
   spelledNumbers,
@@ -405,6 +406,18 @@ export function validateDraft(
       if (invented.length) {
         errors.push(
           `${where}wert ${invented.map((p) => `${p.wert} (${p.titel})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag, nichts umrechnen.`
+        );
+      }
+      // A figure keeps the meaning it has in the brief: „17 Unfälle“ at a hotspot is not „17 Unfälle weniger“.
+      // Title and text are separate clauses, so the title's „Mehr …“ does not reach the text's figure.
+      const turned = item.punkte.flatMap((p) =>
+        invertedNumbers([p.titel, p.text].filter(Boolean).join('. '), given).map(
+          (n) => `${n} (${p.titel})`
+        )
+      );
+      if (turned.length) {
+        errors.push(
+          `${where}${turned.join(', ')}: Die Richtung (weniger, mehr, gespart, gesunken, gestiegen, +/−) steht nicht beim Wert im Auftrag – eine Zahl behält ihre Bedeutung aus dem Auftrag, ohne erfundenes „weniger“ oder „mehr“.`
         );
       }
       // The whole of a share: named in the brief, or 100 for a percentage.
