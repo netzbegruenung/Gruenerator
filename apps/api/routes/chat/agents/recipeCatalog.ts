@@ -296,7 +296,11 @@ export function renderRecipeCatalog(
     '',
     'VERFÜGBARE REZEPTE (erprobte Vorgehen für bestimmte Aufgaben – Textsorten, Recherche-Methoden, Ideenfindung, Abläufe; die Beschreibung sagt, wann eins passt):',
     ...lines,
-    ...(opts.pinnedTitle ? [`Bereits aktiv: ${opts.pinnedTitle}.`] : []),
+    ...(opts.pinnedTitle
+      ? [
+          `Bereits aktiv: ${opts.pinnedTitle}. Verlangt die Aufgabe zusätzlich eine Recherche oder Prüfung, lade die passende Recherche-Methode dazu.`,
+        ]
+      : []),
     `Prüfe vor jeder Aufgabe, ob ein Rezept passt, und lade es mit \`rezept_laden\`, bevor du loslegst. Passen mehrere (etwa eine Textsorte und eine Recherche-Methode), lade bis zu ${opts.remaining} – je Aufruf eins. Passt keins, arbeite ohne Rezept.`,
   ].join('\n');
 }

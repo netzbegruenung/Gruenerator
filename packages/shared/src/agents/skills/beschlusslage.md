@@ -7,6 +7,7 @@ avatar: '📚'
 backgroundColor: '#316049'
 mention: 'beschlusslage'
 skillCategory: recherche
+rolle: methode
 instances: ['bgst', 'local']
 promptTemplate: 'Was sagt unsere Beschlusslage zu: '
 order: 20

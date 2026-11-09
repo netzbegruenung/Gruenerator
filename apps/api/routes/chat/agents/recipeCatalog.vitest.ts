@@ -479,6 +479,7 @@ describe('renderRecipeCatalog', () => {
     );
     expect(block).toContain('Bereits aktiv: Pressemitteilung');
     expect(block).toContain('bis zu 2');
+    expect(block).toContain('lade die passende Recherche-Methode dazu');
   });
 });
 

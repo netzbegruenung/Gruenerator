@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-wahlpruefsteine'
 title: 'Wahlprüfsteine'
-description: 'Beantwortet Fragenkataloge von Verbänden und Initiativen Frage für Frage, verankert in Programm und Beschlüssen. Nutzen, wenn Wahlprüfsteine eingehen und beantwortet werden sollen.'
+description: 'Beantwortet Fragenkataloge Frage für Frage aus Programm und Beschlüssen. Nutzen, wenn ein Fragenkatalog oder Fragebogen eines Verbands, einer Initiative oder Zeitung an die Partei geht, auch ohne Wort Wahlprüfstein.'
 iconKey: 'PiListChecks'
 avatar: '📋'
 backgroundColor: '#316049'

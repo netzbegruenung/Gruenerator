@@ -99,7 +99,7 @@ export const SKILLS = [
     identifier: 'gruenerator-wahlpruefsteine',
     title: 'Wahlprüfsteine',
     description:
-      'Beantwortet Fragenkataloge von Verbänden und Initiativen Frage für Frage, verankert in Programm und Beschlüssen. Nutzen, wenn Wahlprüfsteine eingehen und beantwortet werden sollen.',
+      'Beantwortet Fragenkataloge Frage für Frage aus Programm und Beschlüssen. Nutzen, wenn ein Fragenkatalog oder Fragebogen eines Verbands, einer Initiative oder Zeitung an die Partei geht, auch ohne Wort Wahlprüfstein.',
     iconKey: 'PiListChecks',
     avatar: '📋',
     backgroundColor: '#316049',
@@ -144,6 +144,7 @@ export const SKILLS = [
     mention: 'beschlusslage',
     skillCategory: 'recherche',
     promptTemplate: 'Was sagt unsere Beschlusslage zu: ',
+    rolle: 'methode',
     instances: ['bgst', 'local'],
   },
   {
@@ -189,7 +190,7 @@ export const SKILLS = [
     identifier: 'gruenerator-universal',
     title: 'Rechtsstand',
     description:
-      'Trennt, was rechtlich gilt, von dem, was verhandelt oder gefordert wird, mit Fundstelle. Nutzen, wenn der aktuelle Rechts- oder Verfahrensstand einer Regelung geklärt werden soll.',
+      'Trennt, was rechtlich gilt, von dem, was verhandelt oder gefordert wird, mit Fundstelle. Nutzen, wenn gefragt wird „was gilt aktuell bei X“, „was ist beschlossen, was wird noch verhandelt“ oder „ist das schon Gesetz“.',
     iconKey: 'PiScales',
     avatar: '⚖️',
     backgroundColor: '#316049',
