@@ -99,6 +99,10 @@ describe('makeLandtagTool', () => {
     for (const id of ids) expect(t.description).toContain(`'${id}'`);
     expect(t.description).toMatch(/Nur diese Parlamente/);
     expect(t.description).toMatch(/andere Landtage[^.]*web_search/);
+    // Die Grenze in die andere Richtung: ohne genanntes Land gehört die Frage dem Bundestag (live: „wie viele kleine Anfragen … letzte WP“ ging zu NRW).
+    expect(t.description).toMatch(/Ohne genanntes Land[^.]*Bundestag[^.]*bundestag/);
+    // Kein Beispielsatz in Frageform: „wie viele Anfragen“ zog Bundestag-Fragen hierher.
+    expect(t.description).not.toMatch(/wie viele/i);
   });
 
   it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
@@ -117,6 +121,35 @@ describe('makeLandtagTool', () => {
       wahlperiode: 19,
     });
     expect(findLandtag.mock.calls[1]![2]).toMatchObject({ wahlperiode: 19 });
+  });
+
+  it('füllt Zeitraum und Art aus dem Wortlaut nur im ersten Aufruf des Zuges (#5573)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
+    const tool = make('de-DE', 'Wie viele Schriftliche Anfragen hat Kapek 2026 gestellt?');
+    await exec(tool, { parlament: 'berlin', person: 'Antje Kapek' });
+    expect(findLandtag.mock.calls[0]![2]).toMatchObject({
+      typ: ['Anfrage'],
+      datumVon: '2026-01-01',
+    });
+    // Der Wiederholungsversuch entscheidet das Modell allein: ein Filter aus dem Wortlaut ließe sich sonst nie abwählen.
+    await exec(tool, { parlament: 'berlin', person: 'Antje Kapek' });
+    expect(findLandtag.mock.calls[1]![2]).toEqual({ person: 'Antje Kapek' });
+  });
+
+  it('lässt bei einer exakten Gesamtzahl keinen Raum, die Listenlänge als Anzahl zu nennen', async () => {
+    findLandtag.mockResolvedValue({
+      candidates: [candidate],
+      gesamt: 268,
+      notes: [],
+    });
+    const out = (await exec(make('de-DE', 'wie viele Anfragen hat Frau Kapek gestellt'), {
+      parlament: 'berlin',
+      person: 'Antje Kapek',
+    })) as { fuerSchreiber: string };
+    expect(out.fuerSchreiber).toMatch(/268/);
+    expect(out.fuerSchreiber).toMatch(/nie .* Listenlänge|nicht .* Länge der Liste/);
+    // Kein Zeitraum gesetzt: die Zahl gilt für alles, und das steht da.
+    expect(out.fuerSchreiber).toMatch(/Zeitraum/);
   });
 
   it('sagt Österreich ab, ohne zu suchen', async () => {

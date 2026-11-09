@@ -99,4 +99,16 @@ describe('landtageFor', () => {
     expect(landtageFor('de-DE').map((m) => m.id)).toEqual(['berlin', 'nrw']);
     expect(landtageFor(null).map((m) => m.id)).toEqual(['berlin', 'nrw']);
   });
+
+  it('kennt den Fragesteller nur in Berlin und meldet ihn sonst als nicht angewendet', () => {
+    expect(resolveFilters(be, { person: 'Antje Kapek' })).toMatchObject({
+      person: 'Antje Kapek',
+      notes: [],
+    });
+    for (const id of ['nrw', 'nationalrat'] as const) {
+      const r = resolveFilters(LANDTAGE[id], { person: 'Antje Kapek' });
+      expect(r.person).toBeNull();
+      expect(r.notes.join(' ')).toMatch(/Person/);
+    }
+  });
 });
