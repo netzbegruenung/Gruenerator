@@ -401,9 +401,10 @@ export function forcedFirstStepTools(input: {
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
   threadNotebook?: boolean;
-  /** Der Turn trägt Material: Anhang oder Einfügung, auch ein Ganzdokument,
-   *  das ganz im Prompt steht (dann ist `materialTools` leer). */
-  carriesMaterial?: boolean;
+  /** Der Turn bringt selbst Material mit (`turnCarriesMaterial`): Anhang oder
+   *  Einfügung dieser Nachricht — nicht Notebook-Scope, nicht der Paste eines
+   *  früheren Turns. */
+  turnMaterial?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -497,10 +498,25 @@ export function forcedFirstStepTools(input: {
   // (search, web, chat_history, bundestag …); dort griff der Planer unter
   // `required` zum Rezept statt zur Suche (#3880).
   const offersRecipe =
-    input.reason === 'named_intent' &&
-    (input.carriesMaterial === true || material.length > 0) &&
-    mounted.has('rezept_laden');
+    input.reason === 'named_intent' && input.turnMaterial === true && mounted.has('rezept_laden');
   return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
+}
+
+/**
+ * Bringt DIESER Turn Material mit (Anhang, Einfügung)? Zustand, kein Wort.
+ * Bewusst enger als `materialReaderTools`: das zählt auch `notebook_quellen`
+ * (jeder Notebook-Turn) und die Anhänge früherer Turns. Ein Ganzdokument zählt
+ * nur mit `origin: 'turn'` — `'thread'` ist der jüngste Paste des Gesprächs, den
+ * ein kurzer Folgeturn („Suche Beschlüsse zu Windkraft") ganz mitliest
+ * (`latestPasteOfThread`). `documentChatLabels` hält die vektorisierten
+ * Dokumente dieses Turns.
+ */
+export function turnCarriesMaterial(
+  state: Pick<ChatGraphState, 'wholeDocument' | 'documentChatLabels'>
+): boolean {
+  return (
+    state.wholeDocument?.origin === 'turn' || Object.keys(state.documentChatLabels ?? {}).length > 0
+  );
 }
 
 export interface FirstStepDecision {
@@ -635,9 +651,7 @@ export async function decideFirstStep(ctx: {
           materialTools: materialReaderTools(ctx.material).filter(isMounted),
           userText,
           threadNotebook: ctx.threadNotebook,
-          carriesMaterial:
-            materialReaderTools(ctx.material).length > 0 ||
-            (state.wholeDocument?.docs.length ?? 0) > 0,
+          turnMaterial: turnCarriesMaterial(state),
         })
       : null;
   if (firstToolName) {

@@ -9,6 +9,7 @@ import {
   forcedFirstStepTools,
   pinnedFirstTool,
   shouldForceFirstToolCall,
+  turnCarriesMaterial,
   type ForceReason,
 } from './forceFirstToolCall.js';
 
@@ -819,7 +820,7 @@ describe('forcedFirstStepTools', () => {
           reason: 'named_intent',
           intent: 'search',
           mounted: withRecipe,
-          carriesMaterial: true,
+          turnMaterial: true,
         })
       ).toEqual(['gruenerator_search', 'rezept_laden']);
     });
@@ -836,21 +837,54 @@ describe('forcedFirstStepTools', () => {
       }
     );
 
+    it('Notebook-gebundene Suche ohne Anhang: notebook_quellen ist kein Turn-Material', () => {
+      expect(
+        tools({
+          reason: 'named_intent',
+          intent: 'search',
+          mounted: [...withRecipe, 'notebook_quellen'],
+          materialTools: ['notebook_quellen'],
+          threadNotebook: true,
+        })
+      ).not.toContain('rezept_laden');
+    });
+
+    describe('turnCarriesMaterial', () => {
+      const whole = (origin: 'turn' | 'thread') => ({
+        origin,
+        ask: 'paste' as const,
+        docs: [{ name: 'p.txt', text: 'x', documentId: 'd1' }],
+        chars: 1,
+        budgetChars: 100,
+        fits: true,
+      });
+      it('Paste dieser Nachricht → ja', () => {
+        expect(turnCarriesMaterial({ wholeDocument: whole('turn') })).toBe(true);
+        expect(turnCarriesMaterial({ documentChatLabels: { d1: 'Anhang.pdf' } })).toBe(true);
+      });
+      it('kurzer Folgeturn, jüngster Paste des Threads (latestPasteOfThread) → nein', () => {
+        expect(turnCarriesMaterial({ wholeDocument: whole('thread') })).toBe(false);
+      });
+      it('nichts → nein', () => {
+        expect(turnCarriesMaterial({ wholeDocument: null, documentChatLabels: {} })).toBe(false);
+      });
+    });
+
     // Umgedreht gegenüber der Wortlisten-Fassung (dort: dabei, wenn der Text eine
     // Plattform nannte): hier gilt #3880, auch mit Material.
     it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
       '%s: bleibt draussen, die Suche gehört dem Planer (#3880)',
       (reason) => {
-        expect(tools({ reason, mounted: withRecipe, carriesMaterial: true })).not.toContain(
+        expect(tools({ reason, mounted: withRecipe, turnMaterial: true })).not.toContain(
           'rezept_laden'
         );
       }
     );
 
     it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
-      expect(
-        tools({ reason: 'named_intent', intent: 'search', carriesMaterial: true })
-      ).not.toContain('rezept_laden');
+      expect(tools({ reason: 'named_intent', intent: 'search', turnMaterial: true })).not.toContain(
+        'rezept_laden'
+      );
     });
 
     it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {
