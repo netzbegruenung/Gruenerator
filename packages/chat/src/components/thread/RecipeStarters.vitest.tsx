@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getAgentMentionables, setTextforms } from '../../lib/mentionables';
 import { onMentionRequest } from '../../lib/mentionRequest';
 import { useAgentStore } from '../../stores/chatStore';
+import { axe } from '../../test-utils';
 
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { RecipeStarters } from './RecipeStarters';
@@ -113,6 +114,19 @@ describe('RecipeStarters', () => {
     expect(requested).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'textform', identifier: 'row-7', mention: 'mein-stil' })
     );
+  });
+
+  it('names each starter by its visible title, the description is only a tooltip (WCAG 2.5.3)', async () => {
+    libraryOf();
+    const target = defaults().find((a) => a.description);
+    expect(target).toBeDefined();
+    const { container } = renderStarters();
+
+    const button = await screen.findByRole('button', { name: target!.title });
+    expect(button).toHaveAccessibleName(target!.title);
+    expect(button).not.toHaveAttribute('aria-label');
+    expect(button).toHaveAttribute('title', target!.description);
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('renders nothing when no recipe is available', async () => {
