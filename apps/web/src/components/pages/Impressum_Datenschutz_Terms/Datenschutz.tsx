@@ -52,13 +52,18 @@
  * `apps/mobile/services/errorReporting.ts`. Ebenso um den eigenen
  * Update-Server (`services/ota/`, `apps/mobile/app.config.js`); Apps bis 1.5.4
  * fragen noch bei Expo in den USA — offen in #3904.
+ *
+ * Am 09.11.2026 um die Push-Mitteilungen der App ergänzt (Opt-in, Zustellung
+ * direkt über APNs/FCM, Inhalt je Gerät verschlüsselt): was Apple und Google
+ * sehen, steht in `apps/api/services/push/` (Kopfkommentare der Sender und
+ * `pushCrypto.ts`), die Gerätezeile in `push_devices`.
  */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 4. November 2026</p>
+      <p>Stand: 9. November 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -355,13 +360,15 @@ const Datenschutz = () => {
         bzw. des Europäischen Wirtschaftsraums statt (insbesondere Deutschland, Frankreich,
         Finnland, Italien, Luxemburg, die Niederlande, Österreich, Polen und Schweden). Eine
         Übermittlung personenbezogener Daten in Drittländer außerhalb der EU/des EWR findet nicht
-        statt, mit einer Ausnahme: Ist der EU-Endpunkt von Black Forest Labs (api.eu.bfl.ai) nicht
+        statt, mit zwei Ausnahmen: Ist der EU-Endpunkt von Black Forest Labs (api.eu.bfl.ai) nicht
         erreichbar, senden wir Bildanfragen an dessen globalen Endpunkt (api.bfl.ai), der auch
         Rechenzentren in den USA nutzt. Das geschieht nur, solange der EU-Endpunkt gar nicht
-        antwortet. Sollte künftig ausnahmsweise eine Drittlandübermittlung erfolgen, geschieht dies
-        nur auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien
-        wie der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber
-        gesondert.
+        antwortet. Und schaltest Du in der GRÜNERATOR-App Push-Mitteilungen ein, stellen Apple bzw.
+        Google (USA) sie zu, mit verschlüsseltem Inhalt (siehe „Push-Mitteilungen der
+        GRÜNERATOR-App“). Sollte künftig ausnahmsweise eine Drittlandübermittlung erfolgen,
+        geschieht dies nur auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO) oder
+        geeigneter Garantien wie der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren
+        Dich hierüber gesondert.
       </p>
 
       <h2>Allgemeiner Hinweis zur Löschung von Daten</h2>
@@ -562,6 +569,39 @@ const Datenschutz = () => {
         Geräteverzeichnis wird daraus nicht angelegt, eine Weitergabe an Dritte findet nicht statt.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der schnellen
         Behebung von Fehlern und Sicherheitslücken).
+      </p>
+
+      <h3 id="push-mitteilungen">Push-Mitteilungen der GRÜNERATOR-App</h3>
+      <p>
+        Push-Mitteilungen sind in der GRÜNERATOR-App für iOS und Android ausgeschaltet. Erst wenn Du
+        sie unter „Einstellungen → Benachrichtigungen“ einschaltest, fragt die App nach der
+        Erlaubnis des Betriebssystems und meldet das Gerät bei uns an. Wir speichern dann ein
+        Geräte-Token des Zustelldienstes, die Plattform (iOS oder Android) und einen Schlüssel, den
+        Dein Gerät selbst erzeugt hat, verknüpft mit Deinem Konto und der Anmeldesitzung, mit der Du
+        die Mitteilungen eingeschaltet hast. Welche Arten von Mitteilungen Dich erreichen, legst Du
+        in denselben Einstellungen fest.
+      </p>
+      <p>
+        Zugestellt werden Push-Mitteilungen technisch zwingend über den Dienst des jeweiligen
+        Betriebssystemherstellers: bei iOS über den Apple Push Notification service (Apple Inc.,
+        USA), bei Android über Firebase Cloud Messaging (Google LLC, USA). Einen weiteren Vermittler
+        setzen wir nicht ein. Den Inhalt jeder Mitteilung (Titel, Text und Link) verschlüsseln wir
+        vor dem Versand mit dem Schlüssel Deines Geräts (AES-256-GCM); entschlüsseln kann ihn nur
+        Dein Gerät. Apple bzw. Google erhalten deshalb nur das Geräte-Token, den Zeitpunkt,
+        technische Zustellangaben (Priorität und Gültigkeitsdauer) und den verschlüsselten Inhalt,
+        bei iOS zusätzlich den gleichbleibenden Platzhaltertext „Neue Benachrichtigung“ und eine
+        Kennung zum Gruppieren, die für jedes Gerät anders gebildet wird. Erkennbar ist für sie
+        damit, dass und wann Dein Gerät eine Mitteilung der GRÜNERATOR-App erhält, nicht aber, was
+        darin steht oder von wem sie stammt.
+      </p>
+      <p>
+        Rechtsgrundlage ist Deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die Du jederzeit
+        widerrufen kannst, indem Du Push in der App wieder ausschaltest. Für die Übermittlung an
+        Apple und Google in die USA stützen wir uns auf den Angemessenheitsbeschluss der
+        EU-Kommission zum EU-US Data Privacy Framework (Art. 45 DSGVO), nach dem Apple Inc. und
+        Google LLC zertifiziert sind. Die Anmeldung des Geräts löschen wir, sobald Du Push
+        ausschaltest, Dich abmeldest, Deine Anmeldesitzung endet, Du Dein Konto löschst oder Apple
+        bzw. Google melden, dass das Geräte-Token nicht mehr gültig ist.
       </p>
 
       <h3>Qualitätssicherung der KI-Chat-Funktion (Langfuse)</h3>
