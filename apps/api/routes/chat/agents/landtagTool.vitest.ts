@@ -9,6 +9,7 @@ import {
   makeLandtagTool,
   makeNationalratTool,
   landtagDeadlineMs,
+  NOTEBOOK_GRACE_MS,
 } from './landtagTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -141,6 +142,34 @@ describe('makeLandtagTool', () => {
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('NRW · Plenarprotokoll · Haushaltsgesetz 2027');
     expect(out.hinweis).toMatch(/direkt zitierbar/);
+  });
+
+  it('NRW: das Notebook ist die Quelle und behält die ganze Restzeit', async () => {
+    vi.useFakeTimers();
+    try {
+      directSearch.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  collection: 'landtag-nrw',
+                  results: [{ source: 'Haushalt, 1. Lesung', url: null, excerpt: 'Text' }],
+                }),
+              30_000
+            )
+          )
+      );
+      const pending = exec(make('de-DE', 'Was wurde zum Haushalt gesagt?'), {
+        parlament: 'nrw',
+        typ: ['Plenarprotokoll'],
+      });
+      await vi.advanceTimersByTimeAsync(30_001);
+      const out = (await pending) as { resultCount: number };
+      expect(out.resultCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fragt bei gemischter Art die Liste ohne Protokolle und sagt es', async () => {
@@ -291,27 +320,55 @@ describe('makeLandtagTool', () => {
       expect(out.hinweis).toMatch(/Auszug/);
     });
 
-    it('lässt ein hängendes Notebook die fertige Live-Liste nicht verschlucken und bricht an der Frist ab (#5559)', async () => {
+    it('lässt ein hängendes Notebook die fertige Live-Liste nur kurz aufhalten (#5559)', async () => {
       vi.useFakeTimers();
       try {
-        findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+        // Die Liste liegt nach 1 s vor, das Notebook hängt.
+        findLandtag.mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ candidates: [candidate], gesamt: 1, notes: [] }), 1_000)
+            )
+        );
         directSearch.mockReturnValue(new Promise(() => {}));
-        const pending = exec(make('de-DE', frage), { parlament: 'berlin', query: 'Kiezblock' });
-        const fristMs = landtagDeadlineMs('landtag');
-        // Das Notebook bekommt die Restzeit, keinen kleineren Anteil: bis kurz vor der Frist ist noch nichts da ...
-        await vi.advanceTimersByTimeAsync(fristMs - 1_000);
         let fertig = false;
+        const pending = exec(make('de-DE', frage), { parlament: 'berlin', query: 'Kiezblock' });
         void pending.then(() => (fertig = true));
-        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(1_000 + NOTEBOOK_GRACE_MS - 1);
         expect(fertig).toBe(false);
-        // ... und an der Frist kommt die Live-Liste, vor der Werkzeugfrist des Loops.
-        await vi.advanceTimersByTimeAsync(1_001);
+        await vi.advanceTimersByTimeAsync(2);
         const out = (await pending) as { resultCount: number; error?: string };
         expect(out.error).toBeUndefined();
         expect(out.resultCount).toBe(1);
-        expect(fristMs).toBeLessThan(TOOL_TIMEOUT_OVERRIDES_MS['landtag']!);
-        const deadline = findLandtag.mock.calls[0]![3] as { signal: AbortSignal };
-        expect(deadline.signal.aborted).toBe(true);
+        expect(1_000 + NOTEBOOK_GRACE_MS).toBeLessThan(landtagDeadlineMs('landtag'));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('wartet auf das Notebook die Restzeit ab, wenn die Live-Seite ausfällt', async () => {
+      vi.useFakeTimers();
+      try {
+        ausfall = true;
+        directSearch.mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () =>
+                  resolve(
+                    notebook([
+                      { source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Text' },
+                    ])
+                  ),
+                20_000
+              )
+            )
+        );
+        const pending = exec(make('de-DE', frage), { parlament: 'berlin' });
+        await vi.advanceTimersByTimeAsync(20_001);
+        const out = (await pending) as { resultCount: number; error?: string };
+        expect(out.error).toBeUndefined();
+        expect(out.resultCount).toBe(1);
       } finally {
         vi.useRealTimers();
       }

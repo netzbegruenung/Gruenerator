@@ -155,6 +155,14 @@ const NOTEBOOK_SEARCH_MODE = 'vector';
 export const ANSWER_MARGIN_MS = 4_000;
 
 /** Die Frist eines Aufrufs: Werkzeugfrist des Loops (`landtag` hat einen Eintrag, `nationalrat` die Standardfrist) minus Rand. */
+/**
+ * Wie lange die Notebook-Textstellen nach der fertigen Live-Liste noch warten dürfen, wo das
+ * Notebook nur Zugabe ist (`liveApi`): die Liste lag live nach ~1 s vor, das hängende Notebook
+ * trieb den Aufruf von 29 s auf 57 s (09.11.2026). Ohne Live-Liste, oder wo das Notebook die
+ * Quelle ist (NRW, Protokolle), behält es die ganze Restzeit der Frist.
+ */
+export const NOTEBOOK_GRACE_MS = 3_000;
+
 export function landtagDeadlineMs(tool: 'landtag' | 'nationalrat'): number {
   const budget = TOOL_TIMEOUT_OVERRIDES_MS[tool] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs;
   return budget - ANSWER_MARGIN_MS;
@@ -290,22 +298,45 @@ async function runParlamentSucheMitFrist(
       ? 'Plenarprotokolle sind nicht in dieser Liste; dafür landtag mit typ Plenarprotokoll allein aufrufen.'
       : null;
 
-  const [found, passages] = await Promise.all([
-    (async () => {
-      try {
-        return await findLandtag(parlament, query ?? '', filters, deadline);
-      } catch (error: unknown) {
-        // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
-        // Der Grund gehört ins Log — die Absage allein sagt nicht, ob ein Schlüssel fehlt oder Qdrant weg ist.
-        log.warn(
-          `[landtag] ${parlament}: ${error instanceof Error ? error.message : String(error)}`
+  const foundPromise = (async () => {
+    try {
+      return await findLandtag(parlament, query ?? '', filters, deadline);
+    } catch (error: unknown) {
+      // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
+      // Der Grund gehört ins Log — die Absage allein sagt nicht, ob ein Schlüssel fehlt oder Qdrant weg ist.
+      log.warn(`[landtag] ${parlament}: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  })();
+  // Die ganze Frage, nicht die Stichwörter: das Notebook sucht semantisch.
+  const passagesPromise = notebookPassages(
+    meta.notebook,
+    userText || (query ?? ''),
+    filters,
+    deadline
+  );
+  const found = await foundPromise;
+  let passages: NotebookPassage[];
+  if (found && meta.liveApi) {
+    // Die Liste steht: die Textstellen sind eine Zugabe und warten nur kurz.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    passages = await Promise.race([
+      passagesPromise,
+      new Promise<NotebookPassage[]>((resolve) => {
+        timer = setTimeout(
+          () => {
+            log.warn(
+              `[landtag] ${parlament}: Notebook nach ${NOTEBOOK_GRACE_MS} ms ohne Textstellen`
+            );
+            resolve([]);
+          },
+          Math.min(NOTEBOOK_GRACE_MS, deadline.remainingMs())
         );
-        return null;
-      }
-    })(),
-    // Die ganze Frage, nicht die Stichwörter: das Notebook sucht semantisch.
-    notebookPassages(meta.notebook, userText || (query ?? ''), filters, deadline),
-  ]);
+      }),
+    ]).finally(() => clearTimeout(timer));
+  } else {
+    passages = await passagesPromise;
+  }
   if (!found && passages.length === 0) {
     return {
       resultCount: 0,

@@ -35,6 +35,11 @@ export interface LandtagMeta {
   refPrefix: string;
   /** Wie das Parlament die Nummer zitiert („BE-Drs. 19/3519", „123 d.B. (XXVIII. GP)"). */
   nummer: (dokumentnummer: string) => string;
+  /**
+   * Gibt es eine Live-API für die Liste? Dann ist das Notebook daneben eine Zugabe
+   * (Textstellen) und wartet nach der Liste nur kurz; ohne Live-API ist es die Quelle.
+   */
+  liveApi: boolean;
   /** Startseite der Parlamentsdokumentation: Ziel der Karte, wenn ein Dokument kein PDF trägt. */
   portalUrl: string;
   /** Pflichtangabe der Lizenz; steht in jedem Werkzeugergebnis und auf der Karte. */
@@ -76,6 +81,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       const [wp, n = ''] = nr.split('/');
       return n.startsWith('S') ? `BE Schriftliche Anfrage ${wp}/${n.slice(1)}` : `BE-Drs. ${nr}`;
     },
+    liveApi: true,
     portalUrl: 'https://pardok.parlament-berlin.de/portala/',
     quellenangabe: 'Quelle: Abgeordnetenhaus Berlin, PARDOK, DL-DE BY 2.0',
     // Drucksachen führt das Notebook nur als Schriftliche Anfrage samt Antwort.
@@ -135,6 +141,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     refPrefix: 'NW',
     nummer: (nr) => `NRW-Drs. ${nr}`,
     // Die Trefferliste, die auch der Scraper liest: Drucksachen der laufenden Wahlperiode.
+    liveApi: false,
     portalUrl:
       'https://www.landtag.nrw.de/home/dokumente/dokumentensuche/parlamentsdokumente/parlamentsdatenbank-suchergebnis.html?wp=18&view=detail&dokart=DRUCKSACHE',
     quellenangabe: 'Quelle: Landtag Nordrhein-Westfalen, Parlamentsdatenbank',
@@ -190,6 +197,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     refPrefix: 'NR',
     // Die Liste trägt die Zitierform des Parlaments („123 d.B.", „1025/A(E)"); die GP steht im Ref.
     nummer: (nr) => nr,
+    liveApi: true,
     portalUrl: 'https://www.parlament.gv.at/recherchieren/gegenstaende/',
     quellenangabe: 'Quelle: Parlament Österreich, parlament.gv.at, CC BY 4.0',
     supports: {
