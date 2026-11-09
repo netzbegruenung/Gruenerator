@@ -21,7 +21,7 @@ import {
 import { type Deadline } from '../../../utils/deadline.js';
 import { LANDTAGE, type ResolvedLandtagFilter, resolveFilters } from '../registry.js';
 
-import { dedupeByRef, personFraktion, toCandidate } from './documents.js';
+import { dedupeByRef, personFraktion, personNames, toCandidate } from './documents.js';
 import { type PardokLister, type PardokParams } from './pardokLive.js';
 
 /** Höchstens so viele Kandidaten gehen an das Modell. */
@@ -64,6 +64,116 @@ function longest(words: readonly string[]): string | null {
   return [...words].sort((a, b) => b.length - a.length)[0] ?? null;
 }
 
+/** „Antje Kapek“ → „Kapek, Antje“; „Kapek, Antje“ bleibt; ein einzelnes Wort ist ein Nachname (`null`). */
+function pardokPersonName(raw: string): string | null {
+  const name = raw.trim().replace(/\s+/g, ' ');
+  if (name.includes(',')) return name.replace(/\s*,\s*/, ', ');
+  const words = name.split(' ');
+  if (words.length < 2) return null;
+  return `${words.at(-1)}, ${words.slice(0, -1).join(' ')}`;
+}
+
+/**
+ * Schriftliche Anfragen einer Person. PARDOK filtert den Fragesteller serverseitig, wenn
+ * `f.urheber` genau „Nachname, Vorname“ trägt (ohne Groß-/Kleinschreibung; ein Nachname allein,
+ * „Kapek*“ oder „Vorname Nachname“ liefern 0). Gemeinsam gestellte Anfragen zählen mit. Die
+ * Zahl ist damit vollständig, keine Stichprobe: anders als der Volltext, der Anfragen nur
+ * zählt, die den Namen irgendwo erwähnen (live: 25 „Anfragen“ waren die Seitenlänge, #5573).
+ * Ein bloßer Nachname wird an den neuesten Anfragen zum vollen Namen aufgelöst.
+ */
+async function findPerson(
+  f: ResolvedLandtagFilter,
+  person: string,
+  topicTerms: readonly string[],
+  pardok: PardokLister,
+  signal: AbortSignal | null,
+  notes: string[]
+): Promise<LandtagFindResult> {
+  const anfrageTypen = [...(LANDTAGE.berlin.typen.Anfrage ?? [])];
+  let name = pardokPersonName(person);
+  if (!name) {
+    const surname = person.trim().toLowerCase();
+    const found = new Set<string>();
+    let cursor: string | null = null;
+    let checked = 0;
+    for (let p = 0; p < ANFRAGE_SCAN_PAGES; p++) {
+      const pg = await pardok.list(
+        'drucksache',
+        {
+          ...baseParams(f),
+          'f.drucksachtyp': anfrageTypen[0] ?? 'Schriftliche Anfrage',
+          limit: SCAN_PAGE_SIZE,
+          ...(cursor ? { cursor } : {}),
+        },
+        signal
+      );
+      checked += pg.documents.length;
+      for (const r of pg.documents) {
+        for (const n of personNames(r)) {
+          if (n.split(',')[0]!.trim().toLowerCase() === surname) found.add(n);
+        }
+      }
+      cursor = pg.cursor;
+      if (!cursor || pg.documents.length === 0) break;
+    }
+    if (found.size !== 1) {
+      notes.push(
+        found.size === 0
+          ? `Der Nachname „${person}“ kommt in den neuesten ${checked} Schriftlichen Anfragen nicht vor; PARDOK sucht Fragesteller*innen nur mit vollem Namen („Nachname, Vorname“). Mit Vornamen erneut fragen.`
+          : `Der Nachname „${person}“ ist nicht eindeutig (${[...found].join('; ')}); mit Vornamen erneut fragen.`
+      );
+      return { candidates: [], gesamt: 0, notes };
+    }
+    name = [...found][0]!;
+    notes.push(
+      `Den Namen „${person}“ habe ich an den neuesten ${checked} Schriftlichen Anfragen zu „${name}“ aufgelöst.`
+    );
+  }
+
+  const combos: PardokParams[] =
+    f.typen.length > 0 ? f.typen.map((t) => ({ 'f.drucksachtyp': t })) : [{}];
+  const pages = await Promise.all(
+    combos.map((c) =>
+      pardok.list(
+        'drucksache',
+        {
+          ...baseParams(f),
+          ...c,
+          'f.urheber': name,
+          ...(topicTerms.length > 0 ? { 'f.titel': [...topicTerms] } : {}),
+          limit: MAX_CANDIDATES,
+        },
+        signal
+      )
+    )
+  );
+  const docs: BundestagCandidate[] = [];
+  let numFound = 0;
+  for (const pg of pages) {
+    numFound += pg.numFound;
+    for (const r of pg.documents) {
+      const c = toCandidate(r);
+      if (c) docs.push(c);
+    }
+  }
+  const candidates = dedupeByRef(docs)
+    .sort((a, b) => b.datum.localeCompare(a.datum))
+    .slice(0, MAX_CANDIDATES);
+  if (f.fraktionen.length > 0) {
+    notes.push('Die Fraktion wurde bei der Suche nach einer Person nicht zusätzlich angewendet.');
+  }
+  const zumThema =
+    topicTerms.length > 0
+      ? ` zum Thema ${topicTerms.map((t) => `„${t}“`).join(' / ')} (Titelsuche: trifft nur Titel, die das Wort enthalten, die Zahl ist eine Untergrenze)`
+      : '';
+  notes.push(
+    numFound > 0
+      ? `Laut PARDOK stehen ${numFound} Dokumente${zumThema} (mit den gesetzten Filtern) von „${name}“, auch gemeinsam mit anderen gestellte. Die Zahl ist vollständig, keine Stichprobe.`
+      : `Keine Dokumente${zumThema} von „${name}“ gefunden. PARDOK kennt Fragesteller*innen nur in der Schreibweise „Nachname, Vorname“; ein Tippfehler ergibt 0.`
+  );
+  return { candidates, gesamt: numFound, notes };
+}
+
 export async function findBerlin(
   args: { query: string; filters: LandtagFilter; deadline?: Deadline | null },
   pardok: PardokLister
@@ -74,6 +184,16 @@ export async function findBerlin(
   if (f.empty) return { candidates: [], gesamt: 0, notes, ausgeschlossen: f.empty };
 
   const keywords = keywordsFromQuestion(args.query);
+  if (f.person) {
+    // Das Thema bleibt: Person und Titel in einer Abfrage. Die Wörter des Namens selbst sind kein Thema
+    // (das Modell gibt den Namen oft zusätzlich als query).
+    const nameWords = new Set(f.person.toLowerCase().match(/[\p{L}\p{N}-]+/gu) ?? []);
+    const topicTerms = f.titel
+      ? [f.titel]
+      : keywords.filter((k) => !nameWords.has(k)).slice(0, MAX_TITLE_TERMS);
+    return findPerson(f, f.person, topicTerms, pardok, args.deadline?.signal ?? null, notes);
+  }
+
   const titleTerms = f.titel ? [f.titel] : keywords.slice(0, MAX_TITLE_TERMS);
   const hasCriterion =
     titleTerms.length > 0 ||

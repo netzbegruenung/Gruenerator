@@ -17,7 +17,7 @@ import {
 
 /** Filter, die ein Parlament serverseitig bedienen kann oder nicht. */
 export type LandtagFilterKey =
-  'wahlperiode' | 'typ' | 'fraktion' | 'datum' | 'titel' | 'schlagwort' | 'volltext';
+  'wahlperiode' | 'typ' | 'fraktion' | 'datum' | 'titel' | 'schlagwort' | 'volltext' | 'person';
 
 export interface LandtagMeta {
   id: LandtagParlament;
@@ -102,6 +102,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       // `f.deskriptor` gibt es nur an /vorgang und /aktivitaet, nicht an der Drucksachenliste.
       schlagwort: false,
       volltext: true,
+      person: true,
     },
     unsupportedHint: {
       schlagwort:
@@ -157,6 +158,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       // Die Schlagworte liegen in der Nutzlast, aber ohne Index.
       schlagwort: false,
       volltext: true,
+      person: false,
     },
     unsupportedHint: {
       schlagwort:
@@ -209,6 +211,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
       schlagwort: true,
       // Die Filter-API sucht nicht im Text; gesucht wird lokal in Betreff, Themen und Schlagworten.
       volltext: false,
+      person: false,
     },
     unsupportedHint: {
       volltext:
@@ -287,6 +290,8 @@ export interface ResolvedLandtagFilter {
   datumBis: string | null;
   titel: string | null;
   volltext: string | null;
+  /** Fragesteller*in einer Schriftlichen Anfrage (PARDOK: `f.urheber` als „Nachname, Vorname“). */
+  person: string | null;
   /** Hinweise an das Modell: nicht angewendete Filter, Wertelücken. */
   notes: string[];
   /** Gesetzt, wenn die Anfrage in diesem Parlament nichts finden KANN (z. B. Fraktion nicht vertreten). */
@@ -361,6 +366,7 @@ export function resolveFilters(meta: LandtagMeta, f: LandtagFilter): ResolvedLan
   if (f.titel && !meta.supports.titel) unsupported('titel', 'Titel');
   if (f.schlagwort && !meta.supports.schlagwort) unsupported('schlagwort', 'Schlagwort');
   if (f.volltext && !meta.supports.volltext) unsupported('volltext', 'Volltext');
+  if (f.person && !meta.supports.person) unsupported('person', 'Person');
 
   return {
     wahlperiode: meta.supports.wahlperiode ? (f.wahlperiode ?? null) : null,
@@ -372,6 +378,7 @@ export function resolveFilters(meta: LandtagMeta, f: LandtagFilter): ResolvedLan
     datumBis: meta.supports.datum ? (f.datumBis ?? null) : null,
     titel: meta.supports.titel ? (f.titel ?? null) : null,
     volltext: meta.supports.volltext ? (f.volltext ?? null) : null,
+    person: meta.supports.person ? (f.person ?? null) : null,
     notes,
     empty,
   };
