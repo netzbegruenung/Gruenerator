@@ -34,7 +34,7 @@ import {
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool } from '../../agents/recipeTools.js';
+import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
@@ -64,7 +64,12 @@ import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { toolResultBudget } from './toolResultBudgets.js';
-import { createToolScope, DEFERRABLE_GROUPS, type ToolScope } from './toolScope.js';
+import {
+  createToolScope,
+  DEFERRABLE_GROUPS,
+  METHOD_RECIPE_TOOL,
+  type ToolScope,
+} from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
@@ -398,7 +403,11 @@ export async function assembleToolCatalog(
   // verdrängt, und mit ihrer Rolle, damit eine Methode keine Textsorte wird.
   for (const step of resumedSteps ?? []) {
     const mention = step.result['rezept'];
-    if (step.toolName !== 'rezept_laden' || step.result['geladen'] !== true) continue;
+    if (
+      (step.toolName !== 'rezept_laden' && step.toolName !== METHOD_RECIPE_TOOL) ||
+      step.result['geladen'] !== true
+    )
+      continue;
     if (typeof mention !== 'string' || recipeRegistry.mentions.includes(mention)) continue;
     const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
     if (!resolved) continue;
@@ -462,6 +471,19 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
+      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
+      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
+      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
+      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
+      if (methodEntries(recipeCatalog).length > 0) {
+        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
+          isMounted,
+          catalog: recipeCatalog,
+          registry: recipeRegistry,
+          userId: userId ?? null,
+          only: 'methode',
+        });
+      }
     }
   }
 
@@ -594,6 +616,7 @@ export async function buildToolReplay(params: {
  */
 const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
   'rezept_laden',
+  METHOD_RECIPE_TOOL,
   'ask_human',
   ...DEFERRABLE_GROUPS.map((g) => g.loaderTool),
 ]);

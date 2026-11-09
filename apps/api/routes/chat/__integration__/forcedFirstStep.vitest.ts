@@ -353,6 +353,48 @@ const CASES: Case[] = [
   },
 ];
 
+// Recherche-Turns dürfen im erzwungenen Schritt eine Methode laden (Beschlusslage,
+// Rechtsstand, Bundestagsrecherche), nie eine Textsorte (#3880).
+describe('forced research step offers a method recipe', () => {
+  const pool = createProviderStub();
+  let app: Awaited<ReturnType<typeof startChatApp>>;
+  let restoreNetwork: (() => void) | null = null;
+
+  beforeAll(async () => {
+    restoreNetwork = installNetworkGuard();
+    app = await startChatApp();
+  }, 60_000);
+  afterAll(async () => {
+    await app?.close();
+    restoreNetwork?.();
+  });
+  beforeEach(() => {
+    pinChatEnv({ LOOP_TOOL_SCOPE_ENFORCE: 'false' });
+    resetThreadStore();
+    resetMockControls();
+    respond.reset();
+    pool.reset();
+    searchBackend.reset();
+    ctl.captured.length = 0;
+    ctl.priorSteps = [];
+    ctl.emptySeed = false;
+  });
+
+  it.each([
+    ['grundsatzprogramm', 'Was steht im Grundsatzprogramm der Grünen zum Tierschutz?'],
+    ['bundestag', 'Wie hat die Unionsfraktion im Bundestag über das Heizungsgesetz abgestimmt?'],
+  ])('%s: methode_laden steht im ersten Aufruf, rezept_laden nicht', async (_id, prompt) => {
+    await runTurn(app.baseUrl, { messages: [userTurn(prompt)] });
+    const planner = ctl.captured[0];
+    expect(planner).toBeDefined();
+    if (!planner) return;
+    const step0 = (planner.prepareStep as PrepareStep)({ stepNumber: 0, steps: [] });
+    expect(step0.toolChoice).toBe('required');
+    expect(step0.activeTools).toContain('methode_laden');
+    expect(step0.activeTools).not.toContain('rezept_laden');
+  });
+});
+
 interface Row {
   id: string;
   forced: string;
@@ -496,7 +538,15 @@ describe('forced first planner step', () => {
       const step0 = prepare({ stepNumber: 0, steps: [] });
       // Ohne Schattenbetrieb hätte master schon einen Zuschnitt gehabt — dann
       // verglichen die zwei Arme nicht mehr master gegen diesen Stand.
-      expect(prepare({ stepNumber: 1, steps: [] }).activeTools).toBeUndefined();
+      // Einzige Ausnahme: `methode_laden` gehört allein diesem Schritt und fehlt danach.
+      const later = prepare({ stepNumber: 1, steps: [] }).activeTools;
+      expect(later?.filter((t) => t === 'methode_laden') ?? []).toEqual([]);
+      expect(
+        later === undefined ||
+          Object.keys(planner.tools as object)
+            .filter((t) => t !== 'methode_laden')
+            .every((t) => later.includes(t))
+      ).toBe(true);
 
       expect(step0.toolChoice, `${c.id}: kein Zwang ohne benanntes Werkzeug`).toBe('required');
       const narrowed = step0.activeTools ?? [];

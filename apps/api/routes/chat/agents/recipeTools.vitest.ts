@@ -9,7 +9,7 @@ vi.mock('./recipeCatalog.js', () => ({
   resolveRecipe: (...a: unknown[]) => resolveRecipe(...a),
 }));
 
-const { makeRecipeTool } = await import('./recipeTools.js');
+const { makeRecipeTool, methodEntries } = await import('./recipeTools.js');
 
 const CATALOG: RecipeCatalogEntry[] = [
   {
@@ -276,5 +276,52 @@ describe('rezept_laden', () => {
     const schema = tool.inputSchema as unknown as { shape: { rezept: { options: string[] } } };
 
     expect(schema.shape.rezept.options).toEqual(['presse', 'instagram', 'reel']);
+  });
+});
+
+describe('methode_laden', () => {
+  const METHOD: RecipeCatalogEntry = {
+    key: 'rechtsstand',
+    mention: 'rechtsstand',
+    title: 'Rechtsstand',
+    description: 'Recherche',
+    source: 'system',
+    origin: 'system',
+    id: null,
+    ownerName: null,
+  };
+  const mixed = [...CATALOG, METHOD];
+
+  it('keeps only method recipes of the catalogue', () => {
+    expect(methodEntries(mixed).map((e) => e.key)).toEqual(['rechtsstand']);
+  });
+
+  it('keeps text forms out of research turns (#3880)', () => {
+    const t = makeRecipeTool({
+      catalog: mixed,
+      registry: createRecipeRegistry(),
+      userId: 'u1',
+      only: 'methode',
+    });
+    const schema = t.inputSchema as { safeParse: (v: unknown) => { success: boolean } };
+    expect(schema.safeParse({ rezept: 'rechtsstand' }).success).toBe(true);
+    expect(schema.safeParse({ rezept: 'presse' }).success).toBe(false);
+  });
+
+  it('loads a method into the shared registry with its role', async () => {
+    resolveRecipe.mockResolvedValue({
+      id: null,
+      mention: 'rechtsstand',
+      title: 'Rechtsstand',
+      body: 'Erst das Gesetz.',
+      source: 'system',
+    });
+    const registry = createRecipeRegistry();
+    const out = await call(
+      makeRecipeTool({ catalog: mixed, registry, userId: 'u1', only: 'methode' }),
+      'rechtsstand'
+    );
+    expect(out.geladen).toBe(true);
+    expect(registry.mentions).toEqual(['rechtsstand']);
   });
 });

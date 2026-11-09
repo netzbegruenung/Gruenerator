@@ -17,10 +17,24 @@ import {
   MAX_RECIPES_PER_TURN,
   type RecipeRegistry,
 } from '../services/agenticLoop/recipeRegistry.js';
+import { METHOD_RECIPE_TOOL } from '../services/agenticLoop/toolScope.js';
 
 import { recommendedToolsFor, resolveRecipe, type RecipeCatalogEntry } from './recipeCatalog.js';
 
 const log = createLogger('recipeTools');
+
+/**
+ * `methode_laden` (`METHOD_RECIPE_TOOL`): dieselbe Tür, aber der Enum nennt nur Methoden-Rezepte.
+ * Der erzwungene erste Schritt eines Recherche-Turns schneidet `activeTools`
+ * zu (#3880: `rezept_laden` liess den Planer dort eine Textsorte laden statt
+ * zu suchen), und ein AI-SDK-Schritt trägt kein eigenes Schema je Werkzeug —
+ * den engeren Enum gibt nur ein eigenes Werkzeug her. Es steht nur in diesem
+ * einen Schritt zur Wahl (`forcedFirstStepTools`, `toolScope`).
+ */
+/** Methoden-Rezepte des Katalogs: mitgelieferte Systemrezepte mit `rolle: methode`. */
+export function methodEntries(catalog: readonly RecipeCatalogEntry[]): RecipeCatalogEntry[] {
+  return catalog.filter((e) => e.origin === 'system' && skillRole(e.mention) === 'methode');
+}
 
 export function makeRecipeTool(params: {
   catalog: readonly RecipeCatalogEntry[];
@@ -36,13 +50,20 @@ export function makeRecipeTool(params: {
   preferLv?: (mention: string) => string | null;
   /** Ist dieses Werkzeug im Turn montiert? Filtert die Empfehlungen des Rezepts. */
   isMounted?: (tool: string) => boolean;
+  /** `methode`: das engere Werkzeug `methode_laden` — Enum nur über Methoden-Rezepte. */
+  only?: 'methode';
 }): Tool {
-  const { catalog, registry, userId, preferLv, isMounted } = params;
+  const { registry, userId, isMounted, only } = params;
+  const catalog = only === 'methode' ? methodEntries(params.catalog) : params.catalog;
+  // Der LV-Vorzug gilt Textsorten; eine Methode hat keine LV-Variante.
+  const preferLv = only === 'methode' ? undefined : params.preferLv;
   const keys = catalog.map((e) => e.key);
 
   return tool({
     description:
-      'Lädt ein Rezept aus VERFÜGBARE REZEPTE – das erprobte Vorgehen für eine Aufgabe (Textsorte, Recherche-Methode, Ideenfindung, Ablauf). NUTZE WENN die Beschreibung eines Rezepts zur aktuellen Aufgabe passt, und zwar bevor du schreibst oder recherchierst. Mehrere Rezepte sind möglich, je Aufruf eins.',
+      only === 'methode'
+        ? 'Lädt ein Methoden-Rezept aus VERFÜGBARE REZEPTE – das erprobte Vorgehen für eine Recherche (Beschlusslage, Rechtsstand, Bundestagsrecherche). NUTZE WENN die Beschreibung eines Rezepts zur Recherche-Aufgabe passt. Danach recherchierst du mit den Suchwerkzeugen weiter; das Rezept ersetzt die Suche nicht.'
+        : 'Lädt ein Rezept aus VERFÜGBARE REZEPTE – das erprobte Vorgehen für eine Aufgabe (Textsorte, Recherche-Methode, Ideenfindung, Ablauf). NUTZE WENN die Beschreibung eines Rezepts zur aktuellen Aufgabe passt, und zwar bevor du schreibst oder recherchierst. Mehrere Rezepte sind möglich, je Aufruf eins.',
     inputSchema: z.object({
       // Closed set — the model may only name a recipe that exists for this
       // user this turn. Runtime list, hence the tuple cast (cf. searchTools).

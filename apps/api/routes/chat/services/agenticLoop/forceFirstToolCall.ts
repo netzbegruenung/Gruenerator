@@ -31,7 +31,7 @@ import {
   looksLikeFactCheckOrder,
   reworksSuppliedText,
 } from './routing.js';
-import { DEFERRABLE_GROUPS } from './toolScope.js';
+import { DEFERRABLE_GROUPS, METHOD_RECIPE_TOOL } from './toolScope.js';
 import { type ForceScopeSummary } from './turnSummary.js';
 import { type PersistedStep } from './types.js';
 
@@ -54,6 +54,14 @@ export type ForceReason =
   | 'artifact_edit_order'
   | 'tabular_decision'
   | 'material_order';
+
+/** Gründe, aus denen der erzwungene Schritt eine Methode laden darf (`methode_laden`). */
+const METHOD_RESEARCH_REASONS: ReadonlySet<ForceReason> = new Set([
+  'research_order',
+  'demoted_retrieval',
+  'contradicted',
+  'named_intent',
+]);
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -499,7 +507,21 @@ export function forcedFirstStepTools(input: {
   // `required` zum Rezept statt zur Suche (#3880).
   const offersRecipe =
     input.reason === 'named_intent' && input.turnMaterial === true && mounted.has('rezept_laden');
-  return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
+  if (offersRecipe) return [...scoped, 'rezept_laden'];
+  // Recherche-Turns: nur eine METHODE, nie eine Textsorte (#3880). `methode_laden`
+  // ist montiert, wenn der Katalog dieses Turns eine Methode hat; der Enum kennt
+  // keine Textsorte, und die Rolle des Rezepts entscheidet, kein Wort. Ohne die
+  // Methode lief der erzwungene Schritt 0/9 Mal an Beschlusslage, Rechtsstand und
+  // Bundestagsrecherche vorbei. Nicht für Aufträge, die etwas ANDERES verlangen
+  // (Server-Scope, Sharepic, Bearbeitung, Tabelle, Material, Pin).
+  // Nur, wenn der Zuschnitt etwas Recherchierbares trägt: der Verlauf früherer
+  // Gespräche (`search_threads`) steht nicht in `RESEARCH_LOOP_TOOLS` und hat
+  // mit keiner Methode zu tun.
+  const offersMethod =
+    METHOD_RESEARCH_REASONS.has(input.reason) &&
+    scoped.some((t) => RESEARCH_LOOP_TOOLS.has(t)) &&
+    mounted.has(METHOD_RECIPE_TOOL);
+  return offersMethod ? [...scoped, METHOD_RECIPE_TOOL] : scoped;
 }
 
 /**

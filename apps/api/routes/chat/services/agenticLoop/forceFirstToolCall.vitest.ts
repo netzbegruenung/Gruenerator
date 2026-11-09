@@ -929,6 +929,66 @@ describe('forcedFirstStepTools', () => {
       ).not.toContain('rezept_laden');
     });
 
+    describe('methode_laden im Recherche-Schritt', () => {
+      const withMethod = [...MOUNTED, 'rezept_laden', 'methode_laden'];
+      it('offers only method recipes in a forced research step', () => {
+        // Das Werkzeug ist nur montiert, wenn der Katalog eine Methode trägt
+        // (`rechtsstand`); `presse` (Textsorte) ist nur über `rezept_laden` ladbar.
+        const offered = tools({
+          reason: 'demoted_retrieval',
+          intent: 'search',
+          mounted: withMethod,
+        });
+        expect(offered).toContain('methode_laden');
+        expect(offered).not.toContain('rezept_laden');
+      });
+      it.each(['research_order', 'demoted_retrieval', 'contradicted', 'named_intent'] as const)(
+        '%s: bietet die Methode an',
+        (reason) => {
+          expect(tools({ reason, intent: 'search', mounted: withMethod })).toContain(
+            'methode_laden'
+          );
+        }
+      );
+      it('offers no recipe in a forced research step when the catalogue has no method', () => {
+        const offered = tools({
+          reason: 'demoted_retrieval',
+          intent: 'search',
+          mounted: withRecipe,
+        });
+        expect(offered).not.toContain('methode_laden');
+        expect(offered).not.toContain('rezept_laden');
+      });
+      it('mcp_scope and edit orders offer no method', () => {
+        expect(tools({ reason: 'mcp_scope', mounted: withMethod })).not.toContain('methode_laden');
+        expect(
+          tools({ reason: 'sharepic_order', mounted: [...withMethod, 'edit_sharepic'] })
+        ).not.toContain('methode_laden');
+        expect(
+          tools({
+            reason: 'tabular_decision',
+            intent: 'search',
+            mounted: [...withMethod, 'tabelle_auswerten', 'direkt_antworten'],
+          })
+        ).not.toContain('methode_laden');
+      });
+      it('chat_history: der Verlauf braucht keine Methode', () => {
+        expect(
+          tools({ reason: 'named_intent', intent: 'chat_history', mounted: withMethod }) ?? []
+        ).not.toContain('methode_laden');
+      });
+      it('named_intent mit Material bleibt beim Textsorten-Angebot (rezept_laden deckt Methoden mit)', () => {
+        expect(
+          tools({
+            reason: 'named_intent',
+            intent: 'search',
+            mounted: withMethod,
+            turnMaterial: true,
+          })
+        ).toEqual(['gruenerator_search', 'rezept_laden']);
+      });
+    });
+
     it('macht aus einem leeren Zuschnitt keinen Rezept-Zwang', () => {
       expect(tools({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
       expect(

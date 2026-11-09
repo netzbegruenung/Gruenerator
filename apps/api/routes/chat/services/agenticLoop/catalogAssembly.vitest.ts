@@ -298,6 +298,21 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
 
   // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
   // bleibt offen, und das Modell muss sie selbst laden können.
+  it('montiert methode_laden nur, wenn der Katalog eine Methode trägt, und scoped es aus späteren Schritten', async () => {
+    const without = await assemble(fakeState(), withRecipes());
+    expect(without.tools.methode_laden).toBeUndefined();
+
+    const rechtsstand = { ...catalog[0]!, key: 'rechtsstand', mention: 'rechtsstand' };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [...catalog, rechtsstand] })
+    );
+    expect(assembled.tools.methode_laden).toBeDefined();
+    // Nur der erzwungene erste Schritt wählt es selbst; sonst fehlt es im Umfang.
+    expect(assembled.toolScope.activeTools([])).not.toContain('methode_laden');
+    expect(assembled.toolScope.activeTools([])).toContain('rezept_laden');
+  });
+
   it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {
     const assembled = await assemble(
       fakeState({ methodSkillMentions: ['bundestagsrecherche'] }),
