@@ -18,7 +18,19 @@ const OTA_MANIFEST_URL = 'https://ota.moritz-waechter.de/manifest';
 // App ID of the `Gruenerator` app in the xprem dashboard (App Info).
 const XPREM_APP_ID = '9af925be-1aa5-426b-98c2-855300438cb3';
 
-module.exports = ({ config }) => {
+/**
+ * FCM needs `google-services.json` in the Android build. It is an EAS file
+ * variable (`GOOGLE_SERVICES_JSON`), not a committed file: the repo is public
+ * and the file names the Firebase project. Without it the build still works,
+ * Android push is just unavailable.
+ */
+function withGoogleServices(config) {
+  const file = process.env.GOOGLE_SERVICES_JSON;
+  return file ? { ...config, android: { ...config.android, googleServicesFile: file } } : config;
+}
+
+module.exports = ({ config: base }) => {
+  const config = withGoogleServices(base);
   const channel = process.env.RELEASE_CHANNEL;
   if (!channel) {
     return { ...config, updates: { ...config.updates, enabled: false } };

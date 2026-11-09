@@ -45,7 +45,8 @@
     "expo-env.d.ts",
     "eslint.config.js",
     "jest.config.js",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "index.ts"
   ],
   "exclude": ["**/node_modules/**"]
 }
