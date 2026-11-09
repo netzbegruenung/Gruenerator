@@ -327,3 +327,33 @@ describe('createToolScope — enforced', () => {
     );
   });
 });
+
+describe('createToolScope — das Ergebnis des Laders', () => {
+  // Der Lader-Text stand von Hand neben `tools` und driftete: bei `parlament`
+  // fehlte `landtag` — genau das Werkzeug, das eine Berliner Anfrage braucht (#5567).
+  it.each(DEFERRABLE_GROUPS.map((g) => [g.id, g] as const))(
+    'nennt für %s jedes Werkzeug der Gruppe',
+    async (_id, group) => {
+      const scope = createToolScope({
+        toolNames: [...group.tools],
+        userText: 'xyz',
+        enforce: true,
+      });
+      const loader = scope.loaderTools()[group.loaderTool] as {
+        execute: (i: unknown, o: unknown) => Promise<{ hinweis: string }>;
+      };
+      const out = await loader.execute({}, { toolCallId: 'c1' });
+      for (const name of group.tools) expect(out.hinweis).toContain(name);
+    }
+  );
+
+  it('nennt nur montierte Werkzeuge', async () => {
+    const scope = createToolScope({ toolNames: ['umfragen'], userText: 'xyz', enforce: true });
+    const loader = scope.loaderTools()['parlament_werkzeuge_laden'] as {
+      execute: (i: unknown, o: unknown) => Promise<{ hinweis: string }>;
+    };
+    const out = await loader.execute({}, { toolCallId: 'c1' });
+    expect(out.hinweis).toContain('umfragen');
+    expect(out.hinweis).not.toContain('landtag');
+  });
+});
