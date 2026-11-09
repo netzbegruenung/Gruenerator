@@ -137,13 +137,13 @@ export function resolveRecipeDeps(partial: Partial<RecipeToolDeps> | undefined):
   };
 }
 
-const NOT_FOUND = 'Keine eigene Textform mit dieser Mention gefunden.';
+const NOT_FOUND = 'Kein eigenes Rezept mit dieser Mention gefunden.';
 const LIBRARY_READ_ONLY =
   'Das ist ein gespeichertes Rezept einer anderen Person. Es lässt sich nutzen, aber hier weder ändern, ergänzen, teilen noch löschen.';
 const SYSTEM_BODY_NOTE =
   'Das ist ein mitgeliefertes Rezept. Sein Text wird über rezept_laden angewendet und ist hier nicht einsehbar.';
 const TYPE_SYSTEM = 'Rezept';
-const TYPE_USER = 'Eigene Textform';
+const TYPE_USER = 'Eigenes Rezept';
 const TYPE_LIBRARY = 'Gespeichertes Rezept';
 
 export const RECIPES_SETTINGS_URL = '/grueneratoren';
@@ -156,7 +156,7 @@ const STYLE_ANSWER_CHARS = 1500;
 const KIND_LABEL: Record<TextFormKind, string> = {
   preset: 'Eigener Stil für ein mitgeliefertes Rezept',
   recipe: 'Eigener Stil für ein Landesverbands-Rezept',
-  custom: 'Eigene Textform',
+  custom: 'Eigenes Rezept',
 };
 
 export function recipeUrl(mention: string): string {
@@ -203,7 +203,7 @@ function normalizeExamples(
   const merged = [...already, ...fresh.map((content) => ({ content }))];
   if (merged.length > MAX_TEXT_FORM_EXAMPLES) {
     return {
-      error: `Höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele je Textform (jetzt wären es ${merged.length}).`,
+      error: `Höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele je Rezept (jetzt wären es ${merged.length}).`,
     };
   }
   const chars = textFormExamplesChars(merged);
@@ -225,13 +225,13 @@ export function makeRecipesTool(ctx: RecipeToolCtx): Tool {
   const userLocale = state.userLocale ?? null;
 
   return tool({
-    description: `Verwaltet Rezepte und die eigenen Textformen der Person („Texte anlernen"): welche Rezepte es gibt, was in einem eigenen Rezept steckt, ein neues Rezept aus einer Beschreibung oder aus Beispieltexten anlegen, ändern, Beispiele ergänzen, löschen. recipes verwaltet, rezept_laden wendet an.
+    description: `Verwaltet Rezepte und die eigenen Rezepte der Person („Texte anlernen"): welche Rezepte es gibt, was in einem eigenen Rezept steckt, ein neues Rezept aus einer Beschreibung oder aus Beispieltexten anlegen, ändern, Beispiele ergänzen, löschen. recipes verwaltet, rezept_laden wendet an.
 
-NUTZE FÜR: alle verfügbaren Rezepte und eigenen Textformen auflisten (list), Details ansehen — bei einer eigenen Textform Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), ein neues Rezept aus einer Beschreibung anlegen — „erstell mir ein Rezept für OV-Einladungen", „bau ein Rezept, das Pressemitteilungen kürzer macht" (create mit brief; optional title, mention, description, iconKey), aus Beispieltexten eine eigene Textform anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Titel, Beschreibung, Icon oder Anweisungen eines eigenen Rezepts ändern (update mit mention und den neuen Feldern; die mention selbst bleibt), Beispiele zu einer eigenen Textform nachschieben (add_examples mit mention, examples), ein eigenes Rezept mit einem Projekt teilen (share_to_group mit mention und groupName; wird der Person als Karte zur Bestätigung angezeigt — kündige es nicht als geteilt an), eine eigene Textform löschen (delete mit mention und confirm=true nach Zustimmung).
+NUTZE FÜR: alle verfügbaren und eigenen Rezepte auflisten (list), Details ansehen — bei einem eigenen Rezept Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), ein neues Rezept aus einer Beschreibung anlegen — „erstell mir ein Rezept für OV-Einladungen", „bau ein Rezept, das Pressemitteilungen kürzer macht" (create mit brief; optional title, mention, description, iconKey), aus Beispieltexten ein eigenes Rezept anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Titel, Beschreibung, Icon oder Anweisungen eines eigenen Rezepts ändern (update mit mention und den neuen Feldern; die mention selbst bleibt), Beispiele zu einem eigenen Rezept nachschieben (add_examples mit mention, examples), ein eigenes Rezept mit einem Projekt teilen (share_to_group mit mention und groupName; wird der Person als Karte zur Bestätigung angezeigt — kündige es nicht als geteilt an), ein eigenes Rezept löschen (delete mit mention und confirm=true nach Zustimmung).
 
 NICHT für: ein Rezept ANWENDEN, also einen Text in einer Form schreiben (dafür 'rezept_laden'), einen Grünerator-Agenten anlegen oder ändern (dafür 'user_agents'), den Text eines mitgelieferten Rezepts lesen (nicht einsehbar).
 
-brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, Anlass, Ton, Aufbau —, möglichst in ihren eigenen Worten und vollständig. Die Beispiele für create und add_examples sind die Texte der Person selbst — aus der Nachricht oder aus angehängten Dokumenten; übergib sie wörtlich, je Beispiel ein Eintrag. Eine eigene Textform mit der Mention eines mitgelieferten Rezepts (presse, instagram, facebook oder ein Landesverbands-Rezept) ersetzt dessen Stilvorgaben; ohne solche Mention entsteht eine zusätzliche Textform, die im Chat als @mention nutzbar ist. Anlegen dauert einige Sekunden (Entwurf bzw. Stilanalyse); zeig der Person danach die Anweisungen und den Link zum Bearbeiten.`,
+brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, Anlass, Ton, Aufbau —, möglichst in ihren eigenen Worten und vollständig. Die Beispiele für create und add_examples sind die Texte der Person selbst — aus der Nachricht oder aus angehängten Dokumenten; übergib sie wörtlich, je Beispiel ein Eintrag. Ein eigenes Rezept mit der Mention eines mitgelieferten Rezepts (presse, instagram, facebook oder ein Landesverbands-Rezept) ersetzt dessen Stilvorgaben; ohne solche Mention entsteht ein zusätzliches Rezept, das im Chat als @mention nutzbar ist. Anlegen dauert einige Sekunden (Entwurf bzw. Stilanalyse); zeig der Person danach die Anweisungen und den Link zum Bearbeiten.`,
     inputSchema: z.object({
       action: z.enum([
         'list',
@@ -246,7 +246,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
         .string()
         .optional()
         .describe(
-          'Mention der Textform, aus list Feld ref (get, update, add_examples, share_to_group, delete; create: optional, sonst aus title bzw. dem Entwurf)'
+          'Mention des Rezepts, aus list Feld ref (get, update, add_examples, share_to_group, delete; create: optional, sonst aus title bzw. dem Entwurf)'
         ),
       title: z
         .string()
@@ -327,15 +327,15 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
       if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
-        const ask = `Soll die Textform „${own.title}" (@${own.mention}) wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
+        const ask = `Soll das Rezept „${own.title}" (@${own.mention}) wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
         return { needsConfirmation: true, note: ask };
       }
       const deleted = await deps.deleteTextForm(userId, own.mention);
       if (!deleted) return { error: NOT_FOUND };
       const note = hasSystemRecipe(own.mention)
-        ? `Textform „${own.title}" wurde gelöscht — @${own.mention} nutzt wieder die mitgelieferten Vorgaben.`
-        : `Textform „${own.title}" (@${own.mention}) wurde gelöscht.`;
+        ? `Rezept „${own.title}" wurde gelöscht — @${own.mention} nutzt wieder die mitgelieferten Vorgaben.`
+        : `Rezept „${own.title}" (@${own.mention}) wurde gelöscht.`;
       groundNote(sourceRegistry, 'Gelöscht', note);
       return { ok: true, note };
     },
@@ -383,7 +383,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       );
     });
     if (results.length === 0) {
-      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder unter Grüneratoren (${RECIPES_SETTINGS_URL}) anlernen.`;
+      const note = `Es sind keine Rezepte verfügbar. Eigene Rezepte lassen sich hier mit create oder unter Grüneratoren (${RECIPES_SETTINGS_URL}) anlernen.`;
       groundNote(sourceRegistry, 'Rezepte', note);
       return { resultCount: 0, results: [], note };
     }
@@ -406,7 +406,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     const entry = (
       await deps.recipeCatalog({ userLocale, userId, roles: state.userRoles ?? null })
     ).find((e) => e.key === mention || e.mention === mention);
-    if (!entry) return { error: `Kein Rezept und keine eigene Textform „${mention}" gefunden.` };
+    if (!entry) return { error: `Kein Rezept und kein eigenes Rezept „${mention}" gefunden.` };
 
     if (entry.origin === 'library') {
       const owner = entry.ownerName ? ` von ${entry.ownerName}` : '';
@@ -470,7 +470,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       .map((e) => truncate(e.content, EXAMPLE_PREVIEW_CHARS));
     const overrides = hasSystemRecipe(form.mention);
     const lines = [
-      `Textform „${form.title}" (@${form.mention}) — ${url}`,
+      `Rezept „${form.title}" (@${form.mention}) — ${url}`,
       `Art: ${KIND_LABEL[form.kind]}${overrides ? ` — ersetzt die Vorgaben von @${form.mention}` : ''}`,
       `Beschreibung: ${form.description ?? '—'}`,
       `Sichtbarkeit: ${visibilityLabel(form)}`,
@@ -485,7 +485,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     sourceRegistry.register([
       {
         source: 'eigene-inhalte',
-        title: `Textform: ${form.title}`,
+        title: `Rezept: ${form.title}`,
         content: lines.join('\n'),
         url,
       },
@@ -541,7 +541,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
 
     let examples: Array<{ content: string }> = [];
     if (!fromBrief) {
-      if (!args.title?.trim()) return { error: 'create braucht title — den Namen der Textform.' };
+      if (!args.title?.trim()) return { error: 'create braucht title — den Namen des Rezepts.' };
       const normalized = normalizeExamples(args.examples);
       if ('error' in normalized) {
         return {
@@ -595,7 +595,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       // gehört zu `hasSystemRecipe`.
       if (hasSystemRecipe(requested)) {
         return {
-          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht eine zusätzliche Textform.`,
+          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht ein zusätzliches Rezept.`,
         };
       }
       return { error: `Ungültige Mention „${requested}": ${verdict.message}` };
@@ -608,7 +608,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     const existing = ownForms.find((f) => f.mention === mention && !f.sharedFromGroup);
     if (existing) {
       return {
-        error: `Die Textform „${existing.title}" (@${mention}) gibt es schon. Ändern geht mit update, Beispiele nachschieben mit add_examples, neu anfangen mit delete.`,
+        error: `Das Rezept „${existing.title}" (@${mention}) gibt es schon. Ändern geht mit update, Beispiele nachschieben mit add_examples, neu anfangen mit delete.`,
       };
     }
 
@@ -643,9 +643,9 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       : `aus ${examples.length} Beispiel${examples.length === 1 ? '' : 'en'} angelernt`;
     const note =
       kind === 'custom'
-        ? `Textform „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern unter ${recipeEditUrl(form.mention)}.`
+        ? `Rezept „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern unter ${recipeEditUrl(form.mention)}.`
         : `Eigener Stil für @${form.mention} ${origin} — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern unter Grüneratoren (${RECIPES_SETTINGS_URL}).`;
-    groundNote(sourceRegistry, 'Textform angelegt', note);
+    groundNote(sourceRegistry, 'Rezept angelegt', note);
     return {
       ok: true,
       note,
@@ -697,8 +697,8 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       iconKey && 'Icon',
       instructions && 'Anweisungen',
     ].filter(Boolean);
-    const note = `Textform „${updated.title}" (@${updated.mention}) geändert: ${changed.join(', ')}.`;
-    groundNote(sourceRegistry, 'Textform geändert', note);
+    const note = `Rezept „${updated.title}" (@${updated.mention}) geändert: ${changed.join(', ')}.`;
+    groundNote(sourceRegistry, 'Rezept geändert', note);
     return { ok: true, note, ...summarize(updated) };
   }
 
@@ -728,8 +728,8 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       model: analyzed.model,
     });
     const added = examples.length - form.examples.length;
-    const note = `Textform „${updated.title}" (@${updated.mention}): ${added} Beispiel${added === 1 ? '' : 'e'} ergänzt, jetzt ${examples.length} — der Stil wurde neu analysiert.`;
-    groundNote(sourceRegistry, 'Textform ergänzt', note);
+    const note = `Rezept „${updated.title}" (@${updated.mention}): ${added} Beispiel${added === 1 ? '' : 'e'} ergänzt, jetzt ${examples.length} — der Stil wurde neu analysiert.`;
+    groundNote(sourceRegistry, 'Rezept ergänzt', note);
     return { ok: true, note, ...summarize(updated) };
   }
 

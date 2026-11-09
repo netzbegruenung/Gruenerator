@@ -45,6 +45,13 @@ beforeEach(() => {
 });
 
 describe('SkillLibraryModal', () => {
+  it('speaks of recipes, not skills, in the subtitle', async () => {
+    renderModal();
+    expect(
+      await screen.findByText('Rezepte, Agents und Quellen rufst du mit @ auf.')
+    ).toBeInTheDocument();
+  });
+
   it('saves a starred recipe to the user library', async () => {
     renderModal();
     const stars = await screen.findAllByRole('button', { name: 'Zu Favoriten hinzufügen' });

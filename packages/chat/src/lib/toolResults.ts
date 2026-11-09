@@ -505,7 +505,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     accent: 'personal',
   },
   recipes: {
-    label: 'Rezepte & Textformen',
+    label: 'Rezepte',
     activeLabel: 'Sehe bei den Rezepten nach',
     iconKey: 'sparkles',
     accent: 'personal',

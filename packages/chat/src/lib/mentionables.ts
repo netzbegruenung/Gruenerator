@@ -385,7 +385,7 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
     ? `Rezept aus ${t.sharedFromGroup}`
     : t.isPublic && t.ownerName
       ? `Rezept von ${t.ownerName}`
-      : (t.description ?? 'Eigene Textform');
+      : (t.description ?? 'Eigenes Rezept');
   return {
     type: 'textform',
     category: 'skill',

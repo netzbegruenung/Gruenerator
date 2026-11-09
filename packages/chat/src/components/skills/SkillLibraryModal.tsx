@@ -108,14 +108,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
           <div>
             <h2 className="text-lg font-semibold text-foreground">Rezept-Bibliothek</h2>
             <p className="mt-0.5 text-xs text-foreground-muted">
-              Skills starten mit{' '}
-              <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
-                /
-              </kbd>{' '}
-              &mdash; Agenten und Quellen mit{' '}
-              <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
-                @
-              </kbd>
+              Rezepte, Agents und Quellen rufst du mit @ auf.
             </p>
           </div>
           <button
@@ -219,7 +212,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
 
           {grouped.length === 0 && customAgents.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-foreground-muted">
-              Kein Skill gefunden
+              Kein Rezept gefunden
             </div>
           )}
         </div>
