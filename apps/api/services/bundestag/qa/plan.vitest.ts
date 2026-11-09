@@ -30,6 +30,18 @@ beforeEach(() => {
 });
 
 describe('planFilters', () => {
+  it('reicht das Abbruchsignal an den Modellaufruf weiter', async () => {
+    model({ keywords: ['heizung'] });
+    const ctrl = new AbortController();
+    await planFilters({
+      question: 'Heizung?',
+      explicit: {},
+      dip: dipWith({}),
+      signal: ctrl.signal,
+    });
+    expect((aiObject.mock.calls[0]![0] as { signal: AbortSignal }).signal).toBe(ctrl.signal);
+  });
+
   it('erkennt Drucksachennummer und Wahlperiode deterministisch', async () => {
     model({ keywords: ['heizung', 'gesetz', 'förderung'] });
     const r = await planFilters({

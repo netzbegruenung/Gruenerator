@@ -112,14 +112,17 @@ export async function planBundestagQuestion({
   filters,
   budget = ENDPOINT_BUDGET,
   deps,
+  signal = null,
 }: {
   question: string;
   filters?: BundestagFilter;
   budget?: Budget;
   deps?: QaDeps;
+  /** Bricht den Planaufruf des Modells ab, wenn der Aufrufer die Frist reißt. */
+  signal?: AbortSignal | null;
 }): Promise<BundestagPlanResponse> {
   const { dip, mcp } = deps ?? (await defaultDeps());
-  const plan = await planFilters({ question, explicit: filters ?? {}, dip });
+  const plan = await planFilters({ question, explicit: filters ?? {}, dip, signal });
   const found = await findCandidates({
     question,
     filters: plan.filters,

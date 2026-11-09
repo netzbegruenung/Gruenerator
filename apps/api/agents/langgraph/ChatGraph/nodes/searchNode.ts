@@ -590,6 +590,7 @@ export async function retrieveBundestag(
   }
   // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
   // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
+  const planAbort = new AbortController();
   const [enriched, plan] = await Promise.all([
     getBundestagEnrichedService()
       .search(query)
@@ -599,16 +600,19 @@ export async function retrieveBundestag(
         );
         return null;
       }),
-    // Der Planaufruf lässt sich nicht abbrechen; `withTimeout` fängt ein spätes Scheitern mit ab.
+    // Die Frist bricht den Modellaufruf ab (sonst liefe er weiter und wechselte den Anbieter);
+    // `withTimeout` fängt ein spätes Scheitern mit ab.
     withTimeout(
       planBundestagQuestion({
         question: query,
         ...(filters ? { filters } : {}),
         budget: CHAT_BUDGET,
+        signal: planAbort.signal,
       }),
       BUNDESTAG_PLAN_DEADLINE_MS,
       'bundestag-plan'
     ).catch((err: unknown) => {
+      planAbort.abort();
       log.warn(
         `[Search] Bundestag-Planstufe fehlgeschlagen, alte Ergebnisse: ${err instanceof Error ? err.message : String(err)}`
       );

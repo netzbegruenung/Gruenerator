@@ -15,9 +15,8 @@ vi.mock('../../../../services/bundestag/qa/index.js', () => ({
 }));
 
 const { retrieveBundestag, BUNDESTAG_PLAN_DEADLINE_MS } = await import('./searchNode.js');
-const { TOOL_TIMEOUT_OVERRIDES_MS } = await import(
-  '../../../../routes/chat/services/agenticLoop/types.js'
-);
+const { TOOL_TIMEOUT_OVERRIDES_MS } =
+  await import('../../../../routes/chat/services/agenticLoop/types.js');
 
 const candidate = (over: Record<string, unknown>) => ({
   ref: '21/1928',
@@ -152,6 +151,8 @@ describe('retrieveBundestag: Zusammenführung', () => {
       await vi.advanceTimersByTimeAsync(BUNDESTAG_PLAN_DEADLINE_MS + 1);
       const r = await pending;
       expect(r.ausfall).toBeUndefined();
+      // Die Frist bricht den Planaufruf ab, er läuft nicht weiter (#5560).
+      expect((plan.mock.calls[0]![0] as { signal: AbortSignal }).signal.aborted).toBe(true);
       expect(r.results.length).toBeGreaterThan(0);
       expect(BUNDESTAG_PLAN_DEADLINE_MS).toBeLessThan(TOOL_TIMEOUT_OVERRIDES_MS['bundestag']!);
 

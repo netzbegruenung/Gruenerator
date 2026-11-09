@@ -165,7 +165,7 @@ Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles a
 - datumVon / datumBis im Format JJJJ-MM-TT.
 - keywords: 3 bis 8 Suchwörter aus der Frage.`;
 
-async function modelFilters(question: string) {
+async function modelFilters(question: string, signal: AbortSignal | null) {
   const res = await aiObject({
     lane: 'bundestag_plan',
     // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
@@ -185,6 +185,7 @@ async function modelFilters(question: string) {
           };
     },
     label: 'bundestag:plan',
+    ...(signal ? { signal } : {}),
   });
   return res.ok ? res.data : null;
 }
@@ -193,10 +194,13 @@ export async function planFilters({
   question,
   explicit,
   dip,
+  signal = null,
 }: {
   question: string;
   explicit: BundestagFilter;
   dip: PlanDip;
+  /** Bricht den Modellaufruf ab (Frist des Aufrufers), damit er nicht weiterläuft und bezahlt wird. */
+  signal?: AbortSignal | null;
 }): Promise<PlanResult> {
   const notes: string[] = [];
   const detected = detectDeterministic(question);
@@ -204,7 +208,7 @@ export async function planFilters({
   let fromModel: BundestagFilter = {};
 
   try {
-    const out = await modelFilters(question);
+    const out = await modelFilters(question, signal);
     if (out) {
       keywords = out.keywords;
       fromModel = {
