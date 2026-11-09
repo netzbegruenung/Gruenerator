@@ -187,8 +187,12 @@ export class DipClient {
   }
 
   /** Genau eine Seite; wer weiterblättern will, reicht `cursor` in den Parametern zurück. */
-  async list<T>(endpoint: DipEndpoint, params: DipParams): Promise<DipListPage<T>> {
-    const page = await this.#get<T>(endpoint, params);
+  async list<T>(
+    endpoint: DipEndpoint,
+    params: DipParams,
+    signal: AbortSignal | null = null
+  ): Promise<DipListPage<T>> {
+    const page = await this.#get<T>(endpoint, params, signal);
     return {
       numFound: page.numFound ?? 0,
       cursor: page.cursor ?? null,
@@ -232,7 +236,11 @@ export class DipClient {
     }
   }
 
-  async #get<T>(endpoint: string, params: DipParams): Promise<DipPage<T>> {
+  async #get<T>(
+    endpoint: string,
+    params: DipParams,
+    signal: AbortSignal | null = null
+  ): Promise<DipPage<T>> {
     const url = new URL(`${BASE_URL}/${endpoint}`);
     url.searchParams.set('apikey', this.apiKey);
     url.searchParams.set('format', 'json');
@@ -245,16 +253,21 @@ export class DipClient {
     }
 
     for (let attempt = 1; ; attempt++) {
+      // Ein Abbruch von aussen (Frist des Aufrufers) wird weder abgewartet noch wiederholt.
+      signal?.throwIfAborted();
       await this.#takeSlot();
+      signal?.throwIfAborted();
 
       let res: Response;
       try {
         res = await fetch(url, {
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(this.#timeoutMs),
+          signal: signal
+            ? AbortSignal.any([AbortSignal.timeout(this.#timeoutMs), signal])
+            : AbortSignal.timeout(this.#timeoutMs),
         });
       } catch (error: unknown) {
-        if (attempt >= this.#maxAttempts) throw error;
+        if (signal?.aborted || attempt >= this.#maxAttempts) throw error;
         await sleep(2000 * attempt);
         continue;
       }
