@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { findBerlin } from './find.js';
+import { findBerlin, VOLLTEXT_FALLBACK_DEADLINE_MS } from './find.js';
 import { type PardokLister, type PardokPage, type PardokParams } from './pardokLive.js';
 
 import type { PardokRecord } from '../../scrapers/implementations/LandtagBerlinScraper/pardokClient.js';
@@ -106,6 +106,35 @@ describe('findBerlin', () => {
     expect(calls[1]!['f.volltext']).toBe('verkehrswende');
     expect(out.candidates).toHaveLength(1);
     expect(out.notes.join(' ')).toMatch(/Volltext/);
+    expect(out.notes.join(' ')).toMatch(/erwähnen/);
+  });
+
+  it('bricht einen hängenden Volltext-Rückfall an der Frist ab und liefert die Titeltreffer (#5565)', async () => {
+    vi.useFakeTimers();
+    try {
+      let abgebrochen = false;
+      const impl: PardokLister = {
+        list: vi.fn(async (_e, params, signal) => {
+          if (!('f.volltext' in params)) {
+            return { numFound: 1, cursor: null, documents: [antrag('1', '2026.06.01')] };
+          }
+          return new Promise<PardokPage>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              abgebrochen = true;
+              reject(new Error('aborted'));
+            });
+          });
+        }),
+      };
+      const pending = findBerlin({ query: 'Kapek', filters: {} }, impl);
+      await vi.advanceTimersByTimeAsync(VOLLTEXT_FALLBACK_DEADLINE_MS + 1);
+      const out = await pending;
+      expect(abgebrochen).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* übersprungen/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('erklärt Null Treffer mit der Zahl ohne Themenwort', async () => {

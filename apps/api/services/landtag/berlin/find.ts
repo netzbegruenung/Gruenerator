@@ -14,6 +14,10 @@
 import { type BundestagCandidate, type LandtagFilter } from '@gruenerator/contracts';
 
 import { keywordsFromQuestion } from '../../bundestag/qa/plan.js';
+import {
+  TOOL_TIMEOUT_OVERRIDES_MS,
+  DEFAULT_LOOP_BUDGET,
+} from '../../../routes/chat/services/agenticLoop/types.js';
 import { LANDTAGE, type ResolvedLandtagFilter, resolveFilters } from '../registry.js';
 
 import { dedupeByRef, personFraktion, toCandidate } from './documents.js';
@@ -30,6 +34,17 @@ const MIN_CANDIDATES = 3;
 /** Lokaler Fraktionsabgleich bei Anfragen: so viele neueste Treffer werden geprüft. */
 const ANFRAGE_SCAN_PAGES = 2;
 const SCAN_PAGE_SIZE = 200;
+
+/**
+ * Frist des automatischen Volltext-Rückfalls, abgeleitet aus der Werkzeugfrist des
+ * Loops (`landtag`: Standardfrist, kein Eintrag in `TOOL_TIMEOUT_OVERRIDES_MS`): 60 %.
+ * `f.volltext=Kapek` braucht bei PARDOK 36 s, der Client erlaubt 60 s, das Werkzeug
+ * 20 s — der Rückfall konnte nie fertig werden und nahm die Titeltreffer mit
+ * (live 09.11.2026, #5565). Die Notebook-Suche läuft daneben und hat dieselbe Frist.
+ */
+export const VOLLTEXT_FALLBACK_DEADLINE_MS = Math.floor(
+  (TOOL_TIMEOUT_OVERRIDES_MS['landtag'] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs) * 0.6
+);
 
 export interface LandtagFindResult {
   candidates: BundestagCandidate[];
@@ -97,18 +112,22 @@ export async function findBerlin(
   }
   const skipServer = scanAnfragen && serverTypen.length === 0;
 
-  const run = async (extra: PardokParams, scan = false) => {
+  const run = async (extra: PardokParams, scan = false, signal: AbortSignal | null = null) => {
     const docs: BundestagCandidate[] = [];
     let numFound = 0;
     if (!skipServer) {
       const pages = await Promise.all(
         combos.map((c) =>
-          pardok.list('drucksache', {
-            ...baseParams(f),
-            ...c,
-            ...extra,
-            limit: MAX_CANDIDATES,
-          })
+          pardok.list(
+            'drucksache',
+            {
+              ...baseParams(f),
+              ...c,
+              ...extra,
+              limit: MAX_CANDIDATES,
+            },
+            signal
+          )
         )
       );
       for (const pg of pages) {
@@ -125,13 +144,17 @@ export async function findBerlin(
       let checked = 0;
       let total = 0;
       for (let p = 0; p < ANFRAGE_SCAN_PAGES; p++) {
-        const pg = await pardok.list('drucksache', {
-          ...baseParams(f),
-          ...extra,
-          'f.drucksachtyp': [...anfrageTypen][0] ?? 'Schriftliche Anfrage',
-          limit: SCAN_PAGE_SIZE,
-          ...(cursor ? { cursor } : {}),
-        });
+        const pg = await pardok.list(
+          'drucksache',
+          {
+            ...baseParams(f),
+            ...extra,
+            'f.drucksachtyp': [...anfrageTypen][0] ?? 'Schriftliche Anfrage',
+            limit: SCAN_PAGE_SIZE,
+            ...(cursor ? { cursor } : {}),
+          },
+          signal
+        );
         total = pg.numFound;
         checked += pg.documents.length;
         for (const r of pg.documents) {
@@ -162,10 +185,31 @@ export async function findBerlin(
 
   const fallback = !f.volltext && !f.titel ? longest(keywords) : null;
   if (dedupeByRef(docs).length < MIN_CANDIDATES && fallback) {
-    const more = await run({ 'f.volltext': fallback }, scanAnfragen);
-    docs = [...docs, ...more.docs];
-    numFound = Math.max(numFound, more.numFound);
-    notes.push(`Zu wenige Titeltreffer; zusätzlich im Volltext nach „${fallback}“ gesucht.`);
+    // Die Frist bricht die Abfrage ab (kein Weiterbezahlen) und lässt die Titeltreffer stehen.
+    const ctl = new AbortController();
+    const work = run({ 'f.volltext': fallback }, scanAnfragen, ctl.signal);
+    work.catch(() => null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const more = await Promise.race([
+      work,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => {
+          ctl.abort();
+          resolve(null);
+        }, VOLLTEXT_FALLBACK_DEADLINE_MS);
+      }),
+    ]).finally(() => clearTimeout(timer));
+    if (more) {
+      docs = [...docs, ...more.docs];
+      numFound = Math.max(numFound, more.numFound);
+      notes.push(
+        `Zu wenige Titeltreffer; zusätzlich im Volltext nach „${fallback}“ gesucht. Volltexttreffer erwähnen den Begriff nur irgendwo im Dokument; sie stammen nicht zwingend von der Person oder Stelle, die so heißt.`
+      );
+    } else {
+      notes.push(
+        `Zu wenige Titeltreffer; die Volltextsuche nach „${fallback}“ dauert zu lange und wurde übersprungen. Es folgen nur die Titeltreffer; ein Themenwort statt eines Namens oder \`volltext\` gezielt mit Zeitraum eingrenzen.`
+      );
+    }
   }
 
   const candidates = dedupeByRef(docs)
