@@ -97,14 +97,14 @@ preshed==3.0.15
     # via
     #   spacy
     #   thinc
-pydantic==2.14.2
+pydantic==2.14.3
     # via
     #   gruenerator-nlp (pyproject.toml)
     #   fastapi
     #   spacy
     #   thinc
     #   weasel
-pydantic-core==2.50.2
+pydantic-core==2.50.4
     # via pydantic
 pygments==2.21.0
     # via
@@ -136,7 +136,7 @@ spacy-legacy==3.0.12
     # via spacy
 spacy-loggers==1.0.5
     # via spacy
-srsly==2.5.5
+srsly==2.5.6
     # via
     #   spacy
     #   thinc
@@ -159,7 +159,7 @@ typing-extensions==4.16.0
     #   pydantic
     #   pydantic-core
     #   typing-inspection
-typing-inspection==0.4.4
+typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
