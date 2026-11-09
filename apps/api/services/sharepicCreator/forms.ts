@@ -105,8 +105,11 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
   },
 };
 
+/** One line per form: when it fits, and the words a person orders it with. */
 export function formCatalog(): string {
-  return SHAREPIC_FORMS.map((f) => `- \`${f.id}\` — ${FORM_RECIPES[f.id].wann}`).join('\n');
+  return SHAREPIC_FORMS.map(
+    (f) => `- \`${f.id}\` — ${FORM_RECIPES[f.id].wann} (bestellt mit: ${f.stichworte.join(', ')})`
+  ).join('\n');
 }
 
 // Most specific first: "Karussell mit Infografik" is held to the infographic.
@@ -141,30 +144,12 @@ const NAMED: [SharepicFormId, RegExp][] = [
 // "kein Karussell", "ohne Zitat", "nicht als Infografik".
 const NEGATED = /(?:kein\p{L}*|nicht|ohne)\s+(?:\p{L}+\s+)?$/iu;
 
-/** Whether the pattern (global) matches somewhere it is not negated. */
-function affirmed(text: string, pattern: RegExp): boolean {
-  return [...text.matchAll(pattern)].some(
-    (m) => !NEGATED.test(text.slice(Math.max(0, m.index - 24), m.index))
-  );
-}
-
-/** Whether the request also asks for a carousel besides the form it names ("Karussell mit Bingo"). */
-export function alsoCarousel(text: string, form: SharepicFormId | null): boolean {
-  if (!form || form === 'karussell' || form === 'einzelbild' || form === 'interview') return false;
-  return affirmed(text, NAMED.find(([id]) => id === 'karussell')![1]);
-}
-
-// "3 Sharepics", "mehrere Kacheln", "eine Serie" — the request asks for more than one image.
-const SEVERAL =
-  /(?<!\p{L})(?:sharepics|spruchbilder|kacheln|slides|folien|mehrere|serie|(?:zwei|drei|vier|fünf|sechs|sieben|acht|\d+)\s+(?:bilder|grafiken|motive|posts))(?!\p{L})/giu;
-
-/** Whether the request wants a single slide: anything but a carousel, an interview or a plural. */
-export function wantsOneSlide(text: string, form: SharepicFormId | null): boolean {
-  if (form === 'karussell' || form === 'interview') return false;
-  return !alsoCarousel(text, form) && !affirmed(text, SEVERAL);
-}
-
-/** The form a request names itself, or null when the creator should choose. */
+/**
+ * The form a text names by its word — only a lint over prompts we write
+ * ourselves (`vorlageProblems`). A person's request is never read this way:
+ * a word in the content is no order („bei allen Terminen“ made a carousel a
+ * Terminübersicht, live 09.11.2026); `bedarf_melden` judges that instead.
+ */
 export function namedSharepicForm(text: string): SharepicFormId | null {
   for (const [form, pattern] of NAMED) {
     for (const match of text.matchAll(pattern)) {
@@ -187,8 +172,8 @@ const twoNumbers = (brief: string) => new Set(brief.match(NUMBER) ?? []).size >=
  * What validation demands of a form's block from the brief, and how the person
  * is asked for it (live 01.11.2026: „Als Diagramm" and „Als Zitat" on
  * Artenschutz, no numbers, no person, failed on every attempt). `exact`: the
- * test is the one validation applies (numbers, dates), so a named form is
- * asked for before any model call. A speaker is only guessed — „Lena Grün:
+ * test is the one validation applies (numbers, dates), so an ordered form is
+ * asked for before the draft is tried. A speaker is only guessed — „Lena Grün:
  * Busse statt Stau" names one `namesSpeaker` misses — so a named quote is
  * still tried, and the guess only keeps it from being offered.
  */
@@ -224,6 +209,16 @@ export function formHasMaterial(form: SharepicFormId, brief: string): boolean {
 export function missingMaterial(form: SharepicFormId, brief: string): string | null {
   const need = MATERIAL[form];
   return need?.exact && !need.has(brief) ? need.ask : null;
+}
+
+/**
+ * The form a brief can fill in place of one it cannot: a single date (or
+ * weekday) makes a Veranstaltung, not a Terminübersicht of one entry.
+ */
+export function formForMaterial(form: SharepicFormId, brief: string): SharepicFormId | null {
+  return form === 'termine' && calendarDays(brief).size < 2 && hasTermin(brief)
+    ? 'veranstaltung'
+    : null;
 }
 
 /** What the form needs from the brief, for the text after a failed draft. */
