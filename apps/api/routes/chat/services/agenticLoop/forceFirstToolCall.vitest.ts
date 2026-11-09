@@ -809,28 +809,48 @@ describe('forcedFirstStepTools', () => {
 
   describe('rezept_laden im Zuschnitt (#4785)', () => {
     const withRecipe = [...MOUNTED, 'rezept_laden'];
-    it('named_intent mit Anhang: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
+    it('named_intent + Material: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
       // Der Live-Fall: Paste + „Mach daraus bitte einen Instagram-Post" mit
       // Standard-Notebooks. Ohne das Werkzeug hing Gemma unter `required`.
-      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
-        'gruenerator_search',
-        'rezept_laden',
-      ]);
+      // Ein Ganzdokument steht ganz im Prompt: `materialTools` ist leer, der
+      // Turn trägt trotzdem Material.
+      expect(
+        tools({
+          reason: 'named_intent',
+          intent: 'search',
+          mounted: withRecipe,
+          carriesMaterial: true,
+        })
+      ).toEqual(['gruenerator_search', 'rezept_laden']);
     });
 
+    // Ohne Material heisst `named_intent` nur „ein Abruf-Intent wurde benannt":
+    // dort griff der Planer unter `required` zum Rezept statt zur Suche (#3880).
+    it.each(['search', 'chat_history', 'bundestag'])(
+      'named_intent ohne Material (%s): bleibt draussen (#3880)',
+      (intent) => {
+        // Auch `null` (kein Zuschnitt) heisst: kein Rezept im erzwungenen Schritt.
+        expect(tools({ reason: 'named_intent', intent, mounted: withRecipe }) ?? []).not.toContain(
+          'rezept_laden'
+        );
+      }
+    );
+
     // Umgedreht gegenüber der Wortlisten-Fassung (dort: dabei, wenn der Text eine
-    // Plattform nannte): hier gilt #3880 — unter `required` griff der Planer bei
-    // Recherche-Aufträgen zum Rezept statt zur Suche. Der Grund entscheidet,
-    // kein Wort.
+    // Plattform nannte): hier gilt #3880, auch mit Material.
     it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
       '%s: bleibt draussen, die Suche gehört dem Planer (#3880)',
       (reason) => {
-        expect(tools({ reason, mounted: withRecipe })).not.toContain('rezept_laden');
+        expect(tools({ reason, mounted: withRecipe, carriesMaterial: true })).not.toContain(
+          'rezept_laden'
+        );
       }
     );
 
     it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
-      expect(tools({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
+      expect(
+        tools({ reason: 'named_intent', intent: 'search', carriesMaterial: true })
+      ).not.toContain('rezept_laden');
     });
 
     it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {

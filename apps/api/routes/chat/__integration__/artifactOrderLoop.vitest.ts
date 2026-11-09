@@ -514,11 +514,7 @@ describe('@verlauf runs in the loop', () => {
     expect(
       forcedName === 'search_threads' ||
         (first?.toolChoice === 'required' &&
-          // `named_intent` bietet `rezept_laden` mit an, sobald der Katalog
-          // montiert ist (Zustand statt Wortliste, #4785): die History-Suche
-          // bleibt der einzige Suchweg im erzwungenen Schritt.
-          JSON.stringify(first.firstStepActiveTools?.filter((t) => t !== 'rezept_laden')) ===
-            JSON.stringify(['search_threads'])),
+          JSON.stringify(first.firstStepActiveTools) === JSON.stringify(['search_threads'])),
       `toolChoice=${JSON.stringify(first?.toolChoice)} active=${JSON.stringify(first?.firstStepActiveTools)}`
     ).toBe(true);
   });

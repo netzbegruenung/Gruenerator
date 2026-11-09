@@ -218,6 +218,8 @@ const DECOYS = [
   'rezept_laden',
   'meine_inhalte_laden',
 ];
+/** Die Köder ohne `rezept_laden` — für Material-Turns, deren Zuschnitt es mitführt (#4785). */
+const NOT_RECIPE_DECOYS = DECOYS.filter((t) => t !== 'rezept_laden');
 
 interface Case {
   id: string;
@@ -332,10 +334,10 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['gruenerator_search', 'notebooks', 'notebook_quellen'],
-    // `named_intent` bietet `rezept_laden` jetzt mit an, sobald der Katalog
-    // montiert ist (Zustand statt Wortliste) — eine Bürgeranfrage-Antwort ist
-    // eine Textsorte mit Rezept.
-    without: DECOYS.filter((t) => t !== 'rezept_laden'),
+    // Einfügung + Auftrag („beantworte …") ist ein Material-Turn wie der
+    // Insta-Fall unten: `rezept_laden` ist im Zuschnitt, ein Rezept (Bürgermail)
+    // gehört zu dieser Textsorte.
+    without: NOT_RECIPE_DECOYS,
   },
   // #4785: Einfügung plus Schreibauftrag. Der Prompt verlangt das Rezept
   // zuerst; ohne es im Zuschnitt hing Gemma unter `required` über 50 s.
@@ -347,7 +349,7 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['rezept_laden'],
-    without: DECOYS.filter((t) => t !== 'rezept_laden'),
+    without: NOT_RECIPE_DECOYS,
   },
 ];
 

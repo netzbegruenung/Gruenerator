@@ -401,6 +401,9 @@ export function forcedFirstStepTools(input: {
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
   threadNotebook?: boolean;
+  /** Der Turn trägt Material: Anhang oder Einfügung, auch ein Ganzdokument,
+   *  das ganz im Prompt steht (dann ist `materialTools` leer). */
+  carriesMaterial?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -483,16 +486,20 @@ export function forcedFirstStepTools(input: {
   const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
   const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
   if (scoped.length === 0) return null;
-  // Ist der Grund `named_intent`, hat der Klassifikator den Turn schon als
-  // Auftrag erkannt, und der Prompt sagt „rufe ZUERST `rezept_laden`" (Katalog
-  // und Werkzeug entstehen zusammen in catalogAssembly). Ein erzwungener Schritt
-  // ohne das Werkzeug widerspricht ihm, und darauf antwortet Gemma unter
-  // `required` gar nicht: „Mach daraus bitte einen Instagram-Post" mit Anhang
-  // hing auf Melious UND Cortecs 3 von 3 Mal über 50 s, mit `rezept_laden`
-  // daneben kamen alle sechs Läufe nach 5 s (#4785). Der Zustand entscheidet,
-  // kein Wort: auf Recherche-Aufträge griff der Planer unter `required` zum
-  // Rezept statt zur Suche (#3880), deshalb bleibt es dort draussen.
-  const offersRecipe = input.reason === 'named_intent' && mounted.has('rezept_laden');
+  // Trägt ein `named_intent`-Turn Material (Anhang, Einfügung), sagt der
+  // Prompt „rufe ZUERST `rezept_laden`" (Katalog und Werkzeug entstehen
+  // zusammen in catalogAssembly). Ein erzwungener Schritt ohne das Werkzeug
+  // widerspricht ihm, und darauf antwortet Gemma unter `required` gar nicht:
+  // „Mach daraus bitte einen Instagram-Post" mit Anhang hing auf Melious UND
+  // Cortecs 3 von 3 Mal über 50 s, mit `rezept_laden` daneben kamen alle sechs
+  // Läufe nach 5 s (#4785). Der Zustand entscheidet, kein Wort — und nur mit
+  // Material: `named_intent` heisst bloss „ein Abruf-Intent wurde benannt"
+  // (search, web, chat_history, bundestag …); dort griff der Planer unter
+  // `required` zum Rezept statt zur Suche (#3880).
+  const offersRecipe =
+    input.reason === 'named_intent' &&
+    (input.carriesMaterial === true || material.length > 0) &&
+    mounted.has('rezept_laden');
   return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
 }
 
@@ -628,6 +635,9 @@ export async function decideFirstStep(ctx: {
           materialTools: materialReaderTools(ctx.material).filter(isMounted),
           userText,
           threadNotebook: ctx.threadNotebook,
+          carriesMaterial:
+            materialReaderTools(ctx.material).length > 0 ||
+            (state.wholeDocument?.docs.length ?? 0) > 0,
         })
       : null;
   if (firstToolName) {
