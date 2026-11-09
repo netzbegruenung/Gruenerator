@@ -16,6 +16,13 @@ describe('Lese-Fenster', () => {
     expect(Object.keys(READ_CONTEXT_TOKENS_BY_MODEL)).toContain(model);
   });
 
+  it('bundestag_read läuft auf :speed und das Fenster folgt der Lane', () => {
+    const model = laneTarget('bundestag_read').model;
+    expect(model).toBe('gemma-4-31b:speed');
+    expect(readContextTokens(model ?? '')).toBe(128_000);
+    expect(readWindowTokens(model ?? '')).toBe(60_000);
+  });
+
   it('Fenster plus Ausgabe-Reserve bleiben im Kontext, auch bei doppelt zu knapper Schätzung', () => {
     for (const [model, ctx] of Object.entries(READ_CONTEXT_TOKENS_BY_MODEL)) {
       expect(readWindowTokens(model) * 2 + READ_MAX_OUTPUT_TOKENS).toBeLessThanOrEqual(ctx);

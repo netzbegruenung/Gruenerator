@@ -3,7 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
-import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
+import { GEMMA_31B_ON_MELIOUS_SPEED, GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
 import { MELIOUS_WIDE_MODEL } from '../ai/meliousThinkingFetch.js';
 
@@ -228,11 +228,15 @@ export function selectProviderAndModel({
     type === 'qa_planner' ||
     type === 'qa_repair' ||
     type === 'bundestag_plan' ||
-    type === 'bundestag_read' ||
     type === 'bundestag_answer'
   ) {
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
+  }
+  // Bundestag-Lesen: `:speed` wie in `AI_LANES.bundestag_read` (#5581, Begründung dort)
+  else if (type === 'bundestag_read') {
+    provider = GEMMA_31B_ON_MELIOUS_SPEED.provider;
+    model = options.model || GEMMA_31B_ON_MELIOUS_SPEED.model;
   }
   // Strukturierte Erstellung — Mistral Large 4. Siehe STRUCTURE_TYPES.
   //
