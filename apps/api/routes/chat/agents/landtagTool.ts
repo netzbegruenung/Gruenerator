@@ -24,10 +24,7 @@ import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
 import { createLogger } from '../../../utils/logger.js';
 import { TimeoutError, withTimeout } from '../../../utils/withTimeout.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
-import {
-  DEFAULT_LOOP_BUDGET,
-  TOOL_TIMEOUT_OVERRIDES_MS,
-} from '../services/agenticLoop/types.js';
+import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import { lastUserText } from '../services/messageHelpers.js';
 
 import { executeDirectSearch } from './directSearchExecutors.js';
