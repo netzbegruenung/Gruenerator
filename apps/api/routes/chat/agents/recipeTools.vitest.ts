@@ -292,6 +292,15 @@ describe('methode_laden', () => {
   };
   const mixed = [...CATALOG, METHOD];
 
+  it('keeps model-only code recipes out of the methode_laden enum', () => {
+    const code: RecipeCatalogEntry = {
+      ...METHOD,
+      key: 'visuelle-bausteine',
+      mention: 'visuelle-bausteine',
+    };
+    expect(methodEntries([...mixed, code]).map((e) => e.key)).toEqual(['rechtsstand']);
+  });
+
   it('keeps only method recipes of the catalogue', () => {
     expect(methodEntries(mixed).map((e) => e.key)).toEqual(['rechtsstand']);
   });

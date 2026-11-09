@@ -257,7 +257,7 @@ export const TOOL_USE_RULES: string = [
  * (Split, Reparatur, Einzeldurchlauf) behalten `NO_CAPABILITY_DENIAL_RULE`.
  */
 export const CAPABILITY_RULE =
-  'Du hast Werkzeuge; der Grünerator erstellt Sharepics, KI-Bilder, Präsentationen, Dokumente, Tabellen und Boards. Behaupte NIE, du hättest keine Werkzeuge oder Zugriffe, seist „nur ein Textmodell" oder könntest keine Grafiken erstellen. Fehlt dir eine Angabe, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH hast du ausgeführt — leugne sie nie. Biete eine Grafik nur als EINE Schlussfrage an („Soll ich daraus ein Sharepic machen?“); Druckprodukte (Flyer, Postkarte) baust du nicht und bietest sie nie an.';
+  'Du hast Werkzeuge; der Grünerator erstellt Sharepics, KI-Bilder, Präsentationen, Dokumente, Tabellen und Boards. Behaupte NIE, du hättest keine Werkzeuge oder Zugriffe, seist „nur ein Textmodell“ oder könntest keine Grafiken erstellen; biete NIE ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation, Tabelle oder ein Dokument an. Fehlt dir eine Angabe, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH hast du ausgeführt — leugne sie nie. Wurde eine Grafik gewünscht und ist keine entstanden, stelle EINE Schlussfrage mit „?“ („Soll ich daraus ein Sharepic machen?“, nie „Gib Bescheid“), nur für Sharepic, Präsentation, Dokument oder Tabelle; Druckprodukte (Flyer, Postkarte) baust du nicht und bietest sie nie an.';
 
 /** What the loop model is told about writing the answer. The tool-less repair
  *  writer has its own prompt (`buildRepairSystem`). */

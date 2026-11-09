@@ -703,8 +703,14 @@ describe('runAgenticLoop — unified lane chain', () => {
 
 describe('unified suffix — tool and writer rules', () => {
   it('states the capability rule exactly once in the loop system', () => {
-    expect(CAPABILITY_RULE.length).toBeLessThanOrEqual(600);
+    expect(CAPABILITY_RULE.length).toBeLessThanOrEqual(900);
     expect(`TOOLSYS${LOOP_SUFFIX}`.split(CAPABILITY_RULE).length - 1).toBe(1);
+  });
+
+  it('keeps the storyboard ban and the offer form in the one rule', () => {
+    const system = `TOOLSYS${LOOP_SUFFIX}`;
+    expect(system).toContain('Text-Konzept/Storyboard als Ersatz');
+    expect(system).toContain('mit „?“');
   });
 
   it('TOOL_USE_RULES does not repeat toolUsageBlock lines', () => {

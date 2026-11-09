@@ -9,7 +9,7 @@
  * that returns instruction text rather than citable sources.
  */
 import { type VisualBlockKind } from '@gruenerator/contracts';
-import { skillRole } from '@gruenerator/shared/agents';
+import { SKILLS, skillRole, type Skill } from '@gruenerator/shared/agents';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -26,7 +26,14 @@ const log = createLogger('recipeTools');
 
 /** Methoden-Rezepte des Katalogs: mitgelieferte Systemrezepte mit `rolle: methode`. */
 export function methodEntries(catalog: readonly RecipeCatalogEntry[]): RecipeCatalogEntry[] {
-  return catalog.filter((e) => e.origin === 'system' && skillRole(e.mention) === 'methode');
+  // Code-Rezepte (`modelOnly`, z. B. visuelle-bausteine) sind keine Recherche-Methode:
+  // der erzwungene Recherche-Schritt darf sie nicht zur Wahl haben.
+  return catalog.filter(
+    (e) =>
+      e.origin === 'system' &&
+      skillRole(e.mention) === 'methode' &&
+      !(SKILLS as readonly Skill[]).find((s) => s.mention === e.mention)?.modelOnly
+  );
 }
 
 /**

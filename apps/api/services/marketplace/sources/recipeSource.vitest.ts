@@ -117,6 +117,10 @@ beforeEach(() => {
 });
 
 describe('recipeSource.list', () => {
+  it('never lists a model-only recipe', async () => {
+    expect(await refs()).not.toContain('visuelle-bausteine');
+  });
+
   it('leaves catalogue recipes out unless asked for', async () => {
     expect(await refs(ctx(), query({ systemRecipes: false }))).toEqual([FORM_ID]);
   });

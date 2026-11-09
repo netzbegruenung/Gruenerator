@@ -310,6 +310,8 @@ export interface Skill {
    * Recherche und Belege und stapelt sich daneben. Siehe `skillFrontmatterSchema`.
    */
   rolle?: SkillRole;
+  /** Nur das Modell lädt es; in keiner Nutzerliste. Siehe `skillFrontmatterSchema`, `isUserFacingSkill`. */
+  modelOnly?: boolean;
   /**
    * Die Instanzen, auf denen dieses Rezept angeboten wird. Fehlt = überall.
    * Ausgewertet von `agents/skillInstances.ts`; `build-skills.ts` prüft die

@@ -72,6 +72,12 @@ export const skillFrontmatterSchema = z.object({
    */
   rolle: skillRoleSchema.optional(),
   /**
+   * Nur das Modell darf dieses Rezept laden (Katalog `rezept_laden`): es steht in
+   * keiner Liste, keinem Marktplatz und keinem @-Menü. Für Rezepte, deren Rumpf
+   * Produktmechanik aus dem Code ist (`apps/api/services/skills/codeRecipes.ts`).
+   */
+  modelOnly: z.boolean().optional(),
+  /**
    * Die Instanzen, auf denen dieses Rezept ANGEBOTEN wird. Fehlt das Feld, gilt
    * es überall — der Normalfall, den kein Rezept deklarieren muss.
    *

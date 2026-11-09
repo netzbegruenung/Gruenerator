@@ -8,6 +8,7 @@ backgroundColor: '#316049'
 mention: 'visuelle-bausteine'
 skillCategory: sonstiges
 rolle: methode
+modelOnly: true
 audience: 'all'
 promptTemplate: 'Zeichne als Grafik: '
 order: 40

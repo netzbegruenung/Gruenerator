@@ -227,6 +227,7 @@ export const SKILLS = [
     audience: 'all',
     promptTemplate: 'Zeichne als Grafik: ',
     rolle: 'methode',
+    modelOnly: true,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',

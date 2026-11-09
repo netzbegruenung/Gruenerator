@@ -43,6 +43,7 @@ import {
   fairShare,
   getRetrievalBudget,
 } from '../../../../routes/chat/services/messageHelpers.js';
+import { turnCarriesMaterial } from '../../../../routes/chat/services/turnCarriesMaterial.js';
 import { listTurnImageRefs } from '../../../../routes/chat/services/turnImageList.js';
 import {
   embedUntrusted,
@@ -53,6 +54,7 @@ import { wholeDocumentIdsInPrompt } from '../../../../routes/chat/services/whole
 import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
+  PASTE_AS_TEXT_RULE,
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
@@ -2243,7 +2245,10 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // @-Erwähnung in der Nachricht dürfen die beiden Tore nicht auseinanderlaufen.
   const isNeutralTurn = intent === 'summary';
   const userQuestion = state.lastUserTextNoMentions ?? lastUserText(state);
-  const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
+  const productIdentity = isNeutralTurn
+    ? ''
+    : buildCompactProductIdentity(state.userLocale) +
+      (turnCarriesMaterial(state) ? `\n${PASTE_AS_TEXT_RULE}` : '');
   let productKnowledge = '';
   if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
@@ -2683,6 +2688,8 @@ const PROMPT_BLOCKS = [
  * Spiegel von `catalogAssembly`: `rezept_laden` steht, wenn kein Thread-Prompt
  * die Persona ersetzt (außer dem einer Katalog-Rolle) und das Werkzeug nicht
  * abgeschaltet ist; das Rezept selbst nur mit Bausteinarten des Clients.
+ * Bewusst nicht gespiegelt: `toolAllowlist` (nur der Notebook-Präzisionsturn, ein
+ * einziges Werkzeug) — dieser Turn verliert die Grafik-Anleitung absichtlich.
  */
 function visualBlocksRecipeOffered(state: ChatGraphState, opts: { loop?: boolean }): boolean {
   return (

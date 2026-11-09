@@ -1026,6 +1026,16 @@ describe('buildTurnPrompt — eingefügter Text in die Nachricht (#5431)', () =>
       ...over,
     } as never);
 
+  it('keeps the paste rule on a paste turn without a product question, and only there', async () => {
+    const RULE = 'Bestreite nie, dass es ihn gibt';
+    const withPaste = await buildSystemMessage(pasteState(), OPTS);
+    expect(withPaste).toContain(RULE);
+    const withUpload = await buildSystemMessage(pasteState([upload]), OPTS);
+    expect(withUpload).toContain(RULE);
+    const plain = await buildSystemMessage(makeState({ intent: 'produktion' } as never), OPTS);
+    expect(plain).not.toContain(RULE);
+  });
+
   it('nimmt den Paste aus dem Prompt und gibt ihn eingefasst daneben zurück', async () => {
     const { systemMessage, turnPaste } = await buildTurnPrompt(pasteState(), OPTS);
     expect(systemMessage).not.toContain(PASTE);

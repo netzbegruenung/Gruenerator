@@ -128,7 +128,6 @@ describe('buildProductKnowledgeBlock', () => {
       expect(block).toContain('Feedback-Button');
       expect(block).toContain('gruenerator.eu/support');
       expect(block).toContain('erfinde keine');
-      expect(block).toContain('Eingefügter Text');
       // Addresses that do not exist must never be offered as a contact.
       expect(block).not.toMatch(/@gruenerator\.eu/);
     }

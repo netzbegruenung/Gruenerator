@@ -118,7 +118,12 @@ export {
   hasLandesverbandContentIn,
 } from './landesverbandHubs.js';
 
-export { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
+export {
+  isSkillOfferedIn,
+  isUserFacingSkill,
+  skillPolicyOffers,
+  type SkillInstanceView,
+} from './skillInstances.js';
 
 export {
   selectOfficialCatalog,
