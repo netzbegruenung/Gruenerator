@@ -135,13 +135,12 @@ function SystemRecipeView({
   const isFavorite = library.has('recipe', skill.mention);
 
   const editHref = `/agentura/rezept/${encodeURIComponent(skill.mention)}/bearbeiten`;
-  // Mit einem eigenen Override ist „Im Chat verwenden" nicht mehr dasselbe:
-  // `?skill=` aktiviert nur den Agenten, der Rumpf bliebe der mitgelieferte.
-  // `?rezept=` samt Zeilen-ID nimmt den angepassten Stil mit — genau den, den
-  // die Seite eine Zeile darüber ankündigt.
+  // Mit einem eigenen Override trägt der Link die Zeilen-ID mit — der
+  // angepasste Stil, den die Seite eine Zeile darüber ankündigt, nicht der
+  // mitgelieferte Rumpf.
   const chatHref = ownOverride
     ? `/chat?rezept=${encodeURIComponent(skill.mention)}&rezeptId=${encodeURIComponent(ownOverride.id)}`
-    : `/chat?skill=${encodeURIComponent(skill.mention)}`;
+    : `/chat?rezept=${encodeURIComponent(skill.mention)}`;
 
   return (
     <PageContainer maxWidth="lg">

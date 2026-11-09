@@ -244,11 +244,11 @@ describe('RecipeDetailPage — Systemrezept', () => {
     expect(navigate).toHaveBeenCalledWith('/chat?rezept=presse&rezeptId=row-1');
   });
 
-  it('schickt ohne eigenen Stil weiter an ?skill=', async () => {
+  it('schickt ohne eigenen Stil weiter an ?rezept=', async () => {
     renderPage('presse');
 
     await userEvent.click(await screen.findByRole('button', { name: 'Im Chat verwenden' }));
-    expect(navigate).toHaveBeenCalledWith('/chat?skill=presse');
+    expect(navigate).toHaveBeenCalledWith('/chat?rezept=presse');
   });
 
   it('zeigt einem nicht zugeteilten Landesverbands-Rezept keinen Anpassen-Knopf', async () => {

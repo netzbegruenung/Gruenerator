@@ -41,7 +41,7 @@ import { CURRENT_INSTANCE } from '@/config/instance';
 import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
-import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
+import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
@@ -258,24 +258,17 @@ function ChatPage() {
   // eine Instanz, die einen Landesverband wirklich sperrt, bekäme seine Landing
   // samt drei funktionsfähiger Agenten trotzdem.
   const hub = slug ? getLandesverbandHubBySlug(slug, CURRENT_INSTANCE) : null;
-  // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
-  // Resolve the mention to its agent identifier so the agent activates and its
-  // own welcome screen (welcomeQuestion + opening-question examples) renders
-  // instead of the generic overview greeting. Lowest priority in the chain so
-  // an explicit ?agent= or path slug still wins.
-  const skillParam = hub ? null : searchParams.get('skill');
-  // Rezept-Deeplink aus der Agentura: `/chat?rezept=<mention>&rezeptId=<id>`.
-  // `?skill=` allein aktiviert das Rezept NICHT — es löst nur den Agenten auf,
-  // der Rumpf des Rezepts blieb dabei ungenutzt. `?rezept=` aktiviert die
-  // Erwähnung selbst (unten); trifft sie zusätzlich ein Systemrezept, läuft
-  // dieselbe Agentenauflösung weiter mit.
-  const rezeptParam = hub ? null : searchParams.get('rezept');
-  const rezeptIdParam = hub ? null : searchParams.get('rezeptId');
-  const resolvedFromSkill = skillParam
-    ? resolveSkillMention(skillParam)
-    : rezeptParam
-      ? resolveSkillMention(rezeptParam)
-      : null;
+  // Rezept-Deeplink: `/chat?rezept=<mention>&rezeptId=<id>`. Der alte Link
+  // `?skill=<mention>` (z. B. presse-bayern) aktiviert jetzt dasselbe — beide
+  // lesen `readRecipeDeepLink`. Die Erwähnung wird unten aktiviert; trifft sie
+  // ein Systemrezept, löst die Agentenauflösung daraus zusätzlich den Agenten
+  // auf, damit sein Willkommensbildschirm statt der Standardbegrüßung rendert.
+  // Niedrigste Priorität in der Kette: ein ausdrückliches ?agent= oder der
+  // Pfad-Slug gewinnt.
+  const recipeLink = hub ? { mention: null, recipeId: null } : readRecipeDeepLink(searchParams);
+  const rezeptParam = recipeLink.mention;
+  const rezeptIdParam = recipeLink.recipeId;
+  const resolvedFromSkill = rezeptParam ? resolveSkillMention(rezeptParam) : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
