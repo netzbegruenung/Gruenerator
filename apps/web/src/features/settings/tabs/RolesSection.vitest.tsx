@@ -23,6 +23,14 @@ import RolesSection from './RolesSection';
  */
 
 const lv = vi.hoisted(() => ({ ids: null as readonly string[] | null }));
+// Konto der Person: Locale, Mailadresse und gespeicherte Rollen. Standard ist
+// eine AT-Person ohne Rollen; einzelne Tests stellen um und `afterEach` zurück.
+const account = vi.hoisted(() => ({
+  locale: 'de-AT',
+  email: undefined as string | undefined,
+  roles: [] as unknown[],
+  saved: [] as unknown[],
+}));
 vi.mock('@gruenerator/chat', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useUserLandesverbaende: () => ({
@@ -40,12 +48,17 @@ function Where() {
 
 vi.mock('../../../stores/authStore', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ locale: 'de-AT', user: { id: 'u1' } }),
+    selector({ locale: account.locale, user: { id: 'u1', email: account.email } }),
 }));
 
 vi.mock('../../user-defaults/userDefaultsQueries', () => ({
-  useUserDefault: () => ({ value: [] }),
-  useSetUserDefault: () => ({ mutateAsync: vi.fn() }),
+  useUserDefault: () => ({ value: account.roles }),
+  useSetUserDefault: () => ({
+    mutateAsync: (body: { value: unknown }) => {
+      account.saved.push(body.value);
+      return Promise.resolve();
+    },
+  }),
 }));
 
 vi.mock('../../../utils/platformFetch', () => ({
@@ -88,6 +101,69 @@ async function openBundeslandStep(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByText('Land'));
   return { input: screen.getByPlaceholderText('Bundesland eingeben...'), onOpenChange };
 }
+
+afterEach(() => {
+  account.locale = 'de-AT';
+  account.email = undefined;
+  account.roles = [];
+  account.saved = [];
+});
+
+describe('RolesSection — Vorschlag aus der Mailadresse', () => {
+  it('schlägt die Landesgeschäftsstelle vor und öffnet den Assistenten damit', async () => {
+    account.locale = 'de-DE';
+    account.email = 'anna@gruene-hessen.de';
+    const user = userEvent.setup();
+    renderSection();
+
+    expect(screen.getByText('Vorschlag anhand deiner Mailadresse')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+
+    expect(screen.getByText('Land · Hessen')).toBeInTheDocument();
+    // „Weiter" erscheint erst, wenn eine Rolle gewählt ist — hier die vorgeschlagene.
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeInTheDocument();
+  });
+
+  it('schlägt nichts vor, wenn die Rolle schon gespeichert ist', () => {
+    account.locale = 'de-DE';
+    account.email = 'anna@gruene-hessen.de';
+    account.roles = [
+      { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Hessen' },
+    ];
+    renderSection();
+    expect(screen.queryByText('Vorschlag anhand deiner Mailadresse')).toBeNull();
+  });
+});
+
+describe('RolesSection — Seitenleiste je Rolle', () => {
+  it('blendet eine Rolle aus der Seitenleiste aus und wieder ein', async () => {
+    account.locale = 'de-DE';
+    account.roles = [
+      { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Berlin' },
+      { ebene: 'kreisverband', rolle: 'Mitarbeiter*in Kreisverband', bundesland: 'Berlin' },
+    ];
+    const user = userEvent.setup();
+    renderSection();
+
+    // Nur die Rolle mit Seitenleisten-Eintrag bekommt einen Schalter, und er ist an.
+    const toggles = screen.getAllByRole('switch');
+    expect(toggles).toHaveLength(1);
+    expect(toggles[0]).toHaveAccessibleName(
+      'Mitarbeiter*in Landesgeschäftsstelle in der Seitenleiste anzeigen'
+    );
+    expect(toggles[0]).toBeChecked();
+
+    const sidebarFlags = () =>
+      (account.saved.at(-1) as Array<Record<string, unknown>>).map((r) => r.showInSidebar);
+
+    await user.click(toggles[0]!);
+    expect(sidebarFlags()).toEqual([false, undefined]);
+
+    // Wieder an: das Feld fällt weg, statt `true` zu tragen.
+    await user.click(screen.getByRole('switch'));
+    expect(sidebarFlags()).toEqual([undefined, undefined]);
+  });
+});
 
 /**
  * Der Weg zum zugeteilten Landesverband: bei genau einem direkt auf seine Seite

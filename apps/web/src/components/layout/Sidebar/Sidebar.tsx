@@ -1,10 +1,5 @@
-import { useUserLandesverbaende } from '@gruenerator/chat';
-import { useAgentStore, setThreadListSlot } from '@gruenerator/chat/stores';
-import {
-  getAgentSlug,
-  getLandesverbandHubsByIds,
-  getSystemAgent,
-} from '@gruenerator/shared/agents';
+import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
+import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
@@ -36,9 +31,10 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
-import { LandesverbandSidebarSection } from './LandesverbandSidebarSection';
 import { NavTooltip } from './NavTooltip';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
+import { buildRoleShortcuts } from './roleShortcuts';
+import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
@@ -80,15 +76,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
-  const lvMenuOpenRef = useRef(false);
+  const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Landesverbände aus den Profilrollen (Landesgeschäftsstelle / Landesorganisation).
-  // `null` bis zur Hydratation — dann bleibt der Eintrag weg statt aufzublitzen.
-  const { lvIds } = useUserLandesverbaende();
-  const lvHubs = useMemo(
-    () => (lvIds?.length ? getLandesverbandHubsByIds(lvIds, CURRENT_INSTANCE) : []),
-    [lvIds]
+  // Schnellauswahl je Rolle: Landesverbände (Landesgeschäftsstelle /
+  // Landesorganisation) und Grüne Jugend, abschaltbar je Rolle in den
+  // Einstellungen. Vor der Hydratation bleibt der Eintrag weg statt aufzublitzen.
+  const profileRoles = useUserProfileStore((s) => s.roles);
+  const profileLocale = useUserProfileStore((s) => s.locale);
+  const profileHydrated = useUserProfileStore((s) => s.isHydrated);
+  const roleShortcuts = useMemo(
+    () =>
+      profileHydrated ? buildRoleShortcuts(profileRoles, profileLocale, CURRENT_INSTANCE) : [],
+    [profileHydrated, profileRoles, profileLocale]
   );
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
@@ -216,7 +216,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !lvMenuOpenRef.current) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
         close();
       }
     },
@@ -425,11 +425,11 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
         )}
 
-        {/* Landesverband quick-select — also in the collapsed rail */}
-        {lvHubs.length > 0 && (
-          <LandesverbandSidebarSection
-            hubs={lvHubs}
-            openRef={lvMenuOpenRef}
+        {/* Role quick-select (Landesverband, Grüne Jugend) — also in the collapsed rail */}
+        {roleShortcuts.length > 0 && (
+          <RoleShortcutsSidebarSection
+            shortcuts={roleShortcuts}
+            openRef={roleMenuOpenRef}
             titleClass={titleClass}
             collapsed={!sidebarExpanded}
             onNavigate={handleLinkClick}
