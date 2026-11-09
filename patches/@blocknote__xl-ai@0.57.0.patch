@@ -1,5 +1,5 @@
 diff --git a/dist/blocknote-xl-ai.js b/dist/blocknote-xl-ai.js
-index a754a4d..0ae26d9 100644
+index 05cc3c9..83d7bef 100644
 --- a/dist/blocknote-xl-ai.js
 +++ b/dist/blocknote-xl-ai.js
 @@ -58,7 +58,7 @@ var Se = (e) => {
@@ -29,11 +29,11 @@ index a754a4d..0ae26d9 100644
  			},
  			type: { validate: "string" },
  			attrName: {
-diff --git a/dist/server-CGu6iHhc.js b/dist/server-CGu6iHhc.js
-index da9a8b2..fb5ee98 100644
---- a/dist/server-CGu6iHhc.js
-+++ b/dist/server-CGu6iHhc.js
-@@ -661,12 +661,15 @@ function L(e) {
+diff --git a/dist/server-BxHM-cWT.js b/dist/server-BxHM-cWT.js
+index fae56f2..8d45f3d 100644
+--- a/dist/server-BxHM-cWT.js
++++ b/dist/server-BxHM-cWT.js
+@@ -650,12 +650,15 @@ function L(e) {
  		}
  		let h = a.mapping.map(l), g = a.mapping.map(l), _ = !0;
  		for (let e = m; e <= o.slice.content.size; e++) {
