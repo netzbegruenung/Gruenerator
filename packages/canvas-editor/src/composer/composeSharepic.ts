@@ -149,6 +149,8 @@ const BILD_CLEARANCE = 50;
 const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
 /** Diameter of a round photo, as a share of the width. */
 const BILD_KREIS = 0.5;
+/** A framed photo gives up its top to text that does not fit, down to this share of the height. */
+const BILD_MIN_SHARE = 0.2;
 /** A cut-out person rises from the bottom edge to here. */
 const BILD_FREI_TOP = 0.4;
 
@@ -618,11 +620,16 @@ function composeSlide(
   else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
 
   // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
+  /**
+   * A framed photo (card, circle) that keeps its bottom and starts lower at
+   * `top` — set when the text cannot fit above it at its smallest.
+   */
+  let framedPhoto: { bottom: number; shorten: (top: number) => void } | null = null;
   if (bild) {
     const id = `sc-${bildIndex}-bild`;
     const textBottom = areaBottom - MARGIN;
     const photo = (x: number, y: number, width: number, height: number) => {
-      out.userImageInstances.push({
+      const image: (typeof out.userImageInstances)[number] = {
         id,
         src: options.photoSrc(
           bild.ausschnitt === 'freigestellt' ? (bild.freisteller ?? bild.quelle) : bild.quelle
@@ -639,8 +646,10 @@ function composeSlide(
         ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
         ...(bild.filter === 'gruen' && { tint: BILD_TINT[brandId], tintStrength: 1 }),
         ...(bild.filter === 'grau' && { grayscale: true }),
-      });
+      };
+      out.userImageInstances.push(image);
       out.layerOrder.push(id);
+      return image;
     };
     switch (bild.ausschnitt) {
       case 'streifen-unten': {
@@ -670,15 +679,30 @@ function composeSlide(
           })
         );
         const pad = BILD_KARTE.pad;
-        photo(x + pad, y + pad, width - 2 * pad, height - 2 * pad);
+        const image = photo(x + pad, y + pad, width - 2 * pad, height - 2 * pad);
         areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        framedPhoto = {
+          bottom: textBottom,
+          shorten: (top) => {
+            const h = textBottom - top;
+            Object.assign(card, { y: top + h / 2, height: h });
+            Object.assign(image, { y: top + pad, height: h - 2 * pad });
+          },
+        };
         break;
       }
       case 'kreis': {
         const size = Math.round(canvas.width * BILD_KREIS);
         const y = textBottom - size;
-        photo((canvas.width - size) / 2, y, size, size);
+        const image = photo((canvas.width - size) / 2, y, size, size);
         areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        framedPhoto = {
+          bottom: textBottom,
+          shorten: (top) => {
+            const s = textBottom - top;
+            Object.assign(image, { x: (canvas.width - s) / 2, y: top, width: s, height: s });
+          },
+        };
         break;
       }
       case 'freigestellt': {
@@ -1383,7 +1407,7 @@ function composeSlide(
       (etikett ? ETIKETT_ROOM : 0),
     stoererCorner
   );
-  const bottom = areaBottom - MARGIN;
+  let bottom = areaBottom - MARGIN;
   // Story and argument slides fill the frame like the posts do (measured:
   // the block takes 60–70 % of the height on a colour): paragraphs grow until
   // it reaches the target share of the free height.
@@ -1419,7 +1443,19 @@ function composeSlide(
     const group = build(scale, chartShrink, headFloor);
     if (heightOf(group) <= room) placed = group;
   }
-  placed ??= build(0.6, chartShrink, headFloor);
+  if (!placed) {
+    placed = build(0.6, chartShrink, headFloor);
+    // Still too tall: a framed photo gives up its top rather than lie under
+    // the text (#5505), down to `BILD_MIN_SHARE` of the slide.
+    const over = heightOf(placed) - room;
+    if (framedPhoto && over > 0) {
+      const photoTop = bottom + BILD_CLEARANCE;
+      const lowest = framedPhoto.bottom - Math.round(canvas.height * BILD_MIN_SHARE);
+      const newTop = Math.max(photoTop, Math.min(photoTop + over, lowest));
+      framedPhoto.shorten(newTop);
+      bottom += newTop - photoTop;
+    }
+  }
   const total = heightOf(placed);
   // A block on a plain colour slide sits in the middle, not pinned to the top
   // margin (AT always, DE when short); `unten` stays (logo/arrow layouts are
