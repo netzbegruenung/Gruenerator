@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { actionDigest, buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import {
+  actionDigest,
+  buildToolObservationReplay,
+  REPLAY_BRIDGE_TEXT,
+  spliceToolReplay,
+} from './mcpReplay.js';
 import { toolResultBudget } from './toolResultBudgets.js';
 import { DEFAULT_MAX_RESULT_CHARS, resultForModel } from './wrapTools.js';
 
@@ -239,20 +244,38 @@ describe('spliceToolReplay', () => {
   ];
   const replay = buildToolObservationReplay([mcpStep()], catalog);
 
+  it('puts the calls in front of the answer they produced', () => {
+    // Time order like Open WebUI/LobeHub/LibreChat; after the answer the model
+    // read the block as a lookup it had just made (09.11.2026).
+    const out = spliceToolReplay(history, replay);
+    expect(out).toEqual([history[0], ...replay, history[1], history[2]]);
+    expect(out.some((m) => m.content === REPLAY_BRIDGE_TEXT)).toBe(false);
+  });
+
   it('never lets a user message follow a tool message', () => {
     // mistral-common (GreenPT, Mistral API) rejects that transition with 400.
-    const out = spliceToolReplay(history, replay);
-    const roles = out.map((m) => m.role);
-    for (let i = 1; i < roles.length; i++) {
-      expect(`${roles[i - 1]}→${roles[i]}`).not.toBe('tool→user');
+    for (const h of [history, [history[2]]]) {
+      const roles = spliceToolReplay(h, replay).map((m) => m.role);
+      for (let i = 1; i < roles.length; i++) {
+        expect(`${roles[i - 1]}→${roles[i]}`).not.toBe('tool→user');
+      }
     }
-    expect(roles).toEqual(['user', 'assistant', 'assistant', 'tool', 'assistant', 'user']);
   });
 
   it('keeps the current user message last and the replay pair adjacent', () => {
     const out = spliceToolReplay(history, replay);
     expect(out[out.length - 1]).toBe(history[history.length - 1]);
     expect(out.indexOf(replay[1])).toBe(out.indexOf(replay[0]) + 1);
+  });
+
+  it('falls back to a bridged block before the question without an earlier answer', () => {
+    const only: ModelMessage[] = [{ role: 'user', content: 'und morgen?' }];
+    expect(spliceToolReplay(only, replay).map((m) => m.role)).toEqual([
+      'assistant',
+      'tool',
+      'assistant',
+      'user',
+    ]);
   });
 
   it('adds no bridge when the last message is not a user message', () => {

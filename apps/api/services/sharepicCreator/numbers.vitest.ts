@@ -32,3 +32,126 @@ describe('numbers in a draft', () => {
     expect(!result.ok && result.error).toMatch(/nennt 300/);
   });
 });
+
+describe('a figure keeps its meaning in an infographic', () => {
+  const tiles = (...punkte: { titel: string; text?: string }[]) => ({
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'hellgrau' },
+        position: 'oben',
+        align: 'zentriert',
+        items: [
+          { type: 'headline', lines: ['Zurück zum', 'Radweg'] },
+          {
+            type: 'infografik',
+            form: 'raster',
+            punkte: punkte.map((p) => ({ ...p, icon: 'fahrrad', motiv: 'a city bicycle' })),
+          },
+        ],
+        logo: false,
+      },
+    ],
+  });
+  const hotspot = 'Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.';
+
+  it('rejects a direction the brief does not give next to the figure', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      hotspot
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  it('accepts the direction when the brief says it', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Die Zahl der Unfälle sank um 17.'
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  // Review #5490: the title's „Mehr …" is another clause than the text's figure.
+  it('does not lend a direction word to a figure in another clause', () => {
+    const result = validateDraft(
+      tiles({ titel: 'Mehr Radwege', text: '2,4 km Länge' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Radweg ist 2,4 km lang.'
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('still rejects the direction inside the same field', () => {
+    const result = validateDraft(
+      tiles(
+        { titel: '17 Unfälle', text: 'Das sind 17 weniger als 2024.' },
+        { titel: 'Start im April' }
+      ),
+      'de-DE',
+      hotspot
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  // Review #5490: a direction on another „17" in the brief does not cover this one.
+  it('does not let a direction on another figure with the same number count', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 Prozent. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  // Review #5490: a figure at the clause end covers only a tile whose word is in that clause.
+  it('does not let a bare directed number in the brief cover another noun', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  it('keeps a percent figure apart from a count with the same digits', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 Unfälle weniger' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  // Review #5490: the mirror case — a bare figure on the tile takes its noun from before it.
+  it('reads the noun before a bare tile figure', () => {
+    const result = validateDraft(
+      tiles(
+        { titel: 'Unfallschwerpunkt', text: 'Die Zahl sank zuletzt auf nur 17' },
+        { titel: 'Start im April' }
+      ),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  // Review #5490: a direction word between number and noun is not the noun.
+  it('skips a direction word between the figure and its noun', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 weniger Unfälle' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
+  it('accepts plain figures', () => {
+    const result = validateDraft(
+      tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),
+      'de-DE',
+      'Der Radweg ist 2,4 km lang und wird mit 1,26 Mio. € gefördert.'
+    );
+    expect(result.ok).toBe(true);
+  });
+});

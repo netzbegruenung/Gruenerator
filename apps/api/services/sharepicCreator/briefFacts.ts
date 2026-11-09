@@ -137,6 +137,89 @@ export function briefWordsFor(wert: number, given: string): string | null {
   return match ? match[1]! : null;
 }
 
+/** A word that says a figure went up or down, saved or added. */
+const DIRECTION =
+  /(?<!\p{L})(?:weniger|mehr|minder|gesunken|gestiegen|gesenkt|gesteigert|gespart|eingespart|ersparnis|rückgang|anstieg|zuwachs|plus|minus|sank|sinkt|sinken|stieg|steigt|steigen|reduziert|reduzierung|senkung|steigerung|zusätzlich\w*)(?!\p{L})/iu;
+/** Words on either side of a figure that count as „next to it". */
+const NEAR = 4;
+
+/**
+ * Clause ends: sentence punctuation, or a comma/colon followed by a space —
+ * the decimal comma of „2,4" has none. A direction word only counts for a
+ * figure in its own clause: „Mehr Radwege. 2,4 km Länge" says nothing about
+ * the 2,4 (review #5490).
+ */
+const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
+
+/**
+ * A directed figure: its digits and what it counts. The counted thing is the
+ * word after the number („17 Unfälle“, `%` for a percent sign), else the last
+ * capitalised word before it in the clause — German nouns are capitalised
+ * („Die Zahl der Unfälle sank um 17“ → `unfälle`).
+ */
+interface DirectedFigure {
+  num: string;
+  noun: string | null;
+}
+
+const wordOf = (token: string | undefined): string | null => {
+  if (token == null) return null;
+  if (token.startsWith('%')) return '%';
+  const w = token.toLowerCase().replace(/[^\p{L}]/gu, '');
+  return w === 'prozent' ? '%' : w || null;
+};
+
+/** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
+function directedNumbers(text: string): DirectedFigure[] {
+  const found: DirectedFigure[] = [];
+  for (const clause of text.split(CLAUSE_END)) {
+    const tokens = clause.split(/\s+/).filter(Boolean);
+    tokens.forEach((token, i) => {
+      const num = token.match(NUMBER)?.[0];
+      if (!num) return;
+      const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
+      if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
+      // Skip direction words: in „17 weniger Unfälle" the figure counts Unfälle (review #5490).
+      const after = token.endsWith('%')
+        ? '%'
+        : (tokens
+            .slice(i + 1, i + 3)
+            .filter((t) => !DIRECTION.test(t))
+            .map(wordOf)
+            .find((w) => w != null) ?? null);
+      const before = tokens
+        .slice(0, i)
+        .filter((t) => /^\p{Lu}/u.test(t))
+        .map(wordOf)
+        .filter((w): w is string => w != null)
+        .at(-1);
+      found.push({ num: digits(num), noun: after ?? before ?? null });
+    });
+  }
+  return found;
+}
+
+/**
+ * Numbers of `text` that carry a direction („17 Unfälle weniger“, „−5 %“)
+ * the brief does not give for the same figure. The figure may be in the brief
+ * — a hotspot count — and still not mean a reduction. „Same figure" means
+ * same digits AND same counted thing on both sides (review #5490: „Der
+ * Verkehr sank um 17 %" says nothing about „17 Unfälle"). Only a tile figure
+ * with no word at all („−17") is vague enough to be covered by the digits.
+ */
+export function invertedNumbers(text: string, given: string): string[] {
+  const inGiven = directedNumbers(given);
+  const covered = (f: DirectedFigure) =>
+    inGiven.some((g) => g.num === f.num && (f.noun == null || g.noun === f.noun));
+  return [
+    ...new Set(
+      directedNumbers(text)
+        .filter((f) => !covered(f))
+        .map((f) => f.num)
+    ),
+  ];
+}
+
 /** Digits glued to letters are part of a name (CO2, A7), not a figure. */
 export const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */

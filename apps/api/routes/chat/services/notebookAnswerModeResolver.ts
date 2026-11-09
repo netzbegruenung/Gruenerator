@@ -16,11 +16,10 @@
  *    Loop ist um ein Vielfaches teurer als die RAG-Pipeline.
  */
 import { isUserNotebookId } from '../../../config/notebookCollectionMap.js';
-import { aiText } from '../../../services/ai/generate.js';
+import { aiDecide, type ChoiceQuestion } from '../../../services/ai/decide.js';
 import { resolveSystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import { recordDecision, type BranchOf } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
-import { withTimeout } from '../../../utils/withTimeout.js';
 import { collectionsForLocale } from '../agents/searchTools.js';
 
 import { looksLikeNotebookToolAsk, looksLikeNotebookWriteAsk } from './notebookToolAsk.js';
@@ -34,27 +33,32 @@ import type {
 
 const log = createLogger('NotebookAnswerMode');
 
-/** Wie `docsIntentTiebreak`: ~300 ms gemessen, Luft für einen Fallback-Sprung. */
+/**
+ * Das LLM antwortete in ~270 ms (Median); das Entscheidungsmodell braucht
+ * ~150 ms, p90 ~190 ms. 1500 ms lassen dem Ausweich-Host (Metis nach 400 ms)
+ * Luft.
+ */
 const GUARD_TIMEOUT_MS = 1500;
 /** Die letzten zwei Wechsel (Frage + Antwort) reichen für eine Folgefrage. */
 const GUARD_HISTORY_MESSAGES = 4;
 const GUARD_ANSWER_CHARS = 300;
 
-const GUARD_PROMPT = `Du bist ein Klassifizierer auf der Notebook-Seite von Grünerator. Die Nutzer*in stellt eine Frage an die Quellen ihrer Notebooks.
-
-Entscheide, wie die letzte Nachricht beantwortet wird:
-
-CHAT: Inhaltsfragen an die Quellen — was steht drin, zusammenfassen, erklären, vergleichen, Positionen und Argumente herausarbeiten, welche Beschlüsse sich zu einem Thema äußern. Beantwortet aus passenden Textstellen.
-Auch eine Zahl, Menge, Höhe, ein Anteil oder ein Datum, das IN einer Quelle steht, ist eine Inhaltsfrage: "Wie viele Mitglieder hat der Vorstand?", "Wie viel Prozent …?", "In welcher Höhe …?", "Bis wann …?" → chat. Gezählt wird dabei nichts, die Zahl steht im Text.
-
-PRAEZISION: Arbeit direkt mit den Quellen als Dokumenten — die Quellen selbst auflisten, zählen oder sortieren ("Wie viele Dokumente liegen im Notebook?"), eine bestimmte Seite, einen Abschnitt oder ein Kapitel lesen, wörtliche Häufigkeiten ("wie oft kommt X vor", "in welchen Dokumenten steht das Wort X"), ein Zitat wörtlich prüfen.
-Ein THEMA ("welche Dokumente äußern sich zu X") ist chat; ein WÖRTLICHES Wort oder eine wörtliche Wortfolge ("das Wort X", "die Formulierung X", "wörtlich") ist praezision.
-
-Eine Folgefrage ("und die zweite?", "weiter", "noch genauer") übernimmt den Modus der vorigen Antwort.
-
-Im Zweifel: chat.
-
-Antworte mit GENAU einem Wort: chat oder praezision.`;
+/**
+ * Gemessen in `evals/metis` (`notebookMode`, 40 Fälle × 2): Clef Flash und
+ * Metis 39/40, das LLM davor 36/40; Holdout beide 9/10. Die Unterscheidung
+ * steht in den Optionen, nicht in der Anweisung — lange Anweisungen machten
+ * die Modelle schlechter.
+ */
+const GUARD_QUESTION: ChoiceQuestion = {
+  type: 'choice',
+  instructions:
+    'Wie wird die letzte Nachricht an die Notebook-Quellen beantwortet? Eine Folgefrage („weiter", „genauer", „und die zweite?") übernimmt den Modus, der im Verlauf bei der vorigen Antwort steht. Im Zweifel: chat.',
+  criteria: {
+    chat: 'eine Inhaltsfrage: was steht drin, zusammenfassen, erklären, vergleichen, Positionen, welche Dokumente sich zu einem THEMA äußern – auch eine Zahl oder ein Datum, das in einer Quelle steht',
+    praezision:
+      'Arbeit mit den Quellen als Dokumenten: sie auflisten, zählen oder sortieren, eine bestimmte Seite oder einen Abschnitt lesen, ein WÖRTLICHES Wort oder eine wörtliche Formulierung zählen oder finden, ein Zitat wörtlich prüfen',
+  },
+};
 
 /** Ein Eintrag des Verlaufs, so weit der Wächter ihn braucht. */
 export interface NotebookGuardTurn {
@@ -158,43 +162,22 @@ export function formatGuardPrompt(question: string, history: readonly NotebookGu
   return lines.length > 0 ? `Bisheriger Verlauf:\n${lines.join('\n')}\n\n${current}` : current;
 }
 
-/**
- * Das erste Antwortwort gewinnt: Modelle setzen gern Anführungszeichen, einen
- * Punkt oder einen Satz drumherum, und schreiben „Präzision" mit Umlaut.
- */
-export function parseGuardVerdict(raw: string | null): NotebookResolvedAnswerMode | null {
-  if (!raw) return null;
-  const match = /pr(?:ä|ae|a)z|chat/i.exec(raw);
-  if (!match) return null;
-  return match[0].toLowerCase() === 'chat' ? 'chat' : 'praezision';
-}
-
-/** Der LLM-Wächter. null bei Fehler, Zeitüberschreitung oder unlesbarer Antwort. */
+/** Der Wächter. null bei Fehler oder Zeitüberschreitung — der Aufrufer fährt dann chat. */
 export async function classifyNotebookAnswerMode(
   question: string,
   history: readonly NotebookGuardTurn[]
 ): Promise<NotebookResolvedAnswerMode | null> {
   const startTime = Date.now();
   try {
-    const response = await withTimeout(
-      aiText({
-        lane: 'chat_intent_classification',
-        pinned: 'standard',
-        system: GUARD_PROMPT,
-        prompt: formatGuardPrompt(question, history),
-        maxOutputTokens: 8000,
-        temperature: 0,
-      }),
-      GUARD_TIMEOUT_MS,
-      'NotebookAnswerModeGuard'
-    );
-    const verdict = parseGuardVerdict(response);
-    if (verdict == null) {
-      log.warn(
-        `[NotebookAnswerMode] guard answer unreadable after ${Date.now() - startTime}ms: "${response.slice(0, 40)}"`
-      );
-    }
-    return verdict;
+    const { mode } = await aiDecide({
+      label: 'NotebookAnswerMode',
+      state: formatGuardPrompt(question, history),
+      questions: { mode: GUARD_QUESTION },
+      timeoutMs: GUARD_TIMEOUT_MS,
+    });
+    if (mode.choice === 'chat' || mode.choice === 'praezision') return mode.choice;
+    log.warn(`[NotebookAnswerMode] guard chose unknown option "${mode.choice}"`);
+    return null;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     log.warn(`[NotebookAnswerMode] guard failed after ${Date.now() - startTime}ms: ${reason}`);

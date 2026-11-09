@@ -100,6 +100,18 @@ describe('aiText', () => {
     expect(callAt(0).data.options).not.toHaveProperty('response_format');
   });
 
+  it('passes a reasoning request on to the engine', async () => {
+    await aiText({ lane: 'doc_generation', prompt: 'x', reasoning: 'medium' });
+
+    expect(callAt(0).data.options.reasoning).toBe('medium');
+  });
+
+  it('leaves reasoning to the provider when the call does not ask', async () => {
+    await aiText({ lane: 'doc_generation', prompt: 'x' });
+
+    expect(callAt(0).data.options).not.toHaveProperty('reasoning');
+  });
+
   it('falls over to the next provider when one answers with nothing', async () => {
     // Empty counts as failure: a provider that says nothing has not answered.
     executeProvider.mockResolvedValueOnce({ content: '', success: true });

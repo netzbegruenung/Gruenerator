@@ -22,11 +22,10 @@ import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 
 import { materialReaderTools, type TurnMaterial } from './attachedDocuments.js';
-import { isLookupTool, priorToolNames, priorTurnRetrieved } from './catalogAssembly.js';
+import { isLookupTool, priorToolNames } from './catalogAssembly.js';
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import { owedToolName } from './loopGuarantees.js';
 import {
-  asksAboutOwnPastAction,
   asksAboutSuppliedMaterial,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
@@ -51,7 +50,6 @@ export type ForceReason =
   | 'research_order'
   | 'demoted_retrieval'
   | 'contradicted'
-  | 'followup'
   | 'named_intent'
   | 'sharepic_order'
   | 'artifact_edit_order'
@@ -96,11 +94,6 @@ export function shouldForceFirstToolCall(input: {
   carriesMaterial?: boolean;
   /** Eine @-Erwähnung hat ein Werkzeug benannt (`mentionPinnedTool`). */
   pinnedTool: string | null;
-  /** Der Thread hat in Reichweite der Werkzeug-Wiedergabe schon INFORMATION
-   *  geholt (`priorTurnRetrieved` — dieselben Schritte, die als Beobachtungen
-   *  in den Kontext gespielt werden). Der Abrufkontext dieses Turns steht damit
-   *  im Thread, nicht in seinem eigenen Verdikt. */
-  priorTurnRetrieved: boolean;
   /** Der Turn hat angehängte Dokumente (`retrievableAttachedSources`). */
   hasAttachedDocuments?: boolean;
   /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
@@ -238,35 +231,6 @@ export function shouldForceFirstToolCall(input: {
   // lief, und die Antwort war vollständig erfunden.
   if (input.classifierContradictedResearch) return 'contradicted';
 
-  // Siebter Weg: die rückbezügliche Anschlussfrage nach einem Abruf-Turn.
-  //
-  // Gemessen am 20.08.2026 mit einer Zwei-Turn-Sonde auf `classifierNode`
-  // (`followup-bundestag-scope`, der Messpunkt, der über zwei Abnahmeläufe
-  // fünfmal fünf verschiedene Werkzeugwahlen ergab):
-  //
-  //   t0 „Wie hat die SPD zum Heizungsgesetz abgestimmt?"
-  //      → abgeordnetenwatch@0.65, demotiert, loopDemotedFromRetrieval=TRUE
-  //   t1 „Und die FDP?"
-  //      → direct@0.25, demotiert, loopDemotedFromRetrieval=FALSE
-  //
-  // t0 trägt der Demotions-Zweig. t1 trug bis hier NIEMAND: das Abruf-Verdikt steht
-  // im Turn davor, dieser Turn nennt nur noch die Differenz. `agentic` ist der
-  // Auffangwert und darf nicht zwingen — deshalb entschied allein der Planer,
-  // ob er nachschlägt, und genau das ist die Streuung. Die Korpus-Notiz führte
-  // sie auf den Planer-Host zurück; die Sonde zeigt, dass der Zwang ihn für
-  // diesen Turn nie erreicht hat.
-  //
-  // Drei Bedingungen, und alle drei sind nötig:
-  //  - der Abrufkontext liegt im THREAD (der vorige Turn holte Information),
-  //  - der Turn ist der Auffangwert (`agentic`); ein benanntes Abruf-Verdikt
-  //    trägt der `NAMED_RETRIEVAL_INTENTS`-Zweig, ein demotiertes der
-  //    `loopDemotedFromRetrieval`-Zweig,
-  //  - der Text ist eine Anschlussfrage und keine Meta-Anweisung über die
-  //    vorige ANTWORT (`isReferentialFollowup`; „fasse das kürzer" ist
-  //    ebenfalls kurz und rückbezüglich und darf hier nie ankommen).
-  //
-  // Eigenes Material sticht auch hier, aus demselben Grund wie beim
-  // Demotions-Zweig.
   // Ein Tabellen-Turn holt nichts nach: die Daten liegen im Anhang, gerechnet
   // wird mit `tabelle_auswerten`. Ein Zwang auf die Suchwerkzeuge liess den
   // Planer hängen oder im Web suchen (live 27.10.2026, named_intent/followup).
@@ -279,16 +243,10 @@ export function shouldForceFirstToolCall(input: {
     return 'tabular_decision';
   }
 
-  if (
-    input.priorTurnRetrieved &&
-    input.intent === 'agentic' &&
-    !input.materialHeavy &&
-    isReferentialFollowup(input.lastUserText) &&
-    // Frage über die eigene vorige Abrufhandlung: die Antwort steht im Thread (#3916).
-    !asksAboutOwnPastAction(input.lastUserText)
-  ) {
-    return 'followup';
-  }
+  // Eine Anschlussfrage nach einem Abruf-Turn („Und die FDP?") erzwingt
+  // nichts mehr: ob sie nachschlägt, entscheidet das Modell mit dem Verlauf.
+  // Der frühere `followup`-Zwang (≤ 8 Wörter + Abruf im Thread) zwang auch
+  // ein „yes" auf ein Sharepic-Angebot in die Suche (Alfter, 09.11.2026).
 
   // Vierter Weg, der bis zuletzt keinen hatte: der Klassifikator hat einen
   // Recherche-Intent AUSDRÜCKLICH benannt. Live: „Wie komme ich am Montag früh
@@ -512,24 +470,14 @@ export function forcedFirstStepTools(input: {
     case 'demoted_retrieval':
     case 'contradicted':
       // Dazu die Nachschlage-Werkzeuge des Threads: „finde es" nach zwei
-      // gescheiterten `notebooks`-Aufrufen (#3778) feuert `research_order` VOR
-      // `followup`, und die Recherche-Menge kennt `notebooks` nicht — der
+      // gescheiterten `notebooks`-Aufrufen (#3778) feuert `research_order`,
+      // und die Recherche-Menge kennt `notebooks` nicht — der
       // erzwungene Schritt könnte das richtige Werkzeug nicht mehr wiederholen.
       candidates = [
         ...RESEARCH_LOOP_TOOLS,
         ...input.priorToolNames.filter(input.isLookupTool),
         ...ownContent,
         ...(input.reason === 'research_order' ? [] : material),
-      ];
-      break;
-    case 'followup':
-      // Dazu das Web: „Und was sagt die SPD dazu?" nach einem
-      // `gruenerator_search`-Turn muss aus dem Korpus der Grünen heraus können.
-      // `bundestag` deckt jede Partei ab, ein Partei-Korpus nicht.
-      candidates = [
-        ...input.priorToolNames.filter(input.isLookupTool),
-        ...loopToolsFor('web'),
-        ...material,
       ];
       break;
   }
@@ -630,7 +578,6 @@ export async function decideFirstStep(ctx: {
     mcpToolCount: ctx.mcpCatalog?.labels.size ?? 0,
     lastUserText,
     loopDemotedFromRetrieval: state.loopDemotedFromRetrieval === true,
-    priorTurnRetrieved: priorTurnRetrieved(ctx.toolHistory),
     classifierContradictedResearch: state.classifierContradictedResearch === true,
     materialHeavy: ctx.materialHeavy,
     carriesMaterial:

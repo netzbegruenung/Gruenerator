@@ -179,7 +179,7 @@ oauthlib==4.0.1
     # via requests-oauthlib
 ollama==0.6.1
     # via browser-use
-openai==3.42.0
+openai==3.46.0
     # via browser-use
 opentelemetry-api==1.45.2
     # via
@@ -262,7 +262,7 @@ pytest==9.2.0
     # via
     #   gruenerator-browser-agent (pyproject.toml)
     #   pytest-asyncio
-pytest-asyncio==1.4.1
+pytest-asyncio==1.4.1.post1
     # via gruenerator-browser-agent (pyproject.toml)
 python-dateutil==3.0.0
     # via posthog
@@ -345,7 +345,7 @@ typing-extensions==4.15.0
     #   pydantic-core
     #   python-docx
     #   typing-inspection
-typing-inspection==0.4.4
+typing-inspection==0.4.5
     # via
     #   fastapi
     #   mcp

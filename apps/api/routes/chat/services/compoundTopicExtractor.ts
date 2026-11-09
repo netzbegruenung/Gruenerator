@@ -23,6 +23,7 @@ const NOTEBOOK_DISPLAY_NAMES: Record<string, string> = {
   'landtag-nrw-notebook': 'Landtag NRW',
   'landtag-berlin-notebook': 'Abgeordnetenhaus Berlin',
   'landtag-bayern-notebook': 'Bayerischer Landtag',
+  'wahlpruefsteine-notebook': 'Wahlprüfsteine',
   'gruenblog-notebook': 'Grüner Blog',
 };
 

@@ -20,7 +20,8 @@ Eine Infografik erklärt mit Bildern: jeder Punkt hat eine kleine, flache Illust
 
 ## Jeder Punkt
 
-- `titel` – 1–4 Wörter, fett. Eine Zahl darf der Titel sein („300 Becher“), aber nur eine Zahl aus dem Auftrag – und mit seiner Aussage: „17 Unfälle“ wird nie „17 Unfälle weniger“, eine Forderung nie „geschafft“.
+- `titel` – 1–4 Wörter, fett. Eine Zahl darf der Titel sein („300 Becher“), aber nur eine Zahl aus dem Auftrag.
+- Eine Zahl behält die Bedeutung, die sie im Auftrag hat: „17 Unfälle“ an einem Unfallschwerpunkt bleibt „17 Unfälle“, nie „17 Unfälle weniger“. Keine Richtung (weniger, mehr, gespart, gesunken, gestiegen) hinzufügen, die nicht beim Wert im Auftrag steht. Eine Forderung wird nie „geschafft“.
 - `text` – optional, ein kurzer Satz (bis 90 Zeichen). Lieber weglassen als füllen.
 - `icon` – immer setzen, das Thema aus der Liste; es steht da, wenn keine Illustration gemalt werden kann.
 - `motiv` – Englisch, ein einzelner Gegenstand oder eine kleine Figur, konkret, kompakt (etwa so hoch wie breit – lieber „a school building with a clock tower“ als eine lange Häuserzeile) und mit seiner Farbe aus der Palette (dunkelgrün, hellgrün, gelb): „a dark green city bicycle with a front basket“, „a full dark green rubbish bag“, „a yellow cooking pot with a green lid“. Nichts, was von Natur aus weiß bleiben müsste (kein Lichtschalter, kein Blatt Papier) – für „Licht aus“ lieber „a yellow light bulb“. Grau nur, wo es etwas sagt: eine CO₂- oder Abgaswolke ist „a dark grey smoke cloud“ (in Grün sähe sie aus wie ein Busch). Kein Text, keine Zahlen, keine Logos, keine echten Personen, keine Szenen mit Hintergrund. In einem Raster oder Ablauf zeigt jeder Punkt etwas anderes; bei `mengen` alle dasselbe.

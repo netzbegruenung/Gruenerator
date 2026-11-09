@@ -131,6 +131,9 @@ export interface SubcategoryFilters {
   ergebnis?: string | string[];
   // Bayerischer Landtag: Schlagworte der Landtagsdokumentation.
   schlagworte?: string | string[];
+  // Wahlprüfsteine (Bund/Europa)
+  wahl?: string | string[];
+  ebene?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -166,6 +169,8 @@ const MULTI_VALUE_FILTER_KEYS = [
   'speaker_party',
   'ergebnis',
   'schlagworte',
+  'wahl',
+  'ebene',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -196,6 +201,13 @@ export const DEFAULT_SEARCH_PARAMS: SearchParams = {
 // =============================================================================
 // System Collections
 // =============================================================================
+
+/** Wahlen im Wahlprüfstein-Korpus (Payload-Feld `wahl`). */
+export const WAHLPRUEFSTEIN_WAHL_LABELS: Record<string, string> = {
+  btw21: 'Bundestagswahl 2021',
+  btw25: 'Bundestagswahl 2025',
+  ew24: 'Europawahl 2024',
+};
 
 /** Shared "Typ" filter declaration reused across every Landesverband system collection. */
 const LV_CONTENT_TYPE_FIELD: FilterableField<'content_type'> = {
@@ -1012,6 +1024,34 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'SL' },
+  },
+  // Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je Frage/Antwort-
+  // Paar (scripts/ingest-wahlpruefstein-examples.ts). Dieselbe Sammlung speist
+  // das Beispielwerkzeug des Wahlprüfstein-Rezepts. Jedes Paar ist ein eigenes
+  // Dokument, damit die NLP-Anreicherung das Thema je Frage vergibt und nicht
+  // einmal für einen ganzen Katalog über viele Politikfelder.
+  'wahlpruefsteine-system': {
+    id: 'wahlpruefsteine-system',
+    key: 'wahlpruefsteine',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'wahlpruefstein_examples',
+    unchunked: true,
+    name: 'Wahlprüfsteine',
+    description:
+      'Antworten von Bündnis 90/Die Grünen auf Wahlprüfsteine von Verbänden zur Bundestagswahl 2021 und 2025 und zur Europawahl 2024',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'wahl', label: 'Wahl', type: 'keyword', valueLabels: WAHLPRUEFSTEIN_WAHL_LABELS },
+      {
+        field: 'ebene',
+        label: 'Ebene',
+        type: 'keyword',
+        valueLabels: { bund: 'Bund', europa: 'Europa' },
+      },
+    ],
   },
   // Previously missing → getSearchParams('examples-system') silently fell back.
   'examples-system': {

@@ -50,7 +50,7 @@ import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { LaneId } from './lanes.js';
 import type { ProviderName } from './providers.js';
 import type { StructuredValidation } from './structuredParsing.js';
-import type { AIRequestData, AIRequestOptions, AiResult, Tool } from './types.js';
+import type { AIRequestData, AIRequestOptions, AiReasoning, AiResult, Tool } from './types.js';
 
 const log = createLogger('AiObject');
 
@@ -127,6 +127,17 @@ export interface AiCall {
    * caller parses prose-shaped JSON itself.
    */
   json?: boolean;
+  /**
+   * Let the model reason before it answers. Omitted, every lane keeps its
+   * provider's off switch: `meliousFetch` sends `reasoning_effort: 'none'`,
+   * Large 4 is held at `low`. Set, it reaches the wire as `reasoning_effort`
+   * and the off switches leave it alone.
+   *
+   * Reasoning tokens count against `maxOutputTokens` and Melious returns them
+   * in a field the SDK does not read: budget for them, or a long think ends as
+   * a call without an answer.
+   */
+  reasoning?: AiReasoning;
 }
 
 /**
@@ -227,6 +238,7 @@ function toEnvelope(
     ...(call.maxOutputTokens != null && { max_tokens: call.maxOutputTokens }),
     ...(call.topP != null && { top_p: call.topP }),
     ...(call.json === true && { response_format: { type: 'json_object' as const } }),
+    ...(call.reasoning != null && { reasoning: call.reasoning }),
     ...(model != null && { model }),
   };
 

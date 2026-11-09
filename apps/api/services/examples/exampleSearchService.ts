@@ -11,6 +11,7 @@
  * here plus an entry in the `ExampleKind` union — no graph or UI churn.
  */
 
+import { WAHLPRUEFSTEIN_WAHL_LABELS } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { contentExamplesService } from '../contentExamplesService.js';
@@ -308,11 +309,6 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
 }
 
 const WAHLPRUEFSTEIN_COLLECTION = 'wahlpruefstein_examples';
-const WAHL_LABELS: Record<string, string> = {
-  btw21: 'Bundestagswahl 2021',
-  btw25: 'Bundestagswahl 2025',
-  ew24: 'Europawahl 2024',
-};
 
 /**
  * Echte Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je
@@ -343,7 +339,7 @@ async function fetchWahlpruefstein(params: SearchExamplesParams): Promise<Unifie
     return {
       kind: 'wahlpruefstein' as const,
       id: String(h.id),
-      title: `${str('verband')} (${WAHL_LABELS[wahl] ?? wahl})`,
+      title: `${str('verband')} (${WAHLPRUEFSTEIN_WAHL_LABELS[wahl] ?? wahl})`,
       body: `Frage: ${str('frage')}\n\nAntwort: ${position ? `${position}. ` : ''}${str('antwort')}`,
       ...(wahl && { wahl }),
       relevance: h.score,

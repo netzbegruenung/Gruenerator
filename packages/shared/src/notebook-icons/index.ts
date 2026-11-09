@@ -62,6 +62,7 @@ export const NOTEBOOK_ICONS = {
   'landtag-nrw-notebook': PiBank,
   'landtag-berlin-notebook': PiBank,
   'landtag-bayern-notebook': PiBank,
+  'wahlpruefsteine-notebook': PiListChecks,
 } satisfies Record<NotebookId, IconType>;
 
 export type NotebookIconId = keyof typeof NOTEBOOK_ICONS;
