@@ -111,6 +111,19 @@ export const MAX_TEXT_FORM_DESCRIPTION_CHARS = 500;
  * schicken `null`.
  */
 export const USER_RECIPE_DESCRIPTION_MIN = 30;
+
+/**
+ * Ob die Beschreibung speicherbar ist. Neue Rezepte und jede geänderte
+ * Beschreibung müssen die Mindestlänge halten; ein bestehendes Rezept mit leerer
+ * oder kurzer Beschreibung bleibt unverändert speicherbar (die meisten
+ * Altbestände haben keine). `original` ist die geladene Beschreibung beim
+ * Bearbeiten, `null` beim Anlegen.
+ */
+export function isUserRecipeDescriptionValid(current: string, original: string | null): boolean {
+  const text = current.trim();
+  if (text.length >= USER_RECIPE_DESCRIPTION_MIN) return true;
+  return original !== null && text === original.trim();
+}
 /** Short blurb shown next to the recipe in the Agentura/mention picker. */
 export const textFormDescriptionSchema = z.string().max(MAX_TEXT_FORM_DESCRIPTION_CHARS);
 /** Icon key from the shared icon catalog, same shape as agents' `iconKey`. */

@@ -210,6 +210,26 @@ describe('RecipeEditor', () => {
     expect(screen.getByLabelText('Kategorie')).toHaveValue('presse');
   });
 
+  it('nennt unter der Beschreibung die Mindestlänge und markiert das Feld, solange sie fehlt', async () => {
+    renderWithProviders(<RecipeEditor mode="create" initialState={customCreateForm()} />);
+    const field = screen.getByLabelText(/^Beschreibung/);
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(/Mindestens 30 Zeichen/)).toBeInTheDocument();
+  });
+
+  it('lässt ein bestehendes Rezept mit leerer Beschreibung unverändert speichern', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm({ description: '' })} />
+    );
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+
+    // Wer die Beschreibung anfasst, muss die Mindestlänge halten.
+    await user.type(screen.getByLabelText(/^Beschreibung/), 'kurz');
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await user.clear(screen.getByLabelText(/^Beschreibung/));
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+  });
+
   it('zeigt einen 409 unter dem sichtbaren Mention-Feld statt als Banner', async () => {
     save.mockResolvedValueOnce({
       status: 409,

@@ -42,7 +42,8 @@ function baseDraft(overrides: Partial<Record<string, unknown>> = {}): Record<str
   return {
     title: 'Einladung Ortsverband',
     mention: 'einladung-ortsverband',
-    description: 'Lädt zu Ortsverbandstreffen ein.',
+    description:
+      'Einladungen zu Ortsverbandstreffen mit Termin und Ort. Nutzen, wenn zu einem Treffen eingeladen werden soll.',
     iconKey: 'PiCalendarBlank',
     styleBlock:
       '## Zweck\n\nLädt zu Treffen ein.\n\n## Aufbau und Struktur\n\nKurz und knapp.\n\n## Tonalität und Ansprache\n\nFreundlich, Du-Form.\n\n## Länge und Format\n\nMax. 500 Zeichen.\n\n## Was vermieden wird\n\nKeine Fachbegriffe.',
@@ -88,6 +89,19 @@ describe('draftRecipeSpec', () => {
       /„(Einladungen zu Ortsverbandstreffen[^“]*)“/.exec(call.system ?? '')?.[1] ?? '';
     expect(example.length).toBeGreaterThanOrEqual(60);
     expect(example.length).toBeLessThanOrEqual(220);
+  });
+
+  it('rejects a draft description below the editor minimum, so the retry loop catches it', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown> & {
+      validate: (v: unknown) => { ok: boolean };
+    };
+    expect(call.validate({ ...baseDraft(), description: 'Zu kurz.' }).ok).toBe(false);
+    expect(call.validate(baseDraft()).ok).toBe(true);
   });
 
   it('throws when no attempt produced a valid draft', async () => {

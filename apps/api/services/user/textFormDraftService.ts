@@ -60,7 +60,9 @@ const DraftSchema = z.object({
     .describe('Slug in Kleinbuchstaben mit Bindestrichen, ohne @, z.B. "einladung-ortsverband"'),
   description: z
     .string()
-    .min(1)
+    // Der Editor verlangt 30 Zeichen; ein Entwurf darunter ginge dort nicht zu
+    // speichern. 60 ist die Untergrenze des Prompts (Validierung + Wiederholung).
+    .min(60)
     .describe(
       'Auslöser-Beschreibung, 60 bis 220 Zeichen: was das Rezept liefert, dann „Nutzen, wenn …“'
     ),

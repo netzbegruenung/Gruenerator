@@ -6,6 +6,7 @@ import {
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
   RESERVED_TEXT_FORM_MENTIONS,
+  isUserRecipeDescriptionValid,
   USER_RECIPE_DESCRIPTION_MIN,
   type SkillCategoryValue,
 } from '@gruenerator/contracts';
@@ -171,7 +172,11 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
 
   const titleValid = form.title.trim().length > 0;
   // Die Beschreibung ist die einzige Auswahlgrundlage des Modells (Rezeptkatalog).
-  const descriptionValid = form.description.trim().length >= USER_RECIPE_DESCRIPTION_MIN;
+  // Beim Bearbeiten bleibt eine unveränderte kurze Beschreibung speicherbar.
+  const descriptionValid = isUserRecipeDescriptionValid(
+    form.description,
+    mode === 'edit' ? initialState.description : null
+  );
   // Doppelte Rolle: Speicherbedingung und — im Beispiel-Panel — die Frage, ob
   // eine Analyse etwas überschreiben würde.
   const styleValid = form.styleBlock.trim().length > 0;
@@ -406,8 +411,21 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
               onChange={(e) => set('description', e.target.value)}
               maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
               placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
+              aria-invalid={!descriptionValid}
+              aria-describedby="recipe-description-hint"
             />
           </label>
+          <p
+            id="recipe-description-hint"
+            className={
+              descriptionValid
+                ? '-mt-sm text-xs text-foreground-muted'
+                : '-mt-sm text-xs text-destructive'
+            }
+          >
+            Mindestens {USER_RECIPE_DESCRIPTION_MIN} Zeichen · hiernach entscheidet der Grünerator,
+            wann er das Rezept nutzt.
+          </p>
 
           <label className={labelCls}>
             Kategorie
