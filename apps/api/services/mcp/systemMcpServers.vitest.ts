@@ -25,6 +25,8 @@ const ENV_KEYS = [
   'SYSTEM_MCP_TRIVAGO_TOKEN',
   'SYSTEM_MCP_LAW_URL',
   'SYSTEM_MCP_LAW_TOKEN',
+  'SYSTEM_MCP_RATEO_URL',
+  'SYSTEM_MCP_RATEO_TOKEN',
 ];
 
 const saved: Record<string, string | undefined> = {};
@@ -49,6 +51,7 @@ const allConfigured = () => {
   process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
   process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
   process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+  process.env.SYSTEM_MCP_RATEO_URL = 'https://rateo.example.org/mcp';
 };
 
 describe('getSystemMcpSources (env matrix)', () => {
@@ -96,8 +99,8 @@ describe('getSystemMcpSources (env matrix)', () => {
 describe('managed connectors', () => {
   it('offers every configured source, in MANAGED_KEYS order', () => {
     allConfigured();
-    expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
-    for (const key of ['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const) {
+    expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo']);
+    for (const key of ['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo'] as const) {
       expect(isManagedKey(key)).toBe(true);
     }
   });
@@ -128,7 +131,7 @@ describe('managed connectors', () => {
     // mcpCatalog builds `m${id.replace(/-/g,'').slice(0,8)}__<tool>` and the
     // provider tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — a `:` separator here
     // would produce names every provider rejects.
-    const prefixes = (['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const).map((k) =>
+    const prefixes = (['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo'] as const).map((k) =>
       managedConnectorId(k).replace(/-/g, '').slice(0, 8)
     );
     for (const p of prefixes) expect(p).toMatch(/^[a-zA-Z0-9_-]+$/);
@@ -163,7 +166,7 @@ describe('managed connectors', () => {
 describe('audience', () => {
   it('keeps every connector for a German user', () => {
     allConfigured();
-    expect(managedKeys('de-DE')).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
+    expect(managedKeys('de-DE')).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo']);
   });
 
   it('drops only the German-only connectors for an Austrian user', () => {
@@ -175,7 +178,7 @@ describe('audience', () => {
     // The explicit-mention path passes no locale on purpose: somebody who types
     // `@bahn` asked for that server, whatever country they are in.
     allConfigured();
-    expect(managedKeys()).toHaveLength(5);
+    expect(managedKeys()).toHaveLength(6);
   });
 
   it('answers the German-only question per source', () => {

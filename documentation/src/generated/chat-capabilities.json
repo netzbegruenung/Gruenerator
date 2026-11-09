@@ -281,6 +281,11 @@
       "capability": "Nachrichten: aktuelle tagesschau-Meldungen (gesamt, nach Ressort oder Bundesland) und Artikelsuche.",
       "env": "SYSTEM_MCP_ARD_URL"
     },
+    "rateo": {
+      "name": "Rateo (BVV Berlin)",
+      "capability": "Rateo: Drucksachen der Berliner Bezirksverordnetenversammlungen (11 Bezirke, ohne Spandau) suchen, einzelne Vorgänge mit Belegen und Beratungsfolge abrufen und Fraktionsbilanzen je Bezirk auswerten.",
+      "env": "SYSTEM_MCP_RATEO_URL"
+    },
     "wetter": {
       "name": "Wetter (DWD)",
       "capability": "Wetter: Vorhersagen (Open-Meteo/DWD ICON), aktuelles Wetter, Luftqualität und historische Wetterdaten — Orte zuerst per geocoding auflösen.",

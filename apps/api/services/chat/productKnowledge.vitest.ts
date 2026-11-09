@@ -37,6 +37,7 @@ const ENV_KEYS = [
   'SYSTEM_MCP_ARD_URL',
   'SYSTEM_MCP_TRIVAGO_URL',
   'SYSTEM_MCP_LAW_URL',
+  'SYSTEM_MCP_RATEO_URL',
 ];
 
 beforeEach(() => {
