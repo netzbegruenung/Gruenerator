@@ -23,6 +23,7 @@ import {
   type Mentionable,
 } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
+import { axe } from '../../test-utils';
 
 import { MentionPopover } from './MentionPopover';
 
@@ -323,5 +324,43 @@ describe('recipes saved from another user', () => {
     renderPopover('rede');
 
     expect(renderedRows()).toEqual(getFilteredMentionables('rede').map(rowKey));
+  });
+});
+
+describe('recipe descriptions', () => {
+  it('shows the recipe description as one clamped line', async () => {
+    const description =
+      'Schreibt eine Pressemitteilung. Nutze es, wenn etwas veröffentlicht werden soll.';
+    setCustomAgents([{ id: 'own-d', name: 'Presse-Rezept', slug: 'presse-rezept', description }]);
+    const { container } = render(
+      <MentionPopover
+        query="presse-rezept"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    expect(screen.getByText(description)).toHaveClass('line-clamp-1');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('adds no description line to a row without one', () => {
+    setCustomAgents([{ id: 'own-e', name: 'Presse-Rezept', slug: 'presse-rezept' }]);
+    render(
+      <MentionPopover
+        query="presse-rezept"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    const row = screen.getAllByRole('option')[0];
+    expect(row.querySelectorAll('p')).toHaveLength(2);
   });
 });
