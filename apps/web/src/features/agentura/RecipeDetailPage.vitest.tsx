@@ -165,7 +165,7 @@ describe('RecipeDetailPage — Marktplatz-Block', () => {
     expect(listEntityComments).toHaveBeenCalledWith({
       params: { entityType: 'recipe', entityId: 'presse' },
     });
-    await userEvent.click(await screen.findByRole('button', { name: 'Gefällt mir (2)' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Gefällt mir, 2' }));
     await waitFor(() =>
       expect(like).toHaveBeenCalledWith({ params: { kind: 'recipe', ref: 'presse' } })
     );

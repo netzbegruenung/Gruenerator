@@ -27,7 +27,13 @@ export const FavoriteButton = memo(function FavoriteButton({
   className,
 }: FavoriteButtonProps) {
   const interactive = !disabled && !loading;
-  const ariaLabel = favorited ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen';
+  const visibleLabel = favorited ? 'Gemerkt' : 'Merken';
+  // WCAG 2.5.3: with a visible label, that text is the accessible name; aria-pressed carries the state.
+  const ariaLabel = showLabel
+    ? visibleLabel
+    : favorited
+      ? 'Aus Favoriten entfernen'
+      : 'Zu Favoriten hinzufügen';
   const isLarge = size === 'lg';
 
   return (
@@ -65,7 +71,7 @@ export const FavoriteButton = memo(function FavoriteButton({
       ) : (
         <PiStar className={isLarge ? 'text-lg' : 'text-base'} aria-hidden />
       )}
-      {showLabel ? <span>{favorited ? 'Gemerkt' : 'Merken'}</span> : null}
+      {showLabel ? <span>{visibleLabel}</span> : null}
     </button>
   );
 });

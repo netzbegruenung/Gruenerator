@@ -134,7 +134,7 @@ export function MarketplaceDiscussion({
             <Button
               variant="ghost"
               aria-pressed={item.liked}
-              aria-label={`Gefällt mir (${item.likesCount})`}
+              aria-label={`Gefällt mir, ${item.likesCount}`}
               title="Gefällt mir"
               onClick={() => actions.toggleLike(item)}
             >
