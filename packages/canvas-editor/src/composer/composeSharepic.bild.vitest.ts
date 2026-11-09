@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { composeSharepic } from './composeSharepic';
 import { slideProvenance } from './sharepicProvenance';
-import { bild, bildAt, farbe, options } from './sharepicSpecFixtures';
+import { bild, bildAt, farbe, measure, options } from './sharepicSpecFixtures';
 
 const one = (spec: SharepicSpec, k: number): SharepicSpec => ({
   ...spec,
@@ -126,6 +126,38 @@ describe('bild item — composer', () => {
     expect(textBottom(slide)).toBeLessThan(card.y - card.height / 2);
     expect(p.tintStrength).toBeUndefined();
     expect(p.grayscale).toBeUndefined();
+  });
+
+  it('keeps a big numeral, headline and paragraph clear of a photo card (#5505)', () => {
+    const slide: SharepicSpec['slides'][number] = {
+      ...farbe('hellgrau', [
+        { type: 'headline', lines: ['Heizkosten', '==dauerhaft==', 'niedriger'], akzent: 1 },
+        {
+          type: 'absatz',
+          text: 'Statt Öl oder Gas nutzt die Wärmepumpe Strom – und auf Dauer zahlst du damit **deutlich weniger** fürs Heizen.',
+        },
+        { type: 'bild', quelle: 'wind.jpg', ausschnitt: 'karte', filter: 'original' },
+      ]),
+      nummer: 'gross',
+      weiter: 'Die Förderung →',
+    };
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const spec: SharepicSpec = {
+        locale,
+        slides: [slide, farbe('weiss', [{ type: 'headline', lines: ['Ende'] }])].map((s) =>
+          locale === 'de-AT' ? { ...s, background: { kind: 'farbe', color: 'weiss' } } : s
+        ),
+      };
+      const result = composed(spec, 0);
+      const card = result.shapeInstances.find((s) => s.id.endsWith('-karte'))!;
+      const absatz = result.additionalTexts.find((t) => t.id.endsWith('-absatz'))!;
+      const lines = Math.ceil(measure(absatz.text, absatz.fontSize!) / absatz.width!);
+      const textEnd = absatz.y + lines * absatz.fontSize! * (absatz.lineHeight ?? 1.2);
+      // Clear by the layout's 50 px of air, not just short of the edge.
+      expect(Math.round(textEnd + 50)).toBeLessThanOrEqual(Math.round(card.y - card.height / 2));
+      // The card gives up its top, not its place above the footer.
+      expect(card.height).toBeGreaterThanOrEqual(Math.round(1350 * 0.2));
+    }
   });
 
   it('sets a round photo as a square with a circle mask', () => {
