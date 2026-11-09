@@ -345,7 +345,7 @@ export function GroupFeedCard({
               size="sm"
               aria-expanded={open}
               aria-controls={threadId}
-              aria-label={`Kommentare (${share.commentCount})`}
+              aria-label={`Kommentare, ${share.commentCount}`}
               onClick={() => setOpen((o) => !o)}
               className={cn(
                 open &&

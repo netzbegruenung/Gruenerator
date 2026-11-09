@@ -29,7 +29,12 @@ export const LikeButton = memo(function LikeButton({
   className,
 }: LikeButtonProps) {
   const interactive = !disabled && !loading;
-  const ariaLabel = liked ? 'Like entfernen' : 'Liken';
+  const visibleLabel = liked ? 'Gefällt mir' : 'Liken';
+  const actionLabel = liked ? 'Like entfernen' : 'Liken';
+  // WCAG 2.5.3: the visible label and count must be part of the accessible name.
+  const ariaLabel = [showLabel ? visibleLabel : actionLabel, count > 0 ? count : null]
+    .filter((part) => part !== null)
+    .join(', ');
   const isLarge = size === 'lg';
 
   return (
@@ -67,7 +72,9 @@ export const LikeButton = memo(function LikeButton({
       ) : (
         <IoHeartOutline className={isLarge ? 'text-lg' : 'text-base'} aria-hidden />
       )}
-      {showLabel ? <span>{liked ? 'Gefällt mir' : 'Liken'}</span> : null}
+      {showLabel ? <span>{visibleLabel}</span> : null}
+      {/* Whitespace between flex items does not render, but keeps the visible text word-separated for WCAG 2.5.3 checks. */}
+      {showLabel && count > 0 ? ' ' : null}
       {count > 0 ? <span className="tabular-nums">{count}</span> : null}
     </button>
   );
