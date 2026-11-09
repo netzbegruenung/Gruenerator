@@ -256,8 +256,9 @@ export function asksAboutSuppliedMaterial(raw: string): boolean {
  * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
  * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
  * Prüfung allein nicht, ob der Turn nachschlagen muss — das entscheidet seit
- * dem 09.11.2026 das Modell mit dem Verlauf; gelesen wird sie nur noch für
- * Anschlussfragen an eine Tabelle (`asksAboutTheTable`).
+ * dem 09.11.2026 das Modell mit dem Verlauf. Gelesen wird sie für
+ * Anschlussfragen an eine Tabelle (`asksAboutTheTable`) und für die
+ * Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
  *
  * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
  * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
