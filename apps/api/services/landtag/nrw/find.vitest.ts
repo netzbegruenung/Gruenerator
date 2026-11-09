@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 
+import { Deadline } from '../../../utils/deadline.js';
+
 import { findNrw } from './find.js';
 import { getNrwNotebook, type NrwFilter, type NrwNotebook, type NrwPayload } from './notebook.js';
 import { fetchNrwTexts, resolveNrwRefs } from './read.js';
@@ -37,6 +39,40 @@ function fake(rows: NrwPayload[] = [doc('18/100'), doc('18/101')], count = 40) {
 const mustOf = (f: NrwFilter) => (f.must ?? []) as Array<Record<string, unknown>>;
 
 describe('findNrw', () => {
+  it('schneidet das Notebook nicht vor der Frist ab: es bekommt die Restzeit (#5565)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const nb = fake();
+      nb.nearest.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve([doc('18/100')]), 30_000))
+      );
+      const pending = findNrw({ query: 'Klima', filters: {}, deadline }, nb);
+      await vi.advanceTimersByTimeAsync(30_001);
+      const r = await pending;
+      expect(r.candidates.map((c) => c.ref)).toEqual(['NW 18/100']);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('gibt an der Frist auf, statt die Werkzeugfrist zu reißen', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const nb = fake();
+      nb.nearest.mockImplementation(() => new Promise(() => {}));
+      const pending = findNrw({ query: 'Klima', filters: {}, deadline }, nb);
+      const erwartet = expect(pending).rejects.toThrow(/landtag-nrw/);
+      await vi.advanceTimersByTimeAsync(40_001);
+      await erwartet;
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it('listet ohne query die neuesten Drucksachen je Dokument (Chunk 0) und zählt sie', async () => {
     const nb = fake();
     const r = await findNrw({ query: '', filters: { typ: ['Gesetzentwurf'] } }, nb);

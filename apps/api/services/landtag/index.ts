@@ -11,6 +11,7 @@ import {
   type LandtagParlament,
 } from '@gruenerator/contracts';
 
+import { type Deadline } from '../../utils/deadline.js';
 import { CHAT_BUDGET, type Budget } from '../bundestag/qa/budget.js';
 import { type TextCache } from '../bundestag/qa/fetchTexts.js';
 import { type ReadDocumentInfo, toDocumentInfo } from '../bundestag/qa/index.js';
@@ -37,7 +38,8 @@ const DOC_NUMBER_RE = /(?<![\d/])(\d{1,2})\/S?0*(\d{1,6})(?![\d/])/;
 export async function findLandtag(
   parlament: LandtagParlament,
   query: string,
-  filters: LandtagFilter
+  filters: LandtagFilter,
+  deadline: Deadline | null = null
 ): Promise<LandtagFindResult> {
   const backend = LANDTAG_BACKENDS[parlament]();
   // Eine Nummer sucht die Titelsuche nicht: „19/2500" fand nichts, das Modell las nie
@@ -61,7 +63,7 @@ export async function findLandtag(
     }
   }
   // Filterwörter („Anträge", „Fraktion der Grünen") sind kein Thema; sie stehen schon im Filter.
-  return backend.find({ query: topicOf(query), filters });
+  return backend.find({ query: topicOf(query), filters, ...(deadline ? { deadline } : {}) });
 }
 
 /** Welchem Parlament gehört der Ref? `null`, wenn keins ihn als seinen erkennt. */
