@@ -313,19 +313,25 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     );
   });
 
-  it('legt die Methode neben eine gewählte Textsorte, ohne rezept_laden zu öffnen', async () => {
+  it('legt die Methode neben eine gewählte Textsorte und lässt rezept_laden offen', async () => {
     const assembled = await assemble(
       fakeState({ activeSkillMention: 'presse', methodSkillMentions: ['bundestagsrecherche'] }),
       withRecipes({
+        buildRecipeCatalog: async () => [
+          ...catalog,
+          { ...catalog[0]!, mention: 'instagram', title: 'Instagram' },
+        ],
         resolveRecipe: async ({ mention }) => ({
+          id: null,
+          mention,
           title: `Titel ${mention}`,
           body: 'Methodenrumpf',
           source: 'system',
         }),
       } as Partial<CatalogDeps>)
     );
-    expect(assembled.tools.rezept_laden).toBeUndefined();
-    expect(assembled.recipeRegistry.mentions).toEqual(['bundestagsrecherche']);
+    expect(assembled.tools.rezept_laden).toBeDefined();
+    expect(assembled.recipeRegistry.mentions).toEqual(['presse', 'bundestagsrecherche']);
   });
 
   // #5479: nach einer ask_human-Rückfrage schrieb die Fortsetzung ohne das
@@ -364,14 +370,48 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeCatalog).toEqual([]);
   });
 
-  it('fragt den Katalog gar nicht ab, wenn ein Rezept schon erwähnt wurde', async () => {
-    const buildRecipeCatalog = vi.fn(async () => catalog);
+  const resolvePinned = async ({
+    mention,
+    recipeId,
+  }: {
+    mention: string | null;
+    recipeId?: string | null;
+  }) => ({
+    id: recipeId ?? null,
+    mention: mention ?? 'presse',
+    title: 'Pressemitteilung',
+    body: 'Pinnrumpf',
+    source: 'system' as const,
+  });
+
+  it('montiert rezept_laden neben einem erwähnten Rezept und lässt es aus dem Katalog', async () => {
+    const buildRecipeCatalog = vi.fn(async () => [
+      ...catalog,
+      {
+        mention: 'instagram',
+        title: 'Instagram',
+        description: 'Post',
+        source: 'system' as const,
+        id: null,
+      },
+    ]);
     const assembled = await assemble(
       fakeState({ activeSkillMention: 'presse' }),
-      withRecipes({ buildRecipeCatalog })
+      withRecipes({ buildRecipeCatalog, resolveRecipe: resolvePinned } as Partial<CatalogDeps>)
     );
-    expect(buildRecipeCatalog).not.toHaveBeenCalled();
-    expect(assembled.tools.rezept_laden).toBeUndefined();
+    expect(buildRecipeCatalog).toHaveBeenCalled();
+    expect(assembled.tools.rezept_laden).toBeDefined();
+    expect(assembled.recipeCatalog.map((e) => e.mention)).toEqual(['instagram']);
+  });
+
+  it('registriert das erwähnte Rezept gepinnt', async () => {
+    const assembled = await assemble(
+      fakeState({ activeSkillMention: 'presse' }),
+      withRecipes({ resolveRecipe: resolvePinned } as Partial<CatalogDeps>)
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['presse']);
+    expect(assembled.recipeRegistry.pinnedTitle).toBe('Pressemitteilung');
+    expect(assembled.recipeRegistry.render()).toContain('Pinnrumpf');
   });
 
   it('schweigt bei einem eigenen Thread-Prompt — ausser die Rolle bringt ihn mit', async () => {
@@ -400,13 +440,16 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.tools.rezept_laden).toBeUndefined();
   });
 
-  it('fragt den Katalog gar nicht ab, wenn ein Rezept per Id gepinnt ist', async () => {
-    const buildRecipeCatalog = vi.fn(async () => catalog);
+  it('montiert rezept_laden neben einem per Id gepinnten Rezept und lässt es aus dem Katalog', async () => {
     const assembled = await assemble(
-      fakeState({ activeSkillMention: null, activeRecipeId: 'presse' }),
-      withRecipes({ buildRecipeCatalog })
+      fakeState({ activeSkillMention: null, activeRecipeId: 'row-1' }),
+      withRecipes({
+        buildRecipeCatalog: async () => [{ ...catalog[0]!, mention: 'mein-stil', id: 'row-1' }],
+        resolveRecipe: resolvePinned,
+      } as Partial<CatalogDeps>)
     );
-    expect(buildRecipeCatalog).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.pinnedTitle).toBe('Pressemitteilung');
+    expect(assembled.recipeCatalog).toEqual([]);
     expect(assembled.tools.rezept_laden).toBeUndefined();
   });
 
@@ -475,7 +518,7 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
     expect(assembled.recipeRegistry.mentions).toEqual(['presse']);
   });
 
-  it('lädt nichts, wenn die Person selbst ein Rezept gewählt hat', async () => {
+  it('lädt den Agent-Default nicht, wenn die Person selbst ein Rezept gewählt hat', async () => {
     const resolveRecipe = vi.fn();
     const assembled = await assemble(
       fakeState({
@@ -485,7 +528,9 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
       }),
       withSearch({ resolveRecipe } as Partial<CatalogDeps>)
     );
-    expect(resolveRecipe).not.toHaveBeenCalled();
+    // Nur die Wahl wird aufgelöst, nie der Default `buerger-berlin`.
+    expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    expect(resolveRecipe).toHaveBeenCalledWith(expect.objectContaining({ mention: 'presse' }));
     expect(assembled.recipeRegistry.size).toBe(0);
   });
 

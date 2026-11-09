@@ -59,7 +59,7 @@ import { type ClientToolGate } from './clientToolGate.js';
 import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
-import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
+import { createRecipeRegistry, recipeKey, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
@@ -225,13 +225,7 @@ export async function assembleToolCatalog(
   // ihren Landesverbands-Ausschnitt zuzuschneiden, und muss die Registry daher
   // schon beim Bauen des Katalogs kennen. Der Zugriff selbst passiert erst zur
   // Aufrufzeit — bis dahin ist die Registry gefüllt.
-  // Eine gewählte Textsorte steht im Systemprompt, nicht in der Registry — die
-  // Vorrangnotiz einer Methode muss trotzdem wissen, dass die Form vergeben ist.
-  const recipeRegistry = createRecipeRegistry(
-    undefined,
-    undefined,
-    !!(state.activeSkillMention || state.activeRecipeId)
-  );
+  const recipeRegistry = createRecipeRegistry();
 
   const { tools } = deps.buildChatToolCatalog({
     agentConfig,
@@ -307,6 +301,40 @@ export async function assembleToolCatalog(
   // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
+
+  // Das ausdrücklich gewählte Rezept (@-Erwähnung, gepinnte Zeile) trägt die
+  // Registry wie jedes andere — EIN Injektionsweg, nicht mehr nebenher im
+  // Systemprompt (`respondNode`, Loop-Pfad). Vor dem Katalog, damit dieser es
+  // auslässt und die Kappe seinen Platz kennt. Gilt auch im Rollen-Chat: eine
+  // Bestellung überstimmt keine Persona (`resolveEffectiveRecipeMention`).
+  let pinnedKey: string | null = null;
+  if (state.activeSkillMention || state.activeRecipeId) {
+    const resolved = await deps.resolveRecipe({
+      mention: state.activeSkillMention ?? null,
+      recipeId: state.activeRecipeId ?? null,
+      userId: userId ?? null,
+    });
+    if (resolved) {
+      const mention = resolved.mention;
+      const pinned = { mention, id: resolved.id };
+      recipeRegistry.register({
+        ...pinned,
+        title: resolved.title,
+        body: resolved.body,
+        source: resolved.source,
+        recommendedTools: recommendedToolsFor(mention, isMounted),
+        rolle: skillRole(mention),
+        pinned: true,
+      });
+      pinnedKey = recipeKey(pinned);
+      log.info(`[Rezept] gepinnt=${mention} quelle=${resolved.source}`);
+    } else {
+      log.warn(
+        `[Rezept] gewähltes Rezept nicht verfügbar: ${state.activeSkillMention ?? state.activeRecipeId}`
+      );
+    }
+  }
+
   const ownedDefault = ownedDefaultRecipeMention(agentConfig);
   if (
     ownedDefault &&
@@ -319,6 +347,7 @@ export async function assembleToolCatalog(
       const resolved = await deps.resolveRecipe({ mention: ownedDefault, userId: userId ?? null });
       if (resolved) {
         recipeRegistry.register({
+          id: resolved.id,
           mention: ownedDefault,
           title: resolved.title,
           body: resolved.body,
@@ -347,6 +376,7 @@ export async function assembleToolCatalog(
       continue;
     }
     const outcome = recipeRegistry.register({
+      id: resolved.id,
       mention,
       title: resolved.title,
       body: resolved.body,
@@ -373,6 +403,7 @@ export async function assembleToolCatalog(
     const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
     if (!resolved) continue;
     recipeRegistry.register({
+      id: resolved.id,
       mention,
       title: resolved.title,
       body: resolved.body,
@@ -384,16 +415,11 @@ export async function assembleToolCatalog(
   }
 
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
-  // learned text forms need a DB read), and only when nothing already
-  // decides the writing form for this turn:
-  //   - `activeSkillMention`: the user picked a recipe deliberately and
-  //     `buildSystemMessage` already injected it. Letting the model pick a
-  //     second one would overrule an explicit choice — same double-injection
-  //     guard `product_knowledge` uses.
-  //   - `activeRecipeId`: the id came pinned onto the turn (Agentura deep
-  //     link, not a mention), but it is just as explicit a choice as the
-  //     mention — self-loading a second recipe on top would overrule it the
-  //     same way.
+  // learned text forms need a DB read). Eine ausdrückliche Wahl sperrt das
+  // Werkzeug nicht mehr: sie liegt gepinnt in der Registry, das Modell darf bis
+  // zur Kappe weitere Rezepte dazuladen (Textsorte plus Methode, zweite
+  // Textsorte), und der Katalog lässt das gewählte aus. Nur ein Thread-Prompt
+  // sperrt:
   //   - `customSystemPrompt`: a thread-level prompt replaces the whole
   //     persona; self-loading a recipe into it would fight the user. A
   //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
@@ -401,8 +427,6 @@ export async function assembleToolCatalog(
   //     wants the presse recipe rather than being locked out of all of them.
   let recipeCatalog: RecipeCatalogEntry[] = [];
   if (
-    !state.activeSkillMention &&
-    !state.activeRecipeId &&
     (!state.customSystemPrompt || state.roleBausteinActive) &&
     state.enabledTools?.['rezept_laden'] !== false &&
     allowed('rezept_laden')
@@ -412,11 +436,13 @@ export async function assembleToolCatalog(
       userId: userId ?? null,
       roles: state.userRoles,
     });
-    recipeCatalog = recipeCatalog.map((entry) =>
-      entry.recommendedTools
-        ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
-        : entry
-    );
+    recipeCatalog = recipeCatalog
+      .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
+      .map((entry) =>
+        entry.recommendedTools
+          ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
+          : entry
+      );
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
         isMounted,

@@ -859,7 +859,8 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       { loop: true }
     );
     expect(loop).not.toContain('RECHERCHE-METHODE');
-    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    // Das gewählte Rezept trägt im Loop die Registry (`pinned`), nicht der Prompt.
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
   });
 
   // Fiel der Turn ohne Schleife auf `web` zurück (loop_only_degraded), fehlen die
@@ -907,6 +908,14 @@ describe('Prosa im Loop verliert nichts', () => {
     const loop = await buildSystemMessage(prose('produktion'), LOOP);
     expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
     expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+  });
+
+  it('legt ein ausdrücklich gewähltes Rezept nicht in den Loop-Prompt — die Registry trägt es', async () => {
+    const chosen = makeState({ activeSkillMention: 'instagram', intent: 'produktion' } as never);
+    const loop = await buildSystemMessage(chosen, LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    const single = await buildSystemMessage(chosen);
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
   });
 
   it('lässt den Einzelpfad unverändert', async () => {

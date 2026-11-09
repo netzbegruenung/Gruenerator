@@ -2368,8 +2368,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     !state.customSystemPrompt &&
     resolved != null &&
     resolved.mention === ownedDefaultRecipeMention(agentConfig);
+  // Das ausdrücklich gewählte Rezept trägt im Loop dieselbe Registry
+  // (`catalogAssembly`, `pinned`) — hier stünde es sonst ein zweites Mal im
+  // Prompt, nur ohne Kappe und Budget. Der Einzelpfad bleibt unverändert.
+  const pinnedByRegistry =
+    opts.loop === true && !!(state.activeSkillMention || state.activeRecipeId);
   const textFormFragment =
-    resolved && !preloadedByRegistry
+    resolved && !preloadedByRegistry && !pinnedByRegistry
       ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
       : '';
 

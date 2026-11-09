@@ -22,13 +22,14 @@
 import { type SkillRole } from '@gruenerator/contracts';
 
 /**
- * How many TEXTSORTEN one turn may load. See `register`. Methoden-Rezepte
- * zählen nicht mit — sie haben ihre eigene Grenze, damit eine Bundestag-
- * Recherche nie den Platz der Textsorte wegnimmt, die die Antwort formt.
+ * Wie viele Rezepte ein Turn insgesamt trägt — das ausdrücklich gewählte
+ * (`pinned`) mitgezählt, Textsorten und Methoden zusammen. Drei, weil ein
+ * Auftrag wie „PM und Instagram-Post dazu, mit Bundestags-Belegen" genau diese
+ * Dreiheit braucht; mehr Rümpfe im Systemprompt kosten Aufmerksamkeit.
  */
-export const MAX_RECIPES_PER_TURN = 2;
-/** How many Methoden-Rezepte (Recherche, Belege) one turn may load. */
-export const MAX_METHOD_RECIPES_PER_TURN = 2;
+export const MAX_RECIPES_PER_TURN = 3;
+/** Zeichenbudget aller Rezept-Rümpfe eines Turns (≈ 6k Tokens). */
+export const MAX_RECIPE_BODY_CHARS = 24_000;
 
 /** Siehe `Skill.rolle`: `textsorte` formt den Text, `methode` die Recherche. */
 export type RecipeRole = SkillRole;
@@ -39,6 +40,8 @@ export interface LoadedRecipe {
   /** The prompt body — internal skill prompt or a user's learned style block. */
   body: string;
   source: 'system' | 'user';
+  /** Zeilen-id eines angelernten Stils, sonst `null`. Schlüssel vor der Mention. */
+  id: string | null;
   /** Empfohlene, im Turn montierte Werkzeuge — als Zeile unter dem Rezept. */
   recommendedTools?: readonly string[];
   /**
@@ -49,11 +52,22 @@ export interface LoadedRecipe {
    * Form vor, also gibt es nichts zu schlichten.
    */
   preloaded?: boolean;
+  /**
+   * Von der Person ausdrücklich gewählt (@-Erwähnung, gepinnte Zeile). Wird nie
+   * verdrängt und von Kappe und Zeichenbudget nicht abgewiesen — eine
+   * Bestellung fällt nicht still unter den Tisch.
+   */
+  pinned?: boolean;
   /** Fehlt = `textsorte` — die Rolle jedes Rezepts vor der Trennung. */
   rolle?: RecipeRole;
 }
 
-export type RegisterOutcome = 'registered' | 'duplicate' | 'full';
+export type RegisterOutcome = 'registered' | 'duplicate' | 'full' | 'over_budget';
+
+/** Der Schlüssel eines Rezepts im Turn: die Zeilen-id, sonst die Mention. */
+export function recipeKey(r: Pick<LoadedRecipe, 'id' | 'mention'>): string {
+  return r.id ?? r.mention;
+}
 
 /** Attribution eines geladenen Rezepts — alles außer dem Prompttext. */
 export interface RecipeSummary {
@@ -70,8 +84,13 @@ export interface RecipeRegistry {
    * `generate_image` triple-call).
    */
   register(recipe: LoadedRecipe): RegisterOutcome;
-  has(mention: string): boolean;
+  /** Trifft Schlüssel (`recipeKey`) oder Mention. */
+  has(keyOrMention: string): boolean;
   readonly size: number;
+  /** Wie viele Rezepte noch Platz haben (Kappe minus geladene). */
+  readonly remaining: number;
+  /** Titel des ausdrücklich gewählten Rezepts, sonst `null`. */
+  readonly pinnedTitle: string | null;
   readonly mentions: readonly string[];
   /** The system-prompt block, or '' when nothing was loaded. */
   render(): string;
@@ -139,39 +158,46 @@ const roleOf = (r: LoadedRecipe): RecipeRole => r.rolle ?? 'textsorte';
 
 export function createRecipeRegistry(
   maxRecipes: number = MAX_RECIPES_PER_TURN,
-  maxMethods: number = MAX_METHOD_RECIPES_PER_TURN,
-  /**
-   * Steht schon eine Textsorte im Systemprompt (ausdrücklich gewählt, per id
-   * gepinnt)? Dann gibt die Methode keine Form vor, auch wenn die Registry
-   * selbst keine Textsorte trägt.
-   */
-  textFormElsewhere = false
+  maxBodyChars: number = MAX_RECIPE_BODY_CHARS
 ): RecipeRegistry {
   const loaded = new Map<string, LoadedRecipe>();
-  const countOf = (rolle: RecipeRole): number =>
-    [...loaded.values()].filter((r) => roleOf(r) === rolle).length;
 
   return {
     register(recipe) {
-      if (loaded.has(recipe.mention)) return 'duplicate';
-      const rolle = roleOf(recipe);
+      const key = recipeKey(recipe);
+      if (loaded.has(key)) return 'duplicate';
       // Exklusiv sind nur Textsorten: eine gewählte verdrängt die vorab geladene
-      // TEXTSORTE, nie eine Methode.
-      if (rolle === 'textsorte' && !recipe.preloaded) {
-        for (const [mention, r] of loaded) {
-          if (r.preloaded && roleOf(r) === 'textsorte') loaded.delete(mention);
+      // TEXTSORTE, nie eine Methode und nie eine gepinnte. Erst nach den
+      // Prüfungen löschen — ein abgewiesenes Rezept darf nichts verdrängen.
+      const evicted: string[] = [];
+      if (roleOf(recipe) === 'textsorte' && !recipe.preloaded && !recipe.pinned) {
+        for (const [k, r] of loaded) {
+          if (r.preloaded && !r.pinned && roleOf(r) === 'textsorte') evicted.push(k);
         }
       }
-      if (countOf(rolle) >= (rolle === 'methode' ? maxMethods : maxRecipes)) return 'full';
-      loaded.set(recipe.mention, recipe);
+      const kept = [...loaded.entries()].filter(([k]) => !evicted.includes(k));
+      if (!recipe.pinned) {
+        if (kept.length >= maxRecipes) return 'full';
+        const used = kept.reduce((n, [, r]) => n + r.body.length, 0);
+        if (used + recipe.body.length > maxBodyChars) return 'over_budget';
+      }
+      for (const k of evicted) loaded.delete(k);
+      loaded.set(key, recipe);
       return 'registered';
     },
-    has: (mention) => loaded.has(mention),
+    has: (keyOrMention) =>
+      loaded.has(keyOrMention) || [...loaded.values()].some((r) => r.mention === keyOrMention),
+    get remaining() {
+      return Math.max(0, maxRecipes - loaded.size);
+    },
+    get pinnedTitle() {
+      return [...loaded.values()].find((r) => r.pinned)?.title ?? null;
+    },
     get size() {
       return loaded.size;
     },
     get mentions() {
-      return [...loaded.keys()];
+      return [...loaded.values()].map((r) => r.mention);
     },
     summaries() {
       return [...loaded.values()].map(({ mention, title, source }) => ({
@@ -197,12 +223,13 @@ export function createRecipeRegistry(
       const forms = all
         .filter((r) => roleOf(r) === 'textsorte')
         .map((r) => `## AKTIVE PLATTFORM: ${r.title}\n${r.body}` + tools(r));
-      const note =
-        methods.length > 0
-          ? methodPrecedenceNote(forms.length > 0 || textFormElsewhere)
-          : PRECEDENCE_NOTE;
+      const note = methods.length > 0 ? methodPrecedenceNote(forms.length > 0) : PRECEDENCE_NOTE;
       const formRule = forms.length > 0 ? `\n\n${TEXT_FORM_REPLACES_FORMAT_RULE}` : '';
-      return `\n\n${[...methods, ...forms].join('\n\n')}\n\n${note}${formRule}`;
+      const perForm =
+        forms.length >= 2
+          ? '\n\nLiefere je Textsorte eine eigene Fassung, klar überschrieben.'
+          : '';
+      return `\n\n${[...methods, ...forms].join('\n\n')}\n\n${note}${formRule}${perForm}`;
     },
   };
 }

@@ -203,7 +203,10 @@ export function recommendedToolsFor(
 }
 
 /** Was die Werkzeug-Tür (`rezept_laden`) vom Nachschlag braucht. */
-export type ResolvedRecipe = Pick<ResolvedRecipeBody, 'title' | 'body' | 'source'>;
+export type ResolvedRecipe = Pick<
+  ResolvedRecipeBody,
+  'id' | 'mention' | 'title' | 'body' | 'source'
+>;
 
 /**
  * Rezept-Rumpf für die Werkzeug-Tür. Die Entscheidung — angelernter Stil vor
@@ -218,7 +221,9 @@ export type ResolvedRecipe = Pick<ResolvedRecipeBody, 'title' | 'body' | 'source
  * "recipe loaded" and then write generically.
  */
 export async function resolveRecipe(params: {
-  mention: string;
+  mention: string | null;
+  /** Die gepinnte Zeile (Agentura-Link, Composer-Auswahl) — schlägt die Mention. */
+  recipeId?: string | null;
   userId: string | null;
 }): Promise<ResolvedRecipe | null> {
   return resolveRecipeBody(params);
