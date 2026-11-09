@@ -471,7 +471,8 @@ export async function draftSharepic(
     },
     attempts: DRAFT_ATTEMPTS,
     // A carousel of up to eight slides, plus the thinking: Melious bills reasoning
-    // against this budget. 5000 ran out on a five-slide story (4600 used, 09.11.2026).
+    // against this budget. Measured 09.11.2026: two drafts on :balanced spent all 5000 on
+    // thinking and returned nothing; on :speed one draft used 4986 of 5000.
     maxOutputTokens: 10000,
     label: 'sharepicCreator:draft',
   };
