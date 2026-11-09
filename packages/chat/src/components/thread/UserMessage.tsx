@@ -54,6 +54,7 @@ function UserMessageEditor({ initialText, onDone }: { initialText: string; onDon
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus
+        aria-label="Nachricht bearbeiten"
         rows={Math.min(8, Math.max(1, text.split('\n').length))}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
