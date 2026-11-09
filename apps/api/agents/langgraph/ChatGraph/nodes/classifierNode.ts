@@ -1651,9 +1651,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // eigene Rubrik) war nie das, wonach das Flag fragte.
         //
         // Die Textsorte trägt jetzt das Rezept: `examples` ist ein
-        // Einzeldurchlauf, und `deriveImplicitRecipeMention` wählt darauf
-        // `instagram`/`facebook`/… aus demselben Nutzertext, aus dem hier
-        // vorher `platform` gelesen wurde.
+        // Einzeldurchlauf, und die Rezeptwahl läuft über `rezept_laden` im
+        // Loop (oder per @-Erwähnung) statt über das Plattformwort, aus dem
+        // hier vorher `platform` gelesen wurde.
         log.info(
           `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → examples (Social-Auftrag)`
         );
@@ -1799,9 +1799,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       } else {
         // Das Gitter bleibt, das Verdikt wechselt. Ein Social-Post ist eine
         // TEXTSORTE, keine Artefaktart: `produktion` ist der Einzeldurchlauf,
-        // auf dem `deriveImplicitRecipeMention` das Rezept (`instagram`,
-        // `facebook`, `twitter`, `linkedin`, `reel`) setzt — korpusgestützt,
-        // mit AT-Gabelung, mit angelerntem Stil und mit LV-Vorzug. Die
+        // auf dem das Rezept per @-Erwähnung kommt; im Loop wählt das Modell
+        // es über `rezept_laden` (korpusgestützt, mit AT-Gabelung, mit
+        // angelerntem Stil und mit LV-Vorzug). Die
         // eingebaute Rubrik des alten Zweigs widersprach den Rezepten messbar.
         //
         // Warum der Block überhaupt stehenbleibt, statt die Heuristik machen zu

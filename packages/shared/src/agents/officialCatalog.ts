@@ -25,7 +25,7 @@ import {
 } from './audience.js';
 import { isLandesverbandIdentifier } from './landesverbaende.js';
 import { isLvItemVisibleForRoles } from './landesverbandForRoles.js';
-import { isSkillOfferedIn } from './skillInstances.js';
+import { isSkillOfferedIn, isUserFacingSkill } from './skillInstances.js';
 import { SKILLS } from './skills/index.js';
 import { isAdminVisibleSkill } from './skillVisibility.js';
 import { getSystemAgent } from './system.js';
@@ -72,6 +72,7 @@ export function selectOfficialCatalog<S extends Skill = Skill>(
   // Boundary cast: `SKILLS` is `as const`; the declared interface is what callers read.
   const source = input.skills ?? (SKILLS as readonly Skill[] as readonly S[]);
   const skills = source.filter((s) => {
+    if (!isUserFacingSkill(s)) return false;
     const owner = getSystemAgent(s.identifier);
     // Same switch as `agentsList` in @gruenerator/chat: a recipe whose owner is
     // out of the inventory (a disabled Landesverband) is not offered.

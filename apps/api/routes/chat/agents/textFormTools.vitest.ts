@@ -7,6 +7,8 @@
  */
 import { MAX_TEXT_FORM_EXAMPLES, MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS } from '@gruenerator/contracts';
 import { DEFAULT_AGENT_ICON } from '@gruenerator/shared/agents';
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -53,6 +55,7 @@ function form(over: Partial<TextForm> = {}): TextForm {
     ownerName: null,
     description: null,
     iconKey: null,
+    category: null,
     shareMode: 'private',
     isPublic: false,
     publicOwnership: null,
@@ -62,32 +65,44 @@ function form(over: Partial<TextForm> = {}): TextForm {
 
 const SYSTEM_CATALOG: RecipeCatalogEntry[] = [
   {
+    key: 'presse',
     mention: 'presse',
     title: 'Pressemitteilung',
     description: 'PM im Grünen-Stil',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'instagram',
     mention: 'instagram',
     title: 'Instagram',
     description: 'Post mit Hook',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'wahlpruefstein',
     mention: 'wahlpruefstein',
     title: 'Wahlprüfstein',
     description: 'Antwort',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'presse-hessen-partei',
     mention: 'presse-hessen-partei',
     title: 'Pressemitteilung Hessen',
     description: 'PM Grüne Hessen',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
 ];
 
@@ -164,13 +179,16 @@ function makeCtx(opts: CtxOptions = {}) {
       const user = forms
         .filter((f) => f.kind === 'custom')
         .map<RecipeCatalogEntry>((f) => ({
+          key: f.mention,
           mention: f.mention,
           title: f.title,
           description: f.sharedFromGroup
             ? `Angelernte Textform aus dem Projekt „${f.sharedFromGroup}".`
             : 'Selbst angelernte Textform.',
           source: 'user',
+          origin: f.sharedFromGroup ? 'group' : 'own',
           id: f.id,
+          ownerName: null,
         }));
       return [...system, ...user];
     }),
@@ -235,7 +253,7 @@ describe('recipes: list', () => {
     expect(out.results[4]).toMatchObject({
       title: 'OV-Einladungen',
       url: '/grueneratoren',
-      type: 'Eigene Textform',
+      type: 'Eigenes Rezept',
       ref: 'omveinladungen',
     });
     expect(registered).toHaveLength(1);
@@ -302,7 +320,7 @@ describe('recipes: get', () => {
       title: 'OV-Einladungen',
       source: 'user',
       kind: 'custom',
-      kindLabel: 'Eigene Textform',
+      kindLabel: 'Eigenes Rezept',
       overridesSystemRecipe: false,
       exampleCount: 2,
       styleTruncated: true,
@@ -360,6 +378,40 @@ describe('recipes: get', () => {
       recipe: Record<string, unknown>;
     };
     expect(out.recipe).toMatchObject({ readOnly: true, sharedFromGroup: 'Klima-AG' });
+  });
+
+  it('lists a library recipe but refuses to edit it', async () => {
+    const libraryEntry: RecipeCatalogEntry = {
+      key: 'wahlkampfbrief-aaaaaa',
+      mention: 'wahlkampfbrief',
+      title: 'Wahlkampfbrief',
+      description: 'Briefe an Haustüren.',
+      source: 'user',
+      origin: 'library',
+      id: 'aaaaaaaa-1111-4111-8111-111111111111',
+      ownerName: 'Jamila',
+    };
+    const { run, deps } = makeCtx({ catalog: [libraryEntry], forms: [] });
+    const listed = (await run({ action: 'list' })) as { results: Array<{ ref: string }> };
+    expect(listed.results.map((r) => r.ref)).toContain('wahlkampfbrief-aaaaaa');
+
+    const got = (await run({ action: 'get', mention: 'wahlkampfbrief-aaaaaa' })) as {
+      recipe: Record<string, unknown>;
+    };
+    expect(got.recipe).toMatchObject({ origin: 'library', readOnly: true, ownerName: 'Jamila' });
+
+    for (const action of ['update', 'delete', 'add_examples']) {
+      const out = await run({
+        action,
+        mention: 'wahlkampfbrief-aaaaaa',
+        confirm: true,
+        title: 'x',
+        examples: ['a'],
+      });
+      expect(out).toMatchObject({ error: expect.stringContaining('einer anderen Person') });
+    }
+    expect(deps.deleteTextForm).not.toHaveBeenCalled();
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
   });
 
   it('errors on an unknown mention', async () => {
@@ -443,10 +495,10 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
   it('add_examples and delete on a system recipe mention without an own form are "nicht gefunden"', async () => {
     const { run, deps } = makeCtx();
     expect(await run({ action: 'add_examples', mention: 'presse', examples: ['x'] })).toMatchObject(
-      { error: expect.stringMatching(/Keine eigene Textform/) }
+      { error: expect.stringMatching(/Kein eigenes Rezept/) }
     );
     expect(await run({ action: 'delete', mention: 'presse', confirm: true })).toMatchObject({
-      error: expect.stringMatching(/Keine eigene Textform/),
+      error: expect.stringMatching(/Kein eigenes Rezept/),
     });
     expect(deps.upsertTextForm).not.toHaveBeenCalled();
     expect(deps.deleteTextForm).not.toHaveBeenCalled();
@@ -862,7 +914,7 @@ describe('recipes: add_examples (direct, owner-scoped)', () => {
     });
     expect(
       await run({ action: 'add_examples', mention: 'kv-mail', examples: ['x'] })
-    ).toMatchObject({ error: expect.stringMatching(/Keine eigene Textform/) });
+    ).toMatchObject({ error: expect.stringMatching(/Kein eigenes Rezept/) });
     expect(deps.upsertTextForm).not.toHaveBeenCalled();
   });
 
@@ -907,7 +959,7 @@ describe('recipes: delete (two-step)', () => {
       forms: [form({ mention: 'kv-mail', sharedFromGroup: 'Klima-AG' })],
     });
     expect(await run({ action: 'delete', mention: 'kv-mail', confirm: true })).toMatchObject({
-      error: expect.stringMatching(/Keine eigene Textform/),
+      error: expect.stringMatching(/Kein eigenes Rezept/),
     });
     expect(deps.deleteTextForm).not.toHaveBeenCalled();
   });
@@ -925,7 +977,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     expect(registry.size).toBe(5);
     const block = registry.renderAll();
     expect(block).toContain('Pressemitteilung');
-    expect(block).toContain('Eigene Textform — OV-Einladungen');
+    expect(block).toContain('Eigenes Rezept — OV-Einladungen');
     expect(block).not.toContain('VORGÄNGE IN DIESEM TURN');
   });
 
@@ -1104,11 +1156,24 @@ describe('recipes: update (direct, owner-scoped)', () => {
       forms: [form({ mention: 'kv-mail', sharedFromGroup: 'Klima-AG' })],
     });
     expect(await run({ action: 'update', mention: 'kv-mail', title: 'x' })).toMatchObject({
-      error: expect.stringMatching(/Keine eigene Textform/),
+      error: expect.stringMatching(/Kein eigenes Rezept/),
     });
     expect(await run({ action: 'update', mention: 'gibtsnicht', title: 'x' })).toMatchObject({
-      error: expect.stringMatching(/Keine eigene Textform/),
+      error: expect.stringMatching(/Kein eigenes Rezept/),
     });
     expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+});
+
+describe('recipes: Wortwahl', () => {
+  it('shows neither the model nor the person the word "Textform"', () => {
+    // Code-Namen (textForm*) bleiben, aber kein Text, den jemand liest. Der Riegel liest den
+    // Quelltext, weil das Kaputte eine einzelne Zeile ist, die kein Typcheck sieht.
+    const src = readFileSync(new URL('./textFormTools.ts', import.meta.url), 'utf8');
+    const prose = src
+      .split('\n')
+      .filter((line) => !/^\s*(\/\/|\/?\*)/.test(line))
+      .filter((line) => /Textform(?!\w*\()/.test(line));
+    expect(prose).toEqual([]);
   });
 });

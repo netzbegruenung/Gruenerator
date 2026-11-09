@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-thueringen'
 title: 'Beschlussantrag Thüringen'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Thüringen, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Thüringen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Thüringen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '📜'
 backgroundColor: '#316049'

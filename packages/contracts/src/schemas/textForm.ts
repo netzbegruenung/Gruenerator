@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import { publicOwnershipSchema } from './notebookCollections.js';
+import { skillCategorySchema } from './skill.js';
 import { MAX_DRAFT_BRIEF_CHARS } from './userAgents.js';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
@@ -73,6 +74,13 @@ export const textFormMentionSchema = z
   .max(48)
   .regex(/^[a-z0-9äöüß-]+$/, 'Nur Kleinbuchstaben, Ziffern, Bindestriche (Umlaute erlaubt)');
 
+/**
+ * Pfadsegmente der Rezept-Routen (`/agentura/rezept/neu`, `…/:mention/bearbeiten`).
+ * Als Mention vergeben, wäre die Detailseite des Rezepts nicht mehr erreichbar —
+ * der Editor warnt davor, der Server lehnt es ab.
+ */
+export const RESERVED_TEXT_FORM_MENTIONS: readonly string[] = ['neu', 'bearbeiten'];
+
 export const MAX_TEXT_FORM_EXAMPLES = 20;
 /**
  * Gesamtbudget über ALLE Beispiele zusammen — die eigentliche Grenze. ~40k Token,
@@ -95,6 +103,27 @@ export const MAX_TEXT_FORM_STYLE_CHARS = 8000;
 export const MAX_TEXT_FORM_TITLE_CHARS = 80;
 
 export const MAX_TEXT_FORM_DESCRIPTION_CHARS = 500;
+
+/**
+ * Mindestlänge der Rezept-Beschreibung, die die Editoren verlangen: sie ist die
+ * einzige Auswahlgrundlage des Modells („Nutzen, wenn …"). Gilt nur im Client —
+ * auf dem Draht bleibt `description` `nullish`, ausgelieferte Mobile-Binaries
+ * schicken `null`.
+ */
+export const USER_RECIPE_DESCRIPTION_MIN = 30;
+
+/**
+ * Ob die Beschreibung speicherbar ist. Neue Rezepte und jede geänderte
+ * Beschreibung müssen die Mindestlänge halten; ein bestehendes Rezept mit leerer
+ * oder kurzer Beschreibung bleibt unverändert speicherbar (die meisten
+ * Altbestände haben keine). `original` ist die geladene Beschreibung beim
+ * Bearbeiten, `null` beim Anlegen.
+ */
+export function isUserRecipeDescriptionValid(current: string, original: string | null): boolean {
+  const text = current.trim();
+  if (text.length >= USER_RECIPE_DESCRIPTION_MIN) return true;
+  return original !== null && text === original.trim();
+}
 /** Short blurb shown next to the recipe in the Agentura/mention picker. */
 export const textFormDescriptionSchema = z.string().max(MAX_TEXT_FORM_DESCRIPTION_CHARS);
 /** Icon key from the shared icon catalog, same shape as agents' `iconKey`. */
@@ -151,6 +180,8 @@ export const textFormSchema = z.object({
   /** Short blurb for the Agentura/mention picker. */
   description: z.string().nullable().default(null),
   iconKey: z.string().nullable().default(null),
+  /** Kategorie in der Rezept-Bibliothek; `null` = „Eigene“. */
+  category: skillCategorySchema.nullable().default(null),
   /** Who can see/use this recipe — same axis as user agents. */
   shareMode: textFormShareModeSchema.default('private'),
   /** Listed in the public Agentura directory, atop shareMode='authenticated'. */
@@ -201,6 +232,8 @@ export const saveTextFormBodySchema = z.object({
   styleBlock: z.string().min(1).max(MAX_TEXT_FORM_STYLE_CHARS),
   description: textFormDescriptionSchema.nullish(),
   iconKey: textFormIconKeySchema.nullish(),
+  /** Additiv (F0): ältere Clients senden sie nicht mit — dann bleibt sie stehen, `null` leert. */
+  category: skillCategorySchema.nullish(),
 });
 export type SaveTextFormBody = z.infer<typeof saveTextFormBodySchema>;
 
@@ -254,6 +287,7 @@ export const mentionableTextFormSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   iconKey: z.string().nullable(),
+  category: skillCategorySchema.nullable().default(null),
   kind: textFormKindSchema,
   sharedFromGroup: z.string().nullable(),
   ownerName: z.string().nullable(),

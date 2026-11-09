@@ -11,6 +11,7 @@ import {
   getAllMentionables,
   setMentionLocale,
   userAgentToMentionable,
+  textformToMentionable,
 } from './mentionables';
 
 // ---------------------------------------------------------------------------
@@ -418,5 +419,21 @@ describe('userAgentToMentionable', () => {
   it('routes an own agent by its identifier', () => {
     const m = userAgentToMentionable({ ...base, sharedFromGroup: null });
     expect(m).toMatchObject({ identifier: 'wahlkampf-xy', mention: 'wahlkampf-xy' });
+  });
+});
+
+describe('textformToMentionable', () => {
+  it('falls back to "Eigenes Rezept" when there is no description', () => {
+    const m = textformToMentionable({
+      id: 'r1',
+      mention: 'ov-einladung',
+      title: 'OV-Einladung',
+      description: null,
+      iconKey: null,
+      sharedFromGroup: null,
+      ownerName: null,
+      isPublic: false,
+    });
+    expect(m.description).toBe('Eigenes Rezept');
   });
 });

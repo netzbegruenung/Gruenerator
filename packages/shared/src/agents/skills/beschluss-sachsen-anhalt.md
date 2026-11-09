@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-sachsen-anhalt'
 title: 'Beschlussantrag Sachsen-Anhalt'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Sachsen-Anhalt, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Sachsen-Anhalt. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Sachsen-Anhalt geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '📜'
 backgroundColor: '#316049'

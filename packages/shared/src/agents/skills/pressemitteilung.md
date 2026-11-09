@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit'
 title: 'Pressemitteilung'
-description: 'Pressemitteilungen verfassen'
+description: 'Pressemitteilungen mit Headline, Vorspann, Zitat und Hintergrund. Nutzen, wenn eine Pressemitteilung geschrieben werden soll und kein Landesverband vorgegeben ist.'
 iconKey: 'PiNewspaper'
 avatar: '📰'
 backgroundColor: '#316049'

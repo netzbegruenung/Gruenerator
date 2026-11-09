@@ -450,7 +450,7 @@ describe('GrueneratorenPage — Marktplatz', () => {
     expect(tabs.map((t) => t.textContent)).toEqual(['Alle', 'Agents', 'Rezepte']);
     await waitFor(() =>
       expect(marketplace.list).toHaveBeenCalledWith({
-        query: expect.objectContaining({ kinds: 'agent,recipe' }) as unknown,
+        query: expect.objectContaining({ kinds: 'recipe,agent' }) as unknown,
       })
     );
   });
@@ -491,7 +491,10 @@ describe('GrueneratorenPage — Favoriten', () => {
         forms: [ownRow(), ownRow({ id: 'row-3', mention: 'zweites', title: 'Zweites Rezept' })],
       },
     });
-    useSkillFavoritesStore.setState({ favorites: ['eigenes-rezept'] });
+    library.list.mockResolvedValue({
+      status: 200,
+      body: { success: true, items: [{ kind: 'recipe', ref: 'row-1', createdAt: '2026-11-09' }] },
+    });
     renderPage('/grueneratoren?type=fav');
 
     expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();

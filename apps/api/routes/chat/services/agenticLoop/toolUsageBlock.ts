@@ -135,7 +135,6 @@ export function buildToolUsageBlock(
   // turn with `steps=0` carried ~2.000 chars of search and artifact rules it
   // had no tool for — and 19 schemata on top of them.
   const hasSearchTools = toolNames === undefined || hasAny(toolNames, SEARCH_TOOL_NAMES);
-  const hasWebSearch = toolNames === undefined || toolNames.includes('web_search');
   const hasCreationTools = toolNames === undefined || hasAny(toolNames, CREATION_TOOL_NAMES);
   if (researchBanned) {
     return [
@@ -201,14 +200,6 @@ export function buildToolUsageBlock(
     ...(hasSearchTools
       ? [
           '- War ein Suchergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) statt mehrere Varianten gleichzeitig loszuschicken.',
-        ]
-      : []),
-    // Linkup's own pitfall note: a scope written into the query text becomes search
-    // TERMS. "such auf zeit.de" made "zeit.de" a keyword and restricted nothing at
-    // all. The parameters exist now; the model has to know to reach for them.
-    ...(hasWebSearch
-      ? [
-          '- SCOPE GEHÖRT IN DIE PARAMETER: Nennt der*die Nutzer*in Seiten ("such auf zeit.de und orf.at") oder einen Zeitraum ("seit Januar", "letzte Woche"), setze bei web_search `seiten` bzw. `zeitraum` — schreibe es NICHT in `query`. Im Suchtext werden daraus bloß Suchwörter, eingeschränkt wird nichts.',
         ]
       : []),
     '- Ein Validierungsfehler (fehlende/ungültige Parameter) heißt NICHT aufgeben — pass die Argumente an oder wähle ein besser passendes Tool desselben Dienstes; bevorzuge ein parameterfreies „letzte/liste"-Tool gegenüber einem „suche"-Tool mit Pflichtfeldern.',

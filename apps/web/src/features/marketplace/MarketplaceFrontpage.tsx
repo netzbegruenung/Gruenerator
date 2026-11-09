@@ -72,6 +72,7 @@ export function MarketplaceFrontpage({
   const focusPending = page.isPending;
 
   const lvItems = hasLv ? shelf('landesverband') : [];
+  const recipeItems = shelf('rezepte');
   const newItems = shelf('neu');
   const popularItems = shelf('beliebt');
   const visualShelfItems = useMemo(
@@ -129,6 +130,25 @@ export function MarketplaceFrontpage({
           />
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
             {lvItems.map((item) => (
+              <MarketplaceCard
+                key={item.key}
+                item={item}
+                actions={actions}
+                onSelect={() => onSelect(item)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {recipeItems.length > 0 && (
+        <section aria-label="Rezepte">
+          <SectionHeader
+            title="Rezepte"
+            actions={<BrowseButton onClick={() => onBrowse({ tab: 'rezepte' })} />}
+          />
+          <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+            {recipeItems.map((item) => (
               <MarketplaceCard
                 key={item.key}
                 item={item}

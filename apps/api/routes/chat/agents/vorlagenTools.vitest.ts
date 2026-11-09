@@ -110,6 +110,12 @@ describe('vorlagenForTurn', () => {
     ).toBeNull();
   });
 
+  it('schaltet Vorlagen frei, wenn das Social-Rezept aus dem Katalog geladen wurde', () => {
+    const s = state({ activeSkillMention: null, lastUserTextNoMentions: 'Post zu Kitas' });
+    expect(vorlagenForTurn(s, [])).toBeNull();
+    expect(vorlagenForTurn(s, ['presse', 'instagram'])).not.toBeNull();
+  });
+
   it('zeigt mit aktiver GJ-Rolle die Vorlagen der Grünen Jugend, sonst die der Partei', () => {
     vorlagenForTurn(
       state({

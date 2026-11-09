@@ -92,11 +92,14 @@ describe('draftAgentSpec', () => {
   describe('defaultRecipeMention', () => {
     const catalog = [
       {
+        key: 'pressemitteilung',
         mention: 'pressemitteilung',
         title: 'Pressemitteilung',
         description: '',
         source: 'system' as const,
         id: null,
+        origin: 'system' as const,
+        ownerName: null,
       },
     ];
 
@@ -115,6 +118,47 @@ describe('draftAgentSpec', () => {
       const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
       expect(call.system).toContain('- pressemitteilung: Pressemitteilung');
       expect(call.system).not.toContain('buerger-at');
+    });
+
+    describe('mention collision', () => {
+      const collided = [
+        {
+          ...catalog[0],
+          key: 'antrag',
+          mention: 'antrag',
+          title: 'Antrag',
+          origin: 'own' as const,
+        },
+        {
+          ...catalog[0],
+          key: 'antrag-abc123',
+          mention: 'antrag',
+          title: 'Antrag',
+          source: 'user' as const,
+          origin: 'library' as const,
+          ownerName: 'Erika',
+        },
+      ];
+
+      it('offers two distinguishable lines', async () => {
+        modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'antrag' });
+        await draftAgentSpec([{ role: 'user', content: 'Antrag' }], collided);
+        const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+        expect(call.system).toContain('- antrag: Antrag\n');
+        expect(call.system).toContain('- antrag-abc123: Antrag (von Erika)');
+      });
+
+      it('persists the mention of the own row', async () => {
+        modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'antrag' });
+        const spec = await draftAgentSpec([{ role: 'user', content: 'Antrag' }], collided);
+        expect(spec.defaultRecipeMention).toBe('antrag');
+      });
+
+      it('does not bind the foreign row, its mention would resolve to the own one', async () => {
+        modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'antrag-abc123' });
+        const spec = await draftAgentSpec([{ role: 'user', content: 'Antrag' }], collided);
+        expect(spec.defaultRecipeMention).toBeNull();
+      });
     });
 
     it('binds no recipe without a catalogue', async () => {

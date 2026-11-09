@@ -1,6 +1,7 @@
 import {
   DEFAULT_SYSTEM_AGENT_ID,
   SKILLS,
+  isUserFacingSkill,
   getSystemAgent,
   getVisibleSystemAgentsForLocale,
   isAdminVisibleAgent,
@@ -29,7 +30,8 @@ type ResolvedSkill = Skill & { icon: SkillIcon };
 // Resolution maps in `skills/index.ts` are untouched, so historical `/presse-<lv>`
 // mentions still resolve.
 export const agentsList: ResolvedSkill[] = SKILLS.filter(
-  (skill) => getSystemAgent(skill.identifier)?.hiddenFromInventory !== true
+  (skill) =>
+    isUserFacingSkill(skill) && getSystemAgent(skill.identifier)?.hiddenFromInventory !== true
 ).map((skill) => ({
   ...skill,
   icon: resolveSkillIcon(skill.iconKey),

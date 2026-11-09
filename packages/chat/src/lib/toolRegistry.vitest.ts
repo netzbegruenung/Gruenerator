@@ -952,7 +952,7 @@ describe('loop-catalog tool parsers', () => {
       kind: 'text-note',
       text: 'Soll die Textform „X" wirklich gelöscht werden?',
     });
-    expect(resolveToolEntry('recipes').meta.label).toBe('Rezepte & Textformen');
+    expect(resolveToolEntry('recipes').meta.label).toBe('Rezepte');
   });
 
   it('every formerly-unregistered tool now resolves to a real label', () => {

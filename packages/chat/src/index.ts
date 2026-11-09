@@ -251,6 +251,7 @@ export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
 export { AnswerModeChip } from './components/message-parts/AnswerModeChip';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
+export { RecipeStarters } from './components/thread/RecipeStarters';
 export {
   GrueneratorThreadListItem,
   GrueneratorArchivedThreadListItem,

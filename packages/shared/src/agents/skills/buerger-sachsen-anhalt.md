@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-sachsen-anhalt'
 title: 'Bürger*innen-Mail Sachsen-Anhalt'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Sachsen-Anhalt'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Sachsen-Anhalt. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Sachsen-Anhalt geantwortet wird.'
 iconKey: 'PiFlowerLight'
 avatar: '✉️'
 backgroundColor: '#316049'

@@ -12,6 +12,7 @@ export * from './agentLookup.js';
 export * from './agentSharing.js';
 export * from './myGroupsForSharing.js';
 export * from './recipeFormState.js';
+export * from './recipeFromAnswer.js';
 export * from './recipeKind.js';
 export * from './recipeLookup.js';
 export * from './recipeSharing.js';

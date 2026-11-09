@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern'
 title: 'PM Bayern (Fraktion)'
-description: 'Pressemitteilung der Landtags-Grünen Bayern — Anfragen, Forderungslisten, Staatsregierung'
+description: 'Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '🦁'
 backgroundColor: '#316049'

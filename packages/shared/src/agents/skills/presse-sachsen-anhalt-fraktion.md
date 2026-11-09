@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt'
 title: 'PM Sachsen-Anhalt (Fraktion)'
-description: 'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt — Landtag, Kleine Anfragen, Landesregierung'
+description: 'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '🌾'
 backgroundColor: '#316049'

@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-universal'
 title: 'Sprechzettel'
-description: 'Redemanuskript aus der Dokumentensammlung, mit Rechenschaft'
+description: 'Redemanuskript aus einer Dokumentensammlung, sprechbar gegliedert und mit Belegen. Nutzen, wenn eine Rede oder ein Statement aus vorliegenden Dokumenten vorbereitet wird.'
 iconKey: 'PiMicrophoneStage'
 avatar: '🎤'
 backgroundColor: '#316049'

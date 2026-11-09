@@ -493,8 +493,9 @@ const SCENARIOS: readonly LoopScenario[] = [
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'required',
     firstStepActiveTools: {
-      within: [...RESEARCH_LOOP_TOOLS],
-      without: ['read_pdf_form', 'media', 'summarize'],
+      // `methode_laden`: die Methoden-Rezepte (Rechtsstand …), nie eine Textsorte.
+      within: [...RESEARCH_LOOP_TOOLS, 'methode_laden'],
+      without: ['read_pdf_form', 'media', 'summarize', 'rezept_laden'],
     },
   },
 ];

@@ -9,6 +9,7 @@ import {
   forcedFirstStepTools,
   pinnedFirstTool,
   shouldForceFirstToolCall,
+  turnCarriesMaterial,
   type ForceReason,
 } from './forceFirstToolCall.js';
 
@@ -809,48 +810,189 @@ describe('forcedFirstStepTools', () => {
 
   describe('rezept_laden im Zuschnitt (#4785)', () => {
     const withRecipe = [...MOUNTED, 'rezept_laden'];
-    const order = (over: Parameters<typeof tools>[0]) => tools({ recipeOrder: true, ...over });
-
-    it('named_intent mit Anhang: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
+    it('named_intent + Material: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
       // Der Live-Fall: Paste + „Mach daraus bitte einen Instagram-Post" mit
       // Standard-Notebooks. Ohne das Werkzeug hing Gemma unter `required`.
-      expect(order({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
-        'gruenerator_search',
-        'rezept_laden',
-      ]);
+      // Ein Ganzdokument steht ganz im Prompt: `materialTools` ist leer, der
+      // Turn trägt trotzdem Material.
+      expect(
+        tools({
+          reason: 'named_intent',
+          intent: 'search',
+          mounted: withRecipe,
+          turnMaterial: true,
+        })
+      ).toEqual(['gruenerator_search', 'rezept_laden']);
     });
 
+    // Ohne Material heisst `named_intent` nur „ein Abruf-Intent wurde benannt":
+    // dort griff der Planer unter `required` zum Rezept statt zur Suche (#3880).
+    it.each(['search', 'chat_history', 'bundestag'])(
+      'named_intent ohne Material (%s): bleibt draussen (#3880)',
+      (intent) => {
+        // Auch `null` (kein Zuschnitt) heisst: kein Rezept im erzwungenen Schritt.
+        expect(tools({ reason: 'named_intent', intent, mounted: withRecipe }) ?? []).not.toContain(
+          'rezept_laden'
+        );
+      }
+    );
+
+    it('Notebook-gebundene Suche ohne Anhang: notebook_quellen ist kein Turn-Material', () => {
+      expect(
+        tools({
+          reason: 'named_intent',
+          intent: 'search',
+          mounted: [...withRecipe, 'notebook_quellen'],
+          materialTools: ['notebook_quellen'],
+          threadNotebook: true,
+        })
+      ).not.toContain('rezept_laden');
+    });
+
+    describe('turnCarriesMaterial', () => {
+      const up = { kind: 'upload', name: 'a.pdf', heading: 'a.pdf', text: 'x' } as const;
+      const paste = { kind: 'paste', name: 'p.txt', heading: 'p.txt', text: 'x' } as const;
+      const ref = { kind: 'reference', heading: 'REFERENZIERTE DOKUMENTE', text: 'x' } as const;
+      it('kleiner Upload (kein Paste, nicht vektorisiert) → ja', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [up] })).toBe(true);
+      });
+      it('Paste, Paste + Datei, @datei-Verweis → ja', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [paste] })).toBe(true);
+        expect(turnCarriesMaterial({ turnMaterial: [paste, up] })).toBe(true);
+        expect(turnCarriesMaterial({ turnMaterial: [ref] })).toBe(true);
+      });
+      it('Client-Kontext und Sharepic-Stand sind kein mitgeschicktes Material → nein', () => {
+        expect(
+          turnCarriesMaterial({
+            turnMaterial: [
+              { kind: 'client', text: 'x' },
+              { kind: 'sharepic', text: 'y' },
+            ],
+          })
+        ).toBe(false);
+      });
+      it('kurzer Folgeturn / Notebook-Scope: nichts in dieser Nachricht → nein', () => {
+        // Der jüngste Paste des Threads (`wholeDocument.origin: 'thread'`) steht
+        // nicht in `turnMaterial`.
+        expect(turnCarriesMaterial({ turnMaterial: [] })).toBe(false);
+      });
+      const wholeDoc = (origin: 'turn' | 'thread') => ({
+        origin,
+        ask: 'paste' as const,
+        docs: [{ name: 'p.txt', text: 'x', documentId: 'doc-1' }],
+        chars: 1,
+        budgetChars: 100,
+        fits: true,
+      });
+      it('großer, vektorisierter Anhang dieses Turns (aus turnMaterial entfernt) → ja', () => {
+        // replaceFileItems nimmt Anhänge ab 12k Zeichen aus `turnMaterial`;
+        // `documentChatLabels` trägt nur die in diesem Turn indizierten.
+        expect(
+          turnCarriesMaterial({ turnMaterial: [], documentChatLabels: { 'doc-1': 'gross.pdf' } })
+        ).toBe(true);
+      });
+      it('Ganzdokument aus diesem Turn → ja; aus dem Thread (latestPasteOfThread) → nein', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [], wholeDocument: wholeDoc('turn') })).toBe(
+          true
+        );
+        expect(
+          turnCarriesMaterial({
+            turnMaterial: [],
+            documentChatLabels: {},
+            wholeDocument: wholeDoc('thread'),
+          })
+        ).toBe(false);
+      });
+    });
+
+    // Umgedreht gegenüber der Wortlisten-Fassung (dort: dabei, wenn der Text eine
+    // Plattform nannte): hier gilt #3880, auch mit Material.
     it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
-      '%s: dabei, wenn montiert',
+      '%s: bleibt draussen, die Suche gehört dem Planer (#3880)',
       (reason) => {
-        expect(order({ reason, mounted: withRecipe })).toContain('rezept_laden');
+        expect(tools({ reason, mounted: withRecipe, turnMaterial: true })).not.toContain(
+          'rezept_laden'
+        );
       }
     );
 
     it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
-      expect(order({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
-    });
-
-    it('ohne Bestellung bleibt es draussen: Recherche griff sonst zum Rezept (#3880)', () => {
-      expect(
-        tools({ reason: 'research_order', mounted: withRecipe, recipeOrder: false })
-      ).not.toContain('rezept_laden');
-      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
-        'gruenerator_search',
-      ]);
+      expect(tools({ reason: 'named_intent', intent: 'search', turnMaterial: true })).not.toContain(
+        'rezept_laden'
+      );
     });
 
     it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {
-      expect(order({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
+      expect(tools({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
       expect(
-        order({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
+        tools({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
       ).not.toContain('rezept_laden');
     });
 
+    describe('methode_laden im Recherche-Schritt', () => {
+      const withMethod = [...MOUNTED, 'rezept_laden', 'methode_laden'];
+      it('offers only method recipes in a forced research step', () => {
+        // Das Werkzeug ist nur montiert, wenn der Katalog eine Methode trägt
+        // (`rechtsstand`); `presse` (Textsorte) ist nur über `rezept_laden` ladbar.
+        const offered = tools({
+          reason: 'demoted_retrieval',
+          intent: 'search',
+          mounted: withMethod,
+        });
+        expect(offered).toContain('methode_laden');
+        expect(offered).not.toContain('rezept_laden');
+      });
+      it.each(['research_order', 'demoted_retrieval', 'contradicted', 'named_intent'] as const)(
+        '%s: bietet die Methode an',
+        (reason) => {
+          expect(tools({ reason, intent: 'search', mounted: withMethod })).toContain(
+            'methode_laden'
+          );
+        }
+      );
+      it('offers no recipe in a forced research step when the catalogue has no method', () => {
+        const offered = tools({
+          reason: 'demoted_retrieval',
+          intent: 'search',
+          mounted: withRecipe,
+        });
+        expect(offered).not.toContain('methode_laden');
+        expect(offered).not.toContain('rezept_laden');
+      });
+      it('mcp_scope and edit orders offer no method', () => {
+        expect(tools({ reason: 'mcp_scope', mounted: withMethod })).not.toContain('methode_laden');
+        expect(
+          tools({ reason: 'sharepic_order', mounted: [...withMethod, 'edit_sharepic'] })
+        ).not.toContain('methode_laden');
+        expect(
+          tools({
+            reason: 'tabular_decision',
+            intent: 'search',
+            mounted: [...withMethod, 'tabelle_auswerten', 'direkt_antworten'],
+          })
+        ).not.toContain('methode_laden');
+      });
+      it('chat_history: der Verlauf braucht keine Methode', () => {
+        expect(
+          tools({ reason: 'named_intent', intent: 'chat_history', mounted: withMethod }) ?? []
+        ).not.toContain('methode_laden');
+      });
+      it('named_intent mit Material bleibt beim Textsorten-Angebot (rezept_laden deckt Methoden mit)', () => {
+        expect(
+          tools({
+            reason: 'named_intent',
+            intent: 'search',
+            mounted: withMethod,
+            turnMaterial: true,
+          })
+        ).toEqual(['gruenerator_search', 'rezept_laden']);
+      });
+    });
+
     it('macht aus einem leeren Zuschnitt keinen Rezept-Zwang', () => {
-      expect(order({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
+      expect(tools({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
       expect(
-        order({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
+        tools({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
       ).toBeNull();
     });
   });

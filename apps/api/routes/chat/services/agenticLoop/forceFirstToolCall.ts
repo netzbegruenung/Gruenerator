@@ -12,7 +12,6 @@ import {
   isTabularComputeQuestion,
 } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
-import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { extractTextContent } from '../messageHelpers.js';
@@ -20,6 +19,7 @@ import { orderText } from '../orderText.js';
 import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
 import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
+import { turnCarriesMaterial } from '../turnCarriesMaterial.js';
 
 import { materialReaderTools, type TurnMaterial } from './attachedDocuments.js';
 import { isLookupTool, priorToolNames } from './catalogAssembly.js';
@@ -32,11 +32,13 @@ import {
   looksLikeFactCheckOrder,
   reworksSuppliedText,
 } from './routing.js';
-import { DEFERRABLE_GROUPS } from './toolScope.js';
+import { DEFERRABLE_GROUPS, METHOD_RECIPE_TOOL } from './toolScope.js';
 import { type ForceScopeSummary } from './turnSummary.js';
 import { type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+
+export { turnCarriesMaterial };
 
 /**
  * WARUM der erste Schritt einen Aufruf verlangt — je ein Wert pro Weg unten.
@@ -55,6 +57,14 @@ export type ForceReason =
   | 'artifact_edit_order'
   | 'tabular_decision'
   | 'material_order';
+
+/** Gründe, aus denen der erzwungene Schritt eine Methode laden darf (`methode_laden`). */
+const METHOD_RESEARCH_REASONS: ReadonlySet<ForceReason> = new Set([
+  'research_order',
+  'demoted_retrieval',
+  'contradicted',
+  'named_intent',
+]);
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -402,8 +412,10 @@ export function forcedFirstStepTools(input: {
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
   threadNotebook?: boolean;
-  /** Der Auftrag bestellt eine Textsorte mit Rezept (`deriveImplicitRecipeMention`). */
-  recipeOrder?: boolean;
+  /** Der Turn bringt selbst Material mit (`turnCarriesMaterial`): Anhang oder
+   *  Einfügung dieser Nachricht — nicht Notebook-Scope, nicht der Paste eines
+   *  früheren Turns. */
+  turnMaterial?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -486,21 +498,33 @@ export function forcedFirstStepTools(input: {
   const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
   const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
   if (scoped.length === 0) return null;
-  // Bestellt der Auftrag eine Textsorte, sagt der Prompt „rufe ZUERST
-  // `rezept_laden`" (Katalog und Werkzeug entstehen zusammen in
-  // catalogAssembly). Ein erzwungener Schritt ohne das Werkzeug widerspricht
-  // ihm, und darauf antwortet Gemma unter `required` gar nicht: „Mach daraus
-  // bitte einen Instagram-Post" mit Anhang hing auf Melious UND Cortecs 3 von 3
-  // Mal über 50 s, mit `rezept_laden` daneben kamen alle sechs Läufe nach 5 s
-  // (#4785). Nur bei einer Bestellung: auf Recherche-Aufträge griff der Planer
-  // unter `required` zum Rezept statt zur Suche (#3880).
+  // Trägt ein `named_intent`-Turn Material (Anhang, Einfügung), sagt der
+  // Prompt „rufe ZUERST `rezept_laden`" (Katalog und Werkzeug entstehen
+  // zusammen in catalogAssembly). Ein erzwungener Schritt ohne das Werkzeug
+  // widerspricht ihm, und darauf antwortet Gemma unter `required` gar nicht:
+  // „Mach daraus bitte einen Instagram-Post" mit Anhang hing auf Melious UND
+  // Cortecs 3 von 3 Mal über 50 s, mit `rezept_laden` daneben kamen alle sechs
+  // Läufe nach 5 s (#4785). Der Zustand entscheidet, kein Wort — und nur mit
+  // Material: `named_intent` heisst bloss „ein Abruf-Intent wurde benannt"
+  // (search, web, chat_history, bundestag …); dort griff der Planer unter
+  // `required` zum Rezept statt zur Suche (#3880).
   const offersRecipe =
-    input.recipeOrder === true &&
-    input.reason !== 'mcp_scope' &&
-    input.reason !== 'sharepic_order' &&
-    input.reason !== 'artifact_edit_order' &&
-    mounted.has('rezept_laden');
-  return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
+    input.reason === 'named_intent' && input.turnMaterial === true && mounted.has('rezept_laden');
+  if (offersRecipe) return [...scoped, 'rezept_laden'];
+  // Recherche-Turns: nur eine METHODE, nie eine Textsorte (#3880). `methode_laden`
+  // ist montiert, wenn der Katalog dieses Turns eine Methode hat; der Enum kennt
+  // keine Textsorte, und die Rolle des Rezepts entscheidet, kein Wort. Ohne die
+  // Methode lief der erzwungene Schritt 0/9 Mal an Beschlusslage, Rechtsstand und
+  // Bundestagsrecherche vorbei. Nicht für Aufträge, die etwas ANDERES verlangen
+  // (Server-Scope, Sharepic, Bearbeitung, Tabelle, Material, Pin).
+  // Nur, wenn der Zuschnitt etwas Recherchierbares trägt: der Verlauf früherer
+  // Gespräche (`search_threads`) steht nicht in `RESEARCH_LOOP_TOOLS` und hat
+  // mit keiner Methode zu tun.
+  const offersMethod =
+    METHOD_RESEARCH_REASONS.has(input.reason) &&
+    scoped.some((t) => RESEARCH_LOOP_TOOLS.has(t)) &&
+    mounted.has(METHOD_RECIPE_TOOL);
+  return offersMethod ? [...scoped, METHOD_RECIPE_TOOL] : scoped;
 }
 
 export interface FirstStepDecision {
@@ -635,8 +659,7 @@ export async function decideFirstStep(ctx: {
           materialTools: materialReaderTools(ctx.material).filter(isMounted),
           userText,
           threadNotebook: ctx.threadNotebook,
-          recipeOrder:
-            deriveImplicitRecipeMention(orderText(userText), state.userLocale ?? null) != null,
+          turnMaterial: turnCarriesMaterial(state),
         })
       : null;
   if (firstToolName) {
