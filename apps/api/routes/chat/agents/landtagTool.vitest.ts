@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_LOOP_BUDGET } from '../services/agenticLoop/types.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
-import { describeLandtagFilter, makeLandtagTool, makeNationalratTool } from './landtagTool.js';
+import {
+  describeLandtagFilter,
+  makeLandtagTool,
+  makeNationalratTool,
+  NOTEBOOK_DEADLINE_MS,
+} from './landtagTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -276,6 +282,23 @@ describe('makeLandtagTool', () => {
       expect(out.sources).toContain('Auszug: Der Senat prüft');
       expect(out.sources).toContain('Kiezblocks im Ausschuss');
       expect(out.hinweis).toMatch(/Auszug/);
+    });
+
+    it('lässt ein hängendes Notebook die fertige Live-Liste nicht verschlucken (#5559)', async () => {
+      vi.useFakeTimers();
+      try {
+        findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
+        directSearch.mockReturnValue(new Promise(() => {}));
+        const pending = exec(make('de-DE', frage), { parlament: 'berlin', query: 'Kiezblock' });
+        // Die Standardfrist des Werkzeugs (20 s) wird nie erreicht: das Notebook hat eine eigene, kürzere.
+        await vi.advanceTimersByTimeAsync(NOTEBOOK_DEADLINE_MS + 1);
+        const out = (await pending) as { resultCount: number; error?: string };
+        expect(out.error).toBeUndefined();
+        expect(out.resultCount).toBe(1);
+        expect(NOTEBOOK_DEADLINE_MS).toBeLessThan(DEFAULT_LOOP_BUDGET.perCallTimeoutMs);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('liefert die Textstellen, wenn die Live-Abfrage ausfällt, und sagt es', async () => {

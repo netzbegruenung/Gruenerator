@@ -22,7 +22,12 @@ import { findLandtag, LANDTAGE, landtageFor } from '../../../services/landtag/in
 import { FRAKTION_LABEL, type LandtagMeta } from '../../../services/landtag/registry.js';
 import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
 import { createLogger } from '../../../utils/logger.js';
+import { TimeoutError, withTimeout } from '../../../utils/withTimeout.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import {
+  DEFAULT_LOOP_BUDGET,
+  TOOL_TIMEOUT_OVERRIDES_MS,
+} from '../services/agenticLoop/types.js';
 import { lastUserText } from '../services/messageHelpers.js';
 
 import { executeDirectSearch } from './directSearchExecutors.js';
@@ -140,6 +145,17 @@ const NOTEBOOK_PASSAGES = 4;
  */
 const NOTEBOOK_SEARCH_MODE = 'vector';
 
+/**
+ * Eigene Frist der Notebook-Suche, abgeleitet aus der Werkzeugfrist des Loops
+ * (`landtag` hat keinen Eintrag in `TOOL_TIMEOUT_OVERRIDES_MS`, gilt also die
+ * Standardfrist): 60 %. Ohne sie nimmt ein kalter Qdrant (10–16 s, live
+ * 09.11.2026 7 von 10 Aufrufen) die schon nach ~1 s fertige PARDOK-Liste mit in
+ * die Zeitüberschreitung; so bleibt Luft, die Liste auszuliefern (#5559).
+ */
+export const NOTEBOOK_DEADLINE_MS = Math.floor(
+  (TOOL_TIMEOUT_OVERRIDES_MS['landtag'] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs) * 0.6
+);
+
 interface NotebookPassage {
   title: string;
   url: string | null;
@@ -172,15 +188,21 @@ async function notebookPassages(
   const contentTypes = (filters.typ ?? []).map((t) => notebook.contentTypes[t]);
   if (contentTypes.some((c) => !c)) return [];
   try {
-    const res = await executeDirectSearch({
-      query: question,
-      collection: notebook.collection,
-      limit: NOTEBOOK_PASSAGES,
-      searchMode: NOTEBOOK_SEARCH_MODE,
-      ...(contentTypes.length > 0
-        ? { filters: { content_type: [...new Set(contentTypes as string[])] } }
-        : {}),
-    });
+    // Die Suche selbst lässt sich nicht abbrechen; `withTimeout` hängt an ihr einen
+    // Handler, ein spätes Scheitern bleibt also ohne unbehandelte Ablehnung.
+    const res = await withTimeout(
+      executeDirectSearch({
+        query: question,
+        collection: notebook.collection,
+        limit: NOTEBOOK_PASSAGES,
+        searchMode: NOTEBOOK_SEARCH_MODE,
+        ...(contentTypes.length > 0
+          ? { filters: { content_type: [...new Set(contentTypes as string[])] } }
+          : {}),
+      }),
+      NOTEBOOK_DEADLINE_MS,
+      `landtag-notebook ${notebook.collection}`
+    );
     return (res.results ?? [])
       .filter((r) => r.excerpt)
       .map((r) => ({
@@ -189,7 +211,10 @@ async function notebookPassages(
         excerpt: r.excerpt,
         collection: res.collection,
       }));
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof TimeoutError) {
+      log.warn(`[landtag] ${error.message} — weiter ohne Textstellen`);
+    }
     return [];
   }
 }
