@@ -115,7 +115,7 @@ describe('Werkzeugkatalog — Budget je Aufruf', () => {
     expect(alle - gezeigt).toBeGreaterThanOrEqual(5_000);
   });
 
-  it('hält den gezeigten Katalog eines Recherche-Turns unter 5.300 Tokens', () => {
+  it('hält den gezeigten Katalog eines Recherche-Turns unter 5.400 Tokens', () => {
     const tools = buildFor(RECHERCHE_TURN);
     const scope = createToolScope({
       toolNames: Object.keys(tools),
@@ -127,9 +127,11 @@ describe('Werkzeugkatalog — Budget je Aufruf', () => {
     // Gemessen am 27.09.2026: ~4.400. Am 05.11.2026: 5.077 — kein neues
     // Werkzeug, sondern zwei Sammlungen mehr im Enum von `gruenerator_search`
     // (Landtag NRW und Abgeordnetenhaus Berlin, freigegeben in #5312;
-    // `gruenerator_search` allein 1.098). Der Abstand ist Luft für eine
-    // Umformulierung, nicht für ein weiteres Werkzeug.
-    expect(tokensOf(tools, scope.activeTools() ?? [])).toBeLessThan(5_300);
+    // `gruenerator_search` allein 1.098). Am 09.11.2026: 5.310 — wieder kein
+    // Werkzeug, sondern das System-Notebook Wahlprüfsteine (#5536) als weitere
+    // Sammlung. Der Abstand ist Luft für eine Umformulierung, nicht für ein
+    // weiteres Werkzeug.
+    expect(tokensOf(tools, scope.activeTools() ?? [])).toBeLessThan(5_400);
   });
 
   it('kostet jeder Lader weniger als 250 Tokens', () => {
