@@ -20,7 +20,6 @@ import {
   buildToolReplay,
   isLookupTool,
   priorToolNames,
-  priorTurnRetrieved,
   priorLookups,
   priorTurnRetrievalFailed,
   wrapAssembledTools,
@@ -664,81 +663,6 @@ describe('wrapAssembledTools — Labels der Verbindungs-Werkzeuge', () => {
     expect(sent[0].data).not.toHaveProperty('title');
     expect(sent[0].data).not.toHaveProperty('serverName');
     expect(steps[0]).not.toHaveProperty('serverName');
-  });
-});
-
-describe('priorTurnRetrieved', () => {
-  /**
-   * Die Thread-Hälfte des siebten Wegs in `shouldForceFirstToolCall`: hat der
-   * vorige Turn etwas GEHOLT, oder nur etwas GEMACHT? Die Trennlinie ist
-   * dieselbe Liste, an der auch das Replay entlangschneidet.
-   */
-  const history = (...toolNames: string[]) => ({
-    artifacts: () => [],
-    toolSteps: () =>
-      toolNames.map((toolName, i): PersistedStep => ({
-        toolCallId: `c${i}`,
-        toolName,
-        args: {},
-        result: {},
-      })),
-    lastTurnToolSteps: () => [],
-    lastTurnArtifacts: () => [],
-    lastTurnIntent: () => null,
-    lastTurnOffer: () => null,
-    sources: () => [],
-    lastGeneratedImageUrl: () => null,
-  });
-
-  it.each(['gruenerator_search', 'web_search', 'bundestag', 'abgeordnetenwatch', 'umfragen'])(
-    '%s zählt als Abruf',
-    (toolName) => {
-      expect(priorTurnRetrieved(history(toolName))).toBe(true);
-    }
-  );
-
-  it('ein Thread, der nur ERZEUGT hat, hat nichts nachgeschlagen', () => {
-    expect(priorTurnRetrieved(history('sharepic', 'create_document', 'generate_image'))).toBe(
-      false
-    );
-  });
-
-  it('das Rezept und die Rückfrage schlagen nichts nach', () => {
-    // Live 05.11.2026 (Eval ul-doc-foermlicher): „Erstelle ein Dokument" lud das
-    // Rezept, und „förmlicher" bekam danach den Anschluss-Zwang auf die Websuche.
-    expect(priorTurnRetrieved(history('rezept_laden', 'create_document'))).toBe(false);
-    expect(priorTurnRetrieved(history('ask_human', 'meine_inhalte_laden'))).toBe(false);
-    // Both lists at once: the action digest set (#5371) and the non-lookups.
-    expect(priorTurnRetrieved(history('rezept_laden', 'edit_image', 'edit_document_text'))).toBe(
-      false
-    );
-  });
-
-  it('ein Abruf neben einer Erzeugung zählt', () => {
-    expect(priorTurnRetrieved(history('sharepic', 'web_search'))).toBe(true);
-  });
-
-  it('ohne Thread und ohne Schritte ist die Antwort nein', () => {
-    expect(priorTurnRetrieved(null)).toBe(false);
-    expect(priorTurnRetrieved(undefined)).toBe(false);
-    expect(priorTurnRetrieved(history())).toBe(false);
-  });
-
-  it('ein Lesefehler der Projektion darf keinen Turn brechen', () => {
-    expect(
-      priorTurnRetrieved({
-        artifacts: () => [],
-        toolSteps: () => {
-          throw new Error('boom');
-        },
-        lastTurnToolSteps: () => [],
-        lastTurnArtifacts: () => [],
-        lastTurnIntent: () => null,
-        lastTurnOffer: () => null,
-        sources: () => [],
-        lastGeneratedImageUrl: () => null,
-      })
-    ).toBe(false);
   });
 });
 

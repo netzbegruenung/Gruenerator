@@ -735,26 +735,12 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(summary).toContain(` force=research_order:${p.firstStepTools!.length}`);
   });
 
-  it('followup: die Anschlussfrage sieht, was der Thread schon nachgeschlagen hat, und das Web', async () => {
+  it('Anschlussfrage nach einem Abruf-Turn: kein Zwang, das Modell entscheidet (09.11.2026)', async () => {
     const p = await loopParams(fakeState(), 'Und die FDP?', catalogWith(MOUNTED), {
       toolHistory: historyWith(['bundestag']),
     });
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(['bundestag', 'web_search']);
-  });
-
-  it('followup: fehlen das frühere Werkzeug und das Web im Katalog, bleibt der Zuschnitt leer und der Zwang steht', async () => {
-    infoLines.length = 0;
-    const p = await loopParams(
-      fakeState(),
-      'Und die FDP?',
-      catalogWith(MOUNTED.filter((t) => t !== 'bundestag' && t !== 'web_search')),
-      { toolHistory: historyWith(['bundestag']) }
-    );
-    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.forceFirstToolCall).toBe(false);
     expect(p.firstStepTools).toBeNull();
-    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
-    expect(summary).toContain(' force=followup:none');
   });
 
   it('mcp_scope: ein Turn mit Server-Scope sieht nur dessen Werkzeuge', async () => {

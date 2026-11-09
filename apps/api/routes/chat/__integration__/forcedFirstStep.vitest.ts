@@ -282,30 +282,11 @@ const CASES: Case[] = [
     prompt: 'Wie hat die Unionsfraktion im Bundestag über das Heizungsgesetz abgestimmt?',
     fits: ['bundestag', 'abgeordnetenwatch'],
   },
-  // Der Messpunkt `followup-bundestag-scope`: zwei Abnahmeläufe, fünf
-  // verschiedene Werkzeugwahlen für dieselbe Anschlussfrage.
-  {
-    id: 'anschlussfrage',
-    before: {
-      prompt: 'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
-      steps: ['abgeordnetenwatch'],
-    },
-    prompt: 'Und die FDP?',
-    fits: ['abgeordnetenwatch', 'bundestag', 'web_search'],
-  },
-  // Parteiwechsel nach einer Programmsuche: die Antwort steht nicht im
-  // Grünen-Korpus, der Schritt muss hinaus können.
-  {
-    id: 'anschlussfrage-partei',
-    before: {
-      prompt: 'Was steht in unserem Wahlprogramm zum Mindestlohn?',
-      steps: ['gruenerator_search'],
-    },
-    prompt: 'Und was sagt die SPD dazu?',
-    fits: ['web_search'],
-  },
+  // Anschlussfragen nach einem Abruf-Turn („Und die FDP?") erzwingen seit dem
+  // 09.11.2026 keinen ersten Schritt mehr — das Modell entscheidet mit dem
+  // Verlauf. Die Fälle `anschlussfrage` und `anschlussfrage-partei` sind deshalb weg.
   // Das Protokoll aus #3778: zweimal `notebooks` gescheitert, dann „finde es".
-  // `research_order` feuert vor `followup`, das gescheiterte Werkzeug muss
+  // `research_order` zwingt, das gescheiterte Werkzeug muss
   // wiederholbar bleiben. Passend ist auch der Quellenwechsel: „berlin" ist
   // eine Systemsammlung, die `gruenerator_search` direkt erreicht — live wählt
   // der Planer genau die, nie die Wiederholung.

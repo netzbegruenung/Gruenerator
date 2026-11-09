@@ -24,7 +24,6 @@ const base = {
   materialHeavy: false,
   carriesMaterial: false,
   pinnedTool: null as string | null,
-  priorTurnRetrieved: false,
   hasAttachedDocuments: false,
   summaryAsk: false,
   attachedSeedDelivered: false,
@@ -60,7 +59,7 @@ describe('shouldForceFirstToolCall', () => {
   // Ganz ohne Zwang schwieg der Planer bei Anschlussfragen, und der Schreiber
   // rechnete aus dem Auszug (#5042). Der Zwang ist eine Wahl zwischen
   // `tabelle_auswerten` und `direkt_antworten`, nie eine Suche.
-  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent/followup', () => {
+  it('Tabellen-Turn mit montiertem tabelle_auswerten ⇒ tabular_decision statt named_intent', () => {
     expect(
       force({
         intent: 'search',
@@ -72,7 +71,6 @@ describe('shouldForceFirstToolCall', () => {
     expect(
       force({
         intent: 'agentic',
-        priorTurnRetrieved: true,
         lastUserText: 'Und im Februar?',
         tabularToolMounted: true,
       })
@@ -95,11 +93,9 @@ describe('shouldForceFirstToolCall', () => {
     expect(force({ tabularToolMounted: true, researchBanned: true })).toBeNull();
   });
 
-  it('ohne Tabellen-Werkzeug bleiben named_intent und followup', () => {
+  it('ohne Tabellen-Werkzeug: named_intent zwingt, eine Anschlussfrage nicht', () => {
     expect(force({ intent: 'search' })).toBe('named_intent');
-    expect(
-      force({ intent: 'agentic', priorTurnRetrieved: true, lastUserText: 'Und im Februar?' })
-    ).toBe('followup');
+    expect(force({ intent: 'agentic', lastUserText: 'Und im Februar?' })).toBeNull();
   });
 
   it('ein frischer Zug bleibt unverändert', () => {
@@ -179,7 +175,7 @@ describe('shouldForceFirstToolCall', () => {
       // `abgeordnetenwatch` benannt (in DEMOTABLE_HEURISTIC_INTENTS), also
       // setzt Tier 3.5 die Flagge. Das ist der ERSTE Turn von
       // `followup-bundestag-scope`; sein zweiter trägt die Flagge nicht und
-      // hatte bis zum siebten Weg keinen Träger (siehe unten).
+      // entscheidet ohne Zwang (siehe unten).
       expect(
         force({
           intent: 'agentic',
@@ -191,114 +187,20 @@ describe('shouldForceFirstToolCall', () => {
   });
 
   /**
-   * Siebter Weg — die rückbezügliche Anschlussfrage nach einem Abruf-Turn.
-   *
-   * Die Eingaben sind gemessen, nicht angenommen: eine Zwei-Turn-Sonde auf
-   * `classifierNode` (20.08.2026, echte Heuristik, Provider abgefangen) gab für
-   * `followup-bundestag-scope`
-   *
-   *   t0 „Wie hat die SPD zum Heizungsgesetz abgestimmt?"
-   *      → intent=agentic, loopDemotedFromRetrieval=true   (Demotions-Zweig)
-   *   t1 „Und die FDP?"
-   *      → intent=agentic, loopDemotedFromRetrieval=false  (bis hier: niemand)
-   *
-   * Damit ist die Streuung dieses Messpunkts erklärt, ohne den Planer-Host zu
-   * bemühen: für t1 wurde `toolChoice: 'required'` nie gesetzt, die Werkzeugwahl
-   * lag allein beim Modell.
+   * Die Anschlussfrage nach einem Abruf-Turn („Und die FDP?") erzwingt nichts
+   * mehr (09.11.2026): ob sie nachschlägt, entscheidet das Modell mit dem
+   * Verlauf. Ein ausdrücklicher Auftrag („finde es") trägt weiter sein eigener Weg.
    */
-  describe('die rückbezügliche Anschlussfrage nach einem Abruf-Turn', () => {
-    const followup = {
-      intent: 'agentic',
-      loopDemotedFromRetrieval: false,
-      priorTurnRetrieved: true,
-      lastUserText: 'Und die FDP?',
-    };
-
-    it('erzwingt den Aufruf', () => {
-      expect(force(followup)).toBe('followup');
-    });
-
-    it.each([['Und die FDP?'], ['Was ist mit Bayern?'], ['Und wie war das 2021?']])(
-      '%s',
+  describe('die Anschlussfrage nach einem Abruf-Turn', () => {
+    it.each([['Und die FDP?'], ['Was ist mit Bayern?'], ['yes'], ['nochmal versuchen']])(
+      '„%s" erzwingt nichts',
       (lastUserText) => {
-        expect(force({ ...followup, lastUserText })).toBe('followup');
+        expect(force({ intent: 'agentic', lastUserText })).toBeNull();
       }
     );
 
-    // Der Negativfall, der den Weg überhaupt so eng verankert: eine
-    // Meta-Anweisung über die vorige ANTWORT ist ebenfalls kurz, ebenfalls
-    // rückbezüglich und steht ebenfalls hinter einem Abruf-Turn. Sie ist in dem
-    // Text gegründet, an dem sie arbeitet — ein erzwungener Abruf legte fremde
-    // Recherche unter eine Kürzung.
-    it.each([
-      ['fasse das kürzer'],
-      ['kürze das bitte'],
-      ['nochmal auf englisch'],
-      ['umformulieren bitte'],
-    ])('„%s" nach einem Abruf-Turn erzwingt NICHTS', (lastUserText) => {
-      expect(force({ ...followup, lastUserText })).toBeNull();
-    });
-
-    // Offener Rand, hier festgehalten statt still gelassen: die TRENNBARE Form
-    // („formuliere das um") steht nicht in `REWRITE_TARGET_RE`, nur die
-    // untrennbare („umformulieren"). Sie kommt damit bis hierher durch. Die
-    // Regex zu weiten ist kein Nebenbei-Schritt — `rewritesSuppliedText`
-    // entscheidet auch über die mitgeführten Quellen, und ihre heutige Form ist
-    // über den 196-Turn-Korpus gemessen. Eigener Befund, eigene Messung.
-    it('bekannte Lücke: die trennbare Umformulierungs-Form kommt durch', () => {
-      expect(force({ ...followup, lastUserText: 'formuliere das um' })).toBe('followup');
-    });
-
-    // #3778: nach zwei gescheiterten `notebooks`-Aufrufen ist `priorTurnRetrieved`
-    // wahr (ein gescheiterter Abruf ist ein Abruf), und der Klassifikator
-    // liefert jetzt `agentic` — dieser Weg ist es, der den Planer dann
-    // tatsächlich zu einem Aufruf zwingt.
-    // „finde es" trägt schon der Recherche-Auftrag-Zweig weiter oben, die
-    // beiden anderen erst dieser.
-    it.each([
-      ['finde es', 'research_order'],
-      ['stimmt nicht du hast de tools', 'followup'],
-      ['nochmal versuchen', 'followup'],
-    ] as const)(
-      'nach einem gescheiterten Abruf-Turn: „%s" erzwingt den Aufruf',
-      (lastUserText, reason) => {
-        expect(force({ ...followup, lastUserText })).toBe(reason);
-      }
-    );
-
-    it('eine Höflichkeit erzwingt nichts', () => {
-      expect(force({ ...followup, lastUserText: 'Danke!' })).toBeNull();
-      expect(force({ ...followup, lastUserText: 'Okay' })).toBeNull();
-    });
-
-    it('ein Turn mit eigenem Thema braucht diesen Weg nicht', () => {
-      // Über der Wortgrenze: so ein Turn nennt sein Thema selbst, sein eigenes
-      // Verdikt trägt ihn (oder eben nicht — dann ist das eine andere Frage).
-      expect(
-        force({
-          ...followup,
-          lastUserText: 'Erkläre mir bitte ausführlich, wie das Gebäudeenergiegesetz zustande kam',
-        })
-      ).toBeNull();
-    });
-
-    it('ohne Abrufkontext im Thread erzwingt nichts', () => {
-      // Erster Turn eines Threads, oder ein Thread, der bisher nur erzeugt hat.
-      expect(force({ ...followup, priorTurnRetrieved: false })).toBeNull();
-    });
-
-    it('nicht für einen Turn, der gar nicht der Auffangwert ist', () => {
-      // `sharepic`/`image_edit` u. ä. kommen mit ihrem eigenen Verdikt an —
-      // „mach es blauer" nach einer Bundestags-Frage ist keine Nachschlage.
-      expect(force({ ...followup, intent: 'sharepic', lastUserText: 'mach es blauer' })).toBeNull();
-    });
-
-    it('eigenes Material sticht auch hier', () => {
-      expect(force({ ...followup, materialHeavy: true })).toBeNull();
-    });
-
-    it('und der Recherche-Bann sticht ihn ebenfalls', () => {
-      expect(force({ ...followup, researchBanned: true })).toBeNull();
+    it('ein ausdrücklicher Suchauftrag zwingt weiter', () => {
+      expect(force({ intent: 'agentic', lastUserText: 'finde es' })).toBe('research_order');
     });
   });
 
@@ -918,7 +820,7 @@ describe('forcedFirstStepTools', () => {
       ]);
     });
 
-    it.each(['research_order', 'demoted_retrieval', 'contradicted', 'followup'] as const)(
+    it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
       '%s: dabei, wenn montiert',
       (reason) => {
         expect(order({ reason, mounted: withRecipe })).toContain('rezept_laden');
@@ -976,7 +878,7 @@ describe('forcedFirstStepTools', () => {
     ).toEqual(['cloud_files']);
   });
 
-  it.each(['demoted_retrieval', 'contradicted', 'followup'] as const)(
+  it.each(['demoted_retrieval', 'contradicted'] as const)(
     '%s mit Anhang: die angehängten Dokumente sind dabei',
     (reason) => {
       expect(tools({ reason, materialTools: ['dokumente_lesen'] })).toContain('dokumente_lesen');
@@ -1070,13 +972,6 @@ describe('forcedFirstStepTools', () => {
     expect(tools({ reason: 'named_intent', intent: 'mcp', mcpToolNames: [] })).toBeNull();
   });
 
-  it('followup: doppelte Werkzeuge erscheinen einmal', () => {
-    expect(tools({ reason: 'followup', priorToolNames: ['bundestag', 'bundestag'] })).toEqual([
-      'bundestag',
-      'web_search',
-    ]);
-  });
-
   it('mcp_scope: genau die MCP-Werkzeuge, die montiert sind', () => {
     expect(tools({ reason: 'mcp_scope' })).toEqual(['m1__list']);
   });
@@ -1085,28 +980,12 @@ describe('forcedFirstStepTools', () => {
     expect(tools({ reason: 'mcp_scope', mcpToolNames: ['x__y'] })).toBeNull();
   });
 
-  it('followup: die Nachschlage-Werkzeuge des Threads und das Web', () => {
-    expect(
-      tools({ reason: 'followup', priorToolNames: ['bundestag', 'sharepic', 'rezept_laden'] })
-    ).toEqual(['bundestag', 'web_search']);
-  });
-
-  it('followup: nur Aktionen und kein Web montiert → null', () => {
-    expect(
-      tools({
-        reason: 'followup',
-        priorToolNames: ['sharepic', 'edit_document'],
-        mounted: MOUNTED.filter((t) => t !== 'web_search'),
-      })
-    ).toBeNull();
-  });
-
   it.each(['pinned', 'attached_summary'] as const)('%s: ungeschnitten', (reason) => {
     expect(tools({ reason })).toBeNull();
   });
 
   it('enthält nie meine_inhalte_laden', () => {
-    for (const reason of ['research_order', 'named_intent', 'followup', 'mcp_scope'] as const) {
+    for (const reason of ['research_order', 'named_intent', 'mcp_scope'] as const) {
       const result = tools({
         reason,
         intent: 'search',
@@ -1115,34 +994,6 @@ describe('forcedFirstStepTools', () => {
       });
       expect(result ?? []).not.toContain('meine_inhalte_laden');
     }
-  });
-});
-
-// #3916: eine Frage über die eigene vorige Abrufhandlung braucht keinen neuen Abruf.
-describe('followup-Zweig: Frage über die eigene vorige Abrufhandlung', () => {
-  const afterLookup = { intent: 'agentic', priorTurnRetrieved: true };
-
-  it.each([
-    ['hast du vorhin in meinen Dokumenten nachgesehen?'],
-    ['Hast du eben nachgeschaut?'],
-    ['hast du das wirklich gesucht?'],
-    ['wo hast du das gefunden?'],
-    ['woher hast du das?'],
-  ])('„%s" erzwingt keinen Aufruf', (lastUserText) => {
-    expect(force({ ...afterLookup, lastUserText })).toBeNull();
-  });
-
-  it.each([
-    ['Und die FDP?'],
-    ['hast du auch was zur FDP?'],
-    ['hast du noch etwas zur FDP gefunden?'],
-  ])('„%s" erzwingt weiter followup', (lastUserText) => {
-    expect(force({ ...afterLookup, lastUserText })).toBe('followup');
-  });
-
-  // Trägt der research_order-Zweig; wichtig ist nur, dass es weiter zwingt.
-  it('„such nochmal genauer" zwingt weiter', () => {
-    expect(force({ ...afterLookup, lastUserText: 'such nochmal genauer' })).not.toBeNull();
   });
 });
 
