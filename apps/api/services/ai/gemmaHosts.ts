@@ -125,15 +125,8 @@
  *
  * ── Was der Wechsel MITNIMMT, und was nicht ──
  *
- *  - **Denken bleibt, über einen anderen Hebel.** Der Host nimmt kein
- *    `reasoning_effort` an, das etwas bewirkt — die gradierten Werte gehen
- *    durch und ändern nichts, `none` wird mit 400 abgelehnt. Was wirkt, ist
- *    `chat_template_kwargs.enable_thinking`, und zwar in beide Richtungen.
- *    Verdrahtet ist das in `openAiReasoningStream.ts`, wo auch die Messreihe
- *    steht; die 14 Intents der Auto-Policy, die auf dieser Lane denken,
- *    behalten ihr Verhalten. Ohne diesen Einbau wäre ihr `reasoning: 'low'`
- *    ein stiller No-Op geworden — der Wächter in `autoPolicy.vitest.ts` hat
- *    genau das abgefangen.
+ *  - **Denken: jeder Host hat seinen eigenen Hebel**, und keiner ist eine
+ *    Stufe — Messreihe und Verdrahtung in `openAiReasoningStream.ts`.
  *  - **Bilder: der Katalog ist keine Quelle.** Er behauptete Bildfähigkeit,
  *    während infercom am 25.08.2026 einen echten Bild-Turn mit HTTP 500
  *    beantwortete; am 07.10.2026 kam derselbe Turn korrekt zurück. Was gilt,
@@ -226,8 +219,8 @@ export interface GemmaHost {
  *  HTTP 200 mit korrekten Antworten auf allen drei Flavors (#4008) — daher
  *  `vision: true` in `modelDiscovery.ts`. Mehrere Bilder pro Zug ungeprüft.
  *
- *  Denken: dieser Host denkt OHNE Vorgabe (~300 Reasoning-Tokens auf eine
- *  Zwei-Satz-Frage, 3–4 s statt 1 s). Abgeschaltet wird es auf dem SDK-Pfad
+ *  Denken: dieser Host denkt OHNE Vorgabe (Messreihe in
+ *  `openAiReasoningStream.ts`). Abgeschaltet wird es auf dem SDK-Pfad
  *  (`meliousThinkingFetch.ts`), angeschaltet im Denk-Strom
  *  (`openAiReasoningStream.ts`). */
 export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
@@ -394,7 +387,7 @@ export const GEMMA_31B_ON_CORTECS: GemmaHost = {
  *   2. `energyFootprint.ts` — hat der neue Modellname einen Koeffizienten?
  *      Ohne ihn fällt die grösste Lane aus der CO₂-Übersicht.
  *   3. `openAiReasoningStream.ts` — kennt der neue Host einen Denk-Hebel, und
- *      welchen? Die drei Hosts benutzen drei verschiedene.
+ *      welchen? Melious und Cortecs benutzen verschiedene.
  *   4. `modelSiblings.ts` und die Lane-Konfigurationen ziehen von selbst mit.
  */
 export const GEMMA_31B_PRIMARY: GemmaHost = GEMMA_31B_ON_MELIOUS;
