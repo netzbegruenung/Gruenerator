@@ -162,9 +162,9 @@ const PIN_ROUTES: readonly PinRoute[] = [
    * persistierten Threads und in ausgelieferten Composern). Anders als
    * `@umfragen` und `@pressemitteilungen` zeigt er auf gar kein Werkzeug: ein
    * Social-Post ist eine Textsorte. Er landet deshalb auf `produktion`, wo
-   * `deriveImplicitRecipeMention` in `routingStage` aus demselben Nutzertext
-   * das Rezept wählt — die Zeile setzt es NICHT selbst, sonst hätte der Pin
-   * eine zweite, gröbere Rezeptwahl neben der einen echten.
+   * die Rezeptwahl über `rezept_laden` im Loop läuft — die Zeile setzt es NICHT
+   * selbst, sonst hätte der Pin eine zweite, gröbere Rezeptwahl neben der einen
+   * echten.
    */
   { token: 'social_post', intent: 'produktion', localeIntent: 'social_post', group: 'simple' },
   { intent: 'chart', group: 'simple' },

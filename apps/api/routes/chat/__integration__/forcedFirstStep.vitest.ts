@@ -332,6 +332,10 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['gruenerator_search', 'notebooks', 'notebook_quellen'],
+    // `named_intent` bietet `rezept_laden` jetzt mit an, sobald der Katalog
+    // montiert ist (Zustand statt Wortliste) — eine Bürgeranfrage-Antwort ist
+    // eine Textsorte mit Rezept.
+    without: DECOYS.filter((t) => t !== 'rezept_laden'),
   },
   // #4785: Einfügung plus Schreibauftrag. Der Prompt verlangt das Rezept
   // zuerst; ohne es im Zuschnitt hing Gemma unter `required` über 50 s.

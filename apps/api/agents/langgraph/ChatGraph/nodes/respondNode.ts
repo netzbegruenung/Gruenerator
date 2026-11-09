@@ -1425,8 +1425,8 @@ const SEARCH_GUIDANCE =
  * „fasse den Antrag zusammen" nennen dieselbe Textsorte und bestellen sie
  * nicht — und auf den Abruf-Pfaden (@wolke, @document, @dokumentchat,
  * @notebook) ist genau das der Normalfall. `activeSkillMention` kommt entweder
- * aus der Composer-Wahl oder aus `deriveImplicitRecipeMention`, das Verneinung,
- * Meta-Fragen und Umformungs-Aufträge bereits abweist; `defaultRecipeMention`
+ * aus der Composer-Wahl (Rezeptwahl über `rezept_laden` im Loop setzt sie
+ * nicht); `defaultRecipeMention`
  * ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
  * LV-Agenten eine Pressemitteilung als Antwort.
  */
