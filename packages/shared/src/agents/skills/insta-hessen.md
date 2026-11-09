@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen'
 title: 'Insta Hessen'
-description: 'Instagram-Post im Stil Grüne Hessen'
+description: 'Instagram-Post im Stil der Grünen Hessen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Hessen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '🌳'
 backgroundColor: '#316049'

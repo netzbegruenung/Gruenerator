@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-hamburg'
 title: 'Bürger*innen-Mail Hamburg'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hamburg'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hamburg. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hamburg geantwortet wird.'
 iconKey: 'PiAnchor'
 avatar: '✉️'
 backgroundColor: '#316049'

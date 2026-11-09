@@ -181,7 +181,7 @@ describe('buildRecipeCatalog', () => {
   });
 
   // Ohne eigene Beschreibung sagt die Herkunft mehr als ein falscher
-  // Besitzanspruch — „Selbst angelernt" gilt nur für die eigenen Zeilen.
+  // Besitzanspruch — „eigenes Rezept" gilt nur für die eigenen Zeilen.
   it('names the origin of a foreign row that has no description', async () => {
     listMentionableTextForms.mockResolvedValue([
       {
@@ -197,7 +197,24 @@ describe('buildRecipeCatalog', () => {
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.find((e) => e.mention === 'buergerbrief')?.description).toBe(
-      'Rezept von Jamila.'
+      'Bürger*innenbrief – Rezept von Jamila. Nutzen, wenn ausdrücklich nach „Bürger*innenbrief\u201c gefragt wird.'
+    );
+  });
+
+  it('gives an own row without description a when-to-use line', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-own',
+        mention: 'rundbrief',
+        title: 'Rundbrief',
+        description: null,
+        kind: 'custom',
+        sharedFromGroup: null,
+      },
+    ]);
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    expect(entries.find((e) => e.mention === 'rundbrief')?.description).toBe(
+      'Rundbrief – eigenes Rezept. Nutzen, wenn ausdrücklich nach „Rundbrief\u201c gefragt wird.'
     );
   });
 

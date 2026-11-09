@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-mecklenburg-vorpommern'
 title: 'Beschlussantrag Mecklenburg-Vorpommern'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Mecklenburg-Vorpommern, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Mecklenburg-Vorpommern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Mecklenburg-Vorpommern geschrieben wird.'
 iconKey: 'PiWaves'
 avatar: '📜'
 backgroundColor: '#316049'

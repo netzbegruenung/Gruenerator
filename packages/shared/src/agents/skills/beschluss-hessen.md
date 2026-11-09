@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-hessen'
 title: 'Beschlussantrag Hessen'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Hessen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Hessen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '📜'
 backgroundColor: '#316049'

@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland'
 title: 'Insta Saarland'
-description: 'Instagram-Post im Stil der Saar-Grünen'
+description: 'Instagram-Post im Stil der Grünen Saarland. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Saarland geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '⚒️'
 backgroundColor: '#316049'

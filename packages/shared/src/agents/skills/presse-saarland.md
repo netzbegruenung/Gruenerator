@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland'
 title: 'PM Saarland'
-description: 'Pressemitteilung im Stil der Saar-Grünen'
+description: 'Pressemitteilung im Stil der Grünen Saarland. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Saarland geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '⚒️'
 backgroundColor: '#316049'

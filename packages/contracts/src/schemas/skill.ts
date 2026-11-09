@@ -24,10 +24,14 @@ export const skillCategorySchema = z.enum([
 
 export const skillRoleSchema = z.enum(['textsorte', 'methode']);
 
+/** Länge der Rezept-Beschreibung: einzige Auswahlgrundlage des Modells ("was + wann"). */
+export const SKILL_DESCRIPTION_MIN = 60;
+export const SKILL_DESCRIPTION_MAX = 220;
+
 export const skillFrontmatterSchema = z.object({
   identifier: z.string().min(1),
   title: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().min(SKILL_DESCRIPTION_MIN).max(SKILL_DESCRIPTION_MAX),
   iconKey: z.string().min(1),
   avatar: z.string().min(1),
   backgroundColor: z

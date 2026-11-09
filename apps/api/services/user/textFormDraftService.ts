@@ -58,7 +58,12 @@ const DraftSchema = z.object({
   mention: z
     .string()
     .describe('Slug in Kleinbuchstaben mit Bindestrichen, ohne @, z.B. "einladung-ortsverband"'),
-  description: z.string().min(1).describe('Ein bis zwei Sätze: wofür das Rezept ist'),
+  description: z
+    .string()
+    .min(1)
+    .describe(
+      'Auslöser-Beschreibung, 60 bis 220 Zeichen: was das Rezept liefert, dann „Nutzen, wenn …“'
+    ),
   iconKey: z
     .string()
     .describe('Icon-Schlüssel, ausschließlich aus dem Katalog (z.B. PiSparkle, PiMegaphone)'),
@@ -91,6 +96,7 @@ function buildSystemPrompt(takenMentions: ReadonlySet<string>): string {
 
 Regeln:
 - Schreibe alle nutzersichtbaren Texte auf Deutsch, in Du-Form und mit Genderstern (*innen).
+- description ist die einzige Information, an der der Grünerator entscheidet, ob er das Rezept nutzt: 60 bis 220 Zeichen, erst was das Rezept liefert, dann wann es passt, im Muster „<Was das Rezept liefert>. Nutzen, wenn <Auslöser>.“ — etwa „Einladungen zu Ortsverbandstreffen mit Termin und Ort. Nutzen, wenn zu einem Treffen oder einer Sitzung eingeladen werden soll.“
 - styleBlock ist der wichtigste Teil: Markdown mit genau diesen Abschnitten (als Überschriften): Zweck, Aufbau und Struktur, Tonalität und Ansprache, Länge und Format, Was vermieden wird. Formuliere Instruktionen an eine*n Schreiber*in — keine konkreten Fakten, Namen, Daten oder Beispielinhalte.
 - mention: Kleinbuchstaben mit Bindestrichen, ohne @. Bereits vergebene Mentions (erste ${MAX_LISTED_MENTIONS}): ${takenList}. Wähle eine, die davon nicht abgedeckt ist.
 - iconKey: Wähle GENAU EINEN passenden Icon-Schlüssel aus dieser Liste: ${ICON_CATALOG}

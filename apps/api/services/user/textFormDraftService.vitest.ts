@@ -74,6 +74,22 @@ describe('draftRecipeSpec', () => {
     expect(mockAiObject).toHaveBeenCalledWith(expect.objectContaining({ lane: 'creator_draft' }));
   });
 
+  it('asks for a what-and-when description of 60 to 220 characters', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+    expect(call.system).toContain('60 bis 220 Zeichen');
+    expect(call.system).toContain('Nutzen, wenn');
+    // Das Beispiel im Prompt hält sich selbst an die Vorgabe.
+    const example =
+      /„(Einladungen zu Ortsverbandstreffen[^“]*)“/.exec(call.system ?? '')?.[1] ?? '';
+    expect(example.length).toBeGreaterThanOrEqual(60);
+    expect(example.length).toBeLessThanOrEqual(220);
+  });
+
   it('throws when no attempt produced a valid draft', async () => {
     mockAiObject.mockResolvedValue({ ok: false, error: 'No provider produced an answer' });
     await expect(

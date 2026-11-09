@@ -73,9 +73,11 @@ function ownerIsVisible(identifier: string): boolean {
  * den Eintrag unterscheidet.
  */
 function fallbackDescription(form: MentionableTextForm): string {
-  if (form.sharedFromGroup) return `Rezept aus dem Projekt \u201e${form.sharedFromGroup}\u201c.`;
-  if (form.ownerName) return `Rezept von ${form.ownerName}.`;
-  return 'Selbst angelernte Textform.';
+  const nennung = `Nutzen, wenn ausdrücklich nach \u201e${form.title}\u201c gefragt wird.`;
+  if (form.sharedFromGroup)
+    return `${form.title} – Rezept aus dem Projekt \u201e${form.sharedFromGroup}\u201c. ${nennung}`;
+  if (form.ownerName) return `${form.title} – Rezept von ${form.ownerName}. ${nennung}`;
+  return `${form.title} – eigenes Rezept. ${nennung}`;
 }
 
 export async function buildRecipeCatalog(params: {

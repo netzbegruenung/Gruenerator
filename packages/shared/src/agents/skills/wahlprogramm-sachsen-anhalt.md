@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-wahlprogramm-sachsen-anhalt'
 title: 'Wahlprogramm Sachsen-Anhalt'
-description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt'
+description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt. Nutzen, wenn gefragt wird, was das Programm in Sachsen-Anhalt zu einem Thema sagt.'
 iconKey: 'PiFlowerLight'
 avatar: '📘'
 backgroundColor: '#316049'
