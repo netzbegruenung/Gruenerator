@@ -136,6 +136,16 @@ describe('a figure keeps its meaning in an infographic', () => {
     expect(!result.ok && result.error).toMatch(/Richtung/);
   });
 
+  // Review #5490: a direction word between number and noun is not the noun.
+  it('skips a direction word between the figure and its noun', () => {
+    const result = validateDraft(
+      tiles({ titel: '17 weniger Unfälle' }, { titel: 'Start im April' }),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
   it('accepts plain figures', () => {
     const result = validateDraft(
       tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),

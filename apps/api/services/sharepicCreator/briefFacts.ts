@@ -179,7 +179,14 @@ function directedNumbers(text: string): DirectedFigure[] {
       if (!num) return;
       const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
       if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
-      const after = token.endsWith('%') ? '%' : wordOf(tokens[i + 1]);
+      // Skip direction words: in „17 weniger Unfälle" the figure counts Unfälle (review #5490).
+      const after = token.endsWith('%')
+        ? '%'
+        : (tokens
+            .slice(i + 1, i + 3)
+            .filter((t) => !DIRECTION.test(t))
+            .map(wordOf)
+            .find((w) => w != null) ?? null);
       const before = tokens
         .slice(0, i)
         .filter((t) => /^\p{Lu}/u.test(t))
