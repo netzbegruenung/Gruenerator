@@ -81,7 +81,7 @@ function buildSystemPrompt(recipes: readonly RecipeCatalogEntry[]): string {
   const recipeRule =
     recipes.length > 0
       ? `- defaultRecipeMention: Das eine Kern-Rezept dieses Agenten, NUR aus diesem Katalog (null, wenn nichts passt):
-${recipes.map((r) => `- ${r.mention}: ${r.title}`).join('\n')}`
+${recipes.map((r) => `- ${r.key}: ${r.title}${r.ownerName ? ` (von ${r.ownerName})` : ''}`).join('\n')}`
       : '- defaultRecipeMention: immer null.';
   return `Du bist der Spezifikations-Generator des Grünerator Agent-Creators. Aus der folgenden Beschreibung der Nutzer*in (eine kurze Vorgabe oder ein Gespräch) erstellst du die finale Konfiguration für eine*n neue*n KI-Agent*in.
 
@@ -133,10 +133,13 @@ export async function draftAgentSpec(
   const draft = generated.data;
 
   const enabledTools = draft.enabledTools.filter((t) => TOOL_KEYS.has(t));
-  const defaultRecipeMention =
-    draft.defaultRecipeMention && recipes.some((r) => r.mention === draft.defaultRecipeMention)
-      ? draft.defaultRecipeMention
-      : null;
+  // The model answers with a catalogue `key`. Only an entry whose key IS its
+  // mention can be bound: the persisted value is the mention (F0), and a
+  // collided foreign `antrag-<id6>` would resolve to the caller's own `antrag`.
+  const picked = draft.defaultRecipeMention
+    ? recipes.find((r) => r.key === draft.defaultRecipeMention)
+    : undefined;
+  const defaultRecipeMention = picked && picked.key === picked.mention ? picked.mention : null;
   // Clamp to the curated set so the synthesized name always resolves to an icon.
   const iconKey = isSuggestedAgentIcon(draft.iconKey.trim())
     ? draft.iconKey.trim()
