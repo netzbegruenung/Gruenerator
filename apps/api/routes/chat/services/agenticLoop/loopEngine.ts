@@ -21,7 +21,6 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
-import { NO_GRAPHICS_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -32,7 +31,6 @@ import { prefillAllowanceForModel } from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
-import { CAPABILITY_NOTE_TEXT } from './artifactNotes.js';
 import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
@@ -240,7 +238,7 @@ export const ARTIFACT_FINISH_SYSTEM_SUFFIX =
 export const TOOL_USE_RULES: string = [
   '',
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
-  '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
+  '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools.',
   // Live am 02.08.2026: eine Rückfrage zu einer eingefügten Fallstudie löste
   // `web_search "Projekt GrünMobil Mobilitätsprojekt Pilotgebiet Budget"` aus —
   // ein Name, den es nur in dieser Unterhaltung gab. Das Web kann dazu per
@@ -251,16 +249,15 @@ export const TOOL_USE_RULES: string = [
 ].join('\n');
 
 /**
- * Die Kehrseite von `NO_CAPABILITY_DENIAL_RULE` für ein Modell, das Werkzeuge
- * HAT. Jene Regel ist für Schreiber ohne Werkzeuge gebaut (Split-Schreiber,
- * Reparatur, Einzeldurchlauf) und sagt „sag, dass du nicht nachgesehen hast,
- * und biete an, es zu tun". Im Loop lud sie zum Angebot statt zum Aufruf ein:
+ * Die eine Fähigkeitsregel des Loops (ersetzt LOOP_CAPABILITY_RULE,
+ * NO_GRAPHICS_DENIAL_RULE und CAPABILITY_NOTE_TEXT, die hier dreifach
+ * dasselbe sagten). Der Loop HAT Werkzeuge: nachschlagen statt anbieten —
  * „Und was kostet das?" nach einer Wärmepumpen-Frage endete 3/3 mit „Soll ich
- * im Web recherchieren …?" (09.11.2026), gegen „NUTZE das passende Tool DIREKT".
+ * im Web recherchieren …?" (09.11.2026). Die werkzeuglosen Schreiber
+ * (Split, Reparatur, Einzeldurchlauf) behalten `NO_CAPABILITY_DENIAL_RULE`.
  */
-const LOOP_CAPABILITY_RULE =
-  'Du hast Werkzeuge: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche. Fehlt dir für die Antwort eine Angabe, die weder im Verlauf noch in den Quellen steht, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie. ' +
-  NO_GRAPHICS_DENIAL_RULE;
+export const CAPABILITY_RULE =
+  'Du hast Werkzeuge; der Grünerator erstellt Sharepics, KI-Bilder, Präsentationen, Dokumente, Tabellen und Boards. Behaupte NIE, du hättest keine Werkzeuge oder Zugriffe, seist „nur ein Textmodell" oder könntest keine Grafiken erstellen. Fehlt dir eine Angabe, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH hast du ausgeführt — leugne sie nie. Biete eine Grafik nur als EINE Schlussfrage an („Soll ich daraus ein Sharepic machen?“); Druckprodukte (Flyer, Postkarte) baust du nicht und bietest sie nie an.';
 
 /** What the loop model is told about writing the answer. The tool-less repair
  *  writer has its own prompt (`buildRepairSystem`). */
@@ -269,8 +266,7 @@ export const UNIFIED_WRITER_RULES: string = [
   '',
   'ANTWORTPHASE (brauchst du keine Tools mehr, schreibst du selbst die Antwort):',
   ANSWER_CONCRETELY_RULE,
-  LOOP_CAPABILITY_RULE,
-  CAPABILITY_NOTE_TEXT.trim(),
+  CAPABILITY_RULE,
   'Steht in einem Werkzeugergebnis ein Feld `fuerSchreiber` oder `antwortregel`, ist das eine verbindliche Anweisung an deine Antwort — beachte sie vor allem anderen.',
 ].join('\n');
 
