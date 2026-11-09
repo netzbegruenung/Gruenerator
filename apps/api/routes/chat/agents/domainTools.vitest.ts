@@ -1169,8 +1169,7 @@ describe('bundestag: modus zaehlen, ref', () => {
       .filters;
     expect(f['titel']).toBeUndefined();
     await exec(tool, { modus: 'zaehlen', query: 'Klima', titel: 'Klimaschutzgesetz' });
-    f = (countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> })
-      .filters;
+    f = (countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> }).filters;
     expect(f['titel']).toBe('Klimaschutzgesetz');
   });
 
