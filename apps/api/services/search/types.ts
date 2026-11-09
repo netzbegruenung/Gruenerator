@@ -2,6 +2,8 @@
  * Shared TypeScript Types for Search Services
  */
 
+import type { SourceDatePrecision } from './recency.js';
+
 // ============================================================================
 // SearxngService Types
 // ============================================================================
@@ -130,6 +132,8 @@ export interface SearchResultInput {
   // upload timestamp; carried through from DocumentResult so the notebook layer
   // can rank by recency and cite source dates. Absent on dateless sources.
   published_at?: string | null | undefined;
+  /** Precision of `published_at` (#5568); see `SourceDatePrecision`. */
+  date_precision?: SourceDatePrecision | null | undefined;
   created_at?: string | undefined;
 }
 
@@ -172,6 +176,8 @@ export interface ExpandedChunkResult {
   // or null when none. Used for recency ranking and source-date citation.
   date?: string | null | undefined;
   published_at?: string | null | undefined;
+  /** Precision of `published_at` (#5568); see `SourceDatePrecision`. */
+  date_precision?: SourceDatePrecision | null | undefined;
   created_at?: string | undefined;
 }
 
@@ -185,6 +191,8 @@ export interface ReferenceData {
   // Real source date (published_at / metadata date) or null when none. Never
   // the upload time — that is `uploaded_at`, labelled as such in the prompt.
   date: string | null;
+  /** Precision of `date` when it is the scraper's `published_at` (#5568). */
+  date_precision?: SourceDatePrecision | undefined;
   /** Upload time of a user document without a real date (user collections only). */
   uploaded_at?: string;
   source: string;

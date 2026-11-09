@@ -5,6 +5,7 @@
  */
 
 import type { SearchPatternResult } from './keyword-extractor-types.js';
+import type { SourceDatePrecision } from '../search/recency.js';
 import type { SparseVector } from '../text/index.js';
 
 // ============ Search Parameters ============
@@ -96,6 +97,8 @@ export interface RawChunk {
   token_count?: number | undefined;
   created_at?: string | undefined;
   published_at?: string | null | undefined;
+  /** See `SourceDatePrecision` (#5568); null where the source never wrote one. */
+  date_precision?: SourceDatePrecision | null | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
   chunk_type?: string | undefined;
@@ -159,6 +162,8 @@ export interface TransformedChunk {
   token_count?: number | undefined;
   created_at?: string | undefined;
   published_at?: string | null | undefined;
+  /** See `SourceDatePrecision` (#5568); null where the source never wrote one. */
+  date_precision?: SourceDatePrecision | null | undefined;
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;
   source_name?: string | null | undefined;
@@ -222,6 +227,8 @@ export interface DocumentData {
   filename?: string | undefined;
   created_at?: string | undefined;
   published_at?: string | null | undefined;
+  /** See `SourceDatePrecision` (#5568); null where the source never wrote one. */
+  date_precision?: SourceDatePrecision | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;
@@ -268,6 +275,8 @@ export interface DocumentResult {
   filename?: string | undefined;
   created_at?: string | undefined;
   published_at?: string | null | undefined;
+  /** See `SourceDatePrecision` (#5568); null where the source never wrote one. */
+  date_precision?: SourceDatePrecision | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;

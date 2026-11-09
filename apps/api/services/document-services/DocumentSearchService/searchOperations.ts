@@ -10,6 +10,7 @@
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
+import { parseDatePrecision, type SourceDatePrecision } from '../../search/recency.js';
 
 import type {
   DocumentSearchOptions,
@@ -61,6 +62,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   char_end: number | null;
   created_at: string | undefined;
   published_at: string | null;
+  date_precision: SourceDatePrecision | null;
   source_id: string | null;
   content_type_label: string | null;
   source_name: string | null;
@@ -89,6 +91,9 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     char_end: (p.char_end as number) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
+    // Only the scraper's own `published_at` carries a precision; a metadata
+    // date never does, so it stays null there (#5568).
+    date_precision: p.published_at ? parseDatePrecision(p.date_precision) : null,
     source_id: (p.source_id as string) ?? null,
     // Display labels the Landesverband scraper writes (e.g. „Pressemitteilung“,
     // „Grüne Fraktion Berlin“); other collections leave them out.
