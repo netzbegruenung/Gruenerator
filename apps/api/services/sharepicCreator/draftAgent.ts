@@ -1,7 +1,7 @@
 /**
  * Free-text sharepic creator — the drafting step (experimental).
  *
- * Two forced tool calls on Gemma 4 (Melious), so only the knowledge a draft
+ * Two forced tool calls on Gemma 4 (Melious `:speed`, reasoning on), so only the knowledge a draft
  * needs reaches the prompt:
  *  1. `bedarf_melden` — the model names the country, the style-guide chapters
  *     and worked examples it wants, and what photos to search for. We load
@@ -34,7 +34,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { createLogger } from '../../utils/logger.js';
-import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
+import { GEMMA_31B_ON_MELIOUS_SPEED } from '../ai/gemmaHosts.js';
 import { aiObject, type AiObjectCall } from '../ai/generate.js';
 import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
@@ -93,8 +93,18 @@ import { terminAnswerOf } from './terminGap.js';
 
 const log = createLogger('sharepicCreator:draft');
 
-const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
-/** Another model for a draft Gemma could not finish — not just its other host. */
+/**
+ * Gemma 4 on Melious `:speed` (infercom, DE), thinking. Measured 09.11.2026 on 15
+ * briefs with reasoning on: `:balanced` went to the FI node every time (~45 tok/s,
+ * median 51 s per draft, two first drafts lost their whole budget to thinking);
+ * `:speed` writes ~180–270 tok/s. Without reasoning Gemma needed twice the repair
+ * rounds and gave up on „Grün.“. Same price per token on both flavors.
+ */
+const PINNED = GEMMA_31B_ON_MELIOUS_SPEED;
+/** Gemma on Melious knows on and off only; any level is the same think (09.11.2026). */
+const REASONING = 'medium' as const;
+/** Another model for a draft Gemma could not finish — not just its other host. Keeps
+ *  its own low reasoning: the rescue is the fast way out, not a second long think. */
 const RESCUE = { provider: 'mistral', model: 'mistral-large-4' } as const;
 const RESCUE_ATTEMPTS = 2;
 
@@ -214,6 +224,7 @@ export async function draftSharepic(
   const needs = await aiObject<Needs>({
     lane: 'sharepic_creator',
     pinned: PINNED,
+    reasoning: REASONING,
     system: systemPrompt(fixed ?? defaultLocale, design),
     prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`} ${ALTERNATIVES_NEED_MATERIAL}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
@@ -459,8 +470,10 @@ export async function draftSharepic(
       return photoGuard.check(value);
     },
     attempts: DRAFT_ATTEMPTS,
-    // A carousel of up to eight slides.
-    maxOutputTokens: 5000,
+    // A carousel of up to eight slides, plus the thinking: Melious bills reasoning
+    // against this budget. Measured 09.11.2026: two drafts on :balanced spent all 5000 on
+    // thinking and returned nothing; on :speed one draft used 4986 of 5000.
+    maxOutputTokens: 10000,
     label: 'sharepicCreator:draft',
   };
   const tracked: typeof draftCall = {
@@ -471,7 +484,7 @@ export async function draftSharepic(
       return result;
     },
   };
-  let draft = await aiObject(tracked);
+  let draft = await aiObject({ ...tracked, reasoning: REASONING });
   // Repairs on the same model repeat its mistake — three identical `{}` at
   // temperature 0 (21.10.2026). A draft it could not finish gets one round on
   // another model before the person reads a failure. Not after an outage: the
