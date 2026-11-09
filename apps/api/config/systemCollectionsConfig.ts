@@ -746,7 +746,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     name: 'Abgeordnetenhaus Berlin',
     demotedContentTypes: ['plenarprotokoll', 'ausschussprotokoll'],
     description:
-      'Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin',
+      'Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin. Drucksachen und Anfragen suchst du mit landtag',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -906,7 +906,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Berlin',
     description:
-      'Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion)',
+      'Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion). Keine Anfragen, Senatsantworten oder Drucksachen des Abgeordnetenhauses (dafür landtag)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
