@@ -356,6 +356,21 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return getString(result, 'grund') ?? 'Rezept nicht verfügbar';
     },
   },
+  methode_laden: {
+    label: 'Recherche-Methode',
+    activeLabel: 'Lade Recherche-Methode',
+    iconKey: 'book',
+    accent: 'knowledge',
+    queryKeys: ['rezept'],
+    // Same result shape as `rezept_laden` (recipeTools.ts), shown as a method.
+    summarize: (_args, result) => {
+      if (getBoolean(result, 'geladen')) {
+        const titel = getString(result, 'titel') ?? getString(result, 'rezept');
+        return titel ? `Methode: ${titel}` : 'Methode geladen';
+      }
+      return getString(result, 'grund') ?? 'Methode nicht verfügbar';
+    },
+  },
 
   // --- Memory / personal content -------------------------------------------
   memory: {

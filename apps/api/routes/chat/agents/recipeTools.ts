@@ -23,19 +23,20 @@ import { recommendedToolsFor, resolveRecipe, type RecipeCatalogEntry } from './r
 
 const log = createLogger('recipeTools');
 
-/**
- * `methode_laden` (`METHOD_RECIPE_TOOL`): dieselbe Tür, aber der Enum nennt nur Methoden-Rezepte.
- * Der erzwungene erste Schritt eines Recherche-Turns schneidet `activeTools`
- * zu (#3880: `rezept_laden` liess den Planer dort eine Textsorte laden statt
- * zu suchen), und ein AI-SDK-Schritt trägt kein eigenes Schema je Werkzeug —
- * den engeren Enum gibt nur ein eigenes Werkzeug her. Es steht nur in diesem
- * einen Schritt zur Wahl (`forcedFirstStepTools`, `toolScope`).
- */
 /** Methoden-Rezepte des Katalogs: mitgelieferte Systemrezepte mit `rolle: methode`. */
 export function methodEntries(catalog: readonly RecipeCatalogEntry[]): RecipeCatalogEntry[] {
   return catalog.filter((e) => e.origin === 'system' && skillRole(e.mention) === 'methode');
 }
 
+/**
+ * Mit `only: 'methode'` wird daraus `methode_laden` (`METHOD_RECIPE_TOOL`):
+ * dieselbe Tür, aber der Enum nennt nur Methoden-Rezepte. Der erzwungene erste
+ * Schritt eines Recherche-Turns schneidet `activeTools` zu (#3880: `rezept_laden`
+ * liess den Planer dort eine Textsorte laden statt zu suchen), und ein
+ * AI-SDK-Schritt trägt kein eigenes Schema je Werkzeug — den engeren Enum gibt
+ * nur ein eigenes Werkzeug her. Es steht nur in diesem einen Schritt zur Wahl
+ * (`forcedFirstStepTools`, `toolScope`).
+ */
 export function makeRecipeTool(params: {
   catalog: readonly RecipeCatalogEntry[];
   registry: RecipeRegistry;
@@ -138,6 +139,7 @@ export function makeRecipeTool(params: {
         };
       }
 
+      const isMethod = !library && skillRole(effective) === 'methode';
       log.info(
         `[Rezept] gewählt=${effective} quelle=${resolved.source}` +
           (lvVariant ? ` (LV-Vorzug statt ${rezept})` : '')
@@ -146,9 +148,11 @@ export function makeRecipeTool(params: {
         geladen: true,
         rezept: shown,
         titel: resolved.title,
-        hinweis: lvVariant
-          ? `Statt der generischen Vorlage wurde die Landesverbands-Variante „${resolved.title}" geladen. Halte dich beim Schreiben daran.`
-          : 'Die Schreibvorgaben stehen dir ab jetzt zur Verfügung. Halte dich beim Schreiben daran.',
+        hinweis: isMethod
+          ? 'Das Rezept beschreibt, WIE du recherchierst. Recherchiere jetzt mit den Werkzeugen, die es nennt.'
+          : lvVariant
+            ? `Statt der generischen Vorlage wurde die Landesverbands-Variante „${resolved.title}" geladen. Halte dich beim Schreiben daran.`
+            : 'Die Schreibvorgaben stehen dir ab jetzt zur Verfügung. Halte dich beim Schreiben daran.',
       };
     },
   });

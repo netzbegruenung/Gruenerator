@@ -324,4 +324,79 @@ describe('methode_laden', () => {
     expect(out.geladen).toBe(true);
     expect(registry.mentions).toEqual(['rechtsstand']);
   });
+
+  it('says a method describes how to research, not how to write', async () => {
+    resolveRecipe.mockResolvedValue({
+      id: null,
+      mention: 'rechtsstand',
+      title: 'Rechtsstand',
+      body: 'Erst das Gesetz.',
+      source: 'system',
+    });
+    const out = await call(
+      makeRecipeTool({
+        catalog: mixed,
+        registry: createRecipeRegistry(),
+        userId: 'u1',
+        only: 'methode',
+      }),
+      'rechtsstand'
+    );
+    expect(String(out.hinweis)).toContain('recherchierst');
+    expect(String(out.hinweis)).not.toContain('Schreiben');
+  });
+
+  it('treats the same key as a duplicate across rezept_laden and methode_laden', async () => {
+    resolveRecipe.mockResolvedValue({
+      id: null,
+      mention: 'rechtsstand',
+      title: 'Rechtsstand',
+      body: 'Erst das Gesetz.',
+      source: 'system',
+    });
+    const registry = createRecipeRegistry();
+    const general = makeRecipeTool({ catalog: mixed, registry, userId: 'u1' });
+    const method = makeRecipeTool({ catalog: mixed, registry, userId: 'u1', only: 'methode' });
+    expect((await call(general, 'rechtsstand')).geladen).toBe(true);
+    const again = await call(method, 'rechtsstand');
+    expect(again.geladen).toBe(true);
+    expect(String(again.hinweis)).toContain('bereits geladen');
+    expect(registry.size).toBe(1);
+  });
+
+  it('shares the cap of three recipes across both tools', async () => {
+    const registry = createRecipeRegistry();
+    const extra = ['beschlusslage', 'bundestagsrecherche'].map((k) => ({
+      ...METHOD,
+      key: k,
+      mention: k,
+    }));
+    const catalog = [...mixed, ...extra];
+    const general = makeRecipeTool({ catalog, registry, userId: 'u1' });
+    const method = makeRecipeTool({ catalog, registry, userId: 'u1', only: 'methode' });
+    for (const [tool, key] of [
+      [general, 'presse'],
+      [method, 'rechtsstand'],
+      [general, 'beschlusslage'],
+    ] as const) {
+      resolveRecipe.mockResolvedValueOnce({
+        id: null,
+        mention: key,
+        title: key,
+        body: 'x',
+        source: 'system',
+      });
+      expect((await call(tool, key)).geladen).toBe(true);
+    }
+    resolveRecipe.mockResolvedValueOnce({
+      id: null,
+      mention: 'bundestagsrecherche',
+      title: 'b',
+      body: 'x',
+      source: 'system',
+    });
+    const fourth = await call(method, 'bundestagsrecherche');
+    expect(fourth.geladen).toBe(false);
+    expect(String(fourth.grund)).toContain('bereits');
+  });
 });
