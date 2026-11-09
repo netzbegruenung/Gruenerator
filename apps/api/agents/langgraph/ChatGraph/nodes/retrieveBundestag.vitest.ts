@@ -14,7 +14,10 @@ vi.mock('../../../../services/bundestag/qa/index.js', () => ({
   planBundestagQuestion: (a: unknown): Promise<unknown> => plan(a),
 }));
 
-const { retrieveBundestag } = await import('./searchNode.js');
+const { retrieveBundestag, BUNDESTAG_PLAN_DEADLINE_MS } = await import('./searchNode.js');
+const { TOOL_TIMEOUT_OVERRIDES_MS } = await import(
+  '../../../../routes/chat/services/agenticLoop/types.js'
+);
 
 const candidate = (over: Record<string, unknown>) => ({
   ref: '21/1928',
@@ -138,6 +141,34 @@ describe('retrieveBundestag: Zusammenführung', () => {
     const r = await retrieveBundestag('x', 'de-DE');
     expect(r.ausfall).toBe(true);
     expect(r.results).toEqual([]);
+  });
+
+  it('eine hängende Planstufe läuft in ihre Frist und fällt auf Altpfad bzw. Ausfall zurück (#5560)', async () => {
+    vi.useFakeTimers();
+    try {
+      btSearch.mockResolvedValue(DOKUMENT);
+      plan.mockReturnValue(new Promise(() => {}));
+      const pending = retrieveBundestag('x', 'de-DE');
+      await vi.advanceTimersByTimeAsync(BUNDESTAG_PLAN_DEADLINE_MS + 1);
+      const r = await pending;
+      expect(r.ausfall).toBeUndefined();
+      expect(r.results.length).toBeGreaterThan(0);
+      expect(BUNDESTAG_PLAN_DEADLINE_MS).toBeLessThan(TOOL_TIMEOUT_OVERRIDES_MS['bundestag']!);
+
+      // Ohne tragenden Altpfad: Ausfall statt Zeitüberschreitung.
+      btSearch.mockResolvedValue({
+        kind: 'topic',
+        topic: { hits: [], speeches: [], documents: [], vorgaenge: [] },
+        notes: [],
+      });
+      const pending2 = retrieveBundestag('x', 'de-DE');
+      await vi.advanceTimersByTimeAsync(BUNDESTAG_PLAN_DEADLINE_MS + 1);
+      const r2 = await pending2;
+      expect(r2.ausfall).toBe(true);
+      expect(r2.results).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('beide Stufen werfen: Ausfall, nicht leer', async () => {
