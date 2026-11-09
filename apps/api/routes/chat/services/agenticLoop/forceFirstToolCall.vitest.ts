@@ -876,6 +876,33 @@ describe('forcedFirstStepTools', () => {
         // nicht in `turnMaterial`.
         expect(turnCarriesMaterial({ turnMaterial: [] })).toBe(false);
       });
+      const wholeDoc = (origin: 'turn' | 'thread') => ({
+        origin,
+        ask: 'paste' as const,
+        docs: [{ name: 'p.txt', text: 'x', documentId: 'doc-1' }],
+        chars: 1,
+        budgetChars: 100,
+        fits: true,
+      });
+      it('großer, vektorisierter Anhang dieses Turns (aus turnMaterial entfernt) → ja', () => {
+        // replaceFileItems nimmt Anhänge ab 12k Zeichen aus `turnMaterial`;
+        // `documentChatLabels` trägt nur die in diesem Turn indizierten.
+        expect(
+          turnCarriesMaterial({ turnMaterial: [], documentChatLabels: { 'doc-1': 'gross.pdf' } })
+        ).toBe(true);
+      });
+      it('Ganzdokument aus diesem Turn → ja; aus dem Thread (latestPasteOfThread) → nein', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [], wholeDocument: wholeDoc('turn') })).toBe(
+          true
+        );
+        expect(
+          turnCarriesMaterial({
+            turnMaterial: [],
+            documentChatLabels: {},
+            wholeDocument: wholeDoc('thread'),
+          })
+        ).toBe(false);
+      });
     });
 
     // Umgedreht gegenüber der Wortlisten-Fassung (dort: dabei, wenn der Text eine
