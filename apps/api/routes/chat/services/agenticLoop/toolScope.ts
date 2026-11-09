@@ -162,8 +162,15 @@ interface DeferrableGroup {
    */
   readonly opensOn?: readonly string[];
   readonly loaderDescription: string;
-  /** Was der Lader zurückgibt, wenn er die Gruppe geöffnet hat. */
-  readonly opened: string;
+}
+
+/**
+ * Was der Lader zurückgibt, wenn er die Gruppe geöffnet hat. Aus `tools`
+ * abgeleitet, nie von Hand geschrieben: ein handgeschriebener Text driftete
+ * (bei `parlament` fehlte `landtag`, #5567), und das Modell liest nur ihn.
+ */
+function openedText(tools: readonly string[]): string {
+  return `Jetzt verfügbar: ${tools.join(', ')}. Rufe im nächsten Schritt das passende auf.`;
 }
 
 export const DEFERRABLE_GROUPS = [
@@ -184,8 +191,6 @@ export const DEFERRABLE_GROUPS = [
     hint: MEINE_INHALTE_RE,
     loaderDescription:
       'Schaltet die Werkzeuge für die EIGENEN Inhalte der Person frei: Dokumente, Boards/Aufgaben, Notebooks samt Quellen, Projekte, Medien und frühere Unterhaltungen.\n\nNUTZE WENN die Frage sich auf Inhalte der Person selbst bezieht ("meine Aufgaben", "welches Dokument habe ich zu X", "leg das in mein Notebook"). Sie stehen dann im nächsten Schritt bereit. NICHT für Partei-Recherche oder Websuche.',
-    opened:
-      'Werkzeuge für die eigenen Inhalte sind jetzt verfügbar: find_content, search_threads, documents, read_artifact, boards_tasks, groups, media, notebooks, notebook_quellen. Rufe im nächsten Schritt das passende auf.',
   },
   {
     // Der Browser-Agent wird selten gebraucht; seine Beschreibung soll nicht
@@ -196,14 +201,14 @@ export const DEFERRABLE_GROUPS = [
     hint: /erkunde|klick|screenshot|bildschirmfoto|durchsuch.*(seite|website)/i,
     loaderDescription:
       'Schaltet website_erkunden frei: ein echter Browser, der eine Website bedient (klicken, Suchfeld nutzen, Cookie-Banner ablehnen, Screenshots speichern).\n\nNUTZE WENN eine Seite bedient oder abfotografiert werden muss. NICHT zum bloßen Lesen einer URL — dafür scrape_url.',
-    opened:
-      'website_erkunden ist jetzt verfügbar. Rufe es im nächsten Schritt mit url und auftrag auf.',
   },
   {
     // Parlamentsdaten: `bundestag` (Liste, Zählung) bleibt als Einstieg immer
     // sichtbar, seine Leser und die Reden stehen erst, wenn der Turn davon
-    // handelt. Ein weiteres Parlament (Landtag) ist EIN Name in `tools` und
-    // einer in `opensOn`. `abgeordnetenwatch` gehört dazu, obwohl es ein
+    // handelt. Ein weiteres Parlament (`landtag`, nur Deutschland — der Katalog
+    // montiert es wie `bundestag`) ist ebenfalls ein Einstieg: immer sichtbar,
+    // nur in `opensOn`. Hinter dem Lader fand eine Berliner Frage ohne Stichwort
+    // („was liegt im AGH vor") ihn nicht (#5567). `abgeordnetenwatch` gehört dazu, obwohl es ein
     // eigener Einstieg ist (Abstimmungen, Nebentätigkeiten, auch Landtagsabgeordnete):
     // seine Fragen tragen fast immer eines der Wörter im `hint`, und ein
     // Fehlschluss kostet nur den Lader-Schritt. `umfragen` (Sonntagsfrage, auch
@@ -211,14 +216,12 @@ export const DEFERRABLE_GROUPS = [
     // Bundestagswerkzeuge fehlen.
     id: 'parlament',
     loaderTool: 'parlament_werkzeuge_laden',
-    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'],
+    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen'],
     // `nationalrat` ist für Österreich, was `bundestag` für Deutschland ist: der immer sichtbare Einstieg.
     opensOn: ['bundestag', 'landtag', 'nationalrat'],
     hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])(?:BE|NW)\s?\d{1,2}\/S?\d{1,6}(?![\d/])|(?<![\w/])NR\s?\d{1,2}\/[A-Z]{1,6}\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
     loaderDescription:
-      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Drucksachen des Berliner Abgeordnetenhauses und des Landtags NRW suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag (Österreich: nationalrat), immer bereit.',
-    opened:
-      'Die Parlaments-Werkzeuge (parlament_lesen, bundestag_reden, abgeordnetenwatch, umfragen) sind jetzt verfügbar. Rufe das passende auf.',
+      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
   },
 ] as const satisfies readonly DeferrableGroup[];
 
@@ -325,13 +328,14 @@ export function createToolScope(params: {
       const tools: ToolSet = {};
       if (!params.enforce) return tools;
       for (const group of DEFERRABLE_GROUPS) {
-        if (!closed.has(group.id)) continue;
+        const open = closed.get(group.id);
+        if (!open) continue;
         tools[group.loaderTool] = tool({
           description: group.loaderDescription,
           inputSchema: z.object({}),
           execute: async () => {
             closed.delete(group.id);
-            return { geoeffnet: true, hinweis: group.opened };
+            return { geoeffnet: true, hinweis: openedText(open.tools) };
           },
         });
       }
