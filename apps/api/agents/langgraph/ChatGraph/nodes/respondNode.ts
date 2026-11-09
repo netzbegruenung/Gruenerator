@@ -1623,14 +1623,15 @@ export function getModeGuidance(
     case 'produktion':
     case 'direct':
       return (
-        DIRECT_GUIDANCE +
-        // Im Loop darf das Modell Werkzeuge rufen: „NICHTS recherchiert" und
-        // „Quellen aus dem Thread" wären dort falsch, also keine der beiden Notizen.
+        // Im Loop entscheidet das Modell selbst, ob es nachschlägt. „Ohne
+        // Recherche-Bedarf" wäre dort das Wort-Urteil des Klassifikators als
+        // Anweisung: „Und die FDP?" nach einer Abstimmungsfrage (Kurztext →
+        // `direct`) schlug damit 0/3 nach (09.11.2026). Aus demselben Grund
+        // fehlen „NICHTS recherchiert" und „Quellen aus dem Thread".
         (opts.proseLoop
           ? ''
-          : state.sourcesCarriedFromThread
-            ? CARRIED_SOURCES_NOTE
-            : DIRECT_HONESTY_NOTE) +
+          : DIRECT_GUIDANCE +
+            (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE)) +
         (FILE_TALK_RE.test(state.lastUserTextNoMentions || lastUserText(state)) ||
         state.forbiddenArtifactAction
           ? NO_HANDMADE_FILE_NOTE
