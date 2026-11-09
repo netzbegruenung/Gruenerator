@@ -22,7 +22,11 @@ export function deltaText(d: number | null | undefined): string {
 export function formatPollDate(dateStr?: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr.replace(/\s*\d{4}$/, '');
+  if (isNaN(d.getTime())) {
+    // Strip a trailing year without `\s*\d{4}$`, which backtracks quadratically on long whitespace runs.
+    const year = /\d{4}$/.exec(dateStr);
+    return year ? dateStr.slice(0, year.index).trimEnd() : dateStr;
+  }
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
 }
 

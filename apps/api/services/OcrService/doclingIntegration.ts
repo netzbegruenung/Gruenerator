@@ -289,7 +289,8 @@ async function loadPdf(fileBuffer: Buffer, fileName: string): Promise<PDFDocumen
     return await PDFDocument.load(fileBuffer, { ignoreEncryption: true, updateMetadata: false });
   } catch (error: unknown) {
     console.warn(
-      `[DoclingOCR:pages] ${fileName}: pdf-lib cannot open the file, uploading it whole with page_range:`,
+      '[DoclingOCR:pages] %s: pdf-lib cannot open the file, uploading it whole with page_range:',
+      fileName,
       error instanceof Error ? error.message : String(error)
     );
     return null;

@@ -43,10 +43,10 @@ function materialTexts(state: ChatGraphState): { name: string; text: string }[] 
 
 export function makeRechnenTool(ctx: RechnenToolCtx): Tool {
   return tool({
-    description: `Rechnet und zählt EXAKT per Programm: Prozent, Summen, Differenzen, Dreisatz, Zeichen-/Wörterzahl eines Textes, Einheiten umrechnen, Tage zwischen Daten, Datum plus Zeitspanne, und das Nachrechnen von Zahlenangaben in einem Text.
+    description: `Rechnet und zählt EXAKT per Programm: Prozent, Summen, Dreisatz, Zeichen-/Wörterzahl, Vorkommen von Wörtern oder Daten (auch je Gruppe, z. B. pro Monat), Einheiten, Tage zwischen Daten, Datum plus Zeitspanne, Nachrechnen von Zahlenangaben.
 
 NUTZE WENN eine Antwort eine ausgerechnete oder gezählte Zahl braucht — rechne und zähle NIE selbst, auch nicht „im Kopf“. Zahlen aus einer Recherche erst holen, dann hier rechnen.
-NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), nicht für Schätzungen oder Prognosen.`,
+NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.`,
     inputSchema: z.object({
       auftrag: z
         .string()
@@ -93,9 +93,11 @@ NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), 
       }
       const result = outcome.result;
       if (!result) {
+        // Not "frag nach dem genauen Ausdruck": the loop read that as "try
+        // again" and re-sent the same order until failure_cap (#5499).
         return {
           error:
-            'Keine sichere Berechnung möglich. Nenne keine eigene Zahl; frag nach dem genauen Ausdruck oder Text.',
+            'Keine sichere Berechnung möglich — nicht mit anderem Wortlaut wiederholen. Nenne keine eigene Zahl; antworte ohne sie.',
         };
       }
 
