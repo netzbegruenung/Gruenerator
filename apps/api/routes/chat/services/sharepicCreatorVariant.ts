@@ -147,9 +147,11 @@ export async function createCreatorSharepic(args: {
   /** The design the request names („GJ-Design“); a Vorlage brings its own. */
   brand: SharepicBrand | null;
   userId: string | null;
-  /** Named in the user's own words — never read from the appended conversation. */
+  /** The person's own words: they alone order a form or a slide count, never the appended conversation. */
+  request: string;
+  /** A form picked by the chat's „Als …" chip; otherwise the creator reads `request`. */
   form: SharepicFormId | null;
-  /** The request asks for a single image, not a carousel. */
+  /** A request that leaves the slide count open gets one slide. */
   oneSlide: boolean;
   /** A catalogue Vorlage the person picked: its layout is filled, not redrafted. */
   vorlage?: SharepicVorlage | null;
@@ -183,7 +185,9 @@ export async function createCreatorSharepic(args: {
         null,
         null,
         args.oneSlide,
-        args.brand
+        args.brand,
+        false,
+        args.request
       );
   // A themed Vorlage's theme is part of the look the person picked: the model
   // drops it now and then (a remembrance on plain green), so it is kept here.

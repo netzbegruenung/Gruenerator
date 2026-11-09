@@ -103,6 +103,7 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
                 <input
                   readOnly
                   value={shareUrl}
+                  aria-label="Teilen-Link"
                   onFocus={(e) => e.currentTarget.select()}
                   className="min-w-0 flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-xs text-foreground-muted"
                 />

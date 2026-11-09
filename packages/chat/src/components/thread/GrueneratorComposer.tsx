@@ -1012,6 +1012,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       ref={textareaRef}
       autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
       placeholder={effectivePlaceholder}
+      // Stable name: the placeholder disappears on input and differs on mobile.
+      aria-label="Nachricht an den Grünerator"
       minRows={1}
       // Capped by the visible viewport, not a row count: a fixed 8 rows hid most
       // of a pasted long prompt behind a scrollbar even on a tall screen. The

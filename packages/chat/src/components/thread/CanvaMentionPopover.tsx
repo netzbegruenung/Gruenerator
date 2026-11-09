@@ -89,6 +89,7 @@ export function CanvaMentionPopover({ visible, onSelect, onDismiss }: CanvaMenti
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Designs durchsuchen…"
+                aria-label="Canva-Designs durchsuchen"
                 className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
               />
             </div>

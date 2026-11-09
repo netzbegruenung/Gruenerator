@@ -701,27 +701,6 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
           sitemapFilter: '/beschluesse/',
         },
-        {
-          // Wahlprüfsteine: die Antworten des LV auf Verbände-Fragebögen liegen
-          // nicht auf gruene.berlin, sondern in einem öffentlichen Wolke-Share
-          // (WPS-Gruene-Berlin-<datum>-<verband>-Antwort.pdf, plus die Unterordner
-          // „Wahlprüfsteine aus 2021/2023" — recursive ist der Default).
-          // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
-          // stehen und nicht unter Beschlüsse verschwinden.
-          //
-          // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
-          // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
-          // bleibt weiterhin null statt geraten. Der Share ist ein kuratierter
-          // Ordner — ein Datum darf eine Datei nie aus dem Alterfilter fallen
-          // lassen, deshalb ruft LandesverbandScraper processAndStoreDocument
-          // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
-          // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
-          type: 'wahlpruefstein',
-          path: '/wolke/berlin-wahlpruefsteine/',
-          listSelector: '',
-          wolkeShare: { shareKey: 'berlin-wahlpruefsteine' },
-          recentSkip: true,
-        },
       ],
       contentSelectors: {
         // Titel: siehe berlin-lv-presse (#3560).
@@ -759,6 +738,42 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         '.jpg',
         '.png',
       ],
+    },
+    {
+      // Wahlprüfsteine: die Antworten des LV auf Verbände-Fragebögen liegen
+      // nicht auf gruene.berlin, sondern in einem öffentlichen Wolke-Share
+      // (WPS-Gruene-Berlin-<datum>-<verband>-Antwort.pdf, plus die Unterordner
+      // „Wahlprüfsteine aus 2021/2023" — recursive ist der Default).
+      // Eigene Quelle statt Pfad unter berlin-lv-beschluesse: `source_name`
+      // kommt aus der Quelle, und alle 271 Antworten standen dort als
+      // „Grüne Berlin Beschlüsse" (#5537). Eigener content_type, damit sie im
+      // „Typ"-Filter als eigene Kategorie stehen.
+      //
+      // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
+      // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Tagesdatum
+      // bleibt null statt geraten. Bewusst ohne `maxAgeYears`: der Share ist
+      // ein kuratierter Ordner, also kein Archivlauf (der braucht eine Grenze)
+      // und beim Einlesen `ignoreMaxAge`. Punkte von vor #3564 heilt das
+      // Etag-Gatter nicht — dafür `scripts/repair-lv-payload.ts --wolke`.
+      // `path`/`listSelector`/`contentSelectors` sind bei wolkeShare
+      // ungenutzte Pflichtfelder.
+      id: 'berlin-lv-wahlpruefsteine',
+      name: 'Grüne Berlin Wahlprüfsteine',
+      shortName: 'BE',
+      type: 'landesverband',
+      baseUrl: 'https://gruene.berlin',
+      cms: 'typo3',
+      contentPaths: [
+        {
+          type: 'wahlpruefstein',
+          path: '/wolke/berlin-wahlpruefsteine/',
+          listSelector: '',
+          wolkeShare: { shareKey: 'berlin-wahlpruefsteine' },
+          recentSkip: true,
+        },
+      ],
+      contentSelectors: { title: [], date: [], content: [], categories: [], author: [] },
+      excludePatterns: [],
     },
     {
       id: 'berlin-fraktion-presse',

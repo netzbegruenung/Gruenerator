@@ -28,6 +28,10 @@ export const needsSchema = z.object({
   // A carousel may want a photo per slide.
   fotos_suchen: z.array(z.string().trim().min(2)).max(6),
   form: sharepicFormSchema,
+  /** The person's own words order this form — not just mention its word in the content. */
+  form_bestellt: z.boolean(),
+  /** What the person's own words say about the slide count. */
+  folien: z.enum(['eine', 'mehrere', 'offen']),
   alternativen: z.array(sharepicFormSchema).max(2),
 });
 export type Needs = z.infer<typeof needsSchema>;
@@ -58,13 +62,33 @@ export const NEEDS_SCHEMA = {
       enum: SHAREPIC_FORMS.map((f) => f.id),
       description: 'Welche Form das Sharepic bekommt',
     },
+    form_bestellt: {
+      type: 'boolean',
+      description:
+        'true nur, wenn die Person genau diese Form selbst verlangt; false, wenn du sie gewählt hast oder ihr Wort nur im Inhalt vorkommt',
+    },
+    folien: {
+      type: 'string',
+      enum: ['eine', 'mehrere', 'offen'],
+      description:
+        '"eine": die Person will ausdrücklich ein einzelnes Bild; "mehrere": ausdrücklich ein Karussell, eine Serie oder mehrere Bilder; sonst "offen"',
+    },
     alternativen: {
       type: 'array',
       items: { type: 'string', enum: SHAREPIC_FORMS.map((f) => f.id) },
       description: 'Zwei andere Formen, die zum selben Auftrag auch passen würden',
     },
   },
-  required: ['land', 'anlass', 'kapitel', 'fotos_suchen', 'form', 'alternativen'],
+  required: [
+    'land',
+    'anlass',
+    'kapitel',
+    'fotos_suchen',
+    'form',
+    'form_bestellt',
+    'folien',
+    'alternativen',
+  ],
 };
 
 /** `takeScene` turns it into a painted background before the spec is validated. */
