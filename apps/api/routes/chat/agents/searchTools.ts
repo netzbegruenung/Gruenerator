@@ -506,7 +506,7 @@ export function createSearchTools(
   const parlamentGrenze =
     options.userLocale === 'de-AT'
       ? 'Gegenstände und Debatten des Nationalrats (dafür nationalrat)'
-      : 'Drucksachen, Plenarreden und Abstimmungsverhalten im Bundestag (dafür bundestag, bundestag_reden, abgeordnetenwatch)';
+      : 'Drucksachen, Plenarreden und Abstimmungsverhalten im Bundestag (dafür bundestag, bundestag_reden, abgeordnetenwatch); Drucksachen, Anfragen und Senatsantworten eines Landesparlaments, auch Abgeordnetenhaus Berlin (dafür landtag)';
 
   const tools: ToolSet = {};
 
