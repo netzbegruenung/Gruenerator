@@ -494,6 +494,14 @@ export interface AiObjectCall<T> extends AiCall {
    * attempt may run it never or once per text candidate.
    */
   validate: (input: unknown, attempt: number, attempts: number) => StructuredValidation<T>;
+  /**
+   * A second gate for checks that need a request of their own (sharepic figure
+   * claims ask a decision model, #5480). Runs only on a value `validate`
+   * accepted; a string is an objection and goes back as a repair turn, exactly
+   * like a validation error. Kept apart from `validate` so that one stays
+   * synchronous and cheap — it runs once per text candidate.
+   */
+  confirm?: (value: T, attempt: number, attempts: number) => Promise<string | null>;
   attempts?: number;
   /** Log prefix, e.g. 'pdf'. Defaults to the tool name. */
   label?: string;
@@ -670,6 +678,19 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
           }
           if (toolInput == null) {
             log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
+          }
+          // A confirm that throws objects to nothing: its own request failing
+          // must not cost the caller a value `validate` already accepted.
+          const objection = call.confirm
+            ? await call.confirm(validated.value, attempt, attempts).catch((e: unknown) => {
+                log.warn(`[${label}] attempt ${attempt}: confirm threw, passing: ${String(e)}`);
+                return null;
+              })
+            : null;
+          if (objection) {
+            rejection = objection;
+            rejected = JSON.stringify(candidate);
+            break;
           }
           return { ok: true, data: validated.value };
         }
