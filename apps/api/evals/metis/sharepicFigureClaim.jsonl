@@ -1,0 +1,50 @@
+{"id": "rad-01", "quelle": "radweg", "text": "17 Unfälle mit Radfahrenden – allein 2025", "label": "gedeckt"}
+{"id": "rad-02", "quelle": "radweg", "text": "17 Unfälle weniger", "label": "verfaelscht", "note": "#5480 live"}
+{"id": "rad-03", "quelle": "radweg", "text": "2,4 km neuer Radweg", "label": "gedeckt"}
+{"id": "rad-04", "quelle": "radweg", "text": "1,26 Mio. € Förderung vom Land", "label": "gedeckt"}
+{"id": "rad-05", "quelle": "radweg", "text": "1,26 Mio. € zahlt die Gemeinde selbst", "label": "verfaelscht"}
+{"id": "rad-06", "quelle": "radweg", "text": "Baustart April 2027", "label": "gedeckt"}
+{"id": "rad-07", "quelle": "radweg", "text": "Seit April 2027 befahrbar", "label": "verfaelscht"}
+{"id": "rad-08", "quelle": "radweg", "text": "Kein Unfallschwerpunkt mehr", "label": "verfaelscht", "note": "Umschreibung ohne Zahl"}
+{"id": "rad-09", "quelle": "radweg", "text": "17 Unfälle verhindert", "label": "verfaelscht"}
+{"id": "rad-10", "quelle": "radweg", "text": "Unfälle halbiert", "label": "verfaelscht"}
+{"id": "bus-01", "quelle": "bus", "text": "Nur noch alle 60 Minuten", "label": "gedeckt"}
+{"id": "bus-02", "quelle": "bus", "text": "Doppelt so oft unterwegs", "label": "verfaelscht"}
+{"id": "bus-03", "quelle": "bus", "text": "Halb so viele Fahrten", "label": "gedeckt"}
+{"id": "bus-04", "quelle": "bus", "text": "3.300 Fahrgäste täglich betroffen", "label": "gedeckt"}
+{"id": "bus-05", "quelle": "bus", "text": "3.300 Fahrgäste mehr", "label": "verfaelscht"}
+{"id": "bus-06", "quelle": "bus", "text": "420.000 € gespart – auf Kosten der Fahrgäste", "label": "gedeckt"}
+{"id": "bus-07", "quelle": "bus", "text": "420.000 € Mehrkosten", "label": "verfaelscht"}
+{"id": "bus-08", "quelle": "bus", "text": "Am Wochenende kein Bus", "label": "gedeckt"}
+{"id": "bus-09", "quelle": "bus", "text": "Am Wochenende alle 30 Minuten", "label": "verfaelscht"}
+{"id": "bus-10", "quelle": "bus", "text": "Takt verbessert", "label": "verfaelscht"}
+{"id": "hitze-01", "quelle": "hitze", "text": "23 Hitzetage im Jahr 2025", "label": "gedeckt"}
+{"id": "hitze-02", "quelle": "hitze", "text": "23 Hitzetage weniger", "label": "verfaelscht"}
+{"id": "hitze-03", "quelle": "hitze", "text": "Fast dreimal so viele Hitzetage wie 2000", "label": "gedeckt"}
+{"id": "hitze-04", "quelle": "hitze", "text": "9 von 10 Kitas ohne Hitzeschutz", "label": "gedeckt"}
+{"id": "hitze-05", "quelle": "hitze", "text": "9 von 10 Kitas gut geschützt", "label": "verfaelscht"}
+{"id": "hitze-06", "quelle": "hitze", "text": "50 neue Stadtbäume pro Jahr – unsere Forderung", "label": "gedeckt"}
+{"id": "hitze-07", "quelle": "hitze", "text": "50 neue Bäume gepflanzt", "label": "verfaelscht", "note": "Forderung als Bilanz"}
+{"id": "hitze-08", "quelle": "hitze", "text": "8 Hitzetage im Jahr 2000", "label": "gedeckt"}
+{"id": "hitze-09", "quelle": "hitze", "text": "Hitzetage gesunken", "label": "verfaelscht"}
+{"id": "hitze-10", "quelle": "hitze", "text": "Von 8 auf 23 Hitzetage", "label": "gedeckt"}
+{"id": "t30-01", "quelle": "tempo30", "text": "12 Unfälle weniger", "label": "gedeckt"}
+{"id": "t30-02", "quelle": "tempo30", "text": "12 Unfälle mehr", "label": "verfaelscht"}
+{"id": "t30-03", "quelle": "tempo30", "text": "3 Dezibel leiser", "label": "gedeckt"}
+{"id": "t30-04", "quelle": "tempo30", "text": "3 Dezibel lauter", "label": "verfaelscht"}
+{"id": "ho-01", "quelle": "wien", "text": "1.200 neue Gemeindewohnungen bis 2028", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-02", "quelle": "wien", "text": "1.200 Gemeindewohnungen fertig", "label": "verfaelscht", "note": "holdout"}
+{"id": "ho-03", "quelle": "wien", "text": "Mieten seit 2020 um 18 % rauf", "label": "gedeckt", "note": "holdout, AT-Wort"}
+{"id": "ho-04", "quelle": "wien", "text": "Mieten 18 % billiger", "label": "verfaelscht", "note": "holdout"}
+{"id": "ho-05", "quelle": "wien", "text": "Jede dritte Familie zahlt mehr als 40 % fürs Wohnen", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-06", "quelle": "wien", "text": "Jede dritte Familie zahlt weniger als 40 %", "label": "verfaelscht", "note": "holdout"}
+{"id": "ho-07", "quelle": "wien", "text": "Die ÖVP blockiert", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-08", "quelle": "wien", "text": "Die SPÖ blockiert", "label": "verfaelscht", "note": "holdout, falscher Akteur"}
+{"id": "ho-09", "quelle": "solar", "text": "640 Dächer mit Solar", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-10", "quelle": "solar", "text": "Strom für rund 900 Haushalte", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-11", "quelle": "solar", "text": "Strom für 640 Haushalte", "label": "verfaelscht", "note": "holdout, Zahl vertauscht"}
+{"id": "ho-12", "quelle": "solar", "text": "Seit 2023 verdoppelt", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-13", "quelle": "solar", "text": "Seit 2023 halbiert", "label": "verfaelscht", "note": "holdout"}
+{"id": "ho-14", "quelle": "solar", "text": "Ziel: 2.000 Dächer bis 2030", "label": "gedeckt", "note": "holdout"}
+{"id": "ho-15", "quelle": "solar", "text": "2.000 Dächer geschafft", "label": "verfaelscht", "note": "holdout"}
+{"id": "ho-16", "quelle": "solar", "text": "Mehr Sonnenstrom vom Rathausdach", "label": "verfaelscht", "note": "holdout, erfunden"}
