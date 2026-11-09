@@ -2,6 +2,7 @@ import {
   GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_ON_MELIOUS_SPEED,
+  GEMMA_31B_ON_MELIOUS_SPEED_CONTEXT_WINDOW,
 } from '../../ai/gemmaHosts.js';
 
 /**
@@ -16,7 +17,7 @@ import {
  * und `budget.vitest.ts` hält fest, dass die Lane selbst eine Zeile hat.
  */
 export const READ_CONTEXT_TOKENS_BY_MODEL: Record<string, number> = {
-  [GEMMA_31B_ON_MELIOUS_SPEED.model]: GEMMA_31B_ON_MELIOUS_SPEED.contextWindow,
+  [GEMMA_31B_ON_MELIOUS_SPEED.model]: GEMMA_31B_ON_MELIOUS_SPEED_CONTEXT_WINDOW,
   [GEMMA_31B_ON_MELIOUS.model]: GEMMA_31B_ON_MELIOUS.contextWindow,
   [GEMMA_31B_ON_CORTECS.model]: GEMMA_31B_ON_CORTECS.contextWindow,
   // Nur für den Modellvergleich (`target`); die alte Annahme war 800k Zeichen bei 4 Zeichen/Token.
