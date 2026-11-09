@@ -113,7 +113,7 @@ describe('GroupFeedCard', () => {
     );
 
     const { user, container } = renderWithProviders(<GroupFeedCard {...baseProps} />);
-    const toggle = screen.getByRole('button', { name: 'Kommentare (1)' });
+    const toggle = screen.getByRole('button', { name: 'Kommentare, 1' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await user.click(toggle);
 
@@ -174,7 +174,7 @@ describe('GroupFeedCard', () => {
       })
     );
     const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
-    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Kommentare, 1' }));
     const replies = await screen.findByRole('list', { name: 'Antworten auf Tom Krüger' });
     await user.click(within(replies).getByRole('button', { name: 'Antworten' }));
 
@@ -206,7 +206,7 @@ describe('GroupFeedCard', () => {
       )
     );
     const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
-    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Kommentare, 1' }));
     await user.click(await screen.findByRole('button', { name: 'Antworten' }));
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('textbox', { name: 'Antwort an Tom Krüger' })).toBeNull();
@@ -269,7 +269,7 @@ describe('GroupFeedCard', () => {
       })
     );
     const { user, container } = renderWithProviders(<GroupFeedCard {...baseProps} />);
-    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Kommentare, 1' }));
     const comment = (await screen.findByText('Das Zitat nach vorne.')).closest('li')!;
     await user.click(within(comment).getByRole('button', { name: 'Reaktion hinzufügen' }));
     await user.click(await screen.findByRole('button', { name: 'Mit 👍 reagieren' }));

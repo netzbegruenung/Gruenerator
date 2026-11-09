@@ -125,7 +125,7 @@ export function PresentationExportMenu(props: PresentationExportMenuProps) {
           title="Herunterladen"
         >
           <FiDownload />
-          <span className="max-sm:hidden text-sm font-bold">Download</span>
+          <span className="max-sm:hidden text-sm font-bold">Herunterladen</span>
           <FiChevronDown className="max-sm:hidden" size={13} aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>

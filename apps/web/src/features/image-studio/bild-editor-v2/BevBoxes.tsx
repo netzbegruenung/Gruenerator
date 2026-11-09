@@ -193,7 +193,8 @@ export function BevBoxOverlay({ bev }: { bev: BildEditorV2 }) {
             key={box.id}
             type="button"
             aria-pressed={isSelected}
-            aria-label={`${name} (${boxState(box)})`}
+            // WCAG 2.5.3: a removed box shows „<name> – weg“, so the name has to carry that text too.
+            aria-label={`${removed ? `${name} – weg` : name} (${boxState(box)})`}
             onClick={() => setSelectedBoxId(isSelected ? null : box.id)}
             onKeyDown={(e) => onKeyDown(e, box)}
             onPointerDown={(e) => startDrag(e, box, 'move')}
