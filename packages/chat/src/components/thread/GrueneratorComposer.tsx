@@ -992,7 +992,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       insideAgent={insideAgent}
       firstName={firstName ?? null}
       {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
-      {...(onNavigate ? { onNavigate, onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
+      {...(onNavigate
+        ? { onNavigate, onOpenSkillsPage: () => onNavigate('/marktplatz?art=rezepte') }
+        : {})}
     />
   ) : null;
 
