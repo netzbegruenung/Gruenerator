@@ -14,4 +14,9 @@ export interface UserRole {
   systemPrompt?: string;
   /** Fassung des Meta-Prompts, aus dem `systemPrompt` stammt (siehe `ROLE_PROMPT_VERSION`). */
   promptVersion?: number;
+  /**
+   * Ob die Schnellauswahl dieser Rolle (Landesverband, Grüne Jugend) in der
+   * Seitenleiste steht. Fehlt das Feld, steht sie dort — nur `false` blendet aus.
+   */
+  showInSidebar?: boolean;
 }
