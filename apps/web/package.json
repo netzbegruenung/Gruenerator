@@ -27,7 +27,7 @@
     "@gruenerator/wolke": "workspace:*",
     "@hocuspocus/provider": "^4.7.1",
     "@mertdeveci55/univer-import-export": "0.2.1",
-    "@mistralai/mistralai": "^3.1.0",
+    "@mistralai/mistralai": "^3.5.0",
     "@sentry/react": "^11.10.0",
     "@tanstack/react-query": "^5.105.1",
     "@tanstack/react-table": "^9.3.1",
