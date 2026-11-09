@@ -248,6 +248,8 @@ export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
 export const GEMMA_31B_ON_MELIOUS_SPEED = {
   provider: 'melious' as const,
   model: 'gemma-4-31b:speed',
+  /** Infercom/DE vermittelt 131.072; 128k mit derselben Reserve wie beim Melious-Host oben (Messung 07.10.2026: über ~131k lehnt Melious sofort ab). */
+  contextWindow: 128_000,
 };
 
 /**
