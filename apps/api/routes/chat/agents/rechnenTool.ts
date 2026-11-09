@@ -60,13 +60,13 @@ NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), 
         .max(60_000)
         .optional()
         .describe(
-          'Nur zum Zählen oder Nachrechnen eines kurzen Textes aus der Nachricht: der vollständige, unveränderte Text. Für einen Anhang oder eingefügten Text stattdessen `anhang`.'
+          'Nur zum Zählen oder Nachrechnen: ein Text aus der Nachricht, unverändert. Für Anhänge `anhang`.'
         ),
       anhang: z
         .string()
         .optional()
         .describe(
-          'Name des angehängten oder eingefügten Textes, der gezählt oder nachgerechnet werden soll (z.B. "Eingefügter Text.txt"). Das Werkzeug liest ihn selbst — schreib ihn NICHT in `text` ab.'
+          'Name eines Anhangs, z.B. "Eingefügter Text.txt" — wird selbst gelesen, nicht abschreiben.'
         ),
     }),
     execute: async ({ auftrag, text: typed, anhang }) => {
