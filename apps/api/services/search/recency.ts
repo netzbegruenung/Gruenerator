@@ -89,12 +89,31 @@ export function recencyBoost(
 }
 
 /**
- * Format an ISO date for German prompts/UI (e.g. "März 2024"). Returns '' for
- * empty/unparseable input so callers can omit the date cleanly.
+ * How much of a stored `published_at` was actually found. The Landesverband
+ * scraper writes a year-only date as `YYYY-06-15` with `date_precision: 'year'`
+ * (month and day are invented), so a reader that prints the month turns a
+ * guess into a fact the model repeats — "im Juni 2022" for a text from March
+ * (#5568). Absent on every collection that never writes the field.
  */
-export function formatDe(dateIso: string | null | undefined): string {
+export type SourceDatePrecision = 'day' | 'month' | 'year';
+
+/** The stored `date_precision` payload value, or null for anything else. */
+export function parseDatePrecision(value: unknown): SourceDatePrecision | null {
+  return value === 'day' || value === 'month' || value === 'year' ? value : null;
+}
+
+/**
+ * Format an ISO date for German prompts/UI (e.g. "März 2024", or "2022" when
+ * only the year is known). Returns '' for empty/unparseable input so callers
+ * can omit the date cleanly.
+ */
+export function formatDe(
+  dateIso: string | null | undefined,
+  precision: SourceDatePrecision | null = null
+): string {
   if (!dateIso) return '';
   const parsed = Date.parse(dateIso);
   if (Number.isNaN(parsed)) return '';
+  if (precision === 'year') return String(new Date(parsed).getUTCFullYear());
   return new Date(parsed).toLocaleDateString('de-DE', { year: 'numeric', month: 'long' });
 }

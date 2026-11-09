@@ -57,6 +57,7 @@ const REQUIRED_KEYS = [
   'char_end',
   'created_at',
   'published_at',
+  'date_precision',
   'source_id',
   'content_type_label',
   'source_name',
