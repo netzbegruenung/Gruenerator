@@ -74,6 +74,13 @@ export const textFormMentionSchema = z
   .max(48)
   .regex(/^[a-z0-9äöüß-]+$/, 'Nur Kleinbuchstaben, Ziffern, Bindestriche (Umlaute erlaubt)');
 
+/**
+ * Pfadsegmente der Rezept-Routen (`/agentura/rezept/neu`, `…/:mention/bearbeiten`).
+ * Als Mention vergeben, wäre die Detailseite des Rezepts nicht mehr erreichbar —
+ * der Editor warnt davor, der Server lehnt es ab.
+ */
+export const RESERVED_TEXT_FORM_MENTIONS: readonly string[] = ['neu', 'bearbeiten'];
+
 export const MAX_TEXT_FORM_EXAMPLES = 20;
 /**
  * Gesamtbudget über ALLE Beispiele zusammen — die eigentliche Grenze. ~40k Token,

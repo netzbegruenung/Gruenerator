@@ -347,6 +347,33 @@ describe('recipe descriptions', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('shows the description of an own recipe (a text form) too', () => {
+    setTextforms([
+      {
+        id: 'tf-1',
+        mention: 'vereinseinladung',
+        title: 'Vereinseinladung',
+        description: 'Einladung zur Mitgliederversammlung, förmlich.',
+        iconKey: null,
+        sharedFromGroup: null,
+        ownerName: null,
+        isPublic: false,
+      },
+    ]);
+    render(
+      <MentionPopover
+        query="vereinseinladung"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    expect(screen.getByText('Einladung zur Mitgliederversammlung, förmlich.')).toBeInTheDocument();
+  });
+
   it('adds no description line to a row without one', () => {
     setCustomAgents([{ id: 'own-e', name: 'Presse-Rezept', slug: 'presse-rezept' }]);
     render(

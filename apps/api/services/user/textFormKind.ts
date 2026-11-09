@@ -17,6 +17,7 @@
  * `recipeOverrideAccess.ts`, das diese Funktion für Schritt (3) mitbenutzt.
  */
 import {
+  RESERVED_TEXT_FORM_MENTIONS,
   textFormMentionSchema,
   textFormTypeSchema,
   type TextFormKind,
@@ -108,6 +109,9 @@ export function resolveTextFormKind(params: {
         status: 400,
         message: parsed.error.issues[0]?.message ?? 'Ungültige Mention.',
       };
+    }
+    if (RESERVED_TEXT_FORM_MENTIONS.includes(mention)) {
+      return { ok: false, status: 400, message: 'Dieser Name ist reserviert.' };
     }
     if (SKILL_MENTIONS.has(mention) || PRESET_TYPES.has(mention)) {
       return {

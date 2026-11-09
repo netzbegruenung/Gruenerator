@@ -5,6 +5,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
+  RESERVED_TEXT_FORM_MENTIONS,
   USER_RECIPE_DESCRIPTION_MIN,
   type SkillCategoryValue,
 } from '@gruenerator/contracts';
@@ -48,13 +49,6 @@ const selectCls =
 const MAX_MENTION_CHARS = 40;
 
 /**
- * Pfadsegmente der Rezept-Routen (`/agentura/rezept/neu`,
- * `…/:mention/bearbeiten`). Als Erwähnung vergeben, wäre die eigene
- * Detailseite des Rezepts nicht mehr erreichbar.
- */
-const RESERVED_MENTIONS = ['neu', 'bearbeiten'];
-
-/**
  * Was der Erwähnung im Weg steht, bevor irgendetwas zum Server geht. Der
  * Server lehnt beides ohnehin ab (400 „… ist ein Preset, nicht kind='custom'."
  * bzw. 403 für einen nicht zugeteilten Landesverband) — aber erst nach dem
@@ -65,7 +59,7 @@ function mentionBlocker(
   mention: string,
   lvIds: readonly string[] | null
 ): { text: string; href: string | null } | null {
-  if (RESERVED_MENTIONS.includes(mention)) {
+  if (RESERVED_TEXT_FORM_MENTIONS.includes(mention)) {
     return { text: 'Dieser Name ist reserviert.', href: null };
   }
   const classification = classifyRecipeMention(mention, lvIds);

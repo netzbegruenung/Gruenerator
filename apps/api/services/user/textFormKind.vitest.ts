@@ -50,6 +50,16 @@ describe('deriveRecipeMention', () => {
 });
 
 describe('resolveTextFormKind', () => {
+  it.each(['neu', 'bearbeiten'])(
+    'rejects the route segment "%s" as a mention with 400',
+    (mention) => {
+      expect(resolveTextFormKind({ mention, lvIds: null })).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+  );
+
   it('resolves a preset mention (mention === type)', () => {
     const verdict = resolveTextFormKind({ mention: 'presse', lvIds: null });
     expect(verdict).toEqual({ ok: true, kind: 'preset', textType: 'presse', mention: 'presse' });
