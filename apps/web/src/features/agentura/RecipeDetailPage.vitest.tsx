@@ -24,6 +24,8 @@ const listMyGroups = vi.hoisted(() => vi.fn());
 const listEntityComments = vi.hoisted(() => vi.fn());
 const getItem = vi.hoisted(() => vi.fn());
 const like = vi.hoisted(() => vi.fn());
+const libraryList = vi.hoisted(() => vi.fn());
+const libraryAdd = vi.hoisted(() => vi.fn());
 const lv = vi.hoisted(() => ({ lvIds: null as readonly string[] | null }));
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
@@ -34,6 +36,7 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
     notebookSharing: { listMyGroups },
     entityComments: { listEntityComments },
     marketplace: { get: getItem, like },
+    userLibrary: { list: libraryList, add: libraryAdd },
   }),
 }));
 
@@ -131,6 +134,8 @@ beforeEach(() => {
   // Not listed in the Marktplatz unless a test says so: no like then.
   getItem.mockReset().mockResolvedValue({ status: 404, body: { success: false, message: '' } });
   like.mockReset().mockResolvedValue({ status: 200, body: { liked: true, likesCount: 3 } });
+  libraryList.mockReset().mockResolvedValue({ status: 200, body: { success: true, items: [] } });
+  libraryAdd.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
 });
 
 describe('RecipeDetailPage — Marktplatz-Block', () => {
@@ -184,6 +189,25 @@ describe('RecipeDetailPage — Marktplatz-Block', () => {
 });
 
 describe('RecipeDetailPage — Systemrezept', () => {
+  it('spiegelt im Herz den Stand der Bibliothek und schreibt dorthin', async () => {
+    renderPage('presse');
+    await userEvent.click(await screen.findByRole('button', { name: 'Zu Favoriten hinzufügen' }));
+    await waitFor(() =>
+      expect(libraryAdd).toHaveBeenCalledWith({ params: { kind: 'recipe', ref: 'presse' } })
+    );
+  });
+
+  it('zeigt das Herz gefüllt, wenn das Rezept in der Bibliothek liegt', async () => {
+    libraryList.mockResolvedValue({
+      status: 200,
+      body: { success: true, items: [{ kind: 'recipe', ref: 'presse', createdAt: '2026-11-09' }] },
+    });
+    renderPage('presse');
+    expect(
+      await screen.findByRole('button', { name: 'Aus Favoriten entfernen' })
+    ).toBeInTheDocument();
+  });
+
   it('bietet bei einem Preset das Anpassen mit eigenen Beispielen an', async () => {
     renderPage('presse');
 

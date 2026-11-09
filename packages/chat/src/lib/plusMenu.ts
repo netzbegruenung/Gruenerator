@@ -26,7 +26,7 @@ import {
  * The recipes worth showing without a search: every system default, plus the
  * ones the user starred, plus their own saved agents and learned text forms.
  *
- * @param favorites lowercased mentions from `useSkillFavoritesStore`.
+ * @param favorites lowercased refs of the saved library recipes (`useRecipeLibrary`).
  */
 export function quickSkillMentionables(favorites: readonly string[]): Mentionable[] {
   const agents = getAgentMentionables().filter(

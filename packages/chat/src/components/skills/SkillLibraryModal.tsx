@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
 import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
+import { useRecipeLibrary } from '../../hooks/useRecipeLibrary';
 import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
 import { listedAgentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
@@ -18,7 +19,6 @@ import {
   getMentionInstance,
   type Mentionable,
 } from '../../lib/mentionables';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 
 interface SkillLibraryModalProps {
   open: boolean;
@@ -30,7 +30,7 @@ const CATEGORY_ORDER: SkillCategory[] = ['presse', 'social', 'dokumente', 'reche
 
 export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModalProps) {
   const [search, setSearch] = useState('');
-  const { favorites, toggleFavorite } = useSkillFavoritesStore();
+  const library = useRecipeLibrary();
   const customAgents = getCustomAgentMentionables();
   const hiddenSkillMentions = useHiddenSkillMentions();
   const { lvIds } = useUserLandesverbaende();
@@ -150,7 +150,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                 {label}
               </div>
               {items.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
+                const isFav = library.has('recipe', skill.mention);
                 const Icon = skill.icon;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
@@ -171,7 +171,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                     </button>
                     <button
                       type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
+                      onClick={() => library.toggle('recipe', skill.mention)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                       title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -192,7 +192,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                 Meine Skills
               </div>
               {customAgents.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
+                const isFav = library.has('recipe', skill.identifier);
                 const Icon = skill.icon ?? PiSparkle;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
@@ -213,7 +213,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                     </button>
                     <button
                       type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
+                      onClick={() => library.toggle('recipe', skill.identifier)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                     >
