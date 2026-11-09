@@ -228,6 +228,8 @@ export async function planFilters({
     Object.entries(explicit).filter(([, v]) => v !== undefined)
   ) as BundestagFilter;
   const filters: BundestagFilter = { ...fromModel, ...detected, ...given };
+  const fraktionNote = dropFraktionBesideAntwort(filters);
+  if (fraktionNote) notes.push(fraktionNote);
 
   // Die Vorbelegung gilt schon fürs Zählen, damit es dieselbe Periode nutzt wie die Suche.
   let assumedWahlperiode = false;

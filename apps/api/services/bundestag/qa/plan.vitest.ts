@@ -54,6 +54,18 @@ describe('planFilters', () => {
     expect(r.filters.datumVon).toBe('2026-01-01');
   });
 
+  it('Fraktion im Wortlaut neben Typ Antwort fällt weg, auch wenn erst die Modell-query sie nennt (#5558)', async () => {
+    model({ keywords: ['grüne', 'ngos', 'afd'], wahlperiode: [21] });
+    const r = await planFilters({
+      question: 'Grüne NGOs AfD Antwort der Bundesregierung',
+      explicit: { drucksachetyp: ['Antwort'] },
+      dip: dipWith({}),
+    });
+    expect(r.filters.drucksachetyp).toEqual(['Antwort']);
+    expect(r.filters.urheber).toBeUndefined();
+    expect(r.notes.join(' ')).toMatch(/Fraktion/);
+  });
+
   it('erkannt schlägt Modell, explicit schlägt erkannt', async () => {
     model({
       keywords: ['anträge', 'grünen'],

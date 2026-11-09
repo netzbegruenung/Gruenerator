@@ -49,6 +49,7 @@ import {
 } from '../../../services/bundestag/qa/index.js';
 import {
   detectFromWording,
+  dropFraktionBesideAntwort,
   drucksachetypAusTitel,
 } from '../../../services/bundestag/qa/planDetect.js';
 import {
@@ -407,19 +408,8 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         ...fromArgs,
       };
       const filterHinweise: string[] = [];
-      // DIP kennt bei einer Antwort nie eine Fraktion als Urheber (gemessen WP 21:
-      // Antwort+AfD 0, Antwort+Grüne 0, Antwort+Bundesregierung 2844); die fragende
-      // Fraktion steht an der Kleinen Anfrage bzw. am Vorgang, nicht an der Antwort.
-      if (filters.drucksachetyp?.length === 1 && filters.drucksachetyp[0] === 'Antwort') {
-        const ohneFraktion = (filters.urheber ?? []).filter((u) => !u.startsWith('Fraktion'));
-        if (ohneFraktion.length !== (filters.urheber ?? []).length) {
-          if (ohneFraktion.length > 0) filters.urheber = ohneFraktion;
-          else delete filters.urheber;
-          filterHinweise.push(
-            'Eine Fraktion als Urheber passt nie zu Typ „Antwort“ (Antworten stammen von der Bundesregierung), der Fraktionsfilter wurde weggelassen. Wer gefragt hat, steht an der Kleinen Anfrage: für sie `drucksachetyp: ["Kleine Anfrage"]` mit der Fraktion suchen, dann `ref` der Anfrage für die Antwort.'
-          );
-        }
-      }
+      const fraktionNote = dropFraktionBesideAntwort(filters);
+      if (fraktionNote) filterHinweise.push(fraktionNote);
       if (ref) {
         // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
         // würden Familienmitglieder verdecken und gelten hier nicht.

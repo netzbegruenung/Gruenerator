@@ -38,6 +38,17 @@ describe('countBundestag', () => {
     expect(r.notes.join(' ')).toContain('Titelfilter „Radverkehr"');
   });
 
+  it('Fraktion neben Typ Antwort wird nicht gezählt, mit Notiz (#5558)', async () => {
+    const { dip, list } = dipWith(() => 2844);
+    const r = await countBundestag({
+      filters: { drucksachetyp: ['Antwort'], urheber: ['Fraktion der AfD'], wahlperiode: [21] },
+      dip,
+    });
+    expect(list.mock.calls[0]![1]).not.toHaveProperty('f.urheber');
+    expect(r.filters.urheber).toBeUndefined();
+    expect(r.notes.join(' ')).toMatch(/Fraktion/);
+  });
+
   it('nimmt ohne Wahlperiode die 21 an und sagt es', async () => {
     const { dip, list } = dipWith(() => 5);
     const r = await countBundestag({ filters: {}, dip });

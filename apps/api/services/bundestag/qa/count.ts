@@ -18,7 +18,7 @@ import {
 import { type DipParams } from '../dip/dipClient.js';
 
 import { type FindDip } from './find.js';
-import { dropTitelBesideDeskriptor } from './planDetect.js';
+import { dropFraktionBesideAntwort, dropTitelBesideDeskriptor } from './planDetect.js';
 
 export type CountGroupBy = BundestagGruppieren;
 export const MAX_COUNT_CALLS = 25;
@@ -134,6 +134,8 @@ export async function countBundestag({
   const f: BundestagFilter = { ...filters };
   const titelNote = dropTitelBesideDeskriptor(f);
   if (titelNote) notes.push(titelNote);
+  const fraktionNote = dropFraktionBesideAntwort(f);
+  if (fraktionNote) notes.push(fraktionNote);
   const viaVorgang = (f.deskriptor?.length ?? 0) > 0 || (f.beratungsstand?.length ?? 0) > 0;
   const einheit = viaVorgang ? 'Vorgänge' : 'Drucksachen';
   const endpoint = viaVorgang ? 'vorgang' : 'drucksache';
