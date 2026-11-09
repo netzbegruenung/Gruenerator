@@ -71,6 +71,12 @@ interface PinRoute {
    * fest: `@beispiele @diagramm` ergibt `examples`, nicht `chart`.
    */
   group?: 'simple';
+  /**
+   * `false`: der Pin setzt den Intent, zwingt den Turn aber NICHT auf die
+   * Einzelroute (`forcedTool` bleibt aus). Für Erwähnungen ohne Werkzeug —
+   * der Turn soll mit dem Rezeptkatalog in die Schleife.
+   */
+  forcesTool?: false;
 }
 
 /**
@@ -161,12 +167,20 @@ const PIN_ROUTES: readonly PinRoute[] = [
    * `@social` — die Erwähnung ist weg, der Token bleibt (F0: er steht in
    * persistierten Threads und in ausgelieferten Composern). Anders als
    * `@umfragen` und `@pressemitteilungen` zeigt er auf gar kein Werkzeug: ein
-   * Social-Post ist eine Textsorte. Er landet deshalb auf `produktion`, wo
-   * `deriveImplicitRecipeMention` in `routingStage` aus demselben Nutzertext
-   * das Rezept wählt — die Zeile setzt es NICHT selbst, sonst hätte der Pin
-   * eine zweite, gröbere Rezeptwahl neben der einen echten.
+   * Social-Post ist eine Textsorte. Er landet deshalb auf `produktion`, setzt
+   * aber `forcedTool` NICHT: ein erzwungenes Werkzeug hielte den Turn im
+   * Einzeldurchlauf (`pinned_tool_without_loop`), wo es keine Rezeptwahl mehr
+   * gibt. So geht er mit dem Rezeptkatalog in die Schleife, und `rezept_laden`
+   * wählt Instagram/Facebook/… — die Zeile setzt kein Rezept selbst, sonst
+   * hätte der Pin eine zweite, gröbere Rezeptwahl neben der einen echten.
    */
-  { token: 'social_post', intent: 'produktion', localeIntent: 'social_post', group: 'simple' },
+  {
+    token: 'social_post',
+    intent: 'produktion',
+    localeIntent: 'social_post',
+    group: 'simple',
+    forcesTool: false,
+  },
   { intent: 'chart', group: 'simple' },
   { intent: 'compute', group: 'simple' },
 ];
@@ -301,7 +315,7 @@ export async function runForcedIntentStage({
     } else if (skill && !classifiedState.activeSkillMention) {
       classifiedState.activeSkillMention = skill;
     }
-    forcedTool = true;
+    if (route.forcesTool !== false) forcedTool = true;
     if (route.group) firedGroups.add(route.group);
     route.onPin?.(pinContext);
     if (route.backfillQuery !== false) backfillSearchQuery();

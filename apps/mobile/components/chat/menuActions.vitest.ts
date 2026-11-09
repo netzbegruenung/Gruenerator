@@ -44,8 +44,13 @@ describe('buildThreadMenuActions', () => {
 });
 
 describe('buildMessageMenuActions', () => {
-  it('offers the Word export and the editor handoff', () => {
-    expect(ids(buildMessageMenuActions(false))).toEqual(['export-docx', 'open-in-docs', 'report']);
+  it('offers the Word export, the editor handoff and saving the answer as a recipe', () => {
+    expect(ids(buildMessageMenuActions(false))).toEqual([
+      'export-docx',
+      'open-in-docs',
+      'save-as-recipe',
+      'report',
+    ]);
   });
 
   it('keeps the report entry enabled during an export', () => {

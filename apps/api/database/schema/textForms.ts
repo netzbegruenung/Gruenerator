@@ -1,4 +1,8 @@
-import { type GroupAudience, type ModerationState } from '@gruenerator/contracts';
+import {
+  type GroupAudience,
+  type ModerationState,
+  type SkillCategoryValue,
+} from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -32,6 +36,9 @@ export const userTextForms = pgTable(
     // Mirrors user_agents' share model.
     description: text('description'),
     icon_key: text('icon_key'),
+    // Kategorie in der Rezept-Bibliothek, NULL = „Eigene“
+    // (migrations/zz_20261110_user_text_forms_category.sql).
+    skill_category: text('skill_category').$type<SkillCategoryValue>(),
     share_mode: text('share_mode').notNull().default('private'),
     is_public: boolean('is_public').notNull().default(false),
     public_ownership: text('public_ownership'),

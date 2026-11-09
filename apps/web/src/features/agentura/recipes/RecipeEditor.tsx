@@ -5,7 +5,12 @@ import {
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
+  RESERVED_TEXT_FORM_MENTIONS,
+  isUserRecipeDescriptionValid,
+  USER_RECIPE_DESCRIPTION_MIN,
+  type SkillCategoryValue,
 } from '@gruenerator/contracts';
+import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   useDeleteRecipe,
@@ -34,6 +39,8 @@ import { RecipeSharingPanel } from './RecipeSharingPanel';
 import PageContainer from '@/components/common/PageContainer';
 
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
+const selectCls =
+  'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 /**
  * `slugifyName` kappt bei 40 Zeichen — das Eingabefeld darf nicht mehr
@@ -41,13 +48,6 @@ const labelCls = 'flex flex-col gap-xs text-sm font-medium';
  * stillschweigend vom eingegebenen ab.
  */
 const MAX_MENTION_CHARS = 40;
-
-/**
- * Pfadsegmente der Rezept-Routen (`/agentura/rezept/neu`,
- * `…/:mention/bearbeiten`). Als Erwähnung vergeben, wäre die eigene
- * Detailseite des Rezepts nicht mehr erreichbar.
- */
-const RESERVED_MENTIONS = ['neu', 'bearbeiten'];
 
 /**
  * Was der Erwähnung im Weg steht, bevor irgendetwas zum Server geht. Der
@@ -60,7 +60,7 @@ function mentionBlocker(
   mention: string,
   lvIds: readonly string[] | null
 ): { text: string; href: string | null } | null {
-  if (RESERVED_MENTIONS.includes(mention)) {
+  if (RESERVED_TEXT_FORM_MENTIONS.includes(mention)) {
     return { text: 'Dieser Name ist reserviert.', href: null };
   }
   const classification = classifyRecipeMention(mention, lvIds);
@@ -171,6 +171,12 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       : null;
 
   const titleValid = form.title.trim().length > 0;
+  // Die Beschreibung ist die einzige Auswahlgrundlage des Modells (Rezeptkatalog).
+  // Beim Bearbeiten bleibt eine unveränderte kurze Beschreibung speicherbar.
+  const descriptionValid = isUserRecipeDescriptionValid(
+    form.description,
+    mode === 'edit' ? initialState.description : null
+  );
   // Doppelte Rolle: Speicherbedingung und — im Beispiel-Panel — die Frage, ob
   // eine Analyse etwas überschreiben würde.
   const styleValid = form.styleBlock.trim().length > 0;
@@ -185,6 +191,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       : null;
   const canSave =
     titleValid &&
+    descriptionValid &&
     styleValid &&
     mentionValid &&
     !tooManyExamples &&
@@ -403,8 +410,42 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
-              placeholder="Beschreibe dein Rezept und wie es funktioniert"
+              placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
+              aria-invalid={!descriptionValid}
+              aria-describedby="recipe-description-hint"
             />
+          </label>
+          <p
+            id="recipe-description-hint"
+            className={
+              descriptionValid
+                ? '-mt-sm text-xs text-foreground-muted'
+                : '-mt-sm text-xs text-destructive'
+            }
+          >
+            Mindestens {USER_RECIPE_DESCRIPTION_MIN} Zeichen · hiernach entscheidet der Grünerator,
+            wann er das Rezept nutzt.
+          </p>
+
+          <label className={labelCls}>
+            Kategorie
+            <select
+              className={selectCls}
+              value={form.category ?? ''}
+              onChange={(e) =>
+                set(
+                  'category',
+                  e.target.value === '' ? null : (e.target.value as SkillCategoryValue)
+                )
+              }
+            >
+              <option value="">Eigene (keine Kategorie)</option>
+              {SKILL_CATEGORY_ORDER.map((c) => (
+                <option key={c} value={c}>
+                  {SKILL_CATEGORY_LABELS[c]}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="flex flex-col gap-sm">

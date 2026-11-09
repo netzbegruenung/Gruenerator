@@ -546,7 +546,7 @@ export async function streamAgenticResponse(
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle })}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,

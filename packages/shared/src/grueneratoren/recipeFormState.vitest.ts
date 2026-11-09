@@ -26,6 +26,7 @@ const CUSTOM_FORM: TextForm = {
   ownerName: null,
   description: 'Für OMV-Einladungen',
   iconKey: 'PiEnvelope',
+  category: 'social',
   shareMode: 'private',
   isPublic: false,
   publicOwnership: null,
@@ -86,6 +87,7 @@ describe('recipeFormToPayload', () => {
       styleBlock: 'Kurz und knapp.',
       description: 'Für OMV-Einladungen',
       iconKey: EMPTY_RECIPE_FORM.iconKey,
+      category: null,
     });
   });
 
@@ -96,6 +98,12 @@ describe('recipeFormToPayload', () => {
 });
 
 describe('hydrateRecipeForm', () => {
+  it('carries the saved category into the form and back into the payload', () => {
+    const form = hydrateRecipeForm(CUSTOM_FORM);
+    expect(form.category).toBe('social');
+    expect(recipeFormToPayload(form).category).toBe('social');
+  });
+
   it('hydrates a custom form with fixedMention null and joined examples', () => {
     const form = hydrateRecipeForm(CUSTOM_FORM);
     expect(form.kind).toBe('custom');

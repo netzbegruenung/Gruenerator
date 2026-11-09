@@ -67,8 +67,8 @@ import { type ChatIntentId } from './index.js';
  *                auf `search` bei ≤1 Doc-Quelle
  *   examples     @beispiele · Ziel der App-Herabstufung von social_post
  *   social_post  STILLGELEGT (08/2026): die Textsorte liegt im Rezept
- *                (`instagram`/`facebook`/`twitter`/`linkedin`/`reel`), das der
- *                Einzeldurchlauf über `deriveImplicitRecipeMention` lädt —
+ *                (`instagram`/`facebook`/`twitter`/`linkedin`/`reel`), das die
+ *                Schleife über `rezept_laden` wählt —
  *                der einzige, der ersatzlos fällt statt umzuziehen
  *   pressemitteilung_examples  STILLGELEGT (Phase L): die Karte hängt am
  *                Werkzeug, nicht am Verdikt; @pressemitteilungen/@pm zurrt

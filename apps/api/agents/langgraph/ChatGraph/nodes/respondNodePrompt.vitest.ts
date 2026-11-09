@@ -859,7 +859,8 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       { loop: true }
     );
     expect(loop).not.toContain('RECHERCHE-METHODE');
-    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+    // Das gewählte Rezept trägt im Loop die Registry (`pinned`), nicht der Prompt.
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
   });
 
   // Fiel der Turn ohne Schleife auf `web` zurück (loop_only_degraded), fehlen die
@@ -909,6 +910,14 @@ describe('Prosa im Loop verliert nichts', () => {
     expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
   });
 
+  it('legt ein ausdrücklich gewähltes Rezept nicht in den Loop-Prompt — die Registry trägt es', async () => {
+    const chosen = makeState({ activeSkillMention: 'instagram', intent: 'produktion' } as never);
+    const loop = await buildSystemMessage(chosen, LOOP);
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    const single = await buildSystemMessage(chosen);
+    expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
+  });
+
   it('lässt den Einzelpfad unverändert', async () => {
     const single = await buildSystemMessage(prose('produktion'));
     expect(single).toContain('## AKTIVE PLATTFORM: Instagram');
@@ -918,6 +927,18 @@ describe('Prosa im Loop verliert nichts', () => {
   it('lässt die Ehrlichkeitsnotiz im Loop weg', async () => {
     const loop = await buildSystemMessage(prose('produktion'), LOOP);
     expect(loop).not.toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
+  });
+
+  it('leaves visual block guidance to the recipe on the loop path', async () => {
+    const state = makeState({ visualBlocks: [...VISUAL_BLOCK_KINDS] });
+    expect(await buildSystemMessage(state, LOOP)).not.toContain('## VISUELLE BAUSTEINE');
+    // Der Einzelpfad behält die Anleitung, ebenso ein Loop ohne Katalog-Rezept.
+    expect(await buildSystemMessage(state, {})).toContain('## VISUELLE BAUSTEINE');
+    const noTool = makeState({
+      visualBlocks: [...VISUAL_BLOCK_KINDS],
+      enabledTools: { rezept_laden: false },
+    } as never);
+    expect(await buildSystemMessage(noTool, LOOP)).toContain('## VISUELLE BAUSTEINE');
   });
 
   it('legt Rezept und Schreibhilfe nicht auf Nicht-Prosa-Turns im Loop', async () => {
@@ -1004,6 +1025,33 @@ describe('buildTurnPrompt — eingefügter Text in die Nachricht (#5431)', () =>
       messages: [{ role: 'user', content: 'Hier sind die Termine' }],
       ...over,
     } as never);
+
+  it('keeps the paste rule on a paste turn without a product question, and only there', async () => {
+    const RULE = 'Bestreite nie, dass es ihn gibt';
+    const withPaste = await buildSystemMessage(pasteState(), OPTS);
+    expect(withPaste).toContain(RULE);
+    const withUpload = await buildSystemMessage(pasteState([upload]), OPTS);
+    expect(withUpload).toContain(RULE);
+    const plain = await buildSystemMessage(makeState({ intent: 'produktion' } as never), OPTS);
+    expect(plain).not.toContain(RULE);
+  });
+
+  it('keeps the paste rule on a follow-up about a paste from an earlier turn', async () => {
+    const RULE = 'Bestreite nie, dass es ihn gibt';
+    const followUp = makeState({
+      intent: 'produktion',
+      messages: [{ role: 'user', content: 'Mach aus der Datei einen Post' }],
+      wholeDocument: {
+        origin: 'thread',
+        ask: 'paste',
+        docs: [{ name: 'Eingefügter Text.txt', text: PASTE, documentId: 'd1' }],
+        chars: PASTE.length,
+        budgetChars: 10000,
+        fits: true,
+      },
+    } as never);
+    expect(await buildSystemMessage(followUp, OPTS)).toContain(RULE);
+  });
 
   it('nimmt den Paste aus dem Prompt und gibt ihn eingefasst daneben zurück', async () => {
     const { systemMessage, turnPaste } = await buildTurnPrompt(pasteState(), OPTS);

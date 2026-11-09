@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen'
 title: 'PM Thüringen'
-description: 'Pressemitteilung im Stil Bündnisgrüne Thüringen'
+description: 'Pressemitteilung im Stil der Grünen Thüringen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Thüringen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '🌲'
 backgroundColor: '#316049'

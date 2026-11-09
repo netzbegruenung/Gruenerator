@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin'
 title: 'PM Berlin (Partei)'
-description: 'Pressemitteilung der Berliner GRÜNEN — AGH-Wahl 2026, Parteitage, Volksinitiativen, Bundespolitik'
+description: 'Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.'
 iconKey: 'PiBuildings'
 avatar: '🐻'
 backgroundColor: '#316049'

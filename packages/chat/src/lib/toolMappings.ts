@@ -67,6 +67,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   create_document: ['Dokument', 'Dokumente'],
   save_as_doc: ['Dokument', 'Dokumente'],
   rezept_laden: ['Rezept geladen', 'Rezepte geladen'],
+  methode_laden: ['Methode geladen', 'Methoden geladen'],
   text_uebersetzen: ['Übersetzung', 'Übersetzungen'],
   create_pdf: ['PDF', 'PDFs'],
   create_explainable: ['Explainable', 'Explainables'],

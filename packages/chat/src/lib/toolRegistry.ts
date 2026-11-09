@@ -87,6 +87,7 @@ export const UI_TOOL_NAMES = z.enum([
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
   'rezept_laden',
+  'methode_laden',
   'sharepic',
   // Persisted by the deterministic edit lane (sharepicEditService), not the loop.
   'sharepic_edit',
@@ -1321,6 +1322,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
+  methode_laden: entry('methode_laden', 'text-note', parseRecipeVM),
   sharepic: entry('sharepic', 'text-note', parseSharepicVM),
   sharepic_edit: entry('sharepic_edit', 'text-note', parseSharepicEditVM),
   create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),

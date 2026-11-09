@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPrepareStep } from './loopEngine.js';
 import {
   createRecipeRegistry,
-  MAX_METHOD_RECIPES_PER_TURN,
+  MAX_RECIPE_BODY_CHARS,
   MAX_RECIPES_PER_TURN,
   METHOD_ONLY_PRECEDENCE_NOTE,
   METHOD_PRECEDENCE_NOTE,
@@ -15,6 +15,7 @@ const recipe = (mention: string, body = 'Schreibe kurz.') => ({
   title: `Titel ${mention}`,
   body,
   source: 'system' as const,
+  id: null,
 });
 
 describe('createRecipeRegistry', () => {
@@ -112,8 +113,9 @@ describe('createRecipeRegistry', () => {
     expect(reg.render()).toContain('Ohne Textsorte bestimmt die Methode auch die Antwortform.');
   });
 
-  it('hands the form back to a text form picked outside the registry', () => {
-    const reg = createRecipeRegistry(undefined, undefined, true);
+  it('hands the form back to a pinned text form', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('instagram'), pinned: true });
     reg.register({ ...recipe('bundestagsrecherche'), preloaded: true, rolle: 'methode' });
     expect(reg.render()).toContain(METHOD_PRECEDENCE_NOTE);
     expect(reg.render()).not.toContain(METHOD_ONLY_PRECEDENCE_NOTE);
@@ -132,14 +134,58 @@ describe('createRecipeRegistry', () => {
     expect(reg.render()).not.toContain('RECHERCHE');
   });
 
-  it('caps methods separately — a full method slot never blocks the text form', () => {
+  it('caps at three recipes in total, methods included', () => {
     const reg = createRecipeRegistry();
-    for (let i = 0; i < MAX_METHOD_RECIPES_PER_TURN; i++) {
-      expect(reg.register({ ...recipe(`m${i}`), rolle: 'methode' })).toBe('registered');
-    }
-    expect(reg.register({ ...recipe('m-extra'), rolle: 'methode' })).toBe('full');
+    expect(reg.register({ ...recipe('m1'), rolle: 'methode' })).toBe('registered');
+    expect(reg.register({ ...recipe('m2'), rolle: 'methode' })).toBe('registered');
     expect(reg.register(recipe('presse'))).toBe('registered');
-    expect(reg.size).toBe(MAX_METHOD_RECIPES_PER_TURN + 1);
+    expect(reg.register(recipe('instagram'))).toBe('full');
+    expect(reg.size).toBe(3);
+  });
+
+  it('refuses a body that would exceed MAX_RECIPE_BODY_CHARS', () => {
+    const reg = createRecipeRegistry();
+    expect(reg.register(recipe('a', 'x'.repeat(MAX_RECIPE_BODY_CHARS - 10)))).toBe('registered');
+    expect(reg.register(recipe('b', 'y'.repeat(11)))).toBe('over_budget');
+    expect(reg.mentions).toEqual(['a']);
+  });
+
+  it('never evicts a pinned recipe', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('presse'), pinned: true });
+    expect(reg.register(recipe('instagram'))).toBe('registered');
+    expect(reg.mentions).toEqual(['presse', 'instagram']);
+    expect(reg.pinnedTitle).toBe('Titel presse');
+  });
+
+  it('keeps evicting a preloaded text form for a chosen one', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('buerger-berlin'), preloaded: true });
+    expect(reg.register(recipe('presse'))).toBe('registered');
+    expect(reg.mentions).toEqual(['presse']);
+  });
+
+  it('renders one version per text form when two are loaded', () => {
+    const reg = createRecipeRegistry();
+    reg.register(recipe('presse'));
+    expect(reg.render()).not.toContain('Liefere je Textsorte eine eigene Fassung');
+    reg.register(recipe('instagram'));
+    expect(reg.render()).toContain('Liefere je Textsorte eine eigene Fassung');
+  });
+
+  it('duplicates are keyed by id before mention', () => {
+    const reg = createRecipeRegistry();
+    expect(reg.register({ ...recipe('mein-stil'), id: 'row-1' })).toBe('registered');
+    expect(reg.register({ ...recipe('mein-stil'), id: 'row-2' })).toBe('registered');
+    expect(reg.register({ ...recipe('mein-stil'), id: 'row-2' })).toBe('duplicate');
+  });
+
+  it('reports the remaining slots', () => {
+    const reg = createRecipeRegistry();
+    expect(reg.remaining).toBe(3);
+    reg.register(recipe('a'));
+    expect(reg.remaining).toBe(2);
+    expect(reg.pinnedTitle).toBeNull();
   });
 
   it('two text forms stay exclusive against preloads: a chosen one evicts the preloaded one', () => {

@@ -28,6 +28,20 @@ import { useEffect } from 'react';
  * gefallen ist — während der umgekehrte Fehler (Systemrezept verliert beim
  * Öffnen still seinen Stil) niemandem auffällt.
  */
+/**
+ * Liest das Rezept aus der URL. `?skill=<mention>` ist der alte Link (F0:
+ * ausgelieferte Links bleiben gültig) und aktiviert jetzt ebenfalls das Rezept
+ * — früher löste er nur den Agenten auf und ließ den Rumpf ungenutzt. Alle
+ * Erzeuger schreiben `?rezept=`; `?rezept=` gewinnt, wenn beide stehen.
+ */
+export function readRecipeDeepLink(searchParams: URLSearchParams): {
+  mention: string | null;
+  recipeId: string | null;
+} {
+  const mention = searchParams.get('rezept') ?? searchParams.get('skill');
+  return { mention, recipeId: mention ? searchParams.get('rezeptId') : null };
+}
+
 export function useRecipeDeepLink(rezeptParam: string | null, rezeptIdParam: string | null): void {
   const storedMention = useAgentStore((s) => s.activeSkillMention);
 

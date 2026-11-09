@@ -277,11 +277,14 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 describe('assembleToolCatalog — Rezept-Werkzeug', () => {
   const catalog = [
     {
+      key: 'presse',
       mention: 'presse',
       title: 'Pressemitteilung',
       description: 'PM',
       source: 'system' as const,
       id: null,
+      origin: 'system' as const,
+      ownerName: null,
     },
   ];
   const withRecipes = (over: Partial<CatalogDeps> = {}) =>
@@ -295,6 +298,21 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
 
   // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
   // bleibt offen, und das Modell muss sie selbst laden können.
+  it('montiert methode_laden nur, wenn der Katalog eine Methode trägt, und scoped es aus späteren Schritten', async () => {
+    const without = await assemble(fakeState(), withRecipes());
+    expect(without.tools.methode_laden).toBeUndefined();
+
+    const rechtsstand = { ...catalog[0]!, key: 'rechtsstand', mention: 'rechtsstand' };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [...catalog, rechtsstand] })
+    );
+    expect(assembled.tools.methode_laden).toBeDefined();
+    // Nur der erzwungene erste Schritt wählt es selbst; sonst fehlt es im Umfang.
+    expect(assembled.toolScope.activeTools([])).not.toContain('methode_laden');
+    expect(assembled.toolScope.activeTools([])).toContain('rezept_laden');
+  });
+
   it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {
     const assembled = await assemble(
       fakeState({ methodSkillMentions: ['bundestagsrecherche'] }),
@@ -313,19 +331,25 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     );
   });
 
-  it('legt die Methode neben eine gewählte Textsorte, ohne rezept_laden zu öffnen', async () => {
+  it('legt die Methode neben eine gewählte Textsorte und lässt rezept_laden offen', async () => {
     const assembled = await assemble(
       fakeState({ activeSkillMention: 'presse', methodSkillMentions: ['bundestagsrecherche'] }),
       withRecipes({
+        buildRecipeCatalog: async () => [
+          ...catalog,
+          { ...catalog[0]!, mention: 'instagram', title: 'Instagram' },
+        ],
         resolveRecipe: async ({ mention }) => ({
+          id: null,
+          mention,
           title: `Titel ${mention}`,
           body: 'Methodenrumpf',
           source: 'system',
         }),
       } as Partial<CatalogDeps>)
     );
-    expect(assembled.tools.rezept_laden).toBeUndefined();
-    expect(assembled.recipeRegistry.mentions).toEqual(['bundestagsrecherche']);
+    expect(assembled.tools.rezept_laden).toBeDefined();
+    expect(assembled.recipeRegistry.mentions).toEqual(['presse', 'bundestagsrecherche']);
   });
 
   // #5479: nach einer ask_human-Rückfrage schrieb die Fortsetzung ohne das
@@ -358,20 +382,107 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeRegistry.render()).toContain('Rezeptrumpf');
   });
 
+  it('lädt ein gespeichertes fremdes Rezept über Zeilen-id statt über die Mention neu', async () => {
+    const LIB_ID = 'aaaaaaaa-1111-4111-8111-111111111111';
+    const resolveRecipe = vi.fn(
+      async ({ mention, recipeId }: { mention: string | null; recipeId?: string | null }) =>
+        recipeId === LIB_ID
+          ? {
+              id: LIB_ID,
+              mention: mention ?? 'presse',
+              title: 'Fremd',
+              body: 'Fremdrumpf',
+              source: 'user' as const,
+            }
+          : {
+              id: null,
+              mention: mention ?? 'presse',
+              title: 'Sys',
+              body: 'Sysrumpf',
+              source: 'system' as const,
+            }
+    );
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ resolveRecipe } as unknown as Partial<CatalogDeps>),
+      {
+        resumedSteps: [
+          {
+            toolCallId: 'c1',
+            toolName: 'rezept_laden',
+            args: { rezept: 'presse-aaaaaa' },
+            // Doppelt: zweimal dasselbe geladene Rezept darf nur einmal landen.
+            result: { rezept: 'presse-aaaaaa', mention: 'presse', rezeptId: LIB_ID, geladen: true },
+          },
+          {
+            toolCallId: 'c2',
+            toolName: 'rezept_laden',
+            args: { rezept: 'presse-aaaaaa' },
+            result: { rezept: 'presse-aaaaaa', mention: 'presse', rezeptId: LIB_ID, geladen: true },
+          },
+        ],
+      }
+    );
+    expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: 'presse', recipeId: LIB_ID })
+    );
+    expect(assembled.recipeRegistry.size).toBe(1);
+    expect(assembled.recipeRegistry.has(LIB_ID)).toBe(true);
+    expect(assembled.recipeRegistry.render()).toContain('Fremdrumpf');
+  });
+
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {
     const assembled = await assemble(fakeState(), deps({ buildRecipeCatalog: async () => [] }));
     expect(assembled.tools.rezept_laden).toBeUndefined();
     expect(assembled.recipeCatalog).toEqual([]);
   });
 
-  it('fragt den Katalog gar nicht ab, wenn ein Rezept schon erwähnt wurde', async () => {
-    const buildRecipeCatalog = vi.fn(async () => catalog);
+  const resolvePinned = async ({
+    mention,
+    recipeId,
+  }: {
+    mention: string | null;
+    recipeId?: string | null;
+  }) => ({
+    id: recipeId ?? null,
+    mention: mention ?? 'presse',
+    title: 'Pressemitteilung',
+    body: 'Pinnrumpf',
+    source: 'system' as const,
+  });
+
+  it('montiert rezept_laden neben einem erwähnten Rezept und lässt es aus dem Katalog', async () => {
+    const buildRecipeCatalog = vi.fn(async () => [
+      ...catalog,
+      {
+        key: 'instagram',
+        mention: 'instagram',
+        title: 'Instagram',
+        description: 'Post',
+        source: 'system' as const,
+        id: null,
+        origin: 'system' as const,
+        ownerName: null,
+      },
+    ]);
     const assembled = await assemble(
       fakeState({ activeSkillMention: 'presse' }),
-      withRecipes({ buildRecipeCatalog })
+      withRecipes({ buildRecipeCatalog, resolveRecipe: resolvePinned } as Partial<CatalogDeps>)
     );
-    expect(buildRecipeCatalog).not.toHaveBeenCalled();
-    expect(assembled.tools.rezept_laden).toBeUndefined();
+    expect(buildRecipeCatalog).toHaveBeenCalled();
+    expect(assembled.tools.rezept_laden).toBeDefined();
+    expect(assembled.recipeCatalog.map((e) => e.mention)).toEqual(['instagram']);
+  });
+
+  it('registriert das erwähnte Rezept gepinnt', async () => {
+    const assembled = await assemble(
+      fakeState({ activeSkillMention: 'presse' }),
+      withRecipes({ resolveRecipe: resolvePinned } as Partial<CatalogDeps>)
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['presse']);
+    expect(assembled.recipeRegistry.pinnedTitle).toBe('Pressemitteilung');
+    expect(assembled.recipeRegistry.render()).toContain('Pinnrumpf');
   });
 
   it('schweigt bei einem eigenen Thread-Prompt — ausser die Rolle bringt ihn mit', async () => {
@@ -400,13 +511,18 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.tools.rezept_laden).toBeUndefined();
   });
 
-  it('fragt den Katalog gar nicht ab, wenn ein Rezept per Id gepinnt ist', async () => {
-    const buildRecipeCatalog = vi.fn(async () => catalog);
+  it('montiert rezept_laden neben einem per Id gepinnten Rezept und lässt es aus dem Katalog', async () => {
     const assembled = await assemble(
-      fakeState({ activeSkillMention: null, activeRecipeId: 'presse' }),
-      withRecipes({ buildRecipeCatalog })
+      fakeState({ activeSkillMention: null, activeRecipeId: 'row-1' }),
+      withRecipes({
+        buildRecipeCatalog: async () => [
+          { ...catalog[0]!, key: 'mein-stil', mention: 'mein-stil', id: 'row-1' },
+        ],
+        resolveRecipe: resolvePinned,
+      } as Partial<CatalogDeps>)
     );
-    expect(buildRecipeCatalog).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.pinnedTitle).toBe('Pressemitteilung');
+    expect(assembled.recipeCatalog).toEqual([]);
     expect(assembled.tools.rezept_laden).toBeUndefined();
   });
 
@@ -475,7 +591,7 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
     expect(assembled.recipeRegistry.mentions).toEqual(['presse']);
   });
 
-  it('lädt nichts, wenn die Person selbst ein Rezept gewählt hat', async () => {
+  it('lädt den Agent-Default nicht, wenn die Person selbst ein Rezept gewählt hat', async () => {
     const resolveRecipe = vi.fn();
     const assembled = await assemble(
       fakeState({
@@ -485,7 +601,9 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
       }),
       withSearch({ resolveRecipe } as Partial<CatalogDeps>)
     );
-    expect(resolveRecipe).not.toHaveBeenCalled();
+    // Nur die Wahl wird aufgelöst, nie der Default `buerger-berlin`.
+    expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    expect(resolveRecipe).toHaveBeenCalledWith(expect.objectContaining({ mention: 'presse' }));
     expect(assembled.recipeRegistry.size).toBe(0);
   });
 
@@ -595,11 +713,14 @@ describe('assembleToolCatalog — Montage-Reihenfolge', () => {
           order.push('rezept');
           return [
             {
+              key: 'presse',
               mention: 'presse',
               title: 'PM',
               description: 'd',
               source: 'system' as const,
               id: null,
+              origin: 'system' as const,
+              ownerName: null,
             },
           ];
         },
@@ -851,7 +972,16 @@ describe('assembleToolCatalog — toolAllowlist', () => {
       })
     );
     const buildRecipeCatalog = vi.fn(async () => [
-      { mention: 'presse', title: 'PM', description: 'PM', source: 'system' as const, id: null },
+      {
+        key: 'presse',
+        mention: 'presse',
+        title: 'PM',
+        description: 'PM',
+        source: 'system' as const,
+        origin: 'system' as const,
+        id: null,
+        ownerName: null,
+      },
     ]);
     const assembled = await assembleToolCatalog(
       {
