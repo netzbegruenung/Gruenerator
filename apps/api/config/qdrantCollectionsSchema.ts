@@ -623,6 +623,9 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     hnsw: 'standard',
     indexes: [
       ...NLP_FACET_INDEXES,
+      // Wie landtag_nrw_documents: die Zählung für den Typ-Filter filtert auf
+      // chunk_index = 0. Ohne Index ein Volldurchlauf, gemessen 23,7 s.
+      { field: 'chunk_index', type: 'integer' },
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
