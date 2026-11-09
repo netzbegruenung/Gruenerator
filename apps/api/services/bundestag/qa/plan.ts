@@ -12,7 +12,12 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
-import { CURRENT_WAHLPERIODE, detectFromWording, dropTitelBesideDeskriptor } from './planDetect.js';
+import {
+  CURRENT_WAHLPERIODE,
+  detectFromWording,
+  dropFraktionBesideAntwort,
+  dropTitelBesideDeskriptor,
+} from './planDetect.js';
 
 const log = createLogger('BundestagQaPlan');
 

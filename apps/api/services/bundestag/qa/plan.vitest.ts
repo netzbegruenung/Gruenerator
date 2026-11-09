@@ -57,7 +57,7 @@ describe('planFilters', () => {
   it('Fraktion im Wortlaut neben Typ Antwort fällt weg, auch wenn erst die Modell-query sie nennt (#5558)', async () => {
     model({ keywords: ['grüne', 'ngos', 'afd'], wahlperiode: [21] });
     const r = await planFilters({
-      question: 'Grüne NGOs AfD Antwort der Bundesregierung',
+      question: 'Grüne NGOs AfD',
       explicit: { drucksachetyp: ['Antwort'] },
       dip: dipWith({}),
     });
