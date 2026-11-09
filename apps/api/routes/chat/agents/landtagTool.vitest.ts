@@ -99,6 +99,10 @@ describe('makeLandtagTool', () => {
     for (const id of ids) expect(t.description).toContain(`'${id}'`);
     expect(t.description).toMatch(/Nur diese Parlamente/);
     expect(t.description).toMatch(/andere Landtage[^.]*web_search/);
+    // Die Grenze in die andere Richtung: ohne genanntes Land gehört die Frage dem Bundestag (live: „wie viele kleine Anfragen … letzte WP“ ging zu NRW).
+    expect(t.description).toMatch(/Ohne genanntes Land[^.]*Bundestag[^.]*bundestag/);
+    // Kein Beispielsatz in Frageform: „wie viele Anfragen“ zog Bundestag-Fragen hierher.
+    expect(t.description).not.toMatch(/wie viele/i);
   });
 
   it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
