@@ -9,7 +9,18 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { renderArtifactChoices } from '../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { classifyDocsIntentTiebreak } from '../../agents/langgraph/ChatGraph/nodes/docsIntentTiebreak.js';
+import { resolveEditTarget } from '../../agents/langgraph/ChatGraph/nodes/editTargetResolver.js';
 import { resolveGenerationScope } from '../../agents/langgraph/ChatGraph/nodes/generationResolver.js';
+import { verifyComputeResult } from '../../routes/chat/services/computeResultVerifier.js';
+import {
+  classifyNotebookAnswerMode,
+  formatGuardPrompt,
+  type NotebookGuardTurn,
+} from '../../routes/chat/services/notebookAnswerModeResolver.js';
+
+import type { ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
 
 import type { MetisQuestion } from './metisClient.js';
 
@@ -20,11 +31,27 @@ export interface ResolverCase {
   /** Schlüssel in `SOURCES` — der Text, gegen den `text` geprüft wird. */
   quelle?: string;
   note?: string;
+  /** docsTiebreak: Verlauf vor der Nachricht, wie ihn der Klassifikator mitgibt. */
+  context?: string;
+  /** notebookMode: Verlauf vor der Frage, älteste zuerst. */
+  history?: NotebookGuardTurn[];
+  /** editTarget: Artefakte des Threads, neueste zuerst. */
+  artifacts?: ThreadToolContext[];
+  /** computeVerify: `text` ist die Frage; dazu Code und Ergebnis. */
+  code?: string;
+  entries?: Array<{ label: string; value: string }>;
 }
 
+type ChoiceQuestion = MetisQuestion & { type: 'choice' };
+
 interface Variant {
-  question: MetisQuestion & { type: 'choice' };
+  /** Fest, oder je Fall gebaut (z. B. die Artefaktliste als Optionen). */
+  question: ChoiceQuestion | ((c: ResolverCase) => ChoiceQuestion);
   state: (c: ResolverCase) => unknown;
+}
+
+export function questionFor(v: Variant, c: ResolverCase): ChoiceQuestion {
+  return typeof v.question === 'function' ? v.question(c) : v.question;
 }
 
 export interface ResolverSpec {
@@ -200,4 +227,150 @@ const sharepicFigureClaim: ResolverSpec = {
   baseline: (c) => Promise.resolve(regexClaimCheck(c)),
 };
 
-export const SPECS: Record<string, ResolverSpec> = { generation, sharepicFigureClaim };
+/**
+ * `docsIntentTiebreak`: verlangt eine Nachricht im Dokument-Editor eine
+ * Bearbeitung oder ist sie eine Frage? Heute ein Wort von Mistral Small.
+ */
+const docsTiebreak: ResolverSpec = {
+  name: 'docsTiebreak',
+  variants: {
+    text: {
+      state: (c) =>
+        `${c.context ? `BISHERIGER VERLAUF:\n${c.context}\n\n` : ''}NACHRICHT IM DOKUMENT-EDITOR:\n${c.text}`,
+      question: {
+        type: 'choice',
+        instructions:
+          'Verlangt die NACHRICHT, dass der Text des offenen Dokuments geändert wird? Im Zweifel: edit.',
+        criteria: {
+          edit: 'den Dokumenttext ändern: umformulieren, kürzen, ergänzen, löschen, übersetzen, korrigieren – auch indirekt oder als Kritik am Text',
+          question:
+            'eine Frage zum Dokument oder Thema: erklären, zusammenfassen, bewerten, recherchieren – der Text bleibt, wie er ist',
+        },
+      },
+    },
+  },
+  cases: loadCases('docsTiebreak.jsonl'),
+  baseline: (c) =>
+    classifyDocsIntentTiebreak({ userContent: c.text, conversationContext: c.context ?? null }),
+};
+
+/**
+ * `notebookAnswerModeResolver`: Inhaltsfrage an die Quellen (`chat`) oder
+ * Arbeit mit den Quellen als Dokumenten (`praezision`, der teure Loop).
+ * Baseline ist nur der LLM-Wächter — die Regel davor (`looksLikeNotebookToolAsk`)
+ * bliebe in beiden Fällen stehen.
+ */
+const notebookMode: ResolverSpec = {
+  name: 'notebookMode',
+  variants: {
+    text: {
+      state: (c) => formatGuardPrompt(c.text, c.history ?? []),
+      question: {
+        type: 'choice',
+        instructions:
+          'Wie wird die letzte Nachricht an die Notebook-Quellen beantwortet? Eine Folgefrage übernimmt den Modus der vorigen Antwort. Im Zweifel: chat.',
+        criteria: {
+          chat: 'eine Inhaltsfrage: was steht drin, zusammenfassen, erklären, vergleichen, Positionen – auch eine Zahl oder ein Datum, das in einer Quelle steht',
+          praezision:
+            'Arbeit mit den Quellen als Dokumenten: sie auflisten, zählen oder sortieren, eine bestimmte Seite oder einen Abschnitt lesen, wörtliche Vorkommen eines Wortes zählen oder finden, ein Zitat wörtlich prüfen',
+        },
+      },
+    },
+  },
+  cases: loadCases('notebookMode.jsonl'),
+  baseline: (c) => classifyNotebookAnswerMode(c.text, c.history ?? []),
+};
+
+function artifactsOf(c: ResolverCase): ThreadToolContext[] {
+  if (!c.artifacts || c.artifacts.length < 2) throw new Error(`${c.id}: braucht ≥ 2 artifacts`);
+  return c.artifacts;
+}
+
+/**
+ * `editTargetResolver`: auf welches von mehreren Artefakten zielt ein
+ * Folgeauftrag? Die Optionen sind die Artefaktliste des Falls, in der Ordnung
+ * von `renderArtifactChoices` (1 = zuletzt erzeugt).
+ */
+const editTarget: ResolverSpec = {
+  name: 'editTarget',
+  variants: {
+    text: {
+      state: (c) =>
+        `ARTEFAKTE DIESES GESPRÄCHS (1 = zuletzt erzeugt):\n${renderArtifactChoices(artifactsOf(c))}\n\nFOLGEAUFTRAG:\n${c.text}`,
+      question: (c) => ({
+        type: 'choice',
+        instructions: 'Auf welches Artefakt bezieht sich der FOLGEAUFTRAG? Im Zweifel: keines.',
+        criteria: {
+          ...Object.fromEntries(
+            renderArtifactChoices(artifactsOf(c))
+              .split('\n')
+              .map((line, i) => [String(i + 1), line.replace(/^\d+\.\s*/, '')])
+          ),
+          keines:
+            'keines: eine neue Frage, ein neues Thema, ein eigenständiger neuer Auftrag oder die Bitte, nichts zu ändern',
+        },
+      }),
+    },
+  },
+  cases: loadCases('editTarget.jsonl'),
+  baseline: async (c) => {
+    const i = await resolveEditTarget({ userContent: c.text, artifacts: artifactsOf(c) });
+    return i == null ? 'keines' : String(i + 1);
+  },
+};
+
+/** Fester Stichtag, damit „dieses Jahr" in Korpus und Prüfung dasselbe meint. */
+const COMPUTE_TODAY = '2026-11-09';
+
+function computeState(c: ResolverCase): string {
+  if (!c.code || !c.entries?.length) throw new Error(`${c.id}: code/entries fehlt`);
+  const result = c.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
+  return `HEUTE: ${COMPUTE_TODAY}\n\nFRAGE:\n${c.text}\n\nAUSGEFÜHRTER PANDAS-CODE:\n${c.code}\n\nERGEBNIS:\n${result}`;
+}
+
+/**
+ * `computeResultVerifier`: beantwortet ein durchgelaufenes pandas-Ergebnis die
+ * gestellte Frage? Heute die `compute`-Lane mit JSON und Hinweis; ein
+ * Entscheidungsmodell gäbe nur das Urteil, den Hinweis schriebe das LLM nur
+ * noch bei `unplausibel`.
+ *
+ * Die Baseline läuft mit dem echten Datum, nicht mit `COMPUTE_TODAY` — Fälle
+ * mit „dieses Jahr" sind deshalb auf 2026 geschrieben.
+ */
+const computeVerify: ResolverSpec = {
+  name: 'computeVerify',
+  variants: {
+    text: {
+      state: computeState,
+      question: {
+        type: 'choice',
+        instructions:
+          'Beantwortet der CODE die FRAGE? Du kennst die Rohdaten nicht – beurteile nur Code-Logik gegen Frage. Im Zweifel: plausibel.',
+        criteria: {
+          plausibel: 'der Code rechnet, was die Frage verlangt',
+          unplausibel:
+            'klar falsch: falsche Spalte oder Gruppierung, eine in der Frage genannte Einschränkung (Zeitraum, Ort, Status, Kategorie) fehlt im Code, falsche Rechenart (Summe statt Durchschnitt, Zeilen zählen statt summieren), doppelt gezählt, oder ein unmöglicher Wert',
+        },
+      },
+    },
+  },
+  cases: loadCases('computeVerify.jsonl'),
+  baseline: async (c) => {
+    const hint = await verifyComputeResult({
+      question: null,
+      auftrag: c.text,
+      code: c.code ?? '',
+      entries: c.entries ?? [],
+    });
+    return hint == null ? 'plausibel' : 'unplausibel';
+  },
+};
+
+export const SPECS: Record<string, ResolverSpec> = {
+  generation,
+  sharepicFigureClaim,
+  docsTiebreak,
+  notebookMode,
+  editTarget,
+  computeVerify,
+};

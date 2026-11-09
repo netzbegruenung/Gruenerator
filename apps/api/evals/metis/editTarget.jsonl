@@ -1,0 +1,32 @@
+{"id": "et-01", "text": "Mach den Text größer", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}
+{"id": "et-02", "text": "Kürze die Begründung auf die Hälfte", "artifacts": [{"kind": "sharepic", "label": "Spielplatz Nord"}, {"kind": "document", "label": "Antrag Spielplatz Nord"}], "label": "2"}
+{"id": "et-03", "text": "Nochmal, aber abends mit warmem Licht", "artifacts": [{"kind": "document", "label": "Rede Stadtfest"}, {"kind": "image", "label": "Marktplatz"}], "label": "2"}
+{"id": "et-04", "text": "Die Überschrift auf der Kachel bitte in Grün", "artifacts": [{"kind": "sheet", "label": "Haushalt 2026"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "2"}
+{"id": "et-05", "text": "Füge noch eine Folie zur Finanzierung hinzu", "artifacts": [{"kind": "document", "label": "Antrag Freibad"}, {"kind": "presentation", "label": "Freibad retten"}], "label": "2"}
+{"id": "et-06", "text": "Was ist eigentlich die Mietpreisbremse?", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "keines"}
+{"id": "et-07", "text": "Schreib mir jetzt eine Rede zum Thema Wohnen", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "keines"}
+{"id": "et-08", "text": "Die Spalte Summe stimmt nicht", "artifacts": [{"kind": "document", "label": "Haushaltsrede"}, {"kind": "sheet", "label": "Haushalt 2026"}], "label": "2"}
+{"id": "et-09", "text": "Mach das Foto heller", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "image", "label": "Radfahrerin am Fluss"}], "label": "2"}
+{"id": "et-10", "text": "Tausch das Hintergrundbild aus", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}
+{"id": "et-11", "text": "Lass alles so, wie es ist, danke", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "keines"}
+{"id": "et-12", "text": "Ergänze im Antrag einen Absatz zur Barrierefreiheit", "artifacts": [{"kind": "sharepic", "label": "Spielplatz Nord"}, {"kind": "document", "label": "Antrag Spielplatz Nord"}], "label": "2"}
+{"id": "et-13", "text": "Die Zahl auf der Kachel ist falsch, es sind 17", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "2"}
+{"id": "et-14", "text": "Mach die Präsentation kürzer, höchstens fünf Folien", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "presentation", "label": "Verkehrskonzept"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "2"}
+{"id": "et-15", "text": "Übersetz den Flyer ins Englische", "artifacts": [{"kind": "pdf", "label": "Flyer Sommerfest"}, {"kind": "image", "label": "Sommerfest"}], "label": "1"}
+{"id": "et-16", "text": "Kannst du die Erklärseite noch einfacher machen?", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "explainable", "label": "Was ist ein Bürgerhaushalt?"}], "label": "2"}
+{"id": "et-17", "text": "Füg im Board eine Spalte Erledigt hinzu", "artifacts": [{"kind": "board", "label": "Wahlkampf 2027"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}
+{"id": "et-18", "text": "Wie wird das Wetter morgen?", "artifacts": [{"kind": "image", "label": "Marktplatz"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "keines"}
+{"id": "et-19", "text": "Das Bild soll quadratisch sein", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "image", "label": "Marktplatz"}], "label": "2"}
+{"id": "et-20", "text": "Im Dokument fehlt noch die Unterschrift des Vorstands", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "presentation", "label": "Verkehrskonzept"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "3"}
+{"id": "et-21", "text": "Nimm ein anderes Zitat für die Kachel", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "2"}
+{"id": "et-22", "text": "Rechne in der Tabelle noch die Mehrwertsteuer dazu", "artifacts": [{"kind": "sheet", "label": "Angebote Druckerei"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}
+{"id": "et-23", "text": "Neue Aufgabe: erstelle eine Einladung zur Mitgliederversammlung", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "keines"}
+{"id": "et-24", "text": "Das PDF bitte noch mit Seitenzahlen", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "pdf", "label": "Programm Kommunalwahl"}], "label": "2"}
+{"id": "ho-01", "text": "Mach die Schrift auf dem Sharepic fetter", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "sharepic", "label": "Radweg Altdorf"}], "label": "2"}
+{"id": "ho-02", "text": "Die Einleitung im Antrag ist zu lang", "artifacts": [{"kind": "sharepic", "label": "Spielplatz Nord"}, {"kind": "document", "label": "Antrag Spielplatz Nord"}], "label": "2"}
+{"id": "ho-03", "text": "Erzeug das Bild nochmal mit Kindern im Vordergrund", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "image", "label": "Spielplatz"}], "label": "2"}
+{"id": "ho-04", "text": "Wer ist eigentlich Bürgermeister in Neustadt?", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "keines"}
+{"id": "ho-05", "text": "Auf Folie 3 fehlt die Quelle", "artifacts": [{"kind": "document", "label": "Pressemitteilung Radweg"}, {"kind": "presentation", "label": "Verkehrskonzept"}], "label": "2"}
+{"id": "ho-06", "text": "Die Summe in Zeile 12 ist falsch", "artifacts": [{"kind": "presentation", "label": "Haushalt"}, {"kind": "sheet", "label": "Haushalt 2026"}], "label": "2"}
+{"id": "ho-07", "text": "Bitte nichts mehr ändern", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "keines"}
+{"id": "ho-08", "text": "Mach den Hintergrund dunkler", "artifacts": [{"kind": "sharepic", "label": "Radweg Altdorf"}, {"kind": "document", "label": "Pressemitteilung Radweg"}], "label": "1"}

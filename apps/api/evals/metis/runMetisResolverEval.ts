@@ -20,7 +20,7 @@ import {
   type DecisionModel,
   type MetisChoiceAnswer,
 } from './metisClient.js';
-import { SPECS, type ResolverCase } from './specs.js';
+import { questionFor, SPECS, type ResolverCase } from './specs.js';
 
 const CONF_STEPS = [0, 0.3, 0.5, 0.7, 0.85];
 const REPEAT = Number(process.env.EVAL_REPEAT ?? 1);
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     const r = await systemOne({
       model,
       state: variant.state(c),
-      questions: { q: variant.question },
+      questions: { q: questionFor(variant, c) },
     });
     const a = r.answers.q as MetisChoiceAnswer;
     return { choice: a.choice, confidence: a.confidence, ms: Date.now() - t };

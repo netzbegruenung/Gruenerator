@@ -1,0 +1,40 @@
+{"id": "doc-01", "text": "mach das knackiger", "label": "edit"}
+{"id": "doc-02", "text": "kannst du das anders sagen?", "label": "edit"}
+{"id": "doc-03", "text": "in besseres Deutsch bringen bitte", "label": "edit"}
+{"id": "doc-04", "text": "polish this", "label": "edit"}
+{"id": "doc-05", "text": "weg mit dem zweiten Absatz", "label": "edit"}
+{"id": "doc-06", "text": "ja, mach das", "label": "edit", "context": "Nutzer*in: Kannst du dir den Text mal ansehen?\nAssistent: Der zweite Absatz wiederholt die Einleitung. Soll ich ihn kürzen?"}
+{"id": "doc-07", "text": "Worum geht es in dem Dokument eigentlich?", "label": "question"}
+{"id": "doc-08", "text": "Ist die Zahl im dritten Absatz korrekt?", "label": "question"}
+{"id": "doc-09", "text": "Was hältst du von der Einleitung?", "label": "question"}
+{"id": "doc-10", "text": "Klingt das zu aggressiv?", "label": "question"}
+{"id": "doc-11", "text": "Das ist viel zu lang", "label": "edit"}
+{"id": "doc-12", "text": "Kannst du mir erklären, was mit Klimageld gemeint ist?", "label": "question"}
+{"id": "doc-13", "text": "Bitte auf Englisch", "label": "edit"}
+{"id": "doc-14", "text": "Fass das Dokument für mich in drei Sätzen zusammen", "label": "question"}
+{"id": "doc-15", "text": "Die Überschrift ist langweilig", "label": "edit"}
+{"id": "doc-16", "text": "Gibt es aktuelle Zahlen zur Mietpreisbremse?", "label": "question"}
+{"id": "doc-17", "text": "Noch ein bisschen förmlicher", "label": "edit"}
+{"id": "doc-18", "text": "Wer hat das Dokument erstellt?", "label": "question"}
+{"id": "doc-19", "text": "make it sound less like a press release", "label": "edit"}
+{"id": "doc-20", "text": "Welche Argumente fehlen hier noch?", "label": "question"}
+{"id": "doc-21", "text": "Am Ende fehlt ein Aufruf zur Mitgliederversammlung, häng den noch dran", "label": "edit"}
+{"id": "doc-22", "text": "Passt das so für den Ortsverband?", "label": "question"}
+{"id": "doc-23", "text": "weiter so", "label": "edit", "context": "Nutzer*in: Mach die Einleitung freundlicher.\nAssistent: Ich habe die Einleitung umformuliert und einen persönlichen Einstieg ergänzt."}
+{"id": "doc-24", "text": "Die Gendersternchen bitte überall einheitlich", "label": "edit"}
+{"id": "doc-25", "text": "Was bedeutet die Abkürzung KdU im zweiten Absatz?", "label": "question"}
+{"id": "doc-26", "text": "Lieber Du statt Sie", "label": "edit"}
+{"id": "doc-27", "text": "Ist das rechtlich so in Ordnung?", "label": "question"}
+{"id": "doc-28", "text": "Die Tabelle braucht noch eine Spalte für 2026", "label": "edit"}
+{"id": "doc-29", "text": "Wie viele Wörter hat der Text?", "label": "question"}
+{"id": "doc-30", "text": "zu viel Fachsprache", "label": "edit"}
+{"id": "ho-01", "text": "Nimm den Satz über die CDU raus", "label": "edit"}
+{"id": "ho-02", "text": "Erklär mir den Unterschied zwischen Antrag und Anfrage", "label": "question"}
+{"id": "ho-03", "text": "das klingt holprig", "label": "edit"}
+{"id": "ho-04", "text": "Stimmt die Jahreszahl 2019?", "label": "question"}
+{"id": "ho-05", "text": "Bisschen mehr Pep im Schluss", "label": "edit"}
+{"id": "ho-06", "text": "Welche Quellen könnte ich noch zitieren?", "label": "question"}
+{"id": "ho-07", "text": "can you translate this into French", "label": "edit"}
+{"id": "ho-08", "text": "Wie würde die SPD darauf reagieren?", "label": "question"}
+{"id": "ho-09", "text": "nochmal, aber kürzer", "label": "edit"}
+{"id": "ho-10", "text": "Warum hast du das so geschrieben?", "label": "question"}
