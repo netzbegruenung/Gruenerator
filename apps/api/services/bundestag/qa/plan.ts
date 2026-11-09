@@ -12,7 +12,12 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
-import { CURRENT_WAHLPERIODE, detectFromWording, dropTitelBesideDeskriptor } from './planDetect.js';
+import {
+  CURRENT_WAHLPERIODE,
+  detectFromWording,
+  dropFraktionBesideAntwort,
+  dropTitelBesideDeskriptor,
+} from './planDetect.js';
 
 const log = createLogger('BundestagQaPlan');
 
@@ -228,6 +233,8 @@ export async function planFilters({
     Object.entries(explicit).filter(([, v]) => v !== undefined)
   ) as BundestagFilter;
   const filters: BundestagFilter = { ...fromModel, ...detected, ...given };
+  const fraktionNote = dropFraktionBesideAntwort(filters);
+  if (fraktionNote) notes.push(fraktionNote);
 
   // Die Vorbelegung gilt schon fürs Zählen, damit es dieselbe Periode nutzt wie die Suche.
   let assumedWahlperiode = false;

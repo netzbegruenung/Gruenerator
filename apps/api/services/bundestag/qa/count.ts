@@ -18,7 +18,7 @@ import {
 import { type DipParams } from '../dip/dipClient.js';
 
 import { type FindDip } from './find.js';
-import { dropTitelBesideDeskriptor } from './planDetect.js';
+import { dropFraktionBesideAntwort, dropTitelBesideDeskriptor } from './planDetect.js';
 
 export type CountGroupBy = BundestagGruppieren;
 export const MAX_COUNT_CALLS = 25;
@@ -30,6 +30,19 @@ const WAHLPERIODE_RANGE: Record<number, { von: string; bis: string | null }> = {
   19: { von: '2017-10-24', bis: '2021-10-25' },
   20: { von: '2021-10-26', bis: '2025-03-24' },
   21: { von: '2025-03-25', bis: null },
+};
+
+/**
+ * Drucksachentypen mit einem Vorgangstyp, den `/vorgang?f.vorgangstyp=` kennt. Gemessen
+ * 09.11.2026 (WP 21, BT): Kleine Anfrage 2951 Vorgänge (Grüne 531), Große Anfrage 16,
+ * Antrag 815, Gesetzgebung 452 (Gesetzentwurf-Drucksachen: 437); `Gesetzentwurf`,
+ * `Entschließungsantrag` und `Antwort` als Vorgangstyp liefern 0.
+ */
+const VORGANGSTYP_ZU_DRUCKSACHETYP: Record<string, string> = {
+  'Kleine Anfrage': 'Kleine Anfrage',
+  'Große Anfrage': 'Große Anfrage',
+  Antrag: 'Antrag',
+  Gesetzentwurf: 'Gesetzgebung',
 };
 
 export interface CountRow {
@@ -111,6 +124,7 @@ function params(
     if (urheber?.length) p['f.initiative'] = urheber;
     if (f.deskriptor?.length) p['f.deskriptor'] = f.deskriptor;
     if (f.beratungsstand?.length) p['f.beratungsstand'] = f.beratungsstand;
+    if (extra.typ) p['f.vorgangstyp'] = extra.typ;
   } else {
     if (urheber?.length) p['f.urheber'] = urheber;
     const typ = extra.typ ? [extra.typ] : f.drucksachetyp;
@@ -134,17 +148,31 @@ export async function countBundestag({
   const f: BundestagFilter = { ...filters };
   const titelNote = dropTitelBesideDeskriptor(f);
   if (titelNote) notes.push(titelNote);
+  const fraktionNote = dropFraktionBesideAntwort(f);
+  if (fraktionNote) notes.push(fraktionNote);
   const viaVorgang = (f.deskriptor?.length ?? 0) > 0 || (f.beratungsstand?.length ?? 0) > 0;
   const einheit = viaVorgang ? 'Vorgänge' : 'Drucksachen';
   const endpoint = viaVorgang ? 'vorgang' : 'drucksache';
+  const vorgangTypen: string[] = [];
+  const ohneVorgangstyp: string[] = [];
   if (viaVorgang) {
     notes.push(
       'Deskriptor bzw. Beratungsstand gibt es nur am Vorgang: gezählt werden Vorgänge, nicht Drucksachen.'
     );
     if (f.drucksachetyp?.length) {
-      notes.push(
-        'Der Drucksachentyp lässt sich bei Vorgängen nicht eingrenzen und wurde ignoriert.'
-      );
+      for (const t of f.drucksachetyp) {
+        const vt = VORGANGSTYP_ZU_DRUCKSACHETYP[t];
+        if (vt) vorgangTypen.push(vt);
+        else ohneVorgangstyp.push(t);
+      }
+      if (vorgangTypen.length) {
+        notes.push(`Bei Vorgängen wird nach Vorgangstyp eingegrenzt: ${vorgangTypen.join(', ')}.`);
+      }
+      if (ohneVorgangstyp.length) {
+        notes.push(
+          `Der Drucksachentyp ${ohneVorgangstyp.join(', ')} hat keinen Vorgangstyp und wurde ignoriert.`
+        );
+      }
       delete f.drucksachetyp;
     }
   }
@@ -157,8 +185,8 @@ export async function countBundestag({
   // DIP verknüpft wiederholte `f.drucksachetyp`/`f.urheber` mit UND (gemessen 28.10.2026:
   // zwei Typen liefern 0). Mehrere Werte werden deshalb einzeln gezählt und addiert.
   const urhVals: (string | undefined)[] = (f.urheber?.length ?? 0) > 1 ? f.urheber! : [undefined];
-  const typAll: (string | undefined)[] =
-    !viaVorgang && (f.drucksachetyp?.length ?? 0) > 1 ? f.drucksachetyp! : [undefined];
+  const typenQuelle = viaVorgang ? vorgangTypen : (f.drucksachetyp ?? []);
+  const typAll: (string | undefined)[] = typenQuelle.length > 0 ? typenQuelle : [undefined];
   // Die Summe läuft Typ × Urheber nacheinander durch den getakteten Client: ohne Deckel
   // wären es bis zu 10 × 7 Abfragen. Zuerst fallen die hinteren Typen weg, und die Notiz nennt sie.
   const typVals = typAll.slice(0, Math.max(1, Math.floor(MAX_COUNT_CALLS / urhVals.length)));
