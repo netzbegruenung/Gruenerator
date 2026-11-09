@@ -88,7 +88,7 @@ export const GroupShareControls = ({
                     onChange={(e) =>
                       onUpdatePermission(share.group_id, e.target.value as 'viewer' | 'editor')
                     }
-                    className="rounded border border-grey-200 bg-background px-1 py-0.5 text-[10px] outline-none dark:border-grey-700"
+                    className="rounded border border-grey-200 bg-background px-1.5 py-1 text-xs outline-none dark:border-grey-700"
                   >
                     <option value="viewer">Betrachter*in</option>
                     <option value="editor">Bearbeiter*in</option>

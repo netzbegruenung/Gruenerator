@@ -52,20 +52,35 @@ interface ShareVorlageDialogProps extends VorlageShareTarget {
  * Everyone else's Vorlagen (catalogue, Canva, community) get the same dialog
  * with just their link: access to them is not the viewer's to change.
  */
-export function ShareVorlageDialog({
-  title,
-  owned: ownedProp,
-  templateId,
-  url,
-  open,
-  onOpenChange,
-}: ShareVorlageDialogProps) {
-  const lookup = open && !ownedProp && Boolean(templateId);
+export function ShareVorlageDialog({ open, onOpenChange, ...target }: ShareVorlageDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Vorlage teilen</DialogTitle>
+          <DialogDescription>
+            Teile „{target.title}“. Wer sie öffnet, kann sich eine eigene Kopie erstellen.
+          </DialogDescription>
+        </DialogHeader>
+        {open && <ShareVorlageBody {...target} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The share controls without a dialog shell — also shown inline by
+ * SaveAsTemplateDialog right after a canvas was saved as a Vorlage.
+ */
+export function ShareVorlageBody({ title, owned: ownedProp, templateId, url }: VorlageShareTarget) {
+  const lookup = !ownedProp && Boolean(templateId);
   const { query: ownTemplates } = useUserTemplates({ isActive: lookup });
   const owned =
     ownedProp ??
     ((ownTemplates.data?.find((t) => String(t.id) === templateId) as Template | undefined) || null);
-  const checkingOwner = lookup && ownTemplates.isLoading;
+  // A just-saved Vorlage is missing from a cached list until the refetch lands
+  // (the list refetches on mount) — keep waiting instead of denying ownership.
+  const checkingOwner = lookup && !owned && ownTemplates.isFetching;
   const canvasId = (owned && grueneratorCanvasId(owned.content_data)) ?? '';
   const sharing = useDocumentSharing(canvasId, { namespace: 'vorlage' });
   const {
@@ -113,84 +128,73 @@ export function ShareVorlageDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[28rem]">
-        <DialogHeader>
-          <DialogTitle>Vorlage teilen</DialogTitle>
-          <DialogDescription>
-            {canvasId
-              ? `Teile „${title}“ mit deinen Gruppen oder per Link. Wer sie öffnet, kann sich eine eigene Kopie erstellen.`
-              : `Schick „${title}“ per Link weiter.`}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {checkingOwner ? (
+        <p className="py-md text-sm text-grey-500">Laden…</p>
+      ) : !canvasId ? (
+        url ? (
+          <div>
+            <p className="mb-1 text-xs font-medium text-grey-500">Link zur Vorlage</p>
+            <CopyLinkRow value={url} />
+          </div>
+        ) : (
+          <p className="py-md text-sm text-grey-500">
+            {owned
+              ? 'Diese Vorlage lässt sich nicht per Link teilen — nur Grünerator-Vorlagen haben eine teilbare Kopiervorlage.'
+              : 'Nur wer diese Vorlage erstellt hat, kann sie teilen.'}
+          </p>
+        )
+      ) : isLoading || !shareSettings || !shareUrl ? (
+        <p className="py-md text-sm text-grey-500">Laden…</p>
+      ) : (
+        <div className="flex w-full flex-col gap-md">
+          <ShareModeSelect
+            value={shareSettings.share_mode}
+            onChange={changeMode}
+            disabled={setShareMode.isPending}
+          />
 
-        {checkingOwner ? (
-          <p className="py-md text-sm text-grey-500">Laden…</p>
-        ) : !canvasId ? (
-          url ? (
+          {shareSettings.share_mode !== 'private' && (
             <div>
               <p className="mb-1 text-xs font-medium text-grey-500">Link zur Vorlage</p>
-              <CopyLinkRow value={url} />
+              <CopyLinkRow value={shareUrl} />
+              <p className="mt-1 text-xs text-grey-500 dark:text-grey-400">
+                Nur zum Ansehen und Kopieren — deine Vorlage selbst bleibt unverändert.
+              </p>
             </div>
-          ) : (
-            <p className="py-md text-sm text-grey-500">
-              {owned
-                ? 'Diese Vorlage lässt sich nicht per Link teilen — nur Grünerator-Vorlagen haben eine teilbare Kopiervorlage.'
-                : 'Nur wer diese Vorlage erstellt hat, kann sie teilen.'}
-            </p>
-          )
-        ) : isLoading || !shareSettings || !shareUrl ? (
-          <p className="py-md text-sm text-grey-500">Laden…</p>
-        ) : (
-          <div className="flex w-full flex-col gap-md">
-            <ShareModeSelect
-              value={shareSettings.share_mode}
-              onChange={changeMode}
-              disabled={setShareMode.isPending}
-            />
+          )}
 
-            {shareSettings.share_mode !== 'private' && (
-              <div>
-                <p className="mb-1 text-xs font-medium text-grey-500">Link zur Vorlage</p>
-                <CopyLinkRow value={shareUrl} />
-                <p className="mt-1 text-xs text-grey-500 dark:text-grey-400">
-                  Nur zum Ansehen und Kopieren — deine Vorlage selbst bleibt unverändert.
-                </p>
-              </div>
-            )}
+          <GroupShareControls
+            userGroups={userGroups}
+            groupShares={documentGroups}
+            onShare={(groupId, permissionLevel) =>
+              shareWithGroup.mutate({ groupId, permissionLevel })
+            }
+            onUpdatePermission={(groupId, permissionLevel) =>
+              updateGroupPermission.mutate({ groupId, permissionLevel })
+            }
+            onRemove={(groupId) => unshareFromGroup.mutate(groupId)}
+            isSharing={shareWithGroup.isPending}
+          />
 
-            <GroupShareControls
-              userGroups={userGroups}
-              groupShares={documentGroups}
-              onShare={(groupId, permissionLevel) =>
-                shareWithGroup.mutate({ groupId, permissionLevel })
-              }
-              onUpdatePermission={(groupId, permissionLevel) =>
-                updateGroupPermission.mutate({ groupId, permissionLevel })
-              }
-              onRemove={(groupId) => unshareFromGroup.mutate(groupId)}
-              isSharing={shareWithGroup.isPending}
-            />
+          <CollaboratorList
+            collaborators={collaborators}
+            onUpdatePermission={(userId, permissionLevel) =>
+              updatePermission.mutate({ userId, permissionLevel })
+            }
+            onRevoke={(userId) => revokeAccess.mutate(userId)}
+          />
+        </div>
+      )}
 
-            <CollaboratorList
-              collaborators={collaborators}
-              onUpdatePermission={(userId, permissionLevel) =>
-                updatePermission.mutate({ userId, permissionLevel })
-              }
-              onRevoke={(userId) => revokeAccess.mutate(userId)}
-            />
-          </div>
-        )}
-
-        {linkVisible && canShare() && (
-          <DialogFooter>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={directShare}>
-              <Share2 aria-hidden />
-              Direkt teilen
-            </Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+      {linkVisible && canShare() && (
+        <DialogFooter>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={directShare}>
+            <Share2 aria-hidden />
+            Direkt teilen
+          </Button>
+        </DialogFooter>
+      )}
+    </>
   );
 }
