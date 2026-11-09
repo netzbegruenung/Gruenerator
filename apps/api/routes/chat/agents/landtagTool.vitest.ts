@@ -80,6 +80,19 @@ describe('makeLandtagTool', () => {
   const make = (locale = 'de-DE', text = '') =>
     makeLandtagTool({ state: state(locale, text), sourceRegistry: createSourceRegistry() });
 
+  it('nennt genau die Parlamente des Enums und grenzt andere Landtage zu web_search ab (#5567)', () => {
+    const t = make() as unknown as {
+      description: string;
+      inputSchema: { jsonSchema?: { properties?: { parlament?: { enum?: string[] } } } };
+    };
+    const ids = (t.inputSchema as unknown as { shape: { parlament: { options: string[] } } }).shape
+      .parlament.options as string[];
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) expect(t.description).toContain(`'${id}'`);
+    expect(t.description).toMatch(/Nur diese Parlamente/);
+    expect(t.description).toMatch(/andere Landtage[^.]*web_search/);
+  });
+
   it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
     findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
     await exec(make('de-DE', 'Wie viele Anträge haben die Grünen in Berlin 2026 gestellt?'), {
