@@ -34,6 +34,7 @@ import {
   calendarDays,
   POINTS_TO_ACTION,
   addresseeInBrief,
+  unbackedDirections,
 } from './briefFacts.js';
 import { hasStockPhoto } from './catalog.js';
 import { headlineLineTooLong } from './draftFailure.js';
@@ -498,6 +499,13 @@ export function validateDraft(
       if (invented.length) {
         errors.push(
           `${where}"${text}" nennt ${invented.join(', ')} – diese Zahl steht nicht im Auftrag. Ohne Zahl formulieren.`
+        );
+      }
+      // The digits are the brief's; what the text says about them must be too (#5480).
+      const turned = unbackedDirections(text, given);
+      if (turned.length) {
+        errors.push(
+          `${where}"${text}" sagt über ${turned.join(', ')} etwas anderes als der Auftrag (mehr/weniger, gestiegen/gesunken) – übernimm die Aussage des Auftrags über diese Zahl.`
         );
       }
     }
