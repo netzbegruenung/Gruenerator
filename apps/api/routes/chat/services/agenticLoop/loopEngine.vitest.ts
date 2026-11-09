@@ -19,7 +19,7 @@ import {
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
-import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { NO_GRAPHICS_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
 import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 
@@ -717,7 +717,10 @@ describe('unified suffix — tool and writer rules', () => {
     const system = seen!.system ?? '';
     expect(system).toBe(`TOOLSYS${LOOP_SUFFIX}`);
     expect(system).toContain(TOOL_USE_RULES);
-    expect(system).toContain(NO_CAPABILITY_DENIAL_RULE);
+    // Der Loop HAT Werkzeuge: nachschlagen statt anbieten (09.11.2026).
+    expect(system).toContain('schlage sie jetzt mit dem passenden Werkzeug nach');
+    expect(system).not.toContain('biete an, es zu tun');
+    expect(system).toContain(NO_GRAPHICS_DENIAL_RULE);
     expect(system).toContain('ANTWORTE KONKRET');
     // Hinweise der Werkzeuge binden die Antwort.
     expect(system).toContain('`fuerSchreiber`');
@@ -727,7 +730,7 @@ describe('unified suffix — tool and writer rules', () => {
     // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.
     const override = seen!.prepareStep?.({ stepNumber: 0 }).system ?? '';
     expect(override).toContain(TOOL_USE_RULES);
-    expect(override).toContain(NO_CAPABILITY_DENIAL_RULE);
+    expect(override).toContain(NO_GRAPHICS_DENIAL_RULE);
     expect(override).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
   });
 

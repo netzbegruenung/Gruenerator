@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const aiText = vi.fn(async (..._args: unknown[]): Promise<string> => 'chat');
-vi.mock('../../../services/ai/generate.js', () => ({
-  aiText: (...args: unknown[]) => aiText(...args),
-}));
+const aiDecide = vi.hoisted(() => vi.fn());
+vi.mock('../../../services/ai/decide.js', () => ({ aiDecide }));
+
+/** Eine Antwort von `aiDecide` auf die eine Frage des Wächters. */
+const chose = (choice: string) => ({ mode: { choice, confidence: 0.8, probabilities: {} } });
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() }),
 }));
@@ -14,7 +15,6 @@ import {
   formatGuardPrompt,
   isPraezisionEligible,
   notebookGuardHistory,
-  parseGuardVerdict,
   resolveNotebookAnswerMode,
   type NotebookAnswerModeInput,
 } from './notebookAnswerModeResolver.js';
@@ -23,8 +23,8 @@ const USER_NB = '0b1c29c9-9823-4794-b1be-70a36f801791';
 const NO_CONTEXT = { question: 'Was steht zum Klimaschutz drin?', history: [] };
 
 beforeEach(() => {
-  aiText.mockReset();
-  aiText.mockResolvedValue('chat');
+  aiDecide.mockReset();
+  aiDecide.mockResolvedValue(chose('chat'));
 });
 
 describe('resolveNotebookAnswerMode', () => {
@@ -109,17 +109,17 @@ describe('resolveNotebookAnswerMode — auto', () => {
       decision: { requested: 'auto', resolved: 'praezision', reason: 'pregate' },
       warning: null,
     });
-    expect(aiText).not.toHaveBeenCalled();
+    expect(aiDecide).not.toHaveBeenCalled();
   });
 
   it('hands a write ask to the guard instead of the pregate', async () => {
     const out = await auto('Entferne die alte Pressemitteilung aus dem Notebook');
-    expect(aiText).toHaveBeenCalledTimes(1);
+    expect(aiDecide).toHaveBeenCalledTimes(1);
     expect(out.decision).toEqual({ requested: 'auto', resolved: 'chat', reason: 'guard' });
   });
 
   it('follows the guard verdict', async () => {
-    aiText.mockResolvedValueOnce('praezision');
+    aiDecide.mockResolvedValueOnce(chose('praezision'));
     expect((await auto('Prüf, ob das Zitat so drinsteht.')).decision).toEqual({
       requested: 'auto',
       resolved: 'praezision',
@@ -132,21 +132,23 @@ describe('resolveNotebookAnswerMode — auto', () => {
     });
   });
 
-  it('asks the model on the classification lane with a hard budget', async () => {
+  it('asks the decision model one choice question with a hard budget', async () => {
     await auto('Was fordern die Quellen zum Klimaschutz?');
-    expect(aiText.mock.calls[0]![0]).toMatchObject({
-      lane: 'chat_intent_classification',
-      pinned: 'standard',
-      maxOutputTokens: 8000,
-      temperature: 0,
-      prompt: 'Letzte Nachricht: "Was fordern die Quellen zum Klimaschutz?"',
-    });
+    const call = aiDecide.mock.calls[0]![0] as {
+      state: string;
+      timeoutMs: number;
+      questions: { mode: { type: string; criteria: Record<string, string> } };
+    };
+    expect(call.state).toBe('Letzte Nachricht: "Was fordern die Quellen zum Klimaschutz?"');
+    expect(call.timeoutMs).toBe(1500);
+    expect(call.questions.mode.type).toBe('choice');
+    expect(Object.keys(call.questions.mode.criteria)).toEqual(['chat', 'praezision']);
   });
 
   it.each([
-    ['an error', () => aiText.mockRejectedValueOnce(new Error('provider down'))],
-    ['garbage', () => aiText.mockResolvedValueOnce('weiss nicht')],
-    ['an empty answer', () => aiText.mockResolvedValueOnce('')],
+    ['an error', () => aiDecide.mockRejectedValueOnce(new Error('provider down'))],
+    ['a timeout', () => aiDecide.mockRejectedValueOnce(new Error('no decision host answered'))],
+    ['an unknown option', () => aiDecide.mockResolvedValueOnce(chose('edit'))],
   ])('falls back to chat on %s', async (_label, arrange) => {
     arrange();
     expect((await auto('Was fordern die Quellen zum Klimaschutz?')).decision).toEqual({
@@ -156,30 +158,18 @@ describe('resolveNotebookAnswerMode — auto', () => {
     });
   });
 
-  it('falls back to chat when the guard times out', async () => {
-    vi.useFakeTimers();
-    try {
-      aiText.mockReturnValueOnce(new Promise<string>(() => {}));
-      const pending = auto('Was fordern die Quellen zum Klimaschutz?');
-      await vi.advanceTimersByTimeAsync(1500);
-      expect((await pending).decision.reason).toBe('guard_fallback');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   it('does not ask the model about an empty question', async () => {
     expect((await auto('   ')).decision.reason).toBe('guard_fallback');
-    expect(aiText).not.toHaveBeenCalled();
+    expect(aiDecide).not.toHaveBeenCalled();
   });
 
   it('gives the guard the previous exchange with its mode', async () => {
-    aiText.mockResolvedValueOnce('praezision');
+    aiDecide.mockResolvedValueOnce(chose('praezision'));
     await auto('Und die zweite davon?', [
       { role: 'user', content: 'Liste die neuesten Quellen auf.', answerMode: null },
       { role: 'assistant', content: '1. A\n2. B', answerMode: 'praezision' },
     ]);
-    const prompt = (aiText.mock.calls[0]![0] as { prompt: string }).prompt;
+    const prompt = (aiDecide.mock.calls[0]![0] as { state: string }).state;
     expect(prompt).toContain('Nutzer*in: Liste die neuesten Quellen auf.');
     expect(prompt).toContain('Antwort (Modus: praezision): 1. A');
     expect(prompt).toMatch(/Letzte Nachricht: "Und die zweite davon\?"$/);
@@ -215,31 +205,10 @@ describe('resolveNotebookAnswerMode — decision journal', () => {
       await runWithDecisionJournal(journal, () => auto('Was fordern die Quellen?'));
       return journal.entries[0]!.chose;
     };
-    aiText.mockResolvedValueOnce('praezision');
+    aiDecide.mockResolvedValueOnce(chose('praezision'));
     expect(await run()).toBe('guard_praezision');
-    aiText.mockRejectedValueOnce(new Error('down'));
+    aiDecide.mockRejectedValueOnce(new Error('down'));
     expect(await run()).toBe('guard_fallback');
-  });
-});
-
-describe('parseGuardVerdict', () => {
-  it.each([
-    ['chat', 'chat'],
-    ['praezision', 'praezision'],
-    ['Präzision.', 'praezision'],
-    ['PRÄZISION', 'praezision'],
-    ['praez', 'praezision'],
-    ['"chat"', 'chat'],
-    ['  Chat\n', 'chat'],
-    ['chat oder praezision', 'chat'],
-    ['praezision, nicht chat', 'praezision'],
-    ['Antwort: präzision', 'praezision'],
-  ])('%j → %s', (raw, verdict) => {
-    expect(parseGuardVerdict(raw)).toBe(verdict);
-  });
-
-  it.each([[''], ['weiss nicht'], ['edit']])('%j → null', (raw) => {
-    expect(parseGuardVerdict(raw)).toBeNull();
   });
 });
 

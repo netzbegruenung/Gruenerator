@@ -799,6 +799,43 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  wahlpruefsteine: {
+    id: 'wahlpruefsteine',
+    slug: 'wahlpruefsteine',
+    title: 'Frag die Wahlprüfsteine',
+    authTitle: 'Frag die Wahlprüfsteine',
+    collectionType: 'single',
+    collections: [{ id: 'wahlpruefsteine-system', name: 'Wahlprüfsteine' }],
+    startPageTitle: 'Wie haben wir Verbänden auf ihre Wahlprüfsteine geantwortet?',
+    placeholder: 'Stell deine Frage zu den Wahlprüfsteinen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🚆',
+        tag: 'Verkehr',
+        text: 'Was haben wir Verbänden zum Ausbau der Schiene geantwortet?',
+      },
+      {
+        icon: '🇪🇺',
+        tag: 'Europawahl',
+        text: 'Wie haben wir 2024 Fragen zur europäischen Agrarpolitik beantwortet?',
+      },
+      {
+        icon: '🏥',
+        tag: 'Gesundheit',
+        text: 'Welche Positionen haben wir zur Pflege in den Wahlprüfsteinen vertreten?',
+      },
+    ],
+    documents: [
+      { title: 'Bundestagswahl 2021', detail: '460 Kataloge' },
+      { title: 'Europawahl 2024', detail: '153 Kataloge' },
+      { title: 'Bundestagswahl 2025', detail: '49 Kataloge' },
+    ],
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     slug: 'abgeordnetenwatch',

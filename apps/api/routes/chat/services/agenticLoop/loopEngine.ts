@@ -21,7 +21,7 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
-import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { NO_GRAPHICS_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -245,19 +245,31 @@ export const TOOL_USE_RULES: string = [
   // `web_search "Projekt GrünMobil Mobilitätsprojekt Pilotgebiet Budget"` aus —
   // ein Name, den es nur in dieser Unterhaltung gab. Das Web kann dazu per
   // Konstruktion nur Fremdes liefern, und genau das landete in der Antwort.
-  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
+  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die gefragte Angabe dort wirklich (nicht nur ihr Thema), antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument, ein Explainable oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_explainable / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
 ].join('\n');
 
-/** What the loop model is told about writing the answer (the repair writer gets
- *  the same through `buildRepairSystem`). */
+/**
+ * Die Kehrseite von `NO_CAPABILITY_DENIAL_RULE` für ein Modell, das Werkzeuge
+ * HAT. Jene Regel ist für Schreiber ohne Werkzeuge gebaut (Split-Schreiber,
+ * Reparatur, Einzeldurchlauf) und sagt „sag, dass du nicht nachgesehen hast,
+ * und biete an, es zu tun". Im Loop lud sie zum Angebot statt zum Aufruf ein:
+ * „Und was kostet das?" nach einer Wärmepumpen-Frage endete 3/3 mit „Soll ich
+ * im Web recherchieren …?" (09.11.2026), gegen „NUTZE das passende Tool DIREKT".
+ */
+const LOOP_CAPABILITY_RULE =
+  'Du hast Werkzeuge: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche. Fehlt dir für die Antwort eine Angabe, die weder im Verlauf noch in den Quellen steht, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie. ' +
+  NO_GRAPHICS_DENIAL_RULE;
+
+/** What the loop model is told about writing the answer. The tool-less repair
+ *  writer has its own prompt (`buildRepairSystem`). */
 export const UNIFIED_WRITER_RULES: string = [
   '',
   '',
   'ANTWORTPHASE (brauchst du keine Tools mehr, schreibst du selbst die Antwort):',
   ANSWER_CONCRETELY_RULE,
-  NO_CAPABILITY_DENIAL_RULE,
+  LOOP_CAPABILITY_RULE,
   CAPABILITY_NOTE_TEXT.trim(),
   'Steht in einem Werkzeugergebnis ein Feld `fuerSchreiber` oder `antwortregel`, ist das eine verbindliche Anweisung an deine Antwort — beachte sie vor allem anderen.',
 ].join('\n');

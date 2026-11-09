@@ -77,8 +77,8 @@ describe('logTurnSummary — der erzwungene erste Aufruf (#3880)', () => {
   });
 
   it('meldet den Zwang über den vollen Katalog als none', () => {
-    const out = line({ forceScope: { reason: 'followup', tools: null, named: null } });
-    expect(out).toContain(' force=followup:none');
+    const out = line({ forceScope: { reason: 'named_intent', tools: null, named: null } });
+    expect(out).toContain(' force=named_intent:none');
   });
 
   it('nennt ein benanntes Werkzeug beim Namen', () => {

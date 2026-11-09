@@ -259,20 +259,31 @@ export function buildToolObservationReplay(
 }
 
 /**
- * Bridge between a replayed tool result and the current user message.
+ * Bridge between a replayed tool result and the current user message — only
+ * for the fallback below, when the history has no earlier answer to sit in
+ * front of.
  *
  * mistral-common — the validator behind GreenPT and the Mistral API — checks
  * role transitions strictly and rejects a `user` message directly after a `tool`
  * message (live 14.08.2026, GreenPT/mistral-small: 400 "Unexpected role 'user'
- * after role 'tool'"). That is exactly the shape the replay produces when it is
- * spliced in front of the current user turn. A one-line assistant message makes
- * the transition legal; hosts that don't validate simply see one short turn more.
+ * after role 'tool'"). A one-line assistant message makes the transition legal.
  */
 export const REPLAY_BRIDGE_TEXT = '(Ergebnisse der bisherigen Tool-Aufrufe siehe oben.)';
 
 /**
- * Splice the replay block in just before the current user message, so every
- * tool-call stays adjacent to its result and the role sequence stays valid.
+ * Splice the replay block into the history where those calls happened: in
+ * front of the previous answer, which they produced.
+ *
+ * The replayed steps are the newest few of the thread, so all of them ran
+ * before that answer; placing them there keeps time order (`user → tool-calls
+ * → results → answer → user`), the same shape Open WebUI, LobeHub and
+ * LibreChat send. Until 09.11.2026 the block sat right before the NEW question,
+ * after the answer, closed by {@link REPLAY_BRIDGE_TEXT} — and the model read
+ * that as "I just looked this up": „Und die FDP?" after an SPD vote question
+ * searched 1/3 without the `followup` force, 3/3 with this order.
+ *
+ * Without an earlier assistant message (or when the history does not end on
+ * the user's question) the block goes in front of the last message, bridged.
  */
 export function spliceToolReplay(
   messages: readonly ModelMessage[],
@@ -280,6 +291,13 @@ export function spliceToolReplay(
 ): ModelMessage[] {
   if (replay.length === 0 || messages.length === 0) return [...messages];
   const last = messages[messages.length - 1];
+  if (last.role === 'user') {
+    let answer = messages.length - 2;
+    while (answer >= 0 && messages[answer].role !== 'assistant') answer--;
+    if (answer > 0) {
+      return [...messages.slice(0, answer), ...replay, ...messages.slice(answer)];
+    }
+  }
   const bridge: ModelMessage[] =
     last.role === 'user' ? [{ role: 'assistant', content: REPLAY_BRIDGE_TEXT }] : [];
   return [...messages.slice(0, -1), ...replay, ...bridge, last];

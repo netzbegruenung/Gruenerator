@@ -61,7 +61,8 @@ export type NotebookId =
   | 'boell-stiftung-notebook'
   | 'landtag-nrw-notebook'
   | 'landtag-berlin-notebook'
-  | 'landtag-bayern-notebook';
+  | 'landtag-bayern-notebook'
+  | 'wahlpruefsteine-notebook';
 
 export interface NotebookDefinition {
   id: NotebookId;
@@ -599,6 +600,27 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Bayerischer Landtag',
       description: 'Drucksachen und Protokolle des Bayerischen Landtags',
       avatar: '🏛️',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'wahlpruefsteine-notebook',
+    title: 'Wahlprüfsteine',
+    queryAliases: ['wahlprüfstein', 'wahlpruefsteine', 'wps'],
+    description:
+      'Durchsuchbar sind die Antworten von Bündnis 90/Die Grünen auf Wahlprüfsteine von Verbänden zur Bundestagswahl 2021 und 2025 und zur Europawahl 2024 – Frage für Frage, filterbar nach Wahl und Thema.',
+    meta: '662 Kataloge',
+    tags: ['Wahlprüfsteine', 'Verbände', 'Bundestagswahl', 'Europawahl'],
+    order: 3,
+    category: 'bundesebene',
+    audience: 'de-DE',
+    mention: {
+      // Nicht 'wahlpruefstein': so heißt das Rezept, und Notebooks verdecken
+      // in `rebuildMentionableMap` alles, was nach ihnen kommt.
+      alias: 'wahlpruefsteine',
+      title: 'Wahlprüfsteine',
+      description: 'Antworten der Grünen auf Wahlprüfsteine (Bund, Europa)',
+      avatar: '📋',
       backgroundColor: '#316049',
     },
   },

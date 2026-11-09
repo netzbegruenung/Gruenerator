@@ -248,34 +248,6 @@ export function asksAboutSuppliedMaterial(raw: string): boolean {
 }
 
 /**
- * Eine Frage über die eigene VERGANGENE Handlung des Assistenten — „hast du
- * vorhin in meinen Dokumenten nachgesehen?", „wo hast du das gefunden?". Sie ist
- * kurz und rückbezüglich, steht hinter einem Abruf-Turn und würde vom siebten
- * Weg in `shouldForceFirstToolCall` als `followup` gezwungen — dabei will sie
- * nichts Neues, die Antwort steht im Thread und in den mitgeführten Quellen (#3916).
- *
- * Bewusst eng: nur „hast du" + höchstens vier Füllwörter + Partizip der
- * Abrufhandlung. Füllwörter, die NEUEN Inhalt einführen (auch, noch, was, etwas,
- * zu/zur/zum, über), lassen den Treffer platzen — „hast du auch was zur FDP?"
- * und „hast du noch etwas zur FDP gefunden?" bitten um Neues und müssen zwingen.
- * „Wo/woher hast du das gefunden?" fragt nach der Quelle des Vorigen und zählt
- * mit: die mitgeführten Quellen beantworten das ohne neuen Abruf.
- */
-const PAST_LOOKUP_PARTICIPLE =
-  '(?:nachgesehen|nachgeschaut|nachgeschlagen|gesucht|recherchiert|geprüft|gefunden|gelesen|durchsucht)';
-const OWN_PAST_LOOKUP_RE = new RegExp(
-  `(?<!\\p{L})hast\\s+du\\s+(?:(?!(?:auch|noch|was|etwas|zu|zur|zum|über)(?!\\p{L}))[\\p{L}-]+\\s+){0,4}${PAST_LOOKUP_PARTICIPLE}(?!\\p{L})`,
-  'iu'
-);
-const WHERE_FOUND_RE =
-  /(?<!\p{L})(?:woher\s+hast\s+du\s+(?:das|die|den)|wo\s+hast\s+du\s+(?:das|die|den)\b[^?]{0,30}?gefunden)(?!\p{L})/iu;
-
-export function asksAboutOwnPastAction(raw: string): boolean {
-  const t = (raw ?? '').trim();
-  return OWN_PAST_LOOKUP_RE.test(t) || WHERE_FOUND_RE.test(t);
-}
-
-/**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
  *
@@ -283,8 +255,10 @@ export function asksAboutOwnPastAction(raw: string): boolean {
  * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
  * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
  * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
- * Prüfung nur die eine Hälfte, die andere ist der Abrufkontext des Threads
- * (`shouldForceFirstToolCall`, siebter Weg).
+ * Prüfung allein nicht, ob der Turn nachschlagen muss — das entscheidet seit
+ * dem 09.11.2026 das Modell mit dem Verlauf. Gelesen wird sie für
+ * Anschlussfragen an eine Tabelle (`asksAboutTheTable`) und für die
+ * Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
  *
  * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
  * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg

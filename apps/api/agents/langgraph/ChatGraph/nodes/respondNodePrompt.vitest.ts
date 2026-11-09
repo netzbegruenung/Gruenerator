@@ -906,7 +906,7 @@ describe('Prosa im Loop verliert nichts', () => {
   it('trägt Rezept-Rumpf und Schreibhilfe auf dem Loop-Pfad', async () => {
     const loop = await buildSystemMessage(prose('produktion'), LOOP);
     expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
-    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
   });
 
   it('lässt den Einzelpfad unverändert', async () => {
@@ -939,7 +939,7 @@ describe('Prosa im Loop verliert nichts', () => {
     } as never);
     const loop = await buildSystemMessage(owned, LOOP);
     expect(loop).not.toContain('<<REZEPT-PROMPT:buerger-berlin>>');
-    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
     const single = await buildSystemMessage(owned);
     expect(single).toContain('<<REZEPT-PROMPT:buerger-berlin>>');
   });
@@ -954,9 +954,9 @@ describe('Prosa im Loop verliert nichts', () => {
     } as never);
     const loop = await buildSystemMessage(demoted, LOOP);
     expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
-    expect(loop).toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
     const plain = await buildSystemMessage(prose('agentic'), LOOP);
-    expect(plain).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    expect(plain).not.toContain('## AKTIVE PLATTFORM: Instagram');
   });
 
   it('behandelt greeting im Loop nicht als Prosa', async () => {
