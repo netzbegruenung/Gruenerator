@@ -205,8 +205,10 @@ export const DEFERRABLE_GROUPS = [
   {
     // Parlamentsdaten: `bundestag` (Liste, Zählung) bleibt als Einstieg immer
     // sichtbar, seine Leser und die Reden stehen erst, wenn der Turn davon
-    // handelt. Ein weiteres Parlament (Landtag) ist EIN Name in `tools` und
-    // einer in `opensOn`. `abgeordnetenwatch` gehört dazu, obwohl es ein
+    // handelt. Ein weiteres Parlament (`landtag`, nur Deutschland — der Katalog
+    // montiert es wie `bundestag`) ist ebenfalls ein Einstieg: immer sichtbar,
+    // nur in `opensOn`. Hinter dem Lader fand eine Berliner Frage ohne Stichwort
+    // („was liegt im AGH vor") ihn nicht (#5567). `abgeordnetenwatch` gehört dazu, obwohl es ein
     // eigener Einstieg ist (Abstimmungen, Nebentätigkeiten, auch Landtagsabgeordnete):
     // seine Fragen tragen fast immer eines der Wörter im `hint`, und ein
     // Fehlschluss kostet nur den Lader-Schritt. `umfragen` (Sonntagsfrage, auch
@@ -214,12 +216,12 @@ export const DEFERRABLE_GROUPS = [
     // Bundestagswerkzeuge fehlen.
     id: 'parlament',
     loaderTool: 'parlament_werkzeuge_laden',
-    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'],
+    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen'],
     // `nationalrat` ist für Österreich, was `bundestag` für Deutschland ist: der immer sichtbare Einstieg.
     opensOn: ['bundestag', 'landtag', 'nationalrat'],
     hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])(?:BE|NW)\s?\d{1,2}\/S?\d{1,6}(?![\d/])|(?<![\w/])NR\s?\d{1,2}\/[A-Z]{1,6}\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
     loaderDescription:
-      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Drucksachen des Berliner Abgeordnetenhauses und des Landtags NRW suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag (Österreich: nationalrat), immer bereit.',
+      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
   },
 ] as const satisfies readonly DeferrableGroup[];
 
