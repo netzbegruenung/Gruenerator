@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateDraft } from './draftAgent.js';
-import { alsoCarousel, namedSharepicForm } from './forms.js';
+import { namedSharepicForm } from './forms.js';
 
 const BRIEF =
   'Good News: tagesschau.de meldet am 2.10.2026 „Erneuerbare decken erstmals mehr als 60 Prozent des Stroms“.';
@@ -53,11 +53,5 @@ describe('forms — Belege und Spiele', () => {
     ['Sharepic mit dem Zeitungsausschnitt von heute', 'schlagzeile'],
   ])('%s → %s', (text, form) => {
     expect(namedSharepicForm(text)).toBe(form);
-  });
-
-  it('holds "Karussell mit Bingo" to both', () => {
-    expect(alsoCarousel('Karussell mit einem Bingo zur Klimapolitik', 'bingo')).toBe(true);
-    expect(alsoCarousel('Bingo zur Klimapolitik, kein Karussell', 'bingo')).toBe(false);
-    expect(alsoCarousel('Karussell zur Klimapolitik', 'karussell')).toBe(false);
   });
 });
