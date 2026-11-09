@@ -21,7 +21,9 @@ import {
   MAX_WINDOWS_PER_DOC,
   READ_CONCURRENCY,
   createLimiter,
-  readWindowChars,
+  READ_MAX_OUTPUT_TOKENS,
+  estimateTokens,
+  readWindowTokens,
 } from './budget.js';
 import { type FetchedDoc } from './fetchTexts.js';
 import { readPrompt, readSystem } from './readPrompt.js';
@@ -116,21 +118,37 @@ function modelFor(target: AiCall['pinned']): string {
   return laneTarget('bundestag_read').model ?? '';
 }
 
-/** Teilt an Absatzgrenzen in Stücke bis `size`; ein einzelner Riesenabsatz wird hart geschnitten. */
-export function splitWindows(text: string, size: number): string[] {
+/**
+ * Teilt an Absatzgrenzen in Stücke bis `maxTokens` (geschätzt, `estimateTokens`); ein einzelner
+ * Riesenabsatz wird hart geschnitten. Gemessen wird in Tokens, nicht in Zeichen: Tabellentext hat
+ * ~1,5 Zeichen/Token, ein Zeichenfenster lief dort über das Kontextfenster (#5581).
+ */
+export function splitWindows(text: string, maxTokens: number): string[] {
   const windows: string[] = [];
   let current = '';
+  let currentTokens = 0;
   const push = () => {
     if (current) windows.push(current);
     current = '';
+    currentTokens = 0;
   };
   for (const para of text.split('\n\n')) {
-    if (para.length > size) {
+    const paraTokens = estimateTokens(para);
+    if (paraTokens > maxTokens) {
       push();
-      for (let i = 0; i < para.length; i += size) windows.push(para.slice(i, i + size));
+      let rest = para;
+      while (rest) {
+        // Zeichenzahl aus der Dichte des Reststücks, dann nachprüfen: die Dichte schwankt.
+        let n = Math.max(1, Math.floor((rest.length * maxTokens) / estimateTokens(rest)));
+        while (n > 1 && estimateTokens(rest.slice(0, n)) > maxTokens) n = Math.floor(n * 0.9);
+        windows.push(rest.slice(0, n));
+        rest = rest.slice(n);
+      }
       continue;
     }
-    if (current && current.length + 2 + para.length > size) push();
+    // +0,4: der Absatztrenner „\n\n" kostet zwei Leerzeichen-Tokens.
+    if (current && currentTokens + 0.4 + paraTokens > maxTokens) push();
+    currentTokens += (current ? 0.4 : 0) + paraTokens;
     current = current ? `${current}\n\n${para}` : para;
   }
   push();
@@ -224,7 +242,7 @@ export async function readDocuments({
   herkunft,
 }: ReadParams): Promise<ReadResult[]> {
   const deadlineAt = deadlineAtParam ?? Date.now() + budget.deadlineMs;
-  const size = readWindowChars(modelFor(target));
+  const size = readWindowTokens(modelFor(target));
   const limit = createLimiter(READ_CONCURRENCY);
 
   // Budget wird vorab in Dokumentreihenfolge verteilt: so hängt es nicht vom Zufall der Laufzeiten ab.
@@ -280,7 +298,7 @@ export async function readDocuments({
             ...(target ? { pinned: target } : {}),
             // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
             temperature: 0,
-            maxOutputTokens: 8000,
+            maxOutputTokens: READ_MAX_OUTPUT_TOKENS,
             timeoutMs: remaining,
             // Bricht die Schleife ab (Zeitlimit von `parlament_lesen`), endet auch das laufende Fenster.
             ...(signal ? { signal } : {}),
