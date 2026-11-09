@@ -44,6 +44,22 @@ export function quickSkillMentionables(favorites: readonly string[]): Mentionabl
 }
 
 /**
+ * Saved library recipes (`kind: 'recipe'`) as mentionables, in library order.
+ * A ref is a system recipe's mention or a text form's row id (`AddToLibraryButton`);
+ * a ref that resolves to neither (hidden, other locale, deleted) is dropped.
+ */
+export function libraryRecipeMentionables(refs: readonly string[]): Mentionable[] {
+  const agents = getAgentMentionables();
+  const forms = getTextformMentionables();
+  return refs.flatMap((ref) => {
+    const found =
+      agents.find((a) => a.mention.toLowerCase() === ref.toLowerCase()) ??
+      forms.find((f) => f.identifier === ref);
+    return found ? [found] : [];
+  });
+}
+
+/**
  * Built-in chat functions (`@recherche`, `@bildgenerieren`, …), filtered for the
  * current locale like the recipes are — `@abgeordnetenwatch` and `@bundestag`
  * are `audience: 'de-DE'` and have no meaning for an Austrian user.
