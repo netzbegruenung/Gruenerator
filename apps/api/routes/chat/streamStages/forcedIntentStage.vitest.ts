@@ -218,7 +218,9 @@ describe('@social — Erwähnung weg, Token bleibt', () => {
     const { state, forcedTool } = await run(['social_post']);
     expect(state.intent).toBe('produktion');
     expect(state.mentionPinnedTool).toBe(null);
-    expect(forcedTool).toBe(true);
+    // Kein erzwungenes Werkzeug: sonst bliebe der Turn im Einzeldurchlauf
+    // (`pinned_tool_without_loop`) und bekäme nie ein Rezept.
+    expect(forcedTool).toBe(false);
   });
 
   it('lädt kein Rezept aus der Erwähnung — das tut der Text', async () => {

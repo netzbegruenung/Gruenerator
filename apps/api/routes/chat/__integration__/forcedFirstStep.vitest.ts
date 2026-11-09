@@ -395,6 +395,45 @@ describe('forced research step offers a method recipe', () => {
   });
 });
 
+// I1: der Alt-Token `@social` (F0, steht in persistierten Threads) darf nicht im
+// Einzeldurchlauf landen — dort gibt es keine Rezeptwahl mehr.
+describe('legacy @social token keeps the recipe catalogue', () => {
+  const pool = createProviderStub();
+  let app: Awaited<ReturnType<typeof startChatApp>>;
+  let restoreNetwork: (() => void) | null = null;
+
+  beforeAll(async () => {
+    restoreNetwork = installNetworkGuard();
+    app = await startChatApp();
+  }, 60_000);
+  afterAll(async () => {
+    await app?.close();
+    restoreNetwork?.();
+  });
+  beforeEach(() => {
+    pinChatEnv({ LOOP_TOOL_SCOPE_ENFORCE: 'false' });
+    resetThreadStore();
+    resetMockControls();
+    respond.reset();
+    pool.reset();
+    searchBackend.reset();
+    ctl.captured.length = 0;
+    ctl.priorSteps = [];
+    ctl.emptySeed = false;
+  });
+
+  it('social_post + Text: der Turn läuft in der Schleife und `rezept_laden` ist montiert', async () => {
+    await runTurn(app.baseUrl, {
+      messages: [userTurn('Instagram-Post über unsere neue Radwegebrücke')],
+      forcedTools: ['social_post'],
+    });
+    const planner = ctl.captured[0];
+    expect(planner).toBeDefined();
+    if (!planner) return;
+    expect(Object.keys(planner.tools as ToolSet)).toContain('rezept_laden');
+  });
+});
+
 interface Row {
   id: string;
   forced: string;
