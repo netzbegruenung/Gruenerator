@@ -75,6 +75,7 @@ import {
 } from '../../../services/landtag/index.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import { draftFailedText } from '../../../services/sharepicCreator/draftFailure.js';
+import { ANSWER_MARGIN_MS, Deadline } from '../../../utils/deadline.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
   withResearchedSources,
@@ -98,6 +99,7 @@ import {
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
+import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
@@ -296,6 +298,14 @@ function landtagNote(
     : { fuerSchreiber: LANDTAG_HINWEIS };
 }
 
+/** Die Frist eines `bundestag`-Aufrufs: Werkzeugfrist des Loops minus Rand für die Antwort. */
+export function bundestagDeadlineMs(): number {
+  return (
+    (TOOL_TIMEOUT_OVERRIDES_MS['bundestag'] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs) -
+    ANSWER_MARGIN_MS
+  );
+}
+
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
  * speeches, people, Vorgänge) via `retrieveBundestag`. Behaves like
@@ -353,238 +363,265 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         'Trifft nur ganze Wörter im Titel, keine Zusammensetzungen („Radverkehr" findet nicht „Radverkehrsförderung"). Für ein Thema `deskriptor` nehmen; neben einem Deskriptor wird der Titel weggelassen.'
       ),
     }),
-    execute: async ({ query, modus, gruppieren, ref, ...args }) => {
-      // `bundestag` ist von der Near-Duplicate-Sperre ausgenommen (Verfeinerungen müssen
-      // durch), das Modell hat aber schon sechsmal nahezu dasselbe gefragt (65 s).
-      callsThisTurn++;
-      if (callsThisTurn > BUNDESTAG_MAX_CALLS_PER_TURN) {
-        return { resultCount: 0, sources: '', hinweis: BUNDESTAG_CAP_HINWEIS };
-      }
-      if (ref && ref.startsWith('PlPr')) {
-        return {
-          resultCount: 0,
-          sources: '',
-          error: 'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546).',
-          naechsterSchritt: 'Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
-        };
-      }
-      // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
-      // dabei „beschlossen", „Grüne" oder „seit Januar". Was der Wortlaut der
-      // Nachricht hergibt, gilt deshalb mit — gesetzte Argumente gehen vor.
-      const userText = (
-        state.lastUserTextNoMentions ??
-        (state.messages ? lastUserText(state.messages) : null) ??
-        ''
-      ).trim();
-      // Leere Listen (`deskriptor: []`) sind „nichts gesetzt" und überstimmen den Wortlaut nicht.
-      const fromArgs = Object.fromEntries(
-        Object.entries(args).filter(
-          ([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0)
-        )
-      ) as typeof args;
-      // „Kleine Anfrage" als Titel ist die Drucksachenart, keine Titelsuche (live: 1 statt 524).
-      const titelTyp = fromArgs.titel ? drucksachetypAusTitel(fromArgs.titel) : null;
-      if (titelTyp) {
-        delete fromArgs.titel;
-        fromArgs.drucksachetyp = [...new Set([...(fromArgs.drucksachetyp ?? []), titelTyp])];
-      }
-      // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
-      // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
-      const hasFilters = Object.values(fromArgs).some((v) => !(Array.isArray(v) && v.length === 0));
-      if (!ref && !query && !hasFilters && !userText && modus !== 'zaehlen') {
-        return {
-          resultCount: 0,
-          sources: '',
-          error:
-            'Es fehlt ein Suchbegriff (query), eine Drucksachennummer (ref) oder ein Filter, und die Nachricht nennt kein Thema.',
-        };
-      }
-      const question = query ?? userText;
-      // Nur im ersten Aufruf des Zuges: ein Filter aus dem Wortlaut ließe sich sonst nie
-      // abwählen (leere Listen zählen als „nichts gesetzt"), und der Wiederholungsversuch
-      // schlüge garantiert genauso fehl (#5558). Danach entscheidet das Modell allein.
-      const filters: typeof fromArgs = {
-        ...(callsThisTurn === 1 ? detectFromWording(userText) : {}),
-        ...fromArgs,
-      };
-      const filterHinweise: string[] = [];
-      const fraktionNote = dropFraktionBesideAntwort(filters);
-      if (fraktionNote) filterHinweise.push(fraktionNote);
-      if (ref) {
-        // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
-        // würden Familienmitglieder verdecken und gelten hier nicht.
-        const family = await retrieveBundestagFamily(ref, state.userLocale);
-        if (family.results.length === 0) {
-          return { resultCount: 0, sources: '', error: `Zu ${ref} wurde bei DIP nichts gefunden.` };
-        }
-        const sources = sourceRegistry.register(family.results, { snippetChars: 3000 });
-        const antwort = antwortStandVon(ref, family.documents);
-        const hinweise = [
-          ...family.notes,
-          ...(antwort?.stand === 'ausstehend' ? [antwortAusstehendText(antwort)] : []),
-        ];
-        return {
-          resultCount: family.results.length,
-          sources: sources ?? '',
-          hinweis: BUNDESTAG_HINWEIS,
-          ...landtagNote(userText),
-          ...(hinweise.length > 0 ? { hinweise } : {}),
-          uiCard: {
-            query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
-            ref: bundestagRefLabel(ref),
-            filter: [],
-            dokumente: (family.documents ?? []).map((d) => ({
-              ref: bundestagRefLabel(d.ref),
-              typ: d.drucksachetyp,
-              datum: d.datum,
-              titel: d.titel,
-              url: d.pdfUrl,
-            })),
-            ...(family.verfahren ? { verfahren: family.verfahren.slice(0, 3) } : {}),
-          },
-        };
-      }
-      if (modus === 'zaehlen') {
-        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
-          return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
-        }
-        // `query` zählt nicht mit; ohne Titel/Deskriptor würde sonst ungefiltert gezählt
-        // (live 531 statt 2, #5557). Das Thema wird deshalb zum Titel-Filter.
-        if (query && !filters.titel && !filters.deskriptor?.length) {
-          filters.titel = query;
-          filterHinweise.push(
-            `Das Thema „${query}“ wurde als Titel-Filter gezählt: er trifft nur ganze Wörter im Titel (keine Zusammensetzungen), die Zahl ist eine Untergrenze. Vollständiger zählt ein \`deskriptor\` (Thesaurus-Schlagwort im Singular).`
-          );
-        }
-        const zaehlung = await countBundestagDocs({
-          filters,
-          ...(gruppieren ? { gruppieren } : {}),
-        }).catch((err: unknown) => {
-          log.warn(`[bundestag] Zählung fehlgeschlagen: ${String(err)}`);
-          return null;
-        });
-        if (!zaehlung) {
-          return {
-            resultCount: 0,
-            sources: '',
-            error: 'Die Zählung beim Bundestag (DIP) ist gerade nicht erreichbar.',
-          };
-        }
-        const sources = sourceRegistry.register(
-          [
-            {
-              source: 'bundestag',
-              title: `DIP-Zählung: ${einheitLabel(zaehlung)}`,
-              content: formatCount(zaehlung),
-              url: 'https://dip.bundestag.de',
-              relevance: 1,
-            },
-          ],
-          { snippetChars: 3000 }
-        );
-        return {
-          resultCount: 1,
-          sources: sources ?? '',
-          modus: 'zaehlen',
-          ...landtagNote(userText),
-          einheit: zaehlung.einheit,
-          bezeichnung: einheitLabel(zaehlung),
-          gesamt: zaehlung.gesamt,
-          ...(zaehlung.gruppen ? { gruppen: zaehlung.gruppen } : {}),
-          ...(zaehlung.notes.length + filterHinweise.length > 0
-            ? { hinweise: [...filterHinweise, ...zaehlung.notes] }
-            : {}),
-          uiCard: {
-            query: query ?? '',
-            modus: 'zaehlen',
-            filter: describeBundestagFilter(zaehlung.filters),
-            zaehlung: {
-              einheit: zaehlung.einheit,
-              gesamt: zaehlung.gesamt,
-              gruppiertNach: zaehlung.gruppiertNach,
-              gruppen: zaehlung.gruppen ?? [],
-              hinweise: zaehlung.notes,
-            },
-            dokumente: [],
-          },
-        };
-      }
-      const {
-        results,
-        totals,
-        documents,
-        filters: applied,
-        verfahren,
-        ausfall,
-        leerDurchFilter,
-      } = await retrieveBundestag(question, state.userLocale, filters);
-      // Ausfall und filterbedingt leer sind keine Nulltreffer: das Modell würde
-      // „gibt es nicht" melden, wo der Dienst fehlte oder ein Filter zu eng war.
-      if (ausfall) {
-        return {
-          resultCount: 0,
-          sources: '',
-          error: 'Die Bundestags-Suche (DIP) ist gerade nicht erreichbar.',
-          naechsterSchritt:
-            'Das ist kein „keine Treffer". Später erneut versuchen; für Reden `bundestag_reden` probieren.',
-        };
-      }
-      if (leerDurchFilter) {
-        const used = applied ?? filters;
-        const zeilen = describeBundestagFilter(used);
-        // Nicht „lockere irgendeinen Filter": je Variante gezählt, welche Lockerung trifft (#5445).
-        const lockerungen = await suggestBundestagRelaxations({ filters: used }).catch(
-          (err: unknown) => {
-            log.warn(`[bundestag] Lockerungen nicht gezählt: ${String(err)}`);
-            return [];
+    execute: async (input) => {
+      // Eine Frist für den ganzen Aufruf: Plan, DIP-Abfragen, Lockerungszählung und Zählung lesen ihre
+      // Restzeit daraus, statt je eine eigene Konstante zu haben (#5570).
+      const deadline = new Deadline(bundestagDeadlineMs());
+      try {
+        return await (async ({ query, modus, gruppieren, ref, ...args }) => {
+          // `bundestag` ist von der Near-Duplicate-Sperre ausgenommen (Verfeinerungen müssen
+          // durch), das Modell hat aber schon sechsmal nahezu dasselbe gefragt (65 s).
+          callsThisTurn++;
+          if (callsThisTurn > BUNDESTAG_MAX_CALLS_PER_TURN) {
+            return { resultCount: 0, sources: '', hinweis: BUNDESTAG_CAP_HINWEIS };
           }
-        );
-        const best = lockerungen
-          .filter((l) => l.treffer > 0)
-          .sort((a, b) => b.treffer - a.treffer)[0];
-        return {
-          resultCount: 0,
-          sources: '',
-          error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}.`,
-          ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
-          ...(lockerungen.length > 0
-            ? { lockerungen: lockerungen.map((l) => `${l.aenderung}: ${l.treffer} ${l.einheit}`) }
-            : {}),
-          naechsterSchritt: best
-            ? `Erneut \`bundestag\` aufrufen, mit derselben query und genau diesen Filtern (${best.aenderung}, ${best.treffer} ${best.einheit}): ${JSON.stringify(nextBundestagArgs(best.filters))}. Passt die Lockerung nicht mehr zur Frage (etwa ohne die gefragte Fraktion), stattdessen sagen, dass es mit diesen Filtern nichts gibt, und die Zahl als Hinweis nennen.`
-            : lockerungen.length > 0
-              ? 'Auch mit gelockerten Filtern keine Treffer: das Thema anders fassen (anderer Deskriptor, Oberbegriff) oder `bundestag_reden` probieren; ohne Treffer zählt das nicht als „es gibt nichts".'
-              : 'Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".',
-        };
+          if (ref && ref.startsWith('PlPr')) {
+            return {
+              resultCount: 0,
+              sources: '',
+              error: 'Die Dokumentfamilie gibt es nur für Drucksachen (z. B. 21/3546).',
+              naechsterSchritt: 'Für ein Plenarprotokoll `parlament_lesen` mit dieser Ref nutzen.',
+            };
+          }
+          // Das Modell kürzt die Frage oft aufs Thema („Artenschutz") und verliert
+          // dabei „beschlossen", „Grüne" oder „seit Januar". Was der Wortlaut der
+          // Nachricht hergibt, gilt deshalb mit — gesetzte Argumente gehen vor.
+          const userText = (
+            state.lastUserTextNoMentions ??
+            (state.messages ? lastUserText(state.messages) : null) ??
+            ''
+          ).trim();
+          // Leere Listen (`deskriptor: []`) sind „nichts gesetzt" und überstimmen den Wortlaut nicht.
+          const fromArgs = Object.fromEntries(
+            Object.entries(args).filter(
+              ([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0)
+            )
+          ) as typeof args;
+          // „Kleine Anfrage" als Titel ist die Drucksachenart, keine Titelsuche (live: 1 statt 524).
+          const titelTyp = fromArgs.titel ? drucksachetypAusTitel(fromArgs.titel) : null;
+          if (titelTyp) {
+            delete fromArgs.titel;
+            fromArgs.drucksachetyp = [...new Set([...(fromArgs.drucksachetyp ?? []), titelTyp])];
+          }
+          // Ein Aufruf nur mit Filtern ist ein vollständiger Auftrag (das Rezept
+          // verlangt ihn so); ohne Filter und Suchbegriff ist die Frage selbst das Thema.
+          const hasFilters = Object.values(fromArgs).some(
+            (v) => !(Array.isArray(v) && v.length === 0)
+          );
+          if (!ref && !query && !hasFilters && !userText && modus !== 'zaehlen') {
+            return {
+              resultCount: 0,
+              sources: '',
+              error:
+                'Es fehlt ein Suchbegriff (query), eine Drucksachennummer (ref) oder ein Filter, und die Nachricht nennt kein Thema.',
+            };
+          }
+          const question = query ?? userText;
+          // Nur im ersten Aufruf des Zuges: ein Filter aus dem Wortlaut ließe sich sonst nie
+          // abwählen (leere Listen zählen als „nichts gesetzt"), und der Wiederholungsversuch
+          // schlüge garantiert genauso fehl (#5558). Danach entscheidet das Modell allein.
+          const filters: typeof fromArgs = {
+            ...(callsThisTurn === 1 ? detectFromWording(userText) : {}),
+            ...fromArgs,
+          };
+          const filterHinweise: string[] = [];
+          const fraktionNote = dropFraktionBesideAntwort(filters);
+          if (fraktionNote) filterHinweise.push(fraktionNote);
+          if (ref) {
+            // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
+            // würden Familienmitglieder verdecken und gelten hier nicht.
+            const family = await retrieveBundestagFamily(ref, state.userLocale, deadline.signal);
+            if (family.results.length === 0) {
+              return {
+                resultCount: 0,
+                sources: '',
+                error: `Zu ${ref} wurde bei DIP nichts gefunden.`,
+              };
+            }
+            const sources = sourceRegistry.register(family.results, { snippetChars: 3000 });
+            const antwort = antwortStandVon(ref, family.documents);
+            const hinweise = [
+              ...family.notes,
+              ...(antwort?.stand === 'ausstehend' ? [antwortAusstehendText(antwort)] : []),
+            ];
+            return {
+              resultCount: family.results.length,
+              sources: sources ?? '',
+              hinweis: BUNDESTAG_HINWEIS,
+              ...landtagNote(userText),
+              ...(hinweise.length > 0 ? { hinweise } : {}),
+              uiCard: {
+                query: query ?? `Familie von ${bundestagRefLabel(ref)}`,
+                ref: bundestagRefLabel(ref),
+                filter: [],
+                dokumente: (family.documents ?? []).map((d) => ({
+                  ref: bundestagRefLabel(d.ref),
+                  typ: d.drucksachetyp,
+                  datum: d.datum,
+                  titel: d.titel,
+                  url: d.pdfUrl,
+                })),
+                ...(family.verfahren ? { verfahren: family.verfahren.slice(0, 3) } : {}),
+              },
+            };
+          }
+          if (modus === 'zaehlen') {
+            if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
+              return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
+            }
+            // `query` zählt nicht mit; ohne Titel/Deskriptor würde sonst ungefiltert gezählt
+            // (live 531 statt 2, #5557). Das Thema wird deshalb zum Titel-Filter.
+            if (query && !filters.titel && !filters.deskriptor?.length) {
+              filters.titel = query;
+              filterHinweise.push(
+                `Das Thema „${query}“ wurde als Titel-Filter gezählt: er trifft nur ganze Wörter im Titel (keine Zusammensetzungen), die Zahl ist eine Untergrenze. Vollständiger zählt ein \`deskriptor\` (Thesaurus-Schlagwort im Singular).`
+              );
+            }
+            const zaehlung = await countBundestagDocs({
+              filters,
+              signal: deadline.signal,
+              ...(gruppieren ? { gruppieren } : {}),
+            }).catch((err: unknown) => {
+              log.warn(`[bundestag] Zählung fehlgeschlagen: ${String(err)}`);
+              return null;
+            });
+            if (!zaehlung) {
+              return {
+                resultCount: 0,
+                sources: '',
+                error: 'Die Zählung beim Bundestag (DIP) ist gerade nicht erreichbar.',
+              };
+            }
+            const sources = sourceRegistry.register(
+              [
+                {
+                  source: 'bundestag',
+                  title: `DIP-Zählung: ${einheitLabel(zaehlung)}`,
+                  content: formatCount(zaehlung),
+                  url: 'https://dip.bundestag.de',
+                  relevance: 1,
+                },
+              ],
+              { snippetChars: 3000 }
+            );
+            return {
+              resultCount: 1,
+              sources: sources ?? '',
+              modus: 'zaehlen',
+              ...landtagNote(userText),
+              einheit: zaehlung.einheit,
+              bezeichnung: einheitLabel(zaehlung),
+              gesamt: zaehlung.gesamt,
+              ...(zaehlung.gruppen ? { gruppen: zaehlung.gruppen } : {}),
+              ...(zaehlung.notes.length + filterHinweise.length > 0
+                ? { hinweise: [...filterHinweise, ...zaehlung.notes] }
+                : {}),
+              uiCard: {
+                query: query ?? '',
+                modus: 'zaehlen',
+                filter: describeBundestagFilter(zaehlung.filters),
+                zaehlung: {
+                  einheit: zaehlung.einheit,
+                  gesamt: zaehlung.gesamt,
+                  gruppiertNach: zaehlung.gruppiertNach,
+                  gruppen: zaehlung.gruppen ?? [],
+                  hinweise: zaehlung.notes,
+                },
+                dokumente: [],
+              },
+            };
+          }
+          const {
+            results,
+            totals,
+            documents,
+            filters: applied,
+            verfahren,
+            ausfall,
+            leerDurchFilter,
+          } = await retrieveBundestag(question, state.userLocale, filters, deadline);
+          // Ausfall und filterbedingt leer sind keine Nulltreffer: das Modell würde
+          // „gibt es nicht" melden, wo der Dienst fehlte oder ein Filter zu eng war.
+          if (ausfall) {
+            return {
+              resultCount: 0,
+              sources: '',
+              error: 'Die Bundestags-Suche (DIP) ist gerade nicht erreichbar.',
+              naechsterSchritt:
+                'Das ist kein „keine Treffer". Später erneut versuchen; für Reden `bundestag_reden` probieren.',
+            };
+          }
+          if (leerDurchFilter) {
+            const used = applied ?? filters;
+            const zeilen = describeBundestagFilter(used);
+            // Nicht „lockere irgendeinen Filter": je Variante gezählt, welche Lockerung trifft (#5445).
+            const lockerungen = await suggestBundestagRelaxations({
+              filters: used,
+              signal: deadline.signal,
+            }).catch((err: unknown) => {
+              log.warn(`[bundestag] Lockerungen nicht gezählt: ${String(err)}`);
+              return [];
+            });
+            const best = lockerungen
+              .filter((l) => l.treffer > 0)
+              .sort((a, b) => b.treffer - a.treffer)[0];
+            return {
+              resultCount: 0,
+              sources: '',
+              error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}.`,
+              ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
+              ...(lockerungen.length > 0
+                ? {
+                    lockerungen: lockerungen.map(
+                      (l) => `${l.aenderung}: ${l.treffer} ${l.einheit}`
+                    ),
+                  }
+                : {}),
+              naechsterSchritt: best
+                ? `Erneut \`bundestag\` aufrufen, mit derselben query und genau diesen Filtern (${best.aenderung}, ${best.treffer} ${best.einheit}): ${JSON.stringify(nextBundestagArgs(best.filters))}. Passt die Lockerung nicht mehr zur Frage (etwa ohne die gefragte Fraktion), stattdessen sagen, dass es mit diesen Filtern nichts gibt, und die Zahl als Hinweis nennen.`
+                : lockerungen.length > 0
+                  ? 'Auch mit gelockerten Filtern keine Treffer: das Thema anders fassen (anderer Deskriptor, Oberbegriff) oder `bundestag_reden` probieren; ohne Treffer zählt das nicht als „es gibt nichts".'
+                  : 'Einen Filter lockern (Zeitraum erweitern, Typ oder Urheber weglassen) und erneut suchen; ohne Treffer zählt das nicht als „es gibt nichts".',
+            };
+          }
+          if (results.length === 0) {
+            return {
+              resultCount: 0,
+              sources: '',
+              error: 'Keine passenden Bundestags-Daten gefunden.',
+            };
+          }
+          // Listenzeilen tragen Titel, Ref, Vorgang, Verlauf und Abstract (gedeckelt, zuletzt):
+          // 3500 Zeichen halten sie ganz, auch bei langem Verlauf (gemessen 5203 vor dem Umbau).
+          const sources = sourceRegistry.register(results, {
+            snippetChars: BUNDESTAG_SNIPPET_CHARS,
+          });
+          return {
+            resultCount: results.length,
+            sources: sources ?? '',
+            ...(totals ? { gesamt: totals } : {}),
+            hinweis: BUNDESTAG_HINWEIS,
+            ...landtagNote(userText),
+            ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
+            // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
+            uiCard: {
+              query: question,
+              filter: describeBundestagFilter(applied ?? filters),
+              ...(totals ? { gesamt: totals } : {}),
+              dokumente: (documents ?? []).map((d) => ({
+                ref: bundestagRefLabel(d.ref),
+                typ: d.drucksachetyp,
+                datum: d.datum,
+                titel: d.titel,
+                url: d.pdfUrl,
+              })),
+              ...(verfahren ? { verfahren: verfahren.slice(0, 3) } : {}),
+            },
+          };
+        })(input);
+      } finally {
+        deadline.dispose();
       }
-      if (results.length === 0) {
-        return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
-      }
-      // Listenzeilen tragen Titel, Ref, Vorgang, Verlauf und Abstract (gedeckelt, zuletzt):
-      // 3500 Zeichen halten sie ganz, auch bei langem Verlauf (gemessen 5203 vor dem Umbau).
-      const sources = sourceRegistry.register(results, { snippetChars: BUNDESTAG_SNIPPET_CHARS });
-      return {
-        resultCount: results.length,
-        sources: sources ?? '',
-        ...(totals ? { gesamt: totals } : {}),
-        hinweis: BUNDESTAG_HINWEIS,
-        ...landtagNote(userText),
-        ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
-        // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
-        uiCard: {
-          query: question,
-          filter: describeBundestagFilter(applied ?? filters),
-          ...(totals ? { gesamt: totals } : {}),
-          dokumente: (documents ?? []).map((d) => ({
-            ref: bundestagRefLabel(d.ref),
-            typ: d.drucksachetyp,
-            datum: d.datum,
-            titel: d.titel,
-            url: d.pdfUrl,
-          })),
-          ...(verfahren ? { verfahren: verfahren.slice(0, 3) } : {}),
-        },
-      };
     },
   });
 }

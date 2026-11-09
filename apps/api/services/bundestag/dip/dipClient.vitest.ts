@@ -86,6 +86,26 @@ describe('DipClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('bricht bei einem Abbruchsignal ab und versucht danach nicht erneut (#5570)', async () => {
+    const ctrl = new AbortController();
+    fetchMock.mockImplementation(
+      (_url: URL, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(new Error('aborted')));
+        })
+    );
+    const client = new DipClient('key', { ...FAST, maxAttempts: 3 });
+    const pending = client.list('vorgang', {}, ctrl.signal);
+    const erwartet = expect(pending).rejects.toThrow('aborted');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    ctrl.abort();
+    await erwartet;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Ein schon abgebrochenes Signal startet gar keine Abfrage.
+    await expect(client.list('vorgang', {}, ctrl.signal)).rejects.toThrow();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('blättert in forEachPage weiter und hält am unveränderten Cursor an', async () => {
     fetchMock
       .mockResolvedValueOnce(respond({ cursor: 'A', documents: [{ id: '1' }] }))

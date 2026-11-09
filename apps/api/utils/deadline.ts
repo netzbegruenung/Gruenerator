@@ -5,6 +5,13 @@
  * Werkzeugfrist (#5565). `signal` bricht alles ab, was ihn bekommt; `dispose`
  * gehört in ein `finally`, damit kein Timer den Prozess hält.
  */
+/**
+ * Rand für den Rest der Antwort (Quellen registrieren, Karte bauen), den die Frist eines
+ * Aufrufs von der Werkzeugfrist abzieht: die Stufen dürfen nie bis zur Werkzeugfrist laufen.
+ * Eine Zahl für `landtag` und `bundestag`.
+ */
+export const ANSWER_MARGIN_MS = 4_000;
+
 export class Deadline {
   readonly #controller = new AbortController();
   readonly #endsAt: number;
