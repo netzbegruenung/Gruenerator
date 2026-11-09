@@ -5,6 +5,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
+  USER_RECIPE_DESCRIPTION_MIN,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
@@ -171,6 +172,8 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       : null;
 
   const titleValid = form.title.trim().length > 0;
+  // Die Beschreibung ist die einzige Auswahlgrundlage des Modells (Rezeptkatalog).
+  const descriptionValid = form.description.trim().length >= USER_RECIPE_DESCRIPTION_MIN;
   // Doppelte Rolle: Speicherbedingung und — im Beispiel-Panel — die Frage, ob
   // eine Analyse etwas überschreiben würde.
   const styleValid = form.styleBlock.trim().length > 0;
@@ -185,6 +188,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       : null;
   const canSave =
     titleValid &&
+    descriptionValid &&
     styleValid &&
     mentionValid &&
     !tooManyExamples &&
@@ -403,7 +407,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
-              placeholder="Beschreibe dein Rezept und wie es funktioniert"
+              placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
             />
           </label>
 

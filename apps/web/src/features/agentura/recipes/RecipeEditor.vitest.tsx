@@ -39,6 +39,8 @@ vi.mock('react-router-dom', async (importOriginal) => ({
   useNavigate: () => navigate,
 }));
 
+const WANN_BESCHREIBUNG = 'Kurze Rundbriefe. Nutzen, wenn ein Rundbrief entsteht.';
+
 function customCreateForm(over: Partial<RecipeFormState> = {}): RecipeFormState {
   return { ...EMPTY_RECIPE_FORM, ...over };
 }
@@ -50,6 +52,7 @@ function customEditForm(over: Partial<RecipeFormState> = {}): RecipeFormState {
     mention: 'mein-rezept',
     originalMention: 'mein-rezept',
     title: 'Mein Rezept',
+    description: WANN_BESCHREIBUNG,
     styleBlock: 'Schreibe kurz und klar.',
     ...over,
   };
@@ -61,6 +64,7 @@ async function fillTitleAndInstruction(
   instruction: string
 ) {
   await user.type(screen.getByLabelText('Name'), title);
+  await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
   await user.type(screen.getByLabelText('Anleitung'), instruction);
 }
 
@@ -96,6 +100,23 @@ describe('RecipeEditor', () => {
     expect(screen.getByLabelText('Anleitung')).toHaveValue('Schreibe kurz und klar.');
   });
 
+  it('sperrt Speichern ohne Beschreibung und nennt im Feld die Frage nach dem Wann', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    expect(screen.getByLabelText('Beschreibung')).toHaveAttribute(
+      'placeholder',
+      'Wann soll der Grünerator dieses Rezept nutzen?'
+    );
+    await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
+    await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+  });
+
   it('sperrt Speichern, bis Name und Anleitung ausgefüllt sind', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
@@ -104,6 +125,9 @@ describe('RecipeEditor', () => {
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
 
     await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
 
     await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
@@ -145,7 +169,7 @@ describe('RecipeEditor', () => {
     );
 
     await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
-    await user.type(screen.getByLabelText('Beschreibung'), 'Kurzbeschreibung');
+    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
     await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
@@ -155,7 +179,7 @@ describe('RecipeEditor', () => {
       body: Record<string, unknown>;
     };
     expect(call.params).toEqual({ mention: 'mein-testrezept' });
-    expect(call.body.description).toBe('Kurzbeschreibung');
+    expect(call.body.description).toBe(WANN_BESCHREIBUNG);
     expect(call.body.iconKey).toBe(EMPTY_RECIPE_FORM.iconKey);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/agentura/rezept/mein-testrezept'));
   });
@@ -304,6 +328,7 @@ describe('RecipeEditor', () => {
           mention: 'presse',
           textType: 'presse',
           title: 'Pressemitteilungen',
+          description: WANN_BESCHREIBUNG,
         })}
       />
     );

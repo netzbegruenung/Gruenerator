@@ -95,6 +95,14 @@ export const MAX_TEXT_FORM_STYLE_CHARS = 8000;
 export const MAX_TEXT_FORM_TITLE_CHARS = 80;
 
 export const MAX_TEXT_FORM_DESCRIPTION_CHARS = 500;
+
+/**
+ * Mindestlänge der Rezept-Beschreibung, die die Editoren verlangen: sie ist die
+ * einzige Auswahlgrundlage des Modells („Nutzen, wenn …"). Gilt nur im Client —
+ * auf dem Draht bleibt `description` `nullish`, ausgelieferte Mobile-Binaries
+ * schicken `null`.
+ */
+export const USER_RECIPE_DESCRIPTION_MIN = 30;
 /** Short blurb shown next to the recipe in the Agentura/mention picker. */
 export const textFormDescriptionSchema = z.string().max(MAX_TEXT_FORM_DESCRIPTION_CHARS);
 /** Icon key from the shared icon catalog, same shape as agents' `iconKey`. */

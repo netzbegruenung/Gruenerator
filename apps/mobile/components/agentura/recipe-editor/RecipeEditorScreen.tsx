@@ -4,6 +4,7 @@ import {
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
   type TextForm,
+  USER_RECIPE_DESCRIPTION_MIN,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
@@ -237,6 +238,8 @@ function EditorForm({
 
   const examples = useMemo(() => examplesStatus(form.rawExamples), [form.rawExamples]);
   const titleValid = form.title.trim().length > 0;
+  // Die Beschreibung ist die einzige Auswahlgrundlage des Modells (Rezeptkatalog).
+  const descriptionValid = form.description.trim().length >= USER_RECIPE_DESCRIPTION_MIN;
   const styleValid = styleBlockValid(form.styleBlock);
   const mentionValid = canEditMention ? isValidMention(normalizeMention(mentionFieldValue)) : true;
   const liveBlocker =
@@ -253,6 +256,7 @@ function EditorForm({
   const canSave =
     ready &&
     titleValid &&
+    descriptionValid &&
     styleValid &&
     mentionValid &&
     !liveBlocker &&
@@ -485,12 +489,15 @@ function EditorForm({
           </View>
         </FormSection>
 
-        <FormSection title="Beschreibung">
+        <FormSection
+          title="Beschreibung"
+          footer={`Pflichtfeld · mindestens ${USER_RECIPE_DESCRIPTION_MIN} Zeichen · hiernach entscheidet der Grünerator, wann er das Rezept nutzt.`}
+        >
           <FieldInput
             value={form.description}
             onChangeText={(description) => update({ description })}
             maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
-            placeholder="Wofür ist das Rezept da?"
+            placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
             accessibilityLabel="Beschreibung"
             multiline
             style={styles.descriptionInput}
