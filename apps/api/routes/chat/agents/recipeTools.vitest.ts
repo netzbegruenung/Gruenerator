@@ -25,7 +25,13 @@ async function call(tool: ReturnType<typeof makeRecipeTool>, rezept: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resolveRecipe.mockResolvedValue({ title: 'Instagram', body: 'Max 600.', source: 'system' });
+  resolveRecipe.mockResolvedValue({
+    id: null,
+    mention: 'instagram',
+    title: 'Instagram',
+    body: 'Max 600.',
+    source: 'system',
+  });
 });
 
 describe('rezept_laden', () => {
@@ -88,7 +94,26 @@ describe('rezept_laden', () => {
 
     expect(third.geladen).toBe(false);
     expect(third.grund).toContain('presse');
+    expect(third.grund).toContain('Mehr als 3 gehen nicht');
     expect(registry.size).toBe(2);
+  });
+
+  it('refuses a recipe that no longer fits the turn budget', async () => {
+    const registry = createRecipeRegistry(3, 20);
+    const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });
+    resolveRecipe.mockResolvedValue({
+      id: null,
+      mention: 'presse',
+      title: 'Pressemitteilung',
+      body: 'x'.repeat(21),
+      source: 'system',
+    });
+
+    const result = await call(tool, 'presse');
+
+    expect(result.geladen).toBe(false);
+    expect(result.grund).toBe('Das Rezept passt nicht mehr ins Budget dieses Turns.');
+    expect(registry.size).toBe(0);
   });
 
   /**

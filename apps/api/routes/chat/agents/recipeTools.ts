@@ -13,7 +13,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '../../../utils/logger.js';
-import { type RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
+import {
+  MAX_RECIPES_PER_TURN,
+  type RecipeRegistry,
+} from '../services/agenticLoop/recipeRegistry.js';
 
 import { recommendedToolsFor, resolveRecipe, type RecipeCatalogEntry } from './recipeCatalog.js';
 
@@ -75,6 +78,7 @@ export function makeRecipeTool(params: {
       }
 
       const outcome = registry.register({
+        id: resolved.id,
         mention: effective,
         title: resolved.title,
         body: resolved.body,
@@ -87,7 +91,15 @@ export function makeRecipeTool(params: {
         return {
           geladen: false,
           rezept: effective,
-          grund: `Es sind bereits ${registry.size} Rezepte geladen (${registry.mentions.join(', ')}). Schreibe mit diesen.`,
+          grund: `Es sind bereits ${registry.size} Rezepte geladen (${registry.mentions.join(', ')}). Mehr als ${MAX_RECIPES_PER_TURN} gehen nicht – schreibe mit diesen.`,
+        };
+      }
+
+      if (outcome === 'over_budget') {
+        return {
+          geladen: false,
+          rezept: effective,
+          grund: 'Das Rezept passt nicht mehr ins Budget dieses Turns.',
         };
       }
 
