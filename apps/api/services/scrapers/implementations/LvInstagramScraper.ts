@@ -12,7 +12,7 @@ import { v5 as uuidv5 } from 'uuid';
 import { env } from '../../../config/env.js';
 import { CONTENT_TYPE_LABELS } from '../../../config/landesverbaendeConfig.js';
 import { LV_SOCIAL_ACCOUNTS } from '../../../config/landesverbaendeSocialAccounts.js';
-import { SYSTEM_COLLECTIONS } from '../../../config/systemCollectionsConfig.js';
+import { SYSTEM_COLLECTIONS, isRemoteCollection } from '../../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { batchUpsert } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -86,7 +86,11 @@ export function buildInstagramPayload(
 function overviewCacheKeys(lv: string): string[] {
   return Object.values(SYSTEM_COLLECTIONS)
     .filter((c) => {
-      if (c.qdrantCollection !== COLLECTION || c.defaultFilter?.field !== 'landesverband') {
+      if (
+        isRemoteCollection(c) ||
+        c.qdrantCollection !== COLLECTION ||
+        c.defaultFilter?.field !== 'landesverband'
+      ) {
         return false;
       }
       const value = c.defaultFilter.value;

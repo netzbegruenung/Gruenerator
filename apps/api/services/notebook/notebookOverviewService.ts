@@ -23,6 +23,7 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 import {
   applyDefaultFilter,
   getSystemCollectionConfig,
+  isRemoteCollection,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -610,9 +611,10 @@ export function headFilter(collectionId: string | null): Record<string, unknown>
     ...base,
     must: [...(base.must ?? []), { key: 'chunk_index', match: { value: 0 } }],
   };
+  const config = collectionId ? getSystemCollectionConfig(collectionId) : null;
   const isLv =
     collectionId === null ||
-    getSystemCollectionConfig(collectionId)?.qdrantCollection === LV_COLLECTION;
+    (config != null && !isRemoteCollection(config) && config.qdrantCollection === LV_COLLECTION);
   if (!isLv) return filter;
   // Instagram posts sit in the LV corpus for the chat; the statistics would
   // jump with every daily post, so they get their own card instead.
@@ -740,7 +742,8 @@ async function loadRecent(
 
 async function computeOverview(collectionId: string): Promise<NotebookOverviewResponse | null> {
   const config = getSystemCollectionConfig(collectionId);
-  if (!config) return null;
+  // Die Übersicht scrollt die ganze Sammlung; eine Remote-Quelle kann das nicht.
+  if (!config || isRemoteCollection(config)) return null;
 
   const qdrant = getQdrantInstance();
   await qdrant.init();

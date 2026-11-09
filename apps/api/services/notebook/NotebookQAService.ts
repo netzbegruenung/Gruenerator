@@ -29,6 +29,7 @@ import {
 import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
+  systemSearchTarget,
   buildSystemCollectionObject,
   getDefaultMultiCollectionIds,
   getSearchParams,
@@ -63,6 +64,7 @@ import {
 import { applySourceTier } from '../search/sourceTier.js';
 
 import { inspectCorpusState } from './corpusState.js';
+import { isSourceUnavailable } from './remoteSources/errors.js';
 
 import type { CorpusStateInspection } from './corpusState.js';
 import type {
@@ -94,6 +96,9 @@ import type {
 } from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
+
+/** Eine Remote-Sammlung hat in der Mehrfach-Suche nicht geantwortet; `message` ist der Satz für Nutzer*innen. */
+class SourceUnavailableInSearch extends Error {}
 const documentSearchService = new DocumentSearchService();
 
 /**
@@ -217,13 +222,15 @@ export class NotebookQAService {
     // Search all system collections in parallel
     // Extract per-collection filters: if requestFilters contains keys matching collection IDs,
     // those are per-collection filter overrides (e.g. { "hamburg-system": { content_type: ["presse"] } })
+    const unavailable = new Set<string>();
     const searchPromises = effectiveCollectionIds.map((collectionId) => {
       const filtersForCollection = this._extractCollectionFilters(
         collectionId,
         effectiveFilters,
         effectiveCollectionIds
       );
-      return this._searchCollection(
+      return this._searchCollectionOrMark(
+        unavailable,
         collectionId,
         trimmedQuestion,
         documentScope,
@@ -239,6 +246,7 @@ export class NotebookQAService {
     const sortedResults = filterAndSortResults(dedupedResults, { threshold: 0.35, limit: 40 });
 
     if (sortedResults.length === 0) {
+      if (unavailable.size > 0) throw new Error([...unavailable].join(' · '));
       return {
         success: true,
         answer:
@@ -429,7 +437,7 @@ export class NotebookQAService {
 
     const searchResults = await this._performSearch({
       query: trimmedQuestion,
-      searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+      target: isSystem ? systemSearchTarget(systemConfig) : { searchCollection: 'documents' },
       userId: isSystem ? null : userId,
       documentIds: isSystem ? undefined : documentIds,
       additionalFilter: withProgramFilter(
@@ -669,12 +677,14 @@ export class NotebookQAService {
     // Search every collection × every query formulation in parallel, keeping
     // the hits grouped per query so selectAcrossQueryGroups can give each one
     // its share of the budget.
+    const unavailable = new Set<string>();
     const resultsByGroup = await Promise.all(
       queryGroups.map(async (group, g) => {
         const perQuery = await Promise.all(
           group.flatMap((q) =>
             effectiveCollectionIds.map((cId) =>
-              this._searchCollection(
+              this._searchCollectionOrMark(
+                unavailable,
                 cId,
                 q,
                 documentScope,
@@ -698,6 +708,8 @@ export class NotebookQAService {
     );
 
     if (sortedResults.length === 0) {
+      // Nichts gefunden, weil eine Quelle schwieg, ist kein „nichts gefunden".
+      if (unavailable.size > 0) throw new Error([...unavailable].join(' · '));
       return null;
     }
 
@@ -715,6 +727,7 @@ export class NotebookQAService {
       effectiveCollectionIds,
       documentScope,
       effectiveFilters,
+      ...(unavailable.size > 0 && { unavailableSources: [...unavailable] }),
     };
   }
 
@@ -824,7 +837,9 @@ export class NotebookQAService {
             const searchResults = await searchOrSkip({
               query: q,
               ...(g === 0 && lexicalTerms?.length && { lexicalTerms }),
-              searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+              target: isSystem
+                ? systemSearchTarget(systemConfig)
+                : { searchCollection: 'documents' },
               userId: isSystem ? null : (userId ?? null),
               documentIds: isSystem ? undefined : documentIds,
               additionalFilter: withProgramFilter(
@@ -899,6 +914,24 @@ export class NotebookQAService {
   }
 
   /**
+   * `_searchCollection` für Mehrfach-Suchen: eine ausgefallene Remote-Quelle
+   * fällt aus der Mischung heraus, wird aber in `unavailable` genannt — nie
+   * still als „dort stand nichts".
+   */
+  private async _searchCollectionOrMark(
+    unavailable: Set<string>,
+    ...args: Parameters<NotebookQAService['_searchCollection']>
+  ): Promise<ExpandedChunkResult[]> {
+    try {
+      return await this._searchCollection(...args);
+    } catch (error: unknown) {
+      if (!(error instanceof SourceUnavailableInSearch)) throw error;
+      unavailable.add(error.message);
+      return [];
+    }
+  }
+
+  /**
    * Search a single collection
    */
   private async _searchCollection(
@@ -933,13 +966,16 @@ export class NotebookQAService {
           vectorWeight: searchParams.vectorWeight,
           textWeight: searchParams.textWeight,
           threshold: searchParams.threshold,
-          searchCollection: config.qdrantCollection,
+          ...systemSearchTarget(config),
           recallLimit: searchParams.recallLimit,
           qualityMin: searchParams.qualityMin,
           additionalFilter,
           ...(lexicalTerms?.length && { lexicalTerms }),
         },
       });
+      if (isSourceUnavailable(resp)) {
+        throw new SourceUnavailableInSearch(resp.error ?? `${config.name} nicht erreichbar`);
+      }
 
       const expanded = expandResultsToChunks(
         applySourceTier(resp.results || [], collectionId, sourceTier),
@@ -950,6 +986,7 @@ export class NotebookQAService {
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);
     } catch (error: unknown) {
+      if (error instanceof SourceUnavailableInSearch) throw error;
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
     }
@@ -1028,7 +1065,7 @@ export class NotebookQAService {
    */
   private async _performSearch({
     query,
-    searchCollection,
+    target,
     userId,
     documentIds,
     additionalFilter,
@@ -1045,7 +1082,7 @@ export class NotebookQAService {
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
-        searchCollection,
+        ...target,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
@@ -1059,6 +1096,9 @@ export class NotebookQAService {
     // erreicht Nutzer*innen über `toUserFacingMessage`, der Grund nur das Log.
     if (resp.success === false) {
       log.warn(`[QA] search failed for "${query.slice(0, 60)}": ${resp.message ?? resp.error}`);
+      // Eine ausgefallene Remote-Quelle nennt sich selbst („Bundestag-Quelle
+      // gerade nicht erreichbar") — das ist der Satz, den Nutzer*innen brauchen.
+      if (isSourceUnavailable(resp) && resp.error) throw new Error(resp.error);
       throw new Error(
         'Die Suche im Notebook ist fehlgeschlagen. Bitte versuche es gleich noch einmal.'
       );

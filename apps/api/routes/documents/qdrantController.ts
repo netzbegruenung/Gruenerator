@@ -17,6 +17,7 @@ import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
@@ -80,6 +81,10 @@ router.get('/system-full-text', async (req: DocumentRequest, res: Response): Pro
         success: false,
         message: `Unknown collection: ${collection}`,
       });
+      return;
+    }
+    if (!('qdrantCollection' in mapping)) {
+      res.status(404).json({ success: false, message: notAvailableForRemote(collection) });
       return;
     }
 

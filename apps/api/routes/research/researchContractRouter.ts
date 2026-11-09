@@ -21,10 +21,16 @@ import {
   getSystemCollectionConfig,
   applyDefaultFilter,
   buildSubcategoryFilter,
+  isRemoteCollection,
+  systemSearchTarget,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import {
+  isSourceUnavailable,
+  notAvailableForRemote,
+} from '../../services/notebook/remoteSources/errors.js';
 import { buildReaderDocument } from '../../services/research/documentReader.js';
 import {
   resolveWolkeDisplayUrl,
@@ -145,6 +151,7 @@ export const researchContractRouter = s.router(researchContract, {
 
     try {
       const documentSearchService = getQdrantDocumentService();
+      const unavailable = new Set<string>();
 
       const searchPromises = requestedIds.map(
         async (collectionId): Promise<TaggedDocumentResult[]> => {
@@ -156,13 +163,16 @@ export const researchContractRouter = s.router(researchContract, {
           // Merge: defaultFilter (landesverband scoping) + userFilter (selected facets)
           const additionalFilter = applyDefaultFilter(collectionId, userFilter);
 
-          // Runs alongside the search; it only needs the query.
-          const frequenciesPromise = loadTermFrequencies(
-            getQdrantInstance(),
-            config.qdrantCollection,
-            additionalFilter,
-            queryCoverageTerms
-          );
+          // Runs alongside the search; it only needs the query. Remote-Quellen
+          // haben keinen Wortindex bei uns — die Abdeckung läuft dann ohne.
+          const frequenciesPromise = isRemoteCollection(config)
+            ? Promise.resolve(null)
+            : loadTermFrequencies(
+                getQdrantInstance(),
+                config.qdrantCollection,
+                additionalFilter,
+                queryCoverageTerms
+              );
 
           try {
             const resp = await documentSearchService.search({
@@ -174,12 +184,16 @@ export const researchContractRouter = s.router(researchContract, {
                 vectorWeight,
                 textWeight,
                 threshold: searchParams.threshold,
-                searchCollection: config.qdrantCollection,
+                ...systemSearchTarget(config),
                 recallLimit: searchParams.recallLimit,
                 qualityMin: searchParams.qualityMin,
                 additionalFilter,
               },
             });
+            if (isSourceUnavailable(resp)) {
+              unavailable.add(resp.error ?? config.name);
+              return [];
+            }
 
             const covered = withQueryCoverage(
               resp.results || [],
@@ -215,6 +229,10 @@ export const researchContractRouter = s.router(researchContract, {
         limit: effectiveLimit,
         minScore: SYSTEM_COLLECTION_MIN_SCORE,
       });
+      // Leer, weil eine Quelle schwieg, ist kein „keine Treffer".
+      if (deduped.length === 0 && unavailable.size > 0) {
+        return { status: 500 as const, body: { error: [...unavailable].join(' · ') } };
+      }
 
       // Extract best snippets with query-term highlighting. Map explicitly to
       // the contract result shape (normalise optional → null).
@@ -268,6 +286,9 @@ export const researchContractRouter = s.router(researchContract, {
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig) {
       return { status: 400 as const, body: { error: 'Invalid collectionId.' } };
+    }
+    if (isRemoteCollection(systemConfig)) {
+      return { status: 400 as const, body: { error: notAvailableForRemote(systemConfig.name) } };
     }
 
     const effectiveLimit = Math.min(Math.max(limit ?? 5, 1), 20);
@@ -383,6 +404,9 @@ export const researchContractRouter = s.router(researchContract, {
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig || !isReaderCollectionId(collectionId)) {
       return { status: 400 as const, body: { error: 'Invalid collectionId.' } };
+    }
+    if (isRemoteCollection(systemConfig)) {
+      return { status: 400 as const, body: { error: notAvailableForRemote(systemConfig.name) } };
     }
 
     try {

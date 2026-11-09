@@ -19,6 +19,7 @@ import { type NotebookSourceRef } from '@gruenerator/contracts';
 import {
   getSystemCollectionConfig,
   isReaderCollectionId,
+  isRemoteCollection,
 } from '../../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -76,6 +77,8 @@ async function resolveOne(
   }
   const config = getSystemCollectionConfig(ref.collectionId);
   if (!config || !isReaderCollectionId(ref.collectionId)) return null;
+  // Remote-Sammlungen haben keinen Quellen-Leser (`notAvailableForRemote`).
+  if (isRemoteCollection(config)) return null;
   const collection = {
     key: config.key,
     systemId: config.id,

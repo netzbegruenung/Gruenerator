@@ -17,6 +17,7 @@ import {
 } from '@gruenerator/shared/search';
 
 import { TOPIC_NAMES } from '../services/monitor/types.js';
+import { type RemoteSourceId } from '../services/notebook/remoteSources/ids.js';
 
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
@@ -61,12 +62,11 @@ export interface DefaultFilter {
   value: string | string[];
 }
 
-export interface SystemCollectionConfig {
+interface SystemCollectionBase {
   id: string;
   // Chat-facing key (e.g. `bayern`) COLLECTION_MAP derives from; distinct from
   // the `-system` id, which is the wire contract for notebook filters + embed.
   key: string;
-  qdrantCollection: string;
   name: string;
   description: string;
   minQuality: number;
@@ -86,6 +86,39 @@ export interface SystemCollectionConfig {
   // `content_type`s, die bei `sourceTier: 'documents-first'` einen kleinen
   // Abschlag bekommen (#4307). Siehe `services/search/sourceTier.ts`.
   demotedContentTypes?: readonly string[];
+}
+
+export interface QdrantSystemCollectionConfig extends SystemCollectionBase {
+  qdrantCollection: string;
+}
+
+/**
+ * Served by another service's HTTP API instead of our Qdrant
+ * (`services/notebook/remoteSources/`). Deliberately WITHOUT `qdrantCollection`:
+ * every reader of that field fails to compile on the union and has to decide
+ * what a remote collection means for it. An optional field would let
+ * `searchCollection: config.qdrantCollection` compile as `undefined` and
+ * silently search the `documents` collection.
+ */
+export interface RemoteSystemCollectionConfig extends SystemCollectionBase {
+  remote: RemoteSourceId;
+}
+
+export type SystemCollectionConfig = QdrantSystemCollectionConfig | RemoteSystemCollectionConfig;
+
+export function isRemoteCollection(
+  config: SystemCollectionConfig
+): config is RemoteSystemCollectionConfig {
+  return 'remote' in config;
+}
+
+/** Wohin eine Suche über diese Sammlung geht — in die Such-Options gespreizt. */
+export function systemSearchTarget(
+  config: SystemCollectionConfig
+): { searchCollection: string } | { remoteSource: RemoteSourceId } {
+  return isRemoteCollection(config)
+    ? { remoteSource: config.remote }
+    : { searchCollection: config.qdrantCollection };
 }
 
 export interface SearchParams {
@@ -1098,7 +1131,8 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'landtag-berlin-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
-  if (NLP_INJECTION_EXCLUDED.has(id)) continue;
+  // Remote: die Anreicherung schreibt in unser Qdrant, nicht in fremde Indizes.
+  if (NLP_INJECTION_EXCLUDED.has(id) || isRemoteCollection(config)) continue;
   config.filterableFields = [...config.filterableFields, THEMES_FIELD, PERSONS_FIELD];
 }
 
@@ -1117,13 +1151,20 @@ export function isSystemCollectionId(id: string): boolean {
  * Check if a Qdrant collection name is a system collection
  */
 export function isSystemQdrantCollection(name: string): boolean {
-  return Object.values(SYSTEM_COLLECTIONS).some((c) => c.qdrantCollection === name);
+  return getSystemConfigByQdrantCollection(name) !== undefined;
 }
 
 export function getSystemConfigByQdrantCollection(
   name: string
-): SystemCollectionConfig | undefined {
-  return Object.values(SYSTEM_COLLECTIONS).find((c) => c.qdrantCollection === name);
+): QdrantSystemCollectionConfig | undefined {
+  return getQdrantSystemCollections().find((c) => c.qdrantCollection === name);
+}
+
+/** Alle Sammlungen, die in unserem Qdrant liegen — Remote-Sammlungen fehlen. */
+export function getQdrantSystemCollections(): QdrantSystemCollectionConfig[] {
+  return Object.values(SYSTEM_COLLECTIONS).filter(
+    (c): c is QdrantSystemCollectionConfig => !isRemoteCollection(c)
+  );
 }
 
 /**
@@ -1137,7 +1178,7 @@ export function getSystemCollectionConfig(id: string): SystemCollectionConfig | 
  * Get all system Qdrant collection names
  */
 export function getSystemQdrantCollections(): string[] {
-  return Object.values(SYSTEM_COLLECTIONS).map((c) => c.qdrantCollection);
+  return getQdrantSystemCollections().map((c) => c.qdrantCollection);
 }
 
 /** All system collection IDs, incl. agent-only + examples. */
@@ -1148,7 +1189,7 @@ export function getAllSystemCollectionIds(): string[] {
 /** General document corpus — excludes agent-only + the social-media examples. */
 export function getSearchableSystemCollectionIds(): string[] {
   return Object.values(SYSTEM_COLLECTIONS)
-    .filter((c) => !c.agentOnly && c.qdrantCollection !== 'social_media_examples')
+    .filter((c) => !c.agentOnly && c.id !== 'examples-system')
     .map((c) => c.id);
 }
 

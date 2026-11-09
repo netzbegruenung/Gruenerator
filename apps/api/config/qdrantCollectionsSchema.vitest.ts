@@ -5,7 +5,7 @@ import {
   getCollectionConfig,
   OPTIMIZER_PRESETS,
 } from './qdrantCollectionsSchema.js';
-import { SYSTEM_COLLECTIONS } from './systemCollectionsConfig.js';
+import { getQdrantSystemCollections } from './systemCollectionsConfig.js';
 
 describe('optimizer presets', () => {
   // A segment never grows past max_segment_size, so a threshold at or above the
@@ -35,7 +35,7 @@ describe('date_range filter fields', () => {
   // getDateRange scrolls with order_by, which Qdrant rejects without a range
   // index — the filter UI then shows unbounded pickers (#3711).
   it('have a range-capable index in every system collection that offers them', () => {
-    for (const config of Object.values(SYSTEM_COLLECTIONS)) {
+    for (const config of getQdrantSystemCollections()) {
       const schema = COLLECTION_SCHEMAS[config.qdrantCollection];
       if (!schema) continue;
       for (const field of config.filterableFields ?? []) {
@@ -55,7 +55,7 @@ describe('keyword filter fields', () => {
   // filter shows no values — „Organ“ in every Landesverband notebook stayed
   // empty that way, because `source_type` had no index.
   it('have a keyword index in every system collection that offers them', () => {
-    for (const config of Object.values(SYSTEM_COLLECTIONS)) {
+    for (const config of getQdrantSystemCollections()) {
       const schema = COLLECTION_SCHEMAS[config.qdrantCollection];
       if (!schema) continue;
       for (const field of config.filterableFields) {

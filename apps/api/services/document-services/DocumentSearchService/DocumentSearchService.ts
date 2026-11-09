@@ -13,15 +13,20 @@
  */
 
 import {
+  getSystemCollectionConfig,
   getSystemConfigByQdrantCollection,
+  isRemoteCollection,
   isSystemQdrantCollection,
 } from '../../../config/systemCollectionsConfig.js';
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { type QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { SearchError } from '../../../utils/errors/classes.js';
 import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
+import { type RemoteSourceId } from '../../notebook/remoteSources/ids.js';
+import { getRemoteSource } from '../../notebook/remoteSources/registry.js';
 import { toStoredWolkeUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 import { trashedDocumentIds } from '../trashedDocuments.js';
 
@@ -226,8 +231,11 @@ export class DocumentSearchService extends BaseSearchService {
       const query = InputValidator.validateSearchQuery(p.query);
       const searchCollection = (pFilters?.searchCollection || pOptions?.searchCollection) as
         string | undefined;
+      const remoteSource = (pFilters?.remoteSource || pOptions?.remoteSource) as
+        RemoteSourceId | undefined;
       const isSystemSearch =
-        typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
+        remoteSource !== undefined ||
+        (typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection));
       const userId =
         isSystemSearch && (p.userId === null || p.userId === undefined)
           ? null
@@ -281,6 +289,7 @@ export class DocumentSearchService extends BaseSearchService {
           sourceType,
           group_id,
           searchCollection,
+          ...(remoteSource && { remoteSource }),
           titleFilter,
           additionalFilter,
         },
@@ -414,8 +423,10 @@ export class DocumentSearchService extends BaseSearchService {
       const validated = this.validateSearchParams(searchParams);
       const mode = validated.options?.mode || 'vector';
       const searchCollection = validated.filters?.searchCollection;
+      const remote = validated.filters?.remoteSource !== undefined;
       const system =
-        typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
+        remote ||
+        (typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection));
 
       let response: SearchResponse;
       if (mode === 'hybrid') {
@@ -429,6 +440,7 @@ export class DocumentSearchService extends BaseSearchService {
       }
       // System collections have no `documents` rows, hence nothing trashed.
       if (!system) return await hideTrashedDocuments(response);
+      if (remote || searchCollection === undefined) return response;
 
       const dependentDocTypes =
         getSystemConfigByQdrantCollection(searchCollection)?.dependentDocTypes;
@@ -462,6 +474,14 @@ export class DocumentSearchService extends BaseSearchService {
   private async performTextOnlySearch(params: SearchParams): Promise<SearchResponse> {
     const validated = this.validateSearchParams(params);
     const { query, userId, filters, options } = validated;
+
+    if (filters.remoteSource) {
+      throw new SearchError(
+        'Die Volltextsuche ist für dieses Notebook nicht verfügbar.',
+        'NOT_IMPLEMENTED',
+        { searchType: 'text' }
+      );
+    }
 
     if (!this.qdrantOps) {
       throw new Error('Qdrant not available');
@@ -849,12 +869,27 @@ export class DocumentSearchService extends BaseSearchService {
     chunkIndex: number,
     options: { window?: number } = {}
   ): Promise<ChunkWithContextResult> {
+    // Der Client schickt die System-Id (`citation.collection_id`); die Config
+    // ist die Quelle der Wahrheit, die Karte unten nur der Rückfall für Altnamen.
+    const config = getSystemCollectionConfig(collectionType);
+    if (config && isRemoteCollection(config)) {
+      return await docRetrieval.getRemoteChunkWithContext(
+        getRemoteSource(config.remote),
+        documentId,
+        chunkIndex,
+        options
+      );
+    }
+
     await this.ensureInitialized();
     if (!this.qdrantOps) {
       return { success: false, error: 'Qdrant not available' };
     }
 
-    const collectionName = SYSTEM_COLLECTION_MAP[collectionType] || `${collectionType}_documents`;
+    const collectionName =
+      config?.qdrantCollection ||
+      SYSTEM_COLLECTION_MAP[collectionType] ||
+      `${collectionType}_documents`;
     return await docRetrieval.getSystemChunkWithContext(
       this.qdrantOps,
       collectionName,
@@ -907,12 +942,18 @@ export class DocumentSearchService extends BaseSearchService {
   override async findSimilarChunks(
     params: FindSimilarChunksParams
   ): Promise<DocumentTransformedChunk[]> {
+    const { remoteSource } = params.filters;
+    if (remoteSource)
+      return await searchOps.findRemoteChunks(getRemoteSource(remoteSource), params);
     return await searchOps.findSimilarChunks(this.qdrantOps, this.qdrantAvailable, params);
   }
 
   override async findHybridChunks(
     params: FindHybridChunksParams
   ): Promise<DocumentTransformedChunk[]> {
+    const { remoteSource } = params.filters;
+    if (remoteSource)
+      return await searchOps.findRemoteChunks(getRemoteSource(remoteSource), params);
     return await searchOps.findHybridChunks(this.qdrantOps, this.qdrantAvailable, params);
   }
 

@@ -2,6 +2,8 @@
  * Type definitions for Notebook QA Service
  */
 
+import { type RemoteSourceId } from './remoteSources/ids.js';
+
 import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
@@ -149,7 +151,8 @@ export interface SearchParams {
  */
 export interface InternalSearchOptions {
   query: string;
-  searchCollection: string;
+  /** `systemSearchTarget(config)` oder `{ searchCollection: 'documents' }`. */
+  target: { searchCollection: string } | { remoteSource: RemoteSourceId };
   userId: string | null;
   documentIds?: string[] | undefined;
   additionalFilter?: QdrantFilter | undefined;
@@ -194,6 +197,11 @@ export interface SearchContext {
   effectiveCollectionIds?: string[] | undefined;
   documentScope?: DocumentScope | undefined;
   effectiveFilters?: RequestFilters | undefined;
+  /**
+   * Meldungen der Remote-Quellen, die bei einer Mehrfach-Suche ausgefallen sind
+   * („Bundestag-Quelle gerade nicht erreichbar"). Die Antwort entstand ohne sie.
+   */
+  unavailableSources?: string[] | undefined;
 }
 
 /**
