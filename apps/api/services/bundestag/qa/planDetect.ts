@@ -156,6 +156,16 @@ export function detectZeitraum(question: string): { datumVon?: string; datumBis?
     out.datumVon = `${im[1]}-01-01`;
     out.datumBis = `${im[1]}-12-31`;
   }
+  // „dieses Jahr“ ohne Zahl: das laufende Kalenderjahr (#5573).
+  if (
+    !seit &&
+    !im &&
+    /\b(?:dies(?:e|en|em|es)|laufenden?|aktuellen?)\s+jahr(?:es)?\b/i.test(question)
+  ) {
+    const y = new Date().getFullYear();
+    out.datumVon = `${y}-01-01`;
+    out.datumBis = `${y}-12-31`;
+  }
   const bis = question.match(new RegExp(`\\b(vor|bis)\\s+(?:${MONTH_RE}\\s+)?(\\d{4})\\b`, 'i'));
   if (bis && YEAR_OK(Number(bis[3]))) {
     const y = Number(bis[3]);

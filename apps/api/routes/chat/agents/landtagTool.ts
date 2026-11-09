@@ -242,13 +242,14 @@ async function runParlamentSuche(
   ctx: Ctx,
   parlament: LandtagParlament,
   query: string | undefined,
-  args: LandtagFilter
+  args: LandtagFilter,
+  firstCall: boolean
 ) {
   const deadline = new Deadline(
     landtagDeadlineMs(parlament === 'nationalrat' ? 'nationalrat' : 'landtag')
   );
   try {
-    return await runParlamentSucheMitFrist(ctx, parlament, query, args, deadline);
+    return await runParlamentSucheMitFrist(ctx, parlament, query, args, deadline, firstCall);
   } finally {
     deadline.dispose();
   }
@@ -259,7 +260,8 @@ async function runParlamentSucheMitFrist(
   parlament: LandtagParlament,
   query: string | undefined,
   args: LandtagFilter,
-  deadline: Deadline
+  deadline: Deadline,
+  firstCall: boolean
 ) {
   const meta = LANDTAGE[parlament];
   // Wie bei `bundestag`: was der Wortlaut hergibt (Zeitraum, Fraktion, Art), gilt mit; gesetzte Argumente gehen vor.
@@ -268,7 +270,9 @@ async function runParlamentSucheMitFrist(
   const fromArgs = Object.fromEntries(
     Object.entries(args).filter(([, v]) => v !== undefined)
   ) as LandtagFilter;
-  const fromWording = detectLandtagFromWording(userText);
+  // Nur im ersten Aufruf des Zuges: ein Filter aus dem Wortlaut ließe sich sonst nie abwählen,
+  // und der Wiederholungsversuch schlüge garantiert genauso fehl (#5558). Danach entscheidet das Modell.
+  const fromWording = firstCall ? detectLandtagFromWording(userText) : {};
   const filters: LandtagFilter = { ...fromWording, ...fromArgs };
   // Ein Jahr in der Frage ist ein Zeitraum, keine Wahlperiode. Das Modell setzte für
   // „2026" trotzdem WP 19 (die Refs lauten „BE 19/…") und schnitt die seit 11/2026
@@ -415,7 +419,11 @@ async function runParlamentSucheMitFrist(
           describeLandtagFilter(filters).length > 0
             ? ` (${describeLandtagFilter(filters).join('; ')})`
             : ''
-        }. Die Liste zeigt nur ${candidates.length} davon. Fragt die Person nach der Anzahl, nenne ${gesamt} als Gesamtzahl, nicht die Länge der Liste.`
+        }. Die Liste zeigt nur ${candidates.length} davon: die Länge der Liste (${candidates.length}) ist die Seitengröße und nie die Anzahl. Fragt die Person nach der Anzahl, nenne ${gesamt} als Gesamtzahl, nicht die Länge der Liste.${
+          filters.datumVon || filters.datumBis
+            ? ''
+            : ' Es ist kein Zeitraum gesetzt: die Zahl gilt für alle Zeiträume. Fragt die Person nach einem Zeitraum (z. B. „dieses Jahr“), rufe mit datumVon und datumBis erneut auf, statt diese Zahl zu nennen.'
+        }`
       : null;
   // Bei Anfragen trägt der Listentitel die FRAGE. Auf „was hat die Landesregierung
   // geantwortet" fasste der Schreiber in 2 von 4 Läufen die Fragen zusammen, ohne
@@ -472,6 +480,7 @@ const queryArg = z
   .describe('Thema in wenigen Stichwörtern; wird in Titeln gesucht. Mit Filtern entbehrlich.');
 
 export function makeLandtagTool(ctx: Ctx): Tool {
+  let callsThisTurn = 0;
   const parlamente = landtageFor('de-DE');
   const ids = parlamente.map((m) => m.id) as [LandtagParlament, ...LandtagParlament[]];
   const liste = parlamente.map((m) => `'${m.id}' (${m.parlament})`).join(', ');
@@ -488,13 +497,15 @@ Nicht für Inhalte, dafür parlament_lesen mit quelle = parlament. Nicht für de
       if (!isIntentAllowedForLocale('bundestag', ctx.state.userLocale)) {
         return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
       }
-      return runParlamentSuche(ctx, parlament, query, args);
+      callsThisTurn++;
+      return runParlamentSuche(ctx, parlament, query, args, callsThisTurn === 1);
     },
   });
 }
 
 /** Der österreichische Nationalrat: nur für `de-AT`, eigener Name statt `landtag` mit Parlament. */
 export function makeNationalratTool(ctx: Ctx): Tool {
+  let callsThisTurn = 0;
   return tool({
     description: `Findet Dokumente des österreichischen Nationalrats: Regierungsvorlagen, Ausschussberichte, Anträge der Klubs (selbständige und Entschließungsanträge, Abänderungsanträge) und Sitzungsprotokolle. Filter: Gesetzgebungsperiode (wahlperiode, z. B. 28 = XXVIII., Vorgabe: laufende), Art (typ: Gesetzentwurf = Regierungsvorlage oder Gesetzesantrag, Beschlussempfehlung = Ausschussbericht, Plenarprotokoll = Sitzungsprotokoll), Fraktion (oevp, spoe, fpoe, gruene, neos), Zeitraum, Titel, Schlagwort. Gesucht wird in Betreff, Themen und Schlagworten, nicht im Volltext. Liefert eine Liste mit Refs ("NR 28/I123", "NR 28/A1025", "NR 28/NRSITZ43"), nur Metadaten. Schriftliche Anfragen und Anfragebeantwortungen sind nicht enthalten (Lizenz).
 
@@ -511,7 +522,8 @@ Nicht für Inhalte, dafür parlament_lesen mit quelle 'nationalrat'. Nicht für 
           error: 'Der Nationalrat ist nur für Österreich verfügbar.',
         };
       }
-      return runParlamentSuche(ctx, 'nationalrat', query, args);
+      callsThisTurn++;
+      return runParlamentSuche(ctx, 'nationalrat', query, args, callsThisTurn === 1);
     },
   });
 }

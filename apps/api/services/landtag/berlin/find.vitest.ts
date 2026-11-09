@@ -240,6 +240,39 @@ describe('findBerlin', () => {
       expect(out.notes.join(' ')).toMatch(/59 .*Kapek, Antje.*gemeinsam/);
     });
 
+    it('behält das Thema: Person und Titel in einer Abfrage, Hinweis „zum Thema“ (#5573)', async () => {
+      // Live geprüft (09.11.2026): PARDOK UND-verknüpft f.urheber, f.titel und f.drucksachtyp
+      // (Kapek, Antje + Titel „Parkraum“ = 5 von 268).
+      const { impl, calls } = lister(() => ({ numFound: 5, cursor: null, documents: [einzel] }));
+      const out = await findBerlin(
+        { query: 'Parkraum', filters: { person: 'Antje Kapek', typ: ['Anfrage'] } },
+        impl
+      );
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        'f.urheber': 'Kapek, Antje',
+        'f.drucksachtyp': 'Schriftliche Anfrage',
+        'f.titel': ['parkraum'],
+      });
+      expect(out.gesamt).toBe(5);
+      expect(out.notes.join(' ')).toMatch(/zum Thema „parkraum“/);
+    });
+
+    it('nimmt den Namen selbst nicht als Thema, wenn das Modell ihn als query gibt', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin({ query: 'Kapek Antje', filters: { person: 'Antje Kapek' } }, impl);
+      expect(calls[0]).not.toHaveProperty('f.titel');
+    });
+
+    it('ein ausdrücklicher Titel gilt neben der Person', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin(
+        { query: '', filters: { person: 'Kapek, Antje', titel: 'Winterdienst' } },
+        impl
+      );
+      expect(calls[0]!['f.titel']).toEqual(['Winterdienst']);
+    });
+
     it('nimmt „Nachname, Vorname" unverändert', async () => {
       const { impl, calls } = lister(() => [einzel]);
       await findBerlin({ query: '', filters: { person: 'Kapek, Antje' } }, impl);

@@ -106,6 +106,35 @@ describe('makeLandtagTool', () => {
     expect(findLandtag.mock.calls[1]![2]).toMatchObject({ wahlperiode: 19 });
   });
 
+  it('füllt Zeitraum und Art aus dem Wortlaut nur im ersten Aufruf des Zuges (#5573)', async () => {
+    findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
+    const tool = make('de-DE', 'Wie viele Schriftliche Anfragen hat Kapek 2026 gestellt?');
+    await exec(tool, { parlament: 'berlin', person: 'Antje Kapek' });
+    expect(findLandtag.mock.calls[0]![2]).toMatchObject({
+      typ: ['Anfrage'],
+      datumVon: '2026-01-01',
+    });
+    // Der Wiederholungsversuch entscheidet das Modell allein: ein Filter aus dem Wortlaut ließe sich sonst nie abwählen.
+    await exec(tool, { parlament: 'berlin', person: 'Antje Kapek' });
+    expect(findLandtag.mock.calls[1]![2]).toEqual({ person: 'Antje Kapek' });
+  });
+
+  it('lässt bei einer exakten Gesamtzahl keinen Raum, die Listenlänge als Anzahl zu nennen', async () => {
+    findLandtag.mockResolvedValue({
+      candidates: [candidate],
+      gesamt: 268,
+      notes: [],
+    });
+    const out = (await exec(make('de-DE', 'wie viele Anfragen hat Frau Kapek gestellt'), {
+      parlament: 'berlin',
+      person: 'Antje Kapek',
+    })) as { fuerSchreiber: string };
+    expect(out.fuerSchreiber).toMatch(/268/);
+    expect(out.fuerSchreiber).toMatch(/nie .* Listenlänge|nicht .* Länge der Liste/);
+    // Kein Zeitraum gesetzt: die Zahl gilt für alles, und das steht da.
+    expect(out.fuerSchreiber).toMatch(/Zeitraum/);
+  });
+
   it('sagt Österreich ab, ohne zu suchen', async () => {
     const out = (await exec(make('de-AT'), { parlament: 'berlin', query: 'Verkehr' })) as {
       error: string;

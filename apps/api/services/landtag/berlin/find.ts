@@ -84,7 +84,7 @@ function pardokPersonName(raw: string): string | null {
 async function findPerson(
   f: ResolvedLandtagFilter,
   person: string,
-  titel: string | null,
+  topicTerms: readonly string[],
   pardok: PardokLister,
   signal: AbortSignal | null,
   notes: string[]
@@ -140,7 +140,7 @@ async function findPerson(
           ...baseParams(f),
           ...c,
           'f.urheber': name,
-          ...(titel ? { 'f.titel': [titel] } : {}),
+          ...(topicTerms.length > 0 ? { 'f.titel': [...topicTerms] } : {}),
           limit: MAX_CANDIDATES,
         },
         signal
@@ -162,10 +162,14 @@ async function findPerson(
   if (f.fraktionen.length > 0) {
     notes.push('Die Fraktion wurde bei der Suche nach einer Person nicht zusätzlich angewendet.');
   }
+  const zumThema =
+    topicTerms.length > 0
+      ? ` zum Thema ${topicTerms.map((t) => `„${t}“`).join(' / ')} (Titelsuche: trifft nur Titel, die das Wort enthalten, die Zahl ist eine Untergrenze)`
+      : '';
   notes.push(
     numFound > 0
-      ? `Laut PARDOK stehen ${numFound} Dokumente (mit den gesetzten Filtern) von „${name}“, auch gemeinsam mit anderen gestellte. Die Zahl ist vollständig, keine Stichprobe.`
-      : `Keine Dokumente von „${name}“ gefunden. PARDOK kennt Fragesteller*innen nur in der Schreibweise „Nachname, Vorname“; ein Tippfehler ergibt 0.`
+      ? `Laut PARDOK stehen ${numFound} Dokumente${zumThema} (mit den gesetzten Filtern) von „${name}“, auch gemeinsam mit anderen gestellte. Die Zahl ist vollständig, keine Stichprobe.`
+      : `Keine Dokumente${zumThema} von „${name}“ gefunden. PARDOK kennt Fragesteller*innen nur in der Schreibweise „Nachname, Vorname“; ein Tippfehler ergibt 0.`
   );
   return { candidates, gesamt: numFound, notes };
 }
@@ -179,11 +183,17 @@ export async function findBerlin(
   const notes = [...f.notes];
   if (f.empty) return { candidates: [], gesamt: 0, notes, ausgeschlossen: f.empty };
 
+  const keywords = keywordsFromQuestion(args.query);
   if (f.person) {
-    return findPerson(f, f.person, f.titel, pardok, args.deadline?.signal ?? null, notes);
+    // Das Thema bleibt: Person und Titel in einer Abfrage. Die Wörter des Namens selbst sind kein Thema
+    // (das Modell gibt den Namen oft zusätzlich als query).
+    const nameWords = new Set(f.person.toLowerCase().match(/[\p{L}\p{N}-]+/gu) ?? []);
+    const topicTerms = f.titel
+      ? [f.titel]
+      : keywords.filter((k) => !nameWords.has(k)).slice(0, MAX_TITLE_TERMS);
+    return findPerson(f, f.person, topicTerms, pardok, args.deadline?.signal ?? null, notes);
   }
 
-  const keywords = keywordsFromQuestion(args.query);
   const titleTerms = f.titel ? [f.titel] : keywords.slice(0, MAX_TITLE_TERMS);
   const hasCriterion =
     titleTerms.length > 0 ||
