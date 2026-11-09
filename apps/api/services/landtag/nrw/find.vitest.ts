@@ -104,8 +104,8 @@ describe('findNrw', () => {
     expect(nb.nearest).toHaveBeenCalledWith('Windkraft', expect.anything(), 120);
     expect(r.candidates.map((c) => c.ref)).toEqual(['NW 18/7', 'NW 18/3']);
     expect(r.notes).toEqual([expect.stringMatching(/Nähe zu „Windkraft“.*etwa 40/)]);
-    // Die 40 zählen nur die Filter, nicht das Thema: keine Gesamtzahl für „wie viele".
-    expect(r.gesamt).toBe(2);
+    // Die 40 zählen nur die Filter, nicht das Thema, und 2 ist die Listenlänge: keine Gesamtzahl (#5577).
+    expect(r.gesamt).toBeNull();
   });
 
   it('sucht Volltext über alle Chunks und zählt dann keine Dokumente', async () => {

@@ -115,6 +115,9 @@ export async function findNrw(
       `Gezeigt werden die neuesten ${candidates.length} von ${gesamt} Drucksachen; mit Zeitraum, Titel, Art oder einem Thema (query) eingrenzen.`
     );
   }
-  // Mit Thema zählt `gesamt` nur die Filter, nicht das Thema: als Gesamtzahl taugt dann nur die Liste.
-  return { candidates, gesamt: query ? candidates.length : (gesamt ?? candidates.length), notes };
+  // Mit Thema zählt der Filterzähler nicht das Thema, und die Länge der Liste ist eine Kappung der
+  // Nähe-Suche, keine Zahl (live 09.11.2026: „insgesamt 25 Kleine Anfragen“). Also keine Gesamtzahl.
+  // Ein Themenzähler (Qdrant-Count mit Textfilter) ist hier bewusst nicht gebaut: das Feld ist
+  // in der Produktion nicht indiziert, ein exakter Count läse die ganze Sammlung.
+  return { candidates, gesamt: query ? null : (gesamt ?? candidates.length), notes };
 }
