@@ -107,6 +107,13 @@ describe('enrichCollection time budget', () => {
   });
 });
 
+describe('ENRICHMENT_COLLECTIONS', () => {
+  // Sonst bleibt der Filter „Thema" im Wahlprüfstein-Notebook leer.
+  it('covers the collection behind the Wahlprüfsteine notebook', () => {
+    expect(ENRICHMENT_COLLECTIONS).toContain('wahlpruefstein_examples');
+  });
+});
+
 describe('NLP facet indexes in the collection schemas', () => {
   // A copy migration (migrate-bm25-sparse) recreates a collection from its
   // schema; an index only the nightly run creates is gone until that run.

@@ -141,6 +141,9 @@ export const FILTERABLE_FIELD_NAMES = [
   // Bayerischer Landtag: Schlagworte der Landtagsdokumentation (nicht
   // `keywords` — das schreibt die NLP-Anreicherung)
   'schlagworte',
+  // Wahlprüfsteine (Bund/Europa): Wahl (btw21, ew24, btw25) und Ebene (bund, europa)
+  'wahl',
+  'ebene',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];
