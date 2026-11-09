@@ -123,6 +123,19 @@ describe('a figure keeps its meaning in an infographic', () => {
     expect(!result.ok && result.error).toMatch(/Richtung/);
   });
 
+  // Review #5490: the mirror case — a bare figure on the tile takes its noun from before it.
+  it('reads the noun before a bare tile figure', () => {
+    const result = validateDraft(
+      tiles(
+        { titel: 'Unfallschwerpunkt', text: 'Die Zahl sank zuletzt auf nur 17' },
+        { titel: 'Start im April' }
+      ),
+      'de-DE',
+      'Der Verkehr sank um 17 %. Allein 2025 registrierte die Polizei dort 17 Unfälle mit Radfahrenden.'
+    );
+    expect(!result.ok && result.error).toMatch(/Richtung/);
+  });
+
   it('accepts plain figures', () => {
     const result = validateDraft(
       tiles({ titel: '2,4 km' }, { titel: '1,26 Mio. €', text: 'Förderung vom Land' }),

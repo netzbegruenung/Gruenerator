@@ -151,19 +151,22 @@ const NEAR = 4;
  */
 const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
 
-/** A directed figure: its digits and the word after it („17 Unfälle" → `unfälle`), if any. */
+/**
+ * A directed figure: its digits and what it counts. The counted thing is the
+ * word after the number („17 Unfälle“, `%` for a percent sign), else the last
+ * capitalised word before it in the clause — German nouns are capitalised
+ * („Die Zahl der Unfälle sank um 17“ → `unfälle`).
+ */
 interface DirectedFigure {
   num: string;
-  /** The word after the number, lower-cased; `%` for a percent sign. */
   noun: string | null;
-  /** The words of the figure's clause, lower-cased — to find the noun elsewhere in it. */
-  clause: string[];
 }
 
 const wordOf = (token: string | undefined): string | null => {
   if (token == null) return null;
   if (token.startsWith('%')) return '%';
-  return token.toLowerCase().replace(/[^\p{L}]/gu, '') || null;
+  const w = token.toLowerCase().replace(/[^\p{L}]/gu, '');
+  return w === 'prozent' ? '%' : w || null;
 };
 
 /** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
@@ -176,9 +179,14 @@ function directedNumbers(text: string): DirectedFigure[] {
       if (!num) return;
       const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
       if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
-      const noun = token.endsWith('%') ? '%' : wordOf(tokens[i + 1]);
-      const clauseWords = tokens.map(wordOf).filter((w): w is string => w != null);
-      found.push({ num: digits(num), noun, clause: clauseWords });
+      const after = token.endsWith('%') ? '%' : wordOf(tokens[i + 1]);
+      const before = tokens
+        .slice(0, i)
+        .filter((t) => /^\p{Lu}/u.test(t))
+        .map(wordOf)
+        .filter((w): w is string => w != null)
+        .at(-1);
+      found.push({ num: digits(num), noun: after ?? before ?? null });
     });
   }
   return found;
@@ -186,25 +194,16 @@ function directedNumbers(text: string): DirectedFigure[] {
 
 /**
  * Numbers of `text` that carry a direction („17 Unfälle weniger“, „−5 %“)
- * the brief does not give next to that number. The figure may be in the brief
- * — a hotspot count — and still not mean a reduction. The brief's direction
- * only covers the same figure: „sank um 17 Prozent" says nothing about „17
- * Unfälle" (review #5490), so the word after the number has to match too
- * when both sides have one.
+ * the brief does not give for the same figure. The figure may be in the brief
+ * — a hotspot count — and still not mean a reduction. „Same figure" means
+ * same digits AND same counted thing on both sides (review #5490: „Der
+ * Verkehr sank um 17 %" says nothing about „17 Unfälle"). Only a tile figure
+ * with no word at all („−17") is vague enough to be covered by the digits.
  */
 export function invertedNumbers(text: string, given: string): string[] {
   const inGiven = directedNumbers(given);
-  // A brief figure without a word after it („sank um 17.") only covers the
-  // tile's figure when the tile's word stands in that clause („Die Zahl der
-  // Unfälle sank um 17") — otherwise „Der Verkehr sank um 17." would cover
-  // „17 Unfälle weniger" again (review #5490). A tile figure without a word
-  // is vaguer than the brief and stays covered by any directed same number.
   const covered = (f: DirectedFigure) =>
-    inGiven.some(
-      (g) =>
-        g.num === f.num &&
-        (f.noun == null || g.noun === f.noun || (g.noun == null && g.clause.includes(f.noun)))
-    );
+    inGiven.some((g) => g.num === f.num && (f.noun == null || g.noun === f.noun));
   return [
     ...new Set(
       directedNumbers(text)
