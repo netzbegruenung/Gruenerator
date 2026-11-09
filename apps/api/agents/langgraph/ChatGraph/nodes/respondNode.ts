@@ -2248,7 +2248,10 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const productIdentity = isNeutralTurn
     ? ''
     : buildCompactProductIdentity(state.userLocale) +
-      (turnCarriesMaterial(state) ? `\n${PASTE_AS_TEXT_RULE}` : '');
+      // Auch die Folgefrage zu einer Einfügung aus einem früheren Turn („Mach aus
+      // der Datei einen Post"): `wholeDocument` (Ursprung `thread`) trägt sie, die
+      // Material-Liste dieses Turns nicht (#5455).
+      (turnCarriesMaterial(state) || state.wholeDocument != null ? `\n${PASTE_AS_TEXT_RULE}` : '');
   let productKnowledge = '';
   if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({

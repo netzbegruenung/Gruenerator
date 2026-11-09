@@ -1036,6 +1036,23 @@ describe('buildTurnPrompt — eingefügter Text in die Nachricht (#5431)', () =>
     expect(plain).not.toContain(RULE);
   });
 
+  it('keeps the paste rule on a follow-up about a paste from an earlier turn', async () => {
+    const RULE = 'Bestreite nie, dass es ihn gibt';
+    const followUp = makeState({
+      intent: 'produktion',
+      messages: [{ role: 'user', content: 'Mach aus der Datei einen Post' }],
+      wholeDocument: {
+        origin: 'thread',
+        ask: 'paste',
+        docs: [{ name: 'Eingefügter Text.txt', text: PASTE, documentId: 'd1' }],
+        chars: PASTE.length,
+        budgetChars: 10000,
+        fits: true,
+      },
+    } as never);
+    expect(await buildSystemMessage(followUp, OPTS)).toContain(RULE);
+  });
+
   it('nimmt den Paste aus dem Prompt und gibt ihn eingefasst daneben zurück', async () => {
     const { systemMessage, turnPaste } = await buildTurnPrompt(pasteState(), OPTS);
     expect(systemMessage).not.toContain(PASTE);
