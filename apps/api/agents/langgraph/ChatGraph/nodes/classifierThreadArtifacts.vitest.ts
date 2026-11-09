@@ -4,6 +4,8 @@ const executeProvider = vi.fn();
 vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
+const aiDecide = vi.hoisted(() => vi.fn());
+vi.mock('../../../../services/ai/decide.js', () => ({ aiDecide }));
 
 const { classifierNode } = await import('./classifierNode.js');
 
@@ -47,26 +49,23 @@ const DOCUMENT: ThreadToolContext = {
   label: 'Antrag Straßenbäume',
 };
 
-/** Alle Auflöser gehen durch dieselbe Tür (`executeProvider`). Unterschieden
- *  wird am Systemprompt — der des Bearbeitungsziel-Auflösers ist der einzige,
- *  der mit „Ein Gespräch hat mehrere Artefakte erzeugt" beginnt. */
+/** Der Bearbeitungsziel-Auflöser fragt das Entscheidungsmodell (`aiDecide`),
+ *  alle anderen Auflöser gehen durch `executeProvider`. `editTargetAnswer` ist
+ *  die gewählte Option: eine Nummer der Liste oder „keines". */
 function scriptEditTarget(editTargetAnswer: string | (() => never)) {
   const editTargetCalls: string[] = [];
+  aiDecide.mockReset();
+  aiDecide.mockImplementation(async (call: { label: string; state: string }) => {
+    editTargetCalls.push(call.state);
+    if (typeof editTargetAnswer === 'function') editTargetAnswer();
+    return { target: { choice: editTargetAnswer, confidence: 0.8, probabilities: {} } };
+  });
   executeProvider.mockReset();
-  executeProvider.mockImplementation(
-    async (_provider: string, _id: string, req: { systemPrompt?: string }) => {
-      if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
-        editTargetCalls.push(req.systemPrompt);
-        if (typeof editTargetAnswer === 'function') editTargetAnswer();
-        return { content: editTargetAnswer, success: true, stop_reason: 'stop' };
-      }
-      return {
-        content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
-        success: true,
-        stop_reason: 'stop',
-      };
-    }
-  );
+  executeProvider.mockImplementation(async () => ({
+    content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
+    success: true,
+    stop_reason: 'stop',
+  }));
   return { editTargetCalls };
 }
 
@@ -136,7 +135,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fällt bei „keines" auf das heutige Verhalten zurück, nicht auf „kein Artefakt"', async () => {
     // Der Auflöser darf einen Folgeauftrag UMLENKEN, nie unterdrücken: sonst
     // verliert eine Fehlantwort des Modells dem Nutzer die Bearbeitung ganz.
-    const pool = scriptEditTarget('0');
+    const pool = scriptEditTarget('keines');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -207,17 +206,5 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
     expect(pool.editTargetCalls).toHaveLength(1);
     expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-42']);
-  });
-
-  it('liest die Nummer auch aus einem Satz', async () => {
-    const pool = scriptEditTarget('Nummer 2.');
-    const result = await classifierNode(
-      buildState({
-        userMessage: 'Kürze im Dokument die Begründung auf die Hälfte',
-        lastToolContext: SHAREPIC,
-        threadArtifacts: BOTH,
-      })
-    );
-    expect(result.intent).toBe('agentic');
   });
 });
