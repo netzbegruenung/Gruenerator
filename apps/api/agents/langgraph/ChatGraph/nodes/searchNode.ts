@@ -34,6 +34,7 @@ import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools
 import { extractCompoundTopic } from '../../../../routes/chat/services/compoundTopicExtractor.js';
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
+import { TOOL_TIMEOUT_OVERRIDES_MS } from '../../../../routes/chat/services/agenticLoop/types.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import {
   type AwEnrichedResult,
@@ -68,6 +69,7 @@ import {
 } from '../../../../services/search/searchDepth.js';
 import { type WebSearchLocale } from '../../../../services/search/webSearch.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 import {
   SOURCE_PREFIX,
   type ChatGraphState,
@@ -551,6 +553,17 @@ function describeCandidates(
   };
 }
 
+/**
+ * Frist der Planstufe, abgeleitet aus der Werkzeugfrist von `bundestag` (40 s in
+ * `TOOL_TIMEOUT_OVERRIDES_MS`): 75 %. Ein hängender Gemma-Aufruf (live 09.11.2026,
+ * `unified:stall`) nahm sonst den ganzen Aufruf mit in die Zeitüberschreitung, obwohl
+ * DIP und Altpfad in < 0,1 s fertig waren; mit der Frist greift der Rückfall
+ * (`plan === null` → Altpfad bzw. `ausfall`) noch vor dem Werkzeug (#5560).
+ */
+export const BUNDESTAG_PLAN_DEADLINE_MS = Math.floor(
+  (TOOL_TIMEOUT_OVERRIDES_MS['bundestag'] ?? 20_000) * 0.75
+);
+
 export async function retrieveBundestag(
   query: string,
   locale: string | null | undefined,
@@ -577,6 +590,7 @@ export async function retrieveBundestag(
   }
   // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
   // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
+  const planAbort = new AbortController();
   const [enriched, plan] = await Promise.all([
     getBundestagEnrichedService()
       .search(query)
@@ -586,11 +600,19 @@ export async function retrieveBundestag(
         );
         return null;
       }),
-    planBundestagQuestion({
-      question: query,
-      ...(filters ? { filters } : {}),
-      budget: CHAT_BUDGET,
-    }).catch((err: unknown) => {
+    // Die Frist bricht den Modellaufruf ab (sonst liefe er weiter und wechselte den Anbieter);
+    // `withTimeout` fängt ein spätes Scheitern mit ab.
+    withTimeout(
+      planBundestagQuestion({
+        question: query,
+        ...(filters ? { filters } : {}),
+        budget: CHAT_BUDGET,
+        signal: planAbort.signal,
+      }),
+      BUNDESTAG_PLAN_DEADLINE_MS,
+      'bundestag-plan'
+    ).catch((err: unknown) => {
+      planAbort.abort();
       log.warn(
         `[Search] Bundestag-Planstufe fehlgeschlagen, alte Ergebnisse: ${err instanceof Error ? err.message : String(err)}`
       );

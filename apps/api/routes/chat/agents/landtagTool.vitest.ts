@@ -1,19 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Deadline } from '../../../utils/deadline.js';
+import { TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
-import { describeLandtagFilter, makeLandtagTool, makeNationalratTool } from './landtagTool.js';
+import {
+  describeLandtagFilter,
+  makeLandtagTool,
+  makeNationalratTool,
+  landtagDeadlineMs,
+  NOTEBOOK_GRACE_MS,
+} from './landtagTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
-const findLandtag = vi.fn<(p: string, q: string, f: unknown) => Promise<unknown>>();
+const findLandtag = vi.fn<(p: string, q: string, f: unknown, d?: unknown) => Promise<unknown>>();
 // Eine werfende `vi.fn` lässt Vitest den Test selbst rot färben; der Ausfall kommt darum aus dieser Weiche.
 let ausfall = false;
 vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  findLandtag: (p: string, q: string, f: unknown): Promise<unknown> => {
+  findLandtag: (p: string, q: string, f: unknown, d?: unknown): Promise<unknown> => {
     if (ausfall) throw new Error('PARDOK 503');
-    return findLandtag(p, q, f);
+    return findLandtag(p, q, f, d);
   },
 }));
 
@@ -80,6 +88,19 @@ describe('makeLandtagTool', () => {
   const make = (locale = 'de-DE', text = '') =>
     makeLandtagTool({ state: state(locale, text), sourceRegistry: createSourceRegistry() });
 
+  it('nennt genau die Parlamente des Enums und grenzt andere Landtage zu web_search ab (#5567)', () => {
+    const t = make() as unknown as {
+      description: string;
+      inputSchema: { jsonSchema?: { properties?: { parlament?: { enum?: string[] } } } };
+    };
+    const ids = (t.inputSchema as unknown as { shape: { parlament: { options: string[] } } }).shape
+      .parlament.options as string[];
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) expect(t.description).toContain(`'${id}'`);
+    expect(t.description).toMatch(/Nur diese Parlamente/);
+    expect(t.description).toMatch(/andere Landtage[^.]*web_search/);
+  });
+
   it('nimmt für ein Jahr den Zeitraum statt der Wahlperiode, die das Modell setzt (Berlin WP 20 seit 11/2026, live 04.11.2026)', async () => {
     findLandtag.mockResolvedValue({ candidates: [], gesamt: 0, notes: [] });
     await exec(make('de-DE', 'Wie viele Anträge haben die Grünen in Berlin 2026 gestellt?'), {
@@ -136,6 +157,34 @@ describe('makeLandtagTool', () => {
     expect(out.hinweis).toMatch(/direkt zitierbar/);
   });
 
+  it('NRW: das Notebook ist die Quelle und behält die ganze Restzeit', async () => {
+    vi.useFakeTimers();
+    try {
+      directSearch.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  collection: 'landtag-nrw',
+                  results: [{ source: 'Haushalt, 1. Lesung', url: null, excerpt: 'Text' }],
+                }),
+              30_000
+            )
+          )
+      );
+      const pending = exec(make('de-DE', 'Was wurde zum Haushalt gesagt?'), {
+        parlament: 'nrw',
+        typ: ['Plenarprotokoll'],
+      });
+      await vi.advanceTimersByTimeAsync(30_001);
+      const out = (await pending) as { resultCount: number };
+      expect(out.resultCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fragt bei gemischter Art die Liste ohne Protokolle und sagt es', async () => {
     findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
     const out = (await exec(make(), {
@@ -145,7 +194,8 @@ describe('makeLandtagTool', () => {
     expect(findLandtag).toHaveBeenCalledWith(
       'berlin',
       '',
-      expect.objectContaining({ typ: ['Antrag'] })
+      expect.objectContaining({ typ: ['Antrag'] }),
+      expect.any(Deadline)
     );
     expect(directSearch).not.toHaveBeenCalled();
     expect(out.hinweise).toEqual([expect.stringMatching(/typ Plenarprotokoll allein/)]);
@@ -189,12 +239,17 @@ describe('makeLandtagTool', () => {
       query: 'Verkehrswende',
       fraktion: ['spd'],
     });
-    expect(findLandtag).toHaveBeenCalledWith('berlin', 'Verkehrswende', {
-      typ: ['Antrag'],
-      fraktion: ['spd'],
-      datumVon: '2026-01-01',
-      datumBis: '2026-12-31',
-    });
+    expect(findLandtag).toHaveBeenCalledWith(
+      'berlin',
+      'Verkehrswende',
+      {
+        typ: ['Antrag'],
+        fraktion: ['spd'],
+        datumVon: '2026-01-01',
+        datumBis: '2026-12-31',
+      },
+      expect.any(Deadline)
+    );
   });
 
   it('liefert Refs, Gesamtzahl, Hinweise, Lizenz-Quelle und eine Karte', async () => {
@@ -276,6 +331,60 @@ describe('makeLandtagTool', () => {
       expect(out.sources).toContain('Auszug: Der Senat prüft');
       expect(out.sources).toContain('Kiezblocks im Ausschuss');
       expect(out.hinweis).toMatch(/Auszug/);
+    });
+
+    it('lässt ein hängendes Notebook die fertige Live-Liste nur kurz aufhalten (#5559)', async () => {
+      vi.useFakeTimers();
+      try {
+        // Die Liste liegt nach 1 s vor, das Notebook hängt.
+        findLandtag.mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ candidates: [candidate], gesamt: 1, notes: [] }), 1_000)
+            )
+        );
+        directSearch.mockReturnValue(new Promise(() => {}));
+        let fertig = false;
+        const pending = exec(make('de-DE', frage), { parlament: 'berlin', query: 'Kiezblock' });
+        void pending.then(() => (fertig = true));
+        await vi.advanceTimersByTimeAsync(1_000 + NOTEBOOK_GRACE_MS - 1);
+        expect(fertig).toBe(false);
+        await vi.advanceTimersByTimeAsync(2);
+        const out = (await pending) as { resultCount: number; error?: string };
+        expect(out.error).toBeUndefined();
+        expect(out.resultCount).toBe(1);
+        expect(1_000 + NOTEBOOK_GRACE_MS).toBeLessThan(landtagDeadlineMs('landtag'));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('wartet auf das Notebook die Restzeit ab, wenn die Live-Seite ausfällt', async () => {
+      vi.useFakeTimers();
+      try {
+        ausfall = true;
+        directSearch.mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () =>
+                  resolve(
+                    notebook([
+                      { source: 'Kiezblocks retten', url: candidate.pdfUrl, excerpt: 'Text' },
+                    ])
+                  ),
+                20_000
+              )
+            )
+        );
+        const pending = exec(make('de-DE', frage), { parlament: 'berlin' });
+        await vi.advanceTimersByTimeAsync(20_001);
+        const out = (await pending) as { resultCount: number; error?: string };
+        expect(out.error).toBeUndefined();
+        expect(out.resultCount).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('liefert die Textstellen, wenn die Live-Abfrage ausfällt, und sagt es', async () => {
@@ -366,7 +475,8 @@ describe('makeNationalratTool', () => {
     expect(findLandtag).toHaveBeenCalledWith(
       'nationalrat',
       'Miete',
-      expect.objectContaining({ fraktion: ['gruene'], typ: ['Antrag'] })
+      expect.objectContaining({ fraktion: ['gruene'], typ: ['Antrag'] }),
+      expect.any(Deadline)
     );
     expect(at.sources).toContain('647/A(E) · Selbständiger Entschließungsantrag');
     expect(at.quelle).toMatch(/CC BY 4\.0/);

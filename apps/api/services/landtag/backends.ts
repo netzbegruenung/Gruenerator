@@ -17,13 +17,18 @@ import { fetchBerlinTexts } from './berlin/text.js';
 import { getNationalratApi } from './nationalrat/filterApi.js';
 import { findNationalrat } from './nationalrat/find.js';
 import { resolveNationalratRefs } from './nationalrat/refs.js';
+import { type Deadline } from '../../utils/deadline.js';
 import { fetchNationalratTexts } from './nationalrat/text.js';
 import { findNrw } from './nrw/find.js';
 import { getNrwNotebook } from './nrw/notebook.js';
 import { fetchNrwTexts, resolveNrwRefs } from './nrw/read.js';
 
 export interface LandtagBackend {
-  find(args: { query: string; filters: LandtagFilter }): Promise<LandtagFindResult>;
+  find(args: {
+    query: string;
+    filters: LandtagFilter;
+    deadline?: Deadline | null;
+  }): Promise<LandtagFindResult>;
   /** Unbekannte Refs fallen weg. */
   resolveRefs(refs: readonly string[]): Promise<BundestagCandidate[]>;
   fetchTexts(

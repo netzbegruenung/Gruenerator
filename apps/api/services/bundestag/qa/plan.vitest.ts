@@ -30,6 +30,18 @@ beforeEach(() => {
 });
 
 describe('planFilters', () => {
+  it('reicht das Abbruchsignal an den Modellaufruf weiter', async () => {
+    model({ keywords: ['heizung'] });
+    const ctrl = new AbortController();
+    await planFilters({
+      question: 'Heizung?',
+      explicit: {},
+      dip: dipWith({}),
+      signal: ctrl.signal,
+    });
+    expect((aiObject.mock.calls[0]![0] as { signal: AbortSignal }).signal).toBe(ctrl.signal);
+  });
+
   it('erkennt Drucksachennummer und Wahlperiode deterministisch', async () => {
     model({ keywords: ['heizung', 'gesetz', 'förderung'] });
     const r = await planFilters({
@@ -52,6 +64,18 @@ describe('planFilters', () => {
     expect(r.filters.drucksachetyp).toEqual(['Entschließungsantrag']);
     expect(r.filters.urheber).toEqual(['Fraktion BÜNDNIS 90/DIE GRÜNEN']);
     expect(r.filters.datumVon).toBe('2026-01-01');
+  });
+
+  it('Fraktion im Wortlaut neben Typ Antwort fällt weg, auch wenn erst die Modell-query sie nennt (#5558)', async () => {
+    model({ keywords: ['grüne', 'ngos', 'afd'], wahlperiode: [21] });
+    const r = await planFilters({
+      question: 'Grüne NGOs AfD',
+      explicit: { drucksachetyp: ['Antwort'] },
+      dip: dipWith({}),
+    });
+    expect(r.filters.drucksachetyp).toEqual(['Antwort']);
+    expect(r.filters.urheber).toBeUndefined();
+    expect(r.notes.join(' ')).toMatch(/Fraktion/);
   });
 
   it('erkannt schlägt Modell, explicit schlägt erkannt', async () => {

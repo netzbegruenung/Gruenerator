@@ -45,7 +45,11 @@ export interface PardokLiveOptions {
 }
 
 export interface PardokLister {
-  list(endpoint: PardokLiveEndpoint, params: PardokParams): Promise<PardokPage>;
+  list(
+    endpoint: PardokLiveEndpoint,
+    params: PardokParams,
+    signal?: AbortSignal | null
+  ): Promise<PardokPage>;
 }
 
 export class PardokLiveClient implements PardokLister {
@@ -64,7 +68,11 @@ export class PardokLiveClient implements PardokLister {
     this.#pacingMs = options.pacingMs ?? DEFAULT_PACING_MS;
   }
 
-  async list(endpoint: PardokLiveEndpoint, params: PardokParams): Promise<PardokPage> {
+  async list(
+    endpoint: PardokLiveEndpoint,
+    params: PardokParams,
+    signal: AbortSignal | null = null
+  ): Promise<PardokPage> {
     const url = new URL(`${PARDOK_BASE}/${endpoint}`);
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'object')
@@ -80,10 +88,13 @@ export class PardokLiveClient implements PardokLister {
         res = await fetch(url, {
           headers: { Accept: 'application/json', 'X-API-Key': this.apiKey },
           redirect: 'error',
-          signal: AbortSignal.timeout(timeout),
+          signal: signal
+            ? AbortSignal.any([AbortSignal.timeout(timeout), signal])
+            : AbortSignal.timeout(timeout),
         });
       } catch (error: unknown) {
-        if (attempt >= this.#maxAttempts) throw error;
+        // Ein Abbruch von aussen (Frist des Aufrufers) wird nicht wiederholt.
+        if (signal?.aborted || attempt >= this.#maxAttempts) throw error;
         await sleep(1500 * attempt);
         continue;
       }

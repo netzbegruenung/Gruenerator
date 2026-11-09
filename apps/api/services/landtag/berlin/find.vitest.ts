@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { findBerlin } from './find.js';
+import { Deadline } from '../../../utils/deadline.js';
+
+import { findBerlin, MIN_VOLLTEXT_MS } from './find.js';
 import { type PardokLister, type PardokPage, type PardokParams } from './pardokLive.js';
 
 import type { PardokRecord } from '../../scrapers/implementations/LandtagBerlinScraper/pardokClient.js';
@@ -106,6 +108,85 @@ describe('findBerlin', () => {
     expect(calls[1]!['f.volltext']).toBe('verkehrswende');
     expect(out.candidates).toHaveLength(1);
     expect(out.notes.join(' ')).toMatch(/Volltext/);
+    expect(out.notes.join(' ')).toMatch(/erwähnen/);
+  });
+
+  // Titelsuche antwortet nach `titelMs`, Volltext hängt bis zum Abbruch.
+  function langsam(titelMs: number) {
+    const state = { abgebrochen: false, volltextGestartet: false };
+    const impl: PardokLister = {
+      list: vi.fn(async (_e, params, signal) => {
+        if (!('f.volltext' in params)) {
+          await new Promise((r) => setTimeout(r, titelMs));
+          return { numFound: 1, cursor: null, documents: [antrag('1', '2026.06.01')] };
+        }
+        state.volltextGestartet = true;
+        return new Promise<PardokPage>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            state.abgebrochen = true;
+            reject(new Error('aborted'));
+          });
+        });
+      }),
+    };
+    return { impl, state };
+  }
+
+  it('langsame Titelsuche, dann hängender Volltext-Rückfall: Titeltreffer kommen vor der Frist (#5565)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const { impl, state } = langsam(15_000);
+      const pending = findBerlin({ query: 'Kapek', filters: {}, deadline }, impl);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(state.volltextGestartet).toBe(true);
+      await vi.advanceTimersByTimeAsync(25_001);
+      const out = await pending;
+      expect(state.abgebrochen).toBe(true);
+      expect(deadline.signal.aborted).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* übersprungen/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('startet keinen Volltext, wenn die Restzeit nicht lohnt (Rückfall)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(MIN_VOLLTEXT_MS + 5_000);
+    try {
+      const { impl, state } = langsam(6_000);
+      const pending = findBerlin({ query: 'Kapek', filters: {}, deadline }, impl);
+      await vi.advanceTimersByTimeAsync(6_000);
+      const out = await pending;
+      expect(state.volltextGestartet).toBe(false);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/übersprungen/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('bricht auch einen ausdrücklichen Volltext an der Frist ab und liefert die Titelsuche (#5565)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const { impl, state } = langsam(1_000);
+      const pending = findBerlin(
+        { query: 'Kapek', filters: { volltext: 'Kapek', datumVon: '2026-01-01' }, deadline },
+        impl
+      );
+      await vi.advanceTimersByTimeAsync(40_001);
+      const out = await pending;
+      expect(state.abgebrochen).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* dauerte zu lange/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it('erklärt Null Treffer mit der Zahl ohne Themenwort', async () => {
