@@ -690,9 +690,8 @@ export async function streamAgenticResponse(
         (sourceRegistry.size > 0
           ? buildUncoveredTermNote(lastUserText, sourceRegistry.renderAll())
           : ''),
-      // Prepend the reconstructed tool-call/result history just before the
-      // current user message so tool_call↔result pairs stay adjacent + valid.
-      // The splice also bridges tool→user, which mistral-common rejects.
+      // The reconstructed tool-call/result history goes in front of the
+      // previous answer, where those calls happened (`spliceToolReplay`).
       messages: [...spliceToolReplay(turnMessages, toolReplayMessages), ...orderedArtifactReplay],
       // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
