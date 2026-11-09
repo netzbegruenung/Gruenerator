@@ -55,6 +55,7 @@ function form(over: Partial<TextForm> = {}): TextForm {
     ownerName: null,
     description: null,
     iconKey: null,
+    category: null,
     shareMode: 'private',
     isPublic: false,
     publicOwnership: null,
