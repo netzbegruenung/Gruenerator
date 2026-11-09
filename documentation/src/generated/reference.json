@@ -87,7 +87,7 @@
       {
         "id": "landtag-berlin-system",
         "name": "Abgeordnetenhaus Berlin",
-        "description": "Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin"
+        "description": "Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin. Drucksachen und Anfragen suchst du mit landtag"
       },
       {
         "id": "abgeordnetenwatch-system",
@@ -163,7 +163,7 @@
       {
         "id": "berlin-system",
         "name": "Grüne Berlin",
-        "description": "Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion)",
+        "description": "Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion). Keine Anfragen, Senatsantworten oder Drucksachen des Abgeordnetenhauses (dafür landtag)",
         "codes": [
           "BE",
           "BE-F"

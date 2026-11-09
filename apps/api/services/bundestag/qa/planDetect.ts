@@ -63,6 +63,23 @@ export function dropTitelBesideDeskriptor(f: BundestagFilter): string | null {
   return `Der Titelfilter „${titel}" wurde weggelassen: Der Deskriptor trägt das Thema, und DIP findet im Titel nur ganze Wörter (keine Zusammensetzungen).`;
 }
 
+/**
+ * DIP kennt bei einer Antwort nie eine Fraktion als Urheber (gemessen WP 21: Antwort+AfD 0,
+ * Antwort+Grüne 0, Antwort+Bundesregierung 2844); die fragende Fraktion steht an der Kleinen
+ * Anfrage bzw. am Vorgang. Die eine Stelle für diese Regel: Werkzeug, Planer und Zähler rufen
+ * sie, weil der Planer den Wortlaut der Modell-query erneut liest (#5558). Gibt die Notiz
+ * zurück, wenn etwas wegfiel.
+ */
+export function dropFraktionBesideAntwort(f: BundestagFilter): string | null {
+  if (f.drucksachetyp?.length !== 1 || f.drucksachetyp[0] !== 'Antwort') return null;
+  const urheber = f.urheber ?? [];
+  const ohneFraktion = urheber.filter((u) => !u.startsWith('Fraktion'));
+  if (ohneFraktion.length === urheber.length) return null;
+  if (ohneFraktion.length > 0) f.urheber = ohneFraktion;
+  else delete f.urheber;
+  return 'Eine Fraktion als Urheber passt nie zu Typ „Antwort“ (Antworten stammen von der Bundesregierung), der Fraktionsfilter wurde weggelassen. Wer gefragt hat, steht an der Kleinen Anfrage: für sie `drucksachetyp: ["Kleine Anfrage"]` mit der Fraktion suchen, dann `ref` der Anfrage für die Antwort.';
+}
+
 export function detectDrucksachetyp(question: string): Typ[] {
   const out: Typ[] = [];
   for (const [re, typ] of TYP_RULES) if (re.test(question) && !out.includes(typ)) out.push(typ);
