@@ -94,9 +94,11 @@ vi.mock('./services/notebookPraezisionTurn.js', () => ({
   runNotebookPraezisionTurn: (...args: unknown[]) => runNotebookPraezisionTurn(...args),
 }));
 
-const aiText = vi.fn(async (..._args: unknown[]) => 'praezision');
-vi.mock('../../services/ai/generate.js', () => ({
-  aiText: (...args: unknown[]) => aiText(...args),
+const aiDecide = vi.fn(async (..._args: unknown[]) => ({
+  mode: { choice: 'praezision', confidence: 0.8, probabilities: {} },
+}));
+vi.mock('../../services/ai/decide.js', () => ({
+  aiDecide: (...args: unknown[]) => aiDecide(...args),
 }));
 
 await import('./notebookStreamController.js');
@@ -225,7 +227,7 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
 
   it('runs a tool ask in auto straight to precision, without the guard', async () => {
     await post({ answerMode: 'auto' });
-    expect(aiText).not.toHaveBeenCalled();
+    expect(aiDecide).not.toHaveBeenCalled();
     expect(sent.find((e) => e.event === 'answer_mode')!.data).toEqual({
       requested: 'auto',
       resolved: 'praezision',
@@ -246,7 +248,7 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
         { role: 'user', content: 'Und was steht in der zweiten?' },
       ],
     });
-    const prompt = (aiText.mock.calls[0]![0] as { prompt: string }).prompt;
+    const prompt = (aiDecide.mock.calls[0]![0] as { state: string }).state;
     expect(prompt).toContain('Nutzer*in: Liste die neuesten Quellen auf.');
     expect(prompt).toContain('Antwort (Modus: praezision): 1. A 2. B');
     expect(prompt).toContain('Letzte Nachricht: "Und was steht in der zweiten?"');

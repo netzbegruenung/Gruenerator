@@ -820,6 +820,15 @@
       "audience": "de-AT"
     },
     {
+      "id": "wahlpruefsteine-notebook",
+      "mention": "@wahlpruefsteine",
+      "title": "Wahlprüfsteine",
+      "description": "Antworten der Grünen auf Wahlprüfsteine (Bund, Europa)",
+      "avatar": "📋",
+      "category": "bundesebene",
+      "audience": "de-DE"
+    },
+    {
       "id": "thueringen-notebook",
       "mention": "@thüringen",
       "title": "Grüne Thüringen",
