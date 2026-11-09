@@ -345,8 +345,7 @@ export function TopicProfile({
                 <Icon aria-hidden className={cn('size-4', NOTEBOOK_TEXT_MUTED)} />
                 <span className={cn('flex flex-col text-sm font-medium', NOTEBOOK_TEXT_STRONG)}>
                   <span className="truncate">{topicName(t.topic)}</span>
-                  {/* Whitespace between flex items does not render, but keeps the visible text word-separated for WCAG 2.5.3 checks. */}
-                  {' '}
+                  {/* Whitespace between flex items does not render, but keeps the visible text word-separated for WCAG 2.5.3 checks. */}{' '}
                   {trend && (
                     <span
                       className={cn(
