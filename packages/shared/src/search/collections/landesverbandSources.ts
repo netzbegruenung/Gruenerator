@@ -13,6 +13,7 @@
 export const LANDESVERBAND_SOURCE_IDS = [
   'berlin-lv-presse',
   'berlin-lv-beschluesse',
+  'berlin-lv-wahlpruefsteine',
   'berlin-fraktion-presse',
   'berlin-fraktion-beschluesse',
   'hamburg-lv-presse',

@@ -136,6 +136,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rezepte durchsuchen…"
+              aria-label="Rezepte durchsuchen"
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-foreground-muted"
               autoFocus
             />

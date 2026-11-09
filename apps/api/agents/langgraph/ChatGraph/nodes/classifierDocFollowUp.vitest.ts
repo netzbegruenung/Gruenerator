@@ -11,6 +11,14 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
 vi.mock('./docsIntentTiebreak.js', () => ({
   classifyDocsIntentTiebreak: async () => 'edit',
 }));
+// Der Adressat von Tier 2.7 entscheidet über `aiDecide` (#5533). Ohne Antwort
+// wirft er — der Auflöser gibt dann `null` zurück wie bei jedem Ausfall.
+const aiDecide = vi.fn(async (..._args: unknown[]): Promise<unknown> => {
+  throw new Error('no decision host answered');
+});
+vi.mock('../../../../services/ai/decide.js', () => ({
+  aiDecide: (...args: unknown[]) => aiDecide(...args),
+}));
 
 const { classifierNode } = await import('./classifierNode.js');
 
@@ -205,7 +213,9 @@ describe('Tier 2.7 — „direkt davor" gilt nur für genau dieses Dokument', ()
   const NEW = { kind: 'document' as const, ref: 'doc-new', label: 'Antrag Radverkehr' };
 
   async function classifyWithPick(text: string, pick: string) {
-    executeProvider.mockImplementation(async () => ({ content: pick }));
+    aiDecide.mockImplementation(async () => ({
+      target: { choice: pick, confidence: 0.8, probabilities: {} },
+    }));
     try {
       return await classifierNode(
         buildState({
@@ -216,7 +226,10 @@ describe('Tier 2.7 — „direkt davor" gilt nur für genau dieses Dokument', ()
         })
       );
     } finally {
-      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+      aiDecide.mockReset();
+      aiDecide.mockImplementation(async () => {
+        throw new Error('no decision host answered');
+      });
     }
   }
 
