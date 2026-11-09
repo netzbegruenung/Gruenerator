@@ -24,6 +24,7 @@ import {
   type MentionableTextForm,
   type PublicOwnership,
   type PublicTextForm,
+  type SkillCategoryValue,
   type TextForm,
   type TextFormGroupShare,
   type TextFormKind,
@@ -67,6 +68,8 @@ export interface TextFormInput {
   description?: string | null | undefined;
   /** Wie {@link TextFormInput.description}: `undefined` behält, `null` leert. */
   iconKey?: string | null | undefined;
+  /** Wie {@link TextFormInput.description}: `undefined` behält, `null` leert. */
+  category?: SkillCategoryValue | null | undefined;
 }
 
 /** The minimal slice the injection path needs — no examples, no timestamps. */
@@ -179,6 +182,7 @@ function rowToTextForm(
     ownerName: extra.ownerName ?? null,
     description: row.description ?? null,
     iconKey: row.icon_key ?? null,
+    category: (row.skill_category as SkillCategoryValue | null) ?? null,
     shareMode: row.share_mode as TextFormShareMode,
     isPublic: row.is_public,
     publicOwnership: (row.public_ownership as PublicOwnership | null) ?? null,
@@ -749,6 +753,7 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     model: input.model ?? null,
     description: input.description ?? null,
     icon_key: input.iconKey ?? null,
+    skill_category: input.category ?? null,
     analyzed_at: now,
     updated_at: now,
     // Insert only, not in the conflict set: the owner's locale when the recipe was created.
@@ -771,6 +776,7 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
         model: values.model,
         description: mergeOptionalColumn(input.description, sql`${userTextForms.description}`),
         icon_key: mergeOptionalColumn(input.iconKey, sql`${userTextForms.icon_key}`),
+        skill_category: mergeOptionalColumn(input.category, sql`${userTextForms.skill_category}`),
         analyzed_at: values.analyzed_at,
         updated_at: values.updated_at,
       },
@@ -829,6 +835,7 @@ interface MentionableRow {
   title: string;
   description: string | null;
   icon_key: string | null;
+  skill_category: string | null;
   kind: string;
   is_public: boolean;
   access_rank: number | string;
@@ -872,7 +879,7 @@ export async function listMentionableTextForms(
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
-            tf.icon_key, tf.kind, tf.is_public,
+            tf.icon_key, tf.skill_category, tf.kind, tf.is_public,
             ${ACCESS_RANK_SQL} AS access_rank,
             (SELECT g.name
                FROM group_content_shares gcs
@@ -919,6 +926,7 @@ export async function listMentionableTextForms(
       title: winner.title,
       description: winner.description ?? null,
       iconKey: winner.icon_key ?? null,
+      category: (winner.skill_category as SkillCategoryValue | null) ?? null,
       kind,
       sharedFromGroup: winner.access === 'group' ? (winner.group_name ?? null) : null,
       ownerName: winner.access === 'own' ? null : (winner.owner_name ?? null),
@@ -947,7 +955,7 @@ export async function listVisibleTextFormsByIds(
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
-            tf.icon_key, tf.kind, tf.is_public,
+            tf.icon_key, tf.skill_category, tf.kind, tf.is_public,
             ${ACCESS_RANK_SQL} AS access_rank,
             (SELECT g.name
                FROM group_content_shares gcs
@@ -982,6 +990,7 @@ export async function listVisibleTextFormsByIds(
       title: row.title,
       description: row.description ?? null,
       iconKey: row.icon_key ?? null,
+      category: (row.skill_category as SkillCategoryValue | null) ?? null,
       kind,
       sharedFromGroup: access === 'group' ? (row.group_name ?? null) : null,
       ownerName: access === 'own' ? null : (row.owner_name ?? null),

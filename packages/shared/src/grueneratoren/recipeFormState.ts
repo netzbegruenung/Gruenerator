@@ -14,6 +14,7 @@
 import {
   type DraftedRecipeSpec,
   type SaveTextFormBody,
+  type SkillCategoryValue,
   type TextForm,
   type TextFormKind,
   type TextFormType,
@@ -34,6 +35,8 @@ export interface RecipeFormState {
   title: string;
   description: string;
   iconKey: string;
+  /** Kategorie in der Rezept-Bibliothek; `null` = keine („Eigene“). */
+  category: SkillCategoryValue | null;
   styleBlock: string;
   rawExamples: string;
   /** The mention an already-saved row was loaded with; `null` for a new (or drafted) recipe. */
@@ -49,6 +52,7 @@ export const EMPTY_RECIPE_FORM: RecipeFormState = {
   title: '',
   description: '',
   iconKey: DEFAULT_AGENT_ICON,
+  category: null,
   styleBlock: '',
   rawExamples: '',
   originalMention: null,
@@ -72,6 +76,7 @@ export function recipeFormToPayload(form: RecipeFormState): SaveTextFormBody {
     styleBlock: form.styleBlock.trim(),
     description: form.description.trim() || null,
     iconKey: form.iconKey,
+    category: form.category,
   };
 }
 
@@ -86,6 +91,7 @@ export function hydrateRecipeForm(form: TextForm): RecipeFormState {
     title: form.title,
     description: form.description ?? '',
     iconKey: form.iconKey ?? DEFAULT_AGENT_ICON,
+    category: form.category,
     styleBlock: form.styleBlock,
     rawExamples: joinExamples(form.examples),
     originalMention: form.mention,

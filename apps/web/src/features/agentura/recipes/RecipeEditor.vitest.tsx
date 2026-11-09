@@ -184,6 +184,32 @@ describe('RecipeEditor', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/agentura/rezept/mein-testrezept'));
   });
 
+  it('speichert die gewählte Kategorie mit', async () => {
+    save.mockResolvedValueOnce({
+      status: 200,
+      body: { success: true, form: { id: 'r1', mention: 'mein-testrezept', title: 'x' } },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
+    await user.selectOptions(screen.getByLabelText('Kategorie'), 'social');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    const call = save.mock.calls[0]?.[0] as { body: Record<string, unknown> };
+    expect(call.body.category).toBe('social');
+  });
+
+  it('zeigt die gespeicherte Kategorie beim Bearbeiten', async () => {
+    renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm({ category: 'presse' })} />
+    );
+
+    expect(screen.getByLabelText('Kategorie')).toHaveValue('presse');
+  });
+
   it('zeigt einen 409 unter dem sichtbaren Mention-Feld statt als Banner', async () => {
     save.mockResolvedValueOnce({
       status: 409,

@@ -16,6 +16,7 @@ import { listedAgentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../
 import {
   agentToMentionable,
   getCustomAgentMentionables,
+  getTextformMentionables,
   getMentionInstance,
   type Mentionable,
 } from '../../lib/mentionables';
@@ -52,20 +53,28 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
     [hiddenSkillMentions, lvIds]
   );
 
-  const filtered = useMemo(() => {
-    if (!search) return allSkills;
+  const matches = (s: Mentionable) => {
+    if (!search) return true;
     const q = search.toLowerCase();
-    return allSkills.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        s.mention.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)
+    return (
+      s.title.toLowerCase().includes(q) ||
+      s.mention.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q)
     );
-  }, [allSkills, search]);
+  };
+  const filtered = allSkills.filter(matches);
 
-  const grouped = useMemo(() => {
+  // Eigene Rezepte (ohne die geteilten und gespeicherten fremden) stehen unter
+  // ihrer Kategorie wie die mitgelieferten; ohne Kategorie unter „Eigene“. Der
+  // Speicher ist nicht reaktiv — wie bei `customAgents` wird bei jedem Render gelesen.
+  const ownRecipes = getTextformMentionables().filter(
+    (m) => !m.sharedFromGroup && !m.savedFromOwner && matches(m)
+  );
+  const ownUncategorised = ownRecipes.filter((m) => !m.skillCategory);
+
+  const grouped = (() => {
     const map = new Map<SkillCategory, Mentionable[]>();
-    for (const skill of filtered) {
+    for (const skill of [...filtered, ...ownRecipes.filter((m) => m.skillCategory)]) {
       const cat = skill.skillCategory ?? 'sonstiges';
       const list = map.get(cat) ?? [];
       list.push(skill);
@@ -76,7 +85,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
       label: SKILL_CATEGORY_LABELS[c],
       items: map.get(c)!,
     }));
-  }, [filtered]);
+  })();
 
   useEffect(() => {
     if (!open) return;
@@ -137,14 +146,19 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {grouped.map(({ category, label, items }) => (
+          {[
+            ...grouped,
+            ...(ownUncategorised.length > 0
+              ? [{ category: 'eigene', label: 'Eigene', items: ownUncategorised }]
+              : []),
+          ].map(({ category, label, items }) => (
             <div key={category} className="mb-1">
               <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
                 {label}
               </div>
               {items.map((skill) => {
                 const isFav = library.has('recipe', skill.mention);
-                const Icon = skill.icon;
+                const Icon = skill.icon ?? (skill.type === 'textform' ? PiSparkle : undefined);
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
@@ -162,17 +176,19 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                         </p>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => library.toggle('recipe', skill.mention)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                      title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
-                    </button>
+                    {skill.type === 'textform' ? null : (
+                      <button
+                        type="button"
+                        onClick={() => library.toggle('recipe', skill.mention)}
+                        className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
+                        aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                      >
+                        <Star
+                          className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
+                        />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -210,7 +226,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </div>
           )}
 
-          {grouped.length === 0 && customAgents.length === 0 && (
+          {grouped.length === 0 && ownUncategorised.length === 0 && customAgents.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-foreground-muted">
               Kein Rezept gefunden
             </div>

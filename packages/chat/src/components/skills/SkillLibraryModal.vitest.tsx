@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listedAgentsList } from '../../lib/agents';
+import { setTextforms } from '../../lib/mentionables';
 
 import { SkillLibraryModal } from './SkillLibraryModal';
 
@@ -39,12 +40,46 @@ function renderModal() {
 }
 
 beforeEach(() => {
+  setTextforms([]);
   list.mockReset().mockResolvedValue({ status: 200, body: { items: [] } });
   add.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
   remove.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
 });
 
+const ownForm = (over: {
+  id: string;
+  mention: string;
+  title: string;
+  category: 'social' | null;
+}) => ({
+  description: null,
+  iconKey: null,
+  sharedFromGroup: null,
+  ownerName: null,
+  isPublic: false,
+  ...over,
+});
+
 describe('SkillLibraryModal', () => {
+  it('lists an own recipe with category social under "Social Media"', async () => {
+    setTextforms([ownForm({ id: 'r1', mention: 'ov-post', title: 'OV-Post', category: 'social' })]);
+    renderModal();
+
+    const heading = await screen.findByText('Social Media');
+    const recipe = screen.getByText('OV-Post');
+    // Die Überschrift steht vor dem Rezept und keine weitere Gruppe dazwischen.
+    expect(heading.compareDocumentPosition(recipe) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('Eigene')).not.toBeInTheDocument();
+  });
+
+  it('puts an own recipe without category under "Eigene"', async () => {
+    setTextforms([ownForm({ id: 'r2', mention: 'mein-text', title: 'Mein Text', category: null })]);
+    renderModal();
+
+    expect(await screen.findByText('Eigene')).toBeInTheDocument();
+    expect(screen.getByText('Mein Text')).toBeInTheDocument();
+  });
+
   it('speaks of recipes, not skills, in the subtitle', async () => {
     renderModal();
     expect(

@@ -364,6 +364,8 @@ export interface TextformMentionable {
   title: string;
   description: string | null;
   iconKey: string | null;
+  /** Kategorie in der Rezept-Bibliothek; `null` = „Eigene“. Fehlt beim alten Server. */
+  category?: SkillCategory | null;
   /**
    * Name of the group this recipe was shared from, `null` for the user's own.
    * The picker splits the recipe section on it, so dropping it here makes a
@@ -397,6 +399,7 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
     backgroundColor: '#316049',
     mention: t.mention,
     ...(t.iconKey ? { iconKey: t.iconKey } : {}),
+    ...(t.category ? { skillCategory: t.category } : {}),
     ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
     ...(t.isPublic && t.ownerName ? { savedFromOwner: t.ownerName } : {}),
   };

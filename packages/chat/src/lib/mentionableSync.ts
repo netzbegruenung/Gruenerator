@@ -73,7 +73,10 @@ export interface UserNotebookListItem {
  */
 export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title'> &
   Partial<
-    Pick<TextForm, 'id' | 'description' | 'iconKey' | 'sharedFromGroup' | 'ownerName' | 'isPublic'>
+    Pick<
+      TextForm,
+      'id' | 'description' | 'iconKey' | 'category' | 'sharedFromGroup' | 'ownerName' | 'isPublic'
+    >
   >;
 
 /**
@@ -206,6 +209,7 @@ type TextformSource = Pick<
   | 'title'
   | 'description'
   | 'iconKey'
+  | 'category'
   | 'sharedFromGroup'
   | 'ownerName'
   | 'isPublic'
@@ -218,6 +222,7 @@ function toTextformMentionable(f: TextformSource): TextformMentionable {
     title: f.title,
     description: f.description,
     iconKey: f.iconKey,
+    category: f.category,
     sharedFromGroup: f.sharedFromGroup,
     ownerName: f.ownerName,
     isPublic: f.isPublic,
@@ -233,6 +238,7 @@ function toLegacyTextformMentionable(f: TextFormListItem): TextformMentionable {
     title: f.title,
     description: f.description ?? null,
     iconKey: f.iconKey ?? null,
+    category: f.category ?? null,
     sharedFromGroup: f.sharedFromGroup ?? null,
     ownerName: f.ownerName ?? null,
     isPublic: f.isPublic ?? false,

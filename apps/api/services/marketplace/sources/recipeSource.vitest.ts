@@ -100,6 +100,7 @@ beforeEach(() => {
         title: 'Mein Stil',
         description: 'Kurz und klar',
         iconKey: null,
+        category: 'social',
         ownerName: 'Kim',
       },
       userId: 'viewer',
@@ -133,7 +134,7 @@ describe('recipeSource.list', () => {
       reportKind: 'user_text_form',
       isOwn: true,
       authorName: 'Kim',
-      recipe: { mention: 'mein-stil', rowId: FORM_ID, system: false },
+      recipe: { mention: 'mein-stil', rowId: FORM_ID, system: false, skillCategory: 'social' },
     });
     expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-DE', 'viewer');
   });

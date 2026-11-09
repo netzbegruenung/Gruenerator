@@ -165,7 +165,7 @@ describe('syncTextforms — mentionable endpoint mapping', () => {
     expect(paths).toEqual(['/api/text-forms/mentionable']);
   });
 
-  it('maps id, description, iconKey, sharedFromGroup, ownerName and isPublic', async () => {
+  it('maps id, description, iconKey, category, sharedFromGroup, ownerName and isPublic', async () => {
     const list = await syncTextforms(
       fetchMentionable([
         {
@@ -174,6 +174,7 @@ describe('syncTextforms — mentionable endpoint mapping', () => {
           title: 'OMV',
           description: 'Einladungstext für Ortsmitgliederversammlungen',
           iconKey: 'PiEnvelope',
+          category: 'social',
           kind: 'custom',
           sharedFromGroup: null,
           ownerName: null,
@@ -211,6 +212,7 @@ describe('syncTextforms — mentionable endpoint mapping', () => {
         title: 'OMV',
         description: 'Einladungstext für Ortsmitgliederversammlungen',
         iconKey: 'PiEnvelope',
+        category: 'social',
         sharedFromGroup: null,
         ownerName: null,
         isPublic: false,
@@ -323,6 +325,7 @@ describe('syncTextforms — old-server fallback', () => {
         title: 'OMV',
         description: null,
         iconKey: null,
+        category: null,
         sharedFromGroup: null,
         ownerName: null,
         isPublic: false,

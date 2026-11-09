@@ -1,11 +1,13 @@
 import { agentsList, useUserLandesverbaende } from '@gruenerator/chat';
 import {
+  type SkillCategoryValue,
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
   type TextForm,
   USER_RECIPE_DESCRIPTION_MIN,
 } from '@gruenerator/contracts';
+import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   classifyRecipeMention,
@@ -41,6 +43,7 @@ import {
   useRecipeEditorStore,
 } from '../../../stores/recipeEditorStore';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../../theme';
+import { MenuActionSheet } from '../../chat/MenuActionSheet';
 import { Button, ListRow, SkeletonRows } from '../../common';
 import { AgentGlyph } from '../AgentGlyph';
 
@@ -64,6 +67,9 @@ type Source =
   | { status: 'error'; retry: () => void }
   | { status: 'not-entitled' }
   | { status: 'ready'; mode: Mode; initial: RecipeFormState };
+
+/** Kennung der Wahl „keine Kategorie“ im Auswahlblatt. */
+const NO_CATEGORY = 'none';
 
 const catalogueMentions = new Set(agentsList.map((s) => s.mention.toLowerCase()));
 const isCatalogueMention = (mention: string): boolean =>
@@ -215,6 +221,7 @@ function EditorForm({
   const clear = useRecipeEditorStore((s) => s.clear);
   const [showRestored, setShowRestored] = useState(restored && mode === 'edit');
   const [mentionError, setMentionError] = useState<MentionNotice | null>(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
   /** Gesetzt, sobald die Seite absichtlich verlassen wird (gespeichert, gelöscht, verworfen). */
   const leavingRef = useRef(false);
 
@@ -504,6 +511,37 @@ function EditorForm({
           />
           <CharCount value={form.description} max={MAX_TEXT_FORM_DESCRIPTION_CHARS} />
         </FormSection>
+
+        <FormSection footer="Unter dieser Überschrift steht das Rezept in der Bibliothek.">
+          <ListRow
+            icon="folder-outline"
+            title="Kategorie"
+            value={form.category ? SKILL_CATEGORY_LABELS[form.category] : 'Eigene'}
+            onPress={() => setCategoryOpen(true)}
+            last
+          />
+        </FormSection>
+        <MenuActionSheet
+          visible={categoryOpen}
+          theme={theme}
+          heading="Kategorie"
+          actions={[
+            {
+              id: NO_CATEGORY,
+              title: 'Eigene (keine Kategorie)',
+              state: form.category ? 'off' : 'on',
+            },
+            ...SKILL_CATEGORY_ORDER.map((c) => ({
+              id: c,
+              title: SKILL_CATEGORY_LABELS[c],
+              state: form.category === c ? ('on' as const) : ('off' as const),
+            })),
+          ]}
+          onSelect={(id) =>
+            update({ category: id === NO_CATEGORY ? null : (id as SkillCategoryValue) })
+          }
+          onClose={() => setCategoryOpen(false)}
+        />
 
         <FormSection
           title="Anleitung"

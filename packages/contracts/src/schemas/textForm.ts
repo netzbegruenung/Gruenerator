@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import { publicOwnershipSchema } from './notebookCollections.js';
+import { skillCategorySchema } from './skill.js';
 import { MAX_DRAFT_BRIEF_CHARS } from './userAgents.js';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
@@ -159,6 +160,8 @@ export const textFormSchema = z.object({
   /** Short blurb for the Agentura/mention picker. */
   description: z.string().nullable().default(null),
   iconKey: z.string().nullable().default(null),
+  /** Kategorie in der Rezept-Bibliothek; `null` = „Eigene“. */
+  category: skillCategorySchema.nullable().default(null),
   /** Who can see/use this recipe — same axis as user agents. */
   shareMode: textFormShareModeSchema.default('private'),
   /** Listed in the public Agentura directory, atop shareMode='authenticated'. */
@@ -209,6 +212,8 @@ export const saveTextFormBodySchema = z.object({
   styleBlock: z.string().min(1).max(MAX_TEXT_FORM_STYLE_CHARS),
   description: textFormDescriptionSchema.nullish(),
   iconKey: textFormIconKeySchema.nullish(),
+  /** Additiv (F0): ältere Clients senden sie nicht mit — dann bleibt sie stehen, `null` leert. */
+  category: skillCategorySchema.nullish(),
 });
 export type SaveTextFormBody = z.infer<typeof saveTextFormBodySchema>;
 
@@ -262,6 +267,7 @@ export const mentionableTextFormSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   iconKey: z.string().nullable(),
+  category: skillCategorySchema.nullable().default(null),
   kind: textFormKindSchema,
   sharedFromGroup: z.string().nullable(),
   ownerName: z.string().nullable(),

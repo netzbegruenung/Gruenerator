@@ -179,6 +179,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         // damit bei jedem Speichern (#3472). Ein `null` im Body leert weiter.
         description: body.description,
         iconKey: body.iconKey,
+        category: body.category,
       });
       return { status: 200 as const, body: { success: true, form } };
     } catch (error) {
@@ -195,7 +196,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
       if (!deleted) {
         return {
           status: 404 as const,
-          body: { success: false, message: 'Textform nicht gefunden.' },
+          body: { success: false, message: 'Rezept nicht gefunden.' },
         };
       }
       return { status: 200 as const, body: { success: true } };

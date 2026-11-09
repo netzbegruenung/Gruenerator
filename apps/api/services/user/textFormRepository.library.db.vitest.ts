@@ -29,7 +29,8 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => adapter,
 }));
 
-const { listVisibleTextFormsByIds } = await import('./textFormRepository.js');
+const { listMentionableTextForms, listVisibleTextFormsByIds } =
+  await import('./textFormRepository.js');
 
 const me = randomUUID();
 const author = randomUUID();
@@ -105,5 +106,34 @@ describe.skipIf(!url)('listVisibleTextFormsByIds', () => {
   it('returns nothing for an empty or non-uuid list', async () => {
     expect(await listVisibleTextFormsByIds(me, [])).toEqual([]);
     expect(await listVisibleTextFormsByIds(me, ['presse'])).toEqual([]);
+  });
+
+  it('reads the category column into the mention list and the by-id list', async () => {
+    const id = await insertRecipe({ skill_category: 'social' });
+    const own = await insertRecipe({
+      user_id: me,
+      skill_category: 'presse',
+      share_mode: 'private',
+      is_public: false,
+    });
+
+    const byId = await listVisibleTextFormsByIds(me, [id]);
+    expect(byId[0]?.category).toBe('social');
+
+    const mentionable = await listMentionableTextForms(me, 200, { includePublic: false });
+    expect(mentionable.find((f) => f.id === own)?.category).toBe('presse');
+  });
+
+  it('rejects a category outside the closed set', async () => {
+    await expect(insertRecipe({ skill_category: 'politik' })).rejects.toThrow(/skill_category/);
+  });
+
+  it('stores NULL when no category is chosen', async () => {
+    const id = await insertRecipe();
+    const res = await pool.query<{ skill_category: string | null }>(
+      'SELECT skill_category FROM user_text_forms WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+    expect(res.rows[0]?.skill_category).toBeNull();
   });
 });

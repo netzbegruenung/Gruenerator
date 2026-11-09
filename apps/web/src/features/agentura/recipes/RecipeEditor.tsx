@@ -6,7 +6,9 @@ import {
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
   USER_RECIPE_DESCRIPTION_MIN,
+  type SkillCategoryValue,
 } from '@gruenerator/contracts';
+import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   useDeleteRecipe,
@@ -35,6 +37,8 @@ import { RecipeSharingPanel } from './RecipeSharingPanel';
 import PageContainer from '@/components/common/PageContainer';
 
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
+const selectCls =
+  'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 /**
  * `slugifyName` kappt bei 40 Zeichen — das Eingabefeld darf nicht mehr
@@ -409,6 +413,27 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
               maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
               placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
             />
+          </label>
+
+          <label className={labelCls}>
+            Kategorie
+            <select
+              className={selectCls}
+              value={form.category ?? ''}
+              onChange={(e) =>
+                set(
+                  'category',
+                  e.target.value === '' ? null : (e.target.value as SkillCategoryValue)
+                )
+              }
+            >
+              <option value="">Eigene (keine Kategorie)</option>
+              {SKILL_CATEGORY_ORDER.map((c) => (
+                <option key={c} value={c}>
+                  {SKILL_CATEGORY_LABELS[c]}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="flex flex-col gap-sm">
