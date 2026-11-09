@@ -254,4 +254,36 @@ describe('party-internal boundary', () => {
     );
     expect(source).not.toContain('internalPrompts');
   });
+
+  // Issue #5586: the creator_draft lane (Gemma tool call) delivered line breaks
+  // as "**n" (and literal backslash-n) instead of real newlines.
+  describe('issue #5586: mangled line breaks in styleBlock', () => {
+    const tail = 'Die Pressemitteilung dient dazu, einen Antrag prägnant zu kommunizieren. '.repeat(
+      2
+    );
+
+    async function styleBlockFor(styleBlock: string): Promise<string> {
+      mockDraftResult(baseDraft({ styleBlock }));
+      const spec = await draftRecipeSpec({
+        messages: [{ role: 'user', content: 'x' }],
+        takenMentions: new Set(),
+      });
+      return spec.styleBlock;
+    }
+
+    it('restores "**n**n" as a blank line', async () => {
+      expect(await styleBlockFor(`### Zweck**n**n${tail}**n### Aufbau**n- Punkt`)).toBe(
+        `### Zweck\n\n${tail}\n### Aufbau\n- Punkt`
+      );
+    });
+
+    it('restores literal backslash-n sequences', async () => {
+      expect(await styleBlockFor(`### Zweck\\n\\n${tail}`)).toBe(`### Zweck\n\n${tail.trim()}`);
+    });
+
+    it('keeps genuine bold text starting with n intact', async () => {
+      const text = `### Zweck\n\nSchreibe **nicht** im Passiv und **nie** kürzer. ${tail}`;
+      expect(await styleBlockFor(text)).toBe(text.trim());
+    });
+  });
 });

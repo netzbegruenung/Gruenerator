@@ -180,6 +180,19 @@ function resolveBaseMention(draftMention: string, draftTitle: string): string {
   return textFormMentionSchema.safeParse(derived).success ? derived : FALLBACK_MENTION_STEM;
 }
 
+/**
+ * The `creator_draft` lane (Gemma, forced tool call) hands line breaks back
+ * mangled: as `**n` (one per newline, e.g. "### Zweck**n**nDie …") or as a
+ * literal backslash-n (#5586). Restore real newlines. A run of `**n` only
+ * counts when no lowercase letter follows, so bold words such as "**nicht**"
+ * stay untouched.
+ */
+function restoreLineBreaks(text: string): string {
+  return text
+    .replace(/(?:\*\*n)+(?![a-zäöüß])/g, (run) => '\n'.repeat(run.length / 3))
+    .replace(/\\n/g, '\n');
+}
+
 /** Synthesize a validated recipe spec from the creator conversation. */
 export async function draftRecipeSpec(params: {
   messages: ReadonlyArray<{ role: string; content: string }>;
@@ -210,7 +223,7 @@ export async function draftRecipeSpec(params: {
   );
   const title = draft.title.trim().slice(0, 80);
   const description = draft.description.trim().slice(0, MAX_TEXT_FORM_DESCRIPTION_CHARS);
-  const styleBlock = draft.styleBlock.trim().slice(0, MAX_TEXT_FORM_STYLE_CHARS);
+  const styleBlock = restoreLineBreaks(draft.styleBlock).trim().slice(0, MAX_TEXT_FORM_STYLE_CHARS);
 
   log.info(
     `[draftRecipeSpec] "${title}" mention=${mention} icon=${iconKey} styleBlock=${styleBlock.length}chars`
