@@ -2440,8 +2440,15 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 
   if (effectiveSkillMention || effectiveRecipe.recipeId) {
     const quelle = resolved?.source ?? 'fehlt';
+    // Auf dem Loop-Pfad trägt die Registry das Rezept (`preloadedByRegistry`,
+    // `pinnedByRegistry`) — ein „Prompt-Fragment" gibt es dann nicht, und die
+    // Zeile soll nicht behaupten, es stünde im Prompt.
+    const prefix =
+      preloadedByRegistry || pinnedByRegistry
+        ? '[Rezept] in Registry (Loop)'
+        : '[Rezept] Prompt-Fragment';
     log.info(
-      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
+      `${prefix} mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
     );
   }
 
