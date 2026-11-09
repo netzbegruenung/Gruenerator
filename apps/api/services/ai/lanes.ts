@@ -20,7 +20,11 @@
  * an override and keeps its existing contract schema.
  */
 
-import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_MELIOUS_SPEED,
+  GEMMA_31B_PRIMARY,
+} from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
@@ -87,7 +91,14 @@ export const AI_LANES = {
   // — Bundestags-Fragen (services/bundestag/qa): Plan der Suche, Lesen eines
   //   Dokumentfensters, Antwort aus den belegten Punkten. Gemma 4 wie die QA-Lanes.
   bundestag_plan: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
-  bundestag_read: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  //   `bundestag_read` auf `:speed` (Entscheidung 09.11.2026, #5581): dieselben Gewichte,
+  //   Median je Fenster 2,9 s statt 10,3 s, Summe über 7 Dokumente 78 s statt 238 s;
+  //   `:balanced` streute von 3 bis 78 s bei gleichen Tokens. Der Chat-Loop bleibt auf `:balanced`.
+  bundestag_read: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
   bundestag_answer: {
     provider: GEMMA_31B_PRIMARY.provider,
     model: GEMMA_4,
