@@ -76,6 +76,8 @@ export async function getMarketplaceFrontpage(
 
   const shelf = async (id: MarketplaceFrontpageShelfId): Promise<MarketplaceSection[]> => {
     if (id === 'landesverband' && !hasLv) return [];
+    // Neues Regal (F0): ausgelieferte Mobile-Binaries kennen die Id nicht.
+    if (id === 'rezepte' && ctx.platform !== 'web') return [];
     const spec = FRONTPAGE_SHELF_QUERIES[id];
     const query = marketplaceListQuerySchema.parse({
       kinds: spec.kinds.join(','),
@@ -89,8 +91,9 @@ export async function getMarketplaceFrontpage(
   };
 
   const feature = featureFor(ctx.audience);
-  const [landesverband, neu, beliebt, gestalten, item, collections] = await Promise.all([
+  const [landesverband, rezepte, neu, beliebt, gestalten, item, collections] = await Promise.all([
     shelf('landesverband'),
+    shelf('rezepte'),
     shelf('neu'),
     shelf('beliebt'),
     shelf('gestalten'),
@@ -98,7 +101,7 @@ export async function getMarketplaceFrontpage(
     Promise.all(collectionsFor(ctx.audience).map((c) => resolveCollection(ctx, c))),
   ]);
   return composeFrontpage({
-    sections: { landesverband, neu, beliebt, gestalten },
+    sections: { landesverband, rezepte, neu, beliebt, gestalten },
     curated: feature && item ? { feature, item } : null,
     collections: collections.filter((c) => c !== null),
   });

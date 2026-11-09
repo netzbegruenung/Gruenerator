@@ -81,6 +81,7 @@ function frontpageResponse(): MarketplaceFrontpageResponse {
   return composeFrontpage({
     sections: {
       landesverband: shelf('landesverband'),
+      rezepte: shelf('rezepte'),
       neu: shelf('neu'),
       beliebt: shelf('beliebt'),
       gestalten: shelf('gestalten'),
@@ -247,6 +248,43 @@ describe('MarketplacePage', () => {
       q: 'e',
       sectionLimit: '12',
     });
+  });
+
+  it('puts Rezepte before Agents even when the server answers in enum order', async () => {
+    serveFrom([
+      item('agent', 'Pressearbeit', { origin: 'offiziell' }),
+      item('recipe', 'Offizielles Rezept', { origin: 'offiziell' }),
+    ]);
+    const inQueryOrder = respond;
+    // Der echte Server antwortet in der Reihenfolge der Kind-Enum (agent vor recipe).
+    respond = (params) => inQueryOrder(params).sort((a, b) => a.kind.localeCompare(b.kind));
+    renderPage('/marktplatz?q=e');
+
+    const recipes = await screen.findByRole('region', { name: 'Rezepte' });
+    const agents = await screen.findByRole('region', { name: 'Agents' });
+    expect(recipes.compareDocumentPosition(agents) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows a „Rezepte" shelf on the front page, saved first, and opens the Rezepte tab', async () => {
+    savedRefs = new Set(['gespeichert']);
+    serveFrom([
+      item('recipe', 'Offen', { origin: 'offiziell', ref: 'offen' }),
+      item('recipe', 'Gespeichert', { origin: 'offiziell', ref: 'gespeichert' }),
+    ]);
+    const { user } = renderPage();
+
+    const shelf = await screen.findByRole('region', { name: 'Rezepte' });
+    const titles = within(shelf)
+      .getAllByRole('heading')
+      .map((h) => h.textContent);
+    expect(titles.indexOf('Gespeichert')).toBeLessThan(titles.indexOf('Offen'));
+    expect(
+      shelf.compareDocumentPosition(screen.getByRole('region', { name: 'Neu im Marktplatz' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    await user.click(within(shelf).getByRole('button', { name: 'Alle anzeigen' }));
+    await waitFor(() => expect(screen.getByLabelText('Adresse')).toHaveTextContent('art=rezepte'));
   });
 
   it('lists Rezepte before Agents on „Alle", with an official recipe card', async () => {

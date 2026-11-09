@@ -46,7 +46,11 @@ function item(kind: MarketplaceKind, ref: string, over: Partial<MarketplaceItem>
   } as MarketplaceItem;
 }
 
-function ctx(lv: boolean, audience: 'de-DE' | 'de-AT' = 'de-DE'): MarketplaceContext {
+function ctx(
+  lv: boolean,
+  audience: 'de-DE' | 'de-AT' = 'de-DE',
+  platform: MarketplaceContext['platform'] = 'mobile'
+): MarketplaceContext {
   const catalog = () =>
     Promise.resolve({
       lvAgents: lv ? [{ identifier: 'lv-agent' }] : [],
@@ -57,7 +61,7 @@ function ctx(lv: boolean, audience: 'de-DE' | 'de-AT' = 'de-DE'): MarketplaceCon
     userId: 'viewer',
     audience,
     instanceId: 'gruenerator' as MarketplaceContext['instanceId'],
-    platform: 'mobile',
+    platform,
     officialCatalog: catalog,
   };
 }
@@ -171,6 +175,26 @@ describe('getMarketplaceFrontpage', () => {
     ]);
     expect(page.featured?.ref).toBe('gruenerator-leichte-sprache');
     expect(page.featureId).toBe('leichte-sprache');
+  });
+
+  it('lists the Rezepte shelf for web only — shipped mobile binaries do not know its id', async () => {
+    m.get.mockResolvedValue(item('agent', 'gruenerator-leichte-sprache'));
+
+    const web = await getMarketplaceFrontpage(ctx(false, 'de-DE', 'web'));
+    expect(listed()).toContainEqual({
+      kind: 'recipe',
+      sort: 'empfohlen',
+      origin: 'offiziell',
+      // One kind is paged, so the page size (24) applies, not `sectionLimit`: saved
+      // recipes are picked out of the whole first page.
+      limit: 24,
+    });
+    expect(web.shelves.map((s) => s.shelfId)).toContain('rezepte');
+
+    m.list.mockClear();
+    const mobile = await getMarketplaceFrontpage(ctx(false, 'de-DE', 'mobile'));
+    expect(listed().some((q) => q.kind === 'recipe' && q.origin === 'offiziell')).toBe(false);
+    expect(mobile.shelves.map((s) => s.shelfId)).not.toContain('rezepte');
   });
 
   it('does not list the Landesverband shelf for a viewer without one', async () => {
