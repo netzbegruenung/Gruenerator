@@ -11,9 +11,10 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useCallback, useRef, useState } from 'react';
-import { PiBooks, PiChatCircle, PiSquaresFour } from 'react-icons/pi';
+import { PiBooks, PiChatCircle } from 'react-icons/pi';
 
 import { NavTooltip } from './NavTooltip';
+import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
@@ -37,7 +38,7 @@ interface LandesverbandSidebarSectionProps {
  *   Plus-Menü (`setActiveRole`), angewendet über `resetChatContext`.
  * - jeder Agent des LV startet einen neuen Chat mit ihm (`/agents/<slug>` — ohne
  *   Thread in der URL parkt die Laufzeit auf einem Entwurf),
- * - darunter der Hub mit allen Grüneratoren des LV.
+ * - darunter das Notebook des LV.
  */
 export const LandesverbandSidebarSection = memo(function LandesverbandSidebarSection({
   hubs,
@@ -137,31 +138,26 @@ export const LandesverbandSidebarSection = memo(function LandesverbandSidebarSec
                 </>
               )}
               <DropdownMenuLabel>Neuer Chat mit Agent</DropdownMenuLabel>
-              {cards.map(({ agentId, role, agent }) => (
-                <DropdownMenuItem
-                  key={agentId}
-                  onSelect={() => go(`/agents/${getAgentSlug(agentId)}`, role)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs"
-                    style={{ backgroundColor: agent.backgroundColor }}
+              {cards.map(({ agentId, role }) => {
+                const AgentIcon = getAgentIcon(agentId);
+                return (
+                  <DropdownMenuItem
+                    key={agentId}
+                    onSelect={() => go(`/agents/${getAgentSlug(agentId)}`, role)}
                   >
-                    {agent.avatar}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{role}</span>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => go(`/agents/${hub.slug}`, hub.name)}>
-                <PiSquaresFour aria-hidden="true" className="size-4" />
-                <span>Alle Grüneratoren von {hub.name}</span>
-              </DropdownMenuItem>
+                    <AgentIcon aria-hidden="true" className="size-4" />
+                    <span className="min-w-0 flex-1 truncate">{role}</span>
+                  </DropdownMenuItem>
+                );
+              })}
               {notebookPath && (
-                <DropdownMenuItem onSelect={() => go(notebookPath, hub.name)}>
-                  <PiBooks aria-hidden="true" className="size-4" />
-                  <span>Wissensdatenbank</span>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => go(notebookPath, hub.name)}>
+                    <PiBooks aria-hidden="true" className="size-4" />
+                    <span>Notebook</span>
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

@@ -78,8 +78,8 @@ describe('LandesverbandSidebarSection', () => {
 
     const firstAgent = berlin.agentIds[0]!;
     const items = screen.getAllByRole('menuitem');
-    // Rolle + ein Eintrag je Agent + Hub-Link (+ ggf. Wissensdatenbank).
-    expect(items.length).toBeGreaterThanOrEqual(berlin.agentIds.length + 2);
+    // Rolle + ein Eintrag je Agent + Notebook.
+    expect(items).toHaveLength(berlin.agentIds.length + 2);
 
     await user.click(items[1]!);
     expect(onNavigate).toHaveBeenCalledWith(
@@ -88,14 +88,12 @@ describe('LandesverbandSidebarSection', () => {
     );
   });
 
-  it('links to the hub with all of the LV’s Grüneratoren', async () => {
+  it('links to the LV notebook instead of a separate hub entry', async () => {
     const user = userEvent.setup();
-    const { onNavigate } = renderSection();
+    renderSection();
     await user.click(screen.getByRole('button', { name: berlin.name }));
-    await user.click(
-      screen.getByRole('menuitem', { name: `Alle Grüneratoren von ${berlin.name}` })
-    );
-    expect(onNavigate).toHaveBeenCalledWith(`/agents/${berlin.slug}`, berlin.name);
+    expect(screen.getByRole('menuitem', { name: 'Notebook' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Alle Grüneratoren/ })).toBeNull();
   });
 
   it('has no axe violations with the menu open', async () => {

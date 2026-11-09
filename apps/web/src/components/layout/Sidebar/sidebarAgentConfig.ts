@@ -23,6 +23,9 @@ import {
   PiProjectorScreenChart,
   PiScales,
   PiBank,
+  PiEnvelopeSimple,
+  PiListChecks,
+  PiGavel,
 } from 'react-icons/pi';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
@@ -63,12 +66,20 @@ const iconByKey: Readonly<Partial<Record<string, IconType>>> = ICON_REGISTRY;
 const FALLBACK_ICON: IconType = PiSparkle;
 
 /**
- * Per-LV Öffentlichkeitsarbeit variants share the megaphone via prefix check —
- * adding a new LV-PR agent needs zero changes here (and no `iconKey` on the
- * agent definition either).
+ * Die Landesverband-Agents tragen kein `iconKey`; jede Familie teilt sich ihr
+ * Icon über das Präfix — ein neuer Landesverband braucht hier keine Änderung.
  */
+const LV_FAMILY_ICONS: readonly (readonly [prefix: string, icon: IconType])[] = [
+  ['gruenerator-oeffentlichkeitsarbeit', PiMegaphone],
+  ['gruenerator-buergeranfragen', PiEnvelopeSimple],
+  ['gruenerator-wahlpruefsteine', PiListChecks],
+  ['gruenerator-beschluesse', PiGavel],
+  ['gruenerator-wahlprogramm', PiBookOpenText],
+];
+
 export function getAgentIcon(identifier: string): IconType {
-  if (identifier.startsWith('gruenerator-oeffentlichkeitsarbeit')) return PiMegaphone;
+  const lvIcon = LV_FAMILY_ICONS.find(([prefix]) => identifier.startsWith(`${prefix}-`))?.[1];
+  if (lvIcon) return lvIcon;
   const agent = ALL_VISIBLE_SYSTEM_AGENTS.find((a) => a.identifier === identifier);
   if (agent?.iconKey) return iconByKey[agent.iconKey] ?? FALLBACK_ICON;
   return FALLBACK_ICON;
