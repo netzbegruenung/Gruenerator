@@ -538,4 +538,4 @@ overrides:
   '@tiptap/pm': ^3.33.0
   '@tiptap/react': ^3.33.0
   '@tiptap/static-renderer': ^3.33.0
-  '@babel/core': 7.29.7
+  '@babel/core': 7.29.13
