@@ -2,11 +2,12 @@ import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
+  formCatalog,
+  formForMaterial,
   formHasMaterial,
   formMismatch,
   missingMaterial,
   namedSharepicForm,
-  wantsOneSlide,
 } from './forms.js';
 
 describe('SHAREPIC_FORMS stichworte', () => {
@@ -59,33 +60,6 @@ describe('namedSharepicForm', () => {
   it('needs the word on its own, not inside another', () => {
     expect(namedSharepicForm('Sharepic zu den Zwischenterminen')).toBeNull();
     expect(namedSharepicForm('Bringt uns die Gasrechnung ins Schwitzen?')).toBeNull();
-  });
-});
-
-describe('wantsOneSlide', () => {
-  const one = (text: string) => wantsOneSlide(text, namedSharepicForm(text));
-
-  it.each([
-    'erstelle ein sharepic um neue mitglieder für die grünen im rhein sieg kreis zu werben',
-    'Sharepic zu 5 Gründen, Mitglied zu werden',
-    'Mach eine Infografik zum Radverkehr',
-    'Sharepic, bitte kein Karussell',
-    'Erstelle ein Sharepic, nicht mehrere, zur Mitgliederwerbung',
-    'Ein Sharepic, keine Serie',
-  ])('one slide: %s', (text) => {
-    expect(one(text)).toBe(true);
-  });
-
-  it.each([
-    'Karussell zur Windkraft',
-    'erstelle 3 sharepics zur Mitgliederwerbung',
-    'mehrere Sharepics zum Klimaschutz',
-    'ein Interview-Sharepic mit Anna',
-    'Infografik im Karussell',
-    'Sharepic-Serie zur Kommunalwahl',
-    'Mach 4 Slides zum ÖPNV',
-  ])('several slides: %s', (text) => {
-    expect(one(text)).toBe(false);
   });
 });
 
@@ -245,5 +219,44 @@ describe('formHasMaterial', () => {
     expect(
       formHasMaterial('termine', 'Aktionstage am 12.05. in Kiel und am 19.05. in Lübeck')
     ).toBe(true);
+  });
+});
+
+describe('formForMaterial', () => {
+  it.each([
+    'Mitgliederversammlung am 20.11. um 19 Uhr',
+    'Stammtisch am Donnerstag im Café Linde',
+    'Infostand am 3. Mai',
+  ])('makes a Veranstaltung of a Terminübersicht with one date: %s', (brief) => {
+    expect(missingMaterial('termine', brief)).toBe('mindestens zwei Termine mit Datum');
+    expect(formForMaterial('termine', brief)).toBe('veranstaltung');
+  });
+
+  it('has nothing to offer for a Terminübersicht without any date', () => {
+    expect(formForMaterial('termine', 'Terminplan für den Wahlkampf-Endspurt')).toBeNull();
+  });
+
+  it('is not asked when the brief has two dates', () => {
+    const brief = 'Save the dates: 14.12. Weihnachtsfeier, 18.01. Neujahrsempfang';
+    expect(missingMaterial('termine', brief)).toBeNull();
+    expect(formForMaterial('termine', brief)).toBeNull();
+  });
+
+  it.each(['diagramm', 'rechnung', 'faktenbild', 'zitat', 'karussell'] as const)(
+    'offers no substitute for %s',
+    (form) => {
+      expect(formForMaterial(form, 'Mehr Busse am 20.11.')).toBeNull();
+    }
+  );
+});
+
+describe('formCatalog', () => {
+  it('lists every form with the words a person orders it with', () => {
+    const catalog = formCatalog();
+    for (const form of SHAREPIC_FORMS) {
+      expect(catalog).toContain(`\`${form.id}\``);
+      expect(catalog).toContain(`(bestellt mit: ${form.stichworte.join(', ')})`);
+    }
+    expect(catalog.split('\n')).toHaveLength(SHAREPIC_FORMS.length);
   });
 });

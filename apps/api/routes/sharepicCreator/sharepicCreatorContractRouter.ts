@@ -10,7 +10,6 @@ import { requestedBrand } from '../../services/sharepicCreator/brandWords.js';
 import { createCutOutPainter } from '../../services/sharepicCreator/cutOut.js';
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
 import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
-import { namedSharepicForm } from '../../services/sharepicCreator/forms.js';
 import { createIllustrationPainter } from '../../services/sharepicCreator/illustrations.js';
 import { analyzePhoto, loadOwnPhoto } from '../../services/sharepicCreator/photoAnalysis.js';
 import { reviewSharepic } from '../../services/sharepicCreator/review.js';
@@ -44,8 +43,8 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
             illustrations: createIllustrationPainter(user.id),
             cutOut: createCutOutPainter(user.id),
           },
-          // A change request may mention a form without asking for it ("das Zitat kürzer").
-          body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),
+          // Only a picked chip fixes the form; the request's words are read by the model.
+          body.form ?? null,
           body.prompt,
           body.focus ?? null,
           null,

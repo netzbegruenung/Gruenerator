@@ -144,6 +144,8 @@ export type {
 } from './sharepicCreator/photos.js';
 export {
   SHAREPIC_FORMS,
+  sharepicAlternativeForm,
+  sharepicAlternativeRequest,
   sharepicFormLabel,
   sharepicFormSchema,
   sharepicFormStichworte,

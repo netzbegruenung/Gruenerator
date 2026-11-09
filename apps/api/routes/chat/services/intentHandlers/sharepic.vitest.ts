@@ -110,7 +110,7 @@ describe('runSharepicGeneration', () => {
         brief: 'kürzer\n\nThema wie beim vorigen Sharepic: Mehr Radwege jetzt',
         avoid: null,
         locale: 'de-DE',
-        form: null,
+        request: 'kürzer',
       })
     );
     expect(mocks.revise).not.toHaveBeenCalled();
@@ -179,27 +179,33 @@ describe('runSharepicGeneration', () => {
     const { done } = run('Sharepic über Busse auf dem Land');
     await done;
     expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({ avoid: null, locale: 'de-DE', form: null })
+      expect.objectContaining({
+        avoid: null,
+        locale: 'de-DE',
+        request: 'Sharepic über Busse auf dem Land',
+      })
     );
     expect(mocks.last).not.toHaveBeenCalled();
   });
 
-  it('holds a fresh draft to the form the message names', async () => {
-    const { done } = run('Mach ein Zitat-Sharepic über Busse auf dem Land');
+  // The creator's model reads the order from these words (live 09.11.2026: „Karussell …
+  // bei allen Terminen" was held to a Terminübersicht by a word list).
+  it.each([
+    'Mach ein Zitat-Sharepic über Busse auf dem Land',
+    'Insta-Karussell: Wir waren bei allen Terminen im Stadtrat',
+    'erstelle 3 sharepics zur Mitgliederwerbung',
+  ])('hands the words to the creator instead of guessing a form: %s', async (text) => {
+    const { done } = run(text);
     await done;
-    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ form: 'zitat' }));
+    const args = mocks.create.mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(args.request).toBe(text);
+    expect(args.form).toBeNull();
   });
 
-  it('holds "ein Sharepic" to one slide', async () => {
+  it('defaults a fresh chat draft to one slide when the words leave it open', async () => {
     const { done } = run('erstelle ein sharepic um neue mitglieder für die grünen zu werben');
     await done;
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: true }));
-  });
-
-  it('allows several slides when the message asks for them', async () => {
-    const { done } = run('erstelle 3 sharepics zur Mitgliederwerbung');
-    await done;
-    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: false }));
   });
 
   it("reads form and slide count from the person's words, not the planner's text", async () => {
@@ -211,7 +217,11 @@ describe('runSharepicGeneration', () => {
       request: 'erstelle ein sharepic zur mitgliederwerbung',
     });
     expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({ form: null, oneSlide: true })
+      expect.objectContaining({
+        request: 'erstelle ein sharepic zur mitgliederwerbung',
+        brief: 'Karussell: Mitglieder werben, Fakten zur Mitgliederzahl',
+        oneSlide: true,
+      })
     );
   });
 
@@ -233,8 +243,32 @@ describe('runSharepicGeneration', () => {
     await done;
     expect(mocks.revise).not.toHaveBeenCalled();
     expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({ avoid: SPEC, form: 'karussell' })
+      expect.objectContaining({
+        avoid: SPEC,
+        request: 'Andere Variante als Karussell',
+        form: 'karussell',
+      })
     );
+  });
+
+  it.each(['Andere Variante als Termine', 'Andere Variante als Große Zahl'])(
+    'takes every chip text as its pick: %s',
+    async (text) => {
+      const { done } = run(text, { instruction: text, prior: CREATOR_PRIOR });
+      await done;
+      const args = mocks.create.mock.calls.at(-1)![0] as { form: string | null };
+      expect(args.form).not.toBeNull();
+    }
+  );
+
+  it.each([
+    'Mach eine andere Variante als Karussell, aber kürzer',
+    'Insta-Karussell: Wir waren bei allen Terminen',
+    'andere variante als karussell bitte',
+  ])('leaves typed words to the creator: %s', async (text) => {
+    const { done } = run(text);
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ form: null }));
   });
 
   it('puts the draft-failed hint where the client shows it', async () => {
