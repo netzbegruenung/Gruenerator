@@ -69,6 +69,8 @@ export const landtagFilterSchema = z.object({
   titel: z.string().max(200).optional(),
   schlagwort: z.string().max(80).optional(),
   volltext: z.string().max(80).optional(),
+  /** Fragesteller*in einer Schriftlichen Anfrage („Antje Kapek“ oder „Kapek, Antje“); nur Berlin. */
+  person: z.string().max(80).optional(),
 });
 
 export type LandtagParlament = z.infer<typeof landtagParlamentSchema>;

@@ -53,6 +53,7 @@ export function describeLandtagFilter(f: LandtagFilter): string[] {
   if (f.titel) lines.push(`Titel enthält: ${f.titel}`);
   if (f.schlagwort) lines.push(`Schlagwort: ${f.schlagwort}`);
   if (f.volltext) lines.push(`Volltext: ${f.volltext}`);
+  if (f.person) lines.push(`Fragesteller*in: ${f.person}`);
   return lines;
 }
 
@@ -193,6 +194,7 @@ async function notebookPassages(
   if (
     filters.wahlperiode != null ||
     filters.fraktion?.length ||
+    filters.person ||
     filters.datumVon ||
     filters.datumBis
   ) {
@@ -474,7 +476,7 @@ export function makeLandtagTool(ctx: Ctx): Tool {
   const ids = parlamente.map((m) => m.id) as [LandtagParlament, ...LandtagParlament[]];
   const liste = parlamente.map((m) => `'${m.id}' (${m.parlament})`).join(', ');
   return tool({
-    description: `Findet Drucksachen eines Landesparlaments: Anträge, Anfragen und Antworten, Gesetzentwürfe, Beschlussempfehlungen. Parlament: ${liste}. Filter: Wahlperiode, Art (typ), Fraktion, Zeitraum, Titel, Schlagwort, Volltext. Liefert eine Liste mit Refs (z. B. "BE 19/3519", Schriftliche Anfragen "BE 19/S27288", NRW "NW 18/21508"), nur Metadaten. In NRW rankt query nach Inhalt (Liste dann nach Nähe sortiert); Kleine Anfragen liegen dort nur mit ihrer Antwort vor, Protokolle nicht in der Liste. Ein Filter, den das Parlament nicht kennt, wird nicht angewendet und im Hinweis genannt. Nur Deutschland.
+    description: `Findet Drucksachen eines Landesparlaments: Anträge, Anfragen und Antworten, Gesetzentwürfe, Beschlussempfehlungen. Parlament: ${liste}. Filter: Wahlperiode, Art (typ), Fraktion, Zeitraum, Titel, Schlagwort, Volltext, person. Anfragen EINER PERSON (Berlin, „wie viele Anfragen hat Frau X gestellt“): person mit Vor- und Nachname setzen, nie den Namen als query oder volltext suchen — Volltext findet nur Dokumente, die den Namen erwähnen, und ihre Zahl ist keine Anzahl der Anfragen. Liefert eine Liste mit Refs (z. B. "BE 19/3519", Schriftliche Anfragen "BE 19/S27288", NRW "NW 18/21508"), nur Metadaten. In NRW rankt query nach Inhalt (Liste dann nach Nähe sortiert); Kleine Anfragen liegen dort nur mit ihrer Antwort vor, Protokolle nicht in der Liste. Ein Filter, den das Parlament nicht kennt, wird nicht angewendet und im Hinweis genannt. Nur Deutschland.
 
 Nicht für Inhalte, dafür parlament_lesen mit quelle = parlament. Nicht für den Bundestag, dafür bundestag. Nicht für Positionen der Grünen, dafür gruenerator_search.`,
     inputSchema: z.object({
@@ -499,7 +501,7 @@ export function makeNationalratTool(ctx: Ctx): Tool {
 Nicht für Inhalte, dafür parlament_lesen mit quelle 'nationalrat'. Nicht für Positionen der Grünen, dafür gruenerator_search.`,
     inputSchema: z.object({
       query: queryArg,
-      ...landtagFilterSchema.omit({ volltext: true }).shape,
+      ...landtagFilterSchema.omit({ volltext: true, person: true }).shape,
     }),
     execute: async ({ query, ...args }) => {
       if (ctx.state.userLocale !== 'de-AT') {

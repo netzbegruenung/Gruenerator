@@ -189,6 +189,92 @@ describe('findBerlin', () => {
     }
   });
 
+  describe('Person als Fragesteller (#5573)', () => {
+    // Echte PARDOK-Datensätze (09.11.2026, `f.urheber=Kapek, Antje`): eine Einzel- und eine
+    // gemeinsam gestellte Anfrage; der Fragesteller steht in `urheber` als „Nachname, Vorname".
+    const kapek = (nr: string, titel: string, datum: string, urheber: unknown[]): PardokRecord =>
+      ({
+        dokumentnummer: [{ main: nr }],
+        drucksachentyp: [{ main: 'Schriftliche Anfrage' }],
+        id: [{ main: `D-${nr}` }],
+        titel: [{ main: '', t: titel }],
+        urheber,
+        wahlperiode: [{ main: '19' }],
+        datum,
+        pdf_url: [
+          {
+            main: `https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-${nr}.pdf`,
+          },
+        ],
+      }) as unknown as PardokRecord;
+    const KAPEK = { name: 'Kapek, Antje', fraktion: 'Grüne' };
+    const einzel = kapek('27291', 'Wie lange bleibt Berlin noch analog?', '2026.10.13', [KAPEK]);
+    const gemeinsam = kapek('27257', 'Winterdienst auf Gehwegen', '2026.10.07', [
+      { name: 'Hassepaß, Oda', fraktion: 'Grüne' },
+      KAPEK,
+    ]);
+
+    it('fragt PARDOK mit dem Namen als Urheber, ohne Titel- oder Volltextsuche, und zählt exakt', async () => {
+      const { impl, calls } = lister(() => ({
+        numFound: 59,
+        cursor: null,
+        documents: [einzel, gemeinsam],
+      }));
+      const out = await findBerlin(
+        {
+          query: 'Kapek',
+          filters: { person: 'Antje Kapek', typ: ['Anfrage'], datumVon: '2026-01-01' },
+        },
+        impl
+      );
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        'f.urheber': 'Kapek, Antje',
+        'f.drucksachtyp': 'Schriftliche Anfrage',
+        'f.datum.start': '2026-01-01',
+      });
+      expect(calls[0]).not.toHaveProperty('f.titel');
+      expect(calls[0]).not.toHaveProperty('f.volltext');
+      expect(out.gesamt).toBe(59);
+      expect(out.candidates).toHaveLength(2);
+      expect(out.notes.join(' ')).toMatch(/59 .*Kapek, Antje.*gemeinsam/);
+    });
+
+    it('nimmt „Nachname, Vorname" unverändert', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin({ query: '', filters: { person: 'Kapek, Antje' } }, impl);
+      expect(calls[0]!['f.urheber']).toBe('Kapek, Antje');
+    });
+
+    it('löst einen bloßen Nachnamen an den neuesten Anfragen auf', async () => {
+      const { impl, calls } = lister((p) =>
+        'f.urheber' in p ? [einzel, gemeinsam] : [einzel, gemeinsam, anfrage('1', 'SPD')]
+      );
+      const out = await findBerlin({ query: '', filters: { person: 'Kapek' } }, impl);
+      expect(calls.at(-1)!['f.urheber']).toBe('Kapek, Antje');
+      expect(out.notes.join(' ')).toMatch(/Kapek, Antje/);
+      expect(out.candidates).toHaveLength(2);
+    });
+
+    it('fragt nach dem Vornamen, wenn der Nachname nicht eindeutig ist', async () => {
+      const zweite = kapek('1', 'Anfrage', '2026.10.01', [
+        { name: 'Kapek, Bernd', fraktion: 'CDU' },
+      ]);
+      const { impl } = lister(() => [einzel, zweite]);
+      const out = await findBerlin({ query: '', filters: { person: 'Kapek' } }, impl);
+      expect(out.candidates).toEqual([]);
+      expect(out.notes.join(' ')).toMatch(/Kapek, Antje.*Kapek, Bernd|Kapek, Bernd.*Kapek, Antje/);
+    });
+
+    it('sagt, wenn der Name nicht vorkommt', async () => {
+      const { impl } = lister(() => ({ numFound: 0, cursor: null, documents: [] }));
+      const out = await findBerlin({ query: '', filters: { person: 'Antje Unbekannt' } }, impl);
+      expect(out.candidates).toEqual([]);
+      expect(out.gesamt).toBe(0);
+      expect(out.notes.join(' ')).toMatch(/Nachname, Vorname/);
+    });
+  });
+
   it('erklärt Null Treffer mit der Zahl ohne Themenwort', async () => {
     const { impl } = lister((p) => {
       if ('f.titel' in p || 'f.volltext' in p) return [];
