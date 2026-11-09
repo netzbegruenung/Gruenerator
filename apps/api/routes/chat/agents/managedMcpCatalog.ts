@@ -325,23 +325,24 @@ export async function loadManagedMcpCatalog(params: {
   key: SystemMcpKey;
   sse: SSEWriter;
   sourceRegistry: SourceRegistry;
-  /** Needed for the per-user opt-out; null (no session) keeps every connector. */
+  /** Needed for the per-user switch; null (no session) mounts nothing. */
   userId: string | null;
 }): Promise<McpCatalog> {
   const available = getManagedConnectors();
-  const disabled = params.userId
-    ? await McpServerRegistry.getDisabledManagedKeys(params.userId).catch((err: unknown) => {
-        // Opposite default to the settings list: there, showing a row is the
-        // safe direction; here, mounting a connector somebody switched off is
-        // the unsafe one. Skip them all rather than override a decision.
+  // Managed connectors are off until switched on, so without a session there is
+  // nobody who could have switched one on.
+  const enabled = params.userId
+    ? await McpServerRegistry.getEnabledManagedKeys(params.userId).catch((err: unknown) => {
+        // Mounting a connector nobody switched on is the unsafe direction. Skip
+        // rather than guess.
         log.warn(`[managedMcpCatalog] prefs unavailable, skipping managed mounts: ${err}`);
         return null;
       })
     : new Set<string>();
   // The turn named this connector: without the prefs it cannot be mounted, and
   // the person has to hear that rather than get an answer from memory.
-  if (!disabled) return { ...EMPTY, scopedServerUnreachable: true };
-  const sources = available.filter((s) => s.key === params.key && !disabled.has(s.key));
+  if (!enabled) return { ...EMPTY, scopedServerUnreachable: true };
+  const sources = available.filter((s) => s.key === params.key && enabled.has(s.key));
   if (sources.length === 0) return { ...EMPTY, scopedServerMissing: true };
 
   const connections: LazyConnection[] = [];

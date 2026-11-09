@@ -24,13 +24,16 @@ export const mcpServerSummarySchema = z.object({
   // Cached tool names from the last successful connect (tools_snapshot); powers
   // the composer mention hint and the classifier's server context.
   toolNames: z.array(z.string()).nullish(),
-  // A first-party MANAGED connector: offered to every user, on by default, no
+  // A first-party MANAGED connector: offered to every user, off by default, no
   // per-user record. Only `enabled` is changeable — no rename, no URL, no
   // token, no delete; `url` comes back EMPTY because the endpoint is
   // deploy-env-only. Optional rather than defaulted so a client shipped before
   // this field simply ignores it (see `sse-gate-drops-whole-event`: wire schemas
   // are parsed by binaries we can no longer update).
   managed: z.boolean().optional(),
+  // Directory category of a managed connector — places a switched-off one among
+  // the cards under "Dienste verbinden". Absent for a user's own servers.
+  category: z.string().nullish(),
   // Tool definitions that drifted since the user approved the server, waiting
   // for "Werkzeuge freigeben". `changed` blocks the whole server, `added` only
   // withholds the new tools. Null/absent = nothing pending.

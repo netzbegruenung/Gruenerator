@@ -5,10 +5,10 @@ import { type SSEWriter } from '../services/sseHelpers.js';
 
 import { loadManagedMcpCatalog } from './managedMcpCatalog.js';
 
-const getDisabledManagedKeys = vi.fn<(userId: string) => Promise<Set<string>>>();
+const getEnabledManagedKeys = vi.fn<(userId: string) => Promise<Set<string>>>();
 vi.mock('../../../services/mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
-    getDisabledManagedKeys: (userId: string) => getDisabledManagedKeys(userId),
+    getEnabledManagedKeys: (userId: string) => getEnabledManagedKeys(userId),
   },
 }));
 
@@ -56,11 +56,11 @@ vi.mock('../../../services/mcp/UserMCPClient.js', () => ({
 }));
 
 const sse = { send: () => {} } as unknown as SSEWriter;
-const load = (key: 'bahn' | 'wetter' | 'news') =>
-  loadManagedMcpCatalog({ key, sse, sourceRegistry: createSourceRegistry(), userId: 'u1' });
+const load = (key: 'bahn' | 'wetter' | 'news', userId: string | null = 'u1') =>
+  loadManagedMcpCatalog({ key, sse, sourceRegistry: createSourceRegistry(), userId });
 
 beforeEach(() => {
-  getDisabledManagedKeys.mockReset().mockResolvedValue(new Set());
+  getEnabledManagedKeys.mockReset().mockResolvedValue(new Set(['bahn', 'wetter', 'news']));
   listTools.mockReset();
 });
 
@@ -76,8 +76,9 @@ describe('loadManagedMcpCatalog — one scoped connector', () => {
     expect(cat.scopedServerUnreachable).toBe(false);
   });
 
-  it('reports a switched-off connector as missing, not as an empty mount', async () => {
-    getDisabledManagedKeys.mockResolvedValue(new Set(['bahn']));
+  it('reports a connector that is not switched on as missing, not as an empty mount', async () => {
+    // Default is off: a connector without a pref row is absent from the set.
+    getEnabledManagedKeys.mockResolvedValue(new Set(['wetter']));
     const cat = await load('bahn');
     expect(cat.tools).toEqual({});
     expect(cat.scopedServerMissing).toBe(true);
@@ -92,8 +93,15 @@ describe('loadManagedMcpCatalog — one scoped connector', () => {
     expect(cat.promptHints).toEqual([]);
   });
 
-  it('reports the connector as unreachable when the opt-out prefs cannot be read', async () => {
-    getDisabledManagedKeys.mockRejectedValue(new Error('db down'));
+  it('mounts nothing without a session — nobody could have switched it on', async () => {
+    const cat = await load('bahn', null);
+    expect(cat.tools).toEqual({});
+    expect(cat.scopedServerMissing).toBe(true);
+    expect(getEnabledManagedKeys).not.toHaveBeenCalled();
+  });
+
+  it('reports the connector as unreachable when the prefs cannot be read', async () => {
+    getEnabledManagedKeys.mockRejectedValue(new Error('db down'));
     const cat = await load('bahn');
     expect(cat.tools).toEqual({});
     expect(cat.scopedServerUnreachable).toBe(true);

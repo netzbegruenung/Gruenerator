@@ -12,7 +12,7 @@
  *
  * MANAGED CONNECTORS are unioned in on read. They are first-party servers
  * configured from env (`systemMcpServers.ts`) with no `mcp_servers` row: every
- * user gets them, enabled unless they opted out in `mcp_system_prefs`. They are
+ * user gets them, switched OFF until they turn one on (`mcp_system_prefs`). They are
  * READ-ONLY here — no create, no delete, no URL/token edit — because there is no
  * per-user record to change, only a switch.
  */
@@ -127,6 +127,7 @@ function managedToSummary(connector: ManagedConnector, enabled: boolean, updated
     description: connector.connector.description,
     toolNames: connector.toolAllowlist,
     managed: true as const,
+    category: connector.connector.category,
   } satisfies McpServerSummary;
 }
 
@@ -147,7 +148,13 @@ function toManagedConfig(connector: ManagedConnector): McpConnectionConfig {
   };
 }
 
-/** `system_key` → opt-out row, for one user. Absent key = default (enabled). */
+/**
+ * `system_key` → switch row, for one user. Absent key = default (OFF).
+ *
+ * The default was ON until 11/2026; rows written since then record the person's
+ * own decision either way, so flipping the default only changes connectors
+ * nobody ever touched.
+ */
 async function loadSystemPrefs(
   userId: string
 ): Promise<Map<string, { enabled: boolean; updatedAt: Date }>> {
@@ -162,27 +169,31 @@ export class McpServerRegistry {
    * then their own (enabled + disabled).
    *
    * A prefs-table outage must not blank the connector list: managed rows then
-   * render at their default (enabled), which is what they would do with no row
+   * render at their default (off), which is what they would do with no row
    * anyway. Logged, not thrown.
    */
   static async list(userId: string): Promise<McpServerSummary[]> {
     const db = getDrizzleInstance();
     const rows = await db.select().from(mcp_servers).where(eq(mcp_servers.user_id, userId));
     const prefs = await loadSystemPrefs(userId).catch((err: unknown) => {
-      log.warn(`Failed to load managed-connector prefs; defaulting to enabled: ${err}`);
+      log.warn(`Failed to load managed-connector prefs; defaulting to off: ${err}`);
       return new Map<string, { enabled: boolean; updatedAt: Date }>();
     });
     const managed = getManagedConnectors().map((c) => {
       const pref = prefs.get(c.key);
-      return managedToSummary(c, pref?.enabled ?? true, pref?.updatedAt ?? null);
+      return managedToSummary(c, pref?.enabled ?? false, pref?.updatedAt ?? null);
     });
     return [...managed, ...rows.map(toSummary)];
   }
 
-  /** The managed connectors this user has switched off (`system_key` values). */
-  static async getDisabledManagedKeys(userId: string): Promise<Set<string>> {
+  /**
+   * The managed connectors this user has switched ON (`system_key` values).
+   * Asked as "on", not "off": with the default off, a connector without a row
+   * must count as not mounted.
+   */
+  static async getEnabledManagedKeys(userId: string): Promise<Set<string>> {
     const prefs = await loadSystemPrefs(userId);
-    return new Set([...prefs].filter(([, p]) => !p.enabled).map(([key]) => key));
+    return new Set([...prefs].filter(([, p]) => p.enabled).map(([key]) => key));
   }
 
   /**
@@ -249,8 +260,9 @@ export class McpServerRegistry {
     if (parseManagedConnectorId(serverId)) {
       const connector = getManagedConnectorById(serverId);
       if (!connector) return [];
-      const disabled = await this.getDisabledManagedKeys(userId).catch(() => new Set<string>());
-      return disabled.has(connector.key) ? [] : [toManagedConfig(connector)];
+      // Prefs unreadable → nothing is known to be on, so nothing mounts.
+      const enabled = await this.getEnabledManagedKeys(userId).catch(() => new Set<string>());
+      return enabled.has(connector.key) ? [toManagedConfig(connector)] : [];
     }
 
     const db = getDrizzleInstance();
