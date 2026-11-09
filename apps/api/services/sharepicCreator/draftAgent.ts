@@ -56,10 +56,10 @@ import {
 import { fromZod, validateDraft } from './draftValidation.js';
 import {
   ALTERNATIVES_NEED_MATERIAL,
-  alsoCarousel,
   FORM_RECIPES,
   formCatalog,
   formHasMaterial,
+  formForMaterial,
   formMismatch,
   materialAsk,
   missingMaterial,
@@ -158,6 +158,67 @@ export function oneFotoPerId(bericht: readonly SharepicBerichtEintrag[]): Sharep
   );
 }
 
+/** A form whose material the brief lacks: the form it can fill instead, or a question to the person. */
+function assertMaterial(form: SharepicFormId, given: string): SharepicFormId {
+  const ask = missingMaterial(form, given);
+  if (!ask) return form;
+  const instead = formForMaterial(form, given);
+  if (instead) return instead;
+  throw new DraftFailedError(`${form}: Material fehlt (${ask})`, { kind: 'material', form, ask });
+}
+
+/** The first call's prompt: what the draft needs, and which form the person's own words order. */
+export function needsPrompt(args: {
+  task: string;
+  ownPhotos: readonly SharepicOwnPhoto[];
+  defaultLocale: SharepicCreatorLocale;
+  fixed: SharepicCreatorLocale | null;
+  named: SharepicFormId | null;
+  /** The person's own words; null on a revision, whose form stays. */
+  request: string | null;
+  prompt: string;
+  oneSlide: boolean;
+}): string {
+  const countryHint = args.fixed
+    ? `Land: ${args.fixed} (steht fest).`
+    : `Land: Standard ist ${args.defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
+  const words =
+    args.request && args.request.trim() !== args.prompt.trim()
+      ? `\n\nWas die Person selbst geschrieben hat – nur danach richten sich form_bestellt und folien:\n${args.request}`
+      : '';
+  const order = args.named
+    ? `Die Form steht fest: \`${args.named}\`. Nenne als alternativen zwei andere, die auch passen würden.`
+    : [
+        'Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.',
+        'form_bestellt: true, wenn die Person sagt, als welche Form das Sharepic gebaut werden soll – mit „als“ oder „mach“ („als Zitat“, „mach eine Terminübersicht“), als Name davor („Steckbrief: …“, „Save the dates: …“, „Einladung zum …“) oder an Sharepic, Bild oder Kachel („Zitat-Sharepic“, „Interview-Karussell“). Dann ist form genau diese Form. false, wenn das Wort nur über den Inhalt spricht („bei allen Terminen“, „das Zitat von gestern war falsch“, „im Interview mit der FAZ“), wenn es verneint ist („kein Karussell“) oder wenn du die Form selbst gewählt hast.',
+        'folien: "eine", wenn die Person ausdrücklich ein einzelnes Bild will; "mehrere", wenn sie ausdrücklich ein Karussell, eine Serie oder mehrere Bilder oder Slides will; sonst "offen". Was der Inhalt aufzählt, legt die Zahl nicht fest.',
+        args.oneSlide
+          ? 'Ist folien "offen", wird es ein einzelnes Bild: wähle dann eine Form mit genau einer Slide, kein Karussell und kein Interview.'
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+  return `${args.task}${words}${args.ownPhotos.length ? `\n\n${ownPhotosText(args.ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${order} ${ALTERNATIVES_NEED_MATERIAL}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`;
+}
+
+/** The first call itself, on the creator's pinned model. */
+export function needsCall(system: string, prompt: string): AiObjectCall<Needs> {
+  return {
+    lane: 'sharepic_creator',
+    pinned: PINNED,
+    reasoning: REASONING,
+    system,
+    prompt,
+    toolName: 'bedarf_melden',
+    toolDescription:
+      'Melde Form, ob die Person sie bestellt hat, Folienzahl, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
+    schema: NEEDS_SCHEMA,
+    validate: (input) => fromZod(needsSchema, input),
+    maxOutputTokens: 8000,
+    label: 'sharepicCreator:needs',
+  };
+}
+
 /**
  * `defaultLocale` is the user's profile country; the model may switch it when
  * the request clearly belongs to the other country. A revision keeps the
@@ -171,7 +232,7 @@ export async function draftSharepic(
   ownPhotos: readonly SharepicOwnPhoto[] = [],
   /** Without them (no user) a scene becomes a colour and an illustration an icon. */
   painters: SharepicPainters = {},
-  /** The form the request named or the user picked; the creator chooses when null. */
+  /** The form picked in the UI (a chip, a Vorlage); otherwise the request's words decide, as the model reads them. */
   named: SharepicFormId | null = null,
   /** What the person asked for this turn — the request's own dates belong on the sharepic. */
   order: string = prompt,
@@ -179,7 +240,7 @@ export async function draftSharepic(
   focus: SharepicDraftFocus | null = null,
   /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
   brief: string | null = null,
-  /** The request asks for a single image: a first draft gets exactly one slide. */
+  /** A first draft whose request leaves the slide count open gets one slide (the chat's default). */
   oneSlide = false,
   /**
    * Whose design a first draft wears (the chat's „GJ-Design“, a GJ Vorlage);
@@ -187,19 +248,14 @@ export async function draftSharepic(
    */
   brand: SharepicBrand | null = null,
   /** A revision of a draft whose report said the Termin was missing: it still is, until a datum appears. */
-  priorMissingTermin = false
+  priorMissingTermin = false,
+  /** The person's own words when `prompt` is a rewrite or carries material: they alone order a form. */
+  request: string = order
 ): Promise<SharepicDraftResponse> {
   // The brief as validation reads it: a revision's draft counts as given.
   const given = current ? `${prompt}\n${JSON.stringify(current)}` : prompt;
-  // A named form whose material is missing would fail every attempt: ask for it instead.
-  const ask = named ? missingMaterial(named, given) : null;
-  if (named && ask) {
-    throw new DraftFailedError(`${named}: Material fehlt (${ask})`, {
-      kind: 'material',
-      form: named,
-      ask,
-    });
-  }
+  // A form picked in the UI whose material is missing would fail every attempt: ask for it instead.
+  const pinned = named ? assertMaterial(named, given) : null;
   // A revision's `given` carries the draft as JSON, which no weekday pattern reads.
   const keptWeekdays = new Set(
     (current?.slides ?? []).flatMap((slide) => {
@@ -209,52 +265,68 @@ export async function draftSharepic(
   );
   const fixed = current?.locale ?? null;
   const design = current ? (current.brand ?? null) : brand;
-  const single = oneSlide && !current;
-  const countryHint = fixed
-    ? `Land: ${fixed} (steht fest).`
-    : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
     ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}${hasOwnPhoto(current) ? `\n${OWN_PHOTO_RULE}` : ''}`
     : `Auftrag:\n${prompt}`;
-  const build = current
-    ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
-    : `Baue jetzt das Sharepic – ${single ? 'genau eine Slide' : 'eine Slide oder ein Karussell'} – und gib es mit entwurf_abgeben ab.`;
 
-  const needs = await aiObject<Needs>({
-    lane: 'sharepic_creator',
-    pinned: PINNED,
-    reasoning: REASONING,
-    system: systemPrompt(fixed ?? defaultLocale, design),
-    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`} ${ALTERNATIVES_NEED_MATERIAL}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
-    toolName: 'bedarf_melden',
-    toolDescription:
-      'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
-    schema: NEEDS_SCHEMA,
-    validate: (input) => fromZod(needsSchema, input),
-    maxOutputTokens: 8000,
-    label: 'sharepicCreator:needs',
-  });
+  const needs = await aiObject<Needs>(
+    needsCall(
+      systemPrompt(fixed ?? defaultLocale, design),
+      needsPrompt({
+        task,
+        ownPhotos,
+        defaultLocale,
+        fixed,
+        named,
+        request: current ? null : request,
+        prompt,
+        oneSlide,
+      })
+    )
+  );
   if (!needs.ok) {
     throw new DraftFailedError(needs.error, { kind: needs.cause ? 'provider' : 'structure' });
   }
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
+  // Ordered by the UI pick, or by the person's own words as the model read them —
+  // never by a form's word in the content („bei allen Terminen", live 09.11.2026).
+  const ordered = named ?? (!current && needs.data.form_bestellt ? needs.data.form : null);
+  // An ordered form the brief cannot fill: one that can, or a question — not a draft failing every attempt.
+  const orderedFillable = pinned ?? (ordered ? assertMaterial(ordered, given) : null);
   // A chip whose form the brief cannot fill would only fail on every attempt.
   const fillable = [...new Set(needs.data.alternativen)].filter((f) => formHasMaterial(f, given));
   // The model's own pick is held to the same: no material, no form that fails on every attempt.
   const picked =
-    named ??
-    (formHasMaterial(needs.data.form, given) ? needs.data.form : (fillable[0] ?? 'einzelbild'));
-  const swappedFrom = !named && picked !== needs.data.form ? needs.data.form : null;
+    orderedFillable ??
+    (formHasMaterial(needs.data.form, given)
+      ? needs.data.form
+      : (formForMaterial(needs.data.form, given) ?? fillable[0] ?? 'einzelbild'));
+  const meant = ordered ?? needs.data.form;
+  const swappedFrom = picked !== meant ? meant : null;
   if (swappedFrom) {
-    log.info(`form ${needs.data.form} lacks material → ${picked}`);
+    log.info(`form ${meant} lacks material → ${picked}`);
   }
-  const chosen =
-    single && (picked === 'karussell' || picked === 'interview') ? 'einzelbild' : picked;
+  const multi = picked === 'karussell' || picked === 'interview';
+  // One slide when the person asks for one, or — where the caller defaults to one — leaves it open.
+  const single =
+    !current &&
+    !(ordered && multi) &&
+    (needs.data.folien === 'eine' || (oneSlide && needs.data.folien === 'offen'));
+  const chosen = single && multi ? 'einzelbild' : picked;
   const alternativen = fillable.filter((f) => f !== chosen);
-  // A revision keeps its form unless the request names one.
-  const form = current ? named : chosen;
+  // A revision keeps its form unless the UI picks one.
+  const form = current ? pinned : chosen;
+  // "Karussell mit Bingo": both hold — several slides and the bingo.
+  const carouselToo =
+    !current &&
+    needs.data.folien === 'mehrere' &&
+    !!form &&
+    !(['karussell', 'einzelbild', 'interview'] as const).includes(form as 'karussell');
+  const build = current
+    ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
+    : `Baue jetzt das Sharepic – ${single ? 'genau eine Slide' : 'eine Slide oder ein Karussell'} – und gib es mit entwurf_abgeben ab.`;
   const recipe = form ? FORM_RECIPES[form] : null;
 
   // A revision's chapters and examples pushed rebuilds (headline → list, #4252):
@@ -310,8 +382,6 @@ export async function draftSharepic(
   const livePhotos = [...photos.filter((p) => p.live).map((p) => p.filename), ...currentPhotos];
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
-  // "Karussell mit Bingo": both hold — three slides and the bingo.
-  const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale, design);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   // What the guard lets change: the request and its brief, never the conversation material.
@@ -512,7 +582,7 @@ export async function draftSharepic(
     bericht.push({
       art: 'form',
       form,
-      von: named ? 'person' : 'creator',
+      von: ordered ? 'person' : 'creator',
       ...(swappedFrom && { statt: swappedFrom }),
     });
   }
