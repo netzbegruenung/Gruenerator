@@ -107,6 +107,8 @@ describe('rechnen', () => {
     const out = (await run({ auftrag: 'Wie wird die Wahl ausgehen?' })) as Record<string, unknown>;
 
     expect(out.error).toMatch(/Keine sichere Berechnung/);
+    // #5499: "frag nach dem genauen Ausdruck" read as "try again" until failure_cap.
+    expect(out.error).toMatch(/nicht mit anderem Wortlaut wiederholen/);
     expect(state.computedResult).toBeUndefined();
     expect(sent).toEqual([]);
   });
