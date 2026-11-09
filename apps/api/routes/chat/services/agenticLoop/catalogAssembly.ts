@@ -482,7 +482,7 @@ export async function assembleToolCatalog(
   };
 }
 
-/** Wie `priorTurnRetrieved`: die vorhandene Projektion lesen, nie werfen. */
+/** Die vorhandene Projektion lesen, nie werfen. */
 export function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
   if (!toolHistory) return [];
   try {
@@ -557,37 +557,6 @@ export async function buildToolReplay(params: {
   } catch (err) {
     params.onError(`[Agentic] tool replay skipped: ${err instanceof Error ? err.message : err}`);
     return [];
-  }
-}
-
-/**
- * Hat dieser Thread zuletzt INFORMATION geholt?
- *
- * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `ACTION_TOOLS`
- * ist die eine Liste, an der „geholt" von „gemacht" getrennt wird, und eine
- * zweite daneben wäre die Sorte Duplikat, die auseinanderläuft. Ein Thread, der
- * ein Sharepic gebaut hat, hat nichts nachgeschlagen.
- *
- * **Nicht** deckungsgleich mit dem, was das Replay tatsächlich einspielt, und das
- * ist Absicht: `buildToolReplay` engt zusätzlich auf die DIESEN Turn montierten
- * Werkzeuge ein und hält MCP-Schritte hinter `isMcpReplayEnabled()` zurück. Die
- * Frage hier ist eine andere — nicht „steht es im Kontext dieses Turns?", sondern
- * „hat der vorige Turn nachgeschlagen?". Eine Anschlussfrage bezieht sich auf die
- * vorige ANTWORT; die war in jenen Schritten gegründet, gleichgültig ob sie
- * diesmal wiedergegeben werden.
- *
- * Gelesen wird die vorhandene Projektion, nicht die Datenbank — der Loop hält
- * `toolHistory` ohnehin schon in der Hand. Ohne Thread (erster Turn) ist die
- * Antwort `false`, und das ist richtig: dann gibt es keinen vorigen Turn.
- */
-export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undefined): boolean {
-  if (!toolHistory) return false;
-  try {
-    return toolHistory
-      .toolSteps()
-      .some((s: PersistedStep) => !ACTION_TOOLS.has(s.toolName) && !NOT_A_LOOKUP.has(s.toolName));
-  } catch {
-    return false;
   }
 }
 

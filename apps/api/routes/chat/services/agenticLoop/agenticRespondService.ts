@@ -522,7 +522,7 @@ export async function streamAgenticResponse(
     // model that writes the answer.
     const carriedNote =
       sourceRegistry.carriedSize > 0
-        ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter. Schreib diese Liste NICHT ab und hänge kein Quellenverzeichnis an — die Quellen erscheinen unter deiner Antwort von selbst:\n${sourceRegistry.renderAll()}`
+        ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter. Schreib diese Liste NICHT ab und hänge kein Quellenverzeichnis an — die Quellen erscheinen unter deiner Antwort von selbst:\n${sourceRegistry.renderAll()}\nDiese Quellen beantworten, was in früheren Turns gefragt war. Prüfe, ob die JETZT gefragte Angabe wirklich darin steht — nicht nur ihr Thema. Fragt die Person nach etwas, das sie nicht enthalten (eine andere Partei, Person, Zahl oder ein anderer Aspekt), schlage es neu nach, statt aus dem Gedächtnis zu antworten.`
         : '';
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
