@@ -33,8 +33,8 @@ import type { SourceQuery } from './sources/types.js';
 
 /**
  * Mehrere Arten → je Art die erste Seite (`sectionLimit`); genau eine Art →
- * `offset`/`limit`. Katalog-Rezepte wendet der Grünerator von selbst an; sie
- * stehen nur unter „gespeichert", nie in der Liste.
+ * `offset`/`limit`. Offizielle Rezepte sind Skills: sichtbar wie alles andere,
+ * angewandt wählt sie das Modell selbst.
  */
 export function toSourceQuery(query: MarketplaceListQuery): SourceQuery {
   const single = query.kinds.length === 1;
@@ -45,7 +45,7 @@ export function toSourceQuery(query: MarketplaceListQuery): SourceQuery {
     scope: query.scope,
     offset: single ? query.offset : 0,
     limit: single ? query.limit : query.sectionLimit,
-    systemRecipes: query.scope === 'saved',
+    systemRecipes: true,
   };
 }
 

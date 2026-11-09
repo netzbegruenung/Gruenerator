@@ -249,6 +249,14 @@ describe('MarketplacePage', () => {
     });
   });
 
+  it('lists official recipes under „Rezepte" with their origin', async () => {
+    serveFrom([item('recipe', 'Offizielles Rezept', { origin: 'offiziell' })]);
+    renderPage('/marktplatz?q=e');
+
+    const recipes = await screen.findByRole('region', { name: 'Rezepte' });
+    expect(within(recipes).getByText('Rezept · Offiziell')).toBeInTheDocument();
+  });
+
   it('shows „Beliebt" and „Zum Gestalten" once there is enough', async () => {
     serveFrom([
       ...[1, 2, 3, 4, 5].map((n) => item('agent', `Agent ${n}`, { likesCount: n })),
