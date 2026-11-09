@@ -31,6 +31,7 @@ import {
   offeredRollen,
   isCustomRolleOffered,
   autoAssignedRole,
+  suggestedRoleForEmail,
 } from '@gruenerator/shared/roles';
 import {
   Button,
@@ -48,12 +49,14 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  Switch,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineArrowPath, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 
+import { roleHasSidebarShortcut } from '../../../components/layout/Sidebar/roleShortcuts';
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '../../../features/auth/services/profileApiService';
@@ -121,6 +124,7 @@ function RoleCard({
   onRegenerate,
   regenerating,
   fixed,
+  onToggleSidebar,
 }: {
   role: UserRole;
   ebenen: EbeneConfig[];
@@ -129,6 +133,8 @@ function RoleCard({
   regenerating: boolean;
   /** Von der Instanz vergeben: kein Löschknopf, der Server setzt sie wieder. */
   fixed: boolean;
+  /** Nur für Rollen mit Seitenleisten-Eintrag (Landesverband, Grüne Jugend). */
+  onToggleSidebar: ((show: boolean) => void) | null;
 }) {
   const ebene = ebenen.find((e) => e.id === role.ebene);
   const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
@@ -151,6 +157,16 @@ function RoleCard({
           </p>
         )}
       </div>
+      {onToggleSidebar && (
+        <label className="flex shrink-0 items-center gap-xs text-xs text-grey-500">
+          <span className="max-sm:sr-only">Seitenleiste</span>
+          <Switch
+            checked={role.showInSidebar !== false}
+            onCheckedChange={onToggleSidebar}
+            aria-label={`${role.rolle} in der Seitenleiste anzeigen`}
+          />
+        </label>
+      )}
       {canRegenerate && (
         <button
           type="button"
@@ -177,6 +193,14 @@ function RoleCard({
   );
 }
 
+/**
+ * Rollen tragen keine Id. Der Schlüssel kommt deshalb aus dem, was eine Rolle
+ * ausmacht — zwei Karten mit genau denselben Angaben wären dieselbe Rolle.
+ */
+function roleKey(role: UserRole): string {
+  return [role.ebene, role.rolle, role.bundesland, role.gliederung, role.abgeordnete].join('|');
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instructions';
@@ -185,6 +209,7 @@ export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
   const userId = useAuthStore((s) => s.user?.id);
+  const email = useAuthStore((s) => s.user?.email);
   const queryClient = useQueryClient();
   const { value: serverRoles } = useUserDefault('profile', 'roles');
   const setRolesMutation = useSetUserDefault<'profile', 'roles'>();
@@ -333,6 +358,44 @@ export default function RolesSection() {
       setWizRolle(null);
     }
   }, [roles.length, instanceDefaultRole, rollenMap, wizardEbenen]);
+
+  // Vorschlag aus der Mailadresse (`gruene-hessen.de` → LGS Hessen). Er
+  // verschwindet, sobald die Rolle gespeichert ist, und erscheint nur, wenn die
+  // Instanz die Rolle überhaupt anbietet. Nur ein Vorschlag: übernommen wird
+  // erst, was die Person im Assistenten bestätigt.
+  const emailRole = useMemo(() => {
+    if (assignedRole) return null;
+    const suggestion = suggestedRoleForEmail(email, locale);
+    if (!suggestion) return null;
+    const offered = offeredRollen(
+      suggestion.ebene,
+      rollenMap[suggestion.ebene] ?? [],
+      CURRENT_INSTANCE
+    );
+    if (!offered.includes(suggestion.rolle)) return null;
+    const known = roles.some(
+      (r) =>
+        r.ebene === suggestion.ebene &&
+        r.rolle === suggestion.rolle &&
+        r.bundesland === suggestion.bundesland
+    );
+    return known ? null : suggestion;
+  }, [assignedRole, email, locale, rollenMap, roles]);
+
+  // Öffnet den Assistenten auf dem Rollen-Schritt, Land und Rolle vorausgewählt —
+  // „Zurück" führt wie gewohnt zum Bundesland, falls der Vorschlag nicht passt.
+  const startSuggestedRole = useCallback(() => {
+    if (!emailRole) return;
+    setAddingRole(true);
+    setWizGliederung('');
+    setWizCustomRolle('');
+    setWizAbgeordnete('');
+    setWizInstructions('');
+    setWizEbene(emailRole.ebene);
+    setWizBundesland(emailRole.bundesland ?? null);
+    setWizRolle(emailRole.rolle);
+    setWizardStep('rolle');
+  }, [emailRole]);
 
   const cancelAddRole = useCallback(() => {
     setAddingRole(false);
@@ -631,6 +694,35 @@ export default function RolesSection() {
     [roles, persistRoles]
   );
 
+  const handleToggleSidebar = useCallback(
+    async (index: number, show: boolean) => {
+      const nextRoles = roles.map((r, i) => {
+        if (i !== index) return r;
+        // Standard ist „anzeigen": dann bleibt das Feld weg statt `true` zu tragen.
+        const { showInSidebar: _previous, ...rest } = r;
+        return show ? rest : { ...rest, showInSidebar: false };
+      });
+      setRoles(nextRoles);
+      setErrorMessage(null);
+      const result = await persistRoles(nextRoles);
+      if (!result.ok) {
+        setErrorMessage(`Einstellung konnte nicht gespeichert werden: ${result.detail}`);
+      }
+    },
+    [roles, persistRoles]
+  );
+
+  // Der Assistent setzt den Fokus beim Schrittwechsel auf das Eingabefeld des
+  // neuen Schritts — per Ref statt `autoFocus`, damit nur der Wechsel ihn
+  // bewegt, nicht jedes erneute Einhängen.
+  const gliederungInputRef = useRef<HTMLInputElement>(null);
+  const instructionsRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!addingRole) return;
+    if (wizardStep === 'gliederung') gliederungInputRef.current?.focus();
+    if (wizardStep === 'instructions') instructionsRef.current?.focus();
+  }, [addingRole, wizardStep]);
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const renderWizardBack = !wizardBackStep ? null : (
@@ -732,7 +824,7 @@ export default function RolesSection() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleWizGliederungSubmit();
                 }}
-                autoFocus
+                ref={gliederungInputRef}
               />
               <Button
                 onClick={handleWizGliederungSubmit}
@@ -822,7 +914,7 @@ export default function RolesSection() {
               className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
               rows={4}
               placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
-              autoFocus
+              ref={instructionsRef}
             />
             {wizAngebot && (
               <div className="rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
@@ -870,6 +962,21 @@ export default function RolesSection() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {emailRole && (
+                <div className="mb-md flex flex-wrap items-center gap-sm rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
+                  <div className="min-w-0 flex-1">
+                    <p className="m-0 text-sm font-medium text-foreground-heading">
+                      Vorschlag anhand deiner Mailadresse
+                    </p>
+                    <p className="m-0 mt-xs text-sm text-foreground-muted">
+                      {emailRole.rolle} · {emailRole.bundesland}
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={startSuggestedRole}>
+                    Übernehmen
+                  </Button>
+                </div>
+              )}
               {roles.length === 0 ? (
                 <div className="text-center py-md">
                   {assignedRole ? (
@@ -889,7 +996,7 @@ export default function RolesSection() {
                 <div className="flex flex-col gap-sm">
                   {roles.map((role, i) => (
                     <RoleCard
-                      key={`${role.ebene}-${role.rolle}-${i}`}
+                      key={roleKey(role)}
                       role={role}
                       ebenen={ebenen}
                       fixed={
@@ -902,6 +1009,13 @@ export default function RolesSection() {
                         void handleRegeneratePrompt(i);
                       }}
                       regenerating={regeneratingIndex === i}
+                      onToggleSidebar={
+                        roleHasSidebarShortcut(role, locale, CURRENT_INSTANCE)
+                          ? (show) => {
+                              void handleToggleSidebar(i, show);
+                            }
+                          : null
+                      }
                     />
                   ))}
                 </div>
