@@ -331,7 +331,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
       modus: bundestagModusSchema
         .optional()
         .describe(
-          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: exakte DIP-Zahl statt Liste; Thema dann über `titel`/`deskriptor`, `query` zählt nicht mit. Sonst weglassen."
+          "'zaehlen' bei „wie viele“, „wie oft“, „Anzahl“: exakte DIP-Zahl statt Liste; Thema dann über `deskriptor` (vollständig) oder `titel`; ein bloßes `query` zählt als Titel-Filter (ganze Wörter, Untergrenze). Sonst weglassen."
         ),
       gruppieren: bundestagGruppierenSchema
         .optional()
