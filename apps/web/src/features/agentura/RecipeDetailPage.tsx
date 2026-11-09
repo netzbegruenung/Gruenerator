@@ -170,13 +170,13 @@ function SystemRecipeView({
             <PiPaperPlaneTilt />
             Im Chat verwenden
           </Button>
-          <AddToLibraryButton kind="recipe" itemRef={skill.mention} />
           {canOverride && (
-            <Button variant="outline" onClick={() => navigate(editHref)}>
+            <Button variant="brand-outline" onClick={() => navigate(editHref)}>
               <PiPencilSimple />
-              {ownOverride ? 'Angepassten Stil bearbeiten' : 'Mit eigenen Beispielen anpassen'}
+              {ownOverride ? 'Angepassten Stil bearbeiten' : 'Anpassen'}
             </Button>
           )}
+          <AddToLibraryButton kind="recipe" itemRef={skill.mention} />
           <Button
             variant="outline"
             size="icon"

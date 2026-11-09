@@ -1,3 +1,9 @@
+import { getContractsClient } from '@gruenerator/shared/api';
+import {
+  EMPTY_RECIPE_FORM,
+  RECIPE_FROM_ANSWER_BRIEF,
+  recipeFormFromAnswer,
+} from '@gruenerator/shared/grueneratoren';
 import { type ExportCitation, withSourcesMarkdown } from '@gruenerator/shared/utils';
 import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
@@ -6,6 +12,7 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { secureStorage } from '../services/storage';
+import { NEW_RECIPE_TARGET, useRecipeEditorStore } from '../stores/recipeEditorStore';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
@@ -15,7 +22,7 @@ export interface MessageActionTarget {
   metadata?: Record<string, unknown>;
 }
 
-export type MessageExportKind = 'docx' | 'docs';
+export type MessageExportKind = 'docx' | 'docs' | 'recipe';
 
 /**
  * The backend names the file after the answer's first heading and sends both
@@ -86,6 +93,23 @@ async function createDocFromMessage(message: MessageActionTarget): Promise<strin
   return data.documentId ?? null;
 }
 
+const RECIPE_EDITOR = '/(focused)/grueneratoren/rezept-editor';
+
+/**
+ * The AI draft for "Als Rezept speichern". A failed draft is not a failed
+ * action: the editor still opens with the answer as its example.
+ */
+async function draftRecipeSpec() {
+  try {
+    const res = await getContractsClient().userTextForms.draft({
+      body: { description: RECIPE_FROM_ANSWER_BRIEF },
+    });
+    return res.status === 200 ? res.body.spec : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Download-as-Word / open-in-editor for an assistant message — the
  * mobile counterpart of web's MessageActions handlers. Shared so the inline
@@ -121,5 +145,22 @@ export function useMessageActions(message: MessageActionTarget | null) {
       .finally(() => setExporting(null));
   }, [message, exporting, router]);
 
-  return { exporting, exportDocx, openInDocs };
+  // The editor takes initial data through its draft store (`begin`, dirty), the
+  // same way the AI draft from the start screen reaches it — no route param.
+  const saveAsRecipe = useCallback(async () => {
+    if (!message?.text || exporting) return;
+    setExporting('recipe');
+    const spec = await draftRecipeSpec();
+    useRecipeEditorStore
+      .getState()
+      .begin(
+        NEW_RECIPE_TARGET,
+        { ...EMPTY_RECIPE_FORM, ...recipeFormFromAnswer(message.text, spec) },
+        true
+      );
+    setExporting(null);
+    router.push(RECIPE_EDITOR);
+  }, [message, exporting, router]);
+
+  return { exporting, exportDocx, openInDocs, saveAsRecipe };
 }

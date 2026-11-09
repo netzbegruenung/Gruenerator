@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDocumentActions,
   canCreateExplainable,
+  canSaveAsRecipe,
   filenameFromDisposition,
   messageTitle,
 } from './messageDocumentActions';
@@ -72,6 +73,42 @@ describe('buildDocumentActions', () => {
       'podcast',
     ]);
     expect(actions.at(-1)?.label).toBe('Als Podcast anhören');
+  });
+});
+
+describe('"Als Rezept speichern"', () => {
+  const base = {
+    role: 'assistant',
+    text: 'Liebe Mitglieder …',
+    hasNavigation: true,
+    readOnly: false,
+  };
+
+  it('is offered last, and only when asked for', () => {
+    const options = {
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: false,
+      canCreatePodcast: true,
+    };
+    expect(buildDocumentActions(options).map((a) => a.id)).not.toContain('recipe');
+    expect(buildDocumentActions({ ...options, canSaveAsRecipe: true }).at(-1)).toEqual({
+      id: 'recipe',
+      label: 'Als Rezept speichern',
+    });
+  });
+
+  it('is visible on an assistant message with text', () => {
+    expect(canSaveAsRecipe(base)).toBe(true);
+  });
+
+  it.each([
+    ['a user message', { role: 'user' }],
+    ['an empty answer', { text: '   ' }],
+    ['a host without navigation', { hasNavigation: false }],
+    ['a read-only chat', { readOnly: true }],
+  ])('is hidden for %s', (_label, over) => {
+    expect(canSaveAsRecipe({ ...base, ...over })).toBe(false);
   });
 });
 

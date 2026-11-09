@@ -208,10 +208,13 @@ describe('RecipeDetailPage — Systemrezept', () => {
     ).toBeInTheDocument();
   });
 
-  it('bietet bei einem Preset das Anpassen mit eigenen Beispielen an', async () => {
+  it('shows "Anpassen" for a system recipe, right after "Im Chat verwenden"', async () => {
     renderPage('presse');
 
-    const button = await screen.findByRole('button', { name: 'Mit eigenen Beispielen anpassen' });
+    const button = await screen.findByRole('button', { name: 'Anpassen' });
+    const chat = screen.getByRole('button', { name: 'Im Chat verwenden' });
+    expect(chat.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chat.nextElementSibling).toBe(button);
     await userEvent.click(button);
     expect(navigate).toHaveBeenCalledWith('/agentura/rezept/presse/bearbeiten');
   });
@@ -227,9 +230,7 @@ describe('RecipeDetailPage — Systemrezept', () => {
     expect(
       await screen.findByRole('button', { name: 'Angepassten Stil bearbeiten' })
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Mit eigenen Beispielen anpassen' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Anpassen' })).not.toBeInTheDocument();
   });
 
   it('nimmt den angepassten Stil mit in den Chat, sobald es einen gibt', async () => {
@@ -256,9 +257,7 @@ describe('RecipeDetailPage — Systemrezept', () => {
     renderPage('presse-hessen-partei');
 
     expect(await screen.findByRole('button', { name: 'Im Chat verwenden' })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Mit eigenen Beispielen anpassen' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Anpassen' })).not.toBeInTheDocument();
   });
 
   it('hat keine a11y-Verstöße', async () => {

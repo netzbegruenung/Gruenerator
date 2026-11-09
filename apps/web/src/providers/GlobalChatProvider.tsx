@@ -157,8 +157,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   // Router access for the chat package — the thread list opens a thread by
   // navigating to its URL, which works the same on /chat and off it.
   const handleChatNavigate = useCallback(
-    (path: string, opts?: { replace?: boolean }) => {
-      void navigate(path, { replace: opts?.replace ?? false });
+    (path: string, opts?: { replace?: boolean; state?: unknown }) => {
+      void navigate(path, {
+        replace: opts?.replace ?? false,
+        ...(opts?.state != null ? { state: opts.state } : {}),
+      });
     },
     [navigate]
   );

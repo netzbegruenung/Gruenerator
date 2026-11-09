@@ -21,6 +21,7 @@ import {
   FileDown,
   FileText,
   Headphones,
+  BookPlus,
   Lightbulb,
   Loader2,
   Mail,
@@ -40,6 +41,7 @@ import { downloadBlob } from '../../lib/downloadBlob';
 import {
   buildDocumentActions,
   canCreateExplainable,
+  canSaveAsRecipe,
   filenameFromDisposition,
   messageTitle,
   type DocumentActionId,
@@ -105,6 +107,7 @@ export const MessageActions = memo(function MessageActions({
   const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
   const nav = useChatNavigation();
   const offerExplainable = useExplainableActionEnabled();
+  const messageRole = useAuiState((s) => s.message.role);
   const persistedMessageId = useAuiState((s) => {
     const id = (s.message.metadata?.custom as { persistedMessageId?: unknown } | undefined)
       ?.persistedMessageId;
@@ -274,6 +277,11 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /** The answer rides along as navigation state; the creator drafts the recipe from it. */
+  const handleSaveAsRecipe = async () => {
+    nav?.navigate('/agentura/rezept/neu', { state: { fromAnswer: { text: content } } });
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
@@ -283,6 +291,12 @@ export const MessageActions = memo(function MessageActions({
       readOnly,
     }),
     canCreatePodcast: Boolean(getPodcastUrl) && !readOnly,
+    canSaveAsRecipe: canSaveAsRecipe({
+      role: messageRole,
+      text: content,
+      hasNavigation: Boolean(nav),
+      readOnly,
+    }),
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -292,6 +306,7 @@ export const MessageActions = memo(function MessageActions({
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
     explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
     podcast: { icon: <Headphones className="h-3.5 w-3.5" />, run: handleCreatePodcast },
+    recipe: { icon: <BookPlus className="h-3.5 w-3.5" />, run: handleSaveAsRecipe },
   };
 
   /**
