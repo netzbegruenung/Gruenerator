@@ -55,6 +55,15 @@ describe('NLP facet injection', () => {
   const fieldNames = (id: string) =>
     (getSystemCollectionConfig(id)?.filterableFields ?? []).map((f) => f.field);
 
+  it('offers Wahl, Ebene and Thema on the Wahlprüfsteine notebook', () => {
+    expect(getSystemCollectionConfig('wahlpruefsteine-system')?.qdrantCollection).toBe(
+      'wahlpruefstein_examples'
+    );
+    expect(fieldNames('wahlpruefsteine-system')).toEqual(
+      expect.arrayContaining(['wahl', 'ebene', 'themes'])
+    );
+  });
+
   it('appends themes/persons to document collections', () => {
     const names = fieldNames('grundsatz-system');
     expect(names).toContain('themes');
