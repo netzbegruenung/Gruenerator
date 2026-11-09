@@ -268,11 +268,11 @@ const notebookMode: ResolverSpec = {
       question: {
         type: 'choice',
         instructions:
-          'Wie wird die letzte Nachricht an die Notebook-Quellen beantwortet? Eine Folgefrage übernimmt den Modus der vorigen Antwort. Im Zweifel: chat.',
+          'Wie wird die letzte Nachricht an die Notebook-Quellen beantwortet? Eine Folgefrage („weiter", „genauer", „und die zweite?") übernimmt den Modus, der im Verlauf bei der vorigen Antwort steht. Im Zweifel: chat.',
         criteria: {
-          chat: 'eine Inhaltsfrage: was steht drin, zusammenfassen, erklären, vergleichen, Positionen – auch eine Zahl oder ein Datum, das in einer Quelle steht',
+          chat: 'eine Inhaltsfrage: was steht drin, zusammenfassen, erklären, vergleichen, Positionen, welche Dokumente sich zu einem THEMA äußern – auch eine Zahl oder ein Datum, das in einer Quelle steht',
           praezision:
-            'Arbeit mit den Quellen als Dokumenten: sie auflisten, zählen oder sortieren, eine bestimmte Seite oder einen Abschnitt lesen, wörtliche Vorkommen eines Wortes zählen oder finden, ein Zitat wörtlich prüfen',
+            'Arbeit mit den Quellen als Dokumenten: sie auflisten, zählen oder sortieren, eine bestimmte Seite oder einen Abschnitt lesen, ein WÖRTLICHES Wort oder eine wörtliche Formulierung zählen oder finden, ein Zitat wörtlich prüfen',
         },
       },
     },

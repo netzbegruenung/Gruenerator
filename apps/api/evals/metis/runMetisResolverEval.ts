@@ -154,4 +154,12 @@ async function main(): Promise<void> {
   process.exitCode = rows.every((r) => Object.keys(r.errors).length === 0) ? 0 : 1;
 }
 
-void main();
+// Die Baselines laden App-Module mit offenen Verbindungen (Redis, Logger) —
+// ohne ausdrückliches Ende bleibt der Prozess nach der Zusammenfassung hängen.
+main().then(
+  () => process.exit(process.exitCode ?? 0),
+  (err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  }
+);
