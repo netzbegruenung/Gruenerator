@@ -281,6 +281,27 @@ const notebookMode: ResolverSpec = {
   baseline: (c) => classifyNotebookAnswerMode(c.text, c.history ?? []),
 };
 
+/**
+ * Woraus eine Artefaktart besteht — ohne das verbindet das Modell „die Kachel"
+ * oder „das Hintergrundbild" nicht mit dem Sharepic (Runde 1: 4 Fehler, alle
+ * Sharepic). Beschreibt die Option, entscheidet nichts.
+ */
+const ARTIFACT_PARTS: Record<ThreadToolContext['kind'], string> = {
+  image: 'ein Bild oder Foto ohne Text',
+  sharepic:
+    'eine Social-Media-Grafik: Text, Zitat oder Zahl auf Kacheln über einem Hintergrundbild',
+  document: 'ein Fließtext mit Überschrift, Einleitung, Absätzen und Begründung',
+  presentation: 'Folien',
+  sheet: 'eine Tabelle mit Zeilen, Spalten und Summen',
+  pdf: 'eine fertige Druckdatei, etwa ein Flyer',
+  explainable: 'eine Erklärseite in einfacher Sprache mit Erklärbildern',
+  board: 'ein Aufgaben-Board mit Spalten und Karten',
+  mcp: 'eine Abfrage bei einem Dienst',
+  notebook: 'eine Recherche in Notebooks',
+  bundestag: 'eine Bundestag-Recherche',
+  abgeordnetenwatch: 'eine Abgeordnetenwatch-Recherche',
+};
+
 function artifactsOf(c: ResolverCase): ThreadToolContext[] {
   if (!c.artifacts || c.artifacts.length < 2) throw new Error(`${c.id}: braucht ≥ 2 artifacts`);
   return c.artifacts;
@@ -304,7 +325,10 @@ const editTarget: ResolverSpec = {
           ...Object.fromEntries(
             renderArtifactChoices(artifactsOf(c))
               .split('\n')
-              .map((line, i) => [String(i + 1), line.replace(/^\d+\.\s*/, '')])
+              .map((line, i) => [
+                String(i + 1),
+                `${line.replace(/^\d+\.\s*/, '')} – ${ARTIFACT_PARTS[artifactsOf(c)[i]!.kind]}`,
+              ])
           ),
           keines:
             'keines: eine neue Frage, ein neues Thema, ein eigenständiger neuer Auftrag oder die Bitte, nichts zu ändern',
