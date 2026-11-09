@@ -1125,7 +1125,9 @@ export class NotebookQAService {
           .replace(/\s+/g, ' ')
           .trim();
         const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
-        const dateLabel = formatDe(r.published_at ?? r.date ?? null);
+        const dateLabel = r.published_at
+          ? formatDe(r.published_at, r.date_precision ?? null)
+          : formatDe(r.date ?? null);
         const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
         return `${collectionTag}${datePart}${r.title}: "${text}"`;
       })
