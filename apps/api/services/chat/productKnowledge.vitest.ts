@@ -110,19 +110,30 @@ describe('buildCompactProductIdentity', () => {
     expect(identity).toContain('nur ein Textmodell');
   });
 
-  it('names the real support channels and forbids inventing others', () => {
+  it('compact identity stays under 600 chars', () => {
     for (const locale of ['de-DE', 'de-AT'] as const) {
-      const identity = buildCompactProductIdentity(locale);
-      expect(identity).toContain('Feedback-Button');
-      expect(identity).toContain('gruenerator.eu/support');
-      expect(identity).toContain('erfinde keine');
-      // Addresses that do not exist must never be offered as a contact.
-      expect(identity).not.toMatch(/@gruenerator\.eu/);
+      expect(buildCompactProductIdentity(locale).trim().length).toBeLessThanOrEqual(600);
     }
   });
 });
 
 describe('buildProductKnowledgeBlock', () => {
+  it('support routes live in product_knowledge', async () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const block = await buildProductKnowledgeBlock({
+        locale,
+        userId: null,
+        question: 'wo melde ich einen Fehler?',
+      });
+      expect(block).toContain('Feedback-Button');
+      expect(block).toContain('gruenerator.eu/support');
+      expect(block).toContain('erfinde keine');
+      expect(block).toContain('Eingefügter Text');
+      // Addresses that do not exist must never be offered as a contact.
+      expect(block).not.toMatch(/@gruenerator\.eu/);
+    }
+  });
+
   it('lists agents, tools and collections; excludes dormant collections', async () => {
     const block = await buildProductKnowledgeBlock({
       locale: 'de-DE',
