@@ -20,7 +20,12 @@ import {
 } from '../services/agenticLoop/recipeRegistry.js';
 import { METHOD_RECIPE_TOOL } from '../services/agenticLoop/toolScope.js';
 
-import { recommendedToolsFor, resolveRecipe, type RecipeCatalogEntry } from './recipeCatalog.js';
+import {
+  catalogDescription,
+  recommendedToolsFor,
+  resolveRecipe,
+  type RecipeCatalogEntry,
+} from './recipeCatalog.js';
 
 const log = createLogger('recipeTools');
 
@@ -93,7 +98,9 @@ export function makeRecipeTool(params: {
       const effective = lvVariant ?? (library ? library.mention : rezept);
       // Was das Modell zurückgemeldet bekommt: der Katalog-Schlüssel, den es kennt.
       const shown = library ? rezept : effective;
-      const registryKey = library ? library.id! : effective;
+      // Derselbe Schlüssel wie `recipeKey` beim Eintragen (Zeilen-id, sonst Mention):
+      // nur so trifft `has` genau dieses Rezept und nicht ein anderes mit gleicher Mention.
+      const registryKey = library ? library.id! : lvVariant ? effective : (entry?.id ?? effective);
       if (registry.has(registryKey)) {
         // Re-calling a tool it already called is a known model failure mode,
         // not an edge case. Report the state instead of stacking a second block.
@@ -127,7 +134,8 @@ export function makeRecipeTool(params: {
       const outcome = registry.register({
         id: resolved.id,
         mention: effective,
-        title: resolved.title,
+        // Fremder Text landet als Überschrift im Systemprompt: einzeilig und gekürzt.
+        title: catalogDescription(resolved.title, 120),
         body: resolved.body,
         source: resolved.source,
         rolle: skillRole(effective),
@@ -158,6 +166,10 @@ export function makeRecipeTool(params: {
       return {
         geladen: true,
         rezept: shown,
+        // Für das Neuladen nach einer Pause (Freigabe, Rückfrage): `rezept` ist der
+        // Katalog-Schlüssel, nicht immer die Mention, und die Zeile trägt die id.
+        mention: effective,
+        rezeptId: resolved.id,
         titel: resolved.title,
         hinweis: isMethod
           ? 'Das Rezept beschreibt, WIE du recherchierst. Recherchiere jetzt mit den Werkzeugen, die es nennt.'

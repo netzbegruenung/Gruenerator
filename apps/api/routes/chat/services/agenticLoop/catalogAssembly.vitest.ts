@@ -382,6 +382,56 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeRegistry.render()).toContain('Rezeptrumpf');
   });
 
+  it('lädt ein gespeichertes fremdes Rezept über Zeilen-id statt über die Mention neu', async () => {
+    const LIB_ID = 'aaaaaaaa-1111-4111-8111-111111111111';
+    const resolveRecipe = vi.fn(
+      async ({ mention, recipeId }: { mention: string | null; recipeId?: string | null }) =>
+        recipeId === LIB_ID
+          ? {
+              id: LIB_ID,
+              mention: mention ?? 'presse',
+              title: 'Fremd',
+              body: 'Fremdrumpf',
+              source: 'user' as const,
+            }
+          : {
+              id: null,
+              mention: mention ?? 'presse',
+              title: 'Sys',
+              body: 'Sysrumpf',
+              source: 'system' as const,
+            }
+    );
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ resolveRecipe } as unknown as Partial<CatalogDeps>),
+      {
+        resumedSteps: [
+          {
+            toolCallId: 'c1',
+            toolName: 'rezept_laden',
+            args: { rezept: 'presse-aaaaaa' },
+            // Doppelt: zweimal dasselbe geladene Rezept darf nur einmal landen.
+            result: { rezept: 'presse-aaaaaa', mention: 'presse', rezeptId: LIB_ID, geladen: true },
+          },
+          {
+            toolCallId: 'c2',
+            toolName: 'rezept_laden',
+            args: { rezept: 'presse-aaaaaa' },
+            result: { rezept: 'presse-aaaaaa', mention: 'presse', rezeptId: LIB_ID, geladen: true },
+          },
+        ],
+      }
+    );
+    expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: 'presse', recipeId: LIB_ID })
+    );
+    expect(assembled.recipeRegistry.size).toBe(1);
+    expect(assembled.recipeRegistry.has(LIB_ID)).toBe(true);
+    expect(assembled.recipeRegistry.render()).toContain('Fremdrumpf');
+  });
+
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {
     const assembled = await assemble(fakeState(), deps({ buildRecipeCatalog: async () => [] }));
     expect(assembled.tools.rezept_laden).toBeUndefined();

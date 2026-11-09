@@ -30,6 +30,7 @@ import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../age
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
+  catalogDescription,
   recommendedToolsFor,
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
@@ -325,7 +326,7 @@ export async function assembleToolCatalog(
       const pinned = { mention, id: resolved.id };
       recipeRegistry.register({
         ...pinned,
-        title: resolved.title,
+        title: catalogDescription(resolved.title, 120),
         body: resolved.body,
         source: resolved.source,
         recommendedTools: recommendedToolsFor(mention, isMounted),
@@ -411,23 +412,34 @@ export async function assembleToolCatalog(
   // `preloaded`), damit eine gewählte Textsorte den Agent-Default wieder
   // verdrängt, und mit ihrer Rolle, damit eine Methode keine Textsorte wird.
   for (const step of resumedSteps ?? []) {
-    const mention = step.result['rezept'];
     if (
       (step.toolName !== 'rezept_laden' && step.toolName !== METHOD_RECIPE_TOOL) ||
       step.result['geladen'] !== true
     )
       continue;
-    if (typeof mention !== 'string' || recipeRegistry.mentions.includes(mention)) continue;
+    // `rezept` ist der KATALOG-Schlüssel (bei einem gespeicherten fremden Rezept
+    // `presse-1a2b3c`), nicht die Mention; die echte Mention und die Zeilen-id
+    // stehen daneben. Ältere Ergebnisse tragen nur `rezept`.
+    const shownKey = step.result['rezept'];
+    if (typeof shownKey !== 'string') continue;
+    const mentionField = step.result['mention'];
+    const mention = typeof mentionField === 'string' ? mentionField : shownKey;
+    const idField = step.result['rezeptId'];
+    const recipeId = typeof idField === 'string' ? idField : null;
+    if (recipeRegistry.has(recipeKey({ id: recipeId, mention }))) continue;
     const resolved = await deps.resolveRecipe({
       mention,
+      recipeId,
       userId: userId ?? null,
       visualBlocks: state.visualBlocks ?? [],
     });
-    if (!resolved) continue;
+    // Eine nicht mehr sichtbare Zeile fällt in `resolveRecipeBody` auf die Mention
+    // zurück — hier gilt genau diese Zeile oder nichts.
+    if (!resolved || (recipeId && resolved.id !== recipeId)) continue;
     recipeRegistry.register({
       id: resolved.id,
       mention,
-      title: resolved.title,
+      title: catalogDescription(resolved.title, 120),
       body: resolved.body,
       source: resolved.source,
       recommendedTools: recommendedToolsFor(mention, isMounted),

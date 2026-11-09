@@ -293,10 +293,13 @@ export function renderRecipeCatalog(
   if (entries.length === 0) return '';
   const lines = entries.map(
     (e) =>
-      `- ${e.key}: ${e.title} — ${e.description}` +
+      // Die Herkunft steht VOR dem fremden Text: ein Suffix ließe sich von der
+      // Beschreibung nachahmen, ein Präfix nicht.
+      `- ${e.key}: ${e.title} —` +
       (e.origin === 'library'
         ? ` (Rezept von ${e.ownerName ?? 'einer anderen Person'}, gespeichert)`
         : '') +
+      ` ${e.description}` +
       (e.recommendedTools?.length ? ` (Werkzeuge: ${e.recommendedTools.join(', ')})` : '')
   );
   return [

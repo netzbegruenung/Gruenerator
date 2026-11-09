@@ -84,8 +84,8 @@ export interface RecipeRegistry {
    * `generate_image` triple-call).
    */
   register(recipe: LoadedRecipe): RegisterOutcome;
-  /** Trifft Schlüssel (`recipeKey`) oder Mention. */
-  has(keyOrMention: string): boolean;
+  /** Trifft nur den Schlüssel (`recipeKey`): zwei Rezepte können dieselbe Mention tragen. */
+  has(key: string): boolean;
   readonly size: number;
   /** Wie viele Rezepte noch Platz haben (Kappe minus geladene). */
   readonly remaining: number;
@@ -185,8 +185,7 @@ export function createRecipeRegistry(
       loaded.set(key, recipe);
       return 'registered';
     },
-    has: (keyOrMention) =>
-      loaded.has(keyOrMention) || [...loaded.values()].some((r) => r.mention === keyOrMention),
+    has: (key) => loaded.has(key),
     get remaining() {
       return Math.max(0, maxRecipes - loaded.size);
     },

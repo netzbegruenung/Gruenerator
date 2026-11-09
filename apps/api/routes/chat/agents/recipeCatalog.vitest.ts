@@ -416,6 +416,8 @@ describe('saved recipes from the library', () => {
       .filter((l) => l.startsWith('- '));
     expect(line).toHaveLength(1);
     expect(line[0]).toContain('(Rezept von Jamila');
+    // Herkunft als Präfix: vor dem fremden Text, nicht dahinter.
+    expect(line[0]!.indexOf('(Rezept von Jamila')).toBeLessThan(line[0]!.indexOf('Zeile eins'));
   });
 });
 
