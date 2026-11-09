@@ -373,7 +373,8 @@ const computeVerify: ResolverSpec = {
         instructions:
           'Beantwortet der CODE die FRAGE? Du kennst die Rohdaten nicht – beurteile nur Code-Logik gegen Frage. Im Zweifel: plausibel.',
         criteria: {
-          plausibel: 'der Code rechnet genau, was die Frage verlangt, mit allen ihren Einschränkungen',
+          plausibel:
+            'der Code rechnet genau, was die Frage verlangt, mit allen ihren Einschränkungen',
           einschraenkung_fehlt:
             'die Frage nennt einen Zeitraum, Ort, Status oder eine Kategorie, und der Code filtert nicht darauf',
           falsche_spalte: 'der Code rechnet mit einer anderen Spalte oder Gruppierung als gefragt',
