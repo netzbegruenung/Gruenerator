@@ -1,7 +1,8 @@
 - main:
   - heading "Grünerator Suche" [level=1]
   - paragraph: KI-gestützte Recherche in Grünen Quellen und dem Web
-  - textbox "Nachricht schreiben..."
+  - textbox "Nachricht an den Grünerator":
+    - /placeholder: Nachricht schreiben...
   - button "Aktionen und Modus"
   - button "🚲 Verkehrswende in Kommunen"
   - button "🌍 Klimaschutz für Kommunen"

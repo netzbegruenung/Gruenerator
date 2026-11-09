@@ -143,6 +143,11 @@
         "id": "landtag-nrw-system",
         "name": "Landtag NRW",
         "description": "Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen"
+      },
+      {
+        "id": "wahlpruefsteine-system",
+        "name": "Wahlprüfsteine",
+        "description": "Antworten von Bündnis 90/Die Grünen auf Wahlprüfsteine von Verbänden zur Bundestagswahl 2021 und 2025 und zur Europawahl 2024"
       }
     ],
     "landesverbaende": [

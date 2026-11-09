@@ -99,6 +99,7 @@ function ModalComposer({ placeholder, extras }: ModalComposerProps) {
         <ComposerPrimitive.Input
           autoFocus
           placeholder={placeholder}
+          aria-label="Nachricht an den Grünerator"
           className="min-h-10 max-h-28 flex-grow resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-xs leading-snug text-foreground outline-none placeholder:text-foreground-muted"
           rows={1}
         />

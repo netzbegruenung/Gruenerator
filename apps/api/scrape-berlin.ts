@@ -5,6 +5,8 @@
  *   gruene.berlin (Typo3 CMS — Landesverband):
  *     - berlin-lv-presse: Nachrichten/Pressemitteilungen
  *     - berlin-lv-beschluesse: Beschlüsse
+ *   Wolke-Share des LV:
+ *     - berlin-lv-wahlpruefsteine: Antworten auf Wahlprüfsteine
  *   gruene-fraktion.berlin (WordPress — Fraktion):
  *     - berlin-fraktion-presse: Pressemitteilungen
  *     - berlin-fraktion-beschluesse: Beschlüsse
@@ -20,6 +22,7 @@ import { landesverbandScraperService } from './services/scrapers/implementations
 const BERLIN_SOURCES = [
   'berlin-lv-presse',
   'berlin-lv-beschluesse',
+  'berlin-lv-wahlpruefsteine',
   'berlin-fraktion-presse',
   'berlin-fraktion-beschluesse',
 ];
