@@ -181,16 +181,15 @@ export async function findBerlin(
   else if (f.titel) topic['f.titel'] = [f.titel];
   if (f.volltext) topic['f.volltext'] = f.volltext;
 
-  let { docs, numFound } = await run(topic, scanAnfragen);
-
-  const fallback = !f.volltext && !f.titel ? longest(keywords) : null;
-  if (dedupeByRef(docs).length < MIN_CANDIDATES && fallback) {
-    // Die Frist bricht die Abfrage ab (kein Weiterbezahlen) und lässt die Titeltreffer stehen.
+  // Jede Volltextabfrage hat dieselbe Frist: PARDOK braucht für ein häufiges Wort ~36 s,
+  // auch mit Zeitraum (live 09.11.2026), das Werkzeug erlaubt 20 s. Die Frist bricht die
+  // Abfrage ab (kein Weiterbezahlen); `null` heißt „zu langsam".
+  const bounded = async (extra: PardokParams) => {
     const ctl = new AbortController();
-    const work = run({ 'f.volltext': fallback }, scanAnfragen, ctl.signal);
+    const work = run(extra, scanAnfragen, ctl.signal);
     work.catch(() => null);
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const more = await Promise.race([
+    return Promise.race([
       work,
       new Promise<null>((resolve) => {
         timer = setTimeout(() => {
@@ -199,6 +198,33 @@ export async function findBerlin(
         }, VOLLTEXT_FALLBACK_DEADLINE_MS);
       }),
     ]).finally(() => clearTimeout(timer));
+  };
+
+  let docs: BundestagCandidate[] = [];
+  let numFound = 0;
+  if (f.volltext) {
+    const first = await bounded(topic);
+    if (first) ({ docs, numFound } = first);
+    else {
+      // Die Titelsuche ist schnell und bleibt als Teilergebnis.
+      const titelTopic: PardokParams = f.titel
+        ? { 'f.titel': [f.titel] }
+        : titleTerms.length > 0
+          ? { 'f.titel': titleTerms }
+          : {};
+      if (Object.keys(titelTopic).length > 0)
+        ({ docs, numFound } = await run(titelTopic, scanAnfragen));
+      notes.push(
+        `Die Volltextsuche nach „${f.volltext}“ dauerte zu lange und wurde abgebrochen${Object.keys(titelTopic).length > 0 ? '; es folgt nur die Titelsuche' : ''}. Volltext ist bei häufigen Wörtern und Namen nicht in der Frist zu haben; ein Themenwort im Titel (\`titel\`) suchen.`
+      );
+    }
+  } else {
+    ({ docs, numFound } = await run(topic, scanAnfragen));
+  }
+
+  const fallback = !f.volltext && !f.titel ? longest(keywords) : null;
+  if (dedupeByRef(docs).length < MIN_CANDIDATES && fallback) {
+    const more = await bounded({ 'f.volltext': fallback });
     if (more) {
       docs = [...docs, ...more.docs];
       numFound = Math.max(numFound, more.numFound);
@@ -207,7 +233,7 @@ export async function findBerlin(
       );
     } else {
       notes.push(
-        `Zu wenige Titeltreffer; die Volltextsuche nach „${fallback}“ dauert zu lange und wurde übersprungen. Es folgen nur die Titeltreffer; ein Themenwort statt eines Namens oder \`volltext\` gezielt mit Zeitraum eingrenzen.`
+        `Zu wenige Titeltreffer; die Volltextsuche nach „${fallback}“ dauert zu lange und wurde übersprungen. Es folgen nur die Titeltreffer; für einen Namen gibt es keinen schnellen Weg, ein Themenwort im Titel (\`titel\`) lässt sich suchen.`
       );
     }
   }
@@ -229,7 +255,7 @@ export async function findBerlin(
     const ohneThema = counts.reduce((n, pg) => n + pg.numFound, 0);
     if (ohneThema > 0) {
       notes.push(
-        `Keine Treffer zum Thema. Allein mit den Filtern gibt es etwa ${ohneThema} Dokumente; ein anderes Themenwort, \`volltext\` oder weniger Filter probieren.`
+        `Keine Treffer zum Thema. Allein mit den Filtern gibt es etwa ${ohneThema} Dokumente; ein anderes Themenwort im Titel oder weniger Filter probieren.`
       );
     }
   }

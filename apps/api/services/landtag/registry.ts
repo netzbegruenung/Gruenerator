@@ -99,7 +99,7 @@ export const LANDTAGE: Record<LandtagParlament, LandtagMeta> = {
     },
     unsupportedHint: {
       schlagwort:
-        'Die Drucksachenliste des Abgeordnetenhauses kennt keinen Schlagwortfilter; stattdessen `titel` oder `volltext` nutzen.',
+        'Die Drucksachenliste des Abgeordnetenhauses kennt keinen Schlagwortfilter; stattdessen `titel` nutzen (`volltext` ist langsam und bricht bei häufigen Wörtern ab).',
     },
     typen: {
       Antrag: ['Antrag'],

@@ -137,6 +137,37 @@ describe('findBerlin', () => {
     }
   });
 
+  it('bricht auch einen ausdrücklichen Volltext an der Frist ab und meldet es statt eines Werkzeug-Timeouts (#5565)', async () => {
+    vi.useFakeTimers();
+    try {
+      let abgebrochen = false;
+      const impl: PardokLister = {
+        list: vi.fn(async (_e, params, signal) => {
+          if (!('f.volltext' in params)) {
+            return { numFound: 1, cursor: null, documents: [antrag('1', '2026.06.01')] };
+          }
+          return new Promise<PardokPage>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              abgebrochen = true;
+              reject(new Error('aborted'));
+            });
+          });
+        }),
+      };
+      const pending = findBerlin(
+        { query: 'Kapek', filters: { volltext: 'Kapek', datumVon: '2026-01-01' } },
+        impl
+      );
+      await vi.advanceTimersByTimeAsync(VOLLTEXT_FALLBACK_DEADLINE_MS + 1);
+      const out = await pending;
+      expect(abgebrochen).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* dauerte zu lange/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('erklärt Null Treffer mit der Zahl ohne Themenwort', async () => {
     const { impl } = lister((p) => {
       if ('f.titel' in p || 'f.volltext' in p) return [];
