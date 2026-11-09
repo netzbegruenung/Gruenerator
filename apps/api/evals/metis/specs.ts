@@ -48,6 +48,8 @@ interface Variant {
   /** Fest, oder je Fall gebaut (z. B. die Artefaktliste als Optionen). */
   question: ChoiceQuestion | ((c: ResolverCase) => ChoiceQuestion);
   state: (c: ResolverCase) => unknown;
+  /** Bildet eine feinere Option auf das Label ab (mehrere Fehlerarten → `unplausibel`). */
+  answerOf?: (choice: string) => string;
 }
 
 export function questionFor(v: Variant, c: ResolverCase): ChoiceQuestion {
@@ -371,11 +373,16 @@ const computeVerify: ResolverSpec = {
         instructions:
           'Beantwortet der CODE die FRAGE? Du kennst die Rohdaten nicht – beurteile nur Code-Logik gegen Frage. Im Zweifel: plausibel.',
         criteria: {
-          plausibel: 'der Code rechnet, was die Frage verlangt',
-          unplausibel:
-            'klar falsch: falsche Spalte oder Gruppierung, eine in der Frage genannte Einschränkung (Zeitraum, Ort, Status, Kategorie) fehlt im Code, falsche Rechenart (Summe statt Durchschnitt, Zeilen zählen statt summieren), doppelt gezählt, oder ein unmöglicher Wert',
+          plausibel: 'der Code rechnet genau, was die Frage verlangt, mit allen ihren Einschränkungen',
+          einschraenkung_fehlt:
+            'die Frage nennt einen Zeitraum, Ort, Status oder eine Kategorie, und der Code filtert nicht darauf',
+          falsche_spalte: 'der Code rechnet mit einer anderen Spalte oder Gruppierung als gefragt',
+          falsche_rechenart:
+            'falsche Rechenart: Summe statt Durchschnitt, Zeilen zählen statt Werte summieren, doppelt gezählt',
+          unmoeglicher_wert: 'das ERGEBNIS ist unmöglich, etwa eine negative Anzahl',
         },
       },
+      answerOf: (choice) => (choice === 'plausibel' ? 'plausibel' : 'unplausibel'),
     },
   },
   cases: loadCases('computeVerify.jsonl'),

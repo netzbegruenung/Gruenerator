@@ -65,7 +65,8 @@ async function main(): Promise<void> {
       questions: { q: questionFor(variant, c) },
     });
     const a = r.answers.q as MetisChoiceAnswer;
-    return { choice: a.choice, confidence: a.confidence, ms: Date.now() - t };
+    const choice = variant.answerOf ? variant.answerOf(a.choice) : a.choice;
+    return { choice, confidence: a.confidence, ms: Date.now() - t };
   };
   await Promise.allSettled(ms.map((m) => ask(m, spec.cases[0]!)));
 
