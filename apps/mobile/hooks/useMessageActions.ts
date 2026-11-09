@@ -1,7 +1,7 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   EMPTY_RECIPE_FORM,
-  RECIPE_FROM_ANSWER_BRIEF,
+  recipeDraftBrief,
   recipeFormFromAnswer,
 } from '@gruenerator/shared/grueneratoren';
 import { type ExportCitation, withSourcesMarkdown } from '@gruenerator/shared/utils';
@@ -99,10 +99,10 @@ const RECIPE_EDITOR = '/(focused)/grueneratoren/rezept-editor';
  * The AI draft for "Als Rezept speichern". A failed draft is not a failed
  * action: the editor still opens with the answer as its example.
  */
-async function draftRecipeSpec() {
+async function draftRecipeSpec(answer: string) {
   try {
     const res = await getContractsClient().userTextForms.draft({
-      body: { description: RECIPE_FROM_ANSWER_BRIEF },
+      body: { description: recipeDraftBrief(answer) },
     });
     return res.status === 200 ? res.body.spec : null;
   } catch {
@@ -150,7 +150,7 @@ export function useMessageActions(message: MessageActionTarget | null) {
   const saveAsRecipe = useCallback(async () => {
     if (!message?.text || exporting) return;
     setExporting('recipe');
-    const spec = await draftRecipeSpec();
+    const spec = await draftRecipeSpec(message.text);
     useRecipeEditorStore
       .getState()
       .begin(

@@ -169,7 +169,7 @@ test.describe('Eigenes Rezept: anlegen, finden, nutzen', () => {
     await page.goto('/agentura/rezept/neu');
     await page.getByPlaceholder('Beschreibe dein neues Rezept...').fill(BRIEF);
     await page.getByPlaceholder('Beschreibe dein neues Rezept...').press('Enter');
-    await expect(page.getByLabel('Name')).toHaveValue(SPEC.title);
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue(SPEC.title);
     await page.getByRole('button', { name: 'Speichern' }).click();
     await expect(page).toHaveURL(/\/agentura\/rezept\/vereinseinladung$/);
 

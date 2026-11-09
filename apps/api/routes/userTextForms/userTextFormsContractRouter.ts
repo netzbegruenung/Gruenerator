@@ -157,6 +157,9 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         mention: args.params.mention,
         requestedKind: body.kind,
         textType: body.textType,
+        existing: (await listTextForms(userId)).some(
+          (f) => !f.sharedFromGroup && f.mention === normalizeTextFormMention(args.params.mention)
+        ),
         lvIds: landesverbandIdsForRoles(
           await loadUserRoles(userId),
           user.locale ?? extractLocaleFromRequest(args.req)

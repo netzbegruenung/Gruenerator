@@ -5,13 +5,28 @@
  * (Mobile); der Creator lässt daraus per Entwurfs-Endpunkt Name, Beschreibung
  * und Anleitung vorschlagen und legt die Antwort als erstes Beispiel dazu.
  */
-import { MAX_TEXT_FORM_EXAMPLE_CHARS, type DraftedRecipeSpec } from '@gruenerator/contracts';
+import {
+  MAX_DRAFT_BRIEF_CHARS,
+  MAX_TEXT_FORM_EXAMPLE_CHARS,
+  type DraftedRecipeSpec,
+} from '@gruenerator/contracts';
 
 import { draftToRecipeForm, type RecipeFormState } from './recipeFormState.js';
 import { joinExamples } from './splitExamples.js';
 
 /** Der Auftrag an den Entwurfs-Endpunkt: das Beispiel liefert den Stil, nicht die Beschreibung. */
 export const RECIPE_FROM_ANSWER_BRIEF = 'Ein Rezept, das Texte wie dieses Beispiel erzeugt.';
+
+/**
+ * Der Auftrag an den Entwurfs-Endpunkt: der feste Satz plus ein Ausschnitt der
+ * Antwort. Der Endpunkt nimmt nur `description` — ohne den Ausschnitt sähe das
+ * Modell die Antwort nie und erfände Name, Beschreibung und Anleitung. Das Ganze
+ * bleibt innerhalb von `MAX_DRAFT_BRIEF_CHARS`.
+ */
+export function recipeDraftBrief(text: string): string {
+  const prefix = `${RECIPE_FROM_ANSWER_BRIEF}\n\nBeispiel:\n`;
+  return prefix + text.trim().slice(0, MAX_DRAFT_BRIEF_CHARS - prefix.length);
+}
 
 /** Was die Navigation zum Creator mitgibt (`location.state` im Web). */
 export interface RecipeFromAnswerState {

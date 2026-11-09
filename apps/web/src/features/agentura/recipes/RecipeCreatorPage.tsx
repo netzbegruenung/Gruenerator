@@ -5,7 +5,7 @@ import {
   EMPTY_RECIPE_FORM,
   readFromAnswer,
   recipeFormFromAnswer,
-  RECIPE_FROM_ANSWER_BRIEF,
+  recipeDraftBrief,
   type RecipeFormState,
 } from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
@@ -46,7 +46,7 @@ function RecipeCreatorPage() {
     if (!fromAnswer || answerStarted.current) return;
     answerStarted.current = true;
     void draftMut
-      .mutateAsync({ description: RECIPE_FROM_ANSWER_BRIEF })
+      .mutateAsync({ description: recipeDraftBrief(fromAnswer.text) })
       .then((spec) => recipeFormFromAnswer(fromAnswer.text, spec))
       .catch(() => recipeFormFromAnswer(fromAnswer.text, null))
       .then((form) => {

@@ -1,7 +1,12 @@
-import { MAX_TEXT_FORM_EXAMPLE_CHARS } from '@gruenerator/contracts';
+import { MAX_DRAFT_BRIEF_CHARS, MAX_TEXT_FORM_EXAMPLE_CHARS } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { answerToRawExamples, readFromAnswer, recipeFormFromAnswer } from './recipeFromAnswer';
+import {
+  answerToRawExamples,
+  readFromAnswer,
+  recipeDraftBrief,
+  recipeFormFromAnswer,
+} from './recipeFromAnswer';
 import { splitExamples } from './splitExamples';
 
 const SPEC = {
@@ -47,5 +52,18 @@ describe('recipeFormFromAnswer', () => {
 
   it('still carries the answer when no draft could be made', () => {
     expect(recipeFormFromAnswer('Antworttext', null)).toEqual({ rawExamples: 'Antworttext' });
+  });
+});
+
+describe('recipeDraftBrief', () => {
+  it('lets the draft model see the answer', () => {
+    const brief = recipeDraftBrief('Liebe Mitglieder, am Freitag laden wir zur Versammlung ein.');
+    expect(brief).toContain('Ein Rezept, das Texte wie dieses Beispiel erzeugt.');
+    expect(brief).toContain('Liebe Mitglieder, am Freitag laden wir zur Versammlung ein.');
+  });
+
+  it('clips a long answer so the whole brief stays within the cap', () => {
+    const brief = recipeDraftBrief('x'.repeat(MAX_DRAFT_BRIEF_CHARS * 3));
+    expect(brief).toHaveLength(MAX_DRAFT_BRIEF_CHARS);
   });
 });

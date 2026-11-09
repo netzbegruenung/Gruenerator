@@ -92,9 +92,10 @@ describe('RecipeCreatorPage', () => {
     renderWithProviders(<RecipeCreatorPage />);
 
     await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
-    expect(draft.mock.calls[0]?.[0]).toEqual({
-      body: { description: 'Ein Rezept, das Texte wie dieses Beispiel erzeugt.' },
-    });
+    const sent = (draft.mock.calls[0]?.[0] as { body: { description: string } }).body.description;
+    expect(sent).toContain('Ein Rezept, das Texte wie dieses Beispiel erzeugt.');
+    expect(sent).toContain('Liebe Mitglieder, wir laden herzlich ein.');
+    expect(sent.length).toBeLessThanOrEqual(4000);
     expect(await screen.findByLabelText('Name')).toHaveValue('Vereinseinladung');
     expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
     // Die Antwort steht als erstes Beispiel im (zugeklappten) Beispiel-Feld.

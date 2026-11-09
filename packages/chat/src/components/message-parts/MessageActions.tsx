@@ -278,7 +278,7 @@ export const MessageActions = memo(function MessageActions({
   };
 
   /** The answer rides along as navigation state; the creator drafts the recipe from it. */
-  const handleSaveAsRecipe = async () => {
+  const handleSaveAsRecipe = () => {
     nav?.navigate('/agentura/rezept/neu', { state: { fromAnswer: { text: content } } });
   };
 
@@ -306,7 +306,10 @@ export const MessageActions = memo(function MessageActions({
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
     explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
     podcast: { icon: <Headphones className="h-3.5 w-3.5" />, run: handleCreatePodcast },
-    recipe: { icon: <BookPlus className="h-3.5 w-3.5" />, run: handleSaveAsRecipe },
+    recipe: {
+      icon: <BookPlus className="h-3.5 w-3.5" />,
+      run: () => Promise.resolve(handleSaveAsRecipe()),
+    },
   };
 
   /**

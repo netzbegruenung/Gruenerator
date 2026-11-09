@@ -69,14 +69,14 @@ describe('SkillLibraryModal', () => {
     const recipe = screen.getByText('OV-Post');
     // Die Überschrift steht vor dem Rezept und keine weitere Gruppe dazwischen.
     expect(heading.compareDocumentPosition(recipe) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByText('Eigene')).not.toBeInTheDocument();
+    expect(screen.queryByText('Meine Rezepte')).not.toBeInTheDocument();
   });
 
-  it('puts an own recipe without category under "Eigene"', async () => {
+  it('puts an own recipe without category under "Meine Rezepte"', async () => {
     setTextforms([ownForm({ id: 'r2', mention: 'mein-text', title: 'Mein Text', category: null })]);
     renderModal();
 
-    expect(await screen.findByText('Eigene')).toBeInTheDocument();
+    expect(await screen.findByText('Meine Rezepte')).toBeInTheDocument();
     expect(screen.getByText('Mein Text')).toBeInTheDocument();
   });
 

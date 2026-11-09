@@ -36,6 +36,7 @@ const save = (mention: string, over: Record<string, unknown> = {}) =>
 
 beforeEach(() => {
   for (const fn of Object.values(repo)) fn.mockReset();
+  repo.listTextForms.mockResolvedValue([]);
 });
 
 describe('userTextFormsContract.save', () => {
@@ -59,6 +60,17 @@ describe('userTextFormsContract.save', () => {
 
     expect(res.status).toBe(400);
     expect(repo.upsertTextForm).not.toHaveBeenCalled();
+  });
+});
+
+describe('userTextFormsContract.save: reserved names on update', () => {
+  it('still saves an existing own row named "neu"', async () => {
+    repo.listTextForms.mockResolvedValue([{ mention: 'neu', sharedFromGroup: null }]);
+    repo.upsertTextForm.mockResolvedValue({ id: 'r1', mention: 'neu' });
+
+    const res = await save('neu');
+
+    expect(res.status).toBe(200);
   });
 });
 

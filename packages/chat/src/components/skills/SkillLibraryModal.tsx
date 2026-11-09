@@ -65,12 +65,13 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const filtered = allSkills.filter(matches);
 
   // Eigene Rezepte (ohne die geteilten und gespeicherten fremden) stehen unter
-  // ihrer Kategorie wie die mitgelieferten; ohne Kategorie unter „Eigene“. Der
+  // ihrer Kategorie wie die mitgelieferten; ohne Kategorie unter „Meine Rezepte“. Der
   // Speicher ist nicht reaktiv — wie bei `customAgents` wird bei jedem Render gelesen.
   const ownRecipes = getTextformMentionables().filter(
     (m) => !m.sharedFromGroup && !m.savedFromOwner && matches(m)
   );
-  const ownUncategorised = ownRecipes.filter((m) => !m.skillCategory);
+  // Ohne Kategorie stehen sie im Abschnitt „Meine Rezepte“, neben den eigenen Agents-Rezepten.
+  const myRecipes = [...customAgents, ...ownRecipes.filter((m) => !m.skillCategory)];
 
   const grouped = (() => {
     const map = new Map<SkillCategory, Mentionable[]>();
@@ -146,12 +147,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {[
-            ...grouped,
-            ...(ownUncategorised.length > 0
-              ? [{ category: 'eigene', label: 'Eigene', items: ownUncategorised }]
-              : []),
-          ].map(({ category, label, items }) => (
+          {grouped.map(({ category, label, items }) => (
             <div key={category} className="mb-1">
               <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
                 {label}
@@ -195,13 +191,13 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </div>
           ))}
 
-          {customAgents.length > 0 && (
+          {myRecipes.length > 0 && (
             <div className="mb-1">
               <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
                 Meine Rezepte
               </div>
               {/* Eigene Rezepte stehen im Plus-Menü ohnehin; ein Bibliotheks-Stern gibt es nur für Katalog-Rezepte. */}
-              {customAgents.map((skill) => {
+              {myRecipes.map((skill) => {
                 const Icon = skill.icon ?? PiSparkle;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
@@ -226,7 +222,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </div>
           )}
 
-          {grouped.length === 0 && ownUncategorised.length === 0 && customAgents.length === 0 && (
+          {grouped.length === 0 && myRecipes.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-foreground-muted">
               Kein Rezept gefunden
             </div>

@@ -90,6 +90,8 @@ export function resolveTextFormKind(params: {
   requestedKind?: TextFormKind | undefined;
   textType?: TextFormType | null | undefined;
   lvIds: readonly string[] | null;
+  /** Die Zeile gibt es schon: ein reservierter Name sperrt nur das Anlegen, nicht das Speichern. */
+  existing?: boolean;
 }): TextFormKindVerdict {
   const mention = normalizeTextFormMention(params.mention);
 
@@ -110,7 +112,7 @@ export function resolveTextFormKind(params: {
         message: parsed.error.issues[0]?.message ?? 'Ungültige Mention.',
       };
     }
-    if (RESERVED_TEXT_FORM_MENTIONS.includes(mention)) {
+    if (!params.existing && RESERVED_TEXT_FORM_MENTIONS.includes(mention)) {
       return { ok: false, status: 400, message: 'Dieser Name ist reserviert.' };
     }
     if (SKILL_MENTIONS.has(mention) || PRESET_TYPES.has(mention)) {
