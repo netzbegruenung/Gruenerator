@@ -44,7 +44,7 @@
     "@hocuspocus/provider": "^4.7.1",
     "@tiptap/core": "^3.33.0",
     "ai": "^7.0.163",
-    "lucide-react": "^1.69.0",
+    "lucide-react": "^1.70.0",
     "prosemirror-model": "^1.25.12",
     "prosemirror-state": "^1.4.4",
     "prosemirror-tables": "^1.8.5",
