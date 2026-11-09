@@ -1,25 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_LOOP_BUDGET } from '../services/agenticLoop/types.js';
+import { Deadline } from '../../../utils/deadline.js';
+import { TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import {
   describeLandtagFilter,
   makeLandtagTool,
   makeNationalratTool,
-  NOTEBOOK_DEADLINE_MS,
+  landtagDeadlineMs,
 } from './landtagTool.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
-const findLandtag = vi.fn<(p: string, q: string, f: unknown) => Promise<unknown>>();
+const findLandtag = vi.fn<(p: string, q: string, f: unknown, d?: unknown) => Promise<unknown>>();
 // Eine werfende `vi.fn` lässt Vitest den Test selbst rot färben; der Ausfall kommt darum aus dieser Weiche.
 let ausfall = false;
 vi.mock('../../../services/landtag/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  findLandtag: (p: string, q: string, f: unknown): Promise<unknown> => {
+  findLandtag: (p: string, q: string, f: unknown, d?: unknown): Promise<unknown> => {
     if (ausfall) throw new Error('PARDOK 503');
-    return findLandtag(p, q, f);
+    return findLandtag(p, q, f, d);
   },
 }));
 
@@ -151,7 +152,8 @@ describe('makeLandtagTool', () => {
     expect(findLandtag).toHaveBeenCalledWith(
       'berlin',
       '',
-      expect.objectContaining({ typ: ['Antrag'] })
+      expect.objectContaining({ typ: ['Antrag'] }),
+      expect.any(Deadline)
     );
     expect(directSearch).not.toHaveBeenCalled();
     expect(out.hinweise).toEqual([expect.stringMatching(/typ Plenarprotokoll allein/)]);
@@ -195,12 +197,17 @@ describe('makeLandtagTool', () => {
       query: 'Verkehrswende',
       fraktion: ['spd'],
     });
-    expect(findLandtag).toHaveBeenCalledWith('berlin', 'Verkehrswende', {
-      typ: ['Antrag'],
-      fraktion: ['spd'],
-      datumVon: '2026-01-01',
-      datumBis: '2026-12-31',
-    });
+    expect(findLandtag).toHaveBeenCalledWith(
+      'berlin',
+      'Verkehrswende',
+      {
+        typ: ['Antrag'],
+        fraktion: ['spd'],
+        datumVon: '2026-01-01',
+        datumBis: '2026-12-31',
+      },
+      expect.any(Deadline)
+    );
   });
 
   it('liefert Refs, Gesamtzahl, Hinweise, Lizenz-Quelle und eine Karte', async () => {
@@ -284,18 +291,27 @@ describe('makeLandtagTool', () => {
       expect(out.hinweis).toMatch(/Auszug/);
     });
 
-    it('lässt ein hängendes Notebook die fertige Live-Liste nicht verschlucken (#5559)', async () => {
+    it('lässt ein hängendes Notebook die fertige Live-Liste nicht verschlucken und bricht an der Frist ab (#5559)', async () => {
       vi.useFakeTimers();
       try {
         findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 1, notes: [] });
         directSearch.mockReturnValue(new Promise(() => {}));
         const pending = exec(make('de-DE', frage), { parlament: 'berlin', query: 'Kiezblock' });
-        // Die Standardfrist des Werkzeugs (20 s) wird nie erreicht: das Notebook hat eine eigene, kürzere.
-        await vi.advanceTimersByTimeAsync(NOTEBOOK_DEADLINE_MS + 1);
+        const fristMs = landtagDeadlineMs('landtag');
+        // Das Notebook bekommt die Restzeit, keinen kleineren Anteil: bis kurz vor der Frist ist noch nichts da ...
+        await vi.advanceTimersByTimeAsync(fristMs - 1_000);
+        let fertig = false;
+        void pending.then(() => (fertig = true));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(fertig).toBe(false);
+        // ... und an der Frist kommt die Live-Liste, vor der Werkzeugfrist des Loops.
+        await vi.advanceTimersByTimeAsync(1_001);
         const out = (await pending) as { resultCount: number; error?: string };
         expect(out.error).toBeUndefined();
         expect(out.resultCount).toBe(1);
-        expect(NOTEBOOK_DEADLINE_MS).toBeLessThan(DEFAULT_LOOP_BUDGET.perCallTimeoutMs);
+        expect(fristMs).toBeLessThan(TOOL_TIMEOUT_OVERRIDES_MS['landtag']!);
+        const deadline = findLandtag.mock.calls[0]![3] as { signal: AbortSignal };
+        expect(deadline.signal.aborted).toBe(true);
       } finally {
         vi.useRealTimers();
       }
@@ -389,7 +405,8 @@ describe('makeNationalratTool', () => {
     expect(findLandtag).toHaveBeenCalledWith(
       'nationalrat',
       'Miete',
-      expect.objectContaining({ fraktion: ['gruene'], typ: ['Antrag'] })
+      expect.objectContaining({ fraktion: ['gruene'], typ: ['Antrag'] }),
+      expect.any(Deadline)
     );
     expect(at.sources).toContain('647/A(E) · Selbständiger Entschließungsantrag');
     expect(at.quelle).toMatch(/CC BY 4\.0/);

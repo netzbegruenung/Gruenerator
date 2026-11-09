@@ -22,6 +22,7 @@ import { findLandtag, LANDTAGE, landtageFor } from '../../../services/landtag/in
 import { FRAKTION_LABEL, type LandtagMeta } from '../../../services/landtag/registry.js';
 import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
 import { createLogger } from '../../../utils/logger.js';
+import { Deadline } from '../../../utils/deadline.js';
 import { TimeoutError, withTimeout } from '../../../utils/withTimeout.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
@@ -76,18 +77,23 @@ async function runProtokollSuche(
   meta: (typeof LANDTAGE)[LandtagParlament],
   collection: string,
   question: string,
-  filters: LandtagFilter
+  filters: LandtagFilter,
+  deadline: Deadline
 ) {
   let passages: Awaited<ReturnType<typeof executeDirectSearch>>['results'] = [];
   let resolved = collection;
   try {
-    const res = await executeDirectSearch({
-      query: question,
-      collection,
-      limit: PROTOKOLL_PASSAGES,
-      searchMode: 'vector',
-      filters: { content_type: ['plenarprotokoll'] },
-    });
+    const res = await withTimeout(
+      executeDirectSearch({
+        query: question,
+        collection,
+        limit: PROTOKOLL_PASSAGES,
+        searchMode: 'vector',
+        filters: { content_type: ['plenarprotokoll'] },
+      }),
+      deadline.remainingMs(),
+      `landtag-protokolle ${collection}`
+    );
     passages = (res.results ?? []).filter((r) => r.excerpt);
     resolved = res.collection;
   } catch (error: unknown) {
@@ -143,15 +149,16 @@ const NOTEBOOK_PASSAGES = 4;
 const NOTEBOOK_SEARCH_MODE = 'vector';
 
 /**
- * Eigene Frist der Notebook-Suche, abgeleitet aus der Werkzeugfrist des Loops
- * (`landtag` hat keinen Eintrag in `TOOL_TIMEOUT_OVERRIDES_MS`, gilt also die
- * Standardfrist): 60 %. Ohne sie nimmt ein kalter Qdrant (10–16 s, live
- * 09.11.2026 7 von 10 Aufrufen) die schon nach ~1 s fertige PARDOK-Liste mit in
- * die Zeitüberschreitung; so bleibt Luft, die Liste auszuliefern (#5559).
+ * Rand für den Rest der Antwort (Quellen registrieren, Karte bauen), den die Frist des
+ * Aufrufs von der Werkzeugfrist abzieht: die Stufen dürfen nie bis zur Werkzeugfrist laufen.
  */
-export const NOTEBOOK_DEADLINE_MS = Math.floor(
-  (TOOL_TIMEOUT_OVERRIDES_MS['landtag'] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs) * 0.6
-);
+export const ANSWER_MARGIN_MS = 4_000;
+
+/** Die Frist eines Aufrufs: Werkzeugfrist des Loops (`landtag` hat einen Eintrag, `nationalrat` die Standardfrist) minus Rand. */
+export function landtagDeadlineMs(tool: 'landtag' | 'nationalrat'): number {
+  const budget = TOOL_TIMEOUT_OVERRIDES_MS[tool] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs;
+  return budget - ANSWER_MARGIN_MS;
+}
 
 interface NotebookPassage {
   title: string;
@@ -171,7 +178,8 @@ interface NotebookPassage {
 async function notebookPassages(
   notebook: LandtagMeta['notebook'],
   question: string,
-  filters: LandtagFilter
+  filters: LandtagFilter,
+  deadline: Deadline
 ): Promise<NotebookPassage[]> {
   if (!notebook || !question.trim()) return [];
   if (
@@ -185,8 +193,9 @@ async function notebookPassages(
   const contentTypes = (filters.typ ?? []).map((t) => notebook.contentTypes[t]);
   if (contentTypes.some((c) => !c)) return [];
   try {
-    // Die Suche selbst lässt sich nicht abbrechen; `withTimeout` hängt an ihr einen
-    // Handler, ein spätes Scheitern bleibt also ohne unbehandelte Ablehnung.
+    // Die Restzeit der Frist, kein eigener Anteil: in NRW ist das Notebook die einzige Quelle.
+    // Die Suche selbst lässt sich nicht abbrechen; `withTimeout` hängt an ihr einen Handler,
+    // ein spätes Scheitern bleibt also ohne unbehandelte Ablehnung.
     const res = await withTimeout(
       executeDirectSearch({
         query: question,
@@ -197,7 +206,7 @@ async function notebookPassages(
           ? { filters: { content_type: [...new Set(contentTypes as string[])] } }
           : {}),
       }),
-      NOTEBOOK_DEADLINE_MS,
+      deadline.remainingMs(),
       `landtag-notebook ${notebook.collection}`
     );
     return (res.results ?? [])
@@ -220,10 +229,27 @@ async function notebookPassages(
 const WAHLPERIODE_RE = /wahlperiode|legislatur|\bWP\s?\d/i;
 
 async function runParlamentSuche(
-  { state, sourceRegistry }: Ctx,
+  ctx: Ctx,
   parlament: LandtagParlament,
   query: string | undefined,
   args: LandtagFilter
+) {
+  const deadline = new Deadline(
+    landtagDeadlineMs(parlament === 'nationalrat' ? 'nationalrat' : 'landtag')
+  );
+  try {
+    return await runParlamentSucheMitFrist(ctx, parlament, query, args, deadline);
+  } finally {
+    deadline.dispose();
+  }
+}
+
+async function runParlamentSucheMitFrist(
+  { state, sourceRegistry }: Ctx,
+  parlament: LandtagParlament,
+  query: string | undefined,
+  args: LandtagFilter,
+  deadline: Deadline
 ) {
   const meta = LANDTAGE[parlament];
   // Wie bei `bundestag`: was der Wortlaut hergibt (Zeitraum, Fraktion, Art), gilt mit; gesetzte Argumente gehen vor.
@@ -253,7 +279,8 @@ async function runParlamentSuche(
         meta,
         protokollNotebook,
         userText || (query ?? ''),
-        filters
+        filters,
+        deadline
       );
     }
     filters.typ = rest;
@@ -266,7 +293,7 @@ async function runParlamentSuche(
   const [found, passages] = await Promise.all([
     (async () => {
       try {
-        return await findLandtag(parlament, query ?? '', filters);
+        return await findLandtag(parlament, query ?? '', filters, deadline);
       } catch (error: unknown) {
         // Parlaments-API nicht erreichbar, Schlüssel fehlt, Zeitlimit: das Modell bekommt eine Absage statt eines Abbruchs.
         // Der Grund gehört ins Log — die Absage allein sagt nicht, ob ein Schlüssel fehlt oder Qdrant weg ist.
@@ -277,7 +304,7 @@ async function runParlamentSuche(
       }
     })(),
     // Die ganze Frage, nicht die Stichwörter: das Notebook sucht semantisch.
-    notebookPassages(meta.notebook, userText || (query ?? ''), filters),
+    notebookPassages(meta.notebook, userText || (query ?? ''), filters, deadline),
   ]);
   if (!found && passages.length === 0) {
     return {

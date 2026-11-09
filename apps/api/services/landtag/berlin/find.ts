@@ -18,6 +18,7 @@ import {
   TOOL_TIMEOUT_OVERRIDES_MS,
   DEFAULT_LOOP_BUDGET,
 } from '../../../routes/chat/services/agenticLoop/types.js';
+import { type Deadline } from '../../../utils/deadline.js';
 import { LANDTAGE, type ResolvedLandtagFilter, resolveFilters } from '../registry.js';
 
 import { dedupeByRef, personFraktion, toCandidate } from './documents.js';
@@ -36,15 +37,11 @@ const ANFRAGE_SCAN_PAGES = 2;
 const SCAN_PAGE_SIZE = 200;
 
 /**
- * Frist des automatischen Volltext-Rückfalls, abgeleitet aus der Werkzeugfrist des
- * Loops (`landtag`: Standardfrist, kein Eintrag in `TOOL_TIMEOUT_OVERRIDES_MS`): 60 %.
- * `f.volltext=Kapek` braucht bei PARDOK 36 s, der Client erlaubt 60 s, das Werkzeug
- * 20 s — der Rückfall konnte nie fertig werden und nahm die Titeltreffer mit
- * (live 09.11.2026, #5565). Die Notebook-Suche läuft daneben und hat dieselbe Frist.
+ * Volltext startet nur, wenn von der Frist des Aufrufs noch so viel übrig ist: ein Themenwort
+ * braucht ~4 s, ein Name ~36 s (live 09.11.2026); darunter wäre der Versuch aussichtslos
+ * und kostete nur die Frist.
  */
-export const VOLLTEXT_FALLBACK_DEADLINE_MS = Math.floor(
-  (TOOL_TIMEOUT_OVERRIDES_MS['landtag'] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs) * 0.6
-);
+export const MIN_VOLLTEXT_MS = 10_000;
 
 export interface LandtagFindResult {
   candidates: BundestagCandidate[];
@@ -68,7 +65,7 @@ function longest(words: readonly string[]): string | null {
 }
 
 export async function findBerlin(
-  args: { query: string; filters: LandtagFilter },
+  args: { query: string; filters: LandtagFilter; deadline?: Deadline | null },
   pardok: PardokLister
 ): Promise<LandtagFindResult> {
   const meta = LANDTAGE.berlin;
@@ -112,7 +109,8 @@ export async function findBerlin(
   }
   const skipServer = scanAnfragen && serverTypen.length === 0;
 
-  const run = async (extra: PardokParams, scan = false, signal: AbortSignal | null = null) => {
+  const signal = args.deadline?.signal ?? null;
+  const run = async (extra: PardokParams, scan = false) => {
     const docs: BundestagCandidate[] = [];
     let numFound = 0;
     if (!skipServer) {
@@ -181,41 +179,43 @@ export async function findBerlin(
   else if (f.titel) topic['f.titel'] = [f.titel];
   if (f.volltext) topic['f.volltext'] = f.volltext;
 
-  // Jede Volltextabfrage hat dieselbe Frist: PARDOK braucht für ein häufiges Wort ~36 s,
-  // auch mit Zeitraum (live 09.11.2026), das Werkzeug erlaubt 20 s. Die Frist bricht die
-  // Abfrage ab (kein Weiterbezahlen); `null` heißt „zu langsam".
-  const bounded = async (extra: PardokParams) => {
-    const ctl = new AbortController();
-    const work = run(extra, scanAnfragen, ctl.signal);
+  // Volltext läuft unter der Frist des ganzen Aufrufs (`args.deadline`), nicht unter einem
+  // eigenen Anteil: PARDOK braucht für einen Namen ~36 s, auch mit Zeitraum. `null` heißt
+  // „zu wenig Zeit zum Starten" oder „Frist abgelaufen" (die Abfrage ist dann abgebrochen).
+  const volltext = async (extra: PardokParams) => {
+    const { deadline } = args;
+    if (!deadline) return run(extra, scanAnfragen);
+    if (deadline.remainingMs() < MIN_VOLLTEXT_MS) return null;
+    const work = run(extra, scanAnfragen);
     work.catch(() => null);
-    let timer: ReturnType<typeof setTimeout> | undefined;
     return Promise.race([
       work,
       new Promise<null>((resolve) => {
-        timer = setTimeout(() => {
-          ctl.abort();
-          resolve(null);
-        }, VOLLTEXT_FALLBACK_DEADLINE_MS);
+        if (deadline.signal.aborted) resolve(null);
+        else deadline.signal.addEventListener('abort', () => resolve(null), { once: true });
       }),
-    ]).finally(() => clearTimeout(timer));
+    ]);
   };
 
   let docs: BundestagCandidate[] = [];
   let numFound = 0;
   if (f.volltext) {
-    const first = await bounded(topic);
+    // Die schnelle Titelsuche läuft daneben: bleibt der Volltext aus, ist sie das Teilergebnis.
+    const titelTopic: PardokParams = f.titel
+      ? { 'f.titel': [f.titel] }
+      : titleTerms.length > 0
+        ? { 'f.titel': titleTerms }
+        : {};
+    const hasTitel = Object.keys(titelTopic).length > 0;
+    const [first, titel] = await Promise.all([
+      volltext(topic),
+      hasTitel ? run(titelTopic, scanAnfragen).catch(() => null) : Promise.resolve(null),
+    ]);
     if (first) ({ docs, numFound } = first);
     else {
-      // Die Titelsuche ist schnell und bleibt als Teilergebnis.
-      const titelTopic: PardokParams = f.titel
-        ? { 'f.titel': [f.titel] }
-        : titleTerms.length > 0
-          ? { 'f.titel': titleTerms }
-          : {};
-      if (Object.keys(titelTopic).length > 0)
-        ({ docs, numFound } = await run(titelTopic, scanAnfragen));
+      if (titel) ({ docs, numFound } = titel);
       notes.push(
-        `Die Volltextsuche nach „${f.volltext}“ dauerte zu lange und wurde abgebrochen${Object.keys(titelTopic).length > 0 ? '; es folgt nur die Titelsuche' : ''}. Volltext ist bei häufigen Wörtern und Namen nicht in der Frist zu haben; ein Themenwort im Titel (\`titel\`) suchen.`
+        `Die Volltextsuche nach „${f.volltext}“ dauerte zu lange oder fand keine Zeit mehr und wurde abgebrochen${titel ? '; es folgt nur die Titelsuche' : ''}. Volltext ist bei häufigen Wörtern und Namen nicht in der Frist zu haben; ein Themenwort im Titel (\`titel\`) suchen.`
       );
     }
   } else {
@@ -224,7 +224,7 @@ export async function findBerlin(
 
   const fallback = !f.volltext && !f.titel ? longest(keywords) : null;
   if (dedupeByRef(docs).length < MIN_CANDIDATES && fallback) {
-    const more = await bounded({ 'f.volltext': fallback });
+    const more = await volltext({ 'f.volltext': fallback });
     if (more) {
       docs = [...docs, ...more.docs];
       numFound = Math.max(numFound, more.numFound);
@@ -247,10 +247,15 @@ export async function findBerlin(
       'Schriftliche Anfragen einzelner Abgeordneter tragen keine Fraktion in der Dokumentation und fehlen bei einem Fraktionsfilter ohne Art; sie mit `typ: Anfrage` gezielt suchen.'
     );
   }
-  if (candidates.length === 0 && Object.keys(topic).length > 0 && !scanAnfragen) {
+  if (
+    candidates.length === 0 &&
+    Object.keys(topic).length > 0 &&
+    !scanAnfragen &&
+    !signal?.aborted
+  ) {
     // Null Treffer sagen allein nicht, ob das Thema fehlt oder der Filter: ohne Themenwort zählen.
     const counts = await Promise.all(
-      combos.map((c) => pardok.list('drucksache', { ...baseParams(f), ...c, limit: 1 }))
+      combos.map((c) => pardok.list('drucksache', { ...baseParams(f), ...c, limit: 1 }, signal))
     );
     const ohneThema = counts.reduce((n, pg) => n + pg.numFound, 0);
     if (ohneThema > 0) {

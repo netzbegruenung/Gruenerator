@@ -267,6 +267,10 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   parlament_lesen: 80_000,
   bundestag: 40_000,
   bundestag_reden: 40_000,
+  // PARDOK-Volltext auf einen Namen: 36 s gemessen (09.11.2026), auch mit Zeitraum. Der
+  // Aufruf hat seine eigene Frist (`landtagTool.ts`, dieser Wert minus Rand) und bricht
+  // alles ab, was hängt — die Schleife wartet also höchstens so lange.
+  landtag: 45_000,
 };
 
 /**
