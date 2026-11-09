@@ -22,7 +22,7 @@ import { findLandtag, LANDTAGE, landtageFor } from '../../../services/landtag/in
 import { FRAKTION_LABEL, type LandtagMeta } from '../../../services/landtag/registry.js';
 import { detectLandtagFromWording } from '../../../services/landtag/wording.js';
 import { createLogger } from '../../../utils/logger.js';
-import { Deadline } from '../../../utils/deadline.js';
+import { ANSWER_MARGIN_MS, Deadline } from '../../../utils/deadline.js';
 import { TimeoutError, withTimeout } from '../../../utils/withTimeout.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
@@ -148,12 +148,6 @@ const NOTEBOOK_PASSAGES = 4;
  * auf Rang 1). Die Live-Liste deckt den wörtlichen Teil ohnehin ab.
  */
 const NOTEBOOK_SEARCH_MODE = 'vector';
-
-/**
- * Rand für den Rest der Antwort (Quellen registrieren, Karte bauen), den die Frist des
- * Aufrufs von der Werkzeugfrist abzieht: die Stufen dürfen nie bis zur Werkzeugfrist laufen.
- */
-export const ANSWER_MARGIN_MS = 4_000;
 
 /** Die Frist eines Aufrufs: Werkzeugfrist des Loops (`landtag` hat einen Eintrag, `nationalrat` die Standardfrist) minus Rand. */
 /**

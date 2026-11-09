@@ -1,10 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { DraftFailedError } from '../../../services/sharepicCreator/draftFailure.js';
 import { CHAT_BUDGET } from '../../../services/bundestag/qa/budget.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
+import { ANSWER_MARGIN_MS, Deadline } from '../../../utils/deadline.js';
+import { TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
+
 import {
+  bundestagDeadlineMs,
   makeAbgeordnetenwatchTool,
   makeBundestagRedenTool,
   makeBundestagTool,
@@ -24,7 +28,8 @@ const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 // Die beiden Parlaments-Werkzeuge rufen den Kern, nicht den Knoten — deshalb
 // steht die Attrappe hier am Kern. Dass der Kern seinen Dienst wirklich
 // erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
-const retrieveBundestag = vi.fn<(q: string, l: unknown, f: unknown) => Promise<unknown>>();
+const retrieveBundestag =
+  vi.fn<(q: string, l: unknown, f: unknown, d?: unknown) => Promise<unknown>>();
 const readBundestagRefs = vi.fn<(o: unknown) => Promise<unknown>>();
 const countBundestagDocs = vi.fn<(o: unknown) => Promise<unknown>>();
 const suggestBundestagRelaxations = vi.fn<(o: unknown) => Promise<unknown>>(async () => []);
@@ -45,12 +50,12 @@ vi.mock('../../../services/bundestag/reden.js', async (importOriginal) => ({
   searchBundestagReden: (s: unknown): Promise<unknown> => searchBundestagReden(s),
 }));
 const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown, o?: unknown) => Promise<unknown>>();
-const retrieveBundestagFamily = vi.fn<(r: string, l: unknown) => Promise<unknown>>();
+const retrieveBundestagFamily = vi.fn<(r: string, l: unknown, s?: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
-  retrieveBundestagFamily: (r: string, l: unknown): Promise<unknown> =>
-    retrieveBundestagFamily(r, l),
-  retrieveBundestag: (q: string, l: unknown, f: unknown): Promise<unknown> =>
-    retrieveBundestag(q, l, f),
+  retrieveBundestagFamily: (r: string, l: unknown, sig?: unknown): Promise<unknown> =>
+    retrieveBundestagFamily(r, l, sig),
+  retrieveBundestag: (q: string, l: unknown, f: unknown, d?: unknown): Promise<unknown> =>
+    retrieveBundestag(q, l, f, d),
   retrieveAbgeordnetenwatch: (q: string, l: unknown, o?: unknown): Promise<unknown> =>
     retrieveAbgeordnetenwatch(q, l, o),
 }));
@@ -545,7 +550,7 @@ describe('makeBundestagTool', () => {
     expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
     // Der Kern bekommt die Anfrage des Modells und das Locale des Turns.
-    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE', {});
+    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE', {}, expect.any(Deadline));
   });
 
   it('reicht die Filter des Modells an den Kern weiter, aber nicht die Anfrage selbst', async () => {
@@ -557,11 +562,16 @@ describe('makeBundestagTool', () => {
       }),
       { query: 'Heizung', wahlperiode: [21], drucksachetyp: ['Antrag'], datumVon: '2025-01-01' }
     );
-    expect(retrieveBundestag).toHaveBeenCalledWith('Heizung', 'de-DE', {
-      wahlperiode: [21],
-      drucksachetyp: ['Antrag'],
-      datumVon: '2025-01-01',
-    });
+    expect(retrieveBundestag).toHaveBeenCalledWith(
+      'Heizung',
+      'de-DE',
+      {
+        wahlperiode: [21],
+        drucksachetyp: ['Antrag'],
+        datumVon: '2025-01-01',
+      },
+      expect.any(Deadline)
+    );
   });
 
   it('ergänzt Filter aus dem Wortlaut der Nachricht, wenn das Modell nur das Thema übergibt', async () => {
@@ -577,11 +587,16 @@ describe('makeBundestagTool', () => {
       }),
       { query: 'Artenschutz', drucksachetyp: ['Gesetzentwurf'] }
     );
-    expect(retrieveBundestag).toHaveBeenCalledWith('Artenschutz', 'de-DE', {
-      drucksachetyp: ['Gesetzentwurf'],
-      urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
-      beratungsstand: ['Abgelehnt'],
-    });
+    expect(retrieveBundestag).toHaveBeenCalledWith(
+      'Artenschutz',
+      'de-DE',
+      {
+        drucksachetyp: ['Gesetzentwurf'],
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+        beratungsstand: ['Abgelehnt'],
+      },
+      expect.any(Deadline)
+    );
   });
 
   it('nimmt einen Aufruf nur mit Filtern an und reicht die Frage als Thema weiter', async () => {
@@ -601,7 +616,8 @@ describe('makeBundestagTool', () => {
     expect(retrieveBundestag).toHaveBeenCalledWith(
       'Was wurde zum Artenschutz beschlossen?',
       'de-DE',
-      expect.objectContaining({ deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] })
+      expect.objectContaining({ deskriptor: ['Artenschutz'], beratungsstand: ['Angenommen'] }),
+      expect.any(Deadline)
     );
   });
 
@@ -726,7 +742,10 @@ describe('makeBundestagTool', () => {
       }),
       { query: 'Radverkehr' }
     )) as { error?: string; lockerungen?: string[]; naechsterSchritt?: string };
-    expect(suggestBundestagRelaxations).toHaveBeenLastCalledWith({ filters: used });
+    expect(suggestBundestagRelaxations).toHaveBeenLastCalledWith({
+      filters: used,
+      signal: expect.any(AbortSignal),
+    });
     expect(out.lockerungen).toEqual([
       'nur Deskriptor „Radverkehr": 6 Vorgänge',
       'nur Deskriptor „Radschnellweg": 0 Vorgänge',
@@ -848,6 +867,58 @@ describe('Karten-Daten (uiCard)', () => {
   });
 });
 
+describe('bundestag: eine Frist für den ganzen Aufruf (#5570)', () => {
+  const state = { ...baseState, intent: 'bundestag' } as ChatGraphState;
+  const aufAbbruch = (o: unknown) =>
+    new Promise<never>((_resolve, reject) => {
+      (o as { signal: AbortSignal }).signal.addEventListener('abort', () =>
+        reject(new Error('aborted'))
+      );
+    });
+  beforeEach(() => {
+    retrieveBundestag.mockReset();
+    countBundestagDocs.mockReset();
+    suggestBundestagRelaxations.mockReset();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('die Frist liegt um den Antwortrand unter der Werkzeugfrist', () => {
+    expect(bundestagDeadlineMs()).toBe(TOOL_TIMEOUT_OVERRIDES_MS['bundestag']! - ANSWER_MARGIN_MS);
+  });
+
+  it('zaehlen mit hängendem DIP: die bekannte „nicht erreichbar“-Antwort vor der Werkzeugfrist', async () => {
+    countBundestagDocs.mockImplementation(aufAbbruch);
+    const pending = exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      modus: 'zaehlen',
+      wahlperiode: [21],
+    });
+    await vi.advanceTimersByTimeAsync(bundestagDeadlineMs() + 1);
+    const out = (await pending) as { error?: string };
+    expect(out.error).toMatch(/Zählung beim Bundestag .* nicht erreichbar/);
+  });
+
+  it('leerDurchFilter mit hängenden Lockerungszählungen: die bekannte Form ohne Lockerungen', async () => {
+    retrieveBundestag.mockResolvedValue({
+      results: [],
+      totals: null,
+      leerDurchFilter: true,
+      filters: { wahlperiode: [21] },
+    });
+    suggestBundestagRelaxations.mockImplementation(aufAbbruch);
+    const pending = exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      query: 'Klima',
+    });
+    await vi.advanceTimersByTimeAsync(bundestagDeadlineMs() + 1);
+    const out = (await pending) as { error?: string; lockerungen?: unknown };
+    expect(out.error).toMatch(/Keine Treffer mit diesen Filtern/);
+    expect(out.lockerungen).toBeUndefined();
+    // Dieselbe Frist hing an der Suche und an der Zählung.
+    const deadline = retrieveBundestag.mock.calls[0]![3] as { signal: AbortSignal };
+    expect(deadline.signal.aborted).toBe(true);
+  });
+});
+
 describe('bundestag: modus zaehlen, ref', () => {
   const state = { ...baseState, intent: 'bundestag' } as ChatGraphState;
   beforeEach(() => {
@@ -894,6 +965,7 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(countBundestagDocs).toHaveBeenCalledWith({
       filters: { drucksachetyp: ['Kleine Anfrage'], wahlperiode: [21] },
       gruppieren: 'fraktion',
+      signal: expect.any(AbortSignal),
     });
     expect(out['gesamt']).toBe(40);
     expect(out['einheit']).toBe('Drucksachen');
@@ -998,7 +1070,11 @@ describe('bundestag: modus zaehlen, ref', () => {
       }),
       { ref: '21/3546' }
     )) as Record<string, any>;
-    expect(retrieveBundestagFamily).toHaveBeenCalledWith('21/3546', 'de-DE');
+    expect(retrieveBundestagFamily).toHaveBeenCalledWith(
+      '21/3546',
+      'de-DE',
+      expect.any(AbortSignal)
+    );
     expect(retrieveBundestag).not.toHaveBeenCalled();
     expect(out['resultCount']).toBe(2);
     expect(out['sources']).toContain('Antwort');
