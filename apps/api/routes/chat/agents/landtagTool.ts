@@ -410,21 +410,23 @@ async function runParlamentSucheMitFrist(
   );
   // Listenzeilen tragen Titel, Schlagwort und Ref: 3000 Zeichen halten sie ganz.
   const sources = sourceRegistry.register(results, { snippetChars: 3000 });
-  const gesamt = found?.gesamt ?? 0;
+  const gesamt = found ? found.gesamt : 0;
   // Die Liste ist gedeckelt; auf „wie viele" antwortete der Schreiber mit ihrer Länge
   // („insgesamt 25 Anträge" statt 83, live 04.11.2026). Er liest `fuerSchreiber`, nicht `hinweis`.
   const zaehlung =
-    gesamt > candidates.length
-      ? `Gesamtzahl laut ${meta.parlament}: ${gesamt} Dokumente${
-          describeLandtagFilter(filters).length > 0
-            ? ` (${describeLandtagFilter(filters).join('; ')})`
-            : ''
-        }. Die Liste zeigt nur ${candidates.length} davon: die Länge der Liste (${candidates.length}) ist die Seitengröße und nie die Anzahl. Fragt die Person nach der Anzahl, nenne ${gesamt} als Gesamtzahl, nicht die Länge der Liste.${
-          filters.datumVon || filters.datumBis
-            ? ''
-            : ' Es ist kein Zeitraum gesetzt: die Zahl gilt für alle Zeiträume. Fragt die Person nach einem Zeitraum (z. B. „dieses Jahr“), rufe mit datumVon und datumBis erneut auf, statt diese Zahl zu nennen.'
-        }`
-      : null;
+    gesamt == null
+      ? `${meta.parlament} liefert zu einem Thema nur eine nach Nähe gereihte Liste (${candidates.length} Einträge) und keine Themenzahl. Fragt die Person nach der Anzahl, nenne keine Zahl aus dieser Liste als Gesamtzahl; sag, dass sich das Thema hier nicht zählen lässt. Nur eine im Hinweis genannte Filterzahl („die Filter treffen etwa N Drucksachen“) gilt ohne Thema.`
+      : gesamt > candidates.length
+        ? `Gesamtzahl laut ${meta.parlament}: ${gesamt} Dokumente${
+            describeLandtagFilter(filters).length > 0
+              ? ` (${describeLandtagFilter(filters).join('; ')})`
+              : ''
+          }. Die Liste zeigt nur ${candidates.length} davon: die Länge der Liste (${candidates.length}) ist die Seitengröße und nie die Anzahl. Fragt die Person nach der Anzahl, nenne ${gesamt} als Gesamtzahl, nicht die Länge der Liste.${
+            filters.datumVon || filters.datumBis
+              ? ''
+              : ' Es ist kein Zeitraum gesetzt: die Zahl gilt für alle Zeiträume. Fragt die Person nach einem Zeitraum (z. B. „dieses Jahr“), rufe mit datumVon und datumBis erneut auf, statt diese Zahl zu nennen.'
+          }`
+        : null;
   // Bei Anfragen trägt der Listentitel die FRAGE. Auf „was hat die Landesregierung
   // geantwortet" fasste der Schreiber in 2 von 4 Läufen die Fragen zusammen, ohne
   // dass gelesen wurde (live 04.11.2026).
@@ -439,7 +441,7 @@ async function runParlamentSucheMitFrist(
   return {
     resultCount: results.length,
     sources: sources ?? '',
-    gesamt,
+    ...(gesamt != null ? { gesamt } : {}),
     ...(schreiber.length > 0 ? { fuerSchreiber: schreiber.join(' ') } : {}),
     hinweis: `${
       mitAntworten
@@ -457,7 +459,7 @@ async function runParlamentSucheMitFrist(
       parlament: meta.kurz,
       query: query ?? '',
       filter: describeLandtagFilter(filters),
-      gesamt: found?.gesamt ?? 0,
+      ...(gesamt != null ? { gesamt } : {}),
       hinweise,
       quelle: meta.quellenangabe,
       portal: meta.portalUrl,

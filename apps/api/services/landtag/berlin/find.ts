@@ -45,8 +45,12 @@ export const MIN_VOLLTEXT_MS = 10_000;
 
 export interface LandtagFindResult {
   candidates: BundestagCandidate[];
-  /** Summe der Trefferzahlen aller Abfragen; kann Dokumente mehrerer Urheber doppelt zählen. */
-  gesamt: number;
+  /**
+   * Summe der Trefferzahlen aller Abfragen; kann Dokumente mehrerer Urheber doppelt zählen.
+   * `null`: dieses Backend kann das Thema nicht zählen (nur eine nach Nähe gereihte Liste,
+   * NRW mit `query`); die Länge der Liste ist keine Gesamtzahl und wird nicht als solche gemeldet.
+   */
+  gesamt: number | null;
   notes: string[];
   /** Gesetzt, wenn die Anfrage hier nichts finden KANN (Lizenz, Fraktion nicht vertreten): eine Antwort, kein Fehlschlag. */
   ausgeschlossen?: string;

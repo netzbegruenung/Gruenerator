@@ -249,6 +249,25 @@ describe('makeLandtagTool', () => {
     expect(antrag.fuerSchreiber).toBeUndefined();
   });
 
+  it('ohne Themenzähler (NRW mit Thema): keine gesamt, fuerSchreiber verbietet die Listenlänge als Zahl (#5577)', async () => {
+    findLandtag.mockResolvedValue({
+      candidates: [candidate],
+      gesamt: null,
+      notes: [
+        'Sortiert nach inhaltlicher Nähe zu „Klimaschutz“; die Filter treffen etwa 8801 Drucksachen.',
+      ],
+    });
+    const out = (await exec(make(), { parlament: 'nrw', query: 'Klimaschutz' })) as Record<
+      string,
+      any
+    >;
+    expect(out).not.toHaveProperty('gesamt');
+    expect(out['uiCard']).not.toHaveProperty('gesamt');
+    expect(out['fuerSchreiber']).toMatch(/nach Nähe gereihte Liste/);
+    expect(out['fuerSchreiber']).toMatch(/keine Zahl/);
+    expect(out['fuerSchreiber']).not.toMatch(/nenne \d+ als Gesamtzahl/);
+  });
+
   it('gibt dem Schreiber die Gesamtzahl, wenn die Liste gedeckelt ist (Zählfrage, live 04.11.2026)', async () => {
     findLandtag.mockResolvedValue({ candidates: [candidate], gesamt: 77, notes: [] });
     const out = (await exec(make(), { parlament: 'berlin', typ: ['Antrag'] })) as {
