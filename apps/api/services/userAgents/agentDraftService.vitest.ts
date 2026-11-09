@@ -92,11 +92,14 @@ describe('draftAgentSpec', () => {
   describe('defaultRecipeMention', () => {
     const catalog = [
       {
+        key: 'pressemitteilung',
         mention: 'pressemitteilung',
         title: 'Pressemitteilung',
         description: '',
         source: 'system' as const,
         id: null,
+        origin: 'system' as const,
+        ownerName: null,
       },
     ];
 

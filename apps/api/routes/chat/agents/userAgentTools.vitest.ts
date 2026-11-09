@@ -172,11 +172,14 @@ function makeCtx(opts: CtxOptions = {}) {
     ),
     recipeCatalog: vi.fn(async () =>
       (opts.recipes ?? ['presse', 'newsletter', 'instagram']).map((mention) => ({
+        key: mention,
         mention,
         title: mention,
         description: '',
         source: 'system' as const,
+        origin: 'system' as const,
         id: null,
+        ownerName: null,
       }))
     ),
     findGroups: vi.fn(async () => opts.groups ?? [member()]),

@@ -277,11 +277,14 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 describe('assembleToolCatalog — Rezept-Werkzeug', () => {
   const catalog = [
     {
+      key: 'presse',
       mention: 'presse',
       title: 'Pressemitteilung',
       description: 'PM',
       source: 'system' as const,
       id: null,
+      origin: 'system' as const,
+      ownerName: null,
     },
   ];
   const withRecipes = (over: Partial<CatalogDeps> = {}) =>
@@ -388,11 +391,14 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     const buildRecipeCatalog = vi.fn(async () => [
       ...catalog,
       {
+        key: 'instagram',
         mention: 'instagram',
         title: 'Instagram',
         description: 'Post',
         source: 'system' as const,
         id: null,
+        origin: 'system' as const,
+        ownerName: null,
       },
     ]);
     const assembled = await assemble(
@@ -444,7 +450,9 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     const assembled = await assemble(
       fakeState({ activeSkillMention: null, activeRecipeId: 'row-1' }),
       withRecipes({
-        buildRecipeCatalog: async () => [{ ...catalog[0]!, mention: 'mein-stil', id: 'row-1' }],
+        buildRecipeCatalog: async () => [
+          { ...catalog[0]!, key: 'mein-stil', mention: 'mein-stil', id: 'row-1' },
+        ],
         resolveRecipe: resolvePinned,
       } as Partial<CatalogDeps>)
     );
@@ -640,11 +648,14 @@ describe('assembleToolCatalog — Montage-Reihenfolge', () => {
           order.push('rezept');
           return [
             {
+              key: 'presse',
               mention: 'presse',
               title: 'PM',
               description: 'd',
               source: 'system' as const,
               id: null,
+              origin: 'system' as const,
+              ownerName: null,
             },
           ];
         },
@@ -896,7 +907,16 @@ describe('assembleToolCatalog — toolAllowlist', () => {
       })
     );
     const buildRecipeCatalog = vi.fn(async () => [
-      { mention: 'presse', title: 'PM', description: 'PM', source: 'system' as const, id: null },
+      {
+        key: 'presse',
+        mention: 'presse',
+        title: 'PM',
+        description: 'PM',
+        source: 'system' as const,
+        origin: 'system' as const,
+        id: null,
+        ownerName: null,
+      },
     ]);
     const assembled = await assembleToolCatalog(
       {
