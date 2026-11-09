@@ -318,6 +318,7 @@ export async function assembleToolCatalog(
       mention: state.activeSkillMention ?? null,
       recipeId: state.activeRecipeId ?? null,
       userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
     });
     if (resolved) {
       const mention = resolved.mention;
@@ -349,7 +350,11 @@ export async function assembleToolCatalog(
   ) {
     const text = state.lastUserTextNoMentions ?? lastUserText(state);
     if (!looksLikeChitchatTurn(text) && !isProductMetaQuestion(text)) {
-      const resolved = await deps.resolveRecipe({ mention: ownedDefault, userId: userId ?? null });
+      const resolved = await deps.resolveRecipe({
+        mention: ownedDefault,
+        userId: userId ?? null,
+        visualBlocks: state.visualBlocks ?? [],
+      });
       if (resolved) {
         recipeRegistry.register({
           id: resolved.id,
@@ -375,7 +380,11 @@ export async function assembleToolCatalog(
   // weil der Loop-Prompt mit `loop: true` gebaut wird und die Methoden dort
   // auslässt.
   for (const mention of state.methodSkillMentions ?? []) {
-    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    const resolved = await deps.resolveRecipe({
+      mention,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
     if (!resolved) {
       log.warn(`[Rezept] Methode nicht verfügbar: ${mention}`);
       continue;
@@ -409,7 +418,11 @@ export async function assembleToolCatalog(
     )
       continue;
     if (typeof mention !== 'string' || recipeRegistry.mentions.includes(mention)) continue;
-    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    const resolved = await deps.resolveRecipe({
+      mention,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
     if (!resolved) continue;
     recipeRegistry.register({
       id: resolved.id,
@@ -444,6 +457,7 @@ export async function assembleToolCatalog(
       userLocale: state.userLocale,
       userId: userId ?? null,
       roles: state.userRoles,
+      visualBlocks: state.visualBlocks ?? [],
     });
     recipeCatalog = recipeCatalog
       .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
@@ -458,6 +472,7 @@ export async function assembleToolCatalog(
         catalog: recipeCatalog,
         registry: recipeRegistry,
         userId: userId ?? null,
+        visualBlocks: state.visualBlocks ?? [],
         // Wählt das Modell die generische Zeile (`presse`, `instagram`),
         // obwohl der Agent ein LV-PR-Agent ist oder die Person gerade als
         // Landesgeschäftsstelle schreibt (aktive Rolle), lädt das Tool deterministisch dessen
@@ -481,6 +496,7 @@ export async function assembleToolCatalog(
           catalog: recipeCatalog,
           registry: recipeRegistry,
           userId: userId ?? null,
+          visualBlocks: state.visualBlocks ?? [],
           only: 'methode',
         });
       }

@@ -929,6 +929,18 @@ describe('Prosa im Loop verliert nichts', () => {
     expect(loop).not.toContain('WICHTIG: In diesem Turn wurde NICHTS recherchiert');
   });
 
+  it('leaves visual block guidance to the recipe on the loop path', async () => {
+    const state = makeState({ visualBlocks: [...VISUAL_BLOCK_KINDS] });
+    expect(await buildSystemMessage(state, LOOP)).not.toContain('## VISUELLE BAUSTEINE');
+    // Der Einzelpfad behält die Anleitung, ebenso ein Loop ohne Katalog-Rezept.
+    expect(await buildSystemMessage(state, {})).toContain('## VISUELLE BAUSTEINE');
+    const noTool = makeState({
+      visualBlocks: [...VISUAL_BLOCK_KINDS],
+      enabledTools: { rezept_laden: false },
+    } as never);
+    expect(await buildSystemMessage(noTool, LOOP)).toContain('## VISUELLE BAUSTEINE');
+  });
+
   it('legt Rezept und Schreibhilfe nicht auf Nicht-Prosa-Turns im Loop', async () => {
     const loop = await buildSystemMessage(prose('search'), LOOP);
     expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');

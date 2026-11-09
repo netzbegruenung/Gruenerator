@@ -48,6 +48,18 @@ describe('buildRecipeCatalog', () => {
     expect(entries.find((e) => e.mention === 'presse')?.id).toBeNull();
   });
 
+  it('offers visuelle-bausteine only when the client draws blocks', async () => {
+    const without = await buildRecipeCatalog({ userLocale: 'de-DE', userId: null, roles: null });
+    expect(without.map((e) => e.mention)).not.toContain('visuelle-bausteine');
+    const withKinds = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: null,
+      visualBlocks: ['bars'],
+    });
+    expect(withKinds.map((e) => e.mention)).toContain('visuelle-bausteine');
+  });
+
   it('keeps de-DE Landesverband recipes away from an Austrian user', async () => {
     const at = await buildRecipeCatalog({ userLocale: 'de-AT', userId: null, roles: null });
     const mentions = at.map((e) => e.mention);

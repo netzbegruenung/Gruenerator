@@ -2662,8 +2662,14 @@ const PROMPT_BLOCKS = [
   {
     id: 'visual-blocks',
     branches: DEFAULT_ONLY,
+    // Im Loop trägt das Rezept `visuelle-bausteine` (Code-Rezept, über
+    // `rezept_laden` aus dem Katalog) dieselbe Anleitung — immer an, kostete sie
+    // jeden Web-Turn ~3 300 Zeichen. Der Block bleibt die ID für den
+    // Einzelpfad; im Loop entfällt er, sobald der Katalog das Rezept anbietet
+    // (dieselben Bedingungen wie in `catalogAssembly`).
     render: (ctx) =>
-      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null
+      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null &&
+      !visualBlocksRecipeOffered(ctx.state, ctx.opts)
         ? buildVisualBlocksGuidance(ctx.state.visualBlocks ?? [])
         : '',
   },
@@ -2671,6 +2677,21 @@ const PROMPT_BLOCKS = [
   { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
   { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
 ] as const satisfies readonly PromptBlock[];
+
+/**
+ * Bietet der Katalog dieses Loop-Turns das Rezept `visuelle-bausteine` an?
+ * Spiegel von `catalogAssembly`: `rezept_laden` steht, wenn kein Thread-Prompt
+ * die Persona ersetzt (außer dem einer Katalog-Rolle) und das Werkzeug nicht
+ * abgeschaltet ist; das Rezept selbst nur mit Bausteinarten des Clients.
+ */
+function visualBlocksRecipeOffered(state: ChatGraphState, opts: { loop?: boolean }): boolean {
+  return (
+    opts.loop === true &&
+    (state.visualBlocks?.length ?? 0) > 0 &&
+    (!state.customSystemPrompt || state.roleBausteinActive === true) &&
+    state.enabledTools?.['rezept_laden'] !== false
+  );
+}
 
 type PromptBlockId = (typeof PROMPT_BLOCKS)[number]['id'];
 

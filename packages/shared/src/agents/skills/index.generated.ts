@@ -215,6 +215,20 @@ export const SKILLS = [
     rolle: 'methode',
   },
   {
+    identifier: 'gruenerator-universal',
+    title: 'Visuelle Bausteine',
+    description:
+      'Zeichnet Balken, Kennzahlen, Zeitleisten, Vergleiche oder Tabellen als Grafik in der Antwort. Nutzen, wenn Zahlen, Abläufe oder Gegenüberstellungen als Bild klarer sind als als Text.',
+    iconKey: 'PiChartBar',
+    avatar: '📊',
+    backgroundColor: '#316049',
+    mention: 'visuelle-bausteine',
+    skillCategory: 'sonstiges',
+    audience: 'all',
+    promptTemplate: 'Zeichne als Grafik: ',
+    rolle: 'methode',
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin (Fraktion)',
     description:

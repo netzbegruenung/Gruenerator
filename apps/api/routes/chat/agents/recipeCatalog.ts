@@ -17,7 +17,7 @@
  * second entry — the same precedence `buildSystemMessage` applies for an
  * explicitly picked recipe.
  */
-import { type MentionableTextForm } from '@gruenerator/contracts';
+import { type MentionableTextForm, type VisualBlockKind } from '@gruenerator/contracts';
 import {
   DISABLED_LV_AGENT_IDS,
   SKILLS,
@@ -35,6 +35,7 @@ import {
   resolveRecipeBody,
   type ResolvedRecipeBody,
 } from '../../../services/recipes/resolveRecipeBody.js';
+import { isCodeRecipeAvailable } from '../../../services/skills/codeRecipes.js';
 import {
   listMentionableTextForms,
   listVisibleTextFormsByIds,
@@ -131,8 +132,14 @@ export async function buildRecipeCatalog(params: {
    * gebaut und erbt die Verengung darum von selbst.
    */
   instanceId?: InstanceId;
+  /**
+   * Die Bausteinarten, die der Client zeichnet. Ein Code-Rezept (Visuelle
+   * Bausteine) steht nur im Katalog, wenn der Turn sie hat — ohne Angabe nicht.
+   */
+  visualBlocks?: readonly VisualBlockKind[];
 }): Promise<RecipeCatalogEntry[]> {
   const { userLocale, userId, roles } = params;
+  const codeCtx = { kinds: params.visualBlocks ?? [] };
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   const lvIds = roles ? landesverbandIdsForRoles(roles, userLocale ?? 'de-DE') : null;
 
@@ -161,6 +168,7 @@ export async function buildRecipeCatalog(params: {
         matchesRecipeAudience(s.audience, userLocale) &&
         ownerIsVisible(s.identifier) &&
         isSkillOfferedIn(s, instanceId) &&
+        isCodeRecipeAvailable(s.mention, codeCtx) &&
         // Ein gespeichertes Systemrezept umgeht NUR die Rollen-Bindung der LV-
         // Rezepte — Land und Instanz gelten weiter.
         (isLvItemVisibleForRoles(s.identifier, lvIds) || savedSystem.has(s.mention))
@@ -341,6 +349,7 @@ export async function resolveRecipe(params: {
   /** Die gepinnte Zeile (Agentura-Link, Composer-Auswahl) — schlägt die Mention. */
   recipeId?: string | null;
   userId: string | null;
+  visualBlocks?: readonly VisualBlockKind[];
 }): Promise<ResolvedRecipe | null> {
   return resolveRecipeBody(params);
 }

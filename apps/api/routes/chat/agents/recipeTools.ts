@@ -8,6 +8,7 @@
  * alternatives break). Shaped after `product_knowledge`, the existing tool
  * that returns instruction text rather than citable sources.
  */
+import { type VisualBlockKind } from '@gruenerator/contracts';
 import { skillRole } from '@gruenerator/shared/agents';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
@@ -41,6 +42,8 @@ export function makeRecipeTool(params: {
   catalog: readonly RecipeCatalogEntry[];
   registry: RecipeRegistry;
   userId: string | null;
+  /** Die Bausteinarten des Turns — der Rumpf des Code-Rezepts „Visuelle Bausteine". */
+  visualBlocks?: readonly VisualBlockKind[];
   /**
    * LV-Vorzug für generische Mentions (`preferredLvRecipeMention`, injizierbar
    * für Tests): wählt das Modell `presse`, obwohl die Person genau einen
@@ -54,7 +57,7 @@ export function makeRecipeTool(params: {
   /** `methode`: das engere Werkzeug `methode_laden` — Enum nur über Methoden-Rezepte. */
   only?: 'methode';
 }): Tool {
-  const { registry, userId, isMounted, only } = params;
+  const { registry, userId, isMounted, only, visualBlocks } = params;
   const catalog = only === 'methode' ? methodEntries(params.catalog) : params.catalog;
   // Der LV-Vorzug gilt Textsorten; eine Methode hat keine LV-Variante.
   const preferLv = only === 'methode' ? undefined : params.preferLv;
@@ -94,6 +97,7 @@ export function makeRecipeTool(params: {
         mention: effective,
         recipeId: library ? library.id : null,
         userId,
+        ...(visualBlocks ? { visualBlocks } : {}),
       });
       // `resolveRecipeBody` fällt bei einer nicht mehr sichtbaren id auf die
       // Mention zurück — für ein gespeichertes Rezept wäre das ein anderes
