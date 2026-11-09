@@ -1136,6 +1136,94 @@ describe('bundestag: modus zaehlen, ref', () => {
     expect(fresh.resultCount).toBe(1);
   });
 
+  const zaehlResult = {
+    einheit: 'Vorgänge',
+    gesamt: 2,
+    gruppen: null,
+    gruppiertNach: null,
+    filters: {},
+    notes: ['Hinweis A'],
+    aufrufe: 1,
+  };
+
+  it('zaehlen nur mit query: das Thema wird Titel-Filter, mit Hinweis auf Lücken (#5557)', async () => {
+    countBundestagDocs.mockResolvedValue(zaehlResult);
+    const out = (await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+      modus: 'zaehlen',
+      query: 'Klimaschutz',
+      wahlperiode: [21],
+    })) as { hinweise: string[] };
+    const arg = countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> };
+    expect(arg.filters['titel']).toBe('Klimaschutz');
+    expect(out.hinweise).toContain('Hinweis A');
+    expect(out.hinweise.join(' ')).toMatch(/ganze Wörter/);
+    expect(out.hinweise.join(' ')).toMatch(/Untergrenze/);
+    expect(out.hinweise.join(' ')).toMatch(/deskriptor/);
+  });
+
+  it('zaehlen: mit deskriptor oder titel bleibt die query außen vor', async () => {
+    countBundestagDocs.mockResolvedValue(zaehlResult);
+    const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
+    await exec(tool, { modus: 'zaehlen', query: 'Klima', deskriptor: ['Klimaschutz'] });
+    let f = (countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> })
+      .filters;
+    expect(f['titel']).toBeUndefined();
+    await exec(tool, { modus: 'zaehlen', query: 'Klima', titel: 'Klimaschutzgesetz' });
+    f = (countBundestagDocs.mock.calls.at(-1)?.[0] as { filters: Record<string, unknown> })
+      .filters;
+    expect(f['titel']).toBe('Klimaschutzgesetz');
+  });
+
+  describe('Antwort mit Fraktion und Wortlautfilter (#5558)', () => {
+    const wordingState = {
+      ...state,
+      lastUserTextNoMentions:
+        'was hat die bundesregierung auf die anfrage von der AfD zu den Grünen-nahen NGOs geantwortet?',
+    } as ChatGraphState;
+    const hit = { results: [{ source: 'bundestag', title: 'Drucksache 21/1', content: 'x' }] };
+
+    it('Fraktion neben Typ Antwort fällt weg, mit Hinweis', async () => {
+      retrieveBundestag.mockResolvedValue(hit);
+      const out = (await exec(
+        makeBundestagTool({ state: wordingState, sourceRegistry: createSourceRegistry() }),
+        { query: 'AfD Grüne NGOs', drucksachetyp: ['Antwort'] }
+      )) as { hinweise: string[] };
+      const filters = retrieveBundestag.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+      expect(filters['drucksachetyp']).toEqual(['Antwort']);
+      expect(filters['urheber']).toBeUndefined();
+      expect(out.hinweise.join(' ')).toMatch(/Antwort/);
+      expect(out.hinweise.join(' ')).toMatch(/Fraktion/);
+    });
+
+    it('auch eine vom Modell gesetzte Fraktion neben Antwort fällt weg; Bundesregierung bleibt', async () => {
+      retrieveBundestag.mockResolvedValue(hit);
+      await exec(makeBundestagTool({ state, sourceRegistry: createSourceRegistry() }), {
+        query: 'NGO',
+        drucksachetyp: ['Antwort'],
+        urheber: ['Fraktion der AfD', 'Bundesregierung'],
+      });
+      const filters = retrieveBundestag.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+      expect(filters['urheber']).toEqual(['Bundesregierung']);
+    });
+
+    it('Wortlautfilter gelten nur im ersten Aufruf des Zuges, danach lässt sich alles abwählen', async () => {
+      retrieveBundestag.mockResolvedValue(hit);
+      const tool = makeBundestagTool({
+        state: {
+          ...state,
+          lastUserTextNoMentions: 'Welche Anträge der Grünen zum Artenschutz wurden abgelehnt?',
+        } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      });
+      await exec(tool, { query: 'Artenschutz' });
+      expect(retrieveBundestag.mock.calls.at(-1)?.[2]).toMatchObject({
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      });
+      await exec(tool, { query: 'Artenschutz' });
+      expect(retrieveBundestag.mock.calls.at(-1)?.[2]).toEqual({});
+    });
+  });
+
   it('ohne query und ref sowie bei PlPr-Ref gibt es einen Fehler', async () => {
     const tool = makeBundestagTool({ state, sourceRegistry: createSourceRegistry() });
     expect(((await exec(tool, {})) as { error: string }).error).toMatch(/fehlt/);

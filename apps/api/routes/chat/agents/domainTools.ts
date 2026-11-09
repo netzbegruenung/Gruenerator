@@ -399,7 +399,27 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         };
       }
       const question = query ?? userText;
-      const filters = { ...detectFromWording(userText), ...fromArgs };
+      // Nur im ersten Aufruf des Zuges: ein Filter aus dem Wortlaut ließe sich sonst nie
+      // abwählen (leere Listen zählen als „nichts gesetzt"), und der Wiederholungsversuch
+      // schlüge garantiert genauso fehl (#5558). Danach entscheidet das Modell allein.
+      const filters: typeof fromArgs = {
+        ...(callsThisTurn === 1 ? detectFromWording(userText) : {}),
+        ...fromArgs,
+      };
+      const filterHinweise: string[] = [];
+      // DIP kennt bei einer Antwort nie eine Fraktion als Urheber (gemessen WP 21:
+      // Antwort+AfD 0, Antwort+Grüne 0, Antwort+Bundesregierung 2844); die fragende
+      // Fraktion steht an der Kleinen Anfrage bzw. am Vorgang, nicht an der Antwort.
+      if (filters.drucksachetyp?.length === 1 && filters.drucksachetyp[0] === 'Antwort') {
+        const ohneFraktion = (filters.urheber ?? []).filter((u) => !u.startsWith('Fraktion'));
+        if (ohneFraktion.length !== (filters.urheber ?? []).length) {
+          if (ohneFraktion.length > 0) filters.urheber = ohneFraktion;
+          else delete filters.urheber;
+          filterHinweise.push(
+            'Eine Fraktion als Urheber passt nie zu Typ „Antwort“ (Antworten stammen von der Bundesregierung), der Fraktionsfilter wurde weggelassen. Wer gefragt hat, steht an der Kleinen Anfrage: für sie `drucksachetyp: ["Kleine Anfrage"]` mit der Fraktion suchen, dann `ref` der Anfrage für die Antwort.'
+          );
+        }
+      }
       if (ref) {
         // Die Nummer legt den Vorgang fest; Filter aus dem Wortlaut (Typ, Urheber)
         // würden Familienmitglieder verdecken und gelten hier nicht.
@@ -438,6 +458,14 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           return { resultCount: 0, sources: '', error: intentDeclineNote('bundestag') ?? '' };
         }
+        // `query` zählt nicht mit; ohne Titel/Deskriptor würde sonst ungefiltert gezählt
+        // (live 531 statt 2, #5557). Das Thema wird deshalb zum Titel-Filter.
+        if (query && !filters.titel && !filters.deskriptor?.length) {
+          filters.titel = query;
+          filterHinweise.push(
+            `Das Thema „${query}“ wurde als Titel-Filter gezählt: er trifft nur ganze Wörter im Titel (keine Zusammensetzungen), die Zahl ist eine Untergrenze. Vollständiger zählt ein \`deskriptor\` (Thesaurus-Schlagwort im Singular).`
+          );
+        }
         const zaehlung = await countBundestagDocs({
           filters,
           ...(gruppieren ? { gruppieren } : {}),
@@ -473,7 +501,9 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           bezeichnung: einheitLabel(zaehlung),
           gesamt: zaehlung.gesamt,
           ...(zaehlung.gruppen ? { gruppen: zaehlung.gruppen } : {}),
-          ...(zaehlung.notes.length > 0 ? { hinweise: zaehlung.notes } : {}),
+          ...(zaehlung.notes.length + filterHinweise.length > 0
+            ? { hinweise: [...filterHinweise, ...zaehlung.notes] }
+            : {}),
           uiCard: {
             query: query ?? '',
             modus: 'zaehlen',
@@ -526,6 +556,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
           resultCount: 0,
           sources: '',
           error: `Keine Treffer mit diesen Filtern: ${zeilen.join('; ') || 'siehe Aufruf'}.`,
+          ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
           ...(lockerungen.length > 0
             ? { lockerungen: lockerungen.map((l) => `${l.aenderung}: ${l.treffer} ${l.einheit}`) }
             : {}),
@@ -548,6 +579,7 @@ Nicht für Inhalte, dafür parlament_lesen. Nicht für Reden im Plenum, dafür b
         ...(totals ? { gesamt: totals } : {}),
         hinweis: BUNDESTAG_HINWEIS,
         ...landtagNote(userText),
+        ...(filterHinweise.length > 0 ? { hinweise: filterHinweise } : {}),
         // Nur für die Karte; wrapTools nimmt das Feld vor dem Modell heraus.
         uiCard: {
           query: question,
