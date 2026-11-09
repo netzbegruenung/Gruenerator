@@ -38,10 +38,8 @@ export function makeRecipeTool(params: {
   const mentions = catalog.map((e) => e.mention);
 
   return tool({
-    description: `Lädt die Schreibvorgaben ("Rezept") für eine bestimmte Textsorte oder Plattform — z.B. Pressemitteilung, Instagram, Reel. Das Rezept legt Länge, Aufbau und Plattformkonventionen fest.
-
-NUTZE WENN der*die Nutzer*in einen Text für eine konkrete Plattform oder Textsorte will und noch kein Rezept aktiv ist. Rufe es VOR dem Schreiben auf, nicht danach.
-NICHT für Recherche, Rückfragen, Zusammenfassungen oder normalen Fließtext ohne Zielformat.`,
+    description:
+      'Lädt ein Rezept aus VERFÜGBARE REZEPTE – das erprobte Vorgehen für eine Aufgabe (Textsorte, Recherche-Methode, Ideenfindung, Ablauf). NUTZE WENN die Beschreibung eines Rezepts zur aktuellen Aufgabe passt, und zwar bevor du schreibst oder recherchierst. Mehrere Rezepte sind möglich, je Aufruf eins.',
     inputSchema: z.object({
       // Closed set — the model may only name a recipe that exists for this
       // user this turn. Runtime list, hence the tuple cast (cf. searchTools).

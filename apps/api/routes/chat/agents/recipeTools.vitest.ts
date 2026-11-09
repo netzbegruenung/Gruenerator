@@ -145,6 +145,13 @@ describe('rezept_laden', () => {
     expect(JSON.stringify(registry.summaries())).not.toContain('Max 600.');
   });
 
+  it('describes recipes as procedures, not only text formats', () => {
+    const registry = createRecipeRegistry();
+    const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });
+    expect(tool.description).not.toContain('NICHT für Recherche');
+    expect(tool.description).toContain('Recherche-Methode');
+  });
+
   it('closes the input schema over the catalogue so no unknown recipe can be named', () => {
     const registry = createRecipeRegistry();
     const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });

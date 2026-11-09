@@ -37,6 +37,7 @@ import {
 } from '../../../services/recipes/resolveRecipeBody.js';
 import { listMentionableTextForms } from '../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../utils/logger.js';
+import { MAX_RECIPES_PER_TURN } from '../services/agenticLoop/recipeRegistry.js';
 
 const log = createLogger('recipeCatalog');
 
@@ -163,7 +164,13 @@ export async function buildRecipeCatalog(params: {
 }
 
 /** The prompt block listing what the model may load. */
-export function renderRecipeCatalog(entries: readonly RecipeCatalogEntry[]): string {
+export function renderRecipeCatalog(
+  entries: readonly RecipeCatalogEntry[],
+  opts: { remaining: number; pinnedTitle: string | null } = {
+    remaining: MAX_RECIPES_PER_TURN,
+    pinnedTitle: null,
+  }
+): string {
   if (entries.length === 0) return '';
   const lines = entries.map(
     (e) =>
@@ -173,9 +180,10 @@ export function renderRecipeCatalog(entries: readonly RecipeCatalogEntry[]): str
   return [
     '',
     '',
-    'VERFÜGBARE REZEPTE (Schreibvorgaben für bestimmte Textsorten und Plattformen):',
+    'VERFÜGBARE REZEPTE (erprobte Vorgehen für bestimmte Aufgaben – Textsorten, Recherche-Methoden, Ideenfindung, Abläufe; die Beschreibung sagt, wann eins passt):',
     ...lines,
-    'Willst du einen Text in einer dieser Formen schreiben, rufe ZUERST `rezept_laden` mit der passenden Kennung auf und schreibe erst danach. Für Recherche, Rückfragen und normalen Fließtext brauchst du kein Rezept.',
+    ...(opts.pinnedTitle ? [`Bereits aktiv: ${opts.pinnedTitle}.`] : []),
+    `Prüfe vor jeder Aufgabe, ob ein Rezept passt, und lade es mit \`rezept_laden\`, bevor du loslegst. Passen mehrere (etwa eine Textsorte und eine Recherche-Methode), lade bis zu ${opts.remaining} – je Aufruf eins. Passt keins, arbeite ohne Rezept.`,
   ].join('\n');
 }
 

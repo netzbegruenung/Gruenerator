@@ -297,6 +297,27 @@ describe('renderRecipeCatalog', () => {
     ]);
     expect(block).toContain('- presse: Pressemitteilung — PM verfassen');
     expect(block).toContain('rezept_laden');
+    expect(block).toContain('erprobte Vorgehen für bestimmte Aufgaben');
+    expect(block).not.toContain(
+      'Für Recherche, Rückfragen und normalen Fließtext brauchst du kein Rezept'
+    );
+  });
+
+  it('names the pinned recipe and the remaining cap', () => {
+    const block = renderRecipeCatalog(
+      [
+        {
+          mention: 'presse',
+          title: 'Pressemitteilung',
+          description: 'PM verfassen',
+          source: 'system',
+          id: null,
+        },
+      ],
+      { remaining: 2, pinnedTitle: 'Pressemitteilung' }
+    );
+    expect(block).toContain('Bereits aktiv: Pressemitteilung');
+    expect(block).toContain('bis zu 2');
   });
 });
 
