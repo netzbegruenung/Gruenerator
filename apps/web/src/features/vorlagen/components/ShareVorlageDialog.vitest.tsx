@@ -98,6 +98,43 @@ describe('ShareVorlageDialog', () => {
     expect(link).toBeInTheDocument();
   });
 
+  it('übernimmt eine neue Gruppen-Berechtigung sofort, nicht erst nach der Antwort', async () => {
+    setupHandlers('public');
+    let release = () => {};
+    const answered = new Promise<void>((r) => (release = r));
+    server.use(
+      http.get('http://localhost/api/docs/groups/me', () =>
+        HttpResponse.json([{ id: 'g1', name: 'KV Musterstadt', role: 'member' }])
+      ),
+      http.get(`${DOCS}/groups`, () =>
+        HttpResponse.json([
+          {
+            group_id: 'g1',
+            group_name: 'KV Musterstadt',
+            permission_level: 'editor',
+            shared_at: '',
+          },
+        ])
+      ),
+      http.put(`${DOCS}/groups/g1`, async () => {
+        await answered;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
+
+    await screen.findByText('KV Musterstadt');
+    const select = screen.getByDisplayValue('Bearbeiter*in');
+    await userEvent.selectOptions(select, 'viewer');
+
+    // Without the optimistic write the controlled select snapped back to
+    // „Bearbeiter*in" until the server answered.
+    expect(select).toHaveValue('viewer');
+    release();
+  });
+
   it('hat keine a11y-Verstöße', async () => {
     setupHandlers('public');
     const { container } = renderWithProviders(
