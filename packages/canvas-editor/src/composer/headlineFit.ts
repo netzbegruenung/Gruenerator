@@ -123,18 +123,40 @@ export function headlineFit({
         Math.round(Math.max(48, target * headScale)),
         columnWidth,
         0,
-        // A word of a multi-word accent carries only half the marks.
-        (w, size) =>
-          emphasis && w.includes('==')
-            ? measure(
-                stripMarks(w.replace(/==/g, '')),
-                size,
-                theme.fonts.quoteEmphasis,
-                AT_EMPHASIS_STYLE
-              )
-            : headRunWidth(w, size, 'bold')
+        accentWordWidth(measure, theme, emphasis, headItem.lines)
       );
     };
   };
   return { growCover, headlineSizer };
+}
+
+/**
+ * Word widths for `largestSizeWordsFit` over `texts`: a word inside an
+ * `==accent==` run is measured in the face it is drawn in (AT: Vollkorn Black
+ * Italic, wider than the headline face), so the size never forces a break
+ * inside it (#5506). The fitter strips the marks before it measures a word,
+ * so which words are accented is read here, from the marked text.
+ */
+export function accentWordWidth(
+  measure: MeasureText,
+  theme: BrandTheme,
+  emphasis: boolean,
+  texts: readonly string[]
+): (word: string, size: number) => number {
+  const accented = new Set<string>();
+  if (emphasis) {
+    for (const text of texts) {
+      let open = false;
+      for (const token of text.split(/\s+/)) {
+        const marks = token.match(/==/g)?.length ?? 0;
+        // A token inside a run, or one that opens or closes it.
+        if (open || marks > 0) accented.add(token.replace(/\*\*|__|==|\+\+|\*/g, ''));
+        if (marks % 2 === 1) open = !open;
+      }
+    }
+  }
+  return (word, size) =>
+    accented.has(word)
+      ? measure(word, size, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
+      : measure(word, size, theme.fonts.headline, 'bold');
 }
