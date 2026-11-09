@@ -503,19 +503,18 @@ export function forcedFirstStepTools(input: {
 }
 
 /**
- * Bringt DIESER Turn Material mit (Anhang, Einfügung)? Zustand, kein Wort.
- * Bewusst enger als `materialReaderTools`: das zählt auch `notebook_quellen`
- * (jeder Notebook-Turn) und die Anhänge früherer Turns. Ein Ganzdokument zählt
- * nur mit `origin: 'turn'` — `'thread'` ist der jüngste Paste des Gesprächs, den
- * ein kurzer Folgeturn („Suche Beschlüsse zu Windkraft") ganz mitliest
- * (`latestPasteOfThread`). `documentChatLabels` hält die vektorisierten
- * Dokumente dieses Turns.
+ * Bringt DIESER Turn Material mit (Anhang, Einfügung, @-Verweis)? Zustand, kein
+ * Wort: `turnMaterial` ist die Liste, die diese Nachricht selbst erzeugt hat
+ * (`upload`, `paste`, `reference`). `client` (Editor-Kontext) und `sharepic`
+ * (Stand des offenen Sharepics) sind Oberflächenkontext, nichts, was die Person
+ * mitgeschickt hat. Bewusst enger als `materialReaderTools`: das zählt auch
+ * `notebook_quellen` (jeder Notebook-Turn) und die Anhänge früherer Turns — und
+ * enger als `wholeDocument`, das für einen kurzen Folgeturn den jüngsten Paste
+ * des Gesprächs trägt (`latestPasteOfThread`).
  */
-export function turnCarriesMaterial(
-  state: Pick<ChatGraphState, 'wholeDocument' | 'documentChatLabels'>
-): boolean {
-  return (
-    state.wholeDocument?.origin === 'turn' || Object.keys(state.documentChatLabels ?? {}).length > 0
+export function turnCarriesMaterial(state: Pick<ChatGraphState, 'turnMaterial'>): boolean {
+  return (state.turnMaterial ?? []).some(
+    (item) => item.kind === 'upload' || item.kind === 'paste' || item.kind === 'reference'
   );
 }
 

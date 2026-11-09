@@ -850,23 +850,31 @@ describe('forcedFirstStepTools', () => {
     });
 
     describe('turnCarriesMaterial', () => {
-      const whole = (origin: 'turn' | 'thread') => ({
-        origin,
-        ask: 'paste' as const,
-        docs: [{ name: 'p.txt', text: 'x', documentId: 'd1' }],
-        chars: 1,
-        budgetChars: 100,
-        fits: true,
+      const up = { kind: 'upload', name: 'a.pdf', heading: 'a.pdf', text: 'x' } as const;
+      const paste = { kind: 'paste', name: 'p.txt', heading: 'p.txt', text: 'x' } as const;
+      const ref = { kind: 'reference', heading: 'REFERENZIERTE DOKUMENTE', text: 'x' } as const;
+      it('kleiner Upload (kein Paste, nicht vektorisiert) → ja', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [up] })).toBe(true);
       });
-      it('Paste dieser Nachricht → ja', () => {
-        expect(turnCarriesMaterial({ wholeDocument: whole('turn') })).toBe(true);
-        expect(turnCarriesMaterial({ documentChatLabels: { d1: 'Anhang.pdf' } })).toBe(true);
+      it('Paste, Paste + Datei, @datei-Verweis → ja', () => {
+        expect(turnCarriesMaterial({ turnMaterial: [paste] })).toBe(true);
+        expect(turnCarriesMaterial({ turnMaterial: [paste, up] })).toBe(true);
+        expect(turnCarriesMaterial({ turnMaterial: [ref] })).toBe(true);
       });
-      it('kurzer Folgeturn, jüngster Paste des Threads (latestPasteOfThread) → nein', () => {
-        expect(turnCarriesMaterial({ wholeDocument: whole('thread') })).toBe(false);
+      it('Client-Kontext und Sharepic-Stand sind kein mitgeschicktes Material → nein', () => {
+        expect(
+          turnCarriesMaterial({
+            turnMaterial: [
+              { kind: 'client', text: 'x' },
+              { kind: 'sharepic', text: 'y' },
+            ],
+          })
+        ).toBe(false);
       });
-      it('nichts → nein', () => {
-        expect(turnCarriesMaterial({ wholeDocument: null, documentChatLabels: {} })).toBe(false);
+      it('kurzer Folgeturn / Notebook-Scope: nichts in dieser Nachricht → nein', () => {
+        // Der jüngste Paste des Threads (`wholeDocument.origin: 'thread'`) steht
+        // nicht in `turnMaterial`.
+        expect(turnCarriesMaterial({ turnMaterial: [] })).toBe(false);
       });
     });
 
