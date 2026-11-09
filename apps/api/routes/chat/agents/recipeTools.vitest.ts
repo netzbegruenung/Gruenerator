@@ -12,9 +12,36 @@ vi.mock('./recipeCatalog.js', () => ({
 const { makeRecipeTool } = await import('./recipeTools.js');
 
 const CATALOG: RecipeCatalogEntry[] = [
-  { mention: 'presse', title: 'Pressemitteilung', description: 'PM', source: 'system', id: null },
-  { mention: 'instagram', title: 'Instagram', description: 'IG', source: 'system', id: null },
-  { mention: 'reel', title: 'Reel', description: 'Reel', source: 'system', id: null },
+  {
+    key: 'presse',
+    mention: 'presse',
+    title: 'Pressemitteilung',
+    description: 'PM',
+    source: 'system',
+    origin: 'system',
+    id: null,
+    ownerName: null,
+  },
+  {
+    key: 'instagram',
+    mention: 'instagram',
+    title: 'Instagram',
+    description: 'IG',
+    source: 'system',
+    origin: 'system',
+    id: null,
+    ownerName: null,
+  },
+  {
+    key: 'reel',
+    mention: 'reel',
+    title: 'Reel',
+    description: 'Reel',
+    source: 'system',
+    origin: 'system',
+    id: null,
+    ownerName: null,
+  },
 ];
 
 /** The AI SDK types `execute` as optional; every tool here has one. */
@@ -133,7 +160,11 @@ describe('rezept_laden', () => {
 
     const out = await call(tool, 'presse');
 
-    expect(resolveRecipe).toHaveBeenCalledWith({ mention: 'presse-hessen-partei', userId: 'u1' });
+    expect(resolveRecipe).toHaveBeenCalledWith({
+      mention: 'presse-hessen-partei',
+      recipeId: null,
+      userId: 'u1',
+    });
     expect(out.geladen).toBe(true);
     expect(out.rezept).toBe('presse-hessen-partei');
     expect(out.hinweis).toContain('Landesverbands-Variante');
@@ -175,6 +206,68 @@ describe('rezept_laden', () => {
     const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });
     expect(tool.description).not.toContain('NICHT für Recherche');
     expect(tool.description).toContain('Recherche-Methode');
+  });
+
+  describe('saved recipes', () => {
+    const LIB_ID = 'aaaaaaaa-1111-4111-8111-111111111111';
+    const LIB_KEY = 'presse-aaaaaa';
+    const LIB_CATALOG: RecipeCatalogEntry[] = [
+      ...CATALOG,
+      {
+        key: LIB_KEY,
+        mention: 'presse',
+        title: 'Presse von Jamila',
+        description: 'PM',
+        source: 'user',
+        origin: 'library',
+        id: LIB_ID,
+        ownerName: 'Jamila',
+      },
+    ];
+
+    it('loads a library recipe by key with its id', async () => {
+      resolveRecipe.mockResolvedValue({
+        id: LIB_ID,
+        mention: 'presse',
+        title: 'Presse von Jamila',
+        body: 'Fremder Stil.',
+        source: 'user',
+      });
+      const registry = createRecipeRegistry();
+      const tool = makeRecipeTool({ catalog: LIB_CATALOG, registry, userId: 'u1' });
+
+      const out = await call(tool, LIB_KEY);
+
+      expect(resolveRecipe).toHaveBeenCalledWith({
+        mention: 'presse',
+        recipeId: LIB_ID,
+        userId: 'u1',
+      });
+      expect(out.geladen).toBe(true);
+      expect(registry.has(LIB_ID)).toBe(true);
+      // Ein zweiter Aufruf schlägt nicht an die Systemzeile `presse` an.
+      expect((await call(tool, LIB_KEY)).hinweis).toContain('bereits geladen');
+      expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers geladen:false when a saved recipe is no longer visible', async () => {
+      // `resolveRecipeBody` fällt dann auf die Mention zurück: hier das Systemrezept.
+      resolveRecipe.mockResolvedValue({
+        id: null,
+        mention: 'presse',
+        title: 'Pressemitteilung',
+        body: 'System.',
+        source: 'system',
+      });
+      const registry = createRecipeRegistry();
+      const out = await call(
+        makeRecipeTool({ catalog: LIB_CATALOG, registry, userId: 'u1' }),
+        LIB_KEY
+      );
+
+      expect(out.geladen).toBe(false);
+      expect(registry.size).toBe(0);
+    });
   });
 
   it('closes the input schema over the catalogue so no unknown recipe can be named', () => {

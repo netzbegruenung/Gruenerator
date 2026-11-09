@@ -35,21 +35,53 @@ import {
   resolveRecipeBody,
   type ResolvedRecipeBody,
 } from '../../../services/recipes/resolveRecipeBody.js';
-import { listMentionableTextForms } from '../../../services/user/textFormRepository.js';
+import {
+  listMentionableTextForms,
+  listVisibleTextFormsByIds,
+} from '../../../services/user/textFormRepository.js';
+import { listUserLibrary } from '../../../services/user/userLibraryService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { MAX_RECIPES_PER_TURN } from '../services/agenticLoop/recipeRegistry.js';
 
 const log = createLogger('recipeCatalog');
 
 export interface RecipeCatalogEntry {
+  /**
+   * Eindeutiger Enum-Wert für `rezept_laden`. Meist die Mention; ein
+   * gespeichertes fremdes Rezept, dessen Mention schon vergeben ist, bekommt
+   * `<mention>-<id.slice(0,6)>`, damit beide getrennt ladbar bleiben.
+   */
+  key: string;
   mention: string;
   title: string;
   description: string;
   source: 'system' | 'user';
+  /** Woher der Eintrag kommt: mitgeliefert, eigen, aus einem Projekt, aus der Bibliothek. */
+  origin: 'system' | 'own' | 'group' | 'library';
   /** Die Zeile hinter dem Eintrag — `null` für ein mitgeliefertes Systemrezept. */
   id: string | null;
+  /** Wem ein fremdes Rezept gehört (Bibliothek, Projekt), sonst `null`. */
+  ownerName: string | null;
   /** Empfohlene Loop-Werkzeuge (nur Systemrezepte), auf die montierten gefiltert. */
   recommendedTools?: readonly string[];
+}
+
+/** Wie viele gespeicherte Rezepte anderer höchstens im Katalog stehen — jede Zeile kostet Tokens. */
+export const LIBRARY_CATALOG_MAX = 30;
+
+const UUID_REF_RE = /^[0-9a-f-]{36}$/i;
+
+/**
+ * Fremder Text im Systemprompt: einzeilig (kein Zeilenumbruch, der eine eigene
+ * Katalogzeile oder Anweisung vortäuscht), Steuerzeichen raus, auf `maxChars`
+ * gekürzt. Gilt für Beschreibung, Titel und Namen aller Nutzer-Rezepte.
+ */
+export function catalogDescription(raw: string, maxChars = 220): string {
+  const flat = raw
+    .replace(/[\p{Cc}\u2028\u2029]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return flat.length <= maxChars ? flat : `${flat.slice(0, maxChars - 1).trimEnd()}…`;
 }
 
 /**
@@ -104,6 +136,21 @@ export async function buildRecipeCatalog(params: {
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   const lvIds = roles ? landesverbandIdsForRoles(roles, userLocale ?? 'de-DE') : null;
 
+  // Gespeicherte Rezepte ("Zu meinen Grüneratoren"): Systemrezepte stehen als
+  // Mention, Nutzerrezepte als uuid. Ein Ausfall der Bibliothek lässt den Rest
+  // des Katalogs stehen.
+  let libraryRefs: string[] = [];
+  if (userId) {
+    try {
+      libraryRefs = (await listUserLibrary(userId))
+        .filter((i) => i.kind === 'recipe')
+        .map((i) => i.ref);
+    } catch (err) {
+      log.warn('[recipeCatalog] user library unavailable, without saved recipes:', err);
+    }
+  }
+  const savedSystem = new Set(libraryRefs.filter((r) => !UUID_REF_RE.test(r)));
+
   // `SKILLS` is `as const`, so entries without an `audience` key have no such
   // property at all and the union rejects `.audience`. Widen to the declared
   // interface — that is what the field is nominally typed as.
@@ -114,14 +161,19 @@ export async function buildRecipeCatalog(params: {
         matchesRecipeAudience(s.audience, userLocale) &&
         ownerIsVisible(s.identifier) &&
         isSkillOfferedIn(s, instanceId) &&
-        isLvItemVisibleForRoles(s.identifier, lvIds)
+        // Ein gespeichertes Systemrezept umgeht NUR die Rollen-Bindung der LV-
+        // Rezepte — Land und Instanz gelten weiter.
+        (isLvItemVisibleForRoles(s.identifier, lvIds) || savedSystem.has(s.mention))
     )
     .map((s) => ({
+      key: s.mention,
       mention: s.mention,
       title: s.title,
       description: s.description,
       source: 'system' as const,
+      origin: 'system' as const,
       id: null,
+      ownerName: null,
       ...(s.recommendedTools ? { recommendedTools: s.recommendedTools } : {}),
     }));
 
@@ -133,10 +185,11 @@ export async function buildRecipeCatalog(params: {
     // Katalog. Jede Zeile hier wird eine Katalog-Zeile UND ein Wert im
     // `rezept_laden`-Enum, und der Werkzeugkatalog ist ohnehin der grösste
     // Token-Posten des Turns; die öffentlichen Rezepte der ganzen Instanz sind
-    // eine Menge, die niemand nach oben begrenzt. Erreichbar bleiben sie über
-    // die ausdrückliche Mention (`resolveRecipeBody`) und die Auswahl im
-    // Composer — aufgezählt bekommt das Modell sie auf keinem Weg, auch das
-    // `recipes`-Werkzeug liest dieselben Quellen wie dieser Katalog.
+    // eine Menge, die niemand nach oben begrenzt. Aufgezählt bekommt das Modell
+    // darüber hinaus nur, was die Person selbst gespeichert hat (siehe unten,
+    // gedeckelt auf `LIBRARY_CATALOG_MAX`); alles andere bleibt über die
+    // ausdrückliche Mention (`resolveRecipeBody`) und die Auswahl im Composer
+    // erreichbar.
     //
     // Was bleibt: eigene Textformen und die in ein Projekt geteilten, bereits
     // dedupliziert (eigen vor geteilt) und bereits um die Presets bereinigt,
@@ -146,13 +199,19 @@ export async function buildRecipeCatalog(params: {
     // nur die eigenen Zeilen — ein geteiltes Rezept stand im Menü und war für
     // das Modell unsichtbar.
     user = (await listMentionableTextForms(userId, undefined, { includePublic: false })).map(
-      (f) => ({
-        mention: f.mention,
-        title: f.title,
-        description: f.description ?? fallbackDescription(f),
-        source: 'user' as const,
-        id: f.id,
-      })
+      (f) => {
+        const foreign = f.sharedFromGroup != null || f.ownerName != null;
+        return {
+          key: f.mention,
+          mention: f.mention,
+          title: catalogDescription(f.title, 120),
+          description: catalogDescription(f.description ?? fallbackDescription(f)),
+          source: 'user' as const,
+          origin: foreign ? ('group' as const) : ('own' as const),
+          id: f.id,
+          ownerName: f.ownerName ? catalogDescription(f.ownerName, 60) : null,
+        };
+      }
     );
   } catch (err) {
     // A failed lookup degrades to the system catalogue rather than killing the
@@ -162,7 +221,57 @@ export async function buildRecipeCatalog(params: {
   }
 
   const userMentions = new Set(user.map((f) => f.mention));
-  return [...system.filter((s) => !userMentions.has(s.mention)), ...user];
+  const merged = [...system.filter((s) => !userMentions.has(s.mention)), ...user];
+
+  const library = await buildLibraryEntries(userId, libraryRefs, merged);
+  return [...merged, ...library];
+}
+
+/**
+ * Die gespeicherten Rezepte anderer (`user_library_items`, Art `recipe`, uuid-
+ * Ref) als Katalogzeilen. Sichtbarkeit entscheidet die Abfrage selbst — ein
+ * getrashtes, gemeldetes oder zurückgezogenes Rezept fehlt einfach. Die Mention
+ * eines fremden Rezepts verdrängt nie eine vorhandene (eigenes `antrag` bleibt
+ * eigenes `antrag`); sie bekommt einen eigenen `key`, damit beide ladbar sind.
+ * Es zählen die zuletzt gespeicherten.
+ */
+async function buildLibraryEntries(
+  userId: string,
+  libraryRefs: readonly string[],
+  taken: readonly RecipeCatalogEntry[]
+): Promise<RecipeCatalogEntry[]> {
+  const ids = libraryRefs.filter((r) => UUID_REF_RE.test(r));
+  if (ids.length === 0) return [];
+  let forms: Awaited<ReturnType<typeof listVisibleTextFormsByIds>>;
+  try {
+    forms = await listVisibleTextFormsByIds(userId, ids);
+  } catch (err) {
+    log.warn('[recipeCatalog] saved recipes unavailable, without them:', err);
+    return [];
+  }
+  const known = new Set(taken.map((e) => e.id).filter((id): id is string => id !== null));
+  const byId = new Map(forms.map((f) => [f.id, f]));
+  const keys = new Set(taken.map((e) => e.key));
+  const out: RecipeCatalogEntry[] = [];
+  for (const id of ids) {
+    const f = byId.get(id);
+    // Schon als eigene oder Projekt-Zeile da — nicht doppelt aufzählen.
+    if (!f || known.has(f.id)) continue;
+    const key = keys.has(f.mention) ? `${f.mention}-${f.id.slice(0, 6)}` : f.mention;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    out.push({
+      key,
+      mention: f.mention,
+      title: catalogDescription(f.title, 120),
+      description: catalogDescription(f.description ?? fallbackDescription(f)),
+      source: 'user',
+      origin: 'library',
+      id: f.id,
+      ownerName: f.ownerName ? catalogDescription(f.ownerName, 60) : null,
+    });
+  }
+  return out.slice(-LIBRARY_CATALOG_MAX);
 }
 
 /** The prompt block listing what the model may load. */
@@ -176,7 +285,10 @@ export function renderRecipeCatalog(
   if (entries.length === 0) return '';
   const lines = entries.map(
     (e) =>
-      `- ${e.mention}: ${e.title} — ${e.description}` +
+      `- ${e.key}: ${e.title} — ${e.description}` +
+      (e.origin === 'library'
+        ? ` (Rezept von ${e.ownerName ?? 'einer anderen Person'}, gespeichert)`
+        : '') +
       (e.recommendedTools?.length ? ` (Werkzeuge: ${e.recommendedTools.join(', ')})` : '')
   );
   return [

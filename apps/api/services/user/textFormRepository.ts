@@ -927,3 +927,66 @@ export async function listMentionableTextForms(
   }
   return out;
 }
+
+/**
+ * Die Zeilen zu einer Liste von ids, soweit die Person sie sehen darf — für die
+ * gespeicherten Rezepte (`user_library_items`), die in den Katalog des Modells
+ * kommen. Dieselbe Sichtbarkeit wie die Injektion (`VISIBLE_TO_CALLER`): ein
+ * gemeldetes (`hidden`), zurückgezogenes oder zurück auf privat gestelltes
+ * Rezept fällt hier heraus, ebenso ein getrashtes. Die Reihenfolge der ids
+ * bleibt NICHT erhalten — der Aufrufer ordnet nach seiner Liste.
+ *
+ * Kein Audience-Filter: wer ein Rezept bewusst gespeichert hat, behält es.
+ */
+export async function listVisibleTextFormsByIds(
+  userId: string,
+  ids: readonly string[]
+): Promise<MentionableTextForm[]> {
+  const valid = ids.filter((id) => UUID_RE.test(id));
+  if (valid.length === 0) return [];
+  const pg = getPostgresInstance();
+  const rows = (await pg.query(
+    `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
+            tf.icon_key, tf.kind, tf.is_public,
+            ${ACCESS_RANK_SQL} AS access_rank,
+            (SELECT g.name
+               FROM group_content_shares gcs
+               INNER JOIN groups g ON g.id = gcs.group_id
+               INNER JOIN group_memberships gm
+                       ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+                      AND gm.is_active = TRUE
+              WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
+                AND g.deleted_at IS NULL
+              ORDER BY g.name
+              LIMIT 1) AS group_name,
+            COALESCE(p.first_name, p.display_name) AS owner_name
+       FROM user_text_forms tf
+       LEFT JOIN profiles p ON p.id = tf.user_id
+      WHERE tf.id = ANY($3::uuid[])
+        AND ${VISIBLE_TO_CALLER}
+        AND tf.deleted_at IS NULL
+      ORDER BY tf.created_at, tf.id`,
+    [userId, TEXT_FORM_CONTENT_TYPE, valid]
+  )) as unknown as MentionableRow[];
+
+  const out: MentionableTextForm[] = [];
+  for (const row of rows) {
+    const access = accessFromRank(row.access_rank);
+    const kind = row.kind as TextFormKind;
+    // Wie `loadInjection`: eine öffentliche Zeile, die ein Systemrezept
+    // verdeckt, tauscht Fremden dieses still aus.
+    if (access === 'public' && !isShareableTextForm(kind, row.mention)) continue;
+    out.push({
+      id: String(row.id),
+      mention: row.mention,
+      title: row.title,
+      description: row.description ?? null,
+      iconKey: row.icon_key ?? null,
+      kind,
+      sharedFromGroup: access === 'group' ? (row.group_name ?? null) : null,
+      ownerName: access === 'own' ? null : (row.owner_name ?? null),
+      isPublic: row.is_public,
+    });
+  }
+  return out;
+}

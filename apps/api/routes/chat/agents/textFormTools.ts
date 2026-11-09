@@ -138,10 +138,13 @@ export function resolveRecipeDeps(partial: Partial<RecipeToolDeps> | undefined):
 }
 
 const NOT_FOUND = 'Keine eigene Textform mit dieser Mention gefunden.';
+const LIBRARY_READ_ONLY =
+  'Das ist ein gespeichertes Rezept einer anderen Person. Es lässt sich nutzen, aber hier weder ändern, ergänzen, teilen noch löschen.';
 const SYSTEM_BODY_NOTE =
   'Das ist ein mitgeliefertes Rezept. Sein Text wird über rezept_laden angewendet und ist hier nicht einsehbar.';
 const TYPE_SYSTEM = 'Rezept';
 const TYPE_USER = 'Eigene Textform';
+const TYPE_LIBRARY = 'Gespeichertes Rezept';
 
 export const RECIPES_SETTINGS_URL = '/grueneratoren';
 
@@ -306,7 +309,14 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       const own = (await deps.listTextForms(userId)).find(
         (f) => f.mention === mention && !f.sharedFromGroup
       );
-      if (!own) return { error: NOT_FOUND };
+      if (!own) {
+        // Ein gespeichertes Rezept einer anderen Person steht im Katalog, gehört
+        // aber nicht der Person — die Antwort soll sagen, WARUM nichts geht.
+        const saved = (
+          await deps.recipeCatalog({ userLocale, userId, roles: state.userRoles ?? null })
+        ).find((e) => e.origin === 'library' && e.key === mention);
+        return { error: saved ? LIBRARY_READ_ONLY : NOT_FOUND };
+      }
 
       if (action === 'update') return updateTextForm(userId, own, args);
       if (action === 'add_examples') return addExamples(userId, own, args.examples);
@@ -361,13 +371,15 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       const override = e.source === 'system' ? overridden.get(e.mention) : undefined;
       const snippet = override
         ? `${e.description} · eigener Stil hinterlegt („${override.title}"), ersetzt die mitgelieferten Vorgaben`
-        : e.description;
+        : e.origin === 'library'
+          ? `${e.description} · gespeichert${e.ownerName ? ` von ${e.ownerName}` : ''}, nur lesbar`
+          : e.description;
       return makeRow(
         e.title,
         e.source === 'system' ? recipeUrl(e.mention) : RECIPES_SETTINGS_URL,
-        e.source === 'system' ? TYPE_SYSTEM : TYPE_USER,
+        e.source === 'system' ? TYPE_SYSTEM : e.origin === 'library' ? TYPE_LIBRARY : TYPE_USER,
         snippet,
-        e.mention
+        e.key
       );
     });
     if (results.length === 0) {
@@ -393,8 +405,39 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
 
     const entry = (
       await deps.recipeCatalog({ userLocale, userId, roles: state.userRoles ?? null })
-    ).find((e) => e.mention === mention);
+    ).find((e) => e.key === mention || e.mention === mention);
     if (!entry) return { error: `Kein Rezept und keine eigene Textform „${mention}" gefunden.` };
+
+    if (entry.origin === 'library') {
+      const owner = entry.ownerName ? ` von ${entry.ownerName}` : '';
+      const note = `Gespeichertes Rezept${owner} — nutzbar über rezept_laden, hier nicht änderbar.`;
+      sourceRegistry.register([
+        {
+          source: 'eigene-inhalte',
+          title: `Rezept: ${entry.title}`,
+          content: [
+            `Rezept „${entry.title}" (@${entry.mention})`,
+            `Beschreibung: ${entry.description}`,
+            note,
+          ].join('\n'),
+          url: RECIPES_SETTINGS_URL,
+        },
+      ]);
+      return {
+        recipe: {
+          mention: entry.mention,
+          key: entry.key,
+          title: entry.title,
+          description: entry.description,
+          source: 'user',
+          origin: 'library',
+          ownerName: entry.ownerName,
+          readOnly: true,
+          note: LIBRARY_READ_ONLY,
+          url: RECIPES_SETTINGS_URL,
+        },
+      };
+    }
 
     const url = recipeUrl(entry.mention);
     const lines = [

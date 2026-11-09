@@ -38,7 +38,7 @@ export function makeRecipeTool(params: {
   isMounted?: (tool: string) => boolean;
 }): Tool {
   const { catalog, registry, userId, preferLv, isMounted } = params;
-  const mentions = catalog.map((e) => e.mention);
+  const keys = catalog.map((e) => e.key);
 
   return tool({
     description:
@@ -47,22 +47,36 @@ export function makeRecipeTool(params: {
       // Closed set — the model may only name a recipe that exists for this
       // user this turn. Runtime list, hence the tuple cast (cf. searchTools).
       rezept: z
-        .enum(mentions as [string, ...string[]])
+        .enum(keys as [string, ...string[]])
         .describe('Kennung des Rezepts aus der Liste VERFÜGBARE REZEPTE'),
     }),
     execute: async ({ rezept }: { rezept: string }) => {
       // Der LV-Vorzug greift VOR dem Duplikat-Check: sonst registrierte der
       // zweite Aufruf von `presse` die Variante ein zweites Mal.
-      const lvVariant = preferLv?.(rezept) ?? null;
-      const effective = lvVariant ?? rezept;
-      if (registry.has(effective)) {
+      const entry = catalog.find((e) => e.key === rezept) ?? null;
+      // Ein gespeichertes fremdes Rezept wird über seine Zeile geladen, nie über
+      // die Mention — die kann auch ein eigenes oder ein Systemrezept tragen.
+      const library = entry?.origin === 'library' && entry.id !== null ? entry : null;
+      const lvVariant = library ? null : (preferLv?.(rezept) ?? null);
+      const effective = lvVariant ?? (library ? library.mention : rezept);
+      // Was das Modell zurückgemeldet bekommt: der Katalog-Schlüssel, den es kennt.
+      const shown = library ? rezept : effective;
+      const registryKey = library ? library.id! : effective;
+      if (registry.has(registryKey)) {
         // Re-calling a tool it already called is a known model failure mode,
         // not an edge case. Report the state instead of stacking a second block.
-        return { geladen: true, rezept: effective, hinweis: 'War in diesem Turn bereits geladen.' };
+        return { geladen: true, rezept: shown, hinweis: 'War in diesem Turn bereits geladen.' };
       }
 
-      const resolved = await resolveRecipe({ mention: effective, userId });
-      if (!resolved) {
+      const resolved = await resolveRecipe({
+        mention: effective,
+        recipeId: library ? library.id : null,
+        userId,
+      });
+      // `resolveRecipeBody` fällt bei einer nicht mehr sichtbaren id auf die
+      // Mention zurück — für ein gespeichertes Rezept wäre das ein anderes
+      // (eigenes oder System-)Rezept. Hier gilt: genau diese Zeile oder nichts.
+      if (!resolved || (library && resolved.id !== library.id)) {
         // Loud on purpose. `getInternalSkillPrompt` returns null when
         // SKILLS_INTERN_DIR was never rolled out — on the single-pass path
         // that silently degrades to the agent's base role, which is a
@@ -71,7 +85,7 @@ export function makeRecipeTool(params: {
         log.warn(`[Rezept] nicht verfügbar: ${effective}`);
         return {
           geladen: false,
-          rezept: effective,
+          rezept: shown,
           grund:
             'Für dieses Rezept liegen keine Schreibvorgaben vor. Schreibe den Text ohne Rezept und weise NICHT darauf hin, dass ein Rezept fehlt.',
         };
@@ -90,7 +104,7 @@ export function makeRecipeTool(params: {
       if (outcome === 'full') {
         return {
           geladen: false,
-          rezept: effective,
+          rezept: shown,
           grund: `Es sind bereits ${registry.size} Rezepte geladen (${registry.mentions.join(', ')}). Mehr als ${MAX_RECIPES_PER_TURN} gehen nicht – schreibe mit diesen.`,
         };
       }
@@ -98,7 +112,7 @@ export function makeRecipeTool(params: {
       if (outcome === 'over_budget') {
         return {
           geladen: false,
-          rezept: effective,
+          rezept: shown,
           grund: 'Das Rezept passt nicht mehr ins Budget dieses Turns.',
         };
       }
@@ -109,7 +123,7 @@ export function makeRecipeTool(params: {
       );
       return {
         geladen: true,
-        rezept: effective,
+        rezept: shown,
         titel: resolved.title,
         hinweis: lvVariant
           ? `Statt der generischen Vorlage wurde die Landesverbands-Variante „${resolved.title}" geladen. Halte dich beim Schreiben daran.`

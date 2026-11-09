@@ -62,32 +62,44 @@ function form(over: Partial<TextForm> = {}): TextForm {
 
 const SYSTEM_CATALOG: RecipeCatalogEntry[] = [
   {
+    key: 'presse',
     mention: 'presse',
     title: 'Pressemitteilung',
     description: 'PM im Grünen-Stil',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'instagram',
     mention: 'instagram',
     title: 'Instagram',
     description: 'Post mit Hook',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'wahlpruefstein',
     mention: 'wahlpruefstein',
     title: 'Wahlprüfstein',
     description: 'Antwort',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
   {
+    key: 'presse-hessen-partei',
     mention: 'presse-hessen-partei',
     title: 'Pressemitteilung Hessen',
     description: 'PM Grüne Hessen',
     source: 'system',
+    origin: 'system',
     id: null,
+    ownerName: null,
   },
 ];
 
@@ -164,13 +176,16 @@ function makeCtx(opts: CtxOptions = {}) {
       const user = forms
         .filter((f) => f.kind === 'custom')
         .map<RecipeCatalogEntry>((f) => ({
+          key: f.mention,
           mention: f.mention,
           title: f.title,
           description: f.sharedFromGroup
             ? `Angelernte Textform aus dem Projekt „${f.sharedFromGroup}".`
             : 'Selbst angelernte Textform.',
           source: 'user',
+          origin: f.sharedFromGroup ? 'group' : 'own',
           id: f.id,
+          ownerName: null,
         }));
       return [...system, ...user];
     }),
@@ -360,6 +375,40 @@ describe('recipes: get', () => {
       recipe: Record<string, unknown>;
     };
     expect(out.recipe).toMatchObject({ readOnly: true, sharedFromGroup: 'Klima-AG' });
+  });
+
+  it('lists a library recipe but refuses to edit it', async () => {
+    const libraryEntry: RecipeCatalogEntry = {
+      key: 'wahlkampfbrief-aaaaaa',
+      mention: 'wahlkampfbrief',
+      title: 'Wahlkampfbrief',
+      description: 'Briefe an Haustüren.',
+      source: 'user',
+      origin: 'library',
+      id: 'aaaaaaaa-1111-4111-8111-111111111111',
+      ownerName: 'Jamila',
+    };
+    const { run, deps } = makeCtx({ catalog: [libraryEntry], forms: [] });
+    const listed = (await run({ action: 'list' })) as { results: Array<{ ref: string }> };
+    expect(listed.results.map((r) => r.ref)).toContain('wahlkampfbrief-aaaaaa');
+
+    const got = (await run({ action: 'get', mention: 'wahlkampfbrief-aaaaaa' })) as {
+      recipe: Record<string, unknown>;
+    };
+    expect(got.recipe).toMatchObject({ origin: 'library', readOnly: true, ownerName: 'Jamila' });
+
+    for (const action of ['update', 'delete', 'add_examples']) {
+      const out = await run({
+        action,
+        mention: 'wahlkampfbrief-aaaaaa',
+        confirm: true,
+        title: 'x',
+        examples: ['a'],
+      });
+      expect(out).toMatchObject({ error: expect.stringContaining('einer anderen Person') });
+    }
+    expect(deps.deleteTextForm).not.toHaveBeenCalled();
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
   });
 
   it('errors on an unknown mention', async () => {
