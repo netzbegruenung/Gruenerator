@@ -408,3 +408,37 @@ describe('aiObject', () => {
     expect(result).toEqual({ ok: true, data: { title: 'richtig' } });
   });
 });
+
+describe('aiObject — confirm, the async second gate', () => {
+  it('sends a confirm objection back as the repair turn', async () => {
+    answering(toolCall({ title: 'falsch' }), toolCall({ title: 'richtig' }));
+    const confirm = vi.fn((value: Thing) =>
+      Promise.resolve(
+        value.title === 'falsch' ? '"falsch" sagt etwas anderes als der Auftrag' : null
+      )
+    );
+
+    const result = await aiObject({ ...base, confirm });
+
+    expect(result).toEqual({ ok: true, data: { title: 'richtig' } });
+    const repairText = requestAt(1)
+      .messages.map((m: { content: string }) => m.content)
+      .join('\n');
+    expect(repairText).toContain('"falsch" sagt etwas anderes als der Auftrag');
+  });
+
+  it('passes the value when confirm throws', async () => {
+    answering(toolCall({ title: 'ok' }));
+    const result = await aiObject({ ...base, confirm: () => Promise.reject(new Error('429')) });
+    expect(result).toEqual({ ok: true, data: { title: 'ok' } });
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('never asks confirm about a value validate rejected', async () => {
+    answering(toolCall({}), toolCall({ title: 'ok' }));
+    const confirm = vi.fn(() => Promise.resolve(null));
+    await aiObject({ ...base, confirm });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith({ title: 'ok' }, 2, expect.any(Number));
+  });
+});

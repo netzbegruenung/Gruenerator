@@ -30,7 +30,7 @@ Wenn eine einzige Zahl die Botschaft ist – ohne Bild (mit Bild: `infografik` m
 - `riesenwort` – die Zahl füllt die ganze Breite, für kurze Werte: „−40°“, „10.000“.
 - `countdown` – die Zahl in einem Kreis: „**3** / Tage bis zur Wahl“.
 
-`wert` ist nur die Zahl mit Einheit (höchstens 14 Zeichen), alles andere ins `label`. Die Zahl muss im Auftrag stehen.
+`wert` ist nur die Zahl mit Einheit (höchstens 14 Zeichen), alles andere ins `label`. Die Zahl muss im Auftrag stehen, und das `label` sagt über sie, was der Auftrag sagt – „weniger“, „mehr“, „gespart“ nur, wenn er es so sagt.
 
 ## Rechnung: `rechnung`
 

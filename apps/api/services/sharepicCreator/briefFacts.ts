@@ -170,6 +170,95 @@ export function spelledNumbers(text: string): string[] {
 }
 
 /**
+ * Words that say which way a figure moved, by direction, as word stems.
+ * „17 Unfälle“ and „17 Unfälle weniger“ carry the same digits — the number
+ * check in `validateDraft` sees no difference (#5480).
+ */
+const DIRECTION_STEMS: Record<'ab' | 'auf' | 'verhindert', readonly string[]> = {
+  ab: [
+    'weniger',
+    'sank',
+    'sink',
+    'gesunk',
+    'senk',
+    'gesenk',
+    'rückgang',
+    'reduz',
+    'minus',
+    'halbiert',
+    'leiser',
+    'billiger',
+    'günstiger',
+    'spar',
+    'gespar',
+    'eingespar',
+  ],
+  auf: [
+    'mehr',
+    'stieg',
+    'steig',
+    'gestieg',
+    'anstieg',
+    'zuwachs',
+    'plus',
+    'verdoppel',
+    'verdreifach',
+    'lauter',
+    'teurer',
+    'rauf',
+  ],
+  verhindert: ['verhinder', 'vermieden'],
+};
+function directionsOf(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const word of wordsOf(text)) {
+    for (const [direction, stems] of Object.entries(DIRECTION_STEMS)) {
+      if (stems.some((stem) => word.startsWith(stem))) found.add(direction);
+    }
+  }
+  return found;
+}
+
+/** How far around a figure the brief may say which way it moved. */
+const DIRECTION_WINDOW = 100;
+/** How close a direction word stands to the figure it moves, in words („17 Unfälle weniger“). */
+const DIRECTION_REACH = 3;
+
+/**
+ * The figures a text gives a direction the brief does not give them: a
+ * direction word next to a number in the text needs a word of the same
+ * direction near the same number in the brief. Numbers missing from the brief
+ * are the number check's. Only words next to the figure count — „Mehr Busse:
+ * 3.300 Fahrgäste betroffen“ says nothing about the 3.300.
+ */
+export function unbackedDirections(text: string, given: string): string[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const briefNumbers = [...given.matchAll(NUMBER)];
+  const unbacked: string[] = [];
+  tokens.forEach((token, i) => {
+    const shown = token.match(NUMBER)?.[0];
+    if (!shown) return;
+    const around = tokens
+      .slice(Math.max(0, i - DIRECTION_REACH), i + DIRECTION_REACH + 1)
+      .join(' ');
+    const directions = directionsOf(around);
+    if (!directions.size) return;
+    const near = briefNumbers
+      .filter((m) => digits(m[0]) === digits(shown))
+      .map((m) =>
+        given.slice(
+          Math.max(0, m.index - DIRECTION_WINDOW),
+          m.index + m[0].length + DIRECTION_WINDOW
+        )
+      );
+    if (!near.length) return;
+    const backed = [...directions].every((d) => near.some((w) => directionsOf(w).has(d)));
+    if (!backed) unbacked.push(shown);
+  });
+  return unbacked;
+}
+
+/**
  * A clock time: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“, and a
  * span „10–13 Uhr“ or „10 bis 13 Uhr“ — not „14.11.“. Groups: span start,
  * hour, minutes (two places), and hour and minutes of the bare „18:30“.

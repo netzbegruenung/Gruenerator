@@ -54,6 +54,7 @@ import {
   specSchemaGjDe,
 } from './draftSchemas.js';
 import { fromZod, validateDraft } from './draftValidation.js';
+import { falsifiedFigureClaims, hasFigureClaims } from './figureClaims.js';
 import {
   ALTERNATIVES_NEED_MATERIAL,
   alsoCarousel,
@@ -458,6 +459,12 @@ export async function draftSharepic(
       // The own photo last: it may undo a drift restore's background choice, never the reverse.
       return photoGuard.check(value);
     },
+    // The figures against the person's material, on a draft that passed everything else:
+    // it costs a request (#5480). The last attempt passes, the check fails open.
+    confirm: (drafted, attempt, attempts) =>
+      attempt < attempts && hasFigureClaims(drafted.spec)
+        ? falsifiedFigureClaims(drafted.spec, prompt)
+        : Promise.resolve(null),
     attempts: DRAFT_ATTEMPTS,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
