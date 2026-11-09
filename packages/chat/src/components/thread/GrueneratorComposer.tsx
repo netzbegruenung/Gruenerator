@@ -58,6 +58,7 @@ import {
   liftVorlageToken,
   withPinnedConnectorToken,
 } from '../../lib/mentionInsertion';
+import { onMentionRequest } from '../../lib/mentionRequest';
 import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
@@ -687,6 +688,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     },
     [composerRuntime, mention.mentionStart, dismissPopover]
   );
+
+  // Rezept-Starter im leeren Chat wählen über dieselbe Auswahl wie das @-Menü.
+  useEffect(() => onMentionRequest(handleSelect), [handleSelect]);
 
   const stripTriggerText = useCallback(() => {
     const textarea = textareaRef.current;

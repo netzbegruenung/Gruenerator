@@ -243,18 +243,23 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
-      kinds: 'agent,recipe,template,sticker,background,notebook',
+      kinds: 'recipe,agent,template,sticker,background,notebook',
       q: 'e',
       sectionLimit: '12',
     });
   });
 
-  it('lists official recipes under „Rezepte" with their origin', async () => {
-    serveFrom([item('recipe', 'Offizielles Rezept', { origin: 'offiziell' })]);
+  it('lists Rezepte before Agents on „Alle", with an official recipe card', async () => {
+    serveFrom([
+      item('agent', 'Pressearbeit', { origin: 'offiziell' }),
+      item('recipe', 'Offizielles Rezept', { origin: 'offiziell' }),
+    ]);
     renderPage('/marktplatz?q=e');
 
     const recipes = await screen.findByRole('region', { name: 'Rezepte' });
+    const agents = await screen.findByRole('region', { name: 'Agents' });
     expect(within(recipes).getByText('Rezept · Offiziell')).toBeInTheDocument();
+    expect(recipes.compareDocumentPosition(agents) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows „Beliebt" and „Zum Gestalten" once there is enough', async () => {

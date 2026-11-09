@@ -1,22 +1,21 @@
 'use client';
 
-import { useAui } from '@assistant-ui/react';
 import { useMemo } from 'react';
 
 import { useRecipeLibrary } from '../../hooks/useRecipeLibrary';
-import { getAgentMentionables, type Mentionable } from '../../lib/mentionables';
+import { getAgentMentionables } from '../../lib/mentionables';
+import { requestMention } from '../../lib/mentionRequest';
 import { libraryRecipeMentionables } from '../../lib/plusMenu';
 import { cn } from '../../lib/utils';
-import { useAgentStore } from '../../stores/chatStore';
 
 import { useChatDensity } from './chatDensityContext';
 
 /**
  * Rezepte als Einstieg im leeren Chat: zuerst die gespeicherten aus der
  * Bibliothek, dann die System-Standardrezepte. Ein Klick wählt das Rezept wie
- * das Plus-Menü — `setActiveSkillMention` im Chat-Store, ein Textform-Rezept
- * mit seiner Zeilen-ID — und setzt `@mention` in den Entwurf, damit man sieht,
- * was gilt (ohne Chip im Composer wäre die Wahl unsichtbar).
+ * das @-Menü: die Auswahl geht an die Mention-Auswahl des Composers
+ * (`requestMention`), die Chip und Store-Aktivierung setzt — und beim Entfernen
+ * des Chips wieder löscht.
  */
 export function RecipeStarters({
   limit = 4,
@@ -27,7 +26,6 @@ export function RecipeStarters({
   layout?: 'wrap' | 'row';
 }) {
   const isCompact = useChatDensity() === 'compact';
-  const composer = useAui().composer;
   const { items } = useRecipeLibrary();
 
   const starters = useMemo(() => {
@@ -43,13 +41,6 @@ export function RecipeStarters({
 
   if (starters.length === 0) return null;
 
-  const select = (m: Mentionable) => {
-    useAgentStore
-      .getState()
-      .setActiveSkillMention(m.mention, m.type === 'textform' ? m.identifier : null);
-    composer.setText(`@${m.mention} `);
-  };
-
   return (
     <ul
       aria-label="Rezepte"
@@ -63,9 +54,9 @@ export function RecipeStarters({
         <li key={m.mention} className="shrink-0">
           <button
             type="button"
-            title={m.description || undefined}
+            {...(m.description ? { title: m.description } : {})}
             className="rounded-full border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
-            onClick={() => select(m)}
+            onClick={() => requestMention(m)}
           >
             {m.title}
           </button>

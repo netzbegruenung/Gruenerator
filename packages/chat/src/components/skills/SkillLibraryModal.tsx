@@ -189,10 +189,10 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
           {customAgents.length > 0 && (
             <div className="mb-1">
               <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-                Meine Skills
+                Meine Rezepte
               </div>
+              {/* Eigene Rezepte stehen im Plus-Menü ohnehin; ein Bibliotheks-Stern gibt es nur für Katalog-Rezepte. */}
               {customAgents.map((skill) => {
-                const isFav = library.has('recipe', skill.identifier);
                 const Icon = skill.icon ?? PiSparkle;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
@@ -210,16 +210,6 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                           {skill.description}
                         </p>
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => library.toggle('recipe', skill.identifier)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
                     </button>
                   </div>
                 );
