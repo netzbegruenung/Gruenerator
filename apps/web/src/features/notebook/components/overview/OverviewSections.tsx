@@ -333,7 +333,8 @@ export function TopicProfile({
               <button
                 type="button"
                 onClick={() => onSelectTopic(t.topic)}
-                aria-label={`${topicName(t.topic)}: ${formatOverviewShare(t.share)}${trend ? `, ${TREND_LABEL[trend]}` : ''}${baselineText}. Im Chat nach diesem Thema filtern`}
+                // Same order as the visible text (name, trend, share): WCAG 2.5.3 wants it contiguous in the name.
+                aria-label={`${topicName(t.topic)}${trend ? ` ${TREND_LABEL[trend]}` : ''}: ${formatOverviewShare(t.share)}${baselineText}. Im Chat nach diesem Thema filtern`}
                 className={cn(
                   'grid w-full grid-cols-[1.25rem_7.5rem_1fr_2.75rem] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-1.5 text-left',
                   'transition-colors hover:bg-[#FBEDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6006E]/50 dark:hover:bg-white/5',
@@ -344,6 +345,8 @@ export function TopicProfile({
                 <Icon aria-hidden className={cn('size-4', NOTEBOOK_TEXT_MUTED)} />
                 <span className={cn('flex flex-col text-sm font-medium', NOTEBOOK_TEXT_STRONG)}>
                   <span className="truncate">{topicName(t.topic)}</span>
+                  {/* Whitespace between flex items does not render, but keeps the visible text word-separated for WCAG 2.5.3 checks. */}
+                  {' '}
                   {trend && (
                     <span
                       className={cn(
@@ -359,7 +362,7 @@ export function TopicProfile({
                       {TREND_LABEL[trend]}
                     </span>
                   )}
-                </span>
+                </span>{' '}
                 <span
                   className={cn(
                     'relative h-2.5 rounded-full max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-2',
