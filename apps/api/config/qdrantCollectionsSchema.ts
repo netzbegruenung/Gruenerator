@@ -354,6 +354,13 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'ebene', type: 'keyword' },
       { field: 'wahl', type: 'keyword' },
+      // Zugleich das System-Notebook `wahlpruefsteine-system`: Thema aus der
+      // NLP-Anreicherung, `chunk_index`/`document_id` für Filterzählung und
+      // Anreicherung, `chunk_text` für die Textsuche der Hybrid-Lane.
+      ...NLP_FACET_INDEXES,
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
     ],
   },
   user_texts: {

@@ -43,6 +43,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   'landtag-nrw': 'Landtag NRW',
   'landtag-berlin': 'Abgeordnetenhaus Berlin',
   'landtag-bayern': 'Bayerischer Landtag',
+  wahlpruefsteine: 'Wahlprüfsteine',
 };
 
 /**

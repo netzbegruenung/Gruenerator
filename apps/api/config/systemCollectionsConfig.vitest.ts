@@ -14,6 +14,7 @@ import {
   offersChoice,
   readerCollectionIdFor,
 } from './systemCollectionsConfig.js';
+import { ENRICHMENT_COLLECTIONS } from '../services/notebook/notebookEnrichmentService.js';
 
 describe('canonical registry invariants', () => {
   it('every entry carries a key and an explicit mcpExposed flag', () => {
@@ -54,6 +55,16 @@ describe('canonical registry invariants', () => {
 describe('NLP facet injection', () => {
   const fieldNames = (id: string) =>
     (getSystemCollectionConfig(id)?.filterableFields ?? []).map((f) => f.field);
+
+  it('offers Wahl, Ebene and Thema on the Wahlprüfsteine notebook, which the enrichment covers', () => {
+    expect(getSystemCollectionConfig('wahlpruefsteine-system')?.qdrantCollection).toBe(
+      'wahlpruefstein_examples'
+    );
+    expect(fieldNames('wahlpruefsteine-system')).toEqual(
+      expect.arrayContaining(['wahl', 'ebene', 'themes'])
+    );
+    expect(ENRICHMENT_COLLECTIONS).toContain('wahlpruefstein_examples');
+  });
 
   it('appends themes/persons to document collections', () => {
     const names = fieldNames('grundsatz-system');
