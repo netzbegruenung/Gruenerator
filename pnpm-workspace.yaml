@@ -425,7 +425,7 @@ overrides:
   smol-toml: '>=1.9.0'
   undici: '>=8.12.1'
   '@qdrant/js-client-rest>undici': ^7.30.1
-  jsdom: 30.1.3
+  jsdom: 31.0.0
   rollup: '>=4.59.0'
   zod@>=4 <5: '>=4.6.6 <5'
   '@types/express-serve-static-core': ^5.0.0
