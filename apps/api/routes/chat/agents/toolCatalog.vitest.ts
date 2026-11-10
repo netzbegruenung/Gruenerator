@@ -2517,3 +2517,32 @@ describe('toolCatalog check_sharepic mounting', () => {
     );
   });
 });
+
+describe('toolCatalog: das Notebook des Turns wird zur Standard-Sammlung', () => {
+  const optionsFor = (state: Record<string, unknown>) => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    });
+    return searchToolOptions.last?.scopedCollections;
+  };
+
+  it('reicht die gebundenen Notebooks des Agenten weiter', () => {
+    expect(
+      optionsFor({ notebookCollectionIds: [], defaultNotebookCollectionIds: ['saarland'] })
+    ).toEqual(['saarland']);
+  });
+
+  it('lässt ein @erwähntes Notebook vor dem gebundenen gelten', () => {
+    expect(
+      optionsFor({ notebookCollectionIds: ['hessen'], defaultNotebookCollectionIds: ['saarland'] })
+    ).toEqual(['hessen']);
+  });
+});
