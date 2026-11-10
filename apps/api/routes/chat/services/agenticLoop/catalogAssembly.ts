@@ -18,14 +18,12 @@ import { skillRole } from '@gruenerator/shared/agents';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
-import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServers.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import {
   ownedDefaultRecipeMention,
   preferredLvRecipeMention,
 } from '../../agents/lvRecipePreference.js';
-import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import {
@@ -147,7 +145,6 @@ const ONE_SHOT_SCAFFOLD_TOOLS: ReadonlySet<string> = new Set([
 export interface CatalogDeps {
   buildChatToolCatalog: typeof buildChatToolCatalogReal;
   loadMcpCatalog: typeof loadMcpCatalogReal;
-  loadManagedMcpCatalog: typeof loadManagedMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
 }
@@ -155,7 +152,6 @@ export interface CatalogDeps {
 const defaultDeps: CatalogDeps = {
   buildChatToolCatalog: buildChatToolCatalogReal,
   loadMcpCatalog: loadMcpCatalogReal,
-  loadManagedMcpCatalog: loadManagedMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
 };
@@ -264,10 +260,9 @@ export async function assembleToolCatalog(
     const explicitScope = state.mcpServerScope ?? null;
     const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
     if (scope) {
-      const managedKey = parseManagedConnectorId(scope);
-      mcpCatalog = managedKey
-        ? await deps.loadManagedMcpCatalog({ key: managedKey, sse, sourceRegistry, userId })
-        : await deps.loadMcpCatalog({ userId, scope, threadId });
+      // One loader for every connector — a known one (Bahn, Wetter, …) is a
+      // row like any other, and a legacy `system-<key>` scope resolves to it.
+      mcpCatalog = await deps.loadMcpCatalog({ userId, scope, threadId, sse, sourceRegistry });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
       // only for an EXPLICIT mention.
@@ -285,7 +280,10 @@ export async function assembleToolCatalog(
       if (threadId && scope && (mcpCatalog.labels.size > 0 || grants.length > 0)) {
         // Fire-and-forget must not reject: an unhandled rejection here ends the
         // API process, not just this turn.
-        void setThreadLastMcpServer(threadId, scope).catch((err: unknown) => {
+        // The resolved row id, not the scope: a pinned connector still sends
+        // the legacy alias, and the thread should not keep carrying it.
+        const sticky = mcpCatalog.resolvedServerId ?? scope;
+        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
           log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
         });
       }

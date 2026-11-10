@@ -17,7 +17,7 @@
  * tool calls.
  */
 import { type McpToolGrant } from '@gruenerator/contracts';
-import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from 'ai';
+import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
 
 import { connectRefreshingOnce } from '../../../services/mcp/connectRefreshingOnce.js';
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
@@ -25,10 +25,19 @@ import { getThreadGrant } from '../../../services/mcp/mcpThreadGrants.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { loadDeniedForServer } from '../services/agenticLoop/toolApprovalRepo.js';
 import { type McpToolResult, type ToolLabel } from '../services/agenticLoop/types.js';
+import { type SSEWriter } from '../services/sseHelpers.js';
 
+import { loadManagedMcpCatalog } from './managedMcpCatalog.js';
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
+import {
+  createSerializer,
+  requiredParams,
+  requiredParamsAnnotation,
+  sanitizeToolName,
+} from './mcpToolHelpers.js';
 
 const log = createLogger('mcpCatalog');
 
@@ -42,36 +51,6 @@ const log = createLogger('mcpCatalog');
  * connections — Typeform (64 tools) lost all of its form tools.
  */
 const MAX_TOOLS = 80;
-
-/** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
-export function sanitizeToolName(raw: string): string {
-  return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-}
-
-/** Required-param names of a sanitized MCP schema (drops non-string entries). */
-export function requiredParams(schema: JSONSchema7): string[] {
-  return Array.isArray(schema.required)
-    ? schema.required.filter((r): r is string => typeof r === 'string')
-    : [];
-}
-
-/** Planner catalog annotation: "(keine Pflichtfelder)" or "(benötigt: a|b)". */
-export function requiredParamsAnnotation(required: string[]): string {
-  return required.length === 0 ? '(keine Pflichtfelder)' : `(benötigt: ${required.join('|')})`;
-}
-
-/** Per-client mutex: serialize callTool on one MCP session (no p-limit dep). */
-export function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
-  let chain: Promise<unknown> = Promise.resolve();
-  return <T>(fn: () => Promise<T>): Promise<T> => {
-    const run = chain.then(fn, fn) as Promise<T>;
-    chain = run.then(
-      () => undefined,
-      () => undefined
-    );
-    return run;
-  };
-}
 
 export interface McpCatalog {
   /** dynamicTool per namespaced MCP tool, to merge into the loop catalog. */
@@ -109,6 +88,10 @@ export interface McpCatalog {
    *  the chat renders one grant card per server from these. A server whose
    *  `changed` list is non-empty was withheld entirely; `added` tools only. */
   toolGrants?: McpToolGrant[];
+  /** The `mcp_servers` row the scope resolved to — what a sticky thread scope
+   *  stores, so a legacy `system-<key>` alias is written back as the row id.
+   *  Absent when nothing resolved. */
+  resolvedServerId?: string | null;
   /** Close all opened connections. MUST be awaited in the caller's finally. */
   close: () => Promise<void>;
 }
@@ -124,6 +107,13 @@ const EMPTY: McpCatalog = {
   close: async () => {},
 };
 
+/**
+ * The ONE way a turn mounts a connector. The scope resolves to the person's row
+ * (a legacy `system-<key>` alias included); a known connector's row — Bahn,
+ * Wetter, Rateo, … — is handed to `loadManagedMcpCatalog`, which carries what
+ * is specific to the server behind the key. Everything below handles servers
+ * the person added themselves.
+ */
 export async function loadMcpCatalog(params: {
   userId: string;
   /** mcp:<serverId> scope from an @<server> mention, a named server or the
@@ -131,6 +121,9 @@ export async function loadMcpCatalog(params: {
   scope: string;
   /** Enables „Nur dieses Gespräch" grants (mcpThreadGrants). */
   threadId?: string | null;
+  /** Known connectors stream cards (Bahn) and register citations (tagesschau). */
+  sse: SSEWriter;
+  sourceRegistry: SourceRegistry;
 }): Promise<McpCatalog> {
   const { userId, scope } = params;
   const threadId = params.threadId ?? null;
@@ -146,6 +139,15 @@ export async function loadMcpCatalog(params: {
   if (configs.length === 0) {
     // Scoped mention for a server the user disabled/deleted: signal honesty.
     return { ...EMPTY, scopedServerMissing: true };
+  }
+
+  const known = configs.find((c) => c.registryKey != null);
+  if (known) {
+    return loadManagedMcpCatalog({
+      config: known,
+      sse: params.sse,
+      sourceRegistry: params.sourceRegistry,
+    });
   }
 
   const clients: UserMCPClient[] = [];
@@ -182,12 +184,7 @@ export async function loadMcpCatalog(params: {
           log.warn(`[mcpCatalog] "${config.name}" connected but exposed 0 tools`);
           anyUnreachable = true;
         }
-        // A managed connector has no `mcp_servers` row: `config.id` is
-        // `system-<key>`, not a UUID, so this write would fail at the column
-        // cast rather than update nothing. The snapshot only feeds mention hints
-        // and classifier context, and managed connectors get both from their env
-        // definition instead.
-        if (!config.managed) void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
+        void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
         const callSerialized = createSerializer();
 
         // Stable per (server, tool): derived from the server's mcp_servers.id
@@ -225,7 +222,7 @@ export async function loadMcpCatalog(params: {
             // Der Freigabe-Schlüssel hängt an der Server-ID, nicht am
             // Namensraum-Präfix: letzteres ist auf 8 Zeichen gekürzt.
             origin: {
-              kind: config.managed ? 'managed' : 'mcp',
+              kind: 'mcp',
               serverId: config.id,
               remoteToolName: t.name,
               // Ungeprüft weitergereicht, auch für fremde Server: die
@@ -259,19 +256,15 @@ export async function loadMcpCatalog(params: {
         // Rug-pull check: a server may rewrite a tool DESCRIPTION after the user
         // approved it, and a description is an instruction the model obeys.
         //
-        // Skipped for MANAGED connectors, and not merely because the baseline has
-        // nowhere to live (no row, non-UUID id): the check compares a server's
-        // definitions against what the USER approved by connecting it. Nobody
-        // connects a managed connector — we operate the server, and shipping a
-        // changed tool description is our own deploy, not a third party's rug
-        // pull. Running it here would block the connector on its first load and
-        // re-baseline on every single turn.
+        // Never reached by a known connector (handed off above): we operate or
+        // vetted that server, and its next deploy shipping a changed tool
+        // description is not a third party's rug pull.
         //
         // Skipped for CURATED directory entries (McpRegistryService seed) for
         // the same reason: we vetted that vendor before listing it, and its
         // next release shipping new tools is not a third party's rug pull. The
         // check is for servers the user typed in themselves.
-        if (!config.managed && !config.curated) {
+        if (!config.curated) {
           const drift = await evaluateToolDrift(
             serverTools,
             config.approvedFingerprints,
@@ -326,12 +319,10 @@ export async function loadMcpCatalog(params: {
         // just out of reach: a tool description is an instruction the model
         // reads every turn. Filtered AFTER the drift check so the fingerprints
         // keep covering the server's whole tool set.
-        if (!config.managed) {
-          const denied = await loadDeniedForServer(userId, config.id);
-          if (denied.size > 0) {
-            for (const [providerName, label] of serverLabels) {
-              if (denied.has(label.toolName)) delete serverTools[providerName];
-            }
+        const denied = await loadDeniedForServer(userId, config.id);
+        if (denied.size > 0) {
+          for (const [providerName, label] of serverLabels) {
+            if (denied.has(label.toolName)) delete serverTools[providerName];
           }
         }
 
@@ -373,6 +364,7 @@ export async function loadMcpCatalog(params: {
     scopedServerUnreachable: labels.size === 0 && anyUnreachable,
     driftedServers,
     toolGrants,
+    resolvedServerId: configs[0]?.id ?? null,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
     },

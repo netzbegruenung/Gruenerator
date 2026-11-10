@@ -90,7 +90,6 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
   return {
     buildChatToolCatalog: () => ({ tools: { web_search: { execute: async () => ({}) } } }),
     loadMcpCatalog: async () => mcpCatalog(),
-    loadManagedMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
     resolveRecipe: async () => null,
     ...over,
@@ -131,51 +130,46 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     });
 
     expect(loadMcpCatalog).toHaveBeenCalledTimes(1);
-    expect(loadMcpCatalog).toHaveBeenCalledWith({
-      userId: 'u1',
-      scope: 'server-weg',
-      threadId: 't1',
-    });
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'server-weg', threadId: 't1' })
+    );
     expect(assembled.mcpCatalog).toBeNull();
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
   });
 
   it('montiert ohne Scope nichts', async () => {
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());
-    const loadManagedMcpCatalog = vi.fn(async () => mcpCatalog());
 
-    const assembled = await assemble(
-      fakeState({ intent: 'agentic' }),
-      deps({ loadMcpCatalog, loadManagedMcpCatalog } as never),
-      { threadId: 't1' }
-    );
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+    });
 
     expect(loadMcpCatalog).not.toHaveBeenCalled();
-    expect(loadManagedMcpCatalog).not.toHaveBeenCalled();
     expect(assembled.mcpCatalog).toBeNull();
   });
 
-  it('lädt einen verwalteten Scope über den eigenen Lader, nie über den Nutzer-Lader', async () => {
-    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
-    const loadManagedMcpCatalog = vi.fn(async () =>
+  it('lädt auch einen bekannten Konnektor über den einen Lader und merkt sich die Zeile', async () => {
+    // Ein angehefteter Konnektor aus dem localStorage schickt noch den alten
+    // Alias; der Klebe-Scope soll danach die Zeilen-ID tragen.
+    const loadMcpCatalog = vi.fn(async () =>
       mcpCatalog({
         tools: { wetter__forecast: stubTool(async () => ({})) },
         labels: new Map([['wetter__forecast', { serverName: 'Wetter', toolName: 'forecast' }]]),
+        resolvedServerId: 'row-wetter',
       })
     );
 
     const assembled = await assemble(
       fakeState({ intent: 'agentic', mcpServerScope: 'system-wetter' }),
-      deps({ loadMcpCatalog, loadManagedMcpCatalog } as never),
+      deps({ loadMcpCatalog }),
       { threadId: 't1' }
     );
 
-    expect(loadMcpCatalog).not.toHaveBeenCalled();
-    expect(loadManagedMcpCatalog).toHaveBeenCalledWith(
-      expect.objectContaining({ key: 'wetter', userId: 'u1' })
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'system-wetter', threadId: 't1' })
     );
     expect(Object.keys(assembled.tools)).toContain('wetter__forecast');
-    expect(setThreadLastMcpServer).toHaveBeenCalledWith('t1', 'system-wetter');
+    expect(setThreadLastMcpServer).toHaveBeenCalledWith('t1', 'row-wetter');
   });
 
   it('hängt an den Klebe-Scope-Schreiber ein catch — eine Ablehnung beendet sonst den Prozess', async () => {
@@ -188,12 +182,12 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     await assemble(
       fakeState({ intent: 'agentic', mcpServerScope: 'system-wetter' }),
       deps({
-        loadManagedMcpCatalog: async () =>
+        loadMcpCatalog: async () =>
           mcpCatalog({
             tools: { wetter__forecast: stubTool(async () => ({})) },
             labels: new Map([['wetter__forecast', { serverName: 'Wetter', toolName: 'forecast' }]]),
           }),
-      } as never),
+      }),
       { threadId: 't1' }
     );
     expect(setThreadLastMcpServer).toHaveBeenCalledWith('t1', 'system-wetter');
@@ -216,7 +210,9 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 
     await assemble(fakeState({ intent: 'mcp', mcpServerScope: 'sally' }), deps({ loadMcpCatalog }));
 
-    expect(loadMcpCatalog).toHaveBeenCalledWith({ userId: 'u1', scope: 'sally', threadId: null });
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'sally', threadId: null })
+    );
   });
 
   it('verwirft den Katalog auf einem agentic-Turn und schliesst ihn dabei', async () => {
@@ -538,7 +534,6 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
 describe('assembleToolCatalog — disableMcp (headless, #3221)', () => {
   it('lädt keinen Konnektor — auch nicht bei mcp-Intent mit Scope', async () => {
     const loadMcp = vi.fn(async () => mcpCatalog());
-    const loadManaged = vi.fn(async () => mcpCatalog());
     const assembled = await assembleToolCatalog(
       {
         state: fakeState({ intent: 'agentic', mcpServerScope: 'system-bahn' }),
@@ -547,10 +542,9 @@ describe('assembleToolCatalog — disableMcp (headless, #3221)', () => {
         disableMcp: true,
         threadId: 't1',
       },
-      deps({ loadMcpCatalog: loadMcp, loadManagedMcpCatalog: loadManaged } as never)
+      deps({ loadMcpCatalog: loadMcp })
     );
     expect(loadMcp).not.toHaveBeenCalled();
-    expect(loadManaged).not.toHaveBeenCalled();
     expect(assembled.mcpCatalog).toBeNull();
   });
 
