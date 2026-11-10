@@ -36,6 +36,9 @@ beforeEach(() => {
     saved[k] = process.env[k];
     delete process.env[k];
   }
+  // Rateo has a built-in default URL; an empty value is its explicit "off".
+  // Off here so every other test sees only the sources it configures.
+  process.env.SYSTEM_MCP_RATEO_URL = '';
 });
 
 afterEach(() => {
@@ -58,6 +61,23 @@ describe('getSystemMcpSources (env matrix)', () => {
   it('returns nothing when no env URLs are set (feature off)', () => {
     expect(getSystemMcpSources()).toEqual([]);
     expect(getManagedConnectors()).toEqual([]);
+  });
+
+  it('offers Rateo without any env: its public endpoint is the default', () => {
+    delete process.env.SYSTEM_MCP_RATEO_URL;
+    const rateo = getSystemMcpSources().find((s) => s.key === 'rateo');
+    expect(rateo?.url).toBe('https://rateo.berlin/api/mcp');
+    expect(rateo?.authType).toBe('none');
+    // Our own servers keep the env requirement — their endpoints stay out of the repo.
+    expect(getSystemMcpSources().map((s) => s.key)).toEqual(['rateo']);
+  });
+
+  it('switches Rateo off with an empty env value and repoints it with a set one', () => {
+    expect(getSystemMcpSources().some((s) => s.key === 'rateo')).toBe(false);
+    process.env.SYSTEM_MCP_RATEO_URL = 'https://mirror.example.org/mcp';
+    expect(getSystemMcpSources().find((s) => s.key === 'rateo')?.url).toBe(
+      'https://mirror.example.org/mcp'
+    );
   });
 
   it('activates exactly the sources whose URL env is set', () => {

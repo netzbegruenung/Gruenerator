@@ -42,6 +42,8 @@ const ENV_KEYS = [
 
 beforeEach(() => {
   for (const key of ENV_KEYS) delete process.env[key];
+  // Rateo has a built-in default URL; empty is its explicit "off".
+  process.env.SYSTEM_MCP_RATEO_URL = '';
 });
 
 describe('isProductMetaQuestion', () => {

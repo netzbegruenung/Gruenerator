@@ -6,7 +6,9 @@
  *
  * Each source is active only when its URL env var is set — the endpoint lives
  * exclusively in deploy env (never in the repo or any API response), and
- * unsetting the var is the kill switch. Auth: optional shared bearer via the
+ * unsetting the var is the kill switch. The one exception is a public
+ * endpoint we do not operate (Rateo): it carries a default URL, and an EMPTY
+ * env value is its kill switch (see `ENV_BY_KEY`). Auth: optional shared bearer via the
  * matching `…_TOKEN` env; without it the source connects unauthenticated.
  *
  * TWO VIEWS OF THE SAME SOURCE. Historically these were intent-only: no
@@ -66,13 +68,27 @@ export interface SystemMcpSource {
   toolAllowlist: string[] | null;
 }
 
-const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
+/**
+ * Env names per source, plus a built-in URL where the endpoint is public.
+ *
+ * `defaultUrl` exists only for a server that is neither ours nor secret: Rateo
+ * publishes its MCP endpoint and needs no token, so requiring a deploy env for
+ * it bought nothing. Our own servers keep the env requirement — their
+ * endpoints stay out of the repo. The env var still wins over the default, and
+ * an EMPTY value is the explicit "off" (the kill switch keeps working without
+ * a deploy).
+ */
+const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string; defaultUrl?: string }> = {
   bahn: { url: 'SYSTEM_MCP_DB_URL', token: 'SYSTEM_MCP_DB_TOKEN' },
   wetter: { url: 'SYSTEM_MCP_WEATHER_URL', token: 'SYSTEM_MCP_WEATHER_TOKEN' },
   news: { url: 'SYSTEM_MCP_ARD_URL', token: 'SYSTEM_MCP_ARD_TOKEN' },
   hotel: { url: 'SYSTEM_MCP_TRIVAGO_URL', token: 'SYSTEM_MCP_TRIVAGO_TOKEN' },
   gesetze: { url: 'SYSTEM_MCP_LAW_URL', token: 'SYSTEM_MCP_LAW_TOKEN' },
-  rateo: { url: 'SYSTEM_MCP_RATEO_URL', token: 'SYSTEM_MCP_RATEO_TOKEN' },
+  rateo: {
+    url: 'SYSTEM_MCP_RATEO_URL',
+    token: 'SYSTEM_MCP_RATEO_TOKEN',
+    defaultUrl: 'https://rateo.berlin/api/mcp',
+  },
 };
 
 /**
@@ -275,7 +291,8 @@ export function getSystemMcpSources(): SystemMcpSource[] {
   const sources: SystemMcpSource[] = [];
   for (const def of DEFINITIONS) {
     const env = ENV_BY_KEY[def.key];
-    const url = process.env[env.url];
+    // `??`, not `||`: an empty value must switch a defaulted source OFF.
+    const url = process.env[env.url] ?? env.defaultUrl ?? '';
     if (!url) continue;
     const token = process.env[env.token] || null;
     sources.push({ ...def, url, authType: token ? 'bearer' : 'none', token });
