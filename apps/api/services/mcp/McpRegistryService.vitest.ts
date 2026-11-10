@@ -76,7 +76,9 @@ describe('McpRegistryService — bekannte Konnektoren im Verzeichnis', () => {
     expect(recommended.map((e) => e.registryKey ?? null)).toContain('rateo');
   });
 
-  it('lässt eine Quelle ohne Env-URL weg', async () => {
+  it('lässt eine abgeschaltete Quelle weg (leerer Env-Wert)', async () => {
+    // Rateo hat eine eingebaute URL; leer ist sein ausdrückliches „aus".
+    process.env.SYSTEM_MCP_RATEO_URL = '';
     const { recommended } = await McpRegistryService.list({});
     expect(recommended.some((e) => e.registryKey === 'rateo')).toBe(false);
   });
