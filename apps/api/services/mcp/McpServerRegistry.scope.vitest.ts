@@ -147,6 +147,13 @@ describe('resolveServerId', () => {
     expect(await McpServerRegistry.resolveServerId('u1', USER_ROW.id)).toBe(USER_ROW.id);
   });
 
+  it('weist unbekannte Aliase und Nicht-UUIDs ab, statt sie an den uuid-Cast zu geben', async () => {
+    serverRows = [RATEO_ROW];
+    expect(await McpServerRegistry.resolveServerId('u1', 'system-nichtsda')).toBeNull();
+    expect(await McpServerRegistry.resolveServerId('u1', 'kein-uuid')).toBeNull();
+    expect(await McpServerRegistry.getConnectionConfigs('u1', 'system-nichtsda')).toEqual([]);
+  });
+
   it('übersetzt system-<key> in die Zeilen-ID, ohne Zeile in null', async () => {
     serverRows = [RATEO_ROW];
     expect(await McpServerRegistry.resolveServerId('u1', 'system-rateo')).toBe(RATEO_ROW.id);
@@ -188,6 +195,13 @@ describe('connectRegistryConnector', () => {
     expect(inserted).toHaveLength(1);
     expect(inserted[0]).toMatchObject({ url: '', auth_type: 'none', registry_key: 'rateo' });
     expect(a).toMatchObject({ name: 'Rateo', url: '', registryKey: 'rateo', enabled: true });
+  });
+
+  it('belegt keinen Namen, den eine Person für einen eigenen Server wählen könnte', async () => {
+    // mcp_servers hat UNIQUE (user_id, name): ein Schlüssel als Name kollidierte
+    // mit einem eigenen Server namens „news" oder „wetter".
+    await McpServerRegistry.connectRegistryConnector('u1', 'wetter');
+    expect(inserted[0]?.name).toBe('registry:wetter');
   });
 
   it('verbindet nichts, dessen Env-URL fehlt', async () => {

@@ -33,6 +33,7 @@ import { decryptCredential, encryptCredential } from '../../utils/validation/enc
 import {
   asSystemMcpKey,
   getManagedConnectors,
+  MANAGED_ID_PREFIX,
   parseManagedConnectorId,
   toSystemConnectionConfig,
   type ManagedConnector,
@@ -110,6 +111,8 @@ const LOCKED_ON_KNOWN_CONNECTOR = [
   'oauthClientSecret',
 ] as const satisfies readonly (keyof McpServerUpdateInput)[];
 
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** The env-active definition behind a row's key; null for user rows and unset sources. */
 function knownConnector(key: string | null): ManagedConnector | null {
   if (!key) return null;
@@ -179,8 +182,12 @@ export class McpServerRegistry {
    * pin or sticky scope keeps working.
    */
   static async resolveServerId(userId: string, ref: string): Promise<string | null> {
+    // Anything that is neither a known alias nor a row id resolves to nothing —
+    // a retired `system-<key>` or a garbled pin must answer "not found", not
+    // reach the uuid cast as a 500.
+    if (!ref.startsWith(MANAGED_ID_PREFIX)) return UUID_SHAPE.test(ref) ? ref : null;
     const key = parseManagedConnectorId(ref);
-    if (!key) return ref;
+    if (!key) return null;
     const db = getDrizzleInstance();
     const rows = await db
       .select({ id: mcp_servers.id, registry_key: mcp_servers.registry_key })
@@ -217,9 +224,10 @@ export class McpServerRegistry {
       .insert(mcp_servers)
       .values({
         user_id: userId,
-        // Display name comes from the definition (toSummary); the column is
-        // NOT NULL, so it carries the key.
-        name: key,
+        // Display name comes from the definition (toSummary). The column is
+        // NOT NULL and UNIQUE per user, so it carries a name nobody types for
+        // a server of their own — the bare key ("news") would collide.
+        name: `registry:${key}`,
         url: '',
         auth_type: 'none',
         registry_key: key,
