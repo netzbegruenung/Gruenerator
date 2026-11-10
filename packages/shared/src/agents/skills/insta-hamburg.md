@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg'
 title: 'Insta Hamburg'
-description: 'Instagram-Post im Stil Grüne Hamburg'
+description: 'Instagram-Post im Stil der Grünen Hamburg. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Hamburg geschrieben wird.'
 iconKey: 'PiAnchor'
 avatar: '⚓'
 backgroundColor: '#316049'

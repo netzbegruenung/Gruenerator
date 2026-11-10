@@ -297,85 +297,92 @@
     {
       "command": "@presse",
       "title": "Pressemitteilung",
-      "description": "Pressemitteilungen verfassen",
+      "description": "Pressemitteilungen mit Headline, Vorspann, Zitat und Hintergrund. Nutzen, wenn eine Pressemitteilung geschrieben werden soll und kein Landesverband vorgegeben ist.",
       "avatar": "📰",
       "category": "presse"
     },
     {
       "command": "@instagram",
       "title": "Instagram",
-      "description": "Instagram-Posts & Captions",
+      "description": "Instagram-Posts und Captions mit Hook, Text und Hashtags. Nutzen, wenn ein Beitrag oder eine Bildunterschrift für Instagram geschrieben werden soll.",
       "avatar": "📸",
       "category": "social"
     },
     {
       "command": "@facebook",
       "title": "Facebook",
-      "description": "Facebook-Posts & Beiträge",
+      "description": "Facebook-Posts mit Haltung, kurzem Einstieg und Handlungsaufforderung. Nutzen, wenn ein Beitrag für eine Facebook-Seite oder -Gruppe geschrieben werden soll.",
       "avatar": "👍",
       "category": "social"
     },
     {
       "command": "@twitter",
       "title": "Twitter / X",
-      "description": "Tweets & Threads",
+      "description": "Tweets und Threads für X mit starkem Einstieg und passender Länge. Nutzen, wenn ein Beitrag für Twitter/X geschrieben oder ein Text zum Thread umgebaut werden soll.",
       "avatar": "🐦",
       "category": "social"
     },
     {
       "command": "@linkedin",
       "title": "LinkedIn",
-      "description": "LinkedIn-Posts & Artikel",
+      "description": "LinkedIn-Posts und Artikel in sachlich-professionellem Ton. Nutzen, wenn ein Beitrag für LinkedIn oder ein Fachpublikum im Netz geschrieben werden soll.",
       "avatar": "💼",
       "category": "social"
     },
     {
       "command": "@reel",
       "title": "Reel / TikTok",
-      "description": "Reel- & TikTok-Skripte",
+      "description": "Skripte für Reels und TikToks mit Hook, Szenen und Schlusssatz. Nutzen, wenn ein kurzes Video für Instagram oder TikTok geplant werden soll.",
       "avatar": "🎬",
       "category": "social"
     },
     {
       "command": "@aktion",
       "title": "Aktionsideen",
-      "description": "Kreative Aktionsideen entwickeln",
+      "description": "Kreative, umsetzbare Ideen für Straßenaktionen, Infostände und Kampagnenmomente. Nutzen, wenn eine Gruppe Ideen für eine Aktion oder ein Event sucht – auch mit wenig Budget.",
       "avatar": "💡",
       "category": "sonstiges"
     },
     {
       "command": "@wahlpruefstein",
       "title": "Wahlprüfsteine",
-      "description": "Fragenkataloge von Verbänden beantworten",
+      "description": "Beantwortet Fragenkataloge Frage für Frage aus Programm und Beschlüssen. Nutzen, wenn ein Fragenkatalog oder Fragebogen eines Verbands, einer Initiative oder Zeitung an die Partei geht, auch ohne Wort Wahlprüfstein.",
       "avatar": "📋",
       "category": "dokumente"
     },
     {
       "command": "@buergermail",
       "title": "Bürger*innen-Mail",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage, sachlich und zugewandt. Nutzen, wenn eine Zuschrift von Bürger*innen beantwortet werden soll und kein Landesverband vorgegeben ist.",
       "avatar": "✉️",
       "category": "dokumente"
     },
     {
       "command": "@antrag",
       "title": "Antrag für Stadt- oder Gemeinderat",
-      "description": "Anträge für Stadtrat, Gemeinderat und Kreistag",
+      "description": "Antrag für Stadtrat, Gemeinderat oder Kreistag mit Beschlusstext und Begründung. Nutzen, wenn ein kommunaler Antrag oder eine Anfrage für die Fraktion formuliert werden soll.",
       "avatar": "🏛️",
       "category": "dokumente"
     },
     {
       "command": "@bundestagsrecherche",
       "title": "Bundestag-Recherche",
-      "description": "Drucksachen und Debatten finden, lesen und belegt auswerten",
+      "description": "Findet Drucksachen und Plenardebatten des Bundestags, liest sie und belegt Aussagen mit Fundstellen. Nutzen, wenn eine Antwort auf Bundestagsdokumenten beruhen soll.",
       "avatar": "🏛️",
       "category": "recherche",
       "audience": "de-DE"
     },
     {
+      "command": "@visuelle-bausteine",
+      "title": "Visuelle Bausteine",
+      "description": "Zeichnet Balken, Kennzahlen, Zeitleisten, Vergleiche oder Tabellen als Grafik in der Antwort. Nutzen, wenn Zahlen, Abläufe oder Gegenüberstellungen als Bild klarer sind als als Text.",
+      "avatar": "📊",
+      "category": "sonstiges"
+    },
+    {
       "command": "@presse-berlin-fraktion",
       "title": "PM Berlin (Fraktion)",
-      "description": "Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik",
+      "description": "Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.",
       "avatar": "🐻",
       "category": "presse",
       "audience": "de-DE"
@@ -383,7 +390,7 @@
     {
       "command": "@presse-berlin-partei",
       "title": "PM Berlin (Partei)",
-      "description": "Pressemitteilung der Berliner GRÜNEN — AGH-Wahl 2026, Parteitage, Volksinitiativen, Bundespolitik",
+      "description": "Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.",
       "avatar": "🐻",
       "category": "presse",
       "audience": "de-DE"
@@ -391,7 +398,7 @@
     {
       "command": "@insta-berlin",
       "title": "Insta Berlin",
-      "description": "Instagram-Post im Stil Grüne Berlin",
+      "description": "Instagram-Post im Stil der Grünen Berlin. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Berlin geschrieben wird.",
       "avatar": "🐻",
       "category": "social",
       "audience": "de-DE"
@@ -399,7 +406,7 @@
     {
       "command": "@presse-mv-fraktion",
       "title": "PM MV (Fraktion)",
-      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern — Anfragen, Anträge, Ausschüsse, Landesregierung",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "🌊",
       "category": "presse",
       "audience": "de-DE"
@@ -407,7 +414,7 @@
     {
       "command": "@presse-mv-partei",
       "title": "PM MV (Partei)",
-      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern — Wahlkampf, Spitzenkandidatur, Parteitage, Bundespolitik",
+      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "🌊",
       "category": "presse",
       "audience": "de-DE"
@@ -415,7 +422,7 @@
     {
       "command": "@insta-mv",
       "title": "Insta MV",
-      "description": "Instagram-Post im Stil Grüne Mecklenburg-Vorpommern",
+      "description": "Instagram-Post im Stil der Grünen Mecklenburg-Vorpommern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "🌊",
       "category": "social",
       "audience": "de-DE"
@@ -423,7 +430,7 @@
     {
       "command": "@presse-thueringen",
       "title": "PM Thüringen",
-      "description": "Pressemitteilung im Stil Bündnisgrüne Thüringen",
+      "description": "Pressemitteilung im Stil der Grünen Thüringen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Thüringen geschrieben wird.",
       "avatar": "🌲",
       "category": "presse",
       "audience": "de-DE"
@@ -431,7 +438,7 @@
     {
       "command": "@insta-thueringen",
       "title": "Insta Thüringen",
-      "description": "Instagram-Post im Stil Bündnisgrüne Thüringen",
+      "description": "Instagram-Post im Stil der Grünen Thüringen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Thüringen geschrieben wird.",
       "avatar": "🌲",
       "category": "social",
       "audience": "de-DE"
@@ -439,7 +446,7 @@
     {
       "command": "@presse-brandenburg",
       "title": "PM Brandenburg",
-      "description": "Pressemitteilung im Stil Brandenburger Bündnisgrüne",
+      "description": "Pressemitteilung im Stil der Grünen Brandenburg. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Brandenburg geschrieben wird.",
       "avatar": "🌻",
       "category": "presse",
       "audience": "de-DE"
@@ -447,7 +454,7 @@
     {
       "command": "@insta-brandenburg",
       "title": "Insta Brandenburg",
-      "description": "Instagram-Post im Stil Brandenburger Bündnisgrüne",
+      "description": "Instagram-Post im Stil der Grünen Brandenburg. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Brandenburg geschrieben wird.",
       "avatar": "🌻",
       "category": "social",
       "audience": "de-DE"
@@ -455,7 +462,7 @@
     {
       "command": "@presse-bayern-fraktion",
       "title": "PM Bayern (Fraktion)",
-      "description": "Pressemitteilung der Landtags-Grünen Bayern — Anfragen, Forderungslisten, Staatsregierung",
+      "description": "Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.",
       "avatar": "🦁",
       "category": "presse",
       "audience": "de-DE"
@@ -463,7 +470,7 @@
     {
       "command": "@presse-bayern-partei",
       "title": "PM Bayern (Partei)",
-      "description": "Pressemitteilung der bayerischen GRÜNEN — Doppelspitze, Parteitag, Kommunalwahl, Bundesebene",
+      "description": "Pressemitteilung der bayerischen GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Bayern geschrieben wird.",
       "avatar": "🦁",
       "category": "presse",
       "audience": "de-DE"
@@ -471,7 +478,7 @@
     {
       "command": "@presse-hessen-fraktion",
       "title": "PM Hessen (Fraktion)",
-      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen — Plenum, Ausschuss, Kleine Anfragen, Landesregierung",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.",
       "avatar": "🌳",
       "category": "presse",
       "audience": "de-DE"
@@ -479,7 +486,7 @@
     {
       "command": "@presse-hessen-partei",
       "title": "PM Hessen (Partei)",
-      "description": "Pressemitteilung des Landesverbands Hessen — Wahlen, Parteitage, Personalien, Bundespolitik",
+      "description": "Pressemitteilung des Landesverbands Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Hessen geschrieben wird.",
       "avatar": "🌳",
       "category": "presse",
       "audience": "de-DE"
@@ -487,7 +494,7 @@
     {
       "command": "@presse-at",
       "title": "Aussendung (AT)",
-      "description": "Aussendung im Stil der Grünen Österreich",
+      "description": "Aussendung im Stil der Grünen Österreich mit Zitat und Kontaktblock. Nutzen statt der allgemeinen Pressemitteilung, wenn eine Aussendung für Österreich geschrieben wird.",
       "avatar": "📢",
       "category": "presse",
       "audience": "de-AT"
@@ -495,7 +502,7 @@
     {
       "command": "@presse-saarland",
       "title": "PM Saarland",
-      "description": "Pressemitteilung im Stil der Saar-Grünen",
+      "description": "Pressemitteilung im Stil der Grünen Saarland. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Saarland geschrieben wird.",
       "avatar": "⚒️",
       "category": "presse",
       "audience": "de-DE"
@@ -503,7 +510,7 @@
     {
       "command": "@presse-sachsen-anhalt-fraktion",
       "title": "PM Sachsen-Anhalt (Fraktion)",
-      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt — Landtag, Kleine Anfragen, Landesregierung",
+      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "presse",
       "audience": "de-DE"
@@ -511,7 +518,7 @@
     {
       "command": "@presse-sachsen-anhalt-partei",
       "title": "PM Sachsen-Anhalt (Partei)",
-      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt — Landtagswahl 2026, Parteitage, Bundespolitik",
+      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "presse",
       "audience": "de-DE"
@@ -519,7 +526,7 @@
     {
       "command": "@insta-saarland",
       "title": "Insta Saarland",
-      "description": "Instagram-Post im Stil der Saar-Grünen",
+      "description": "Instagram-Post im Stil der Grünen Saarland. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Saarland geschrieben wird.",
       "avatar": "⚒️",
       "category": "social",
       "audience": "de-DE"
@@ -527,7 +534,7 @@
     {
       "command": "@insta-bayern",
       "title": "Insta Bayern",
-      "description": "Instagram-Post im Stil Grüne Bayern",
+      "description": "Instagram-Post im Stil der Grünen Bayern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Bayern geschrieben wird.",
       "avatar": "🦁",
       "category": "social",
       "audience": "de-DE"
@@ -535,7 +542,7 @@
     {
       "command": "@insta-hessen",
       "title": "Insta Hessen",
-      "description": "Instagram-Post im Stil Grüne Hessen",
+      "description": "Instagram-Post im Stil der Grünen Hessen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Hessen geschrieben wird.",
       "avatar": "🌳",
       "category": "social",
       "audience": "de-DE"
@@ -543,7 +550,7 @@
     {
       "command": "@insta-sachsen-anhalt",
       "title": "Insta Sachsen-Anhalt",
-      "description": "Instagram-Post im Stil Grüne Sachsen-Anhalt",
+      "description": "Instagram-Post im Stil der Grünen Sachsen-Anhalt. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "social",
       "audience": "de-DE"
@@ -551,7 +558,7 @@
     {
       "command": "@insta-at",
       "title": "Insta Österreich",
-      "description": "Instagram-Post im Stil der Grünen Österreich",
+      "description": "Instagram-Post im Stil der Grünen Österreich. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für die Grünen in Österreich geschrieben wird.",
       "avatar": "🇦🇹",
       "category": "social",
       "audience": "de-AT"
@@ -559,7 +566,7 @@
     {
       "command": "@buerger-at",
       "title": "Bürger*innen-Mail Österreich",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Österreich",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Österreich. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen in Österreich geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-AT"
@@ -567,7 +574,7 @@
     {
       "command": "@buerger-bayern",
       "title": "Bürger*innen-Mail Bayern",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Bayern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Bayern. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Bayern geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -575,7 +582,7 @@
     {
       "command": "@buerger-berlin",
       "title": "Bürger*innen-Mail Berlin",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Berlin",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Berlin. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Berlin geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -583,7 +590,7 @@
     {
       "command": "@buerger-brandenburg",
       "title": "Bürger*innen-Mail Brandenburg",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Brandenburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Brandenburg. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Brandenburg geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -591,7 +598,7 @@
     {
       "command": "@buerger-hamburg",
       "title": "Bürger*innen-Mail Hamburg",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hamburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hamburg. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hamburg geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -599,7 +606,7 @@
     {
       "command": "@buerger-hessen",
       "title": "Bürger*innen-Mail Hessen",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hessen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hessen. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hessen geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -607,7 +614,7 @@
     {
       "command": "@buerger-mv",
       "title": "Bürger*innen-Mail Mecklenburg-Vorpommern",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Mecklenburg-Vorpommern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Mecklenburg-Vorpommern geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -615,7 +622,7 @@
     {
       "command": "@buerger-saarland",
       "title": "Bürger*innen-Mail Saarland",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Saarland",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Saarland. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Saarland geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -623,7 +630,7 @@
     {
       "command": "@buerger-sachsen-anhalt",
       "title": "Bürger*innen-Mail Sachsen-Anhalt",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Sachsen-Anhalt",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Sachsen-Anhalt. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Sachsen-Anhalt geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -631,7 +638,7 @@
     {
       "command": "@buerger-schleswig-holstein",
       "title": "Bürger*innen-Mail Schleswig-Holstein",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Schleswig-Holstein",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Schleswig-Holstein. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Schleswig-Holstein geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -639,7 +646,7 @@
     {
       "command": "@buerger-thueringen",
       "title": "Bürger*innen-Mail Thüringen",
-      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Thüringen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Thüringen. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Thüringen geantwortet wird.",
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
@@ -647,7 +654,7 @@
     {
       "command": "@gj-insta",
       "title": "Insta GRÜNE JUGEND",
-      "description": "Instagram-Post im Stil der GRÜNEN JUGEND",
+      "description": "Instagram-Post im Stil der GRÜNEN JUGEND, direkt und jugendlich. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für die GRÜNE JUGEND geschrieben wird.",
       "avatar": "✊",
       "category": "social",
       "audience": "de-DE"
@@ -655,7 +662,7 @@
     {
       "command": "@gj-insta-at",
       "title": "Insta Grüne Jugend",
-      "description": "Instagram-Post im Stil der Grünen Jugend Österreich",
+      "description": "Instagram-Post im Stil der Grünen Jugend Österreich, direkt und jugendlich. Nutzen statt des Insta-Österreich-Rezepts, wenn für die Grüne Jugend in Österreich geschrieben wird.",
       "avatar": "🍃",
       "category": "social",
       "audience": "de-AT"
@@ -663,7 +670,7 @@
     {
       "command": "@beschluss-bayern",
       "title": "Beschlussantrag Bayern",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Bayern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Bayern geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -671,7 +678,7 @@
     {
       "command": "@beschluss-berlin",
       "title": "Beschlussantrag Berlin",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Berlin, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Berlin. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Berlin geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -679,7 +686,7 @@
     {
       "command": "@beschluss-brandenburg",
       "title": "Beschlussantrag Brandenburg",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Brandenburg, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Brandenburg. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Brandenburg geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -687,7 +694,7 @@
     {
       "command": "@beschluss-hessen",
       "title": "Beschlussantrag Hessen",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Hessen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Hessen geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -695,7 +702,7 @@
     {
       "command": "@beschluss-mv",
       "title": "Beschlussantrag Mecklenburg-Vorpommern",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Mecklenburg-Vorpommern, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Mecklenburg-Vorpommern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -703,7 +710,7 @@
     {
       "command": "@beschluss-saarland",
       "title": "Beschlussantrag Saarland",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Saarland, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Saarland. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Saarland geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -711,7 +718,7 @@
     {
       "command": "@beschluss-sachsen-anhalt",
       "title": "Beschlussantrag Sachsen-Anhalt",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Sachsen-Anhalt, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Sachsen-Anhalt. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Sachsen-Anhalt geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -719,7 +726,7 @@
     {
       "command": "@beschluss-thueringen",
       "title": "Beschlussantrag Thüringen",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Thüringen, im Anschluss an die bestehende Beschlusslage",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen Thüringen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Thüringen geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -727,7 +734,7 @@
     {
       "command": "@wahlprogramm-bayern",
       "title": "Wahlprogramm Bayern",
-      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern. Nutzen, wenn gefragt wird, was das Programm in Bayern zu einem Thema sagt.",
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
@@ -735,7 +742,7 @@
     {
       "command": "@wahlprogramm-berlin",
       "title": "Wahlprogramm Berlin",
-      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin. Nutzen, wenn gefragt wird, was das Programm in Berlin zu einem Thema sagt.",
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
@@ -743,7 +750,7 @@
     {
       "command": "@wahlprogramm-brandenburg",
       "title": "Wahlprogramm Brandenburg",
-      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg. Nutzen, wenn gefragt wird, was das Programm in Brandenburg zu einem Thema sagt.",
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
@@ -751,7 +758,7 @@
     {
       "command": "@wahlprogramm-sachsen-anhalt",
       "title": "Wahlprogramm Sachsen-Anhalt",
-      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt. Nutzen, wenn gefragt wird, was das Programm in Sachsen-Anhalt zu einem Thema sagt.",
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
@@ -759,7 +766,7 @@
     {
       "command": "@wahlprogramm-thueringen",
       "title": "Wahlprogramm Thüringen",
-      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen. Nutzen, wenn gefragt wird, was das Programm in Thüringen zu einem Thema sagt.",
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
@@ -767,7 +774,7 @@
     {
       "command": "@reisekosten-nrw",
       "title": "Reisekosten NRW (Beta)",
-      "description": "Reisekostenabrechnung aus deinen Belegen, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)",
+      "description": "Reisekostenabrechnung aus Belegen nach dem Formular des Landesverbands NRW (Beta). Nutzen, wenn eine Reise abgerechnet wird, die der LV NRW erstattet.",
       "avatar": "🧾",
       "category": "dokumente",
       "audience": "de-DE"
@@ -775,7 +782,7 @@
     {
       "command": "@reisekosten-nrw-vorbereiten",
       "title": "Reise vorbereiten NRW (Beta)",
-      "description": "Was vor einer Reise zu erledigen ist, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)",
+      "description": "Checkliste, was vor einer Reise im Auftrag des Landesverbands NRW zu klären ist (Beta). Nutzen, wenn eine Reise geplant wird, die der LV NRW erstattet.",
       "avatar": "🧳",
       "category": "dokumente",
       "audience": "de-DE"

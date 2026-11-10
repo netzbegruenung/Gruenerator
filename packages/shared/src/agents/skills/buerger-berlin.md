@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-berlin'
 title: 'Bürger*innen-Mail Berlin'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Berlin'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Berlin. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Berlin geantwortet wird.'
 iconKey: 'PiBuildings'
 avatar: '✉️'
 backgroundColor: '#316049'

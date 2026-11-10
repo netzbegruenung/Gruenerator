@@ -410,6 +410,14 @@ export function buildChatToolCatalog(params: {
     log.info('[toolCatalog] user forbade new research — search tools not mounted this turn');
   }
 
+  // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
+  // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
+  // erst nach dem Bau dieses Katalogs passiert.
+  const activeRecipeMentions = (): readonly (string | null | undefined)[] => [
+    loop?.state.activeSkillMention,
+    ...(recipeRegistry?.mentions ?? []),
+  ];
+
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
@@ -433,13 +441,7 @@ export function buildChatToolCatalog(params: {
     ...(loop != null && {
       userText: loop.state.lastUserTextNoMentions ?? lastUserText(loop.state),
     }),
-    // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
-    // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
-    // erst nach dem Bau dieses Katalogs passiert.
-    activeRecipeMentions: () => [
-      loop?.state.activeSkillMention,
-      ...(recipeRegistry?.mentions ?? []),
-    ],
+    activeRecipeMentions,
     // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
     // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
     // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
@@ -1316,7 +1318,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
     // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.
     if (!editorSurface && state.enabledTools?.['vorlagen'] !== false) {
-      const vorlagen = vorlagenForTurn(state);
+      const vorlagen = vorlagenForTurn(state, activeRecipeMentions());
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,

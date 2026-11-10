@@ -70,7 +70,7 @@ function publicItem(ctx: MarketplaceContext, listing: PublicTextFormListing): Re
     isOwn: listing.userId === ctx.userId,
     reportKind: 'user_text_form',
     createdAt: listing.createdAt.toISOString(),
-    recipe: { mention: form.mention, rowId: form.id, skillCategory: null, system: false },
+    recipe: { mention: form.mention, rowId: form.id, skillCategory: form.category, system: false },
   };
 }
 

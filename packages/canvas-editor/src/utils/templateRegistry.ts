@@ -52,6 +52,20 @@ function templateAudience(t: TemplateInfo): TemplateAudience {
 }
 
 /**
+ * Whose logos the Elemente tab offers for a document: its template's country,
+ * else `null` (the user's locale) — for an 'all' template or an unknown id.
+ */
+export function documentAudienceOf(configId: string | null | undefined): BrandLocale | null {
+  // Boundary: page config ids are persisted strings.
+  const info = configId
+    ? (TEMPLATE_REGISTRY as Partial<Record<string, TemplateInfo>>)[configId]
+    : null;
+  if (!info) return null;
+  const audience = templateAudience(info);
+  return audience === 'all' ? null : audience;
+}
+
+/**
  * Templates offered to a given locale — the audience-aware filter used by the
  * studio picker. AT users see only 'de-AT' (+ 'all') templates; DE users see
  * 'de-DE' (+ 'all'). Mirrors isAgentVisibleForLocale in agents/audience.ts.

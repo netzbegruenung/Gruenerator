@@ -1,10 +1,14 @@
 import { agentsList, useUserLandesverbaende } from '@gruenerator/chat';
 import {
+  type SkillCategoryValue,
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
   type TextForm,
+  isUserRecipeDescriptionValid,
+  USER_RECIPE_DESCRIPTION_MIN,
 } from '@gruenerator/contracts';
+import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   classifyRecipeMention,
@@ -40,6 +44,7 @@ import {
   useRecipeEditorStore,
 } from '../../../stores/recipeEditorStore';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../../theme';
+import { MenuActionSheet } from '../../chat/MenuActionSheet';
 import { Button, ListRow, SkeletonRows } from '../../common';
 import { AgentGlyph } from '../AgentGlyph';
 
@@ -63,6 +68,9 @@ type Source =
   | { status: 'error'; retry: () => void }
   | { status: 'not-entitled' }
   | { status: 'ready'; mode: Mode; initial: RecipeFormState };
+
+/** Kennung der Wahl „keine Kategorie“ im Auswahlblatt. */
+const NO_CATEGORY = 'none';
 
 const catalogueMentions = new Set(agentsList.map((s) => s.mention.toLowerCase()));
 const isCatalogueMention = (mention: string): boolean =>
@@ -214,6 +222,7 @@ function EditorForm({
   const clear = useRecipeEditorStore((s) => s.clear);
   const [showRestored, setShowRestored] = useState(restored && mode === 'edit');
   const [mentionError, setMentionError] = useState<MentionNotice | null>(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
   /** Gesetzt, sobald die Seite absichtlich verlassen wird (gespeichert, gelöscht, verworfen). */
   const leavingRef = useRef(false);
 
@@ -237,6 +246,12 @@ function EditorForm({
 
   const examples = useMemo(() => examplesStatus(form.rawExamples), [form.rawExamples]);
   const titleValid = form.title.trim().length > 0;
+  // Die Beschreibung ist die einzige Auswahlgrundlage des Modells (Rezeptkatalog).
+  // Beim Bearbeiten bleibt eine unveränderte kurze Beschreibung speicherbar.
+  const descriptionValid = isUserRecipeDescriptionValid(
+    form.description,
+    mode === 'edit' ? initial.description : null
+  );
   const styleValid = styleBlockValid(form.styleBlock);
   const mentionValid = canEditMention ? isValidMention(normalizeMention(mentionFieldValue)) : true;
   const liveBlocker =
@@ -253,6 +268,7 @@ function EditorForm({
   const canSave =
     ready &&
     titleValid &&
+    descriptionValid &&
     styleValid &&
     mentionValid &&
     !liveBlocker &&
@@ -485,18 +501,52 @@ function EditorForm({
           </View>
         </FormSection>
 
-        <FormSection title="Beschreibung">
+        <FormSection
+          title="Beschreibung"
+          footer={`Mindestens ${USER_RECIPE_DESCRIPTION_MIN} Zeichen · hiernach entscheidet der Grünerator, wann er das Rezept nutzt.`}
+        >
           <FieldInput
             value={form.description}
             onChangeText={(description) => update({ description })}
             maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
-            placeholder="Wofür ist das Rezept da?"
+            placeholder="Wann soll der Grünerator dieses Rezept nutzen?"
             accessibilityLabel="Beschreibung"
             multiline
             style={styles.descriptionInput}
           />
           <CharCount value={form.description} max={MAX_TEXT_FORM_DESCRIPTION_CHARS} />
         </FormSection>
+
+        <FormSection footer="Unter dieser Überschrift steht das Rezept in der Bibliothek.">
+          <ListRow
+            icon="folder-outline"
+            title="Kategorie"
+            value={form.category ? SKILL_CATEGORY_LABELS[form.category] : 'Eigene'}
+            onPress={() => setCategoryOpen(true)}
+            last
+          />
+        </FormSection>
+        <MenuActionSheet
+          visible={categoryOpen}
+          theme={theme}
+          heading="Kategorie"
+          actions={[
+            {
+              id: NO_CATEGORY,
+              title: 'Eigene (keine Kategorie)',
+              state: form.category ? 'off' : 'on',
+            },
+            ...SKILL_CATEGORY_ORDER.map((c) => ({
+              id: c,
+              title: SKILL_CATEGORY_LABELS[c],
+              state: form.category === c ? ('on' as const) : ('off' as const),
+            })),
+          ]}
+          onSelect={(id) =>
+            update({ category: id === NO_CATEGORY ? null : (id as SkillCategoryValue) })
+          }
+          onClose={() => setCategoryOpen(false)}
+        />
 
         <FormSection
           title="Anleitung"

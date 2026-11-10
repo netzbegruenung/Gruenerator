@@ -15,6 +15,15 @@ jest.mock('expo-file-system', () => ({
   File: jest.fn().mockImplementation(() => ({ uri: 'file:///cache/a.docx', writeSync: jest.fn() })),
 }));
 jest.mock('../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
+const mockBegin = jest.fn();
+jest.mock('../stores/recipeEditorStore', () => ({
+  NEW_RECIPE_TARGET: 'neu',
+  useRecipeEditorStore: { getState: () => ({ begin: mockBegin }) },
+}));
+const mockDraft = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+jest.mock('@gruenerator/shared/api', () => ({
+  getContractsClient: () => ({ userTextForms: { draft: mockDraft } }),
+}));
 
 type AnyMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 const getToken = secureStorage.getToken as unknown as AnyMock;
@@ -98,5 +107,41 @@ describe('useMessageActions', () => {
     expect(mockPush).not.toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(result.current.exporting).toBeNull();
+  });
+
+  it('opens the recipe editor with the answer as example and the AI draft', async () => {
+    mockDraft.mockResolvedValue({
+      status: 200,
+      body: {
+        spec: {
+          title: 'Einladung',
+          mention: 'einladung',
+          description: 'Einladung zur Versammlung',
+          iconKey: 'PiEnvelope',
+          styleBlock: 'Förmlich.',
+        },
+      },
+    });
+    const { result } = await renderHook(() => useMessageActions(message));
+    await act(() => result.current.saveAsRecipe());
+    expect(mockBegin).toHaveBeenCalledWith(
+      'neu',
+      expect.objectContaining({ title: 'Einladung', rawExamples: 'Hallo' }),
+      true
+    );
+    expect(mockPush).toHaveBeenCalledWith('/(focused)/grueneratoren/rezept-editor');
+    expect(result.current.exporting).toBeNull();
+  });
+
+  it('still opens the editor with the answer when the draft fails', async () => {
+    mockDraft.mockRejectedValue(new Error('offline'));
+    const { result } = await renderHook(() => useMessageActions(message));
+    await act(() => result.current.saveAsRecipe());
+    expect(mockBegin).toHaveBeenCalledWith(
+      'neu',
+      expect.objectContaining({ title: '', rawExamples: 'Hallo' }),
+      true
+    );
+    expect(mockPush).toHaveBeenCalledTimes(1);
   });
 });

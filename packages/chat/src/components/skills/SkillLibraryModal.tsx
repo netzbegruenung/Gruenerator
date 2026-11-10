@@ -10,15 +10,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
 import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
+import { useRecipeLibrary } from '../../hooks/useRecipeLibrary';
 import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
 import { listedAgentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
   getCustomAgentMentionables,
+  getTextformMentionables,
   getMentionInstance,
   type Mentionable,
 } from '../../lib/mentionables';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 
 interface SkillLibraryModalProps {
   open: boolean;
@@ -30,7 +31,7 @@ const CATEGORY_ORDER: SkillCategory[] = ['presse', 'social', 'dokumente', 'reche
 
 export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModalProps) {
   const [search, setSearch] = useState('');
-  const { favorites, toggleFavorite } = useSkillFavoritesStore();
+  const library = useRecipeLibrary();
   const customAgents = getCustomAgentMentionables();
   const hiddenSkillMentions = useHiddenSkillMentions();
   const { lvIds } = useUserLandesverbaende();
@@ -52,20 +53,29 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
     [hiddenSkillMentions, lvIds]
   );
 
-  const filtered = useMemo(() => {
-    if (!search) return allSkills;
+  const matches = (s: Mentionable) => {
+    if (!search) return true;
     const q = search.toLowerCase();
-    return allSkills.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        s.mention.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)
+    return (
+      s.title.toLowerCase().includes(q) ||
+      s.mention.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q)
     );
-  }, [allSkills, search]);
+  };
+  const filtered = allSkills.filter(matches);
 
-  const grouped = useMemo(() => {
+  // Eigene Rezepte (ohne die geteilten und gespeicherten fremden) stehen unter
+  // ihrer Kategorie wie die mitgelieferten; ohne Kategorie unter „Meine Rezepte“. Der
+  // Speicher ist nicht reaktiv — wie bei `customAgents` wird bei jedem Render gelesen.
+  const ownRecipes = getTextformMentionables().filter(
+    (m) => !m.sharedFromGroup && !m.savedFromOwner && matches(m)
+  );
+  // Ohne Kategorie stehen sie im Abschnitt „Meine Rezepte“, neben den eigenen Agents-Rezepten.
+  const myRecipes = [...customAgents, ...ownRecipes.filter((m) => !m.skillCategory)];
+
+  const grouped = (() => {
     const map = new Map<SkillCategory, Mentionable[]>();
-    for (const skill of filtered) {
+    for (const skill of [...filtered, ...ownRecipes.filter((m) => m.skillCategory)]) {
       const cat = skill.skillCategory ?? 'sonstiges';
       const list = map.get(cat) ?? [];
       list.push(skill);
@@ -76,7 +86,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
       label: SKILL_CATEGORY_LABELS[c],
       items: map.get(c)!,
     }));
-  }, [filtered]);
+  })();
 
   useEffect(() => {
     if (!open) return;
@@ -108,14 +118,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
           <div>
             <h2 className="text-lg font-semibold text-foreground">Rezept-Bibliothek</h2>
             <p className="mt-0.5 text-xs text-foreground-muted">
-              Skills starten mit{' '}
-              <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
-                /
-              </kbd>{' '}
-              &mdash; Agenten und Quellen mit{' '}
-              <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
-                @
-              </kbd>
+              Rezepte, Agents und Quellen rufst du mit @ auf.
             </p>
           </div>
           <button
@@ -150,8 +153,8 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                 {label}
               </div>
               {items.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
-                const Icon = skill.icon;
+                const isFav = library.has('recipe', skill.mention);
+                const Icon = skill.icon ?? (skill.type === 'textform' ? PiSparkle : undefined);
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
@@ -164,33 +167,37 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
-                        <p className="text-xs text-foreground-muted">{skill.description}</p>
+                        <p className="line-clamp-2 text-xs text-foreground-muted">
+                          {skill.description}
+                        </p>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                      title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
-                    </button>
+                    {skill.type === 'textform' ? null : (
+                      <button
+                        type="button"
+                        onClick={() => library.toggle('recipe', skill.mention)}
+                        className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
+                        aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                      >
+                        <Star
+                          className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
+                        />
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           ))}
 
-          {customAgents.length > 0 && (
+          {myRecipes.length > 0 && (
             <div className="mb-1">
               <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-                Meine Skills
+                Meine Rezepte
               </div>
-              {customAgents.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
+              {/* Eigene Rezepte stehen im Plus-Menü ohnehin; ein Bibliotheks-Stern gibt es nur für Katalog-Rezepte. */}
+              {myRecipes.map((skill) => {
                 const Icon = skill.icon ?? PiSparkle;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
@@ -204,18 +211,10 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
-                        <p className="text-xs text-foreground-muted">{skill.description}</p>
+                        <p className="line-clamp-2 text-xs text-foreground-muted">
+                          {skill.description}
+                        </p>
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
                     </button>
                   </div>
                 );
@@ -223,9 +222,9 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </div>
           )}
 
-          {grouped.length === 0 && customAgents.length === 0 && (
+          {grouped.length === 0 && myRecipes.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-foreground-muted">
-              Kein Skill gefunden
+              Kein Rezept gefunden
             </div>
           )}
         </div>

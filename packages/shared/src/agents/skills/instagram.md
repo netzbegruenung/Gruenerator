@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit'
 title: 'Instagram'
-description: 'Instagram-Posts & Captions'
+description: 'Instagram-Posts und Captions mit Hook, Text und Hashtags. Nutzen, wenn ein Beitrag oder eine Bildunterschrift für Instagram geschrieben werden soll.'
 iconKey: 'PiInstagramLogo'
 avatar: '📸'
 backgroundColor: '#316049'

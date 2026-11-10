@@ -17,12 +17,20 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getAgentMentionables } from '../../lib/mentionables';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 
 import { PlusMenu } from './PlusMenu';
 
 import type { Mentionable } from '../../lib/mentionables';
+
+const libraryList = vi.hoisted(() => vi.fn());
+
+vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getContractsClient: () => ({ userLibrary: { list: libraryList } }),
+}));
 
 const onInsertMention = vi.fn();
 const onOpenFileBrowser = vi.fn();
@@ -54,6 +62,7 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 beforeEach(() => {
+  libraryList.mockReset().mockResolvedValue({ status: 200, body: { items: [] } });
   onInsertMention.mockReset();
   onOpenFileBrowser.mockReset();
   // `ResponsiveMenu` picks dropdown vs. sheet from a width media query, and
@@ -279,5 +288,24 @@ describe('Wechsel zurück auf „Ohne Rolle"', () => {
     expect(state.customSystemPrompt).toBeNull();
     expect(state.customRoleName).toBeNull();
     expect(state.customRoleRef).toBeNull();
+  });
+});
+
+describe('Rezepte submenu', () => {
+  it('lists the recipes saved in the user library', async () => {
+    const saved = getAgentMentionables().find((a) => !a.isSystemDefault);
+    expect(saved).toBeDefined();
+    libraryList.mockResolvedValue({
+      status: 200,
+      body: { items: [{ kind: 'recipe', ref: saved!.mention, createdAt: '2026-11-09' }] },
+    });
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+
+    await waitFor(() => expect(libraryList).toHaveBeenCalled());
+    await user.hover(within(menu).getByRole('menuitem', { name: /Rezepte/ }));
+
+    expect(await screen.findByRole('menuitem', { name: saved!.title })).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ const TOOL_STEP_TITLES: Record<string, string> = {
   apply_sharepic_ops: 'Wende Änderung an…',
   restore_version: 'Stelle Version wieder her…',
   rezept_laden: 'Lade Schreibvorgaben…',
+  methode_laden: 'Lade Recherche-Methode…',
   meine_inhalte_laden: 'Öffne meine Inhalte…',
 };
 

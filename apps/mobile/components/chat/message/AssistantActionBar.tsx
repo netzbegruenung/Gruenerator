@@ -68,7 +68,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({
         : null,
     [messageText, metadata]
   );
-  const { exporting, exportDocx, openInDocs } = useMessageActions(target);
+  const { exporting, exportDocx, openInDocs, saveAsRecipe } = useMessageActions(target);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const messageId = useAuiState((s) => s.message.id);
@@ -109,12 +109,13 @@ export const AssistantActionBar = memo(function AssistantActionBar({
       const id = asMessageMenuId(event);
       if (id === 'export-docx') void exportDocx();
       else if (id === 'open-in-docs') void openInDocs();
+      else if (id === 'save-as-recipe') void saveAsRecipe();
       else if (id === 'report') {
         // The menu sheet is still leaving; iOS refuses a second modal in the same tick.
         reportTimer.current = setTimeout(() => setReportOpen(true), SHEET_HANDOFF_MS);
       }
     },
-    [exportDocx, openInDocs]
+    [exportDocx, openInDocs, saveAsRecipe]
   );
 
   return (

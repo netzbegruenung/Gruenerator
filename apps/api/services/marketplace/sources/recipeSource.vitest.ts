@@ -100,6 +100,7 @@ beforeEach(() => {
         title: 'Mein Stil',
         description: 'Kurz und klar',
         iconKey: null,
+        category: 'social',
         ownerName: 'Kim',
       },
       userId: 'viewer',
@@ -116,6 +117,10 @@ beforeEach(() => {
 });
 
 describe('recipeSource.list', () => {
+  it('never lists a model-only recipe', async () => {
+    expect(await refs()).not.toContain('visuelle-bausteine');
+  });
+
   it('leaves catalogue recipes out unless asked for', async () => {
     expect(await refs(ctx(), query({ systemRecipes: false }))).toEqual([FORM_ID]);
   });
@@ -133,7 +138,7 @@ describe('recipeSource.list', () => {
       reportKind: 'user_text_form',
       isOwn: true,
       authorName: 'Kim',
-      recipe: { mention: 'mein-stil', rowId: FORM_ID, system: false },
+      recipe: { mention: 'mein-stil', rowId: FORM_ID, system: false, skillCategory: 'social' },
     });
     expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-DE', 'viewer');
   });

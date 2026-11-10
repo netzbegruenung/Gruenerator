@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen'
 title: 'Insta Thüringen'
-description: 'Instagram-Post im Stil Bündnisgrüne Thüringen'
+description: 'Instagram-Post im Stil der Grünen Thüringen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Thüringen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '🌲'
 backgroundColor: '#316049'

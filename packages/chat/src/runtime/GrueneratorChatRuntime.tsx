@@ -34,7 +34,7 @@ import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { createChatApiClient } from '../context/ChatContext';
-import { ChatNavigationProvider } from '../context/ChatNavigationContext';
+import { ChatNavigationProvider, type ChatNavigateOptions } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
@@ -517,7 +517,7 @@ export function GrueneratorChatRuntimeProvider({
   activePath?: string;
   threadListPortalSlotId?: string;
   /** Host router. Lets the thread list open a thread by navigating to its URL. */
-  onNavigate?: (path: string, opts?: { replace?: boolean }) => void;
+  onNavigate?: (path: string, opts?: ChatNavigateOptions) => void;
 }) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);

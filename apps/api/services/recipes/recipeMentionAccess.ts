@@ -47,5 +47,8 @@ export async function isRecipeUsableForAgent(params: {
 
   const mention = normalizeTextFormMention(params.mention);
   const catalog = await buildRecipeCatalog({ userLocale, userId, roles });
-  return catalog.some((entry) => entry.mention === mention);
+  // `key`, not `mention`: with a collision (own `antrag` + saved foreign
+  // `antrag`) the foreign entry carries `antrag-<id6>`. A bare mention resolves
+  // to the entry whose key is that mention, so only that one is bindable.
+  return catalog.some((entry) => entry.key === mention);
 }

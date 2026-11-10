@@ -7,6 +7,7 @@ import {
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   TOOL_USE_RULES,
+  CAPABILITY_RULE,
   LOOP_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
@@ -19,7 +20,7 @@ import {
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
-import { NO_GRAPHICS_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { buildToolUsageBlock } from './toolUsageBlock.js';
 
 import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 
@@ -701,6 +702,25 @@ describe('runAgenticLoop — unified lane chain', () => {
 });
 
 describe('unified suffix — tool and writer rules', () => {
+  it('states the capability rule exactly once in the loop system', () => {
+    expect(CAPABILITY_RULE.length).toBeLessThanOrEqual(900);
+    expect(`TOOLSYS${LOOP_SUFFIX}`.split(CAPABILITY_RULE).length - 1).toBe(1);
+  });
+
+  it('keeps the storyboard ban and the offer form in the one rule', () => {
+    const system = `TOOLSYS${LOOP_SUFFIX}`;
+    expect(system).toContain('Text-Konzept/Storyboard als Ersatz');
+    expect(system).toContain('mit „?“');
+  });
+
+  it('TOOL_USE_RULES does not repeat toolUsageBlock lines', () => {
+    const block = buildToolUsageBlock(6, false);
+    const sentences = TOOL_USE_RULES.split(/(?<=[.!?])\s+/).map((x) => x.replace(/^- /, '').trim());
+    for (const sentence of sentences.filter((x) => x.length > 20)) {
+      expect(block).not.toContain(sentence);
+    }
+  });
+
   it('gives the unified stream the tool and writer rules', async () => {
     let seen:
       (StreamOpts & { prepareStep?: (a: { stepNumber: number }) => { system?: string } }) | null =
@@ -720,7 +740,7 @@ describe('unified suffix — tool and writer rules', () => {
     // Der Loop HAT Werkzeuge: nachschlagen statt anbieten (09.11.2026).
     expect(system).toContain('schlage sie jetzt mit dem passenden Werkzeug nach');
     expect(system).not.toContain('biete an, es zu tun');
-    expect(system).toContain(NO_GRAPHICS_DENIAL_RULE);
+    expect(system).toContain(CAPABILITY_RULE);
     expect(system).toContain('ANTWORTE KONKRET');
     // Hinweise der Werkzeuge binden die Antwort.
     expect(system).toContain('`fuerSchreiber`');
@@ -730,7 +750,7 @@ describe('unified suffix — tool and writer rules', () => {
     // maxSteps=1 makes step 0 the force-finish step, which overrides `system`.
     const override = seen!.prepareStep?.({ stepNumber: 0 }).system ?? '';
     expect(override).toContain(TOOL_USE_RULES);
-    expect(override).toContain(NO_GRAPHICS_DENIAL_RULE);
+    expect(override).toContain(CAPABILITY_RULE);
     expect(override).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
   });
 

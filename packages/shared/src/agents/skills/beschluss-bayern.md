@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-bayern'
 title: 'Beschlussantrag Bayern'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Bayern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Bayern geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '📜'
 backgroundColor: '#316049'

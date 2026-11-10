@@ -42,7 +42,8 @@ function baseDraft(overrides: Partial<Record<string, unknown>> = {}): Record<str
   return {
     title: 'Einladung Ortsverband',
     mention: 'einladung-ortsverband',
-    description: 'Lädt zu Ortsverbandstreffen ein.',
+    description:
+      'Einladungen zu Ortsverbandstreffen mit Termin und Ort. Nutzen, wenn zu einem Treffen eingeladen werden soll.',
     iconKey: 'PiCalendarBlank',
     styleBlock:
       '## Zweck\n\nLädt zu Treffen ein.\n\n## Aufbau und Struktur\n\nKurz und knapp.\n\n## Tonalität und Ansprache\n\nFreundlich, Du-Form.\n\n## Länge und Format\n\nMax. 500 Zeichen.\n\n## Was vermieden wird\n\nKeine Fachbegriffe.',
@@ -72,6 +73,35 @@ describe('draftRecipeSpec', () => {
       takenMentions: new Set(),
     });
     expect(mockAiObject).toHaveBeenCalledWith(expect.objectContaining({ lane: 'creator_draft' }));
+  });
+
+  it('asks for a what-and-when description of 60 to 220 characters', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+    expect(call.system).toContain('60 bis 220 Zeichen');
+    expect(call.system).toContain('Nutzen, wenn');
+    // Das Beispiel im Prompt hält sich selbst an die Vorgabe.
+    const example =
+      /„(Einladungen zu Ortsverbandstreffen[^“]*)“/.exec(call.system ?? '')?.[1] ?? '';
+    expect(example.length).toBeGreaterThanOrEqual(60);
+    expect(example.length).toBeLessThanOrEqual(220);
+  });
+
+  it('rejects a draft description below the editor minimum, so the retry loop catches it', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown> & {
+      validate: (v: unknown) => { ok: boolean };
+    };
+    expect(call.validate({ ...baseDraft(), description: 'Zu kurz.' }).ok).toBe(false);
+    expect(call.validate(baseDraft()).ok).toBe(true);
   });
 
   it('throws when no attempt produced a valid draft', async () => {
@@ -223,5 +253,37 @@ describe('party-internal boundary', () => {
       'utf8'
     );
     expect(source).not.toContain('internalPrompts');
+  });
+
+  // Issue #5586: the creator_draft lane (Gemma tool call) delivered line breaks
+  // as "**n" (and literal backslash-n) instead of real newlines.
+  describe('issue #5586: mangled line breaks in styleBlock', () => {
+    const tail = 'Die Pressemitteilung dient dazu, einen Antrag prägnant zu kommunizieren. '.repeat(
+      2
+    );
+
+    async function styleBlockFor(styleBlock: string): Promise<string> {
+      mockDraftResult(baseDraft({ styleBlock }));
+      const spec = await draftRecipeSpec({
+        messages: [{ role: 'user', content: 'x' }],
+        takenMentions: new Set(),
+      });
+      return spec.styleBlock;
+    }
+
+    it('restores "**n**n" as a blank line', async () => {
+      expect(await styleBlockFor(`### Zweck**n**n${tail}**n### Aufbau**n- Punkt`)).toBe(
+        `### Zweck\n\n${tail}\n### Aufbau\n- Punkt`
+      );
+    });
+
+    it('restores literal backslash-n sequences', async () => {
+      expect(await styleBlockFor(`### Zweck\\n\\n${tail}`)).toBe(`### Zweck\n\n${tail.trim()}`);
+    });
+
+    it('keeps genuine bold text starting with n intact', async () => {
+      const text = `### Zweck\n\nSchreibe **nicht** im Passiv und **nie** kürzer. ${tail}`;
+      expect(await styleBlockFor(text)).toBe(text.trim());
+    });
   });
 });

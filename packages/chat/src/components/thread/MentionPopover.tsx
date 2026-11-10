@@ -131,6 +131,10 @@ function MentionItem({
           {mentionable.trigger}
           {mentionable.mention}
         </p>
+        {(mentionable.type === 'agent' || mentionable.type === 'textform') &&
+        mentionable.description ? (
+          <p className="line-clamp-1 text-xs text-foreground-muted">{mentionable.description}</p>
+        ) : null}
       </div>
     </button>
   );

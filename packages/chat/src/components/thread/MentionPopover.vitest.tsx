@@ -23,6 +23,7 @@ import {
   type Mentionable,
 } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
+import { axe } from '../../test-utils';
 
 import { MentionPopover } from './MentionPopover';
 
@@ -323,5 +324,70 @@ describe('recipes saved from another user', () => {
     renderPopover('rede');
 
     expect(renderedRows()).toEqual(getFilteredMentionables('rede').map(rowKey));
+  });
+});
+
+describe('recipe descriptions', () => {
+  it('shows the recipe description as one clamped line', async () => {
+    const description =
+      'Schreibt eine Pressemitteilung. Nutze es, wenn etwas veröffentlicht werden soll.';
+    setCustomAgents([{ id: 'own-d', name: 'Presse-Rezept', slug: 'presse-rezept', description }]);
+    const { container } = render(
+      <MentionPopover
+        query="presse-rezept"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    expect(screen.getByText(description)).toHaveClass('line-clamp-1');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows the description of an own recipe (a text form) too', () => {
+    setTextforms([
+      {
+        id: 'tf-1',
+        mention: 'vereinseinladung',
+        title: 'Vereinseinladung',
+        description: 'Einladung zur Mitgliederversammlung, förmlich.',
+        iconKey: null,
+        sharedFromGroup: null,
+        ownerName: null,
+        isPublic: false,
+      },
+    ]);
+    render(
+      <MentionPopover
+        query="vereinseinladung"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    expect(screen.getByText('Einladung zur Mitgliederversammlung, förmlich.')).toBeInTheDocument();
+  });
+
+  it('adds no description line to a row without one', () => {
+    setCustomAgents([{ id: 'own-e', name: 'Presse-Rezept', slug: 'presse-rezept' }]);
+    render(
+      <MentionPopover
+        query="presse-rezept"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+    const row = screen.getAllByRole('option')[0];
+    expect(row.querySelectorAll('p')).toHaveLength(2);
   });
 });

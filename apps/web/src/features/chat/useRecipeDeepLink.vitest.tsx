@@ -9,13 +9,27 @@ import { useAgentStore } from '@gruenerator/chat';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useRecipeDeepLink } from './useRecipeDeepLink';
+import { readRecipeDeepLink, useRecipeDeepLink } from './useRecipeDeepLink';
 
 beforeEach(() => {
   useAgentStore.getState().setActiveSkillMention(null, null);
 });
 
 describe('useRecipeDeepLink', () => {
+  it('activates the recipe for the legacy ?skill= link', () => {
+    const { mention, recipeId } = readRecipeDeepLink(new URLSearchParams('skill=presse-bayern'));
+    renderHook(() => useRecipeDeepLink(mention, recipeId));
+
+    expect(useAgentStore.getState().activeSkillMention).toBe('presse-bayern');
+  });
+
+  it('prefers ?rezept= when both parameters are present', () => {
+    expect(readRecipeDeepLink(new URLSearchParams('skill=a&rezept=b&rezeptId=row-1'))).toEqual({
+      mention: 'b',
+      recipeId: 'row-1',
+    });
+  });
+
   it('trägt Erwähnung und Zeilen-ID in den Store', () => {
     renderHook(() => useRecipeDeepLink('mein-rezept', 'row-1'));
 

@@ -58,6 +58,7 @@ import {
   liftVorlageToken,
   withPinnedConnectorToken,
 } from '../../lib/mentionInsertion';
+import { onMentionRequest } from '../../lib/mentionRequest';
 import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
@@ -688,6 +689,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, mention.mentionStart, dismissPopover]
   );
 
+  // Rezept-Starter im leeren Chat wählen über dieselbe Auswahl wie das @-Menü.
+  useEffect(() => onMentionRequest(handleSelect), [handleSelect]);
+
   const stripTriggerText = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea || mention.mentionStart < 0) return;
@@ -988,7 +992,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       insideAgent={insideAgent}
       firstName={firstName ?? null}
       {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
-      {...(onNavigate ? { onNavigate, onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
+      {...(onNavigate
+        ? { onNavigate, onOpenSkillsPage: () => onNavigate('/marktplatz?art=rezepte') }
+        : {})}
     />
   ) : null;
 

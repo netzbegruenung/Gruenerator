@@ -16,7 +16,7 @@ import { type MenuAction } from '@expo/ui/community/menu';
  */
 
 /** Menu entries of an assistant message. Identifiers, not labels — see `onPressAction`. */
-export type MessageMenuId = 'export-docx' | 'open-in-docs' | 'report';
+export type MessageMenuId = 'export-docx' | 'open-in-docs' | 'save-as-recipe' | 'report';
 
 /** Menu entries of a sharepic in the chat. */
 export type SharepicMenuId = 'share' | 'save' | 'open-studio';
@@ -25,13 +25,14 @@ export type SharepicMenuId = 'share' | 'save' | 'open-studio';
 export type ThreadMenuId = 'rename' | 'share' | 'archive' | 'unarchive' | 'delete';
 
 export function buildMessageMenuActions(exporting: boolean, reportable = true): MenuAction[] {
-  // Both actions leave the app (share sheet, editor). While one is running the
+  // Each action leaves the chat (share sheet, editor, recipe editor). While one is running the
   // menu must not offer the other — the second handoff would land on top of the
   // first and the user would see whichever won.
   const attributes = { disabled: exporting };
   return [
     { id: 'export-docx', title: 'Als Word herunterladen', attributes },
     { id: 'open-in-docs', title: 'Im Editor öffnen', attributes },
+    { id: 'save-as-recipe', title: 'Als Rezept speichern', attributes },
     // Reporting stays available during an export: it opens a sheet, not a handoff.
     // Hidden while the message has no server id yet (still streaming).
     { id: 'report', title: 'Antwort melden', attributes: { hidden: !reportable } },
@@ -104,7 +105,12 @@ export function asThreadMenuId(event: string): ThreadMenuId | null {
 }
 
 export function asMessageMenuId(event: string): MessageMenuId | null {
-  return event === 'export-docx' || event === 'open-in-docs' || event === 'report' ? event : null;
+  return event === 'export-docx' ||
+    event === 'open-in-docs' ||
+    event === 'save-as-recipe' ||
+    event === 'report'
+    ? event
+    : null;
 }
 
 export function asSharepicMenuId(event: string): SharepicMenuId | null {

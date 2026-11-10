@@ -20,10 +20,7 @@ import {
 } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { addressesThreadImage } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/connectorAdapters.js';
-import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
-import { deriveImplicitRecipeMention } from '../agents/implicitRecipe.js';
-import { preferredLvRecipeMention } from '../agents/lvRecipePreference.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { isTabelleAuswertenMountable } from '../agents/tabelleAuswertenTool.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
@@ -235,66 +232,6 @@ export function runRoutingStage({
       `[${requestId}] [${pipelineAgent.identifier}] Ausgangstext festgelegt: ` +
         `${pipelineOriginal.length} Zeichen`
     );
-  }
-
-  // Implicit recipe on the single-pass path: `rezept_laden` only exists in
-  // the loop, but the most common writing turn ("Schreib mir eine
-  // Pressemitteilung zu X") is single-pass — the recipe used to load there
-  // only via an explicit @mention. An unambiguous match sets
-  // `activeSkillMention`, so downstream everything behaves exactly as if
-  // the user had picked the recipe: respondNode injects the fragment,
-  // learned text forms keep their precedence, and on a later loop turn the
-  // mount gate reads it as a deliberate choice. Same opt-out and
-  // custom-prompt guards as the loop's catalogue; loop turns are untouched
-  // (the model picks via the tool there).
-  //
-  // Einfache Sprache steht ganz aussen vor: der Turn ist per Override immer
-  // `produktion`, bringt immer eigenes Material mit und hat seine Ausgabeform
-  // bereits (Übertragung + Prüfkette). Ein Rezept wäre dort keine Ergänzung,
-  // sondern ein zweiter Formatgeber — im Lauf vom 13.08.2026 gewann er, und
-  // der Agent bot statt einer Übertragung einen Facebook-Post an.
-  //
-  // Die Bedingung fragt die LANE, nicht drei Einzelfakten: `produktion` heisst
-  // per Definition „kein Loop, Prosa-Verdikt, kein Gruss" — genau die drei
-  // Prüfungen, die hier vorher als `!runAgentic` plus ein Intent-Literalpaar
-  // standen. Ein viertes Prosa-Verdikt bekäme das Rezept damit von selbst,
-  // statt dass jemand daran denken muss, diese Zeile nachzuziehen.
-  //
-  // Ein server-eigener Rollen-Baustein zählt dabei NICHT als Custom-Prompt —
-  // dieselbe Ausnahme, die `catalogAssembly` für das Rezept-Selbstladen im
-  // Loop macht: eine Katalogrolle „Presse & Social-Media" will das
-  // Presse-Rezept, statt von allen ausgesperrt zu sein. Der Antwortknoten
-  // hängt das Fragment im Baustein-Zweig entsprechend an (respondNode).
-  if (
-    plan.lane === 'produktion' &&
-    !pipelineAgent &&
-    !classifiedState.activeSkillMention &&
-    (!classifiedState.customSystemPrompt || classifiedState.roleBausteinActive === true) &&
-    enabledTools?.['rezept_laden'] !== false
-  ) {
-    const implicitRecipe = deriveImplicitRecipeMention(
-      lastUserTextNoMentions,
-      classifiedState.userLocale ?? null
-    );
-    if (implicitRecipe) {
-      // Der Matcher liefert bewusst nur generische Mentions (ein nacktes
-      // Plattformwort trägt keine Region). Die Region kommt aus dem Kontext:
-      // LV-PR-Agent oder aktive Landesgeschäftsstellen-Rolle → deren Variante.
-      const lvVariant = preferredLvRecipeMention({
-        mention: implicitRecipe,
-        agentIdentifier: classifiedState.agentConfig?.identifier ?? null,
-        activeRole: classifiedState.activeRole ?? null,
-        userLocale: classifiedState.userLocale ?? null,
-      });
-      recordDecision('router.implicit_recipe', implicitRecipe, {
-        inputs: { intent: classifiedState.intent, ...(lvVariant && { lvVariant }) },
-      });
-      log.info(
-        `[${requestId}] implicit recipe on single-pass: @${lvVariant ?? implicitRecipe}` +
-          (lvVariant ? ` (LV-Vorzug statt @${implicitRecipe})` : '')
-      );
-      classifiedState.activeSkillMention = lvVariant ?? implicitRecipe;
-    }
   }
 
   sse.send('intent', {

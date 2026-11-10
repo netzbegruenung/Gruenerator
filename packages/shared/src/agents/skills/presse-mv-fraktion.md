@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern'
 title: 'PM MV (Fraktion)'
-description: 'Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern — Anfragen, Anträge, Ausschüsse, Landesregierung'
+description: 'Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.'
 iconKey: 'PiWaves'
 avatar: '🌊'
 backgroundColor: '#316049'
