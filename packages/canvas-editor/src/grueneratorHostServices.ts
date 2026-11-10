@@ -42,6 +42,28 @@ export interface CanvasVorlagenService {
   /** The Seiten in one design; the tab asks for the one the sharepic is in. */
   listSeiten: (brand: SharepicBrand) => Promise<SharepicSeite[]>;
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
+  /**
+   * „Mit KI hinzufügen" in the page picker: of `candidates` (the Seiten most
+   * like the design, best first) the host's AI picks the one that continues
+   * `deck` (the design's text) and writes its text. Without it the picker
+   * offers no AI page.
+   */
+  draftNextSeite?: (input: {
+    candidates: readonly SharepicSeite[];
+    deck: string;
+    format: SharepicFormat;
+    brand: SharepicBrand;
+  }) => Promise<{ seite: SharepicSeite; pages: VorlagePage[] }>;
+  /**
+   * „Vorlage ändern" that keeps the page's text: the Seite with `text` written
+   * into it by the host's AI. Without it the picker restyles only pages
+   * without text.
+   */
+  fillSeite?: (
+    seite: SharepicSeite,
+    format: SharepicFormat,
+    text: string
+  ) => Promise<VorlagePage[]>;
   /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
   listCanvas?: () => Promise<CanvasVorlage[]>;
   /** The slide deck Vorlagen (Stile) of the viewer's country, for „Vorlage für alle Folien". */
