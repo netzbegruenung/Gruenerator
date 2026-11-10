@@ -11,6 +11,8 @@
 
 import { type McpAuthType, type McpRegistryEntry } from '@gruenerator/contracts';
 
+import { getManagedConnectors } from './systemMcpServers.js';
+
 export type { McpRegistryEntry };
 
 export interface McpRegistryPage {
@@ -136,6 +138,29 @@ export function findSeedByUrl(url: string): McpRegistryEntry | null {
   }
 }
 
+/**
+ * Known connectors (Bahn, Wetter, Rateo, …) as directory cards. Built per call,
+ * not into RECOMMENDED: they are env-gated (a source without its URL is not
+ * offered), and their `url` is '' because the endpoint lives in deploy env —
+ * "Verbinden" posts the `registryKey` instead. Kept out of SEED_BY_HOST and
+ * `findSeedByUrl` for the same reason: a row with an empty URL must not inherit
+ * some entry by accident.
+ */
+function knownConnectorEntries(): McpRegistryEntry[] {
+  return getManagedConnectors().map((c) => ({
+    name: c.key,
+    title: c.connector.title,
+    description: c.connector.description,
+    url: '',
+    websiteUrl: null,
+    authHint: 'none',
+    authOptions: ['none'],
+    recommended: true,
+    category: c.connector.category,
+    registryKey: c.key,
+  }));
+}
+
 const OFFICIAL_REGISTRY_URL = 'https://registry.modelcontextprotocol.io/v0/servers';
 const REGISTRY_TIMEOUT_MS = 6000;
 const REGISTRY_PAGE_SIZE = 30;
@@ -228,14 +253,15 @@ export class McpRegistryService {
   static async list(params: { search?: string; cursor?: string }): Promise<McpRegistryPage> {
     const term = params.search?.trim() ?? '';
     const search = term.toLowerCase();
+    const directory = [...knownConnectorEntries(), ...RECOMMENDED];
     const recommended = search
-      ? RECOMMENDED.filter(
+      ? directory.filter(
           (e) =>
             e.title.toLowerCase().includes(search) ||
             e.description.toLowerCase().includes(search) ||
             (e.category?.toLowerCase().includes(search) ?? false)
         )
-      : RECOMMENDED;
+      : directory;
     // Only poll the open registry on an actual search (no firehose on load).
     const external = term
       ? await fetchOfficialRegistry(term, params.cursor)

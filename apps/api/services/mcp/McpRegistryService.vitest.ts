@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { McpRegistryService, seedConnectionHints } from './McpRegistryService.js';
+import { findSeedByUrl, McpRegistryService, seedConnectionHints } from './McpRegistryService.js';
 
 describe('McpRegistryService — Typeform directory entries', () => {
   it('offers OAuth connections for the global and both EU MCP resources', async () => {
@@ -54,5 +54,35 @@ describe('McpRegistryService — auth options', () => {
       'X-Goog-Api-Key'
     );
     expect(seedConnectionHints('https://example.com/mcp')).toEqual({});
+  });
+});
+
+describe('McpRegistryService — bekannte Konnektoren im Verzeichnis', () => {
+  afterEach(() => {
+    delete process.env.SYSTEM_MCP_RATEO_URL;
+  });
+
+  it('führt eine aktive Quelle als Karte mit registryKey und ohne URL', async () => {
+    process.env.SYSTEM_MCP_RATEO_URL = 'https://rateo.example/api/mcp';
+    const { recommended } = await McpRegistryService.list({});
+    const rateo = recommended.find((e) => e.registryKey === 'rateo');
+    expect(rateo).toMatchObject({ title: 'Rateo', url: '', authHint: 'none', recommended: true });
+    expect(rateo?.category).toBe('Politik & Verwaltung');
+  });
+
+  it('findet sie über die Beschreibung', async () => {
+    process.env.SYSTEM_MCP_RATEO_URL = 'https://rateo.example/api/mcp';
+    const { recommended } = await McpRegistryService.list({ search: 'bezirksverordneten' });
+    expect(recommended.map((e) => e.registryKey ?? null)).toContain('rateo');
+  });
+
+  it('lässt eine Quelle ohne Env-URL weg', async () => {
+    const { recommended } = await McpRegistryService.list({});
+    expect(recommended.some((e) => e.registryKey === 'rateo')).toBe(false);
+  });
+
+  it('ordnet einer Zeile mit leerer URL keinen Verzeichniseintrag zu', () => {
+    process.env.SYSTEM_MCP_RATEO_URL = 'https://rateo.example/api/mcp';
+    expect(findSeedByUrl('')).toBeNull();
   });
 });
