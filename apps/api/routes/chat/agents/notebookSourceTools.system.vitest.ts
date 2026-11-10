@@ -236,13 +236,13 @@ describe('resolution', () => {
 
 describe('Agent mit eigenem Notebook', () => {
   it('nimmt ohne notebookId das Notebook des Agenten', async () => {
-    const { run } = makeCtx({ agentNotebookIds: ['hamburg-notebook'] });
-    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    const { run } = makeCtx({ agentNotebookIds: ['saarland-notebook'] });
+    expect((await run({ action: 'list' })).collection).toBe('saarland');
   });
 
   it('lässt ein ausgewähltes Notebook vor dem des Agenten gelten', async () => {
     const { run } = makeCtx({
-      agentNotebookIds: ['hamburg-notebook'],
+      agentNotebookIds: ['saarland-notebook'],
       notebookIds: ['berlin-notebook'],
     });
     expect((await run({ action: 'list' })).collection).toBe('berlin');
@@ -250,8 +250,8 @@ describe('Agent mit eigenem Notebook', () => {
 
   it('hält sich an die Sammlungsliste des Agenten', async () => {
     const { run } = makeCtx({
-      agentNotebookIds: ['hamburg-notebook'],
-      allowedCollections: ['hamburg'],
+      agentNotebookIds: ['saarland-notebook'],
+      allowedCollections: ['saarland'],
     });
     expect((await run({ action: 'list', notebookId: 'berlin' })).error).toMatch(
       /steht hier nicht zur Verfügung/
@@ -259,8 +259,8 @@ describe('Agent mit eigenem Notebook', () => {
   });
 
   it('liest ohne user_content nur System-Notebooks und fragt kein eigenes nach', async () => {
-    const { run, helper } = makeCtx({ agentNotebookIds: ['hamburg-notebook'], systemOnly: true });
-    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    const { run, helper } = makeCtx({ agentNotebookIds: ['saarland-notebook'], systemOnly: true });
+    expect((await run({ action: 'list' })).collection).toBe('saarland');
     const own = await run({ action: 'list', notebookId: '6f1c2e9a-0000-4000-8000-000000000001' });
     expect(own.error).toMatch(/nur System-Notebooks/);
     expect(helper.getNotebookCollection).not.toHaveBeenCalled();
@@ -268,11 +268,11 @@ describe('Agent mit eigenem Notebook', () => {
 
   it('übergeht ohne user_content ein ausgewähltes eigenes Notebook', async () => {
     const { run, helper } = makeCtx({
-      agentNotebookIds: ['hamburg-notebook'],
+      agentNotebookIds: ['saarland-notebook'],
       notebookIds: ['6f1c2e9a-0000-4000-8000-000000000001'],
       systemOnly: true,
     });
-    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    expect((await run({ action: 'list' })).collection).toBe('saarland');
     expect(helper.getNotebookCollection).not.toHaveBeenCalled();
   });
 });
@@ -282,8 +282,8 @@ describe('boundSystemNotebook', () => {
     ({ agentConfig, userLocale }) as unknown as ChatGraphState;
 
   it('nennt den Sammlungsschlüssel des gebundenen Notebooks', () => {
-    expect(boundSystemNotebook(state({ defaultNotebookIds: ['hamburg-notebook'] }))).toBe(
-      'hamburg'
+    expect(boundSystemNotebook(state({ defaultNotebookIds: ['saarland-notebook'] }))).toBe(
+      'saarland'
     );
   });
 
@@ -293,7 +293,7 @@ describe('boundSystemNotebook', () => {
       boundSystemNotebook(state({ defaultNotebookIds: ['6f1c2e9a-0000-4000-8000-000000000001'] }))
     ).toBeNull();
     expect(
-      boundSystemNotebook(state({ defaultNotebookIds: ['hamburg-notebook'] }, 'de-AT'))
+      boundSystemNotebook(state({ defaultNotebookIds: ['saarland-notebook'] }, 'de-AT'))
     ).toBeNull();
   });
 });
