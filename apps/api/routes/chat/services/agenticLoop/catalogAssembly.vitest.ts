@@ -33,6 +33,7 @@ import { type PersistedStep } from './types.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { McpCatalog } from '../../agents/mcpCatalog.js';
 import type { SSEWriter } from '../sseHelpers.js';
+import type { ThreadToolHistory } from '../threadPersistenceService.js';
 import type { ToolSet } from 'ai';
 
 const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null>>();
@@ -99,7 +100,12 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
 function assemble(
   state: ChatGraphState,
   d: CatalogDeps,
-  opts: { threadId?: string | null; sse?: SSEWriter; resumedSteps?: PersistedStep[] } = {}
+  opts: {
+    threadId?: string | null;
+    sse?: SSEWriter;
+    resumedSteps?: PersistedStep[];
+    lastTurnToolSteps?: PersistedStep[];
+  } = {}
 ) {
   return assembleToolCatalog(
     {
@@ -108,9 +114,23 @@ function assemble(
       sse: opts.sse ?? fakeSse().sse,
       threadId: opts.threadId ?? null,
       ...(opts.resumedSteps && { resumedSteps: opts.resumedSteps }),
+      ...(opts.lastTurnToolSteps && { toolHistory: historyWithLastTurn(opts.lastTurnToolSteps) }),
     },
     d
   );
+}
+
+function historyWithLastTurn(steps: PersistedStep[]): ThreadToolHistory {
+  return {
+    artifacts: () => [],
+    toolSteps: () => steps,
+    lastTurnToolSteps: () => steps,
+    lastTurnArtifacts: () => [],
+    lastTurnIntent: () => null,
+    lastTurnOffer: () => null,
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  };
 }
 
 beforeEach(() => {
@@ -134,7 +154,37 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
       expect.objectContaining({ userId: 'u1', scope: 'server-weg', threadId: 't1' })
     );
     expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  // #5602: hat der vorige Zug den Dienst benutzt, muss der Prompt erfahren,
+  // dass er fehlt — sonst setzt das Modell die Antworten aus dem Verlauf fort.
+  it('meldet den verworfenen Dienst, wenn der vorige Zug ihn benutzt hat', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-weg');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+      lastTurnToolSteps: [
+        { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+      ],
+    });
+
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBe('Rateo');
+  });
+
+  it('schweigt, wenn der vorige Zug keinen Dienst benutzt hat', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-weg');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+      lastTurnToolSteps: [{ toolCallId: 'c0', toolName: 'web_search', args: {}, result: {} }],
+    });
+
+    expect(assembled.staleConnectorName).toBeNull();
   });
 
   it('montiert ohne Scope nichts', async () => {
