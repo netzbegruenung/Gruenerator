@@ -1066,6 +1066,14 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (state.clientCanRenderSharepic && state.enabledTools?.['check_sharepic'] !== false) {
         tools.check_sharepic = makeCheckSharepicTool();
       }
+      // Neben dem Überarbeiten auch das Neuerstellen, ohne Zwang: ob „dann
+      // erstelle ein neues" ein neues meint, liest der Planer aus dem Gespräch.
+      // Ohne das Werkzeug blieb ihm nur edit_sharepic (Alfter, 09.11.2026, #5511).
+      // Ein bestellter Verbund unten überschreibt den Eintrag mit demselben Werkzeug.
+      tools.sharepic = makeCreateSharepicTool({
+        ...sharepicCtx,
+        researchBanned,
+      });
     }
 
     // Chat-Tabelle: lesen und ändern statt eine Änderung zu behaupten (#4457).
