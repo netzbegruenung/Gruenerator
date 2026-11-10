@@ -164,6 +164,8 @@ const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: str
   'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt': NOTEBOOK_ICONS['sachsen-anhalt-notebook'],
   'gruenerator-oeffentlichkeitsarbeit-hessen': NOTEBOOK_ICONS['hessen-notebook'],
   'gruenerator-oeffentlichkeitsarbeit-saarland': NOTEBOOK_ICONS['saarland-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen':
+    NOTEBOOK_ICONS['nordrhein-westfalen-notebook'],
 };
 
 export function agentToMentionable(agent: AgentListItem): Mentionable {

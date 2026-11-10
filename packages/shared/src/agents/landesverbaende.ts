@@ -222,6 +222,22 @@ export const LANDESVERBAENDE = [
     hub: { slug: 'gruene-hessen', name: 'Grüne Hessen' },
   },
   {
+    id: 'nordrhein-westfalen',
+    title: 'Nordrhein-Westfalen',
+    recipeSlug: 'nrw',
+    codes: ['NRW', 'NRW-F'],
+    notebookId: 'nordrhein-westfalen-notebook',
+    homepage: 'https://gruene-nrw.de',
+    themes:
+      'Strukturwandel im Rheinischen Revier und Kohleausstieg 2030, Industrie und klimaneutrale Wirtschaft, Verkehrswende (Radverkehr, ÖPNV, Sanierung von Brücken und Schiene), Klimaanpassung und Hitzeschutz, Bildung und Kita, Kommunalfinanzen und Altschulden',
+    audience: 'de-DE',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',
+    buergerAgentId: 'gruenerator-buergeranfragen-nordrhein-westfalen',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-nordrhein-westfalen',
+    beschlussAgentId: 'gruenerator-beschluesse-nordrhein-westfalen',
+    hub: { slug: 'gruene-nrw', name: 'Grüne NRW' },
+  },
+  {
     id: 'saarland',
     title: 'Saarland',
     recipeSlug: 'saarland',

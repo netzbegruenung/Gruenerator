@@ -81,6 +81,7 @@ const NOTEBOOK_PATHS = {
   'sachsen-notebook': '/notebooks/sachsen',
   'hessen-notebook': '/notebooks/hessen',
   'saarland-notebook': '/notebooks/saarland',
+  'nordrhein-westfalen-notebook': '/notebooks/nordrhein-westfalen',
   'oesterreich-notebook': '/notebooks/oesterreich',
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',

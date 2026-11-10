@@ -42,6 +42,8 @@ const LV_SHORT_NAMES: { code: string; label: string }[] = [
   { code: 'LSA-F', label: 'Sachsen-Anhalt Fraktion' },
   { code: 'MV', label: 'Mecklenburg-Vorpommern' },
   { code: 'MV-F', label: 'Mecklenburg-Vorpommern Fraktion' },
+  { code: 'NRW', label: 'Nordrhein-Westfalen' },
+  { code: 'NRW-F', label: 'Nordrhein-Westfalen Fraktion' },
   { code: 'SH', label: 'Schleswig-Holstein' },
   { code: 'SL', label: 'Saarland' },
   { code: 'TH', label: 'Thüringen' },
