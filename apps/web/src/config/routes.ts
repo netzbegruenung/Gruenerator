@@ -324,6 +324,8 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
+const KiSchnittNewPage = lazy(() => import('../features/video-ai/KiSchnittNewPage'));
+const KiSchnittProjectPage = lazy(() => import('../features/video-ai/KiSchnittProjectPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -936,6 +938,9 @@ const standardRoutes: RouteConfig[] = [
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
+  // KI-Schnitt: before /studio/:category, like every literal studio path.
+  { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
+  { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.

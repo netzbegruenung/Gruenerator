@@ -14,6 +14,8 @@
  * so nobody's allowance changes on the day this replaces them.
  */
 
+import { videoAiTreeUnits } from '@gruenerator/contracts';
+
 export const UNITS_PER_TREE = 100;
 /** The product decision behind everything else: what one account gets per day. */
 export const BASE_DAILY_TREES = 10;
@@ -50,19 +52,9 @@ export function formatTrees(units: number): string {
   return treeFormat.format(unitsToTrees(units));
 }
 
-/**
- * KI-Schnitt, per second of raw footage: transcription, frame reading and the
- * cut decisions scale with it. One Baum buys two minutes; a job costs at least
- * one Baum. Not measured against provider prices yet — the spike measured
- * time and tokens, not euros (evals/video-ai/spike-2026-11-10.md).
- */
-export const VIDEO_AI_SECONDS_PER_TREE = 120;
-
+/** KI-Schnitt: the formula lives in contracts so the page shows the same price. */
 export function treeCostForVideoAiSeconds(seconds: number): number {
-  return Math.max(
-    UNITS_PER_TREE,
-    Math.ceil((Math.max(0, seconds) * UNITS_PER_TREE) / VIDEO_AI_SECONDS_PER_TREE)
-  );
+  return videoAiTreeUnits(seconds);
 }
 
 /** One correction round with Gemma: a tenth of a Baum. Direct changes are free. */

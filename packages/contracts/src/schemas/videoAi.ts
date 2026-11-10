@@ -20,6 +20,18 @@ export const VIDEO_AI_LIMITS = {
   maxOverlays: 20,
 } as const;
 
+/**
+ * Price of a KI-Schnitt in tree units (hundredths of a Baum), per second of
+ * clips: one Baum per two minutes, at least one. Here, not in the API's
+ * treeCosts.ts, so the page's estimate and the booking are the same number.
+ * Not yet measured against provider prices (evals/video-ai/spike-2026-11-10.md).
+ */
+export const VIDEO_AI_SECONDS_PER_TREE = 120;
+
+export function videoAiTreeUnits(clipSeconds: number): number {
+  return Math.max(100, Math.ceil((Math.max(0, clipSeconds) * 100) / VIDEO_AI_SECONDS_PER_TREE));
+}
+
 export const videoAiFormatSchema = z.enum(['9:16', '4:5', '1:1', '16:9']);
 export type VideoAiFormat = z.infer<typeof videoAiFormatSchema>;
 
