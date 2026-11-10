@@ -138,11 +138,11 @@ describe('managed connectors', () => {
     expect(new Set(prefixes).size).toBe(prefixes.length);
   });
 
-  it('marks the connection config as managed so no row write is attempted', () => {
+  it('carries the registry key so the catalog names tools <key>__ and skips row writes', () => {
     process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
     process.env.SYSTEM_MCP_LAW_TOKEN = 'secret';
     const config = toSystemConnectionConfig(sourceByKey('gesetze')!);
-    expect(config.managed).toBe(true);
+    expect(config.registryKey).toBe('gesetze');
     expect(config.id).toBe('system-gesetze');
     expect(config.authType).toBe('bearer');
   });

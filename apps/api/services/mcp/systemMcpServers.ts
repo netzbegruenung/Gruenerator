@@ -327,7 +327,7 @@ export function toSystemConnectionConfig(source: SystemMcpSource): McpConnection
     url: source.url,
     authType: source.authType,
     token: source.token,
-    managed: true,
+    registryKey: source.key,
   };
 }
 
