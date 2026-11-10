@@ -233,8 +233,8 @@ export function selectProviderAndModel({
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
   }
-  // Bundestag-Lesen: `:speed` wie in `AI_LANES.bundestag_read` (#5581, Begründung dort)
-  else if (type === 'bundestag_read') {
+  // Bundestag-Lesen und KI-Schnitt: `:speed` wie in `AI_LANES` (Begründung dort)
+  else if (type === 'bundestag_read' || type === 'video_ai_cut') {
     provider = GEMMA_31B_ON_MELIOUS_SPEED.provider;
     model = options.model || GEMMA_31B_ON_MELIOUS_SPEED.model;
   }
