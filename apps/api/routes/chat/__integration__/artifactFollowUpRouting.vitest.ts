@@ -452,6 +452,20 @@ describe.each(Object.keys(KINDS) as Kind[])('Folgeauftrag auf %s', (kind) => {
   });
 });
 
+// Alfter 09.11.2026 (#5511): „dann erstelle ein neues" nach einer gescheiterten
+// Umwandlung bekam nur edit_sharepic — neu erstellen konnte der Planer nicht.
+describe('Sharepic im Gespräch, ein neues bestellt', () => {
+  it.each(['dann erstelle ein neues', 'nun als karussel'])(
+    'montiert neben edit_sharepic auch sharepic, ohne Zwang: %s',
+    async (prompt) => {
+      await probe('sharepic', prompt, await artifactThread('sharepic', true), 'direkt danach');
+      const call = loopScript.calls[0];
+      expect(call?.toolNames).toEqual(expect.arrayContaining(['edit_sharepic', 'sharepic']));
+      expect(call?.toolChoice ?? null).toBeNull();
+    }
+  );
+});
+
 describe('ohne Artefakt im Gespräch', () => {
   it('montiert edit_image nicht', async () => {
     const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Ohne Bild');
