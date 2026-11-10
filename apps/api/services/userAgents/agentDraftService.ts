@@ -47,13 +47,18 @@ const DraftSchema = z.object({
   // An array, not one string: Gemma on the forced tool call drops the
   // backslash of `\n` (".n- Nutze …", #5591, #5587), so a role asked for as
   // one string arrives as one block or with stray "n"s. The server joins.
-  systemRoleBlocks: z
-    .array(z.string())
-    .min(1)
-    .refine((blocks) => joinRoleBlocks(blocks).length >= 20, 'systemRole zu kurz')
-    .describe(
-      'Ausführlicher System-Prompt für den*die Agent*in, ein Eintrag je Absatz (Rolle, Aufgabe, Ton, Arbeitsweise); jeder Listenpunkt ein eigener Eintrag, beginnend mit "- ". Du-Form, Genderstern (*innen).'
-    ),
+  // A bare string (the old shape) counts as one block instead of costing a
+  // repair round; the tool schema the model sees stays the array.
+  systemRoleBlocks: z.preprocess(
+    (v) => (typeof v === 'string' ? [v] : v),
+    z
+      .array(z.string())
+      .min(1)
+      .refine((blocks) => joinRoleBlocks(blocks).length >= 20, 'systemRole zu kurz')
+      .describe(
+        'Ausführlicher System-Prompt für den*die Agent*in, ein Eintrag je Absatz (Rolle, Aufgabe, Ton, Arbeitsweise); jeder Listenpunkt ein eigener Eintrag, beginnend mit "- ". Du-Form, Genderstern (*innen).'
+      )
+  ),
   iconKey: z
     .string()
     .describe('Icon-Schlüssel, ausschließlich aus dem Katalog (z.B. PiSparkle, PiMegaphone)'),

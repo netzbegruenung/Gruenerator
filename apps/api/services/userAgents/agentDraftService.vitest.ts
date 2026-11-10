@@ -107,6 +107,23 @@ describe('draftAgentSpec', () => {
     );
   });
 
+  it('takes a bare string role as one block', async () => {
+    modelReturns({
+      ...oversizedDraft(),
+      systemRoleBlocks: 'Du bist die Pressestelle des Kreisverbands.',
+    });
+    const spec = await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
+    expect(spec.systemRole).toBe('Du bist die Pressestelle des Kreisverbands.');
+  });
+
+  it('offers the role to the model as an array of blocks', async () => {
+    modelReturns(oversizedDraft());
+    await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+    const props = (call.schema as { properties: Record<string, { type?: string }> }).properties;
+    expect(props.systemRoleBlocks.type).toBe('array');
+  });
+
   describe('defaultRecipeMention', () => {
     const catalog = [
       {
