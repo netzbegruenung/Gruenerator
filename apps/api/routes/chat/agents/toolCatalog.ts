@@ -101,7 +101,7 @@ import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
-import { makeNotebookSourcesTool } from './notebookSourceTools.js';
+import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -425,6 +425,14 @@ export function buildChatToolCatalog(params: {
     // search now hangs on the locale, so "no loop state" has to resolve to an
     // explicit `null` (→ the German default) rather than to an absent property.
     userLocale: loop?.state.userLocale ?? null,
+    // The notebook the turn is scoped to becomes the search default — an
+    // @mention first, else the agent's bound notebooks (same priority as
+    // `resolveExamplesLvScope`). Without it an LV agent searched `deutschland`.
+    ...(loop != null && {
+      scopedCollections: loop.state.notebookCollectionIds?.length
+        ? loop.state.notebookCollectionIds
+        : (loop.state.defaultNotebookCollectionIds ?? []),
+    }),
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
@@ -1181,8 +1189,16 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
-    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
-      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
+    // Ein Agent mit eigenem System-Notebook liest es auch ohne `user_content`:
+    // die Freigabe hängt am Eigentümer des Notebooks (öffentliche
+    // Parteiinhalte), nicht am Werkzeug. Dann nur System-Notebooks, nur lesen.
+    if (
+      (userContentAllowed || boundSystemNotebook(state) != null) &&
+      state.enabledTools?.['notebook_quellen'] !== false
+    ) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx, {
+        systemOnly: !userContentAllowed,
+      });
     }
     // DeepL translation. Mounted broadly like the domain tools — the model
     // decides — but only when a key is configured: a tool that always answers

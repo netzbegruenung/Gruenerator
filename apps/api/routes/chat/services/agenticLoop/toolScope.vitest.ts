@@ -361,3 +361,21 @@ describe('createToolScope — das Ergebnis des Laders', () => {
     expect(out.hinweis).not.toContain('landtag');
   });
 });
+
+describe('createToolScope — keepVisible', () => {
+  // Ein Agent mit eigenem Notebook: notebook_quellen steht von Anfang an,
+  // die übrigen eigenen Inhalte der Person bleiben hinter dem Lader.
+  it('hält das eine Werkzeug sichtbar und die Gruppe trotzdem zu', () => {
+    const scope = createToolScope({
+      enforce: true,
+      toolNames: MOUNTED,
+      userText: 'Antworte auf diese E-Mail zur Windkraft',
+      keepVisible: ['notebook_quellen'],
+    });
+    const active = scope.activeTools();
+    expect(active).toContain('notebook_quellen');
+    expect(active).not.toContain('documents');
+    expect(active).toContain(LOADER);
+    expect(scope.deferredToolNames()).not.toContain('notebook_quellen');
+  });
+});

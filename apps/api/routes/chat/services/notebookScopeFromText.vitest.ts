@@ -20,8 +20,12 @@ import {
 } from './notebookScopeFromText.js';
 
 // Nur der Standard-Lister (ohne injiziertes `listOwn`) greift darauf zu.
-const ownLight = vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []);
-const sharedList = vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []);
+// vi.hoisted: der Mock wird schon beim Modul-Import instanziiert (über
+// NotebookQAService → notebookAccess), bevor normale `const`s stehen.
+const { ownLight, sharedList } = vi.hoisted(() => ({
+  ownLight: vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []),
+  sharedList: vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []),
+}));
 vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
     getUserNotebookCollectionsLight = ownLight;

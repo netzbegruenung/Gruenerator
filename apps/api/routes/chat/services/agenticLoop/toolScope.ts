@@ -283,9 +283,17 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  /**
+   * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
+   * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
+   * einen Agenten mit eigenem Notebook, ohne dass damit Dokumente, Boards und
+   * Medien der Person mit aufgehen.
+   */
+  keepVisible?: readonly string[];
   enforce: boolean;
 }): ToolScope {
   const mounted = new Set(params.toolNames);
+  const keepVisible = new Set(params.keepVisible ?? []);
   const text = params.userText ?? '';
   const pinned = params.pinnedTool ?? null;
   const prior = new Set(params.priorToolNames ?? []);
@@ -296,7 +304,7 @@ export function createToolScope(params: {
     // `tools` ist ein Literal-Tupel, die Namen kommen als beliebige Strings aus
     // dem Zustand — die Verbreiterung ist die Grenze, nicht ein Typloch.
     const groupTools = group.tools as readonly string[];
-    const present = groupTools.filter((t) => mounted.has(t));
+    const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];

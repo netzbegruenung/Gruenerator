@@ -20,7 +20,7 @@ import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
-import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
+import { boundSystemNotebook, notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { offerNote } from '../artifactOffer.js';
@@ -534,9 +534,10 @@ export async function streamAgenticResponse(
     // here or the model promises an edit that nothing will make (or hides
     // that editing is off).
     const preLoopEditNotes = buildPreLoopEditNotes(finalState);
-    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
+    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet
+    // hat, sonst das, an das der Agent gebunden ist.
     const promptNotebook = notebookForPrompt(
-      finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
+      finalState.notebookIds?.[0] ?? finalState.threadNotebookId ?? boundSystemNotebook(finalState),
       finalState.userLocale ?? null
     );
     // The product vocabulary — term names only, so the model recognises a

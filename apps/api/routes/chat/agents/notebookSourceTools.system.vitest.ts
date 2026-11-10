@@ -16,6 +16,7 @@ import { SYSTEM_READ_ONLY } from '../../../services/notebook/systemNotebookSourc
 import { buildToolObservationReplay } from '../services/agenticLoop/mcpReplay.js';
 
 import {
+  boundSystemNotebook,
   makeNotebookSourcesTool,
   normalizeArgs,
   notebookForPrompt,
@@ -83,6 +84,10 @@ function makeCtx(
     more?: FakePoint[];
     textIndex?: Record<string, unknown> | null;
     scopeLock?: { ids: string[]; readOnly: boolean };
+    /** Das Notebook, an das der Agent gebunden ist (`defaultNotebookIds`). */
+    agentNotebookIds?: string[];
+    allowedCollections?: string[];
+    systemOnly?: boolean;
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -95,7 +100,13 @@ function makeCtx(
     },
   } as unknown as SourceRegistry;
   const state = {
-    agentConfig: { userId: 'user-1' },
+    agentConfig: {
+      userId: 'user-1',
+      ...(opts.agentNotebookIds ? { defaultNotebookIds: opts.agentNotebookIds } : {}),
+      ...(opts.allowedCollections
+        ? { toolRestrictions: { allowedCollections: opts.allowedCollections } }
+        : {}),
+    },
     userLocale: opts.locale ?? 'de-DE',
     messages: [],
     notebookIds: opts.notebookIds ?? [],
@@ -127,13 +138,16 @@ function makeCtx(
     recentSteps: vi.fn(async () => opts.recentSteps ?? []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
   } as unknown as NotebookSourceToolDeps & NotebookSourceWriteDeps;
-  const tool = makeNotebookSourcesTool({
-    state,
-    sse: { send: () => {} } as unknown as SSEWriter,
-    threadId: 't1',
-    sourceRegistry,
-    deps,
-  });
+  const tool = makeNotebookSourcesTool(
+    {
+      state,
+      sse: { send: () => {} } as unknown as SSEWriter,
+      threadId: 't1',
+      sourceRegistry,
+      deps,
+    },
+    { systemOnly: opts.systemOnly === true }
+  );
   const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
     (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
       { mode: 'hybrid', rerank: false, ...args },
@@ -217,6 +231,70 @@ describe('resolution', () => {
       })
     ).toEqual({ error: SYSTEM_READ_ONLY });
     expect(intoSystem.helper.getCollectionDocuments).not.toHaveBeenCalled();
+  });
+});
+
+describe('Agent mit eigenem Notebook', () => {
+  it('nimmt ohne notebookId das Notebook des Agenten', async () => {
+    const { run } = makeCtx({ agentNotebookIds: ['hamburg-notebook'] });
+    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+  });
+
+  it('lässt ein ausgewähltes Notebook vor dem des Agenten gelten', async () => {
+    const { run } = makeCtx({
+      agentNotebookIds: ['hamburg-notebook'],
+      notebookIds: ['berlin-notebook'],
+    });
+    expect((await run({ action: 'list' })).collection).toBe('berlin');
+  });
+
+  it('hält sich an die Sammlungsliste des Agenten', async () => {
+    const { run } = makeCtx({
+      agentNotebookIds: ['hamburg-notebook'],
+      allowedCollections: ['hamburg'],
+    });
+    expect((await run({ action: 'list', notebookId: 'berlin' })).error).toMatch(
+      /steht hier nicht zur Verfügung/
+    );
+  });
+
+  it('liest ohne user_content nur System-Notebooks und fragt kein eigenes nach', async () => {
+    const { run, helper } = makeCtx({ agentNotebookIds: ['hamburg-notebook'], systemOnly: true });
+    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    const own = await run({ action: 'list', notebookId: '6f1c2e9a-0000-4000-8000-000000000001' });
+    expect(own.error).toMatch(/nur System-Notebooks/);
+    expect(helper.getNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('übergeht ohne user_content ein ausgewähltes eigenes Notebook', async () => {
+    const { run, helper } = makeCtx({
+      agentNotebookIds: ['hamburg-notebook'],
+      notebookIds: ['6f1c2e9a-0000-4000-8000-000000000001'],
+      systemOnly: true,
+    });
+    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    expect(helper.getNotebookCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('boundSystemNotebook', () => {
+  const state = (agentConfig: Record<string, unknown>, userLocale = 'de-DE') =>
+    ({ agentConfig, userLocale }) as unknown as ChatGraphState;
+
+  it('nennt den Sammlungsschlüssel des gebundenen Notebooks', () => {
+    expect(boundSystemNotebook(state({ defaultNotebookIds: ['hamburg-notebook'] }))).toBe(
+      'hamburg'
+    );
+  });
+
+  it('ist null ohne gebundenes Notebook, bei einem eigenen und außerhalb der Locale', () => {
+    expect(boundSystemNotebook(state({}))).toBeNull();
+    expect(
+      boundSystemNotebook(state({ defaultNotebookIds: ['6f1c2e9a-0000-4000-8000-000000000001'] }))
+    ).toBeNull();
+    expect(
+      boundSystemNotebook(state({ defaultNotebookIds: ['hamburg-notebook'] }, 'de-AT'))
+    ).toBeNull();
   });
 });
 
