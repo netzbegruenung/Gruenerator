@@ -101,7 +101,7 @@ import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
-import { makeNotebookSourcesTool } from './notebookSourceTools.js';
+import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -1189,8 +1189,16 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
-    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
-      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
+    // Ein Agent mit eigenem System-Notebook liest es auch ohne `user_content`:
+    // die Freigabe hängt am Eigentümer des Notebooks (öffentliche
+    // Parteiinhalte), nicht am Werkzeug. Dann nur System-Notebooks, nur lesen.
+    if (
+      (userContentAllowed || boundSystemNotebook(state) != null) &&
+      state.enabledTools?.['notebook_quellen'] !== false
+    ) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx, {
+        systemOnly: !userContentAllowed,
+      });
     }
     // DeepL translation. Mounted broadly like the domain tools — the model
     // decides — but only when a key is configured: a tool that always answers

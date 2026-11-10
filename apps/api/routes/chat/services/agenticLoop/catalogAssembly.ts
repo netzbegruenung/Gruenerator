@@ -26,6 +26,7 @@ import {
 } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
+import { boundSystemNotebook } from '../../agents/notebookSourceTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   catalogDescription,
@@ -553,6 +554,10 @@ export async function assembleToolCatalog(
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
+    // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
+    // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
+    // hinter „meine Inhalte" warten.
+    ...(boundSystemNotebook(state) != null && { keepVisible: ['notebook_quellen'] }),
     enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());

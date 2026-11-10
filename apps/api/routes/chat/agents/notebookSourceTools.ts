@@ -94,7 +94,7 @@ import {
 } from './personalDataTools.js';
 import { collectionsForLocale } from './searchTools.js';
 
-import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { DocDateKind } from '../../../services/documentMeta/headerMeta.js';
@@ -124,6 +124,8 @@ export type NotebookSourceToolCtx = PersonalToolCtx & {
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an: bei eigenen Notebooks den ref aus notebooks action="list", bei System-Notebooks den Schlüssel (z. B. berlin, deutschland).';
 const TOOL_NAME = 'notebook_quellen';
+const SYSTEM_ONLY =
+  'Hier sind nur System-Notebooks freigegeben (z. B. berlin, deutschland) — eigene Notebooks liest dieser Agent nicht.';
 const OUT_OF_SCOPE =
   'Im Präzisionsmodus sind nur die Notebooks dieser Seite freigegeben — lass notebookId weg oder nimm eines davon.';
 const READ_ONLY_MODE =
@@ -184,6 +186,40 @@ export function notebookIdFromSteps(steps: readonly PersistedStep[]): string | n
     for (const id of [step.args.notebookId, step.result?.notebookId]) {
       if (typeof id === 'string' && id) return id;
     }
+  }
+  return null;
+}
+
+/**
+ * Die System-Sammlungen, die dieser Turn lesen darf — dieselbe Menge wie bei
+ * `gruenerator_search`: die ausdrückliche Liste des Agenten
+ * (`toolRestrictions.allowedCollections`, z. B. nur der eigene Landesverband),
+ * sonst die der Locale.
+ */
+export function readableSystemKeys(
+  state: Pick<ChatGraphState, 'agentConfig' | 'userLocale'>
+): readonly string[] {
+  const own = state.agentConfig?.toolRestrictions?.allowedCollections;
+  return own?.length ? own : collectionsForLocale(state.userLocale ?? null);
+}
+
+/**
+ * Das System-Notebook, an das der Agent gebunden ist (`defaultNotebookIds`),
+ * als Sammlungsschlüssel — oder `null`. NUR das des Agenten, nicht die
+ * Composer-Vorgabe: die steht in jedem Chat (`gruenerator-notebook`), und mit
+ * ihr würde jeder gewöhnliche Turn zum Notebook-Turn.
+ *
+ * Damit liest ein Landesverbands-Agent sein Notebook so, wie es die
+ * Notebook-Seite tut — `notebook_quellen` ohne notebookId nimmt es, und der
+ * Prompt nennt es (`buildToolUsageBlock`).
+ */
+export function boundSystemNotebook(
+  state: Pick<ChatGraphState, 'agentConfig' | 'userLocale'>
+): string | null {
+  const keys = readableSystemKeys(state);
+  for (const id of state.agentConfig?.defaultNotebookIds ?? []) {
+    const system = resolveSystemCollection(id, keys);
+    if (system && !('error' in system)) return system.collection.key;
   }
   return null;
 }
@@ -460,8 +496,18 @@ const inputSchema = z
 
 type ToolArgs = z.infer<typeof inputSchema>;
 
-export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
+export function makeNotebookSourcesTool(
+  ctx: NotebookSourceToolCtx,
+  /**
+   * `systemOnly`: der Turn darf keine eigenen Inhalte der Person sehen
+   * (`user_content` aus), aber ein Agent ist an ein System-Notebook gebunden.
+   * System-Notebooks sind öffentliche Parteiinhalte — die Freigabe hängt am
+   * Eigentümer des Notebooks, nicht am Werkzeug. Nur lesen, nur System.
+   */
+  options: { systemOnly?: boolean } = {}
+): Tool {
   const { state, sourceRegistry } = ctx;
+  const systemOnly = options.systemOnly === true;
   const deps = resolveDeps(ctx.deps);
   const writeDeps = resolveWriteDeps(ctx.deps);
 
@@ -542,10 +588,11 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     // Erst beim Aufruf, nicht in der Fabrik: der Katalog baut das Werkzeug in
     // jedem Turn, und die Fabrik bleibt wie die anderen persönlichen Werkzeuge
     // ohne Arbeit. Dieselbe Menge wie bei `gruenerator_search`.
-    const allowedSystemKeys = collectionsForLocale(state.userLocale ?? null);
+    const allowedSystemKeys = readableSystemKeys(state);
     if (explicit) {
       const system = resolveSystemCollection(explicit, allowedSystemKeys);
       if (system) return 'error' in system ? system : { kind: 'system', ...system };
+      if (systemOnly) return { error: SYSTEM_ONLY };
       const collection = await deps.helper.getNotebookCollection(explicit);
       return collection ? { kind: 'user', collection } : { error: NOT_FOUND };
     }
@@ -558,10 +605,16 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
         else firstSystem ??= { kind: 'system', ...system };
         continue;
       }
+      if (systemOnly) continue;
       const collection = await deps.helper.getNotebookCollection(id);
       if (collection) return { kind: 'user', collection };
     }
-    return firstSystem ?? firstSystemError ?? { error: NO_NOTEBOOK };
+    const chosen = firstSystem ?? firstSystemError;
+    if (chosen) return chosen;
+    const bound = boundSystemNotebook(state);
+    const boundSystem = bound ? resolveSystemCollection(bound, allowedSystemKeys) : null;
+    if (boundSystem && !('error' in boundSystem)) return { kind: 'system', ...boundSystem };
+    return { error: NO_NOTEBOOK };
   }
 
   /** Für die Schreibaktionen: ein System-Notebook ist nie Quelle oder Ziel. */
@@ -589,7 +642,7 @@ NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne 
 NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — sie bleiben in der Bibliothek), in ein anderes Notebook verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag), eine Notiz anlegen (add_note) und EINE Webseite importieren (add_url — eine Seite, keine ganze Website; erzeugt Einbettungen, kostet).
 
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Eine Quelle nach Namen suchen: list mit filter.titleContains; nach Inhalt: find.
-Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das zuletzt in diesem Chat genutzte.
+Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das Notebook des Agenten, sonst das zuletzt in diesem Chat genutzte.
 System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle — den Volltext liest read mit ihr, nicht scrape_url. list nennt die Kategorien (categories, dazu Dokumenttypen in documentTypes) für filter.category — genau diese Werte, nicht übersetzen (Beschlüsse → beschluss); filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; über 200 Quellen nur die Schreibweise der Phrase (Groß/klein egal, countRule) — Akzentvarianten (Charité/Charite) einzeln zählen. Nur lesen.`,
     inputSchema,
     execute: async (rawArgs) => {
