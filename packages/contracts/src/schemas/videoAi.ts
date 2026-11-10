@@ -311,10 +311,15 @@ export const videoAiOpSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('set_zoom'), unitId: videoAiUnitIdSchema, zoom: videoAiZoomSchema }),
   z.object({ kind: z.literal('add_overlay'), overlay: videoAiOverlaySchema }),
+  /**
+   * Only the fields that change; they are laid over the existing overlay and
+   * the result is checked whole. Gemma sends just the changed fields and could
+   * not be talked into repeating the rest (10.11.2026).
+   */
   z.object({
     kind: z.literal('update_overlay'),
     index: overlayIndex,
-    overlay: videoAiOverlaySchema,
+    overlay: z.record(z.string(), z.unknown()),
   }),
   z.object({ kind: z.literal('remove_overlay'), index: overlayIndex }),
   z.object({

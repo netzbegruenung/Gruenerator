@@ -9,7 +9,12 @@
  * The result is NOT validated here — the caller runs validateEdl, exactly as
  * for the first cut, so a round can never produce what the first cut may not.
  */
-import { type VideoAiEdl, type VideoAiOp, type VideoAiSegment } from '@gruenerator/contracts';
+import {
+  videoAiOverlaySchema,
+  type VideoAiEdl,
+  type VideoAiOp,
+  type VideoAiSegment,
+} from '@gruenerator/contracts';
 
 import { type TranscriptUnit } from './transcriptUnits.js';
 
@@ -106,14 +111,36 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
     if (op.index >= edl.overlays.length) {
       return { ok: false, error: `Einblendung ${op.index} gibt es nicht.` };
     }
-    if (op.kind === 'remove_overlay') removed.add(op.index);
-    else updated.set(op.index, op.overlay);
+    if (op.kind === 'remove_overlay') {
+      removed.add(op.index);
+      continue;
+    }
+    const merged = videoAiOverlaySchema.safeParse({ ...edl.overlays[op.index], ...op.overlay });
+    if (!merged.success) {
+      return {
+        ok: false,
+        error: `Einblendung ${op.index}: ${merged.error.issues.map((x) => `${x.path.join('.')} ${x.message}`).join('; ')}`,
+      };
+    }
+    updated.set(op.index, merged.data);
   }
   const overlays: VideoAiEdl['overlays'] = [];
   edl.overlays.forEach((o, i) => {
     if (removed.has(i)) return;
     const replacement = updated.get(i);
-    if (replacement) overlays.push(replacement);
+    const patch = ops.find(
+      (op): op is Extract<VideoAiOp, { kind: 'update_overlay' }> =>
+        op.kind === 'update_overlay' && op.index === i
+    );
+    if (
+      replacement &&
+      'atSegment' in replacement &&
+      'atSegment' in o &&
+      !('atSegment' in (patch?.overlay ?? {}))
+    ) {
+      // Not moved by the round: it follows its sentence like the others.
+      overlays.push({ ...replacement, atSegment: newIndex(o.atSegment) });
+    } else if (replacement) overlays.push(replacement);
     else overlays.push('atSegment' in o ? { ...o, atSegment: newIndex(o.atSegment) } : o);
   });
   for (const op of ops) if (op.kind === 'add_overlay') overlays.push(op.overlay);

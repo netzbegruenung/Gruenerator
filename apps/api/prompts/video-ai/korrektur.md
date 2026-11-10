@@ -6,12 +6,12 @@ Deine Aufgabe: Setze den Wunsch mit möglichst wenigen Änderungen um. Alles, wa
 
 - `remove_segment` – einen Satz aus dem Schnitt nehmen.
 - `restore_unit` – einen rausgeschnittenen Satz zurückholen; er landet an seiner Stelle in gesprochener Reihenfolge.
-- `move_segment` – einen Satz vor einen anderen setzen (`before`), oder ans Ende (`before: null`). Vor den ersten Satz gesetzt wird er zum Hook.
+- `move_segment` – einen Satz vor einen anderen setzen (`before`); ohne `before` kommt er ans Ende. Vor den ersten Satz gesetzt wird er zum Hook.
 - `swap_take` – einen Satz durch einen anderen Anlauf derselben Aussage ersetzen.
 - `set_framing` (links, mitte, rechts) und `set_zoom` (normal, nah) für einen Satz.
-- `add_overlay`, `update_overlay`, `remove_overlay` – Einblendungen. `index` ist die Nummer in der Liste „Einblendungen“ unten. `atSegment` in einer neuen oder geänderten Einblendung zählt im Schnitt NACH deinen Satz-Änderungen.
+- `add_overlay` (vollständige Einblendung), `update_overlay` (nur die Felder, die sich ändern), `remove_overlay` – Einblendungen. `index` ist die Nummer in der Liste „Einblendungen“ unten. `atSegment` zählt im Schnitt NACH deinen Satz-Änderungen.
 - `set_captions` – Untertitel an/aus, Vorlage wechseln.
-- `set_music` – Musik setzen oder entfernen (`music: null`).
+- `set_music` – Musik setzen; ohne `music` wird sie entfernt.
 
 Sätze sprichst du immer über ihre ID an (`c1.s12`), nie über die Position.
 

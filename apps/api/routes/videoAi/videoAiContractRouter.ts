@@ -104,8 +104,9 @@ export const videoAiContractRouter = s.router(videoAiContract, {
           };
     }
 
+    let created: { id: string; slugSuffix: string };
     try {
-      const { id, slugSuffix } = await insertVideoAiProject({
+      created = await insertVideoAiProject({
         userId: user.id,
         brief: body.brief,
         inputs: material.inputs,
@@ -113,12 +114,14 @@ export const videoAiContractRouter = s.router(videoAiContract, {
         treeUnits: units,
         treeDay: reservation.status.day,
       });
-      log.info(`KI-Schnitt ${id} queued (${material.clipSeconds.toFixed(0)} s, ${units} units)`);
-      return { status: 202 as const, body: { id, slugSuffix } };
     } catch (error) {
       await getTreeBudget().release(user.id, units, reservation.status.day);
       throw error;
     }
+    log.info(
+      `KI-Schnitt ${created.id} queued (${material.clipSeconds.toFixed(0)} s, ${units} units)`
+    );
+    return { status: 202 as const, body: created };
   },
 
   importUpload: async ({ req, body }) => {

@@ -70,7 +70,10 @@ const TOOL_SCHEMA = {
             enum: videoAiOpSchema.options.map((o) => o.shape.kind.value),
           },
           unitId: { type: 'string', description: 'Satz-ID wie c1.s12' },
-          before: { type: ['string', 'null'], description: 'move_segment: Satz-ID oder null' },
+          before: {
+            type: 'string',
+            description: 'move_segment: Satz-ID, vor die der Satz kommt; weglassen für ans Ende',
+          },
           withUnitId: { type: 'string', description: 'swap_take: der andere Anlauf' },
           framing: { type: 'string', enum: ['links', 'mitte', 'rechts'] },
           zoom: { type: 'string', enum: ['normal', 'nah'] },
@@ -78,8 +81,8 @@ const TOOL_SCHEMA = {
           overlay: {
             type: 'object',
             description:
-              'Die vollständige Einblendung wie in der Liste, immer mit "kind". Beim Ändern das ' +
-              'Objekt aus der Liste übernehmen und nur die Felder ändern.',
+              'add_overlay: die vollständige Einblendung wie in der Liste, mit "kind". ' +
+              'update_overlay: nur die Felder, die sich ändern.',
             properties: {
               kind: { type: 'string', enum: ['titel', 'bauchbinde', 'asset', 'broll', 'logo'] },
               preset: { type: 'string', enum: ['hook', 'statement'] },
@@ -92,12 +95,12 @@ const TOOL_SCHEMA = {
               sourceStart: { type: 'number' },
               placement: { type: 'string', enum: ['ecke', 'abspann'] },
             },
-            required: ['kind'],
           },
           enabled: { type: 'boolean' },
           template: { type: 'string' },
           music: {
-            type: ['object', 'null'],
+            type: 'object',
+            description: 'set_music: {assetId, volume}; weglassen, um die Musik zu entfernen',
             properties: { assetId: { type: 'string' }, volume: { type: 'string' } },
           },
         },
@@ -186,13 +189,28 @@ function systemPrompt(locale: ReviseInput['locale']): string {
   return `${cachedPrompt}\n## LÄNDERKONTEXT: ÖSTERREICH\n\nDie Person schreibt österreichisches Deutsch; antworte ebenso.\n`;
 }
 
+/**
+ * The tool schema offers no `null` type (Melious refused `type: [..., 'null']`
+ * as malformed, 10.11.2026), so "to the end" and "no music" arrive as a
+ * missing field.
+ */
+function withNullDefaults(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw;
+  const op = raw as Record<string, unknown>;
+  if (op.kind === 'move_segment' && (op.before === undefined || op.before === '')) {
+    return { ...op, before: null };
+  }
+  if (op.kind === 'set_music' && op.music === undefined) return { ...op, music: null };
+  return op;
+}
+
 type Checked = { ok: true; revision: Revision } | { ok: false; error: string };
 
 export function checkRevision(answer: Answer, input: ReviseInput): Checked {
   const ops: VideoAiOp[] = [];
   const errors: string[] = [];
   answer.ops.forEach((raw, i) => {
-    const parsed = videoAiOpSchema.safeParse(raw);
+    const parsed = videoAiOpSchema.safeParse(withNullDefaults(raw));
     if (parsed.success) ops.push(parsed.data);
     else
       errors.push(

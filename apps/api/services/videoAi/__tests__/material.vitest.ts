@@ -78,3 +78,14 @@ describe('checkMaterial', () => {
     expect(result).toEqual({ ok: false, error: expect.stringContaining('15 Minuten') });
   });
 });
+
+describe('checkMaterial with database rows', () => {
+  it('counts lengths as numbers', () => {
+    // loadOwnMedia converts NUMERIC; this pins the arithmetic it feeds.
+    const result = checkMaterial(
+      [{ mediaId: ID(1), role: 'footage' }],
+      [row(1, 'video', { duration: 68.644 })]
+    );
+    expect(result.ok && typeof result.clipSeconds).toBe('number');
+  });
+});

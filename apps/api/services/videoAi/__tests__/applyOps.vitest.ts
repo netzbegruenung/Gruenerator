@@ -108,3 +108,33 @@ describe('applyOps', () => {
     });
   });
 });
+
+describe('update_overlay', () => {
+  it('lays the changed fields over the overlay and keeps it with its sentence', () => {
+    const result = applyOps(
+      BASE,
+      [
+        { kind: 'remove_segment', unitId: 'c1.s7' },
+        { kind: 'update_overlay', index: 2, overlay: { text: 'Radweg jetzt bauen' } },
+      ],
+      ctx
+    );
+    if (!result.ok) throw new Error(result.error);
+    expect(result.edl.overlays[2]).toEqual({
+      kind: 'titel',
+      preset: 'statement',
+      text: 'Radweg jetzt bauen',
+      atSegment: 3,
+      durationSeconds: 3,
+    });
+  });
+
+  it('refuses a patch that breaks the overlay', () => {
+    const result = applyOps(
+      BASE,
+      [{ kind: 'update_overlay', index: 0, overlay: { durationSeconds: 99 } }],
+      ctx
+    );
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('Einblendung 0') });
+  });
+});

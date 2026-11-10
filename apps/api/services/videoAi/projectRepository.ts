@@ -49,12 +49,19 @@ export async function loadOwnMedia(
 ): Promise<MediaForInput[]> {
   const valid = ids.filter(isRowId);
   if (valid.length === 0) return [];
-  return getPostgresInstance().query<MediaForInput>(
+  const rows = await getPostgresInstance().query<
+    Omit<MediaForInput, 'duration'> & { duration: string | number | null }
+  >(
     `SELECT id, media_type, title, original_filename, duration, status, file_path
        FROM shared_media
       WHERE id = ANY($1::uuid[]) AND user_id = $2 AND deleted_at IS NULL`,
     [valid, userId]
   );
+  // `duration` is NUMERIC: pg hands it over as a string.
+  return rows.map((r) => {
+    const duration = r.duration === null ? null : Number(r.duration);
+    return { ...r, duration: duration !== null && Number.isFinite(duration) ? duration : null };
+  });
 }
 
 const MEDIA_TYPE_FOR_ROLE: Record<VideoAiInputRole, string> = {
