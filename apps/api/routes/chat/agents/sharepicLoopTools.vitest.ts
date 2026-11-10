@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DraftFailedError } from '../../../services/sharepicCreator/draftAgent.js';
+import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -125,7 +126,8 @@ describe('edit_sharepic', () => {
     const { ctx, events, run } = setup();
     const out = await run(makeEditSharepicTool(ctx), { anweisung: 'mach es besser' });
     expect(out).toMatchObject({ unchanged: true });
-    expect(out.error).toBeTruthy();
+    // The tool card shows `error` verbatim — no instruction to the model in it (#5512).
+    expect(out.error).toBe(ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged);
     expect(out.variants).toBeUndefined();
     expect(events.some((e) => e.type === 'sharepic_complete')).toBe(false);
   });
