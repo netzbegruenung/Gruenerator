@@ -2,7 +2,7 @@
  * The Grünerator's part of the editor shell: the „Vorlagen" tab and, around
  * the editor, its blocks and the idle warm-ups of the Elemente and Tools tabs;
  * the page picker with the slider variants and the CD slide layouts; the
- * host callbacks each template declares; and a deck's country (fonts). The shell (`./index.tsx`) imports this file for its side
+ * host callbacks each template declares; a deck's country (fonts); and the country whose logos the Elemente tab offers. The shell (`./index.tsx`) imports this file for its side
  * effect, so every program that renders the editor has them installed.
  */
 import {
@@ -22,7 +22,7 @@ import {
   slideLayoutConfigId,
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
-import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { documentAudienceOf, getCategoryForTemplate } from '../../utils/templateRegistry';
 import { PagePickerSeiten } from '../PagePickerSeiten';
 import { TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
@@ -208,4 +208,6 @@ registerEditorShell({
   pageCallbackKeys: (configId) =>
     (HOST_CALLBACK_KEYS as Partial<Record<string, readonly string[]>>)[configId] ?? [],
   deckLocale: deckLocaleOf,
+  // Not deckLocaleOf: that knows only the freeform decks and calls every other *-at template German.
+  documentAudience: (pages) => documentAudienceOf(pages[0]?.configId),
 });
