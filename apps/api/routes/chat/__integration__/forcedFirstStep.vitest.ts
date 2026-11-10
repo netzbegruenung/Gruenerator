@@ -113,6 +113,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 vi.mock('../../../services/bundestag/BundestagEnrichedService.js', async (orig) => {
   const { fakeBundestagService } = await import('./harness/searchBackendStub.js');
   return {

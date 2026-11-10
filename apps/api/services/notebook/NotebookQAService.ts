@@ -548,6 +548,7 @@ export class NotebookQAService {
     userId,
     requestFilters,
     depth,
+    profile: profileOverride,
     sourceTier,
     queries,
     lexicalTerms,
@@ -569,7 +570,7 @@ export class NotebookQAService {
       collectionIds
     );
 
-    const profile = getNotebookDepthProfile(depth ?? 'deep');
+    const profile = profileOverride ?? getNotebookDepthProfile(depth ?? 'deep');
 
     // Two different things get searched here, and they are grouped differently
     // because they mean different things.
