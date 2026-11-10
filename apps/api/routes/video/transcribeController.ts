@@ -19,7 +19,6 @@ import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { type Locale } from '../../services/localization/types.js';
 import { transcribeWithProvider } from '../../services/subtitler/transcriptionService.js';
-import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -162,23 +161,6 @@ function receiveFile(req: AuthenticatedRequest, res: Response, next: NextFunctio
 }
 
 /**
- * The video editor is open to instance admins only while it is being tried
- * out; checked before the upload is received.
- */
-async function requireEditorAccess(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  const user = req.user;
-  if (!user || !(await requireInstanceAdmin(user.id, user.email))) {
-    res.status(403).json({ error: 'Forbidden' });
-    return;
-  }
-  next();
-}
-
-/**
  * POST /api/video/transcribe/file
  *
  * Multipart upload (field `file`) for media that only exists in the person's
@@ -188,7 +170,6 @@ async function requireEditorAccess(
  */
 router.post(
   '/transcribe/file',
-  requireEditorAccess,
   receiveFile,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     if (!req.file) {
