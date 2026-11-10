@@ -110,11 +110,15 @@ export function managedConnectorId(key: SystemMcpKey): string {
   return `${MANAGED_ID_PREFIX}${key}`;
 }
 
+/** A known connector key, or null — narrows client input such as a path param. */
+export function asSystemMcpKey(raw: string): SystemMcpKey | null {
+  return Object.hasOwn(ENV_BY_KEY, raw) ? (raw as SystemMcpKey) : null;
+}
+
 /** `system-gesetze` → `gesetze`; anything else (incl. a user UUID) → null. */
 export function parseManagedConnectorId(id: string): SystemMcpKey | null {
   if (!id.startsWith(MANAGED_ID_PREFIX)) return null;
-  const key = id.slice(MANAGED_ID_PREFIX.length);
-  return key in ENV_BY_KEY ? (key as SystemMcpKey) : null;
+  return asSystemMcpKey(id.slice(MANAGED_ID_PREFIX.length));
 }
 
 /** True when the source is surfaced as a managed connector. */

@@ -4,6 +4,10 @@
  * Per-user CRUD for external MCP servers plus a connection `test`. requireAuth
  * is applied at the prefix in routes.ts; every handler is user-scoped via
  * getAuthedUser.
+ *
+ * Every `:id` goes through `McpServerRegistry.resolveServerId` first: a known
+ * connector's former synthetic id (`system-<key>`, still sent by pinned
+ * connectors and shipped bundles) means the person's row for that key.
  */
 
 import { mcpServersContract } from '@gruenerator/contracts';
@@ -13,8 +17,12 @@ import { connectRefreshingOnce } from '../../services/mcp/connectRefreshingOnce.
 import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mcpFailure.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
-import { McpServerRegistry } from '../../services/mcp/McpServerRegistry.js';
+import {
+  McpServerRegistry,
+  RegistryConnectorPatchError,
+} from '../../services/mcp/McpServerRegistry.js';
 import { addThreadGrant } from '../../services/mcp/mcpThreadGrants.js';
+import { asSystemMcpKey, parseManagedConnectorId } from '../../services/mcp/systemMcpServers.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -122,29 +130,37 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
     }
   },
 
+  connectRegistryConnector: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const key = asSystemMcpKey(args.params.registryKey);
+      const server = key ? await McpServerRegistry.connectRegistryConnector(userId, key) : null;
+      if (!server) return { status: 404 as const, body: { error: 'Dienst nicht gefunden.' } };
+      return { status: 200 as const, body: { server } };
+    } catch (error) {
+      log.error('connectRegistryConnector failed', error);
+      return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
+    }
+  },
+
   update: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      // A managed connector has no per-user record — only a switch. Anything
-      // else in the body is REJECTED rather than ignored: silently dropping a
-      // rename would leave the client showing a name the server never stored.
-      if (McpServerRegistry.isManagedId(args.params.id)) {
-        const { enabled, ...rest } = args.body;
-        if (Object.values(rest).some((v) => v !== undefined)) {
-          return {
-            status: 400 as const,
-            body: {
-              error:
-                'Dieser Dienst wird vom Grünerator bereitgestellt und kann nur ein- oder ausgeschaltet werden.',
-            },
-          };
-        }
-        if (enabled === undefined) {
-          return { status: 400 as const, body: { error: 'Kein Schaltzustand übergeben.' } };
-        }
-        const managed = await McpServerRegistry.setManagedEnabled(userId, args.params.id, enabled);
-        if (!managed) return { status: 404 as const, body: { error: 'Dienst nicht gefunden.' } };
-        return { status: 200 as const, body: { server: managed } };
+      const id = await McpServerRegistry.resolveServerId(userId, args.params.id);
+      if (!id) {
+        // A web bundle from before 11/2026 switches a known connector on with
+        // `PATCH system-<key> {enabled: true}` — for a person without a row
+        // that IS connecting it.
+        const key = parseManagedConnectorId(args.params.id);
+        const onlyEnabling =
+          args.body.enabled === true &&
+          Object.entries(args.body).every(([k, v]) => k === 'enabled' || v === undefined);
+        const server =
+          key && onlyEnabling
+            ? await McpServerRegistry.connectRegistryConnector(userId, key)
+            : null;
+        if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+        return { status: 200 as const, body: { server } };
       }
       // Re-validate when the URL is being changed (same SSRF guard as create).
       if (args.body.url !== undefined) {
@@ -156,7 +172,7 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
           };
         }
       }
-      const server = await McpServerRegistry.update(userId, args.params.id, {
+      const server = await McpServerRegistry.update(userId, id, {
         ...(args.body.name !== undefined && { name: args.body.name }),
         ...(args.body.url !== undefined && { url: args.body.url }),
         ...(args.body.authType !== undefined && { authType: args.body.authType }),
@@ -170,6 +186,14 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       return { status: 200 as const, body: { server } };
     } catch (error) {
+      // Refused, not ignored: silently dropping a rename would leave the client
+      // showing a name the server never stored.
+      if (error instanceof RegistryConnectorPatchError) {
+        return {
+          status: 400 as const,
+          body: { error: 'Dieser Dienst lässt sich nur ein- und ausschalten.' },
+        };
+      }
       log.error('update failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
     }
@@ -178,26 +202,20 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   remove: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      // Nothing to delete — a managed connector is a definition in env, not a
-      // row. Switching it off is the equivalent action.
-      if (McpServerRegistry.isManagedId(args.params.id)) {
-        return {
-          status: 404 as const,
-          body: {
-            error:
-              'Dieser Dienst wird vom Grünerator bereitgestellt und kann nicht entfernt, nur ausgeschaltet werden.',
-          },
-        };
-      }
-      const revoke = await McpOAuthService.tokenRevocation(userId, args.params.id);
-      const deleted = await McpServerRegistry.delete(userId, args.params.id);
+      const id = await McpServerRegistry.resolveServerId(userId, args.params.id);
+      if (!id) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      const registryKey = await McpServerRegistry.getRegistryKey(userId, id);
+      const revoke = await McpOAuthService.tokenRevocation(userId, id);
+      const deleted = await McpServerRegistry.delete(userId, id);
       if (!deleted) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       // Only once the row is gone, and without waiting on the provider.
       if (revoke) void revoke();
       // Die dauerhaften Werkzeug-Freigaben dieses Servers verlieren mit ihm
       // ihren Gegenstand — sie stünden sonst für immer in der Liste unter
       // „Konnektoren". Best-effort: das Entfernen selbst ist schon passiert.
-      await revokeApprovalsForServer(userId, args.params.id);
+      await revokeApprovalsForServer(userId, id);
+      // A known connector's tools are keyed by its registry key, not the row.
+      if (registryKey) await revokeApprovalsForServer(userId, registryKey, 'managed');
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('remove failed', error);
@@ -217,10 +235,12 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       try {
         client = await connectRefreshingOnce(userId, client, config);
         const tools = await client.listTools();
-        // Cache the tool list for chat mention hints + classifier context.
-        // Managed connectors have no row to cache into (see mcpCatalog) — the
-        // test itself still runs, which is the point of the button.
-        if (!config.managed) await McpServerRegistry.saveToolsSnapshot(userId, config.id, tools);
+        // Cache the tool list for chat mention hints + classifier context. A
+        // known connector's tools come from its definition and shared cache,
+        // not the row — the test itself still runs, which is the point of the
+        // button.
+        if (config.registryKey == null)
+          await McpServerRegistry.saveToolsSnapshot(userId, config.id, tools);
         log.info('MCP test succeeded', {
           server: config.name,
           transport: client.transportKind,
@@ -289,12 +309,12 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   approveTools: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      // A managed connector has no row and no drift check — and its `system-…`
-      // id would fail the uuid cast below as a 500 instead of a clean 404.
-      if (McpServerRegistry.isManagedId(args.params.id)) {
-        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
-      }
-      const server = await approveServerTools(userId, args.params.id);
+      // Resolved first: a raw `system-…` id would fail the uuid cast as a 500
+      // instead of a clean 404. A known connector's row has no drift, so
+      // approving it is a no-op.
+      const id = await McpServerRegistry.resolveServerId(userId, args.params.id);
+      if (!id) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      const server = await approveServerTools(userId, id);
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       return { status: 200 as const, body: { server } };
     } catch (error) {
@@ -306,13 +326,10 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   toolGrant: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const serverId = args.params.id;
       const { scope, threadId } = args.body;
-      // Managed connectors are never drift-checked and have no row; their
-      // `system-…` id would fail the uuid cast as a 500.
-      if (McpServerRegistry.isManagedId(serverId)) {
-        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
-      }
+      // Resolved first: a raw `system-…` id would fail the uuid cast as a 500.
+      const serverId = await McpServerRegistry.resolveServerId(userId, args.params.id);
+      if (!serverId) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       const pending = await McpServerRegistry.getPendingDrift(userId, serverId);
       if (!pending) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
 
@@ -360,15 +377,17 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   oauthStart: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      // Managed connectors authenticate with a shared bearer from deploy env —
+      const id = await McpServerRegistry.resolveServerId(userId, args.params.id);
+      if (!id) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      // Known connectors authenticate with a shared bearer from deploy env —
       // there is no per-user authorization to start.
-      if (McpServerRegistry.isManagedId(args.params.id)) {
+      if (await McpServerRegistry.getRegistryKey(userId, id)) {
         return {
           status: 400 as const,
           body: { error: 'Dieser Dienst benötigt keine persönliche Anmeldung.' },
         };
       }
-      const result = await McpOAuthService.startAuthorization(userId, args.params.id);
+      const result = await McpOAuthService.startAuthorization(userId, id);
       return { status: 200 as const, body: result };
     } catch (error) {
       const statusCode = (error as { statusCode?: number }).statusCode;

@@ -32,6 +32,7 @@ import { decryptCredential, encryptCredential } from '../../utils/validation/enc
 
 import { findSeedByUrl } from './McpRegistryService.js';
 import {
+  asSystemMcpKey,
   getManagedConnectors,
   parseManagedConnectorId,
   toSystemConnectionConfig,
@@ -186,6 +187,16 @@ export class McpServerRegistry {
       .from(mcp_servers)
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.registry_key, key)));
     return rows.find((r) => r.registry_key === key)?.id ?? null;
+  }
+
+  /** The known-connector key of one of the person's rows; null for own servers and unknown ids. */
+  static async getRegistryKey(userId: string, id: string): Promise<SystemMcpKey | null> {
+    const db = getDrizzleInstance();
+    const [row] = await db
+      .select({ registry_key: mcp_servers.registry_key })
+      .from(mcp_servers)
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)));
+    return row?.registry_key ? asSystemMcpKey(row.registry_key) : null;
   }
 
   /**
