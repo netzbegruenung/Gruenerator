@@ -13,6 +13,7 @@ import {
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getSharedMediaService } from '../sharedMediaService.js';
 import {
   deleteTrashedRow,
   isRowId,
@@ -262,5 +263,17 @@ export function trashVideoAiProject(userId: string, id: string): Promise<OwnedTr
 }
 
 export async function purgeVideoAiProject(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(VIDEO_AI_PROJECT_TRASH, id, cutoff)) !== null;
+  const row = await deleteTrashedRow<{
+    id: string;
+    user_id: string;
+    analysis: StoredVideoAiAnalysis | null;
+  }>(VIDEO_AI_PROJECT_TRASH, id, cutoff, 'id, user_id, analysis');
+  if (row === null) return false;
+  // Best-effort, like every purge's files: a proxy left behind is disk, not data.
+  for (const clip of row.analysis?.clips ?? []) {
+    await getSharedMediaService()
+      .purgeInternalShare(clip.proxyShareToken, row.user_id, ['video-ai-proxy'])
+      .catch(() => false);
+  }
+  return true;
 }

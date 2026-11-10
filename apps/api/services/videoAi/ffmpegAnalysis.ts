@@ -142,7 +142,7 @@ export function qualityRanges(samples: readonly FrameSample[]): QualityRange[] {
     .sort((a, b) => a.start - b.start);
 }
 
-function runCapture(args: string[], label: string): Promise<string> {
+export function runCapture(args: string[], label: string): Promise<string> {
   return ffmpegPool.run(
     () =>
       new Promise<string>((resolve, reject) => {

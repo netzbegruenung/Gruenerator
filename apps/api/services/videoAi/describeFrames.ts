@@ -112,3 +112,47 @@ export async function describeFrames(sheets: readonly ContactSheet[]): Promise<F
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, sheets.length) }, worker));
   return out.flat();
 }
+
+const assetAnswerSchema = z.object({ beschreibung: z.string().min(1) });
+
+/**
+ * One line about an uploaded image, for the design stage ("Enge Straße mit
+ * parkenden Autos"). Same lane as the contact sheets, one image per call.
+ */
+export async function describeAsset(jpeg: Buffer, isLogo: boolean): Promise<string> {
+  const result = await aiObject<z.infer<typeof assetAnswerSchema>>({
+    lane: 'video_ai_frames',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image', source: { data: jpeg.toString('base64'), media_type: 'image/jpeg' } },
+          {
+            type: 'text',
+            text: isLogo
+              ? 'Das ist ein Logo. Nenne in höchstens zehn Wörtern, wessen Logo es ist.'
+              : 'Beschreibe in höchstens 15 Wörtern, was auf dem Bild zu sehen ist.',
+          },
+        ],
+      },
+    ],
+    toolName: 'bild_beschreiben',
+    toolDescription: 'Beschreibt das Bild in einem kurzen Satz.',
+    schema: {
+      type: 'object',
+      properties: { beschreibung: { type: 'string' } },
+      required: ['beschreibung'],
+    },
+    temperature: 0.2,
+    timeoutMs: 60_000,
+    label: 'video_ai_asset',
+    validate: (raw) => {
+      const parsed = assetAnswerSchema.safeParse(raw);
+      return parsed.success
+        ? { ok: true, value: parsed.data }
+        : { ok: false, error: parsed.error.message };
+    },
+  });
+  if (!result.ok) throw result.cause ?? new Error(result.error);
+  return result.data.beschreibung.trim();
+}

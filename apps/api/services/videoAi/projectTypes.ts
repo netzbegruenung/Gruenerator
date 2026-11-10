@@ -22,6 +22,7 @@ export interface StoredClipAnalysis {
   role: 'footage' | 'broll';
   /** The working copy (H.264, CFR 30, levelled sound) as a Mediathek video. */
   proxyMediaId: string;
+  proxyShareToken: string;
   duration: number;
   /** Transcript units are rebuilt from these; the split is deterministic. */
   words: TranscriptWord[];

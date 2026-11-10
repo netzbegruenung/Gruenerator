@@ -34,6 +34,8 @@ export const UPLOAD_SOURCES = [
   'studio-asset',
   // An infographic's FLUX spot illustration — one per point, so never a library item.
   'sharepic-illustration',
+  // The KI-Schnitt's working copy of a clip; the project owns it, the original stays.
+  'video-ai-proxy',
 ] as const;
 
 // Moved from shared/media-library/contentOrigin.ts; the fallback classification stays there.
