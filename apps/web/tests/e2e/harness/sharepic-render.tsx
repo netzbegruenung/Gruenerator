@@ -16,6 +16,10 @@ import {
   liftBlock,
 } from '@gruenerator/canvas-editor/composer';
 import {
+  GRUENE_ASSET_CATALOG,
+  registerAssetCatalog,
+} from '@gruenerator/canvas-editor/grueneAssetCatalog';
+import {
   GRUENE_BRAND_PACKS,
   registerBrandPacks,
 } from '@gruenerator/canvas-editor/grueneBrandPacks';
@@ -37,9 +41,12 @@ import './sharepicHarness';
 import '../../../src/assets/styles/common/typography.css';
 
 installHarnessBrandFonts();
-// As the app does at startup (src/index.tsx): the packs carry the defaults,
-// bold families and font cuts the renders read. Without them the harness
-// drew what no user sees (a faked bold of GothamNarrow-Book, for one).
+// As the app does at startup (src/index.tsx): the catalogue resolves every
+// logo, sticker and emoji (without it they rendered blank, and the baselines
+// of 2026-11-01 carried emoji lists without emoji, #4982); the packs carry the
+// defaults, bold families and font cuts the renders read. Without them the
+// harness drew what no user sees (a faked bold of GothamNarrow-Book, for one).
+registerAssetCatalog(GRUENE_ASSET_CATALOG);
 registerBrandPacks(GRUENE_BRAND_PACKS);
 // `post-portrait-tall` is the Grünerator's, not one of the editor's built-ins (ggraphic #114).
 registerGrueneFormats();
