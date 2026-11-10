@@ -178,6 +178,28 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     expect(setThreadLastMcpServer).toHaveBeenCalledWith('t1', 'system-wetter');
   });
 
+  it('hängt an den Klebe-Scope-Schreiber ein catch — eine Ablehnung beendet sonst den Prozess', async () => {
+    // 10.11.2026: `system-rateo` in einer uuid-Spalte → 22P02, und das nackte
+    // `void` beendete den API-Prozess. Vitest fängt unbehandelte Ablehnungen
+    // selbst ab, deshalb prüft der Test das catch direkt an der Promise.
+    const write = Promise.reject(new Error('22P02'));
+    const caught = vi.spyOn(write, 'catch');
+    setThreadLastMcpServer.mockReturnValue(write);
+    await assemble(
+      fakeState({ intent: 'agentic', mcpServerScope: 'system-wetter' }),
+      deps({
+        loadManagedMcpCatalog: async () =>
+          mcpCatalog({
+            tools: { wetter__forecast: stubTool(async () => ({})) },
+            labels: new Map([['wetter__forecast', { serverName: 'Wetter', toolName: 'forecast' }]]),
+          }),
+      } as never),
+      { threadId: 't1' }
+    );
+    expect(setThreadLastMcpServer).toHaveBeenCalledWith('t1', 'system-wetter');
+    expect(caught).toHaveBeenCalled();
+  });
+
   it('montiert auf anderen Intents auch mit Klebe-Scope nichts', async () => {
     getThreadLastMcpServer.mockResolvedValue('sally');
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());

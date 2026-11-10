@@ -283,7 +283,11 @@ export async function assembleToolCatalog(
       // "ab der nächsten Nachricht", and a fully withheld server mounts no
       // labels this turn.
       if (threadId && scope && (mcpCatalog.labels.size > 0 || grants.length > 0)) {
-        void setThreadLastMcpServer(threadId, scope);
+        // Fire-and-forget must not reject: an unhandled rejection here ends the
+        // API process, not just this turn.
+        void setThreadLastMcpServer(threadId, scope).catch((err: unknown) => {
+          log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
+        });
       }
       // A server whose tool definitions drifted since approval had its tools
       // withheld. Say so — otherwise it just looks broken or idle, and the

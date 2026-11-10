@@ -31,6 +31,7 @@ const SYSTEM_TOOL_PREFIXES: Record<string, string> = {
   wetter: 'Wetter (DWD)',
   news: 'tagesschau',
   hotel: 'trivago',
+  rateo: 'Rateo',
 };
 
 /**

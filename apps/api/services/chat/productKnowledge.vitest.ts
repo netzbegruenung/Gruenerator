@@ -37,10 +37,13 @@ const ENV_KEYS = [
   'SYSTEM_MCP_ARD_URL',
   'SYSTEM_MCP_TRIVAGO_URL',
   'SYSTEM_MCP_LAW_URL',
+  'SYSTEM_MCP_RATEO_URL',
 ];
 
 beforeEach(() => {
   for (const key of ENV_KEYS) delete process.env[key];
+  // Rateo has a built-in default URL; empty is its explicit "off".
+  process.env.SYSTEM_MCP_RATEO_URL = '';
 });
 
 describe('isProductMetaQuestion', () => {

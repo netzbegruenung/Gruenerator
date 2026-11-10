@@ -144,7 +144,7 @@ function formatCollectionLine(): string {
  *
  * This block used to list the intent-gated "system MCP sources" and was keyed to
  * `getSystemMcpSources()` directly. Same sources, different door: they are
- * connectors now, on for every user unless switched off, so the heading says
+ * connectors now, offered to every user and off until switched on, so the heading says
  * what the user actually sees in Einstellungen → Verbindungen.
  *
  * Env still decides existence — an unconfigured connector is absent from
@@ -222,7 +222,7 @@ ${formatGlossaryDefinitions()}
 ### Wissenssammlungen (durchsuchbar in Chat & Notebooks)
 ${formatCollectionLine()}
 
-### Bereitgestellte Dienste (ohne Einrichtung nutzbar, per @-Erwähnung ansprechbar)
+### Bereitgestellte Dienste (ohne Einrichtung; standardmäßig aus — unter Einstellungen → Konnektoren einschalten, dann per @-Erwähnung ansprechbar)
 ${formatManagedConnectorLines(locale)}${mcpSection}
 
 ### Support
