@@ -6,6 +6,7 @@ import photoBrandenburg from '../assets/landesverbaende/brandenburg-v1-card-480.
 import photoHamburg from '../assets/landesverbaende/hamburg-v1-card-480.webp';
 import photoHessen from '../assets/landesverbaende/hessen-v1-card-480.webp';
 import photoMecklenburgVorpommern from '../assets/landesverbaende/mecklenburg-vorpommern-v1-card-480.webp';
+import photoNordrheinWestfalen from '../assets/landesverbaende/nordrhein-westfalen-v1-card-480.webp';
 import photoOesterreich from '../assets/landesverbaende/oesterreich-v1-card-480.webp';
 import photoSaarland from '../assets/landesverbaende/saarland-v1-card-480.webp';
 import photoSachsenAnhalt from '../assets/landesverbaende/sachsen-anhalt-v1-card-480.webp';
@@ -26,6 +27,7 @@ const PHOTOS: Record<string, number> = {
   'hamburg-v1': photoHamburg,
   'hessen-v1': photoHessen,
   'mecklenburg-vorpommern-v1': photoMecklenburgVorpommern,
+  'nordrhein-westfalen-v1': photoNordrheinWestfalen,
   'oesterreich-v1': photoOesterreich,
   'saarland-v1': photoSaarland,
   'sachsen-anhalt-v1': photoSachsenAnhalt,

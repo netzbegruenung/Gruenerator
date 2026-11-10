@@ -620,6 +620,14 @@
       "audience": "de-DE"
     },
     {
+      "command": "@buerger-nrw",
+      "title": "Bürger*innen-Mail NRW",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen NRW. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen NRW geantwortet wird.",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
       "command": "@buerger-saarland",
       "title": "Bürger*innen-Mail Saarland",
       "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Saarland. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Saarland geantwortet wird.",
@@ -703,6 +711,14 @@
       "command": "@beschluss-mv",
       "title": "Beschlussantrag Mecklenburg-Vorpommern",
       "description": "Beschlussantrag in der Beschlusssprache der Grünen Mecklenburg-Vorpommern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-nrw",
+      "title": "Beschlussantrag NRW",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen NRW. Nutzen statt des Leitantrags, wenn ein Antrag für die Grünen NRW geschrieben wird.",
       "avatar": "📜",
       "category": "dokumente",
       "audience": "de-DE"
@@ -945,6 +961,15 @@
       "title": "Grüne Saarland",
       "description": "Presse, Artikel und Parteitagsbeschlüsse Saarland",
       "avatar": "🏭",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "nordrhein-westfalen-notebook",
+      "mention": "@nrw",
+      "title": "Grüne NRW",
+      "description": "Presse und Beschlüsse NRW (Landesverband & Fraktion)",
+      "avatar": "🌻",
       "category": "landesebene",
       "audience": "de-DE"
     },
