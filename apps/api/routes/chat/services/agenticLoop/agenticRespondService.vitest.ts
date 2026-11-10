@@ -140,6 +140,7 @@ function fakeSse(): { sse: SSEWriter; sent: SentEvent[] } {
 const EMPTY_CATALOG = {
   tools: {} as ToolSet,
   mcpCatalog: null,
+  staleConnectorName: null,
   recipeCatalog: [],
   recipeRegistry: { render: () => '', register: () => {}, size: 0, summaries: () => [] },
   toolLabels: new Map<string, { serverName: string; toolName: string }>(),

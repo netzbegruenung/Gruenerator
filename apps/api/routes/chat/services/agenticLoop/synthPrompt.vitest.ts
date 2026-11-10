@@ -427,13 +427,29 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
     over: {
       mcpCatalog?: McpCatalog | null;
       mcpCapabilityQuestion?: boolean;
+      staleConnectorName?: string | null;
     } = {}
   ) =>
     buildConnectorNotes({
       state,
       mcpCatalog: over.mcpCatalog ?? null,
       mcpCapabilityQuestion: over.mcpCapabilityQuestion ?? false,
+      staleConnectorName: over.staleConnectorName ?? null,
     });
+
+  // #5602: der Klebe-Scope des vorigen Zuges ist weg, der Verlauf zeigt aber
+  // noch dessen Werkzeugantworten — ohne Notiz setzt das Modell das Muster
+  // ohne Werkzeug fort und erfindet Daten samt Quellenzeile.
+  it('verbietet Daten eines Dienstes, der seit dem vorigen Zug fehlt', () => {
+    const out = notes(fakeState(), { staleConnectorName: 'Rateo' });
+    expect(out.mcpNote).toContain('Rateo');
+    expect(out.mcpNote).toContain('nicht mehr verfügbar');
+    expect(out.mcpNote).toContain('Werkzeugergebnis dieses Zugs');
+  });
+
+  it('schweigt ohne verworfenen Dienst', () => {
+    expect(notes(fakeState()).mcpNote).toBe('');
+  });
 
   it('sagt einen fehlenden Dienst an, statt tool-los weiterzulaufen', () => {
     const out = notes(fakeState({ mcpServerScope: 'sally' }), {
