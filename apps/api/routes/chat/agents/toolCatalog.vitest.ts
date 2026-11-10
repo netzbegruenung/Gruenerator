@@ -2572,7 +2572,7 @@ describe('toolCatalog: notebook_quellen für einen Agenten mit eigenem Notebook'
 
   it('montiert es ohne user_content, wenn der Agent an ein System-Notebook gebunden ist', () => {
     expect(
-      namesFor({ defaultNotebookIds: ['hamburg-notebook'] }, { user_content: false })
+      namesFor({ defaultNotebookIds: ['saarland-notebook'] }, { user_content: false })
     ).toContain('notebook_quellen');
   });
 
