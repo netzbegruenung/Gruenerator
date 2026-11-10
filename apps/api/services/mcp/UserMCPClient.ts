@@ -24,8 +24,8 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
+import { type SystemMcpKey } from './connectorAdapters.js';
 import { seedConnectionHints } from './McpRegistryService.js';
-import { type SystemMcpKey } from './systemMcpServers.js';
 
 const log = createLogger('user-mcp-client');
 

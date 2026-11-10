@@ -12,7 +12,7 @@
  *
  * KNOWN CONNECTORS (Bahn, Wetter, tagesschau, trivago, Gesetze, Rateo) are rows
  * too since 11/2026, marked by `registry_key`. What makes them different stays
- * out of the row: URL and token come from deploy env (`systemMcpServers.ts`),
+ * out of the row: URL and token come from deploy env (`connectorAdapters.ts`),
  * name and description from the code definition, and the only thing a person
  * changes on such a row is `enabled` — or they disconnect it. The former
  * synthetic id `system-<key>` is still accepted everywhere an id is
@@ -30,7 +30,6 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
 
-import { findSeedByUrl } from './McpRegistryService.js';
 import {
   asSystemMcpKey,
   getManagedConnectors,
@@ -38,7 +37,8 @@ import {
   toSystemConnectionConfig,
   type ManagedConnector,
   type SystemMcpKey,
-} from './systemMcpServers.js';
+} from './connectorAdapters.js';
+import { findSeedByUrl } from './McpRegistryService.js';
 import { type McpConnectionConfig, type McpToolDescriptor } from './UserMCPClient.js';
 
 const log = createLogger('mcp-server-registry');

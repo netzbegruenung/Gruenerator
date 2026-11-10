@@ -25,4 +25,4 @@ WHERE enabled = TRUE
 ON CONFLICT (user_id, registry_key) WHERE registry_key IS NOT NULL DO NOTHING;
 
 COMMENT ON COLUMN mcp_servers.registry_key IS
-  'Key of a known connector (services/mcp/systemMcpServers.ts); URL/token from env. NULL = a user-added server.';
+  'Key of a known connector (services/mcp/connectorAdapters.ts); URL/token from env. NULL = a user-added server.';

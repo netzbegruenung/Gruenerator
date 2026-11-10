@@ -13,6 +13,7 @@
 import { mcpServersContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { asSystemMcpKey, parseManagedConnectorId } from '../../services/mcp/connectorAdapters.js';
 import { connectRefreshingOnce } from '../../services/mcp/connectRefreshingOnce.js';
 import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mcpFailure.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
@@ -22,7 +23,6 @@ import {
   RegistryConnectorPatchError,
 } from '../../services/mcp/McpServerRegistry.js';
 import { addThreadGrant } from '../../services/mcp/mcpThreadGrants.js';
-import { asSystemMcpKey, parseManagedConnectorId } from '../../services/mcp/systemMcpServers.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';

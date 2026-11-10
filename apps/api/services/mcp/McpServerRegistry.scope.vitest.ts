@@ -54,8 +54,8 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
 }));
 
 let activeKeys = new Set(['bahn', 'wetter', 'rateo']);
-vi.mock('./systemMcpServers.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./systemMcpServers.js')>();
+vi.mock('./connectorAdapters.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./connectorAdapters.js')>();
   const connector = (key: 'bahn' | 'wetter' | 'rateo', title: string) => ({
     key,
     id: `system-${key}`,

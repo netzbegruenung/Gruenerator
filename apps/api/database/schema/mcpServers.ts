@@ -64,7 +64,7 @@ export const mcp_servers = pgTable('mcp_servers', {
    * the server, `added` only withholds the new tools.
    */
   /**
-   * Key of a known connector (Bahn, Wetter, Rateo, …, see `services/mcp/systemMcpServers.ts`).
+   * Key of a known connector (Bahn, Wetter, Rateo, …, see `services/mcp/connectorAdapters.ts`).
    * Such a row is a connector from the directory whose server we operate or
    * know: URL and token come from deploy env and are never stored here (`url`
    * is ''), name/description come from the code definition, and the key is the

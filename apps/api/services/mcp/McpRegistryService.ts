@@ -11,7 +11,7 @@
 
 import { type McpAuthType, type McpRegistryEntry } from '@gruenerator/contracts';
 
-import { getManagedConnectors } from './systemMcpServers.js';
+import { getManagedConnectors } from './connectorAdapters.js';
 
 export type { McpRegistryEntry };
 

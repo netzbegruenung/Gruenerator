@@ -17,7 +17,7 @@ import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.j
 import { getHiddenAgentIdentifiersCached } from '../agents/AdminHiddenAgentsService.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
-import { getManagedConnectors, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
+import { getManagedConnectors, isSourceGermanOnly } from '../mcp/connectorAdapters.js';
 
 import { formatGlossaryDefinitions } from './productGlossary.js';
 

@@ -2,7 +2,7 @@
  * Mounts the first-party MANAGED connectors (Deutsche Bahn, Open-Meteo/DWD,
  * ARD-Tagesschau, trivago, Bundesrecht) as agentic-loop tools — the built-in
  * counterpart to mcpCatalog's per-user connectors. Fixed env configs
- * (systemMcpServers.ts), no registry, no snapshot writes.
+ * (connectorAdapters.ts), no registry, no snapshot writes.
  *
  * SELECTION used to be by INTENT (`a bahn turn mounts the Bahn tools`), then by
  * vocabulary (`Zug nach Berlin` mounted Bahn). It is now the turn's scope: an
@@ -44,7 +44,7 @@ import {
   toSystemConnectionConfig,
   type SystemMcpKey,
   type SystemMcpSource,
-} from '../../../services/mcp/systemMcpServers.js';
+} from '../../../services/mcp/connectorAdapters.js';
 import {
   UserMCPClient,
   type McpConnectionConfig,

@@ -17,7 +17,7 @@ const source = (key: string, name: string) => ({
   promptHint: `Hinweis ${key}`,
   toolAllowlist: null,
 });
-vi.mock('../../../services/mcp/systemMcpServers.js', () => ({
+vi.mock('../../../services/mcp/connectorAdapters.js', () => ({
   getManagedConnectors: () => [
     source('bahn', 'Deutsche Bahn'),
     source('wetter', 'Wetter'),
