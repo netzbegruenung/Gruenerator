@@ -130,3 +130,123 @@ export const videoAiEdlSchema = z.object({
     .nullish(),
 });
 export type VideoAiEdl = z.infer<typeof videoAiEdlSchema>;
+
+// ---------------------------------------------------------------------------
+// Projects: one KI-Schnitt job from upload to editable cut.
+// ---------------------------------------------------------------------------
+
+/**
+ * What a Mediathek item is in the cut. Clips (`footage`, `broll`) get ids
+ * `c1`, `c2`, …; everything else `a1`, `a2`, … — in the order sent.
+ */
+export const videoAiInputRoleSchema = z.enum(['footage', 'broll', 'image', 'logo', 'audio']);
+export type VideoAiInputRole = z.infer<typeof videoAiInputRoleSchema>;
+
+export const videoAiInputSchema = z.object({
+  mediaId: z.string().guid(),
+  role: videoAiInputRoleSchema,
+});
+export type VideoAiInput = z.infer<typeof videoAiInputSchema>;
+
+export const videoAiBriefSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120),
+    /** What the video is about, in the person's words. */
+    topic: z.string().trim().min(3).max(500),
+    format: videoAiFormatSchema,
+    style: videoAiStyleSchema,
+    target: z.object({
+      minSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
+      maxSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
+    }),
+    /** Name and role for the lower third; never written by the model. */
+    person: z
+      .object({
+        name: z.string().trim().min(1).max(80),
+        role: z.string().trim().max(80),
+      })
+      .nullish(),
+    /** Names and terms the transcription should spell right. */
+    keyterms: z.array(z.string().trim().min(2).max(40)).max(20).nullish(),
+    hints: z.string().trim().max(1000).nullish(),
+  })
+  .refine((b) => b.target.minSeconds <= b.target.maxSeconds, {
+    message: 'Die Mindestlänge ist größer als die Höchstlänge.',
+    path: ['target'],
+  });
+export type VideoAiBrief = z.infer<typeof videoAiBriefSchema>;
+
+export const videoAiStatusSchema = z.enum([
+  'queued',
+  'analyzing',
+  'cutting',
+  'designing',
+  'ready',
+  'failed',
+  'cancelled',
+]);
+export type VideoAiStatus = z.infer<typeof videoAiStatusSchema>;
+
+export const createVideoAiProjectBodySchema = z.object({
+  brief: videoAiBriefSchema,
+  inputs: z
+    .array(videoAiInputSchema)
+    .min(1)
+    .max(VIDEO_AI_LIMITS.maxClips + VIDEO_AI_LIMITS.maxAssets),
+});
+export type CreateVideoAiProjectBody = z.infer<typeof createVideoAiProjectBodySchema>;
+
+export const createVideoAiProjectResponseSchema = z.object({
+  id: z.string().guid(),
+  slugSuffix: z.string(),
+});
+
+export const videoAiProjectInputDtoSchema = videoAiInputSchema.extend({
+  /** `c1` / `a1` — the id the plan refers to. */
+  id: z.string(),
+  title: z.string(),
+});
+
+export const videoAiOmittedUnitSchema = z.object({
+  unitId: videoAiUnitIdSchema,
+  text: z.string(),
+  reason: z.string(),
+});
+
+export const videoAiVersionSummarySchema = z.object({
+  version: z.number().int().min(1),
+  summary: z.string(),
+  createdAt: z.string(),
+});
+
+export const videoAiProjectDtoSchema = z.object({
+  id: z.string().guid(),
+  slugSuffix: z.string(),
+  title: z.string(),
+  status: videoAiStatusSchema,
+  /** Set when `failed` — a sentence for the person, never a stack trace. */
+  error: z.string().nullable(),
+  brief: videoAiBriefSchema,
+  inputs: z.array(videoAiProjectInputDtoSchema),
+  /** Hints about the material (blurry, too quiet, no speech), shown before the plan. */
+  warnings: z.array(z.string()),
+  version: z.number().int().nullable(),
+  edl: videoAiEdlSchema.nullable(),
+  versions: z.array(videoAiVersionSummarySchema),
+  omitted: z.array(videoAiOmittedUnitSchema),
+  /** Why the cut looks like this; or why the plan is the conservative fallback. */
+  rationale: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type VideoAiProjectDto = z.infer<typeof videoAiProjectDtoSchema>;
+
+export const videoAiProjectListItemSchema = videoAiProjectDtoSchema.pick({
+  id: true,
+  slugSuffix: true,
+  title: true,
+  status: true,
+  createdAt: true,
+});
+export type VideoAiProjectListItem = z.infer<typeof videoAiProjectListItemSchema>;
+
+export const videoAiErrorSchema = z.object({ error: z.string() });

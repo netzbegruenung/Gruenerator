@@ -52,6 +52,7 @@ export {
   explainablesContract,
   publicExplainablesContract,
   podcastsContract,
+  videoAiContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,

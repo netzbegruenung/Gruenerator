@@ -68,6 +68,9 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   template_rejected: 1,
   // Tagesbriefing: in-app only (IN_APP_ONLY), its own switch lives in the profile.
   daily_briefing: 2,
+  // Started on purpose and often left running — the person waits for it.
+  video_ai_ready: 1,
+  video_ai_failed: 1,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';

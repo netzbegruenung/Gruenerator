@@ -49,3 +49,18 @@ const treeFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 export function formatTrees(units: number): string {
   return treeFormat.format(unitsToTrees(units));
 }
+
+/**
+ * KI-Schnitt, per second of raw footage: transcription, frame reading and the
+ * cut decisions scale with it. One Baum buys two minutes; a job costs at least
+ * one Baum. Not measured against provider prices yet — the spike measured
+ * time and tokens, not euros (evals/video-ai/spike-2026-11-10.md).
+ */
+export const VIDEO_AI_SECONDS_PER_TREE = 120;
+
+export function treeCostForVideoAiSeconds(seconds: number): number {
+  return Math.max(
+    UNITS_PER_TREE,
+    Math.ceil((Math.max(0, seconds) * UNITS_PER_TREE) / VIDEO_AI_SECONDS_PER_TREE)
+  );
+}

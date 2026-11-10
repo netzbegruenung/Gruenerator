@@ -260,6 +260,18 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: Sun,
     group: 'system',
   },
+  video_ai_ready: {
+    label: 'KI-Schnitt fertig',
+    description: 'Wenn dein KI-Schnitt zur Vorschau bereitsteht',
+    icon: Sparkles,
+    group: 'system',
+  },
+  video_ai_failed: {
+    label: 'KI-Schnitt fehlgeschlagen',
+    description: 'Wenn ein KI-Schnitt nicht erstellt werden konnte',
+    icon: Sparkles,
+    group: 'system',
+  },
   new_avatars: {
     label: 'Neue Avatare',
     description: 'Wenn neue Profil-Avatare verfügbar sind',

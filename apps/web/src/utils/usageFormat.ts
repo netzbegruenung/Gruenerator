@@ -64,6 +64,7 @@ export const FEATURE_LABELS: Record<UsageFeature, string> = {
   notebook: 'Notebooks',
   voice: 'Voice',
   briefing: 'Tagesbriefing',
+  video_ai: 'KI-Schnitt',
   other: 'Sonstiges',
 };
 
