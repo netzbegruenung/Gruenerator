@@ -1,7 +1,7 @@
 import { loadCanvasConfig } from '@ggraphic/editor/config';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { TEMPLATE_REGISTRY } from './templateRegistry';
+import { documentAudienceOf, TEMPLATE_REGISTRY } from './templateRegistry';
 
 /**
  * Contract: every template the picker can offer must be page-capable —
@@ -28,5 +28,22 @@ describe('template registry ↔ multiPage contract', () => {
   it.each(ids)('config %s declares multiPage.enabled', async (id) => {
     const config = await loadCanvasConfig(id);
     expect(config.multiPage?.enabled).toBe(true);
+  });
+});
+
+describe('documentAudienceOf', () => {
+  it("gives an Austrian template's document the Austrian logos, whoever edits it", () => {
+    expect(documentAudienceOf('zitat-at')).toBe('de-AT');
+  });
+
+  it('treats a template without audience as German, like the picker does', () => {
+    expect(TEMPLATE_REGISTRY.dreizeilen.audience).toBeUndefined();
+    expect(documentAudienceOf('dreizeilen')).toBe('de-DE');
+  });
+
+  it("leaves an 'all' template or an unknown page to the user's locale", () => {
+    expect(documentAudienceOf('sticker')).toBeNull();
+    expect(documentAudienceOf('no-such-template')).toBeNull();
+    expect(documentAudienceOf(undefined)).toBeNull();
   });
 });
