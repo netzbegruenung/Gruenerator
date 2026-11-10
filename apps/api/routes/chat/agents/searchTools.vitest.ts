@@ -120,9 +120,13 @@ describe('collection catalogue — derived, not hand-maintained', () => {
     // The concrete failure: an LV key had to exist before the planner could
     // name it at all.
     expect(ALL_COLLECTIONS).toContain('hessen');
-    for (const lv of ['hamburg', 'bayern', 'berlin', 'thueringen', 'saarland', 'brandenburg']) {
+    for (const lv of ['bayern', 'berlin', 'thueringen', 'saarland', 'brandenburg']) {
       expect(ALL_COLLECTIONS).toContain(lv);
     }
+    // Hamburg and Schleswig-Holstein are switched off like Sachsen (#3831): an
+    // empty corpus must not be offered as a search target.
+    expect(ALL_COLLECTIONS).not.toContain('hamburg');
+    expect(ALL_COLLECTIONS).not.toContain('schleswig-holstein');
   });
 
   it('keeps the federal corpora the eight literals had', () => {

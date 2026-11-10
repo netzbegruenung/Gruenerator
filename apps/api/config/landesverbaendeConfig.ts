@@ -397,63 +397,67 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
     // ═══════════════════════════════════════════════════════════════════
     // HAMBURG
     // ═══════════════════════════════════════════════════════════════════
-    {
-      id: 'hamburg-lv-beschluesse',
-      name: 'Grüne Hamburg Beschlüsse',
-      shortName: 'HH',
-      type: 'landesverband',
-      baseUrl: 'https://beschluss.gruene-hamburg.de',
-      cms: 'wordpress',
-      contentPaths: [
-        {
-          // WP REST API, category 31 = Beschluss (279 posts). The API returns the
-          // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
-          // switch keeps source_urls — and thus the Qdrant dedup keys — stable
-          // (no re-index churn) while replacing the fragile ?paged HTML pagination.
-          type: 'beschluss',
-          path: '/',
-          listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          wpApi: { categoryId: 31 },
-        },
-      ],
-      contentSelectors: {
-        title: ['h1.entry-title', 'h1', '.post-title', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', '.post-date'],
-        content: ['.entry-content', '.post-content', 'article .content'],
-        categories: ['a[rel="category tag"]', '.cat-links a'],
-        author: ['.author-name', '.byline'],
-      },
-      excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:', '.pdf'],
-    },
-    {
-      id: 'hamburg-lv-presse',
-      name: 'Grüne Hamburg Presse',
-      shortName: 'HH',
-      type: 'landesverband',
-      baseUrl: 'https://www.gruene-hamburg.de',
-      cms: 'wordpress',
-      maxAgeYears: 5,
-      contentPaths: [
-        {
-          type: 'presse',
-          path: '/presse/',
-          listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          sitemapUrls: [
-            'https://www.gruene-hamburg.de/wp-sitemap-posts-post-1.xml',
-            'https://www.gruene-hamburg.de/wp-sitemap-posts-post-2.xml',
-          ],
-          sitemapFilter: '/presse/',
-        },
-      ],
-      contentSelectors: {
-        title: ['h1', '.entry-title', '.post-title', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', '.published'],
-        content: ['.entry-content', '.post-content', 'article'],
-        categories: ['.category', 'a[rel="category tag"]'],
-        author: ['.author', '.byline'],
-      },
-      excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
-    },
+    // Hamburg ist bis auf Weiteres ausgeblendet (Notebook `enabled: false`,
+    // Sammlung `mcpExposed: false`, #3831). Die Quellen bleiben als Vorlage
+    // stehen; zum Wiedereinschalten entkommentieren und HH in `ALL_LVS`
+    // (`.github/workflows/content-sync.yml`) eintragen.
+    // {
+    //   id: 'hamburg-lv-beschluesse',
+    //   name: 'Grüne Hamburg Beschlüsse',
+    //   shortName: 'HH',
+    //   type: 'landesverband',
+    //   baseUrl: 'https://beschluss.gruene-hamburg.de',
+    //   cms: 'wordpress',
+    //   contentPaths: [
+    //     {
+    //       // WP REST API, category 31 = Beschluss (279 posts). The API returns the
+    //       // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
+    //       // switch keeps source_urls — and thus the Qdrant dedup keys — stable
+    //       // (no re-index churn) while replacing the fragile ?paged HTML pagination.
+    //       type: 'beschluss',
+    //       path: '/',
+    //       listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+    //       wpApi: { categoryId: 31 },
+    //     },
+    //   ],
+    //   contentSelectors: {
+    //     title: ['h1.entry-title', 'h1', '.post-title', 'meta[property="og:title"]'],
+    //     date: ['time[datetime]', '.entry-date', '.post-date'],
+    //     content: ['.entry-content', '.post-content', 'article .content'],
+    //     categories: ['a[rel="category tag"]', '.cat-links a'],
+    //     author: ['.author-name', '.byline'],
+    //   },
+    //   excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:', '.pdf'],
+    // },
+    // {
+    //   id: 'hamburg-lv-presse',
+    //   name: 'Grüne Hamburg Presse',
+    //   shortName: 'HH',
+    //   type: 'landesverband',
+    //   baseUrl: 'https://www.gruene-hamburg.de',
+    //   cms: 'wordpress',
+    //   maxAgeYears: 5,
+    //   contentPaths: [
+    //     {
+    //       type: 'presse',
+    //       path: '/presse/',
+    //       listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+    //       sitemapUrls: [
+    //         'https://www.gruene-hamburg.de/wp-sitemap-posts-post-1.xml',
+    //         'https://www.gruene-hamburg.de/wp-sitemap-posts-post-2.xml',
+    //       ],
+    //       sitemapFilter: '/presse/',
+    //     },
+    //   ],
+    //   contentSelectors: {
+    //     title: ['h1', '.entry-title', '.post-title', 'meta[property="og:title"]'],
+    //     date: ['time[datetime]', '.entry-date', '.published'],
+    //     content: ['.entry-content', '.post-content', 'article'],
+    //     categories: ['.category', 'a[rel="category tag"]'],
+    //     author: ['.author', '.byline'],
+    //   },
+    //   excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
+    // },
 
     // ═══════════════════════════════════════════════════════════════════
     // BAYERN
