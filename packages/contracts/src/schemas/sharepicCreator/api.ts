@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { sharepicBrandSchema, sharepicCreatorLocaleSchema } from './enums.js';
+import { sharepicBrandSchema, sharepicCreatorLocaleSchema, sharepicFormatSchema } from './enums.js';
 import { sharepicFormSchema } from './forms.js';
 import { sharepicPatchOpSchema } from './patch.js';
 import { sharepicOwnPhotoSchema, sharepicPhotoUrlSchema } from './photos.js';
@@ -88,6 +88,31 @@ export const sharepicDraftResponseSchema = z.object({
   bericht: z.array(sharepicBerichtEintragSchema).max(20).optional(),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
+
+/** How many fitting Seiten the page picker hands over for „Mit KI hinzufügen". */
+export const SHAREPIC_NEXT_SEITE_CANDIDATES_MAX = 12;
+
+/** The longest design text that goes along — the client cuts its pages to this. */
+export const SHAREPIC_DECK_TEXT_MAX = 6_000;
+
+export const sharepicNextSeiteBodySchema = z.object({
+  /** Catalogue Seiten ids, the ones most like the design first; unknown ones are dropped. */
+  candidates: z.array(z.string().min(1).max(200)).min(1).max(SHAREPIC_NEXT_SEITE_CANDIDATES_MAX),
+  /** The design's text so far, page by page. */
+  deck: z.string().trim().min(1).max(SHAREPIC_DECK_TEXT_MAX),
+  format: sharepicFormatSchema,
+  brand: sharepicBrandSchema.optional(),
+  locale: sharepicCreatorLocaleSchema.optional(),
+});
+
+export const sharepicNextSeiteResponseSchema = z.object({
+  /** The candidate the creator picked. */
+  seiteId: z.string(),
+  /** That Seite as one slide, with its new text. */
+  spec: sharepicSpecSchema,
+  attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+});
+export type SharepicNextSeiteResponse = z.infer<typeof sharepicNextSeiteResponseSchema>;
 
 /** `edit`: the draft was just revised on `prompt` (a change request) — the review must not undo it. */
 export const sharepicReviewModeSchema = z.enum(['draft', 'edit']);
