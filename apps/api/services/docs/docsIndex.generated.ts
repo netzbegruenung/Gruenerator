@@ -4747,7 +4747,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Sonstiges",
-    "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Beispielfragen: „Was sagen die Grünen Hamburg zum Thema Verkehr?\" · „Wahlprogramm der Grünen Schleswig-Holstein zu Bildung\" · „Grüne Bayern Position zur Wirtschaft\" Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: „Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität.\" Die KI sucht dann automatisch in beiden Sammlungen."
+    "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Beispielfragen: „Was sagen die Grünen Hessen zum Thema Verkehr?\" · „Wahlprogramm der Grünen Brandenburg zu Bildung\" · „Grüne Bayern Position zur Wirtschaft\" Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: „Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität.\" Die KI sucht dann automatisch in beiden Sammlungen."
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",
@@ -4835,7 +4835,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weitere Assistenten",
     "anchor": "#weitere-assistenten",
     "category": "Sonstiges",
-    "text": "Darüber hinaus gibt es u. a. Assistenten für Sharepics, Leichte Sprache, Dokumente, Tabellen, Präsentationen und Boards, für Bundestag und Abgeordnetenwatch (Parlamentsrecherche) sowie Landesverbands-Varianten der Pressemitteilungs- und Bürger*innenanfragen-Assistenten (z. B. Berlin, Hamburg, Bayern, Österreich) — sie schreiben im Stil und mit dem Wissen des jeweiligen Landesverbands. ---"
+    "text": "Darüber hinaus gibt es u. a. Assistenten für Sharepics, Leichte Sprache, Dokumente, Tabellen, Präsentationen und Boards, für Bundestag und Abgeordnetenwatch (Parlamentsrecherche) sowie Landesverbands-Varianten der Pressemitteilungs- und Bürger*innenanfragen-Assistenten (z. B. Berlin, Hessen, Bayern, Österreich) — sie schreiben im Stil und mit dem Wissen des jeweiligen Landesverbands. ---"
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",
