@@ -13,6 +13,7 @@ import { type StoredVideoAiAnalysis, type StoredVideoAiInput } from './projectTy
 import { findTakeGroups } from './takeGroups.js';
 import { buildTranscriptUnits, type TranscriptUnit } from './transcriptUnits.js';
 import { type ValidationContext } from './validateEdl.js';
+import { MIN_FOOTAGE_WORDS } from './warnings.js';
 
 export interface ProjectBasics {
   locale: 'de-DE' | 'de-AT';
@@ -35,9 +36,9 @@ export function planContext(row: ProjectBasics, analysis: StoredVideoAiAnalysis)
   const cellsByClip = new Map(analysis.clips.map((c) => [c.clipId, c.cells]));
   const assets = analysis.assets.map((a) => ({ id: a.id, kind: a.kind }));
   const brief = {
-    topic: row.brief.topic,
+    topic: row.brief.topic ?? null,
     format: row.brief.format,
-    target: row.brief.target,
+    target: row.brief.target ?? null,
     hints: row.brief.hints ?? null,
     locale: row.locale,
   };
@@ -92,6 +93,24 @@ export function validationContext(
     clips: ctx.cutInput.clips,
     assets: ctx.cutInput.assets,
     target,
-    briefTexts: [row.brief.topic, row.brief.hints ?? '', row.brief.person?.name ?? ''],
+    briefTexts: [row.brief.topic ?? '', row.brief.hints ?? '', row.brief.person?.name ?? ''],
+  };
+}
+
+/**
+ * Every uploaded video starts as footage; the page asks for no roles. After
+ * the transcription, a clip in which hardly anything is said becomes b-roll —
+ * but only while another clip carries the speech, so a quiet single clip is
+ * not turned into a video without a speaker.
+ */
+export function withAutoRoles(analysis: StoredVideoAiAnalysis): StoredVideoAiAnalysis {
+  const speaks = (c: StoredVideoAiAnalysis['clips'][number]) => c.words.length >= MIN_FOOTAGE_WORDS;
+  if (!analysis.clips.some((c) => c.role === 'footage' && speaks(c))) return analysis;
+  if (!analysis.clips.some((c) => c.role === 'footage' && !speaks(c))) return analysis;
+  return {
+    ...analysis,
+    clips: analysis.clips.map((c) =>
+      c.role === 'footage' && !speaks(c) ? { ...c, role: 'broll' as const } : c
+    ),
   };
 }

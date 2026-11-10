@@ -123,6 +123,14 @@ const tusServer = new Server({
     return declaresVideoFiletype(req) ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES;
   },
   respectForwardedHeaders: true,
+  // `/api/subtitler/upload/<id>` instead of an absolute URL. tus-js-client
+  // resolves it against its endpoint, so a web page keeps talking to its own
+  // origin and the desktop shell (absolute endpoint) to the API host. Absolute,
+  // a local dev server's proxy was bypassed: the browser PATCHed the API port
+  // cross-origin, and this server's `Access-Control-Allow-Origin: *` is refused
+  // together with the session cookie — every resumed chunk failed, 0 bytes
+  // landed (10.11.2026, KI-Schnitt on :3003).
+  relativeLocation: true,
 });
 
 async function getUploadStatus(uploadId: string): Promise<UploadStatus> {

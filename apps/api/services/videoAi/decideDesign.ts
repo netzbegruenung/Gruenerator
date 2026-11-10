@@ -248,7 +248,7 @@ export function buildDesignPrompt(input: DesignInput): string {
   const timeline = cut.validation.timeline;
   const lines = [
     '# Briefing',
-    `Thema: ${brief.topic}`,
+    brief.topic ? `Thema: ${brief.topic}` : null,
     `Format: ${brief.format}`,
     brief.person
       ? `Person: ${brief.person.name}${brief.person.role ? `, ${brief.person.role}` : ''} (Bauchbinde setzt die Technik)`
@@ -363,8 +363,8 @@ export async function decideDesign(
     units: input.units,
     clips: input.clips,
     assets: input.assets,
-    target: input.brief.target,
-    briefTexts: [input.brief.topic, input.brief.hints ?? ''],
+    target: input.brief.target ?? null,
+    briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
   const check = (answer: Answer) => {
     const built = toEdl(answer, input);

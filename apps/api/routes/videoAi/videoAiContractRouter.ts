@@ -3,7 +3,7 @@
  * prefix in routes.ts; `create` additionally behind aiGenerationLimiter +
  * requireAiConsent. The work happens in services/videoAi/videoAiWorker.ts.
  */
-import { videoAiContract } from '@gruenerator/contracts';
+import { videoAiContract, type VideoAiBrief, type VideoAiBriefInput } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -32,6 +32,7 @@ import {
   type MediaForInput,
 } from '../../services/videoAi/projectRepository.js';
 import { compileTimeline } from '../../services/videoAi/projectTimeline.js';
+import { type StoredVideoAiInput } from '../../services/videoAi/projectTypes.js';
 import { importUpload } from '../../services/videoAi/uploadImport.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -71,6 +72,27 @@ async function probeMissingDurations(
   return durations;
 }
 
+/**
+ * The page sends only files (like the reel Grünerator). Defaults: vertical
+ * reel, the dynamic talking-head look, the first video's name as title.
+ */
+export function completeBrief(
+  input: VideoAiBriefInput | null,
+  inputs: readonly StoredVideoAiInput[]
+): VideoAiBrief {
+  const firstClip = inputs.find((i) => i.role === 'footage')?.title ?? '';
+  const fromFile = firstClip
+    .replace(/\.[a-z0-9]{2,4}$/i, '')
+    .trim()
+    .slice(0, 120);
+  return {
+    ...input,
+    title: input?.title?.trim() || fromFile || 'KI-Schnitt',
+    format: input?.format ?? '9:16',
+    style: input?.style ?? 'talking-head-dynamisch',
+  };
+}
+
 export const videoAiContractRouter = s.router(videoAiContract, {
   create: async ({ req, body }) => {
     const user = getUser(req);
@@ -108,7 +130,7 @@ export const videoAiContractRouter = s.router(videoAiContract, {
     try {
       created = await insertVideoAiProject({
         userId: user.id,
-        brief: body.brief,
+        brief: completeBrief(body.brief ?? null, material.inputs),
         inputs: material.inputs,
         locale: extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE',
         treeUnits: units,

@@ -76,3 +76,14 @@ describe('buildCutPrompt', () => {
     expect(prompt).toMatch(/c1\.s12, c1\.s16 → Vorschlag c1\.s16/);
   });
 });
+
+describe('buildCutPrompt without a briefing', () => {
+  it('asks to read the topic from the material and to keep it short', () => {
+    const prompt = buildCutPrompt({
+      ...input,
+      brief: { ...input.brief, topic: null, target: null },
+    });
+    expect(prompt).toContain('erschließe es aus dem Material');
+    expect(prompt).toMatch(/keine Vorgabe.*höchstens 90 s/);
+  });
+});

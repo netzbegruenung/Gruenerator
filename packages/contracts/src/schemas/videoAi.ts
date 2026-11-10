@@ -173,32 +173,40 @@ export const videoAiInputSchema = z.object({
 });
 export type VideoAiInput = z.infer<typeof videoAiInputSchema>;
 
-export const videoAiBriefSchema = z
+const briefTarget = z
   .object({
-    title: z.string().trim().min(1).max(120),
-    /** What the video is about, in the person's words. */
-    topic: z.string().trim().min(3).max(500),
-    format: videoAiFormatSchema,
-    style: videoAiStyleSchema,
-    target: z.object({
-      minSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
-      maxSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
-    }),
-    /** Name and role for the lower third; never written by the model. */
-    person: z
-      .object({
-        name: z.string().trim().min(1).max(80),
-        role: z.string().trim().max(80),
-      })
-      .nullish(),
-    /** Names and terms the transcription should spell right. */
-    keyterms: z.array(z.string().trim().min(2).max(40)).max(20).nullish(),
-    hints: z.string().trim().max(1000).nullish(),
+    minSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
+    maxSeconds: z.number().int().min(5).max(VIDEO_AI_LIMITS.maxTargetSeconds),
   })
-  .refine((b) => b.target.minSeconds <= b.target.maxSeconds, {
+  .refine((t) => t.minSeconds <= t.maxSeconds, {
     message: 'Die Mindestlänge ist größer als die Höchstlänge.',
-    path: ['target'],
   });
+
+/**
+ * The stored briefing. The page asks for nothing but the files (like the reel
+ * Grünerator), so everything but title, format and style may be empty: the
+ * topic then comes from the transcript, the length from the material, and
+ * without a name there is no lower third.
+ */
+export const videoAiBriefSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  /** What the video is about, in the person's words; null = read it from the transcript. */
+  topic: z.string().trim().max(500).nullish(),
+  format: videoAiFormatSchema,
+  style: videoAiStyleSchema,
+  /** Null = as short as the content allows. */
+  target: briefTarget.nullish(),
+  /** Name and role for the lower third; never written by the model. */
+  person: z
+    .object({
+      name: z.string().trim().min(1).max(80),
+      role: z.string().trim().max(80),
+    })
+    .nullish(),
+  /** Names and terms the transcription should spell right. */
+  keyterms: z.array(z.string().trim().min(2).max(40)).max(20).nullish(),
+  hints: z.string().trim().max(1000).nullish(),
+});
 export type VideoAiBrief = z.infer<typeof videoAiBriefSchema>;
 
 export const videoAiStatusSchema = z.enum([
@@ -212,8 +220,12 @@ export const videoAiStatusSchema = z.enum([
 ]);
 export type VideoAiStatus = z.infer<typeof videoAiStatusSchema>;
 
+/** What a client may send; the API fills title, format and style. */
+export const videoAiBriefInputSchema = videoAiBriefSchema.partial();
+export type VideoAiBriefInput = z.infer<typeof videoAiBriefInputSchema>;
+
 export const createVideoAiProjectBodySchema = z.object({
-  brief: videoAiBriefSchema,
+  brief: videoAiBriefInputSchema.nullish(),
   inputs: z
     .array(videoAiInputSchema)
     .min(1)

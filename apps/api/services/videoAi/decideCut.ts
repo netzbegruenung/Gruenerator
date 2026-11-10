@@ -24,11 +24,15 @@ import { type TakeGroup } from './takeGroups.js';
 import { type TranscriptUnit } from './transcriptUnits.js';
 import { validateEdl, type ValidationAsset, type ValidationResult } from './validateEdl.js';
 
+/** Without a target the cut still may not run on and on. */
+export const DEFAULT_MAX_SECONDS = 90;
+
 export interface CutBrief {
-  /** What the video is about, in the person's words. */
-  topic: string;
+  /** What the video is about, in the person's words; null = read it from the transcript. */
+  topic: string | null;
   format: VideoAiFormat;
-  target: { minSeconds: number; maxSeconds: number };
+  /** Null = as short as the content allows. */
+  target: { minSeconds: number; maxSeconds: number } | null;
   /** Free notes for the cut ("Vorstellung weglassen, Bauchbinde reicht"). */
   hints: string | null;
   locale: 'de-DE' | 'de-AT';
@@ -102,9 +106,11 @@ export function buildCutPrompt(input: CutInput): string {
   const footage = renderFootageBrief(input.clips, [...input.units.values()], input.takes);
   return [
     '# Briefing',
-    `Thema: ${brief.topic}`,
+    `Thema: ${brief.topic ?? 'nicht angegeben – erschließe es aus dem Material'}`,
     `Format: ${brief.format}`,
-    `Ziellänge: ${brief.target.minSeconds}–${brief.target.maxSeconds} s`,
+    brief.target
+      ? `Ziellänge: ${brief.target.minSeconds}–${brief.target.maxSeconds} s`
+      : `Ziellänge: keine Vorgabe. So knapp, wie es die Kernaussagen erlauben; höchstens ${DEFAULT_MAX_SECONDS} s.`,
     brief.hints ? `Hinweise: ${brief.hints}` : null,
     '',
     '# Rohmaterial',
@@ -133,8 +139,8 @@ export async function decideCut(
     units: input.units,
     clips: input.clips,
     assets: input.assets,
-    target: input.brief.target,
-    briefTexts: [input.brief.topic, input.brief.hints ?? ''],
+    target: input.brief.target ?? { minSeconds: 5, maxSeconds: DEFAULT_MAX_SECONDS },
+    briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
   const result = await aiObject<z.infer<typeof answerSchema>>({
     lane: 'video_ai_cut',

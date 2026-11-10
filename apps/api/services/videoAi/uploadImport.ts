@@ -5,6 +5,7 @@
  * the name or the client's MIME claim — a file without a decodable video or
  * sound track is refused.
  */
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 export interface ProbedStream {
@@ -90,11 +91,19 @@ export async function importUpload(
   const { getSharedMediaService } = await import('../sharedMediaService.js');
 
   const status = await tus.getUploadStatus(uploadId);
-  if (!status.exists || !status.isComplete) {
+  const sourcePath = tus.getFilePathFromUploadId(uploadId);
+  // Complete = all announced bytes on disk. The sidecar's `offset` is no
+  // help: @tus/server's FileStore never updates it (only the binary upload
+  // path writes it), so `status.isComplete` is false for every TUS upload.
+  const onDisk = await fs
+    .stat(sourcePath)
+    .then((s) => s.size)
+    .catch(() => -1);
+  const announced = status.metadata?.size ?? Number.POSITIVE_INFINITY;
+  if (!status.exists || onDisk < announced) {
     return { ok: false, status: 409, error: 'Der Upload ist noch nicht vollständig.' };
   }
   const filename = await tus.getOriginalFilename(uploadId);
-  const sourcePath = tus.getFilePathFromUploadId(uploadId);
   let kind: UploadKind | null = null;
   try {
     const meta = await ffprobe(sourcePath);

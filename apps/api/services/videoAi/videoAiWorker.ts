@@ -32,7 +32,7 @@ import {
 import { decideCut, type CutDecision, type CutInput } from './decideCut.js';
 import { decideDesign, type DesignDecision, type DesignInput } from './decideDesign.js';
 import { fallbackCut, fallbackDesign } from './fallbackPlan.js';
-import { planContext } from './projectContext.js';
+import { planContext, withAutoRoles } from './projectContext.js';
 import { ACTIVE_STATUSES } from './projectRepository.js';
 import {
   type StoredAssetAnalysis,
@@ -228,7 +228,9 @@ export async function decidePlan(
 
 export async function processClaimed(row: ClaimedProject, deps: VideoAiWorkerDeps): Promise<void> {
   await guarded(deps, SET_STATUS_SQL, [row.id, 'analyzing']);
-  const analysis = await completeAnalysis(row, deps);
+  const raw = await completeAnalysis(row, deps);
+  const analysis = withAutoRoles(raw);
+  if (analysis !== raw) await guarded(deps, SAVE_ANALYSIS_SQL, [row.id, JSON.stringify(analysis)]);
   const footageWords = analysis.clips
     .filter((c) => c.role === 'footage')
     .reduce((n, c) => n + c.words.length, 0);
