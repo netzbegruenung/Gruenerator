@@ -1,26 +1,25 @@
 /**
- * First-party system MCP sources (EXPERIMENTAL) — built-in chat search
- * capabilities (Deutsche Bahn timetables, Open-Meteo/DWD weather, ARD/
- * Tagesschau news), operated as Grünerator infrastructure and consumed
- * server-side like the bundestag tool family.
+ * Known connectors (EXPERIMENTAL): the MCP servers whose server we operate or
+ * know — Deutsche Bahn timetables, Open-Meteo/DWD weather, tagesschau, trivago,
+ * German federal law, Rateo (Berlin BVV) — and everything specific to each of
+ * them: name and description, tool allowlist, prompt hint, audience.
  *
- * Each source is active only when its URL env var is set — the endpoint lives
- * exclusively in deploy env (never in the repo or any API response), and
- * unsetting the var is the kill switch. The one exception is a public
- * endpoint we do not operate (Rateo): it carries a default URL, and an EMPTY
- * env value is its kill switch (see `ENV_BY_KEY`). Auth: optional shared bearer via the
- * matching `…_TOKEN` env; without it the source connects unauthenticated.
+ * To a person they are connectors like any other: a card in the directory
+ * (McpRegistryService), and once connected a row in `mcp_servers` with
+ * `registry_key` set (McpServerRegistry). Two things never live in that row:
+ *   - the endpoint — each source is active only when its URL env var is set,
+ *     the URL never reaches the repo or an API response, and unsetting the var
+ *     is the kill switch. The one exception is a public endpoint we do not
+ *     operate (Rateo): it carries a default URL, and an EMPTY env value is its
+ *     kill switch (see `ENV_BY_KEY`). Auth: optional shared bearer via the
+ *     matching `…_TOKEN` env; without it the source connects unauthenticated.
+ *   - this definition — the chat mounts a known connector through
+ *     `loadMcpCatalog`, which hands it to `loadManagedMcpCatalog` for the
+ *     shared tool cache, result shaping, widgets and the hint below.
  *
- * TWO VIEWS OF THE SAME SOURCE. Historically these were intent-only: no
- * `mcp_servers` row, no settings UI, no @mention. A source can now ALSO be a
- * MANAGED CONNECTOR — listed in Einstellungen → Verbindungen for every user,
- * off until switched on, mountable via `@mention` — without gaining a per-user row
- * (see `MANAGED_KEYS` + `getManagedConnectors`). Since 11/2026 every managed
- * connector starts SWITCHED OFF: it sits in the connector directory like any
- * other service, and a person turns it on there (see `McpServerRegistry`). The connector view is the
- * target state for all of them; the intent view is what is being dismantled.
- * Both views read the SAME definition, so a source can never describe itself
- * differently in the two places.
+ * Until 11/2026 they had no row: a synthetic id `system-<key>` and a per-user
+ * switch. The id stays readable as an alias ({@link parseManagedConnectorId});
+ * remove no earlier than 2027-05-10.
  */
 
 import { type SearchIntent } from '@gruenerator/contracts';
@@ -92,16 +91,16 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string; defaultUrl?
 };
 
 /**
- * The sources exposed as MANAGED CONNECTORS — listed in the settings for every
- * user, off until that person switches them on, mounted only on an `@mention` or when pinned —
- * never on prose, their titles are ordinary words.
+ * The known connectors offered in the directory. Mounted only on an
+ * `@mention`, when pinned or via the sticky thread scope — never on prose,
+ * their titles are ordinary words.
  *
  * All of them, now. Four arrived here from the intent side, where each owned an
  * enum value, a classifier branch, a `searchNode` case and a share of a 900-ms
  * LLM resolver. What they needed from all that was "mount these tools" — which
  * is what a connector is.
  *
- * Order is the mount order the trigger reports and the settings list shows.
+ * Order is the order the directory lists them in.
  */
 const MANAGED_KEYS: readonly SystemMcpKey[] = [
   'bahn',
@@ -113,12 +112,10 @@ const MANAGED_KEYS: readonly SystemMcpKey[] = [
 ];
 
 /**
- * Synthetic connector id. Shares the `system-<key>` shape with
- * {@link toSystemConnectionConfig} so ONE id identifies a source everywhere:
- * `@mention` target, `mcp:<id>` scope, and the tool-name prefix mcpCatalog
- * derives (`config.id.replace(/-/g,'').slice(0,8)` → `systemge`).
- *
- * A user's own servers are UUIDs and can never collide with this prefix.
+ * The former synthetic connector id (`system-<key>`), still sent by pinned
+ * connectors, sticky thread scopes and mention tokens written before 11/2026.
+ * Read as an alias for the person's row with that key; never written for a new
+ * reference. A user's own servers are UUIDs and can never collide with it.
  */
 export const MANAGED_ID_PREFIX = 'system-';
 
@@ -126,16 +123,15 @@ export function managedConnectorId(key: SystemMcpKey): string {
   return `${MANAGED_ID_PREFIX}${key}`;
 }
 
+/** A known connector key, or null — narrows client input such as a path param. */
+export function asSystemMcpKey(raw: string): SystemMcpKey | null {
+  return Object.hasOwn(ENV_BY_KEY, raw) ? (raw as SystemMcpKey) : null;
+}
+
 /** `system-gesetze` → `gesetze`; anything else (incl. a user UUID) → null. */
 export function parseManagedConnectorId(id: string): SystemMcpKey | null {
   if (!id.startsWith(MANAGED_ID_PREFIX)) return null;
-  const key = id.slice(MANAGED_ID_PREFIX.length);
-  return key in ENV_BY_KEY ? (key as SystemMcpKey) : null;
-}
-
-/** True when the source is surfaced as a managed connector. */
-export function isManagedKey(key: SystemMcpKey): boolean {
-  return MANAGED_KEYS.includes(key);
+  return asSystemMcpKey(id.slice(MANAGED_ID_PREFIX.length));
 }
 
 /**
@@ -344,7 +340,7 @@ export function toSystemConnectionConfig(source: SystemMcpSource): McpConnection
     url: source.url,
     authType: source.authType,
     token: source.token,
-    managed: true,
+    registryKey: source.key,
   };
 }
 
@@ -377,11 +373,4 @@ export function getManagedConnectors(locale?: string | null): ManagedConnector[]
     if (source) connectors.push({ ...source, id: managedConnectorId(key) });
   }
   return connectors;
-}
-
-/** One managed connector by its synthetic id, or null if unknown/not configured. */
-export function getManagedConnectorById(id: string): ManagedConnector | null {
-  const key = parseManagedConnectorId(id);
-  if (!key) return null;
-  return getManagedConnectors().find((c) => c.key === key) ?? null;
 }

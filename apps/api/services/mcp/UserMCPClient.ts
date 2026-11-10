@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
+import { type SystemMcpKey } from './connectorAdapters.js';
 import { seedConnectionHints } from './McpRegistryService.js';
 
 const log = createLogger('user-mcp-client');
@@ -139,13 +140,14 @@ export interface McpConnectionConfig {
    */
   approvedFingerprints?: Record<string, string> | null;
   /**
-   * A first-party MANAGED connector (`system-<key>`, config from env) rather
-   * than an `mcp_servers` row. Two consequences the catalog MUST honour: there
-   * is no row to write a tools snapshot or a fingerprint baseline to (the id is
-   * not a UUID, so the write fails at the column cast), and the rug-pull check
-   * is moot because we operate the server ourselves.
+   * Key of a known connector (`mcp_servers.registry_key`, config from env)
+   * rather than a server the person added. Consequences the catalog MUST
+   * honour: tools are named `<key>__<tool>` (stable across rows and in stored
+   * history), there is no tools snapshot or fingerprint baseline to keep, and
+   * the rug-pull check is moot because we operate or vetted the server.
+   * Absent/null = a user-added server.
    */
-  managed?: boolean;
+  registryKey?: SystemMcpKey | null;
   /**
    * The URL matches a curated directory entry (McpRegistryService seed). We
    * vetted that vendor, so the catalog skips the rug-pull check for it like

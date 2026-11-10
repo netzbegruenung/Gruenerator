@@ -7,7 +7,7 @@
  *   - collections (apps/api … systemCollectionsConfig.ts) — the collections the
  *     MCP server exposes, split into nationwide and Landesverbände,
  *   - connectors  (apps/api … McpRegistryService.ts) — the connector directory,
- *   - managedConnectors (apps/api … systemMcpServers.ts) — the first-party
+ *   - managedConnectors (apps/api … connectorAdapters.ts) — the first-party
  *     connectors every user gets without connecting anything.
  *
  * ── Why one manifest, and why no audit ──────────────────────────────────────
@@ -45,7 +45,7 @@ const SRC = {
   fileUtils: 'packages/chat/src/lib/fileUtils.ts',
   collections: 'apps/api/config/systemCollectionsConfig.ts',
   connectors: 'apps/api/services/mcp/McpRegistryService.ts',
-  managed: 'apps/api/services/mcp/systemMcpServers.ts',
+  managed: 'apps/api/services/mcp/connectorAdapters.ts',
 };
 
 const OUT_FILE = 'documentation/src/generated/reference.json';

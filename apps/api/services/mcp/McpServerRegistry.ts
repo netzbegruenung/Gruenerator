@@ -1,39 +1,45 @@
 /**
- * Per-user registry of external MCP servers (EXPERIMENTAL).
+ * Per-user registry of MCP servers (EXPERIMENTAL).
  *
  * Stores server records in the `mcp_servers` table; access tokens are encrypted
  * at rest with the shared credential helper (same scheme as Canva).
- * The chat `mcp`-intent tool-loop reads {@link getConnectionConfigs} to connect
- * to a user's enabled servers; the settings UI drives the CRUD methods.
+ * The chat tool-loop reads {@link getConnectionConfigs} to connect to the one
+ * server a turn addresses; the settings UI drives the CRUD methods.
  *
  * Auth: `none`, `bearer` and `oauth` are wired end-to-end; the interactive
  * OAuth (PKCE/DCR) flow lives in McpOAuthService, whose tokens this registry
  * lazy-refreshes in getConnectionConfigs.
  *
- * MANAGED CONNECTORS are unioned in on read. They are first-party servers
- * configured from env (`systemMcpServers.ts`) with no `mcp_servers` row: every
- * user gets them, switched OFF until they turn one on (`mcp_system_prefs`). They are
- * READ-ONLY here — no create, no delete, no URL/token edit — because there is no
- * per-user record to change, only a switch.
+ * KNOWN CONNECTORS (Bahn, Wetter, tagesschau, trivago, Gesetze, Rateo) are rows
+ * too since 11/2026, marked by `registry_key`. What makes them different stays
+ * out of the row: URL and token come from deploy env (`connectorAdapters.ts`),
+ * name and description from the code definition, and the only thing a person
+ * changes on such a row is `enabled` — or they disconnect it. The former
+ * synthetic id `system-<key>` is still accepted everywhere an id is
+ * ({@link McpServerRegistry.resolveServerId}); persisted pins, sticky thread
+ * scopes and mention tokens carry it. Remove the alias no earlier than
+ * 2027-05-10.
  */
 
 import { type McpServerSummary } from '@gruenerator/contracts';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { type PgUpdateSetSource } from 'drizzle-orm/pg-core';
 
 import { mcp_servers, type McpServer } from '../../database/schema/mcpServers.js';
-import { mcp_system_prefs } from '../../database/schema/mcpSystemPrefs.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
 
-import { findSeedByUrl } from './McpRegistryService.js';
 import {
-  getManagedConnectorById,
+  asSystemMcpKey,
   getManagedConnectors,
+  MANAGED_ID_PREFIX,
   parseManagedConnectorId,
+  toSystemConnectionConfig,
   type ManagedConnector,
-} from './systemMcpServers.js';
+  type SystemMcpKey,
+} from './connectorAdapters.js';
+import { findSeedByUrl } from './McpRegistryService.js';
 import { type McpConnectionConfig, type McpToolDescriptor } from './UserMCPClient.js';
 
 const log = createLogger('mcp-server-registry');
@@ -83,8 +89,43 @@ export interface McpServerUpdateInput {
   oauthClientSecret?: string | null;
 }
 
+/**
+ * A patch that would change what a known connector connects to. Refused, not
+ * ignored: the row's trust (widgets, read-only auto-approval, the shared tool
+ * cache) belongs to the server behind the key, and a row pointed elsewhere
+ * would carry it to a server nobody vetted.
+ */
+export class RegistryConnectorPatchError extends Error {
+  constructor() {
+    super('A known connector can only be switched on or off.');
+    this.name = 'RegistryConnectorPatchError';
+  }
+}
+
+const LOCKED_ON_KNOWN_CONNECTOR = [
+  'name',
+  'url',
+  'authType',
+  'token',
+  'oauthClientId',
+  'oauthClientSecret',
+] as const satisfies readonly (keyof McpServerUpdateInput)[];
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The env-active definition behind a row's key; null for user rows and unset sources. */
+function knownConnector(key: string | null): ManagedConnector | null {
+  if (!key) return null;
+  return getManagedConnectors().find((c) => c.key === key) ?? null;
+}
+
+/**
+ * Row → settings record. A known connector's row shows the definition's name
+ * and description, and `url` stays EMPTY: the endpoint is deploy-env-only and
+ * must not reach any API response.
+ */
 function toSummary(row: McpServer): McpServerSummary {
-  return {
+  const base: McpServerSummary = {
     id: row.id,
     name: row.name,
     url: row.url,
@@ -99,134 +140,110 @@ function toSummary(row: McpServer): McpServerSummary {
       ? { changed: row.tools_drift.changed, added: row.tools_drift.added }
       : null,
   };
-}
-
-/**
- * A managed connector as the settings UI sees it.
- *
- * `url` is deliberately EMPTY: the endpoint is deploy-env-only and must not
- * reach any API response (see systemMcpServers.ts). Everything the UI needs to
- * render a managed row — title, description, switch — comes from the definition,
- * and there is nothing behind the URL for the user to edit anyway.
- *
- * `createdAt`/`updatedAt` carry the opt-out row's timestamp when there is one;
- * a connector nobody ever toggled has no row and reports the epoch. They exist
- * only to satisfy the shared summary shape — no UI sorts managed rows by date.
- */
-function managedToSummary(connector: ManagedConnector, enabled: boolean, updatedAt: Date | null) {
-  const ts = (updatedAt ?? new Date(0)).toISOString();
+  const connector = knownConnector(row.registry_key);
+  if (!connector) return base;
   return {
-    id: connector.id,
+    ...base,
     name: connector.connector.title,
     url: '',
     authType: connector.authType,
     hasToken: !!connector.token,
-    enabled,
-    createdAt: ts,
-    updatedAt: ts,
     description: connector.connector.description,
     toolNames: connector.toolAllowlist,
-    managed: true as const,
-    category: connector.connector.category,
-  } satisfies McpServerSummary;
-}
-
-/**
- * Managed connector → loop connection config. No decryption and no OAuth
- * refresh: the shared bearer comes straight from env. `managed: true` tells the
- * catalog there is no row behind this id (no snapshot write, no fingerprint
- * baseline, no rug-pull check).
- */
-function toManagedConfig(connector: ManagedConnector): McpConnectionConfig {
-  return {
-    id: connector.id,
-    name: connector.connector.title,
-    url: connector.url,
-    authType: connector.authType,
-    token: connector.token,
+    toolsDrift: null,
     managed: true,
+    category: connector.connector.category,
+    registryKey: connector.key,
   };
 }
 
-/**
- * `system_key` → switch row, for one user. Absent key = default (OFF).
- *
- * The default was ON until 11/2026; rows written since then record the person's
- * own decision either way, so flipping the default only changes connectors
- * nobody ever touched.
- */
-async function loadSystemPrefs(
-  userId: string
-): Promise<Map<string, { enabled: boolean; updatedAt: Date }>> {
-  const db = getDrizzleInstance();
-  const rows = await db.select().from(mcp_system_prefs).where(eq(mcp_system_prefs.user_id, userId));
-  return new Map(rows.map((r) => [r.system_key, { enabled: r.enabled, updatedAt: r.updated_at }]));
+/** A row the settings may show: user rows always, known ones only while their source is active. */
+function isListable(row: McpServer): boolean {
+  return row.registry_key == null || knownConnector(row.registry_key) != null;
 }
 
 export class McpServerRegistry {
   /**
-   * All of a user's servers for the settings UI — managed connectors first,
-   * then their own (enabled + disabled).
-   *
-   * A prefs-table outage must not blank the connector list: managed rows then
-   * render at their default (off), which is what they would do with no row
-   * anyway. Logged, not thrown.
+   * All of a user's servers for the settings UI (enabled + disabled). A known
+   * connector the person never connected is not here — it is a card in the
+   * directory (McpRegistryService), like any other service.
    */
   static async list(userId: string): Promise<McpServerSummary[]> {
     const db = getDrizzleInstance();
     const rows = await db.select().from(mcp_servers).where(eq(mcp_servers.user_id, userId));
-    const prefs = await loadSystemPrefs(userId).catch((err: unknown) => {
-      log.warn(`Failed to load managed-connector prefs; defaulting to off: ${err}`);
-      return new Map<string, { enabled: boolean; updatedAt: Date }>();
-    });
-    const managed = getManagedConnectors().map((c) => {
-      const pref = prefs.get(c.key);
-      return managedToSummary(c, pref?.enabled ?? false, pref?.updatedAt ?? null);
-    });
-    return [...managed, ...rows.map(toSummary)];
+    return rows.filter(isListable).map(toSummary);
   }
 
   /**
-   * The managed connectors this user has switched ON (`system_key` values).
-   * Asked as "on", not "off": with the default off, a connector without a row
-   * must count as not mounted.
+   * The row id an id-shaped reference means for this person. A row id passes
+   * through unchanged; the former synthetic `system-<key>` resolves to the
+   * person's row with that key, or null when they have none (never connected,
+   * or disconnected). Every route and the chat scope go through this, so an old
+   * pin or sticky scope keeps working.
    */
-  static async getEnabledManagedKeys(userId: string): Promise<Set<string>> {
-    const prefs = await loadSystemPrefs(userId);
-    return new Set([...prefs].filter(([, p]) => p.enabled).map(([key]) => key));
+  static async resolveServerId(userId: string, ref: string): Promise<string | null> {
+    // Anything that is neither a known alias nor a row id resolves to nothing —
+    // a retired `system-<key>` or a garbled pin must answer "not found", not
+    // reach the uuid cast as a 500.
+    if (!ref.startsWith(MANAGED_ID_PREFIX)) return UUID_SHAPE.test(ref) ? ref : null;
+    const key = parseManagedConnectorId(ref);
+    if (!key) return null;
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select({ id: mcp_servers.id, registry_key: mcp_servers.registry_key })
+      .from(mcp_servers)
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.registry_key, key)));
+    return rows.find((r) => r.registry_key === key)?.id ?? null;
+  }
+
+  /** The known-connector key of one of the person's rows; null for own servers and unknown ids. */
+  static async getRegistryKey(userId: string, id: string): Promise<SystemMcpKey | null> {
+    const db = getDrizzleInstance();
+    const [row] = await db
+      .select({ registry_key: mcp_servers.registry_key })
+      .from(mcp_servers)
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)));
+    return row?.registry_key ? asSystemMcpKey(row.registry_key) : null;
   }
 
   /**
-   * Switch a managed connector on/off for one user. Upsert on the composite key:
-   * switching back ON writes `true` rather than deleting the row, so the table
-   * records a decision instead of leaving "never touched" and "explicitly on"
-   * indistinguishable.
+   * "Verbinden" on a known connector's directory card: the person's row for
+   * that key, created on first connect and switched on otherwise. Idempotent
+   * through the partial unique index on (user_id, registry_key).
    *
-   * Returns the refreshed summary, or null when the id is not a configured
-   * managed connector (unknown key, or its URL is unset in this deployment).
+   * Null when the key is unknown or its source is not configured here.
    */
-  static async setManagedEnabled(
+  static async connectRegistryConnector(
     userId: string,
-    id: string,
-    enabled: boolean
+    key: SystemMcpKey
   ): Promise<McpServerSummary | null> {
-    const connector = getManagedConnectorById(id);
+    const connector = knownConnector(key);
     if (!connector) return null;
     const db = getDrizzleInstance();
-    const updatedAt = new Date();
-    await db
-      .insert(mcp_system_prefs)
-      .values({ user_id: userId, system_key: connector.key, enabled, updated_at: updatedAt })
+    const rows = await db
+      .insert(mcp_servers)
+      .values({
+        user_id: userId,
+        // Display name comes from the definition (toSummary). The column is
+        // NOT NULL and UNIQUE per user, so it carries a name nobody types for
+        // a server of their own — the bare key ("news") would collide.
+        name: `registry:${key}`,
+        url: '',
+        auth_type: 'none',
+        registry_key: key,
+        enabled: true,
+      })
       .onConflictDoUpdate({
-        target: [mcp_system_prefs.user_id, mcp_system_prefs.system_key],
-        set: { enabled, updated_at: updatedAt },
-      });
-    return managedToSummary(connector, enabled, updatedAt);
-  }
-
-  /** True when the id addresses a managed connector rather than a user row. */
-  static isManagedId(id: string): boolean {
-    return parseManagedConnectorId(id) !== null;
+        target: [mcp_servers.user_id, mcp_servers.registry_key],
+        targetWhere: isNotNull(mcp_servers.registry_key),
+        set: { enabled: true, updated_at: new Date() },
+      })
+      .returning();
+    const row = rows[0];
+    classifierCache.delete(userId);
+    if (!row) return null;
+    log.info('Known connector connected', { userId, key });
+    return toSummary(row);
   }
 
   /** Count of enabled servers — used to gate the `mcp` intent per user. */
@@ -249,21 +266,13 @@ export class McpServerRegistry {
    * server, and they shared one tool cap — the mentioned server lost its tools
    * to whichever connected fastest.
    *
-   * A `system-<key>` id short-circuits: it can never match an `mcp_servers`
-   * row, and it is not a UUID — the row query would raise a column-cast error
-   * rather than return nothing.
+   * A known connector's config is built from env, never from the row: the row
+   * says only THAT the person connected it. With the source unset in this
+   * deployment (the kill switch) it yields nothing.
    */
-  static async getConnectionConfigs(
-    userId: string,
-    serverId: string
-  ): Promise<McpConnectionConfig[]> {
-    if (parseManagedConnectorId(serverId)) {
-      const connector = getManagedConnectorById(serverId);
-      if (!connector) return [];
-      // Prefs unreadable → nothing is known to be on, so nothing mounts.
-      const enabled = await this.getEnabledManagedKeys(userId).catch(() => new Set<string>());
-      return enabled.has(connector.key) ? [toManagedConfig(connector)] : [];
-    }
+  static async getConnectionConfigs(userId: string, ref: string): Promise<McpConnectionConfig[]> {
+    const serverId = await this.resolveServerId(userId, ref);
+    if (!serverId) return [];
 
     const db = getDrizzleInstance();
     const rows = await db
@@ -276,8 +285,17 @@ export class McpServerRegistry {
           eq(mcp_servers.id, serverId)
         )
       );
-    const userConfigs: McpConnectionConfig[] = await Promise.all(
-      rows.map(async (row) => {
+    const configs = await Promise.all(
+      rows.map(async (row): Promise<McpConnectionConfig | null> => {
+        if (row.registry_key != null) {
+          const connector = knownConnector(row.registry_key);
+          if (!connector) return null;
+          return {
+            ...toSystemConnectionConfig(connector),
+            id: row.id,
+            name: connector.connector.title,
+          };
+        }
         let token: string | null = null;
         if (row.auth_type === 'oauth') {
           // Lazy-refresh a valid access token (McpOAuthService owns the crypto +
@@ -306,7 +324,7 @@ export class McpServerRegistry {
       })
     );
 
-    return userConfigs;
+    return configs.filter((c): c is McpConnectionConfig => c != null);
   }
 
   /**
@@ -439,8 +457,8 @@ export class McpServerRegistry {
    * conservative prose routing. Short-TTL cached per user to stay off the DB hot
    * path (the classifier runs on every message).
    *
-   * MANAGED CONNECTORS ARE DELIBERATELY ABSENT (this reads `mcp_servers` only):
-   * they mount only on an @mention or when pinned. Prose routing fires on a
+   * KNOWN CONNECTORS ARE DELIBERATELY ABSENT (rows with `registry_key`): they
+   * mount only on an @mention, when pinned or via the sticky thread scope. Prose routing fires on a
    * server NAME plus an action verb, and their names are ordinary German words —
    * "Erstelle einen Post: Das Wetter spielt verrückt" would scope a writing
    * order to the weather API, "Such Gesetze zur Kindergrundsicherung" a policy
@@ -458,10 +476,14 @@ export class McpServerRegistry {
         name: mcp_servers.name,
         url: mcp_servers.url,
         tools_snapshot: mcp_servers.tools_snapshot,
+        registry_key: mcp_servers.registry_key,
       })
       .from(mcp_servers)
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true)));
-    const data: McpClassifierServer[] = rows.map((row) => ({
+    // Known connectors never enter name matching, whatever the SQL returns —
+    // filtered here so the guard is visible next to the reason above.
+    const own = rows.filter((row) => row.registry_key == null);
+    const data: McpClassifierServer[] = own.map((row) => ({
       id: row.id,
       name: row.name,
       description: findSeedByUrl(row.url)?.description ?? null,
@@ -503,6 +525,13 @@ export class McpServerRegistry {
     patch: McpServerUpdateInput
   ): Promise<McpServerSummary | undefined> {
     const db = getDrizzleInstance();
+    if (LOCKED_ON_KNOWN_CONNECTOR.some((field) => patch[field] !== undefined)) {
+      const [target] = await db
+        .select({ registry_key: mcp_servers.registry_key })
+        .from(mcp_servers)
+        .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)));
+      if (target?.registry_key != null) throw new RegistryConnectorPatchError();
+    }
     const values: PgUpdateSetSource<typeof mcp_servers> = { updated_at: new Date() };
     if (patch.name !== undefined) values.name = patch.name;
     if (patch.url !== undefined) {

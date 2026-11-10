@@ -838,7 +838,6 @@ describe('assembleToolCatalog — ausgefallener MCP-Katalog', () => {
     ({
       buildChatToolCatalog: () => ({ tools: { web_search: {} }, toolNames: ['web_search'] }),
       loadMcpCatalog: async () => brokenCatalog,
-      loadManagedMcpCatalog: async () => brokenCatalog,
       buildRecipeCatalog: async () => [],
       ...over,
     }) as unknown as CatalogDeps;

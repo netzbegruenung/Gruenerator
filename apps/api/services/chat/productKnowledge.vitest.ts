@@ -163,6 +163,17 @@ describe('buildProductKnowledgeBlock', () => {
     expect(block).not.toContain('Deutsche Bahn:');
   });
 
+  it('describes them as directory connectors, not as switches every user already has', async () => {
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://weather.example';
+    const block = await buildProductKnowledgeBlock({
+      locale: 'de-DE',
+      userId: null,
+      question: 'was kannst du?',
+    });
+    expect(block).toContain('mit einem Klick verbinden');
+    expect(block).not.toContain('standardmäßig aus');
+  });
+
   it('says so plainly when the deploy has no connectors configured', async () => {
     const block = await buildProductKnowledgeBlock({
       locale: 'de-DE',

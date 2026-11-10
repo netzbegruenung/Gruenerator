@@ -2,7 +2,7 @@
  * Mounts the first-party MANAGED connectors (Deutsche Bahn, Open-Meteo/DWD,
  * ARD-Tagesschau, trivago, Bundesrecht) as agentic-loop tools — the built-in
  * counterpart to mcpCatalog's per-user connectors. Fixed env configs
- * (systemMcpServers.ts), no registry, no snapshot writes.
+ * (connectorAdapters.ts), no registry, no snapshot writes.
  *
  * SELECTION used to be by INTENT (`a bahn turn mounts the Bahn tools`), then by
  * vocabulary (`Zug nach Berlin` mounted Bahn). It is now the turn's scope: an
@@ -39,27 +39,30 @@ import { bahnPayloadSchema, type BahnEntry, type BahnPayload } from '@gruenerato
 import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
 
 import { type SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
-import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import {
   getManagedConnectors,
   toSystemConnectionConfig,
   type SystemMcpKey,
   type SystemMcpSource,
-} from '../../../services/mcp/systemMcpServers.js';
-import { UserMCPClient, type McpToolDescriptor } from '../../../services/mcp/UserMCPClient.js';
+} from '../../../services/mcp/connectorAdapters.js';
+import {
+  UserMCPClient,
+  type McpConnectionConfig,
+  type McpToolDescriptor,
+} from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { type ToolLabel } from '../services/agenticLoop/types.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
+import { type McpCatalog } from './mcpCatalog.js';
+import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 import {
   createSerializer,
   requiredParams,
   requiredParamsAnnotation,
   sanitizeToolName,
-  type McpCatalog,
-} from './mcpCatalog.js';
-import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
+} from './mcpToolHelpers.js';
 
 const log = createLogger('managedMcpCatalog');
 
@@ -313,36 +316,26 @@ function createLazyConnection(source: SystemMcpSource): LazyConnection {
 }
 
 /**
- * Load the managed connector the turn is scoped to as loop tools.
+ * Load the known connector the turn is scoped to as loop tools.
  *
- * A connector the user switched off reports `scopedServerMissing`, one whose
- * tools cannot be listed `scopedServerUnreachable` — the same honesty signals a
- * user's own server gives. No country filter: the turn named this connector,
- * and `getManagedConnectors` keeps the audience gate for automatic mounting,
- * which no longer exists.
+ * Reached only through `loadMcpCatalog`, with the config the registry already
+ * resolved: that the person connected this connector (their row with
+ * `registry_key`, switched on) was decided there. This loader adds what is
+ * specific to the server behind the key — the shared tool cache, the
+ * allowlist, result shaping, widgets and the prompt hint.
+ *
+ * A source that is not configured in this deployment reports
+ * `scopedServerMissing`, one whose tools cannot be listed
+ * `scopedServerUnreachable` — the same honesty signals a user's own server
+ * gives.
  */
 export async function loadManagedMcpCatalog(params: {
-  key: SystemMcpKey;
+  config: McpConnectionConfig;
   sse: SSEWriter;
   sourceRegistry: SourceRegistry;
-  /** Needed for the per-user switch; null (no session) mounts nothing. */
-  userId: string | null;
 }): Promise<McpCatalog> {
-  const available = getManagedConnectors();
-  // Managed connectors are off until switched on, so without a session there is
-  // nobody who could have switched one on.
-  const enabled = params.userId
-    ? await McpServerRegistry.getEnabledManagedKeys(params.userId).catch((err: unknown) => {
-        // Mounting a connector nobody switched on is the unsafe direction. Skip
-        // rather than guess.
-        log.warn(`[managedMcpCatalog] prefs unavailable, skipping managed mounts: ${err}`);
-        return null;
-      })
-    : new Set<string>();
-  // The turn named this connector: without the prefs it cannot be mounted, and
-  // the person has to hear that rather than get an answer from memory.
-  if (!enabled) return { ...EMPTY, scopedServerUnreachable: true };
-  const sources = available.filter((s) => s.key === params.key && enabled.has(s.key));
+  const key = params.config.registryKey ?? null;
+  const sources = getManagedConnectors().filter((s) => s.key === key);
   if (sources.length === 0) return { ...EMPTY, scopedServerMissing: true };
 
   const connections: LazyConnection[] = [];
@@ -460,6 +453,7 @@ export async function loadManagedMcpCatalog(params: {
     scopedServerMissing: false,
     scopedServerUnreachable: labels.size === 0,
     systemSourceKeys: mountedKeys,
+    resolvedServerId: params.config.id,
     promptHints: sources.filter((s) => mountedKeys.has(s.key)).map((s) => s.promptHint),
     /** Closes only what was actually opened — a mount without a call is a no-op. */
     close: async () => {
