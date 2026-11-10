@@ -132,12 +132,13 @@ function formatCollectionLine(): string {
 }
 
 /**
- * The first-party MANAGED connectors, with the country caveat where it applies.
+ * The known connectors (Bahn, Wetter, Rateo, …), with the country caveat where
+ * it applies.
  *
- * This block used to list the intent-gated "system MCP sources" and was keyed to
- * `getSystemMcpSources()` directly. Same sources, different door: they are
- * connectors now, offered to every user and off until switched on, so the heading says
- * what the user actually sees in Einstellungen → Verbindungen.
+ * This block used to list the intent-gated "system MCP sources", later the
+ * managed connectors every user had as a switch. Since 11/2026 they are cards in
+ * the connector directory like any other service — the heading says what the
+ * user actually sees in Einstellungen → Konnektoren.
  *
  * Env still decides existence — an unconfigured connector is absent from
  * `getManagedConnectors()`, so this never advertises a source the deploy lacks.
@@ -159,9 +160,8 @@ async function formatConnectedServerLines(userId: string): Promise<string> {
     // which throws in env-less unit-test contexts (toolCatalog.vitest.ts).
     const { McpServerRegistry } = await import('../mcp/McpServerRegistry.js');
     const servers = (await McpServerRegistry.list(userId)).filter((s) => s.enabled);
-    // `list()` now leads with the managed connectors every user gets. They are
-    // NOT "verbunden" in the sense the empty-state sentence means, so the
-    // invitation to connect one still fires when the user has none of their own.
+    // A connected known connector is listed too (marked below); the empty-state
+    // sentence is about servers the person added themselves.
     const own = servers.filter((s) => !s.managed);
     const lines = servers.map(
       (s) =>
@@ -214,7 +214,7 @@ ${formatGlossaryDefinitions()}
 ### Wissenssammlungen (durchsuchbar in Chat & Notebooks)
 ${formatCollectionLine()}
 
-### Bereitgestellte Dienste (ohne Einrichtung; standardmäßig aus — unter Einstellungen → Konnektoren einschalten, dann per @-Erwähnung ansprechbar)
+### Bereitgestellte Dienste (ohne Einrichtung; unter Einstellungen → Konnektoren mit einem Klick verbinden, dann per @-Erwähnung ansprechbar)
 ${formatManagedConnectorLines(locale)}${mcpSection}
 
 ### Dokumentation gezielt durchsuchen

@@ -58,6 +58,17 @@ export async function createMcpServer(input: McpServerCreateInput): Promise<McpS
   return result.body.server;
 }
 
+/** "Verbinden" on a known connector's card (Bahn, Wetter, Rateo, …): no URL, the key is enough. */
+export async function connectRegistryConnector(registryKey: string): Promise<McpServerSummary> {
+  const client = getContractsClient();
+  const result = await client.mcpServers.connectRegistryConnector({ params: { registryKey } });
+  if (result.status !== 200) {
+    const body = result.body as { error?: string };
+    throw new Error(body.error || 'Dienst konnte nicht verbunden werden');
+  }
+  return result.body.server;
+}
+
 export async function updateMcpServer(
   id: string,
   patch: {

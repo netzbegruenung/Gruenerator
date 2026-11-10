@@ -30,6 +30,7 @@ import {
   mcpKeys,
 } from '../hooks/useMcpServers';
 import {
+  connectRegistryConnector,
   createMcpServer,
   deleteMcpServer,
   fetchMcpServers,
@@ -306,6 +307,7 @@ const McpAddForm = memo(
               and URL stay as they are, so they are not editable here. */}
           <input
             className={inputClass}
+            aria-label="Name des Servers"
             placeholder="Name (z. B. Linear)"
             value={name}
             readOnly={serverId !== null}
@@ -313,6 +315,7 @@ const McpAddForm = memo(
           />
           <input
             className={inputClass}
+            aria-label="Server-URL"
             placeholder="Server-URL (https://…/mcp)"
             value={url}
             readOnly={serverId !== null}
@@ -439,10 +442,10 @@ const McpServerRow = memo(
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
     >(null);
 
-    // A managed connector is operated by us: no OAuth to complete and nothing to
-    // remove. It only shows up as a row once the person switched it on; switched
-    // off, it goes back to the cards under "Dienste verbinden".
-    const isManaged = server.managed === true;
+    // A known connector (Bahn, Wetter, Rateo, …) is a row like any other once
+    // connected, but its endpoint lives in deploy env: no URL to show, no OAuth
+    // to complete, nothing to rename. Switching and removing work as usual.
+    const isManaged = server.registryKey != null || server.managed === true;
     const needsAuth = !isManaged && server.authType === 'oauth' && !server.hasToken;
     const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
     const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
@@ -553,21 +556,19 @@ const McpServerRow = memo(
             >
               {test.isPending ? 'Teste…' : 'Testen'}
             </button>
-            {!isManaged && (
-              <button
-                type="button"
-                onClick={() =>
-                  del.mutate(server.id, {
-                    onSuccess: () => onSuccess('Konnektor entfernt'),
-                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
-                  })
-                }
-                disabled={del.isPending}
-                className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-              >
-                Entfernen
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() =>
+                del.mutate(server.id, {
+                  onSuccess: () => onSuccess('Konnektor entfernt'),
+                  onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                })
+              }
+              disabled={del.isPending}
+              className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+            >
+              Entfernen
+            </button>
           </div>
         </div>
         {server.toolsDrift && (
@@ -887,12 +888,15 @@ const BearerConnectDialog = ({
 // ── Section ──────────────────────────────────────────────────────────────────
 
 /**
- * One card under "Dienste verbinden": a curated registry entry, or a managed
- * connector that is switched off — connecting one of those just switches it on.
+ * One card under "Dienste verbinden": a directory entry — a curated vendor or a
+ * known connector (`registryKey`), which connects by its key instead of a URL.
  */
-type AvailableItem =
-  | { kind: 'registry'; key: string; category: string; title: string; entry: McpRegistryEntry }
-  | { kind: 'managed'; key: string; category: string; title: string; server: McpServerSummary };
+interface AvailableItem {
+  key: string;
+  category: string;
+  title: string;
+  entry: McpRegistryEntry;
+}
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -910,7 +914,7 @@ const CATEGORY_MERGE: Record<string, string> = {
   Kommunikation: 'Kommunikation',
   'Recht & Compliance': 'Recht & Finanzen',
   Reisen: 'Reisen & Karten',
-  // Managed-connector category (systemMcpServers.ts).
+  // Known-connector category (systemMcpServers.ts).
   'Reise & Verkehr': 'Reisen & Karten',
   Karten: 'Reisen & Karten',
 };
@@ -957,12 +961,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
-  const update = useUpdateMcpServer();
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
 
-  // Managed connectors report an empty `url` (the endpoint is deploy-env-only),
-  // so they cannot and must not take part in the "already connected" match.
+  // Known connectors report an empty `url` (the endpoint is deploy-env-only),
+  // so they cannot and must not take part in the URL match — they match by key.
   const connectedUrls = useMemo(
     () => new Set(servers.filter((s) => s.url).map((s) => s.url)),
     [servers]
@@ -975,42 +978,32 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     [servers]
   );
 
+  const connectedKeys = useMemo(
+    () => new Set(servers.map((s) => s.registryKey).filter((k): k is string => k != null)),
+    [servers]
+  );
+
   const available = useMemo<AvailableItem[]>(() => {
-    // The registry search runs server-side; managed connectors are local, so the
-    // same term filters them here.
-    const term = debouncedSearch.toLowerCase();
-    const offeredManaged: AvailableItem[] = servers
-      .filter((s) => s.managed && !s.enabled)
-      .filter(
-        (s) =>
-          !term || [s.name, s.description, s.category].some((f) => f?.toLowerCase().includes(term))
+    // Search runs server-side for the whole directory, known connectors included.
+    const merged: AvailableItem[] = (registry?.recommended ?? [])
+      .filter((e) =>
+        e.registryKey
+          ? !connectedKeys.has(e.registryKey)
+          : !connectedHosts.has(hostOf(e.url) ?? e.url)
       )
-      .map((server) => ({
-        kind: 'managed',
-        key: server.id,
-        category: mergeCategory(server.category),
-        title: server.name,
-        server,
+      .map((entry): AvailableItem => ({
+        key: entry.registryKey ?? entry.url,
+        category: mergeCategory(entry.category),
+        title: entry.title,
+        entry,
       }));
-    const merged: AvailableItem[] = [
-      ...offeredManaged,
-      ...(registry?.recommended ?? [])
-        .filter((e) => !connectedHosts.has(hostOf(e.url) ?? e.url))
-        .map((entry): AvailableItem => ({
-          kind: 'registry',
-          key: entry.url,
-          category: mergeCategory(entry.category),
-          title: entry.title,
-          entry,
-        })),
-    ];
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
     for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
     return merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedHosts, servers, debouncedSearch]);
+  }, [registry, connectedHosts, connectedKeys]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1035,14 +1028,13 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
-  // Managed connectors sit in the normal lists: switched on → "Verbunden",
-  // switched off → a card under "Dienste verbinden" (see `available`).
-  const managedOn = servers.filter((s) => s.managed && s.enabled);
-  const own = servers.filter((s) => !s.managed);
   // OAuth servers without a token aren't usable yet — listing them under
   // "Verbunden" would suggest they work. They get their own action section.
-  const authPending = own.filter((s) => s.authType === 'oauth' && !s.hasToken);
-  const connected = [...managedOn, ...own.filter((s) => !(s.authType === 'oauth' && !s.hasToken))];
+  // A known connector never waits for OAuth.
+  const waitsForOAuth = (s: McpServerSummary) =>
+    s.registryKey == null && s.authType === 'oauth' && !s.hasToken;
+  const authPending = servers.filter(waitsForOAuth);
+  const connected = servers.filter((s) => !waitsForOAuth(s));
   const activeCount = connected.filter((s) => s.enabled).length;
 
   // Curated entry for a saved row, by host like the cards above.
@@ -1075,6 +1067,18 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   };
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
+    if (entry.registryKey) {
+      const key = entry.registryKey;
+      setConnecting(key);
+      connectRegistryConnector(key)
+        .then(() => {
+          refreshMcp();
+          onSuccess(`${entry.title} verbunden`);
+        })
+        .catch((e) => onError(e instanceof Error ? e.message : 'Fehler'))
+        .finally(() => setConnecting(null));
+      return;
+    }
     if (entry.authHint === 'oauth') {
       // Providers that reject DCR need a pre-registered client → route to the
       // form (redirect URI + setup link + Client-ID/Secret), not auto-OAuth.
@@ -1163,32 +1167,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
-  const switchOnManaged = (server: McpServerSummary) =>
-    update.mutate(
-      { id: server.id, patch: { enabled: true } },
-      {
-        onSuccess: () => onSuccess(`${server.name} verbunden`),
-        onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
-      }
-    );
-
-  const renderCard = (it: AvailableItem) =>
-    it.kind === 'managed' ? (
-      <CardShell
-        key={it.key}
-        title={it.title}
-        connecting={update.isPending && update.variables?.id === it.server.id}
-        onConnect={() => switchOnManaged(it.server)}
-      />
-    ) : (
-      <CardShell
-        key={it.key}
-        title={it.title}
-        connecting={connecting === it.entry.url}
-        onConnect={() => handlePickMcp(it.entry)}
-        onUseKey={keyAlternative(it.entry)}
-      />
-    );
+  const renderCard = (it: AvailableItem) => (
+    <CardShell
+      key={it.key}
+      title={it.title}
+      connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
+      onConnect={() => handlePickMcp(it.entry)}
+      onUseKey={keyAlternative(it.entry)}
+    />
+  );
 
   const hasConnected = connected.length > 0;
 
@@ -1295,6 +1282,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-400 pointer-events-none" />
           <input
             className={cn(inputClass, 'h-12 pl-11')}
+            aria-label="Server suchen"
             placeholder="Server suchen …"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
