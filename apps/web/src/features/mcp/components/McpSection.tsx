@@ -914,7 +914,7 @@ const CATEGORY_MERGE: Record<string, string> = {
   Kommunikation: 'Kommunikation',
   'Recht & Compliance': 'Recht & Finanzen',
   Reisen: 'Reisen & Karten',
-  // Known-connector category (systemMcpServers.ts).
+  // Known-connector category (connectorAdapters.ts).
   'Reise & Verkehr': 'Reisen & Karten',
   Karten: 'Reisen & Karten',
 };

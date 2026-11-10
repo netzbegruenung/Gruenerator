@@ -511,7 +511,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   //
   // These five reached the chat as INTENTS: a verdict picked one, and the loop
   // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
-  // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
+  // (`apps/api/services/mcp/connectorAdapters.ts`) — listed in Einstellungen →
   // Verbindungen, on by default, and mounted on an @mention or when pinned.
   // `reise` existed only because an
   // intent is single-valued and "Zug und Hotel" needed two.
