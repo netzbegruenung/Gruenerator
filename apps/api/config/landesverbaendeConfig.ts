@@ -1358,6 +1358,87 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       },
       excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
     },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // NORDRHEIN-WESTFALEN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      // gruene-nrw.de: WordPress (Sunflower) with an open REST API. Posts publish
+      // at /YYYY/MM/<slug>/, so /kategorie/X/ is a virtual index — discover via
+      // wpApi (auto-disables the off-path filter). Category ids verified live via
+      // /wp-json/wp/v2/categories on 10.11.2026: 29 = presse (110 posts in the
+      // 5y window), 5 = beschluesse (77, full text inline, no PDFs).
+      id: 'nordrhein-westfalen-lv',
+      name: 'Grüne NRW',
+      shortName: 'NRW',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-nrw.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/kategorie/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 29, boundByAge: true },
+        },
+        {
+          type: 'beschluss',
+          path: '/kategorie/beschluesse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 5, boundByAge: true },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      // gruene-fraktion-nrw.de: same Sunflower/WordPress setup, permalinks
+      // /YYYY/MM/DD/<slug>/. 135 = pressemitteilung (595 in the 5y window),
+      // 137 = publikationen (the /publikationen/ page lists exactly this
+      // category; 5 in the window). The article page appends related posts with
+      // `.entry-content.has-small-font-size` excerpts — excluded from the content
+      // selector, otherwise every article would carry its neighbours' teasers.
+      id: 'nordrhein-westfalen-fraktion',
+      name: 'Grüne Landtagsfraktion NRW',
+      shortName: 'NRW-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion-nrw.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 135, boundByAge: true },
+        },
+        {
+          type: 'blog',
+          path: '/publikationen/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 137, boundByAge: true },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time.entry-date.published[datetime]',
+          'meta[property="article:published_time"]',
+          'time[datetime]',
+        ],
+        content: ['.entry-content:not(.has-small-font-size)', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
+    },
   ],
   curatedLists: [
     {

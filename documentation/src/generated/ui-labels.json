@@ -328,6 +328,11 @@
     "notebook": "mecklenburg-vorpommern",
     "agentSlug": "gruene-mv"
   },
+  "lv.nordrhein-westfalen": {
+    "title": "Nordrhein-Westfalen",
+    "notebook": "nordrhein-westfalen",
+    "agentSlug": "gruene-nrw"
+  },
   "lv.oesterreich": {
     "title": "Österreich",
     "notebook": "oesterreich",

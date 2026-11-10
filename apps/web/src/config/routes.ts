@@ -732,6 +732,12 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/saarland') })),
   },
   {
+    path: '/gruene-nrw',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/nordrhein-westfalen') })
+    ),
+  },
+  {
     path: '/kommunalwiki',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/kommunalwiki') })),
   },

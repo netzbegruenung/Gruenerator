@@ -88,5 +88,6 @@ export type CollectionKey =
   | 'sachsen-anhalt'
   | 'sachsen'
   | 'hessen'
+  | 'nordrhein-westfalen'
   | 'satzungen'
   | 'gruenblog';

@@ -677,6 +677,20 @@ export const SKILLS = [
     recommendedTools: ['gruenerator_search'],
   },
   {
+    identifier: 'gruenerator-buergeranfragen-nordrhein-westfalen',
+    title: 'Bürger*innen-Mail NRW',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen NRW. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen NRW geantwortet wird.',
+    iconKey: 'PiBuildings',
+    avatar: '✉️',
+    backgroundColor: '#316049',
+    mention: 'buerger-nrw',
+    skillCategory: 'dokumente',
+    audience: 'de-DE',
+    promptTemplate: 'Beantworte diese Bürger*innenanfrage an die Grünen NRW als E-Mail: ',
+    recommendedTools: ['gruenerator_search'],
+  },
+  {
     identifier: 'gruenerator-buergeranfragen-saarland',
     title: 'Bürger*innen-Mail Saarland',
     description:
@@ -827,6 +841,20 @@ export const SKILLS = [
     avatar: '📜',
     backgroundColor: '#316049',
     mention: 'beschluss-mv',
+    skillCategory: 'dokumente',
+    audience: 'de-DE',
+    promptTemplate: 'Schreib einen Beschlussantrag zum Thema: ',
+    recommendedTools: ['gruenerator_search', 'web_search'],
+  },
+  {
+    identifier: 'gruenerator-beschluesse-nordrhein-westfalen',
+    title: 'Beschlussantrag NRW',
+    description:
+      'Beschlussantrag in der Beschlusssprache der Grünen NRW. Nutzen statt des Leitantrags, wenn ein Antrag für die Grünen NRW geschrieben wird.',
+    iconKey: 'PiBuildings',
+    avatar: '📜',
+    backgroundColor: '#316049',
+    mention: 'beschluss-nrw',
     skillCategory: 'dokumente',
     audience: 'de-DE',
     promptTemplate: 'Schreib einen Beschlussantrag zum Thema: ',

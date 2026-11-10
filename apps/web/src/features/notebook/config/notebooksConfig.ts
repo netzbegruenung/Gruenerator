@@ -6,6 +6,7 @@ import coverBundesverband from '@gruenerator/shared/assets/notebook-covers/bunde
 import coverHessen from '@gruenerator/shared/assets/notebook-covers/hessen.webp';
 import coverKommunalwiki from '@gruenerator/shared/assets/notebook-covers/kommunalwiki.webp';
 import coverMecklenburgVorpommern from '@gruenerator/shared/assets/notebook-covers/mecklenburg-vorpommern.webp';
+import coverNordrheinWestfalen from '@gruenerator/shared/assets/notebook-covers/nordrhein-westfalen.webp';
 import coverSaarland from '@gruenerator/shared/assets/notebook-covers/saarland.webp';
 import coverSachsenAnhalt from '@gruenerator/shared/assets/notebook-covers/sachsen-anhalt.webp';
 import coverThueringen from '@gruenerator/shared/assets/notebook-covers/thueringen.webp';
@@ -81,6 +82,7 @@ const NOTEBOOK_PATHS = {
   'sachsen-notebook': '/notebooks/sachsen',
   'hessen-notebook': '/notebooks/hessen',
   'saarland-notebook': '/notebooks/saarland',
+  'nordrhein-westfalen-notebook': '/notebooks/nordrhein-westfalen',
   'oesterreich-notebook': '/notebooks/oesterreich',
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
@@ -111,6 +113,7 @@ const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
   'sachsen-anhalt-notebook': coverSachsenAnhalt,
   'hessen-notebook': coverHessen,
   'saarland-notebook': coverSaarland,
+  'nordrhein-westfalen-notebook': coverNordrheinWestfalen,
   'kommunalwiki-notebook': coverKommunalwiki,
 };
 
