@@ -809,6 +809,12 @@ describe('stripPhantomArtifactCreation', () => {
   it('lässt ein Perfekt über fremde Arbeit stehen', () => {
     const text = 'Den Antrag hat der Kreisverband erstellt, ich habe ihn nur gelesen.';
     expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).removed).toEqual([]);
+    // Partizip im Nebensatz eines anderen Subjekts (Review #5594).
+    const relative = 'Ich habe die Grafik gelesen, die der Kreisverband erstellt hat.';
+    expect(stripPhantomArtifactCreation(relative, { createdArtifact: false })).toEqual({
+      text: relative,
+      removed: [],
+    });
   });
 
   it.each([
