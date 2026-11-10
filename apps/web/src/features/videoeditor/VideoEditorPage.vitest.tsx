@@ -1,7 +1,11 @@
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import VideoEditorPage, { BETA_NOTICE_SEEN_KEY, VIDEO_EDITOR_APP_PATH } from './VideoEditorPage';
+import VideoEditorPage, {
+  BETA_NOTICE_SEEN_KEY,
+  editorAppSrc,
+  VIDEO_EDITOR_APP_PATH,
+} from './VideoEditorPage';
 
 import { axe, render, screen } from '@/test-utils';
 
@@ -33,5 +37,11 @@ describe('VideoEditorPage', () => {
     unmount();
     render(<VideoEditorPage />);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('passes only the KI-Schnitt parameters on to the editor app', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(editorAppSrc(`?ki=${id}&v=2&evil=1`)).toBe(`/videoeditor/app/?ki=${id}&v=2`);
+    expect(editorAppSrc('?foo=bar')).toBe('/videoeditor/app/');
   });
 });

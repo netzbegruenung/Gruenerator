@@ -13,6 +13,22 @@ import VideoEditorBetaDialog from './VideoEditorBetaDialog';
  */
 export const VIDEO_EDITOR_APP_PATH = '/videoeditor/app/';
 
+/**
+ * The editor app's URL. Only the KI-Schnitt parameters go through (`ki` =
+ * project id, `v` = version): the editor then opens that cut as its own
+ * project instead of the free one.
+ */
+export function editorAppSrc(search: string): string {
+  const from = new URLSearchParams(search);
+  const to = new URLSearchParams();
+  for (const key of ['ki', 'v']) {
+    const value = from.get(key);
+    if (value) to.set(key, value);
+  }
+  const query = to.toString();
+  return query ? `${VIDEO_EDITOR_APP_PATH}?${query}` : VIDEO_EDITOR_APP_PATH;
+}
+
 /** localStorage key (F0): set once the beta notice was closed. */
 export const BETA_NOTICE_SEEN_KEY = 'videoeditor-beta-notice-seen';
 
@@ -26,6 +42,8 @@ function betaNoticeSeen(): boolean {
 
 export default function VideoEditorPage() {
   const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
+  // Read once: the frame keeps its document; changing src later would reload the editor.
+  const [src] = useState(() => editorAppSrc(window.location.search));
 
   const closeBetaNotice = (open: boolean) => {
     if (open) return;
@@ -40,7 +58,7 @@ export default function VideoEditorPage() {
   return (
     <>
       <iframe
-        src={VIDEO_EDITOR_APP_PATH}
+        src={src}
         title="Grünerator Video-Editor"
         className="block h-dvh w-full border-0"
         allow="autoplay; fullscreen; clipboard-read; clipboard-write"
