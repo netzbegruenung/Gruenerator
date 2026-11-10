@@ -27,7 +27,7 @@ function oversizedDraft(): Record<string, unknown> {
   return {
     title: 'T'.repeat(200),
     description: 'D'.repeat(800),
-    systemRole: 'Du bist die Pressestelle des Kreisverbands.',
+    systemRoleBlocks: ['Du bist die Pressestelle des Kreisverbands.'],
     iconKey: 'PiMegaphone',
     backgroundColor: '#316049',
     enabledTools: [],
@@ -70,7 +70,7 @@ describe('draftAgentSpec', () => {
     modelReturns(oversizedDraft());
     await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
     const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
-    const result = call.validate({ ...oversizedDraft(), systemRole: 'kurz' }, 1, 2);
+    const result = call.validate({ ...oversizedDraft(), systemRoleBlocks: ['kurz', ' '] }, 1, 2);
     expect(result.ok).toBe(false);
   });
 
@@ -87,6 +87,41 @@ describe('draftAgentSpec', () => {
     expect(spec.title.length).toBe(100);
     expect(spec.description.length).toBe(500);
     expect(spec.openingQuestions).toEqual(['1', '2', '3', '4']);
+  });
+
+  it('joins role blocks into paragraphs and keeps a list tight (#5591)', async () => {
+    modelReturns({
+      ...oversizedDraft(),
+      systemRoleBlocks: [
+        'Du bist die Pressestelle.',
+        ' ',
+        'Grundregeln:',
+        '- nur belegte Fakten',
+        '- kurze Sätze',
+        'Bleib freundlich.',
+      ],
+    });
+    const spec = await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
+    expect(spec.systemRole).toBe(
+      'Du bist die Pressestelle.\n\nGrundregeln:\n\n- nur belegte Fakten\n- kurze Sätze\n\nBleib freundlich.'
+    );
+  });
+
+  it('takes a bare string role as one block', async () => {
+    modelReturns({
+      ...oversizedDraft(),
+      systemRoleBlocks: 'Du bist die Pressestelle des Kreisverbands.',
+    });
+    const spec = await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
+    expect(spec.systemRole).toBe('Du bist die Pressestelle des Kreisverbands.');
+  });
+
+  it('offers the role to the model as an array of blocks', async () => {
+    modelReturns(oversizedDraft());
+    await draftAgentSpec([{ role: 'user', content: 'Pressestelle' }]);
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+    const props = (call.schema as { properties: Record<string, { type?: string }> }).properties;
+    expect(props.systemRoleBlocks.type).toBe('array');
   });
 
   describe('defaultRecipeMention', () => {
