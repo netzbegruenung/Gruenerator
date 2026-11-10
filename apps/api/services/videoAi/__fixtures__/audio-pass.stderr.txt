@@ -1,0 +1,39 @@
+[silencedetect @ 0x0] silence_start: 0
+[silencedetect @ 0x0] silence_end: 1.51325 | silence_duration: 1.51325
+[silencedetect @ 0x0] silence_start: 2.72467
+[silencedetect @ 0x0] silence_end: 4.94487 | silence_duration: 2.22021
+[silencedetect @ 0x0] silence_start: 9.73987
+[silencedetect @ 0x0] silence_end: 11.347 | silence_duration: 1.60708
+[silencedetect @ 0x0] silence_start: 12.0828
+[silencedetect @ 0x0] silence_end: 14.1774 | silence_duration: 2.09458
+[silencedetect @ 0x0] silence_start: 20.2632
+[silencedetect @ 0x0] silence_end: 21.5322 | silence_duration: 1.269
+[silencedetect @ 0x0] silence_start: 25.1165
+[silencedetect @ 0x0] silence_end: 26.1683 | silence_duration: 1.05175
+[silencedetect @ 0x0] silence_start: 31.3381
+[silencedetect @ 0x0] silence_end: 33.0615 | silence_duration: 1.72342
+[silencedetect @ 0x0] silence_start: 35.5696
+[silencedetect @ 0x0] silence_end: 36.7485 | silence_duration: 1.17887
+[silencedetect @ 0x0] silence_start: 38.3836
+[silencedetect @ 0x0] silence_end: 40.0689 | silence_duration: 1.68533
+[silencedetect @ 0x0] silence_start: 44.4068
+[silencedetect @ 0x0] silence_end: 45.8004 | silence_duration: 1.39358
+[silencedetect @ 0x0] silence_start: 48.3845
+[silencedetect @ 0x0] silence_end: 50.8472 | silence_duration: 2.46275
+[silencedetect @ 0x0] silence_start: 53.0171
+[silencedetect @ 0x0] silence_end: 54.6142 | silence_duration: 1.59717
+[silencedetect @ 0x0] silence_start: 58.266
+[silencedetect @ 0x0] silence_end: 59.2896 | silence_duration: 1.02363
+[silencedetect @ 0x0] silence_start: 64.2111
+[silencedetect @ 0x0] silence_end: 66.0385 | silence_duration: 1.82742
+[silencedetect @ 0x0] silence_start: 67.4786
+[silencedetect @ 0x0] silence_end: 68.6507 | silence_duration: 1.17208
+[Parsed_ebur128_1 @ 0x0] Summary:
+  Integrated loudness:
+    I:         -17.4 LUFS
+    Threshold: -27.9 LUFS
+  Loudness range:
+    LRA:         8.7 LU
+    Threshold: -39.0 LUFS
+    LRA low:   -24.0 LUFS
+    LRA high:  -15.4 LUFS
