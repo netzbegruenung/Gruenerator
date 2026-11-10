@@ -58,8 +58,11 @@ export function buildConnectorNotes(params: {
   /** Read by the caller (it gates the forced first tool call too) and passed in
    *  so prompt and forcing can never disagree about the same turn. */
   mcpCapabilityQuestion: boolean;
+  /** The connector the previous turn used whose sticky scope was dropped
+   *  (`AssembledCatalog.staleConnectorName`), or null. */
+  staleConnectorName: string | null;
 }): ConnectorNotes {
-  const { state, mcpCatalog, mcpCapabilityQuestion } = params;
+  const { state, mcpCatalog, mcpCapabilityQuestion, staleConnectorName } = params;
   const mcpServerNames = [
     ...new Set([...(mcpCatalog?.labels.values() ?? [])].map((l) => l.serverName)),
   ];
@@ -93,7 +96,9 @@ export function buildConnectorNotes(params: {
             // ungescopete Konnektor-Bitte läuft als `agentic` wie jede andere
             // (das tat sie ohne klebrigen Server schon vorher), und ein
             // genannter, aber fehlender Dienst sagt `scopedServerMissing` oben.
-            '') + mcpCapabilityNote;
+            staleConnectorName
+            ? `\n\nHINWEIS: Der Dienst ${staleConnectorName}, mit dem zuletzt gearbeitet wurde, ist nicht mehr verfügbar. Nenne keine Daten aus ihm, die nicht in einem Werkzeugergebnis dieses Zugs stehen — auch keine Quellenangabe. Braucht die Frage seine Daten, sag ehrlich und knapp, dass er gerade nicht verfügbar ist.`
+            : '') + mcpCapabilityNote;
   // Usage + answer-format instructions of a managed connector that actually
   // MOUNTED ({{TODAY_*}}/{{COUNTRY}} resolved here so the model gets real dates
   // and a real country code for timetable/forecast/accommodation params). One

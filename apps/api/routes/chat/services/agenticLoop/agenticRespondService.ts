@@ -319,6 +319,7 @@ export async function streamAgenticResponse(
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
+    const { staleConnectorName } = assembled;
     mcpMountMs = assembled.mcpMountMs;
     toolScope = assembled.toolScope;
 
@@ -501,6 +502,7 @@ export async function streamAgenticResponse(
       state: finalState,
       mcpCatalog,
       mcpCapabilityQuestion,
+      staleConnectorName,
     });
 
     // Was das Modell bekommt: Verlauf mit dem Paste in der letzten Nachricht

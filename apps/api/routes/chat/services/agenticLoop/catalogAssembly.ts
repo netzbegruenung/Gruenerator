@@ -168,6 +168,11 @@ export interface AssembledCatalog {
   /** The connector the turn is scoped to (the person's own server or a managed
    *  one), or null when none was mounted. The caller owns closing it. */
   mcpCatalog: McpCatalog | null;
+  /** The connector the PREVIOUS turn used whose sticky scope this turn had to
+   *  drop (server removed, disabled or switched off) — null otherwise. The
+   *  history still shows its tool-backed answers; without a note the model
+   *  continues that pattern with no tool and invents the data (#5602). */
+  staleConnectorName: string | null;
   recipeCatalog: RecipeCatalogEntry[];
   recipeRegistry: RecipeRegistry;
   /** Tool-card labels of the mounted connector. */
@@ -256,6 +261,7 @@ export async function assembleToolCatalog(
   const userId = agentConfig.userId;
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
+  let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
     const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
@@ -265,10 +271,14 @@ export async function assembleToolCatalog(
       mcpCatalog = await deps.loadMcpCatalog({ userId, scope, threadId, sse, sourceRegistry });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
-      // only for an EXPLICIT mention.
+      // only for an EXPLICIT mention; a thread that used a connector long ago
+      // would otherwise announce a disconnect on an unrelated question. Only
+      // when the turn right before this one used it does the prompt learn it
+      // is gone (`staleConnectorName`).
       if (!explicitScope && mcpCatalog.scopedServerMissing) {
         await mcpCatalog.close();
         mcpCatalog = null;
+        staleConnectorName = lastTurnConnectorName(toolHistory);
       }
     }
     if (mcpCatalog) {
@@ -552,12 +562,22 @@ export async function assembleToolCatalog(
   return {
     tools,
     mcpCatalog,
+    staleConnectorName,
     recipeCatalog,
     recipeRegistry,
     toolLabels,
     mcpMountMs,
     toolScope,
   };
+}
+
+/** Der Dienst, den der Zug direkt davor benutzt hat — nie werfen. */
+function lastTurnConnectorName(toolHistory: ThreadToolHistory | null | undefined): string | null {
+  try {
+    return toolHistory?.lastTurnToolSteps().find((s) => s.serverName)?.serverName ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Die vorhandene Projektion lesen, nie werfen. */
