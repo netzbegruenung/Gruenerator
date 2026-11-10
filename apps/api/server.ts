@@ -565,15 +565,21 @@ async function startWorker(): Promise<void> {
 
   // Health check endpoint
   app.get('/health', async (req: Request, res: Response) => {
-    const redisHealth = await checkRedisHealth();
+    const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+    const [redisHealth, postgresHealth] = await Promise.all([
+      checkRedisHealth(),
+      getPostgresInstance().checkHealth(),
+    ]);
+    const healthy = redisHealth.connected && postgresHealth.connected;
 
-    res.status(redisHealth.connected ? 200 : 503).json({
-      status: redisHealth.connected ? 'healthy' : 'degraded',
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       worker: process.pid,
       uptime: process.uptime(),
       services: {
         redis: redisHealth,
+        postgres: postgresHealth,
       },
     });
   });
