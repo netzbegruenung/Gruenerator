@@ -115,6 +115,19 @@ export const AI_LANES = {
     model: GEMMA_31B_ON_MELIOUS_SPEED.model,
     structuredMode: 'tool',
   },
+  //   Kontaktbögen (describeFrames.ts): ein 3×3-Raster pro Aufruf, ohne Reasoning,
+  //   3–4 s und ~530 Prompt-Token (Spike, Abschnitt 3). Gestaltung (decideDesign.ts):
+  //   Titel, Bauchbinde, Einblendungen auf die fertige Zeitleiste.
+  video_ai_frames: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+  video_ai_design: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
 
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
   //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in

@@ -234,7 +234,12 @@ export function selectProviderAndModel({
     model = options.model || TEXT_MODEL;
   }
   // Bundestag-Lesen und KI-Schnitt: `:speed` wie in `AI_LANES` (Begründung dort)
-  else if (type === 'bundestag_read' || type === 'video_ai_cut') {
+  else if (
+    type === 'bundestag_read' ||
+    type === 'video_ai_cut' ||
+    type === 'video_ai_frames' ||
+    type === 'video_ai_design'
+  ) {
     provider = GEMMA_31B_ON_MELIOUS_SPEED.provider;
     model = options.model || GEMMA_31B_ON_MELIOUS_SPEED.model;
   }

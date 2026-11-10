@@ -31,6 +31,30 @@ export type VideoAiFraming = z.infer<typeof videoAiFramingSchema>;
 export const videoAiZoomSchema = z.enum(['normal', 'nah']);
 export type VideoAiZoom = z.infer<typeof videoAiZoomSchema>;
 
+/**
+ * Caption looks the editor renders (GRUENERATOR_CAPTION_TEMPLATES in the
+ * private editor app, all WCAG-checked there). Same keys on both sides.
+ */
+export const videoAiCaptionTemplateSchema = z.enum([
+  'tanne',
+  'grashalm',
+  'schatten',
+  'klar',
+  'weiss',
+  'balken-schwarz',
+  'balken-tanne',
+  'weiss-pur',
+]);
+export type VideoAiCaptionTemplate = z.infer<typeof videoAiCaptionTemplateSchema>;
+
+/** Look of the cut; each id is a style block in apps/api/prompts/video-ai/stile/. */
+export const videoAiStyleSchema = z.enum([
+  'talking-head-ruhig',
+  'talking-head-dynamisch',
+  'statement-mit-bild',
+]);
+export type VideoAiStyle = z.infer<typeof videoAiStyleSchema>;
+
 /** Footage clip ids are `c1`, `c2`, … in upload order. */
 export const videoAiClipIdSchema = z.string().regex(/^c\d+$/);
 
@@ -95,8 +119,7 @@ export const videoAiEdlSchema = z.object({
   segments: z.array(videoAiSegmentSchema).min(1),
   captions: z.object({
     enabled: z.boolean(),
-    /** Key into the editor's caption templates; validated there. */
-    template: z.string().min(1).nullish(),
+    template: videoAiCaptionTemplateSchema.nullish(),
   }),
   overlays: z.array(videoAiOverlaySchema).max(VIDEO_AI_LIMITS.maxOverlays),
   music: z
