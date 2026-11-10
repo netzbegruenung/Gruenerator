@@ -3731,7 +3731,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Bereitgestellte Dienste verwenden",
     "anchor": "#bereitgestellte-dienste-verwenden",
     "category": "Guides",
-    "text": "Diese Dienste benötigen keine eigene Anmeldung und können direkt aktiviert, getestet oder pausiert werden: Welche Einträge tatsächlich angezeigt werden, hängt von der aktuellen Bereitstellung ab. Der Schalter Aktiv entscheidet, ob der Chat einen Dienst verwenden darf. Mit Testen kannst du prüfen, ob dessen Werkzeuge erreichbar sind. Erwähne den gewünschten Dienst in deiner ersten Anfrage möglichst ausdrücklich mit @, zum Beispiel: Wie wird das Wetter am Samstag in Münster? Nutze @wetter. Der Chat kann einen passenden bereitgestellten Dienst teilweise auch selbst auswählen. Eine ausdrückliche @-Mention macht die Auswahl jedoch eindeutig."
+    "text": "Diese Dienste benötigen keine eigene Anmeldung. Sie sind standardmäßig aus und stehen als Karte unter Dienste verbinden. Ein Klick auf Verbinden schaltet einen Dienst ein, danach erscheint er unter Verbunden: Welche Einträge tatsächlich angezeigt werden, hängt von der aktuellen Bereitstellung ab. Der Schalter Aktiv entscheidet, ob der Chat einen Dienst verwenden darf; schaltest du ihn aus, wandert der Dienst zurück ins Verzeichnis. Mit Testen kannst du prüfen, ob dessen Werkzeuge erreichbar sind. Erwähne den gewünschten Dienst in deiner ersten Anfrage möglichst ausdrücklich mit @, zum Beispiel: Wie wird das Wetter am Samstag in Münster? Nutze @wetter. Der Chat kann einen passenden bereitgestellten Dienst teilweise auch selbst auswählen. Eine ausdrückliche @-Mention macht die Auswahl jedoch eindeutig."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -3747,7 +3747,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Konnektoren öffnen",
     "anchor": "#konnektoren-öffnen",
     "category": "Guides",
-    "text": "Klicke unten in der Seitenleiste auf deinen Account. Öffne Einstellungen. Wähle den Tab Konnektoren. Oben siehst du Vom Grünerator bereitgestellte Dienste. Darunter findest du unter Dienste verbinden das Verzeichnis weiterer Konnektoren."
+    "text": "Klicke unten in der Seitenleiste auf deinen Account. Öffne Einstellungen. Wähle den Tab Konnektoren. Unter Verbunden stehen die Dienste, die du eingeschaltet hast. Darunter findest du unter Dienste verbinden das Verzeichnis aller weiteren Konnektoren — auch die vom Grünerator bereitgestellten."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
