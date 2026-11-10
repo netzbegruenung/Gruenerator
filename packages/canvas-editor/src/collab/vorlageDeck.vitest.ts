@@ -9,6 +9,7 @@ import { grueneratorPrint } from '../composer/printService';
 import {
   carryImpressum,
   isDeckEmpty,
+  joinDeck,
   pageSwapOps,
   seiteDeckOps,
   vorlageDeckOps,
@@ -294,5 +295,32 @@ describe('pageSwapOps', () => {
       'local'
     );
     expect(readPages(doc).map((p) => p.id)).toEqual(['n', 'b']);
+  });
+});
+
+describe('joinDeck', () => {
+  const seite = {
+    configId: 'freeform',
+    state: { title: 'Seite', [SHAREPIC_SOURCE_KEY]: { v: 1, deck: 'eigenes', slide: {} } },
+  };
+  const composed = { state: { [SHAREPIC_SOURCE_KEY]: { v: 1, deck: 'karussell', slide: {} } } };
+
+  it('puts the Seite into the carousel of the page it follows', () => {
+    expect(joinDeck(composed, seite).state[SHAREPIC_SOURCE_KEY]).toEqual({
+      v: 1,
+      deck: 'karussell',
+      slide: {},
+    });
+    expect(seite.state[SHAREPIC_SOURCE_KEY].deck).toBe('eigenes');
+  });
+
+  it('leaves the Seite alone next to a page of no carousel, or without one', () => {
+    expect(joinDeck({ state: { title: 'Handgemacht' } }, seite)).toBe(seite);
+    expect(joinDeck(null, seite)).toBe(seite);
+  });
+
+  it('leaves a page without a composed spec alone', () => {
+    const plain = { configId: 'freeform', state: { title: 'Ohne Spec' } };
+    expect(joinDeck(composed, plain)).toBe(plain);
   });
 });

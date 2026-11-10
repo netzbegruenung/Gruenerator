@@ -797,9 +797,24 @@ describe('stripPhantomArtifactCreation', () => {
     expect(stripPhantomArtifactCreation(text, { createdArtifact: true }).removed).toEqual([]);
   });
 
+  it('streicht die Erfolgsmeldung im Perfekt auch ohne „dir" (Alfter 09.11.2026, #5513)', () => {
+    const text =
+      'Ich habe das Karussell für mehr Klimaschutz in Alfter mit vier Folien erstellt.\n\nSoll ich noch etwas anpassen?';
+    const out = stripPhantomArtifactCreation(text, { createdArtifact: false });
+    expect(out.removed).toHaveLength(1);
+    expect(out.text).toBe('Soll ich noch etwas anpassen?');
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: true }).removed).toEqual([]);
+  });
+
   it('lässt ein Perfekt über fremde Arbeit stehen', () => {
     const text = 'Den Antrag hat der Kreisverband erstellt, ich habe ihn nur gelesen.';
     expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).removed).toEqual([]);
+    // Partizip im Nebensatz eines anderen Subjekts (Review #5594).
+    const relative = 'Ich habe die Grafik gelesen, die der Kreisverband erstellt hat.';
+    expect(stripPhantomArtifactCreation(relative, { createdArtifact: false })).toEqual({
+      text: relative,
+      removed: [],
+    });
   });
 
   it.each([

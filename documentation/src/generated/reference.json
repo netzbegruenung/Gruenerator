@@ -196,6 +196,15 @@
         ]
       },
       {
+        "id": "nordrhein-westfalen-system",
+        "name": "Grüne NRW",
+        "description": "Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW",
+        "codes": [
+          "NRW",
+          "NRW-F"
+        ]
+      },
+      {
         "id": "saarland-system",
         "name": "Grüne Saarland",
         "description": "Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland",

@@ -1031,6 +1031,25 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: 'SL' },
   },
+  'nordrhein-westfalen-system': {
+    id: 'nordrhein-westfalen-system',
+    key: 'nordrhein-westfalen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne NRW',
+    description:
+      'Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: ['NRW', 'NRW-F'] },
+  },
   // Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je Frage/Antwort-
   // Paar (scripts/ingest-wahlpruefstein-examples.ts). Dieselbe Sammlung speist
   // das Beispielwerkzeug des Wahlprüfstein-Rezepts. Jedes Paar ist ein eigenes

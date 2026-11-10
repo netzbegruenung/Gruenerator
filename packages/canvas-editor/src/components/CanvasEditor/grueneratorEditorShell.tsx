@@ -13,6 +13,7 @@ import {
 } from '@ggraphic/editor/shell';
 import { useCallback } from 'react';
 
+import { CREATOR_CONFIGS } from '../../collab/sharepicSource';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
 import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
@@ -22,9 +23,11 @@ import {
   type SlideLayoutId,
 } from '../../slides/slideLayouts';
 import { documentAudienceOf, getCategoryForTemplate } from '../../utils/templateRegistry';
+import { PagePickerSeiten } from '../PagePickerSeiten';
 import { TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
 import { BlockInsertProvider } from './blockInsert';
+import { AI_PAGE, usePageSuggestions } from './pageSuggestions';
 import { formatHasVorlagen, vorlagenTab, vorlagenTabIndex } from './vorlagenTab';
 
 import type { CanvasConfigId } from '../../templates/registry';
@@ -39,6 +42,10 @@ const deckLocaleOf = (pages: readonly HeterogeneousPage[]): 'de-DE' | 'de-AT' =>
 
 const isSliderDeck = (pages: readonly HeterogeneousPage[]) =>
   pages[0]?.configId === 'slider' || pages[0]?.configId === 'slider-at';
+
+/** A design of freeform pages: the picker has Seiten for it on a sharepic format. */
+const isFreeformDeck = (pages: readonly HeterogeneousPage[]) =>
+  pages.length > 0 && pages.every((p) => CREATOR_CONFIGS.includes(p.configId));
 
 const deckBrandOf = (pages: readonly HeterogeneousPage[]): SharepicBrand =>
   pages[0]?.configId === 'freeform-gj' || pages[0]?.configId === 'freeform-gj-at'
@@ -119,10 +126,51 @@ function GrueneratorPagePicker({
     [addPage]
   );
 
+  // Sharepic: the catalogue's Seiten that look like the design come first.
+  const { suggestions, close } = usePageSuggestions({
+    isOpen: flyout.isOpen,
+    mode,
+    pages,
+    formatId: flyout.formatId,
+    brand: deckBrandOf(pages),
+    addPage,
+    onSelectTemplate: flyout.onSelectTemplate,
+    currentState: flyout.currentState,
+    onClose: flyout.onClose,
+  });
+  const busy = (suggestions?.busyId ?? null) !== null;
+
   const isAdd = mode === 'add';
   return (
     <TemplatePickerFlyout
       {...flyout}
+      onClose={close}
+      suggestions={
+        suggestions && (
+          <>
+            <PagePickerSeiten
+              heading={suggestions.heading}
+              seiten={suggestions.seiten}
+              format={suggestions.format}
+              busyId={suggestions.busyId}
+              disabled={busy}
+              pickLabel={suggestions.pickLabel}
+              onPick={suggestions.pick}
+            />
+            {suggestions.status && suggestions.busyId !== AI_PAGE && (
+              <p className="m-0 mb-3 text-[13px] text-foreground-muted">{suggestions.status}</p>
+            )}
+            {suggestions.error && (
+              <p role="alert" className="m-0 mb-3 text-[13px] text-[var(--editor-danger-fg)]">
+                {suggestions.error}
+              </p>
+            )}
+          </>
+        )
+      }
+      onAddWithAi={suggestions?.addWithAi ?? undefined}
+      aiStatus={suggestions?.busyId === AI_PAGE ? suggestions.status : null}
+      busy={busy}
       onSelectTemplate={isAdd && addPage ? handleAddBlankPage : flyout.onSelectTemplate}
       mode={mode}
       currentTemplateId={current}
@@ -153,7 +201,8 @@ registerEditorShell({
     Picker: GrueneratorPagePicker,
     // Slider decks have no sensible single "quick add" — a page is explicitly a
     // Start (green pill), Text or Ende slide — so "+" opens the variant picker.
-    quickAddOpensPicker: isSliderDeck,
+    // A freeform deck's „+" opens it too: that is where the fitting Seiten are.
+    quickAddOpensPicker: (pages) => isSliderDeck(pages) || isFreeformDeck(pages),
   },
   // Boundary: a page of an unknown template declares no host callbacks.
   pageCallbackKeys: (configId) =>

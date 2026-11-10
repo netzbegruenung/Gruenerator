@@ -15,7 +15,7 @@ export function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale' |
 
 /** A revision rebuilt the whole deck live: background, highlight and blocks drifted on a text edit. */
 export const KEEP_THE_REST =
-  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung. „Schrift/Headline größer“ heißt: an der headline "groesse":"gross" setzen, ihre Zeilen bleiben, wie sie sind.';
+  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung. Verlangt der Wunsch selbst eine andere Folienzahl („als Karussell“, „noch eine Folie“), ändere sie und gestalte neue Folien wie die vorhandenen. „Schrift/Headline größer“ heißt: an der headline "groesse":"gross" setzen, ihre Zeilen bleiben, wie sie sind.';
 
 /** Keeps a carousel revision on the slide the person is looking at. */
 export function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): string {

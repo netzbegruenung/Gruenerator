@@ -131,7 +131,10 @@ export function specEditDrift(
   const drifts: SpecEditDrift[] = [];
   const from = current.slides.length;
   const to = next.slides.length;
-  if (from !== to && !(SLIDE_WORDS.test(asked) && ADD_OR_REMOVE.test(asked))) {
+  // „Wandle es in ein Karussell um“ names no slide to add, yet a single image
+  // turned into slides is exactly that request (Alfter 09.11.2026, #5511).
+  const becomesCarousel = from === 1 && to > 1 && /karussel/.test(asked);
+  if (from !== to && !becomesCarousel && !(SLIDE_WORDS.test(asked) && ADD_OR_REMOVE.test(asked))) {
     drifts.push({ kind: 'slides', from, to });
   }
   const scope =

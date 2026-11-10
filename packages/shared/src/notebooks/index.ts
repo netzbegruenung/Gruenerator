@@ -52,6 +52,7 @@ export type NotebookId =
   | 'sachsen-notebook'
   | 'hessen-notebook'
   | 'saarland-notebook'
+  | 'nordrhein-westfalen-notebook'
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
@@ -422,6 +423,25 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Grüne Saarland',
       description: 'Presse, Artikel und Parteitagsbeschlüsse Saarland',
       avatar: '🏭',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'nordrhein-westfalen-notebook',
+    title: 'Nordrhein-Westfalen',
+    description:
+      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW.',
+    meta: 'Archiv',
+    tags: ['Nordrhein-Westfalen', 'NRW', 'Presse', 'Beschlüsse'],
+    order: 14,
+    category: 'landesebene',
+    audience: 'de-DE',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',
+    mention: {
+      alias: 'nrw',
+      title: 'Grüne NRW',
+      description: 'Presse und Beschlüsse NRW (Landesverband & Fraktion)',
+      avatar: '🌻',
       backgroundColor: '#316049',
     },
   },

@@ -177,12 +177,9 @@ Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im 
         const revised = (variant.initialProps as { creatorSpec?: SharepicSpec }).creatorSpec;
         if (revised && isDeepStrictEqual(revised, spec)) {
           // `error` marks the step as failed, so the no-phantom-edit guard still applies.
+          // The tool card shows `error` verbatim: it carries the person's text, no model instruction (#5512).
           state.editorEditUnchanged = ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
-          return {
-            error:
-              'Das Sharepic blieb unverändert — diese Änderung ist mit dem Creator nicht möglich. Sag der Person ehrlich, dass nichts geändert wurde.',
-            unchanged: true,
-          };
+          return { error: ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged, unchanged: true };
         }
         sse.send('sharepic_complete', { message: 'Sharepic überarbeitet', variants: [variant] });
         const summary = `Sharepic überarbeitet (${revised?.slides.length ?? 1} Folie(n)): ${anweisung.slice(0, 120)}`;
