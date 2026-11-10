@@ -175,6 +175,20 @@ export interface CreateSearchToolsOptions {
    */
   userLocale: string | null;
   /**
+   * The collections this turn is already scoped to: an @mentioned notebook,
+   * else the agent's bound notebooks plus the composer pick
+   * (`defaultNotebookCollectionIds`). The first one this turn may search
+   * becomes the DEFAULT when the model names no collection.
+   *
+   * Without it the loop ignored the binding the single-pass `searchNode` has
+   * always honoured: "Bürger*innenanfragen (Saarland)" (`saarland-notebook`)
+   * ran `gruenerator_search` without a collection, landed on the locale default
+   * `deutschland`, and answered from the federal programme — while its persona
+   * promised a search "automatisch auf den Landesverband gefiltert". It stays a
+   * default, not a restriction: the model may still add `deutschland`.
+   */
+  scopedCollections?: readonly string[];
+  /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
    * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
@@ -459,8 +473,10 @@ export function createSearchTools(
   const localeDefault = options.userLocale
     ? LOCALE_DEFAULT_COLLECTION[options.userLocale]
     : undefined;
+  const scopedDefault = options.scopedCollections?.find((key) => allowedCollections.includes(key));
   const defaultCollection =
     restrictions?.defaultCollection ||
+    scopedDefault ||
     (localeDefault && allowedCollections.includes(localeDefault)
       ? localeDefault
       : allowedCollections[0]);

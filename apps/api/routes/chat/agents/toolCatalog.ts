@@ -425,6 +425,14 @@ export function buildChatToolCatalog(params: {
     // search now hangs on the locale, so "no loop state" has to resolve to an
     // explicit `null` (→ the German default) rather than to an absent property.
     userLocale: loop?.state.userLocale ?? null,
+    // The notebook the turn is scoped to becomes the search default — an
+    // @mention first, else the agent's bound notebooks (same priority as
+    // `resolveExamplesLvScope`). Without it an LV agent searched `deutschland`.
+    ...(loop != null && {
+      scopedCollections: loop.state.notebookCollectionIds?.length
+        ? loop.state.notebookCollectionIds
+        : (loop.state.defaultNotebookCollectionIds ?? []),
+    }),
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
