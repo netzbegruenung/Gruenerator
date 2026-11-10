@@ -29,6 +29,7 @@ const PINNED: Record<string, string> = {
   // others: leaving it to the ambient env would make a run's connector list
   // depend on the developer's .env.
   SYSTEM_MCP_LAW_URL: '',
+  SYSTEM_MCP_RATEO_URL: '',
   SYSTEM_MCP_INTENTS: '',
 
   // Provider keys decide which lane the loop picks (isProviderConfigured).

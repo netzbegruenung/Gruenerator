@@ -439,19 +439,12 @@ const McpServerRow = memo(
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
     >(null);
 
-    // A managed connector is operated by us: no OAuth to complete, nothing to
-    // remove, and "Verbunden" would be misleading — nobody connected it.
+    // A managed connector is operated by us: no OAuth to complete and nothing to
+    // remove. It only shows up as a row once the person switched it on; switched
+    // off, it goes back to the cards under "Dienste verbinden".
     const isManaged = server.managed === true;
     const needsAuth = !isManaged && server.authType === 'oauth' && !server.hasToken;
-    const statusLabel = needsAuth
-      ? 'Nicht autorisiert'
-      : server.enabled
-        ? isManaged
-          ? 'Verfügbar'
-          : 'Verbunden'
-        : isManaged
-          ? 'Ausgeschaltet'
-          : 'Pausiert';
+    const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
     const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
 
     const authorize = () => {
@@ -893,11 +886,13 @@ const BearerConnectDialog = ({
 
 // ── Section ──────────────────────────────────────────────────────────────────
 
-interface AvailableItem {
-  key: string;
-  category: string | undefined;
-  entry: McpRegistryEntry;
-}
+/**
+ * One card under "Dienste verbinden": a curated registry entry, or a managed
+ * connector that is switched off — connecting one of those just switches it on.
+ */
+type AvailableItem =
+  | { kind: 'registry'; key: string; category: string; title: string; entry: McpRegistryEntry }
+  | { kind: 'managed'; key: string; category: string; title: string; server: McpServerSummary };
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -915,6 +910,8 @@ const CATEGORY_MERGE: Record<string, string> = {
   Kommunikation: 'Kommunikation',
   'Recht & Compliance': 'Recht & Finanzen',
   Reisen: 'Reisen & Karten',
+  // Managed-connector category (systemMcpServers.ts).
+  'Reise & Verkehr': 'Reisen & Karten',
   Karten: 'Reisen & Karten',
 };
 // Display order for the merged pills/sections; "Sonstige" always sorts last.
@@ -927,7 +924,7 @@ const MERGED_CATEGORY_ORDER = [
 ];
 const UNCATEGORISED = OTHER_CATEGORY;
 
-const mergeCategory = (raw: string | undefined): string =>
+const mergeCategory = (raw: string | null | undefined): string =>
   (raw && CATEGORY_MERGE[raw]) || OTHER_CATEGORY;
 
 function orderCategories(present: Iterable<string>): string[] {
@@ -960,6 +957,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
+  const update = useUpdateMcpServer();
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
 
@@ -978,16 +976,41 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   );
 
   const available = useMemo<AvailableItem[]>(() => {
-    const merged = (registry?.recommended ?? [])
-      .filter((e) => !connectedHosts.has(hostOf(e.url) ?? e.url))
-      .map((entry) => ({ key: entry.url, category: mergeCategory(entry.category), entry }));
+    // The registry search runs server-side; managed connectors are local, so the
+    // same term filters them here.
+    const term = debouncedSearch.toLowerCase();
+    const offeredManaged: AvailableItem[] = servers
+      .filter((s) => s.managed && !s.enabled)
+      .filter(
+        (s) =>
+          !term || [s.name, s.description, s.category].some((f) => f?.toLowerCase().includes(term))
+      )
+      .map((server) => ({
+        kind: 'managed',
+        key: server.id,
+        category: mergeCategory(server.category),
+        title: server.name,
+        server,
+      }));
+    const merged: AvailableItem[] = [
+      ...offeredManaged,
+      ...(registry?.recommended ?? [])
+        .filter((e) => !connectedHosts.has(hostOf(e.url) ?? e.url))
+        .map((entry): AvailableItem => ({
+          kind: 'registry',
+          key: entry.url,
+          category: mergeCategory(entry.category),
+          title: entry.title,
+          entry,
+        })),
+    ];
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
     for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
     return merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedHosts]);
+  }, [registry, connectedHosts, servers, debouncedSearch]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1012,14 +1035,14 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
-  // First-party connectors the Grünerator operates: nobody connected them, so
-  // they belong neither under "Verbunden" nor in the OAuth-pending bucket.
-  const managed = servers.filter((s) => s.managed);
+  // Managed connectors sit in the normal lists: switched on → "Verbunden",
+  // switched off → a card under "Dienste verbinden" (see `available`).
+  const managedOn = servers.filter((s) => s.managed && s.enabled);
   const own = servers.filter((s) => !s.managed);
   // OAuth servers without a token aren't usable yet — listing them under
   // "Verbunden" would suggest they work. They get their own action section.
   const authPending = own.filter((s) => s.authType === 'oauth' && !s.hasToken);
-  const connected = own.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
+  const connected = [...managedOn, ...own.filter((s) => !(s.authType === 'oauth' && !s.hasToken))];
   const activeCount = connected.filter((s) => s.enabled).length;
 
   // Curated entry for a saved row, by host like the cards above.
@@ -1140,6 +1163,33 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
+  const switchOnManaged = (server: McpServerSummary) =>
+    update.mutate(
+      { id: server.id, patch: { enabled: true } },
+      {
+        onSuccess: () => onSuccess(`${server.name} verbunden`),
+        onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+      }
+    );
+
+  const renderCard = (it: AvailableItem) =>
+    it.kind === 'managed' ? (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        connecting={update.isPending && update.variables?.id === it.server.id}
+        onConnect={() => switchOnManaged(it.server)}
+      />
+    ) : (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        connecting={connecting === it.entry.url}
+        onConnect={() => handlePickMcp(it.entry)}
+        onUseKey={keyAlternative(it.entry)}
+      />
+    );
+
   const hasConnected = connected.length > 0;
 
   return (
@@ -1179,30 +1229,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       {isLoading && (
         <div className="mt-md">
           <SettingsCardsSkeleton cards={3} />
-        </div>
-      )}
-
-      {/* First-party connectors: available to everyone without setup, so they
-          lead — and they get their own heading rather than sitting under
-          "Verbunden", where they would imply the user had connected them. */}
-      {managed.length > 0 && (
-        <div className="mt-xl">
-          <div className="flex items-baseline gap-sm mb-sm">
-            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-              Vom Grünerator bereitgestellt
-            </h3>
-            <span className="text-xs text-grey-400">ohne Einrichtung nutzbar</span>
-          </div>
-          <div className="flex flex-col gap-sm">
-            {managed.map((server) => (
-              <McpServerRow
-                key={server.id}
-                server={server}
-                onSuccess={onSuccess}
-                onError={onError}
-              />
-            ))}
-          </div>
         </div>
       )}
 
@@ -1311,31 +1337,13 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                     {c}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-                    {items.map((it) => (
-                      <CardShell
-                        key={it.key}
-                        title={it.entry.title}
-                        connecting={connecting === it.entry.url}
-                        onConnect={() => handlePickMcp(it.entry)}
-                        onUseKey={keyAlternative(it.entry)}
-                      />
-                    ))}
+                    {items.map(renderCard)}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-              {filtered.map((it) => (
-                <CardShell
-                  key={it.key}
-                  title={it.entry.title}
-                  connecting={connecting === it.entry.url}
-                  onConnect={() => handlePickMcp(it.entry)}
-                  onUseKey={keyAlternative(it.entry)}
-                />
-              ))}
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">{filtered.map(renderCard)}</div>
           ))}
 
         {/* Server suchen — remote hits from the open MCP registry */}

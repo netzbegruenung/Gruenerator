@@ -70,13 +70,29 @@ describe('getConnectionConfigs — immer genau ein Server', () => {
   });
 
   it('liefert für einen verwalteten Scope nur diesen Konnektor', async () => {
+    prefRows = [{ system_key: 'wetter', enabled: true, updated_at: new Date() }];
     const configs = await McpServerRegistry.getConnectionConfigs('u1', 'system-wetter');
     expect(configs.map((c) => c.id)).toEqual(['system-wetter']);
+  });
+
+  it('liefert nichts für einen nie eingeschalteten verwalteten Konnektor (Standard aus)', async () => {
+    expect(await McpServerRegistry.getConnectionConfigs('u1', 'system-wetter')).toEqual([]);
   });
 
   it('liefert nichts für einen ausgeschalteten verwalteten Konnektor', async () => {
     prefRows = [{ system_key: 'wetter', enabled: false, updated_at: new Date() }];
     expect(await McpServerRegistry.getConnectionConfigs('u1', 'system-wetter')).toEqual([]);
+  });
+});
+
+describe('list — verwaltete Konnektoren starten ausgeschaltet', () => {
+  it('meldet einen nie berührten Konnektor als aus und einen eingeschalteten als an', async () => {
+    prefRows = [{ system_key: 'bahn', enabled: true, updated_at: new Date() }];
+    const list = await McpServerRegistry.list('u1');
+    expect(list.map((s) => [s.id, s.enabled])).toEqual([
+      ['system-bahn', true],
+      ['system-wetter', false],
+    ]);
   });
 });
 
