@@ -19,7 +19,7 @@ import {
   extractMessageText,
 } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { addressesThreadImage } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/systemMcpServers.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/connectorAdapters.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { isTabelleAuswertenMountable } from '../agents/tabelleAuswertenTool.js';

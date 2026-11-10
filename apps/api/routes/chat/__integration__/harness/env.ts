@@ -4,7 +4,7 @@ import { vi } from 'vitest';
  * `apps/api/vitest.config.ts` calls `dotenvConfig()`, so the developer's `.env`
  * is loaded into every test run — and several of these variables are read at
  * CALL time, not at import time (e.g. `getSystemMcpSources` in
- * services/mcp/systemMcpServers.ts). A `SYSTEM_MCP_*_URL` on one machine flips
+ * services/mcp/connectorAdapters.ts). A `SYSTEM_MCP_*_URL` on one machine flips
  * `isSystemIntentAvailable` → `isMcpTurn` → `runAgentic`, so the same test
  * reaches a different verdict locally than in CI.
  *

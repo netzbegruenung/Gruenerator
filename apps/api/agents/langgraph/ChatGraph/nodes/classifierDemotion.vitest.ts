@@ -42,7 +42,7 @@ const { classifierNode } = await import('./classifierNode.js');
 
 import { AGENTIC_INTENTS } from '../../../../routes/chat/services/agenticLoop/intents.js';
 import { decideTurnPlan } from '../../../../routes/chat/services/agenticLoop/turnPlan.js';
-import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/connectorAdapters.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 

@@ -2,24 +2,14 @@ import { type InferSelectModel } from 'drizzle-orm';
 import { boolean, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
- * Per-user switch for MANAGED MCP connectors (EXPERIMENTAL).
+ * Per-user switch for the former MANAGED MCP connectors — NO LONGER READ.
  *
- * Managed connectors are first-party servers configured from env
- * (`services/mcp/systemMcpServers.ts`) and offered to every user WITHOUT a
- * `mcp_servers` row — there is no per-user URL, name or credential to store.
- * The only per-user fact is "did this person switch it on or off", so that is
- * the only thing this table holds.
- *
- * SPARSE BY DESIGN: absence means the default — OFF since 11/2026 (it was on
- * before; the column default `true` only fills an insert that omits `enabled`,
- * which `setManagedEnabled` never does). Seeding a row
- * per user per connector would mean a backfill today, a backfill for every new
- * user, and a backfill for every connector added later — three migrations to
- * express a default that a missing row already expresses.
- *
- * `system_key` is a `SystemMcpKey`, deliberately stored as free TEXT: a
- * connector that is retired leaves rows behind, and a CHECK constraint or enum
- * would turn that into a failing migration instead of a row nobody reads.
+ * Since 11.11.2026 a connected Bahn/Wetter/… connector is an ordinary
+ * `mcp_servers` row with `registry_key` set; migration
+ * `zz_20261111_mcp_servers_registry_key.sql` turned every `enabled = true` row
+ * here into such a row. The table stays (F0: a schema change is additive);
+ * drop no earlier than 2027-05. Kept as a Drizzle table only so that drop is a
+ * deliberate, visible step.
  */
 export const mcp_system_prefs = pgTable(
   'mcp_system_prefs',

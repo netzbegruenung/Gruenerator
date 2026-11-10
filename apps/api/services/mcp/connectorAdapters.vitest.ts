@@ -1,15 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  getManagedConnectorById,
   getManagedConnectors,
   getSystemMcpSources,
-  isManagedKey,
   isSourceGermanOnly,
   managedConnectorId,
   parseManagedConnectorId,
   toSystemConnectionConfig,
-} from './systemMcpServers.js';
+} from './connectorAdapters.js';
 
 const sourceByKey = (key: string) => getSystemMcpSources().find((s) => s.key === key) ?? null;
 const managedKeys = (locale?: string | null) => getManagedConnectors(locale).map((c) => c.key);
@@ -120,22 +118,10 @@ describe('managed connectors', () => {
   it('offers every configured source, in MANAGED_KEYS order', () => {
     allConfigured();
     expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo']);
-    for (const key of ['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo'] as const) {
-      expect(isManagedKey(key)).toBe(true);
-    }
   });
 
   it('offers nothing while the URL env is unset', () => {
     expect(getManagedConnectors()).toEqual([]);
-    expect(getManagedConnectorById('system-gesetze')).toBeNull();
-  });
-
-  it('resolves one connector by its synthetic id', () => {
-    allConfigured();
-    const gesetze = getManagedConnectorById('system-gesetze');
-    expect(gesetze?.key).toBe('gesetze');
-    expect(gesetze?.connector.title).toBe('Gesetze');
-    expect(getManagedConnectorById('system-nichtsda')).toBeNull();
   });
 
   it('round-trips the synthetic id and rejects a user UUID', () => {
@@ -147,22 +133,11 @@ describe('managed connectors', () => {
     expect(parseManagedConnectorId('')).toBeNull();
   });
 
-  it('keeps the tool-name prefix mcpCatalog derives valid and distinct', () => {
-    // mcpCatalog builds `m${id.replace(/-/g,'').slice(0,8)}__<tool>` and the
-    // provider tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — a `:` separator here
-    // would produce names every provider rejects.
-    const prefixes = (['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo'] as const).map((k) =>
-      managedConnectorId(k).replace(/-/g, '').slice(0, 8)
-    );
-    for (const p of prefixes) expect(p).toMatch(/^[a-zA-Z0-9_-]+$/);
-    expect(new Set(prefixes).size).toBe(prefixes.length);
-  });
-
-  it('marks the connection config as managed so no row write is attempted', () => {
+  it('carries the registry key so the catalog names tools <key>__ and skips row writes', () => {
     process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
     process.env.SYSTEM_MCP_LAW_TOKEN = 'secret';
     const config = toSystemConnectionConfig(sourceByKey('gesetze')!);
-    expect(config.managed).toBe(true);
+    expect(config.registryKey).toBe('gesetze');
     expect(config.id).toBe('system-gesetze');
     expect(config.authType).toBe('bearer');
   });

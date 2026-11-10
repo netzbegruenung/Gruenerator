@@ -37,7 +37,7 @@ import {
   decideRunAgentic,
   type AgenticDecisionInput,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/connectorAdapters.js';
 import {
   DEMOTABLE_HEURISTIC_INTENTS,
   NON_SEARCH_INTENTS,
