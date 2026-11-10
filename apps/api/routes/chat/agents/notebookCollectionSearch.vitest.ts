@@ -149,7 +149,7 @@ describe('searchCollectionAsNotebook — Form', () => {
     getSearchContext.mockResolvedValue(
       context([passage('https://a', 1, 0.8, { published_at: '2025-03-01' })])
     );
-    expect((await run()).results[0]?.date).toBe('2025-03-01');
+    expect((await run()).results[0]?.publishedDate).toBe('2025-03-01');
   });
 });
 

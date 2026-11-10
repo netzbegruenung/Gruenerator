@@ -134,7 +134,9 @@ export async function searchCollectionAsNotebook(
         documentId: best.document_id,
         chunkIndex: best.chunk_index,
         score: best.similarity,
-        ...(date ? { date } : {}),
+        // `publishedDate`, nicht `date`: so liest es die Quellen-Aufbereitung im
+        // Katalog (`toolCatalog`), und nur so sieht das Modell, wie alt eine Quelle ist.
+        ...(date ? { publishedDate: date } : {}),
         collectionId: collection,
       };
     });
