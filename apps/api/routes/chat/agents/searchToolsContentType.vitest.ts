@@ -3,15 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AgentConfig } from './types.js';
 
 /**
- * `gruenerator_search` reicht einen Inhaltstyp an die Dokumentsuche durch —
+ * `gruenerator_search` reicht einen Inhaltstyp an die Notebook-Suche durch —
  * vom Modell gewählt oder vom Agenten gepinnt, und der Pin gewinnt: ein
  * Beschluss-Agent bleibt bei Beschlüssen, auch wenn das Modell `presse` sagt.
  */
-const executeDirectSearch = vi.fn();
+const searchAsNotebook = vi.fn();
 
-vi.mock('./directSearch.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./directSearch.js')>()),
-  executeDirectSearch,
+vi.mock('./notebookCollectionSearch.js', () => ({
+  searchCollectionAsNotebook: searchAsNotebook,
 }));
 
 const { createSearchTools } = await import('./searchTools.js');
@@ -35,8 +34,8 @@ async function run(config: AgentConfig, args: Record<string, unknown>): Promise<
 }
 
 beforeEach(() => {
-  executeDirectSearch.mockReset();
-  executeDirectSearch.mockResolvedValue({
+  searchAsNotebook.mockReset();
+  searchAsNotebook.mockResolvedValue({
     collection: 'hessen',
     query: 'q',
     searchMode: 'hybrid',
@@ -48,12 +47,12 @@ beforeEach(() => {
 describe('gruenerator_search — content_type', () => {
   it('forwards the content type the model asked for', async () => {
     await run(agent(), { query: 'Radverkehr', collection: 'hessen', content_type: 'beschluss' });
-    expect(executeDirectSearch.mock.calls[0]?.[0].lvContentType).toEqual(['beschluss']);
+    expect(searchAsNotebook.mock.calls[0]?.[0].lvContentType).toEqual(['beschluss']);
   });
 
   it('sends none when neither model nor agent asks for one', async () => {
     await run(agent(), { query: 'Radverkehr', collection: 'hessen' });
-    expect(executeDirectSearch.mock.calls[0]?.[0]).not.toHaveProperty('lvContentType');
+    expect(searchAsNotebook.mock.calls[0]?.[0]).not.toHaveProperty('lvContentType');
   });
 
   it("lets the agent's pin override the model's choice", async () => {
@@ -65,6 +64,6 @@ describe('gruenerator_search — content_type', () => {
         content_type: 'presse',
       }
     );
-    expect(executeDirectSearch.mock.calls[0]?.[0].lvContentType).toEqual(['beschluss']);
+    expect(searchAsNotebook.mock.calls[0]?.[0].lvContentType).toEqual(['beschluss']);
   });
 });

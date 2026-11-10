@@ -20,14 +20,13 @@ import { createLogger } from '../../../utils/logger.js';
 
 import { agentAllowsTool } from './agentToolWhitelist.js';
 import {
-  deduplicateByUrl,
-  executeDirectSearch,
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
   executeDirectWahlpruefsteinExamples,
   executeDirectWebSearch,
 } from './directSearch.js';
 import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
+import { searchCollectionAsNotebook } from './notebookCollectionSearch.js';
 import { type FehlerArt, leeresErgebnis, werkzeugFehler } from './toolFailure.js';
 
 import type { DirectSearchResult } from './directSearch.js';
@@ -332,68 +331,26 @@ function institutionNamed(host: string, haystack: string): boolean {
 /**
  * Run one search, fanning a bundle key out over its members.
  *
- * For an ordinary key this is `executeDirectSearch` verbatim. For a bundle
- * (`oesterreich`) the members are searched in parallel and merged by score, so
- * the model sees one collection and one ranked list — the fact that Austria's
- * material sits in two Qdrant collections is ours to know, not the planner's.
- *
- * The merge deliberately re-ranks across members rather than interleaving: the
- * scores come from the same embedding model and the same hybrid weights, so
- * they are comparable, and a fixed interleave would hand half the budget to
- * whichever corpus happens to be thinner on the topic.
+ * Both go through the notebook retrieval (`searchCollectionAsNotebook` →
+ * `getSearchContext`), the same one the notebook page uses, so an agent bound
+ * to a Landesverband sees what its notebook would show — several passages per
+ * source instead of one excerpt. A bundle (`oesterreich`) is searched as one
+ * multi-collection notebook: the pipeline ranks across the members by score,
+ * so the model sees one collection and one ranked list — the fact that
+ * Austria's material sits in two Qdrant collections is ours to know, not the
+ * planner's.
  */
-async function searchCollectionOrBundle(params: {
+function searchCollectionOrBundle(params: {
   query: string;
   collection: string;
   limit: number;
   rerankChunks?: boolean;
   lvContentType?: readonly string[];
 }): Promise<DirectSearchResult> {
-  const { query, collection, limit, rerankChunks, lvContentType } = params;
-  // Einmal gebaut, in BEIDE Zweige gespreizt: ein Bündel, das den Reranker
-  // (oder den Typfilter) verliert, sieht im Ergebnis genauso aus wie eines,
-  // das ihn hat.
-  const shared = {
-    ...(rerankChunks === true ? { rerankChunks: true as const } : {}),
-    ...(lvContentType?.length ? { lvContentType } : {}),
-  };
-  const members = COLLECTION_BUNDLES[collection];
-  if (!members) return executeDirectSearch({ query, collection, limit, ...shared });
-
-  // Each member is asked for the full limit; the merge below is what narrows.
-  const parts = await Promise.all(
-    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...shared }))
-  );
-  const merged = deduplicateByUrl(
-    parts.flatMap((p) => p.results),
-    (r) => r.url
-  )
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, limit)
-    .map((r, i) => ({ ...r, rank: i + 1 }));
-
-  return {
-    collection,
-    query,
-    searchMode: parts[0]?.searchMode ?? 'hybrid',
-    resultsCount: merged.length,
-    results: merged,
-    // Umgekehrter Quantor zur Zeile darunter, mit Absicht: ein Bündel ist
-    // degradiert, sobald EIN Mitglied es war (dann ist die halbe Liste
-    // kosinus-sortiert) — es ist aber erst gescheitert, wenn ALLE scheiterten.
-    ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
-    // A bundle fails only when EVERY member failed; one dead corpus next to a
-    // live one is a partial result, not an error.
-    ...(parts.every((p) => p.error)
-      ? {
-          error: true,
-          // Der Text eines Mitglieds, sonst sähe das Modell ein nacktes `true`.
-          message:
-            parts.find((p) => p.message)?.message ??
-            'Alle Sammlungen des Bündels haben die Suche abgelehnt.',
-        }
-      : {}),
-  };
+  return searchCollectionAsNotebook({
+    ...params,
+    members: COLLECTION_BUNDLES[params.collection] ?? [params.collection],
+  });
 }
 
 /**
@@ -553,7 +510,11 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche (dafür w
         // planner asked for "Grüne Hessen" duly picked `gruene-de` and cited
         // five web pages. The descriptions already exist in SYSTEM_COLLECTIONS.
         .describe(`Sammlung — wähle nach Inhalt:\n${describeCollections(allowedCollections)}`),
-      limit: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse'),
+      limit: z
+        .number()
+        .optional()
+        .default(8)
+        .describe('Maximale Anzahl Quellen — jede mit bis zu drei passenden Passagen'),
       content_type: z
         .enum(LANDESVERBAND_CONTENT_TYPES)
         .optional()

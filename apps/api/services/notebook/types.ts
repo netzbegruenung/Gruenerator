@@ -2,6 +2,7 @@
  * Type definitions for Notebook QA Service
  */
 
+import type { NotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
@@ -207,6 +208,11 @@ export interface GetSearchContextParams {
   requestFilters?: RequestFilters | undefined;
   /** Retrieval depth; omitted means the thorough tier (see notebookStreamCore). */
   depth?: NotebookSearchDepth | undefined;
+  /**
+   * Ein fertiges Budget statt einer Stufe — für serverseitige Aufrufer ohne
+   * Tiefen-Regler (`getLoopToolProfile`). Schlägt `depth`.
+   */
+  profile?: NotebookDepthProfile | undefined;
   /** Quellen-Ampel (#4307); fehlt ⇒ `equal`. */
   sourceTier?: NotebookSourceTier | undefined;
   /**

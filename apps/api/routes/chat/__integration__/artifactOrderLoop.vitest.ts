@@ -132,6 +132,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 vi.mock('../../../services/document-services/DocumentSearchService/index.js', async (orig) => {
   const { fakeQdrantDocumentService } = await import('./harness/searchBackendStub.js');
   return {
