@@ -831,7 +831,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'hamburg',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
@@ -848,7 +851,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'schleswig-holstein',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',

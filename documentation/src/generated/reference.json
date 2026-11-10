@@ -178,14 +178,6 @@
         ]
       },
       {
-        "id": "hamburg-system",
-        "name": "Grüne Hamburg",
-        "description": "Beschlüsse und Pressemitteilungen der Grünen Hamburg",
-        "codes": [
-          "HH"
-        ]
-      },
-      {
         "id": "hessen-system",
         "name": "Grüne Hessen",
         "description": "Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)",
@@ -227,14 +219,6 @@
         "codes": [
           "LSA",
           "LSA-F"
-        ]
-      },
-      {
-        "id": "schleswig-holstein-system",
-        "name": "Grüne Schleswig-Holstein",
-        "description": "Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl",
-        "codes": [
-          "SH"
         ]
       },
       {

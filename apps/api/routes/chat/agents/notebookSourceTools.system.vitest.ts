@@ -1,7 +1,7 @@
 /**
  * `notebook_quellen` auf System-Notebooks — jede Aktion gegen den Qdrant-Fake
- * aus `fakeSystemCollection.ts`. Die Landesverbände Hamburg und Berlin teilen
- * sich `landesverbaende_documents`; eine Berliner URL im Hamburg-Notebook ist
+ * aus `fakeSystemCollection.ts`. Die Landesverbände Saarland und Berlin teilen
+ * sich `landesverbaende_documents`; eine Berliner URL im Saarland-Notebook ist
  * der Prüfstein der Zugehörigkeitsregel.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -40,8 +40,8 @@ vi.mock('../../../services/scrapers/utils/wolkeShareSecrets.js', () => ({
 }));
 
 const LV = 'landesverbaende_documents';
-const HH_A = 'https://gruene-hamburg.de/a';
-const HH_B = 'https://gruene-hamburg.de/b';
+const SL_A = 'https://gruene-saar.de/a';
+const SL_B = 'https://gruene-saar.de/b';
 const BE_A = 'https://gruene.berlin/a';
 const AT_A = 'https://gruene.at/programm';
 
@@ -49,13 +49,13 @@ function points(): FakePoint[] {
   return [
     ...fakeDoc(
       LV,
-      HH_A,
-      ['Hamburg baut Radwege.', 'Die Wärmepumpe kommt. Wärmepumpe überall.'],
-      { landesverband: 'HH', title: 'Radverkehr', published_at: '2025-03-01' },
+      SL_A,
+      ['Saarland baut Radwege.', 'Die Wärmepumpe kommt. Wärmepumpe überall.'],
+      { landesverband: 'SL', title: 'Radverkehr', published_at: '2025-03-01' },
       { pages: [1, 2] }
     ),
-    ...fakeDoc(LV, HH_B, ['Hafen und Klima.'], {
-      landesverband: 'HH',
+    ...fakeDoc(LV, SL_B, ['Hafen und Klima.'], {
+      landesverband: 'SL',
       title: 'Hafen',
       published_at: '2026-01-15',
     }),
@@ -77,9 +77,9 @@ function makeCtx(
     searchResults?: DocumentResult[];
     nlp?: StatsNlp;
     recentSteps?: PersistedStep[];
-    /** Eine Hamburger Quelle ohne Datum. */
+    /** Eine Saarlander Quelle ohne Datum. */
     extraPoints?: boolean;
-    /** Weitere Hamburger Quellen — über SYSTEM_SCAN_MAX_SOURCES geht grep an den Index. */
+    /** Weitere Saarlander Quellen — über SYSTEM_SCAN_MAX_SOURCES geht grep an den Index. */
     more?: FakePoint[];
     textIndex?: Record<string, unknown> | null;
     scopeLock?: { ids: string[]; readOnly: boolean };
@@ -102,8 +102,8 @@ function makeCtx(
     ...(opts.scopeLock ? { notebookScopeLock: opts.scopeLock } : {}),
   } as unknown as ChatGraphState;
   const undated = opts.extraPoints
-    ? fakeDoc(LV, 'https://gruene-hamburg.de/ohne-datum', ['Hafen ohne Datum.'], {
-        landesverband: 'HH',
+    ? fakeDoc(LV, 'https://gruene-saar.de/ohne-datum', ['Hafen ohne Datum.'], {
+        landesverband: 'SL',
         title: 'Ohne Datum',
       })
     : [];
@@ -145,17 +145,17 @@ function makeCtx(
 describe('resolution', () => {
   it('accepts a collection key, a system id and a selected notebook slug', async () => {
     const byKey = makeCtx();
-    const out = await byKey.run({ action: 'list', notebookId: 'hamburg' });
-    expect(out.collection).toBe('hamburg');
+    const out = await byKey.run({ action: 'list', notebookId: 'saarland' });
+    expect(out.collection).toBe('saarland');
     expect(byKey.helper.getNotebookCollection).not.toHaveBeenCalled();
 
     const bySystemId = makeCtx();
     expect(
-      (await bySystemId.run({ action: 'list', notebookId: 'hamburg-system' })).collection
-    ).toBe('hamburg');
+      (await bySystemId.run({ action: 'list', notebookId: 'saarland-system' })).collection
+    ).toBe('saarland');
 
-    const bySlug = makeCtx({ notebookIds: ['hamburg-notebook'] });
-    expect((await bySlug.run({ action: 'list' })).collection).toBe('hamburg');
+    const bySlug = makeCtx({ notebookIds: ['saarland-notebook'] });
+    expect((await bySlug.run({ action: 'list' })).collection).toBe('saarland');
   });
 
   it('refuses a key outside the locale set — DE user, Austrian corpus', async () => {
@@ -170,14 +170,14 @@ describe('resolution', () => {
     const at = await run({ action: 'list', notebookId: 'oesterreich' });
     expect(at.results.map((r: any) => r.url)).toEqual([AT_A]);
     expect(system.scrollPage.mock.calls[0]![0]).toBe('oesterreich_gruene_documents');
-    expect((await run({ action: 'list', notebookId: 'hamburg' })).error).toMatch(
+    expect((await run({ action: 'list', notebookId: 'saarland' })).error).toMatch(
       /steht hier nicht zur Verfügung/
     );
   });
 
   it('prefers a selected user notebook, then a resolvable system notebook', async () => {
-    const { run } = makeCtx({ notebookIds: ['gruenerator-notebook', 'hamburg-notebook'] });
-    expect((await run({ action: 'list' })).collection).toBe('hamburg');
+    const { run } = makeCtx({ notebookIds: ['gruenerator-notebook', 'saarland-notebook'] });
+    expect((await run({ action: 'list' })).collection).toBe('saarland');
   });
 
   it('asks for one key when a slug covers several collections', async () => {
@@ -189,12 +189,12 @@ describe('resolution', () => {
 
   it('refuses write actions on a system notebook, as source and as move target', async () => {
     const byKey = makeCtx();
-    expect(await byKey.run({ action: 'remove', notebookId: 'hamburg', sourceIds: [HH_A] })).toEqual(
-      { error: SYSTEM_READ_ONLY }
-    );
+    expect(
+      await byKey.run({ action: 'remove', notebookId: 'saarland', sourceIds: [SL_A] })
+    ).toEqual({ error: SYSTEM_READ_ONLY });
     expect(byKey.system.scrollPage).not.toHaveBeenCalled();
 
-    const bySelection = makeCtx({ notebookIds: ['hamburg-notebook'] });
+    const bySelection = makeCtx({ notebookIds: ['saarland-notebook'] });
     expect(
       await bySelection.run({ action: 'add_note', title: 'Notiz', text: 'x'.repeat(40) })
     ).toEqual({ error: SYSTEM_READ_ONLY });
@@ -213,7 +213,7 @@ describe('resolution', () => {
         action: 'move',
         notebookId: 'nb-1',
         sourceIds: ['d1'],
-        targetNotebookId: 'hamburg',
+        targetNotebookId: 'saarland',
       })
     ).toEqual({ error: SYSTEM_READ_ONLY });
     expect(intoSystem.helper.getCollectionDocuments).not.toHaveBeenCalled();
@@ -222,11 +222,11 @@ describe('resolution', () => {
 
 describe('Präzisionsmodus: Scope-Sperre über normalisierte Schlüssel', () => {
   it('matches a key against the page slug and refuses another Landesverband', async () => {
-    const lock = { ids: ['hamburg-notebook'], readOnly: true };
-    const { run, system } = makeCtx({ notebookIds: ['hamburg-notebook'], scopeLock: lock });
-    expect((await run({ action: 'list', notebookId: 'hamburg' })).collection).toBe('hamburg');
-    expect((await run({ action: 'list', notebookId: 'hamburg-system' })).collection).toBe(
-      'hamburg'
+    const lock = { ids: ['saarland-notebook'], readOnly: true };
+    const { run, system } = makeCtx({ notebookIds: ['saarland-notebook'], scopeLock: lock });
+    expect((await run({ action: 'list', notebookId: 'saarland' })).collection).toBe('saarland');
+    expect((await run({ action: 'list', notebookId: 'saarland-system' })).collection).toBe(
+      'saarland'
     );
     const calls = system.scrollPage.mock.calls.length;
     expect((await run({ action: 'list', notebookId: 'berlin' })).error).toMatch(/Präzisionsmodus/);
@@ -237,32 +237,32 @@ describe('Präzisionsmodus: Scope-Sperre über normalisierte Schlüssel', () => 
 describe('list', () => {
   it('lists sources by date with clickable URLs as ref', async () => {
     const { run, registered } = makeCtx();
-    const out = await run({ action: 'list', notebookId: 'hamburg' });
-    expect(out).toMatchObject({ notebook: 'Grüne Hamburg', total: 2, exhaustive: true });
+    const out = await run({ action: 'list', notebookId: 'saarland' });
+    expect(out).toMatchObject({ notebook: 'Grüne Saarland', total: 2, exhaustive: true });
     expect(out.results.map((r: any) => [r.title, r.url, r.ref])).toEqual([
-      ['Hafen', HH_B, HH_B],
-      ['Radverkehr', HH_A, HH_A],
+      ['Hafen', SL_B, SL_B],
+      ['Radverkehr', SL_A, SL_A],
     ]);
-    expect(registered.map((r) => r.url)).toEqual([HH_B, HH_A]);
+    expect(registered.map((r) => r.url)).toEqual([SL_B, SL_A]);
     expect(out.hint).toBeUndefined();
   });
 
   it('grounds rows under the same source key as grep/find passages (#3626)', async () => {
     const { run, registered } = makeCtx();
-    await run({ action: 'list', notebookId: 'hamburg' });
+    await run({ action: 'list', notebookId: 'saarland' });
     expect(registered.map((r) => [r.documentId, r.collectionId, r.source])).toEqual([
-      [HH_B, 'hamburg', 'notebook'],
-      [HH_A, 'hamburg', 'notebook'],
+      [SL_B, 'saarland', 'notebook'],
+      [SL_A, 'saarland', 'notebook'],
     ]);
   });
 
   it('tells the planner to filter by category when only a page was shown (#3627)', async () => {
     const { run } = makeCtx();
-    const page = await run({ action: 'list', notebookId: 'hamburg', limit: 1 });
+    const page = await run({ action: 'list', notebookId: 'saarland', limit: 1 });
     expect(page.hint).toMatch(/filter\.category/);
     const filtered = await run({
       action: 'list',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       limit: 1,
       filter: { category: 'beschluss' },
     });
@@ -272,13 +272,13 @@ describe('list', () => {
   // Live 28.09.2026: „pressemitteilung" gegen gespeichertes `presse` gab still total 0,
   // und die Antwort behauptete, MV habe nur eine Pressemitteilung.
   const categorized = () => [
-    ...fakeDoc(LV, 'https://gruene-hamburg.de/pm', ['Pressetext.'], {
-      landesverband: 'HH',
+    ...fakeDoc(LV, 'https://gruene-saar.de/pm', ['Pressetext.'], {
+      landesverband: 'SL',
       title: 'PM',
       primary_category: 'presse',
     }),
-    ...fakeDoc(LV, 'https://gruene-hamburg.de/lmv', ['Beschlusstext.'], {
-      landesverband: 'HH',
+    ...fakeDoc(LV, 'https://gruene-saar.de/lmv', ['Beschlusstext.'], {
+      landesverband: 'SL',
       title: 'LMV',
       primary_category: 'beschluss',
     }),
@@ -288,19 +288,19 @@ describe('list', () => {
     const { run } = makeCtx({ more: categorized() });
     const out = await run({
       action: 'list',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       filter: { category: 'Pressemitteilungen' },
     });
     expect(out).toMatchObject({ total: 1, categoryResolved: 'Pressemitteilungen → presse' });
     const plural = await run({
       action: 'list',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       filter: { category: 'Beschlüsse' },
     });
     expect(plural.total).toBe(1);
     const exact = await run({
       action: 'list',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       filter: { category: 'Presse' },
     });
     expect(exact.categoryResolved).toBeUndefined();
@@ -311,17 +311,17 @@ describe('list', () => {
     for (const action of ['list', 'find', 'grep']) {
       const out = await run({
         action,
-        notebookId: 'hamburg',
+        notebookId: 'saarland',
         query: 'Hafen',
         phrase: 'Hafen',
         filter: { category: 'Wahlprogramm' },
       });
-      expect(out.error).toMatch(/„Wahlprogramm" gibt es in Grüne Hamburg nicht/);
+      expect(out.error).toMatch(/„Wahlprogramm" gibt es in Grüne Saarland nicht/);
       expect(out.error).toMatch(/presse \(1\), beschluss \(1\)/);
     }
     const bare = await makeCtx().run({
       action: 'list',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       filter: { category: 'presse' },
     });
     expect(bare.error).toMatch(/keine Kategorie/);
@@ -332,16 +332,16 @@ describe('list', () => {
     const filter = { category: 'Wahlprogramm' };
     const read = await run({
       action: 'read',
-      notebookId: 'hamburg',
-      sourceId: HH_A,
+      notebookId: 'saarland',
+      sourceId: SL_A,
       seite: 2,
       filter,
     });
     expect(read.error).toBeUndefined();
     const grep = await run({
       action: 'grep',
-      notebookId: 'hamburg',
-      sourceId: HH_A,
+      notebookId: 'saarland',
+      sourceId: SL_A,
       phrase: 'Wärmepumpe',
       filter,
     });
@@ -352,30 +352,30 @@ describe('list', () => {
 describe('outline and read', () => {
   it('outlines by page and reads one page, grounded with the URL', async () => {
     const { run, registered } = makeCtx();
-    const outline = await run({ action: 'outline', notebookId: 'hamburg', sourceId: HH_A });
+    const outline = await run({ action: 'outline', notebookId: 'saarland', sourceId: SL_A });
     expect(outline.outline.map((e: any) => e.heading)).toEqual(['Seite 1', 'Seite 2']);
 
-    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_A, seite: 2 });
+    const out = await run({ action: 'read', notebookId: 'saarland', sourceId: SL_A, seite: 2 });
     expect(out.text).toBe('Die Wärmepumpe kommt. Wärmepumpe überall.');
     expect(out.origin).toBe('chunks');
     expect(registered.at(-1)).toMatchObject({
       source: 'notebook',
-      url: HH_A,
-      documentId: HH_A,
-      collectionId: 'hamburg',
+      url: SL_A,
+      documentId: SL_A,
+      collectionId: 'saarland',
       pageNumber: 2,
     });
   });
 
   it('read without sourceId points to list with offset, not to a missing source', async () => {
     const { run } = makeCtx();
-    const out = await run({ action: 'read', notebookId: 'hamburg' });
+    const out = await run({ action: 'read', notebookId: 'saarland' });
     expect(out.error).toMatch(/list mit sortBy date/);
   });
 
   it('refuses a URL from another Landesverband', async () => {
     const { run, system } = makeCtx();
-    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: BE_A });
+    const out = await run({ action: 'read', notebookId: 'saarland', sourceId: BE_A });
     expect(out.error).toMatch(/^Quelle nicht in diesem System-Notebook/);
     expect(system.getDocumentChunks).not.toHaveBeenCalled();
   });
@@ -383,7 +383,7 @@ describe('outline and read', () => {
   it('reports a Qdrant failure with the fixed text, not as "not found"', async () => {
     const { run, system } = makeCtx();
     system.getSystemDocumentFullTextByUrl.mockRejectedValueOnce(new Error('ECONNRESET'));
-    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_A });
+    const out = await run({ action: 'read', notebookId: 'saarland', sourceId: SL_A });
     expect(out).toEqual({
       error: 'Die Quelle ließ sich gerade nicht lesen — bitte später erneut versuchen.',
     });
@@ -391,7 +391,7 @@ describe('outline and read', () => {
 });
 
 describe('find', () => {
-  const hit = fakeSearchDoc(HH_A, 'Radverkehr', 0.7, [
+  const hit = fakeSearchDoc(SL_A, 'Radverkehr', 0.7, [
     { chunk_index: 1, text: 'Die Wärmepumpe kommt.', page_number: 2, char_start: 23, char_end: 44 },
   ]);
 
@@ -399,24 +399,24 @@ describe('find', () => {
     const { run, registered, system } = makeCtx({ searchResults: [hit] });
     const out = await run({
       action: 'find',
-      notebookId: 'hamburg',
-      sourceId: HH_A,
+      notebookId: 'saarland',
+      sourceId: SL_A,
       query: 'Wärmepumpe',
     });
     expect(out.passages).toEqual([
-      expect.objectContaining({ sourceId: HH_A, url: HH_A, pageNumber: 2, charStart: 23 }),
+      expect.objectContaining({ sourceId: SL_A, url: SL_A, pageNumber: 2, charStart: 23 }),
     ]);
-    expect(registered[0]).toMatchObject({ url: HH_A, collectionId: 'hamburg', pageNumber: 2 });
+    expect(registered[0]).toMatchObject({ url: SL_A, collectionId: 'saarland', pageNumber: 2 });
     const call = (system.search.mock.calls[0] as unknown as [Record<string, any>])[0];
     expect(call.options.additionalFilter.must[0]).toEqual({
       key: 'source_url',
-      match: { value: HH_A },
+      match: { value: SL_A },
     });
   });
 
   it('refuses a sourceId from another collection', async () => {
     const { run, system } = makeCtx({ searchResults: [hit] });
-    const out = await run({ action: 'find', notebookId: 'hamburg', sourceId: BE_A, query: 'x' });
+    const out = await run({ action: 'find', notebookId: 'saarland', sourceId: BE_A, query: 'x' });
     expect(out.error).toMatch(/^Quelle nicht in diesem System-Notebook/);
     expect(system.search).not.toHaveBeenCalled();
   });
@@ -425,15 +425,15 @@ describe('find', () => {
 describe('grep, stats, rank, cite', () => {
   it('counts a phrase across the collection, never outside it', async () => {
     const { run, registered } = makeCtx();
-    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
+    const out = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Wärmepumpe' });
     expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
-    expect(out.perSource).toEqual([expect.objectContaining({ sourceId: HH_A, url: HH_A })]);
-    expect(registered[0]).toMatchObject({ url: HH_A, collectionId: 'hamburg' });
+    expect(out.perSource).toEqual([expect.objectContaining({ sourceId: SL_A, url: SL_A })]);
+    expect(registered[0]).toMatchObject({ url: SL_A, collectionId: 'saarland' });
   });
 
   it('counts words and pages of one source', async () => {
     const { run } = makeCtx();
-    const out = await run({ action: 'stats', notebookId: 'hamburg', sourceId: HH_A });
+    const out = await run({ action: 'stats', notebookId: 'saarland', sourceId: SL_A });
     expect(out.scope).toBe('source');
     expect(out.exhaustive).toBe(true);
     expect(out.totals).toMatchObject({ words: 8, pages: 2, chunks: 2 });
@@ -441,31 +441,36 @@ describe('grep, stats, rank, cite', () => {
 
   it('ranks by date, by term and by length', async () => {
     const { run } = makeCtx();
-    const byDate = await run({ action: 'rank', notebookId: 'hamburg', by: 'date' });
-    expect(byDate.ranking.map((r: any) => r.sourceId)).toEqual([HH_B, HH_A]);
+    const byDate = await run({ action: 'rank', notebookId: 'saarland', by: 'date' });
+    expect(byDate.ranking.map((r: any) => r.sourceId)).toEqual([SL_B, SL_A]);
     expect(byDate.exhaustive).toBe(true);
-    const byTerm = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
+    const byTerm = await run({
+      action: 'rank',
+      notebookId: 'saarland',
+      by: 'term',
+      query: 'Klima',
+    });
     expect(byTerm.ranking).toEqual([
-      { rank: 1, sourceId: HH_B, title: 'Hafen', value: 1, unit: 'Treffer' },
+      { rank: 1, sourceId: SL_B, title: 'Hafen', value: 1, unit: 'Treffer' },
     ]);
-    const byLength = await run({ action: 'rank', notebookId: 'hamburg', by: 'length' });
-    expect(byLength.ranking.map((r: any) => r.sourceId)).toEqual([HH_A, HH_B]);
+    const byLength = await run({ action: 'rank', notebookId: 'saarland', by: 'length' });
+    expect(byLength.ranking.map((r: any) => r.sourceId)).toEqual([SL_A, SL_B]);
   });
 
   it('finds a quote with its URL and page', async () => {
     const { run, registered } = makeCtx();
     const out = await run({
       action: 'cite',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       zitat: 'Die Wärmepumpe kommt.',
     });
-    expect(out).toMatchObject({ found: true, sourceId: HH_A, url: HH_A, pageNumber: 2 });
-    expect(registered.at(-1)).toMatchObject({ url: HH_A, citedText: 'Die Wärmepumpe kommt.' });
+    expect(out).toMatchObject({ found: true, sourceId: SL_A, url: SL_A, pageNumber: 2 });
+    expect(registered.at(-1)).toMatchObject({ url: SL_A, citedText: 'Die Wärmepumpe kommt.' });
   });
 
   it('does not find a quote that lives in another Landesverband', async () => {
     const { run } = makeCtx();
-    const out = await run({ action: 'cite', notebookId: 'hamburg', zitat: 'Berlin Wärmepumpe.' });
+    const out = await run({ action: 'cite', notebookId: 'saarland', zitat: 'Berlin Wärmepumpe.' });
     expect(out).toMatchObject({ found: false, exhaustive: true, candidates: [] });
   });
 });
@@ -503,7 +508,7 @@ describe('live findings 23.09.2026', () => {
       phrase: 'Klima',
     });
     const { run } = makeCtx();
-    const out = await run({ action: 'grep', notebookId: 'hamburg', query: 'Wärmepumpe' });
+    const out = await run({ action: 'grep', notebookId: 'saarland', query: 'Wärmepumpe' });
     expect(out).toMatchObject({ phrase: 'Wärmepumpe', totalHits: 2 });
   });
 
@@ -511,7 +516,7 @@ describe('live findings 23.09.2026', () => {
   // Treffern, alle als Quelle registriert, 166k Zeichen im gespeicherten Ergebnis.
   it('grep shows and grounds only the sources with the most hits, but counts all', async () => {
     const { run, registered } = makeCtx({ extraPoints: true });
-    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Hafen', limit: 1 });
+    const out = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Hafen', limit: 1 });
     expect(out).toMatchObject({ totalHits: 2, sourcesWithHits: 2 });
     expect(out.perSource).toHaveLength(1);
     expect(registered).toHaveLength(1);
@@ -519,41 +524,41 @@ describe('live findings 23.09.2026', () => {
 
   it('list filters a flat titleContains and says which filter it applied', async () => {
     const { run } = makeCtx();
-    const out = await run({ action: 'list', notebookId: 'hamburg', titleContains: 'hafen' });
-    expect(out.results.map((r: ToolResult) => r.ref)).toEqual([HH_B]);
+    const out = await run({ action: 'list', notebookId: 'saarland', titleContains: 'hafen' });
+    expect(out.results.map((r: ToolResult) => r.ref)).toEqual([SL_B]);
     expect(out.filter).toEqual({ titleContains: 'hafen' });
   });
 
   it('falls back to the notebook of the last successful call in the thread', async () => {
     const { run } = makeCtx({
-      recentSteps: [step({ notebookId: 'hamburg' }), step({ notebookId: 'berlin' }, false)],
+      recentSteps: [step({ notebookId: 'saarland' }), step({ notebookId: 'berlin' }, false)],
     });
     const out = await run({ action: 'list' });
-    expect(out.collection).toBe('hamburg');
-    expect(out.notebookFrom).toMatch(/Hamburg|hamburg/);
+    expect(out.collection).toBe('saarland');
+    expect(out.notebookFrom).toMatch(/Saarland|saarland/);
   });
 
   // Beta 27.09.2026: der gepinnte erste Aufruf kommt oft OHNE notebookId (das
   // Werkzeug nimmt das gewählte Notebook). Aus den Argumenten allein erinnerte
-  // der Thread dann ein älteres Notebook — hier Berlin statt Hamburg.
+  // der Thread dann ein älteres Notebook — hier Berlin statt Saarland.
   it('remembers the notebook a call resolved without notebookId, not an older one', async () => {
-    const { run } = makeCtx({ notebookIds: ['hamburg-notebook'] });
+    const { run } = makeCtx({ notebookIds: ['saarland-notebook'] });
     const args = { action: 'list' };
     const out = await run(args);
-    expect(out.collection).toBe('hamburg');
+    expect(out.collection).toBe('saarland');
     const persisted: PersistedStep = {
       toolCallId: 'c2',
       toolName: 'notebook_quellen',
       args,
       result: out,
     };
-    expect(notebookIdFromSteps([step({ notebookId: 'berlin' }), persisted])).toBe('hamburg');
-    expect(notebookIdFromSteps([persisted])).toBe('hamburg');
+    expect(notebookIdFromSteps([step({ notebookId: 'berlin' }), persisted])).toBe('saarland');
+    expect(notebookIdFromSteps([persisted])).toBe('saarland');
   });
 
   it('never falls back for write actions', async () => {
-    const { run } = makeCtx({ recentSteps: [step({ notebookId: 'hamburg' })] });
-    const out = await run({ action: 'rename', sourceId: HH_A, title: 'Neu' });
+    const { run } = makeCtx({ recentSteps: [step({ notebookId: 'saarland' })] });
+    const out = await run({ action: 'rename', sourceId: SL_A, title: 'Neu' });
     expect(out.error).toMatch(/notebookId/);
   });
 
@@ -566,32 +571,32 @@ describe('live findings 23.09.2026', () => {
     const { run } = makeCtx();
     const out = await run({
       action: 'read',
-      notebookId: 'hamburg',
-      sourceId: 'https://gruene-hamburg.de/hafen-2026',
+      notebookId: 'saarland',
+      sourceId: 'https://gruene-saar.de/hafen-2026',
     });
     expect(out.error).toMatch(/Meintest du/);
-    expect(out.suggestions).toEqual([{ title: 'Hafen', ref: HH_B, date: '2026-01-15' }]);
+    expect(out.suggestions).toEqual([{ title: 'Hafen', ref: SL_B, date: '2026-01-15' }]);
   });
 
   it('tells the model to search instead of guess when nothing resembles the id', async () => {
     const { run } = makeCtx();
-    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: 'Wahlprogramm' });
+    const out = await run({ action: 'read', notebookId: 'saarland', sourceId: 'Wahlprogramm' });
     expect(out.error).toMatch(/list \(filter.titleContains\) oder find/);
     expect(out.suggestions).toBeUndefined();
   });
 
   it('scopes find and rank by date to the URLs inside the range, before the limit', async () => {
     const { run, system } = makeCtx({
-      searchResults: [fakeSearchDoc(HH_A, 'Radverkehr', 0.9, [{ chunk_index: 0, text: 'x' }])],
+      searchResults: [fakeSearchDoc(SL_A, 'Radverkehr', 0.9, [{ chunk_index: 0, text: 'x' }])],
     });
     const filter = { dateFrom: '2025-01-01', dateTo: '2025-12-31' };
-    const found = await run({ action: 'find', notebookId: 'hamburg', query: 'Rad', filter });
+    const found = await run({ action: 'find', notebookId: 'saarland', query: 'Rad', filter });
     expect(found.filter).toEqual(filter);
-    await run({ action: 'rank', notebookId: 'hamburg', by: 'relevance', query: 'Rad', filter });
+    await run({ action: 'rank', notebookId: 'saarland', by: 'relevance', query: 'Rad', filter });
     for (const call of system.search.mock.calls as unknown as Array<[Record<string, any>]>) {
       expect(call[0].options.additionalFilter.must).toContainEqual({
         key: 'source_url',
-        match: { any: [HH_A] },
+        match: { any: [SL_A] },
       });
     }
   });
@@ -600,7 +605,7 @@ describe('live findings 23.09.2026', () => {
     const { run, system } = makeCtx();
     const out = await run({
       action: 'find',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       query: 'Rad',
       filter: { dateFrom: '2030-01-01' },
     });
@@ -608,15 +613,15 @@ describe('live findings 23.09.2026', () => {
     expect(system.search).not.toHaveBeenCalled();
   });
 
-  // Mehr als SYSTEM_SCAN_MAX_SOURCES Hamburger Quellen, eine mit zwei Schreibweisen.
-  const manyHamburg = (): FakePoint[] =>
+  // Mehr als SYSTEM_SCAN_MAX_SOURCES Saarlander Quellen, eine mit zwei Schreibweisen.
+  const manySaarland = (): FakePoint[] =>
     Array.from({ length: 205 }, (_, i) =>
       fakeDoc(
         LV,
-        `https://gruene-hamburg.de/n/${i}`,
+        `https://gruene-saar.de/n/${i}`,
         [i === 7 ? 'Charite und Charité.' : `Text ${i}.`],
         {
-          landesverband: 'HH',
+          landesverband: 'SL',
           title: `Nr ${i}`,
           published_at: '2024-01-01',
         }
@@ -628,15 +633,15 @@ describe('live findings 23.09.2026', () => {
 
   it('reads a scope of at most 200 sources whole — accents fold, no count rule needed', async () => {
     const { run, system } = makeCtx();
-    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Warmepumpe' });
+    const out = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Warmepumpe' });
     expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
     expect(out.countRule).toBeUndefined();
     expect(usedIndex(system)).toBe(false);
   });
 
   it('counts over the chunk_text index beyond 200 sources and says what it counted', async () => {
-    const { run, system } = makeCtx({ more: manyHamburg() });
-    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    const { run, system } = makeCtx({ more: manySaarland() });
+    const grep = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Charite' });
     expect(grep).toMatchObject({
       exhaustive: true,
       totalHits: 1,
@@ -648,7 +653,7 @@ describe('live findings 23.09.2026', () => {
     expect(grep.note).toMatch(/1× als „charité"/);
     const ranked = await run({
       action: 'rank',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       by: 'term',
       query: 'Charite',
     });
@@ -659,8 +664,8 @@ describe('live findings 23.09.2026', () => {
   });
 
   it('does not claim exhaustive via the index when the collection has none', async () => {
-    const { run, system } = makeCtx({ more: manyHamburg(), textIndex: null });
-    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    const { run, system } = makeCtx({ more: manySaarland(), textIndex: null });
+    const grep = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Charite' });
     expect(grep.exhaustive).toBe(false);
     expect(grep.countRule).toBeUndefined();
     expect(usedIndex(system)).toBe(false);
@@ -669,22 +674,27 @@ describe('live findings 23.09.2026', () => {
   it('says how many undated sources a date filter left out', async () => {
     const { run } = makeCtx({ extraPoints: true });
     const filter = { dateFrom: '2025-01-01' };
-    const listed = await run({ action: 'list', notebookId: 'hamburg', filter });
+    const listed = await run({ action: 'list', notebookId: 'saarland', filter });
     expect(listed.undatedExcluded).toBe(1);
     expect(listed.note).toMatch(/1 Quelle ohne Datum fehlt/);
-    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Hafen', filter });
+    const grep = await run({ action: 'grep', notebookId: 'saarland', phrase: 'Hafen', filter });
     expect(grep.undatedExcluded).toBe(1);
-    const unfiltered = await run({ action: 'list', notebookId: 'hamburg' });
+    const unfiltered = await run({ action: 'list', notebookId: 'saarland' });
     expect(unfiltered.undatedExcluded).toBeUndefined();
     expect(unfiltered.note).toBeUndefined();
   });
 
   it('list and rank carry one line per source for later turns (refs)', async () => {
     const { run } = makeCtx();
-    const listed = await run({ action: 'list', notebookId: 'hamburg' });
-    expect(listed.refs).toBe(`Hafen — ${HH_B} (2026-01-15)\nRadverkehr — ${HH_A} (2025-03-01)`);
-    const ranked = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
-    expect(ranked.refs).toBe(`1. Hafen — ${HH_B} (1 Treffer)`);
+    const listed = await run({ action: 'list', notebookId: 'saarland' });
+    expect(listed.refs).toBe(`Hafen — ${SL_B} (2026-01-15)\nRadverkehr — ${SL_A} (2025-03-01)`);
+    const ranked = await run({
+      action: 'rank',
+      notebookId: 'saarland',
+      by: 'term',
+      query: 'Klima',
+    });
+    expect(ranked.refs).toBe(`1. Hafen — ${SL_B} (1 Treffer)`);
   });
 
   it('a 20-row list keeps every ref in the replay of a later turn (#3561)', async () => {
@@ -738,7 +748,7 @@ describe('live findings 23.09.2026', () => {
     const { run } = makeCtx();
     const out = await run({
       action: 'grep',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       phrase: 'Wärmepumpe',
       filter: { dateTo: '2025-12-31' },
     });
@@ -754,7 +764,7 @@ describe('live findings 23.09.2026', () => {
 describe('what the writer sees in split mode', () => {
   it('list leaves a note with total, exhaustive and the categories', async () => {
     const { run, notes } = makeCtx();
-    const out = await run({ action: 'list', notebookId: 'hamburg' });
+    const out = await run({ action: 'list', notebookId: 'saarland' });
     const [title, content] = notes.at(-1) ?? ['', ''];
     expect(title).toContain('list');
     expect(content).toContain('total: 2');
@@ -766,7 +776,7 @@ describe('what the writer sees in split mode', () => {
 
   it('grep leaves a note with the totals, not only the per-source rows', async () => {
     const { run, notes } = makeCtx();
-    await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
+    await run({ action: 'grep', notebookId: 'saarland', phrase: 'Wärmepumpe' });
     const [, content] = notes.at(-1) ?? ['', ''];
     expect(content).toContain('totalHits: 2');
     expect(content).toContain('sourcesScanned: 2');
@@ -777,7 +787,7 @@ describe('what the writer sees in split mode', () => {
     const { run, notes } = makeCtx();
     await run({
       action: 'rank',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       by: 'date',
       filter: { dateFrom: '2020-01-01' },
     });
@@ -788,15 +798,18 @@ describe('what the writer sees in split mode', () => {
 
   it('find and read leave no summary note — their sources carry the content', async () => {
     const { run, notes } = makeCtx();
-    await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_A });
+    await run({ action: 'read', notebookId: 'saarland', sourceId: SL_A });
     expect(notes).toEqual([]);
   });
 });
 
 describe('notebookForPrompt', () => {
   it('names a system notebook by collection key or slug', () => {
-    expect(notebookForPrompt('hamburg', 'de-DE')).toEqual({ id: 'hamburg', name: 'Grüne Hamburg' });
-    expect(notebookForPrompt('hamburg-notebook', 'de-DE')?.name).toBe('Grüne Hamburg');
+    expect(notebookForPrompt('saarland', 'de-DE')).toEqual({
+      id: 'saarland',
+      name: 'Grüne Saarland',
+    });
+    expect(notebookForPrompt('saarland-notebook', 'de-DE')?.name).toBe('Grüne Saarland');
   });
 
   it('keeps an own notebook as an id without a name', () => {
@@ -808,26 +821,26 @@ describe('notebookForPrompt', () => {
 
   it('is null without an id or for a system notebook this locale cannot read', () => {
     expect(notebookForPrompt(null, 'de-DE')).toBeNull();
-    expect(notebookForPrompt('hamburg', 'de-AT')).toBeNull();
+    expect(notebookForPrompt('saarland', 'de-AT')).toBeNull();
   });
 });
 
 describe('Wolke sources (stored as wolke://)', () => {
-  const HH_W = 'wolke://hh-share/Ordner/Grüne Antwort.pdf';
+  const SL_W = 'wolke://hh-share/Ordner/Grüne Antwort.pdf';
   const wolkeDoc = () =>
-    fakeDoc(LV, HH_W, ['Wolke Wärmepumpe.'], {
-      landesverband: 'HH',
+    fakeDoc(LV, SL_W, ['Wolke Wärmepumpe.'], {
+      landesverband: 'SL',
       title: 'Grüne Antwort',
       published_at: '2026-02-01',
     });
 
   it('grounds a read with the resolved link and keeps the stored key as documentId', async () => {
     const { run, registered } = makeCtx({ more: wolkeDoc() });
-    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_W });
-    expect(out.source).toMatchObject({ id: HH_W });
+    const out = await run({ action: 'read', notebookId: 'saarland', sourceId: SL_W });
+    expect(out.source).toMatchObject({ id: SL_W });
     expect(registered.at(-1)).toMatchObject({
       url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
-      documentId: HH_W,
+      documentId: SL_W,
     });
   });
 
@@ -836,11 +849,11 @@ describe('Wolke sources (stored as wolke://)', () => {
       { chunk_index: 0, text: 'Wolke Wärmepumpe.' },
     ]);
     const { run, registered } = makeCtx({ more: wolkeDoc(), searchResults: [hit] });
-    const out = await run({ action: 'find', notebookId: 'hamburg', query: 'Wärmepumpe' });
-    expect(out.passages[0]).toMatchObject({ sourceId: HH_W });
+    const out = await run({ action: 'find', notebookId: 'saarland', query: 'Wärmepumpe' });
+    expect(out.passages[0]).toMatchObject({ sourceId: SL_W });
     expect(registered[0]).toMatchObject({
       url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
-      documentId: HH_W,
+      documentId: SL_W,
     });
   });
 
@@ -851,19 +864,19 @@ describe('Wolke sources (stored as wolke://)', () => {
     const { run } = makeCtx({ more: wolkeDoc(), searchResults: [hit] });
     const out = await run({
       action: 'rank',
-      notebookId: 'hamburg',
+      notebookId: 'saarland',
       by: 'relevance',
       query: 'Wärmepumpe',
     });
-    expect(out.ranking.map((r: any) => r.sourceId)).toEqual([HH_W]);
+    expect(out.ranking.map((r: any) => r.sourceId)).toEqual([SL_W]);
   });
 
   it('grounds stats of one Wolke source like read: resolved url, stored documentId', async () => {
     const { run, registered } = makeCtx({ more: wolkeDoc() });
-    await run({ action: 'stats', notebookId: 'hamburg', sourceId: HH_W });
+    await run({ action: 'stats', notebookId: 'saarland', sourceId: SL_W });
     expect(registered.at(-1)).toMatchObject({
       url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
-      documentId: HH_W,
+      documentId: SL_W,
     });
   });
 });
