@@ -78,7 +78,19 @@ export function createChatApiClient(
 
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      return (await response.json()) as T;
+      try {
+        return (await response.json()) as T;
+      } catch {
+        // A 2xx whose JSON body is empty or cut off (GlitchTip #718: Firefox,
+        // long-lived tab, `/api` answers carry an ETag and get revalidated
+        // from the HTTP cache). A GET is safe to repeat: once more, past the
+        // cache. Anything else gets a typed error instead of a bare
+        // SyntaxError the toast layer cannot classify.
+        if (options.method === 'GET' && options.cache !== 'no-store') {
+          return request<T>(endpoint, { ...options, cache: 'no-store' }, retried);
+        }
+        throw new ApiError(response.status, 'Invalid JSON response body', 'invalid_response_body');
+      }
     }
 
     return response as unknown as T;
