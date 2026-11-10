@@ -120,19 +120,88 @@ export async function insertVideoAiProject(
   }
 }
 
-interface ProjectDtoRow {
+export interface ProjectRow {
   id: string;
+  user_id: string;
   slug_suffix: string;
   title: string;
+  locale: 'de-DE' | 'de-AT';
   status: string;
   error: string | null;
-  brief: unknown;
+  brief: VideoAiBrief;
   inputs: StoredVideoAiInput[];
   warnings: string[];
   analysis: StoredVideoAiAnalysis | null;
   versions: StoredVideoAiVersion[];
   current_version: number | null;
+  handed_off_at: Date | null;
   created_at: Date;
+}
+
+const PROJECT_COLUMNS = `id, user_id, slug_suffix, title, locale, status, error, brief, inputs,
+  warnings, analysis, versions, current_version, handed_off_at, created_at`;
+
+/** The full own row, for the steps that change it. */
+export async function loadOwnProjectRow(ref: string, userId: string): Promise<ProjectRow | null> {
+  const column = isRowId(ref) ? 'id' : 'slug_suffix';
+  const rows = await getPostgresInstance().query<ProjectRow>(
+    `SELECT ${PROJECT_COLUMNS}
+       FROM video_ai_projects
+      WHERE ${column} = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [ref, userId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Stores a new version on top of `baseVersion`. Refused (null) when another
+ * tab got there first, the project left `ready`, or it was handed off — the
+ * page reloads and shows what is current.
+ */
+export async function appendVersion(
+  id: string,
+  userId: string,
+  baseVersion: number,
+  version: StoredVideoAiVersion
+): Promise<ProjectRow | null> {
+  const rows = await getPostgresInstance().query<ProjectRow>(
+    `UPDATE video_ai_projects
+        SET versions = versions || $4::jsonb, current_version = $5, updated_at = now()
+      WHERE id = $1 AND user_id = $2 AND current_version = $3 AND status = 'ready'
+        AND handed_off_at IS NULL AND deleted_at IS NULL
+      RETURNING ${PROJECT_COLUMNS}`,
+    [id, userId, baseVersion, JSON.stringify([version]), version.version]
+  );
+  return rows[0] ?? null;
+}
+
+export async function selectVersion(
+  id: string,
+  userId: string,
+  version: number
+): Promise<ProjectRow | null> {
+  const rows = await getPostgresInstance().query<ProjectRow>(
+    `UPDATE video_ai_projects
+        SET current_version = $3, updated_at = now()
+      WHERE id = $1 AND user_id = $2 AND status = 'ready' AND handed_off_at IS NULL
+        AND deleted_at IS NULL
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(versions) v
+                     WHERE (v ->> 'version')::int = $3)
+      RETURNING ${PROJECT_COLUMNS}`,
+    [id, userId, version]
+  );
+  return rows[0] ?? null;
+}
+
+export async function markHandedOff(id: string, userId: string): Promise<ProjectRow | null> {
+  const rows = await getPostgresInstance().query<ProjectRow>(
+    `UPDATE video_ai_projects
+        SET handed_off_at = COALESCE(handed_off_at, now()), updated_at = now()
+      WHERE id = $1 AND user_id = $2 AND status = 'ready' AND deleted_at IS NULL
+      RETURNING ${PROJECT_COLUMNS}`,
+    [id, userId]
+  );
+  return rows[0] ?? null;
 }
 
 /** Owner-only read by slug suffix or raw uuid. */
@@ -140,15 +209,7 @@ export async function getOwnVideoAiProject(
   ref: string,
   userId: string
 ): Promise<VideoAiProjectDto | null> {
-  const column = isRowId(ref) ? 'id' : 'slug_suffix';
-  const rows = await getPostgresInstance().query<ProjectDtoRow>(
-    `SELECT id, slug_suffix, title, status, error, brief, inputs, warnings, analysis,
-            versions, current_version, created_at
-       FROM video_ai_projects
-      WHERE ${column} = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [ref, userId]
-  );
-  const row = rows[0];
+  const row = await loadOwnProjectRow(ref, userId);
   return row ? toProjectDto(row) : null;
 }
 
@@ -161,7 +222,7 @@ function unitTexts(analysis: StoredVideoAiAnalysis | null): Map<string, string> 
   return texts;
 }
 
-export function toProjectDto(row: ProjectDtoRow): VideoAiProjectDto {
+export function toProjectDto(row: ProjectRow): VideoAiProjectDto {
   const status = videoAiStatusSchema.safeParse(row.status);
   const version = row.versions.find((v) => v.version === row.current_version) ?? null;
   const texts = unitTexts(row.analysis);
@@ -189,6 +250,7 @@ export function toProjectDto(row: ProjectDtoRow): VideoAiProjectDto {
       reason,
     })),
     rationale: version?.rationale ?? null,
+    handedOff: row.handed_off_at !== null,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -276,4 +338,19 @@ export async function purgeVideoAiProject(id: string, cutoff: Date | null): Prom
       .catch(() => false);
   }
   return true;
+}
+
+/** Share tokens of the person's live Mediathek rows, by media id. */
+export async function shareTokensFor(
+  userId: string,
+  mediaIds: readonly string[]
+): Promise<Map<string, string>> {
+  const valid = mediaIds.filter(isRowId);
+  if (valid.length === 0) return new Map();
+  const rows = await getPostgresInstance().query<{ id: string; share_token: string }>(
+    `SELECT id, share_token FROM shared_media
+      WHERE id = ANY($1::uuid[]) AND user_id = $2 AND deleted_at IS NULL`,
+    [valid, userId]
+  );
+  return new Map(rows.map((r) => [r.id, r.share_token]));
 }

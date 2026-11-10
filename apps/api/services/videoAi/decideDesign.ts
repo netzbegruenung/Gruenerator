@@ -287,7 +287,10 @@ export function buildDesignPrompt(input: DesignInput): string {
 }
 
 /** The prompt's design rules, enforced. German: they go back as the repair turn. */
-export function checkDesign(edl: VideoAiEdl, input: DesignInput): string[] {
+export function checkDesign(
+  edl: VideoAiEdl,
+  input: Pick<DesignInput, 'burnedInCaptions'>
+): string[] {
   const errors: string[] = [];
   const titles = edl.overlays.filter((o) => o.kind === 'titel').length;
   if (titles > MAX_TITLES) errors.push(`Höchstens ${MAX_TITLES} Titel, nicht ${titles}.`);

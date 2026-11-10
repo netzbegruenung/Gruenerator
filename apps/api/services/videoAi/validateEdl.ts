@@ -34,7 +34,8 @@ export interface ValidationContext {
   units: ReadonlyMap<string, TranscriptUnit>;
   clips: readonly ValidationClip[];
   assets: readonly ValidationAsset[];
-  target: { minSeconds: number; maxSeconds: number };
+  /** Null in correction rounds: there the person decides the length. */
+  target: { minSeconds: number; maxSeconds: number } | null;
   /** Briefing texts the person wrote; numbers there may appear on screen. */
   briefTexts: readonly string[];
 }
@@ -60,7 +61,7 @@ export function validateEdl(edl: VideoAiEdl, ctx: ValidationContext): Validation
       units: ctx.units,
       clipDurations: new Map(ctx.clips.map((c) => [c.id, c.duration])),
     });
-    errors.push(...checkLength(timeline.duration, ctx.target));
+    if (ctx.target) errors.push(...checkLength(timeline.duration, ctx.target));
   }
 
   errors.push(...checkOverlays(edl, ctx, clipById));
@@ -113,7 +114,10 @@ function checkOrder(edl: VideoAiEdl): string[] {
   return [];
 }
 
-function checkLength(duration: number, target: ValidationContext['target']): string[] {
+function checkLength(
+  duration: number,
+  target: { minSeconds: number; maxSeconds: number }
+): string[] {
   const min = target.minSeconds * (1 - LENGTH_TOLERANCE);
   const max = target.maxSeconds * (1 + LENGTH_TOLERANCE);
   if (duration < min) {

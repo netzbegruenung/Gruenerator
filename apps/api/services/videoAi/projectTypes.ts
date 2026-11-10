@@ -24,6 +24,9 @@ export interface StoredClipAnalysis {
   proxyMediaId: string;
   proxyShareToken: string;
   duration: number;
+  /** Of the working copy, rotation applied; null if the probe could not tell. */
+  width: number | null;
+  height: number | null;
   /** Transcript units are rebuilt from these; the split is deterministic. */
   words: TranscriptWord[];
   detectors: ClipAnalysis;

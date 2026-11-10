@@ -32,7 +32,7 @@ import {
 import { decideCut, type CutDecision, type CutInput } from './decideCut.js';
 import { decideDesign, type DesignDecision, type DesignInput } from './decideDesign.js';
 import { fallbackCut, fallbackDesign } from './fallbackPlan.js';
-import { clipSummary, framingFor, hasBurnedInCaptions } from './framing.js';
+import { planContext } from './projectContext.js';
 import { ACTIVE_STATUSES } from './projectRepository.js';
 import {
   type StoredAssetAnalysis,
@@ -41,8 +41,6 @@ import {
   type StoredVideoAiInput,
   type StoredVideoAiVersion,
 } from './projectTypes.js';
-import { findTakeGroups } from './takeGroups.js';
-import { buildTranscriptUnits, type TranscriptUnit } from './transcriptUnits.js';
 import { materialWarnings } from './warnings.js';
 
 const log = createLogger('VideoAiWorker');
@@ -180,67 +178,6 @@ export async function completeAnalysis(
     await guarded(deps, SAVE_ANALYSIS_SQL, [row.id, JSON.stringify(analysis)]);
   }
   return analysis;
-}
-
-interface PlanContext {
-  units: Map<string, TranscriptUnit>;
-  ordered: TranscriptUnit[];
-  cutInput: CutInput;
-  designBase: Omit<DesignInput, 'cut'>;
-}
-
-export function planContext(row: ClaimedProject, analysis: StoredVideoAiAnalysis): PlanContext {
-  const titles = new Map(row.inputs.map((i) => [i.id, i.title]));
-  const footage = analysis.clips.filter((c) => c.role === 'footage');
-  const ordered = footage.flatMap((c) => buildTranscriptUnits(c.clipId, c.words));
-  const units = new Map(ordered.map((u) => [u.id, u]));
-  const cellsByClip = new Map(analysis.clips.map((c) => [c.clipId, c.cells]));
-  const assets = analysis.assets.map((a) => ({ id: a.id, kind: a.kind }));
-  const brief = {
-    topic: row.brief.topic,
-    format: row.brief.format,
-    target: row.brief.target,
-    hints: row.brief.hints ?? null,
-    locale: row.locale,
-  };
-  return {
-    units,
-    ordered,
-    cutInput: {
-      brief,
-      clips: analysis.clips.map((c) => ({
-        id: c.clipId,
-        role: c.role,
-        duration: c.duration,
-        quality: c.detectors.quality,
-      })),
-      units,
-      takes: findTakeGroups(ordered),
-      assets,
-    },
-    designBase: {
-      brief: {
-        ...brief,
-        style: row.brief.style,
-        person: row.brief.person
-          ? { name: row.brief.person.name, role: row.brief.person.role || null }
-          : null,
-      },
-      units,
-      clips: analysis.clips.map((c) => ({
-        id: c.clipId,
-        role: c.role,
-        duration: c.duration,
-        summary: clipSummary(c.cells),
-      })),
-      assets: analysis.assets.map((a) => ({
-        ...a,
-        label: titles.get(a.id) ?? a.id,
-      })),
-      framing: new Map(ordered.map((u) => [u.id, framingFor(u, cellsByClip.get(u.clipId) ?? [])])),
-      burnedInCaptions: hasBurnedInCaptions(footage.flatMap((c) => c.cells)),
-    },
-  };
 }
 
 /** Gemma first, the fallback plan when a stage gives up. */

@@ -64,3 +64,6 @@ export function treeCostForVideoAiSeconds(seconds: number): number {
     Math.ceil((Math.max(0, seconds) * UNITS_PER_TREE) / VIDEO_AI_SECONDS_PER_TREE)
   );
 }
+
+/** One correction round with Gemma: a tenth of a Baum. Direct changes are free. */
+export const TREE_COST_VIDEO_AI_REVISION = 10;

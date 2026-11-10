@@ -238,7 +238,8 @@ export function selectProviderAndModel({
     type === 'bundestag_read' ||
     type === 'video_ai_cut' ||
     type === 'video_ai_frames' ||
-    type === 'video_ai_design'
+    type === 'video_ai_design' ||
+    type === 'video_ai_revise'
   ) {
     provider = GEMMA_31B_ON_MELIOUS_SPEED.provider;
     model = options.model || GEMMA_31B_ON_MELIOUS_SPEED.model;

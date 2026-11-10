@@ -46,6 +46,8 @@ function clip(clipId: string, role: 'footage' | 'broll'): StoredClipAnalysis {
     proxyMediaId: `proxy-${clipId}`,
     proxyShareToken: `tok-${clipId}`,
     duration: role === 'footage' ? RADWEG_DURATION : 8,
+    width: 1080,
+    height: 1920,
     words: role === 'footage' ? radwegWords() : [],
     detectors: {
       silences: [],

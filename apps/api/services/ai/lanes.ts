@@ -128,6 +128,13 @@ export const AI_LANES = {
     model: GEMMA_31B_ON_MELIOUS_SPEED.model,
     structuredMode: 'tool',
   },
+  //   Korrekturrunde (reviseEdl.ts): Feedback in eigenen Worten → feste Ops auf
+  //   den aktuellen Plan, mit Reasoning wie Stufe A.
+  video_ai_revise: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
 
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
   //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in

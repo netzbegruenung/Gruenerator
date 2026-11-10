@@ -97,7 +97,9 @@ export async function analyzeOneClip(
   const tmp = path.join(os.tmpdir(), `video-ai-${randomUUID()}.mp4`);
   try {
     await transcodeProxy(source, tmp);
-    const duration = await probeSeconds(tmp);
+    const meta = await probeVideoMetadata(tmp);
+    const probed = Number(meta.duration);
+    const duration = Number.isFinite(probed) && probed > 0 ? probed : 0;
     const proxy = await getSharedMediaService().createVideoAiProxyShare(job.userId, {
       videoPath: tmp,
       title: `KI-Schnitt: ${job.title} – Clip ${clipNumber}`,
@@ -124,6 +126,8 @@ export async function analyzeOneClip(
         proxyMediaId: proxy.id,
         proxyShareToken: proxy.shareToken,
         duration,
+        width: meta.width > 0 ? meta.width : null,
+        height: meta.height > 0 ? meta.height : null,
         words,
         detectors,
         cells,

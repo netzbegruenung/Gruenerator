@@ -15,6 +15,7 @@ import {
   treeCostForVideoAiSeconds,
 } from '../../services/trees/index.js';
 import { checkMaterial } from '../../services/videoAi/material.js';
+import { applyDirectOps, reviseProject } from '../../services/videoAi/projectEditing.js';
 import {
   cancelVideoAiProject,
   getOwnVideoAiProject,
@@ -22,9 +23,15 @@ import {
   insertVideoAiProject,
   listOwnVideoAiProjects,
   loadOwnMedia,
+  loadOwnProjectRow,
+  markHandedOff,
+  selectVersion,
+  shareTokensFor,
+  toProjectDto,
   trashVideoAiProject,
   type MediaForInput,
 } from '../../services/videoAi/projectRepository.js';
+import { compileTimeline } from '../../services/videoAi/projectTimeline.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -36,7 +43,8 @@ const s = initServer();
 
 const NOT_FOUND = { status: 404 as const, body: { error: 'KI-Schnitt nicht gefunden.' } };
 
-function getUser(req: Request): UserProfile {
+/** Takes any request shape: coerced numeric params do not fit Express's own `Request`. */
+function getUser(req: Pick<Request, 'user'>): UserProfile {
   const user = req.user as UserProfile | undefined;
   if (!user?.id) throw new Error('Authentication required');
   return user;
@@ -134,6 +142,54 @@ export const videoAiContractRouter = s.router(videoAiContract, {
     return (await getOwnVideoAiProject(params.id, userId))
       ? { status: 409 as const, body: { error: 'Der KI-Schnitt läuft nicht mehr.' } }
       : NOT_FOUND;
+  },
+
+  applyOps: async ({ req, params, body }) => {
+    const result = await applyDirectOps(params.id, getUser(req).id, body);
+    return result.ok
+      ? { status: 200 as const, body: toProjectDto(result.row) }
+      : { status: result.status as 400 | 404 | 409, body: { error: result.error } };
+  },
+
+  revise: async ({ req, params, body }) => {
+    const result = await reviseProject(params.id, getUser(req).id, body);
+    return result.ok
+      ? { status: 200 as const, body: { project: toProjectDto(result.row), reply: result.reply } }
+      : { status: result.status as 404 | 409 | 429 | 503, body: { error: result.error } };
+  },
+
+  selectVersion: async ({ req, params }) => {
+    const userId = getUser(req).id;
+    const row = await selectVersion(params.id, userId, params.version);
+    if (row) return { status: 200 as const, body: toProjectDto(row) };
+    return (await loadOwnProjectRow(params.id, userId))
+      ? { status: 409 as const, body: { error: 'Diese Version lässt sich nicht wählen.' } }
+      : NOT_FOUND;
+  },
+
+  handOff: async ({ req, params }) => {
+    const userId = getUser(req).id;
+    const row = await markHandedOff(params.id, userId);
+    if (row) return { status: 200 as const, body: toProjectDto(row) };
+    return (await loadOwnProjectRow(params.id, userId))
+      ? { status: 409 as const, body: { error: 'Der KI-Schnitt ist noch nicht fertig.' } }
+      : NOT_FOUND;
+  },
+
+  timeline: async ({ req, params, query }) => {
+    const userId = getUser(req).id;
+    const row = await loadOwnProjectRow(params.id, userId);
+    if (!row) return NOT_FOUND;
+    const wanted = query.version ?? row.current_version;
+    const version = row.versions.find((v) => v.version === wanted);
+    if (!row.analysis || !version) {
+      return { status: 409 as const, body: { error: 'Diese Version gibt es (noch) nicht.' } };
+    }
+    const tokens = await shareTokensFor(
+      userId,
+      row.inputs.map((i) => i.mediaId)
+    );
+    return { status: 200 as const, body: compileTimeline(row, row.analysis, version, tokens) };
   },
 
   remove: async ({ req, params }) => {

@@ -46,6 +46,8 @@ describe('materialWarnings', () => {
     proxyMediaId: 'p',
     proxyShareToken: 't',
     duration: 10,
+    width: null,
+    height: null,
     words: [],
     detectors: {
       silences: [],

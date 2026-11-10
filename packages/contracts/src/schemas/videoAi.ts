@@ -113,6 +113,14 @@ export const videoAiOverlaySchema = z.discriminatedUnion('kind', [
 ]);
 export type VideoAiOverlay = z.infer<typeof videoAiOverlaySchema>;
 
+export const videoAiCaptionFixSchema = z.object({
+  unitId: videoAiUnitIdSchema,
+  /** Source start of the word, seconds — as in the timeline's `words`. */
+  start: z.number().min(0),
+  text: z.string().trim().min(1).max(40),
+});
+export type VideoAiCaptionFix = z.infer<typeof videoAiCaptionFixSchema>;
+
 export const videoAiEdlSchema = z.object({
   version: z.literal(1),
   format: videoAiFormatSchema,
@@ -128,6 +136,11 @@ export const videoAiEdlSchema = z.object({
       volume: z.enum(['leise', 'mittel']),
     })
     .nullish(),
+  /**
+   * Caption words the transcription got wrong, corrected by the person. Keyed
+   * by the word's source start time inside its unit; the timing stays.
+   */
+  captionFixes: z.array(videoAiCaptionFixSchema).max(200).nullish(),
 });
 export type VideoAiEdl = z.infer<typeof videoAiEdlSchema>;
 
@@ -236,6 +249,8 @@ export const videoAiProjectDtoSchema = z.object({
   omitted: z.array(videoAiOmittedUnitSchema),
   /** Why the cut looks like this; or why the plan is the conservative fallback. */
   rationale: z.string().nullable(),
+  /** Opened in the editor: from then on the editor's autosave is the truth, no more rounds. */
+  handedOff: z.boolean(),
   createdAt: z.string(),
 });
 export type VideoAiProjectDto = z.infer<typeof videoAiProjectDtoSchema>;
@@ -250,3 +265,140 @@ export const videoAiProjectListItemSchema = videoAiProjectDtoSchema.pick({
 export type VideoAiProjectListItem = z.infer<typeof videoAiProjectListItemSchema>;
 
 export const videoAiErrorSchema = z.object({ error: z.string() });
+
+// ---------------------------------------------------------------------------
+// Correction rounds: a fixed vocabulary of changes, applied to the current
+// plan. Sentences are addressed by unit id, never by position, so several
+// changes in one round cannot shift each other. Overlays are addressed by
+// their index in the plan BEFORE the round; `atSegment` in an added or
+// updated overlay refers to the plan AFTER the sentence changes.
+// ---------------------------------------------------------------------------
+
+const overlayIndex = z.number().int().min(0);
+
+export const videoAiOpSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('remove_segment'), unitId: videoAiUnitIdSchema }),
+  /** Back in, at its place in spoken order (after the hook). */
+  z.object({ kind: z.literal('restore_unit'), unitId: videoAiUnitIdSchema }),
+  /** `before: null` moves it to the end; moving to the front makes it the hook. */
+  z.object({
+    kind: z.literal('move_segment'),
+    unitId: videoAiUnitIdSchema,
+    before: videoAiUnitIdSchema.nullable(),
+  }),
+  /** Another take of the same statement in its place. */
+  z.object({
+    kind: z.literal('swap_take'),
+    unitId: videoAiUnitIdSchema,
+    withUnitId: videoAiUnitIdSchema,
+  }),
+  z.object({
+    kind: z.literal('set_framing'),
+    unitId: videoAiUnitIdSchema,
+    framing: videoAiFramingSchema,
+  }),
+  z.object({ kind: z.literal('set_zoom'), unitId: videoAiUnitIdSchema, zoom: videoAiZoomSchema }),
+  z.object({ kind: z.literal('add_overlay'), overlay: videoAiOverlaySchema }),
+  z.object({
+    kind: z.literal('update_overlay'),
+    index: overlayIndex,
+    overlay: videoAiOverlaySchema,
+  }),
+  z.object({ kind: z.literal('remove_overlay'), index: overlayIndex }),
+  z.object({
+    kind: z.literal('set_captions'),
+    enabled: z.boolean(),
+    template: videoAiCaptionTemplateSchema.nullish(),
+  }),
+  z.object({
+    kind: z.literal('set_music'),
+    music: z.object({ assetId: z.string().min(1), volume: z.enum(['leise', 'mittel']) }).nullable(),
+  }),
+  z.object({
+    kind: z.literal('set_caption_text'),
+    unitId: videoAiUnitIdSchema,
+    start: z.number().min(0),
+    text: z.string().trim().min(1).max(40),
+  }),
+]);
+export type VideoAiOp = z.infer<typeof videoAiOpSchema>;
+
+export const VIDEO_AI_MAX_VERSIONS = 30;
+
+/** Direct changes from the preview (restore a sentence, fix a caption word); no model. */
+export const applyVideoAiOpsBodySchema = z.object({
+  baseVersion: z.number().int().min(1),
+  ops: z.array(videoAiOpSchema).min(1).max(20),
+  summary: z.string().trim().min(1).max(80).nullish(),
+});
+export type ApplyVideoAiOpsBody = z.infer<typeof applyVideoAiOpsBodySchema>;
+
+/** A correction in the person's words; `times` are preview seconds they pointed at. */
+export const reviseVideoAiBodySchema = z.object({
+  baseVersion: z.number().int().min(1),
+  feedback: z.string().trim().min(2).max(1000),
+  times: z.array(z.number().min(0)).max(5).nullish(),
+});
+export type ReviseVideoAiBody = z.infer<typeof reviseVideoAiBodySchema>;
+
+export const reviseVideoAiResponseSchema = z.object({
+  project: videoAiProjectDtoSchema,
+  /** One or two sentences to the person: what changed, or why nothing could. */
+  reply: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// The compiled plan for the editor: everything it needs to build its own
+// timeline, in seconds.
+// ---------------------------------------------------------------------------
+
+export const videoAiTimelineSchema = z.object({
+  projectId: z.string().guid(),
+  version: z.number().int().min(1),
+  locale: z.enum(['de-DE', 'de-AT']),
+  edl: videoAiEdlSchema,
+  duration: z.number(),
+  pieces: z.array(
+    z.object({
+      segmentIndex: z.number().int(),
+      unitId: videoAiUnitIdSchema,
+      clipId: videoAiClipIdSchema,
+      sourceStart: z.number(),
+      sourceEnd: z.number(),
+      outStart: z.number(),
+      outEnd: z.number(),
+    })
+  ),
+  /** Caption words in output time, corrections applied. */
+  words: z.array(
+    z.object({
+      text: z.string(),
+      outStart: z.number(),
+      outEnd: z.number(),
+      segmentIndex: z.number().int(),
+    })
+  ),
+  clips: z.array(
+    z.object({
+      id: videoAiClipIdSchema,
+      role: z.enum(['footage', 'broll']),
+      /** The working copy; streams through /api/share/:token/stream. */
+      shareToken: z.string(),
+      duration: z.number(),
+      width: z.number().int().nullable(),
+      height: z.number().int().nullable(),
+    })
+  ),
+  assets: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.enum(['image', 'logo', 'audio']),
+      title: z.string(),
+      /** Null once the item left the Mediathek. */
+      shareToken: z.string().nullable(),
+      durationSeconds: z.number().nullable(),
+    })
+  ),
+  person: z.object({ name: z.string(), role: z.string() }).nullable(),
+});
+export type VideoAiTimeline = z.infer<typeof videoAiTimelineSchema>;
