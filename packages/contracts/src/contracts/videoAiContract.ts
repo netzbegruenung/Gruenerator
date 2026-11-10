@@ -6,6 +6,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  importVideoAiUploadBodySchema,
+  importVideoAiUploadResponseSchema,
   applyVideoAiOpsBodySchema,
   reviseVideoAiBodySchema,
   reviseVideoAiResponseSchema,
@@ -34,6 +36,18 @@ export const videoAiContract = c.router(
         503: videoAiErrorSchema,
       },
       summary: 'Queue a KI-Schnitt from Mediathek items',
+    },
+    /** Videos over 50 MB and audio reach the Mediathek this way. */
+    importUpload: {
+      method: 'POST',
+      path: '/api/video-ai/uploads',
+      body: importVideoAiUploadBodySchema,
+      responses: {
+        201: importVideoAiUploadResponseSchema,
+        400: videoAiErrorSchema,
+        409: videoAiErrorSchema,
+      },
+      summary: 'Take a finished resumable upload into the Mediathek',
     },
     list: {
       method: 'GET',

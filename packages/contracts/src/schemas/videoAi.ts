@@ -402,3 +402,17 @@ export const videoAiTimelineSchema = z.object({
   person: z.object({ name: z.string(), role: z.string() }).nullable(),
 });
 export type VideoAiTimeline = z.infer<typeof videoAiTimelineSchema>;
+
+/** A finished resumable upload (TUS on /api/audio/upload) into the Mediathek. */
+export const importVideoAiUploadBodySchema = z.object({
+  uploadId: z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/),
+  title: z.string().trim().max(200).nullish(),
+});
+export type ImportVideoAiUploadBody = z.infer<typeof importVideoAiUploadBodySchema>;
+
+export const importVideoAiUploadResponseSchema = z.object({
+  mediaId: z.string().guid(),
+  mediaType: z.enum(['video', 'audio']),
+  title: z.string(),
+  durationSeconds: z.number(),
+});

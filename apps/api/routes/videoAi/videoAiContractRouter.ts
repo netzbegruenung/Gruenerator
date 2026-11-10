@@ -32,6 +32,7 @@ import {
   type MediaForInput,
 } from '../../services/videoAi/projectRepository.js';
 import { compileTimeline } from '../../services/videoAi/projectTimeline.js';
+import { importUpload } from '../../services/videoAi/uploadImport.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -118,6 +119,20 @@ export const videoAiContractRouter = s.router(videoAiContract, {
       await getTreeBudget().release(user.id, units, reservation.status.day);
       throw error;
     }
+  },
+
+  importUpload: async ({ req, body }) => {
+    const result = await importUpload(getUser(req).id, body.uploadId, body.title ?? null);
+    if (!result.ok) return { status: result.status, body: { error: result.error } };
+    return {
+      status: 201 as const,
+      body: {
+        mediaId: result.mediaId,
+        mediaType: result.mediaType,
+        title: result.title,
+        durationSeconds: result.durationSeconds,
+      },
+    };
   },
 
   list: async ({ req }) => ({
