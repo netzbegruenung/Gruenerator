@@ -122,6 +122,13 @@ export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
         params: { threadId: 'new', agentId: item.slug ?? item.id },
       });
       return;
+    case 'recipe':
+      if (!item.slug) return;
+      router.push({
+        pathname: '/(focused)/grueneratoren/rezept/[mention]',
+        params: { mention: item.slug },
+      });
+      return;
     case 'text':
       router.push({
         pathname: '/(fullscreen)/web-viewer',

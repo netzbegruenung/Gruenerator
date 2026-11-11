@@ -65,7 +65,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       return {
         status: 200 as const,
@@ -87,7 +87,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       // Invariant: Agentura discovery only makes sense atop
       // share_mode='authenticated'. Stepping down clears the discovery flag so
@@ -113,7 +113,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       await updateAgentSharing(userId, args.params.identifier, { audience: args.body.audience });
       return { status: 200 as const, body: { success: true, message: 'Zielgruppe aktualisiert' } };
@@ -128,7 +128,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       const { is_public, public_ownership } = args.body;
       if (is_public && sharing.moderation === 'removed') {
@@ -149,7 +149,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
             status: 400 as const,
             body: {
               error:
-                'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann in Agentura listen.',
+                'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann im Marktplatz listen.',
             },
           };
         }
@@ -162,7 +162,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
         status: 200 as const,
         body: {
           success: true,
-          message: is_public ? 'Agent*in in Agentura gelistet' : 'Listung entfernt',
+          message: is_public ? 'Agent im Marktplatz gelistet' : 'Listung entfernt',
         },
       };
     } catch (error) {
@@ -176,7 +176,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       const postgres = getPostgresInstance();
       const shares = (await postgres.query(
@@ -208,7 +208,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const { group_id } = args.body;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
 
       const postgres = getPostgresInstance();
@@ -217,7 +217,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       } catch {
         return {
           status: 403 as const,
-          body: { error: 'Du darfst mit dieser Gruppe nicht teilen' },
+          body: { error: 'Mit diesem Projekt darfst du nicht teilen.' },
         };
       }
 
@@ -229,7 +229,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       if (existing.length > 0) {
         return {
           status: 409 as const,
-          body: { error: 'Agent*in ist bereits mit dieser Gruppe geteilt' },
+          body: { error: 'Der Agent ist bereits mit diesem Projekt geteilt.' },
         };
       }
 
@@ -254,7 +254,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
 
       return {
         status: 201 as const,
-        body: { success: true, message: 'Agent*in mit Gruppe geteilt' },
+        body: { success: true, message: 'Agent mit Projekt geteilt' },
       };
     } catch (error) {
       log.error('[userAgentsSharingContract.addGroupShare] Error:', error);
@@ -267,7 +267,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const userId = getAuthedUser(args.req).id;
       const sharing = await getAgentSharing(userId, args.params.identifier);
       if (!sharing) {
-        return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
       const postgres = getPostgresInstance();
       const result = (await postgres.query(
