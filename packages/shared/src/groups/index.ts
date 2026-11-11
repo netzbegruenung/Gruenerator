@@ -67,6 +67,13 @@ export {
   type ToGroupFeedItemsOptions,
 } from './feed.js';
 
+export {
+  addItemsToGroup,
+  addableKey,
+  sharedContentKeys,
+  type AddToGroupResult,
+  type AddableItem,
+} from './addContent.js';
 export { replyMention, threadComments, type GroupCommentThread } from './comments.js';
 
 export {
