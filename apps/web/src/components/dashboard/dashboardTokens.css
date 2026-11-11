@@ -33,7 +33,7 @@
 
 /*
  * Neutrale Variante für eingebettete Dashboard-Bausteine (Arbeiten-Tab): dieselben
- * Rollen, aber grau-grün statt Magenta, Karten als ruhige Fläche auf dem Seitengrund.
+ * Rollen, aber Eucalyptus statt Magenta, Karten weiß mit Rahmen und Schatten.
  */
 .dashboard-surface.dashboard-neutral {
   --dash-mg: #2e6b49;
@@ -44,8 +44,10 @@
   --dash-mg-sub: #5d6b62;
   --dash-mg-dot: #cbd3cd;
   --dash-page: var(--background-color);
-  --dash-card: #f5f7f5;
-  --dash-skeleton: #e6eae6;
+  --dash-card: #ffffff;
+  --dash-skeleton: #eef1ee;
+  --dash-card-border: rgb(16 40 26 / 0.06);
+  --dash-card-shadow: 0 1px 2px rgb(16 40 26 / 0.03), 0 6px 20px -10px rgb(16 40 26 / 0.1);
 }
 
 [data-theme='dark'] .dashboard-surface.dashboard-neutral {
@@ -57,6 +59,14 @@
   --dash-mg-sub: #9aa8a0;
   --dash-mg-dot: #3a453f;
   --dash-page: var(--background-color);
-  --dash-card: #1a1f1c;
+  --dash-card: #181d1a;
   --dash-skeleton: #2b322e;
+  --dash-card-border: rgb(255 255 255 / 0.06);
+  --dash-card-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 10px 24px -14px rgb(0 0 0 / 0.5);
+}
+
+/* Moderne Karten statt getönter Fläche: weiß, feiner Rahmen, weicher Schatten. */
+.dashboard-neutral .dash-card {
+  border: 1px solid var(--dash-card-border);
+  box-shadow: var(--dash-card-shadow);
 }

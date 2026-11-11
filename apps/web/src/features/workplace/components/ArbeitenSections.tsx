@@ -1,12 +1,14 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
+  featureById,
   itemHref,
   marketplaceHref,
   useMarketplaceFrontpage,
 } from '@gruenerator/shared/marketplace';
-import { SectionHeader, cn } from '@gruenerator/ui';
-import { type ReactNode, useState } from 'react';
-import { PiHeart } from 'react-icons/pi';
+import { Button, SectionHeader, cn } from '@gruenerator/ui';
+import { type ReactNode } from 'react';
+import { PiChatCircleText, PiCheck, PiImage, PiPlus, PiSparkle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import {
@@ -16,8 +18,11 @@ import {
   WORKPLACE_TOOLS,
   filterWorkplaceTools,
 } from '../../../config/workplaceToolsConfig';
-import { useUserLibrary } from '../../agentura/hooks/useUserLibrary';
-import { metaLine } from '../../marketplace/kindViews';
+import { chatPathOf, metaLine, viewOf } from '../../marketplace/kindViews';
+import {
+  type MarketplaceActions,
+  useMarketplaceActions,
+} from '../../marketplace/useMarketplaceActions';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
 import { NotebookShelfBrowser } from '../../notebook/wissen/NotebookShelf';
@@ -30,7 +35,7 @@ import { ARBEITEN_GRID } from './arbeitenGrid';
 
 import type { IconType } from '../../../config/icons';
 
-import { DASH_FOCUS, DASH_TINT, DASH_TINT_HOVER } from '@/components/dashboard/dashboardStyles';
+import { DASH_FOCUS, DASH_TINT } from '@/components/dashboard/dashboardStyles';
 import { getToolTheme } from '@/config/toolTheme';
 
 /** Dashboard widgets (Briefing, Marktplatz): wide card first, then two narrow ones. */
@@ -115,8 +120,6 @@ export function NotebooksSection() {
   );
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
 function ItemLink({
   item,
   className,
@@ -150,110 +153,171 @@ function CardTitle({ to, children }: { to: string; children: ReactNode }) {
 
 const SKELETON_BLOCK = 'rounded-xl bg-(--dash-skeleton)';
 
+/** „Zu meinen Grüneratoren" — only for items that aren't the person's own. */
+function SaveButton({
+  item,
+  actions,
+  compact = false,
+}: {
+  item: MarketplaceItem;
+  actions: MarketplaceActions;
+  compact?: boolean;
+}) {
+  if (item.isOwn) return null;
+  const label = item.saved ? viewOf(item).saveLabel.added : viewOf(item).saveLabel.add;
+  const Icon = item.saved ? PiCheck : PiPlus;
+  return compact ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-pressed={item.saved}
+      aria-label={`${item.title}: ${label}`}
+      title={label}
+      className="size-9 shrink-0 rounded-full"
+      onClick={() => actions.toggleSave(item)}
+    >
+      <Icon aria-hidden />
+    </Button>
+  ) : (
+    <Button variant="outline" aria-pressed={item.saved} onClick={() => actions.toggleSave(item)}>
+      <Icon aria-hidden />
+      {label}
+    </Button>
+  );
+}
+
+function FeaturedCard({ item, actions }: { item: MarketplaceItem; actions: MarketplaceActions }) {
+  const page = useMarketplaceFrontpage();
+  const feature = featureById(page.data?.featureId ?? null);
+  const chatPath = chatPathOf(item);
+  const visual = viewOf(item).visual(item);
+  return (
+    <AsideCard
+      aria-labelledby="arbeiten-marktplatz-tipp"
+      className="md:flex-row md:items-center md:gap-6"
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+        <span className="text-xs font-bold uppercase tracking-[0.08em] text-(--dash-mg)">
+          {feature?.kicker ?? 'Neu im Marktplatz'}
+        </span>
+        <h3
+          id="arbeiten-marktplatz-tipp"
+          className="m-0 text-2xl font-bold leading-tight text-balance text-foreground-heading md:text-[28px]"
+        >
+          {item.title}
+        </h3>
+        <p className="m-0 line-clamp-3 max-w-[34rem] text-[15px] leading-relaxed text-muted-foreground">
+          {feature?.pitch ?? item.description}
+        </p>
+        <span className="text-[13px] text-muted-foreground">{metaLine(item)}</span>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {chatPath ? (
+            <Button asChild>
+              <Link to={chatPath}>
+                <PiChatCircleText aria-hidden />
+                Im Chat ausprobieren
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <ItemLink item={item} className="">
+                Ansehen
+              </ItemLink>
+            </Button>
+          )}
+          <SaveButton item={item} actions={actions} />
+        </div>
+      </div>
+      <span
+        aria-hidden
+        className="hidden size-28 shrink-0 items-center justify-center rounded-3xl bg-(--dash-mg-tint) text-6xl text-(--dash-mg) md:flex"
+      >
+        {visual.type === 'icon' ? visual.icon : <PiSparkle />}
+      </span>
+    </AsideCard>
+  );
+}
+
 export function MarketplaceSection() {
   const page = useMarketplaceFrontpage();
-  const { items: libraryItems } = useUserLibrary();
-  const shelf = (id: 'neu' | 'beliebt') =>
+  const { actions, dialogs } = useMarketplaceActions();
+  const { lvIds } = useUserLandesverbaende();
+  const hasLv = (lvIds?.length ?? 0) > 0;
+  const shelf = (id: MarketplaceFrontpageShelfId) =>
     page.data?.shelves.find((s) => s.shelfId === id)?.items ?? [];
-  const newItems = shelf('neu').slice(0, 3);
-  const popularItems = shelf('beliebt').slice(0, 4);
-  // Fixed at mount, so the weekly count does not drift between renders.
-  const [weekAgo] = useState(() => Date.now() - WEEK_MS);
-  const addedThisWeek = libraryItems.filter((i) => Date.parse(i.createdAt) >= weekAgo).length;
+
+  const featured = page.data?.featured ?? null;
+  // The own Landesverband first, then everything new; never the featured item twice.
+  const seen = new Set<string>(featured ? [featured.key] : []);
+  const forYou = [...(hasLv ? shelf('landesverband') : []), ...shelf('neu')]
+    .filter((item) => !seen.has(item.key) && seen.add(item.key))
+    .slice(0, 3);
+
+  if (!page.isPending && !featured && forYou.length === 0) return null;
 
   return (
     <ArbeitenSection
       title="Marktplatz"
       action={
         <Link to={marketplaceHref()} className={SECTION_LINK}>
-          Alles ansehen
+          Zum Marktplatz
         </Link>
       }
     >
       <div className={cn(NEUTRAL_SURFACE, WIDGET_GRID)}>
         <div className={WIDE_SLOT}>
-          <AsideCard aria-label="Neu im Marktplatz" aria-busy={page.isPending}>
-            <CardTitle to={marketplaceHref({ sort: 'neu' })}>Neu im Marktplatz</CardTitle>
-            <ul className="m-0 grid flex-1 list-none grid-cols-1 gap-2.5 p-0 sm:grid-cols-3">
+          {page.isPending ? (
+            <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
+          ) : (
+            featured && <FeaturedCard item={featured} actions={actions} />
+          )}
+        </div>
+        <div className="col-span-2 flex min-w-0 flex-col">
+          <AsideCard aria-label="Neu für dich" aria-busy={page.isPending}>
+            <CardTitle to={marketplaceHref({ sort: 'neu' })}>Neu für dich</CardTitle>
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {page.isPending
                 ? Array.from({ length: 3 }, (_, i) => (
-                    <li key={i} className={cn(SKELETON_BLOCK, 'h-20')} />
+                    <li key={i} className={cn(SKELETON_BLOCK, 'h-14')} />
                   ))
-                : newItems.map((item) => (
-                    <li key={item.key} className="flex min-w-0">
-                      <ItemLink
-                        item={item}
-                        className={cn(
-                          'flex min-w-0 flex-1 flex-col gap-1 rounded-xl p-3.5 no-underline transition-colors',
-                          DASH_TINT,
-                          DASH_TINT_HOVER,
-                          DASH_FOCUS
-                        )}
+                : forYou.map((item) => {
+                    const visual = viewOf(item).visual(item);
+                    return (
+                      <li
+                        key={item.key}
+                        className={cn('flex min-w-0 items-center gap-1 rounded-xl pr-1', DASH_TINT)}
                       >
-                        <span className="truncate text-xs text-muted-foreground">
-                          {metaLine(item)}
-                        </span>
-                        <span className="line-clamp-2 text-[15px] font-bold leading-snug text-foreground-heading">
-                          {item.title}
-                        </span>
-                      </ItemLink>
-                    </li>
-                  ))}
+                        <ItemLink
+                          item={item}
+                          className={cn(
+                            'flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2.5 no-underline',
+                            DASH_FOCUS
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-(--dash-card) text-lg text-(--dash-mg)"
+                          >
+                            {visual.type === 'icon' ? visual.icon : <PiImage />}
+                          </span>
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate text-[15px] font-semibold text-foreground-heading">
+                              {item.title}
+                            </span>
+                            <span className="truncate text-[13px] text-muted-foreground">
+                              {metaLine(item)}
+                            </span>
+                          </span>
+                        </ItemLink>
+                        <SaveButton item={item} actions={actions} compact />
+                      </li>
+                    );
+                  })}
             </ul>
-            {!page.isPending && newItems.length === 0 && (
-              <p className="m-0 text-sm text-muted-foreground">Gerade nichts Neues.</p>
-            )}
-          </AsideCard>
-        </div>
-        <div className={NARROW_SLOT}>
-          <AsideCard aria-label="Beliebt" aria-busy={page.isPending}>
-            <CardTitle to={marketplaceHref({ sort: 'beliebt' })}>Beliebt</CardTitle>
-            <ol className="m-0 flex list-none flex-col gap-2 p-0">
-              {page.isPending
-                ? Array.from({ length: 4 }, (_, i) => (
-                    <li key={i} className={cn(SKELETON_BLOCK, 'h-5')} />
-                  ))
-                : popularItems.map((item, index) => (
-                    <li key={item.key} className="flex min-w-0 items-center gap-2 text-sm">
-                      <span className="w-3 shrink-0 font-bold text-muted-foreground">
-                        {index + 1}
-                      </span>
-                      <ItemLink
-                        item={item}
-                        className={cn(
-                          'min-w-0 flex-1 truncate rounded font-semibold text-foreground no-underline hover:underline',
-                          DASH_FOCUS
-                        )}
-                      >
-                        {item.title}
-                      </ItemLink>
-                      <span className="flex shrink-0 items-center gap-1 tabular-nums text-muted-foreground">
-                        <PiHeart aria-hidden />
-                        <span className="sr-only">Gefällt</span>
-                        {item.likesCount}
-                      </span>
-                    </li>
-                  ))}
-            </ol>
-          </AsideCard>
-        </div>
-        <div className={NARROW_SLOT}>
-          <AsideCard aria-label="Deine Grüneratoren">
-            <CardTitle to="/grueneratoren">Deine Grüneratoren</CardTitle>
-            <span className="text-sm text-muted-foreground">Aus dem Marktplatz hinzugefügt</span>
-            <span className="flex flex-wrap items-baseline gap-x-2.5">
-              <span className="text-4xl font-bold tabular-nums text-foreground-heading">
-                {libraryItems.length}
-              </span>
-              {addedThisWeek > 0 && (
-                <span className="text-sm font-bold text-(--dash-mg)">
-                  {addedThisWeek} neu diese Woche
-                </span>
-              )}
-            </span>
           </AsideCard>
         </div>
       </div>
+      {dialogs}
     </ArbeitenSection>
   );
 }
@@ -264,6 +328,8 @@ interface ToolCard {
   path?: string;
   href?: string;
   icon: IconType;
+  /** `toolTheme` key for the card colour. */
+  theme?: string;
 }
 
 const ALL_TOOLS: ToolCard[] = [
@@ -273,29 +339,31 @@ const ALL_TOOLS: ToolCard[] = [
   ...TOOL_MENUS.flatMap((menu) => menu.items),
 ];
 
-/** Picks tools from the registry mirrors by id, optionally renamed for the card. */
-function pickTools(entries: readonly (readonly [id: string, title?: string])[]): ToolCard[] {
+/** Picks tools from the registry mirrors by id, with the card's colour and an optional new title. */
+function pickTools(entries: readonly { id: string; theme: string; title?: string }[]): ToolCard[] {
   return filterWorkplaceTools(
-    entries.flatMap(([id, title]) => {
+    entries.flatMap(({ id, theme, title }) => {
       const tool = ALL_TOOLS.find((t) => t.id === id);
-      return tool ? [{ ...tool, title: title ?? tool.title }] : [];
+      return tool ? [{ ...tool, title: title ?? tool.title, theme }] : [];
     })
   );
 }
 
+// Bild & Video reads as one family: every card in the Studio lavender.
 export const MEDIA_TOOLS = pickTools([
-  ['profilbild'],
-  ['reels-untertitel', 'Video'],
-  ['studio-voice'],
-  ['transkription'],
-  ['mediathek'],
+  { id: 'profilbild', theme: 'canvas-ki' },
+  { id: 'reels-untertitel', theme: 'canvas-ki', title: 'Video' },
+  { id: 'studio-voice', theme: 'canvas-ki' },
+  { id: 'transkription', theme: 'canvas-ki' },
+  { id: 'mediathek', theme: 'canvas-ki' },
 ]);
 
+// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow, blue.
 export const MORE_TOOLS = pickTools([
-  ['uebersetzer'],
-  ['scanner'],
-  ['zeichenzaehler'],
-  ['projekte'],
+  { id: 'uebersetzer', theme: 'canvas-vorlagen' },
+  { id: 'scanner', theme: 'bild-erweitern' },
+  { id: 'zeichenzaehler', theme: 'agents' },
+  { id: 'projekte', theme: 'projekte' },
 ]);
 
 const TOOL_CARD =
@@ -303,7 +371,7 @@ const TOOL_CARD =
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
 function ToolCardLink({ tool }: { tool: ToolCard }) {
-  const theme = getToolTheme(tool.id) ?? getToolTheme('weitere');
+  const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
   const body = (
     <>
