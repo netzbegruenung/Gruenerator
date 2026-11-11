@@ -126,7 +126,7 @@ describe.skipIf(!url)('Migration: eine Freigabe je Projekt und Inhalt', () => {
 
   afterAll(async () => {
     await pool?.end();
-    await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
     await admin.end();
   });
 

@@ -108,7 +108,7 @@ describe.skipIf(!url)('groupShareWriter gegen Postgres', () => {
 
   afterAll(async () => {
     await pool?.end();
-    await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
     await admin.end();
   });
 
