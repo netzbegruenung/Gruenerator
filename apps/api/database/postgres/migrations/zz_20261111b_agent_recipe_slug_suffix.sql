@@ -16,13 +16,25 @@
 -- The unique index is NOT partial on deleted_at: a trashed row keeps its
 -- suffix, and restoring it must not collide with a newer row.
 
+-- Rejection sampling like `slugSuffixFrom`: 256 % 56 = 32, so a plain modulo
+-- would make the first 32 characters 25 % likelier. Bytes >= 224 (the largest
+-- multiple of 56) are drawn again. Byte 0 of a v4 uuid is fully random (the
+-- version and variant bits sit in bytes 6 and 8).
 CREATE OR REPLACE FUNCTION gen_slug_suffix() RETURNS TEXT AS $$
-  SELECT string_agg(
-           substr('abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',
-                  1 + (get_byte(uuid_send(gen_random_uuid()), 0) % 56), 1),
-           '')
-    FROM generate_series(1, 6)
-$$ LANGUAGE sql VOLATILE;
+DECLARE
+  alphabet CONSTANT TEXT := 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  suffix TEXT := '';
+  b INT;
+BEGIN
+  WHILE length(suffix) < 6 LOOP
+    b := get_byte(uuid_send(gen_random_uuid()), 0);
+    IF b < 224 THEN
+      suffix := suffix || substr(alphabet, 1 + b % 56, 1);
+    END IF;
+  END LOOP;
+  RETURN suffix;
+END
+$$ LANGUAGE plpgsql VOLATILE;
 
 ALTER TABLE user_agents ADD COLUMN IF NOT EXISTS slug_suffix TEXT NOT NULL DEFAULT gen_slug_suffix();
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_agents_slug_suffix ON user_agents (slug_suffix);
