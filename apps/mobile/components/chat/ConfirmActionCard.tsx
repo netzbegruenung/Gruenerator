@@ -113,7 +113,7 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
             {action.type === 'modify_board'
               ? 'Board öffnen'
               : GROUP_ACTION_TYPES.has(action.type)
-                ? 'Gruppe öffnen'
+                ? 'Projekt öffnen'
                 : 'Dokument öffnen'}
           </Text>
         )}

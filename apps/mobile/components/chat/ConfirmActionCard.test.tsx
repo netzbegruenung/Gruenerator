@@ -150,7 +150,7 @@ describe('confirming', () => {
 
     expect(screen.queryByText('Speichern')).toBeNull();
     expect(screen.queryByText('Dokument öffnen')).toBeNull();
-    expect(screen.queryByText('Gruppe öffnen')).toBeNull();
+    expect(screen.queryByText('Projekt öffnen')).toBeNull();
   });
 
   it('labels the link per action type', async () => {

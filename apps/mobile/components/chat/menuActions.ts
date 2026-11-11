@@ -75,7 +75,7 @@ export function buildSharepicMenuActions(state: {
 export function buildThreadMenuActions(archived: boolean): MenuAction[] {
   return [
     { id: 'rename', title: 'Umbenennen' },
-    { id: 'share', title: 'Mit Gruppe teilen' },
+    { id: 'share', title: 'Mit Projekt teilen' },
     archived
       ? { id: 'unarchive', title: 'Wiederherstellen' }
       : { id: 'archive', title: 'Archivieren' },
