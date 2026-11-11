@@ -10,7 +10,7 @@ Team-Projekte (`group_type = 'standard'`) haben **Feed** und **Alle**. Der Feed 
 
 `GET /api/auth/groups/:groupId/content` liefert Buckets samt Freigabe-Metadaten. `packages/shared/src/groups/feed.ts` vereinheitlicht sie mit `toGroupFeedItems`, `sortGroupFeed`, `groupFeedByKind` und `filterGroupFeed` für beide Plattformen. Die Navigation bleibt plattformspezifisch. Nicht jeder teilbare Inhaltstyp hat eine Feed-Karte: Die Darstellung richtet sich nach den tatsächlich konvertierten Buckets, nicht allein nach `groupContentTypeSchema`.
 
-Web bietet den Beitrags-Composer und Mitgliedserwähnungen; Mobile zeigt Beiträge, Dateien und Kommentar-Threads. Daraus folgt keine vollständige Parität der Erstell- und Bearbeitungsfunktionen. `?beitrag=<shareId>` lässt beide Plattformen aus einer Benachrichtigung zum Feed-Eintrag scrollen. Benutzerseitige Projektlinks verwenden `buildGroupSlug` und den stabilen `slug_suffix`; UUID-Links bleiben als Legacy-Fallback auflösbar.
+Web bietet den Beitrags-Composer und Mitgliedserwähnungen; Mobile zeigt Beiträge, Dateien und Kommentar-Threads. „Inhalte hinzufügen“ gibt es auf beiden: Web-Dialog `AddContentToGroupModal`, App-Seite `projekte/[id]/hinzufuegen.tsx`; beide teilen über `POST /groups/:id/share` nur lesend, die App über `addItemsToGroup` (`packages/shared/src/groups/addContent.ts`) und nur Eigenes (Agents, Rezepte, Notebooks, Docs, Boards). Daraus folgt keine vollständige Parität der Erstell- und Bearbeitungsfunktionen. `?beitrag=<shareId>` lässt beide Plattformen aus einer Benachrichtigung zum Feed-Eintrag scrollen. Benutzerseitige Projektlinks verwenden `buildGroupSlug` und den stabilen `slug_suffix`; UUID-Links bleiben als Legacy-Fallback auflösbar.
 
 ## Speicherung und Rechte
 
