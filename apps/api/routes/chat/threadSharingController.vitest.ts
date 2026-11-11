@@ -60,6 +60,7 @@ beforeEach(() => {
   closeShareRoom.mockReset().mockResolvedValue(undefined);
   query.mockReset().mockImplementation(async (sql: string) => {
     if (/FROM chat_threads/i.test(sql)) return [{ user_id: OWNER }];
+    if (/DELETE FROM group_content_shares/i.test(sql)) return [{ id: 'share-1' }];
     return [];
   });
 });

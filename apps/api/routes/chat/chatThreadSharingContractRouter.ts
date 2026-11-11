@@ -17,12 +17,12 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { closeShareRoom } from '../../services/collab/collabRooms.js';
-import { notifyContentShared } from '../../services/groups/groupContent.js';
+import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import {
-  assertCanShareToGroup,
-  listShareTargetGroups,
-} from '../../services/groups/groupMembership.js';
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+} from '../../services/groups/groupShareWriter.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
@@ -198,32 +198,19 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
       if (ownership === 'forbidden')
         return { status: 403 as const, body: { error: 'Only thread owner can share' } };
 
-      const db = getPostgresInstance();
+      // The dialog picks read/write again for an existing share: upsert.
       try {
-        await assertCanShareToGroup(groupId, userId);
-      } catch {
+        await addGroupShare({
+          userId,
+          groupId,
+          contentType: 'chat_threads',
+          contentId: threadId,
+          permissions: { read: true, write: mode === 'write' },
+          onExisting: 'update-permissions',
+        });
+      } catch (error) {
+        if (!(error instanceof GroupShareForbiddenError)) throw error;
         return { status: 403 as const, body: { error: 'You may not share with this group' } };
-      }
-
-      // Upsert without a unique constraint (group_content_shares has none on
-      // (content_type, content_id, group_id) — only a non-unique index):
-      // UPDATE first, INSERT when nothing matched. The dialog is owner-only,
-      // so the race window is acceptable.
-      const canWrite = mode === 'write';
-      const updated = await db.query(
-        `UPDATE group_content_shares
-         SET permissions = jsonb_build_object('read', true, 'write', $3::boolean)
-         WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2
-         RETURNING id`,
-        [threadId, groupId, canWrite]
-      );
-      if (updated.length === 0) {
-        await db.query(
-          `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-           VALUES ('chat_threads', $1, $2, $3, jsonb_build_object('read', true, 'write', $4::boolean))`,
-          [threadId, groupId, userId, canWrite]
-        );
-        notifyContentShared({ groupId, userId, contentType: 'chat_threads', contentId: threadId });
       }
 
       return { status: 200 as const, body: { success: true as const } };
@@ -244,13 +231,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
       if (ownership === 'forbidden')
         return { status: 403 as const, body: { error: 'Only thread owner can manage sharing' } };
 
-      const db = getPostgresInstance();
-      await db.query(
-        `DELETE FROM group_content_shares
-         WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
-        [threadId, groupId]
-      );
-      void closeShareRoom('chat_threads', threadId);
+      await removeGroupShare({ groupId, contentType: 'chat_threads', contentId: threadId });
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('Error removing share:', error);

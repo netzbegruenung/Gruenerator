@@ -39,8 +39,12 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notTrashed } from '../../database/trash.js';
 import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
-import { notifyContentShared } from '../groups/groupContent.js';
-import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import {
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeAllGroupShares,
+  removeGroupShare,
+} from '../groups/groupShareWriter.js';
 import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
@@ -679,10 +683,7 @@ export async function updateTextFormSharing(
   // Freigaben stehen, die die immer sichtbare Projektliste anzeigen oder ein
   // späteres Teilen still wiederbeleben würde.
   if (updated.length > 0 && verdict.next.share_mode === 'private') {
-    await getPostgresInstance().query(
-      `DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2`,
-      [TEXT_FORM_CONTENT_TYPE, String(row.id)]
-    );
+    await removeAllGroupShares({ contentType: TEXT_FORM_CONTENT_TYPE, contentId: String(row.id) });
   }
 
   return { ok: true, updated: updated.length > 0 };
@@ -722,45 +723,20 @@ export async function shareTextFormWithGroup(
   const form = await findOwnRow(userId, mention);
   if (!form || !isShareableTextForm(form.kind as TextFormKind, mention)) return null;
 
-  const allowed = await assertCanShareToGroup(groupId, userId).then(
-    () => true,
-    () => false
-  );
-  if (!allowed) return (await loadSharesFor([form.id])).get(form.id) ?? [];
-
-  const pg = getPostgresInstance();
-  // Group access needs share_mode <> 'private' (see GROUP_SHARE_EXISTS), so a
-  // private recipe moves to 'groups' first — otherwise the share would be dead
-  // and missing from the owner's sharing panel. 'authenticated' already reaches
-  // further and stays. Leaving is_public alone is safe: a private row is never
-  // listed.
-  await pg.query(
-    `UPDATE user_text_forms SET share_mode = 'groups', updated_at = NOW()
-      WHERE id = $1::uuid AND share_mode = 'private'`,
-    [form.id]
-  );
-  // Membership is checked in SQL: the insert only happens for a group the user
-  // is actually an active member of, so a forged group id cannot leak a recipe.
-  const inserted = (await pg.query(
-    `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
-     SELECT gm.group_id, $1::uuid, $2, $3
-       FROM group_memberships gm
-       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
-      WHERE gm.group_id = $4::uuid AND gm.user_id = $1::uuid AND gm.is_active = TRUE
-        AND NOT EXISTS (
-          SELECT 1 FROM group_content_shares x
-           WHERE x.group_id = gm.group_id AND x.content_type = $2 AND x.content_id = $3
-        )
-     RETURNING id`,
-    [userId, TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  )) as Array<{ id: string }>;
-  if (inserted.length > 0) {
-    notifyContentShared({
-      groupId,
+  // The writer gates on the project (a forged group id cannot leak a recipe),
+  // lifts a private recipe to 'groups' — otherwise the share would be dead and
+  // missing from the owner's sharing panel — and notifies. Not allowed or
+  // already shared: the panel just gets the current list back, as before.
+  try {
+    await addGroupShare({
       userId,
+      groupId,
       contentType: TEXT_FORM_CONTENT_TYPE,
       contentId: form.id,
+      permissions: { read: true, write: false },
     });
+  } catch (error) {
+    if (!(error instanceof GroupShareForbiddenError)) throw error;
   }
 
   const shares = await loadSharesFor([form.id]);
@@ -782,12 +758,7 @@ export async function unshareTextFormFromGroup(
   const form = await findOwnRow(userId, mention);
   if (!form) return null;
 
-  const pg = getPostgresInstance();
-  await pg.query(
-    `DELETE FROM group_content_shares
-      WHERE content_type = $1 AND content_id = $2 AND group_id = $3::uuid`,
-    [TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  );
+  await removeGroupShare({ groupId, contentType: TEXT_FORM_CONTENT_TYPE, contentId: form.id });
 
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];
