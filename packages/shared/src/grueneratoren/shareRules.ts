@@ -8,6 +8,7 @@ import { type PublicOwnership } from '@gruenerator/contracts';
 
 import { agentRef, getAgentSlug } from '../agents/slug.js';
 import { isApiErrorWithStatus } from '../api/index.js';
+import { slugifyName } from '../utils/index.js';
 
 /** Agents und Rezepte teilen dieselben drei Stufen (`userAgentShareModeSchema`, `textFormShareModeSchema`). */
 export type ShareMode = 'private' | 'groups' | 'authenticated';
@@ -67,15 +68,34 @@ export function shareErrorText(error: unknown): string {
 }
 
 /**
- * Der Pfad, der im Teilen-Dialog steht. Immer über `agentRef(…, false)`: der
- * Link ist für jemand anderen, und dessen Liste kennt einen fremden Agent nur
- * per uuid — der `identifier` ist nur pro Person eindeutig und träfe dort den
- * eigenen oder den ältesten gleichnamigen Agent.
+ * Der Pfad, der im Teilen-Dialog steht: `<name>-<slugSuffix>` wie bei Notebooks
+ * und Projekten. Der Link ist für jemand anderen — `identifier` und `mention`
+ * sind nur pro Person eindeutig und träfen dort den eigenen oder den ältesten
+ * gleichnamigen Eintrag. Der Suffix nennt genau eine Zeile und übersteht eine
+ * Umbenennung; der Namensteil ist Kosmetik.
+ *
+ * Ohne Suffix (Zeile von vor der Spalte, alte Clients) bleibt der alte Weg: beim
+ * Agent die uuid über `agentRef(…, false)`, beim Rezept die Mention.
  */
-export function agentSharePath(agent: { id?: string; identifier: string }): string {
-  return `/agentura/agent/${encodeURIComponent(getAgentSlug(agentRef(agent, false)))}`;
+export function agentSharePath(agent: {
+  id?: string;
+  identifier: string;
+  title?: string;
+  slugSuffix?: string;
+}): string {
+  const slug = agent.slugSuffix
+    ? `${slugifyName(agent.title ?? '', 'agent')}-${agent.slugSuffix}`
+    : getAgentSlug(agentRef(agent, false));
+  return `/agentura/agent/${encodeURIComponent(slug)}`;
 }
 
-export function recipeSharePath(mention: string): string {
-  return `/agentura/rezept/${encodeURIComponent(mention)}`;
+export function recipeSharePath(recipe: {
+  mention: string;
+  title?: string;
+  slugSuffix?: string | null;
+}): string {
+  const slug = recipe.slugSuffix
+    ? `${slugifyName(recipe.title ?? '', 'rezept')}-${recipe.slugSuffix}`
+    : recipe.mention;
+  return `/agentura/rezept/${encodeURIComponent(slug)}`;
 }

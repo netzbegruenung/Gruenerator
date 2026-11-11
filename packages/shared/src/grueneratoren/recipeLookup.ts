@@ -1,5 +1,7 @@
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 
+import { shareLinkKey } from '../utils/index.js';
+
 export type RecipeSource = 'system' | 'own' | 'shared' | 'public';
 
 export interface RecipeMatch<S> {
@@ -32,7 +34,13 @@ export function resolveRecipeByMention<S>(
 ): RecipeMatch<S> | null {
   // Mentions are stored exactly as typed, but a link may carry any casing.
   const needle = mention.toLowerCase();
-  const sameMention = (form: { mention: string }) => form.mention.toLowerCase() === needle;
+  // A share link (`<titel>-<suffix>`, `recipeSharePath`) names the row by its
+  // suffix (or, from before the suffix, its uuid). Never for a catalogue
+  // mention: that one always wins.
+  const key = skill ? null : shareLinkKey(mention);
+  const sameMention = (form: { mention: string; id: string; slugSuffix: string | null }) =>
+    form.mention.toLowerCase() === needle ||
+    (key !== null && ('id' in key ? form.id === key.id : form.slugSuffix === key.slugSuffix));
 
   const ownRow = own?.find((f) => sameMention(f) && !f.sharedFromGroup) ?? null;
   if (skill) return { source: 'system', skill, form: null, ownOverride: ownRow };

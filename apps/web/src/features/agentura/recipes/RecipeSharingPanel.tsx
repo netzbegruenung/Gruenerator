@@ -10,6 +10,7 @@
 import {
   recipeSharePath,
   useMyGroupsForSharing,
+  useOwnRecipes,
   useRecipeGroupShares,
   useRecipeShareSettings,
   useSetRecipeIsPublic,
@@ -33,6 +34,10 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
   const settingsQuery = useRecipeShareSettings(enabled ? mention : null);
   const groupShares = useRecipeGroupShares(enabled ? mention : null);
   const myGroupsQuery = useMyGroupsForSharing(enabled);
+  // The link names the row by title + suffix; the panel is addressed by mention.
+  const recipe = useOwnRecipes(enabled).data?.find(
+    (f) => f.mention === mention && !f.sharedFromGroup
+  );
 
   const setShareMode = useSetRecipeShareMode(mention);
   const setIsPublic = useSetRecipeIsPublic(mention);
@@ -48,7 +53,7 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
       groupShares={groupShares.map((g) => ({ id: g.groupId, name: g.groupName }))}
       myGroups={myGroupsQuery.data ?? null}
       authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen."
-      shareUrl={`${getPublicAppOrigin()}${recipeSharePath(mention)}`}
+      shareUrl={`${getPublicAppOrigin()}${recipeSharePath(recipe ?? { mention })}`}
       setMode={(mode) => setShareMode.mutateAsync(mode)}
       setListing={(input) => setIsPublic.mutateAsync(input)}
       addGroup={(groupId) => shareWithGroup.mutateAsync({ mention, groupId })}

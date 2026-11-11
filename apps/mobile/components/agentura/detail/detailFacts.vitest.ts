@@ -39,6 +39,17 @@ describe('agentShareUrl', () => {
       'https://gruenerator.eu/agentura/agent/uuid-1'
     );
   });
+
+  it('nimmt Namen und Suffix, sobald die Zeile einen hat', () => {
+    expect(
+      agentShareUrl({
+        id: 'uuid-1',
+        identifier: 'mein-agent',
+        title: 'Mein Agent',
+        slugSuffix: 'Ab3xK9',
+      })
+    ).toBe('https://gruenerator.eu/agentura/agent/mein-agent-Ab3xK9');
+  });
 });
 
 describe('recipeOriginLine', () => {
