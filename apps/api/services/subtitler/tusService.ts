@@ -131,16 +131,14 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
     const metadataPath = path.join(TUS_UPLOAD_PATH, `${safeUploadId}.json`);
     const videoPath = path.join(TUS_UPLOAD_PATH, safeUploadId);
 
-    const [metadataExists, videoExists] = await Promise.all([
+    const [metadataExists, videoStats] = await Promise.all([
       fs
         .access(metadataPath)
         .then(() => true)
         .catch(() => false),
-      fs
-        .access(videoPath)
-        .then(() => true)
-        .catch(() => false),
+      fs.stat(videoPath).catch(() => null),
     ]);
+    const videoExists = videoStats !== null;
 
     if (!metadataExists && !videoExists) {
       return { exists: false };
@@ -158,12 +156,20 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
       }
     }
 
+    // Completeness comes from the bytes on disk, not the sidecar's `offset`:
+    // @tus/file-store writes the sidecar once at creation and never updates
+    // `offset`, so every TUS upload would read as incomplete (#5618). Only
+    // handleBinaryUpload writes a final `offset`. Comparing sizes also holds
+    // when the process dies between the last PATCH and any finish hook.
+    const declaredSize = typeof metadata?.size === 'number' ? metadata.size : null;
+    const bytesOnDisk = videoStats?.size ?? 0;
+
     return {
       exists: true,
       hasMetadata: metadataExists,
       hasVideo: videoExists,
-      isComplete: metadata ? metadata.offset >= metadata.size : false,
-      isIncomplete: metadata ? metadata.offset < metadata.size : false,
+      isComplete: declaredSize !== null && videoExists && bytesOnDisk >= declaredSize,
+      isIncomplete: declaredSize !== null && videoExists && bytesOnDisk < declaredSize,
       isOrphaned: metadataExists && !videoExists,
       metadata,
     };
@@ -413,8 +419,8 @@ const MAX_UPLOAD_SIZE = 500 * 1024 * 1024;
  * The bytes land at the same `tus-temp/<uploadId>` path the rest of the subtitler
  * pipeline (process-auto / projects / export) already reads, alongside a
  * TUS-compatible `.json` sidecar so `getUploadStatus` and cleanup treat it like
- * any other upload (it reads `offset`/`size`/`metadata.filename`, and considers
- * `offset >= size` complete). Mounted before the body parsers so `req` is the
+ * any other upload (it reads `size`/`metadata.filename` and compares `size`
+ * with the bytes on disk). Mounted before the body parsers so `req` is the
  * raw byte stream; the file streams straight to disk (no full-file buffering).
  */
 async function handleBinaryUpload(req: Request, res: Response): Promise<void> {
