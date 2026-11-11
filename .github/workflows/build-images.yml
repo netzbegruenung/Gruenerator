@@ -109,6 +109,8 @@ jobs:
       contents: read
       # paths-filter lists a PR's files through the API instead of git.
       pull-requests: read
+      # diffbase looks up the last successful build of this workflow.
+      actions: read
     outputs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
@@ -123,19 +125,35 @@ jobs:
         with:
           fetch-depth: 2
 
-      # Resolve the paths-filter base to a REAL commit SHA. Push builds are
-      # unchanged — they keep using the pre-push SHA (github.event.before). Only
-      # the workflow_dispatch case (the beta rebuild kicked off by
-      # sync-test-branch.yml, where `before` is empty) changes: instead of the
+      # Resolve the paths-filter base to a REAL commit SHA. For the
+      # workflow_dispatch case (the beta rebuild kicked off by
+      # sync-test-branch.yml, where `before` is empty): instead of the
       # literal `<sha>^` — which paths-filter can't `git fetch` (fatal: invalid
       # refspec, breaking every dispatch build) — resolve the first parent to a
       # full SHA locally (present at fetch-depth: 2).
+      #
+      # Push builds diff against the head of the last SUCCESSFUL push build on
+      # this branch, not the pre-push SHA. A concurrency group keeps only one
+      # pending run: a third push while one build runs replaces the pending run
+      # without it ever starting, and a pre-push diff would drop that push's
+      # range for good (#5623 — #5609's web change was never built, every later
+      # run green with build-web skipped). Falls back to the pre-push SHA when
+      # there is no such run or it is not an ancestor of HEAD (force push).
       - id: diffbase
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           before='${{ github.event.before }}'
           if [ -n "$before" ]; then
-            # push: identical to before — diff against the pre-push SHA.
-            echo "sha=$before" >> "$GITHUB_OUTPUT"
+            base=$(gh api "repos/${{ github.repository }}/actions/workflows/build-images.yml/runs?branch=${{ github.ref_name }}&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty' || true)
+            if [ -n "$base" ] && [ "$base" != "${{ github.sha }}" ] \
+              && [ "$(gh api "repos/${{ github.repository }}/compare/${base}...${{ github.sha }}" --jq .status || true)" = "ahead" ]; then
+              echo "Diffing against last successful build $base (pre-push SHA: $before)"
+              echo "sha=$base" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=$before" >> "$GITHUB_OUTPUT"
+            fi
           else
             # workflow_dispatch (beta rebuild): resolve the first parent to a full
             # SHA instead of the un-fetchable `<sha>^`.
@@ -145,7 +163,7 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          # Real pre-push SHA (push) or first-parent SHA (dispatch) — see diffbase.
+          # Last successful build / pre-push SHA (push) or first-parent SHA (dispatch) — see diffbase.
           # For a sync merge the first parent is the previous tip, so the whole
           # incoming master delta is diffed and the right images get built.
           base: ${{ steps.diffbase.outputs.sha }}
