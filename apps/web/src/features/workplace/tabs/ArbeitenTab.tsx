@@ -5,7 +5,9 @@ import { DocsHome } from '../../docs/DocsPage';
 import { NewContentMenu } from '../../docs/NewContentMenu';
 import {
   BriefingSection,
+  MEDIA_GRID,
   MEDIA_TOOLS,
+  MORE_GRID,
   MORE_TOOLS,
   MarketplaceSection,
   ToolCardsSection,
@@ -34,9 +36,14 @@ const ArbeitenTab = () => {
           </Suspense>
         </div>
         <BriefingSection />
-        <ToolCardsSection title="Bild & Video" tools={MEDIA_TOOLS} data-tour="arbeiten-tools" />
+        <ToolCardsSection
+          title="Bild & Video"
+          tools={MEDIA_TOOLS}
+          gridClassName={MEDIA_GRID}
+          data-tour="arbeiten-tools"
+        />
         <MarketplaceSection />
-        <ToolCardsSection title="Weitere Werkzeuge" tools={MORE_TOOLS} />
+        <ToolCardsSection title="Weitere Werkzeuge" tools={MORE_TOOLS} gridClassName={MORE_GRID} />
       </div>
     </PageContainer>
   );

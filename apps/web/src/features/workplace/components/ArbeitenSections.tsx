@@ -1,14 +1,7 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
-import {
-  featureById,
-  itemHref,
-  marketplaceHref,
-  useMarketplaceFrontpage,
-} from '@gruenerator/shared/marketplace';
-import { Button, SectionHeader, cn } from '@gruenerator/ui';
+import { marketplaceHref, useMarketplaceFrontpage } from '@gruenerator/shared/marketplace';
+import { SectionHeader, cn } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { PiChatCircleText, PiCheck, PiPlus, PiSparkle } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   CANVAS_TOOLS,
@@ -17,17 +10,12 @@ import {
   WORKPLACE_TOOLS,
   filterWorkplaceTools,
 } from '../../../config/workplaceToolsConfig';
-import { chatPathOf, metaLine, viewOf } from '../../marketplace/kindViews';
-import {
-  type MarketplaceActions,
-  useMarketplaceActions,
-} from '../../marketplace/useMarketplaceActions';
+import { CollectionCards } from '../../marketplace/MarketplaceCollections';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
 import { PollCard } from '../../notebook/wissen/PollCard';
 import { TrendsCard } from '../../notebook/wissen/TrendsCard';
 import { useWissenNews } from '../../notebook/wissen/useWissenNews';
-import { AsideCard } from '../../notebook/wissen/WissenLayout';
 
 import { ARBEITEN_GRID } from './arbeitenGrid';
 import { SHOW_TOOL_PREVIEWS, TOOL_PREVIEWS } from './ToolPreviews';
@@ -101,98 +89,9 @@ export function BriefingSection() {
   );
 }
 
-function ItemLink({
-  item,
-  className,
-  children,
-}: {
-  item: MarketplaceItem;
-  className: string;
-  children: ReactNode;
-}) {
-  const href = itemHref(item) ?? marketplaceHref();
-  return href.startsWith('http') ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
-      {children}
-    </a>
-  ) : (
-    <Link to={href} className={className}>
-      {children}
-    </Link>
-  );
-}
-
-const SKELETON_BLOCK = 'rounded-xl bg-(--dash-skeleton)';
-
-/** „Zu meinen Grüneratoren" — only for items that aren't the person's own. */
-function SaveButton({ item, actions }: { item: MarketplaceItem; actions: MarketplaceActions }) {
-  if (item.isOwn) return null;
-  const label = item.saved ? viewOf(item).saveLabel.added : viewOf(item).saveLabel.add;
-  const Icon = item.saved ? PiCheck : PiPlus;
-  return (
-    <Button variant="outline" aria-pressed={item.saved} onClick={() => actions.toggleSave(item)}>
-      <Icon aria-hidden />
-      {label}
-    </Button>
-  );
-}
-
-function FeaturedCard({ item, actions }: { item: MarketplaceItem; actions: MarketplaceActions }) {
-  const page = useMarketplaceFrontpage();
-  const feature = featureById(page.data?.featureId ?? null);
-  const chatPath = chatPathOf(item);
-  const visual = viewOf(item).visual(item);
-  return (
-    <AsideCard
-      aria-labelledby="arbeiten-marktplatz-tipp"
-      className="md:flex-row md:items-center md:gap-6"
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <span className="text-xs font-bold uppercase tracking-[0.08em] text-(--dash-mg)">
-          {feature?.kicker ?? 'Neu im Marktplatz'}
-        </span>
-        <h3
-          id="arbeiten-marktplatz-tipp"
-          className="m-0 text-2xl font-bold leading-tight text-balance text-foreground-heading md:text-[28px]"
-        >
-          {item.title}
-        </h3>
-        <p className="m-0 line-clamp-3 max-w-[34rem] text-[15px] leading-relaxed text-muted-foreground">
-          {feature?.pitch ?? item.description}
-        </p>
-        <span className="text-[13px] text-muted-foreground">{metaLine(item)}</span>
-        <div className="mt-1 flex flex-wrap gap-2">
-          {chatPath ? (
-            <Button asChild>
-              <Link to={chatPath}>
-                <PiChatCircleText aria-hidden />
-                Im Chat ausprobieren
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild>
-              <ItemLink item={item} className="">
-                Ansehen
-              </ItemLink>
-            </Button>
-          )}
-          <SaveButton item={item} actions={actions} />
-        </div>
-      </div>
-      <span
-        aria-hidden
-        className="hidden size-28 shrink-0 items-center justify-center rounded-3xl bg-(--dash-mg-tint) text-6xl text-(--dash-mg) md:flex"
-      >
-        {visual.type === 'icon' ? visual.icon : <PiSparkle />}
-      </span>
-    </AsideCard>
-  );
-}
-
 export function MarketplaceSection() {
   const page = useMarketplaceFrontpage();
-  const { actions, dialogs } = useMarketplaceActions();
-  const featured = page.data?.featured ?? null;
+  const navigate = useNavigate();
 
   return (
     <ArbeitenSection
@@ -203,14 +102,20 @@ export function MarketplaceSection() {
         </Link>
       }
     >
-      <div className={NEUTRAL_SURFACE}>
-        {page.isPending ? (
-          <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
-        ) : (
-          featured && <FeaturedCard item={featured} actions={actions} />
-        )}
-      </div>
-      {dialogs}
+      {page.isPending ? (
+        <div className={cn(NEUTRAL_SURFACE, 'grid grid-cols-1 gap-md md:grid-cols-3')}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="aspect-[4/3] rounded-2xl bg-(--dash-skeleton)" />
+          ))}
+        </div>
+      ) : (
+        <CollectionCards
+          title={null}
+          limit={3}
+          collections={page.data?.collections ?? []}
+          onOpen={(collection) => navigate(marketplaceHref({ collection }))}
+        />
+      )}
     </ArbeitenSection>
   );
 }
@@ -243,6 +148,9 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
 }
 
 // Bild & Video reads as one family: every card in the Studio lavender.
+/** Bild & Video: six cards in a 3 × 2 grid (two columns on phones). */
+export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
+
 export const MEDIA_TOOLS = pickTools([
   { id: 'canvas-vorlagen', theme: 'canvas-ki' },
   { id: 'profilbild', theme: 'canvas-ki' },
@@ -252,12 +160,14 @@ export const MEDIA_TOOLS = pickTools([
   { id: 'mediathek', theme: 'canvas-ki' },
 ]);
 
-// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow, blue.
+/** Three tools: one row of three, stacked on a phone so none stands alone. */
+export const MORE_GRID = 'grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4';
+
+// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow.
 export const MORE_TOOLS = pickTools([
   { id: 'uebersetzer', theme: 'canvas-vorlagen' },
   { id: 'scanner', theme: 'bild-erweitern' },
   { id: 'zeichenzaehler', theme: 'agents' },
-  { id: 'projekte', theme: 'projekte' },
 ]);
 
 const TOOL_CARD =
@@ -290,7 +200,14 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
         {tool.title}
       </span>
       {/* Two tilted sheets peeking from the bottom-right corner; the front one lifts on hover. */}
-      <span aria-hidden className={cn('absolute right-1', '-bottom-3 h-20 w-[44%] md:h-24')}>
+      {/* A preview keeps a fixed, slightly upright sheet; on wide cards a percentage would stretch it. */}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute -bottom-3 h-20 md:h-24',
+          preview ? 'right-4 w-28 md:w-32' : 'right-1 w-[44%]'
+        )}
+      >
         <span
           className={cn(
             'absolute bottom-0 rounded-lg',
@@ -332,16 +249,19 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
 export function ToolCardsSection({
   title,
   tools,
+  gridClassName = ARBEITEN_GRID,
   ...rest
 }: {
   title: string;
   tools: ToolCard[];
+  /** Defaults to the page grid; Bild & Video uses 3 × 2. */
+  gridClassName?: string;
   'data-tour'?: string;
 }) {
   if (tools.length === 0) return null;
   return (
     <ArbeitenSection title={title} {...rest}>
-      <ul className={cn(ARBEITEN_GRID, 'm-0 list-none p-0')}>
+      <ul className={cn(gridClassName, 'm-0 list-none p-0')}>
         {tools.map((tool, index) => (
           <li key={tool.id}>
             <ToolCardLink tool={tool} index={index} />

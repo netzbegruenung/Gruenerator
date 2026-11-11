@@ -128,21 +128,30 @@ export function CollectionCards({
   onOpen,
   title = 'Kollektionen',
   row,
+  limit,
 }: {
   collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
   onOpen: (id: MarketplaceCollectionId) => void;
-  title?: string;
+  /** `null`: the surrounding section already carries the heading. */
+  title?: string | null;
   /** Only the collections of this front page row (`rest`: those without one); all when left out. */
   row?: NonNullable<MarketplaceCollection['row']> | 'rest';
+  /** Show only the first cards, in the response's order. */
+  limit?: number;
 }): JSX.Element | null {
   const headingId = useId();
-  const cards = collectionCardsFor(collections, row);
+  const cards = collectionCardsFor(collections, row).slice(0, limit);
   if (cards.length === 0) return null;
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-md">
-      <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
-        {title}
-      </h2>
+    <section
+      {...(title === null ? { 'aria-label': 'Kollektionen' } : { 'aria-labelledby': headingId })}
+      className="flex flex-col gap-md"
+    >
+      {title !== null && (
+        <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
+          {title}
+        </h2>
+      )}
       <ul
         className={cn(
           'm-0 grid list-none grid-cols-1 gap-md p-0',
