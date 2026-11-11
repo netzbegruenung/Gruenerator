@@ -30,6 +30,7 @@ import { useWissenNews } from '../../notebook/wissen/useWissenNews';
 import { AsideCard } from '../../notebook/wissen/WissenLayout';
 
 import { ARBEITEN_GRID } from './arbeitenGrid';
+import { SHOW_TOOL_PREVIEWS, TOOL_PREVIEWS } from './ToolPreviews';
 
 import type { IconType } from '../../../config/icons';
 
@@ -263,35 +264,60 @@ const TOOL_CARD =
   'group relative flex h-24 items-center overflow-hidden rounded-2xl px-4 no-underline transition-shadow ' +
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
-function ToolCardLink({ tool }: { tool: ToolCard }) {
+// Cards with a preview picture sit on a light pastel that changes from card to card
+// (mint, peach, sky, butter, rosé, lavender).
+const PREVIEW_GROUNDS = [
+  'bg-[#eaf4ee] dark:bg-[#17241d]',
+  'bg-[#fbeee6] dark:bg-[#2a1d16]',
+  'bg-[#e8f0f8] dark:bg-[#162130]',
+  'bg-[#faf4dc] dark:bg-[#26220f]',
+  'bg-[#f8e9ef] dark:bg-[#2a1720]',
+  'bg-[#efedf8] dark:bg-[#1f1b2e]',
+];
+
+function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
+  const preview = SHOW_TOOL_PREVIEWS ? TOOL_PREVIEWS[tool.id] : undefined;
   const body = (
     <>
       <span
         className={cn(
           'relative z-10 max-w-[55%] text-[15px] font-bold leading-tight hyphens-auto md:text-base',
-          theme?.title
+          preview ? 'text-foreground-heading' : theme?.title
         )}
       >
         {tool.title}
       </span>
       {/* Two tilted sheets peeking from the bottom-right corner; the front one lifts on hover. */}
-      <span aria-hidden className="absolute -bottom-3 right-1 h-20 w-[44%] md:h-24">
-        <span className="absolute bottom-0 right-[30%] h-[78%] w-[58%] -rotate-[8deg] rounded-lg bg-background/60" />
+      <span aria-hidden className={cn('absolute right-1', '-bottom-3 h-20 w-[44%] md:h-24')}>
         <span
           className={cn(
-            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center rounded-lg bg-background shadow-md',
+            'absolute bottom-0 rounded-lg',
+            preview
+              ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg] bg-background/60'
+              : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg] bg-background/60'
+          )}
+        />
+        <span
+          className={cn(
+            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg bg-background shadow-md',
+            preview && 'h-full w-[66%] -rotate-[5deg] shadow-lg',
             'transition-transform duration-200 group-hover:-translate-y-1 group-hover:-rotate-3 motion-reduce:transition-none',
             theme?.icon
           )}
         >
-          <Icon className="size-7 md:size-8" />
+          {preview ?? <Icon className="size-7 md:size-8" />}
         </span>
       </span>
     </>
   );
-  const className = cn(TOOL_CARD, theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40');
+  const className = cn(
+    TOOL_CARD,
+    preview
+      ? PREVIEW_GROUNDS[index % PREVIEW_GROUNDS.length]
+      : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')
+  );
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
       {body}
@@ -316,9 +342,9 @@ export function ToolCardsSection({
   return (
     <ArbeitenSection title={title} {...rest}>
       <ul className={cn(ARBEITEN_GRID, 'm-0 list-none p-0')}>
-        {tools.map((tool) => (
+        {tools.map((tool, index) => (
           <li key={tool.id}>
-            <ToolCardLink tool={tool} />
+            <ToolCardLink tool={tool} index={index} />
           </li>
         ))}
       </ul>
