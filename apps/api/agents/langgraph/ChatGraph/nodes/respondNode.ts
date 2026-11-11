@@ -10,18 +10,19 @@
 import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import {
-  ownedDefaultRecipeMention,
-  roleAwareDefaultRecipeMention,
-} from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
+import {
+  isProseLoopState,
+  isRecipeWriteTurn,
+  loopAgentDefaultRecipe,
+} from '../../../../routes/chat/services/agenticLoop/agentDefaultRecipe.js';
 import {
   methodPrecedenceNote,
   renderMethodRecipeBlock,
 } from '../../../../routes/chat/services/agenticLoop/recipeRegistry.js';
 import {
   EDITOR_SURFACE_NOUNS,
-  looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
@@ -84,11 +85,7 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import {
-  looksLikeDocsHelpQuestion,
-  looksLikeGeltungsfrage,
-  NO_RETRIEVAL_VERDICTS,
-} from './classifierSignals.js';
+import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
 import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
@@ -2140,11 +2137,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 
   // A prose turn reaches the loop as `agentic`; its prose verdict travels in
   // `loopDemotedFromProse` (classifier `proseGoesToLoop`).
-  const proseLoop =
-    opts.loop === true &&
-    (opts.proseIntent ??
-      (state.loopDemotedFromProse != null ||
-        (NO_RETRIEVAL_VERDICTS.has(state.intent) && state.intent !== 'greeting')));
+  const proseLoop = opts.loop === true && (opts.proseIntent ?? isProseLoopState(state));
   const intentGuidance =
     getModeGuidance(state, { proseLoop, loop: opts.loop === true }) +
     getAnchorAdjuncts(state, opts) +
@@ -2295,10 +2288,11 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // systemRole stays platform-agnostic and slim.
   //
   // Without an explicit mention, the agent's `defaultRecipeMention` (its core
-  // text form, e.g. `presse-berlin`) fills in — but only on the single-pass
-  // path: on the agentic branch (`retrievalExpected`) the loop mounts
-  // `rezept_laden` and the model picks the recipe itself; baking one in here
-  // would double-inject and overrule that choice. Der Rückfall ist LV-bewusst
+  // text form, e.g. `presse-berlin`) fills in — on the single-pass path and on
+  // prose turns in the loop. Other loop turns (`retrievalExpected`) leave the
+  // pick to the model via `rezept_laden`. Im Loop steht der Rumpf nicht hier,
+  // sondern in der Rezept-Registry (`loopAgentDefaultRecipe`, unten
+  // `preloadedByRegistry`). Der Rückfall ist LV-bewusst
   // (`roleAwareDefaultRecipeMention`): ein generischer Default wird für eine
   // Person mit aktiver Landesgeschäftsstellen-Rolle zur Variante dieses Verbands.
   //
@@ -2318,13 +2312,10 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // bereits, wie geschrieben wird, ein ungefragtes Rezept wäre dort ein zweiter
   // Formatgeber. Dieselbe Trennung macht `catalogAssembly` für `rezept_laden`
   // im Loop. Regeln und Herleitung in `effectiveRecipeMention.ts`.
-  const isWriteEligibleTurn =
-    (!opts.retrievalExpected || proseLoop) &&
-    !isNeutralTurn &&
-    intent !== 'greeting' &&
-    !looksLikeChitchatTurn(userQuestion) &&
-    !isProductMetaQuestion(userQuestion) &&
-    !docsPageMap;
+  // Die Schreib-Turn-Frage teilt sich dieser Pfad mit der Registry
+  // (`isRecipeWriteTurn`): weichen beide ab, fällt ein Default im Loop
+  // zwischen den Toren durch.
+  const isWriteEligibleTurn = (!opts.retrievalExpected || proseLoop) && isRecipeWriteTurn(state);
   const effectiveRecipe = resolveEffectiveRecipeMention({
     activeSkillMention: state.activeSkillMention,
     activeRecipeId: state.activeRecipeId,
@@ -2366,16 +2357,14 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
-  // Im Loop lädt die Rezept-Registry den Default eines Ein-Rezept-Agenten
-  // schon vor (`catalogAssembly`, dieselben Bedingungen) — hier stünde derselbe
-  // Rumpf sonst ein zweites Mal im Prompt.
+  // Im Loop lädt die Rezept-Registry das Standard-Rezept des Agenten vor
+  // (`catalogAssembly`, dieselbe Entscheidung `loopAgentDefaultRecipe`) — hier
+  // stünde derselbe Rumpf sonst ein zweites Mal im Prompt, und `rezept_laden`
+  // böte ihn ein drittes Mal an, weil die Registry das Fragment nicht kennt.
+  // Lädt das Modell eine andere Textsorte, weicht der vorgeladene Default dort;
+  // ein Fragment hier stünde als zweiter Formatgeber daneben.
   const preloadedByRegistry =
-    opts.loop === true &&
-    !state.activeSkillMention &&
-    !state.activeRecipeId &&
-    !state.customSystemPrompt &&
-    resolved != null &&
-    resolved.mention === ownedDefaultRecipeMention(agentConfig);
+    opts.loop === true && resolved != null && loopAgentDefaultRecipe(state) != null;
   // Das ausdrücklich gewählte Rezept trägt im Loop dieselbe Registry
   // (`catalogAssembly`, `pinned`) — hier stünde es sonst ein zweites Mal im
   // Prompt, nur ohne Kappe und Budget. Der Einzelpfad bleibt unverändert.

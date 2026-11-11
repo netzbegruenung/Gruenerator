@@ -180,7 +180,7 @@ describe('ShareRecipeModal', () => {
     });
     renderModal();
 
-    await userEvent.click(await screen.findByLabelText('Projekt hinzufügen'));
+    await userEvent.click(await screen.findByLabelText('Projekt oder Gruppe hinzufügen'));
     await userEvent.click(await screen.findByRole('option', { name: 'KV Köln' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

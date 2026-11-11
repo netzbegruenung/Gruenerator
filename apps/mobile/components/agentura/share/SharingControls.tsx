@@ -124,8 +124,8 @@ export function SharingControls(props: SharingControlsProps) {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={detailStyles.scrollContent}
     >
-      <DetailSection title="Projekte">
-        <Hint>{`Mitglieder dieser Projekte sehen ${thing} und können ${noun === 'Agent' ? 'ihn' : 'es'} im Chat nutzen.`}</Hint>
+      <DetailSection title="Projekte und Gruppen">
+        <Hint>{`Mitglieder dieser Projekte und Gruppen sehen ${thing} und können ${noun === 'Agent' ? 'ihn' : 'es'} im Chat nutzen.`}</Hint>
         {props.groupShares.length > 0 ? (
           <ListGroup>
             {props.groupShares.map((share, i) => (
@@ -153,7 +153,7 @@ export function SharingControls(props: SharingControlsProps) {
             ))}
           </ListGroup>
         ) : (
-          <Hint>In keinem Projekt.</Hint>
+          <Hint>In keinem Projekt und keiner Gruppe.</Hint>
         )}
         {available.length > 0 ? (
           <ListGroup>
@@ -170,7 +170,7 @@ export function SharingControls(props: SharingControlsProps) {
             ))}
           </ListGroup>
         ) : props.myGroups && props.myGroups.length === 0 ? (
-          <Hint>{`Du bist noch in keinem Projekt. Tritt einem Projekt bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}</Hint>
+          <Hint>{`Du bist noch in keinem Projekt und keiner Gruppe. Tritt einem Projekt oder einer Gruppe bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}</Hint>
         ) : null}
       </DetailSection>
 
@@ -254,7 +254,7 @@ export function SharingControls(props: SharingControlsProps) {
           {linkOpen
             ? 'Alle Eingeloggten mit dem Link können die Seite öffnen.'
             : props.groupShares.length > 0
-              ? 'Den Link öffnen nur du und die Mitglieder der Projekte oben.'
+              ? 'Den Link öffnen nur du und die Mitglieder der Projekte und Gruppen oben.'
               : 'Den Link kannst nur du öffnen.'}
         </Hint>
       </DetailSection>
