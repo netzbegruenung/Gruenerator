@@ -1,7 +1,13 @@
 /**
- * Die Freigabe-Bedienelemente eines eigenen Agents oder Rezepts: Sichtbarkeit
- * (privat / Projekte / mit Anmeldung), die Projekte, in die es geteilt ist, die
- * Listung „Öffentlich" samt Eigentumsfrage und der Link.
+ * Die Freigabe eines eigenen Agents oder Rezepts als drei Fragen, jede für
+ * sich beantwortbar: In welchen Projekten? Alle mit Anmeldung? Im Marktplatz
+ * gelistet? Dazu der Link.
+ *
+ * `share_mode` sieht hier niemand mehr. Die Fläche leitet ihn ab: „Alle mit
+ * Anmeldung" an heisst `authenticated`; aus heisst `groups`, solange Projekte
+ * da sind, sonst `private` — und „privat" löscht der Server samt
+ * Projekt-Freigaben, die Liste zeigt also nie eine Freigabe, die nicht wirkt.
+ * Ein Projekt hinzuzufügen hebt ein privates Ding serverseitig auf `groups`.
  *
  * Eine Fläche für beide Arten — {@link ShareAgentModal} und
  * {@link RecipeSharingPanel} reichen nur ihre Hooks herein, wie
@@ -18,8 +24,6 @@ import { type PublicOwnership } from '@gruenerator/contracts';
 import {
   OWNERSHIP_CHOICES,
   OWNERSHIP_LABELS,
-  SHARE_MODES,
-  SHARE_MODE_LABELS,
   UNLIST,
   planListing,
   shareErrorText,
@@ -56,7 +60,6 @@ export interface SharingPanelProps {
   groupShares: ReadonlyArray<{ id: string; name: string }>;
   /** `null`, solange die eigenen Projekte laden. */
   myGroups: ReadonlyArray<{ id: string; name: string }> | null;
-  authenticatedHint: string;
   shareUrl: string;
   setMode: (mode: ShareMode) => Promise<unknown>;
   setListing: (input: {
@@ -70,7 +73,7 @@ export interface SharingPanelProps {
 
 export function SharingPanel(props: SharingPanelProps) {
   const { noun, settings, pending } = props;
-  const shareModeId = useId();
+  const linkToggleId = useId();
   const projectsHeadingId = useId();
   const addProjectId = useId();
   const listingToggleId = useId();
@@ -111,7 +114,20 @@ export function SharingPanel(props: SharingPanelProps) {
 
   const shareMode = settings.share_mode;
   const isPublic = settings.is_public;
+  const linkOpen = shareMode === 'authenticated';
   const listingBusy = pending.listing || pending.mode;
+  const thing = noun === 'Agent' ? 'den Agent' : 'das Rezept';
+
+  // Aus: der Server stuft ab (und nimmt eine Listung mit) — auf `groups`,
+  // solange Projekte da sind, sonst auf `private`.
+  const toggleLink = (checked: boolean) => {
+    const next: ShareMode = checked
+      ? 'authenticated'
+      : props.groupShares.length > 0
+        ? 'groups'
+        : 'private';
+    void run(() => props.setMode(next));
+  };
 
   const toggleListing = (checked: boolean) => {
     if (checked) {
@@ -147,103 +163,94 @@ export function SharingPanel(props: SharingPanelProps) {
       ) : null}
 
       <div>
-        <Label htmlFor={shareModeId} className="mb-xs block text-sm font-semibold">
-          Sichtbarkeit
-        </Label>
-        <Select
-          value={shareMode}
-          onValueChange={(v) => void run(() => props.setMode(v as ShareMode))}
-          disabled={pending.mode}
-        >
-          <SelectTrigger id={shareModeId} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SHARE_MODES.map((m) => (
-              <SelectItem key={m} value={m}>
-                {SHARE_MODE_LABELS[m]}
-              </SelectItem>
+        <p className="text-sm font-semibold" id={projectsHeadingId}>
+          Projekte
+        </p>
+        <p className="mb-xs text-xs text-grey-500">
+          {`Mitglieder dieser Projekte sehen ${thing} und können ${noun === 'Agent' ? 'ihn' : 'es'} im Chat nutzen.`}
+        </p>
+        {props.groupShares.length > 0 ? (
+          <ul aria-labelledby={projectsHeadingId} className="mb-xs flex flex-col gap-xs">
+            {props.groupShares.map((share) => (
+              <li
+                key={share.id}
+                className="flex items-center justify-between rounded-md border border-grey-200 bg-background p-xs dark:border-grey-700"
+              >
+                <span className="truncate text-sm">{share.name}</span>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => void run(() => props.removeGroup(share.id))}
+                  disabled={pending.groups}
+                  aria-label={`${share.name} entfernen`}
+                >
+                  <HiTrash size={14} />
+                </Button>
+              </li>
             ))}
-          </SelectContent>
-        </Select>
+          </ul>
+        ) : (
+          <p className="mb-xs text-xs text-grey-500">In keinem Projekt.</p>
+        )}
+        {available.length > 0 ? (
+          <>
+            <Label htmlFor={addProjectId} className="sr-only">
+              Projekt hinzufügen
+            </Label>
+            <Select
+              value=""
+              onValueChange={(v) => {
+                if (v) void run(() => props.addGroup(v));
+              }}
+              disabled={pending.groups}
+            >
+              <SelectTrigger id={addProjectId} className="w-full">
+                <SelectValue placeholder="Projekt hinzufügen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {available.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : props.myGroups && props.myGroups.length === 0 ? (
+          <p className="text-xs text-grey-500">
+            {`Du bist noch in keinem Projekt. Tritt einem Projekt bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}
+          </p>
+        ) : null}
       </div>
 
-      {shareMode === 'groups' ? (
-        <div>
-          <p className="mb-xs text-sm font-semibold" id={projectsHeadingId}>
-            Projekte
+      <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
+        <div className="space-y-xs">
+          <Label htmlFor={linkToggleId} className="text-sm">
+            Alle mit Anmeldung
+          </Label>
+          <p className="text-xs text-grey-500 dark:text-grey-400">
+            {`Alle eingeloggten Nutzer*innen mit dem Link können ${thing} öffnen und im Chat nutzen.`}
           </p>
-          {props.groupShares.length > 0 ? (
-            <ul aria-labelledby={projectsHeadingId} className="mb-xs flex flex-col gap-xs">
-              {props.groupShares.map((share) => (
-                <li
-                  key={share.id}
-                  className="flex items-center justify-between rounded-md border border-grey-200 bg-background p-xs dark:border-grey-700"
-                >
-                  <span className="truncate text-sm">{share.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => void run(() => props.removeGroup(share.id))}
-                    disabled={pending.groups}
-                    aria-label={`${share.name} entfernen`}
-                  >
-                    <HiTrash size={14} />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mb-xs text-xs text-grey-500">Noch keine Projekte hinzugefügt.</p>
-          )}
-          {available.length > 0 ? (
-            <>
-              <Label htmlFor={addProjectId} className="sr-only">
-                Projekt hinzufügen
-              </Label>
-              <Select
-                value=""
-                onValueChange={(v) => {
-                  if (v) void run(() => props.addGroup(v));
-                }}
-                disabled={pending.groups}
-              >
-                <SelectTrigger id={addProjectId} className="w-full">
-                  <SelectValue placeholder="Projekt hinzufügen…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {available.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          ) : props.myGroups && props.myGroups.length === 0 ? (
-            <p className="text-xs text-grey-500">
-              {`Du bist noch in keinem Projekt. Tritt einem Projekt bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}
-            </p>
-          ) : null}
         </div>
-      ) : null}
-
-      {shareMode === 'authenticated' ? (
-        <p className="text-xs text-grey-500">{props.authenticatedHint}</p>
-      ) : null}
+        <Switch
+          id={linkToggleId}
+          checked={linkOpen}
+          onCheckedChange={toggleLink}
+          disabled={pending.mode}
+        />
+      </div>
 
       <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
         <div className="space-y-xs">
           <Label htmlFor={listingToggleId} className="text-sm">
-            Auf „Öffentlich“ listen
+            Im Marktplatz listen
           </Label>
           <p className="text-xs text-grey-500 dark:text-grey-400">
             {`Dein ${noun} erscheint dann im Marktplatz unter „Öffentlich“.`}
           </p>
-          {!isPublic && shareMode !== 'authenticated' ? (
+          {!isPublic && !linkOpen ? (
             <p className="text-xs text-grey-500 dark:text-grey-400">
-              Beim Listen wird die Sichtbarkeit auf „Mit Anmeldung — alle eingeloggten Nutzer*innen“
-              gesetzt.
+              Schaltet „Alle mit Anmeldung“ mit ein.
             </p>
           ) : null}
         </div>
@@ -298,9 +305,11 @@ export function SharingPanel(props: SharingPanelProps) {
         <p className="mb-xs text-sm font-semibold">Link</p>
         <CopyLinkRow value={props.shareUrl} copyLabel="Link kopieren" copiedLabel="Kopiert" />
         <p className="mt-xs text-xs text-grey-500">
-          {shareMode === 'private'
-            ? 'Solange die Sichtbarkeit „Privat“ ist, kannst nur du den Link öffnen.'
-            : 'Der Link öffnet die Seite für alle, die nach der Sichtbarkeit Zugriff haben.'}
+          {linkOpen
+            ? 'Alle Eingeloggten mit dem Link können die Seite öffnen.'
+            : props.groupShares.length > 0
+              ? 'Den Link öffnen nur du und die Mitglieder der Projekte oben.'
+              : 'Den Link kannst nur du öffnen.'}
         </p>
       </div>
     </div>

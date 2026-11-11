@@ -80,7 +80,6 @@ function RecipeSharing({
       settingsError={settings.isError}
       groupShares={groupShares.map((g) => ({ id: g.groupId, name: g.groupName }))}
       myGroups={myGroups.data ?? null}
-      authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen."
       shareUrl={recipeShareUrl({ mention, title, slugSuffix })}
       shareTitle={title}
       setMode={(mode) => setMode.mutateAsync(mode)}

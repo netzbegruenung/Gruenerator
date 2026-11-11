@@ -60,12 +60,10 @@ beforeEach(() => {
 });
 
 describe('ShareRecipeModal', () => {
-  it('schreibt eine geänderte Sichtbarkeit sofort zum Server', async () => {
+  it('schreibt „Alle mit Anmeldung“ sofort zum Server', async () => {
     renderModal();
 
-    const trigger = await screen.findByLabelText('Sichtbarkeit');
-    await userEvent.click(trigger);
-    await userEvent.click(await screen.findByRole('option', { name: /Mit Anmeldung/ }));
+    await userEvent.click(await screen.findByRole('switch', { name: 'Alle mit Anmeldung' }));
 
     await waitFor(() =>
       expect(setShareMode).toHaveBeenCalledWith({
@@ -85,9 +83,7 @@ describe('ShareRecipeModal', () => {
     });
     renderModal();
 
-    const trigger = await screen.findByLabelText('Sichtbarkeit');
-    await userEvent.click(trigger);
-    await userEvent.click(await screen.findByRole('option', { name: /Mit Anmeldung/ }));
+    await userEvent.click(await screen.findByRole('switch', { name: 'Alle mit Anmeldung' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Angepasste System-Rezepte lassen sich nicht teilen — nur eigene Rezepte.'
@@ -98,9 +94,7 @@ describe('ShareRecipeModal', () => {
     setShareMode.mockResolvedValue({ status: 500, body: { success: false, message: 'boom' } });
     renderModal();
 
-    const trigger = await screen.findByLabelText('Sichtbarkeit');
-    await userEvent.click(trigger);
-    await userEvent.click(await screen.findByRole('option', { name: /Mit Anmeldung/ }));
+    await userEvent.click(await screen.findByRole('switch', { name: 'Alle mit Anmeldung' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Die Freigabe konnte nicht geändert werden.'
@@ -129,7 +123,7 @@ describe('ShareRecipeModal', () => {
       body: { share_mode: 'groups', is_public: false, public_ownership: null },
     });
     const { baseElement } = renderModal();
-    await screen.findByLabelText('Sichtbarkeit');
+    await screen.findByRole('switch', { name: 'Alle mit Anmeldung' });
 
     expect(await axe(baseElement)).toHaveNoViolations();
   });
@@ -139,7 +133,7 @@ describe('ShareRecipeModal', () => {
   it('listet erst, wenn die Eigentumsfrage beantwortet ist', async () => {
     renderModal();
 
-    await userEvent.click(await screen.findByRole('switch', { name: /Öffentlich/ }));
+    await userEvent.click(await screen.findByRole('switch', { name: /Im Marktplatz/ }));
     expect(await screen.findByText(/Gelistet wird erst/)).toBeInTheDocument();
     expect(setIsPublic).not.toHaveBeenCalled();
     expect(setShareMode).not.toHaveBeenCalled();
@@ -166,7 +160,7 @@ describe('ShareRecipeModal', () => {
   it('nimmt den Schalter ohne Serveraufruf zurück, solange die Frage offen ist', async () => {
     renderModal();
 
-    const toggle = await screen.findByRole('switch', { name: /Öffentlich/ });
+    const toggle = await screen.findByRole('switch', { name: /Im Marktplatz/ });
     await userEvent.click(toggle);
     await userEvent.click(toggle);
 
@@ -197,5 +191,94 @@ describe('ShareRecipeModal', () => {
   it('zeigt den Link auf die Rezeptseite', async () => {
     renderModal();
     expect(await screen.findByDisplayValue(/\/agentura\/rezept\/mein-rezept$/)).toBeInTheDocument();
+  });
+
+  describe('drei Fragen', () => {
+    const ownRow = (sharedWithGroups: Array<{ groupId: string; groupName: string }>) => ({
+      status: 200,
+      body: {
+        success: true,
+        forms: [
+          {
+            id: 'r1',
+            kind: 'custom',
+            textType: null,
+            mention: 'mein-rezept',
+            title: 'Mein Rezept',
+            examples: [],
+            styleBlock: 'x',
+            model: null,
+            analyzedAt: null,
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            sharedWithGroups,
+            sharedFromGroup: null,
+            ownerName: null,
+            description: null,
+            iconKey: null,
+            category: null,
+            shareMode: 'authenticated',
+            isPublic: false,
+            publicOwnership: null,
+            slugSuffix: 'Ab3xK9',
+          },
+        ],
+      },
+    });
+
+    it('zeigt die Projekte auch bei „Mit Anmeldung“', async () => {
+      getShareSettings.mockResolvedValue({
+        status: 200,
+        body: { share_mode: 'authenticated', is_public: false, public_ownership: null },
+      });
+      list.mockResolvedValue(ownRow([{ groupId: 'g1', groupName: 'KV Teststadt' }]));
+      renderModal();
+
+      expect(await screen.findByText('KV Teststadt')).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Alle mit Anmeldung' })).toBeChecked();
+    });
+
+    it('stuft beim Ausschalten auf die Projekte ab, solange welche da sind', async () => {
+      getShareSettings.mockResolvedValue({
+        status: 200,
+        body: { share_mode: 'authenticated', is_public: false, public_ownership: null },
+      });
+      list.mockResolvedValue(ownRow([{ groupId: 'g1', groupName: 'KV Teststadt' }]));
+      renderModal();
+
+      await screen.findByText('KV Teststadt');
+      await userEvent.click(screen.getByRole('switch', { name: 'Alle mit Anmeldung' }));
+      await waitFor(() =>
+        expect(setShareMode).toHaveBeenCalledWith({
+          params: { mention: 'mein-rezept' },
+          body: { mode: 'groups' },
+        })
+      );
+    });
+
+    it('stuft ohne Projekte auf privat ab', async () => {
+      getShareSettings.mockResolvedValue({
+        status: 200,
+        body: { share_mode: 'authenticated', is_public: false, public_ownership: null },
+      });
+      list.mockResolvedValue(ownRow([]));
+      renderModal();
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Alle mit Anmeldung' }));
+      await waitFor(() =>
+        expect(setShareMode).toHaveBeenCalledWith({
+          params: { mention: 'mein-rezept' },
+          body: { mode: 'private' },
+        })
+      );
+    });
+
+    it('nimmt den Link aus dem Namen und dem Suffix', async () => {
+      list.mockResolvedValue(ownRow([]));
+      renderModal();
+
+      expect(
+        await screen.findByDisplayValue(/\/agentura\/rezept\/mein-rezept-Ab3xK9$/)
+      ).toBeInTheDocument();
+    });
   });
 });

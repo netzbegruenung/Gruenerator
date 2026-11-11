@@ -421,7 +421,9 @@ describe('GrueneratorenPage — Meine Rezepte', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: /Teilen/ }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Rezept teilen' });
-    expect(await within(dialog).findByLabelText('Sichtbarkeit')).toBeInTheDocument();
+    expect(
+      await within(dialog).findByRole('switch', { name: 'Alle mit Anmeldung' })
+    ).toBeInTheDocument();
   });
 
   it('führt eine geteilte Gruppen-Rezept-Karte genau einmal als geteilt', async () => {

@@ -349,9 +349,8 @@ function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
  * every query that has to answer "may this user see this row". A share row of a
- * private recipe grants nothing: setting a recipe back to private revokes group
- * access without deleting the rows (#3803), and the sharing panel lists group
- * shares only in 'groups' mode. A removed recipe grants nothing either: the
+ * private recipe grants nothing (#3803) — and setting a recipe to private
+ * deletes its rows (`updateTextFormSharing`), so none should remain. A removed recipe grants nothing either: the
  * moderation outcome reaches the Projekte too (#4700); a hidden one stays. */
 const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 'removed' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
@@ -676,6 +675,15 @@ export async function updateTextFormSharing(
     })
     .where(eq(userTextForms.id, row.id))
     .returning({ id: userTextForms.id });
+  // Privat heisst: in keinem Projekt. Die Zeilen blieben sonst als tote
+  // Freigaben stehen, die die immer sichtbare Projektliste anzeigen oder ein
+  // späteres Teilen still wiederbeleben würde.
+  if (updated.length > 0 && verdict.next.share_mode === 'private') {
+    await getPostgresInstance().query(
+      `DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2`,
+      [TEXT_FORM_CONTENT_TYPE, String(row.id)]
+    );
+  }
 
   return { ok: true, updated: updated.length > 0 };
 }
