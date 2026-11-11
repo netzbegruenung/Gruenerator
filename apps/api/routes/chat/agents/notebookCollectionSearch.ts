@@ -89,7 +89,9 @@ export async function searchCollectionAsNotebook(
     lvContentType !== undefined &&
     lvContentType.length > 0 &&
     mappings.length === 1 &&
-    mappings[0]?.qdrantCollection === 'landesverbaende_documents';
+    mappings[0] !== undefined &&
+    'qdrantCollection' in mappings[0] &&
+    mappings[0].qdrantCollection === 'landesverbaende_documents';
 
   try {
     const context = await notebookQAService.getSearchContext({
