@@ -193,7 +193,7 @@ describe('routes.ts mount order', () => {
       {
         path: '/api/video/transcribe',
         auth: "app.use('/api/video', requireAuth",
-        mount: 'mountVideoContractRouter(app)',
+        mount: "app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter)",
       },
       {
         path: '/api/auth/notebook/public/:token/ask',
