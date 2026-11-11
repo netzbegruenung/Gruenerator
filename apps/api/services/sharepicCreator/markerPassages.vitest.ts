@@ -69,7 +69,49 @@ describe('++marker++ passages', () => {
       'de-DE',
       'x'
     );
-    expect(!result.ok && result.error).toContain('nur in zitat, absatz und headline');
+    expect(!result.ok && result.error).toContain('nur in zitat, absatz, headline und aufruf');
+  });
+
+  it('allows ++ in the text of an aufruf, as the composer draws it and the catalogue ships it (#5601)', () => {
+    for (const stil of ['kernsatz', 'petition', 'ausruf']) {
+      const result = validateDraft(
+        slideOf([{ type: 'aufruf', stil, text: 'Wir brauchen ++echten++ Klimaschutz!' }]),
+        'de-DE',
+        'x'
+      );
+      expect(result.ok).toBe(true);
+    }
+    // The addressee stays plain.
+    const adressat = validateDraft(
+      slideOf([
+        {
+          type: 'aufruf',
+          stil: 'ausruf',
+          text: 'Jetzt handeln!',
+          adressat: 'An die ++Regierung++',
+        },
+      ]),
+      'de-DE',
+      'x'
+    );
+    expect(!adressat.ok && adressat.error).toContain('adressat und hinweis ohne');
+    // Austria marks with ==, an aufruf included.
+    const at = validateDraft(
+      slideOf(
+        [{ type: 'aufruf', stil: 'kernsatz', text: 'Wir brauchen ++echten++ Klimaschutz!' }],
+        'dunkelgruen'
+      ),
+      'de-AT',
+      'x'
+    );
+    expect(!at.ok && at.error).toContain('==Wort==');
+    // An aufruf is held to the two passages of its slide.
+    const three = validateDraft(
+      slideOf([{ type: 'aufruf', stil: 'kernsatz', text: '++Wind++, ++Sonne++, ++Mut++!' }]),
+      'de-DE',
+      'x'
+    );
+    expect(!three.ok && three.error).toContain('Höchstens 2');
   });
 
   it('allows one box per spalten title and per kasten point in DE, as the composer draws them', () => {
@@ -138,7 +180,7 @@ describe('++marker++ passages', () => {
       'de-DE',
       'x'
     );
-    expect(!haken.ok && haken.error).toContain('nur in zitat, absatz und headline');
+    expect(!haken.ok && haken.error).toContain('nur in zitat, absatz, headline und aufruf');
     const karten = validateDraft(
       slideOf([
         {
@@ -150,7 +192,7 @@ describe('++marker++ passages', () => {
       'de-DE',
       'x'
     );
-    expect(!karten.ok && karten.error).toContain('nur in zitat, absatz und headline');
+    expect(!karten.ok && karten.error).toContain('nur in zitat, absatz, headline und aufruf');
     const at = validateDraft(
       slideOf(
         [
@@ -298,6 +340,21 @@ describe('++marker++ passages', () => {
       [1],
       slides
     );
-    expect(!wrongItem.ok && wrongItem.error).toContain('nur in zitat, absatz und headline');
+    expect(!wrongItem.ok && wrongItem.error).toContain('nur in zitat, absatz, headline und aufruf');
+    const aufrufSlides = [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'mitte',
+        align: 'links',
+        items: [{ type: 'aufruf', stil: 'kernsatz', text: 'x' }],
+        logo: true,
+      },
+    ] as never;
+    const aufruf = validateReview(
+      { ok: false, issues: [], patch: [{ op: 'set_text', item: 0, text: 'Los ++jetzt++' }] },
+      [1],
+      aufrufSlides
+    );
+    expect(aufruf.ok).toBe(true);
   });
 });
