@@ -59,6 +59,7 @@ import { startCleanupScheduler as startExportCleanup } from './services/subtitle
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
 import { startTrashPurge } from './services/trash/trashPurgeService.js';
+import { startVideoAiWorker } from './services/videoAi/videoAiWorker.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -315,6 +316,8 @@ async function startWorker(): Promise<void> {
   startExplainableImageWorker();
   // Writes and voices queued podcasts. Same cluster-safe claim.
   startPodcastWorker();
+  // Analyses and cuts queued KI-Schnitt projects. Same cluster-safe claim.
+  startVideoAiWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.

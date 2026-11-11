@@ -158,6 +158,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
+import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -573,6 +574,12 @@ export async function setupRoutes(app: Application): Promise<void> {
     next()
   );
   mountPodcastsContractRouter(app);
+  // KI-Schnitt: queued here, analysed and cut by services/videoAi/videoAiWorker.ts.
+  app.use('/api/video-ai', requireAuth, authenticatedReadLimiter);
+  app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  mountVideoAiContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);

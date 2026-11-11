@@ -105,6 +105,37 @@ export const AI_LANES = {
     structuredMode: 'tool',
   },
 
+  // — KI-Schnitt, Stufe A (services/videoAi/decideCut.ts): welche Sätze des
+  //   Rohmaterials in welcher Reihenfolge. `:speed` wie `bundestag_read`: mit
+  //   Reasoning 8–11 s; 15 min Rohmaterial sind ~12k Token, über der Schwelle,
+  //   ab der `:balanced` am 60-s-Gateway scheitert. Messung: Spike vom
+  //   10.11.2026 (apps/api/evals/video-ai/spike-2026-11-10.md, Abschnitt 5).
+  video_ai_cut: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+  //   Kontaktbögen (describeFrames.ts): ein 3×3-Raster pro Aufruf, ohne Reasoning,
+  //   3–4 s und ~530 Prompt-Token (Spike, Abschnitt 3). Gestaltung (decideDesign.ts):
+  //   Titel, Bauchbinde, Einblendungen auf die fertige Zeitleiste.
+  video_ai_frames: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+  video_ai_design: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+  //   Korrekturrunde (reviseEdl.ts): Feedback in eigenen Worten → feste Ops auf
+  //   den aktuellen Plan, mit Reasoning wie Stufe A.
+  video_ai_revise: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
   //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
   //   services/providers/providerSelector.ts.

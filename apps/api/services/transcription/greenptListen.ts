@@ -121,6 +121,12 @@ export function groupGreenptWords(words: readonly GreenptWord[]): GreenptSegment
 export interface GreenptListenOptions {
   /** Speaker diarization. Free, and v2 is the current generally available model. */
   diarize?: boolean;
+  /**
+   * Names and terms to spell right, one `keyterm` parameter each. Measured
+   * 10.11.2026: "Drüge" became "Dröge" with the name as keyterm; the similar
+   * `keywords` parameter is refused with 400.
+   */
+  keyterms?: readonly string[];
 }
 
 /**
@@ -157,6 +163,9 @@ export async function listenWithGreenpt(
   });
   if (options.diarize === true) {
     query.set('diarize_model', 'v2');
+  }
+  for (const term of options.keyterms ?? []) {
+    if (term.trim()) query.append('keyterm', term.trim());
   }
 
   const response = await fetch(`${GREENPT_LISTEN_URL}?${query.toString()}`, {

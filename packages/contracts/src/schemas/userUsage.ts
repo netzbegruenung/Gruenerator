@@ -28,6 +28,8 @@ export const usageFeatureSchema = z.enum([
   'voice',
   // The daily briefing (Tagesbriefing), one model call per person and day.
   'briefing',
+  // The KI-Schnitt: transcription, frame reading and the cut decisions of one job.
+  'video_ai',
   'other',
 ]);
 

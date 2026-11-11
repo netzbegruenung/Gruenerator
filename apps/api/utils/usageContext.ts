@@ -59,6 +59,7 @@ export const USAGE_FEATURES = [
   'notebook',
   'voice',
   'briefing',
+  'video_ai',
   'other',
 ] as const;
 
@@ -128,6 +129,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
     ['/api/voice/speech', 'voice'],
     ['/api/podcasts', 'voice'],
+    ['/api/video-ai', 'video_ai'],
     // The rest of /api/voice is the /transkription page (upload transcription,
     // protocol, to-do list). It has its own slug so the transparency page can
     // tell it apart from Reels; the upload line must outrank '/transcribe' above,
