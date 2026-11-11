@@ -13,11 +13,6 @@
  * in (`tool_calls` vs `raw_content_blocks`). Extracted here so a fourth
  * surface does not copy it a third time.
  *
- * `routes/chat/services/toolForcedEdit.ts` is the chat-side adapter over this
- * helper: it adds a fixed user message, the `{ok, error}` contract and a
- * schema retry, and calls this with `attempts: 1` so its own loop owns the
- * budget.
- *
  * What this does NOT do: validate the tool input against a schema. The
  * `inputSchema` here only describes the tool to the model; each caller keeps
  * its own post-call validation (a whole-array `safeParse` for boards, a

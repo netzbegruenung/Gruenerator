@@ -18,9 +18,9 @@ type SdkSchema = ReturnType<typeof jsonSchema>;
  * and every downstream validator rejects it with "title: Required". It reads
  * like an unreliable model; it is our own double wrap.
  *
- * Callers are genuinely split about which shape they hand over —
- * `toolForcedEdit` wraps before calling, `aiObject` and the MCP
- * catalogs pass raw JSON Schema — so this detects instead of demanding one.
+ * Callers are genuinely split about which shape they hand over — some wrap
+ * before calling, `aiObject` and the MCP catalogs pass raw JSON Schema — so
+ * this detects instead of demanding one.
  * `isSchema` is internal to @ai-sdk/provider-utils (not re-exported by `ai`),
  * hence the mirrored predicate; checked against ai@7.0.37.
  */
