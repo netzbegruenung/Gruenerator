@@ -150,7 +150,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
               size="icon"
               className="h-9 w-9"
               onClick={() => setShareDialogOpen(true)}
-              title="Mit Gruppe teilen"
+              title="Mit Projekt oder Gruppe teilen"
             >
               <FiUsers className="w-4 h-4" />
             </Button>

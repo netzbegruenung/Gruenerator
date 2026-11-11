@@ -336,7 +336,7 @@ function PermissionsSheet({
           {(groupCollabs.length > 0 || unsharedGroups.length > 0) && (
             <View style={styles.permSection}>
               <Text style={[styles.permSectionLabel, { color: theme.textSecondary }]}>
-                Projekte
+                Projekte und Gruppen
               </Text>
               {groupCollabs.map((g) => (
                 <View key={g.group_id} style={styles.permRow}>

@@ -280,7 +280,7 @@ function TemplateVisibility({ item, onBack, onDone }: StepProps & { item: UserTe
       // Submitted counts as public here: the choice is made, only the review is pending.
       current={badge === 'private' ? 'private' : 'public'}
       currentGroupIds={[]}
-      projectUnavailable="Vorlagen lassen sich noch nicht in Projekte teilen."
+      projectUnavailable="Vorlagen lassen sich noch nicht in Projekte und Gruppen teilen."
       publicRequirement="review"
       onBack={onBack}
       onApply={async (choice) => {
@@ -324,7 +324,7 @@ function AssetVisibility({ item, onBack, onDone }: StepProps & { item: StudioAss
     <VisibilityStep
       current={item.visibility === 'public' ? 'public' : 'private'}
       currentGroupIds={[]}
-      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte teilen."
+      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte und Gruppen teilen."
       publicRequirement="rights"
       initialAudience={item.audience}
       onBack={onBack}
