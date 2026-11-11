@@ -157,7 +157,6 @@ import v1ChatCompletionsRouter, {
 } from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
-import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -1155,10 +1154,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   );
 
-  // ts-rest contract router — mount before legacy videoRouter
   app.use('/api/video', requireAuth);
   app.use('/api/video/transcribe', requireAiConsent);
-  mountVideoContractRouter(app);
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
   app.use('/api/connections', standardMutationLimiter, requireAuth);

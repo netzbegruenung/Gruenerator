@@ -52,7 +52,6 @@ export { subtitlerContract } from './subtitlerContract.js';
 export { voiceContract } from './voiceContract.js';
 export { speechContract } from './speechContract.js';
 export { imagePickerContract } from './imagePickerContract.js';
-export { videoContract } from './videoContract.js';
 export { sharepicContract } from './sharepicContract.js';
 export { sharepicTextContract } from './sharepicTextContract.js';
 export { unsplashContract } from './unsplashContract.js';
