@@ -26,7 +26,7 @@ const log = createLogger('video-transcribe');
 const router = Router();
 
 const TEMP_DIR = '/tmp/video-transcribe';
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB, same as /api/video/uploads
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 /** A file in TEMP_DIR by name; anything resolving outside it is refused. */
 function tempFilePath(name: string): string {
