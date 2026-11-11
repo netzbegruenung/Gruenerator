@@ -16,7 +16,7 @@ import {
   Switch,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 
 import {
@@ -27,7 +27,7 @@ import {
   useTestMcpServer,
   useApproveMcpServerTools,
   useMcpRegistry,
-  mcpKeys,
+  invalidateMcpServers,
 } from '../hooks/useMcpServers';
 import {
   connectRegistryConnector,
@@ -452,7 +452,7 @@ const McpServerRow = memo(
 
     const authorize = () => {
       void runOAuth(async () => server.id).then((result) => {
-        void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
+        invalidateMcpServers(queryClient);
         if (result.status === 'success') onSuccess(`${server.name} verbunden`);
         else if (result.status === 'no_auth_required')
           onSuccess(`${server.name} verbunden — der Server benötigt keine Anmeldung`);
@@ -463,9 +463,11 @@ const McpServerRow = memo(
       });
     };
 
-    const runTest = () => {
+    /** `quiet`: a good result shows through the refreshed tool list alone. */
+    const runTest = (quiet = false) => {
       test.mutate(server.id, {
-        onSuccess: (r) =>
+        onSuccess: (r) => {
+          if (quiet && r.ok && r.toolNames.length > 0) return;
           setTestResult({
             ok: r.ok,
             tools: r.toolNames,
@@ -477,7 +479,8 @@ const McpServerRow = memo(
             skippedTools: r.skippedTools,
             truncatedTools: r.truncatedTools,
             hint: r.hint,
-          }),
+          });
+        },
         onError: (err) =>
           setTestResult({
             ok: false,
@@ -486,6 +489,19 @@ const McpServerRow = memo(
           }),
       });
     };
+
+    // Den Werkzeug-Snapshot schreibt erst ein Verbindungsaufbau. Eine nutzbare
+    // Zeile ohne ihn (frisch angelegt, gerade autorisiert oder eingeschaltet)
+    // zeigte deshalb keine Werkzeuge, bis jemand „Testen" klickte — also testet
+    // sie sich einmal selbst. Ein Fehler steht dann sofort hier, nicht erst im Chat.
+    const needsFirstTest = !isManaged && !needsAuth && server.enabled && server.toolNames == null;
+    const autoTested = useRef(false);
+    const autoTest = useEffectEvent(() => runTest(true));
+    useEffect(() => {
+      if (!needsFirstTest || autoTested.current) return;
+      autoTested.current = true;
+      autoTest();
+    }, [needsFirstTest]);
 
     const healthy = testResult?.ok === true;
 
@@ -550,7 +566,7 @@ const McpServerRow = memo(
             )}
             <button
               type="button"
-              onClick={runTest}
+              onClick={() => runTest()}
               disabled={test.isPending}
               className={textBtnClass}
             >
@@ -962,7 +978,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
 
-  const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
+  const refreshMcp = () => invalidateMcpServers(queryClient);
 
   // Known connectors report an empty `url` (the endpoint is deploy-env-only),
   // so they cannot and must not take part in the URL match — they match by key.

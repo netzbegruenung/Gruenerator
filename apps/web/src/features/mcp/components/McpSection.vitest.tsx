@@ -4,6 +4,7 @@
  * steht sie unter „Verbunden" mit Schalter und „Entfernen" — aber ohne URL,
  * Token oder Umbenennen, weil der Endpunkt in der Deploy-Umgebung liegt.
  */
+import { MCP_SERVER_MENTIONS_QUERY_KEY } from '@gruenerator/chat';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -95,5 +96,74 @@ describe('McpSection — bekannte Konnektoren', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Den Werkzeug-Snapshot schreibt erst ein Verbindungsaufbau. Eine eigene Zeile
+ * ohne Anmeldung zeigte deshalb keine Werkzeuge, bis jemand „Testen" klickte,
+ * und die @-Liste im Chat kannte den neuen Server erst nach einem Remount.
+ */
+describe('McpSection — eigener Server ohne Snapshot', () => {
+  const OWN_ROW = {
+    id: '9c2d0000-0000-0000-0000-000000000000',
+    name: 'Tally',
+    url: 'https://mcp.example.org/mcp',
+    authType: 'none',
+    hasToken: false,
+    enabled: true,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:00.000Z',
+    description: null,
+    toolNames: null as string[] | null,
+  };
+
+  function serveOwn(row: typeof OWN_ROW) {
+    const tested: string[] = [];
+    let snapshot: string[] | null = row.toolNames;
+    server.use(
+      http.get(`${API}/mcp/servers`, () =>
+        HttpResponse.json({ servers: [{ ...row, toolNames: snapshot }] })
+      ),
+      http.get(`${API}/mcp/servers/registry`, () =>
+        HttpResponse.json({
+          recommended: [],
+          servers: [],
+          nextCursor: null,
+          oauthRedirectUri: null,
+        })
+      ),
+      http.post(`${API}/mcp/servers/:id/test`, ({ params }) => {
+        tested.push(String(params.id));
+        snapshot = ['list_forms', 'create_form'];
+        return HttpResponse.json({
+          ok: true,
+          toolCount: 2,
+          toolNames: snapshot,
+          error: null,
+        });
+      })
+    );
+    return tested;
+  }
+
+  it('testet sich einmal selbst, zeigt danach die Werkzeuge und frischt die @-Liste auf', async () => {
+    const tested = serveOwn(OWN_ROW);
+    const { queryClient } = renderWithProviders(
+      <McpSection onSuccess={vi.fn()} onError={vi.fn()} />
+    );
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    expect(await screen.findByText('list_forms')).toBeInTheDocument();
+    expect(tested).toEqual([OWN_ROW.id]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: MCP_SERVER_MENTIONS_QUERY_KEY });
+  });
+
+  it('testet nicht, solange die Anmeldung fehlt', async () => {
+    const tested = serveOwn({ ...OWN_ROW, authType: 'oauth' });
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Nicht autorisiert');
+    expect(tested).toEqual([]);
   });
 });
