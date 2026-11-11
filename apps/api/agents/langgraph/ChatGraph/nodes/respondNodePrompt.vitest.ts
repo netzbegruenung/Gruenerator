@@ -70,6 +70,8 @@ const { buildSystemMessage, buildTurnPrompt, activePromptBlocks, PROMPT_BLOCK_OR
 const { PASTED_TEXT_HEADING } =
   await import('../../../../routes/chat/services/attachmentProcessingService.js');
 const { renderTurnMaterial } = await import('../../../../routes/chat/services/materialItems.js');
+const { loopAgentDefaultRecipe } =
+  await import('../../../../routes/chat/services/agenticLoop/agentDefaultRecipe.js');
 
 const material = (items: TurnMaterialItem[]) => ({
   turnMaterial: items,
@@ -904,11 +906,37 @@ describe('Prosa im Loop verliert nichts', () => {
   const prose = (intent: string) => makeState({ ...withAgentDefaultRecipe, intent } as never);
   const LOOP = { retrievalExpected: true, loop: true } as const;
 
-  it('trägt Rezept-Rumpf und Schreibhilfe auf dem Loop-Pfad', async () => {
-    const loop = await buildSystemMessage(prose('produktion'), LOOP);
-    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
+  it('trägt die Schreibhilfe auf dem Loop-Pfad, den Rezept-Rumpf die Registry', async () => {
+    const state = prose('produktion');
+    const loop = await buildSystemMessage(state, LOOP);
     expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
+    // Stünde der Rumpf hier, kennte die Registry ihn nicht: `rezept_laden` böte
+    // dasselbe Rezept erneut an, und eine andere Textsorte legte sich daneben.
+    expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loopAgentDefaultRecipe(state)).toEqual({ mention: 'instagram', recipeId: null });
   });
+
+  // Der Default darf zwischen Prompt und Registry weder doppelt stehen noch
+  // durchfallen: für jeden Turn genau eine der beiden Türen — oder keine, wenn
+  // auch der Einzelpfad keinen Default trüge.
+  it.each([
+    ['produktion', {}, true],
+    ['agentic', { loopDemotedFromProse: 'produktion' }, true],
+    ['agentic', {}, false],
+    ['search', {}, false],
+    ['greeting', {}, false],
+    ['summary', {}, false],
+    ['produktion', { customSystemPrompt: 'Du bist eine Rolle.' }, false],
+    ['produktion', { lastUserTextNoMentions: 'Was kannst du eigentlich?' }, false],
+  ] as const)(
+    'intent=%s %o: Rumpf über die Registry = %s, nie im Loop-Prompt',
+    async (intent, over, carried) => {
+      const state = makeState({ ...withAgentDefaultRecipe, intent, ...over } as never);
+      const loop = await buildSystemMessage(state, LOOP);
+      expect(loop).not.toContain('## AKTIVE PLATTFORM: Instagram');
+      expect(loopAgentDefaultRecipe(state) != null).toBe(carried);
+    }
+  );
 
   it('legt ein ausdrücklich gewähltes Rezept nicht in den Loop-Prompt — die Registry trägt es', async () => {
     const chosen = makeState({ activeSkillMention: 'instagram', intent: 'produktion' } as never);
@@ -974,10 +1002,9 @@ describe('Prosa im Loop verliert nichts', () => {
       loopDemotedFromProse: 'produktion',
     } as never);
     const loop = await buildSystemMessage(demoted, LOOP);
-    expect(loop).toContain('## AKTIVE PLATTFORM: Instagram');
     expect(loop).not.toContain('Dies ist eine direkte Anfrage ohne Recherche-Bedarf.');
-    const plain = await buildSystemMessage(prose('agentic'), LOOP);
-    expect(plain).not.toContain('## AKTIVE PLATTFORM: Instagram');
+    expect(loopAgentDefaultRecipe(demoted)).toEqual({ mention: 'instagram', recipeId: null });
+    expect(loopAgentDefaultRecipe(prose('agentic'))).toBeNull();
   });
 
   it('behandelt greeting im Loop nicht als Prosa', async () => {
