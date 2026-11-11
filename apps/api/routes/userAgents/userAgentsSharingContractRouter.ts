@@ -12,6 +12,7 @@
  */
 
 import { userAgentsSharingContract } from '@gruenerator/contracts';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -19,6 +20,8 @@ import { notifyContentShared } from '../../services/groups/groupContent.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
+  getAccessibleUserAgentById,
+  getAccessibleUserAgentBySlugSuffix,
   getAgentSharing,
   listPublicUserAgents,
   updateAgentSharing,
@@ -56,6 +59,25 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       return { status: 200 as const, body: { success: true, agents } };
     } catch (error) {
       log.error('[userAgentsSharingContract.listPublic] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  resolveLink: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const key = shareLinkKey(args.params.slug);
+      const agent = !key
+        ? undefined
+        : 'id' in key
+          ? await getAccessibleUserAgentById(key.id, userId)
+          : await getAccessibleUserAgentBySlugSuffix(key.slugSuffix, userId);
+      if (!agent) return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
+      // The prompt is the owner's (#3781) — the owner reads it from their own list.
+      const { systemRole: _systemRole, ...usable } = agent;
+      return { status: 200 as const, body: { success: true as const, agent: usable } };
+    } catch (error) {
+      log.error('[userAgentsSharingContract.resolveLink] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },

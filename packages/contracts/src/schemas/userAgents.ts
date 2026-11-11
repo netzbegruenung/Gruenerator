@@ -118,6 +118,9 @@ export const userAgentSchema = z.object({
   defaultRecipeMention: z.string().optional(),
   /** Row id of the default recipe — the stable handle across renames. */
   defaultRecipeId: z.string().guid().optional(),
+  /** Share-link key: the link is `<name>-<slugSuffix>` (`agentSharePath`).
+   * `identifier` is unique only per owner and cannot name one agent. */
+  slugSuffix: z.string().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;

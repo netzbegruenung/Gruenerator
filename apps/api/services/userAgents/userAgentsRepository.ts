@@ -82,6 +82,7 @@ function rowToAgent(row: UserAgentRow): UserAgentRecord {
     ...(row.inline_source_links != null ? { inlineSourceLinks: row.inline_source_links } : {}),
     ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
     ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
+    ...(row.slug_suffix ? { slugSuffix: row.slug_suffix } : {}),
   };
 }
 
@@ -462,11 +463,30 @@ export async function getAccessibleUserAgentById(
   id: string,
   requestingUserId: string
 ): Promise<UserAgentRecord | undefined> {
+  return getAccessibleUserAgentWhere('ua.id = $1::uuid', id, requestingUserId);
+}
+
+/**
+ * The same, by the share-link suffix (`<name>-<suffix>`): the key a link sent
+ * to someone else carries. A suffix is globally unique, like the uuid.
+ */
+export async function getAccessibleUserAgentBySlugSuffix(
+  suffix: string,
+  requestingUserId: string
+): Promise<UserAgentRecord | undefined> {
+  return getAccessibleUserAgentWhere('ua.slug_suffix = $1', suffix, requestingUserId);
+}
+
+async function getAccessibleUserAgentWhere(
+  selector: 'ua.id = $1::uuid' | 'ua.slug_suffix = $1',
+  value: string,
+  requestingUserId: string
+): Promise<UserAgentRecord | undefined> {
   const postgres = getPostgresInstance();
   const row = await postgres.queryOne<UserAgentRow>(
     `SELECT ua.*
        FROM user_agents ua
-      WHERE ua.id = $1::uuid
+      WHERE ${selector}
         AND ua.deleted_at IS NULL
         AND (
           ua.user_id = $2::uuid
@@ -486,7 +506,7 @@ export async function getAccessibleUserAgentById(
             )
           )
         )`,
-    [id, requestingUserId],
+    [value, requestingUserId],
     { table: 'user_agents' }
   );
   return row ? rowToAgent(row) : undefined;

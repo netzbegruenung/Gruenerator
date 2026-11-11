@@ -6,6 +6,7 @@ import {
   resolveAgentSlug,
   type Agent,
 } from '../agents/index.js';
+import { shareLinkKey } from '../utils/index.js';
 
 import { type ForeignAgent } from './userAgents.js';
 
@@ -23,7 +24,10 @@ export interface AgentLookupResult {
  * system registry (slug → identifier via `resolveAgentSlug`), then the caller's
  * own agents, then someone else's shared or public agent by its row uuid. A
  * bare identifier of someone else's agent still resolves for old links, but
- * only if the caller has no agent of that name.
+ * only if the caller has no agent of that name. A share link
+ * (`<name>-<suffix>`, `agentSharePath`) matches by its suffix; a link to an
+ * agent none of the lists holds ("Mit Anmeldung", not listed) is the server's
+ * to answer (`useAgentLink`).
  */
 export function resolveAgentBySlug(
   slug: string,
@@ -39,12 +43,19 @@ export function resolveAgentBySlug(
   const systemAgent = getSystemAgent(identifier);
   if (systemAgent) return { agent: systemAgent, isUserAgent: false, isOwn: false };
 
-  const mine = lists.own.find((a) => a.id === decoded || a.identifier === identifier);
+  const key = shareLinkKey(decoded);
+  const suffix = key && 'slugSuffix' in key ? key.slugSuffix : null;
+  const bySuffix = (a: { slugSuffix?: string }) => suffix !== null && a.slugSuffix === suffix;
+
+  const mine = lists.own.find(
+    (a) => a.id === decoded || a.identifier === identifier || bySuffix(a)
+  );
   if (mine) return { agent: mine, isUserAgent: true, isOwn: true };
 
   const foreign = [...lists.shared, ...lists.public];
   const other =
-    foreign.find((a) => a.id === decoded) ?? foreign.find((a) => a.identifier === identifier);
+    foreign.find((a) => a.id === decoded || bySuffix(a)) ??
+    foreign.find((a) => a.identifier === identifier);
   return other
     ? { agent: other, isUserAgent: true, isOwn: false }
     : { agent: null, isUserAgent: false, isOwn: false };

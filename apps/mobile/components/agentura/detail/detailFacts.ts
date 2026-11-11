@@ -33,12 +33,12 @@ export function agentKnowledge(agent: AgentFacts): string[] {
 }
 
 /** Der Link auf die Web-Detailseite (`agentSharePath`). */
-export function agentShareUrl(agent: Pick<Agent, 'id' | 'identifier'>): string {
+export function agentShareUrl(agent: Parameters<typeof agentSharePath>[0]): string {
   return `${WEB_ORIGIN}${agentSharePath(agent)}`;
 }
 
-export function recipeShareUrl(mention: string): string {
-  return `${WEB_ORIGIN}${recipeSharePath(mention)}`;
+export function recipeShareUrl(recipe: Parameters<typeof recipeSharePath>[0]): string {
+  return `${WEB_ORIGIN}${recipeSharePath(recipe)}`;
 }
 
 /**

@@ -46,12 +46,24 @@ export default function RecipeShareScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Rezept teilen' }} />
-      <RecipeSharing mention={lookup.form.mention} title={lookup.form.title} />
+      <RecipeSharing
+        mention={lookup.form.mention}
+        title={lookup.form.title}
+        slugSuffix={lookup.form.slugSuffix}
+      />
     </>
   );
 }
 
-function RecipeSharing({ mention, title }: { mention: string; title: string }) {
+function RecipeSharing({
+  mention,
+  title,
+  slugSuffix,
+}: {
+  mention: string;
+  title: string;
+  slugSuffix: string | null;
+}) {
   const settings = useRecipeShareSettings(mention);
   const groupShares = useRecipeGroupShares(mention);
   const myGroups = useMyGroupsForSharing(true);
@@ -69,7 +81,7 @@ function RecipeSharing({ mention, title }: { mention: string; title: string }) {
       groupShares={groupShares.map((g) => ({ id: g.groupId, name: g.groupName }))}
       myGroups={myGroups.data ?? null}
       authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen."
-      shareUrl={recipeShareUrl(mention)}
+      shareUrl={recipeShareUrl({ mention, title, slugSuffix })}
       shareTitle={title}
       setMode={(mode) => setMode.mutateAsync(mode)}
       setListing={(input) => setListing.mutateAsync(input)}

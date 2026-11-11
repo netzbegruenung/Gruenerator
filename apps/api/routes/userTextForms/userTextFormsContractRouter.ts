@@ -17,6 +17,7 @@
 
 import { userTextFormsContract } from '@gruenerator/contracts';
 import { landesverbandIdsForRoles } from '@gruenerator/shared/agents';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -28,6 +29,7 @@ import {
   deleteTextForm,
   getTextFormSharing,
   listMentionableTextForms,
+  getLinkedTextForm,
   listPublicTextForms,
   listTextForms,
   shareTextFormWithGroup,
@@ -142,6 +144,27 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
       const err = error as Error;
       log.error('[userTextFormsContract.listMentionable] Error:', err);
       return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  resolveLink: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const key = shareLinkKey(args.params.slug);
+      const linked = key ? await getLinkedTextForm(key, userId) : null;
+      if (!linked) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, ...linked } };
+    } catch (error) {
+      log.error('[userTextFormsContract.resolveLink] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: toUserFacingMessage(error as Error) },
+      };
     }
   },
 
