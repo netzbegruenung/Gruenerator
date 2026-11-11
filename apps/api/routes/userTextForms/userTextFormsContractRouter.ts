@@ -290,7 +290,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
           body: {
             success: false,
             message:
-              'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann in Agentura listen.',
+              'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann im Marktplatz listen.',
           },
         };
       }
@@ -324,6 +324,14 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         return {
           status: 404 as const,
           body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      // Ohne Recht im Projekt fügt das Repository still nichts ein und gibt die
+      // alte Liste zurück — derselbe Befund wie in `confirmController`.
+      if (!shares.some((s) => s.groupId === args.body.group_id)) {
+        return {
+          status: 403 as const,
+          body: { success: false, message: 'Mit diesem Projekt darfst du nicht teilen.' },
         };
       }
       return { status: 200 as const, body: { success: true, sharedWithGroups: shares } };

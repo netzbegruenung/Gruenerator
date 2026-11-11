@@ -19,6 +19,7 @@ export * from './recipeSharing.js';
 export * from './recipes.js';
 export * from './recurringTasks.js';
 export * from './scheduleState.js';
+export * from './shareRules.js';
 export * from './splitExamples.js';
 export * from './userAgents.js';
 export * from './userLibrary.js';

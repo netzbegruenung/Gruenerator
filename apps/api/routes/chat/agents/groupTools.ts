@@ -170,6 +170,18 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
       )
     );
   }
+  for (const item of buckets.recipes) {
+    const mention = str(item, 'mention');
+    if (!mention) continue;
+    rows.push(
+      makeRow(
+        str(item, 'title') ?? mention,
+        `/agentura/rezept/${encodeURIComponent(mention)}`,
+        'Rezept',
+        str(item, 'description') ?? sharedBy(item)
+      )
+    );
+  }
   for (const item of buckets.system_agents) {
     const id = str(item, 'id');
     if (!id) continue;

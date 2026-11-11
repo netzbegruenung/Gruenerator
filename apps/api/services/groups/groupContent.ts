@@ -27,6 +27,7 @@ import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.
 import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { isShareableTextForm } from '../user/textFormVisibility.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
@@ -38,6 +39,7 @@ import type {
   GroupShareMeta,
   ReactionSummary,
   ShareContentBody,
+  TextFormKind,
 } from '@gruenerator/contracts';
 
 /** Contract-Typ → Tabelle, wo die beiden auseinanderfallen. */
@@ -60,7 +62,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   database: 'einen Datenbank-Eintrag',
   system_notebooks: 'ein Notebook',
   system_agents: 'einen Agenten',
-  user_agents: 'eine*n Agent*in',
+  user_agents: 'einen Agenten',
   canvas_template: 'eine Sharepic-Vorlage',
   chat_threads: 'einen Chat',
   user_text_forms: 'ein Rezept',
@@ -219,6 +221,30 @@ export async function shareContentToGroup(
     );
   }
 
+  // Dieselbe Regel wie `shareTextFormWithGroup`: nur eigene Rezepte (kein
+  // angepasstes System-Rezept), und ein privates hebt das erste Projekt auf
+  // 'groups' — sonst läge hier eine tote Freigabe, die kein Mitglied sieht.
+  if (contentType === 'user_text_forms') {
+    const recipe = await postgres.queryOne<{ kind: string; mention: string }>(
+      'SELECT kind, mention FROM user_text_forms WHERE id = $1 AND deleted_at IS NULL',
+      [contentId],
+      { table: 'user_text_forms' }
+    );
+    if (!recipe) return NOT_FOUND;
+    if (!isShareableTextForm(recipe.kind as TextFormKind, recipe.mention)) {
+      return {
+        status: 400,
+        success: false,
+        message: 'Angepasste System-Rezepte lassen sich nicht teilen.',
+      };
+    }
+    await postgres.exec(
+      `UPDATE user_text_forms SET share_mode = 'groups', updated_at = NOW()
+        WHERE id = $1 AND share_mode = 'private'`,
+      [contentId]
+    );
+  }
+
   const existingShare = await postgres.queryOne<{ id: string }>(
     'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
     [contentType, contentId, groupId],
@@ -228,7 +254,7 @@ export async function shareContentToGroup(
     return {
       status: 400,
       success: false,
-      message: 'Inhalt ist bereits mit dieser Gruppe geteilt.',
+      message: 'Inhalt ist bereits mit diesem Projekt geteilt.',
     };
   }
 
@@ -342,6 +368,7 @@ export interface GroupContentBuckets {
   user_agents: Record<string, unknown>[];
   canvas_templates: Record<string, unknown>[];
   group_posts: Record<string, unknown>[];
+  recipes: Record<string, unknown>[];
 }
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
@@ -403,6 +430,7 @@ export async function hydrateGroupContent(
     user_agents: [],
     canvas_template: [],
     group_post: [],
+    user_text_forms: [],
   };
   sharedContent.forEach((share) => {
     if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
@@ -592,6 +620,27 @@ export async function hydrateGroupContent(
     );
   }
 
+  if (contentByType.user_text_forms.length > 0) {
+    const ids = contentByType.user_text_forms.map((s) => s.content_id);
+    // Dieselben Riegel wie der Leser des Rezepts selbst (`GROUP_SHARE_EXISTS`):
+    // privat oder von der Moderation entfernt heißt für Mitglieder unsichtbar.
+    fetchPromises.push(
+      postgres
+        .query(
+          `SELECT id, title, description, mention, icon_key, user_id, created_at, updated_at
+             FROM user_text_forms
+            WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+              AND share_mode <> 'private' AND moderation <> 'removed'`,
+          [ids],
+          { table: 'user_text_forms' }
+        )
+        .then((data) => ({
+          type: 'user_text_forms',
+          result: { data: data || [] },
+          shares: contentByType.user_text_forms,
+        }))
+    );
+  }
   if (contentByType.group_post.length > 0) {
     const ids = contentByType.group_post.map((s) => s.content_id);
     fetchPromises.push(
@@ -641,6 +690,7 @@ export async function hydrateGroupContent(
     user_agents: [],
     canvas_templates: [],
     group_posts: [],
+    recipes: [],
   };
 
   const keyMap: Record<string, keyof GroupContentBuckets> = {
@@ -655,6 +705,7 @@ export async function hydrateGroupContent(
     user_agents: 'user_agents',
     canvas_template: 'canvas_templates',
     group_post: 'group_posts',
+    user_text_forms: 'recipes',
   };
 
   contentResults.forEach(({ type, result, shares }) => {

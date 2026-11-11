@@ -22,6 +22,20 @@ import { useMyGroupsForSharing } from './myGroupsForSharing.js';
 
 export { useMyGroupsForSharing };
 
+/**
+ * Die Agent-Endpoints antworten bei 4xx mit `{ error: '<Satz für Menschen>' }`
+ * (403 Projekt, 409 schon geteilt, 403 entfernt). Der Satz gehört in die Anzeige;
+ * ab 500 ist er „Internal server error" und bleibt draußen.
+ */
+function shareError(result: { status: number; body: unknown }): ApiError {
+  const body = result.body as { error?: unknown } | null;
+  const text =
+    result.status < 500 && body && typeof body.error === 'string'
+      ? body.error
+      : 'Die Freigabe konnte nicht geändert werden.';
+  return new ApiError(result.status, text);
+}
+
 const SHARE_SETTINGS_KEY = (id: string) => ['agent', 'share', 'settings', id];
 const GROUP_SHARES_KEY = (id: string) => ['agent', 'share', 'groups', id];
 
@@ -36,7 +50,7 @@ export function useAgentShareSettings(identifier: string | null, enabled: boolea
         params: { identifier: identifier as string },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to fetch share settings (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -54,7 +68,7 @@ export function useAgentGroupShares(identifier: string | null, enabled: boolean)
         params: { identifier: identifier as string },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to fetch group shares (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -71,7 +85,7 @@ export function useSetAgentShareMode(identifier: string) {
         body: { mode },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to set share mode (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -91,7 +105,7 @@ export function useSetAgentAudience(identifier: string) {
         body: { audience },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to set audience (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -111,7 +125,7 @@ export function useSetAgentIsPublic(identifier: string) {
         body: input,
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to set Agentura listing (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -132,7 +146,7 @@ export function useAddAgentGroupShare(identifier: string) {
         body: { group_id: groupId },
       });
       if (result.status !== 201) {
-        throw new ApiError(result.status, `Failed to add group share (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },
@@ -152,7 +166,7 @@ export function useRemoveAgentGroupShare(identifier: string) {
         params: { identifier, groupId },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to remove group share (HTTP ${result.status})`);
+        throw shareError(result);
       }
       return result.body;
     },

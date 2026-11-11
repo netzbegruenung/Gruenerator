@@ -120,3 +120,35 @@ describe('userTextFormsContract.listMentionable', () => {
     });
   });
 });
+
+describe('share', () => {
+  const share = (groupId: string) =>
+    router.share({
+      req,
+      params: { mention: 'ov-einladung' },
+      body: { group_id: groupId },
+    } as never);
+
+  it('answers 200 with the list once the project is in it', async () => {
+    repo.shareTextFormWithGroup.mockResolvedValue([{ groupId: 'g1', groupName: 'KV' }]);
+    expect(await share('g1')).toMatchObject({
+      status: 200,
+      body: { sharedWithGroups: [{ groupId: 'g1' }] },
+    });
+  });
+
+  // Vorher kam hier still 200 mit der alten Liste zurück: der Dialog zeigte
+  // nichts, und die Freigabe war trotzdem nicht da.
+  it('answers 403 when the repository inserted nothing for that project', async () => {
+    repo.shareTextFormWithGroup.mockResolvedValue([{ groupId: 'other', groupName: 'LAG' }]);
+    expect(await share('g1')).toMatchObject({
+      status: 403,
+      body: { success: false, message: 'Mit diesem Projekt darfst du nicht teilen.' },
+    });
+  });
+
+  it('answers 404 for a recipe that is not the caller’s own', async () => {
+    repo.shareTextFormWithGroup.mockResolvedValue(null);
+    expect(await share('g1')).toMatchObject({ status: 404 });
+  });
+});
