@@ -12,7 +12,7 @@ const { getPostgresAndCheckMembership, closeShareRoom, closeGroupCollabRooms, db
     getPostgresAndCheckMembership: vi.fn(),
     closeShareRoom: vi.fn(),
     closeGroupCollabRooms: vi.fn(),
-    db: { queryOne: vi.fn(), exec: vi.fn(), ensureInitialized: vi.fn() },
+    db: { queryOne: vi.fn(), exec: vi.fn(), query: vi.fn(), ensureInitialized: vi.fn() },
   })
 );
 
@@ -41,8 +41,12 @@ const req = (userId: string) => ({ user: { id: userId } }) as unknown as Request
 
 /** Index (in call order) of the first statement matching `re`. */
 const orderOf = (re: RegExp) => {
-  const i = db.exec.mock.calls.findIndex(([sql]) => re.test(sql as string));
-  return db.exec.mock.invocationCallOrder[i] ?? Infinity;
+  // Share writes go through `groupShareWriter` (`query`), the rest through `exec`.
+  for (const fn of [db.query, db.exec]) {
+    const i = fn.mock.calls.findIndex(([sql]) => re.test(sql as string));
+    if (i >= 0) return fn.mock.invocationCallOrder[i] ?? Infinity;
+  }
+  return Infinity;
 };
 
 beforeEach(() => {
@@ -50,6 +54,7 @@ beforeEach(() => {
   closeGroupCollabRooms.mockReset().mockResolvedValue(undefined);
   db.queryOne.mockReset().mockResolvedValue({ shared_by_user_id: SHARER });
   db.exec.mockReset().mockResolvedValue({ changes: 1 });
+  db.query.mockReset().mockResolvedValue([{ id: 'share-1' }]);
   db.ensureInitialized.mockReset().mockResolvedValue(undefined);
   getPostgresAndCheckMembership.mockReset().mockResolvedValue({ postgres: db, isAdmin: true });
 });

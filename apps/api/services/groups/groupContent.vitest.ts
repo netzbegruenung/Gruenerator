@@ -29,7 +29,13 @@ interface FakeDbOptions {
 }
 
 function fakeDeps(opts: FakeDbOptions = {}, over: Partial<ShareContentDeps> = {}) {
-  const exec = vi.fn(async () => ({ changes: 1 }));
+  // Alle Schreibzugriffe (über `addGroupShare`): der Insert meldet eine neue
+  // Zeile, ausser die Freigabe besteht schon (ON CONFLICT DO NOTHING → leer).
+  const exec = vi.fn(async (sql: string, _params?: unknown[]) =>
+    sql.includes('INSERT INTO group_content_shares') && !opts.existingShare
+      ? [{ inserted: true }]
+      : []
+  );
   const queryOne = vi.fn(async (sql: string) => {
     if (sql.includes('FROM group_content_shares')) return opts.existingShare ? { id: 's1' } : null;
     if (sql.includes('FROM groups')) return { name: 'Kreisverband', share_id: 's-new' };
@@ -37,7 +43,7 @@ function fakeDeps(opts: FakeDbOptions = {}, over: Partial<ShareContentDeps> = {}
     return opts.owner ?? null;
   });
   const deps: ShareContentDeps = {
-    postgres: { exec, queryOne } as unknown as ShareContentDeps['postgres'],
+    postgres: { query: exec, queryOne } as unknown as ShareContentDeps['postgres'],
     checkMembership: vi.fn(async () => {}),
     getNotebookCollection: vi.fn(async () => null),
     updateNotebookCollection: vi.fn(async () => ({ success: true })),
@@ -79,7 +85,7 @@ describe('shareContentToGroup', () => {
     expect(exec).not.toHaveBeenCalled();
   });
 
-  it('reports a duplicate share as 400 without a second insert', async () => {
+  it('reports a duplicate share as 400 — the unique index decides, not a SELECT before', async () => {
     const { deps, exec } = fakeDeps({ owner: { created_by: 'u1' }, existingShare: true });
     const out = await shareContentToGroup(
       { ...base, contentType: 'collaborative_documents', contentId: 'd1' },
@@ -87,7 +93,10 @@ describe('shareContentToGroup', () => {
     );
     expect(out.status).toBe(400);
     expect(out.message).toContain('bereits');
-    expect(exec).not.toHaveBeenCalled();
+    const [sql] = exec.mock.calls[0] as unknown as [string];
+    expect(sql).toContain('ON CONFLICT (group_id, content_type, content_id) DO NOTHING');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(deps.notify).not.toHaveBeenCalled();
   });
 
   /**
@@ -232,8 +241,8 @@ describe('shareContentToGroup', () => {
   });
 
   it('lets a missing membership propagate as thrown (the handler maps it)', async () => {
-    const { deps } = fakeDeps(
-      {},
+    const { deps, exec } = fakeDeps(
+      { owner: { created_by: 'u1' } },
       {
         checkMembership: vi.fn(async () => {
           throw new Error('Du bist nicht Mitglied dieser Gruppe.');
@@ -246,6 +255,27 @@ describe('shareContentToGroup', () => {
         deps
       )
     ).rejects.toThrow('nicht Mitglied');
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('does not promote a private notebook for a project the caller may not share to', async () => {
+    const { deps } = fakeDeps(
+      {},
+      {
+        getNotebookCollection: vi.fn(async () => ({
+          id: 'n1',
+          user_id: 'u1',
+          share_mode: 'private',
+        })) as never,
+        checkMembership: vi.fn(async () => {
+          throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+        }),
+      }
+    );
+    await expect(
+      shareContentToGroup({ ...base, contentType: 'notebook_collections', contentId: 'n1' }, deps)
+    ).rejects.toThrow('nicht Mitglied');
+    expect(deps.updateNotebookCollection).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -259,14 +289,12 @@ describe('shareContentToGroup', () => {
   });
 
   it('stores a legacy system agent alias under its canonical id', async () => {
-    const { deps, exec, queryOne } = fakeDeps();
+    const { deps, exec } = fakeDeps();
     const out = await shareContentToGroup(
       { ...base, contentType: 'system_agents', contentId: 'gruenerator-kommunal' },
       deps
     );
     expect(out.status).toBe(200);
-    const [, dupParams] = queryOne.mock.calls[0] as unknown as [string, unknown[]];
-    expect(dupParams[1]).toBe('gruenerator-antrag');
     const [, params] = exec.mock.calls[0] as unknown as [string, unknown[]];
     expect(params[1]).toBe('gruenerator-antrag');
   });

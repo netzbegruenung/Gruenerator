@@ -1,6 +1,6 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
-import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import { addGroupShare } from '../groups/groupShareWriter.js';
 
 const log = createLogger('ShareDocumentToGroup');
 
@@ -28,24 +28,19 @@ export async function shareDocumentToGroup(opts: {
     throw new Error('Nur die erstellende Person kann Dokumente teilen.');
   }
 
-  await assertCanShareToGroup(groupId, userId);
-
-  const existing = (await pg.query(
-    `SELECT id FROM group_content_shares
-     WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2`,
-    [docId, groupId]
-  )) as { id: string }[];
-
-  if (existing.length > 0) {
+  // Throws the gate's sentence when the user may not share there; own
+  // notification below.
+  const { created } = await addGroupShare({
+    userId,
+    groupId,
+    contentType: 'collaborative_documents',
+    contentId: docId,
+    permissions: { read: true, write: permissionLevel === 'editor' },
+    notify: false,
+  });
+  if (!created) {
     throw new Error(`Das Dokument ist bereits mit „${groupName}" geteilt.`);
   }
-
-  const permissions = { read: true, write: permissionLevel === 'editor' };
-  await pg.query(
-    `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-     VALUES ('collaborative_documents', $1, $2, $3, $4)`,
-    [docId, groupId, userId, JSON.stringify(permissions)]
-  );
 
   import('../notifications/index.js')
     .then(({ notifyGroupMembers }) =>

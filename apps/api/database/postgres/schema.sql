@@ -792,7 +792,7 @@ CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by);
 CREATE INDEX IF NOT EXISTS idx_groups_join_token ON groups(join_token) WHERE join_token IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
-CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_content_shares(group_id, content_type, content_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_group_content_shares_target ON group_content_shares(group_id, content_type, content_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
