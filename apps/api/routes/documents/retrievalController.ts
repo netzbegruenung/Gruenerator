@@ -14,13 +14,17 @@
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
-import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import {
+  getSystemCollectionConfig,
+  isRemoteCollection,
+} from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
+import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
@@ -312,6 +316,10 @@ async function respondWithDocumentChunks(
 
     const collectionId = req.query.collectionId as string | undefined;
     const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
+    if (systemConfig && isRemoteCollection(systemConfig)) {
+      res.status(404).json({ success: false, message: notAvailableForRemote(systemConfig.name) });
+      return;
+    }
 
     let documentTitle = 'Dokument';
     let ownerUserId = userId;

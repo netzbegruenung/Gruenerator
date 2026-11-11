@@ -336,6 +336,13 @@ export async function handleNotebookStream(
         : '0 relevante Stellen gefunden',
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
+    if (searchContext?.unavailableSources?.length) {
+      sendChatWarning(
+        sse,
+        'source_unavailable',
+        `${searchContext.unavailableSources.join(' · ')} — die Antwort entstand ohne sie.`
+      );
+    }
 
     // Cut (or, with `rerank.mode`, rerank) in EVERY tier — the tiers differ in
     // HOW MUCH survives (`profile.rerankOutput`), not in whether that cut

@@ -176,8 +176,13 @@ useQdrantConnectOnly();
 const { getNotebookDepthProfile, applyDepthProfile, getChatNotebookProfile } =
   await import('../../config/notebookDepthProfiles.js');
 const { resolveNotebookCollections } = await import('../../config/notebookCollectionMap.js');
-const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
-  await import('../../config/systemCollectionsConfig.js');
+const {
+  getSearchParams,
+  getSystemCollectionConfig,
+  applyDefaultFilter,
+  isRemoteCollection,
+  systemSearchTarget,
+} = await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
 const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING, executeDirectSearch } =
@@ -213,6 +218,7 @@ const { encodeCandidateQuery, resolveBm25Candidate, resolveBm25Target } =
   await import('./bm25Candidates.js');
 const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
 
+import { type SystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { type ExpandedChunkResult } from '../../services/search/types.js';
 
 import { type RetrievalCase } from './cases.js';
@@ -304,20 +310,36 @@ const EVAL_EMBED_USER_ID = 'evalembedrunner';
  * sähe im Bericht wie ein vernichtender Stemmer-Befund aus.
  */
 function resolveTarget(
-  qdrantCollection: string,
+  config: SystemCollectionConfig,
   query: string
-): { collection: string; isCandidate: boolean; sparseQueryVector: SparseVector | null } {
-  const bm25 = resolveBm25Target(process.env, qdrantCollection);
+): {
+  search: ReturnType<typeof systemSearchTarget>;
+  /** `null` für Remote-Sammlungen — dort gibt es keine Kandidaten und keinen Wortindex. */
+  qdrantCollection: string | null;
+  isCandidate: boolean;
+  sparseQueryVector: SparseVector | null;
+} {
+  if (isRemoteCollection(config)) {
+    return {
+      search: systemSearchTarget(config),
+      qdrantCollection: null,
+      isCandidate: false,
+      sparseQueryVector: null,
+    };
+  }
+  const bm25 = resolveBm25Target(process.env, config.qdrantCollection);
   if (bm25.candidate) {
     return {
-      collection: bm25.collection,
+      search: { searchCollection: bm25.collection },
+      qdrantCollection: bm25.collection,
       isCandidate: true,
       sparseQueryVector: encodeCandidateQuery(query, bm25.candidate),
     };
   }
-  const embed = resolveEvalTarget(process.env, qdrantCollection);
+  const embed = resolveEvalTarget(process.env, config.qdrantCollection);
   return {
-    collection: embed.collection,
+    search: { searchCollection: embed.collection },
+    qdrantCollection: embed.collection,
     isCandidate: embed.candidate !== null,
     sparseQueryVector: null,
   };
@@ -414,7 +436,7 @@ async function runCase(
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
   const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
-  const target = resolveTarget(config.qdrantCollection, evalCase.query);
+  const target = resolveTarget(config, evalCase.query);
 
   try {
     const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
@@ -432,7 +454,7 @@ async function runCase(
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
-        searchCollection: target.collection,
+        ...target.search,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
@@ -549,7 +571,7 @@ async function runManualCase(
 
   const searchParams = getSearchParams(evalCase.collection);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
-  const target = resolveTarget(config.qdrantCollection, evalCase.query);
+  const target = resolveTarget(config, evalCase.query);
 
   try {
     const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
@@ -562,7 +584,7 @@ async function runManualCase(
         vectorWeight: MANUAL_VECTOR_WEIGHT,
         textWeight: MANUAL_TEXT_WEIGHT,
         threshold: searchParams.threshold,
-        searchCollection: target.collection,
+        ...target.search,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
@@ -577,12 +599,14 @@ async function runManualCase(
 
     // Same coverage annotation as `/api/research/search`.
     const coverage = coverageTerms(evalCase.query);
-    const frequencies = await loadTermFrequencies(
-      getQdrantInstance(),
-      target.collection,
-      additionalFilter,
-      coverage
-    );
+    const frequencies = target.qdrantCollection
+      ? await loadTermFrequencies(
+          getQdrantInstance(),
+          target.qdrantCollection,
+          additionalFilter,
+          coverage
+        )
+      : null;
     const ranked = rankManualSearchResults({
       results: withQueryCoverage((resp.results ?? []) as DocumentResult[], coverage, frequencies),
       sortBy: 'relevance',

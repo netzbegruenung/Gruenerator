@@ -356,6 +356,10 @@ const envSchema = z.object({
   BUNDESTAG_MCP_URL: z.string().optional(),
   // DIP-API des Bundestags — Volltexte für das Bundestag-DIP-Notebook.
   DIP_API_KEY: z.string().optional(),
+  // Notebook-Such-API von Bundestag Wrapped (`services/notebook/remoteSources/`).
+  // Ohne beide Werte meldet die Quelle „nicht erreichbar", der Start bricht nicht ab.
+  BUNDESTAG_NOTEBOOK_API_URL: z.string().trim().optional(),
+  BUNDESTAG_NOTEBOOK_API_KEY: z.string().trim().optional(),
   // PARDOK-API des Abgeordnetenhauses Berlin — Abgeordnetenhaus-Notebook.
   PARDOK_API_KEY: z.string().optional(),
 
