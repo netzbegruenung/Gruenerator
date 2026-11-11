@@ -253,12 +253,14 @@ export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<b
 // table keyed by the agent's UUID `id` (content_id), not the per-user
 // `identifier`. See migrations/user_agents_sharing_columns.sql.
 //
-// A share row alone grants nothing: every group-share reader also requires
-// `share_mode <> 'private'`, so setting an agent back to private revokes group
-// access without deleting the rows — switching back to 'groups' restores them,
-// and the sharing panel (which lists shares only in 'groups' mode) never hides
-// a share that still works. The share paths promote 'private' to 'groups'
-// before they insert (`shareContentToGroup`, `addGroupShare`).
+// Every group-share reader also requires `share_mode <> 'private'`, and
+// setting an agent to private deletes its share rows (`updateAgentSharing`):
+// a private agent has no Projekte, so the always-visible project list of the
+// sharing panel never shows a share that does not work, and adding a project
+// later does not silently bring back the old ones. The share paths promote
+// 'private' to 'groups' before they insert (`shareContentToGroup`,
+// `addGroupShare`). Rows from before this rule were cleared by
+// migrations/zz_20261111c_private_drops_group_shares.sql.
 
 export type UserAgentAudience = 'de-DE' | 'de-AT';
 export type UserAgentShareMode = 'private' | 'groups' | 'authenticated';
@@ -332,6 +334,13 @@ export async function updateAgentSharing(
     .set(values)
     .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .returning({ id: userAgents.id });
+  const row = rows[0];
+  if (row && patch.share_mode === 'private') {
+    await getPostgresInstance().query(
+      `DELETE FROM group_content_shares WHERE content_type = 'user_agents' AND content_id = $1`,
+      [row.id]
+    );
+  }
   return rows.length > 0;
 }
 

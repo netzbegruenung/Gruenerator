@@ -76,7 +76,6 @@ function AgentSharing({
       settingsError={settings.isError}
       groupShares={(groupShares.data ?? []).map((g) => ({ id: g.group_id, name: g.group_name }))}
       myGroups={myGroups.data ?? null}
-      authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land."
       shareUrl={shareUrl}
       shareTitle={title}
       setMode={(mode) => setMode.mutateAsync(mode)}

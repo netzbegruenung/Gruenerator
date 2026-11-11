@@ -10,16 +10,10 @@ import { agentRef, getAgentSlug } from '../agents/slug.js';
 import { isApiErrorWithStatus } from '../api/index.js';
 import { slugifyName } from '../utils/index.js';
 
-/** Agents und Rezepte teilen dieselben drei Stufen (`userAgentShareModeSchema`, `textFormShareModeSchema`). */
+/** Agents und Rezepte teilen dieselben drei Stufen (`userAgentShareModeSchema`,
+ * `textFormShareModeSchema`). Die Dialoge zeigen sie nicht mehr, sie leiten sie
+ * aus „Projekte" und „Alle mit Anmeldung" ab. */
 export type ShareMode = 'private' | 'groups' | 'authenticated';
-
-export const SHARE_MODES: readonly ShareMode[] = ['private', 'groups', 'authenticated'];
-
-export const SHARE_MODE_LABELS: Record<ShareMode, string> = {
-  private: 'Privat — nur ich',
-  groups: 'Mit Projekten geteilt',
-  authenticated: 'Mit Anmeldung — alle eingeloggten Nutzer*innen',
-};
 
 export const OWNERSHIP_CHOICES: readonly PublicOwnership[] = ['owner', 'public_data'];
 
