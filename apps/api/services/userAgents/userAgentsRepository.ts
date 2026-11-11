@@ -16,6 +16,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notTrashed } from '../../database/trash.js';
 import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
+import { removeAllGroupShares } from '../groups/groupShareWriter.js';
 import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import { isUserAgentId } from './userAgentHandle.js';
@@ -336,10 +337,7 @@ export async function updateAgentSharing(
     .returning({ id: userAgents.id });
   const row = rows[0];
   if (row && patch.share_mode === 'private') {
-    await getPostgresInstance().query(
-      `DELETE FROM group_content_shares WHERE content_type = 'user_agents' AND content_id = $1`,
-      [row.id]
-    );
+    await removeAllGroupShares({ contentType: 'user_agents', contentId: row.id });
   }
   return rows.length > 0;
 }

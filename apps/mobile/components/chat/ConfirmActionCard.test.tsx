@@ -140,21 +140,61 @@ describe('confirming', () => {
     expect(await screen.findByText('Dokument öffnen')).toBeTruthy();
   });
 
-  it('offers no open link when the result URL is not a document route', async () => {
+  it('opens a project result in the projects screen', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/gruppen/42' });
+    await renderCard({ ...ACTION, type: 'share_notebook' });
+
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Projekt öffnen'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/projekte/[id]',
+      params: { id: '42' },
+    });
+  });
+
+  it('offers no link for a target that is neither native nor embeddable', async () => {
+    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/settings/wolke' });
     await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
-
     await settle();
 
-    expect(screen.queryByText('Speichern')).toBeNull();
-    expect(screen.queryByText('Dokument öffnen')).toBeNull();
-    expect(screen.queryByText('Projekt öffnen')).toBeNull();
+    expect(screen.getByText('Als Dokument speichern')).toBeTruthy();
+    expect(screen.queryByText('Öffnen')).toBeNull();
   });
 
-  it('labels the link per action type', async () => {
-    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
+  it('opens an embeddable path in the web viewer', async () => {
+    mockConfirm.mockResolvedValueOnce({
+      status: 'confirmed',
+      url: '/notebooks/mein-notebook-a1b2c3',
+    });
+    await renderCard();
+
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Notebook öffnen'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(fullscreen)/web-viewer',
+      params: { path: '/notebooks/mein-notebook-a1b2c3' },
+    });
+  });
+
+  it('opens a created agent in the native agent detail', async () => {
+    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/agents/mein-agent-a1b2c3' });
+    await renderCard({ ...ACTION, type: 'create_user_agent' });
+
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Agent öffnen'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: 'mein-agent-a1b2c3' },
+    });
+  });
+
+  it('labels the link per target', async () => {
+    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/boards/b1' });
     await renderCard({ ...ACTION, type: 'modify_board' });
 
     await fireEvent.press(screen.getByText('Speichern'));

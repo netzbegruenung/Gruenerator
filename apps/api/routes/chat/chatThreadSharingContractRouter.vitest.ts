@@ -160,8 +160,7 @@ describe('shareWithGroup', () => {
   it("writes write:false for mode 'read' via INSERT when no share exists", async () => {
     queryMock
       .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([]) // UPDATE matched nothing
-      .mockResolvedValueOnce([]); // INSERT
+      .mockResolvedValueOnce([{ inserted: true }]); // upsert: new row
 
     const res = await chatThreadSharingContractRouter.shareWithGroup({
       req: reqAs(OWNER),
@@ -170,16 +169,23 @@ describe('shareWithGroup', () => {
     } as never);
 
     expect(res.status).toBe(200);
-    const insertCall = queryMock.mock.calls[2];
+    const insertCall = queryMock.mock.calls[1];
     expect(String(insertCall?.[0])).toContain('INSERT INTO group_content_shares');
-    // canWrite param is false for Nur lesen.
-    expect(insertCall?.[1]).toEqual([THREAD_ID, GROUP_ID, OWNER, false]);
+    // write is false for Nur lesen.
+    expect(insertCall?.[1]).toEqual([
+      'chat_threads',
+      THREAD_ID,
+      GROUP_ID,
+      OWNER,
+      JSON.stringify({ read: true, write: false, collaborative: false }),
+      null,
+    ]);
   });
 
-  it('switches an existing share via UPDATE (upsert semantics, no 409)', async () => {
+  it('switches an existing share via the upsert (no 409) and closes its room', async () => {
     queryMock
       .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([{ id: 'share-1' }]); // UPDATE matched
+      .mockResolvedValueOnce([{ inserted: false }]); // upsert: permissions changed
 
     const res = await chatThreadSharingContractRouter.shareWithGroup({
       req: reqAs(OWNER),
@@ -188,11 +194,12 @@ describe('shareWithGroup', () => {
     } as never);
 
     expect(res.status).toBe(200);
-    // No INSERT after a matched UPDATE.
     expect(queryMock).toHaveBeenCalledTimes(2);
-    const updateCall = queryMock.mock.calls[1];
-    expect(String(updateCall?.[0])).toContain('UPDATE group_content_shares');
-    expect(updateCall?.[1]).toEqual([THREAD_ID, GROUP_ID, true]);
+    const upsert = queryMock.mock.calls[1];
+    expect(String(upsert?.[0])).toContain('DO UPDATE SET permissions = EXCLUDED.permissions');
+    expect(JSON.parse(String(upsert?.[1]?.[4]))).toMatchObject({ write: true });
+    // The members' open sessions must pick up the new rights.
+    expect(closeShareRoomMock).toHaveBeenCalledWith('chat_threads', THREAD_ID);
   });
 });
 
@@ -226,7 +233,7 @@ describe('unshareGroup', () => {
   it("closes the thread's chat room after removing the group share", async () => {
     queryMock
       .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([]); // DELETE
+      .mockResolvedValueOnce([{ id: 'share-1' }]); // DELETE … RETURNING id
 
     const res = await chatThreadSharingContractRouter.unshareGroup({
       req: reqAs(OWNER),

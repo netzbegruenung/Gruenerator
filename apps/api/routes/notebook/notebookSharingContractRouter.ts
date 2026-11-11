@@ -15,11 +15,12 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { notifyContentShared } from '../../services/groups/groupContent.js';
+import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import {
-  assertCanShareToGroup,
-  listShareTargetGroups,
-} from '../../services/groups/groupMembership.js';
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+} from '../../services/groups/groupShareWriter.js';
 import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -44,11 +45,6 @@ interface GroupShareJoinRow {
   group_id: string;
   group_name: string;
   shared_at: string | Date;
-  [key: string]: unknown;
-}
-
-interface ExistingShareRow {
-  id: string;
   [key: string]: unknown;
 }
 
@@ -246,50 +242,31 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
         };
       }
 
-      // checkNotebookAccess gates group reads on share_mode='groups'. The share
-      // modal sets it before reaching here, but enforce it server-side too so
-      // the invariant holds regardless of the caller (mirrors the generic
-      // groups.shareContent path). 'authenticated' is left alone — members
-      // already have read access and demoting would narrow visibility.
-      if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
-        await notebookHelper.updateNotebookCollection(notebookId, { share_mode: 'groups' });
-      }
-
-      const postgres = getPostgresInstance();
+      // checkNotebookAccess gates group reads on share_mode='groups'; the writer
+      // promotes a private notebook — only after the project gate, so a foreign
+      // group id no longer flips the owner's visibility.
+      let created: boolean;
       try {
-        await assertCanShareToGroup(group_id, userId);
-      } catch {
+        ({ created } = await addGroupShare({
+          userId,
+          groupId: group_id,
+          contentType: 'notebook_collections',
+          contentId: notebookId,
+          permissions: { read: true, write: false },
+        }));
+      } catch (error) {
+        if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
           body: { error: 'Du darfst mit dieser Gruppe nicht teilen' },
         };
       }
-
-      const existing = (await postgres.query(
-        `SELECT id FROM group_content_shares
-           WHERE content_type = 'notebook_collections' AND content_id = $1 AND group_id = $2`,
-        [notebookId, group_id]
-      )) as ExistingShareRow[];
-      if (existing.length > 0) {
+      if (!created) {
         return {
           status: 409 as const,
           body: { error: 'Notebook ist bereits mit dieser Gruppe geteilt' },
         };
       }
-
-      const permissions = { read: true, write: false };
-      await postgres.query(
-        `INSERT INTO group_content_shares
-            (content_type, content_id, group_id, shared_by_user_id, permissions)
-          VALUES ('notebook_collections', $1, $2, $3, $4)`,
-        [notebookId, group_id, userId, JSON.stringify(permissions)]
-      );
-      notifyContentShared({
-        groupId: group_id,
-        userId,
-        contentType: 'notebook_collections',
-        contentId: notebookId,
-      });
 
       return {
         status: 201 as const,
@@ -314,14 +291,12 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
           body: { error: 'Nur Eigentümer*in kann Freigaben entfernen' },
         };
       }
-      const postgres = getPostgresInstance();
-      const result = (await postgres.query(
-        `DELETE FROM group_content_shares
-           WHERE content_type = 'notebook_collections' AND content_id = $1 AND group_id = $2
-           RETURNING id`,
-        [args.params.id, args.params.groupId]
-      )) as ExistingShareRow[];
-      if (result.length === 0) {
+      const removed = await removeGroupShare({
+        groupId: args.params.groupId,
+        contentType: 'notebook_collections',
+        contentId: args.params.id,
+      });
+      if (!removed) {
         return { status: 404 as const, body: { error: 'Freigabe nicht gefunden' } };
       }
       return { status: 200 as const, body: { success: true, message: 'Freigabe entfernt' } };

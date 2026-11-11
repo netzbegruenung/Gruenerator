@@ -16,8 +16,11 @@ import { shareLinkKey } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { notifyContentShared } from '../../services/groups/groupContent.js';
-import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
+import {
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+} from '../../services/groups/groupShareWriter.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
   getAccessibleUserAgentById,
@@ -38,11 +41,6 @@ interface GroupShareJoinRow {
   group_id: string;
   group_name: string;
   shared_at: string | Date;
-  [key: string]: unknown;
-}
-
-interface IdRow {
-  id: string;
   [key: string]: unknown;
 }
 
@@ -233,46 +231,29 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
         return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
 
-      const postgres = getPostgresInstance();
+      // Heben auf share_mode='groups' und die Benachrichtigung macht der Schreiber.
+      let created: boolean;
       try {
-        await assertCanShareToGroup(group_id, userId);
-      } catch {
+        ({ created } = await addGroupShare({
+          userId,
+          groupId: group_id,
+          contentType: 'user_agents',
+          contentId: sharing.id,
+          permissions: { read: true, write: false },
+        }));
+      } catch (error) {
+        if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
           body: { error: 'Mit diesem Projekt darfst du nicht teilen.' },
         };
       }
-
-      const existing = (await postgres.query(
-        `SELECT id FROM group_content_shares
-           WHERE content_type = 'user_agents' AND content_id = $1 AND group_id = $2`,
-        [sharing.id, group_id]
-      )) as IdRow[];
-      if (existing.length > 0) {
+      if (!created) {
         return {
           status: 409 as const,
           body: { error: 'Der Agent ist bereits mit diesem Projekt geteilt.' },
         };
       }
-
-      // Group access requires share_mode <> 'private' (see userAgentsRepository).
-      if (sharing.share_mode === 'private') {
-        await updateAgentSharing(userId, args.params.identifier, { share_mode: 'groups' });
-      }
-
-      const permissions = { read: true, write: false };
-      await postgres.query(
-        `INSERT INTO group_content_shares
-            (content_type, content_id, group_id, shared_by_user_id, permissions)
-          VALUES ('user_agents', $1, $2, $3, $4)`,
-        [sharing.id, group_id, userId, JSON.stringify(permissions)]
-      );
-      notifyContentShared({
-        groupId: group_id,
-        userId,
-        contentType: 'user_agents',
-        contentId: sharing.id,
-      });
 
       return {
         status: 201 as const,
@@ -291,14 +272,12 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       if (!sharing) {
         return { status: 404 as const, body: { error: 'Agent nicht gefunden' } };
       }
-      const postgres = getPostgresInstance();
-      const result = (await postgres.query(
-        `DELETE FROM group_content_shares
-           WHERE content_type = 'user_agents' AND content_id = $1 AND group_id = $2
-           RETURNING id`,
-        [sharing.id, args.params.groupId]
-      )) as IdRow[];
-      if (result.length === 0) {
+      const removed = await removeGroupShare({
+        groupId: args.params.groupId,
+        contentType: 'user_agents',
+        contentId: sharing.id,
+      });
+      if (!removed) {
         return { status: 404 as const, body: { error: 'Freigabe nicht gefunden' } };
       }
       return { status: 200 as const, body: { success: true, message: 'Freigabe entfernt' } };
