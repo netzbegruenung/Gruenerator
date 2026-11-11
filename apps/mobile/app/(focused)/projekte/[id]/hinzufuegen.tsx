@@ -78,21 +78,19 @@ export default function ProjektHinzufuegenScreen() {
   const submit = async () => {
     if (selected.size === 0 || saving) return;
     setSaving(true);
-    try {
-      const result = await addItemsToGroup(groupId, [...selected.values()], note);
-      void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
-      if (result.failed === 0) {
-        close();
-        return;
-      }
-      const head =
-        result.added > 0
-          ? `${result.added} hinzugefügt, ${result.failed} nicht.`
-          : 'Nichts wurde hinzugefügt.';
-      Alert.alert(head, result.firstError ?? undefined);
-    } finally {
-      setSaving(false);
+    // addItemsToGroup wirft nie (Promise.allSettled), deshalb kein try.
+    const result = await addItemsToGroup(groupId, [...selected.values()], note);
+    setSaving(false);
+    void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    if (result.failed === 0) {
+      close();
+      return;
     }
+    const head =
+      result.added > 0
+        ? `${result.added} hinzugefügt, ${result.failed} nicht.`
+        : 'Nichts wurde hinzugefügt.';
+    Alert.alert(head, result.firstError ?? undefined);
   };
 
   const count = selected.size;
