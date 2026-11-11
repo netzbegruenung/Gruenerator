@@ -7,7 +7,7 @@
     },
     {
       "key": "web",
-      "label": "Recherche",
+      "label": "Websuche & Recherche",
       "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
     },
     {
