@@ -49,13 +49,29 @@ describe('shareErrorText', () => {
 });
 
 describe('Teilen-Links', () => {
-  it('führt einen Nutzer-Agent über seine uuid, nicht den nur pro Person eindeutigen identifier', () => {
+  it('führt einen Agent über Namen und Suffix, Umlaute lesbar', () => {
+    expect(
+      agentSharePath({
+        id: '6f1c2d3e-0000-4000-8000-000000000001',
+        identifier: 'klima',
+        title: 'Klima-Bürger*innen',
+        slugSuffix: 'Ab3xK9',
+      })
+    ).toBe('/agentura/agent/klima-buerger-innen-Ab3xK9');
+  });
+
+  it('fällt ohne Suffix auf die uuid zurück, nicht auf den nur pro Person eindeutigen identifier', () => {
     expect(
       agentSharePath({ id: '6f1c2d3e-0000-4000-8000-000000000001', identifier: 'klima' })
     ).toBe('/agentura/agent/6f1c2d3e-0000-4000-8000-000000000001');
   });
 
-  it('kodiert die Rezept-Mention', () => {
-    expect(recipeSharePath('mein rezept')).toBe('/agentura/rezept/mein%20rezept');
+  it('führt ein Rezept über Titel und Suffix, ohne Suffix über die Mention', () => {
+    expect(
+      recipeSharePath({ mention: 'einladung', title: 'OV-Einladung', slugSuffix: 'Ab3xK9' })
+    ).toBe('/agentura/rezept/ov-einladung-Ab3xK9');
+    expect(recipeSharePath({ mention: 'mein rezept', slugSuffix: null })).toBe(
+      '/agentura/rezept/mein%20rezept'
+    );
   });
 });

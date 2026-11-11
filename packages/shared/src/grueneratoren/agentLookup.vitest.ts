@@ -10,6 +10,7 @@ const OWN = agent({ id: '11111111-1111-4111-8111-111111111111', identifier: 'mei
 const FOREIGN = agent({
   id: '22222222-2222-4222-8222-222222222222',
   identifier: 'mein-agent-ab12cd',
+  slugSuffix: 'Ab3xK9',
 });
 const lists = { own: [OWN], shared: [], public: [FOREIGN] };
 
@@ -30,6 +31,14 @@ describe('resolveAgentBySlug', () => {
 
   it('reaches someone else’s agent by its row uuid', () => {
     expect(resolveAgentBySlug(FOREIGN.id!, lists)).toEqual({
+      agent: FOREIGN,
+      isUserAgent: true,
+      isOwn: false,
+    });
+  });
+
+  it('reaches someone else’s agent by its share link, whatever the name part says', () => {
+    expect(resolveAgentBySlug('alter-name-Ab3xK9', lists)).toEqual({
       agent: FOREIGN,
       isUserAgent: true,
       isOwn: false,

@@ -31,8 +31,9 @@ import { SharingPanel } from './SharingPanel';
 import { getPublicAppOrigin } from '@/utils/platform';
 
 interface ShareAgentModalProps {
-  /** The agent — `identifier` addresses the sharing endpoints, `id` the link. */
-  agent: { id?: string; identifier: string };
+  /** The agent — `identifier` addresses the sharing endpoints; title and
+   * `slugSuffix` make the link (`agentSharePath`). */
+  agent: { id?: string; identifier: string; title?: string; slugSuffix?: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

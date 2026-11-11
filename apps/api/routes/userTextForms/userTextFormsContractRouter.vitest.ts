@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const repo = vi.hoisted(() => ({
   deleteTextForm: vi.fn(),
+  getLinkedTextForm: vi.fn(),
   getTextFormSharing: vi.fn(),
   listMentionableTextForms: vi.fn(),
   listPublicTextForms: vi.fn(),
@@ -150,5 +151,28 @@ describe('share', () => {
   it('answers 404 for a recipe that is not the caller’s own', async () => {
     repo.shareTextFormWithGroup.mockResolvedValue(null);
     expect(await share('g1')).toMatchObject({ status: 404 });
+  });
+});
+
+describe('resolveLink', () => {
+  const resolve = (slug: string) => router.resolveLink({ req, params: { slug } } as never);
+
+  it('asks the repository by suffix and passes the answer on', async () => {
+    repo.getLinkedTextForm.mockResolvedValue({ form: { id: 'r1' }, source: 'public' });
+    expect(await resolve('ov-einladung-Ab3xK9')).toMatchObject({
+      status: 200,
+      body: { success: true, form: { id: 'r1' }, source: 'public' },
+    });
+    expect(repo.getLinkedTextForm).toHaveBeenCalledWith({ slugSuffix: 'Ab3xK9' }, 'user-1');
+  });
+
+  it('never resolves a bare mention — it is unique only per owner', async () => {
+    expect(await resolve('einladung')).toMatchObject({ status: 404 });
+    expect(repo.getLinkedTextForm).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a recipe the caller may not see', async () => {
+    repo.getLinkedTextForm.mockResolvedValue(null);
+    expect(await resolve('ov-einladung-Ab3xK9')).toMatchObject({ status: 404 });
   });
 });

@@ -14,10 +14,11 @@ import { useRecipeByMention } from './useRecipeByMention';
 
 const list = vi.hoisted(() => vi.fn());
 const listPublic = vi.hoisted(() => vi.fn());
+const resolveLink = vi.hoisted(() => vi.fn());
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  getContractsClient: () => ({ userTextForms: { list, listPublic } }),
+  getContractsClient: () => ({ userTextForms: { list, listPublic, resolveLink } }),
 }));
 
 function row(over: Record<string, unknown> = {}) {
@@ -40,6 +41,7 @@ function row(over: Record<string, unknown> = {}) {
     shareMode: 'private',
     isPublic: false,
     publicOwnership: null,
+    slugSuffix: null,
     ...over,
   };
 }
@@ -60,6 +62,7 @@ function makeWrapper(seedAuth = true, isAuthenticated = true) {
 beforeEach(() => {
   list.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   listPublic.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
+  resolveLink.mockReset().mockResolvedValue({ status: 404, body: { success: false, message: '' } });
 });
 
 describe('useRecipeByMention', () => {
@@ -200,5 +203,51 @@ describe('useRecipeByMention', () => {
     expect(result.current.source).toBeNull();
     expect(result.current.isError).toBe(false);
     expect(list).not.toHaveBeenCalled();
+  });
+
+  describe('Teilen-Link („Mit Anmeldung", nicht gelistet)', () => {
+    it('findet ein eigenes Rezept über seinen Suffix, ohne den Server zu fragen', async () => {
+      list.mockResolvedValue({
+        status: 200,
+        body: { success: true, forms: [row({ slugSuffix: 'Ab3xK9' })] },
+      });
+      const { result } = renderHook(() => useRecipeByMention('mein-rezept-Ab3xK9'), {
+        wrapper: makeWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.source).toBe('own'));
+      expect(resolveLink).not.toHaveBeenCalled();
+    });
+
+    it('fragt den Server, wenn keine Liste den Link kennt', async () => {
+      resolveLink.mockResolvedValue({
+        status: 200,
+        body: {
+          success: true,
+          source: 'public',
+          form: {
+            ...row({ id: 'fremd', ownerName: 'Bea', slugSuffix: 'Ab3xK9' }),
+            exampleCount: 1,
+          },
+        },
+      });
+      const { result } = renderHook(() => useRecipeByMention('ov-einladung-Ab3xK9'), {
+        wrapper: makeWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.source).toBe('public'));
+      expect(result.current.form?.id).toBe('fremd');
+      expect(resolveLink).toHaveBeenCalledWith({ params: { slug: 'ov-einladung-Ab3xK9' } });
+    });
+
+    it('fragt für eine bloße Mention nie den Server', async () => {
+      const { result } = renderHook(() => useRecipeByMention('einladung'), {
+        wrapper: makeWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(result.current.source).toBeNull();
+      expect(resolveLink).not.toHaveBeenCalled();
+    });
   });
 });

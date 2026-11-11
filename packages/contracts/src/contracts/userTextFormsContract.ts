@@ -24,6 +24,7 @@ import {
   textFormErrorResponseSchema,
   textFormIsPublicBodySchema,
   textFormItemResponseSchema,
+  textFormLinkResponseSchema,
   textFormsListResponseSchema,
 } from '../schemas/textForm.js';
 
@@ -105,6 +106,24 @@ export const userTextFormsContract = c.router(
         500: textFormErrorResponseSchema,
       },
       summary: 'List recipes available as an @-mention',
+    },
+
+    /**
+     * GET /api/text-forms/link/:slug — resolve a share link (`<titel>-<suffix>`,
+     * or a bare uuid) to the recipe, if the caller may see it. Never by mention:
+     * a mention is unique only per owner. 404 for "gone" and "not for you" alike.
+     */
+    resolveLink: {
+      method: 'GET',
+      path: '/api/text-forms/link/:slug',
+      pathParams: z.object({ slug: z.string() }),
+      responses: {
+        200: textFormLinkResponseSchema,
+        401: textFormErrorResponseSchema,
+        404: textFormErrorResponseSchema,
+        500: textFormErrorResponseSchema,
+      },
+      summary: 'Resolve a recipe share link',
     },
 
     /** PUT /api/text-forms/:mention — create or update a text form. */

@@ -120,3 +120,17 @@ export function extractSlugSuffix(slug: string): string | null {
   const match = SUFFIX_RE.exec(slug);
   return match?.[1] ?? null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * What a share link carries as its key: the suffix of `<name>-<suffix>`, or the
+ * uuid of a link from before the suffix. `null` means an identifier or a
+ * mention — those resolve only against the caller's own lists, never on the
+ * server, because they are unique only per owner (agents, recipes).
+ */
+export function shareLinkKey(slug: string): { slugSuffix: string } | { id: string } | null {
+  if (UUID_RE.test(slug)) return { id: slug };
+  const suffix = extractSlugSuffix(slug);
+  return suffix ? { slugSuffix: suffix } : null;
+}
