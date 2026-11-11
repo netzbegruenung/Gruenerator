@@ -30,6 +30,7 @@ import {
   mcpKeys,
 } from '../hooks/useMcpServers';
 import {
+  connectRegistryConnector,
   createMcpServer,
   deleteMcpServer,
   fetchMcpServers,
@@ -306,6 +307,7 @@ const McpAddForm = memo(
               and URL stay as they are, so they are not editable here. */}
           <input
             className={inputClass}
+            aria-label="Name des Servers"
             placeholder="Name (z. B. Linear)"
             value={name}
             readOnly={serverId !== null}
@@ -313,6 +315,7 @@ const McpAddForm = memo(
           />
           <input
             className={inputClass}
+            aria-label="Server-URL"
             placeholder="Server-URL (https://…/mcp)"
             value={url}
             readOnly={serverId !== null}
@@ -439,19 +442,12 @@ const McpServerRow = memo(
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
     >(null);
 
-    // A managed connector is operated by us: no OAuth to complete, nothing to
-    // remove, and "Verbunden" would be misleading — nobody connected it.
-    const isManaged = server.managed === true;
+    // A known connector (Bahn, Wetter, Rateo, …) is a row like any other once
+    // connected, but its endpoint lives in deploy env: no URL to show, no OAuth
+    // to complete, nothing to rename. Switching and removing work as usual.
+    const isManaged = server.registryKey != null || server.managed === true;
     const needsAuth = !isManaged && server.authType === 'oauth' && !server.hasToken;
-    const statusLabel = needsAuth
-      ? 'Nicht autorisiert'
-      : server.enabled
-        ? isManaged
-          ? 'Verfügbar'
-          : 'Verbunden'
-        : isManaged
-          ? 'Ausgeschaltet'
-          : 'Pausiert';
+    const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
     const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
 
     const authorize = () => {
@@ -560,21 +556,19 @@ const McpServerRow = memo(
             >
               {test.isPending ? 'Teste…' : 'Testen'}
             </button>
-            {!isManaged && (
-              <button
-                type="button"
-                onClick={() =>
-                  del.mutate(server.id, {
-                    onSuccess: () => onSuccess('Konnektor entfernt'),
-                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
-                  })
-                }
-                disabled={del.isPending}
-                className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-              >
-                Entfernen
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() =>
+                del.mutate(server.id, {
+                  onSuccess: () => onSuccess('Konnektor entfernt'),
+                  onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                })
+              }
+              disabled={del.isPending}
+              className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+            >
+              Entfernen
+            </button>
           </div>
         </div>
         {server.toolsDrift && (
@@ -893,9 +887,14 @@ const BearerConnectDialog = ({
 
 // ── Section ──────────────────────────────────────────────────────────────────
 
+/**
+ * One card under "Dienste verbinden": a directory entry — a curated vendor or a
+ * known connector (`registryKey`), which connects by its key instead of a URL.
+ */
 interface AvailableItem {
   key: string;
-  category: string | undefined;
+  category: string;
+  title: string;
   entry: McpRegistryEntry;
 }
 
@@ -915,6 +914,8 @@ const CATEGORY_MERGE: Record<string, string> = {
   Kommunikation: 'Kommunikation',
   'Recht & Compliance': 'Recht & Finanzen',
   Reisen: 'Reisen & Karten',
+  // Known-connector category (connectorAdapters.ts).
+  'Reise & Verkehr': 'Reisen & Karten',
   Karten: 'Reisen & Karten',
 };
 // Display order for the merged pills/sections; "Sonstige" always sorts last.
@@ -927,7 +928,7 @@ const MERGED_CATEGORY_ORDER = [
 ];
 const UNCATEGORISED = OTHER_CATEGORY;
 
-const mergeCategory = (raw: string | undefined): string =>
+const mergeCategory = (raw: string | null | undefined): string =>
   (raw && CATEGORY_MERGE[raw]) || OTHER_CATEGORY;
 
 function orderCategories(present: Iterable<string>): string[] {
@@ -963,8 +964,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
 
-  // Managed connectors report an empty `url` (the endpoint is deploy-env-only),
-  // so they cannot and must not take part in the "already connected" match.
+  // Known connectors report an empty `url` (the endpoint is deploy-env-only),
+  // so they cannot and must not take part in the URL match — they match by key.
   const connectedUrls = useMemo(
     () => new Set(servers.filter((s) => s.url).map((s) => s.url)),
     [servers]
@@ -977,17 +978,32 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     [servers]
   );
 
+  const connectedKeys = useMemo(
+    () => new Set(servers.map((s) => s.registryKey).filter((k): k is string => k != null)),
+    [servers]
+  );
+
   const available = useMemo<AvailableItem[]>(() => {
-    const merged = (registry?.recommended ?? [])
-      .filter((e) => !connectedHosts.has(hostOf(e.url) ?? e.url))
-      .map((entry) => ({ key: entry.url, category: mergeCategory(entry.category), entry }));
+    // Search runs server-side for the whole directory, known connectors included.
+    const merged: AvailableItem[] = (registry?.recommended ?? [])
+      .filter((e) =>
+        e.registryKey
+          ? !connectedKeys.has(e.registryKey)
+          : !connectedHosts.has(hostOf(e.url) ?? e.url)
+      )
+      .map((entry): AvailableItem => ({
+        key: entry.registryKey ?? entry.url,
+        category: mergeCategory(entry.category),
+        title: entry.title,
+        entry,
+      }));
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
     for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
     return merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedHosts]);
+  }, [registry, connectedHosts, connectedKeys]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1012,14 +1028,13 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
-  // First-party connectors the Grünerator operates: nobody connected them, so
-  // they belong neither under "Verbunden" nor in the OAuth-pending bucket.
-  const managed = servers.filter((s) => s.managed);
-  const own = servers.filter((s) => !s.managed);
   // OAuth servers without a token aren't usable yet — listing them under
   // "Verbunden" would suggest they work. They get their own action section.
-  const authPending = own.filter((s) => s.authType === 'oauth' && !s.hasToken);
-  const connected = own.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
+  // A known connector never waits for OAuth.
+  const waitsForOAuth = (s: McpServerSummary) =>
+    s.registryKey == null && s.authType === 'oauth' && !s.hasToken;
+  const authPending = servers.filter(waitsForOAuth);
+  const connected = servers.filter((s) => !waitsForOAuth(s));
   const activeCount = connected.filter((s) => s.enabled).length;
 
   // Curated entry for a saved row, by host like the cards above.
@@ -1052,6 +1067,18 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   };
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
+    if (entry.registryKey) {
+      const key = entry.registryKey;
+      setConnecting(key);
+      connectRegistryConnector(key)
+        .then(() => {
+          refreshMcp();
+          onSuccess(`${entry.title} verbunden`);
+        })
+        .catch((e) => onError(e instanceof Error ? e.message : 'Fehler'))
+        .finally(() => setConnecting(null));
+      return;
+    }
     if (entry.authHint === 'oauth') {
       // Providers that reject DCR need a pre-registered client → route to the
       // form (redirect URI + setup link + Client-ID/Secret), not auto-OAuth.
@@ -1140,6 +1167,16 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
+  const renderCard = (it: AvailableItem) => (
+    <CardShell
+      key={it.key}
+      title={it.title}
+      connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
+      onConnect={() => handlePickMcp(it.entry)}
+      onUseKey={keyAlternative(it.entry)}
+    />
+  );
+
   const hasConnected = connected.length > 0;
 
   return (
@@ -1179,30 +1216,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       {isLoading && (
         <div className="mt-md">
           <SettingsCardsSkeleton cards={3} />
-        </div>
-      )}
-
-      {/* First-party connectors: available to everyone without setup, so they
-          lead — and they get their own heading rather than sitting under
-          "Verbunden", where they would imply the user had connected them. */}
-      {managed.length > 0 && (
-        <div className="mt-xl">
-          <div className="flex items-baseline gap-sm mb-sm">
-            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-              Vom Grünerator bereitgestellt
-            </h3>
-            <span className="text-xs text-grey-400">ohne Einrichtung nutzbar</span>
-          </div>
-          <div className="flex flex-col gap-sm">
-            {managed.map((server) => (
-              <McpServerRow
-                key={server.id}
-                server={server}
-                onSuccess={onSuccess}
-                onError={onError}
-              />
-            ))}
-          </div>
         </div>
       )}
 
@@ -1269,6 +1282,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-400 pointer-events-none" />
           <input
             className={cn(inputClass, 'h-12 pl-11')}
+            aria-label="Server suchen"
             placeholder="Server suchen …"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1311,31 +1325,13 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                     {c}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-                    {items.map((it) => (
-                      <CardShell
-                        key={it.key}
-                        title={it.entry.title}
-                        connecting={connecting === it.entry.url}
-                        onConnect={() => handlePickMcp(it.entry)}
-                        onUseKey={keyAlternative(it.entry)}
-                      />
-                    ))}
+                    {items.map(renderCard)}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-              {filtered.map((it) => (
-                <CardShell
-                  key={it.key}
-                  title={it.entry.title}
-                  connecting={connecting === it.entry.url}
-                  onConnect={() => handlePickMcp(it.entry)}
-                  onUseKey={keyAlternative(it.entry)}
-                />
-              ))}
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">{filtered.map(renderCard)}</div>
           ))}
 
         {/* Server suchen — remote hits from the open MCP registry */}

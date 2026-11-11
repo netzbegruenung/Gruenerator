@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-universal'
 title: 'Leitantrag'
-description: 'Kapitel für Leit- und Beschlussanträge'
+description: 'Kapitel für Leit- und Beschlussanträge mit Befund, Bewertung und Forderungen. Nutzen, wenn ein Antragskapitel für Bundesvorstand, Länderrat oder BDK entsteht.'
 iconKey: 'PiFileText'
 avatar: '📜'
 backgroundColor: '#316049'

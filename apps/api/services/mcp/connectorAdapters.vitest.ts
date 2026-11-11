@@ -1,15 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  getManagedConnectorById,
   getManagedConnectors,
   getSystemMcpSources,
-  isManagedKey,
   isSourceGermanOnly,
   managedConnectorId,
   parseManagedConnectorId,
   toSystemConnectionConfig,
-} from './systemMcpServers.js';
+} from './connectorAdapters.js';
 
 const sourceByKey = (key: string) => getSystemMcpSources().find((s) => s.key === key) ?? null;
 const managedKeys = (locale?: string | null) => getManagedConnectors(locale).map((c) => c.key);
@@ -25,6 +23,8 @@ const ENV_KEYS = [
   'SYSTEM_MCP_TRIVAGO_TOKEN',
   'SYSTEM_MCP_LAW_URL',
   'SYSTEM_MCP_LAW_TOKEN',
+  'SYSTEM_MCP_RATEO_URL',
+  'SYSTEM_MCP_RATEO_TOKEN',
 ];
 
 const saved: Record<string, string | undefined> = {};
@@ -34,6 +34,9 @@ beforeEach(() => {
     saved[k] = process.env[k];
     delete process.env[k];
   }
+  // Rateo has a built-in default URL; an empty value is its explicit "off".
+  // Off here so every other test sees only the sources it configures.
+  process.env.SYSTEM_MCP_RATEO_URL = '';
 });
 
 afterEach(() => {
@@ -49,12 +52,30 @@ const allConfigured = () => {
   process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
   process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
   process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+  process.env.SYSTEM_MCP_RATEO_URL = 'https://rateo.example.org/mcp';
 };
 
 describe('getSystemMcpSources (env matrix)', () => {
   it('returns nothing when no env URLs are set (feature off)', () => {
     expect(getSystemMcpSources()).toEqual([]);
     expect(getManagedConnectors()).toEqual([]);
+  });
+
+  it('offers Rateo without any env: its public endpoint is the default', () => {
+    delete process.env.SYSTEM_MCP_RATEO_URL;
+    const rateo = getSystemMcpSources().find((s) => s.key === 'rateo');
+    expect(rateo?.url).toBe('https://rateo.berlin/api/mcp');
+    expect(rateo?.authType).toBe('none');
+    // Our own servers keep the env requirement — their endpoints stay out of the repo.
+    expect(getSystemMcpSources().map((s) => s.key)).toEqual(['rateo']);
+  });
+
+  it('switches Rateo off with an empty env value and repoints it with a set one', () => {
+    expect(getSystemMcpSources().some((s) => s.key === 'rateo')).toBe(false);
+    process.env.SYSTEM_MCP_RATEO_URL = 'https://mirror.example.org/mcp';
+    expect(getSystemMcpSources().find((s) => s.key === 'rateo')?.url).toBe(
+      'https://mirror.example.org/mcp'
+    );
   });
 
   it('activates exactly the sources whose URL env is set', () => {
@@ -96,23 +117,11 @@ describe('getSystemMcpSources (env matrix)', () => {
 describe('managed connectors', () => {
   it('offers every configured source, in MANAGED_KEYS order', () => {
     allConfigured();
-    expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
-    for (const key of ['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const) {
-      expect(isManagedKey(key)).toBe(true);
-    }
+    expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo']);
   });
 
   it('offers nothing while the URL env is unset', () => {
     expect(getManagedConnectors()).toEqual([]);
-    expect(getManagedConnectorById('system-gesetze')).toBeNull();
-  });
-
-  it('resolves one connector by its synthetic id', () => {
-    allConfigured();
-    const gesetze = getManagedConnectorById('system-gesetze');
-    expect(gesetze?.key).toBe('gesetze');
-    expect(gesetze?.connector.title).toBe('Gesetze');
-    expect(getManagedConnectorById('system-nichtsda')).toBeNull();
   });
 
   it('round-trips the synthetic id and rejects a user UUID', () => {
@@ -124,22 +133,11 @@ describe('managed connectors', () => {
     expect(parseManagedConnectorId('')).toBeNull();
   });
 
-  it('keeps the tool-name prefix mcpCatalog derives valid and distinct', () => {
-    // mcpCatalog builds `m${id.replace(/-/g,'').slice(0,8)}__<tool>` and the
-    // provider tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — a `:` separator here
-    // would produce names every provider rejects.
-    const prefixes = (['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const).map((k) =>
-      managedConnectorId(k).replace(/-/g, '').slice(0, 8)
-    );
-    for (const p of prefixes) expect(p).toMatch(/^[a-zA-Z0-9_-]+$/);
-    expect(new Set(prefixes).size).toBe(prefixes.length);
-  });
-
-  it('marks the connection config as managed so no row write is attempted', () => {
+  it('carries the registry key so the catalog names tools <key>__ and skips row writes', () => {
     process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
     process.env.SYSTEM_MCP_LAW_TOKEN = 'secret';
     const config = toSystemConnectionConfig(sourceByKey('gesetze')!);
-    expect(config.managed).toBe(true);
+    expect(config.registryKey).toBe('gesetze');
     expect(config.id).toBe('system-gesetze');
     expect(config.authType).toBe('bearer');
   });
@@ -163,7 +161,7 @@ describe('managed connectors', () => {
 describe('audience', () => {
   it('keeps every connector for a German user', () => {
     allConfigured();
-    expect(managedKeys('de-DE')).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
+    expect(managedKeys('de-DE')).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze', 'rateo']);
   });
 
   it('drops only the German-only connectors for an Austrian user', () => {
@@ -175,7 +173,7 @@ describe('audience', () => {
     // The explicit-mention path passes no locale on purpose: somebody who types
     // `@bahn` asked for that server, whatever country they are in.
     allConfigured();
-    expect(managedKeys()).toHaveLength(5);
+    expect(managedKeys()).toHaveLength(6);
   });
 
   it('answers the German-only question per source', () => {

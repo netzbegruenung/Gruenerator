@@ -20,7 +20,7 @@ import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
-import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
+import { boundSystemNotebook, notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { offerNote } from '../artifactOffer.js';
@@ -319,6 +319,7 @@ export async function streamAgenticResponse(
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
+    const { staleConnectorName } = assembled;
     mcpMountMs = assembled.mcpMountMs;
     toolScope = assembled.toolScope;
 
@@ -501,6 +502,7 @@ export async function streamAgenticResponse(
       state: finalState,
       mcpCatalog,
       mcpCapabilityQuestion,
+      staleConnectorName,
     });
 
     // Was das Modell bekommt: Verlauf mit dem Paste in der letzten Nachricht
@@ -532,9 +534,10 @@ export async function streamAgenticResponse(
     // here or the model promises an edit that nothing will make (or hides
     // that editing is off).
     const preLoopEditNotes = buildPreLoopEditNotes(finalState);
-    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
+    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet
+    // hat, sonst das, an das der Agent gebunden ist.
     const promptNotebook = notebookForPrompt(
-      finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
+      finalState.notebookIds?.[0] ?? finalState.threadNotebookId ?? boundSystemNotebook(finalState),
       finalState.userLocale ?? null
     );
     // The product vocabulary — term names only, so the model recognises a
@@ -546,7 +549,7 @@ export async function streamAgenticResponse(
         ? buildGlossaryVocabularyNote()
         : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle })}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,

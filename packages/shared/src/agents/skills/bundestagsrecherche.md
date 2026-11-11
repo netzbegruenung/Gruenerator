@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-bundestag'
 title: 'Bundestag-Recherche'
-description: 'Drucksachen und Debatten finden, lesen und belegt auswerten'
+description: 'Findet Drucksachen und Plenardebatten des Bundestags, liest sie und belegt Aussagen mit Fundstellen. Nutzen, wenn eine Antwort auf Bundestagsdokumenten beruhen soll.'
 iconKey: 'PiBank'
 avatar: '🏛️'
 backgroundColor: '#316049'

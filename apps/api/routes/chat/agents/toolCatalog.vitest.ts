@@ -35,6 +35,9 @@ vi.mock('./searchTools.js', async (importOriginal) => ({
   // so stubbing it would make them prove nothing.
   agentAllowsWebSearch: (await importOriginal<typeof import('./searchTools.js')>())
     .agentAllowsWebSearch,
+  // `boundSystemNotebook` (notebookSourceTools) liest die Sammlungsliste der Locale.
+  collectionsForLocale: (await importOriginal<typeof import('./searchTools.js')>())
+    .collectionsForLocale,
 }));
 
 // DeepL is a paid, key-gated door: the catalog must only carry the tool when
@@ -2515,5 +2518,65 @@ describe('toolCatalog check_sharepic mounting', () => {
     expect(namesFor({ ...base, enabledTools: { edit_current_canvas: true } })).not.toContain(
       'check_sharepic'
     );
+  });
+});
+
+describe('toolCatalog: das Notebook des Turns wird zur Standard-Sammlung', () => {
+  const optionsFor = (state: Record<string, unknown>) => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    });
+    return searchToolOptions.last?.scopedCollections;
+  };
+
+  it('reicht die gebundenen Notebooks des Agenten weiter', () => {
+    expect(
+      optionsFor({ notebookCollectionIds: [], defaultNotebookCollectionIds: ['saarland'] })
+    ).toEqual(['saarland']);
+  });
+
+  it('lässt ein @erwähntes Notebook vor dem gebundenen gelten', () => {
+    expect(
+      optionsFor({ notebookCollectionIds: ['hessen'], defaultNotebookCollectionIds: ['saarland'] })
+    ).toEqual(['hessen']);
+  });
+});
+
+describe('toolCatalog: notebook_quellen für einen Agenten mit eigenem Notebook', () => {
+  const namesFor = (agent: Record<string, unknown>, enabledTools: Record<string, boolean>) => {
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig: { ...agentConfig, ...agent } as AgentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          userLocale: 'de-DE',
+          enabledTools,
+          agentConfig: { ...agentConfig, ...agent },
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  };
+
+  it('montiert es ohne user_content, wenn der Agent an ein System-Notebook gebunden ist', () => {
+    expect(
+      namesFor({ defaultNotebookIds: ['saarland-notebook'] }, { user_content: false })
+    ).toContain('notebook_quellen');
+  });
+
+  it('lässt es ohne user_content und ohne gebundenes Notebook weg', () => {
+    expect(namesFor({}, { user_content: false })).not.toContain('notebook_quellen');
   });
 });

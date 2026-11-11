@@ -37,10 +37,13 @@ const ENV_KEYS = [
   'SYSTEM_MCP_ARD_URL',
   'SYSTEM_MCP_TRIVAGO_URL',
   'SYSTEM_MCP_LAW_URL',
+  'SYSTEM_MCP_RATEO_URL',
 ];
 
 beforeEach(() => {
   for (const key of ENV_KEYS) delete process.env[key];
+  // Rateo has a built-in default URL; empty is its explicit "off".
+  process.env.SYSTEM_MCP_RATEO_URL = '';
 });
 
 describe('isProductMetaQuestion', () => {
@@ -110,19 +113,29 @@ describe('buildCompactProductIdentity', () => {
     expect(identity).toContain('nur ein Textmodell');
   });
 
-  it('names the real support channels and forbids inventing others', () => {
+  it('compact identity stays under 600 chars', () => {
     for (const locale of ['de-DE', 'de-AT'] as const) {
-      const identity = buildCompactProductIdentity(locale);
-      expect(identity).toContain('Feedback-Button');
-      expect(identity).toContain('gruenerator.eu/support');
-      expect(identity).toContain('erfinde keine');
-      // Addresses that do not exist must never be offered as a contact.
-      expect(identity).not.toMatch(/@gruenerator\.eu/);
+      expect(buildCompactProductIdentity(locale).trim().length).toBeLessThanOrEqual(600);
     }
   });
 });
 
 describe('buildProductKnowledgeBlock', () => {
+  it('support routes live in product_knowledge', async () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const block = await buildProductKnowledgeBlock({
+        locale,
+        userId: null,
+        question: 'wo melde ich einen Fehler?',
+      });
+      expect(block).toContain('Feedback-Button');
+      expect(block).toContain('gruenerator.eu/support');
+      expect(block).toContain('erfinde keine');
+      // Addresses that do not exist must never be offered as a contact.
+      expect(block).not.toMatch(/@gruenerator\.eu/);
+    }
+  });
+
   it('lists agents, tools and collections; excludes dormant collections', async () => {
     const block = await buildProductKnowledgeBlock({
       locale: 'de-DE',
@@ -148,6 +161,17 @@ describe('buildProductKnowledgeBlock', () => {
     // the assistant reads back to a user, and it has to match the settings list.
     expect(block).toContain('Wetter:');
     expect(block).not.toContain('Deutsche Bahn:');
+  });
+
+  it('describes them as directory connectors, not as switches every user already has', async () => {
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://weather.example';
+    const block = await buildProductKnowledgeBlock({
+      locale: 'de-DE',
+      userId: null,
+      question: 'was kannst du?',
+    });
+    expect(block).toContain('mit einem Klick verbinden');
+    expect(block).not.toContain('standardmäßig aus');
   });
 
   it('says so plainly when the deploy has no connectors configured', async () => {

@@ -8,7 +8,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Pressemitteilung',
-    description: 'Pressemitteilungen verfassen',
+    description:
+      'Pressemitteilungen mit Headline, Vorspann, Zitat und Hintergrund. Nutzen, wenn eine Pressemitteilung geschrieben werden soll und kein Landesverband vorgegeben ist.',
     iconKey: 'PiNewspaper',
     avatar: '📰',
     backgroundColor: '#316049',
@@ -20,7 +21,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Instagram',
-    description: 'Instagram-Posts & Captions',
+    description:
+      'Instagram-Posts und Captions mit Hook, Text und Hashtags. Nutzen, wenn ein Beitrag oder eine Bildunterschrift für Instagram geschrieben werden soll.',
     iconKey: 'PiInstagramLogo',
     avatar: '📸',
     backgroundColor: '#316049',
@@ -33,7 +35,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Facebook',
-    description: 'Facebook-Posts & Beiträge',
+    description:
+      'Facebook-Posts mit Haltung, kurzem Einstieg und Handlungsaufforderung. Nutzen, wenn ein Beitrag für eine Facebook-Seite oder -Gruppe geschrieben werden soll.',
     iconKey: 'PiFacebookLogo',
     avatar: '👍',
     backgroundColor: '#316049',
@@ -45,7 +48,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Twitter / X',
-    description: 'Tweets & Threads',
+    description:
+      'Tweets und Threads für X mit starkem Einstieg und passender Länge. Nutzen, wenn ein Beitrag für Twitter/X geschrieben oder ein Text zum Thread umgebaut werden soll.',
     iconKey: 'PiXLogo',
     avatar: '🐦',
     backgroundColor: '#316049',
@@ -57,7 +61,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'LinkedIn',
-    description: 'LinkedIn-Posts & Artikel',
+    description:
+      'LinkedIn-Posts und Artikel in sachlich-professionellem Ton. Nutzen, wenn ein Beitrag für LinkedIn oder ein Fachpublikum im Netz geschrieben werden soll.',
     iconKey: 'PiLinkedinLogo',
     avatar: '💼',
     backgroundColor: '#316049',
@@ -69,7 +74,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Reel / TikTok',
-    description: 'Reel- & TikTok-Skripte',
+    description:
+      'Skripte für Reels und TikToks mit Hook, Szenen und Schlusssatz. Nutzen, wenn ein kurzes Video für Instagram oder TikTok geplant werden soll.',
     iconKey: 'PiTiktokLogo',
     avatar: '🎬',
     backgroundColor: '#316049',
@@ -80,7 +86,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Aktionsideen',
-    description: 'Kreative Aktionsideen entwickeln',
+    description:
+      'Kreative, umsetzbare Ideen für Straßenaktionen, Infostände und Kampagnenmomente. Nutzen, wenn eine Gruppe Ideen für eine Aktion oder ein Event sucht – auch mit wenig Budget.',
     iconKey: 'PiLightbulb',
     avatar: '💡',
     backgroundColor: '#316049',
@@ -91,7 +98,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlpruefsteine',
     title: 'Wahlprüfsteine',
-    description: 'Fragenkataloge von Verbänden beantworten',
+    description:
+      'Beantwortet Fragenkataloge Frage für Frage aus Programm und Beschlüssen. Nutzen, wenn ein Fragenkatalog oder Fragebogen eines Verbands, einer Initiative oder Zeitung an die Partei geht, auch ohne Wort Wahlprüfstein.',
     iconKey: 'PiListChecks',
     avatar: '📋',
     backgroundColor: '#316049',
@@ -103,7 +111,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergerservice',
     title: 'Bürger*innen-Mail',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage, sachlich und zugewandt. Nutzen, wenn eine Zuschrift von Bürger*innen beantwortet werden soll und kein Landesverband vorgegeben ist.',
     iconKey: 'PiEnvelopeSimple',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -114,7 +123,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-antrag',
     title: 'Antrag für Stadt- oder Gemeinderat',
-    description: 'Anträge für Stadtrat, Gemeinderat und Kreistag',
+    description:
+      'Antrag für Stadtrat, Gemeinderat oder Kreistag mit Beschlusstext und Begründung. Nutzen, wenn ein kommunaler Antrag oder eine Anfrage für die Fraktion formuliert werden soll.',
     iconKey: 'PiBuildings',
     avatar: '🏛️',
     backgroundColor: '#316049',
@@ -126,19 +136,22 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Beschlusslage',
-    description: 'Belegte Auskunft aus Beschlüssen, Protokollen und Transkripten',
+    description:
+      'Belegte Auskunft aus Beschlüssen, Protokollen und Transkripten mit Fundstellen. Nutzen, wenn gefragt wird, was die Partei zu einem Thema beschlossen oder gesagt hat.',
     iconKey: 'PiBooks',
     avatar: '📚',
     backgroundColor: '#316049',
     mention: 'beschlusslage',
     skillCategory: 'recherche',
     promptTemplate: 'Was sagt unsere Beschlusslage zu: ',
+    rolle: 'methode',
     instances: ['bgst', 'local'],
   },
   {
     identifier: 'gruenerator-universal',
     title: 'Pressemitteilung (Beschlusslage)',
-    description: 'PM ausschließlich auf Beschlussgrundlage, mit Belegtabelle',
+    description:
+      'Pressemitteilung, die allein auf vorliegenden Beschlüssen steht, mit Belegtabelle. Nutzen, wenn eine PM strikt aus der Beschlusslage und ohne Websuche entstehen soll.',
     iconKey: 'PiNewspaper',
     avatar: '🗞️',
     backgroundColor: '#316049',
@@ -150,7 +163,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Sprechzettel',
-    description: 'Redemanuskript aus der Dokumentensammlung, mit Rechenschaft',
+    description:
+      'Redemanuskript aus einer Dokumentensammlung, sprechbar gegliedert und mit Belegen. Nutzen, wenn eine Rede oder ein Statement aus vorliegenden Dokumenten vorbereitet wird.',
     iconKey: 'PiMicrophoneStage',
     avatar: '🎤',
     backgroundColor: '#316049',
@@ -162,7 +176,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Leitantrag',
-    description: 'Kapitel für Leit- und Beschlussanträge',
+    description:
+      'Kapitel für Leit- und Beschlussanträge mit Befund, Bewertung und Forderungen. Nutzen, wenn ein Antragskapitel für Bundesvorstand, Länderrat oder BDK entsteht.',
     iconKey: 'PiFileText',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -174,7 +189,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Rechtsstand',
-    description: 'Was gilt, was ist beschlossen, was wird noch verhandelt',
+    description:
+      'Trennt, was rechtlich gilt, von dem, was verhandelt oder gefordert wird, mit Fundstelle. Nutzen, wenn gefragt wird „was gilt aktuell bei X“, „was ist beschlossen, was wird noch verhandelt“ oder „ist das schon Gesetz“.',
     iconKey: 'PiScales',
     avatar: '⚖️',
     backgroundColor: '#316049',
@@ -187,7 +203,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-bundestag',
     title: 'Bundestag-Recherche',
-    description: 'Drucksachen und Debatten finden, lesen und belegt auswerten',
+    description:
+      'Findet Drucksachen und Plenardebatten des Bundestags, liest sie und belegt Aussagen mit Fundstellen. Nutzen, wenn eine Antwort auf Bundestagsdokumenten beruhen soll.',
     iconKey: 'PiBank',
     avatar: '🏛️',
     backgroundColor: '#316049',
@@ -198,10 +215,25 @@ export const SKILLS = [
     rolle: 'methode',
   },
   {
+    identifier: 'gruenerator-universal',
+    title: 'Visuelle Bausteine',
+    description:
+      'Zeichnet Balken, Kennzahlen, Zeitleisten, Vergleiche oder Tabellen als Grafik in der Antwort. Nutzen, wenn Zahlen, Abläufe oder Gegenüberstellungen als Bild klarer sind als als Text.',
+    iconKey: 'PiChartBar',
+    avatar: '📊',
+    backgroundColor: '#316049',
+    mention: 'visuelle-bausteine',
+    skillCategory: 'sonstiges',
+    audience: 'all',
+    promptTemplate: 'Zeichne als Grafik: ',
+    rolle: 'methode',
+    modelOnly: true,
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin (Fraktion)',
     description:
-      'Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik',
+      'Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.',
     iconKey: 'PiBuildings',
     avatar: '🐻',
     backgroundColor: '#316049',
@@ -215,7 +247,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin (Partei)',
     description:
-      'Pressemitteilung der Berliner GRÜNEN — AGH-Wahl 2026, Parteitage, Volksinitiativen, Bundespolitik',
+      'Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.',
     iconKey: 'PiBuildings',
     avatar: '🐻',
     backgroundColor: '#316049',
@@ -228,7 +260,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'Insta Berlin',
-    description: 'Instagram-Post im Stil Grüne Berlin',
+    description:
+      'Instagram-Post im Stil der Grünen Berlin. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Berlin geschrieben wird.',
     iconKey: 'PiBuildings',
     avatar: '🐻',
     backgroundColor: '#316049',
@@ -241,7 +274,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     title: 'PM Hamburg',
-    description: 'Pressemitteilung im Stil Grüne Hamburg',
+    description:
+      'Pressemitteilung im Stil der Grünen Hamburg. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Hamburg geschrieben wird.',
     iconKey: 'PiAnchor',
     avatar: '⚓',
     backgroundColor: '#316049',
@@ -253,7 +287,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     title: 'Insta Hamburg',
-    description: 'Instagram-Post im Stil Grüne Hamburg',
+    description:
+      'Instagram-Post im Stil der Grünen Hamburg. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Hamburg geschrieben wird.',
     iconKey: 'PiAnchor',
     avatar: '⚓',
     backgroundColor: '#316049',
@@ -267,7 +302,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'PM MV (Fraktion)',
     description:
-      'Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern — Anfragen, Anträge, Ausschüsse, Landesregierung',
+      'Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.',
     iconKey: 'PiWaves',
     avatar: '🌊',
     backgroundColor: '#316049',
@@ -282,7 +317,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'PM MV (Partei)',
     description:
-      'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern — Wahlkampf, Spitzenkandidatur, Parteitage, Bundespolitik',
+      'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.',
     iconKey: 'PiWaves',
     avatar: '🌊',
     backgroundColor: '#316049',
@@ -295,7 +330,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'Insta MV',
-    description: 'Instagram-Post im Stil Grüne Mecklenburg-Vorpommern',
+    description:
+      'Instagram-Post im Stil der Grünen Mecklenburg-Vorpommern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.',
     iconKey: 'PiWaves',
     avatar: '🌊',
     backgroundColor: '#316049',
@@ -308,7 +344,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
     title: 'PM Thüringen',
-    description: 'Pressemitteilung im Stil Bündnisgrüne Thüringen',
+    description:
+      'Pressemitteilung im Stil der Grünen Thüringen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Thüringen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '🌲',
     backgroundColor: '#316049',
@@ -320,7 +357,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
     title: 'Insta Thüringen',
-    description: 'Instagram-Post im Stil Bündnisgrüne Thüringen',
+    description:
+      'Instagram-Post im Stil der Grünen Thüringen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Thüringen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '🌲',
     backgroundColor: '#316049',
@@ -333,7 +371,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
     title: 'PM Brandenburg',
-    description: 'Pressemitteilung im Stil Brandenburger Bündnisgrüne',
+    description:
+      'Pressemitteilung im Stil der Grünen Brandenburg. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Brandenburg geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '🌻',
     backgroundColor: '#316049',
@@ -345,7 +384,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
     title: 'Insta Brandenburg',
-    description: 'Instagram-Post im Stil Brandenburger Bündnisgrüne',
+    description:
+      'Instagram-Post im Stil der Grünen Brandenburg. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Brandenburg geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '🌻',
     backgroundColor: '#316049',
@@ -359,7 +399,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     title: 'PM Bayern (Fraktion)',
     description:
-      'Pressemitteilung der Landtags-Grünen Bayern — Anfragen, Forderungslisten, Staatsregierung',
+      'Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '🦁',
     backgroundColor: '#316049',
@@ -373,7 +413,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     title: 'PM Bayern (Partei)',
     description:
-      'Pressemitteilung der bayerischen GRÜNEN — Doppelspitze, Parteitag, Kommunalwahl, Bundesebene',
+      'Pressemitteilung der bayerischen GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Bayern geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '🦁',
     backgroundColor: '#316049',
@@ -387,7 +427,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
     title: 'PM Hessen (Fraktion)',
     description:
-      'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen — Plenum, Ausschuss, Kleine Anfragen, Landesregierung',
+      'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '🌳',
     backgroundColor: '#316049',
@@ -401,7 +441,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
     title: 'PM Hessen (Partei)',
     description:
-      'Pressemitteilung des Landesverbands Hessen — Wahlen, Parteitage, Personalien, Bundespolitik',
+      'Pressemitteilung des Landesverbands Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Hessen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '🌳',
     backgroundColor: '#316049',
@@ -414,7 +454,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
     title: 'Aussendung (AT)',
-    description: 'Aussendung im Stil der Grünen Österreich',
+    description:
+      'Aussendung im Stil der Grünen Österreich mit Zitat und Kontaktblock. Nutzen statt der allgemeinen Pressemitteilung, wenn eine Aussendung für Österreich geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '📢',
     backgroundColor: '#316049',
@@ -426,7 +467,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
     title: 'PM Saarland',
-    description: 'Pressemitteilung im Stil der Saar-Grünen',
+    description:
+      'Pressemitteilung im Stil der Grünen Saarland. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Saarland geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '⚒️',
     backgroundColor: '#316049',
@@ -439,7 +481,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     title: 'PM Sachsen-Anhalt (Fraktion)',
     description:
-      'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt — Landtag, Kleine Anfragen, Landesregierung',
+      'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '🌾',
     backgroundColor: '#316049',
@@ -454,7 +496,7 @@ export const SKILLS = [
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     title: 'PM Sachsen-Anhalt (Partei)',
     description:
-      'Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt — Landtagswahl 2026, Parteitage, Bundespolitik',
+      'Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '🌾',
     backgroundColor: '#316049',
@@ -468,7 +510,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
     title: 'Insta Saarland',
-    description: 'Instagram-Post im Stil der Saar-Grünen',
+    description:
+      'Instagram-Post im Stil der Grünen Saarland. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Saarland geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '⚒️',
     backgroundColor: '#316049',
@@ -481,7 +524,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     title: 'Insta Bayern',
-    description: 'Instagram-Post im Stil Grüne Bayern',
+    description:
+      'Instagram-Post im Stil der Grünen Bayern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Bayern geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '🦁',
     backgroundColor: '#316049',
@@ -494,7 +538,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
     title: 'Insta Hessen',
-    description: 'Instagram-Post im Stil Grüne Hessen',
+    description:
+      'Instagram-Post im Stil der Grünen Hessen. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Hessen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '🌳',
     backgroundColor: '#316049',
@@ -507,7 +552,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     title: 'Insta Sachsen-Anhalt',
-    description: 'Instagram-Post im Stil Grüne Sachsen-Anhalt',
+    description:
+      'Instagram-Post im Stil der Grünen Sachsen-Anhalt. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '🌾',
     backgroundColor: '#316049',
@@ -520,7 +566,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
     title: 'Insta Österreich',
-    description: 'Instagram-Post im Stil der Grünen Österreich',
+    description:
+      'Instagram-Post im Stil der Grünen Österreich. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für die Grünen in Österreich geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '🇦🇹',
     backgroundColor: '#316049',
@@ -533,7 +580,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-oesterreich',
     title: 'Bürger*innen-Mail Österreich',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Österreich',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Österreich. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen in Österreich geantwortet wird.',
     iconKey: 'PiMountains',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -546,7 +594,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-bayern',
     title: 'Bürger*innen-Mail Bayern',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Bayern',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Bayern. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Bayern geantwortet wird.',
     iconKey: 'PiMountains',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -559,7 +608,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-berlin',
     title: 'Bürger*innen-Mail Berlin',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Berlin',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Berlin. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Berlin geantwortet wird.',
     iconKey: 'PiBuildings',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -572,7 +622,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-brandenburg',
     title: 'Bürger*innen-Mail Brandenburg',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Brandenburg',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Brandenburg. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Brandenburg geantwortet wird.',
     iconKey: 'PiFlowerLight',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -585,7 +636,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-hamburg',
     title: 'Bürger*innen-Mail Hamburg',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hamburg',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hamburg. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hamburg geantwortet wird.',
     iconKey: 'PiAnchor',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -598,7 +650,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-hessen',
     title: 'Bürger*innen-Mail Hessen',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hessen',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hessen. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hessen geantwortet wird.',
     iconKey: 'PiTree',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -611,7 +664,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
     title: 'Bürger*innen-Mail Mecklenburg-Vorpommern',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Mecklenburg-Vorpommern',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Mecklenburg-Vorpommern geantwortet wird.',
     iconKey: 'PiWaves',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -623,9 +677,24 @@ export const SKILLS = [
     recommendedTools: ['gruenerator_search'],
   },
   {
+    identifier: 'gruenerator-buergeranfragen-nordrhein-westfalen',
+    title: 'Bürger*innen-Mail NRW',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen NRW. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen NRW geantwortet wird.',
+    iconKey: 'PiBuildings',
+    avatar: '✉️',
+    backgroundColor: '#316049',
+    mention: 'buerger-nrw',
+    skillCategory: 'dokumente',
+    audience: 'de-DE',
+    promptTemplate: 'Beantworte diese Bürger*innenanfrage an die Grünen NRW als E-Mail: ',
+    recommendedTools: ['gruenerator_search'],
+  },
+  {
     identifier: 'gruenerator-buergeranfragen-saarland',
     title: 'Bürger*innen-Mail Saarland',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Saarland',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Saarland. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Saarland geantwortet wird.',
     iconKey: 'PiMountains',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -638,7 +707,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-sachsen-anhalt',
     title: 'Bürger*innen-Mail Sachsen-Anhalt',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Sachsen-Anhalt',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Sachsen-Anhalt. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Sachsen-Anhalt geantwortet wird.',
     iconKey: 'PiFlowerLight',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -652,7 +722,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-schleswig-holstein',
     title: 'Bürger*innen-Mail Schleswig-Holstein',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Schleswig-Holstein',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Schleswig-Holstein. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Schleswig-Holstein geantwortet wird.',
     iconKey: 'PiWaves',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -666,7 +737,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-buergeranfragen-thueringen',
     title: 'Bürger*innen-Mail Thüringen',
-    description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Thüringen',
+    description:
+      'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Thüringen. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Thüringen geantwortet wird.',
     iconKey: 'PiTree',
     avatar: '✉️',
     backgroundColor: '#316049',
@@ -679,7 +751,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Insta GRÜNE JUGEND',
-    description: 'Instagram-Post im Stil der GRÜNEN JUGEND',
+    description:
+      'Instagram-Post im Stil der GRÜNEN JUGEND, direkt und jugendlich. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für die GRÜNE JUGEND geschrieben wird.',
     iconKey: 'PiInstagramLogo',
     avatar: '✊',
     backgroundColor: '#33C270',
@@ -692,7 +765,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
     title: 'Insta Grüne Jugend',
-    description: 'Instagram-Post im Stil der Grünen Jugend Österreich',
+    description:
+      'Instagram-Post im Stil der Grünen Jugend Österreich, direkt und jugendlich. Nutzen statt des Insta-Österreich-Rezepts, wenn für die Grüne Jugend in Österreich geschrieben wird.',
     iconKey: 'PiInstagramLogo',
     avatar: '🍃',
     backgroundColor: '#005424',
@@ -706,7 +780,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-bayern',
     title: 'Beschlussantrag Bayern',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Bayern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Bayern geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -720,7 +794,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-berlin',
     title: 'Beschlussantrag Berlin',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Berlin, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Berlin. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Berlin geschrieben wird.',
     iconKey: 'PiBuildings',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -734,7 +808,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-brandenburg',
     title: 'Beschlussantrag Brandenburg',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Brandenburg, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Brandenburg. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Brandenburg geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -748,7 +822,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-hessen',
     title: 'Beschlussantrag Hessen',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Hessen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Hessen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -762,7 +836,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-mecklenburg-vorpommern',
     title: 'Beschlussantrag Mecklenburg-Vorpommern',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Mecklenburg-Vorpommern, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Mecklenburg-Vorpommern. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Mecklenburg-Vorpommern geschrieben wird.',
     iconKey: 'PiWaves',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -773,10 +847,24 @@ export const SKILLS = [
     recommendedTools: ['gruenerator_search', 'web_search'],
   },
   {
+    identifier: 'gruenerator-beschluesse-nordrhein-westfalen',
+    title: 'Beschlussantrag NRW',
+    description:
+      'Beschlussantrag in der Beschlusssprache der Grünen NRW. Nutzen statt des Leitantrags, wenn ein Antrag für die Grünen NRW geschrieben wird.',
+    iconKey: 'PiBuildings',
+    avatar: '📜',
+    backgroundColor: '#316049',
+    mention: 'beschluss-nrw',
+    skillCategory: 'dokumente',
+    audience: 'de-DE',
+    promptTemplate: 'Schreib einen Beschlussantrag zum Thema: ',
+    recommendedTools: ['gruenerator_search', 'web_search'],
+  },
+  {
     identifier: 'gruenerator-beschluesse-saarland',
     title: 'Beschlussantrag Saarland',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Saarland, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Saarland. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Saarland geschrieben wird.',
     iconKey: 'PiMountains',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -790,7 +878,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-sachsen-anhalt',
     title: 'Beschlussantrag Sachsen-Anhalt',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Sachsen-Anhalt, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Sachsen-Anhalt. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Sachsen-Anhalt geschrieben wird.',
     iconKey: 'PiFlowerLight',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -804,7 +892,7 @@ export const SKILLS = [
     identifier: 'gruenerator-beschluesse-thueringen',
     title: 'Beschlussantrag Thüringen',
     description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Thüringen, im Anschluss an die bestehende Beschlusslage',
+      'Beschlussantrag in der Beschlusssprache der Grünen Thüringen. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Thüringen geschrieben wird.',
     iconKey: 'PiTree',
     avatar: '📜',
     backgroundColor: '#316049',
@@ -817,7 +905,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlprogramm-bayern',
     title: 'Wahlprogramm Bayern',
-    description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern',
+    description:
+      'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern. Nutzen, wenn gefragt wird, was das Programm in Bayern zu einem Thema sagt.',
     iconKey: 'PiMountains',
     avatar: '📘',
     backgroundColor: '#316049',
@@ -830,7 +919,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlprogramm-berlin',
     title: 'Wahlprogramm Berlin',
-    description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin',
+    description:
+      'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin. Nutzen, wenn gefragt wird, was das Programm in Berlin zu einem Thema sagt.',
     iconKey: 'PiBuildings',
     avatar: '📘',
     backgroundColor: '#316049',
@@ -843,7 +933,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlprogramm-brandenburg',
     title: 'Wahlprogramm Brandenburg',
-    description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg',
+    description:
+      'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg. Nutzen, wenn gefragt wird, was das Programm in Brandenburg zu einem Thema sagt.',
     iconKey: 'PiFlowerLight',
     avatar: '📘',
     backgroundColor: '#316049',
@@ -856,7 +947,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlprogramm-sachsen-anhalt',
     title: 'Wahlprogramm Sachsen-Anhalt',
-    description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt',
+    description:
+      'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt. Nutzen, wenn gefragt wird, was das Programm in Sachsen-Anhalt zu einem Thema sagt.',
     iconKey: 'PiFlowerLight',
     avatar: '📘',
     backgroundColor: '#316049',
@@ -869,7 +961,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-wahlprogramm-thueringen',
     title: 'Wahlprogramm Thüringen',
-    description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen',
+    description:
+      'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen. Nutzen, wenn gefragt wird, was das Programm in Thüringen zu einem Thema sagt.',
     iconKey: 'PiTree',
     avatar: '📘',
     backgroundColor: '#316049',
@@ -883,7 +976,7 @@ export const SKILLS = [
     identifier: 'gruenerator-universal',
     title: 'Reisekosten NRW (Beta)',
     description:
-      'Reisekostenabrechnung aus deinen Belegen, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)',
+      'Reisekostenabrechnung aus Belegen nach dem Formular des Landesverbands NRW (Beta). Nutzen, wenn eine Reise abgerechnet wird, die der LV NRW erstattet.',
     iconKey: 'PiFileText',
     avatar: '🧾',
     backgroundColor: '#316049',
@@ -896,7 +989,7 @@ export const SKILLS = [
     identifier: 'gruenerator-universal',
     title: 'Reise vorbereiten NRW (Beta)',
     description:
-      'Was vor einer Reise zu erledigen ist, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)',
+      'Checkliste, was vor einer Reise im Auftrag des Landesverbands NRW zu klären ist (Beta). Nutzen, wenn eine Reise geplant wird, die der LV NRW erstattet.',
     iconKey: 'PiListChecks',
     avatar: '🧳',
     backgroundColor: '#316049',

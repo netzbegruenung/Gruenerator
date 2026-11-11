@@ -73,7 +73,7 @@ describe('MarketplaceDialog', () => {
     expect(await within(dialog).findByRole('region', { name: 'Agents' })).toBeInTheDocument();
     const tabs = within(within(dialog).getByRole('group', { name: 'Art' })).getAllByRole('button');
     expect(tabs.map((t) => t.textContent)).toEqual(['Alle', 'Agents', 'Rezepte']);
-    expect(Object.fromEntries(queries[0])).toMatchObject({ kinds: 'agent,recipe', q: 'presse' });
+    expect(Object.fromEntries(queries[0])).toMatchObject({ kinds: 'recipe,agent', q: 'presse' });
     expect(within(dialog).getByRole('link', { name: 'Im Marktplatz öffnen' })).toHaveAttribute(
       'href',
       '/marktplatz?q=presse'

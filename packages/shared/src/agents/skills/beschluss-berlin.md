@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-berlin'
 title: 'Beschlussantrag Berlin'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Berlin, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Berlin. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Berlin geschrieben wird.'
 iconKey: 'PiBuildings'
 avatar: '📜'
 backgroundColor: '#316049'

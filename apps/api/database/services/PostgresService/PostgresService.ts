@@ -253,6 +253,31 @@ export class PostgresService {
     schemaValidateColumnNames(this.schemaCache, tableName, columnNames);
   }
 
+  /**
+   * Live-Probe für `/health`. `isHealthy` stammt aus `init()` und kippt nicht,
+   * wenn Postgres später wegfällt — darum hier ein echtes `SELECT 1`. Ohne
+   * Logging, weil der Docker-Healthcheck das alle 30 s aufruft.
+   */
+  async checkHealth(timeoutMs = 3000): Promise<{ connected: boolean; error?: string }> {
+    if (!this.pool) {
+      return { connected: false, error: this.lastError ?? 'not initialized' };
+    }
+    let timer: NodeJS.Timeout | null = null;
+    try {
+      await Promise.race([
+        this.pool.query('SELECT 1'),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+        }),
+      ]);
+      return { connected: true };
+    } catch (error) {
+      return { connected: false, error: (error as Error).message };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   getHealth(): HealthStatus {
     return {
       isHealthy: this.isHealthy,

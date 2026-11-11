@@ -170,7 +170,7 @@ export const searchIntentSchema = z.enum([
   'abgeordnetenhaus',
   // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
   // ARD-Tagesschau) — built-in like bundestag, active only when the matching
-  // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/systemMcpServers.ts).
+  // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/connectorAdapters.ts).
   'bahn',
   // Umbrella travel intent — mounts bahn + hotel (trivago) + wetter together.
   'reise',

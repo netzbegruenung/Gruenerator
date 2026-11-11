@@ -51,7 +51,8 @@ export const chatThreads = pgTable(
     share_mode: text('share_mode').notNull().default('private'),
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
-    last_mcp_server_id: uuid('last_mcp_server_id'),
+    // TEXT, not uuid: managed connectors are `system-<key>`.
+    last_mcp_server_id: text('last_mcp_server_id'),
     // Generalised tool memory: which tool family the last substantive turn used
     // ({kind, ref?, label?}) — injected into the classifier so vague follow-ups
     // route back to the same tool (mentions are stripped from message text).

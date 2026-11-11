@@ -113,6 +113,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 vi.mock('../../../services/bundestag/BundestagEnrichedService.js', async (orig) => {
   const { fakeBundestagService } = await import('./harness/searchBackendStub.js');
   return {
@@ -218,6 +222,8 @@ const DECOYS = [
   'rezept_laden',
   'meine_inhalte_laden',
 ];
+/** Die Köder ohne `rezept_laden` — für Material-Turns, deren Zuschnitt es mitführt (#4785). */
+const NOT_RECIPE_DECOYS = DECOYS.filter((t) => t !== 'rezept_laden');
 
 interface Case {
   id: string;
@@ -332,6 +338,10 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['gruenerator_search', 'notebooks', 'notebook_quellen'],
+    // Einfügung + Auftrag („beantworte …") ist ein Material-Turn wie der
+    // Insta-Fall unten: `rezept_laden` ist im Zuschnitt, ein Rezept (Bürgermail)
+    // gehört zu dieser Textsorte.
+    without: NOT_RECIPE_DECOYS,
   },
   // #4785: Einfügung plus Schreibauftrag. Der Prompt verlangt das Rezept
   // zuerst; ohne es im Zuschnitt hing Gemma unter `required` über 50 s.
@@ -343,9 +353,90 @@ const CASES: Case[] = [
       defaultNotebookId: 'bundestagsfraktion-notebook',
     },
     fits: ['rezept_laden'],
-    without: DECOYS.filter((t) => t !== 'rezept_laden'),
+    without: NOT_RECIPE_DECOYS,
   },
 ];
+
+// Recherche-Turns dürfen im erzwungenen Schritt eine Methode laden (Beschlusslage,
+// Rechtsstand, Bundestagsrecherche), nie eine Textsorte (#3880).
+describe('forced research step offers a method recipe', () => {
+  const pool = createProviderStub();
+  let app: Awaited<ReturnType<typeof startChatApp>>;
+  let restoreNetwork: (() => void) | null = null;
+
+  beforeAll(async () => {
+    restoreNetwork = installNetworkGuard();
+    app = await startChatApp();
+  }, 60_000);
+  afterAll(async () => {
+    await app?.close();
+    restoreNetwork?.();
+  });
+  beforeEach(() => {
+    pinChatEnv({ LOOP_TOOL_SCOPE_ENFORCE: 'false' });
+    resetThreadStore();
+    resetMockControls();
+    respond.reset();
+    pool.reset();
+    searchBackend.reset();
+    ctl.captured.length = 0;
+    ctl.priorSteps = [];
+    ctl.emptySeed = false;
+  });
+
+  it.each([
+    ['grundsatzprogramm', 'Was steht im Grundsatzprogramm der Grünen zum Tierschutz?'],
+    ['bundestag', 'Wie hat die Unionsfraktion im Bundestag über das Heizungsgesetz abgestimmt?'],
+  ])('%s: methode_laden steht im ersten Aufruf, rezept_laden nicht', async (_id, prompt) => {
+    await runTurn(app.baseUrl, { messages: [userTurn(prompt)] });
+    const planner = ctl.captured[0];
+    expect(planner).toBeDefined();
+    if (!planner) return;
+    const step0 = (planner.prepareStep as PrepareStep)({ stepNumber: 0, steps: [] });
+    expect(step0.toolChoice).toBe('required');
+    expect(step0.activeTools).toContain('methode_laden');
+    expect(step0.activeTools).not.toContain('rezept_laden');
+  });
+});
+
+// I1: der Alt-Token `@social` (F0, steht in persistierten Threads) darf nicht im
+// Einzeldurchlauf landen — dort gibt es keine Rezeptwahl mehr.
+describe('legacy @social token keeps the recipe catalogue', () => {
+  const pool = createProviderStub();
+  let app: Awaited<ReturnType<typeof startChatApp>>;
+  let restoreNetwork: (() => void) | null = null;
+
+  beforeAll(async () => {
+    restoreNetwork = installNetworkGuard();
+    app = await startChatApp();
+  }, 60_000);
+  afterAll(async () => {
+    await app?.close();
+    restoreNetwork?.();
+  });
+  beforeEach(() => {
+    pinChatEnv({ LOOP_TOOL_SCOPE_ENFORCE: 'false' });
+    resetThreadStore();
+    resetMockControls();
+    respond.reset();
+    pool.reset();
+    searchBackend.reset();
+    ctl.captured.length = 0;
+    ctl.priorSteps = [];
+    ctl.emptySeed = false;
+  });
+
+  it('social_post + Text: der Turn läuft in der Schleife und `rezept_laden` ist montiert', async () => {
+    await runTurn(app.baseUrl, {
+      messages: [userTurn('Instagram-Post über unsere neue Radwegebrücke')],
+      forcedTools: ['social_post'],
+    });
+    const planner = ctl.captured[0];
+    expect(planner).toBeDefined();
+    if (!planner) return;
+    expect(Object.keys(planner.tools as ToolSet)).toContain('rezept_laden');
+  });
+});
 
 interface Row {
   id: string;
@@ -490,7 +581,15 @@ describe('forced first planner step', () => {
       const step0 = prepare({ stepNumber: 0, steps: [] });
       // Ohne Schattenbetrieb hätte master schon einen Zuschnitt gehabt — dann
       // verglichen die zwei Arme nicht mehr master gegen diesen Stand.
-      expect(prepare({ stepNumber: 1, steps: [] }).activeTools).toBeUndefined();
+      // Einzige Ausnahme: `methode_laden` gehört allein diesem Schritt und fehlt danach.
+      const later = prepare({ stepNumber: 1, steps: [] }).activeTools;
+      expect(later?.filter((t) => t === 'methode_laden') ?? []).toEqual([]);
+      expect(
+        later === undefined ||
+          Object.keys(planner.tools as object)
+            .filter((t) => t !== 'methode_laden')
+            .every((t) => later.includes(t))
+      ).toBe(true);
 
       expect(step0.toolChoice, `${c.id}: kein Zwang ohne benanntes Werkzeug`).toBe('required');
       const narrowed = step0.activeTools ?? [];

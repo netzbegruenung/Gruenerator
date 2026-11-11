@@ -90,6 +90,43 @@ describe('createSearchTools — locale-aware default collection', () => {
     );
   });
 
+  it("defaults an agent bound to a Landesverband notebook to that notebook's collection", () => {
+    // Live: "Bürger*innenanfragen (Saarland)" binds `saarland-notebook`, the
+    // single-pass path searched it, but on the loop path the planner named no
+    // collection and `gruenerator_search` ran against `deutschland` — the
+    // agent answered from the federal programme instead of its own LV.
+    const bound = {
+      ...AGENT,
+      identifier: 'gruenerator-buergeranfragen-saarland',
+      defaultNotebookIds: ['saarland-notebook'],
+    } as unknown as AgentConfig;
+    expect(
+      defaultCollection(
+        createSearchTools(bound, { userLocale: 'de-DE', scopedCollections: ['saarland'] })
+      )
+    ).toBe('saarland');
+  });
+
+  it('skips a scoped collection the turn may not search', () => {
+    expect(
+      defaultCollection(
+        createSearchTools(AGENT, { userLocale: 'de-DE', scopedCollections: ['oesterreich'] })
+      )
+    ).toBe('deutschland');
+  });
+
+  it('keeps an explicit agent restriction above the notebook scope', () => {
+    const restricted = {
+      ...AGENT,
+      toolRestrictions: { defaultCollection: 'deutschland' },
+    } as unknown as AgentConfig;
+    expect(
+      defaultCollection(
+        createSearchTools(restricted, { userLocale: 'de-DE', scopedCollections: ['saarland'] })
+      )
+    ).toBe('deutschland');
+  });
+
   it('ignores an unknown locale', () => {
     expect(defaultCollection(createSearchTools(AGENT, { userLocale: 'en-US' }))).toBe(
       'deutschland'
@@ -120,9 +157,13 @@ describe('collection catalogue — derived, not hand-maintained', () => {
     // The concrete failure: an LV key had to exist before the planner could
     // name it at all.
     expect(ALL_COLLECTIONS).toContain('hessen');
-    for (const lv of ['hamburg', 'bayern', 'berlin', 'thueringen', 'saarland', 'brandenburg']) {
+    for (const lv of ['bayern', 'berlin', 'thueringen', 'saarland', 'brandenburg']) {
       expect(ALL_COLLECTIONS).toContain(lv);
     }
+    // Hamburg and Schleswig-Holstein are switched off like Sachsen (#3831): an
+    // empty corpus must not be offered as a search target.
+    expect(ALL_COLLECTIONS).not.toContain('hamburg');
+    expect(ALL_COLLECTIONS).not.toContain('schleswig-holstein');
   });
 
   it('keeps the federal corpora the eight literals had', () => {

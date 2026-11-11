@@ -58,6 +58,7 @@ export const NOTEBOOK_ICONS = {
   'sachsen-notebook': PiTree,
   'hessen-notebook': GiRaccoonHead,
   'saarland-notebook': PiMapPin,
+  'nordrhein-westfalen-notebook': PiMapPin,
   'boell-stiftung-notebook': PiLightbulb,
   'landtag-nrw-notebook': PiBank,
   'landtag-berlin-notebook': PiBank,

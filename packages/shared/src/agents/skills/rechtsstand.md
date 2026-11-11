@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-universal'
 title: 'Rechtsstand'
-description: 'Was gilt, was ist beschlossen, was wird noch verhandelt'
+description: 'Trennt, was rechtlich gilt, von dem, was verhandelt oder gefordert wird, mit Fundstelle. Nutzen, wenn gefragt wird „was gilt aktuell bei X“, „was ist beschlossen, was wird noch verhandelt“ oder „ist das schon Gesetz“.'
 iconKey: 'PiScales'
 avatar: '⚖️'
 backgroundColor: '#316049'

@@ -19,7 +19,7 @@ import {
   getSystemMcpSources,
   toSystemConnectionConfig,
   type SystemMcpSource,
-} from '../../services/mcp/systemMcpServers.js';
+} from '../../services/mcp/connectorAdapters.js';
 import { UserMCPClient, type McpResource } from '../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../utils/logger.js';
 

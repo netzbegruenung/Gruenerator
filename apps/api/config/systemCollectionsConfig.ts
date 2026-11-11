@@ -864,7 +864,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'hamburg',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
@@ -881,7 +884,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'schleswig-holstein',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
@@ -1057,6 +1063,25 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'SL' },
+  },
+  'nordrhein-westfalen-system': {
+    id: 'nordrhein-westfalen-system',
+    key: 'nordrhein-westfalen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne NRW',
+    description:
+      'Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: ['NRW', 'NRW-F'] },
   },
   // Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je Frage/Antwort-
   // Paar (scripts/ingest-wahlpruefstein-examples.ts). Dieselbe Sammlung speist

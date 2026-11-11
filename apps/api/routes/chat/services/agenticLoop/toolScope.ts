@@ -67,6 +67,13 @@ import { z } from 'zod';
 import type { ToolSet } from 'ai';
 
 /**
+ * Das engere Rezept-Werkzeug für den erzwungenen Recherche-Schritt (Enum nur über
+ * Methoden-Rezepte, `recipeTools.ts`). Hier definiert, weil der Umfang es aus
+ * jedem anderen Schritt heraushält.
+ */
+export const METHOD_RECIPE_TOOL = 'methode_laden';
+
+/**
  * Wann die eigenen Inhalte gemeint sind.
  *
  * Live gemessen am 25.08.2026 gegen den damaligen Loop-Planer (GreenPT)
@@ -276,9 +283,17 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  /**
+   * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
+   * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
+   * einen Agenten mit eigenem Notebook, ohne dass damit Dokumente, Boards und
+   * Medien der Person mit aufgehen.
+   */
+  keepVisible?: readonly string[];
   enforce: boolean;
 }): ToolScope {
   const mounted = new Set(params.toolNames);
+  const keepVisible = new Set(params.keepVisible ?? []);
   const text = params.userText ?? '';
   const pinned = params.pinnedTool ?? null;
   const prior = new Set(params.priorToolNames ?? []);
@@ -289,7 +304,7 @@ export function createToolScope(params: {
     // `tools` ist ein Literal-Tupel, die Namen kommen als beliebige Strings aus
     // dem Zustand — die Verbreiterung ist die Grenze, nicht ein Typloch.
     const groupTools = group.tools as readonly string[];
-    const present = groupTools.filter((t) => mounted.has(t));
+    const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];
@@ -315,8 +330,16 @@ export function createToolScope(params: {
           if (group.opensOn?.some((t) => called.has(t))) closed.delete(group.id);
         }
       }
-      if (!params.enforce || closed.size === 0) return undefined;
-      const hidden = new Set<string>();
+      // `methode_laden` gehört allein dem erzwungenen ersten Schritt (er schneidet
+      // seine `activeTools` selbst zu); in jedem anderen Schritt bleibt es aus,
+      // dort gilt `rezept_laden` mit dem ganzen Katalog. Unabhängig von `enforce`.
+      const methodOnly = mounted.has(METHOD_RECIPE_TOOL) ? [METHOD_RECIPE_TOOL] : [];
+      if (!params.enforce || closed.size === 0) {
+        return methodOnly.length > 0
+          ? params.toolNames.filter((t) => t !== METHOD_RECIPE_TOOL)
+          : undefined;
+      }
+      const hidden = new Set<string>(methodOnly);
       for (const group of closed.values()) for (const t of group.tools) hidden.add(t);
       // Die Lader stehen nicht in `toolNames` — sie werden erst nach diesem
       // Aufruf montiert. Deshalb ausdrücklich anhängen, sonst schneidet

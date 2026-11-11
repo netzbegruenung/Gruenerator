@@ -25,10 +25,12 @@ import {
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
-const executeDirectSearch = vi.fn<(...a: unknown[]) => Promise<unknown>>();
+const searchAsNotebook = vi.fn<(...a: unknown[]) => Promise<unknown>>();
 const executeDirectWebSearch = vi.fn<(...a: unknown[]) => Promise<unknown>>();
+vi.mock('./notebookCollectionSearch.js', () => ({
+  searchCollectionAsNotebook: (...a: unknown[]) => searchAsNotebook(...a),
+}));
 vi.mock('./directSearch.js', () => ({
-  executeDirectSearch: (...a: unknown[]) => executeDirectSearch(...a),
   executeDirectExamplesSearch: vi.fn(),
   executeDirectPressemitteilungExamples: vi.fn(),
   executeDirectWebSearch: (...a: unknown[]) => executeDirectWebSearch(...a),
@@ -322,7 +324,7 @@ describe('klassifiziereWurf (wrapTools)', () => {
 
 describe('gruenerator_search', () => {
   beforeEach(() => {
-    executeDirectSearch.mockReset();
+    searchAsNotebook.mockReset();
   });
   const tool = () =>
     createSearchTools(AGENT, { userLocale: 'de-DE' }).gruenerator_search as unknown;
@@ -341,7 +343,7 @@ describe('gruenerator_search', () => {
     [
       'Backend-Ausfall (error: true)',
       () =>
-        executeDirectSearch.mockResolvedValue({
+        searchAsNotebook.mockResolvedValue({
           collection: 'deutschland',
           query: 'q',
           searchMode: 'hybrid',
@@ -357,7 +359,7 @@ describe('gruenerator_search', () => {
     ],
     [
       'Wurf im Executor',
-      () => executeDirectSearch.mockRejectedValue(new Error('qdrant weg')),
+      () => searchAsNotebook.mockRejectedValue(new Error('qdrant weg')),
       { query: 'q', collection: 'deutschland', limit: 5 },
       'anbieter_ausfall',
       /Suche ist abgebrochen.*qdrant weg/,
@@ -373,7 +375,7 @@ describe('gruenerator_search', () => {
   });
 
   it('echtes Leer bleibt ein Nicht-Fehler und nennt Sammlung', async () => {
-    executeDirectSearch.mockResolvedValue({
+    searchAsNotebook.mockResolvedValue({
       collection: 'deutschland',
       query: 'q',
       searchMode: 'hybrid',

@@ -1,4 +1,3 @@
-import { useSkillFavoritesStore } from '@gruenerator/chat';
 import { agentKey, agentRef, agenturaMetaLine, getAgentSlug } from '@gruenerator/shared/agents';
 import { type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -51,8 +50,6 @@ function recipeMeta(entry: RecipeEntry): string {
  */
 export function useMarketCards() {
   const navigate = useNavigate();
-  const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
   const deleteUserAgent = useDeleteUserAgent();
@@ -69,7 +66,7 @@ export function useMarketCards() {
   const toRecipeItems = (entries: RecipeEntry[]): MarketItem[] =>
     entries.map((entry) => ({
       kind: 'recipe' as const,
-      isFavorite: favorites.includes(entry.mention.toLowerCase()),
+      isFavorite: library.has('recipe', entry.id ?? entry.mention),
       entry,
     }));
 
@@ -143,7 +140,7 @@ export function useMarketCards() {
         description={entry.description}
         onSelect={() => handleSelectRecipe(entry.mention)}
         isFavorite={isFavorite}
-        onToggleFavorite={() => toggleFavorite(entry.mention)}
+        onToggleFavorite={() => library.toggle('recipe', entry.id ?? entry.mention)}
         onEdit={
           entry.editable
             ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)

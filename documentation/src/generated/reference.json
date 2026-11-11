@@ -178,14 +178,6 @@
         ]
       },
       {
-        "id": "hamburg-system",
-        "name": "Grüne Hamburg",
-        "description": "Beschlüsse und Pressemitteilungen der Grünen Hamburg",
-        "codes": [
-          "HH"
-        ]
-      },
-      {
         "id": "hessen-system",
         "name": "Grüne Hessen",
         "description": "Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)",
@@ -204,6 +196,15 @@
         ]
       },
       {
+        "id": "nordrhein-westfalen-system",
+        "name": "Grüne NRW",
+        "description": "Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW",
+        "codes": [
+          "NRW",
+          "NRW-F"
+        ]
+      },
+      {
         "id": "saarland-system",
         "name": "Grüne Saarland",
         "description": "Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland",
@@ -218,14 +219,6 @@
         "codes": [
           "LSA",
           "LSA-F"
-        ]
-      },
-      {
-        "id": "schleswig-holstein-system",
-        "name": "Grüne Schleswig-Holstein",
-        "description": "Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl",
-        "codes": [
-          "SH"
         ]
       },
       {
@@ -391,6 +384,11 @@
       "title": "Gesetze",
       "description": "Deutsches Bundesrecht durchsuchen, Normen im Volltext lesen und Zitate prüfen.",
       "category": "Recht & Compliance"
+    },
+    {
+      "title": "Rateo",
+      "description": "Anträge, Anfragen und Beschlüsse der Berliner Bezirksverordnetenversammlungen (Rateo).",
+      "category": "Politik & Verwaltung"
     },
     {
       "title": "tagesschau",

@@ -101,7 +101,7 @@ import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
-import { makeNotebookSourcesTool } from './notebookSourceTools.js';
+import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -410,6 +410,14 @@ export function buildChatToolCatalog(params: {
     log.info('[toolCatalog] user forbade new research — search tools not mounted this turn');
   }
 
+  // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
+  // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
+  // erst nach dem Bau dieses Katalogs passiert.
+  const activeRecipeMentions = (): readonly (string | null | undefined)[] => [
+    loop?.state.activeSkillMention,
+    ...(recipeRegistry?.mentions ?? []),
+  ];
+
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
@@ -417,6 +425,14 @@ export function buildChatToolCatalog(params: {
     // search now hangs on the locale, so "no loop state" has to resolve to an
     // explicit `null` (→ the German default) rather than to an absent property.
     userLocale: loop?.state.userLocale ?? null,
+    // The notebook the turn is scoped to becomes the search default — an
+    // @mention first, else the agent's bound notebooks (same priority as
+    // `resolveExamplesLvScope`). Without it an LV agent searched `deutschland`.
+    ...(loop != null && {
+      scopedCollections: loop.state.notebookCollectionIds?.length
+        ? loop.state.notebookCollectionIds
+        : (loop.state.defaultNotebookCollectionIds ?? []),
+    }),
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
@@ -433,13 +449,7 @@ export function buildChatToolCatalog(params: {
     ...(loop != null && {
       userText: loop.state.lastUserTextNoMentions ?? lastUserText(loop.state),
     }),
-    // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
-    // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
-    // erst nach dem Bau dieses Katalogs passiert.
-    activeRecipeMentions: () => [
-      loop?.state.activeSkillMention,
-      ...(recipeRegistry?.mentions ?? []),
-    ],
+    activeRecipeMentions,
     // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
     // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
     // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
@@ -1064,6 +1074,14 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (state.clientCanRenderSharepic && state.enabledTools?.['check_sharepic'] !== false) {
         tools.check_sharepic = makeCheckSharepicTool();
       }
+      // Neben dem Überarbeiten auch das Neuerstellen, ohne Zwang: ob „dann
+      // erstelle ein neues" ein neues meint, liest der Planer aus dem Gespräch.
+      // Ohne das Werkzeug blieb ihm nur edit_sharepic (Alfter, 09.11.2026, #5511).
+      // Ein bestellter Verbund unten überschreibt den Eintrag mit demselben Werkzeug.
+      tools.sharepic = makeCreateSharepicTool({
+        ...sharepicCtx,
+        researchBanned,
+      });
     }
 
     // Chat-Tabelle: lesen und ändern statt eine Änderung zu behaupten (#4457).
@@ -1171,8 +1189,16 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
-    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
-      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
+    // Ein Agent mit eigenem System-Notebook liest es auch ohne `user_content`:
+    // die Freigabe hängt am Eigentümer des Notebooks (öffentliche
+    // Parteiinhalte), nicht am Werkzeug. Dann nur System-Notebooks, nur lesen.
+    if (
+      (userContentAllowed || boundSystemNotebook(state) != null) &&
+      state.enabledTools?.['notebook_quellen'] !== false
+    ) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx, {
+        systemOnly: !userContentAllowed,
+      });
     }
     // DeepL translation. Mounted broadly like the domain tools — the model
     // decides — but only when a key is configured: a tool that always answers
@@ -1316,7 +1342,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
     // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.
     if (!editorSurface && state.enabledTools?.['vorlagen'] !== false) {
-      const vorlagen = vorlagenForTurn(state);
+      const vorlagen = vorlagenForTurn(state, activeRecipeMentions());
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,

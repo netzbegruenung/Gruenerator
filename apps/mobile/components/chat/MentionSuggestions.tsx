@@ -76,6 +76,11 @@ const MentionRow = memo(function MentionRow({
           {item.trigger}
           {item.mention}
         </Text>
+        {item.type === 'agent' && item.description ? (
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]} numberOfLines={1}>
+            {item.description}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );

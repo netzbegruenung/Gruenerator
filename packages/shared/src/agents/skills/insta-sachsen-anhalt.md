@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt'
 title: 'Insta Sachsen-Anhalt'
-description: 'Instagram-Post im Stil Grüne Sachsen-Anhalt'
+description: 'Instagram-Post im Stil der Grünen Sachsen-Anhalt. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '🌾'
 backgroundColor: '#316049'

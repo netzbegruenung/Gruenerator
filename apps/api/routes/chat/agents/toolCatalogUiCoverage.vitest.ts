@@ -78,6 +78,12 @@ function loopToolNames(): ReadonlySet<string> {
   );
   for (const m of (catalog?.[1] ?? '').matchAll(/'([^']+)'/g)) names.add(m[1] as string);
 
+  // `tools[METHOD_RECIPE_TOOL] = ...` — the constant lives in toolScope.ts.
+  const method = /METHOD_RECIPE_TOOL\s*=\s*'([^']+)'/.exec(
+    repoFile('apps/api/routes/chat/services/agenticLoop/toolScope.ts')
+  );
+  if (method?.[1]) names.add(method[1]);
+
   // `tools[group.loaderTool] = ...` — the loaders of the deferrable groups.
   for (const m of repoFile('apps/api/routes/chat/services/agenticLoop/toolScope.ts').matchAll(
     /loaderTool:\s*'([^']+)'/g
@@ -116,6 +122,7 @@ describe('loop catalog ↔ UI registry coverage', () => {
     // One per mount site, so a broken regex fails here and names the site.
     expect(names, 'tools.<name> site').toContain('rezept_laden');
     expect(names, 'artifactKindRegistry loopToolName site').toContain('create_pdf');
+    expect(names, 'METHOD_RECIPE_TOOL site').toContain('methode_laden');
     expect(names, 'ATTACHED_DOCS_TOOL site').toContain('dokumente_lesen');
     expect(names, 'CATALOG_TOOLS site').toContain('web_search');
     expect(names, 'toolScope loaderTool site').toContain('meine_inhalte_laden');

@@ -18,23 +18,23 @@ import { skillRole } from '@gruenerator/shared/agents';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
-import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServers.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import {
   ownedDefaultRecipeMention,
   preferredLvRecipeMention,
 } from '../../agents/lvRecipePreference.js';
-import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
+import { boundSystemNotebook } from '../../agents/notebookSourceTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
+  catalogDescription,
   recommendedToolsFor,
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool } from '../../agents/recipeTools.js';
+import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
@@ -59,12 +59,17 @@ import { type ClientToolGate } from './clientToolGate.js';
 import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
-import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
+import { createRecipeRegistry, recipeKey, type RecipeRegistry } from './recipeRegistry.js';
 import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { toolResultBudget } from './toolResultBudgets.js';
-import { createToolScope, DEFERRABLE_GROUPS, type ToolScope } from './toolScope.js';
+import {
+  createToolScope,
+  DEFERRABLE_GROUPS,
+  METHOD_RECIPE_TOOL,
+  type ToolScope,
+} from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
@@ -147,7 +152,6 @@ const ONE_SHOT_SCAFFOLD_TOOLS: ReadonlySet<string> = new Set([
 export interface CatalogDeps {
   buildChatToolCatalog: typeof buildChatToolCatalogReal;
   loadMcpCatalog: typeof loadMcpCatalogReal;
-  loadManagedMcpCatalog: typeof loadManagedMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
 }
@@ -155,7 +159,6 @@ export interface CatalogDeps {
 const defaultDeps: CatalogDeps = {
   buildChatToolCatalog: buildChatToolCatalogReal,
   loadMcpCatalog: loadMcpCatalogReal,
-  loadManagedMcpCatalog: loadManagedMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
 };
@@ -166,6 +169,11 @@ export interface AssembledCatalog {
   /** The connector the turn is scoped to (the person's own server or a managed
    *  one), or null when none was mounted. The caller owns closing it. */
   mcpCatalog: McpCatalog | null;
+  /** The connector the PREVIOUS turn used whose sticky scope this turn had to
+   *  drop (server removed, disabled or switched off) — null otherwise. The
+   *  history still shows its tool-backed answers; without a note the model
+   *  continues that pattern with no tool and invents the data (#5602). */
+  staleConnectorName: string | null;
   recipeCatalog: RecipeCatalogEntry[];
   recipeRegistry: RecipeRegistry;
   /** Tool-card labels of the mounted connector. */
@@ -225,13 +233,7 @@ export async function assembleToolCatalog(
   // ihren Landesverbands-Ausschnitt zuzuschneiden, und muss die Registry daher
   // schon beim Bauen des Katalogs kennen. Der Zugriff selbst passiert erst zur
   // Aufrufzeit — bis dahin ist die Registry gefüllt.
-  // Eine gewählte Textsorte steht im Systemprompt, nicht in der Registry — die
-  // Vorrangnotiz einer Methode muss trotzdem wissen, dass die Form vergeben ist.
-  const recipeRegistry = createRecipeRegistry(
-    undefined,
-    undefined,
-    !!(state.activeSkillMention || state.activeRecipeId)
-  );
+  const recipeRegistry = createRecipeRegistry();
 
   const { tools } = deps.buildChatToolCatalog({
     agentConfig,
@@ -260,20 +262,24 @@ export async function assembleToolCatalog(
   const userId = agentConfig.userId;
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
+  let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
     const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
     if (scope) {
-      const managedKey = parseManagedConnectorId(scope);
-      mcpCatalog = managedKey
-        ? await deps.loadManagedMcpCatalog({ key: managedKey, sse, sourceRegistry, userId })
-        : await deps.loadMcpCatalog({ userId, scope, threadId });
+      // One loader for every connector — a known one (Bahn, Wetter, …) is a
+      // row like any other, and a legacy `system-<key>` scope resolves to it.
+      mcpCatalog = await deps.loadMcpCatalog({ userId, scope, threadId, sse, sourceRegistry });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
-      // only for an EXPLICIT mention.
+      // only for an EXPLICIT mention; a thread that used a connector long ago
+      // would otherwise announce a disconnect on an unrelated question. Only
+      // when the turn right before this one used it does the prompt learn it
+      // is gone (`staleConnectorName`).
       if (!explicitScope && mcpCatalog.scopedServerMissing) {
         await mcpCatalog.close();
         mcpCatalog = null;
+        staleConnectorName = lastTurnConnectorName(toolHistory);
       }
     }
     if (mcpCatalog) {
@@ -283,7 +289,14 @@ export async function assembleToolCatalog(
       // "ab der nächsten Nachricht", and a fully withheld server mounts no
       // labels this turn.
       if (threadId && scope && (mcpCatalog.labels.size > 0 || grants.length > 0)) {
-        void setThreadLastMcpServer(threadId, scope);
+        // Fire-and-forget must not reject: an unhandled rejection here ends the
+        // API process, not just this turn.
+        // The resolved row id, not the scope: a pinned connector still sends
+        // the legacy alias, and the thread should not keep carrying it.
+        const sticky = mcpCatalog.resolvedServerId ?? scope;
+        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
+          log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
+        });
       }
       // A server whose tool definitions drifted since approval had its tools
       // withheld. Say so — otherwise it just looks broken or idle, and the
@@ -307,6 +320,41 @@ export async function assembleToolCatalog(
   // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
+
+  // Das ausdrücklich gewählte Rezept (@-Erwähnung, gepinnte Zeile) trägt die
+  // Registry wie jedes andere — EIN Injektionsweg, nicht mehr nebenher im
+  // Systemprompt (`respondNode`, Loop-Pfad). Vor dem Katalog, damit dieser es
+  // auslässt und die Kappe seinen Platz kennt. Gilt auch im Rollen-Chat: eine
+  // Bestellung überstimmt keine Persona (`resolveEffectiveRecipeMention`).
+  let pinnedKey: string | null = null;
+  if (state.activeSkillMention || state.activeRecipeId) {
+    const resolved = await deps.resolveRecipe({
+      mention: state.activeSkillMention ?? null,
+      recipeId: state.activeRecipeId ?? null,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
+    if (resolved) {
+      const mention = resolved.mention;
+      const pinned = { mention, id: resolved.id };
+      recipeRegistry.register({
+        ...pinned,
+        title: catalogDescription(resolved.title, 120),
+        body: resolved.body,
+        source: resolved.source,
+        recommendedTools: recommendedToolsFor(mention, isMounted),
+        rolle: skillRole(mention),
+        pinned: true,
+      });
+      pinnedKey = recipeKey(pinned);
+      log.info(`[Rezept] gepinnt=${mention} quelle=${resolved.source}`);
+    } else {
+      log.warn(
+        `[Rezept] gewähltes Rezept nicht verfügbar: ${state.activeSkillMention ?? state.activeRecipeId}`
+      );
+    }
+  }
+
   const ownedDefault = ownedDefaultRecipeMention(agentConfig);
   if (
     ownedDefault &&
@@ -316,9 +364,14 @@ export async function assembleToolCatalog(
   ) {
     const text = state.lastUserTextNoMentions ?? lastUserText(state);
     if (!looksLikeChitchatTurn(text) && !isProductMetaQuestion(text)) {
-      const resolved = await deps.resolveRecipe({ mention: ownedDefault, userId: userId ?? null });
+      const resolved = await deps.resolveRecipe({
+        mention: ownedDefault,
+        userId: userId ?? null,
+        visualBlocks: state.visualBlocks ?? [],
+      });
       if (resolved) {
         recipeRegistry.register({
+          id: resolved.id,
           mention: ownedDefault,
           title: resolved.title,
           body: resolved.body,
@@ -341,12 +394,17 @@ export async function assembleToolCatalog(
   // weil der Loop-Prompt mit `loop: true` gebaut wird und die Methoden dort
   // auslässt.
   for (const mention of state.methodSkillMentions ?? []) {
-    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
+    const resolved = await deps.resolveRecipe({
+      mention,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
     if (!resolved) {
       log.warn(`[Rezept] Methode nicht verfügbar: ${mention}`);
       continue;
     }
     const outcome = recipeRegistry.register({
+      id: resolved.id,
       mention,
       title: resolved.title,
       body: resolved.body,
@@ -367,14 +425,34 @@ export async function assembleToolCatalog(
   // `preloaded`), damit eine gewählte Textsorte den Agent-Default wieder
   // verdrängt, und mit ihrer Rolle, damit eine Methode keine Textsorte wird.
   for (const step of resumedSteps ?? []) {
-    const mention = step.result['rezept'];
-    if (step.toolName !== 'rezept_laden' || step.result['geladen'] !== true) continue;
-    if (typeof mention !== 'string' || recipeRegistry.mentions.includes(mention)) continue;
-    const resolved = await deps.resolveRecipe({ mention, userId: userId ?? null });
-    if (!resolved) continue;
-    recipeRegistry.register({
+    if (
+      (step.toolName !== 'rezept_laden' && step.toolName !== METHOD_RECIPE_TOOL) ||
+      step.result['geladen'] !== true
+    )
+      continue;
+    // `rezept` ist der KATALOG-Schlüssel (bei einem gespeicherten fremden Rezept
+    // `presse-1a2b3c`), nicht die Mention; die echte Mention und die Zeilen-id
+    // stehen daneben. Ältere Ergebnisse tragen nur `rezept`.
+    const shownKey = step.result['rezept'];
+    if (typeof shownKey !== 'string') continue;
+    const mentionField = step.result['mention'];
+    const mention = typeof mentionField === 'string' ? mentionField : shownKey;
+    const idField = step.result['rezeptId'];
+    const recipeId = typeof idField === 'string' ? idField : null;
+    if (recipeRegistry.has(recipeKey({ id: recipeId, mention }))) continue;
+    const resolved = await deps.resolveRecipe({
       mention,
-      title: resolved.title,
+      recipeId,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
+    // Eine nicht mehr sichtbare Zeile fällt in `resolveRecipeBody` auf die Mention
+    // zurück — hier gilt genau diese Zeile oder nichts.
+    if (!resolved || (recipeId && resolved.id !== recipeId)) continue;
+    recipeRegistry.register({
+      id: resolved.id,
+      mention,
+      title: catalogDescription(resolved.title, 120),
       body: resolved.body,
       source: resolved.source,
       recommendedTools: recommendedToolsFor(mention, isMounted),
@@ -384,16 +462,11 @@ export async function assembleToolCatalog(
   }
 
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
-  // learned text forms need a DB read), and only when nothing already
-  // decides the writing form for this turn:
-  //   - `activeSkillMention`: the user picked a recipe deliberately and
-  //     `buildSystemMessage` already injected it. Letting the model pick a
-  //     second one would overrule an explicit choice — same double-injection
-  //     guard `product_knowledge` uses.
-  //   - `activeRecipeId`: the id came pinned onto the turn (Agentura deep
-  //     link, not a mention), but it is just as explicit a choice as the
-  //     mention — self-loading a second recipe on top would overrule it the
-  //     same way.
+  // learned text forms need a DB read). Eine ausdrückliche Wahl sperrt das
+  // Werkzeug nicht mehr: sie liegt gepinnt in der Registry, das Modell darf bis
+  // zur Kappe weitere Rezepte dazuladen (Textsorte plus Methode, zweite
+  // Textsorte), und der Katalog lässt das gewählte aus. Nur ein Thread-Prompt
+  // sperrt:
   //   - `customSystemPrompt`: a thread-level prompt replaces the whole
   //     persona; self-loading a recipe into it would fight the user. A
   //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
@@ -401,8 +474,6 @@ export async function assembleToolCatalog(
   //     wants the presse recipe rather than being locked out of all of them.
   let recipeCatalog: RecipeCatalogEntry[] = [];
   if (
-    !state.activeSkillMention &&
-    !state.activeRecipeId &&
     (!state.customSystemPrompt || state.roleBausteinActive) &&
     state.enabledTools?.['rezept_laden'] !== false &&
     allowed('rezept_laden')
@@ -411,18 +482,22 @@ export async function assembleToolCatalog(
       userLocale: state.userLocale,
       userId: userId ?? null,
       roles: state.userRoles,
+      visualBlocks: state.visualBlocks ?? [],
     });
-    recipeCatalog = recipeCatalog.map((entry) =>
-      entry.recommendedTools
-        ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
-        : entry
-    );
+    recipeCatalog = recipeCatalog
+      .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
+      .map((entry) =>
+        entry.recommendedTools
+          ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
+          : entry
+      );
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
         isMounted,
         catalog: recipeCatalog,
         registry: recipeRegistry,
         userId: userId ?? null,
+        visualBlocks: state.visualBlocks ?? [],
         // Wählt das Modell die generische Zeile (`presse`, `instagram`),
         // obwohl der Agent ein LV-PR-Agent ist oder die Person gerade als
         // Landesgeschäftsstelle schreibt (aktive Rolle), lädt das Tool deterministisch dessen
@@ -436,6 +511,20 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
+      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
+      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
+      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
+      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
+      if (methodEntries(recipeCatalog).length > 0) {
+        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
+          isMounted,
+          catalog: recipeCatalog,
+          registry: recipeRegistry,
+          userId: userId ?? null,
+          visualBlocks: state.visualBlocks ?? [],
+          only: 'methode',
+        });
+      }
     }
   }
 
@@ -465,6 +554,10 @@ export async function assembleToolCatalog(
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
+    // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
+    // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
+    // hinter „meine Inhalte" warten.
+    ...(boundSystemNotebook(state) != null && { keepVisible: ['notebook_quellen'] }),
     enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());
@@ -474,12 +567,22 @@ export async function assembleToolCatalog(
   return {
     tools,
     mcpCatalog,
+    staleConnectorName,
     recipeCatalog,
     recipeRegistry,
     toolLabels,
     mcpMountMs,
     toolScope,
   };
+}
+
+/** Der Dienst, den der Zug direkt davor benutzt hat — nie werfen. */
+function lastTurnConnectorName(toolHistory: ThreadToolHistory | null | undefined): string | null {
+  try {
+    return toolHistory?.lastTurnToolSteps().find((s) => s.serverName)?.serverName ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Die vorhandene Projektion lesen, nie werfen. */
@@ -568,6 +671,7 @@ export async function buildToolReplay(params: {
  */
 const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
   'rezept_laden',
+  METHOD_RECIPE_TOOL,
   'ask_human',
   ...DEFERRABLE_GROUPS.map((g) => g.loaderTool),
 ]);

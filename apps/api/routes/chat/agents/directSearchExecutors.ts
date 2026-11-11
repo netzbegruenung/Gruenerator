@@ -54,6 +54,8 @@ export interface DirectSearchResult {
     documentId?: string;
     chunkIndex?: number;
     score?: number;
+    /** Datum der Quelle (Veröffentlichung), wo die Sammlung eines führt. */
+    publishedDate?: string;
     collectionId?: string;
   }>;
   cached?: boolean;

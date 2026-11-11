@@ -511,7 +511,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   //
   // These five reached the chat as INTENTS: a verdict picked one, and the loop
   // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
-  // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
+  // (`apps/api/services/mcp/connectorAdapters.ts`) — listed in Einstellungen →
   // Verbindungen, on by default, and mounted on an @mention or when pinned.
   // `reise` existed only because an
   // intent is single-valued and "Zug und Hotel" needed two.
@@ -711,8 +711,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
    * `@pressemitteilungen` gibt es kein Werkzeug festzuzurren, und das Rezept
    * hat mit `/instagram` & Co. bereits eigene, genauere Einträge im Composer.
    * Der TOKEN bleibt (F0: er steht in persistierten Threads und in
-   * ausgelieferten Composern) und landet über `forcedIntentStage` auf dem
-   * Einzeldurchlauf, wo `deriveImplicitRecipeMention` das Rezept wählt.
+   * ausgelieferten Composern) und landet über `forcedIntentStage` auf
+   * `produktion` ohne erzwungenes Werkzeug — der Turn geht mit dem
+   * Rezeptkatalog in die Schleife, wo `rezept_laden` das Rezept wählt.
    *
    * `persistTool` bleibt ebenfalls: die Karten ALTER Threads werden weiter
    * gelesen und bearbeitet (`socialPostEditService`), nur neu erzeugt wird

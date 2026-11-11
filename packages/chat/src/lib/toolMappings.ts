@@ -25,12 +25,13 @@ import { intentToolNames } from '@gruenerator/shared/chat-intents';
  */
 export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().ui;
 
-/** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
+/** System MCP source prefixes → display names (mirrors apps/api connectorAdapters). */
 const SYSTEM_TOOL_PREFIXES: Record<string, string> = {
   bahn: 'Deutsche Bahn',
   wetter: 'Wetter (DWD)',
   news: 'tagesschau',
   hotel: 'trivago',
+  rateo: 'Rateo',
 };
 
 /**
@@ -67,6 +68,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   create_document: ['Dokument', 'Dokumente'],
   save_as_doc: ['Dokument', 'Dokumente'],
   rezept_laden: ['Rezept geladen', 'Rezepte geladen'],
+  methode_laden: ['Methode geladen', 'Methoden geladen'],
   text_uebersetzen: ['Übersetzung', 'Übersetzungen'],
   create_pdf: ['PDF', 'PDFs'],
   create_explainable: ['Explainable', 'Explainables'],

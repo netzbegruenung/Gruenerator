@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern'
 title: 'PM Bayern (Partei)'
-description: 'Pressemitteilung der bayerischen GRÜNEN — Doppelspitze, Parteitag, Kommunalwahl, Bundesebene'
+description: 'Pressemitteilung der bayerischen GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Bayern geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '🦁'
 backgroundColor: '#316049'

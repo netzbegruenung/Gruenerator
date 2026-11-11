@@ -43,6 +43,7 @@ import {
   fairShare,
   getRetrievalBudget,
 } from '../../../../routes/chat/services/messageHelpers.js';
+import { turnCarriesMaterial } from '../../../../routes/chat/services/turnCarriesMaterial.js';
 import { listTurnImageRefs } from '../../../../routes/chat/services/turnImageList.js';
 import {
   embedUntrusted,
@@ -53,6 +54,7 @@ import { wholeDocumentIdsInPrompt } from '../../../../routes/chat/services/whole
 import { buildGlossaryDefinitionsNote } from '../../../../services/chat/productGlossary.js';
 import {
   buildCompactProductIdentity,
+  PASTE_AS_TEXT_RULE,
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
@@ -1425,9 +1427,8 @@ const SEARCH_GUIDANCE =
  * „fasse den Antrag zusammen" nennen dieselbe Textsorte und bestellen sie
  * nicht — und auf den Abruf-Pfaden (@wolke, @document, @dokumentchat,
  * @notebook) ist genau das der Normalfall. `activeSkillMention` kommt entweder
- * aus der Composer-Wahl oder aus `deriveImplicitRecipeMention`, das Verneinung,
- * Meta-Fragen und Umformungs-Aufträge bereits abweist; `defaultRecipeMention`
- * ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
+ * aus der Composer-Wahl; die Rezeptwahl des Modells über `rezept_laden` im
+ * Loop setzt sie nicht. `defaultRecipeMention` ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
  * LV-Agenten eine Pressemitteilung als Antwort.
  */
 function getOrderedTextFormNote(state: ChatGraphState): string {
@@ -2244,7 +2245,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // @-Erwähnung in der Nachricht dürfen die beiden Tore nicht auseinanderlaufen.
   const isNeutralTurn = intent === 'summary';
   const userQuestion = state.lastUserTextNoMentions ?? lastUserText(state);
-  const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
+  const productIdentity = isNeutralTurn
+    ? ''
+    : buildCompactProductIdentity(state.userLocale) +
+      // Auch die Folgefrage zu einer Einfügung aus einem früheren Turn („Mach aus
+      // der Datei einen Post"): `wholeDocument` (Ursprung `thread`) trägt sie, die
+      // Material-Liste dieses Turns nicht (#5455).
+      (turnCarriesMaterial(state) || state.wholeDocument != null ? `\n${PASTE_AS_TEXT_RULE}` : '');
   let productKnowledge = '';
   if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
@@ -2369,8 +2376,13 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     !state.customSystemPrompt &&
     resolved != null &&
     resolved.mention === ownedDefaultRecipeMention(agentConfig);
+  // Das ausdrücklich gewählte Rezept trägt im Loop dieselbe Registry
+  // (`catalogAssembly`, `pinned`) — hier stünde es sonst ein zweites Mal im
+  // Prompt, nur ohne Kappe und Budget. Der Einzelpfad bleibt unverändert.
+  const pinnedByRegistry =
+    opts.loop === true && !!(state.activeSkillMention || state.activeRecipeId);
   const textFormFragment =
-    resolved && !preloadedByRegistry
+    resolved && !preloadedByRegistry && !pinnedByRegistry
       ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
       : '';
 
@@ -2428,8 +2440,15 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 
   if (effectiveSkillMention || effectiveRecipe.recipeId) {
     const quelle = resolved?.source ?? 'fehlt';
+    // Auf dem Loop-Pfad trägt die Registry das Rezept (`preloadedByRegistry`,
+    // `pinnedByRegistry`) — ein „Prompt-Fragment" gibt es dann nicht, und die
+    // Zeile soll nicht behaupten, es stünde im Prompt.
+    const prefix =
+      preloadedByRegistry || pinnedByRegistry
+        ? '[Rezept] in Registry (Loop)'
+        : '[Rezept] Prompt-Fragment';
     log.info(
-      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
+      `${prefix} mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
     );
   }
 
@@ -2658,8 +2677,14 @@ const PROMPT_BLOCKS = [
   {
     id: 'visual-blocks',
     branches: DEFAULT_ONLY,
+    // Im Loop trägt das Rezept `visuelle-bausteine` (Code-Rezept, über
+    // `rezept_laden` aus dem Katalog) dieselbe Anleitung — immer an, kostete sie
+    // jeden Web-Turn ~3 300 Zeichen. Der Block bleibt die ID für den
+    // Einzelpfad; im Loop entfällt er, sobald der Katalog das Rezept anbietet
+    // (dieselben Bedingungen wie in `catalogAssembly`).
     render: (ctx) =>
-      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null
+      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null &&
+      !visualBlocksRecipeOffered(ctx.state, ctx.opts)
         ? buildVisualBlocksGuidance(ctx.state.visualBlocks ?? [])
         : '',
   },
@@ -2667,6 +2692,23 @@ const PROMPT_BLOCKS = [
   { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
   { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
 ] as const satisfies readonly PromptBlock[];
+
+/**
+ * Bietet der Katalog dieses Loop-Turns das Rezept `visuelle-bausteine` an?
+ * Spiegel von `catalogAssembly`: `rezept_laden` steht, wenn kein Thread-Prompt
+ * die Persona ersetzt (außer dem einer Katalog-Rolle) und das Werkzeug nicht
+ * abgeschaltet ist; das Rezept selbst nur mit Bausteinarten des Clients.
+ * Bewusst nicht gespiegelt: `toolAllowlist` (nur der Notebook-Präzisionsturn, ein
+ * einziges Werkzeug) — dieser Turn verliert die Grafik-Anleitung absichtlich.
+ */
+function visualBlocksRecipeOffered(state: ChatGraphState, opts: { loop?: boolean }): boolean {
+  return (
+    opts.loop === true &&
+    (state.visualBlocks?.length ?? 0) > 0 &&
+    (!state.customSystemPrompt || state.roleBausteinActive === true) &&
+    state.enabledTools?.['rezept_laden'] !== false
+  );
+}
 
 type PromptBlockId = (typeof PROMPT_BLOCKS)[number]['id'];
 

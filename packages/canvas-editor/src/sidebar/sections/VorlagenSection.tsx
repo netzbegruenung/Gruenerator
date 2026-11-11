@@ -56,7 +56,6 @@ import {
   type CanvasVorlage,
   type PrintVorlage,
   type SharepicBrand,
-  type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteTyp,
 } from '@gruenerator/contracts';
@@ -88,7 +87,7 @@ import { DECK_FOLIE_SAMPLES } from '../../slides/deckFolieSamples';
 import { DeckSlidePicker } from '../../slides/DeckSlidePicker';
 import { deckTitleOf, DeckVorlagenPicker } from '../../slides/DeckVorlagenPicker';
 import { slideLayoutConfigId } from '../../slides/slideLayouts';
-import { rankVorlagen } from '../../utils/vorlagenRelevance';
+import { seitenFor, type SeiteTile } from '../../utils/vorlagenRelevance';
 
 import type { BrandLocale } from '../../brand/theme';
 import type {
@@ -190,44 +189,6 @@ const SEITE_TYP_LABEL: Record<SharepicSeiteTyp, string> = {
   diagramm: 'Diagramm',
   aufruf: 'Aufruf',
 };
-
-/** A Seite in the grid, with its place among the slides of its Vorlage. */
-interface SeiteTile {
-  seite: SharepicSeite;
-  n: number;
-  of: number;
-}
-
-/**
- * The Seiten of the format. The slides of one Vorlage stay together in their
- * order and are ranked as one, the ones most like the design first; groups of
- * closing slides only go last.
- */
-function seitenFor(
-  seiten: readonly SharepicSeite[],
-  format: SharepicFormat,
-  pages: readonly HeterogeneousPage[],
-  empty: boolean
-): SeiteTile[] {
-  const groups = new Map<string, SharepicSeite[]>();
-  for (const seite of seiten) {
-    if (!seite.formats.includes(format)) continue;
-    const key = seite.quelle ? `vorlage:${seite.quelle.vorlage}` : `seite:${seite.id}`;
-    const group = groups.get(key);
-    if (group) group.push(seite);
-    else groups.set(key, [seite]);
-  }
-  const entries = [...groups.values()].map((group) => {
-    group.sort((a, b) => (a.quelle?.seite ?? 0) - (b.quelle?.seite ?? 0));
-    return { group, spec: { format, thema: group[0]!.thema, slides: group.map((s) => s.slide) } };
-  });
-  const ranked = empty ? entries : rankVorlagen(entries, pages);
-  const closing = ({ group }: (typeof entries)[number]) =>
-    group.every((s) => s.rolle === 'schluss');
-  return [...ranked.filter((e) => !closing(e)), ...ranked.filter(closing)].flatMap(({ group }) =>
-    group.map((seite, i) => ({ seite, n: i + 1, of: group.length }))
-  );
-}
 
 /** Drag a tile onto a page, with its preview as the drag image. */
 function startDrag(e: DragEvent<HTMLElement>, id: string) {

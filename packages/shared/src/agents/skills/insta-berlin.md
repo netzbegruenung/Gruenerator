@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin'
 title: 'Insta Berlin'
-description: 'Instagram-Post im Stil Grüne Berlin'
+description: 'Instagram-Post im Stil der Grünen Berlin. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Berlin geschrieben wird.'
 iconKey: 'PiBuildings'
 avatar: '🐻'
 backgroundColor: '#316049'

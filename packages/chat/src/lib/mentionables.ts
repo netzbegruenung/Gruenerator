@@ -164,6 +164,8 @@ const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: str
   'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt': NOTEBOOK_ICONS['sachsen-anhalt-notebook'],
   'gruenerator-oeffentlichkeitsarbeit-hessen': NOTEBOOK_ICONS['hessen-notebook'],
   'gruenerator-oeffentlichkeitsarbeit-saarland': NOTEBOOK_ICONS['saarland-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen':
+    NOTEBOOK_ICONS['nordrhein-westfalen-notebook'],
 };
 
 export function agentToMentionable(agent: AgentListItem): Mentionable {
@@ -364,6 +366,8 @@ export interface TextformMentionable {
   title: string;
   description: string | null;
   iconKey: string | null;
+  /** Kategorie in der Rezept-Bibliothek; `null` = „Eigene“. Fehlt beim alten Server. */
+  category?: SkillCategory | null;
   /**
    * Name of the group this recipe was shared from, `null` for the user's own.
    * The picker splits the recipe section on it, so dropping it here makes a
@@ -385,7 +389,7 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
     ? `Rezept aus ${t.sharedFromGroup}`
     : t.isPublic && t.ownerName
       ? `Rezept von ${t.ownerName}`
-      : (t.description ?? 'Eigene Textform');
+      : (t.description ?? 'Eigenes Rezept');
   return {
     type: 'textform',
     category: 'skill',
@@ -397,6 +401,7 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
     backgroundColor: '#316049',
     mention: t.mention,
     ...(t.iconKey ? { iconKey: t.iconKey } : {}),
+    ...(t.category ? { skillCategory: t.category } : {}),
     ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
     ...(t.isPublic && t.ownerName ? { savedFromOwner: t.ownerName } : {}),
   };
