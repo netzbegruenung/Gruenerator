@@ -615,6 +615,8 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
         tools: { gruenerator_search: { execute: async () => ({}) } },
       }),
       resolveRecipe: async ({ mention }) => ({
+        id: null,
+        mention,
         title: `Titel ${mention}`,
         body: 'Rumpf',
         source: 'system',
@@ -696,6 +698,108 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
       withSearch()
     );
     expect(assembled.recipeRegistry.size).toBe(0);
+  });
+});
+
+// Auf einem Prosa-Turn im Loop trägt die Registry den Default JEDES Agenten —
+// dieselben Turns, auf denen `respondNode` ihn bis 11/2026 als Fragment in den
+// Systemprompt schrieb. Live gemessen: ein eigener Agent mit eigenem Rezept als
+// Default lud es über `rezept_laden` ein zweites Mal (ein Aufruf, ~4 s).
+describe('assembleToolCatalog — Agent-Default auf Prosa-Turns im Loop', () => {
+  const ownAgent = {
+    identifier: 'mein-agent',
+    defaultRecipeMention: 'mein-rezept',
+    isUserAgent: true,
+    userId: 'u1',
+  };
+  const prose = { intent: 'agentic', loopDemotedFromProse: 'produktion' };
+  const resolving = () =>
+    vi.fn(async ({ mention, recipeId }: { mention: string | null; recipeId?: string | null }) => ({
+      id: recipeId ?? null,
+      mention: mention ?? 'aus-der-zeile',
+      title: `Titel ${mention ?? recipeId}`,
+      body: 'Rumpf',
+      source: 'user' as const,
+    }));
+
+  it('lädt den Default eines eigenen Agenten vor', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['mein-rezept']);
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: 'mein-rezept', recipeId: null })
+    );
+  });
+
+  it('nimmt die gepinnte Zeile (`defaultRecipeId`) vor der Mention', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: { ...ownAgent, defaultRecipeId: 'row-1' },
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: null, recipeId: 'row-1' })
+    );
+    expect(assembled.recipeRegistry.has('row-1')).toBe(true);
+  });
+
+  it('lässt den Default auf einem Recherche-Turn beim Selbstladen', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Was sagt das Programm zu Radwegen?',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('lässt den Default weichen, wenn das Modell eine andere Textsorte lädt', async () => {
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Schreib einen Insta-Post',
+      }),
+      deps({ resolveRecipe: resolving() } as Partial<CatalogDeps>)
+    );
+    expect(
+      assembled.recipeRegistry.register({
+        mention: 'instagram',
+        id: null,
+        title: 'Instagram',
+        body: 'Insta-Rumpf',
+        source: 'system',
+      })
+    ).toBe('registered');
+    expect(assembled.recipeRegistry.mentions).toEqual(['instagram']);
+  });
+
+  it('lädt nichts unter einer Persona', async () => {
+    const resolveRecipe = resolving();
+    await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        customSystemPrompt: 'Du bist eine Rolle.',
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
   });
 });
 

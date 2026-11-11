@@ -17,13 +17,9 @@ import { skillRole } from '@gruenerator/shared/agents';
 
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
-import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
-import {
-  ownedDefaultRecipeMention,
-  preferredLvRecipeMention,
-} from '../../agents/lvRecipePreference.js';
+import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import { boundSystemNotebook } from '../../agents/notebookSourceTools.js';
@@ -47,6 +43,7 @@ import {
 } from '../threadPersistenceService.js';
 import { isWolkePhoto } from '../wolkePhoto.js';
 
+import { loopAgentDefaultRecipe } from './agentDefaultRecipe.js';
 import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
@@ -60,7 +57,6 @@ import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from '
 import { createToolLoopGuards } from './loopGuards.js';
 import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, recipeKey, type RecipeRegistry } from './recipeRegistry.js';
-import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { toolResultBudget } from './toolResultBudgets.js';
@@ -312,12 +308,8 @@ export async function assembleToolCatalog(
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
-  // Ein-Rezept-Agenten (Bürger*innenanfragen, Wahlprüfsteine) bekommen ihr Rezept vorab:
-  // nur ohne eigene Wahl und ohne Persona (wie `resolveEffectiveRecipeMention`)
-  // und nicht auf Plauder- oder Produktfragen. Anders als im Single-Pass-Pfad
-  // auch auf Recherchefragen („Wie positioniert sich der LV zu …?") — genau
-  // die laufen über den Loop; den Fall ohne Mail-Auftrag regelt der
-  // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
+  // Das Standard-Rezept des Agenten kommt vorab in die Registry (unten,
+  // `loopAgentDefaultRecipe`). Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
 
@@ -355,34 +347,32 @@ export async function assembleToolCatalog(
     }
   }
 
-  const ownedDefault = ownedDefaultRecipeMention(agentConfig);
-  if (
-    ownedDefault &&
-    !state.activeSkillMention &&
-    !state.activeRecipeId &&
-    !state.customSystemPrompt
-  ) {
-    const text = state.lastUserTextNoMentions ?? lastUserText(state);
-    if (!looksLikeChitchatTurn(text) && !isProductMetaQuestion(text)) {
-      const resolved = await deps.resolveRecipe({
-        mention: ownedDefault,
-        userId: userId ?? null,
-        visualBlocks: state.visualBlocks ?? [],
+  // Das Standard-Rezept des Agenten trägt im Loop allein die Registry;
+  // `respondNode` lässt es aus dem Systemprompt weg. Wann es gilt, entscheidet
+  // für beide `loopAgentDefaultRecipe`.
+  const agentDefault = loopAgentDefaultRecipe(state);
+  if (agentDefault) {
+    const resolved = await deps.resolveRecipe({
+      mention: agentDefault.mention,
+      recipeId: agentDefault.recipeId,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
+    if (resolved) {
+      recipeRegistry.register({
+        id: resolved.id,
+        mention: resolved.mention,
+        title: resolved.title,
+        body: resolved.body,
+        source: resolved.source,
+        recommendedTools: recommendedToolsFor(resolved.mention, isMounted),
+        preloaded: true,
       });
-      if (resolved) {
-        recipeRegistry.register({
-          id: resolved.id,
-          mention: ownedDefault,
-          title: resolved.title,
-          body: resolved.body,
-          source: resolved.source,
-          recommendedTools: recommendedToolsFor(ownedDefault, isMounted),
-          preloaded: true,
-        });
-        log.info(`[Rezept] vorab geladen=${ownedDefault} (Agent-Default)`);
-      } else {
-        log.warn(`[Rezept] Agent-Default nicht verfügbar: ${ownedDefault}`);
-      }
+      log.info(`[Rezept] vorab geladen=${resolved.mention} (Agent-Default)`);
+    } else {
+      log.warn(
+        `[Rezept] Agent-Default nicht verfügbar: ${agentDefault.mention ?? agentDefault.recipeId}`
+      );
     }
   }
 
