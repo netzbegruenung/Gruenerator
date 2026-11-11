@@ -17,7 +17,7 @@ export function actionUrlLabel(url: string): string {
   if (/^\/(?:projekte|gruppen)\//.test(path)) return 'Projekt öffnen';
   if (/^\/notebooks?\//.test(path)) return 'Notebook öffnen';
   if (/^\/boards\//.test(path)) return 'Board öffnen';
-  if (/^\/agentura\/agent\//.test(path)) return 'Agent öffnen';
+  if (/^\/(?:agentura\/agent|agents)\//.test(path)) return 'Agent öffnen';
   if (/^\/agentura\/(?:rezept|skill)\//.test(path)) return 'Rezept öffnen';
   return 'Öffnen';
 }
@@ -90,6 +90,14 @@ function grueneratorenRoute(url: string): Href | null {
       params: { slug: decodeURIComponent(agent[1]!) },
     };
   }
+  // `/agents/<slug>` ist, was `create_user_agent` im Chat zurückgibt.
+  const userAgent = path.match(/^\/agents\/([^/]+)$/);
+  if (userAgent && userAgent[1] !== 'new') {
+    return {
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: decodeURIComponent(userAgent[1]!) },
+    };
+  }
   const recipe = path.match(/^\/agentura\/(?:rezept|skill)\/([^/]+)$/);
   if (recipe && recipe[1] !== 'neu') {
     return {
@@ -98,4 +106,24 @@ function grueneratorenRoute(url: string): Href | null {
     };
   }
   return null;
+}
+
+/**
+ * Ob der Öffnen-Link einer bestätigten Aktion irgendwohin führt. Ein nativer
+ * Bildschirm genügt; sonst landet die Seite im Web-Viewer, und der öffnet nur
+ * Pfade aus der Allowlist der API (`EMBEDDABLE_PATH_PREFIXES`). Die steht hier
+ * bewusst nicht noch einmal, nur die Familien, die Bestätigungen tatsächlich
+ * liefern — alles andere (z. B. `/settings/wolke`) bekäme einen Link ins Leere.
+ */
+const EMBEDDABLE_RESULT_PATHS = [/^\/boards\//, /^\/notebooks?\//, /^\/studio\/canvas\//];
+
+export function actionUrlIsOpenable(url: string): boolean {
+  const route = actionUrlToRoute(url);
+  const viaWebViewer =
+    typeof route === 'object' &&
+    'pathname' in route &&
+    route.pathname === '/(fullscreen)/web-viewer';
+  if (!viaWebViewer) return true;
+  const [path = ''] = url.split(/[?#]/);
+  return EMBEDDABLE_RESULT_PATHS.some((pattern) => pattern.test(path));
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { actionUrlLabel, actionUrlToRoute, documentIdFromUrl } from './actionUrl';
+import {
+  actionUrlIsOpenable,
+  actionUrlLabel,
+  actionUrlToRoute,
+  documentIdFromUrl,
+} from './actionUrl';
 
 /**
  * Backend `action_url`s are web paths. Getting the document ones wrong sends a
@@ -158,4 +163,22 @@ describe('actionUrlLabel', () => {
   ])('%s → %s', (url, label) => {
     expect(actionUrlLabel(url)).toBe(label);
   });
+});
+
+describe('actionUrlIsOpenable and agents', () => {
+  it('routes /agents/<slug> to the native agent detail', () => {
+    expect(actionUrlToRoute('/agents/mein-agent-a1b2c3')).toEqual({
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: 'mein-agent-a1b2c3' },
+    });
+  });
+
+  it.each(['/gruppen/42', '/agents/x', '/boards/b1', '/notebooks/n-a1b2c3', '/document/d1'])(
+    'opens %s',
+    (url) => expect(actionUrlIsOpenable(url)).toBe(true)
+  );
+
+  it.each(['/settings/wolke', '/agents/new/x'])('does not open %s', (url) =>
+    expect(actionUrlIsOpenable(url)).toBe(false)
+  );
 });

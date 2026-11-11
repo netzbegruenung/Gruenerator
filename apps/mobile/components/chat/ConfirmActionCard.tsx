@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
-import { actionUrlLabel, actionUrlToRoute } from '../../utils/actionUrl';
+import { actionUrlIsOpenable, actionUrlLabel, actionUrlToRoute } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -83,7 +83,7 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
   }, [resultUrl, router]);
 
   if (status === 'confirmed') {
-    const canOpen = resultUrl !== null;
+    const canOpen = resultUrl !== null && actionUrlIsOpenable(resultUrl);
     return (
       <Pressable
         onPress={openResult}
