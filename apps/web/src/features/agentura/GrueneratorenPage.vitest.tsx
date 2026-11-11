@@ -29,7 +29,16 @@ const marketplace = vi.hoisted(() => ({ list: vi.fn() }));
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
-    userTextForms: { list, listPublic, remove },
+    userTextForms: {
+      list,
+      listPublic,
+      remove,
+      getShareSettings: async () => ({
+        status: 200,
+        body: { share_mode: 'private', is_public: false, public_ownership: null },
+      }),
+    },
+    notebookSharing: { listMyGroups: async () => ({ status: 200, body: [] }) },
     userLibrary: library,
     marketplace,
   }),
@@ -399,6 +408,22 @@ describe('GrueneratorenPage — Meine Rezepte', () => {
     expect(within(menu).getByRole('menuitem', { name: /Löschen/ })).toBeInTheDocument();
   });
 
+  // Teilen ging vorher nur auf der Detailseite — aus der Übersicht gab es
+  // keinen Weg in ein Projekt.
+  it('öffnet aus dem Kartenmenü eines eigenen Rezepts den Teilen-Dialog', async () => {
+    list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
+    renderPage();
+
+    const card = (await screen.findByRole('heading', { name: 'Eigenes Rezept' })).closest(
+      '[class*="rounded-lg"]'
+    ) as HTMLElement;
+    await userEvent.click(within(card).getByRole('button', { name: 'Aktionen' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Teilen/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Rezept teilen' });
+    expect(await within(dialog).findByLabelText('Sichtbarkeit')).toBeInTheDocument();
+  });
+
   it('führt eine geteilte Gruppen-Rezept-Karte genau einmal als geteilt', async () => {
     list.mockResolvedValue({ status: 200, body: { success: true, forms: [sharedRow()] } });
     renderPage();
@@ -414,6 +439,7 @@ describe('GrueneratorenPage — Meine Rezepte', () => {
     const menu = await screen.findByRole('menu');
     expect(within(menu).queryByRole('menuitem', { name: /Bearbeiten/ })).not.toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: /Löschen/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: /Teilen/ })).not.toBeInTheDocument();
   });
 
   it('behauptet nicht „Noch nichts angelegt", solange die eigenen Agents noch laden', async () => {

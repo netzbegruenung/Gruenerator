@@ -105,7 +105,7 @@ function GrueneratorenPage() {
   const confirmDialog = useConfirm();
   const showTrashUndo = useTrashUndoToast();
   const library = useUserLibrary();
-  const { toAgentItems, toRecipeItems, renderItem, asLibrary } = useMarketCards();
+  const { toAgentItems, toRecipeItems, renderItem, asLibrary, shareDialog } = useMarketCards();
 
   const handleDeleteRecipe = async (form: TextForm) => {
     const confirmed = await confirmDialog({
@@ -409,6 +409,7 @@ function GrueneratorenPage() {
         kinds={MARKET_KINDS}
         initialQuery={market?.q ?? ''}
       />
+      {shareDialog}
     </PageShell>
   );
 }
