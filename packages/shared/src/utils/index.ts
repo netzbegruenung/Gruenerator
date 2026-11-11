@@ -47,6 +47,7 @@ export {
   buildGroupSlug,
   buildChatThreadSlug,
   extractSlugSuffix,
+  shareLinkKey,
 } from './slug.js';
 
 // Chat thread titles — the sidebar budget and the word-boundary clamp,

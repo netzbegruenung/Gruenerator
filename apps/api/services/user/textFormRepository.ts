@@ -186,6 +186,8 @@ function rowToTextForm(
     shareMode: row.share_mode as TextFormShareMode,
     isPublic: row.is_public,
     publicOwnership: (row.public_ownership as PublicOwnership | null) ?? null,
+    // Raw-SQL readers that list their columns may leave it out.
+    slugSuffix: row.slug_suffix ?? null,
   };
 }
 
@@ -365,6 +367,14 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 're
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom'
           AND tf.moderation = 'ok')`;
 
+/** The link disjunct: the owner opened the recipe to every signed-in user
+ * ("Mit Anmeldung"), listed or not — whoever holds the link may open and use
+ * it, as with agents (`getAccessibleUserAgentById`). Only ever combined with a
+ * row-naming selector (uuid, slug suffix): a mention is unique per owner, and
+ * by mention this would hand a stranger's recipe to anyone typing the same
+ * `@name`. Custom only, unmoderated — the same bar as {@link PUBLIC_VISIBLE}. */
+const LINK_VISIBLE = `(tf.share_mode = 'authenticated' AND tf.kind = 'custom' AND tf.moderation = 'ok')`;
+
 /** Was der Aufrufer OHNE den offenen Katalog sieht: seine eigenen Zeilen und
  * die, die in eines seiner Projekte geteilt sind. */
 const VISIBLE_TO_CALLER_NO_PUBLIC = `(
@@ -376,6 +386,13 @@ const VISIBLE_TO_CALLER = `(
           tf.user_id = $1::uuid
           OR ${GROUP_SHARE_EXISTS}
           OR ${PUBLIC_VISIBLE}
+        )`;
+
+/** What a row-naming lookup (uuid, slug suffix) may see: {@link
+ * VISIBLE_TO_CALLER} plus {@link LINK_VISIBLE}, which subsumes the listed case. */
+const VISIBLE_BY_ROW = `(
+          ${VISIBLE_TO_CALLER_NO_PUBLIC}
+          OR ${LINK_VISIBLE}
         )`;
 
 /** {@link VISIBLE_TO_CALLER} with the public disjunct limited to the viewer's
@@ -400,19 +417,19 @@ function accessFromRank(rank: number | string): TextFormAccess {
 }
 
 /** Selector is the row-identifying predicate on `$3`; everything else is shared. */
-function injectionSql(selector: string): string {
+function injectionSql(selector: string, visible: string): string {
   return `SELECT tf.id, tf.mention, tf.kind, tf.text_type, tf.title, tf.style_block,
             ${ACCESS_RANK_SQL} AS access_rank
        FROM user_text_forms tf
       WHERE ${selector}
-        AND ${VISIBLE_TO_CALLER}
+        AND ${visible}
         AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT 1`;
 }
 
-const INJECTION_BY_MENTION_SQL = injectionSql('tf.mention = $3');
-const INJECTION_BY_ID_SQL = injectionSql('tf.id = $3::uuid');
+const INJECTION_BY_MENTION_SQL = injectionSql('tf.mention = $3', VISIBLE_TO_CALLER);
+const INJECTION_BY_ID_SQL = injectionSql('tf.id = $3::uuid', VISIBLE_BY_ROW);
 
 interface InjectionRow {
   id: string;
@@ -488,16 +505,79 @@ export async function getTextFormForInjectionById(
   return loadInjection(INJECTION_BY_ID_SQL, userId, id);
 }
 
-/** May the caller see this recipe row — own, shared into one of their projects, or public? */
+/** May the caller see this recipe row — own, shared into one of their projects, or open by link? */
 export async function isTextFormVisibleTo(id: string, userId: string): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
   const rows = await getPostgresInstance().query(
     `SELECT 1 AS ok FROM user_text_forms tf
-      WHERE tf.id = $3::uuid AND ${VISIBLE_TO_CALLER} AND tf.deleted_at IS NULL
+      WHERE tf.id = $3::uuid AND ${VISIBLE_BY_ROW} AND tf.deleted_at IS NULL
       LIMIT 1`,
     [userId, TEXT_FORM_CONTENT_TYPE, id]
   );
   return rows.length > 0;
+}
+
+/** A recipe opened through a link, as the detail page shows it. `source` is
+ * how the caller reaches it: their own, via one of their Projekte, or open to
+ * every signed-in user (listed or not — both are `public` here). */
+export interface LinkedTextForm {
+  form: PublicTextForm;
+  source: 'own' | 'shared' | 'public';
+}
+
+/**
+ * The recipe a share link names — by slug suffix, or by uuid for links from
+ * before the suffix. Same visibility as every row-naming lookup
+ * ({@link VISIBLE_BY_ROW}), so the page opens exactly what the chat would load
+ * (`getTextFormForInjectionById`).
+ */
+export async function getLinkedTextForm(
+  key: { slugSuffix: string } | { id: string },
+  userId: string
+): Promise<LinkedTextForm | null> {
+  const byId = 'id' in key;
+  if (byId && !UUID_RE.test(key.id)) return null;
+  const rows = (await getPostgresInstance().query(
+    `SELECT tf.*, ${ACCESS_RANK_SQL} AS access_rank,
+            (SELECT g.name
+               FROM group_content_shares gcs
+               INNER JOIN groups g ON g.id = gcs.group_id
+               INNER JOIN group_memberships gm
+                       ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+                      AND gm.is_active = TRUE
+              WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
+                AND g.deleted_at IS NULL
+              ORDER BY g.name
+              LIMIT 1) AS group_name,
+            COALESCE(p.first_name, p.display_name) AS owner_name
+       FROM user_text_forms tf
+       LEFT JOIN profiles p ON p.id = tf.user_id
+      WHERE ${byId ? 'tf.id = $3::uuid' : 'tf.slug_suffix = $3'}
+        AND ${VISIBLE_BY_ROW}
+        AND tf.deleted_at IS NULL
+      LIMIT 1`,
+    [userId, TEXT_FORM_CONTENT_TYPE, byId ? key.id : key.slugSuffix]
+  )) as unknown as Array<
+    UserTextFormRow & {
+      access_rank: number | string;
+      group_name: string | null;
+      owner_name: string | null;
+    }
+  >;
+  const row = rows[0];
+  if (!row) return null;
+  const access = accessFromRank(row.access_rank);
+  if (access === 'public' && !isShareableTextForm(row.kind as TextFormKind, row.mention)) {
+    return null;
+  }
+  const form = rowToTextForm(row, {
+    sharedFromGroup: access === 'group' ? (row.group_name ?? null) : null,
+    ownerName: access === 'own' ? null : (row.owner_name ?? null),
+  });
+  return {
+    form: toPublicTextForm(form),
+    source: access === 'own' ? 'own' : access === 'group' ? 'shared' : 'public',
+  };
 }
 
 /** Owner-scoped lookup of a recipe's sharing state (and its UUID). */
@@ -939,7 +1019,7 @@ export async function listMentionableTextForms(
 /**
  * Die Zeilen zu einer Liste von ids, soweit die Person sie sehen darf — für die
  * gespeicherten Rezepte (`user_library_items`), die in den Katalog des Modells
- * kommen. Dieselbe Sichtbarkeit wie die Injektion (`VISIBLE_TO_CALLER`): ein
+ * kommen. Dieselbe Sichtbarkeit wie die Injektion per id (`VISIBLE_BY_ROW`): ein
  * gemeldetes (`hidden`), zurückgezogenes oder zurück auf privat gestelltes
  * Rezept fällt hier heraus, ebenso ein getrashtes. Die Reihenfolge der ids
  * bleibt NICHT erhalten — der Aufrufer ordnet nach seiner Liste.
@@ -971,7 +1051,7 @@ export async function listVisibleTextFormsByIds(
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.id = ANY($3::uuid[])
-        AND ${VISIBLE_TO_CALLER}
+        AND ${VISIBLE_BY_ROW}
         AND tf.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id`,
     [userId, TEXT_FORM_CONTENT_TYPE, valid]

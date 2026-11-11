@@ -9,7 +9,9 @@
  *    as `ownOverride` so the page can offer "Angepassten Stil bearbeiten".
  *  - `own`    — the caller's own row (`useOwnRecipes`, no `sharedFromGroup`).
  *  - `shared` — a row that reached them through a Projekt share.
- *  - `public` — a row listed in the open catalogue (`usePublicRecipes`).
+ *  - `public` — a row listed in the open catalogue (`usePublicRecipes`), or
+ *    one opened to every signed-in user and reached by its share link
+ *    (`useRecipeLink`, asked only when no list knows it).
  *
  * `status` is 'ready' the moment an answer exists — a system mention never
  * waits on a network round trip, so that page renders exactly as it did before
@@ -31,9 +33,11 @@ import {
   resolveRecipeByMention,
   useOwnRecipes,
   usePublicRecipes,
+  useRecipeLink,
   type RecipeMatch,
   type RecipeSource,
 } from '@gruenerator/shared/grueneratoren';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 
 import { findSkillByMention } from '../lib/lookups';
 
@@ -71,19 +75,32 @@ export function useRecipeByMention(mention: string): RecipeLookup {
   const publicQuery = usePublicRecipes(!skill && mention.length > 0);
 
   const match = resolveRecipeByMention(mention, skill, ownQuery.data, publicQuery.data);
+  const listsLoading = !isBootstrapped || ownQuery.isLoading || publicQuery.isLoading;
+  // A share link to a recipe none of the lists holds — opened to every
+  // signed-in user, not listed — only the server can answer. Never by mention.
+  const askServer =
+    !match && !listsLoading && isAuthenticated && !skill && shareLinkKey(mention) !== null;
+  const link = useRecipeLink(askServer ? mention : null);
+
   if (match) return { status: 'ready', ...match, isError: false };
 
   // `!isBootstrapped`: the own list is still switched off for a reason that
   // has nothing to do with this recipe. Answering "nicht gefunden" here is the
   // bug — it hits exactly the hard-load / pasted-link case.
-  if (!isBootstrapped || ownQuery.isLoading || publicQuery.isLoading) {
+  if (listsLoading || link.isLoading) {
     return { status: 'loading', source: null, ...NOTHING };
+  }
+
+  // The own list holds every own row, so only a foreign answer is new here.
+  const linked = link.data;
+  if (linked && linked.source !== 'own') {
+    return { status: 'ready', ...NOTHING, source: linked.source, form: linked.form };
   }
 
   return {
     status: 'ready',
     source: null,
     ...NOTHING,
-    isError: ownQuery.isError || publicQuery.isError,
+    isError: ownQuery.isError || publicQuery.isError || link.isError,
   };
 }

@@ -3,8 +3,10 @@ import {
   resolveRecipeByMention,
   useOwnRecipes,
   usePublicRecipes,
+  useRecipeLink,
   type RecipeMatch,
 } from '@gruenerator/shared/grueneratoren';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 
 export type RecipeLookup =
   | { status: 'loading' }
@@ -25,7 +27,21 @@ export function useRecipeByMention(mention: string): RecipeLookup {
   const pub = usePublicRecipes(!skill && mention.length > 0);
 
   const match = resolveRecipeByMention(mention, skill, own.data, pub.data);
+  const listsLoading = own.isLoading || pub.isLoading;
+  // Ein Teilen-Link, den keine Liste kennt, kann nur der Server auflösen — nie per Mention.
+  const askServer = !match && !listsLoading && !skill && shareLinkKey(mention) !== null;
+  const link = useRecipeLink(askServer ? mention : null);
+
   if (match) return { status: 'ready', ...match };
-  if (own.isLoading || pub.isLoading) return { status: 'loading' };
-  return { status: 'missing', isError: own.isError || pub.isError };
+  if (listsLoading || link.isLoading) return { status: 'loading' };
+  if (link.data && link.data.source !== 'own') {
+    return {
+      status: 'ready',
+      source: link.data.source,
+      skill: null,
+      form: link.data.form,
+      ownOverride: null,
+    };
+  }
+  return { status: 'missing', isError: own.isError || pub.isError || link.isError };
 }

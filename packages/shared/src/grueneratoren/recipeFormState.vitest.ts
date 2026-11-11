@@ -30,6 +30,7 @@ const CUSTOM_FORM: TextForm = {
   shareMode: 'private',
   isPublic: false,
   publicOwnership: null,
+  slugSuffix: null,
 };
 
 const PRESET_FORM: TextForm = {
