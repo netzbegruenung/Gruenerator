@@ -301,14 +301,20 @@ const ShelfPanel = memo(function ShelfPanel({ shelf, id }: { shelf: GroupShelf; 
  * `NotebookShelf`, damit Überschrift, „Neues erstellen" und Hinweis beim
  * Auf- und Zuklappen nicht mitrendern.
  */
-function ShelfBrowser({ shelves }: { shelves: Shelf[] }) {
+function ShelfBrowser({
+  shelves,
+  gridClassName = SHELF_GRID,
+}: {
+  shelves: Shelf[];
+  gridClassName?: string;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const toggle = useCallback((id: string) => setOpenId((cur) => (cur === id ? null : id)), []);
   const panelId = useId();
   const open = shelves.find((s): s is GroupShelf => s.id === openId && s.kind === 'group') ?? null;
   return (
     <>
-      <div className={SHELF_GRID}>
+      <div className={gridClassName}>
         {shelves.map((shelf) => (
           <ShelfTile
             key={shelf.id}
@@ -331,8 +337,6 @@ function ShelfBrowser({ shelves }: { shelves: Shelf[] }) {
  * ein einzelnes Notebook öffnet direkt.
  */
 export function NotebookShelf() {
-  const { shelves, vectorStoreDown } = useNotebookShelves();
-
   return (
     <ShelfSection
       header={
@@ -346,6 +350,19 @@ export function NotebookShelf() {
         </>
       }
     >
+      <NotebookShelfBrowser />
+    </ShelfSection>
+  );
+}
+
+/**
+ * Kacheln, aufgeklappte Liste und Ausfall-Hinweis ohne Kopfzeile — für Seiten,
+ * die den Block unter ihrer eigenen Überschrift zeigen (Arbeiten-Tab).
+ */
+export function NotebookShelfBrowser({ gridClassName }: { gridClassName?: string }) {
+  const { shelves, vectorStoreDown } = useNotebookShelves();
+  return (
+    <>
       {vectorStoreDown && (
         <div
           role="status"
@@ -358,8 +375,7 @@ export function NotebookShelf() {
           </span>
         </div>
       )}
-
-      <ShelfBrowser shelves={shelves} />
-    </ShelfSection>
+      <ShelfBrowser shelves={shelves} gridClassName={gridClassName} />
+    </>
   );
 }

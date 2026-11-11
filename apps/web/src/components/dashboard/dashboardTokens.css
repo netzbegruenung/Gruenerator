@@ -30,3 +30,33 @@
   --dash-card: #242022;
   --dash-skeleton: #332c30;
 }
+
+/*
+ * Neutrale Variante für eingebettete Dashboard-Bausteine (Arbeiten-Tab): dieselben
+ * Rollen, aber grau-grün statt Magenta, Karten als ruhige Fläche auf dem Seitengrund.
+ */
+.dashboard-surface.dashboard-neutral {
+  --dash-mg: #2e6b49;
+  --dash-mg-ink: #1f2a23;
+  --dash-on-mg: #ffffff;
+  --dash-mg-tint: #edf1ed;
+  --dash-mg-tint-2: #e1e7e2;
+  --dash-mg-sub: #5d6b62;
+  --dash-mg-dot: #cbd3cd;
+  --dash-page: var(--background-color);
+  --dash-card: #f5f7f5;
+  --dash-skeleton: #e6eae6;
+}
+
+[data-theme='dark'] .dashboard-surface.dashboard-neutral {
+  --dash-mg: #8fc9a9;
+  --dash-mg-ink: #e3ebe6;
+  --dash-on-mg: #121614;
+  --dash-mg-tint: #222925;
+  --dash-mg-tint-2: #2b332e;
+  --dash-mg-sub: #9aa8a0;
+  --dash-mg-dot: #3a453f;
+  --dash-page: var(--background-color);
+  --dash-card: #1a1f1c;
+  --dash-skeleton: #2b322e;
+}

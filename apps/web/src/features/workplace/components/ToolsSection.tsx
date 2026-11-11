@@ -4,25 +4,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
 import { getToolTheme } from '../../../config/toolTheme';
-import {
-  OFFICE_TOOLS,
-  TOOL_MENUS,
-  WORKPLACE_TOOLS,
-  filterWorkplaceTools,
-  isFavouritableTool,
-  sortToolsByFavourites,
-  type WorkplaceToolItem,
-  type WorkplaceToolMenu,
-  type WorkplaceToolMenuItem,
-} from '../../../config/workplaceToolsConfig';
-import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
+import { isFavouritableTool, type WorkplaceToolItem } from '../../../config/workplaceToolsConfig';
 
 import type { IconType } from '../../../config/icons';
 
@@ -72,34 +61,6 @@ const CARD_BASE =
 const CHIP_BASE =
   'flex flex-none items-center justify-center rounded-xl text-secondary-600 transition-colors duration-150 ' +
   'group-hover:bg-secondary-50 dark:text-secondary-400 dark:group-hover:bg-secondary-900/30';
-
-// The colored Office tiles live in a single horizontal strip — same scroll idiom
-// as the Wissen notebook covers: fractional widths keep the next tile half-visible
-// so the scroll affordance is obvious; pt/pb leave room for the hover lift. Also
-// reused by the /studio landing tool strip so both read identically. Centered when
-// the tiles fit; `-safe` falls back to start-aligned (no clipping) when they overflow.
-export const OFFICE_SCROLL_ROW =
-  'flex justify-center-safe gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
-// Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
-// visible (a deliberate scroll tease) at any width — the gap subtraction is what
-// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 3.5
-// on sm → 4.5 on md. On desktop (lg) the width is count-aware via `--tile-basis`
-// (see `officeStripStyle`): ≤6 tiles fill the row edge-to-edge (all fully visible),
-// ≥7 fall back to the 5.5-up tease. Default var = 5.5-up when a row omits the style.
-// Gap is 0.75rem at base, 1rem from sm up (matches OFFICE_SCROLL_ROW).
-export const OFFICE_SCROLL_ITEM =
-  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[var(--tile-basis,calc((100%_-_5rem)_*_0.1818))]';
-
-// Desktop (lg) tile sizing for a strip of `tileCount` tiles: ≤6 fill the row (all
-// fully visible, no scroll); ≥7 keep the 5.5-up scroll tease. Set on the scroll
-// row; `OFFICE_SCROLL_ITEM` reads it via `--tile-basis`. Gap at lg is 1rem.
-export function officeStripStyle(tileCount: number): React.CSSProperties {
-  const lgBasis =
-    tileCount <= 6
-      ? `calc((100% - ${tileCount - 1}rem) / ${tileCount})`
-      : 'calc((100% - 5rem) * 0.1818)';
-  return { '--tile-basis': lgBasis } as React.CSSProperties;
-}
 
 // Tile colours (and each tool's matching page gradient) live in the shared
 // `config/toolTheme` registry so a tile and its subpage never drift.
@@ -156,42 +117,6 @@ function OfficeTileInner({
   );
 }
 
-// Square color-field Office tile (design 1e) with a favourite star top-right.
-// Exported so the /studio landing tool strip renders the same tiles. `themeKey`
-// overrides the colour source: the top-level Arbeiten strip leaves it unset so
-// each tile wears its own hue, while a subpage passes its own tool id so all
-// tiles there share the page's colour instead of being colourful again.
-export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
-  const favouritable = isFavouritableTool(tool);
-  const styleKey = themeKey ?? tool.id;
-  // A pinned tile shows its star for good; the badge would sit under it, and whoever pinned it knows it.
-  const starred = useIsFavourite(tool.id);
-  return (
-    // The star sits beside the link (not nested inside it — a button inside an
-    // <a> is invalid and doubles the tab stop confusingly). `group` lives here so
-    // the star's hover-reveal still tracks the whole tile.
-    <div className="group relative h-full">
-      <Link
-        to={tool.path ?? '/'}
-        className={`${OFFICE_TILE_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600`}
-      >
-        <OfficeTileInner
-          styleKey={styleKey}
-          Icon={tool.icon}
-          title={tool.title}
-          description={tool.description}
-        />
-        {tool.badge && !starred && (
-          <span className="absolute top-3 right-3 rounded-full bg-primary-600 px-2 py-0.5 text-[11px] leading-tight font-bold text-white transition-opacity group-focus-within:opacity-0 group-hover:opacity-0">
-            {tool.badge}
-          </span>
-        )}
-      </Link>
-      {favouritable && <FavouriteStar id={tool.id} size={16} className="absolute right-3 top-3" />}
-    </div>
-  );
-}
-
 // Same colourful square tile, but an action button instead of a navigation Link
 // — the /office landing page uses these to create an empty doc/board/sheet/pres.
 // No favourite star (a create-action isn't pinnable).
@@ -215,40 +140,6 @@ export function OfficeActionTile({
       className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       <OfficeTileInner styleKey={styleKey} Icon={Icon} title={title} description={description} />
-    </button>
-  );
-}
-
-// Same color-field tile, but a toggle for the "Weitere" group — instead of a
-// dropdown it reveals a second tile row below the strip (mirroring how Wissen
-// expands notebook rows). The caret flips when open.
-function OfficeExpandTile({
-  menu,
-  open,
-  onToggle,
-}: {
-  menu: WorkplaceToolMenu;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(menu.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-    >
-      <FiChevronDown
-        aria-hidden
-        className={`absolute right-3 top-3 text-grey-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        size={18}
-      />
-      <OfficeTileInner
-        styleKey={menu.id}
-        Icon={menu.icon}
-        title={menu.title}
-        description={menu.description}
-      />
     </button>
   );
 }
@@ -411,37 +302,6 @@ export function OfficeMenuPill({
   );
 }
 
-// A "Weitere" child rendered as a full tile in the expanded second row. Wears the
-// neutral `weitere` hue so the group reads as one family; handles both internal
-// routes (Link) and external links (anchor).
-function OfficeMenuItemTile({ item }: { item: WorkplaceToolMenuItem }) {
-  const favouritable = Boolean(item.path) && !item.href;
-  const className = `${OFFICE_TILE_BASE} ${getToolTheme('weitere')?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`;
-  const inner = (
-    <>
-      {favouritable && <FavouriteStar id={item.id} size={16} className="absolute right-3 top-3" />}
-      <OfficeTileInner
-        styleKey="weitere"
-        Icon={item.icon}
-        title={item.title}
-        description={item.description}
-      />
-    </>
-  );
-  if (item.href) {
-    return (
-      <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
-        {inner}
-      </a>
-    );
-  }
-  return (
-    <Link to={item.path ?? '/'} className={className}>
-      {inner}
-    </Link>
-  );
-}
-
 export function SectionHeading({ title, badge }: { title: string; badge?: string }) {
   return (
     <div className="mb-md flex items-center gap-sm">
@@ -473,65 +333,6 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
     </a>
   );
 }
-
-const byId = (id: string): WorkplaceToolItem | undefined =>
-  WORKPLACE_TOOLS.find((t) => t.id === id);
-
-// Default order: Marktplatz first, then the office apps, then Projekte (after Wissen).
-const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
-  byId('marktplatz'),
-  ...OFFICE_TOOLS,
-  byId('projekte'),
-].filter((t): t is WorkplaceToolItem => Boolean(t));
-
-// The Arbeiten tool row: colored creation tiles + the Weitere toggle tile, in one
-// horizontal Wissen-style scroll strip. Favourited tools float to the front
-// (default order otherwise); the Weitere toggle isn't favouritable, so it stays
-// last. Clicking Weitere reveals its tools as a second tile row below the strip.
-export const OfficeSection = React.memo(() => {
-  const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const tiles = useMemo(
-    () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
-    [favouriteIds]
-  );
-  const openMenu = TOOL_MENUS.find((menu) => menu.id === openMenuId);
-  // Both rows share the top row's sizing so the Weitere tiles match the area
-  // tiles above them — sized by their own (larger) count they came out wider.
-  const stripStyle = officeStripStyle(tiles.length + TOOL_MENUS.length);
-
-  return (
-    <>
-      <div className={OFFICE_SCROLL_ROW} style={stripStyle}>
-        {tiles.map((tool) => (
-          <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-            <OfficeTile tool={tool} />
-          </div>
-        ))}
-        {TOOL_MENUS.map((menu) => (
-          <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
-            <OfficeExpandTile
-              menu={menu}
-              open={openMenuId === menu.id}
-              onToggle={() => setOpenMenuId((prev) => (prev === menu.id ? null : menu.id))}
-            />
-          </div>
-        ))}
-      </div>
-      {openMenu && (
-        <div className={`${OFFICE_SCROLL_ROW} mt-3 sm:mt-4`} style={stripStyle}>
-          {openMenu.items.map((item) => (
-            <div key={item.id} className={OFFICE_SCROLL_ITEM}>
-              <OfficeMenuItemTile item={item} />
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-});
-
-OfficeSection.displayName = 'OfficeSection';
 
 export const FavoritesSection = React.memo(() => (
   <>

@@ -18,6 +18,8 @@ export const SLIDE_INTERVAL_MS = 6000;
 interface HeadlineSliderProps {
   items: WissenArticle[];
   loading: boolean;
+  /** Überschrift der Karte; auf /wissen „Briefing", eingebettet auf Arbeiten „Nachrichten". */
+  title?: string;
   /** Ziel der Überschrift: die Seite mit allen Meldungen (/briefing). */
   to: string;
 }
@@ -26,11 +28,11 @@ interface HeadlineSliderProps {
 export const SLIDER_TITLE = 'Briefing';
 
 // `memo`: die Überschrift ändert sich beim Folienwechsel nicht.
-const SliderTitle = memo(function SliderTitle({ to }: { to: string }) {
+const SliderTitle = memo(function SliderTitle({ to, title }: { to: string; title: string }) {
   return (
     <h2 className={cn(ASIDE_TITLE, SLIDER_HEAD)}>
       <Link to={to} className={ASIDE_TITLE_LINK}>
-        {SLIDER_TITLE}
+        {title}
       </Link>
     </h2>
   );
@@ -146,11 +148,11 @@ function SliderBody({ items }: { items: WissenArticle[] }) {
   );
 }
 
-export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
+export function HeadlineSlider({ items, loading, to, title = SLIDER_TITLE }: HeadlineSliderProps) {
   if (items.length === 0) {
     return (
-      <SliderCard aria-label={SLIDER_TITLE} aria-busy={loading}>
-        <SliderTitle to={to} />
+      <SliderCard aria-label={title} aria-busy={loading}>
+        <SliderTitle to={to} title={title} />
         {loading ? (
           <SliderSkeleton />
         ) : (
@@ -163,8 +165,8 @@ export function HeadlineSlider({ items, loading, to }: HeadlineSliderProps) {
   }
 
   return (
-    <SliderCard aria-roledescription="Karussell" aria-label={SLIDER_TITLE}>
-      <SliderTitle to={to} />
+    <SliderCard aria-roledescription="Karussell" aria-label={title}>
+      <SliderTitle to={to} title={title} />
       <SliderBody items={items} />
     </SliderCard>
   );
