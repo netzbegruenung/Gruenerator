@@ -7,7 +7,8 @@ import { type ReactNode } from 'react';
  * two uses in ArbeitenSections.
  *
  * The pictures were generated with FLUX.2 [klein] (Melious, `flux-2-klein-9b`),
- * flat pastel style without text, 384 px JPEG.
+ * flat pastel style without text, 384 px. The avatar is cut out (rembg,
+ * `isnet-general-use`) so the sheet behind it carries our own colour.
  */
 export const SHOW_TOOL_PREVIEWS = true;
 
@@ -24,7 +25,15 @@ const preview = (name: string): ReactNode => (
 /** The picture on the front sheet of a card, keyed by tool id. */
 export const TOOL_PREVIEWS: Partial<Record<string, ReactNode>> = {
   'canvas-vorlagen': preview('vorlagen'),
-  profilbild: preview('profilbild'),
+  profilbild: (
+    <img
+      src="/arbeiten-previews/profilbild.webp"
+      alt=""
+      loading="lazy"
+      // Transparent cutout: the tint is ours, the head sits at the sheet's bottom edge.
+      className="size-full bg-[#cfe6da] object-cover object-top pt-2 dark:bg-[#2c4a3c]"
+    />
+  ),
   'reels-untertitel': preview('video'),
   'studio-voice': preview('voice'),
   transkription: preview('transkription'),
