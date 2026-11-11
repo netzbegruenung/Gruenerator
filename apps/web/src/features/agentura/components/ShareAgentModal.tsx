@@ -70,7 +70,6 @@ export function ShareAgentModal({ agent, open, onOpenChange }: ShareAgentModalPr
               name: g.group_name,
             }))}
             myGroups={myGroupsQuery.data ?? null}
-            authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land."
             shareUrl={`${getPublicAppOrigin()}${agentSharePath(agent)}`}
             setMode={(mode) => setShareMode.mutateAsync(mode)}
             setListing={(input) => setIsPublic.mutateAsync(input)}

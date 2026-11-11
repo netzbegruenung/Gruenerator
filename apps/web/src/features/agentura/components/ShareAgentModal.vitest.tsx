@@ -97,7 +97,7 @@ describe('ShareAgentModal', () => {
   it('listet erst nach der Eigentumsfrage', async () => {
     renderModal();
 
-    await userEvent.click(await screen.findByRole('switch', { name: /Öffentlich/ }));
+    await userEvent.click(await screen.findByRole('switch', { name: /Im Marktplatz/ }));
     expect(setIsPublic).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: /Ich besitze die Inhalte/ }));

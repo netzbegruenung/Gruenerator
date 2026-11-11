@@ -52,7 +52,6 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
       settingsError={settingsQuery.isError}
       groupShares={groupShares.map((g) => ({ id: g.groupId, name: g.groupName }))}
       myGroups={myGroupsQuery.data ?? null}
-      authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen."
       shareUrl={`${getPublicAppOrigin()}${recipeSharePath(recipe ?? { mention })}`}
       setMode={(mode) => setShareMode.mutateAsync(mode)}
       setListing={(input) => setIsPublic.mutateAsync(input)}
