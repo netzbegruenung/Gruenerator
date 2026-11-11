@@ -1,18 +1,20 @@
 import { type PublicOwnership } from '@gruenerator/contracts';
+import {
+  OWNERSHIP_CHOICES,
+  OWNERSHIP_LABELS,
+  SHARE_MODES,
+  SHARE_MODE_LABELS,
+  UNLIST,
+  planListing,
+  type ShareMode,
+} from '@gruenerator/shared/grueneratoren';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { colors } from '../../../theme';
 import { ListGroup, ListRow, SkeletonRows } from '../../common';
 import { DetailSection, Hint, detailStyles, shareLink } from '../detail/DetailParts';
-
-import {
-  OWNERSHIP_LABELS,
-  SHARE_MODES,
-  SHARE_MODE_LABELS,
-  planListingToggle,
-  type ShareMode,
-} from './shareRules';
 
 export interface ShareSettingsView {
   share_mode: ShareMode;
@@ -51,6 +53,8 @@ export interface SharingControlsProps {
  */
 export function SharingControls(props: SharingControlsProps) {
   const { noun, settings, pending, describeError } = props;
+  // Schalter an, Eigentumsfrage noch offen: gelistet wird erst mit der Antwort.
+  const [askingOwnership, setAskingOwnership] = useState(false);
 
   const run = (action: Promise<unknown>) =>
     action.catch((error: unknown) => {
@@ -81,11 +85,29 @@ export function SharingControls(props: SharingControlsProps) {
   const listingBusy = pending.listing || pending.mode;
 
   const toggleListing = (checked: boolean) => {
-    const plan = planListingToggle(checked, shareMode, settings.public_ownership);
+    if (checked) {
+      setAskingOwnership(true);
+      return;
+    }
+    if (askingOwnership && !isPublic) {
+      setAskingOwnership(false);
+      return;
+    }
+    run(props.setListing(UNLIST))
+      .then(() => setAskingOwnership(false))
+      .catch(() => {});
+  };
+
+  const chooseOwnership = (choice: PublicOwnership) => {
+    if (isPublic) {
+      run(props.setListing({ is_public: true, public_ownership: choice })).catch(() => {});
+      return;
+    }
+    const plan = planListing(shareMode, choice);
     const list = () => run(props.setListing(plan.listing));
     // Der Server listet nur aus „Mit Anmeldung" — erst heben, dann listen.
     const chain = plan.promote ? run(props.setMode('authenticated')).then(list) : list();
-    chain.catch(() => {});
+    chain.then(() => setAskingOwnership(false)).catch(() => {});
   };
 
   return (
@@ -170,12 +192,12 @@ export function SharingControls(props: SharingControlsProps) {
           <ListRow
             icon="globe-outline"
             title="Auf „Öffentlich“ listen"
-            value={`Dein ${noun} erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.`}
+            value={`Dein ${noun} erscheint dann im Marktplatz unter „Öffentlich“.`}
             valueLines={3}
             last
             accessory={
               <Switch
-                value={isPublic}
+                value={isPublic || askingOwnership}
                 onValueChange={toggleListing}
                 disabled={listingBusy}
                 accessibilityLabel="Auf „Öffentlich“ listen"
@@ -192,10 +214,11 @@ export function SharingControls(props: SharingControlsProps) {
         ) : null}
       </DetailSection>
 
-      {isPublic ? (
+      {isPublic || askingOwnership ? (
         <DetailSection title="Bitte bestätige">
+          {!isPublic ? <Hint>Gelistet wird erst, wenn du eine Antwort wählst.</Hint> : null}
           <ListGroup>
-            {(['owner', 'public_data'] as const).map((choice, i) => (
+            {OWNERSHIP_CHOICES.map((choice, i) => (
               <ListRow
                 key={choice}
                 dense
@@ -203,13 +226,9 @@ export function SharingControls(props: SharingControlsProps) {
                 value={OWNERSHIP_LABELS[choice].hint}
                 valueLines={2}
                 selected={settings.public_ownership === choice}
-                disabled={pending.listing}
-                onPress={() =>
-                  run(props.setListing({ is_public: true, public_ownership: choice })).catch(
-                    () => {}
-                  )
-                }
-                last={i === 1}
+                disabled={listingBusy}
+                onPress={() => chooseOwnership(choice)}
+                last={i === OWNERSHIP_CHOICES.length - 1}
               />
             ))}
           </ListGroup>

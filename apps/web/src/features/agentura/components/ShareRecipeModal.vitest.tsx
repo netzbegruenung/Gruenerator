@@ -16,11 +16,12 @@ const setShareMode = vi.hoisted(() => vi.fn());
 const setIsPublic = vi.hoisted(() => vi.fn());
 const list = vi.hoisted(() => vi.fn());
 const listMyGroups = vi.hoisted(() => vi.fn());
+const share = vi.hoisted(() => vi.fn());
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
-    userTextForms: { getShareSettings, setShareMode, setIsPublic, list },
+    userTextForms: { getShareSettings, setShareMode, setIsPublic, list, share },
     notebookSharing: { listMyGroups },
   }),
 }));
@@ -55,6 +56,7 @@ beforeEach(() => {
   });
   list.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   listMyGroups.mockReset().mockResolvedValue({ status: 200, body: [] });
+  share.mockReset();
 });
 
 describe('ShareRecipeModal', () => {
@@ -130,5 +132,70 @@ describe('ShareRecipeModal', () => {
     await screen.findByLabelText('Sichtbarkeit');
 
     expect(await axe(baseElement)).toHaveNoViolations();
+  });
+
+  // Die Eigentumsangabe ist eine Erklärung der Person. Vorher listete der
+  // Schalter sofort mit einem vorbelegten „owner".
+  it('listet erst, wenn die Eigentumsfrage beantwortet ist', async () => {
+    renderModal();
+
+    await userEvent.click(await screen.findByRole('switch', { name: /Öffentlich/ }));
+    expect(await screen.findByText(/Gelistet wird erst/)).toBeInTheDocument();
+    expect(setIsPublic).not.toHaveBeenCalled();
+    expect(setShareMode).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Inhalte sind öffentlich verfügbar/ })
+    );
+
+    await waitFor(() =>
+      expect(setIsPublic).toHaveBeenCalledWith({
+        params: { mention: 'mein-rezept' },
+        body: { is_public: true, public_ownership: 'public_data' },
+      })
+    );
+    expect(setShareMode).toHaveBeenCalledWith({
+      params: { mention: 'mein-rezept' },
+      body: { mode: 'authenticated' },
+    });
+    expect(setShareMode.mock.invocationCallOrder[0]).toBeLessThan(
+      setIsPublic.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('nimmt den Schalter ohne Serveraufruf zurück, solange die Frage offen ist', async () => {
+    renderModal();
+
+    const toggle = await screen.findByRole('switch', { name: /Öffentlich/ });
+    await userEvent.click(toggle);
+    await userEvent.click(toggle);
+
+    expect(screen.queryByText(/Bitte bestätige/)).not.toBeInTheDocument();
+    expect(setIsPublic).not.toHaveBeenCalled();
+  });
+
+  it('zeigt das 403 des Servers, wenn das Projekt das Teilen nicht erlaubt', async () => {
+    getShareSettings.mockResolvedValue({
+      status: 200,
+      body: { share_mode: 'groups', is_public: false, public_ownership: null },
+    });
+    listMyGroups.mockResolvedValue({ status: 200, body: [{ id: 'g1', name: 'KV Köln' }] });
+    share.mockResolvedValue({
+      status: 403,
+      body: { success: false, message: 'Mit diesem Projekt darfst du nicht teilen.' },
+    });
+    renderModal();
+
+    await userEvent.click(await screen.findByLabelText('Projekt hinzufügen'));
+    await userEvent.click(await screen.findByRole('option', { name: 'KV Köln' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Mit diesem Projekt darfst du nicht teilen.'
+    );
+  });
+
+  it('zeigt den Link auf die Rezeptseite', async () => {
+    renderModal();
+    expect(await screen.findByDisplayValue(/\/agentura\/rezept\/mein-rezept$/)).toBeInTheDocument();
   });
 });

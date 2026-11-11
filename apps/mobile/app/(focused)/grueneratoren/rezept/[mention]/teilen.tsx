@@ -6,12 +6,12 @@ import {
   useSetRecipeShareMode,
   useShareRecipeWithGroup,
   useUnshareRecipeFromGroup,
+  shareErrorText,
 } from '@gruenerator/shared/grueneratoren';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { recipeShareUrl } from '../../../../../components/agentura/detail/detailFacts';
 import { DetailState } from '../../../../../components/agentura/detail/DetailParts';
-import { shareErrorText } from '../../../../../components/agentura/share/shareRules';
 import { SharingControls } from '../../../../../components/agentura/share/SharingControls';
 import { useRecipeByMention } from '../../../../../hooks/agents/useRecipeByMention';
 import { goBackOr } from '../../../../../utils/navigation';
