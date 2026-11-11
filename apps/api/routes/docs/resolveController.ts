@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { getParam } from '../../utils/params.js';
+import { getParam, isUuid } from '../../utils/params.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 import {
@@ -15,6 +15,15 @@ import { type CollaborativeDocument } from './types.js';
 
 const router = Router();
 const db = getPostgresInstance();
+
+// A malformed id cannot name a document: answer 404 instead of letting the uuid cast fail as a 500.
+router.param('id', (_req, res, next, id: string) => {
+  if (!isUuid(id)) {
+    res.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  next();
+});
 
 function writeSubject(document: CollaborativeDocument): DocumentWriteSubject {
   return {
