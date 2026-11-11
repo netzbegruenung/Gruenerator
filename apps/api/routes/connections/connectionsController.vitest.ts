@@ -7,10 +7,10 @@
 import express from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const requireInstanceAdmin = vi.fn();
+const isInstanceAdmin = vi.fn();
 const createSessionToken = vi.fn();
 
-vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
+vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin }));
 vi.mock('../../services/connections/ConnectionService.js', () => ({
   ConnectionService: { createSessionToken },
 }));
@@ -42,13 +42,13 @@ async function postSessionToken(): Promise<unknown> {
 }
 
 beforeEach(() => {
-  requireInstanceAdmin.mockReset();
+  isInstanceAdmin.mockReset();
   createSessionToken.mockReset().mockResolvedValue('tok');
 });
 
 describe('POST /api/connections/session-token', () => {
   it('lässt Microsoft für Nicht-Admins aus den erlaubten Integrationen heraus', async () => {
-    requireInstanceAdmin.mockResolvedValue(false);
+    isInstanceAdmin.mockResolvedValue(false);
     expect(await postSessionToken()).toEqual({ token: 'tok' });
     expect(createSessionToken).toHaveBeenCalledWith('u1', {
       allowedIntegrations: ['google', 'jira', 'confluence'],
@@ -56,7 +56,7 @@ describe('POST /api/connections/session-token', () => {
   });
 
   it('gibt Admins ein unbegrenztes Token', async () => {
-    requireInstanceAdmin.mockResolvedValue(true);
+    isInstanceAdmin.mockResolvedValue(true);
     await postSessionToken();
     expect(createSessionToken).toHaveBeenCalledWith('u1', undefined);
   });

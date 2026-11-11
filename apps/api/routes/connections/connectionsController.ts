@@ -5,7 +5,7 @@ import * as atlassianClient from '../../services/api-clients/atlassianClient.js'
 import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
 import { ConnectionService } from '../../services/connections/ConnectionService.js';
-import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
+import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
@@ -43,7 +43,7 @@ router.post('/session-token', async (req: AuthRequest, res: Response) => {
 
     // Microsoft 365 is instance-admin only for now; the connect UI would otherwise
     // list it for everyone. Admins connect it via the settings card / connector test.
-    const isAdmin = await requireInstanceAdmin(userId, req.user?.email);
+    const isAdmin = await isInstanceAdmin(userId, req.user?.email);
     const token = await ConnectionService.createSessionToken(
       userId,
       isAdmin ? undefined : { allowedIntegrations: USER_CONNECT_PROVIDERS }
