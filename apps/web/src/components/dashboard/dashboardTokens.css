@@ -38,7 +38,7 @@
  */
 .dashboard-surface.dashboard-neutral {
   --dash-mg: #2e6b49;
-  --dash-bar: linear-gradient(90deg, #b5dccb, #5a9e84 55%, #2e6b49);
+  --dash-bar: linear-gradient(90deg, #5f9c82, #2e6b49);
   --dash-mg-ink: #1f2a23;
   --dash-on-mg: #ffffff;
   --dash-mg-tint: #edf1ed;
@@ -54,7 +54,7 @@
 
 [data-theme='dark'] .dashboard-surface.dashboard-neutral {
   --dash-mg: #8fc9a9;
-  --dash-bar: linear-gradient(90deg, #2f5a48, #5f9f86 55%, #a6d6c0);
+  --dash-bar: linear-gradient(90deg, #6aa78e, #8fc9a9);
   --dash-mg-ink: #e3ebe6;
   --dash-on-mg: #121614;
   --dash-mg-tint: #222925;
