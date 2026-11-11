@@ -151,14 +151,14 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
 /** Bild & Video: six cards in a 3 × 2 grid (two columns on phones). */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
-// The cards say what the tool does, not what it is called.
+// Most cards say what the tool does; Vorlagen and Mediathek keep their names.
 export const MEDIA_TOOLS = pickTools([
-  { id: 'canvas-vorlagen', theme: 'canvas-ki', title: 'Vorlagen gestalten' },
+  { id: 'canvas-vorlagen', theme: 'canvas-ki', title: 'Vorlagen' },
   { id: 'profilbild', theme: 'canvas-ki', title: 'Profilbild erstellen' },
   { id: 'reels-untertitel', theme: 'canvas-ki', title: 'Videos bearbeiten' },
   { id: 'studio-voice', theme: 'canvas-ki', title: 'Texte vertonen' },
-  { id: 'transkription', theme: 'canvas-ki', title: 'Aufnahmen abtippen' },
-  { id: 'mediathek', theme: 'canvas-ki', title: 'Medien verwalten' },
+  { id: 'transkription', theme: 'canvas-ki', title: 'Sitzungen transkribieren' },
+  { id: 'mediathek', theme: 'canvas-ki' },
 ]);
 
 /** Three tools: one row of three, stacked on a phone so none stands alone. */
