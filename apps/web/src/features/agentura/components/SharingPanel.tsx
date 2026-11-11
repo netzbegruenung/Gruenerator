@@ -164,10 +164,10 @@ export function SharingPanel(props: SharingPanelProps) {
 
       <div>
         <p className="text-sm font-semibold" id={projectsHeadingId}>
-          Projekte
+          Projekte und Gruppen
         </p>
         <p className="mb-xs text-xs text-grey-500">
-          {`Mitglieder dieser Projekte sehen ${thing} und können ${noun === 'Agent' ? 'ihn' : 'es'} im Chat nutzen.`}
+          {`Mitglieder dieser Projekte und Gruppen sehen ${thing} und können ${noun === 'Agent' ? 'ihn' : 'es'} im Chat nutzen.`}
         </p>
         {props.groupShares.length > 0 ? (
           <ul aria-labelledby={projectsHeadingId} className="mb-xs flex flex-col gap-xs">
@@ -190,12 +190,12 @@ export function SharingPanel(props: SharingPanelProps) {
             ))}
           </ul>
         ) : (
-          <p className="mb-xs text-xs text-grey-500">In keinem Projekt.</p>
+          <p className="mb-xs text-xs text-grey-500">In keinem Projekt und keiner Gruppe.</p>
         )}
         {available.length > 0 ? (
           <>
             <Label htmlFor={addProjectId} className="sr-only">
-              Projekt hinzufügen
+              Projekt oder Gruppe hinzufügen
             </Label>
             <Select
               value=""
@@ -205,7 +205,7 @@ export function SharingPanel(props: SharingPanelProps) {
               disabled={pending.groups}
             >
               <SelectTrigger id={addProjectId} className="w-full">
-                <SelectValue placeholder="Projekt hinzufügen…" />
+                <SelectValue placeholder="Projekt oder Gruppe hinzufügen…" />
               </SelectTrigger>
               <SelectContent>
                 {available.map((g) => (
@@ -218,7 +218,7 @@ export function SharingPanel(props: SharingPanelProps) {
           </>
         ) : props.myGroups && props.myGroups.length === 0 ? (
           <p className="text-xs text-grey-500">
-            {`Du bist noch in keinem Projekt. Tritt einem Projekt bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}
+            {`Du bist noch in keinem Projekt und keiner Gruppe. Tritt einem Projekt oder einer Gruppe bei, um ${noun === 'Agent' ? 'Agents' : 'Rezepte'} zu teilen.`}
           </p>
         ) : null}
       </div>
@@ -308,7 +308,7 @@ export function SharingPanel(props: SharingPanelProps) {
           {linkOpen
             ? 'Alle Eingeloggten mit dem Link können die Seite öffnen.'
             : props.groupShares.length > 0
-              ? 'Den Link öffnen nur du und die Mitglieder der Projekte oben.'
+              ? 'Den Link öffnen nur du und die Mitglieder der Projekte und Gruppen oben.'
               : 'Den Link kannst nur du öffnen.'}
         </p>
       </div>

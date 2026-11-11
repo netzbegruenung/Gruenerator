@@ -144,10 +144,10 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
               htmlFor="share-canvas-vorlage-group"
               className="text-xs font-medium text-grey-500 mb-1 block"
             >
-              Als Vorlage in Gruppe teilen
+              Als Vorlage in Projekt oder Gruppe teilen
             </label>
             <p className="text-[11px] text-grey-500 mb-1.5">
-              Gruppenmitglieder*innen können dieses Sharepic als Vorlage nutzen.
+              Mitglieder des Projekts oder der Gruppe können dieses Sharepic als Vorlage nutzen.
             </p>
             <div className="flex gap-2">
               <select
@@ -162,7 +162,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
                 }}
                 className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
               >
-                <option value="">Gruppe auswählen...</option>
+                <option value="">Projekt oder Gruppe auswählen...</option>
                 {userGroups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}

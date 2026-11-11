@@ -61,10 +61,13 @@ beforeEach(() => {
 });
 
 describe('ShareAgentModal', () => {
-  it('spricht von Projekten, nicht von Gruppen', async () => {
+  // Persönliche Projekte und Team-Gruppen stehen in derselben Auswahl — der
+  // Dialog nennt beide, damit niemand eine Gruppe unter „Projekte“ sucht.
+  it('nennt Projekte und Gruppen', async () => {
     renderModal();
-    expect(await screen.findByText('Projekte')).toBeInTheDocument();
-    expect(screen.queryByText(/Gruppe/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Projekte und Gruppen')).toBeInTheDocument();
+    expect(screen.getByText(/Mitglieder dieser Projekte und Gruppen/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Projekt oder Gruppe hinzufügen')).toBeInTheDocument();
   });
 
   it('zeigt den Satz des Servers, wenn das Projekt das Teilen nicht erlaubt', async () => {
@@ -74,7 +77,7 @@ describe('ShareAgentModal', () => {
     });
     renderModal();
 
-    await userEvent.click(await screen.findByLabelText('Projekt hinzufügen'));
+    await userEvent.click(await screen.findByLabelText('Projekt oder Gruppe hinzufügen'));
     await userEvent.click(await screen.findByRole('option', { name: 'KV Köln' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -86,7 +89,7 @@ describe('ShareAgentModal', () => {
     addGroupShare.mockResolvedValue({ status: 500, body: { error: 'Internal server error' } });
     renderModal();
 
-    await userEvent.click(await screen.findByLabelText('Projekt hinzufügen'));
+    await userEvent.click(await screen.findByLabelText('Projekt oder Gruppe hinzufügen'));
     await userEvent.click(await screen.findByRole('option', { name: 'KV Köln' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

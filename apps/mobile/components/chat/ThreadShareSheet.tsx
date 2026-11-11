@@ -86,13 +86,13 @@ export const ThreadShareSheet = memo(function ThreadShareSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} maxHeight="70%">
-      <Text style={[styles.title, { color: theme.text }]}>Mit Projekt teilen</Text>
+      <Text style={[styles.title, { color: theme.text }]}>Mit Projekt oder Gruppe teilen</Text>
 
       {loading ? (
         <SkeletonRows count={4} leading={36} meta={false} />
       ) : groups.length === 0 ? (
         <Text style={[styles.empty, { color: theme.textSecondary }]}>
-          Du bist in keinem Projekt. Projekte findest du unter „Arbeiten“.
+          Du bist in keinem Projekt und keiner Gruppe. Beides findest du unter „Arbeiten“.
         </Text>
       ) : (
         <ScrollView>
