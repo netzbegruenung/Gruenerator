@@ -256,7 +256,7 @@
       "description": "Schlägt zu einem Beitrag passende Sharepic-Vorlagen vor; per Klick wird daraus ein Sharepic mit dem Text."
     },
     "web": {
-      "label": "Recherche",
+      "label": "Websuche & Recherche",
       "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
     }
   },
