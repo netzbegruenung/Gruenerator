@@ -11,8 +11,10 @@ import {
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
   getFacetCountFilter,
+  getQdrantSystemCollections,
   offersChoice,
   readerCollectionIdFor,
+  systemSearchTarget,
 } from './systemCollectionsConfig.js';
 
 describe('canonical registry invariants', () => {
@@ -26,7 +28,7 @@ describe('canonical registry invariants', () => {
   it('creates examples-system so getSystemCollectionConfig no longer silently falls back', () => {
     const examples = getSystemCollectionConfig('examples-system');
     expect(examples).toBeDefined();
-    expect(examples?.qdrantCollection).toBe('social_media_examples');
+    expect(systemSearchTarget(examples!)).toEqual({ searchCollection: 'social_media_examples' });
     expect(examples?.key).toBe('examples');
   });
 
@@ -56,9 +58,9 @@ describe('NLP facet injection', () => {
     (getSystemCollectionConfig(id)?.filterableFields ?? []).map((f) => f.field);
 
   it('offers Wahl, Ebene and Thema on the Wahlprüfsteine notebook', () => {
-    expect(getSystemCollectionConfig('wahlpruefsteine-system')?.qdrantCollection).toBe(
-      'wahlpruefstein_examples'
-    );
+    expect(systemSearchTarget(getSystemCollectionConfig('wahlpruefsteine-system')!)).toEqual({
+      searchCollection: 'wahlpruefstein_examples',
+    });
     expect(fieldNames('wahlpruefsteine-system')).toEqual(
       expect.arrayContaining(['wahl', 'ebene', 'themes'])
     );
@@ -129,7 +131,7 @@ describe('derived COLLECTION_MAP', () => {
 describe('Landesverband notebook filters', () => {
   it('cover every landesverband code a scraper source writes', () => {
     const covered = new Set<string>();
-    for (const c of Object.values(SYSTEM_COLLECTIONS)) {
+    for (const c of getQdrantSystemCollections()) {
       if (c.qdrantCollection !== 'landesverbaende_documents') continue;
       if (c.defaultFilter?.field !== 'landesverband') continue;
       const v = c.defaultFilter.value;

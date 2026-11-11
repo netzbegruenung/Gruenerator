@@ -19,7 +19,7 @@ import dotenv from 'dotenv';
 // Load .env BEFORE the app modules — see runRetrievalEval.ts for why.
 dotenv.config();
 
-const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
+const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter, systemSearchTarget } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
       vectorWeight: MANUAL_VECTOR_WEIGHT,
       textWeight: MANUAL_TEXT_WEIGHT,
       threshold: params.threshold,
-      searchCollection: config.qdrantCollection,
+      ...systemSearchTarget(config),
       recallLimit: params.recallLimit,
       qualityMin: params.qualityMin,
       additionalFilter: applyDefaultFilter(collectionId, undefined),

@@ -22,6 +22,7 @@ import {
   getCanonicalByKey,
   getSearchParams,
   getSystemCollectionConfig,
+  isRemoteCollection,
 } from '../../config/systemCollectionsConfig.js';
 import { applyCountCap } from '../../utils/contextCap.js';
 import { createLogger } from '../../utils/logger.js';
@@ -43,6 +44,7 @@ import {
   type SortOrder,
   type SourceSortBy,
 } from './notebookSources.js';
+import { notAvailableForRemote } from './remoteSources/errors.js';
 import { type rerankNotebookResults } from './rerankNotebookResults.js';
 import {
   incompleteReason,
@@ -166,6 +168,7 @@ export function resolveSystemCollection(
   }
   const config = getCanonicalByKey(allowed[0]!);
   if (!config) return null;
+  if (isRemoteCollection(config)) return { error: notAvailableForRemote(config.name) };
   return {
     collection: {
       key: config.key,

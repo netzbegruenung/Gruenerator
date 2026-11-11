@@ -50,8 +50,8 @@ describe('LV-Familien nur mit passendem Inhalt', () => {
   )('%s sucht nur in der eigenen LV-Sammlung', (id) => {
     const allowed = getSystemAgent(id)?.toolRestrictions?.allowedCollections ?? [];
     expect(allowed).toHaveLength(1);
-    expect(COLLECTION_MAP[allowed[0] as string]?.qdrantCollection).toBe(
-      'landesverbaende_documents'
-    );
+    expect(COLLECTION_MAP[allowed[0] as string]).toMatchObject({
+      qdrantCollection: 'landesverbaende_documents',
+    });
   });
 });

@@ -10,13 +10,11 @@
  * entfällt der Umweg, die Antwort muss aber dieselbe bleiben.
  */
 import {
-  getCollectionDefaultFilter,
-  getFacetCountFilter,
   getCollectionFilterableFields,
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
-import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { assertLandesverbandScope } from '../../middleware/apiKeyMiddleware.js';
+import { facetDateRange, facetValueCounts } from '../../services/notebook/collectionFacets.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -133,40 +131,15 @@ export async function loadLandesverbandFilters(
   if (!systemConfig) return {};
 
   const filterableFields = getCollectionFilterableFields(collectionId);
-  const defaultFilter = getCollectionDefaultFilter(collectionId);
-  const baseFilter = defaultFilter
-    ? {
-        must: [
-          {
-            key: defaultFilter.field,
-            match: Array.isArray(defaultFilter.value)
-              ? { any: defaultFilter.value }
-              : { value: defaultFilter.value },
-          },
-        ],
-      }
-    : null;
-
-  const qdrant = getQdrantInstance();
-  await qdrant.init();
 
   const filters: Record<string, LandesverbandFilterField> = {};
   for (const field of filterableFields) {
     try {
       if (field.type === 'date_range') {
-        const { min, max } = await qdrant.getDateRange(
-          systemConfig.qdrantCollection,
-          field.field,
-          baseFilter
-        );
+        const { min, max } = await facetDateRange(systemConfig, field.field);
         filters[field.field] = { label: field.label, type: field.type, min, max };
       } else {
-        const values = await qdrant.getFieldValueCounts(
-          systemConfig.qdrantCollection,
-          field.field,
-          50,
-          getFacetCountFilter(collectionId)
-        );
+        const values = await facetValueCounts(systemConfig, field.field);
         filters[field.field] = { label: field.label, type: field.type, values };
       }
     } catch (e) {

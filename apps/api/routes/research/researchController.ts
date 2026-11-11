@@ -15,11 +15,9 @@ import {
   getSearchableSystemCollectionIds,
   getSystemCollectionConfig,
   getCollectionFilterableFields,
-  getCollectionDefaultFilter,
-  getFacetCountFilter,
   offersChoice,
 } from '../../config/systemCollectionsConfig.js';
-import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
+import { facetDateRange, facetValueCounts } from '../../services/notebook/collectionFacets.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ResearchController');
@@ -164,36 +162,16 @@ export function setCachedFilters(key: string, data: MergedFilters): void {
  * merges fields that appear in multiple collections.
  */
 export async function computeMergedFilters(requestedIds: string[]): Promise<MergedFilters> {
-  const qdrant = getQdrantInstance();
-  await qdrant.init();
-
   const fieldPromises = requestedIds.flatMap((collectionId) => {
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig) return [];
 
     const filterableFields = getCollectionFilterableFields(collectionId);
-    const defaultFilter = getCollectionDefaultFilter(collectionId);
-    const baseFilter = defaultFilter
-      ? {
-          must: [
-            {
-              key: defaultFilter.field,
-              match: Array.isArray(defaultFilter.value)
-                ? { any: defaultFilter.value }
-                : { value: defaultFilter.value },
-            },
-          ],
-        }
-      : null;
 
     return filterableFields.map(async (field) => {
       try {
         if (field.type === 'date_range') {
-          const { min, max } = await qdrant.getDateRange(
-            systemConfig.qdrantCollection,
-            field.field,
-            baseFilter
-          );
+          const { min, max } = await facetDateRange(systemConfig, field.field);
           return {
             field: field.field,
             label: field.label,
@@ -202,12 +180,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
             max,
           };
         } else {
-          const values = await qdrant.getFieldValueCounts(
-            systemConfig.qdrantCollection,
-            field.field,
-            50,
-            getFacetCountFilter(collectionId)
-          );
+          const values = await facetValueCounts(systemConfig, field.field);
           return {
             field: field.field,
             label: field.label,

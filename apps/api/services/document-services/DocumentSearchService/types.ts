@@ -5,6 +5,8 @@
  * including vector storage, retrieval, and specialized search options.
  */
 
+import { type RemoteSourceId } from '../../notebook/remoteSources/ids.js';
+
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type {
   SearchFilters,
@@ -39,6 +41,11 @@ export interface DocumentSearchFilters extends SearchFilters {
   group_id?: string | undefined;
   /** Target collection for search (e.g., 'documents', 'grundsatz_documents') */
   searchCollection?: string | undefined;
+  /**
+   * Remote-Sammlung statt Qdrant (`services/notebook/remoteSources/`). Gesetzt
+   * über `systemSearchTarget(config)`, nie zusammen mit `searchCollection`.
+   */
+  remoteSource?: RemoteSourceId | undefined;
   /** Filter by exact title match */
   titleFilter?: string | undefined;
   /** Additional Qdrant filters for custom queries */

@@ -9,6 +9,7 @@
 import {
   getSystemCollectionConfig,
   applyDefaultFilter,
+  isRemoteCollection,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -83,6 +84,8 @@ export async function fetchRecentForCollection(
     log.debug(`Unknown system collection: ${collectionId}`);
     return [];
   }
+  // Remote-Quellen bieten keine Dokumentliste; die Karte zeigt dann nichts Neues.
+  if (isRemoteCollection(config)) return [];
 
   const qdrant = getQdrantInstance();
   await qdrant.init();

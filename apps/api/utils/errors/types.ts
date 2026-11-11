@@ -24,6 +24,7 @@ export type ErrorCode =
   | 'CACHE_ERROR'
   | 'RESOURCE_ERROR'
   | 'NOT_IMPLEMENTED'
+  | 'SOURCE_UNAVAILABLE'
   | 'UNKNOWN_ERROR';
 
 /**

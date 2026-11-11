@@ -3,16 +3,20 @@
  * Derived from the canonical SYSTEM_COLLECTIONS — do not hand-maintain here.
  */
 
-import { SYSTEM_COLLECTIONS } from './systemCollectionsConfig.js';
+import { type RemoteSourceId } from '../services/notebook/remoteSources/ids.js';
 
-export interface CollectionMapping {
-  qdrantCollection: string;
-  systemId: string;
-}
+import { SYSTEM_COLLECTIONS, isRemoteCollection } from './systemCollectionsConfig.js';
+
+/** `remoteSource` statt `qdrantCollection`: siehe `RemoteSystemCollectionConfig`. */
+export type CollectionMapping = { systemId: string } & (
+  { qdrantCollection: string } | { remoteSource: RemoteSourceId }
+);
 
 export const COLLECTION_MAP: Record<string, CollectionMapping> = Object.fromEntries(
-  Object.values(SYSTEM_COLLECTIONS).map((c) => [
+  Object.values(SYSTEM_COLLECTIONS).map((c): [string, CollectionMapping] => [
     c.key,
-    { qdrantCollection: c.qdrantCollection, systemId: c.id },
+    isRemoteCollection(c)
+      ? { remoteSource: c.remote, systemId: c.id }
+      : { qdrantCollection: c.qdrantCollection, systemId: c.id },
   ])
 );

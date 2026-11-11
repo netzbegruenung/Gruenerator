@@ -18,6 +18,7 @@ import {
 } from '../../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
+import { isSourceUnavailable } from '../../../services/notebook/remoteSources/errors.js';
 import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { webSearch, type WebSearchLocale } from '../../../services/search/webSearch.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -296,7 +297,13 @@ export async function executeDirectSearch(params: {
     log.warn(`[Direct Search] Unknown collection: ${collection}, falling back to deutschland`);
   }
 
-  const { qdrantCollection, systemId } = mapping || COLLECTION_MAP.deutschland;
+  const resolved = mapping || COLLECTION_MAP.deutschland;
+  const { systemId } = resolved;
+  const searchTarget =
+    'remoteSource' in resolved
+      ? { remoteSource: resolved.remoteSource }
+      : { searchCollection: resolved.qdrantCollection };
+  const qdrantCollection = 'qdrantCollection' in resolved ? resolved.qdrantCollection : null;
   const searchParams = getSearchParams(systemId);
 
   // Build filter: merge (a) collection default, (b) user-detected, (c) agent LV pin,
@@ -367,7 +374,7 @@ export async function executeDirectSearch(params: {
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
-        searchCollection: qdrantCollection,
+        ...searchTarget,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
@@ -402,7 +409,11 @@ export async function executeDirectSearch(params: {
           resultsCount: 0,
           results: [],
           error: true,
-          message: 'Die Dokumentsuche ist momentan gestört — es konnte nicht gesucht werden.',
+          // Eine Remote-Quelle nennt sich selbst („Bundestag-Quelle gerade nicht erreichbar").
+          message:
+            isSourceUnavailable(response) && response.error
+              ? response.error
+              : 'Die Dokumentsuche ist momentan gestört — es konnte nicht gesucht werden.',
         };
       }
 
