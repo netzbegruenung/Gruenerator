@@ -10,6 +10,18 @@ export function documentIdFromUrl(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/** Beschriftung des Öffnen-Links einer bestätigten Aktion — folgt dem Ziel, nicht dem Aktionstyp. */
+export function actionUrlLabel(url: string): string {
+  const [path = ''] = url.split(/[?#]/);
+  if (documentIdFromUrl(url)) return 'Dokument öffnen';
+  if (/^\/(?:projekte|gruppen)\//.test(path)) return 'Projekt öffnen';
+  if (/^\/notebooks?\//.test(path)) return 'Notebook öffnen';
+  if (/^\/boards\//.test(path)) return 'Board öffnen';
+  if (/^\/agentura\/agent\//.test(path)) return 'Agent öffnen';
+  if (/^\/agentura\/(?:rezept|skill)\//.test(path)) return 'Rezept öffnen';
+  return 'Öffnen';
+}
+
 /** Web paths the app has a native screen for under the same path. */
 const NATIVE_PATHS = [
   /^\/projekte\/[^/?#]+/,

@@ -140,21 +140,34 @@ describe('confirming', () => {
     expect(await screen.findByText('Dokument öffnen')).toBeTruthy();
   });
 
-  it('offers no open link when the result URL is not a document route', async () => {
+  it('opens a project result in the projects screen', async () => {
     mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/gruppen/42' });
+    await renderCard({ ...ACTION, type: 'share_notebook' });
+
+    await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Projekt öffnen'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/projekte/[id]',
+      params: { id: '42' },
+    });
+  });
+
+  it('falls back to a generic link for a path without a native screen', async () => {
+    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/settings/wolke' });
     await renderCard();
 
     await fireEvent.press(screen.getByText('Speichern'));
+    await fireEvent.press(await screen.findByText('Öffnen'));
 
-    await settle();
-
-    expect(screen.queryByText('Speichern')).toBeNull();
-    expect(screen.queryByText('Dokument öffnen')).toBeNull();
-    expect(screen.queryByText('Projekt öffnen')).toBeNull();
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(fullscreen)/web-viewer',
+      params: { path: '/settings/wolke' },
+    });
   });
 
-  it('labels the link per action type', async () => {
-    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/document/abc123' });
+  it('labels the link per target', async () => {
+    mockConfirm.mockResolvedValueOnce({ status: 'confirmed', url: '/boards/b1' });
     await renderCard({ ...ACTION, type: 'modify_board' });
 
     await fireEvent.press(screen.getByText('Speichern'));

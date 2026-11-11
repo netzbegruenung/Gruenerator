@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
-import { documentIdFromUrl } from '../../utils/actionUrl';
+import { actionUrlLabel, actionUrlToRoute } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -37,20 +37,10 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   apply_canvas_deck_edit: 'easel-outline',
 };
 
-const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
-  'create_group',
-  'join_group',
-  'share_notebook',
-  'set_group_visibility',
-  'share_user_agent',
-  'share_text_form',
-]);
-
 /**
  * Nur diese beiden ändern die eigene Mitgliedschaftsliste und machen damit die
  * zwischengespeicherte Projektliste falsch — etwas IN eine Gruppe zu teilen
- * nicht. Darum eine andere Menge als `GROUP_ACTION_TYPES` oben, das nur die
- * Beschriftung steuert.
+ * nicht.
  */
 const GROUP_LIST_CHANGING_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'create_group',
@@ -89,15 +79,11 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
 
   const openResult = useCallback(() => {
     if (!resultUrl) return;
-    const documentId = documentIdFromUrl(resultUrl);
-    if (documentId) {
-      // doc-editor reads `id` from useLocalSearchParams.
-      router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: documentId } });
-    }
+    router.push(actionUrlToRoute(resultUrl));
   }, [resultUrl, router]);
 
   if (status === 'confirmed') {
-    const canOpen = resultUrl !== null && documentIdFromUrl(resultUrl) !== null;
+    const canOpen = resultUrl !== null;
     return (
       <Pressable
         onPress={openResult}
@@ -110,11 +96,7 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
         <Text style={[styles.badgeText, { color: theme.text }]}>{action.title}</Text>
         {canOpen && (
           <Text style={[styles.badgeLink, { color: colors.primary[600] }]}>
-            {action.type === 'modify_board'
-              ? 'Board öffnen'
-              : GROUP_ACTION_TYPES.has(action.type)
-                ? 'Projekt öffnen'
-                : 'Dokument öffnen'}
+            {actionUrlLabel(resultUrl)}
           </Text>
         )}
       </Pressable>
