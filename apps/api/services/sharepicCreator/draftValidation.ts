@@ -105,10 +105,14 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
     const texts =
       item.type === 'headline'
         ? item.lines
-        : item.type === 'zitat' || item.type === 'absatz'
+        : item.type === 'zitat' || item.type === 'absatz' || item.type === 'aufruf'
           ? [item.text]
           : null;
     const own = locale === 'de-DE' && !texts ? ownBoxes(item) : null;
+    // The call is drawn as rich text like a headline (#5601); its addressee and hint are not.
+    if (item.type === 'aufruf' && stringsOf([item.adressat, item.hinweis]).some(hasMarker)) {
+      problems.push(`${where}++…++ steht im aufruf nur im text – adressat und hinweis ohne.`);
+    }
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
     else if (own) {
       const part = item.type === 'liste' ? 'Punkt' : 'titel';
@@ -121,12 +125,12 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
       }
     } else if (stringsOf(item).some(hasMarker)) {
       problems.push(
-        `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
+        `${where}++…++ steht nur in zitat, absatz, headline und aufruf – im Element "${item.type}" weglassen.`
       );
     }
   }
   if (stringsOf([slide.stoerer, slide.ort, slide.quelle]).some(hasMarker)) {
-    problems.push(`${where}++…++ steht nur in zitat, absatz und headline.`);
+    problems.push(`${where}++…++ steht nur in zitat, absatz, headline und aufruf.`);
   }
   if (locale === 'de-AT' && passages > 0) {
     problems.push(
