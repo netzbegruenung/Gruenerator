@@ -263,7 +263,7 @@ describe('user_agents: get', () => {
       identifier: 'presse-kv-ab12cd',
       title: 'Presse KV',
       roleTruncated: true,
-      toolLabels: 'Grünerator-Wissen, Recherche',
+      toolLabels: 'Grünerator-Wissen, Websuche & Recherche',
       skillMentions: ['presse'],
       notebooks: [{ id: 'nb-1', name: 'Kommunalpolitik' }],
       shareModeLabel: 'Privat',
@@ -437,7 +437,7 @@ describe('user_agents: create (card)', () => {
     expect(payload.metadata).toEqual([
       { key: 'Name', value: 'OV-Newsletter' },
       { key: 'Rolle', value: 'Du bist der Newsletter-Bot. Kurz, klar, freundlich, ohne Floskeln.' },
-      { key: 'Werkzeuge', value: 'Recherche, Social-Media-Beispiele' },
+      { key: 'Werkzeuge', value: 'Websuche & Recherche, Social-Media-Beispiele' },
       { key: 'Rezepte', value: 'presse, instagram' },
       { key: 'Notebooks', value: 'Kommunalpolitik' },
     ]);
@@ -731,7 +731,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     expect(registry.freshSize).toBe(1);
     const block = registry.renderAll();
     expect(block).toContain('Rolle (gekürzt): Du bist die Pressestelle');
-    expect(block).toContain('Werkzeuge: Grünerator-Wissen, Recherche');
+    expect(block).toContain('Werkzeuge: Grünerator-Wissen, Websuche & Recherche');
   });
 
   it('reports the card request as a VORGANG, so the writer does not claim the agent exists', async () => {
