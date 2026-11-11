@@ -286,6 +286,45 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # Load each route of the production bundle once and fail on chunk-init
+      # errors ("s is not a function" from Rolldown chunks initialising in a
+      # cycle, 298ebe2f1). Dev mode never shows them; only the built bundle
+      # does. The push below reuses this build from the builder cache.
+      - name: Build for bundle smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: smoke-web:ci
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache
+          build-args: |
+            VITE_API_BASE_URL=/api
+            VITE_APP_ENV=production
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Only Playwright, not the workspace: the tests talk to the running
+      # image. The version follows the lockfile; the symlink lets apps/web
+      # resolve `@playwright/test` without a pnpm install.
+      - name: Bundle smoke test
+        env:
+          SMOKE_BASE_URL: http://localhost:8080
+          SMOKE_SKIP_SERVER: '1'
+        run: |
+          docker run -d --name smoke-web -p 8080:80 smoke-web:ci
+          PW_VERSION=$(grep -m1 -oE "^  '@playwright/test@[0-9]+\.[0-9]+\.[0-9]+" pnpm-lock.yaml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$')
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save "@playwright/test@$PW_VERSION"
+          ln -s "$RUNNER_TEMP/pw/node_modules" node_modules
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+          timeout 30 sh -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+          cd apps/web && "$RUNNER_TEMP/pw/node_modules/.bin/playwright" test -c playwright.smoke.config.ts
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:

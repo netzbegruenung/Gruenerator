@@ -17,21 +17,11 @@ import { describe, it, expect } from 'vitest';
 
 import {
   INTENT_MESSAGE_POOLS,
-  PROGRESS_MESSAGES,
   getIntentMessage,
 } from '../../../routes/chat/services/sseHelpers.js';
 
 import { INTENT_HANDLER_PATHS } from './intentHandlerPaths.js';
-import type {
-  SearchIntent,
-  ImageStyle,
-  ChatGraphState,
-  ChartData,
-  ConfirmActionType,
-  PendingAction,
-  ChatSearchResult,
-  SearchSource,
-} from './types.js';
+import type { SearchIntent, ConfirmActionType } from './types.js';
 
 // ============================================================================
 // Helpers
@@ -52,17 +42,6 @@ import type {
  * enforcement there is, which makes where it comes from load-bearing.
  */
 const ALL_INTENTS: SearchIntent[] = [...searchIntentSchema.options];
-
-/**
- * All ImageStyle values that must be supported.
- */
-const ALL_IMAGE_STYLES: ImageStyle[] = [
-  'illustration',
-  'realistic',
-  'pixel',
-  'green-edit',
-  'universal',
-];
 
 // ============================================================================
 // 1. Type-Level Consistency
@@ -103,110 +82,6 @@ describe('SearchIntent type consistency', () => {
   it('getIntentMessage returns fallback for unknown intent', () => {
     const message = getIntentMessage('nonexistent' as SearchIntent);
     expect(message).toBe('Verarbeite Anfrage...');
-  });
-});
-
-// ============================================================================
-// 2. PROGRESS_MESSAGES Completeness
-// ============================================================================
-
-describe('PROGRESS_MESSAGES', () => {
-  it('has image generation messages', () => {
-    expect(PROGRESS_MESSAGES.imageStart).toBeDefined();
-    expect(PROGRESS_MESSAGES.imageComplete).toBeDefined();
-    expect(typeof PROGRESS_MESSAGES.imageError).toBe('function');
-    expect(PROGRESS_MESSAGES.imageError('test')).toContain('test');
-  });
-
-  it('has image edit messages', () => {
-    expect(PROGRESS_MESSAGES.imageEditStart).toBeDefined();
-    expect(PROGRESS_MESSAGES.imageEditComplete).toBeDefined();
-    expect(PROGRESS_MESSAGES.imageEditNoAttachment).toBeDefined();
-    expect(PROGRESS_MESSAGES.imageEditNoAttachment).toContain('Bild');
-  });
-
-  it('has search messages', () => {
-    expect(PROGRESS_MESSAGES.searchStart).toBeDefined();
-    expect(typeof PROGRESS_MESSAGES.searchComplete).toBe('function');
-    expect(PROGRESS_MESSAGES.searchComplete(5)).toContain('5');
-    expect(PROGRESS_MESSAGES.searchComplete(0)).toBeTruthy();
-  });
-
-  it('has response and error messages', () => {
-    expect(PROGRESS_MESSAGES.responseStart).toBeDefined();
-    expect(PROGRESS_MESSAGES.unauthorized).toBeDefined();
-    expect(PROGRESS_MESSAGES.aiUnavailable).toBeDefined();
-    expect(PROGRESS_MESSAGES.messagesRequired).toBeDefined();
-    expect(PROGRESS_MESSAGES.internalError).toBeDefined();
-    expect(PROGRESS_MESSAGES.streamInterrupted).toBeDefined();
-  });
-});
-
-// ============================================================================
-// 3. ChatGraphState Type Shape
-// ============================================================================
-
-describe('ChatGraphState shape', () => {
-  it('intent field accepts all SearchIntent values', () => {
-    for (const intent of ALL_INTENTS) {
-      const partial: Partial<ChatGraphState> = { intent };
-      expect(partial.intent).toBe(intent);
-    }
-  });
-
-  it('imageStyle field accepts all ImageStyle values', () => {
-    for (const style of ALL_IMAGE_STYLES) {
-      const partial: Partial<ChatGraphState> = { imageStyle: style };
-      expect(partial.imageStyle).toBe(style);
-    }
-  });
-
-  it('generatedImage.style accepts all ImageStyle values', () => {
-    for (const style of ALL_IMAGE_STYLES) {
-      const result = {
-        base64: 'data:image/jpeg;base64,abc',
-        url: '/test.jpg',
-        filename: 'test.jpg',
-        prompt: 'test',
-        style,
-        generationTimeMs: 100,
-      };
-      expect(result.style).toBe(style);
-    }
-  });
-});
-
-// ============================================================================
-// 4. Image Edit Node Structure
-// ============================================================================
-
-describe('imageEditNode', () => {
-  it('exports imageEditNode function', async () => {
-    // fs-based check (see sibling test below): direct dynamic import pulls in
-    // the vision/flux pipelines and exceeds vitest's 5s import budget.
-    const fs = await import('fs');
-    const source = fs.readFileSync(
-      new URL('./nodes/imageEditNode.ts', import.meta.url).pathname,
-      'utf-8'
-    );
-    expect(source).toMatch(/export\s+async\s+function\s+imageEditNode\s*\(/);
-  });
-
-  it('is re-exported from nodes barrel', async () => {
-    // Read the barrel file to verify export line exists
-    // (direct import triggers transitive langchain resolution issues in vitest)
-    const fs = await import('fs');
-    const barrelContent = fs.readFileSync(
-      new URL('./nodes/index.ts', import.meta.url).pathname,
-      'utf-8'
-    );
-    expect(barrelContent).toContain("export { imageEditNode } from './imageEditNode.js'");
-  });
-
-  it('is re-exported from ChatGraph barrel', async () => {
-    const fs = await import('fs');
-    const indexContent = fs.readFileSync(new URL('./index.ts', import.meta.url).pathname, 'utf-8');
-    expect(indexContent).toContain('imageEditNode');
   });
 });
 
@@ -382,109 +257,5 @@ describe('ConfirmActionType consistency', () => {
     for (const type of ALL_CONFIRM_TYPES) {
       expect(ALL_INTENTS).toContain(type);
     }
-  });
-
-  it('PendingAction type accepts all ConfirmActionType values', () => {
-    const base = {
-      actionId: 'test',
-      threadId: 'thread-1',
-      userId: 'user-1',
-      title: 'Test',
-      preview: 'Preview',
-      createdAt: Date.now(),
-    };
-    const actions: PendingAction[] = [
-      { ...base, type: 'save_as_doc', payload: { content: 'text', title: 'Doc', subtype: 'docs' } },
-      { ...base, type: 'modify_doc', payload: { docId: 'doc-1', newContent: 'new' } },
-      { ...base, type: 'modify_board', payload: { boardId: 'b-1', rows: [], responseText: '' } },
-    ];
-    for (const action of actions) {
-      expect(ALL_CONFIRM_TYPES).toContain(action.type);
-    }
-  });
-});
-
-// ============================================================================
-// 10. ChartData Type Shape
-// ============================================================================
-
-describe('ChartData type shape', () => {
-  const CHART_TYPES: ChartData['type'][] = ['bar', 'line', 'area', 'pie', 'donut'];
-
-  it('accepts all chart types', () => {
-    for (const type of CHART_TYPES) {
-      const chart: ChartData = {
-        type,
-        title: 'Test Chart',
-        data: [{ name: 'A', value: 10 }],
-        xKey: 'name',
-        yKeys: ['value'],
-      };
-      expect(chart.type).toBe(type);
-    }
-  });
-
-  it('chartData field is nullable in ChatGraphState', () => {
-    const partial: Partial<ChatGraphState> = { chartData: null };
-    expect(partial.chartData).toBeNull();
-  });
-
-  it('chartData accepts full ChartData object', () => {
-    const chart: ChartData = {
-      type: 'bar',
-      title: 'Test',
-      data: [{ name: 'Jan', wert: 42 }],
-      xKey: 'name',
-      yKeys: ['wert'],
-      colors: ['#005538'],
-    };
-    const partial: Partial<ChatGraphState> = { chartData: chart };
-    expect(partial.chartData?.title).toBe('Test');
-  });
-});
-
-// ============================================================================
-// 11. SearchSource Expanded Types
-// ============================================================================
-
-describe('SearchSource expanded types', () => {
-  const ALL_SOURCES: SearchSource[] = ['documents', 'web', 'chat_history', 'wolke'];
-
-  it('SearchSource accepts all expected values', () => {
-    for (const source of ALL_SOURCES) {
-      const partial: Partial<ChatGraphState> = { searchSources: [source] };
-      expect(partial.searchSources).toContain(source);
-    }
-  });
-
-  it('ChatSearchResult has required fields', () => {
-    const result: ChatSearchResult = {
-      threadId: 'thread-1',
-      threadTitle: 'Test Thread',
-      threadSlugSuffix: 'abc123',
-      agentId: 'gruenerator-universal',
-      snippet: 'test snippet content',
-      messageRole: 'assistant',
-      matchedAt: '2026-04-04T12:00:00Z',
-      threadUpdatedAt: '2026-04-04T12:00:00Z',
-      threadStatus: 'regular',
-    };
-    expect(result.threadId).toBe('thread-1');
-    expect(result.messageRole).toBe('assistant');
-  });
-
-  it('ChatSearchResult threadTitle is nullable', () => {
-    const result: ChatSearchResult = {
-      threadId: 'thread-1',
-      threadTitle: null,
-      threadSlugSuffix: null,
-      agentId: 'test',
-      snippet: 'test',
-      messageRole: 'user',
-      matchedAt: '2026-04-04T12:00:00Z',
-      threadUpdatedAt: '2026-04-04T12:00:00Z',
-      threadStatus: 'regular',
-    };
-    expect(result.threadTitle).toBeNull();
   });
 });

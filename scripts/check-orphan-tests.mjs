@@ -105,22 +105,61 @@ function isCaptured(file) {
   return false;
 }
 
+// Second rule, independent of imports: a file NAMED like a test must sit where
+// some runner collects it. The vitest rule above misses suites with a
+// hand-rolled runner — `apps/api/services/monitor/MeinungsbildService.test.ts`
+// shipped its own `test()`/`expect()`, imported no vitest, ran under no config
+// and tested a copy of the logic it claimed to cover (removed 11/2026). The
+// runners besides vitest: jest in apps/mobile (`*.test.ts(x)`), vitest's
+// default glob in packages/sheets and packages/presentations (handled by
+// `isCaptured`), and Playwright under each config's `testDir`.
+const TEST_NAME_RE = /\.(?:test|spec)\.[cm]?[tj]sx?$/;
+const MOBILE_DIR = path.join(ROOT, 'apps', 'mobile') + path.sep;
+const MOBILE_SUFFIXES = ['.test.ts', '.test.tsx'];
+// `testDir` of apps/web/playwright.config.ts and playwright.smoke.config.ts.
+const PLAYWRIGHT_DIRS = [
+  path.join(ROOT, 'apps', 'web', 'tests', 'e2e') + path.sep,
+  path.join(ROOT, 'apps', 'web', 'tests', 'smoke') + path.sep,
+];
+
+function hasRunner(file) {
+  if (isCaptured(file)) return true;
+  if (file.startsWith(MOBILE_DIR)) return MOBILE_SUFFIXES.some((s) => file.endsWith(s));
+  return PLAYWRIGHT_DIRS.some((dir) => file.startsWith(dir) && /\.spec\.ts$/.test(file));
+}
+
 const files = SOURCE_DIRS.flatMap((d) => walk(path.join(ROOT, d), []));
 const violations = [];
+const unrunNamed = [];
 
 for (const file of files) {
   if (isCaptured(file)) continue;
+  if (TEST_NAME_RE.test(path.basename(file)) && !hasRunner(file)) {
+    unrunNamed.push(path.relative(ROOT, file));
+    continue;
+  }
   const content = readFileSync(file, 'utf-8');
   if (!VITEST_IMPORT_RE.test(content)) continue;
   if (!TEST_DECLARATION_RE.test(stripComments(content))) continue;
   violations.push(path.relative(ROOT, file));
 }
 
-if (violations.length > 0) {
-  console.error('\n✖ Test file imports vitest but no vitest `include` glob matches it — it never runs\n');
-  for (const file of violations) {
-    console.error(`  ${file}`);
-    console.error('    Rename it to end in `.vitest.ts` (or `.vitest.tsx`) so vitest picks it up.\n');
+if (violations.length > 0 || unrunNamed.length > 0) {
+  if (violations.length > 0) {
+    console.error('\n✖ Test file imports vitest but no vitest `include` glob matches it — it never runs\n');
+    for (const file of violations) {
+      console.error(`  ${file}`);
+      console.error('    Rename it to end in `.vitest.ts` (or `.vitest.tsx`) so vitest picks it up.\n');
+    }
+  }
+  if (unrunNamed.length > 0) {
+    console.error('\n✖ File is named like a test but no runner collects it — it never runs\n');
+    for (const file of unrunNamed) {
+      console.error(`  ${file}`);
+      console.error(
+        '    Make it a `.vitest.ts` suite against the real module, or delete it. A runner of its own is not a test run.\n'
+      );
+    }
   }
   process.exit(1);
 }

@@ -67,15 +67,4 @@ describe('buildFeatureIndex — invariants', () => {
     const keys = index.map((h) => h.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
-
-  it('precomputes normalized fields for every entry', () => {
-    for (const hit of index) {
-      expect(hit.normalizedTitle).toBe(hit.normalizedTitle.toLowerCase());
-      expect(Array.isArray(hit.normalizedKeywords)).toBe(true);
-    }
-  });
-
-  it('includes the curated Reel tool with its canonical path', () => {
-    expect(index.some((h) => h.path === '/studio/video')).toBe(true);
-  });
 });

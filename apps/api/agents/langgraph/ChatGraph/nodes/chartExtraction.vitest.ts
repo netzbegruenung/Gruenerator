@@ -2,33 +2,12 @@
  * Chart Data Extraction Tests
  *
  * Verifies that chart JSON blocks are correctly extracted from LLM responses
- * and that the classifier correctly detects chart intents.
+ * by the real extractor in routes/chat/services/confirmActionService.ts.
  */
 
 import { describe, it, expect } from 'vitest';
 
-import type { ChartData } from '../types.js';
-
-/**
- * Extract chart data from response text.
- * Mirrors extractChartFromResponse in routes/chat/services/confirmActionService.ts.
- */
-function extractChartData(text: string): ChartData | null {
-  const chartMatch = text.match(/```chart\s*\n?([\s\S]*?)```/);
-  if (!chartMatch) return null;
-
-  try {
-    const chartData = JSON.parse(chartMatch[1].trim()) as ChartData;
-    if (chartData.type && chartData.data && chartData.xKey && chartData.yKeys) {
-      return chartData;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-const DEFAULT_COLORS = ['#005538', '#8AC9B0', '#52907A', '#B1E0C9', '#003D28', '#6BAA91'];
+import { extractChartFromResponse as extractChartData } from '../../../../routes/chat/services/confirmActionService.js';
 
 describe('chart data extraction from LLM response', () => {
   it('extracts bar chart from response', () => {
@@ -112,48 +91,17 @@ Besonders erfreulich ist das Wachstum in den neuen Bundesländern.`;
     expect(chart!.data).toHaveLength(3);
   });
 
-  it('uses custom colors when provided', () => {
-    const chart: ChartData = {
-      type: 'bar',
-      title: 'Test',
-      data: [{ x: 'A', y: 1 }],
-      xKey: 'x',
-      yKeys: ['y'],
-      colors: ['#ff0000', '#00ff00'],
-    };
-    expect(chart.colors).toEqual(['#ff0000', '#00ff00']);
+  it('keeps colors the model provided', () => {
+    const chart = extractChartData(
+      '```chart\n{"type":"bar","data":[{"x":"A","y":1}],"xKey":"x","yKeys":["y"],"colors":["#ff0000"]}\n```'
+    );
+    expect(chart!.colors).toEqual(['#ff0000']);
   });
 
-  it('default colors follow Green party brand', () => {
-    expect(DEFAULT_COLORS[0]).toBe('#005538');
-    expect(DEFAULT_COLORS.length).toBeGreaterThanOrEqual(5);
-  });
-});
-
-describe('ChartData type validation', () => {
-  it('accepts all chart types', () => {
-    const types: ChartData['type'][] = ['bar', 'line', 'area', 'pie', 'donut'];
-    for (const type of types) {
-      const chart: ChartData = {
-        type,
-        title: 'Test',
-        data: [{ name: 'A', value: 10 }],
-        xKey: 'name',
-        yKeys: ['value'],
-      };
-      expect(chart.type).toBe(type);
-    }
-  });
-
-  it('data can have mixed string and number values', () => {
-    const chart: ChartData = {
-      type: 'bar',
-      title: 'Mixed',
-      data: [{ label: 'Grüne', count: 42, percent: 14.8 }],
-      xKey: 'label',
-      yKeys: ['count', 'percent'],
-    };
-    expect(chart.data[0].label).toBe('Grüne');
-    expect(chart.data[0].count).toBe(42);
+  it('falls back to the Green brand palette when the model sends no colors', () => {
+    const chart = extractChartData(
+      '```chart\n{"type":"bar","data":[{"x":"A","y":1}],"xKey":"x","yKeys":["y"]}\n```'
+    );
+    expect(chart!.colors?.[0]).toBe('#005538');
   });
 });

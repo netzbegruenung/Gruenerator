@@ -296,8 +296,7 @@ export interface ChunkContextItem {
 
 /**
  * Rückgabe von `getChunkWithContext`. Die Form ist F0: qdrantController.ts:406-414
- * reicht `centerChunk`/`contextChunks` unverändert an den Client, wo
- * `ChunkContextData` (apps/web/src/stores/citationStore.ts:28-33) sie erwartet.
+ * reicht `centerChunk`/`contextChunks` unverändert an den Client weiter.
  * Optionale Felder werden WEGGELASSEN, nie auf `undefined` gesetzt —
  * apps/api fährt `exactOptionalPropertyTypes`.
  */

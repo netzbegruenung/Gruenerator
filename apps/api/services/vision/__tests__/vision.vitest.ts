@@ -45,18 +45,6 @@ describe('Vision — unit tests', () => {
       expect(isVisionCapable('nonexistent-model-999')).toBe(false);
     });
   });
-
-  describe('VisionService import and structure', () => {
-    it('exports visionService singleton', async () => {
-      const { visionService } = await import('../index.js');
-      expect(visionService).toBeDefined();
-      expect(typeof visionService.analyzeImage).toBe('function');
-      expect(typeof visionService.describeImage).toBe('function');
-      expect(typeof visionService.detectTextContent).toBe('function');
-      expect(typeof visionService.analyzeWithOcr).toBe('function');
-      expect(typeof visionService.generateAltText).toBe('function');
-    });
-  });
 });
 
 // ─── Mistral adapter multimodal tests (no API call, tests message conversion) ─

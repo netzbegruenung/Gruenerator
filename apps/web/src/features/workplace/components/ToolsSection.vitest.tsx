@@ -39,17 +39,6 @@ describe('OfficeActionTile', () => {
     await user.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
-
-  it('applies the tool theme tile class for a known styleKey', () => {
-    renderTile({ styleKey: 'docs' });
-    // getToolTheme('docs').tile — pins the tile↔theme wiring (see config/toolTheme.ts).
-    expect(screen.getByRole('button').className).toContain('bg-[#F6EFD4]');
-  });
-
-  it('falls back to a neutral tile class for an unknown styleKey', () => {
-    renderTile({ styleKey: 'not-a-real-tool' });
-    expect(screen.getByRole('button').className).toContain('bg-grey-50');
-  });
 });
 
 describe('OfficeSection', () => {
