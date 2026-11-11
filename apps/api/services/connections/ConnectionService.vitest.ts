@@ -5,40 +5,84 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createConnectSession = vi.fn();
+const listConnections = vi.fn();
+const getConnection = vi.fn();
+const isInstanceAdmin = vi.fn();
 const env: Record<string, string | undefined> = {};
 
 vi.mock('../../config/env.js', () => ({ env }));
+vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin }));
 vi.mock('../../config/nango.js', () => ({
-  getNango: () => ({ createConnectSession }),
+  getNango: () => ({ createConnectSession, listConnections, getConnection }),
   HIDDEN_NANGO_PROVIDERS: new Set(),
-  NANGO_PROVIDERS: {},
+  ADMIN_ONLY_NANGO_PROVIDERS: new Set(['microsoft']),
+  NANGO_PROVIDERS: {
+    microsoft: { label: 'Microsoft 365', services: ['OneDrive'] },
+    jira: { label: 'Jira', services: ['Issues'] },
+  },
 }));
 
-const { ConnectionService } = await import('./ConnectionService.js');
+const { ConnectionNotAllowedError, ConnectionService } = await import('./ConnectionService.js');
 
 beforeEach(() => {
   createConnectSession.mockReset().mockResolvedValue({
     data: { connect_link: 'https://connect.example/?session_token=tok' },
   });
+  listConnections.mockReset().mockResolvedValue({
+    connections: [{ provider_config_key: 'microsoft', connection_id: 'c-ms', created: null }],
+  });
+  getConnection.mockReset().mockResolvedValue({ credentials: { access_token: 'at' } });
+  isInstanceAdmin.mockReset().mockResolvedValue(true);
   env.NANGO_PUBLIC_URL = 'https://nango.example';
 });
 
-describe('createSessionToken', () => {
-  beforeEach(() => {
-    createConnectSession.mockReset().mockResolvedValue({ data: { token: 'tok' } });
-  });
-
-  it('begrenzt die Session auf die übergebenen Integrationen', async () => {
-    await ConnectionService.createSessionToken('u1', { allowedIntegrations: ['jira'] });
+/**
+ * Microsoft 365 ist vorerst Admin-Sache. Die Regel sitzt im Dienst, damit jede
+ * Tür sie erbt — auch `@connect` im Chat und eine Verbindung, die eine Person
+ * angelegt hat, bevor der Anbieter gesperrt wurde.
+ */
+describe('Admin-Anbieter', () => {
+  it('lässt Microsoft für Nicht-Admins aus der Connect-Session heraus', async () => {
+    isInstanceAdmin.mockResolvedValue(false);
+    createConnectSession.mockResolvedValue({ data: { token: 'tok' } });
+    await ConnectionService.createSessionToken('u1');
     expect(createConnectSession).toHaveBeenCalledWith({
       end_user: { id: 'u1' },
       allowed_integrations: ['jira'],
     });
   });
 
-  it('lässt ohne Angabe alle Integrationen zu', async () => {
+  it('gibt Admins eine Session ohne Begrenzung', async () => {
+    createConnectSession.mockResolvedValue({ data: { token: 'tok' } });
     await ConnectionService.createSessionToken('u1');
     expect(createConnectSession).toHaveBeenCalledWith({ end_user: { id: 'u1' } });
+  });
+
+  it('zeigt Nicht-Admins Microsoft nicht im Status', async () => {
+    isInstanceAdmin.mockResolvedValue(false);
+    const providers = await ConnectionService.listConnections('u1');
+    expect(providers.map((p) => p.provider)).toEqual(['jira']);
+  });
+
+  it('sperrt eine bestehende Microsoft-Verbindung für Nicht-Admins', async () => {
+    isInstanceAdmin.mockResolvedValue(false);
+    await expect(ConnectionService.getConnection('u1', 'microsoft')).rejects.toBeInstanceOf(
+      ConnectionNotAllowedError
+    );
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
+  it('gibt Admins die Microsoft-Verbindung', async () => {
+    await expect(ConnectionService.getConnection('u1', 'microsoft')).resolves.toMatchObject({
+      accessToken: 'at',
+    });
+  });
+
+  it('verweigert Nicht-Admins den Connect-Link für Microsoft', async () => {
+    isInstanceAdmin.mockResolvedValue(false);
+    await expect(ConnectionService.createConnectLink('u1', 'microsoft')).rejects.toBeInstanceOf(
+      ConnectionNotAllowedError
+    );
   });
 });
 

@@ -10,6 +10,7 @@ const getConnection = vi.fn();
 const browseDrive = vi.fn();
 vi.mock('../../services/connections/ConnectionService.js', () => ({
   ConnectionService: { getConnection },
+  ConnectionNotAllowedError: class ConnectionNotAllowedError extends Error {},
 }));
 vi.mock('../../services/connections/driveBrowse.js', () => ({ browseDrive }));
 

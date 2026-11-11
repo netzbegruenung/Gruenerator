@@ -4,8 +4,10 @@ import { NANGO_PROVIDERS, type NangoProviderKey } from '../../config/nango.js';
 import * as atlassianClient from '../../services/api-clients/atlassianClient.js';
 import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
-import { ConnectionService } from '../../services/connections/ConnectionService.js';
-import { isInstanceAdmin } from '../../utils/adminAuthz.js';
+import {
+  ConnectionNotAllowedError,
+  ConnectionService,
+} from '../../services/connections/ConnectionService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
@@ -14,10 +16,6 @@ import type { AuthRequest } from '../auth/types.js';
 
 const log = createLogger('connections');
 const router = Router();
-
-const USER_CONNECT_PROVIDERS = (Object.keys(NANGO_PROVIDERS) as NangoProviderKey[]).filter(
-  (key) => key !== 'microsoft'
-);
 
 function isValidProvider(key: string): key is NangoProviderKey {
   return key in NANGO_PROVIDERS;
@@ -41,13 +39,7 @@ router.post('/session-token', async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-    // Microsoft 365 is instance-admin only for now; the connect UI would otherwise
-    // list it for everyone. Admins connect it via the settings card / connector test.
-    const isAdmin = await isInstanceAdmin(userId, req.user?.email);
-    const token = await ConnectionService.createSessionToken(
-      userId,
-      isAdmin ? undefined : { allowedIntegrations: USER_CONNECT_PROVIDERS }
-    );
+    const token = await ConnectionService.createSessionToken(userId);
     res.json({ token });
   } catch (error: unknown) {
     log.error('Failed to create session token', error);
@@ -125,6 +117,11 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
+      if (error instanceof ConnectionNotAllowedError) {
+        return res
+          .status(403)
+          .json({ error: toUserFacingMessage(error, 'Nur für Admins freigeschaltet.') });
+      }
       log.error('Failed to list files', error);
       if (
         error instanceof Error &&
@@ -171,6 +168,11 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
+      if (error instanceof ConnectionNotAllowedError) {
+        return res
+          .status(403)
+          .json({ error: toUserFacingMessage(error, 'Nur für Admins freigeschaltet.') });
+      }
       log.error('Failed to get file', error);
       res.status(500).json({ error: 'Datei konnte nicht geladen werden' });
     }

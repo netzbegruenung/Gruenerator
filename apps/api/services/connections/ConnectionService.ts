@@ -1,10 +1,12 @@
 import { env } from '../../config/env.js';
 import {
+  ADMIN_ONLY_NANGO_PROVIDERS,
   getNango,
   HIDDEN_NANGO_PROVIDERS,
   NANGO_PROVIDERS,
   type NangoProviderKey,
 } from '../../config/nango.js';
+import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('connections');
@@ -24,7 +26,24 @@ export interface ConnectionDetail {
   connectionId: string;
 }
 
+/** A non-admin asked for a provider in `ADMIN_ONLY_NANGO_PROVIDERS`. */
+export class ConnectionNotAllowedError extends Error {
+  constructor(readonly provider: NangoProviderKey) {
+    super(`${NANGO_PROVIDERS[provider].label} ist nur für Admins freigeschaltet.`);
+    this.name = 'ConnectionNotAllowedError';
+  }
+}
+
 export class ConnectionService {
+  /**
+   * Providers this person may not touch. Empty for instance admins; asks the
+   * database only when an admin-only provider exists at all.
+   */
+  private static async deniedProviders(userId: string): Promise<Set<NangoProviderKey>> {
+    if (ADMIN_ONLY_NANGO_PROVIDERS.size === 0) return new Set();
+    return (await isInstanceAdmin(userId)) ? new Set() : ADMIN_ONLY_NANGO_PROVIDERS;
+  }
+
   static async listConnections(
     userId: string,
     { includeHidden = false }: { includeHidden?: boolean } = {}
@@ -43,8 +62,10 @@ export class ConnectionService {
       log.error('Nango listConnections failed — reporting all providers as disconnected', error);
     }
 
+    const denied = await this.deniedProviders(userId);
     return Object.entries(NANGO_PROVIDERS)
       .filter(([key]) => includeHidden || !HIDDEN_NANGO_PROVIDERS.has(key as NangoProviderKey))
+      .filter(([key]) => !denied.has(key as NangoProviderKey))
       .map(([key, config]) => {
         const connection = connections.find((c) => c.provider_config_key === key);
         return {
@@ -73,6 +94,11 @@ export class ConnectionService {
     userId: string,
     providerKey: NangoProviderKey
   ): Promise<ConnectionDetail> {
+    // Also blocks a connection a non-admin made before the provider became
+    // admin-only; disconnecting it (`deleteConnection`) stays possible.
+    if ((await this.deniedProviders(userId)).has(providerKey)) {
+      throw new ConnectionNotAllowedError(providerKey);
+    }
     const connectionId = await this.resolveConnectionId(userId, providerKey);
     if (!connectionId) {
       throw new Error(`No ${providerKey} connection found for user`);
@@ -119,24 +145,28 @@ export class ConnectionService {
   }
 
   /**
-   * Without `allowedIntegrations` Nango's connect UI offers every integration —
-   * including Microsoft 365, which is admin-only for now (see `connectionsController`).
+   * Nango's connect UI offers every integration the session allows; without
+   * `allowed_integrations` that is all of them, admin-only ones included.
    */
-  static async createSessionToken(
-    userId: string,
-    { allowedIntegrations }: { allowedIntegrations?: readonly NangoProviderKey[] } = {}
-  ): Promise<string> {
+  static async createSessionToken(userId: string): Promise<string> {
+    const denied = await this.deniedProviders(userId);
+    const allowed = (Object.keys(NANGO_PROVIDERS) as NangoProviderKey[]).filter(
+      (key) => !denied.has(key)
+    );
     const response = await getNango().createConnectSession({
       end_user: {
         id: userId,
       },
-      ...(allowedIntegrations && { allowed_integrations: [...allowedIntegrations] }),
+      ...(denied.size > 0 && { allowed_integrations: allowed }),
     });
     return response.data.token;
   }
 
   /** Connect-Link für genau einen Anbieter — Nango zeigt dann keine Auswahl. */
   static async createConnectLink(userId: string, providerKey: NangoProviderKey): Promise<string> {
+    if ((await this.deniedProviders(userId)).has(providerKey)) {
+      throw new ConnectionNotAllowedError(providerKey);
+    }
     const response = await getNango().createConnectSession({
       end_user: { id: userId },
       allowed_integrations: [providerKey],

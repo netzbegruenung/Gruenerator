@@ -9,7 +9,10 @@ import { connectionsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import axios from 'axios';
 
-import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import {
+  ConnectionNotAllowedError,
+  ConnectionService,
+} from '../../services/connections/ConnectionService.js';
 import { browseDrive } from '../../services/connections/driveBrowse.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -33,6 +36,7 @@ export const connectionsContractRouter = s.router(connectionsContract, {
     try {
       ({ accessToken } = await ConnectionService.getConnection(userId, params.provider));
     } catch (err) {
+      if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
       log.warn(`[browse] ${params.provider} connection lookup failed`, err);
       return failure(403, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
     }

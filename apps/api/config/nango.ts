@@ -49,3 +49,10 @@ export type NangoProviderKey = keyof typeof NANGO_PROVIDERS;
 
 /** Providers hidden from the connector list until their OAuth setup is complete. */
 export const HIDDEN_NANGO_PROVIDERS = new Set<NangoProviderKey>(['google']);
+
+/**
+ * Providers only instance admins may connect, list or use until they are opened
+ * to everyone. Enforced in `ConnectionService` — every route and the chat's
+ * `@connect` retrieval go through it, so no caller needs its own check.
+ */
+export const ADMIN_ONLY_NANGO_PROVIDERS = new Set<NangoProviderKey>(['microsoft']);
