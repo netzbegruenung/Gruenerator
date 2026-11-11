@@ -23,6 +23,25 @@ beforeEach(() => {
   env.NANGO_PUBLIC_URL = 'https://nango.example';
 });
 
+describe('createSessionToken', () => {
+  beforeEach(() => {
+    createConnectSession.mockReset().mockResolvedValue({ data: { token: 'tok' } });
+  });
+
+  it('begrenzt die Session auf die übergebenen Integrationen', async () => {
+    await ConnectionService.createSessionToken('u1', { allowedIntegrations: ['jira'] });
+    expect(createConnectSession).toHaveBeenCalledWith({
+      end_user: { id: 'u1' },
+      allowed_integrations: ['jira'],
+    });
+  });
+
+  it('lässt ohne Angabe alle Integrationen zu', async () => {
+    await ConnectionService.createSessionToken('u1');
+    expect(createConnectSession).toHaveBeenCalledWith({ end_user: { id: 'u1' } });
+  });
+});
+
 describe('createConnectLink', () => {
   it('hängt die öffentliche Nango-Adresse als apiURL an', async () => {
     const link = new URL(await ConnectionService.createConnectLink('u1', 'microsoft'));

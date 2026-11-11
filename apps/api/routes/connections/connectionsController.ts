@@ -5,6 +5,7 @@ import * as atlassianClient from '../../services/api-clients/atlassianClient.js'
 import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
 import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
@@ -13,6 +14,10 @@ import type { AuthRequest } from '../auth/types.js';
 
 const log = createLogger('connections');
 const router = Router();
+
+const USER_CONNECT_PROVIDERS = (Object.keys(NANGO_PROVIDERS) as NangoProviderKey[]).filter(
+  (key) => key !== 'microsoft'
+);
 
 function isValidProvider(key: string): key is NangoProviderKey {
   return key in NANGO_PROVIDERS;
@@ -36,7 +41,13 @@ router.post('/session-token', async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-    const token = await ConnectionService.createSessionToken(userId);
+    // Microsoft 365 is instance-admin only for now; the connect UI would otherwise
+    // list it for everyone. Admins connect it via the settings card / connector test.
+    const isAdmin = await requireInstanceAdmin(userId, req.user?.email);
+    const token = await ConnectionService.createSessionToken(
+      userId,
+      isAdmin ? undefined : { allowedIntegrations: USER_CONNECT_PROVIDERS }
+    );
     res.json({ token });
   } catch (error: unknown) {
     log.error('Failed to create session token', error);

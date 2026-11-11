@@ -118,11 +118,19 @@ export class ConnectionService {
     return connections.length;
   }
 
-  static async createSessionToken(userId: string): Promise<string> {
+  /**
+   * Without `allowedIntegrations` Nango's connect UI offers every integration —
+   * including Microsoft 365, which is admin-only for now (see `connectionsController`).
+   */
+  static async createSessionToken(
+    userId: string,
+    { allowedIntegrations }: { allowedIntegrations?: readonly NangoProviderKey[] } = {}
+  ): Promise<string> {
     const response = await getNango().createConnectSession({
       end_user: {
         id: userId,
       },
+      ...(allowedIntegrations && { allowed_integrations: [...allowedIntegrations] }),
     });
     return response.data.token;
   }
