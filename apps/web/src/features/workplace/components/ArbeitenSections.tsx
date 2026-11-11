@@ -202,27 +202,12 @@ export function MarketplaceSection() {
         </Link>
       }
     >
-      <div className={cn(NEUTRAL_SURFACE, WIDGET_GRID)}>
-        {(page.isPending || featured) && (
-          <div className={WIDE_SLOT}>
-            {page.isPending ? (
-              <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
-            ) : (
-              featured && <FeaturedCard item={featured} actions={actions} />
-            )}
-          </div>
+      <div className={NEUTRAL_SURFACE}>
+        {page.isPending ? (
+          <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
+        ) : (
+          featured && <FeaturedCard item={featured} actions={actions} />
         )}
-        {/* The further tools sit beside the tip, on the same columns as the cards above. */}
-        <ul
-          aria-label="Weitere Werkzeuge"
-          className="col-span-2 m-0 grid list-none grid-cols-2 gap-3 p-0 lg:gap-4"
-        >
-          {MORE_TOOLS.map((tool) => (
-            <li key={tool.id}>
-              <ToolCardLink tool={tool} />
-            </li>
-          ))}
-        </ul>
       </div>
       {dialogs}
     </ArbeitenSection>
@@ -266,8 +251,8 @@ export const MEDIA_TOOLS = pickTools([
   { id: 'mediathek', theme: 'canvas-ki' },
 ]);
 
-// Weitere Werkzeuge (beside the Marktplatz tip): one pastel each — teal, coral, soft yellow, blue.
-const MORE_TOOLS = pickTools([
+// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow, blue.
+export const MORE_TOOLS = pickTools([
   { id: 'uebersetzer', theme: 'canvas-vorlagen' },
   { id: 'scanner', theme: 'bild-erweitern' },
   { id: 'zeichenzaehler', theme: 'agents' },

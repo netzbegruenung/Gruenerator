@@ -6,6 +6,7 @@ import { NewContentMenu } from '../../docs/NewContentMenu';
 import {
   BriefingSection,
   MEDIA_TOOLS,
+  MORE_TOOLS,
   MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
@@ -18,7 +19,7 @@ import {
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Grünerator Briefing, Bild & Video, Marktplatz (with the further tools).
+// Zuletzt, Grünerator Briefing, Bild & Video, Marktplatz, Weitere Werkzeuge.
 const ArbeitenTab = () => {
   return (
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
@@ -35,6 +36,7 @@ const ArbeitenTab = () => {
         <BriefingSection />
         <ToolCardsSection title="Bild & Video" tools={MEDIA_TOOLS} data-tour="arbeiten-tools" />
         <MarketplaceSection />
+        <ToolCardsSection title="Weitere Werkzeuge" tools={MORE_TOOLS} />
       </div>
     </PageContainer>
   );
