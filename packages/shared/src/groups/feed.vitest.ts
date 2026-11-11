@@ -232,3 +232,30 @@ describe('toGroupFeedItems — user agents', () => {
     expect(item).toMatchObject({ kind: 'agent', slug: '44444444-4444-4444-8444-444444444444' });
   });
 });
+
+describe('toGroupFeedItems — recipes', () => {
+  it('lists a shared recipe as its own kind, linked by its mention', () => {
+    const items = toGroupFeedItems({
+      recipes: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          mention: 'ov-einladung',
+          title: 'OV-Einladung',
+          description: 'Einladung zur Ortsversammlung',
+          shared_at: '2026-11-11T10:00:00Z',
+        },
+      ],
+    });
+    expect(items).toEqual([
+      expect.objectContaining({
+        key: 'user_text_forms:55555555-5555-4555-8555-555555555555',
+        contentType: 'user_text_forms',
+        kind: 'recipe',
+        title: 'OV-Einladung',
+        excerpt: 'Einladung zur Ortsversammlung',
+        slug: 'ov-einladung',
+      }),
+    ]);
+    expect(groupFeedByKind(items).map((s) => s.plural)).toEqual(['Rezepte']);
+  });
+});

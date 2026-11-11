@@ -349,6 +349,7 @@ export const groupContentTypeSchema = z.enum([
   'user_agents',
   'canvas_template',
   'nextcloud_share_link',
+  'user_text_forms',
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 
@@ -547,6 +548,8 @@ export const groupContentResponseSchema = z.object({
     canvas_templates: groupContentBucketSchema,
     /** Optional: ältere Server liefern den Bucket nicht. */
     group_posts: z.array(groupPostItemSchema).optional(),
+    /** Rezepte (`user_text_forms`). Optional: ältere Server liefern den Bucket nicht. */
+    recipes: groupContentBucketSchema.optional(),
   }),
 });
 export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;

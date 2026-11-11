@@ -5,6 +5,7 @@ import {
   PiChatText,
   PiFile,
   PiFileText,
+  PiNotebook,
   PiImage,
   PiRobot,
   PiSparkle,
@@ -22,6 +23,7 @@ export const FEED_KIND_ICONS: Record<GroupFeedKind, IconType> = {
   board: PiSquaresFour,
   generator: PiSparkle,
   agent: PiRobot,
+  recipe: PiNotebook,
   notebook: PiBookOpen,
   text: PiTextAa,
   template: PiFile,
@@ -46,6 +48,8 @@ export function feedItemHref(item: GroupFeedItem): string | null {
       return `/notebook/${item.id}`;
     case 'agent':
       return `/agentura/agent/${getAgentSlug(item.slug ?? item.id)}`;
+    case 'recipe':
+      return item.slug ? `/agentura/rezept/${encodeURIComponent(item.slug)}` : null;
     case 'document':
       return `/documents/${item.id}`;
     case 'post':

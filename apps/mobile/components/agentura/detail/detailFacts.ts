@@ -1,11 +1,10 @@
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
+import { USER_SELECTABLE_TOOLS, type Agent } from '@gruenerator/shared/agents';
 import {
-  USER_SELECTABLE_TOOLS,
-  agentRef,
-  getAgentSlug,
-  type Agent,
-} from '@gruenerator/shared/agents';
-import { type RecipeSource } from '@gruenerator/shared/grueneratoren';
+  agentSharePath,
+  recipeSharePath,
+  type RecipeSource,
+} from '@gruenerator/shared/grueneratoren';
 
 import { WEB_ORIGIN } from '../../../services/webOrigin';
 
@@ -33,16 +32,13 @@ export function agentKnowledge(agent: AgentFacts): string[] {
   ];
 }
 
-/**
- * Der Link auf die Web-Detailseite. Immer über `agentRef(…, false)`: der Link
- * ist für jemand anderen, und dessen Liste kennt einen fremden Agent nur per uuid.
- */
+/** Der Link auf die Web-Detailseite (`agentSharePath`). */
 export function agentShareUrl(agent: Pick<Agent, 'id' | 'identifier'>): string {
-  return `${WEB_ORIGIN}/agentura/agent/${encodeURIComponent(getAgentSlug(agentRef(agent, false)))}`;
+  return `${WEB_ORIGIN}${agentSharePath(agent)}`;
 }
 
 export function recipeShareUrl(mention: string): string {
-  return `${WEB_ORIGIN}/agentura/rezept/${encodeURIComponent(mention)}`;
+  return `${WEB_ORIGIN}${recipeSharePath(mention)}`;
 }
 
 /**

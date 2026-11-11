@@ -5,6 +5,7 @@ import {
   getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
+import { agentSharePath } from '@gruenerator/shared/grueneratoren';
 import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import { Button, CardGrid } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
@@ -36,6 +37,7 @@ import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
+import { getPublicAppOrigin } from '@/utils/platform';
 
 type TabKey = 'overview' | 'start' | 'caps' | 'related';
 
@@ -112,7 +114,7 @@ function AgentDetailPage() {
     if (isOwnAgent) {
       setShareOpen(true);
     } else {
-      void navigator.clipboard?.writeText(window.location.href);
+      void navigator.clipboard?.writeText(`${getPublicAppOrigin()}${agentSharePath(agent)}`);
     }
   };
 
@@ -215,13 +217,7 @@ function AgentDetailPage() {
         </div>
       )}
 
-      {isOwnAgent && (
-        <ShareAgentModal
-          identifier={agent.identifier}
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-        />
-      )}
+      {isOwnAgent && <ShareAgentModal agent={agent} open={shareOpen} onOpenChange={setShareOpen} />}
 
       <UnderlineTabs tabs={tabDefs} value={tab} onChange={setTab} className="mb-lg" />
 
