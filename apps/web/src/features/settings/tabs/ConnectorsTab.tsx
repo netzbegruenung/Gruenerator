@@ -4,9 +4,7 @@ import { type QueryClient } from '@tanstack/react-query';
 import WebsitesSection, { prefetch as prefetchWebsites } from './WebsitesSection';
 import WolkeSection, { prefetch as prefetchWolke } from './WolkeSection';
 
-import CanvaSection from '@/features/canva/components/CanvaSection';
 import McpSection from '@/features/mcp/components/McpSection';
-import ToolApprovalsSection from '@/features/mcp/components/ToolApprovalsSection';
 import { mcpServersQuery } from '@/features/mcp/hooks/useMcpServers';
 
 const onSuccess = (message: string) => toast.success(message);
@@ -19,8 +17,8 @@ export const prefetch = (queryClient: QueryClient) => {
 };
 
 // Alles, was der Grünerator von außen liest, an einer Stelle. Die Wolke zuerst:
-// sie richten fast alle ein. Die Websites stehen unter den Diensten samt deren
-// Freigaben.
+// sie richten fast alle ein. Die im Chat erteilten „Immer erlauben"-Freigaben
+// stehen unter Datenschutz, nicht hier.
 //
 // This tab is itself lazy-loaded by SettingsDialog, so its sections load with it.
 const ConnectorsTab = () => (
@@ -28,10 +26,8 @@ const ConnectorsTab = () => (
     <WolkeSection />
     <hr className="m-0 border-grey-200 dark:border-grey-700" />
     <McpSection onSuccess={onSuccess} onError={onError} />
-    <ToolApprovalsSection onSuccess={onSuccess} onError={onError} />
     <hr className="m-0 border-grey-200 dark:border-grey-700" />
     <WebsitesSection />
-    {import.meta.env.DEV && <CanvaSection onSuccess={onSuccess} onError={onError} />}
   </div>
 );
 

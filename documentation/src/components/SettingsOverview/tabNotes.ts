@@ -60,6 +60,7 @@ export const TAB_NOTES: TabNote[] = [
     extras: [
       '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
       '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
+      '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
       '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
       'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich.',
     ],
@@ -120,7 +121,7 @@ export const TAB_NOTES: TabNote[] = [
       'Alles, was der Grünerator von außen lesen darf, an einer Stelle: deine Grüne Wolke, weitere Dienste für den Chat und die Websites deines Verbands.',
     extras: [
       '**Grüne Wolke**: Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung.',
-      '**Weitere Dienste** (experimentell): Externe Dienste, die du im Chat per @-Erwähnung ansprichst. Darunter stehen die Werkzeuge, die du dauerhaft ohne Rückfrage erlaubt hast.',
+      '**Weitere Dienste** (experimentell): Externe Dienste, die du im Chat per @-Erwähnung ansprichst.',
       '**Meine Websites**: WordPress-Seiten verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands. Die Kategorien werden einmal abgefragt und stehen danach überall zur Auswahl.',
       'Die Links **/settings/wolke** und **/settings/websites** führen weiterhin hierher — bis zum 11.11.2026 waren das eigene Bereiche.',
     ],
