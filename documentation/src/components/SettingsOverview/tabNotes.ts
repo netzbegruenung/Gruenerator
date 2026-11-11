@@ -101,47 +101,40 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'tagesbriefing',
+    intro:
+      'Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung.',
+    extras: [
+      'Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute.',
+      'Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt.',
+    ],
+  },
+  {
     tab: 'benachrichtigungen',
     intro:
       'Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal.',
   },
   {
-    tab: 'wolke',
-    intro:
-      'Die Verbindung zur Grünen Wolke (Nextcloud). Ist sie eingerichtet, kannst du Dateien von dort direkt im Chat und in den Notebooks nutzen und Ergebnisse dorthin zurückspeichern.',
-  },
-  {
-    tab: 'websites',
-    intro:
-      'Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe.',
-    extras: [
-      'Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist.',
-      'Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl.',
-    ],
-  },
-  {
     tab: 'konnektoren',
     intro:
-      'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
-  },
-  {
-    tab: 'baeume',
-    intro:
-      'Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben.',
+      'Alles, was der Grünerator von außen lesen darf, an einer Stelle: deine Grüne Wolke, weitere Dienste für den Chat und die Websites deines Verbands.',
     extras: [
-      'Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
-      'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
-      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche.',
-      'Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
+      '**Grüne Wolke**: Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung.',
+      '**Weitere Dienste** (experimentell): Externe Dienste, die du im Chat per @-Erwähnung ansprichst. Darunter stehen die Werkzeuge, die du dauerhaft ohne Rückfrage erlaubt hast.',
+      '**Meine Websites**: WordPress-Seiten verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands. Die Kategorien werden einmal abgefragt und stehen danach überall zur Auswahl.',
+      'Die Links **/settings/wolke** und **/settings/websites** führen weiterhin hierher — bis zum 11.11.2026 waren das eigene Bereiche.',
     ],
   },
   {
     tab: 'nutzung',
     intro:
-      'Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen.',
+      'Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe.',
     extras: [
-      'Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf.',
-      'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit.',
+      '**Bäume** sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
+      'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
+      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
+      'Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier.',
+      'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Der Link **/settings/baeume** führt weiterhin hierher.',
     ],
   },
   {

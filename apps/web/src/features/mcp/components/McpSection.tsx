@@ -1180,15 +1180,17 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const hasConnected = connected.length > 0;
 
   return (
-    <div className="mt-xl">
+    <div>
       {/* Header */}
       <div className="flex items-center gap-md">
         <div className="w-[52px] h-[52px] flex-none rounded-[14px] bg-primary-50 border border-primary-100 dark:bg-primary-950/30 dark:border-primary-800 flex items-center justify-center text-primary dark:text-primary-400">
           <FiServer className="w-6 h-6" />
         </div>
         <div className="flex items-center gap-sm flex-wrap">
+          {/* Im Konnektoren-Reiter unter Wolke und Websites — „Konnektoren"
+              hieße hier der ganze Reiter, nicht dieser Abschnitt. */}
           <h2 className="text-2xl font-semibold text-foreground-heading m-0 tracking-tight">
-            Konnektoren
+            Weitere Dienste
           </h2>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 border-secondary-100 dark:bg-secondary-900/30 dark:text-secondary-300 dark:border-secondary-600 text-xs font-semibold border">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />

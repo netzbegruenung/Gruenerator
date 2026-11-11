@@ -536,7 +536,7 @@ export function SettingsSheet() {
               />
               <ListRow
                 icon="sunny-outline"
-                title={getSettingsEntry('erinnerungen.tagesbriefing').title}
+                title={getSettingsEntry('tagesbriefing.schalter').title}
                 value="Übersicht beim ersten Besuch des Tages"
                 accessory={
                   <Switch

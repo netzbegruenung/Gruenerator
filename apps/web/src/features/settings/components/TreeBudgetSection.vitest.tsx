@@ -11,7 +11,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
-import TreesTab from './TreesTab';
+import { TreeBudgetSection } from './TreeBudgetSection';
 
 import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders, screen } from '@/test-utils';
@@ -34,7 +34,7 @@ function serve(body: Record<string, unknown>) {
   server.use(http.get(ENDPOINT, () => HttpResponse.json(body)));
 }
 
-describe('TreesTab', () => {
+describe('TreeBudgetSection', () => {
   it('shows the standard budget and the newsletter pitch, and passes axe', async () => {
     serve({
       used: 2.5,
@@ -43,7 +43,7 @@ describe('TreesTab', () => {
       resetsAt: '2026-09-19T00:00:00.000Z',
       newsletterBonus: false,
     });
-    const { container } = renderWithProviders(<TreesTab />);
+    const { container } = renderWithProviders(<TreeBudgetSection />);
 
     expect(await screen.findByText('7,5 von 10 Bäumen')).toBeInTheDocument();
     expect(screen.getByText(/^Neu um \d{2}:\d{2} Uhr\.$/)).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('TreesTab', () => {
       resetsAt: '2026-09-19T00:00:00.000Z',
       newsletterBonus: true,
     });
-    renderWithProviders(<TreesTab />);
+    renderWithProviders(<TreeBudgetSection />);
 
     expect(await screen.findByText('12 von 15 Bäumen')).toBeInTheDocument();
     expect(screen.getByText('Inklusive 5 Bäume durch dein Newsletter-Abo.')).toBeInTheDocument();
@@ -86,13 +86,13 @@ describe('TreesTab', () => {
       resetsAt: '2026-09-19T00:00:00.000Z',
       newsletterBonus: false,
     });
-    renderWithProviders(<TreesTab />);
+    renderWithProviders(<TreeBudgetSection />);
 
     expect(await screen.findByText('Unbegrenzt')).toBeInTheDocument();
     expect(screen.getByText('Unbegrenzt auf dieser Instanz.')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText('5 Bäume mehr pro Tag')).not.toBeInTheDocument();
     // The cost list still explains what a Baum is worth, budget or not.
-    expect(screen.getByText('1 Tiefenrecherche')).toBeInTheDocument();
+    expect(screen.queryByText('1 Tiefenrecherche')).not.toBeInTheDocument();
   });
 });
