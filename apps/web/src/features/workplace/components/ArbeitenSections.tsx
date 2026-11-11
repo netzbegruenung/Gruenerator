@@ -1,5 +1,4 @@
-import { useUserLandesverbaende } from '@gruenerator/chat';
-import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
+import { type MarketplaceItem } from '@gruenerator/contracts';
 import {
   featureById,
   itemHref,
@@ -8,7 +7,7 @@ import {
 } from '@gruenerator/shared/marketplace';
 import { Button, SectionHeader, cn } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { PiChatCircleText, PiCheck, PiImage, PiPlus, PiSparkle } from 'react-icons/pi';
+import { PiChatCircleText, PiCheck, PiPlus, PiSparkle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import {
@@ -25,17 +24,15 @@ import {
 } from '../../marketplace/useMarketplaceActions';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
-import { NotebookShelfBrowser } from '../../notebook/wissen/NotebookShelf';
 import { PollCard } from '../../notebook/wissen/PollCard';
 import { TrendsCard } from '../../notebook/wissen/TrendsCard';
 import { useWissenNews } from '../../notebook/wissen/useWissenNews';
-import { ASIDE_TITLE, ASIDE_TITLE_LINK, AsideCard } from '../../notebook/wissen/WissenLayout';
+import { AsideCard } from '../../notebook/wissen/WissenLayout';
 
 import { ARBEITEN_GRID } from './arbeitenGrid';
 
 import type { IconType } from '../../../config/icons';
 
-import { DASH_FOCUS, DASH_TINT } from '@/components/dashboard/dashboardStyles';
 import { getToolTheme } from '@/config/toolTheme';
 
 /** Dashboard widgets (Briefing, Marktplatz): wide card first, then two narrow ones. */
@@ -103,23 +100,6 @@ export function BriefingSection() {
   );
 }
 
-export function NotebooksSection() {
-  return (
-    <ArbeitenSection
-      title="Notebooks"
-      action={
-        <Link to="/wissen" className={SECTION_LINK}>
-          Alle Notebooks
-        </Link>
-      }
-    >
-      <div className={cn(NEUTRAL_SURFACE, 'flex flex-col gap-3')}>
-        <NotebookShelfBrowser gridClassName={ARBEITEN_GRID} />
-      </div>
-    </ArbeitenSection>
-  );
-}
-
 function ItemLink({
   item,
   className,
@@ -141,44 +121,14 @@ function ItemLink({
   );
 }
 
-function CardTitle({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <h3 className={ASIDE_TITLE}>
-      <Link to={to} className={ASIDE_TITLE_LINK}>
-        {children}
-      </Link>
-    </h3>
-  );
-}
-
 const SKELETON_BLOCK = 'rounded-xl bg-(--dash-skeleton)';
 
 /** „Zu meinen Grüneratoren" — only for items that aren't the person's own. */
-function SaveButton({
-  item,
-  actions,
-  compact = false,
-}: {
-  item: MarketplaceItem;
-  actions: MarketplaceActions;
-  compact?: boolean;
-}) {
+function SaveButton({ item, actions }: { item: MarketplaceItem; actions: MarketplaceActions }) {
   if (item.isOwn) return null;
   const label = item.saved ? viewOf(item).saveLabel.added : viewOf(item).saveLabel.add;
   const Icon = item.saved ? PiCheck : PiPlus;
-  return compact ? (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-pressed={item.saved}
-      aria-label={`${item.title}: ${label}`}
-      title={label}
-      className="size-9 shrink-0 rounded-full"
-      onClick={() => actions.toggleSave(item)}
-    >
-      <Icon aria-hidden />
-    </Button>
-  ) : (
+  return (
     <Button variant="outline" aria-pressed={item.saved} onClick={() => actions.toggleSave(item)}>
       <Icon aria-hidden />
       {label}
@@ -241,19 +191,7 @@ function FeaturedCard({ item, actions }: { item: MarketplaceItem; actions: Marke
 export function MarketplaceSection() {
   const page = useMarketplaceFrontpage();
   const { actions, dialogs } = useMarketplaceActions();
-  const { lvIds } = useUserLandesverbaende();
-  const hasLv = (lvIds?.length ?? 0) > 0;
-  const shelf = (id: MarketplaceFrontpageShelfId) =>
-    page.data?.shelves.find((s) => s.shelfId === id)?.items ?? [];
-
   const featured = page.data?.featured ?? null;
-  // The own Landesverband first, then everything new; never the featured item twice.
-  const seen = new Set<string>(featured ? [featured.key] : []);
-  const forYou = [...(hasLv ? shelf('landesverband') : []), ...shelf('neu')]
-    .filter((item) => !seen.has(item.key) && seen.add(item.key))
-    .slice(0, 3);
-
-  if (!page.isPending && !featured && forYou.length === 0) return null;
 
   return (
     <ArbeitenSection
@@ -265,57 +203,26 @@ export function MarketplaceSection() {
       }
     >
       <div className={cn(NEUTRAL_SURFACE, WIDGET_GRID)}>
-        <div className={WIDE_SLOT}>
-          {page.isPending ? (
-            <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
-          ) : (
-            featured && <FeaturedCard item={featured} actions={actions} />
-          )}
-        </div>
-        <div className="col-span-2 flex min-w-0 flex-col">
-          <AsideCard aria-label="Neu für dich" aria-busy={page.isPending}>
-            <CardTitle to={marketplaceHref({ sort: 'neu' })}>Neu für dich</CardTitle>
-            <ul className="m-0 flex list-none flex-col gap-2 p-0">
-              {page.isPending
-                ? Array.from({ length: 3 }, (_, i) => (
-                    <li key={i} className={cn(SKELETON_BLOCK, 'h-14')} />
-                  ))
-                : forYou.map((item) => {
-                    const visual = viewOf(item).visual(item);
-                    return (
-                      <li
-                        key={item.key}
-                        className={cn('flex min-w-0 items-center gap-1 rounded-xl pr-1', DASH_TINT)}
-                      >
-                        <ItemLink
-                          item={item}
-                          className={cn(
-                            'flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2.5 no-underline',
-                            DASH_FOCUS
-                          )}
-                        >
-                          <span
-                            aria-hidden
-                            className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-(--dash-card) text-lg text-(--dash-mg)"
-                          >
-                            {visual.type === 'icon' ? visual.icon : <PiImage />}
-                          </span>
-                          <span className="flex min-w-0 flex-col">
-                            <span className="truncate text-[15px] font-semibold text-foreground-heading">
-                              {item.title}
-                            </span>
-                            <span className="truncate text-[13px] text-muted-foreground">
-                              {metaLine(item)}
-                            </span>
-                          </span>
-                        </ItemLink>
-                        <SaveButton item={item} actions={actions} compact />
-                      </li>
-                    );
-                  })}
-            </ul>
-          </AsideCard>
-        </div>
+        {(page.isPending || featured) && (
+          <div className={WIDE_SLOT}>
+            {page.isPending ? (
+              <div className={cn(SKELETON_BLOCK, 'h-56 rounded-[20px]')} />
+            ) : (
+              featured && <FeaturedCard item={featured} actions={actions} />
+            )}
+          </div>
+        )}
+        {/* The further tools sit beside the tip, on the same columns as the cards above. */}
+        <ul
+          aria-label="Weitere Werkzeuge"
+          className="col-span-2 m-0 grid list-none grid-cols-2 gap-3 p-0 lg:gap-4"
+        >
+          {MORE_TOOLS.map((tool) => (
+            <li key={tool.id}>
+              <ToolCardLink tool={tool} />
+            </li>
+          ))}
+        </ul>
       </div>
       {dialogs}
     </ArbeitenSection>
@@ -351,6 +258,7 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
 
 // Bild & Video reads as one family: every card in the Studio lavender.
 export const MEDIA_TOOLS = pickTools([
+  { id: 'canvas-vorlagen', theme: 'canvas-ki' },
   { id: 'profilbild', theme: 'canvas-ki' },
   { id: 'reels-untertitel', theme: 'canvas-ki', title: 'Video' },
   { id: 'studio-voice', theme: 'canvas-ki' },
@@ -358,8 +266,8 @@ export const MEDIA_TOOLS = pickTools([
   { id: 'mediathek', theme: 'canvas-ki' },
 ]);
 
-// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow, blue.
-export const MORE_TOOLS = pickTools([
+// Weitere Werkzeuge (beside the Marktplatz tip): one pastel each — teal, coral, soft yellow, blue.
+const MORE_TOOLS = pickTools([
   { id: 'uebersetzer', theme: 'canvas-vorlagen' },
   { id: 'scanner', theme: 'bild-erweitern' },
   { id: 'zeichenzaehler', theme: 'agents' },

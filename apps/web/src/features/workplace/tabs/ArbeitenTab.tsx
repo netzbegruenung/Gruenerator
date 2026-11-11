@@ -6,9 +6,7 @@ import { NewContentMenu } from '../../docs/NewContentMenu';
 import {
   BriefingSection,
   MEDIA_TOOLS,
-  MORE_TOOLS,
   MarketplaceSection,
-  NotebooksSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
@@ -20,7 +18,7 @@ import {
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Grünerator Briefing, Notebooks, Marktplatz, Bild & Video, Weitere Werkzeuge.
+// Zuletzt, Grünerator Briefing, Bild & Video, Marktplatz (with the further tools).
 const ArbeitenTab = () => {
   return (
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
@@ -35,10 +33,8 @@ const ArbeitenTab = () => {
           </Suspense>
         </div>
         <BriefingSection />
-        <NotebooksSection />
-        <MarketplaceSection />
         <ToolCardsSection title="Bild & Video" tools={MEDIA_TOOLS} data-tour="arbeiten-tools" />
-        <ToolCardsSection title="Weitere Werkzeuge" tools={MORE_TOOLS} />
+        <MarketplaceSection />
       </div>
     </PageContainer>
   );

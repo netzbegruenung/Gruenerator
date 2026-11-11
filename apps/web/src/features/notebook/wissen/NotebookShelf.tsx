@@ -36,6 +36,19 @@ const OPEN_STATE = { freshConversation: true };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Titel und Ziel eines Listeneintrags — geteilt mit dem Notebook-Menü der Seitenleiste. */
+export function shelfEntryLink(entry: ShelfEntry): { title: string; to: string } {
+  switch (entry.kind) {
+    case 'system':
+      return { title: entry.notebook.title, to: entry.notebook.path };
+    case 'own':
+    case 'shared':
+      return { title: entry.collection.name, to: `/notebooks/${collectionSlug(entry.collection)}` };
+    case 'saved':
+      return { title: entry.item.title, to: `/notebooks/${entry.item.notebook.slug}` };
+  }
+}
+
 /** Was ein Listeneintrag zeigt und wohin er führt — je Art an genau einer Stelle. */
 function describeEntry(entry: ShelfEntry): {
   title: string;
@@ -45,42 +58,32 @@ function describeEntry(entry: ShelfEntry): {
   prefetchSlug: string | null;
   action: ReactNode;
 } {
+  const link = shelfEntryLink(entry);
   switch (entry.kind) {
     case 'system':
       return {
-        title: entry.notebook.title,
+        ...link,
         meta: entry.notebook.meta,
-        to: entry.notebook.path,
         prefetchSlug: null,
         action: <FavouriteStar id={entry.notebook.id} size={16} tone="notebook" />,
       };
-    case 'own': {
-      const c = entry.collection;
+    case 'own':
       return {
-        title: c.name,
-        meta: plural(c.document_count, 'Quelle', 'Quellen'),
-        to: `/notebooks/${collectionSlug(c)}`,
-        prefetchSlug: collectionSlug(c),
-        action: <OwnNotebookMenu collection={c} />,
+        ...link,
+        meta: plural(entry.collection.document_count, 'Quelle', 'Quellen'),
+        prefetchSlug: collectionSlug(entry.collection),
+        action: <OwnNotebookMenu collection={entry.collection} />,
       };
-    }
     case 'shared': {
       const c = entry.collection;
       // Der Projektname unterscheidet zwei gleichnamige geteilte Notebooks.
       const via = c.shared_via_groups?.length ? ` via ${c.shared_via_groups.join(', ')}` : '';
-      return {
-        title: c.name,
-        meta: `Geteilt${via}`,
-        to: `/notebooks/${collectionSlug(c)}`,
-        prefetchSlug: collectionSlug(c),
-        action: null,
-      };
+      return { ...link, meta: `Geteilt${via}`, prefetchSlug: collectionSlug(c), action: null };
     }
     case 'saved':
       return {
-        title: entry.item.title,
+        ...link,
         meta: entry.item.authorName ? `Gemerkt · von ${entry.item.authorName}` : 'Gemerkt',
-        to: `/notebooks/${entry.item.notebook.slug}`,
         prefetchSlug: entry.item.notebook.slug,
         action: null,
       };
@@ -301,20 +304,14 @@ const ShelfPanel = memo(function ShelfPanel({ shelf, id }: { shelf: GroupShelf; 
  * `NotebookShelf`, damit Überschrift, „Neues erstellen" und Hinweis beim
  * Auf- und Zuklappen nicht mitrendern.
  */
-function ShelfBrowser({
-  shelves,
-  gridClassName = SHELF_GRID,
-}: {
-  shelves: Shelf[];
-  gridClassName?: string;
-}) {
+function ShelfBrowser({ shelves }: { shelves: Shelf[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const toggle = useCallback((id: string) => setOpenId((cur) => (cur === id ? null : id)), []);
   const panelId = useId();
   const open = shelves.find((s): s is GroupShelf => s.id === openId && s.kind === 'group') ?? null;
   return (
     <>
-      <div className={gridClassName}>
+      <div className={SHELF_GRID}>
         {shelves.map((shelf) => (
           <ShelfTile
             key={shelf.id}
@@ -337,6 +334,8 @@ function ShelfBrowser({
  * ein einzelnes Notebook öffnet direkt.
  */
 export function NotebookShelf() {
+  const { shelves, vectorStoreDown } = useNotebookShelves();
+
   return (
     <ShelfSection
       header={
@@ -350,19 +349,6 @@ export function NotebookShelf() {
         </>
       }
     >
-      <NotebookShelfBrowser />
-    </ShelfSection>
-  );
-}
-
-/**
- * Kacheln, aufgeklappte Liste und Ausfall-Hinweis ohne Kopfzeile — für Seiten,
- * die den Block unter ihrer eigenen Überschrift zeigen (Arbeiten-Tab).
- */
-export function NotebookShelfBrowser({ gridClassName }: { gridClassName?: string }) {
-  const { shelves, vectorStoreDown } = useNotebookShelves();
-  return (
-    <>
       {vectorStoreDown && (
         <div
           role="status"
@@ -375,7 +361,8 @@ export function NotebookShelfBrowser({ gridClassName }: { gridClassName?: string
           </span>
         </div>
       )}
-      <ShelfBrowser shelves={shelves} gridClassName={gridClassName} />
-    </>
+
+      <ShelfBrowser shelves={shelves} />
+    </ShelfSection>
   );
 }

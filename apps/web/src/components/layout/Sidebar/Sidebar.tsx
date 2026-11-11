@@ -32,6 +32,7 @@ import {
 } from '../Header/menuData';
 
 import { NavTooltip } from './NavTooltip';
+import { NotebooksSidebarSection } from './NotebooksSidebarSection';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import { buildRoleShortcuts } from './roleShortcuts';
 import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
@@ -76,6 +77,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
+  const notebooksMenuOpenRef = useRef(false);
   const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -216,7 +218,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
+      if (
+        !accountMenuOpenRef.current &&
+        !projekteMenuOpenRef.current &&
+        !notebooksMenuOpenRef.current &&
+        !roleMenuOpenRef.current
+      ) {
         close();
       }
     },
@@ -430,6 +437,17 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <RoleShortcutsSidebarSection
             shortcuts={roleShortcuts}
             openRef={roleMenuOpenRef}
+            titleClass={titleClass}
+            collapsed={!sidebarExpanded}
+            onNavigate={handleLinkClick}
+            onClose={close}
+          />
+        )}
+
+        {/* Notebooks quick-view popup */}
+        {showQuickViews && (
+          <NotebooksSidebarSection
+            openRef={notebooksMenuOpenRef}
             titleClass={titleClass}
             collapsed={!sidebarExpanded}
             onNavigate={handleLinkClick}
