@@ -24,11 +24,15 @@ import type { IconType } from '../../../config/icons';
 
 import { getToolTheme } from '@/config/toolTheme';
 
-/** Dashboard widgets (Briefing, Marktplatz): wide card first, then two narrow ones. */
-const WIDGET_GRID = 'grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4';
-const WIDE_SLOT = 'col-span-2 flex min-w-0 flex-col lg:col-span-3';
+/**
+ * Briefing widgets: the wide card first, then two narrow ones. One row only
+ * from xl: below that a fifth of the page is too narrow for the poll's party
+ * list, so the news card takes its own row and the two others share the next.
+ */
+const WIDGET_GRID = 'grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-5';
+const WIDE_SLOT = 'col-span-2 flex min-w-0 flex-col xl:col-span-3';
 // The narrow cards take the row height but don't set it — the wide card does.
-const NARROW_SLOT = 'flex min-w-0 flex-col lg:h-0 lg:min-h-full';
+const NARROW_SLOT = 'flex min-w-0 flex-col xl:h-0 xl:min-h-full';
 
 /** The neutral dashboard palette (see dashboardTokens.css) for embedded widgets. */
 const NEUTRAL_SURFACE = 'dashboard-surface dashboard-neutral';
@@ -191,8 +195,12 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
     <>
       <span
         className={cn(
-          'relative z-10 max-w-[55%] text-[15px] font-bold leading-tight hyphens-auto md:text-base',
-          preview ? 'text-foreground-heading' : theme?.title
+          // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
+          'relative z-10 max-w-[56%] text-[15px] font-bold leading-tight text-balance md:text-base',
+          preview
+            ? // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
+              'text-foreground-heading max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
+            : theme?.title
         )}
       >
         {tool.title}
@@ -203,7 +211,9 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
         aria-hidden
         className={cn(
           'absolute -bottom-3 h-20 md:h-24',
-          preview ? 'right-4 w-28 md:w-32' : 'right-1 w-[44%]'
+          preview
+            ? 'right-3 max-sm:-bottom-4 max-sm:h-14 max-sm:w-[4.5rem] sm:right-4 sm:w-28 md:w-32'
+            : 'right-1 w-[44%]'
         )}
       >
         <span

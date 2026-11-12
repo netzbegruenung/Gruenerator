@@ -6,4 +6,5 @@ export const ARBEITEN_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols
 
 /** The quiet text action beside a section title („Ganzes Briefing", „Neu erstellen" …). */
 export const SECTION_LINK =
-  'text-sm font-semibold text-primary-600 no-underline hover:underline dark:text-primary-400';
+  // `touch-target`: the text is 20 px tall, a finger gets the 44 px it needs.
+  'touch-target text-sm font-semibold text-primary-600 no-underline hover:underline dark:text-primary-400';

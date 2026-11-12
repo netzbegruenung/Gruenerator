@@ -1,6 +1,7 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -75,7 +76,8 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
           side={isMobile ? 'bottom' : 'right'}
           align="start"
           sideOffset={8}
-          className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
+          collisionPadding={8}
+          className="max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
         >
           <DropdownMenuLabel>Notebooks</DropdownMenuLabel>
           {shelves.map((shelf) => {
@@ -95,8 +97,28 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
                 <DropdownMenuItem key={shelf.id} onSelect={() => go(CREATE_PATH, 'Neues Notebook')}>
                   <PiNotebook className="size-4" />
                   <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
-                  {shelf.meta && <span className="text-xs text-grey-500">{shelf.meta}</span>}
+                  {shelf.meta && (
+                    <span className="text-xs text-grey-500 max-md:hidden">{shelf.meta}</span>
+                  )}
                 </DropdownMenuItem>
+              );
+            // On a phone a side flyout would open past the screen edge: the group's
+            // notebooks follow inline under their name instead.
+            if (isMobile)
+              return (
+                <DropdownMenuGroup key={shelf.id}>
+                  <DropdownMenuLabel className="pt-3 text-xs font-semibold text-grey-500">
+                    {shelf.title}
+                  </DropdownMenuLabel>
+                  {shelf.entries.map((entry) => {
+                    const { title, to } = shelfEntryLink(entry);
+                    return (
+                      <DropdownMenuItem key={entry.key} onSelect={() => go(to, title)}>
+                        <span className="truncate">{title}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
               );
             return (
               <DropdownMenuSub key={shelf.id}>
