@@ -30,7 +30,7 @@ import {
   type LinkedDocRef,
   type WolkeFolderRef,
 } from '@gruenerator/contracts';
-import { buildNotebookSlug } from '@gruenerator/shared/utils';
+import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -109,6 +109,7 @@ export interface NotebookToolDeps {
     | 'storeNotebookCollection'
     | 'addDocumentsToCollection'
     | 'getCollectionDocuments'
+    | 'getNotebookCollectionBySlugSuffix'
   >;
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   search: (input: NotebookSearchInput) => Promise<NotebookSearchOutcome>;
@@ -150,6 +151,7 @@ const EDIT_POLICY_LABEL: Record<NotebookEditPolicy, string> = {
 };
 
 const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OWNER_ONLY = 'Das kann nur die Eigentümer*in des Notebooks.';
 const NO_EDIT = 'Keine Berechtigung, dieses Notebook zu bearbeiten.';
 
@@ -435,9 +437,10 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       if (!id) return { error: `${action} braucht eine Notebook-ID (id).` };
       const system = systemHandover(id, state.userLocale ?? null);
       if (system) return system;
-      const access = await deps.access(id, userId);
+      const notebookId = await resolveNotebookRef(id);
+      const access = await deps.access(notebookId, userId);
       if (!access.exists || !access.canRead) return { error: NOT_FOUND };
-      const collection = await helper.getNotebookCollection(id);
+      const collection = await helper.getNotebookCollection(notebookId);
       if (!collection) return { error: NOT_FOUND };
 
       if (action === 'get') return getNotebook(collection, access);
@@ -445,7 +448,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       if (action === 'search') {
         const query = args.query?.trim();
         if (!query) return { error: 'search braucht query.' };
-        const outcome = await deps.search({ collectionId: id, query, userId });
+        const outcome = await deps.search({ collectionId: notebookId, query, userId });
         if (!outcome.ok) {
           groundNote(sourceRegistry, `Notebook „${collection.name}"`, outcome.error);
           return { error: outcome.error };
@@ -458,7 +461,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
             content: c.cited_text ?? c.snippet ?? '',
             ...(c.source_url || c.url ? { url: (c.source_url ?? c.url) as string } : {}),
             ...(c.document_id ? { documentId: c.document_id } : {}),
-            collectionId: id,
+            collectionId: notebookId,
           }))
         );
         return {
@@ -479,7 +482,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         if (!access.canEdit) return { error: NO_EDIT };
         const name = args.name?.trim();
         if (!name) return { error: 'rename braucht name.' };
-        await helper.updateNotebookCollection(id, { name });
+        await helper.updateNotebookCollection(notebookId, { name });
         const note = `Notebook in „${name}" umbenannt.`;
         groundNote(sourceRegistry, 'Umbenannt', note);
         return { ok: true, note };
@@ -525,7 +528,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
         return { needsConfirmation: true, note: ask };
       }
-      await helper.trashNotebookCollection(id);
+      await helper.trashNotebookCollection(notebookId);
       const note = `Notebook „${collection.name}" wurde in den Papierkorb verschoben.`;
       groundNote(sourceRegistry, 'Gelöscht', note);
       return { ok: true, note };
@@ -535,6 +538,25 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
   // -------------------------------------------------------------------------
   // get — Details als EIN Quellenblock
   // -------------------------------------------------------------------------
+
+  /**
+   * Die Notebook-Referenz, wie sie andere Werkzeuge ausgeben: UUID, hübscher
+   * Slug oder die URL `/notebooks/<slug>` (so liefert `groups` action=content
+   * ein Projekt-Notebook). Ohne diese Auflösung lief jeder Slug in NOT_FOUND,
+   * und der Chat kam über das Projekt nie an den Inhalt.
+   */
+  async function resolveNotebookRef(ref: string): Promise<string> {
+    const trimmed = ref
+      .trim()
+      .replace(/^.*\/notebooks\//, '')
+      .replace(/[?#].*$/, '');
+    if (UUID_PATTERN.test(trimmed)) return trimmed;
+    const suffix = extractSlugSuffix(trimmed);
+    const bySlug = suffix ? await deps.helper.getNotebookCollectionBySlugSuffix(suffix) : null;
+    // Kein Slug-Treffer: die Referenz bleibt, wie sie kam — die Zugriffsprüfung
+    // danach antwortet dann mit „nicht gefunden".
+    return bySlug?.id ?? trimmed;
+  }
 
   async function getNotebook(
     collection: NotebookCollection,

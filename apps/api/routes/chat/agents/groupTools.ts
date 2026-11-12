@@ -142,7 +142,10 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
         name,
         `/notebooks/${slug ? buildNotebookSlug(name, slug) : id}`,
         'Notebook',
-        str(item, 'description') ?? sharedBy(item)
+        str(item, 'description') ?? sharedBy(item),
+        // Die ID, die `notebooks` (get/search) erwartet — ohne sie riet das
+        // Modell aus der URL und lief in „nicht gefunden".
+        id
       )
     );
   }

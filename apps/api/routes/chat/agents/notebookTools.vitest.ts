@@ -92,6 +92,9 @@ function makeCtx(opts: CtxOptions = {}) {
   const helper = {
     getUserNotebookCollections: vi.fn(async () => opts.collections ?? (row ? [row] : [])),
     getNotebookCollection: vi.fn(async () => row),
+    getNotebookCollectionBySlugSuffix: vi.fn(async (suffix: string) =>
+      suffix === 'A4iT3N' ? { id: 'c0ffee00-0000-4000-8000-000000000001' } : null
+    ),
     updateNotebookCollection: vi.fn(async () => ({ success: true })),
     trashNotebookCollection: vi.fn(async () => 'ok' as const),
     storeNotebookCollection: vi.fn(async () => ({
@@ -824,5 +827,40 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     await run({ action: 'delete', id: 'n1' });
     expect(registry.freshSize).toBe(0);
     expect(registry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
+  });
+});
+
+// Live 12.11.2026: `groups` action=content lieferte ein Projekt-Notebook nur als
+// URL, das Modell gab den Slug als id weiter und lief zweimal in „nicht gefunden".
+describe('Notebook-Referenz als Slug oder URL', () => {
+  const uuid = 'c0ffee00-0000-4000-8000-000000000001';
+
+  it.each([
+    'waermeplanung-musterstadt-hintergrund-A4iT3N',
+    '/notebooks/waermeplanung-musterstadt-hintergrund-A4iT3N',
+  ])('resolves %s to the notebook id', async (ref) => {
+    const { run, deps, helper } = makeCtx();
+    const out = await run({ action: 'get', id: ref });
+    expect(out.error).toBeUndefined();
+    expect(helper.getNotebookCollectionBySlugSuffix).toHaveBeenCalledWith('A4iT3N');
+    expect(deps.access).toHaveBeenCalledWith(uuid, 'user-1');
+  });
+
+  it('searches the resolved notebook, not the slug', async () => {
+    const search = vi.fn(async () => ({ ok: false as const, error: 'leer' }));
+    const { run } = makeCtx({ search });
+    await run({ action: 'search', id: 'hintergrund-A4iT3N', query: 'Klärwerk' });
+    expect(search).toHaveBeenCalledWith({
+      collectionId: uuid,
+      query: 'Klärwerk',
+      userId: 'user-1',
+    });
+  });
+
+  it('passes an unknown slug on unchanged, so the access check answers', async () => {
+    const { run, deps } = makeCtx({ access: { exists: false, canRead: false } as never });
+    const out = await run({ action: 'get', id: 'unbekannt-Zz9yX1' });
+    expect(out.error).toMatch(/nicht gefunden/);
+    expect(deps.access).toHaveBeenCalledWith('unbekannt-Zz9yX1', 'user-1');
   });
 });

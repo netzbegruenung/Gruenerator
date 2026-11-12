@@ -24,6 +24,10 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
+import {
+  type GroupContentBuckets,
+  hydrateGroupContent,
+} from '../../../services/groups/groupContent.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -92,14 +96,16 @@ export async function getSpaceRecallScope(
   const db = getPostgresInstance();
   try {
     const rows = (await db.query(
-      `SELECT g.id, g.name
+      `SELECT g.id, g.name,
+              EXISTS (SELECT 1 FROM group_memberships gm
+                       WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE) AS is_member
        FROM chat_threads t
        JOIN groups g ON g.id = t.group_id
        WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL AND g.deleted_at IS NULL
          AND COALESCE(g.is_active, TRUE) = TRUE
        LIMIT 1`,
       [threadId, userId]
-    )) as Array<{ id: string; name: string }>;
+    )) as Array<{ id: string; name: string; is_member: boolean }>;
     if (rows.length === 0) return null;
     const space = rows[0];
 
@@ -113,15 +119,68 @@ export async function getSpaceRecallScope(
       siblings.length > 0
         ? siblings.map((s) => `- ${s.title || 'Unbenannter Chat'}`).join('\n')
         : '- (noch keine weiteren Chats)';
+    // Was im Projekt geteilt ist, gehört zum Projekt-Kontext: ohne diese Zeilen
+    // wusste das Modell im Projekt-Chat nur von den anderen Chats und schrieb
+    // eine Projekt-Pressemitteilung ohne eine Zahl aus dem Projektwissen.
+    // Nur für aktive Mitglieder — wer das Projekt verlassen hat, behält den
+    // Chat, aber nicht den Zugriff auf dessen Inhalte.
+    const content = space.is_member
+      ? await hydrateGroupContent(space.id, userId).catch((err: unknown) => {
+          log.warn(`[Recall] space content failed: ${err}`);
+          return null;
+        })
+      : null;
     const rosterBlock =
       `## SPACE: ${space.name}\n` +
       `Dieser Chat liegt im Projekt „${space.name}". Enthaltene weitere Chats:\n${list}\n` +
-      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.`;
+      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.` +
+      formatSpaceContentBlock(content);
     return { spaceName: space.name, threadIds, rosterBlock };
   } catch (err) {
     log.warn(`[Recall] getSpaceRecallScope failed: ${err}`);
     return null;
   }
+}
+
+const SPACE_CONTENT_MAX = 8;
+
+/**
+ * Notebooks und Rezepte, die im Projekt geteilt sind — mit dem Schlüssel, den
+ * das jeweilige Werkzeug erwartet (Notebook-ID für `notebooks`, Erwähnung für
+ * `rezept_laden`). Leer, wenn nichts davon geteilt ist.
+ */
+export function formatSpaceContentBlock(content: GroupContentBuckets | null): string {
+  if (!content) return '';
+  const str = (item: Record<string, unknown>, key: string): string | null => {
+    const v = item[key];
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  };
+  const notebooks = content.notebooks
+    .flatMap((n) => {
+      const id = str(n, 'id');
+      return id ? [`- „${str(n, 'name') ?? 'Notebook'}" (id: ${id})`] : [];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
+  const recipes = content.recipes
+    .flatMap((r) => {
+      const mention = str(r, 'mention');
+      return mention ? [`- „${str(r, 'title') ?? mention}" (Kennung: ${mention})`] : [];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
+  const parts: string[] = [];
+  if (notebooks.length > 0) {
+    parts.push(
+      `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +
+        `Fragen zum Projekt und Fakten für Texte des Projekts holst du zuerst hier: \`notebooks\` action="search" mit der id.`
+    );
+  }
+  if (recipes.length > 0) {
+    parts.push(
+      `\nRezepte dieses Projekts:\n${recipes.join('\n')}\n` +
+        `Passt eines zur Textsorte, lädst du es mit \`rezept_laden\` und der Kennung.`
+    );
+  }
+  return parts.join('\n');
 }
 
 export interface OfficeDocHit {
