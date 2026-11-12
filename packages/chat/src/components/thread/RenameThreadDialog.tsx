@@ -4,7 +4,7 @@ import { useAui } from '@assistant-ui/react';
 import { isToastEvent } from '@gruenerator/ui';
 import { Pencil, X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
-import { type FormEvent, memo, useEffect, useRef, useState } from 'react';
+import { type FormEvent, memo, useRef, useState } from 'react';
 
 import { auiPromise } from '../../lib/auiAsync';
 
@@ -27,16 +27,12 @@ export const RenameThreadDialog = memo(function RenameThreadDialog({
 }: RenameThreadDialogProps) {
   const aui = useAui();
   const inputRef = useRef<HTMLInputElement>(null);
+  // Seeded once: the caller mounts the dialog per opening. No resync from
+  // `initialTitle` while open — it tracks the live title, and a generated
+  // title landing mid-edit would overwrite what the person is typing.
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(initialTitle);
-      setErrorMsg(null);
-    }
-  }, [open, initialTitle]);
 
   const trimmed = title.trim();
 

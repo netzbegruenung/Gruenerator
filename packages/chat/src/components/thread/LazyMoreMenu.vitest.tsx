@@ -12,6 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GrueneratorChatRuntimeProvider } from '../../runtime/GrueneratorChatRuntime';
+import { requestThreadListReload } from '../../runtime/GrueneratorThreadListAdapter';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import { GrueneratorThreadListItem } from './ThreadListItem';
@@ -40,9 +41,11 @@ function makeThreads(count: number) {
 }
 
 const fetchCalls: Array<{ url: string; method: string; body: unknown }> = [];
+/** What `list()` returns; tests mutate it to simulate a server-side change. */
+let threads: ReturnType<typeof makeThreads> = [];
 
 function configureFetch(count: number) {
-  const threads = makeThreads(count);
+  threads = makeThreads(count);
   fetchCalls.length = 0;
   const json = (body: unknown) =>
     new Response(JSON.stringify(body), {
@@ -153,6 +156,9 @@ describe('LazyMoreMenu — Thread-Zeilen-Menü wird erst bei Bedarf gemountet', 
 describe('Thread-Zeilen-Menü — Einträge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    // A Radix dialog closed by the previous test can leave `pointer-events:
+    // none` on body until its layer unmounts asynchronously.
+    document.body.style.removeProperty('pointer-events');
   });
 
   it('führt Archivieren und Löschen als Menüeinträge (Pfeiltasten erreichen sie)', async () => {
@@ -184,5 +190,23 @@ describe('Thread-Zeilen-Menü — Einträge', () => {
     );
     expect(patch?.body).toEqual({ threadId: makeThreads(1)[0]!.id, title: 'Tempo 30' });
     expect(await screen.findByText('Tempo 30')).toBeInTheDocument();
+  });
+
+  it('lässt eine laufende Eingabe stehen, wenn währenddessen ein neuer Titel ankommt', async () => {
+    const { user, trigger } = await renderRows(3);
+    await user.click(trigger);
+    await user.click(await screen.findByRole('menuitem', { name: 'Umbenennen' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Unterhaltung umbenennen' });
+    const input = within(dialog).getByLabelText('Name der Unterhaltung');
+    await user.clear(input);
+    await user.type(input, 'Mein Titel');
+
+    // The server's generated title lands while the dialog is open.
+    threads[0]!.title = 'Generierter Titel';
+    requestThreadListReload();
+    expect(await screen.findByText('Generierter Titel')).toBeInTheDocument();
+
+    expect(input).toHaveValue('Mein Titel');
   });
 });
