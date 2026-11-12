@@ -9,7 +9,6 @@ import {
   Suggestions,
   useRemoteThreadListRuntime,
   type RemoteThreadListAdapter,
-  RuntimeAdapterProvider,
   ExportedMessageRepository,
   McpAppRenderer,
   McpAppsRemoteHost,
@@ -19,21 +18,13 @@ import {
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { QueryClientContext } from '@tanstack/react-query';
-import {
-  type ReactNode,
-  useMemo,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  type PropsWithChildren,
-} from 'react';
+import { type ReactNode, useMemo, useCallback, useContext, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
-import { createChatApiClient } from '../context/ChatContext';
+import { chatApiClient, createChatApiClient } from '../context/ChatContext';
 import { ChatNavigationProvider, type ChatNavigateOptions } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
@@ -65,6 +56,7 @@ import {
 } from './GrueneratorThreadListAdapter';
 import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import { splitLiveTurn } from './resumableStream';
+import { useShimEffect, useShimMemo, useShimRef } from './tapReactShim';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { ThreadListReloadListener } from './ThreadListReloadListener';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
@@ -73,27 +65,34 @@ import { insertSavedMessage, reloadSavedThread } from './voiceThreadSync';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
-function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
+/**
+ * Per-thread history + attachment adapters (`unstable_useAdapters`).
+ *
+ * Runs inside an assistant-ui tap resource, not a React component: hooks come
+ * from `./tapReactShim`, and zustand selector hooks are not available — the
+ * chat config is read from the store on each call instead.
+ * `aui` goes through a ref so every call sees the current `threadListItem`
+ * (resolve lazily, never capture at mount).
+ */
+export function useGrueneratorThreadAdapters() {
   const aui = useAui();
-  const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
-  const fetchFn = useChatConfigStore((s) => s.fetch);
-  const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
-  const endpoints = useChatConfigStore((s) => s.endpoints);
-  const apiClient = useMemo(
-    () => createChatApiClient(fetchFn, onUnauthorized),
-    [fetchFn, onUnauthorized]
-  );
+  const auiRef = useShimRef(aui);
+  useShimEffect(() => {
+    auiRef.current = aui;
+  });
+  const attachmentAdapter = useShimMemo(() => new GrueneratorAttachmentAdapter(), []);
 
   // A turn still running when the thread loaded: load() takes it out of the
   // history and asks the runtime to resume, resume() re-attaches to it.
-  const pendingResume = useRef<{ streamId: string; partialText: string } | null>(null);
+  const pendingResume = useShimRef<{ streamId: string; partialText: string } | null>(null);
 
-  const history = useMemo(
+  const history = useShimMemo(
     () => ({
       async load() {
+        const { endpoints } = useChatConfigStore.getState();
         let remoteId: string | null;
         try {
-          const itemState = aui.threadListItem.getState();
+          const itemState = auiRef.current.threadListItem.getState();
           remoteId = itemState.status === 'new' ? null : (itemState.remoteId ?? null);
         } catch (err) {
           console.warn('[History] Thread entry not available (likely deleted):', err);
@@ -127,7 +126,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
           // response from the thread the user just left landed after the runtime
           // had settled elsewhere — and the URL then followed the wrong one.
           try {
-            const loaded = await apiClient.get<LoadedMessage[]>(
+            const loaded = await chatApiClient.get<LoadedMessage[]>(
               `${endpoints.messages}?threadId=${remoteId}`
             );
             const { rows: msgs, live } = splitLiveTurn(loaded);
@@ -184,18 +183,16 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
         if (live) yield* resumeChatTurn(live.streamId, live.partialText, options);
       },
     }),
-    [aui, apiClient, endpoints.messages]
+    [auiRef]
   );
 
-  const adapters = useMemo(
+  return useShimMemo(
     () => ({
       history,
       attachments: attachmentAdapter,
     }),
     [history, attachmentAdapter]
   );
-
-  return <RuntimeAdapterProvider adapters={adapters}>{children}</RuntimeAdapterProvider>;
 }
 
 function useGrueneratorThreadRuntime() {
@@ -548,7 +545,7 @@ export function GrueneratorChatRuntimeProvider({
     });
     return {
       ...base,
-      unstable_Provider: GrueneratorHistoryProvider,
+      unstable_useAdapters: useGrueneratorThreadAdapters,
     } satisfies RemoteThreadListAdapter;
   }, [providerApiClient]);
 
