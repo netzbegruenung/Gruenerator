@@ -167,12 +167,35 @@ export function formatSpaceContentBlock(content: GroupContentBuckets | null): st
       return mention ? [`- „${str(r, 'title') ?? mention}" (Kennung: ${mention})`] : [];
     })
     .slice(0, SPACE_CONTENT_MAX);
+  const files = content.documents
+    .flatMap((d) => {
+      const name = str(d, 'title') ?? str(d, 'filename');
+      if (!name) return [];
+      // Nur fertig eingelesene Dateien kann `dokumente_lesen` abrufen. Eine
+      // gescheiterte Datei wird nie fertig — „wird noch eingelesen" hieße
+      // dort, für immer auf sie zu warten.
+      const status = str(d, 'status');
+      const note =
+        status === 'completed'
+          ? ''
+          : status === 'failed'
+            ? ' (konnte nicht eingelesen werden — bitte erneut hochladen)'
+            : ' (wird noch eingelesen)';
+      return [`- „${name}"${note}`];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
   const parts: string[] = [];
   if (notebooks.length > 0) {
     parts.push(
       `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +
         `Fragen zum Projekt beantwortest du zuerst hieraus: \`notebooks\` action="search" mit der id.\n` +
         `Schreibst du einen Text zum Thema des Projekts (Pressemitteilung, Rede, Post, Antrag …), suchst du VOR dem Schreiben dort nach Fakten zum konkreten Anlass und baust Zahlen, Namen und Termine daraus ein — statt sie offenzulassen oder eine „Studie" zu fordern, deren Ergebnis schon im Projekt steht.`
+    );
+  }
+  if (files.length > 0) {
+    parts.push(
+      `\nDateien dieses Projekts:\n${files.join('\n')}\n` +
+        `Sie hängen an jedem Turn dieses Chats. Fragen zu ihrem Inhalt beantwortest du mit \`dokumente_lesen\` (Dateiname als Eingrenzung), nicht aus dem Gedächtnis.`
     );
   }
   if (recipes.length > 0) {
