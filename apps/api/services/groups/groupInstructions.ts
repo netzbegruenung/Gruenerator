@@ -72,16 +72,34 @@ export async function setProjectInstructions(
   return trimmed ? toResult(row) : EMPTY;
 }
 
+export interface ThreadProjectInstructions {
+  projectName: string;
+  text: string;
+}
+
 /**
- * Für den Chat-Kontext: der Text eines Projekts, ohne Mitgliedsprüfung — der
- * Aufrufer (`getSpaceRecallScope`) hat sie schon gemacht.
+ * Die Anweisungen des Projekts, in dem ein Chat liegt — für den Systemprompt.
+ * Nur der eigene Chat (wie der Projekt-Block in `getSpaceRecallScope`), nur
+ * für aktive Mitglieder, nur ein nicht gelöschtes Projekt. `null`, wenn der
+ * Chat in keinem Projekt liegt oder es keine Anweisungen gibt.
  */
-export async function readProjectInstructionsText(groupId: string): Promise<string> {
+export async function readThreadProjectInstructions(
+  threadId: string,
+  userId: string
+): Promise<ThreadProjectInstructions | null> {
   const row = (await getPostgresInstance().queryOne(
-    `SELECT custom_prompt FROM group_instructions
-      WHERE group_id = $1::uuid AND COALESCE(is_active, TRUE) = TRUE
-        AND COALESCE(instructions_enabled, FALSE) = TRUE`,
-    [groupId]
-  )) as { custom_prompt: string | null } | null;
-  return row?.custom_prompt?.trim() ?? '';
+    `SELECT g.name, gi.custom_prompt
+       FROM chat_threads t
+       JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
+         AND COALESCE(g.is_active, TRUE) = TRUE
+       JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid
+         AND gm.is_active = TRUE
+       JOIN group_instructions gi ON gi.group_id = g.id
+         AND COALESCE(gi.is_active, TRUE) = TRUE
+         AND COALESCE(gi.instructions_enabled, FALSE) = TRUE
+      WHERE t.id = $1::uuid AND t.user_id = $2::uuid AND t.deleted_at IS NULL`,
+    [threadId, userId]
+  )) as { name: string; custom_prompt: string | null } | null;
+  const text = row?.custom_prompt?.trim() ?? '';
+  return row && text ? { projectName: row.name, text } : null;
 }
