@@ -1,7 +1,7 @@
 // Contiguous tool-call runs, derived from the message parts.
 //
-// Web gets the run boundaries handed to it by assistant-ui's `ToolGroup` slot
-// (`startIndex`/`endIndex`). `@assistant-ui/react-native` has no such slot, so
+// Web gets the runs handed to it by assistant-ui's `MessagePrimitive.GroupedParts`
+// (the `group-tool` node's `indices`). `@assistant-ui/react-native` has no such primitive, so
 // mobile has to find the run itself — which is all this does, so that both
 // platforms then feed the SAME `computeToolGroupView` and can't disagree about
 // when a run collects under a header or collapses.

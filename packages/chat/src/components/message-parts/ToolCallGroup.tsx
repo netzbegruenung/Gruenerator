@@ -1,8 +1,8 @@
 'use client';
 
-import { type MessagePrimitive, useAuiState } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/react';
 import { ChevronDown } from 'lucide-react';
-import { useMemo, useState, type ComponentProps } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { computeToolGroupView } from '../../lib/narrationView';
@@ -10,11 +10,6 @@ import { toolCountLabel } from '../../lib/toolMappings';
 import { visibleToolNames } from '../../lib/toolStatusLine';
 
 import { ShimmerText } from './ShimmerText';
-
-/** Derived from the `MessagePrimitive.Parts` slot so the props can't drift. */
-type ToolGroupComponent = NonNullable<
-  NonNullable<ComponentProps<typeof MessagePrimitive.Parts>['components']>['ToolGroup']
->;
 
 /**
  * Boundary cast target for message parts: `parentId` is our own run-stamp
@@ -42,10 +37,20 @@ const NAME_SEPARATOR = '';
  *     the full narration+card transcript (nothing is discarded).
  * Single-tool turns and short finished runs get no group chrome.
  *
- * Wired as `MessagePrimitive.Parts`' `components.ToolGroup`; `children` is the
- * already-rendered card stack (ToolCallUI + ToolNarration), untouched.
+ * Rendered for the `group-tool` node of `MessagePrimitive.GroupedParts`
+ * (AssistantMessage); `indices` are that run's part indices, always one
+ * contiguous range. `children` is the already-rendered card stack
+ * (ToolCallUI + ToolNarration), untouched.
  */
-export const ToolCallGroup: ToolGroupComponent = ({ startIndex, endIndex, children }) => {
+export function ToolCallGroup({
+  indices,
+  children,
+}: {
+  indices: readonly number[];
+  children: ReactNode;
+}) {
+  const startIndex = indices[0] ?? 0;
+  const endIndex = indices[indices.length - 1] ?? -1;
   const [isExpanded, setIsExpanded] = useState(false);
 
   // The selector must return only primitives: `useShallow` compares one level
@@ -124,4 +129,4 @@ export const ToolCallGroup: ToolGroupComponent = ({ startIndex, endIndex, childr
       )}
     </div>
   );
-};
+}
