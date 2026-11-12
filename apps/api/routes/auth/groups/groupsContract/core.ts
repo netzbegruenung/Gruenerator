@@ -14,6 +14,10 @@ import { getPostgresInstance } from '../../../../database/services/PostgresServi
 import { closeGroupCollabRooms } from '../../../../services/collab/collabRooms.js';
 import { sendGroupInviteEmail } from '../../../../services/email/index.js';
 import {
+  getProjectInstructions,
+  setProjectInstructions,
+} from '../../../../services/groups/groupInstructions.js';
+import {
   createGroupForUser,
   joinGroupByToken,
   updateGroupInfo,
@@ -357,6 +361,36 @@ export const coreRoutes = {
         status: 500 as const,
         body: { success: false as const, message: 'Fehler beim Aktualisieren der Gruppendetails.' },
       };
+    }
+  }),
+
+  getGroupInstructions: s.route(groupsContract.getGroupInstructions, async (args) => {
+    try {
+      const result = await getProjectInstructions(args.params.groupId, getUserId(args.req));
+      return { status: 200 as const, body: { success: true as const, ...result } };
+    } catch (error) {
+      return groupErrorResponse(
+        'getGroupInstructions',
+        'Fehler beim Laden der Anweisungen.',
+        error
+      );
+    }
+  }),
+
+  setGroupInstructions: s.route(groupsContract.setGroupInstructions, async (args) => {
+    try {
+      const result = await setProjectInstructions(
+        args.params.groupId,
+        getUserId(args.req),
+        args.body.instructions
+      );
+      return { status: 200 as const, body: { success: true as const, ...result } };
+    } catch (error) {
+      return groupErrorResponse(
+        'setGroupInstructions',
+        'Fehler beim Speichern der Anweisungen.',
+        error
+      );
     }
   }),
 
