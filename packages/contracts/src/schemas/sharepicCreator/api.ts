@@ -118,6 +118,16 @@ export type SharepicNextSeiteResponse = z.infer<typeof sharepicNextSeiteResponse
 export const sharepicReviewModeSchema = z.enum(['draft', 'edit']);
 export type SharepicReviewMode = z.infer<typeof sharepicReviewModeSchema>;
 
+/**
+ * What a chat turn ordered, sent with the sharepic it made (`sharepic_complete`):
+ * the browser reviews the rendered sharepic against it, as the studio does.
+ */
+export const sharepicChatReviewSchema = z.object({
+  brief: z.string().trim().min(1).max(SHAREPIC_PROMPT_MAX),
+  mode: sharepicReviewModeSchema,
+});
+export type SharepicChatReview = z.infer<typeof sharepicChatReviewSchema>;
+
 export const sharepicReviewBodySchema = z.object({
   spec: sharepicSpecSchema,
   prompt: z.string().trim().min(1).max(SHAREPIC_PROMPT_MAX),

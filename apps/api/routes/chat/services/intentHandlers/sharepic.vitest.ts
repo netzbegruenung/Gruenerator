@@ -144,6 +144,7 @@ describe('runSharepicGeneration', () => {
     expect(send).toHaveBeenCalledWith('sharepic_complete', {
       message: 'Sharepic entworfen',
       variants: [REVISED],
+      review: { brief: 'Headline kürzer', mode: 'edit' },
     });
   });
 
