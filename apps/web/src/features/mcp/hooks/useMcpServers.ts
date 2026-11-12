@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MCP_SERVER_MENTIONS_QUERY_KEY } from '@gruenerator/chat';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchMcpServers,
@@ -27,6 +28,17 @@ export const mcpServersQuery = {
   staleTime: 30_000,
 };
 
+/**
+ * Refresh everything that lists the person's servers: the settings list AND the
+ * chat's @mention list. The settings are a dialog over the chat, so without the
+ * second key a freshly added server only became mentionable once the composer
+ * remounted after its stale time — which looked like "first click Testen".
+ */
+export function invalidateMcpServers(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
+  void queryClient.invalidateQueries({ queryKey: MCP_SERVER_MENTIONS_QUERY_KEY });
+}
+
 export function useMcpServers() {
   return useQuery<McpServerSummary[]>(mcpServersQuery);
 }
@@ -35,7 +47,7 @@ export function useCreateMcpServer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: McpServerCreateInput) => createMcpServer(input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
+    onSuccess: () => invalidateMcpServers(queryClient),
   });
 }
 
@@ -44,7 +56,7 @@ export function useUpdateMcpServer() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof updateMcpServer>[1] }) =>
       updateMcpServer(id, patch),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
+    onSuccess: () => invalidateMcpServers(queryClient),
   });
 }
 
@@ -52,13 +64,16 @@ export function useDeleteMcpServer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteMcpServer(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
+    onSuccess: () => invalidateMcpServers(queryClient),
   });
 }
 
 export function useTestMcpServer() {
+  const queryClient = useQueryClient();
   return useMutation<McpServerTestResult, Error, string>({
     mutationFn: (id: string) => testMcpServer(id),
+    // A successful test writes the tool snapshot the row's tool list reads.
+    onSuccess: () => invalidateMcpServers(queryClient),
   });
 }
 
@@ -66,7 +81,7 @@ export function useApproveMcpServerTools() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => approveMcpServerTools(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
+    onSuccess: () => invalidateMcpServers(queryClient),
   });
 }
 
@@ -77,5 +92,3 @@ export function useMcpRegistry(search: string) {
     staleTime: 5 * 60_000,
   });
 }
-
-export { mcpKeys };
