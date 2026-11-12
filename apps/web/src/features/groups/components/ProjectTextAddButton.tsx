@@ -22,6 +22,9 @@ interface ProjectTextAddButtonProps {
   groupId: string;
   onAdded: () => void;
   onError: (message: string) => void;
+  /** Controlled mode (the „Hinzufügen" menu opens it): no own button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface AddTextResponse {
@@ -34,8 +37,20 @@ interface AddTextResponse {
  * (`POST /documents/add-text`, sofort `completed`) und im selben Zug als
  * `documents` ins Projekt geteilt — es verhält sich wie eine hochgeladene Datei.
  */
-export function ProjectTextAddButton({ groupId, onAdded, onError }: ProjectTextAddButtonProps) {
-  const [open, setOpen] = useState(false);
+export function ProjectTextAddButton({
+  groupId,
+  onAdded,
+  onError,
+  open: controlledOpen,
+  onOpenChange,
+}: ProjectTextAddButtonProps) {
+  const [innerOpen, setInnerOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : innerOpen;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setInnerOpen(next);
+    onOpenChange?.(next);
+  };
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,14 +88,16 @@ export function ProjectTextAddButton({ groupId, onAdded, onError }: ProjectTextA
 
   return (
     <>
-      <Button
-        variant="outline"
-        onClick={() => setOpen(true)}
-        className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
-      >
-        <PiTextT aria-hidden />
-        <span className="max-sm:sr-only">Text hinzufügen</span>
-      </Button>
+      {!controlled && (
+        <Button
+          variant="outline"
+          onClick={() => setOpen(true)}
+          className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+        >
+          <PiTextT aria-hidden />
+          <span className="max-sm:sr-only">Text hinzufügen</span>
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
         <DialogContent className="sm:max-w-[34rem]">

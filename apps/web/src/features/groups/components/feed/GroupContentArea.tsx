@@ -1,24 +1,19 @@
-import { filterGroupFeed, type GroupFeedItem, type GroupMember } from '@gruenerator/shared/groups';
 import {
-  Button,
-  cn,
-  LoadingSection,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@gruenerator/ui';
+  filterGroupFeed,
+  isPinned,
+  type GroupFeedItem,
+  type GroupMember,
+} from '@gruenerator/shared/groups';
+import { cn, LoadingSection, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { PiMagnifyingGlass, PiPlus, PiUsers } from 'react-icons/pi';
+import { PiMagnifyingGlass } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 
-import { GroupAllView } from './GroupAllView';
 import { GroupComposer } from './GroupComposer';
 import { GroupFeedCard } from './GroupFeedCard';
 import { GroupMentionProvider } from './GroupMentions';
-import { GroupSidebar } from './GroupSidebar';
 
-type View = 'feed' | 'all';
+type View = 'uebersicht' | 'austausch';
 
 interface GroupContentAreaProps {
   groupId: string;
@@ -31,9 +26,6 @@ interface GroupContentAreaProps {
   currentUserId: string | null;
   currentUserName: string | null;
   members: GroupMember[];
-  description: string | null;
-  linkCount: number;
-  onShowMembers: () => void;
   /**
    * Teilen-Dialog; `note` kommt aus dem Composer („Aus meinen Inhalten").
    * null: the viewer may not share here (system group, non-admin).
@@ -42,8 +34,11 @@ interface GroupContentAreaProps {
   onRemove: ((item: GroupFeedItem) => void) | null;
   onUseTemplate: (id: string) => void;
   cloningId: string | null;
-  /** Links und Chats — unten in „Alle". */
-  extraAllSections: ReactNode;
+  /**
+   * Chats, Wissen, Mitglieder — die Seite, die man zuerst sieht. `onDiscuss`
+   * holt ein Wissen-Element in den Austausch (null: es gibt keinen Austausch).
+   */
+  overview: (ctx: { onDiscuss: ((item: GroupFeedItem) => void) | null }) => ReactNode;
 }
 
 const pillCls = cn(
@@ -62,20 +57,23 @@ export function GroupContentArea({
   currentUserId,
   currentUserName,
   members,
-  description,
-  linkCount,
-  onShowMembers,
   onOpenShare,
   onRemove,
   onUseTemplate,
   cloningId,
-  extraAllSections,
+  overview,
 }: GroupContentAreaProps) {
   const [searchParams] = useSearchParams();
-  const focusShareId = searchParams.get('beitrag');
-  const [view, setView] = useState<View>(isPersonal ? 'all' : 'feed');
+  const linkedShareId = searchParams.get('beitrag');
+  const hasAustausch = !isPersonal;
+  // Die System-Gruppe lebt von den Beiträgen der Admins; sonst ist die Übersicht der Einstieg.
+  const [view, setView] = useState<View>(
+    hasAustausch && (linkedShareId || isSystem) ? 'austausch' : 'uebersicht'
+  );
+  const [focusShareId, setFocusShareId] = useState<string | null>(linkedShareId);
+  // Wissen-Elemente, die jemand aus der Liste in den Austausch geholt hat.
+  const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState('');
-  const [infoOpen, setInfoOpen] = useState(false);
 
   const mentionOptions = useMemo(
     () => ({
@@ -90,158 +88,124 @@ export function GroupContentArea({
     [members, currentUserId, isSystem, onOpenShare]
   );
 
-  const visible = filterGroupFeed(items, query);
+  // Der Austausch zeigt, was besprochen wird: Beiträge und Freigaben mit Notiz,
+  // Anheftung, Reaktionen oder Kommentaren — plus, was gerade angesteuert wird.
+  // Alles andere ist Wissen und steht in der Liste der Übersicht.
+  const austauschItems = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          i.kind === 'post' ||
+          isPinned(i) ||
+          !!i.share?.note ||
+          (i.share?.commentCount ?? 0) > 0 ||
+          (i.share?.reactions.length ?? 0) > 0 ||
+          (!!i.share && (discussed.has(i.share.shareId) || i.share.shareId === focusShareId))
+      ),
+    [items, discussed, focusShareId]
+  );
+  const visible = filterGroupFeed(austauschItems, query);
   const hasQuery = query.trim().length > 0;
 
-  // Aus einer Benachrichtigung (`?beitrag=<shareId>`): zum Beitrag scrollen.
+  // Aus einer Benachrichtigung (`?beitrag=<shareId>`) oder „Im Austausch besprechen": hinscrollen.
   useEffect(() => {
-    if (!focusShareId || isLoading) return;
+    if (!focusShareId || isLoading || view !== 'austausch') return;
     document.getElementById(`beitrag-${focusShareId}`)?.scrollIntoView({ block: 'start' });
-  }, [focusShareId, isLoading]);
+  }, [focusShareId, isLoading, view]);
 
-  const sidebar = !isPersonal && (
-    <GroupSidebar
-      description={description}
-      isPersonal={isPersonal}
-      members={members}
-      items={items}
-      linkCount={linkCount}
-      onShowMembers={onShowMembers}
-      onJumpToSection={(anchor) => {
+  const onDiscuss = hasAustausch
+    ? (item: GroupFeedItem) => {
+        const shareId = item.share?.shareId;
+        if (!shareId) return;
+        setDiscussed((prev) => new Set(prev).add(shareId));
+        setFocusShareId(shareId);
         setQuery('');
-        setView('all');
-        // „Alle" ist erst nach dem Commit gemountet.
-        requestAnimationFrame(() =>
-          document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        );
-      }}
-    />
-  );
+        setView('austausch');
+      }
+    : null;
+
+  if (!hasAustausch) {
+    return isLoading ? (
+      <LoadingSection label="Inhalte werden geladen …" />
+    ) : (
+      overview({ onDiscuss })
+    );
+  }
 
   const empty = hasQuery ? (
     <div className="flex flex-col items-center gap-1.5 py-2xl text-center">
       <h2 className="m-0 text-xl font-semibold">Nichts gefunden</h2>
       <p className="m-0 text-[15px] text-muted-foreground">
-        Kein Inhalt passt zu „{query.trim()}“.
+        Kein Beitrag passt zu „{query.trim()}“.
       </p>
     </div>
   ) : (
-    <div className="flex flex-col items-center gap-sm py-2xl text-center">
-      <p className="m-0 text-[15px] text-muted-foreground">
-        {isPersonal ? 'In diesem Projekt liegt noch nichts.' : 'Noch nichts geteilt.'}
-      </p>
-      {onOpenShare && (
-        <Button variant="brand-outline" onClick={() => onOpenShare()}>
-          <PiPlus aria-hidden /> Ersten Inhalt teilen
-        </Button>
-      )}
-    </div>
+    <p className="m-0 py-xl text-center text-[15px] text-muted-foreground">
+      {onOpenShare
+        ? 'Noch nichts im Austausch. Schreib etwas an die Gruppe oder teile einen Inhalt mit einer Notiz.'
+        : 'Noch keine Beiträge.'}
+    </p>
   );
 
   return (
     <GroupMentionProvider value={mentionOptions}>
       <Tabs value={view} onValueChange={(v) => setView(v as View)} className="gap-lg">
-        <div className="flex flex-wrap items-center justify-between gap-sm">
-          <div className="flex flex-wrap items-center gap-xs">
-            {!isPersonal && (
-              <TabsList variant="line" className="h-auto gap-xs" aria-label="Ansicht">
-                <TabsTrigger value="feed" className={pillCls}>
-                  Feed
-                </TabsTrigger>
-                <TabsTrigger value="all" className={pillCls}>
-                  Alle
-                  <span className="text-[13px] opacity-80">{items.length}</span>
-                </TabsTrigger>
-              </TabsList>
-            )}
-            {!isPersonal && view === 'feed' && (
-              <Button
-                variant="outline"
-                className={cn(
-                  'h-[38px] rounded-full min-[900px]:hidden',
-                  infoOpen && 'border-primary-300 bg-primary-50 dark:bg-primary-900/30'
-                )}
-                aria-expanded={infoOpen}
-                aria-controls="gruppen-info"
-                onClick={() => setInfoOpen((o) => !o)}
-              >
-                <PiUsers aria-hidden /> Info
-              </Button>
-            )}
-          </div>
-          <label className="flex h-[38px] w-[260px] max-w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
-            <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
-            <span className="sr-only">
-              {isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-            </span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-              className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
-            />
-          </label>
-        </div>
+        <TabsList variant="line" className="h-auto w-fit gap-xs" aria-label="Ansicht">
+          <TabsTrigger value="uebersicht" className={pillCls}>
+            Übersicht
+          </TabsTrigger>
+          <TabsTrigger value="austausch" className={pillCls}>
+            Austausch
+          </TabsTrigger>
+        </TabsList>
 
         {isLoading ? (
           <LoadingSection label="Inhalte werden geladen …" />
         ) : (
           <>
-            {!isPersonal && (
-              <TabsContent value="feed" className="mt-0">
-                <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
-                  <div className="flex min-w-0 flex-1 flex-col gap-lg">
-                    {!hasQuery && onOpenShare && (
-                      <GroupComposer
+            <TabsContent value="uebersicht" className="mt-0">
+              {overview({ onDiscuss })}
+            </TabsContent>
+            <TabsContent value="austausch" className="mt-0">
+              <div className="mx-auto flex max-w-[760px] flex-col gap-lg">
+                <label className="flex h-[38px] w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
+                  <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
+                  <span className="sr-only">Im Austausch suchen</span>
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Im Austausch suchen"
+                    className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
+                  />
+                </label>
+                {!hasQuery && onOpenShare && (
+                  <GroupComposer
+                    groupId={groupId}
+                    groupName={groupName}
+                    memberCount={isSystem ? null : members.length}
+                    currentUserName={currentUserName}
+                    onOpenShare={onOpenShare}
+                  />
+                )}
+                {visible.length === 0
+                  ? empty
+                  : visible.map((item) => (
+                      <GroupFeedCard
+                        key={item.key}
+                        item={item}
                         groupId={groupId}
-                        groupName={groupName}
-                        memberCount={isSystem ? null : members.length}
+                        isAdmin={isAdmin}
+                        canComment
+                        currentUserId={currentUserId}
                         currentUserName={currentUserName}
-                        onOpenShare={onOpenShare}
+                        defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
+                        onUseTemplate={onUseTemplate}
+                        isCloning={cloningId === item.id}
+                        onRemove={onRemove}
                       />
-                    )}
-                    {visible.length === 0
-                      ? empty
-                      : visible.map((item) => (
-                          <GroupFeedCard
-                            key={item.key}
-                            item={item}
-                            groupId={groupId}
-                            isAdmin={isAdmin}
-                            canComment
-                            currentUserId={currentUserId}
-                            currentUserName={currentUserName}
-                            defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
-                            onUseTemplate={onUseTemplate}
-                            isCloning={cloningId === item.id}
-                            onRemove={onRemove}
-                          />
-                        ))}
-                  </div>
-                  <div
-                    id="gruppen-info"
-                    className={cn(
-                      '-order-1 min-[900px]:sticky min-[900px]:top-lg min-[900px]:order-none min-[900px]:block min-[900px]:w-[300px] min-[900px]:shrink-0',
-                      !infoOpen && 'hidden'
-                    )}
-                  >
-                    {sidebar}
-                  </div>
-                </div>
-              </TabsContent>
-            )}
-            <TabsContent value="all" className="mt-0">
-              {visible.length === 0 && (hasQuery || linkCount === 0) && empty}
-              <GroupAllView
-                items={visible}
-                groupId={groupId}
-                isAdmin={isAdmin}
-                showPinned={!hasQuery}
-                onUseTemplate={onUseTemplate}
-              >
-                {!hasQuery && extraAllSections}
-              </GroupAllView>
+                    ))}
+              </div>
             </TabsContent>
           </>
         )}
