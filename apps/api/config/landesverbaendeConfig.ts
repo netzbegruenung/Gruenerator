@@ -1395,7 +1395,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'beschluss',
           path: '/kategorie/beschluesse/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          wpApi: { categoryId: 5, boundByAge: true },
+          wpApi: { categoryId: 5, excludeCategoryIds: [29], boundByAge: true },
         },
         {
           type: 'faq',
