@@ -1,6 +1,6 @@
 'use client';
 
-import { MessagePrimitive, useAuiState } from '@assistant-ui/react';
+import { MessagePrimitive, groupPartByType, useAuiState } from '@assistant-ui/react';
 import { type SkillIcon } from '@gruenerator/shared/agents';
 import { memo, useCallback, useMemo, useState } from 'react';
 
@@ -19,7 +19,6 @@ import {
 } from '../../lib/toolStatusLine';
 import { cn } from '../../lib/utils';
 import { findRegistryAgent, useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
-import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
@@ -65,18 +64,40 @@ function AssistantMessageTextPart() {
   );
 }
 
-// Reasoning renders NOTHING in document order: the thinking hangs under the
-// status line's chevron instead (StatusLineDetails), and retires with it.
-const partComponents = {
-  Text: AssistantMessageTextPart,
-  Reasoning: HiddenReasoning,
-  ReasoningGroup: HiddenReasoningGroup,
-  ToolGroup: ToolCallGroup,
-  // Konnektor-Werkzeuge tragen erst zur Laufzeit gebildete Namen und stehen
-  // deshalb in keiner Toolkit-Registry. Ohne Fallback rendern sie nichts —
-  // auch keine Freigabe-Karte.
-  tools: { Fallback: GrueneratorToolFallback },
-};
+// Only adjacent tool calls collect into a group; any other part (text,
+// reasoning) ends the run, exactly like the old `ToolGroup` slot did.
+const groupBy = groupPartByType({ 'tool-call': ['group-tool'] });
+
+function AssistantMessageParts() {
+  return (
+    // `indicator="never"`: the old `Parts` rendered an empty text part at the
+    // end of a running turn without text. It drew nothing; the running turn is
+    // announced by the status line.
+    <MessagePrimitive.GroupedParts groupBy={groupBy} indicator="never">
+      {({ part, children }) => {
+        switch (part.type) {
+          case 'group-tool':
+            return <ToolCallGroup indices={part.indices}>{children}</ToolCallGroup>;
+          case 'text':
+            return <AssistantMessageTextPart />;
+          case 'reasoning':
+            // Reasoning renders NOTHING in document order: the thinking hangs
+            // under the status line's chevron instead (StatusLineDetails), and
+            // retires with it.
+            return <></>;
+          case 'tool-call':
+            // Konnektor-Werkzeuge tragen erst zur Laufzeit gebildete Namen und
+            // stehen deshalb in keiner Toolkit-Registry. Ohne Fallback rendern
+            // sie nichts — auch keine Freigabe-Karte.
+            return part.toolUI ?? <GrueneratorToolFallback {...part} />;
+          default:
+            // `null` keeps registered data renderers (assistant-ui's default).
+            return null;
+        }
+      }}
+    </MessagePrimitive.GroupedParts>
+  );
+}
 
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useAuiState((s) => s.message);
@@ -349,7 +370,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
 
           <CitationProvider citations={citations} fetchFullText={fetchFullText}>
-            <MessagePrimitive.Parts components={partComponents} />
+            <AssistantMessageParts />
           </CitationProvider>
 
           {custom?.vorlagenSuggestions && (
