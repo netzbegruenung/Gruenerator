@@ -39,15 +39,23 @@ function makeThreads(count: number) {
   }));
 }
 
+const fetchCalls: Array<{ url: string; method: string; body: unknown }> = [];
+
 function configureFetch(count: number) {
   const threads = makeThreads(count);
+  fetchCalls.length = 0;
   const json = (body: unknown) =>
     new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   useChatConfigStore.getState().configure({
-    fetch: async (url: string) => {
+    fetch: async (url: string, init?: RequestInit) => {
+      fetchCalls.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? JSON.parse(init.body) : null,
+      });
       if (url === '/api/chat-service/threads') return json(threads);
       return json({});
     },
@@ -139,5 +147,42 @@ describe('LazyMoreMenu — Thread-Zeilen-Menü wird erst bei Bedarf gemountet', 
 
     fireEvent.click(trigger);
     expect(await screen.findByRole('menu')).toBeInTheDocument();
+  });
+});
+
+describe('Thread-Zeilen-Menü — Einträge', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('führt Archivieren und Löschen als Menüeinträge (Pfeiltasten erreichen sie)', async () => {
+    const { user, trigger } = await renderRows(3);
+    await user.click(trigger);
+
+    const menu = await screen.findByRole('menu');
+    const items = within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent?.trim());
+    expect(items).toEqual(expect.arrayContaining(['Umbenennen', 'Archivieren', 'Löschen']));
+  });
+
+  it('benennt die Unterhaltung über den Dialog um', async () => {
+    const { user, trigger } = await renderRows(3);
+    await user.click(trigger);
+    await user.click(await screen.findByRole('menuitem', { name: 'Umbenennen' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Unterhaltung umbenennen' });
+    const input = within(dialog).getByLabelText('Name der Unterhaltung');
+    expect(input).toHaveValue('Unterhaltung 1');
+
+    await user.clear(input);
+    await user.type(input, 'Tempo 30{Enter}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const patch = fetchCalls.find(
+      (c) => c.method === 'PATCH' && c.url === '/api/chat-service/threads'
+    );
+    expect(patch?.body).toEqual({ threadId: makeThreads(1)[0]!.id, title: 'Tempo 30' });
+    expect(await screen.findByText('Tempo 30')).toBeInTheDocument();
   });
 });
