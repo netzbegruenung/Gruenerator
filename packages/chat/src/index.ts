@@ -399,6 +399,7 @@ export {
   useConnectProvidersQuery,
   useConnectBrowseQuery,
   useCanvaDesignsQuery,
+  MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,
   type ChatWolkeFile,
   type ChatConnectProvider,
