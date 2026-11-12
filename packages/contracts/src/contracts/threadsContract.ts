@@ -57,6 +57,7 @@ export const threadsContract = c.router(
       responses: {
         201: createThreadResponseSchema,
         401: errorResponseSchema,
+        403: errorResponseSchema,
         500: errorResponseSchema,
       },
       summary: 'Create a chat thread',

@@ -60,6 +60,9 @@ export const createThreadBodySchema = z.object({
   title: z.string().optional(),
   agentId: z.string().optional(),
   threadType: z.string().optional(),
+  // File the new thread into a Projekt from the start, so its first turn
+  // already sees the Projekt's context (instructions, files, notebooks).
+  groupId: z.string().optional(),
 });
 
 export const patchThreadBodySchema = z.object({
