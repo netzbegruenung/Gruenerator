@@ -1757,6 +1757,9 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.3.22
         version: 0.3.22(@assistant-ui/tap@0.9.24(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
+      '@assistant-ui/tap':
+        specifier: ^0.9.24
+        version: 0.9.24(@types/react@19.3.0)(react@19.3.0)
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
