@@ -167,7 +167,23 @@ export function formatSpaceContentBlock(content: GroupContentBuckets | null): st
       return mention ? [`- „${str(r, 'title') ?? mention}" (Kennung: ${mention})`] : [];
     })
     .slice(0, SPACE_CONTENT_MAX);
+  const files = content.documents
+    .flatMap((d) => {
+      const name = str(d, 'title') ?? str(d, 'filename');
+      if (!name) return [];
+      // Nur fertig eingelesene Dateien kann `dokumente_lesen` abrufen.
+      return [
+        str(d, 'status') === 'completed' ? `- „${name}"` : `- „${name}" (wird noch eingelesen)`,
+      ];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
   const parts: string[] = [];
+  if (files.length > 0) {
+    parts.push(
+      `\nDateien dieses Projekts:\n${files.join('\n')}\n` +
+        `Sie hängen an jedem Turn dieses Chats. Fragen zu ihrem Inhalt beantwortest du mit \`dokumente_lesen\` (Dateiname als Eingrenzung), nicht aus dem Gedächtnis.`
+    );
+  }
   if (notebooks.length > 0) {
     parts.push(
       `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +

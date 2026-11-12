@@ -400,6 +400,24 @@ describe('formatSpaceContentBlock', () => {
     expect(block).toContain('`notebooks` action="search"');
   });
 
+  it('lists project files and marks the ones still being read in', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      documents: [
+        { id: 'd1', title: 'Förderbescheid.pdf', status: 'completed' },
+        { id: 'd2', title: null, filename: 'Entwurf.docx', status: 'processing' },
+      ],
+    });
+    expect(block).toContain('Dateien dieses Projekts:');
+    expect(block).toContain('- „Förderbescheid.pdf"\n');
+    expect(block).toContain('- „Entwurf.docx" (wird noch eingelesen)');
+    expect(block).toContain('`dokumente_lesen`');
+  });
+
+  it('adds no file section without project files', () => {
+    expect(formatSpaceContentBlock({ ...empty })).not.toContain('Dateien dieses Projekts');
+  });
+
   it('names project recipes with the catalog key `rezept_laden` expects', () => {
     const block = formatSpaceContentBlock({
       ...empty,

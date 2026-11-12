@@ -32,6 +32,7 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
@@ -906,6 +907,30 @@ export async function buildStreamContext({
     setThreadNotebookSources(actualThreadId, userId, keptNotebookSources).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread notebook sources:', err)
     );
+  }
+
+  // === Dateien des Projekts ===
+  // Liegt der Chat in einem Projekt, sind dessen Dateien Material jedes Turns —
+  // nach Mitgliedschaft geprüft, nicht am Thread gespeichert (`projectFiles.ts`).
+  // Sie laufen als „mitgetragen": sie erzwingen keine Route, ein Duplikat zu
+  // einer gewählten @datei zählt nur einmal.
+  if (actualThreadId) {
+    try {
+      const have = new Set(
+        notebookSources.flatMap((s) => (s.kind === 'user' ? [s.documentId] : []))
+      );
+      const projectFiles = await withTimeout(
+        getProjectFileSources(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project files'
+      );
+      notebookSources = [
+        ...notebookSources,
+        ...projectFiles.filter((s) => s.kind !== 'user' || !have.has(s.documentId)),
+      ];
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project files (continuing):', err);
+    }
   }
 
   // === @doc / saved-text / @link picks: carried per thread ===
