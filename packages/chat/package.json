@@ -45,6 +45,7 @@
     "@assistant-ui/react-markdown": "^0.14.24",
     "@assistant-ui/react-streamdown": "^0.3.21",
     "@assistant-ui/store": "^0.3.22",
+    "@assistant-ui/tap": "^0.9.24",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
