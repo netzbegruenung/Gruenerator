@@ -178,16 +178,17 @@ export function formatSpaceContentBlock(content: GroupContentBuckets | null): st
     })
     .slice(0, SPACE_CONTENT_MAX);
   const parts: string[] = [];
+  if (notebooks.length > 0) {
+    parts.push(
+      `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +
+        `Fragen zum Projekt beantwortest du zuerst hieraus: \`notebooks\` action="search" mit der id.\n` +
+        `Schreibst du einen Text zum Thema des Projekts (Pressemitteilung, Rede, Post, Antrag …), suchst du VOR dem Schreiben dort nach Fakten zum konkreten Anlass und baust Zahlen, Namen und Termine daraus ein — statt sie offenzulassen oder eine „Studie" zu fordern, deren Ergebnis schon im Projekt steht.`
+    );
+  }
   if (files.length > 0) {
     parts.push(
       `\nDateien dieses Projekts:\n${files.join('\n')}\n` +
         `Sie hängen an jedem Turn dieses Chats. Fragen zu ihrem Inhalt beantwortest du mit \`dokumente_lesen\` (Dateiname als Eingrenzung), nicht aus dem Gedächtnis.`
-    );
-  }
-  if (notebooks.length > 0) {
-    parts.push(
-      `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +
-        `Fragen zum Projekt und Fakten für Texte des Projekts holst du zuerst hier: \`notebooks\` action="search" mit der id.`
     );
   }
   if (recipes.length > 0) {
