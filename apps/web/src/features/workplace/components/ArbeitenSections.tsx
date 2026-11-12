@@ -17,7 +17,7 @@ import { PollCard } from '../../notebook/wissen/PollCard';
 import { TrendsCard } from '../../notebook/wissen/TrendsCard';
 import { useWissenNews } from '../../notebook/wissen/useWissenNews';
 
-import { ARBEITEN_GRID } from './arbeitenGrid';
+import { ARBEITEN_GRID, SECTION_LINK } from './arbeitenGrid';
 import { SHOW_TOOL_PREVIEWS, TOOL_PREVIEWS } from './ToolPreviews';
 
 import type { IconType } from '../../../config/icons';
@@ -32,9 +32,6 @@ const NARROW_SLOT = 'flex min-w-0 flex-col lg:h-0 lg:min-h-full';
 
 /** The neutral dashboard palette (see dashboardTokens.css) for embedded widgets. */
 const NEUTRAL_SURFACE = 'dashboard-surface dashboard-neutral';
-
-const SECTION_LINK =
-  'text-sm font-semibold text-primary-600 no-underline hover:underline dark:text-primary-400';
 
 export function ArbeitenSection({
   title,

@@ -1,10 +1,10 @@
 import { DocsProvider } from '@gruenerator/docs';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  cn,
 } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { getIcon } from '../../config/icons';
 import { getToolTheme } from '../../config/toolTheme';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
+import { SECTION_LINK } from '../workplace/components/arbeitenGrid';
 
 import { webAppDocsAdapter } from './docsAdapter';
 import { useOfficeCreate } from './useOfficeCreate';
@@ -61,10 +62,16 @@ function NewContentMenuInner() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" className="gap-1.5 rounded-full">
+        <button
+          type="button"
+          className={cn(
+            SECTION_LINK,
+            'inline-flex cursor-pointer items-center gap-1 rounded-sm border-0 bg-transparent p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600'
+          )}
+        >
           Neu erstellen
-          <FiChevronDown aria-hidden className="size-3.5" />
-        </Button>
+          <FiChevronDown aria-hidden className="size-4" />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="min-w-[260px] rounded-xl p-1.5">
         {entries.map((entry) => {
