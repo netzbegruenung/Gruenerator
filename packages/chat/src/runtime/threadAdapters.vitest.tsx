@@ -121,4 +121,34 @@ describe('useGrueneratorThreadAdapters (unstable_useAdapters)', () => {
 
     expect(requested).toEqual(expect.arrayContaining(['thread-a', 'thread-b']));
   });
+
+  it('re-attaches to the resumable stream of a turn still running at load (#5656)', async () => {
+    const urls: string[] = [];
+    useChatConfigStore.getState().configure({
+      fetch: async (url: string) => {
+        urls.push(url);
+        if (url.includes('/streams/')) return new Response(null, { status: 204 });
+        return new Response(
+          JSON.stringify([
+            { id: 'u1', role: 'user', content: 'Hallo' },
+            {
+              id: 'live-1',
+              role: 'assistant',
+              content: 'Teil',
+              metadata: { interrupted: true, live: true },
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      },
+    });
+
+    const runtime = mountRuntime();
+    await waitFor(() => expect(runtime.threads.getState().threadIds).toContain('thread-a'));
+    await act(async () => {
+      await runtime.threads.switchToThread('thread-a');
+    });
+
+    await waitFor(() => expect(urls.some((u) => u.includes('/streams/live-1'))).toBe(true));
+  });
 });
