@@ -31,9 +31,11 @@ vi.mock('@assistant-ui/react', () => ({
   useAuiState: (selector: (s: unknown) => unknown) =>
     selector({ message: h.message, thread: h.thread }),
   useAui: () => ({ message: { reload: vi.fn() } }),
+  groupPartByType: () => () => [],
   MessagePrimitive: {
     Root: ({ children }: { children?: unknown }) => children ?? null,
     Parts: () => null,
+    GroupedParts: () => null,
     Error: () => null,
   },
   ErrorPrimitive: { Root: () => null, Message: () => null },

@@ -36,6 +36,9 @@ const composer: {
 vi.mock('@assistant-ui/react', () => ({
   useAuiState: (select: (s: { composer: { text: string } }) => unknown) =>
     select({ composer: { text: composer.text } }),
+  // Called at module scope by packages/chat's AssistantMessage, which the real
+  // `@gruenerator/chat` import below loads.
+  groupPartByType: () => () => [],
 }));
 
 vi.mock('@gruenerator/chat', async (importOriginal) => ({
