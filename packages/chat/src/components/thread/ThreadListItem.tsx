@@ -42,6 +42,7 @@ import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore
 
 import { EditTagsDialog } from './EditTagsDialog';
 import { MoveToSpaceDialog } from './MoveToSpaceDialog';
+import { RenameThreadDialog } from './RenameThreadDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 const MORE_TRIGGER_CLASS =
@@ -105,38 +106,35 @@ function LazyMoreMenu({ children }: { children: ReactNode }) {
 function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
   const aui = useAui();
   const nav = useChatNavigation();
-  return useCallback(
-    (e: MouseEvent) => {
-      // The primitive's built-in call is fire-and-forget, so a rejection (the
-      // thread was already removed elsewhere) would surface as an unhandled
-      // rejection. Suppress it and re-issue with a catch — synchronously, see
-      // adoptAuiAction for why the old microtask deferral was a bug.
-      e.preventDefault();
-      void (async () => {
-        // A delete racing a switch that opens exactly this thread (the URL
-        // still names it) can leave the main thread pointing at the slot
-        // delete() just hid: for an archived thread the switch is suspended in
-        // `await unarchive(...)` — before it assigns the main thread — and the
-        // delete's "main is a different thread" check then skips its move. The
-        // switch would complete against the removed slot and every
-        // `item("main")` render throws `useClientLookup: key … not found`.
-        // Parking on a new thread first bumps the switch generation, so the
-        // in-flight switch dies at its generation check instead.
-        if (action === 'delete') {
-          const remoteId = aui.threadListItem.getState().remoteId ?? null;
-          if (remoteId && pathNamesThread(nav?.activePath, remoteId)) {
-            await auiPromise(aui.threads.switchToNewThread()).catch((err) => {
-              console.warn('[ThreadList] Could not start a new thread before delete:', err);
-            });
-          }
+  return useCallback(() => {
+    // Not ThreadListItemPrimitive.Archive/Delete/Unarchive: their built-in
+    // call is fire-and-forget, so a rejection (the thread was already removed
+    // elsewhere) would surface as an unhandled rejection. Issued here with a
+    // catch — synchronously, see adoptAuiAction for why the old microtask
+    // deferral was a bug.
+    void (async () => {
+      // A delete racing a switch that opens exactly this thread (the URL
+      // still names it) can leave the main thread pointing at the slot
+      // delete() just hid: for an archived thread the switch is suspended in
+      // `await unarchive(...)` — before it assigns the main thread — and the
+      // delete's "main is a different thread" check then skips its move. The
+      // switch would complete against the removed slot and every
+      // `item("main")` render throws `useClientLookup: key … not found`.
+      // Parking on a new thread first bumps the switch generation, so the
+      // in-flight switch dies at its generation check instead.
+      if (action === 'delete') {
+        const remoteId = aui.threadListItem.getState().remoteId ?? null;
+        if (remoteId && pathNamesThread(nav?.activePath, remoteId)) {
+          await auiPromise(aui.threads.switchToNewThread()).catch((err) => {
+            console.warn('[ThreadList] Could not start a new thread before delete:', err);
+          });
         }
-        adoptAuiAction(aui.threadListItem[action](), (err) => {
-          console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
-        });
-      })();
-    },
-    [aui, action, nav]
-  );
+      }
+      adoptAuiAction(aui.threadListItem[action](), (err) => {
+        console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
+      });
+    })();
+  }, [aui, action, nav]);
 }
 
 /**
@@ -212,7 +210,7 @@ function ExternalThreadItem() {
 }
 
 export function GrueneratorThreadListItem() {
-  const { externalId, remoteId, title } = useAuiState((s) => s.threadListItem);
+  const { id, externalId, remoteId, title } = useAuiState((s) => s.threadListItem);
   // Share metadata rides the same subscription channel as the tags cache
   // (both are refreshed by list() and must survive item recycling).
   const accessType = useSyncExternalStore(
@@ -235,6 +233,7 @@ export function GrueneratorThreadListItem() {
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [spaceOpen, setSpaceOpen] = useState(false);
   // Live read from the tags cache: fresh per remoteId (no stale value on item
@@ -311,7 +310,10 @@ export function GrueneratorThreadListItem() {
                 local pin. Defense in depth, not the enforcement itself. */}
             {isOwner && (
               <>
-                <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+                <ThreadListItemMorePrimitive.Item
+                  onSelect={() => setRenameOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                >
                   <Pencil className="h-3.5 w-3.5" />
                   Umbenennen
                 </ThreadListItemMorePrimitive.Item>
@@ -337,20 +339,20 @@ export function GrueneratorThreadListItem() {
                   Teilen
                 </ThreadListItemMorePrimitive.Item>
                 <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-                <ThreadListItemPrimitive.Archive
-                  onClick={handleArchive}
+                <ThreadListItemMorePrimitive.Item
+                  onSelect={handleArchive}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
                 >
                   <Archive className="h-3.5 w-3.5" />
                   Archivieren
-                </ThreadListItemPrimitive.Archive>
-                <ThreadListItemPrimitive.Delete
-                  onClick={handleDelete}
+                </ThreadListItemMorePrimitive.Item>
+                <ThreadListItemMorePrimitive.Item
+                  onSelect={handleDelete}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Löschen
-                </ThreadListItemPrimitive.Delete>
+                </ThreadListItemMorePrimitive.Item>
               </>
             )}
           </ThreadListItemMorePrimitive.Content>
@@ -362,6 +364,15 @@ export function GrueneratorThreadListItem() {
           threadId={remoteId ?? null}
           open={shareOpen}
           onOpenChange={setShareOpen}
+        />
+      )}
+
+      {renameOpen && id && (
+        <RenameThreadDialog
+          threadId={id}
+          initialTitle={title ?? ''}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
         />
       )}
 
@@ -419,21 +430,21 @@ export function GrueneratorArchivedThreadListItem() {
 
       <LazyMoreMenu>
         <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
-          <ThreadListItemPrimitive.Unarchive
-            onClick={handleUnarchive}
+          <ThreadListItemMorePrimitive.Item
+            onSelect={handleUnarchive}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
           >
             <Archive className="h-3.5 w-3.5" />
             Wiederherstellen
-          </ThreadListItemPrimitive.Unarchive>
+          </ThreadListItemMorePrimitive.Item>
           <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-          <ThreadListItemPrimitive.Delete
-            onClick={handleDelete}
+          <ThreadListItemMorePrimitive.Item
+            onSelect={handleDelete}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Löschen
-          </ThreadListItemPrimitive.Delete>
+          </ThreadListItemMorePrimitive.Item>
         </ThreadListItemMorePrimitive.Content>
       </LazyMoreMenu>
     </ThreadListItemPrimitive.Root>
