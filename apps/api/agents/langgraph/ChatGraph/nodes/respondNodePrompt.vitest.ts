@@ -152,6 +152,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     activeSkillMention: null,
     activeRecipeId: null,
     userInstructions: null,
+    projectInstructions: null,
     memoryContext: null,
     chatHistoryContext: null,
     summaryContext: null,
@@ -266,6 +267,7 @@ const GELTUNGSFRAGE =
 const fullMaterial = {
   intent: 'search',
   userInstructions: 'Ich bin Pressesprecherin im Landesverband.',
+  projectInstructions: { projectName: 'Wärmeplanung', text: 'Antworte im Du.' },
   memoryContext: '### Dauerhafte Anweisungen\nNr. 1 (01.09.2026): Ab jetzt duzen.',
   chatHistoryContext: '## FRÜHERE GESPRÄCHE\n\nEs ging um Verkehr.',
   boardContext: 'Spalte To Do: Karte „Antrag schreiben"',

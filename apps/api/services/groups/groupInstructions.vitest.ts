@@ -11,7 +11,7 @@ vi.mock('./groupMembership.js', () => ({
     checkMembership(g, u, admin),
 }));
 
-const { getProjectInstructions, setProjectInstructions, readProjectInstructionsText } =
+const { getProjectInstructions, setProjectInstructions, readThreadProjectInstructions } =
   await import('./groupInstructions.js');
 
 const GROUP = 'g1';
@@ -75,15 +75,24 @@ describe('setProjectInstructions', () => {
   });
 });
 
-describe('readProjectInstructionsText', () => {
-  it('reads only active, enabled rows', async () => {
-    queryOne.mockResolvedValue({ custom_prompt: ' Text ' });
-    expect(await readProjectInstructionsText(GROUP)).toBe('Text');
-    expect(queryOne.mock.calls[0][0]).toMatch(/instructions_enabled/);
+describe('readThreadProjectInstructions', () => {
+  it('returns the project name and trimmed text for the member own thread', async () => {
+    queryOne.mockResolvedValue({ name: 'Wärmeplanung', custom_prompt: ' Antworte im Du. ' });
+    expect(await readThreadProjectInstructions('t1', 'u1')).toEqual({
+      projectName: 'Wärmeplanung',
+      text: 'Antworte im Du.',
+    });
+    const sql = String(queryOne.mock.calls[0][0]);
+    expect(sql).toMatch(/gm\.is_active = TRUE/);
+    expect(sql).toMatch(/instructions_enabled/);
+    expect(sql).toMatch(/t\.user_id = \$2/);
+    expect(sql).toMatch(/g\.deleted_at IS NULL/);
   });
 
-  it('is empty without a row', async () => {
+  it('is null without a row or with an empty text', async () => {
     queryOne.mockResolvedValue(null);
-    expect(await readProjectInstructionsText(GROUP)).toBe('');
+    expect(await readThreadProjectInstructions('t1', 'u1')).toBeNull();
+    queryOne.mockResolvedValue({ name: 'P', custom_prompt: '   ' });
+    expect(await readThreadProjectInstructions('t1', 'u1')).toBeNull();
   });
 });
