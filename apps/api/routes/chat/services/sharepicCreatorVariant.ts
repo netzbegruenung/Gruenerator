@@ -13,6 +13,7 @@ import {
   type SharepicBerichtEintrag,
   type SharepicBrandId,
   type SharepicChatProps,
+  type SharepicChatReview,
   type SharepicDraftResponse,
   type SharepicFormId,
   type SharepicSpec,
@@ -80,6 +81,12 @@ export function buildCreatorPrompt(args: {
   return room > 0
     ? `${head}${label}${args.background.slice(0, room)}`
     : head.slice(0, SHAREPIC_PROMPT_MAX);
+}
+
+/** The `review` field of `sharepic_complete`, clipped to what the review accepts. */
+export function reviewHint(review: SharepicChatReview): { review?: SharepicChatReview } {
+  const brief = review.brief.trim().slice(0, SHAREPIC_PROMPT_MAX);
+  return brief ? { review: { brief, mode: review.mode } } : {};
 }
 
 /** The editor page a creator draft opens in, per design. */

@@ -167,11 +167,13 @@ export {
   sharepicNextSeiteResponseSchema,
   sharepicReviewBodySchema,
   sharepicReviewModeSchema,
+  sharepicChatReviewSchema,
   sharepicReviewResponseSchema,
 } from './sharepicCreator/api.js';
 export type {
   SharepicBerichtEintrag,
   SharepicChatProps,
+  SharepicChatReview,
   SharepicCreatorError,
   SharepicDraftFailureReason,
   SharepicDraftFocus,

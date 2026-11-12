@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
+import { useSharepicReviewStore } from '../stores/sharepicReviewStore';
 
 import type { SharepicVariant } from './useChatGraphStream';
 
@@ -36,6 +37,13 @@ export function getCachedSharepicRender(variantId: string, version: number | nul
   return thumbCache.get(cacheKeyFor(variantId, version)) ?? null;
 }
 
+/** A reviewed variant renders anew: its cached head render shows the draft. */
+export function dropCachedSharepicRender(variantId: string): void {
+  for (const key of [...thumbCache.keys()]) {
+    if (key.startsWith(`${variantId}:`)) thumbCache.delete(key);
+  }
+}
+
 function trimCache(): void {
   while (thumbCache.size > THUMB_CACHE_MAX) {
     const oldest = thumbCache.keys().next().value;
@@ -60,7 +68,8 @@ export function useSharepicThumbnail(variant: SharepicVariant): {
   );
   const [failed, setFailed] = useState(false);
 
-  const renderInput = live?.state ?? variant.initialProps;
+  const reviewedProps = useSharepicReviewStore((s) => s.reviewed[variant.id]);
+  const renderInput = live?.state ?? reviewedProps ?? variant.initialProps;
 
   useEffect(() => {
     const cached = thumbCache.get(cacheKey);

@@ -17,6 +17,7 @@ import {
   threadSettingsResponseSchema,
   generateTitleResponseSchema,
   tabularFilesResponseSchema,
+  saveReviewedSharepicBodySchema,
   successResponseSchema,
   deleteThreadResponseSchema,
   errorResponseSchema,
@@ -181,6 +182,28 @@ export const threadsContract = c.router(
         500: errorResponseSchema,
       },
       summary: 'Get raw bytes of a thread’s tabular attachments',
+    },
+
+    /**
+     * PUT /api/chat-service/threads/:threadId/sharepic-variants/:variantId/reviewed-spec
+     * The browser's vision review corrected a chat creator sharepic after the
+     * turn; the corrected spec replaces the persisted one. 409 once the variant
+     * is a canvas (the canvas is the truth then).
+     */
+    saveReviewedSharepic: {
+      method: 'PUT',
+      path: '/api/chat-service/threads/:threadId/sharepic-variants/:variantId/reviewed-spec',
+      pathParams: z.object({ threadId: z.string(), variantId: z.string() }),
+      body: saveReviewedSharepicBodySchema,
+      responses: {
+        200: successResponseSchema,
+        400: errorResponseSchema,
+        401: errorResponseSchema,
+        404: errorResponseSchema,
+        409: errorResponseSchema,
+        500: errorResponseSchema,
+      },
+      summary: 'Save the reviewed spec of a chat creator sharepic',
     },
   },
   { pathPrefix: '' }

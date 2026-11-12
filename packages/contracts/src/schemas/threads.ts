@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { threadBriefingSchema } from './briefing.js';
 import { roleRefSchema } from './roleRef.js';
+import { sharepicSpecSchema } from './sharepicCreator/spec.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -146,3 +147,9 @@ export const tabularFileSchema = z.object({
 export const tabularFilesResponseSchema = z.object({
   files: z.array(tabularFileSchema),
 });
+
+/** The vision review's correction of a chat creator sharepic, saved after the turn. */
+export const saveReviewedSharepicBodySchema = z.object({
+  creatorSpec: sharepicSpecSchema,
+});
+export type SaveReviewedSharepicBody = z.infer<typeof saveReviewedSharepicBodySchema>;
