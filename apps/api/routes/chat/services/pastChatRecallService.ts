@@ -171,10 +171,17 @@ export function formatSpaceContentBlock(content: GroupContentBuckets | null): st
     .flatMap((d) => {
       const name = str(d, 'title') ?? str(d, 'filename');
       if (!name) return [];
-      // Nur fertig eingelesene Dateien kann `dokumente_lesen` abrufen.
-      return [
-        str(d, 'status') === 'completed' ? `- „${name}"` : `- „${name}" (wird noch eingelesen)`,
-      ];
+      // Nur fertig eingelesene Dateien kann `dokumente_lesen` abrufen. Eine
+      // gescheiterte Datei wird nie fertig — „wird noch eingelesen" hieße
+      // dort, für immer auf sie zu warten.
+      const status = str(d, 'status');
+      const note =
+        status === 'completed'
+          ? ''
+          : status === 'failed'
+            ? ' (konnte nicht eingelesen werden — bitte erneut hochladen)'
+            : ' (wird noch eingelesen)';
+      return [`- „${name}"${note}`];
     })
     .slice(0, SPACE_CONTENT_MAX);
   const parts: string[] = [];

@@ -414,6 +414,15 @@ describe('formatSpaceContentBlock', () => {
     expect(block).toContain('`dokumente_lesen`');
   });
 
+  it('says a failed file will not arrive, instead of "still being read in"', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      documents: [{ id: 'd3', title: 'Angebot.txt', status: 'failed' }],
+    });
+    expect(block).toContain('- „Angebot.txt" (konnte nicht eingelesen werden');
+    expect(block).not.toContain('wird noch eingelesen');
+  });
+
   it('adds no file section without project files', () => {
     expect(formatSpaceContentBlock({ ...empty })).not.toContain('Dateien dieses Projekts');
   });

@@ -44,7 +44,8 @@ export async function getProjectFileSources(
        JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2
          AND gm.is_active = TRUE
        JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'documents'
-       JOIN documents d ON d.id = gcs.content_id
+       -- content_id ist text (es trägt auch Nicht-UUID-Kennungen), documents.id uuid.
+       JOIN documents d ON d.id::text = gcs.content_id
       WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL
         AND d.deleted_at IS NULL AND d.status = 'completed' AND d.user_id IS NOT NULL
       ORDER BY gcs.shared_at DESC
