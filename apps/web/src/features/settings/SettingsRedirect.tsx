@@ -17,8 +17,13 @@ const TAB_ALIASES: Record<string, SettingsTab> = {
   profil: 'allgemein',
   konto: 'allgemein',
   briefkoepfe: 'briefe',
-  verbindungen: 'wolke',
+  verbindungen: 'konnektoren',
   mcp: 'konnektoren',
+  // Bis zum 11.11.2026 eigene Bereiche: Wolke und Websites stehen jetzt in den
+  // Konnektoren, die Bäume über dem Verbrauch in der Nutzung.
+  wolke: 'konnektoren',
+  websites: 'konnektoren',
+  baeume: 'nutzung',
   // Bis zum 28.08.2026 ein eigener Bereich, jetzt die untere Hälfte von
   // „Datenschutz & Barrierefreiheit".
   barrierefreiheit: 'datenschutz',

@@ -28,7 +28,7 @@ Wähle den Ordner aus und klicke rechts auf „Teilen". Klicke dann unten auf **
 
 ### Schritt 3: Link kopieren und verwenden
 
-Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter **Einstellungen → Wolke** (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein **Einrichtungs-Assistent** Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
+Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter **Einstellungen → Konnektoren** im Abschnitt **Grüne Wolke** (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein **Einrichtungs-Assistent** Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
 
 ## Wichtige Hinweise
 
@@ -40,7 +40,7 @@ Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. 
 
 Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen.
 
-Meldet der Grünerator, die Verbindung sei **abgelaufen oder abgewiesen**, wurde der Link in der Wolke gelöscht, ist abgelaufen oder nachträglich mit einem Passwort versehen worden. Erstelle dann einen neuen Link und verbinde ihn unter **Einstellungen → Wolke** neu. Meldet er eine **Upload-Freigabe** („Dateien ablegen"), erstelle einen neuen Link mit der Berechtigung „Nur anzeigen" — aus einer reinen Upload-Freigabe kann er nichts lesen.
+Meldet der Grünerator, die Verbindung sei **abgelaufen oder abgewiesen**, wurde der Link in der Wolke gelöscht, ist abgelaufen oder nachträglich mit einem Passwort versehen worden. Erstelle dann einen neuen Link und verbinde ihn unter **Einstellungen → Konnektoren** im Abschnitt **Grüne Wolke** neu. Meldet er eine **Upload-Freigabe** („Dateien ablegen"), erstelle einen neuen Link mit der Berechtigung „Nur anzeigen" — aus einer reinen Upload-Freigabe kann er nichts lesen.
 
 :::tip[Bereit für die Einrichtung?]
 Öffne die [Grüne Wolke](https://wolke.netzbegruenung.de/) und folge der Anleitung Schritt für Schritt.

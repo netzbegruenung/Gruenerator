@@ -191,7 +191,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
         return (await handleUnauthorized('chat', info?.code)) === 'retry';
       },
-      wolkeConnectUrl: '/settings/wolke',
+      wolkeConnectUrl: '/settings/konnektoren',
       onOpenSourceDocument: requestChatSourceReader,
       // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
       // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.

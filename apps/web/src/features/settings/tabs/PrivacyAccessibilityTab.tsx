@@ -12,15 +12,19 @@
  * übersteuern. Sie standen bis zum 28.08.2026 in einem eigenen Reiter mit genau
  * diesen zwei Zeilen.
  *
+ * Dazwischen die „Immer erlauben"-Freigaben aus dem Chat (nur, wenn es welche
+ * gibt): auch sie sagen, was der Grünerator ohne Rückfrage tun darf.
+ *
  * Die Gruppen tragen `h3`-Überschriften, weil der Dialog die `h2` (das
  * Reiter-Label) selbst setzt.
  */
 
-import { Switch } from '@gruenerator/ui';
+import { Switch, toast } from '@gruenerator/ui';
 import { useSyncExternalStore } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
 
+import ToolApprovalsSection from '@/features/mcp/components/ToolApprovalsSection';
 import { useAuthStore } from '@/stores/authStore';
 
 const ANALYTICS_CONSENT_KEY = 'analyticsConsent';
@@ -111,6 +115,11 @@ const PrivacyAccessibilityTab = () => {
           </div>
         </div>
       </section>
+
+      <ToolApprovalsSection
+        onSuccess={(message) => toast.success(message)}
+        onError={(message) => toast.error(message)}
+      />
 
       <section>
         <SectionHeading>Barrierefreiheit</SectionHeading>

@@ -7,12 +7,13 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
 import McpSection from './McpSection';
 
+import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders, userEvent } from '@/test-utils';
 
 const API = 'http://localhost/api';
@@ -95,5 +96,75 @@ describe('McpSection — bekannte Konnektoren', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
+ * selben Verzeichnis unter „Sonstige" — und vorerst nur für Instanz-Admins.
+ */
+describe('McpSection — Microsoft 365', () => {
+  const STATUS_URL = `${API}/auth/admin/connector-test`;
+
+  function serveMicrosoft(connected: boolean) {
+    const statusHits = { count: 0 };
+    serve([]);
+    server.use(
+      http.get(STATUS_URL, () => {
+        statusHits.count += 1;
+        return HttpResponse.json({
+          success: true,
+          nangoConfigured: true,
+          pickerConfigured: false,
+          providers: [
+            {
+              provider: 'microsoft',
+              label: 'Microsoft 365',
+              connected,
+              connectedAt: connected ? '2026-11-01T10:00:00.000Z' : null,
+            },
+          ],
+        });
+      })
+    );
+    return statusHits;
+  }
+
+  function setAdmin(isAdmin: boolean) {
+    useAuthStore.setState({ user: { id: 'u1', is_admin: isAdmin } as never });
+  }
+
+  afterEach(() => useAuthStore.setState({ user: null } as never));
+
+  it('steht für Admins unter „Sonstige" mit „Verbinden"', async () => {
+    setAdmin(true);
+    serveMicrosoft(false);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const title = await screen.findByText('Microsoft 365');
+    const group = title.closest('div.grid')?.parentElement as HTMLElement;
+    expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
+    const card = title.parentElement as HTMLElement;
+    expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
+  });
+
+  it('zeigt verbunden „Trennen" statt „Verbinden"', async () => {
+    setAdmin(true);
+    serveMicrosoft(true);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = (await screen.findByText('Microsoft 365')).parentElement as HTMLElement;
+    expect(await within(card).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
+  });
+
+  it('fehlt für Nicht-Admins und fragt den Admin-Status nicht ab', async () => {
+    setAdmin(false);
+    const statusHits = serveMicrosoft(true);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Rateo');
+    expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
+    expect(statusHits.count).toBe(0);
   });
 });

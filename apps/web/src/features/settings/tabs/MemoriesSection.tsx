@@ -8,7 +8,6 @@
  * fits the question. Search and the kind filter are client-side — the list is
  * capped at 60 rows server-side, a round trip would be slower than a filter.
  */
-import { requestDailyBriefingNow, requestThreadListReload } from '@gruenerator/chat';
 import { MEMORY_TEXT_MAX_CHARS, type MemoryKind, type UserMemory } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
@@ -95,7 +94,6 @@ export default memo(function MemoriesSection() {
   const { data: profileData } = useProfile(userId);
   const profile = profileData as Profile | undefined;
   const memoryEnabled = profile?.memory_enabled ?? true;
-  const briefingEnabled = profile?.proactive_briefing_enabled ?? false;
 
   const {
     data: memories = [],
@@ -141,34 +139,6 @@ export default memo(function MemoriesSection() {
       setMutationError(null);
     },
     onError: () => setMutationError('Der Schalter konnte nicht gespeichert werden.'),
-  });
-
-  const briefingToggleMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      profileApiService.updateProfile({ proactive_briefing_enabled: enabled }),
-    onSuccess: (updated: Profile, enabled: boolean) => {
-      queryClient.setQueryData(QUERY_KEYS.profile(userId), (old: Profile | undefined) => ({
-        ...old,
-        ...updated,
-      }));
-      setMutationError(null);
-      if (enabled) requestDailyBriefingNow();
-    },
-    onError: () => setMutationError('Der Schalter konnte nicht gespeichert werden.'),
-  });
-
-  const briefingRerunMutation = useMutation({
-    mutationFn: async (simulateNextDay: boolean) => {
-      const res = await getContractsClient().briefing.devRerun({
-        body: simulateNextDay ? { simulateNextDay } : {},
-      });
-      if (res.status !== 200) throw new ApiError(res.status, 'Tagesbriefing-Neubau fehlgeschlagen');
-    },
-    onSuccess: () => {
-      setMutationError(null);
-      requestThreadListReload();
-    },
-    onError: () => setMutationError('Das Tagesbriefing konnte nicht neu erzeugt werden.'),
   });
 
   const addMutation = useMutation({
@@ -275,34 +245,6 @@ export default memo(function MemoriesSection() {
             aria-label="Gedächtnis einschalten"
           />
         </SettingsRow>
-        <SettingsRow id="erinnerungen.tagesbriefing">
-          <Switch
-            checked={briefingEnabled}
-            onCheckedChange={(checked) => briefingToggleMutation.mutate(checked)}
-            disabled={briefingToggleMutation.isPending || !profile}
-            aria-label="Tagesbriefing im Chat einschalten"
-          />
-        </SettingsRow>
-        {import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && (
-          <div className="flex gap-sm pb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={briefingRerunMutation.isPending}
-              onClick={() => briefingRerunMutation.mutate(false)}
-            >
-              Tagesbriefing jetzt neu erzeugen
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={briefingRerunMutation.isPending}
-              onClick={() => briefingRerunMutation.mutate(true)}
-            >
-              Folgetag simulieren
-            </Button>
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-sm mb-sm">

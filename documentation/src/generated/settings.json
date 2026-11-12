@@ -21,6 +21,10 @@
       "label": "Erinnerungen"
     },
     {
+      "value": "tagesbriefing",
+      "label": "Tagesbriefing"
+    },
+    {
       "value": "friends",
       "label": "Friends"
     },
@@ -37,20 +41,8 @@
       "label": "Konnektoren"
     },
     {
-      "value": "wolke",
-      "label": "Wolke"
-    },
-    {
-      "value": "websites",
-      "label": "Meine Websites"
-    },
-    {
       "value": "datenschutz",
       "label": "Datenschutz & Barrierefreiheit"
-    },
-    {
-      "value": "baeume",
-      "label": "Bäume"
     },
     {
       "value": "nutzung",
@@ -142,8 +134,8 @@
       "title": "Gedächtnis",
       "description": "Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
     },
-    "erinnerungen.tagesbriefing": {
-      "tab": "erinnerungen",
+    "tagesbriefing.schalter": {
+      "tab": "tagesbriefing",
       "title": "Tagesbriefing im Chat",
       "description": "Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute."
     },
@@ -167,15 +159,15 @@
       "title": "Konnektoren",
       "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind"
     },
-    "baeume.stand": {
-      "tab": "baeume",
+    "nutzung.baeume": {
+      "tab": "nutzung",
       "title": "Bäume",
       "description": "Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche"
     },
     "nutzung.uebersicht": {
       "tab": "nutzung",
       "title": "Nutzung",
-      "description": "Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen"
+      "description": "Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen"
     },
     "support.kontakt": {
       "tab": "support",

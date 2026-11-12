@@ -6,7 +6,7 @@
  * ihre Stufen-Auswahl in der jeweiligen Konnektor-Zeile (McpToolStages).
  */
 import { memo } from 'react';
-import { FiShield, FiTrash2 } from 'react-icons/fi';
+import { FiTrash2 } from 'react-icons/fi';
 
 import { useRevokeToolApproval, useToolApprovals } from '../hooks/useToolApprovals';
 import { approvalDisplayLabel } from '../lib/toolApprovalsApi';
@@ -38,15 +38,10 @@ const ToolApprovalsSection = memo(function ToolApprovalsSection({
 
   return (
     <section>
-      <div className="flex items-center gap-md">
-        <div className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-[14px] border border-primary-100 bg-primary-50 text-primary dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-400">
-          <FiShield className="h-6 w-6" />
-        </div>
-        <h2 className="m-0 text-2xl font-semibold tracking-tight text-foreground-heading">
-          Immer erlaubte Werkzeuge
-        </h2>
-      </div>
-      <p className="mt-sm max-w-xl text-sm leading-relaxed text-grey-500">
+      <h3 className="mt-0 mb-sm text-sm font-semibold text-foreground-heading">
+        Immer erlaubte Werkzeuge
+      </h3>
+      <p className="m-0 max-w-xl text-sm leading-relaxed text-grey-500">
         Diese Werkzeuge laufen im Chat ohne Rückfrage. Entfernst du eines, fragt der Chat vor der
         nächsten Ausführung wieder nach.
       </p>
