@@ -68,6 +68,9 @@ export const LANDESVERBAND_CONTENT_TYPES = [
   'wahlprogramm',
   'wahlpruefstein',
   'instagram',
+  'newsletter',
+  'faq',
+  'veranstaltung',
 ] as const satisfies readonly string[];
 
 export type LandesverbandContentType = (typeof LANDESVERBAND_CONTENT_TYPES)[number];
@@ -80,6 +83,9 @@ export const LV_CONTENT_TYPE_LABELS: Record<LandesverbandContentType, string> = 
   wahlprogramm: 'Wahlprogramme',
   wahlpruefstein: 'Wahlprüfsteine',
   instagram: 'Instagram-Posts',
+  newsletter: 'Newsletter',
+  faq: 'Fragen und Antworten',
+  veranstaltung: 'Veranstaltungsberichte',
 };
 
 /**
