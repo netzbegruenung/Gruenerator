@@ -25,6 +25,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
   const {
     imageBase64,
     isRendering,
+    isReviewing,
     renderError,
     headVersion,
     viewVersion,
@@ -90,6 +91,13 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
                 isRendering ? 'opacity-50' : 'opacity-100'
               )}
             />
+          )}
+          {imageBase64 && isReviewing && (
+            <p className="absolute inset-x-0 bottom-3 flex justify-center" role="status">
+              <span className="rounded-full bg-background px-3 py-1 text-xs text-foreground shadow-sm">
+                <ShimmerText>Wird geprüft …</ShimmerText>
+              </span>
+            </p>
           )}
           {imageBase64 && !isRendering && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover/sharepic:bg-black/30 group-hover/sharepic:opacity-100">

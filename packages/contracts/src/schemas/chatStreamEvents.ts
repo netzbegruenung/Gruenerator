@@ -11,6 +11,7 @@ import {
   notebookResolvedAnswerModeSchema,
 } from './notebookAnswerMode.js';
 import {
+  sharepicChatReviewSchema,
   sharepicFormSchema,
   sharepicPhotoAttributionSchema,
   sharepicSpecSchema,
@@ -796,6 +797,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
        *  distinct from `error` — a decline is the safety rules working, and
        *  reporting it as a failure invites the user to simply retry. */
       declined: z.boolean().optional(),
+      /** What the turn ordered: the browser reviews the rendered variants against it. */
+      review: sharepicChatReviewSchema.optional(),
     })
     .passthrough(),
   sharepic_minted: z.object({ variantId: z.string(), canvasId: z.string() }).passthrough(),

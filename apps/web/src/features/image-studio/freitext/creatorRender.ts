@@ -8,10 +8,12 @@ import {
 } from '@gruenerator/canvas-editor/composer';
 import {
   parseSharepicChatProps,
+  type SharepicChatReview,
   type SharepicPatchOp,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { renderSharepicToImage } from '../renderSharepicToImage';
@@ -19,6 +21,7 @@ import { downloadSharepicZip } from '../services/downloadSharepicZip';
 
 import { composeCreatorSharepic, sharepicPhotoSrc } from './composeForRender';
 import { loadImage } from './photoTone';
+import { reviseWithReview } from './sharepicRevisionLoop';
 
 export async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
   const images = await Promise.all(
@@ -94,6 +97,61 @@ export async function renderSharepicSheet(
   );
   const previews = await renderPreviews(composed);
   return previews ? contactSheet(previews) : null;
+}
+
+/** The turn's message is saved just after `done`; a fast review can arrive before it. */
+const SAVE_ATTEMPTS = 3;
+const SAVE_RETRY_MS = 1500;
+
+/**
+ * The studio's review loop for a sharepic the chat just made: rendered, seen
+ * by the vision review against what the turn ordered, patched for up to
+ * MAX_REVIEWS rounds. A correction is saved onto the thread's variant and
+ * returned as its new props; null when nothing changed or saving failed.
+ */
+export async function reviewChatSharepic(input: {
+  threadId: string;
+  variantId: string;
+  initialProps: Record<string, unknown>;
+  review: SharepicChatReview;
+}): Promise<Record<string, unknown> | null> {
+  const props = parseSharepicChatProps(input.initialProps);
+  // A tweaked spec is composed from its base; the review patches neither.
+  if (!props || props.creatorBase) return null;
+  const photoSrc = sharepicPhotoSrc(props.photos ?? []);
+  const client = getContractsClient();
+  const revised = await reviseWithReview({
+    spec: props.creatorSpec,
+    attributions: props.attributions,
+    brief: input.review.brief,
+    deps: {
+      compose: (spec, attributions) => composeCreatorSharepic(spec, attributions, photoSrc),
+      render: renderPreviews,
+      review: async ({ spec, brief, previews }) => {
+        const image = await contactSheet(previews).catch(() => null);
+        if (!image) return null;
+        const res = await client.sharepicCreator
+          .review({ body: { spec, prompt: brief, image, mode: input.review.mode } })
+          .catch(() => null);
+        return res?.status === 200 ? res.body : null;
+      },
+      applyPatch: (spec, patch) => applySharepicPatch(spec, patch).spec,
+    },
+  });
+  if (!revised?.previews || revised.spec === props.creatorSpec) return null;
+
+  for (let attempt = 1; attempt <= SAVE_ATTEMPTS; attempt++) {
+    const res = await client.threads
+      .saveReviewedSharepic({
+        params: { threadId: input.threadId, variantId: input.variantId },
+        body: { creatorSpec: revised.spec },
+      })
+      .catch(() => null);
+    if (res?.status === 200) return { ...input.initialProps, creatorSpec: revised.spec };
+    if (res?.status !== 404 || attempt === SAVE_ATTEMPTS) return null;
+    await new Promise((resolve) => setTimeout(resolve, SAVE_RETRY_MS));
+  }
+  return null;
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   GrueneratorChatProvider,
   TooltipProvider,
   preloadChatRuntime,
+  type ChatConfig,
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
@@ -218,6 +219,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(
           initialProps
         ),
+      reviewSharepic: async (input: Parameters<NonNullable<ChatConfig['reviewSharepic']>>[0]) =>
+        (await import('../features/image-studio/freitext/creatorRender')).reviewChatSharepic(input),
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
         // Already a real canvas document → open it directly.

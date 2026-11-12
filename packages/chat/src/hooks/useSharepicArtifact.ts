@@ -6,6 +6,7 @@ import { notifyError, notifyWarning } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
+import { useSharepicReviewStore } from '../stores/sharepicReviewStore';
 
 import { getCachedSharepicRender, seedThumbnailCache } from './useSharepicThumbnail';
 
@@ -59,6 +60,10 @@ export function maybeUploadThumbnail(
 export function useSharepicArtifact(variant: SharepicVariant) {
   const live = useSharepicLiveStore((s) => s.entries[variant.id]);
   const isActiveForChat = useSharepicLiveStore((s) => s.activeVariant?.variantId === variant.id);
+  const reviewedProps = useSharepicReviewStore((s) => s.reviewed[variant.id]);
+  const isReviewing = useSharepicReviewStore((s) => s.checking[variant.id] === true);
+  // The review's correction, until the variant is a canvas (then its state rules).
+  const initialProps = reviewedProps ?? variant.initialProps;
 
   // Cache-first initial paint: the version-keyed render cache (shared with the
   // thumbnail strip) already holds the full-res head render, so a remount —
@@ -77,7 +82,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
 
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
-  const renderInput = viewState ?? live?.state ?? variant.initialProps;
+  const renderInput = viewState ?? live?.state ?? initialProps;
 
   // Render (and re-render after each chat edit / version step). renderInput
   // is the full flat state — StandaloneCanvas's createInitialState accepts it
@@ -240,11 +245,11 @@ export function useSharepicArtifact(variant: SharepicVariant) {
         variantId: variant.id,
         canvasId,
         canvasType: variant.canvasType,
-        initialProps: variant.initialProps,
+        initialProps,
         ...(variant.label ? { label: variant.label } : {}),
       });
     }
-  }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId]);
+  }, [variant.id, variant.canvasType, initialProps, variant.label, canvasId]);
 
   /**
    * Re-renders at export resolution before saving. What the card shows is a
@@ -271,18 +276,19 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     useChatConfigStore.getState().onEditSharepic?.(
       {
         ...variant,
-        initialProps: live?.state ?? variant.initialProps,
+        initialProps: live?.state ?? initialProps,
         ...(canvasId ? { canvasId } : {}),
       },
       { threadId }
     );
-  }, [variant, live?.state, canvasId]);
+  }, [variant, live?.state, initialProps, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;
 
   return {
     imageBase64,
     isRendering,
+    isReviewing,
     renderError,
     canvasId,
     headVersion,

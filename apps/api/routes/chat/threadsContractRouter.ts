@@ -22,8 +22,11 @@ import { assertCanShareToGroup } from '../../services/groups/groupMembership.js'
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
+import { saveReviewedCreatorSpec } from './services/sharepicEditService.js';
+import { getThreadAccessLevel } from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -550,6 +553,29 @@ export const threadsContractRouter = s.router(threadsContract, {
     } catch (error) {
       log.error('Error fetching tabular files:', error);
       return { status: 500 as const, body: { error: 'Failed to fetch tabular files' } };
+    }
+  },
+
+  saveReviewedSharepic: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { threadId, variantId } = args.params;
+      const access = await getThreadAccessLevel(ThreadId(threadId), UserId(userId));
+      if (access !== 'owner' && access !== 'write') {
+        return { status: 404 as const, body: { error: 'Thread not found' } };
+      }
+      const outcome = await saveReviewedCreatorSpec(threadId, variantId, args.body.creatorSpec);
+      if (outcome === 'saved') return { status: 200 as const, body: { success: true as const } };
+      if (outcome === 'not_found') {
+        return { status: 404 as const, body: { error: 'Sharepic not found' } };
+      }
+      if (outcome === 'minted') {
+        return { status: 409 as const, body: { error: 'Sharepic is already a canvas' } };
+      }
+      return { status: 400 as const, body: { error: 'The review must keep the design' } };
+    } catch (error) {
+      log.error('Error saving reviewed sharepic:', error);
+      return { status: 500 as const, body: { error: 'Failed to save reviewed sharepic' } };
     }
   },
 });

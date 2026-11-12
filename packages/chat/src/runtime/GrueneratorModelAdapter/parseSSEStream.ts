@@ -13,6 +13,7 @@ import {
   type NotebookResolvedAnswerMode,
   type SocialPostPayload,
   type BahnPayload,
+  type SharepicChatReview,
   type SharepicUpdatedEvent,
   type SharepicVorlagenSuggestions,
   sharepicVorlagenSuggestionsSchema,
@@ -44,6 +45,7 @@ import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
+import { reviewFreshSharepics } from '../sharepicReview';
 import { ChatStreamError } from '../streamErrorMessage';
 
 import {
@@ -76,6 +78,7 @@ import type {
   ChartData,
   ComputeData,
   SharepicData,
+  SharepicVariant,
 } from '../../hooks/useChatGraphStream';
 import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
@@ -271,6 +274,8 @@ async function* parseStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: SharepicData | null = null;
+  // Sharepics of this live stream, reviewed in the browser once `done` names the thread.
+  const sharepicsToReview: Array<{ variants: SharepicVariant[]; review: SharepicChatReview }> = [];
   let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: CodeArtifact | null = null;
@@ -923,6 +928,7 @@ async function* parseStream(
               initialProps?: Record<string, unknown>;
               alternatives?: unknown[];
               error?: string;
+              review?: SharepicChatReview;
             };
             if (!payload.error) {
               // Validate at the boundary: only variants with a canonical
@@ -932,6 +938,9 @@ async function* parseStream(
               if (validated) {
                 receivedSharepicData = { variants: validated };
                 useSharepicLiveStore.getState().followRevision(validated);
+                if (payload.review && !muted()) {
+                  sharepicsToReview.push({ variants: validated, review: payload.review });
+                }
               } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
                 const legacyId =
                   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -1367,6 +1376,7 @@ async function* parseStream(
           case 'done': {
             sawTerminalEvent = true;
             const {
+              threadId: doneThreadId,
               citations: cit,
               generatedImage: img,
               metadata,
@@ -1378,6 +1388,11 @@ async function* parseStream(
               metadata?: StreamMetadata;
               interrupted?: boolean;
             };
+            if (doneThreadId) {
+              for (const { variants, review } of sharepicsToReview.splice(0)) {
+                reviewFreshSharepics(doneThreadId, variants, review);
+              }
+            }
             if (cit) receivedCitations = cit;
             if (img) receivedImage = img;
             if (metadata) receivedMetadata = metadata;
