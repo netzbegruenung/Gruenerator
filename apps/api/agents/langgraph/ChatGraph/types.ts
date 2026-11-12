@@ -694,6 +694,8 @@ export interface ChatGraphInput {
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
+  /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
+  projectInstructions?: { projectName: string; text: string } | null | undefined;
   contextWindowTokens?: number | undefined;
 }
 
@@ -1056,6 +1058,9 @@ export interface ChatGraphState {
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
+
+  // Anweisungen der Projekt-Admins für alle Chats im Projekt (group_instructions).
+  projectInstructions: { projectName: string; text: string } | null;
 
   // The person's explicit memory for this turn (services/memory). `memoryContext`
   // is the rendered, numbered text the prompt shows; `memories` is the same

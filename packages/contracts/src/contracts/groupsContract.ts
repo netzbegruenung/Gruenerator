@@ -19,6 +19,8 @@ import {
   groupContentResponseSchema,
   groupCreateResponseSchema,
   groupDetailsResponseSchema,
+  groupInstructionsBodySchema,
+  groupInstructionsResponseSchema,
   groupErrorResponseSchema,
   groupLinkBodySchema,
   groupLinkResponseSchema,
@@ -600,5 +602,33 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Delete a feed post with its files, pin and comments (author or admin)',
+  },
+
+  getGroupInstructions: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/instructions',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupInstructionsResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Read the Projekt instructions (members)',
+  },
+
+  setGroupInstructions: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/instructions',
+    pathParams: z.object({ groupId: z.string() }),
+    body: groupInstructionsBodySchema,
+    responses: {
+      200: groupInstructionsResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Write the Projekt instructions (Projekt admins; empty text removes them)',
   },
 });

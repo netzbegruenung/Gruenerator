@@ -559,3 +559,19 @@ export const groupVorlagenResponseSchema = z.object({
   vorlagen: z.array(z.record(z.string(), z.unknown())),
   tags: z.array(z.string()),
 });
+
+// Projekt-Anweisungen: ein Text, der für jeden Chat im Projekt gilt.
+export const GROUP_INSTRUCTIONS_MAX = 2000;
+
+export const groupInstructionsBodySchema = z.object({
+  // Leer = Anweisungen entfernen.
+  instructions: z.string().trim().max(GROUP_INSTRUCTIONS_MAX),
+});
+export type GroupInstructionsBody = z.infer<typeof groupInstructionsBodySchema>;
+
+export const groupInstructionsResponseSchema = z.object({
+  success: z.literal(true),
+  instructions: z.string(),
+  updatedAt: z.string().nullable(),
+});
+export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;

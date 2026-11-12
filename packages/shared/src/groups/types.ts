@@ -104,6 +104,7 @@ export interface VerifyTokenResult {
 
 export const GROUPS_QUERY_KEY = ['userGroups'] as const;
 export const groupDetailsKey = (id: string) => ['groupDetails', id] as const;
+export const groupInstructionsKey = (id: string) => ['groupInstructions', id] as const;
 export const groupMembersKey = (id: string) => ['groupMembers', id] as const;
 /** Web (`useGroupSharing`) und App (`useGroupContent`) teilen diesen Schlüssel. */
 export const groupContentKey = (id: string) => ['groupContent', id] as const;

@@ -191,13 +191,23 @@ export const threadsContractRouter = s.router(threadsContract, {
   create: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { title, agentId, threadType } = args.body;
+      const { title, agentId, threadType, groupId } = args.body;
+
+      // Same gate as filing a thread afterwards (`update`): member of the
+      // Projekt and allowed to share into it — no system group for non-admins.
+      if (groupId != null) {
+        try {
+          await assertCanShareToGroup(groupId, userId);
+        } catch {
+          return { status: 403 as const, body: { error: 'Kein Zugriff auf dieses Projekt.' } };
+        }
+      }
 
       const postgres = getPostgresInstance();
       const result = await insertThreadWithSlugRetry((slugSuffix) =>
         postgres.query(
-          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix, group_id)
+           VALUES ($1, $2, $3, $4, $5, $6::uuid)
            RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
           [
             userId,
@@ -205,6 +215,7 @@ export const threadsContractRouter = s.router(threadsContract, {
             title ?? null,
             threadType || 'chat',
             slugSuffix,
+            groupId ?? null,
           ]
         )
       );
