@@ -108,7 +108,7 @@ export function MarketplaceSection() {
       ) : (
         <CollectionCards
           title={null}
-          limit={3}
+          scroll
           collections={page.data?.collections ?? []}
           onOpen={(collection) => navigate(marketplaceHref({ collection }))}
         />
@@ -148,9 +148,9 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
 /** Bild & Video: six cards in a 3 × 2 grid (two columns on phones). */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
-// Most cards say what the tool does; Vorlagen and Mediathek keep their names.
+// Most cards say what the tool does; the Mediathek keeps its name.
 export const MEDIA_TOOLS = pickTools([
-  { id: 'canvas-vorlagen', theme: 'canvas-ki', title: 'Vorlagen' },
+  { id: 'canvas-vorlagen', theme: 'canvas-ki', title: 'Vorlagen durchsuchen' },
   { id: 'profilbild', theme: 'canvas-ki', title: 'Profilbild erstellen' },
   { id: 'reels-untertitel', theme: 'canvas-ki', title: 'Videos bearbeiten' },
   { id: 'studio-voice', theme: 'canvas-ki', title: 'Texte vertonen' },
