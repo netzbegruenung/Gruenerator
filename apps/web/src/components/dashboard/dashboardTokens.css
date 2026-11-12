@@ -37,8 +37,8 @@
  * Rollen, aber Eucalyptus statt Magenta, Karten weiß mit Rahmen und Schatten.
  */
 .dashboard-surface.dashboard-neutral {
-  --dash-mg: #2e6b49;
-  --dash-bar: linear-gradient(90deg, #5f9c82, #2e6b49);
+  --dash-mg: #47806d; /* Eukalyptus, 4,6:1 auf Weiß */
+  --dash-bar: linear-gradient(90deg, #7fae9c, #47806d);
   --dash-mg-ink: #1f2a23;
   --dash-on-mg: #ffffff;
   --dash-mg-tint: #edf1ed;
@@ -53,8 +53,8 @@
 }
 
 [data-theme='dark'] .dashboard-surface.dashboard-neutral {
-  --dash-mg: #8fc9a9;
-  --dash-bar: linear-gradient(90deg, #6aa78e, #8fc9a9);
+  --dash-mg: #9cc8b8;
+  --dash-bar: linear-gradient(90deg, #6f9e8d, #9cc8b8);
   --dash-mg-ink: #e3ebe6;
   --dash-on-mg: #121614;
   --dash-mg-tint: #222925;
