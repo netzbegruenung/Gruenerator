@@ -109,6 +109,7 @@ export {
   landesverbandAdminContract,
   recurringTasksContract,
   briefingContract,
+  pushContract,
   canvasContract,
   groupsContract,
   contentSyncContract,
@@ -218,6 +219,7 @@ export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
 export * from './schemas/recurringTasks.js';
 export * from './schemas/briefing.js';
+export * from './schemas/push.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';

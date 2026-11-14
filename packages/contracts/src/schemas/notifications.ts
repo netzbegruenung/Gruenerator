@@ -129,3 +129,69 @@ export const notificationSuccessResponseSchema = z.object({
 export const notificationsErrorResponseSchema = z.object({
   error: z.string(),
 });
+
+// ── Push (App) ───────────────────────────────────────────────────────────────
+
+/**
+ * Which notification types may go out as an app push, grouped the way the app
+ * shows its switches. A type missing here never pushes, whatever the stored
+ * preference says. `priority` maps to APNs 10/5 and FCM HIGH/NORMAL: `normal`
+ * lets the OS batch delivery to save battery and data.
+ */
+export const PUSH_NOTIFICATION_GROUPS = [
+  {
+    id: 'personal',
+    label: 'Persönlich an Dich',
+    priority: 'high',
+    types: [
+      'group_user_mentioned',
+      'board_user_mentioned',
+      'board_comment_reply',
+      'board_card_assigned',
+      'document_shared',
+      'group_join_approved',
+    ],
+  },
+  {
+    id: 'tasks',
+    label: 'Aufgaben von Agents',
+    priority: 'high',
+    types: ['agent_task_completed', 'agent_task_failed', 'agent_task_awaiting_review'],
+  },
+  {
+    id: 'deadlines',
+    label: 'Fristen',
+    priority: 'high',
+    types: ['board_due_date_reminder'],
+  },
+  {
+    id: 'activity',
+    label: 'Aktivität in Projekten',
+    priority: 'normal',
+    types: [
+      'group_post_created',
+      'group_comment_added',
+      'group_content_shared',
+      'group_join_requested',
+      'group_mention_all',
+      'board_comment_added',
+    ],
+  },
+] as const satisfies readonly {
+  id: string;
+  label: string;
+  priority: 'high' | 'normal';
+  types: readonly NotificationType[];
+}[];
+
+export type PushGroupId = (typeof PUSH_NOTIFICATION_GROUPS)[number]['id'];
+export type PushPriority = (typeof PUSH_NOTIFICATION_GROUPS)[number]['priority'];
+
+const PUSH_PRIORITY_BY_TYPE: ReadonlyMap<NotificationType, PushPriority> = new Map(
+  PUSH_NOTIFICATION_GROUPS.flatMap((g) => g.types.map((t) => [t, g.priority] as const))
+);
+
+/** Push priority of a type, or null when the type never pushes. */
+export function pushPriorityOf(type: NotificationType): PushPriority | null {
+  return PUSH_PRIORITY_BY_TYPE.get(type) ?? null;
+}

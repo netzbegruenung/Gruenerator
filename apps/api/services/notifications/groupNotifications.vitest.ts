@@ -33,14 +33,14 @@ beforeEach(() => {
 
 describe('group notification delivery', () => {
   it.each(['group_post_created', 'group_mention_all', 'group_user_mentioned'] as const)(
-    'never emails %s in the system group',
+    'never emails or pushes %s in the system group',
     async (type) => {
       group(true, ['a', 'b']);
       await notifyGroupMembers({ ...params, type });
       expect(createNotificationsForUsers).toHaveBeenCalledTimes(1);
       expect(createNotificationsForUsers).toHaveBeenCalledWith(
         ['a', 'b'],
-        expect.objectContaining({ channelOverride: { email: false } })
+        expect.objectContaining({ channelOverride: { email: false, push: false } })
       );
     }
   );

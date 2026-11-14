@@ -1,3 +1,4 @@
+import { pushPriorityOf } from '@gruenerator/contracts';
 import { and, count, eq, inArray, lt, sql, type InferSelectModel } from 'drizzle-orm';
 
 import { group_memberships, notifications, profiles } from '../../database/schema/index.js';
@@ -8,6 +9,7 @@ import {
   sendNotificationEmail,
 } from '../../services/email/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { deliverPush } from '../push/pushDelivery.js';
 
 import {
   getProfileForDelivery,
@@ -154,6 +156,17 @@ function fireEmail(
   }).catch(onError);
 }
 
+/** Fire-and-forget like email: a push failure never fails the notification. */
+function firePush(rows: NotificationRow[]) {
+  if (rows.length === 0) return;
+  deliverPush(rows).catch((err: unknown) => {
+    log.warn('Failed to deliver push notifications', {
+      count: rows.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+}
+
 /**
  * Resolve the group a notification belongs to, if any. Group notifications
  * carry the id in `metadata.groupId` (and mirror it in `groupKey` as
@@ -198,10 +211,10 @@ async function isGroupMutedForUser(userId: string, groupId: string): Promise<boo
  */
 function pickChannels(
   type: NotificationType,
-  prefs: Pick<ChannelPreferences, 'in_app' | 'email'>,
+  prefs: ChannelPreferences,
   groupMuted: boolean,
   channelOverride: CreateNotificationParams['channelOverride']
-): { inApp: boolean; email: boolean } {
+): { inApp: boolean; email: boolean; push: boolean } {
   // A per-call override wins over the user's stored channel preference.
   const inApp = channelOverride?.in_app ?? prefs.in_app;
   // A muted group suppresses the noisy channel (email) for this user;
@@ -211,9 +224,13 @@ function pickChannels(
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
     (channelOverride?.email ?? prefs.email);
-  // The 'push' channel is still a valid preference value (stored per user, part
-  // of the contract enum), but nothing delivers on it since push was removed.
-  return { inApp, email };
+  // Push mirrors the bell to the phone: only allowlisted types, never a muted
+  // group, and never a type the user switched off in-app. The last rule
+  // matters because the web UI showed no push column from 08/2026 on — a stored
+  // `push` value there is the preset default, not a decision.
+  const push =
+    !groupMuted && inApp && pushPriorityOf(type) !== null && (channelOverride?.push ?? prefs.push);
+  return { inApp, email, push };
 }
 
 export async function createNotification(
@@ -231,13 +248,14 @@ export async function createNotification(
     {
       in_app: await shouldDeliver(userId, type, 'in_app', profile),
       email: await shouldDeliver(userId, type, 'email', profile),
+      push: await shouldDeliver(userId, type, 'push', profile),
     },
     groupMuted,
     channelOverride
   );
 
   // Nothing to deliver on any channel — skip entirely.
-  if (!channels.inApp && !channels.email) {
+  if (!channels.inApp && !channels.email && !channels.push) {
     return null;
   }
 
@@ -265,6 +283,7 @@ export async function createNotification(
   });
 
   if (channels.email) fireEmail(userId, profile, title, body ?? null, type, actionUrl, metadata);
+  if (channels.push) firePush([notification]);
 
   return notification;
 }
@@ -320,7 +339,9 @@ export async function createNotificationsForUsers(
       r.muted,
       channelOverride
     );
-    return channels.inApp || channels.email ? [{ recipient: r, email: channels.email }] : [];
+    return channels.inApp || channels.email || channels.push
+      ? [{ recipient: r, email: channels.email, push: channels.push }]
+      : [];
   });
   if (delivered.length === 0) return [];
 
@@ -342,6 +363,9 @@ export async function createNotificationsForUsers(
   const emailTo = new Map(
     delivered.filter((d) => d.email).map((d) => [d.recipient.id, d.recipient])
   );
+  const pushTo = new Set(delivered.filter((d) => d.push).map((d) => d.recipient.id));
+  // One batched push run for the whole chunk: one device lookup, not one per row.
+  firePush(rows.filter((row) => pushTo.has(row.user_id)));
   for (const row of rows) {
     publishNotification(row.user_id, toNotification(row)).catch((err: Error) => {
       log.warn('Failed to publish notification via Redis', {
