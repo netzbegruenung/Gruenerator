@@ -75,6 +75,13 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Builds before 08/2026 called `getExpoPushTokenAsync`, which persists an
+// "auto server registration" flag natively. expo-notifications reads it on
+// every start and uploads the device token to exp.host (USA) whenever it
+// changed — even though no code calls Expo any more. Clearing the flag ends
+// that for upgraded installs; it is a local write and a no-op elsewhere.
+Notifications.setAutoServerRegistrationEnabledAsync(false).catch(() => {});
+
 /**
  * Stop re-rendering screens nobody is looking at.
  *
