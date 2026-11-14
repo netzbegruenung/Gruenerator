@@ -85,7 +85,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Deine Werkzeuge',
           description:
-            'Die Kacheln führen in alle Bereiche: Marktplatz, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
+            'Unter „Bild & Video“ liegen Profilbild, Video, Voice, Transkription und die Mediathek, darunter weitere Werkzeuge wie Übersetzer und Scanner.',
           side: 'top',
         },
       },

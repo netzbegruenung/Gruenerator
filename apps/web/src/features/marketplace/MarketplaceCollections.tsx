@@ -24,7 +24,7 @@ import {
   ShowcaseMedia,
   cn,
 } from '@gruenerator/ui';
-import { type JSX, useId } from 'react';
+import { type JSX, type PointerEvent, type ReactNode, useId, useRef } from 'react';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
 
@@ -122,57 +122,144 @@ function Emphasized({ text }: { text: string }) {
   );
 }
 
+/**
+ * A sideways row: 82 % of a phone, about two cards on a tablet, three and a
+ * peek on a desktop. The thin scrollbar stays so a mouse can reach the rest.
+ */
+const COLLECTION_SCROLL_ROW =
+  'm-0 flex list-none snap-x snap-mandatory gap-md overflow-x-auto p-0 pb-3 [scrollbar-width:thin] max-md:-mx-4 max-md:scroll-px-4 max-md:px-4 [&>*]:shrink-0 [&>*]:snap-start [&>*]:w-[82%] sm:[&>*]:w-[46%] lg:[&>*]:w-[31%]';
+
+/**
+ * The sideways row. A finger swipes natively; a mouse drags it: held down and
+ * pulled, the row follows, and on release it snaps to the nearest card. A click
+ * that ends a drag does not open the card under the pointer.
+ */
+function ScrollRow({ children }: { children: ReactNode }) {
+  const row = useRef<HTMLUListElement>(null);
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  const dragged = useRef(false);
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || !row.current) return;
+    drag.current = { x: e.clientX, left: row.current.scrollLeft, moved: false };
+    dragged.current = false;
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const state = drag.current;
+    const el = row.current;
+    if (!state || !el) return;
+    const dx = e.clientX - state.x;
+    if (!state.moved && Math.abs(dx) < 5) return;
+    if (!state.moved) {
+      state.moved = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      // Snapping fights every pixel of the drag; it comes back on release.
+      el.style.scrollSnapType = 'none';
+    }
+    el.scrollLeft = state.left - dx;
+  };
+  const endDrag = () => {
+    const el = row.current;
+    if (drag.current?.moved && el) {
+      dragged.current = true;
+      // Keep the release position, then let the row settle onto the nearest card.
+      const left = el.scrollLeft;
+      el.style.scrollSnapType = '';
+      el.scrollLeft = left;
+    }
+    drag.current = null;
+  };
+
+  return (
+    // Mouse dragging only adds to what fingers and keyboard already do natively.
+    <div
+      role="presentation"
+      className="md:cursor-grab md:active:cursor-grabbing"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClickCapture={(e) => {
+        if (!dragged.current) return;
+        dragged.current = false;
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      // Pictures and links would start the browser's own drag instead.
+      onDragStart={(e) => e.preventDefault()}
+    >
+      <ul ref={row} className={COLLECTION_SCROLL_ROW}>
+        {children}
+      </ul>
+    </div>
+  );
+}
+
 /** The collection row on the front page: one quiet card per collection, App-Store style. */
 export function CollectionCards({
   collections,
   onOpen,
   title = 'Kollektionen',
   row,
+  scroll = false,
 }: {
   collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
   onOpen: (id: MarketplaceCollectionId) => void;
-  title?: string;
+  /** `null`: the surrounding section already carries the heading. */
+  title?: string | null;
   /** Only the collections of this front page row (`rest`: those without one); all when left out. */
   row?: NonNullable<MarketplaceCollection['row']> | 'rest';
+  /** One row that scrolls sideways at every width, the next card peeking in. */
+  scroll?: boolean;
 }): JSX.Element | null {
   const headingId = useId();
   const cards = collectionCardsFor(collections, row);
   if (cards.length === 0) return null;
+  const list = cards.map(({ def, items }) => (
+    <li key={def.id}>
+      <ShowcaseCard
+        label={def.title}
+        onActivate={() => onOpen(def.id)}
+        tone={def.tone}
+        media={
+          <CollectionMedia
+            collection={def}
+            items={items}
+            sizes="(min-width: 768px) 33vw, 100vw"
+            decorative
+          />
+        }
+        meta={collectionMetaLine(def, items.length)}
+        title={def.title}
+        description={plainEmphasis(def.description)}
+        titleFont={DISPLAY_FONT}
+      />
+    </li>
+  ));
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-md">
-      <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
-        {title}
-      </h2>
-      <ul
-        className={cn(
-          'm-0 grid list-none grid-cols-1 gap-md p-0',
-          // Two or four cards stand in pairs; three columns would leave one or two alone.
-          cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
-          SWIPE_BELOW_MD
-        )}
-      >
-        {cards.map(({ def, items }) => (
-          <li key={def.id}>
-            <ShowcaseCard
-              label={def.title}
-              onActivate={() => onOpen(def.id)}
-              tone={def.tone}
-              media={
-                <CollectionMedia
-                  collection={def}
-                  items={items}
-                  sizes="(min-width: 768px) 33vw, 100vw"
-                  decorative
-                />
-              }
-              meta={collectionMetaLine(def, items.length)}
-              title={def.title}
-              description={plainEmphasis(def.description)}
-              titleFont={DISPLAY_FONT}
-            />
-          </li>
-        ))}
-      </ul>
+    <section
+      {...(title === null ? { 'aria-label': 'Kollektionen' } : { 'aria-labelledby': headingId })}
+      className="flex flex-col gap-md"
+    >
+      {title !== null && (
+        <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
+          {title}
+        </h2>
+      )}
+      {scroll ? (
+        <ScrollRow>{list}</ScrollRow>
+      ) : (
+        <ul
+          className={cn(
+            'm-0 grid list-none grid-cols-1 gap-md p-0',
+            // Two or four cards stand in pairs; three columns would leave one or two alone.
+            cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
+            SWIPE_BELOW_MD
+          )}
+        >
+          {list}
+        </ul>
+      )}
     </section>
   );
 }
