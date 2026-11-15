@@ -41,7 +41,7 @@ describe('getProjectFileSources', () => {
     const [sql, params] = mockQuery.mock.calls[0] as [string, unknown[]];
     // Membership of the viewer, the thread must be the viewer's own, nothing trashed.
     expect(sql).toMatch(/group_memberships gm[^]*gm\.user_id = \$2[^]*gm\.is_active = TRUE/);
-    expect(sql).toMatch(/t\.user_id = \$2/);
+    expect(sql).toMatch(/t\.user_id::text = \$2::text OR EXISTS[^]*content_type = .chat_threads./);
     expect(sql).toMatch(/t\.deleted_at IS NULL/);
     expect(sql).toMatch(/g\.deleted_at IS NULL/);
     expect(sql).toMatch(/d\.deleted_at IS NULL/);

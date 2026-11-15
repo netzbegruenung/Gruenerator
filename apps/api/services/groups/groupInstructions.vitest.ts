@@ -85,7 +85,7 @@ describe('readThreadProjectInstructions', () => {
     const sql = String(queryOne.mock.calls[0][0]);
     expect(sql).toMatch(/gm\.is_active = TRUE/);
     expect(sql).toMatch(/instructions_enabled/);
-    expect(sql).toMatch(/t\.user_id = \$2/);
+    expect(sql).toMatch(/t\.user_id::text = \$2::text OR EXISTS[^]*content_type = .chat_threads./);
     expect(sql).toMatch(/g\.deleted_at IS NULL/);
   });
 

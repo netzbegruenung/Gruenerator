@@ -13,6 +13,7 @@ import { GROUP_INSTRUCTIONS_MAX } from '@gruenerator/contracts';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
+import { projectThreadScopeSql } from './projectThreadScope.js';
 
 import type { GroupInstructionsRow } from '../../database/schema/groups.js';
 
@@ -79,8 +80,7 @@ export interface ThreadProjectInstructions {
 
 /**
  * Die Anweisungen des Projekts, in dem ein Chat liegt — für den Systemprompt.
- * Nur der eigene Chat (wie der Projekt-Block in `getSpaceRecallScope`), nur
- * für aktive Mitglieder, nur ein nicht gelöschtes Projekt. `null`, wenn der
+ * Eigener Chat oder Team-Chat (`projectThreadScopeSql`), nur für aktive Mitglieder, nur ein nicht gelöschtes Projekt. `null`, wenn der
  * Chat in keinem Projekt liegt oder es keine Anweisungen gibt.
  */
 export async function readThreadProjectInstructions(
@@ -89,15 +89,10 @@ export async function readThreadProjectInstructions(
 ): Promise<ThreadProjectInstructions | null> {
   const row = (await getPostgresInstance().queryOne(
     `SELECT g.name, gi.custom_prompt
-       FROM chat_threads t
-       JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
-         AND COALESCE(g.is_active, TRUE) = TRUE
-       JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid
-         AND gm.is_active = TRUE
+       FROM ${projectThreadScopeSql('$1', '$2')}
        JOIN group_instructions gi ON gi.group_id = g.id
          AND COALESCE(gi.is_active, TRUE) = TRUE
-         AND COALESCE(gi.instructions_enabled, FALSE) = TRUE
-      WHERE t.id = $1::uuid AND t.user_id = $2::uuid AND t.deleted_at IS NULL`,
+         AND COALESCE(gi.instructions_enabled, FALSE) = TRUE`,
     [threadId, userId]
   )) as { name: string; custom_prompt: string | null } | null;
   const text = row?.custom_prompt?.trim() ?? '';
