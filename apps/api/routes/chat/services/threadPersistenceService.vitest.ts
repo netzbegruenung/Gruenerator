@@ -24,6 +24,7 @@ const {
   discardPendingAssistantIfEmpty,
   deleteEmptyStreamingRows,
   deleteTrailingAssistant,
+  deleteMessagesFrom,
   getRecentToolSteps,
   readThreadToolHistory,
 } = await import('./threadPersistenceService.js');
@@ -196,14 +197,43 @@ describe('deleteEmptyStreamingRows', () => {
   });
 });
 
-describe('deleteTrailingAssistant (regression)', () => {
-  it('still keys off the MAX(created_at) user-message subquery', async () => {
-    queryMock.mockResolvedValueOnce([]);
-    await deleteTrailingAssistant('thread-1');
+describe('deleteTrailingAssistant', () => {
+  it('keys off the newest user row and checks its author in the same statement', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 1, ok: true }]);
+    await expect(deleteTrailingAssistant('thread-1', 'user-a')).resolves.toBe(1);
     const q = sql();
-    expect(q).toContain('MAX(created_at)');
     expect(q).toContain("role = 'user'");
-    expect(params()).toEqual(['thread-1']);
+    expect(q).toContain('ORDER BY m.created_at DESC');
+    expect(q).toContain('COALESCE(m.user_id, t.user_id)');
+    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM last_user/);
+    expect(params()).toEqual(['thread-1', 'user-a']);
+  });
+
+  it("returns 'not_author' when the last user row belongs to someone else", async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: false }]);
+    await expect(deleteTrailingAssistant('thread-1', 'user-b')).resolves.toBe('not_author');
+  });
+});
+
+describe('deleteMessagesFrom', () => {
+  it('deletes from the anchor on when the sender wrote it', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 2, ok: true }]);
+    await expect(deleteMessagesFrom('thread-1', 'msg-1', 'user-a')).resolves.toBe(2);
+    const q = sql();
+    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM anchor/);
+    expect(q).toContain('COALESCE(m.user_id, t.user_id)');
+    expect(q).toContain('t.deleted_at IS NULL');
+    expect(params()).toEqual(['thread-1', 'msg-1', 'user-a']);
+  });
+
+  it("returns 'not_author' for a row written by another member (also legacy NULL, non-owner)", async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: false }]);
+    await expect(deleteMessagesFrom('thread-1', 'msg-1', 'user-b')).resolves.toBe('not_author');
+  });
+
+  it('returns 0 when the id resolves to no row', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: true }]);
+    await expect(deleteMessagesFrom('thread-1', 'nope', 'user-a')).resolves.toBe(0);
   });
 });
 

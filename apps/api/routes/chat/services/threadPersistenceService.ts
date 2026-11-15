@@ -418,19 +418,41 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
  * edit-and-resubmit: the edited user message and its now-stale replies are
  * removed before the fresh turn is written. Returns the number of rows deleted
  * (0 when the id doesn't resolve to a message in this thread).
+ *
+ * In a team chat several members write into one thread, so only the author of
+ * the anchor row may replace it: `'not_author'` (nothing deleted) when its
+ * `user_id` differs from `authorId`. A legacy row with `user_id` NULL counts as
+ * written by the thread owner. Check and delete are ONE statement, so a
+ * concurrent write can't slip between them.
  */
-export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+export async function deleteMessagesFrom(
+  threadId: string,
+  messageId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `DELETE FROM chat_messages
-     WHERE thread_id = $1
-       AND created_at >= (
-         SELECT created_at FROM chat_messages WHERE id = $2 AND thread_id = $1
-       )
-     RETURNING id`,
-    [threadId, messageId]
-  )) as unknown[];
-  return result.length;
+  const rows = (await postgres.query(
+    `WITH anchor AS (
+       SELECT m.created_at,
+              COALESCE(m.user_id, t.user_id)::text = $3::text AS ok
+       FROM chat_messages m
+       JOIN chat_threads t ON t.id = m.thread_id
+       WHERE m.id = $2 AND m.thread_id = $1 AND t.deleted_at IS NULL
+     ),
+     deleted AS (
+       DELETE FROM chat_messages
+       WHERE thread_id = $1
+         AND (SELECT ok FROM anchor)
+         AND created_at >= (SELECT created_at FROM anchor)
+       RETURNING id
+     )
+     SELECT (SELECT COUNT(*) FROM deleted)::int AS deleted,
+            COALESCE((SELECT ok FROM anchor), true) AS ok`,
+    [threadId, messageId, authorId]
+  )) as Array<{ deleted: number; ok: boolean }>;
+  const row = rows[0];
+  if (row && row.ok === false) return 'not_author';
+  return row ? Number(row.deleted) : 0;
 }
 
 /**
@@ -438,20 +460,40 @@ export async function deleteMessagesFrom(threadId: string, messageId: string): P
  * most recent user message. Used for regenerate (the user message stays; only
  * the last reply is replaced) and as the fallback for edit-resubmit when the
  * frontend id doesn't resolve to a persisted row (in-session message).
+ *
+ * Same author rule as `deleteMessagesFrom`, checked against the last user row
+ * (`'not_author'`, nothing deleted). A thread without a user row has nothing to
+ * protect.
  */
-export async function deleteTrailingAssistant(threadId: string): Promise<number> {
+export async function deleteTrailingAssistant(
+  threadId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `DELETE FROM chat_messages
-     WHERE thread_id = $1
-       AND created_at > COALESCE(
-         (SELECT MAX(created_at) FROM chat_messages WHERE thread_id = $1 AND role = 'user'),
-         '-infinity'::timestamptz
-       )
-     RETURNING id`,
-    [threadId]
-  )) as unknown[];
-  return result.length;
+  const rows = (await postgres.query(
+    `WITH last_user AS (
+       SELECT m.created_at,
+              COALESCE(m.user_id, t.user_id)::text = $2::text AS ok
+       FROM chat_messages m
+       JOIN chat_threads t ON t.id = m.thread_id
+       WHERE m.thread_id = $1 AND m.role = 'user' AND t.deleted_at IS NULL
+       ORDER BY m.created_at DESC
+       LIMIT 1
+     ),
+     deleted AS (
+       DELETE FROM chat_messages
+       WHERE thread_id = $1
+         AND COALESCE((SELECT ok FROM last_user), true)
+         AND created_at > COALESCE((SELECT created_at FROM last_user), '-infinity'::timestamptz)
+       RETURNING id
+     )
+     SELECT (SELECT COUNT(*) FROM deleted)::int AS deleted,
+            COALESCE((SELECT ok FROM last_user), true) AS ok`,
+    [threadId, authorId]
+  )) as Array<{ deleted: number; ok: boolean }>;
+  const row = rows[0];
+  if (row && row.ok === false) return 'not_author';
+  return row ? Number(row.deleted) : 0;
 }
 
 // Removed: `threadExists()` — an existence-only check with no user_id predicate.

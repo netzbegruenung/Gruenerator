@@ -752,13 +752,27 @@ async function buildStreamContextInner({
         // A non-UUID id is exactly the case the fallback below already handles:
         // it names no persisted row. Route it there instead of to SQL.
         const removed = UUID_RE.test(rawReplaceFromMessageId)
-          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId, userId)
           : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
-        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+        const replaced =
+          removed === 0 ? await deleteTrailingAssistant(actualThreadId, userId) : removed;
+        if (replaced === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       } else if (rawRegenerate) {
-        await deleteTrailingAssistant(actualThreadId);
+        if ((await deleteTrailingAssistant(actualThreadId, userId)) === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       }
     }
 

@@ -57,6 +57,8 @@ export interface FakeMessage {
   content: string | null;
   status?: string;
   metadata?: unknown;
+  /** Author of the row (`chat_messages.user_id`); null = legacy row. */
+  userId?: string | null;
   createdAt: Date;
 }
 
@@ -205,10 +207,18 @@ export async function createMessage(
   role: string,
   content: string | null,
   metadata?: Record<string, unknown>,
-  _userId?: string
+  userId?: string
 ): Promise<string> {
   const id = crypto.randomUUID();
-  messages.set(id, { id, threadId, role, content, metadata, createdAt: new Date() });
+  messages.set(id, {
+    id,
+    threadId,
+    role,
+    content,
+    metadata,
+    userId: userId ?? null,
+    createdAt: new Date(),
+  });
   return id;
 }
 
@@ -321,7 +331,16 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
 /** Was Postgres bei `WHERE id = $2` mit einer nicht-uuid tut: 22P02. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+/** Mirrors the SQL: a NULL `user_id` (legacy row) counts as the thread owner's. */
+function isAuthor(threadId: string, row: FakeMessage, authorId: string): boolean {
+  return (row.userId ?? threads.get(threadId)?.userId) === authorId;
+}
+
+export async function deleteMessagesFrom(
+  threadId: string,
+  messageId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   // Ein Fake, der annimmt, was die echte Datenbank zurückweist, verbirgt genau
   // die Fehlerklasse, für die dieser Prüfstand da ist. Am 13.08.2026 schickte
   // der Client „Xa4ZTed" — einen Slug-Suffix — und der Turn brach mit 500 ab,
@@ -331,6 +350,7 @@ export async function deleteMessagesFrom(threadId: string, messageId: string): P
   }
   const anchor = messages.get(messageId);
   if (!anchor || anchor.threadId !== threadId) return 0;
+  if (!isAuthor(threadId, anchor, authorId)) return 'not_author';
   let removed = 0;
   for (const [id, row] of messages) {
     if (row.threadId === threadId && row.createdAt.getTime() >= anchor.createdAt.getTime()) {
@@ -343,9 +363,13 @@ export async function deleteMessagesFrom(threadId: string, messageId: string): P
   return removed;
 }
 
-export async function deleteTrailingAssistant(threadId: string): Promise<number> {
+export async function deleteTrailingAssistant(
+  threadId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   const threadMessages = messagesOf(threadId);
   const lastUser = [...threadMessages].reverse().find((m) => m.role === 'user');
+  if (lastUser && !isAuthor(threadId, lastUser, authorId)) return 'not_author';
   const cutoff = lastUser ? lastUser.createdAt.getTime() : -Infinity;
   let removed = 0;
   for (const [id, row] of messages) {
