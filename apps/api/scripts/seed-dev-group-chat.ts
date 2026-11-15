@@ -23,6 +23,7 @@ import { buildGroupSlug, generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { DEV_BYPASS_EXTRA_USERS, DEV_BYPASS_USER_ID } from '../config/devAuthBypass.js';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { addGroupShare } from '../services/groups/groupShareWriter.js';
 
 const LENA = DEV_BYPASS_EXTRA_USERS[0]!;
 const PROJECT_ID = '00000000-0000-4000-a000-0000000000c1';
@@ -104,12 +105,21 @@ async function seed(): Promise<void> {
       'Radweg-Konzept Musterstadt: Der Radweg entlang der Hauptstraße soll zwei Meter breit und baulich getrennt werden. Kosten: 1,2 Mio. Euro.',
     ]
   );
-  await db().query(
-    `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id, permissions)
-     VALUES ($1, $2, 'documents', $3, '{"read":true,"write":true}'),
-            ($1, $2, 'system_notebooks', $4, '{"read":true}')`,
-    [PROJECT_ID, DEV_BYPASS_USER_ID, DOCUMENT_ID, NOTEBOOK_ID]
-  );
+  // `group_content_shares` hat genau einen Schreiber (groupShareWriteGuard.vitest.ts).
+  await addGroupShare({
+    userId: DEV_BYPASS_USER_ID,
+    groupId: PROJECT_ID,
+    contentType: 'documents',
+    contentId: DOCUMENT_ID,
+    permissions: { read: true, write: true },
+  } as never);
+  await addGroupShare({
+    userId: DEV_BYPASS_USER_ID,
+    groupId: PROJECT_ID,
+    contentType: 'system_notebooks',
+    contentId: NOTEBOOK_ID,
+    permissions: { read: true, write: false },
+  } as never);
 
   // Lenas eigene Wolke-Anbindung und ihr MCP-Server — Fake-URLs, nichts verbindet sich.
   await db().query(
