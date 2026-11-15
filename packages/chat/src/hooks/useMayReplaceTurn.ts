@@ -40,7 +40,16 @@ export function mayReplaceTurn(
     }
   }
   const sender = senderOf(userMessage);
-  return !sender || sender === currentUserId;
+  if (sender && sender !== currentUserId) return false;
+  // Editing cuts the thread from this message on: a teammate's later message
+  // would go with it, and the server refuses that.
+  if (message.role === 'user') {
+    for (let i = index + 1; i < messages.length; i++) {
+      const later = messages[i].role === 'user' ? senderOf(messages[i]) : null;
+      if (later && later !== currentUserId) return false;
+    }
+  }
+  return true;
 }
 
 export function useMayReplaceTurn(): boolean {

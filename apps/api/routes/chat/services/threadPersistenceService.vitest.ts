@@ -204,7 +204,8 @@ describe('deleteTrailingAssistant', () => {
     const q = sql();
     expect(q).toContain("role = 'user'");
     expect(q).toContain('ORDER BY m.created_at DESC');
-    expect(q).toContain('COALESCE(m.user_id, t.user_id)');
+    expect(q).toContain('COALESCE(m.user_id, (SELECT owner_id FROM live))');
+    expect(q).toContain('deleted_at IS NULL');
     expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM last_user/);
     expect(params()).toEqual(['thread-1', 'user-a']);
   });
@@ -220,8 +221,9 @@ describe('deleteMessagesFrom', () => {
     queryMock.mockResolvedValueOnce([{ deleted: 2, ok: true }]);
     await expect(deleteMessagesFrom('thread-1', 'msg-1', 'user-a')).resolves.toBe(2);
     const q = sql();
-    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM anchor/);
-    expect(q).toContain('COALESCE(m.user_id, t.user_id)');
+    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM verdict/);
+    expect(q).toContain("m.role = 'user'");
+    expect(q).toContain('f.created_at >= a.created_at');
     expect(q).toContain('t.deleted_at IS NULL');
     expect(params()).toEqual(['thread-1', 'msg-1', 'user-a']);
   });

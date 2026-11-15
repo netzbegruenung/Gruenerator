@@ -24,13 +24,19 @@ describe('mayReplaceTurn', () => {
   const thread = [user('u1', 'anna'), assistant('a1'), user('u2', 'ben'), assistant('a2')];
 
   it('allows edit and regenerate on the own turn', () => {
-    expect(mayReplaceTurn(thread, 'u1', 'anna')).toBe(true);
+    const own = [user('u1', 'anna'), assistant('a1'), user('u2', 'anna')];
+    expect(mayReplaceTurn(own, 'u1', 'anna')).toBe(true);
     expect(mayReplaceTurn(thread, 'a1', 'anna')).toBe(true);
   });
 
   it('hides edit on a teammate’s message and regenerate on the reply to it', () => {
     expect(mayReplaceTurn(thread, 'u2', 'anna')).toBe(false);
     expect(mayReplaceTurn(thread, 'a2', 'anna')).toBe(false);
+  });
+
+  it('hides edit on the own message when a teammate wrote later', () => {
+    const t = [user('u1', 'anna'), assistant('a1'), user('u2', 'ben'), assistant('a2')];
+    expect(mayReplaceTurn(t, 'u1', 'anna')).toBe(false);
   });
 
   it('keeps messages without senderId (private chats, legacy rows) editable', () => {

@@ -419,9 +419,10 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
  * removed before the fresh turn is written. Returns the number of rows deleted
  * (0 when the id doesn't resolve to a message in this thread).
  *
- * In a team chat several members write into one thread, so only the author of
- * the anchor row may replace it: `'not_author'` (nothing deleted) when its
- * `user_id` differs from `authorId`. A legacy row with `user_id` NULL counts as
+ * In a team chat several members write into one thread, so the cut is allowed
+ * only when EVERY user row at or after the anchor was written by `authorId`:
+ * otherwise `'not_author'` and nothing is deleted. The anchor must be a user
+ * row of a live (not trashed) thread. A legacy row with `user_id` NULL counts as
  * written by the thread owner. Check and delete are ONE statement, so a
  * concurrent write can't slip between them.
  */
@@ -433,21 +434,30 @@ export async function deleteMessagesFrom(
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
     `WITH anchor AS (
-       SELECT m.created_at,
-              COALESCE(m.user_id, t.user_id)::text = $3::text AS ok
+       SELECT m.created_at, t.user_id AS owner_id
        FROM chat_messages m
        JOIN chat_threads t ON t.id = m.thread_id
-       WHERE m.id = $2 AND m.thread_id = $1 AND t.deleted_at IS NULL
+       WHERE m.id = $2 AND m.thread_id = $1 AND m.role = 'user' AND t.deleted_at IS NULL
+     ),
+     verdict AS (
+       -- The cut takes every later row with it: a teammate's message after the
+       -- anchor blocks the edit just like a foreign anchor does.
+       SELECT NOT EXISTS (
+         SELECT 1 FROM chat_messages f, anchor a
+         WHERE f.thread_id = $1 AND f.role = 'user' AND f.created_at >= a.created_at
+           AND COALESCE(f.user_id, a.owner_id)::text <> $3::text
+       ) AS ok
+       FROM anchor
      ),
      deleted AS (
        DELETE FROM chat_messages
        WHERE thread_id = $1
-         AND (SELECT ok FROM anchor)
+         AND (SELECT ok FROM verdict)
          AND created_at >= (SELECT created_at FROM anchor)
        RETURNING id
      )
      SELECT (SELECT COUNT(*) FROM deleted)::int AS deleted,
-            COALESCE((SELECT ok FROM anchor), true) AS ok`,
+            COALESCE((SELECT ok FROM verdict), true) AS ok`,
     [threadId, messageId, authorId]
   )) as Array<{ deleted: number; ok: boolean }>;
   const row = rows[0];
@@ -471,18 +481,21 @@ export async function deleteTrailingAssistant(
 ): Promise<number | 'not_author'> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    `WITH last_user AS (
+    `WITH live AS (
+       SELECT user_id AS owner_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL
+     ),
+     last_user AS (
        SELECT m.created_at,
-              COALESCE(m.user_id, t.user_id)::text = $2::text AS ok
+              COALESCE(m.user_id, (SELECT owner_id FROM live))::text = $2::text AS ok
        FROM chat_messages m
-       JOIN chat_threads t ON t.id = m.thread_id
-       WHERE m.thread_id = $1 AND m.role = 'user' AND t.deleted_at IS NULL
+       WHERE m.thread_id = $1 AND m.role = 'user' AND EXISTS (SELECT 1 FROM live)
        ORDER BY m.created_at DESC
        LIMIT 1
      ),
      deleted AS (
        DELETE FROM chat_messages
        WHERE thread_id = $1
+         AND EXISTS (SELECT 1 FROM live)
          AND COALESCE((SELECT ok FROM last_user), true)
          AND created_at > COALESCE((SELECT created_at FROM last_user), '-infinity'::timestamptz)
        RETURNING id
