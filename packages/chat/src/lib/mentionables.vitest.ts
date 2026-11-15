@@ -9,6 +9,7 @@ import {
   visibleNotebookMentionables,
   filterMentionables,
   getAllMentionables,
+  setMentionInstance,
   setMentionLocale,
   userAgentToMentionable,
   textformToMentionable,
@@ -336,6 +337,18 @@ describe('locale-aware picker', () => {
     expect(ids).not.toContain('oesterreich-notebook');
     // hamburg is `enabled: false` — absent for everyone, independent of locale.
     expect(ids).not.toContain('hamburg-notebook');
+  });
+
+  it('offers preview notebooks where the instance serves them, and only there', () => {
+    setMentionLocale('de-DE');
+    setMentionInstance('beta');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).toContain(
+      'landtag-bayern-notebook'
+    );
+    setMentionInstance('production');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).not.toContain(
+      'landtag-bayern-notebook'
+    );
   });
 
   it('filters the @-typeahead too, not just the plus menu', () => {
