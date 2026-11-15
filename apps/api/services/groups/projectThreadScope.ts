@@ -30,3 +30,19 @@ export function projectThreadScopeSql(threadParam: string, userParam: string): s
          AND t.id = ${threadParam}::uuid AND t.deleted_at IS NULL
          AND (t.user_id::text = ${userParam}::text OR ${teamChatShareExistsSql('t', 'g.id')})`;
 }
+
+/**
+ * Der Thread `threadAlias` ist ein Team-Chat eines Projekts, in dem die Person
+ * (`userParam`) aktives Mitglied ist. Für Leser, die einzelne Threads laden,
+ * deren Id aus dem Projekt-Scope kommt (Recall, Tiefenlesen).
+ */
+export function teamChatMemberSql(threadAlias: string, userParam: string): string {
+  return `EXISTS (
+           SELECT 1 FROM groups tg
+             JOIN group_memberships tgm ON tgm.group_id = tg.id
+              AND tgm.user_id = ${userParam}::uuid AND tgm.is_active = TRUE
+            WHERE tg.id = ${threadAlias}.group_id AND tg.deleted_at IS NULL
+              AND COALESCE(tg.is_active, TRUE) = TRUE
+              AND ${teamChatShareExistsSql(threadAlias, 'tg.id')}
+         )`;
+}

@@ -34,6 +34,9 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   ...(await importOriginal<object>()),
   getPostgresInstance: () => adapter,
 }));
+vi.mock('../chat/threadRecallEmbeddingService.js', () => ({
+  searchThreadRecall: async () => [T1, T2, T3],
+}));
 vi.mock('./groupContent.js', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   hydrateGroupContent: async () => null,
@@ -41,7 +44,8 @@ vi.mock('./groupContent.js', async (importOriginal) => ({
 
 const { readThreadProjectInstructions } = await import('./groupInstructions.js');
 const { getProjectFileSources } = await import('./projectFiles.js');
-const { getSpaceRecallScope } = await import('../../routes/chat/services/pastChatRecallService.js');
+const { getSpaceRecallScope, getThreadRecallContext, recallPastChats } =
+  await import('../../routes/chat/services/pastChatRecallService.js');
 
 const A = randomUUID();
 const B = randomUUID();
@@ -50,6 +54,8 @@ const P = randomUUID();
 const T1 = randomUUID(); // team chat of A
 const T2 = randomUUID(); // private chat of A
 const T3 = randomUUID(); // private chat of B
+const T4 = randomUUID(); // share without write
+const T5 = randomUUID(); // legacy share, permissions {}
 const DOC = randomUUID();
 
 describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
@@ -128,12 +134,62 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
   it('recall scope for B in the team chat: own chats plus team chats, never A private', async () => {
     const scope = await getSpaceRecallScope(T1, B);
     expect(scope).not.toBeNull();
-    expect(scope!.threadIds.sort()).toEqual([T3]);
+    expect(scope!.threadIds.sort()).toEqual([T3]); // T4/T5 do not exist yet
     // T1 is the current thread (excluded); T2 is private to A.
     const own = await getSpaceRecallScope(T3, B);
     expect(own!.threadIds.sort()).toEqual([T1]);
     expect(await getSpaceRecallScope(T2, B)).toBeNull();
     expect(await getSpaceRecallScope(T1, C)).toBeNull();
+  });
+
+  it('semantic hits hydrate and deep-read for a member only for own and team chats', async () => {
+    const hits = await recallPastChats(B, 'zzz-no-keyword-match', {
+      threadIds: [T1, T2, T3],
+      limit: 10,
+    });
+    expect(hits.map((h) => h.threadId).sort()).toEqual([T1, T3].sort());
+    expect(await getThreadRecallContext(T1, B)).not.toBeNull();
+    expect(await getThreadRecallContext(T2, B)).toBeNull();
+    expect(await getThreadRecallContext(T1, C)).toBeNull();
+  });
+
+  it('a non-member with a thread permission entry gets no project material', async () => {
+    await pool.query(`UPDATE chat_threads SET permissions = $2::jsonb WHERE id = $1`, [
+      T1,
+      JSON.stringify({ [C]: 'write' }),
+    ]);
+    expect(await readThreadProjectInstructions(T1, C)).toBeNull();
+    expect(await getProjectFileSources(T1, C)).toHaveLength(0);
+    expect(await getSpaceRecallScope(T1, C)).toBeNull();
+    await pool.query(`UPDATE chat_threads SET permissions = '{}'::jsonb WHERE id = $1`, [T1]);
+  });
+
+  it('a share without write permission opens no project material', async () => {
+    await pool.query(
+      `INSERT INTO chat_threads (id, user_id, title, group_id) VALUES ($1,$2,'Nur lesen',$3)`,
+      [T4, A, P]
+    );
+    await pool.query(
+      `INSERT INTO group_content_shares (group_id, content_type, content_id, shared_by_user_id, permissions)
+       VALUES ($1,'chat_threads',$2,$3,'{"read":true,"write":false}')`,
+      [P, T4, A]
+    );
+    expect(await readThreadProjectInstructions(T4, B)).toBeNull();
+    expect(await getProjectFileSources(T4, B)).toHaveLength(0);
+  });
+
+  it('a legacy share with empty permissions counts as read and write', async () => {
+    await pool.query(
+      `INSERT INTO chat_threads (id, user_id, title, group_id) VALUES ($1,$2,'Alt',$3)`,
+      [T5, A, P]
+    );
+    await pool.query(
+      `INSERT INTO group_content_shares (group_id, content_type, content_id, shared_by_user_id, permissions)
+       VALUES ($1,'chat_threads',$2,$3,'{}')`,
+      [P, T5, A]
+    );
+    expect((await readThreadProjectInstructions(T5, B))?.text).toBe('Im Du schreiben.');
+    expect(await getProjectFileSources(T5, B)).toHaveLength(1);
   });
 
   it('a member who leaves loses the material', async () => {

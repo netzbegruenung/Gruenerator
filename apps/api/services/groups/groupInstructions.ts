@@ -80,7 +80,8 @@ export interface ThreadProjectInstructions {
 
 /**
  * Die Anweisungen des Projekts, in dem ein Chat liegt — für den Systemprompt.
- * Eigener Chat oder Team-Chat (`projectThreadScopeSql`), nur für aktive Mitglieder, nur ein nicht gelöschtes Projekt. `null`, wenn der
+ * Eigener Chat oder Team-Chat (`projectThreadScopeSql`), nur für aktive
+ * Mitglieder, nur ein nicht gelöschtes Projekt. `null`, wenn der
  * Chat in keinem Projekt liegt oder es keine Anweisungen gibt.
  */
 export async function readThreadProjectInstructions(

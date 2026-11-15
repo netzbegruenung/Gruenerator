@@ -28,7 +28,10 @@ import {
   type GroupContentBuckets,
   hydrateGroupContent,
 } from '../../../services/groups/groupContent.js';
-import { teamChatShareExistsSql } from '../../../services/groups/projectThreadScope.js';
+import {
+  teamChatMemberSql,
+  teamChatShareExistsSql,
+} from '../../../services/groups/projectThreadScope.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -434,7 +437,11 @@ export async function listRecentThreads(
   const db = getPostgresInstance();
   try {
     const params: unknown[] = [userId];
-    const where = [`user_id = $1`, `COALESCE(status, 'regular') = 'regular'`];
+    // A scope list comes from `resolveSpaceThreadIds` (own + team chats).
+    const where = [
+      threadIds ? `(user_id = $1 OR ${teamChatMemberSql('chat_threads', '$1')})` : `user_id = $1`,
+      `COALESCE(status, 'regular') = 'regular'`,
+    ];
     if (excludeThreadId) {
       params.push(excludeThreadId);
       where.push(`id <> $${params.length}::uuid`);
@@ -480,7 +487,8 @@ export async function getThreadRecallContext(
       `SELECT title, updated_at, compaction_summary
        FROM chat_threads
        WHERE id = $1::uuid AND deleted_at IS NULL
-         AND (user_id = $2 OR permissions ? $2::text)
+         AND (user_id = $2 OR permissions ? $2::text
+              OR ${teamChatMemberSql('chat_threads', '$2')})
          AND COALESCE(status, 'regular') = 'regular'`,
       [threadId, userId]
     )) as Array<{
@@ -653,7 +661,7 @@ async function hydrateThreadsAsResults(
          ) AS snippet_content
        FROM chat_threads t
        WHERE t.id = ANY($1::uuid[]) AND t.deleted_at IS NULL
-         AND (t.user_id = $2 OR t.permissions ? $2::text)
+         AND (t.user_id = $2 OR t.permissions ? $2::text OR ${teamChatMemberSql('t', '$2')})
          AND COALESCE(t.status, 'regular') = 'regular'`,
       [threadIds, userId]
     )) as Array<{
