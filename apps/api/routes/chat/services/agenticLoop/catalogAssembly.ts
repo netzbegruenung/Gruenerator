@@ -269,9 +269,17 @@ export async function assembleToolCatalog(
     // The sticky slot is one per thread, written by whoever used a connector
     // last. In a team chat that may be another member: their server is neither
     // mounted nor reported as "gone" on this sender's turn.
-    if (!explicitScope && scope && (await deps.isForeignMcpServer(userId, scope))) {
-      log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
-      scope = null;
+    if (!explicitScope && scope) {
+      try {
+        if (await deps.isForeignMcpServer(userId, scope)) {
+          log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
+          scope = null;
+        }
+      } catch (err) {
+        // An unverifiable owner is not a verified one: skip the sticky server.
+        log.warn(`[catalogAssembly] sticky MCP owner check failed; skipping: ${err}`);
+        scope = null;
+      }
     }
     if (scope) {
       // One loader for every connector — a known one (Bahn, Wetter, …) is a

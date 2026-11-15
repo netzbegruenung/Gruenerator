@@ -213,6 +213,24 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
   });
 
+  it('skips the sticky server when the owner check fails, and still assembles', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+    const isForeignMcpServer = vi.fn(async () => {
+      throw new Error('db down');
+    });
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      { threadId: 't1' }
+    );
+
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
   it('still mounts the sender’s own sticky server', async () => {
     getThreadLastMcpServer.mockResolvedValue('server-von-u1');
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());
