@@ -21,6 +21,7 @@ const CONTENT_COLLECTIONS = [
   { name: 'landtag_nrw_documents', label: 'Landtag NRW' },
   { name: 'landtag_berlin_documents', label: 'Abgeordnetenhaus Berlin' },
   { name: 'landtag_bayern_documents', label: 'Bayerischer Landtag' },
+  { name: 'parteitage_documents', label: 'Parteitage' },
   { name: 'satzungen_documents', label: 'Satzungen' },
   { name: 'abgeordnetenwatch_documents', label: 'Abgeordnetenwatch' },
   { name: 'bundestag_dip_documents', label: 'Bundestag (DIP)' },

@@ -95,6 +95,7 @@ export const ENRICHMENT_COLLECTIONS = [
   'bundestag_dip_documents',
   'bundesrat_documents',
   'landtag_bayern_documents',
+  'parteitage_documents',
   'wahlpruefstein_examples',
 ] as const;
 

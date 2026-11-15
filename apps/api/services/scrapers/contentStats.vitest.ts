@@ -27,7 +27,7 @@ describe('contentStats', () => {
 
     const { markdown, totalPoints } = await getContentStatsMarkdown();
 
-    expect(totalPoints).toBe(7 * 18);
+    expect(totalPoints).toBe(7 * 19);
     expect(markdown).toContain('| Grundsatzprogramm | 7 |');
     expect(readClient).toHaveBeenCalledWith('grundsatz_documents');
     expect(fetchSpy).not.toHaveBeenCalled();

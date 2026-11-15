@@ -153,6 +153,13 @@ export const FILTERABLE_FIELD_NAMES = [
   // Wahlprüfsteine (Bund/Europa): Wahl (btw21, ew24, btw25) und Ebene (bund, europa)
   'wahl',
   'ebene',
+  // Parteitage (Antragsgrün): Parteitag, Status, Votum der Antragskommission,
+  // Antragsteller*innen und Tagesordnungspunkt
+  'parteitag',
+  'status',
+  'votum',
+  'antragsteller',
+  'tagesordnungspunkt',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

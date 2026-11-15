@@ -87,6 +87,7 @@ const SYSTEM_COLLECTION_MAP: Record<string, string> = {
   'landtag-nrw-system': 'landtag_nrw_documents',
   'landtag-berlin-system': 'landtag_berlin_documents',
   'landtag-bayern-system': 'landtag_bayern_documents',
+  'parteitage-system': 'parteitage_documents',
   'wahlpruefsteine-system': 'wahlpruefstein_examples',
   'satzungen-system': 'satzungen_documents',
   'hamburg-system': 'landesverbaende_documents',

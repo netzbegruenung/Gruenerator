@@ -843,6 +843,44 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
+  'parteitage-system': {
+    id: 'parteitage-system',
+    key: 'parteitage',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Erst mit dem Notebook freischalten (siehe landtag-bayern-system).
+    mcpExposed: false,
+    qdrantCollection: 'parteitage_documents',
+    name: 'Parteitage',
+    description:
+      'Anträge, Änderungsanträge und Beschlüsse grüner Parteitage aus Antragsgrün (bisher GRÜNE NRW: LDKs und Landesparteiräte), mit Status und Votum der Antragskommission. Ohne Bewerbungen.',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'parteitag', label: 'Parteitag', type: 'keyword' },
+      {
+        field: 'content_type',
+        label: 'Art',
+        type: 'keyword',
+        valueLabels: {
+          antrag: 'Antrag',
+          beschluss: 'Beschluss',
+          aenderungsantrag: 'Änderungsantrag',
+        },
+      },
+      { field: 'landesverband', label: 'Landesverband', type: 'keyword' },
+      {
+        field: 'tagesordnungspunkt',
+        label: 'Tagesordnungspunkt',
+        type: 'keyword',
+        collapsed: true,
+      },
+      { field: 'antragsteller', label: 'Antragsteller*in', type: 'keyword', collapsed: true },
+      { field: 'votum', label: 'Votum der Antragskommission', type: 'keyword', collapsed: true },
+      { field: 'status', label: 'Status', type: 'keyword', collapsed: true },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
   'satzungen-system': {
     id: 'satzungen-system',
     key: 'satzungen',
