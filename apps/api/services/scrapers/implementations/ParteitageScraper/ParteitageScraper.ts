@@ -1,30 +1,51 @@
 /**
  * Parteitage — Anträge, Beschlüsse und Änderungsanträge aus Antragsgrün in
- * `parteitage_documents` (Notebook „Parteitage").
+ * `landesverbaende_documents`, je Seite unter eigener `source_id`
+ * (`config/antragsgruenInstances.ts`). Sichtbar im Notebook des Landesverbands
+ * und im Notebook „Parteitage", das nur diese `source_id`s zeigt.
  *
- * Je Lauf und Seite (`instances.ts`): Konsultationsliste, dann je Konsultation
- * die Übersicht (ein Abruf mit allen Anträgen und ÄA-Links). Einzeln abgerufen
- * wird ein Dokument nur, wenn
+ * Je Lauf und Seite: Konsultationsliste, dann je Konsultation die Übersicht
+ * (ein Abruf mit allen Anträgen und ÄA-Links). Einzeln abgerufen wird ein
+ * Dokument nur, wenn
  *   - es noch nicht in Qdrant liegt,
  *   - die Übersicht es anders zeigt als beim letzten Mal (`list_signature`:
  *     Status, Kürzel, Titel), oder
- *   - seine Konsultation aktiv ist (`ACTIVE_DAYS`): das Votum der
- *     Antragskommission steht nur im Einzelabruf, und es ändert sich bis zum
+ *   - seine Konsultation aktiv ist (`ACTIVE_DAYS`): der Verfahrensvorschlag
+ *     der Antragskommission steht nur im Einzelabruf und ändert sich bis zum
  *     Parteitag.
+ * Zu einem Antrag gehört immer auch seine HTML-Seite (`pageFacts.ts`): nur dort
+ * stehen Beschlussdatum, beschließendes Gremium und die Versionskette. Ein ÄA
+ * braucht sie nur, wenn die API kein Datum hat. Schlägt der Seitenabruf fehl,
+ * scheitert das Dokument und kommt im nächsten Lauf wieder — ohne Seite wäre
+ * nicht zu erkennen, ob es eine überholte Fassung ist.
  * Neu eingebettet wird nur, wenn sich der Text ändert (`content_hash`).
  *
+ * Versionen: geschrieben wird die neueste Fassung einer Kette und der
+ * eingereichte Antrag (Version 1, mit Verweis auf die neueste). Zwischenstände
+ * werden nicht geschrieben und, falls schon vorhanden, gelöscht.
+ *
  * Weg muss, was nicht mehr öffentlich ist: ein Dokument, das aus der Übersicht
- * einer öffentlichen Konsultation verschwindet (zurückgezogen und unsichtbar),
- * und alle Dokumente einer Konsultation, die jetzt eine Anmeldung verlangt.
- * Ist die ganze Seite nicht erreichbar, wird nichts gelöscht.
+ * einer öffentlichen Konsultation verschwindet, und alle Dokumente einer
+ * Konsultation, die jetzt eine Anmeldung verlangt. Ist die ganze Seite nicht
+ * erreichbar, wird nichts gelöscht.
  *
  * Bewerbungen werden abgerufen, um sie zu erkennen, und nie geschrieben
- * (`isCandidacy`). Weil sie dadurch nie „bekannt" sind, holt jeder Lauf sie in
- * aktiven wie inaktiven Konsultationen neu — bei NRW rund ein Abruf je
- * Bewerbung und Nacht. Ein eigener Merkzettel lohnt bei der Menge nicht.
+ * (`isCandidacy`). Weil sie dadurch nie „bekannt" sind, holt jeder Lauf sie
+ * neu — bei NRW rund ein Abruf je Bewerbung und Nacht.
+ *
+ * Am Ende jeder Seite gleicht `websiteDuplicates.ts` die Beschlüsse mit den
+ * Website-Beiträgen des Landesverbands ab und markiert deren Abschriften.
+ *
+ * Alle Lese- und Löschzugriffe sind auf die Antragsgrün-`source_id`s begrenzt
+ * (`ParliamentStore`-Scope): die Sammlung teilt sich der Lauf mit dem
+ * LV-Scraper und dem Instagram-Scraper.
  */
 
-import { batchDelete } from '../../../../database/services/QdrantService/operations/batchOperations.js';
+import {
+  ANTRAGSGRUEN_INSTANCES,
+  ANTRAGSGRUEN_SOURCE_IDS,
+  type AntragsgruenInstance,
+} from '../../../../config/antragsgruenInstances.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
@@ -41,16 +62,20 @@ import {
   amendmentDocumentId,
   amendmentSignatureOf,
   amendmentUnitOf,
+  contentTypeOfMotion,
   isCandidacy,
   motionDocumentId,
   motionSignatureOf,
   motionUnitOf,
   PARTEITAGE_COLLECTION,
+  PARTEITAGE_CONTENT_TYPE_LABELS,
   PARTEITAGE_SOURCE,
+  type NewestVersion,
   type ParteitagContext,
   type ParteitageUnit,
 } from './builders.js';
-import { ANTRAGSGRUEN_INSTANCES, type AntragsgruenInstance } from './instances.js';
+import { pageFactsOf, versionRoleOf } from './pageFacts.js';
+import { syncWebsiteDuplicates, type AntragsgruenBeschluss } from './websiteDuplicates.js';
 
 import type { ScraperResult } from '../../types.js';
 
@@ -64,6 +89,18 @@ const REQUEST_GAP_MS = 500;
  * folgen noch Beschlussfassung und Protokoll.
  */
 const ACTIVE_DAYS = 180;
+
+/** Payload-Felder von Chunk 0, die ein Lauf über bekannte Dokumente braucht. */
+const KNOWN_FIELDS = [
+  'source_id',
+  'parteitag_id',
+  'list_signature',
+  'content_hash',
+  'content_type',
+  'antrag_titel',
+  'beschlossen_am',
+  'beschluss_durch',
+] as const;
 
 export interface ParteitageRunOptions {
   /** Anträge, die gleichzeitig abgerufen und eingebettet werden (die Abrufe laufen trotzdem nacheinander). */
@@ -87,10 +124,17 @@ export interface ParteitageRunSummary {
   skipped: number;
   /** Bewerbungen und Dokumente ohne Text. */
   excluded: number;
+  /** Zwischenversionen einer Antragskette, nicht geschrieben bzw. gelöscht. */
+  superseded: number;
   /** Konsultationen, die eine Anmeldung verlangen. */
   notPublic: number;
-  /** Gelöschte Dokumente (nicht mehr öffentlich). */
+  /** Gelöschte Dokumente (nicht mehr öffentlich oder überholt). */
   removed: number;
+  /** Website-Beiträge, die als Abschrift eines Beschlusses markiert bzw. entmarkiert wurden. */
+  websiteDuplicatesMarked: number;
+  websiteDuplicatesCleared: number;
+  /** Website-Beiträge, die zu mehr als einem Beschluss passen — unmarkiert, zum Nachsehen. */
+  websiteDuplicatesAmbiguous: string[];
   failed: number;
   chunks: number;
   errors: string[];
@@ -101,7 +145,9 @@ const isActive = (ref: ConsultationRef): boolean =>
   Date.now() - new Date(ref.date_published).getTime() < ACTIVE_DAYS * 86_400_000;
 
 export class ParteitageScraper extends BaseScraper {
-  readonly #store = new ParliamentStore(PARTEITAGE_COLLECTION, PARTEITAGE_SOURCE, 'Parteitage');
+  readonly #store = new ParliamentStore(PARTEITAGE_COLLECTION, PARTEITAGE_SOURCE, 'Parteitage', [
+    { key: 'source_id', match: { any: ANTRAGSGRUEN_SOURCE_IDS } },
+  ]);
   /** document_id → Payload-Felder von Chunk 0. */
   #known = new Map<string, Record<string, unknown>>();
 
@@ -126,16 +172,20 @@ export class ParteitageScraper extends BaseScraper {
       updated: 0,
       skipped: 0,
       excluded: 0,
+      superseded: 0,
       notPublic: 0,
       removed: 0,
+      websiteDuplicatesMarked: 0,
+      websiteDuplicatesCleared: 0,
+      websiteDuplicatesAmbiguous: [],
       failed: 0,
       chunks: 0,
       errors: [],
     };
     this.#known = options.dryRun
       ? new Map<string, Record<string, unknown>>()
-      : await this.#store.loadKnown(['parteitag_id', 'list_signature', 'content_hash']);
-    log.info(`[parteitage] ${this.#known.size} documents already in ${PARTEITAGE_COLLECTION}`);
+      : await this.#store.loadKnown(KNOWN_FIELDS);
+    log.info(`[parteitage] ${this.#known.size} Antragsgrün documents in ${PARTEITAGE_COLLECTION}`);
 
     for (const instance of ANTRAGSGRUEN_INSTANCES) {
       if (this.#limitReached(options, summary)) break;
@@ -160,10 +210,11 @@ export class ParteitageScraper extends BaseScraper {
         }
         await this.#consultation(client, { instance, consultation: ref }, options, summary);
       }
+      await this.#websiteDuplicates(instance, options, summary);
     }
 
     log.info(
-      `[parteitage] done: stored=${summary.stored} updated=${summary.updated} skipped=${summary.skipped} excluded=${summary.excluded} notPublic=${summary.notPublic} removed=${summary.removed} failed=${summary.failed} chunks=${summary.chunks}`
+      `[parteitage] done: stored=${summary.stored} updated=${summary.updated} skipped=${summary.skipped} excluded=${summary.excluded} superseded=${summary.superseded} notPublic=${summary.notPublic} removed=${summary.removed} websiteDuplicates=+${summary.websiteDuplicatesMarked}/-${summary.websiteDuplicatesCleared} ambiguous=${summary.websiteDuplicatesAmbiguous.length} failed=${summary.failed} chunks=${summary.chunks}`
     );
     return summary;
   }
@@ -204,6 +255,9 @@ export class ParteitageScraper extends BaseScraper {
     }
 
     const active = isActive(ctx.consultation);
+    const motions = new Map<number, MotionLink>();
+    for (const link of overview.motion_links)
+      if (link.type === 'motion') motions.set(link.id, link);
     const seen = new Set<string>();
     const tasks: Array<() => Promise<void>> = [];
     for (const link of overview.motion_links) {
@@ -212,9 +266,8 @@ export class ParteitageScraper extends BaseScraper {
         tasks.push(() => this.#amendment(client, link, ctx, active, options, summary));
         continue;
       }
-      const motionId = motionDocumentId(ctx.instance, link.id);
-      seen.add(motionId);
-      tasks.push(() => this.#motion(client, link, ctx, active, options, summary));
+      seen.add(motionDocumentId(ctx.instance, link.id));
+      tasks.push(() => this.#motion(client, link, motions, ctx, active, options, summary));
       for (const amendment of link.amendment_links) {
         seen.add(amendmentDocumentId(ctx.instance, amendment.id));
         tasks.push(() => this.#amendment(client, amendment, ctx, active, options, summary));
@@ -241,6 +294,7 @@ export class ParteitageScraper extends BaseScraper {
   async #motion(
     client: AntragsgruenClient,
     link: MotionLink,
+    motions: ReadonlyMap<number, MotionLink>,
     ctx: ParteitagContext,
     active: boolean,
     options: ParteitageRunOptions,
@@ -258,7 +312,15 @@ export class ParteitageScraper extends BaseScraper {
         summary.excluded += 1;
         return;
       }
-      await this.#write(motionUnitOf(motion, link, ctx), options, summary);
+      const facts = pageFactsOf(await client.page(motion.url_html));
+      const role = versionRoleOf(facts);
+      if (role.role === 'superseded') {
+        summary.superseded += 1;
+        await this.#drop(documentId, options, summary);
+        return;
+      }
+      const newest = role.role === 'original' ? newestOf(role.newestMotionId, motions, ctx) : null;
+      await this.#write(motionUnitOf(motion, link, ctx, facts, newest), options, summary);
     } catch (error: unknown) {
       this.#fail(documentId, error, summary);
     }
@@ -280,7 +342,10 @@ export class ParteitageScraper extends BaseScraper {
     }
     try {
       const amendment = await client.amendment(link);
-      await this.#write(amendmentUnitOf(amendment, link, ctx), options, summary);
+      const facts = amendment.date_published
+        ? null
+        : pageFactsOf(await client.page(amendment.url_html));
+      await this.#write(amendmentUnitOf(amendment, link, ctx, facts), options, summary);
     } catch (error: unknown) {
       this.#fail(documentId, error, summary);
     }
@@ -327,6 +392,17 @@ export class ParteitageScraper extends BaseScraper {
     else summary.stored += 1;
   }
 
+  async #drop(
+    documentId: string,
+    options: ParteitageRunOptions,
+    summary: ParteitageRunSummary
+  ): Promise<void> {
+    if (!this.#known.has(documentId) || options.dryRun) return;
+    await this.#store.remove(documentId);
+    this.#known.delete(documentId);
+    summary.removed += 1;
+  }
+
   /** Löscht die bekannten Dokumente dieser Konsultation, die nicht in `seen` stehen. */
   async #removeVanished(
     parteitagId: string,
@@ -338,16 +414,63 @@ export class ParteitageScraper extends BaseScraper {
       .filter(([id, payload]) => payload.parteitag_id === parteitagId && !seen.has(id))
       .map(([id]) => id);
     if (vanished.length === 0 || options.dryRun) return;
-    const client = (await this.#store.qdrant()).writeClient(PARTEITAGE_COLLECTION);
-    for (const documentId of vanished) {
-      await batchDelete(client, PARTEITAGE_COLLECTION, {
-        must: [{ key: 'document_id', match: { value: documentId } }],
-      });
-      this.#known.delete(documentId);
-      summary.removed += 1;
-    }
+    for (const documentId of vanished) await this.#drop(documentId, options, summary);
     log.info(`[parteitage] ${parteitagId}: removed ${vanished.length} documents no longer public`);
   }
+
+  async #websiteDuplicates(
+    instance: AntragsgruenInstance,
+    options: ParteitageRunOptions,
+    summary: ParteitageRunSummary
+  ): Promise<void> {
+    if (options.dryRun) return;
+    const beschluesse: AntragsgruenBeschluss[] = [];
+    for (const [documentId, p] of this.#known) {
+      if (p.source_id !== instance.sourceId || p.content_type !== 'beschluss') continue;
+      if (typeof p.beschlossen_am !== 'string' || typeof p.antrag_titel !== 'string') continue;
+      beschluesse.push({
+        documentId,
+        title: p.antrag_titel,
+        beschlossenAm: p.beschlossen_am,
+        beschlussDurch: typeof p.beschluss_durch === 'string' ? p.beschluss_durch : null,
+      });
+    }
+    try {
+      const result = await syncWebsiteDuplicates({
+        client: (await this.#store.qdrant()).writeClient(PARTEITAGE_COLLECTION),
+        collection: PARTEITAGE_COLLECTION,
+        websiteSourceIds: instance.websiteSourceIds,
+        beschluesse,
+        dryRun: false,
+      });
+      summary.websiteDuplicatesMarked += result.marked;
+      summary.websiteDuplicatesCleared += result.cleared;
+      summary.websiteDuplicatesAmbiguous.push(...result.ambiguous);
+      if (result.ambiguous.length > 0) {
+        log.warn(
+          `[parteitage] ${instance.id}: ${result.ambiguous.length} website posts match more than one Beschluss, left visible: ${result.ambiguous.join(', ')}`
+        );
+      }
+    } catch (error: unknown) {
+      this.#fail(`${instance.id} website duplicates`, error, summary);
+    }
+  }
+}
+
+/** Die neueste Fassung eines eingereichten Antrags, wie die Übersicht sie zeigt. */
+function newestOf(
+  motionId: number,
+  motions: ReadonlyMap<number, MotionLink>,
+  ctx: ParteitagContext
+): NewestVersion | null {
+  const link = motions.get(motionId);
+  if (!link) return null;
+  const type = contentTypeOfMotion(link);
+  return {
+    documentId: motionDocumentId(ctx.instance, motionId),
+    title: `${PARTEITAGE_CONTENT_TYPE_LABELS[type]} ${link.title_with_prefix}`,
+    isBeschluss: type === 'beschluss',
+  };
 }
 
 let instance: ParteitageScraper | null = null;
@@ -356,5 +479,3 @@ export function getParteitageScraper(): ParteitageScraper {
   if (!instance) instance = new ParteitageScraper();
   return instance;
 }
-
-export type { AntragsgruenInstance };

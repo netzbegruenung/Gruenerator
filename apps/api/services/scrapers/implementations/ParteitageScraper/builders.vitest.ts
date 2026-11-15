@@ -20,6 +20,7 @@ import {
   type ConsultationRef,
   type MotionLink,
 } from './antragsgruenClient.js';
+import { type PageFacts } from './pageFacts.js';
 import {
   amendmentUnitOf,
   initiatorNames,
@@ -29,7 +30,7 @@ import {
   parteitagLabelOf,
   plainText,
 } from './builders.js';
-import { ANTRAGSGRUEN_INSTANCES } from './instances.js';
+import { ANTRAGSGRUEN_INSTANCES } from '../../../../config/antragsgruenInstances.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string) =>
@@ -55,16 +56,81 @@ const essen: ConsultationRef = {
   url_path: 'ldk26-02',
 };
 
+const NO_FACTS: PageFacts = {
+  eingereichtAm: null,
+  beschlossenAm: null,
+  beschlussDurch: null,
+  version: null,
+  otherVersions: [],
+};
+const BESCHLUSS_FACTS: PageFacts = {
+  ...NO_FACTS,
+  beschlossenAm: '2026-06-20',
+  beschlussDurch: 'Landesdelegiertenkonferenz',
+  version: 2,
+  otherVersions: [{ version: 1, motionId: 101879 }],
+};
+
 describe('motionUnitOf', () => {
   const raw = fixture('beschluss-v06.json');
   const motion = motionSchema.parse(raw.motion);
   const link = raw.link as MotionLink;
-  const unit = motionUnitOf(motion, link, { instance, consultation: troisdorf });
+  const ctx = { instance, consultation: troisdorf };
+  const unit = motionUnitOf(motion, link, ctx, BESCHLUSS_FACTS, null);
 
   it('liest den Beschluss als Beschluss, nicht als Antrag', () => {
     expect(unit.payload.content_type).toBe('beschluss');
-    expect(unit.payload.content_type_label).toBe('Beschluss');
+    expect(unit.payload.content_type_label).toBe('Beschluss/Resolution');
     expect(unit.payload.status).toBe('Beschluss');
+  });
+
+  it('datiert einen Beschluss auf den Beschlusstag und nennt das Gremium', () => {
+    expect(unit.publishedAt).toBe('2026-06-20');
+    expect(unit.payload).toMatchObject({
+      published_at: '2026-06-20',
+      beschlossen_am: '2026-06-20',
+      beschluss_durch: 'Landesdelegiertenkonferenz',
+    });
+    expect(unit.text).toContain('Beschlossen am 20.06.2026 durch Landesdelegiertenkonferenz');
+  });
+
+  it('steht als Antragsgrün-Quelle des Landesverbands in der LV-Sammlung', () => {
+    expect(unit.payload).toMatchObject({
+      source_id: 'nrw-antragsgruen',
+      source_type: 'landesverband',
+      landesverband: 'NRW',
+      antrag_titel: motion.title,
+    });
+  });
+
+  it('nennt im eingereichten Antrag den Beschluss, der daraus wurde', () => {
+    const original = motionUnitOf(
+      motionSchema.parse({ ...motion, status_id: 3, status_title: 'Eingereicht' }),
+      link,
+      ctx,
+      { ...NO_FACTS, eingereichtAm: '2026-05-06', version: 1 },
+      { documentId: 'ag-nrw-m103941', title: 'Beschluss V-06: Digitale Bildung', isBeschluss: true }
+    );
+    expect(original.payload).toMatchObject({
+      content_type: 'antrag',
+      neueste_fassung_id: 'ag-nrw-m103941',
+      published_at: '2026-05-06',
+    });
+    expect(original.payload.beschlossen_am).toBeUndefined();
+    expect(original.text).toContain(
+      'Fassung: eingereichter Antrag. Beschlossen wurde die Fassung „Beschluss V-06: Digitale Bildung"'
+    );
+  });
+
+  it('kennzeichnet einen vorläufigen Beschluss', () => {
+    const vorlaeufig = motionUnitOf(
+      motionSchema.parse({ ...motion, status_id: 25, status_title: 'Beschluss' }),
+      link,
+      ctx,
+      BESCHLUSS_FACTS,
+      null
+    );
+    expect(vorlaeufig.payload.status).toBe('Beschluss (vorläufig)');
   });
 
   it('trägt die Filterfelder für den Parteitag', () => {
@@ -90,25 +156,27 @@ describe('motionUnitOf', () => {
   });
 
   it('bleibt bei gleichem Text gleich und ändert den Hash bei neuem Text', () => {
-    const again = motionUnitOf(motion, link, { instance, consultation: troisdorf });
+    const again = motionUnitOf(motion, link, ctx, BESCHLUSS_FACTS, null);
     expect(again.payload.content_hash).toBe(unit.payload.content_hash);
     const edited = motionSchema.parse({
       ...motion,
       sections: [{ type: 'TextSimple', title: 'Antragstext', html: '<p>Neu.</p>' }],
     });
-    expect(
-      motionUnitOf(edited, link, { instance, consultation: troisdorf }).payload.content_hash
-    ).not.toBe(unit.payload.content_hash);
+    expect(motionUnitOf(edited, link, ctx, BESCHLUSS_FACTS, null).payload.content_hash).not.toBe(
+      unit.payload.content_hash
+    );
   });
 });
 
 describe('amendmentUnitOf', () => {
   const raw = fixture('aenderungsantrag-110621.json');
   const amendment = amendmentSchema.parse(raw.amendment);
-  const unit = amendmentUnitOf(amendment, raw.link as AmendmentLink, {
-    instance,
-    consultation: essen,
-  });
+  const unit = amendmentUnitOf(
+    amendment,
+    raw.link as AmendmentLink,
+    { instance, consultation: essen },
+    null
+  );
 
   it('nennt den Antrag, zu dem er gehört', () => {
     expect(unit.title).toBe(
@@ -124,10 +192,32 @@ describe('amendmentUnitOf', () => {
     });
   });
 
-  it('übernimmt das Votum der Antragskommission samt Text', () => {
+  it('nennt den Verfahrensvorschlag als Empfehlung, nicht als Ergebnis', () => {
     expect(unit.payload.votum).toBe('Modifizierte Übernahme');
-    expect(unit.text).toContain('Votum der Antragskommission: Modifizierte Übernahme');
-    expect(unit.text).toContain('## Verfahrensvorschlag der Antragskommission');
+    expect(unit.text).toContain(
+      'Verfahrensvorschlag der Antragskommission (Empfehlung, kein Abstimmungsergebnis): Modifizierte Übernahme'
+    );
+    expect(unit.text).toContain(
+      '## Verfahrensvorschlag der Antragskommission (Empfehlung, kein Abstimmungsergebnis)'
+    );
+  });
+
+  it('nimmt das Einreichungsdatum der Seite, wenn die API keins hat', () => {
+    const undated = amendmentSchema.parse({ ...amendment, date_published: null });
+    const fromPage = amendmentUnitOf(
+      undated,
+      raw.link as AmendmentLink,
+      { instance, consultation: essen },
+      { ...NO_FACTS, eingereichtAm: '2026-10-30' }
+    );
+    expect(fromPage.payload).toMatchObject({
+      eingereicht_am: '2026-10-30',
+      published_at: '2026-10-30',
+    });
+    expect(
+      amendmentUnitOf(undated, raw.link as AmendmentLink, { instance, consultation: essen }, null)
+        .payload.published_at
+    ).toBeNull();
   });
 
   it('macht Einfügungen im Text als solche lesbar', () => {

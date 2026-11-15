@@ -20,11 +20,11 @@
 
 import { z } from 'zod';
 
+import { type AntragsgruenInstance } from '../../../../config/antragsgruenInstances.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { HttpStatusError } from '../../base/BaseScraper.js';
 import { type Fetcher, type PoliteGate } from '../../parliament/index.js';
 
-import { type AntragsgruenInstance } from './instances.js';
 
 const TIMEOUT_MS = 30_000;
 
@@ -172,16 +172,26 @@ export class AntragsgruenClient {
     return this.#get(link.url_json, amendmentSchema);
   }
 
+  /** Die HTML-Seite eines Antrags — für das, was die API nicht hat (`pageFacts.ts`). */
+  async page(urlHtml: string): Promise<string> {
+    return await this.#fetch(urlHtml, 'text/html', async (res) => await res.text());
+  }
+
   async #get<T>(url: string, schema: z.ZodType<T>): Promise<T> {
-    // Nur Adressen der eigenen Seite: `url_json` kommt aus der Antwort.
+    const body = await this.#fetch(url, 'json', async (res) => (await res.json()) as unknown);
+    return schema.parse(body);
+  }
+
+  async #fetch<T>(url: string, expectedType: string, read: (res: Response) => Promise<T>) {
+    // Nur Adressen der eigenen Seite: `url_json`/`url_html` kommen aus der Antwort.
     if (new URL(url).host !== this.instance.host) throw new Error(`foreign host: ${url}`);
-    const body = await this.gate.run(async () => {
+    return await this.gate.run(async () => {
       let res: Response;
       try {
         res = await this.fetcher(url, {
           timeout: TIMEOUT_MS,
           userAgent: BRAND.botUserAgent,
-          headers: { Accept: 'application/json' },
+          headers: { Accept: expectedType === 'json' ? 'application/json' : 'text/html' },
         });
       } catch (error: unknown) {
         // „Public API disabled" (403) und eine abgelaufene Anmeldung (401).
@@ -191,11 +201,10 @@ export class AntragsgruenClient {
         throw error;
       }
       const type = res.headers.get('content-type') ?? '';
-      if (new URL(res.url || url).pathname === '/login' || !type.includes('json')) {
+      if (new URL(res.url || url).pathname === '/login' || !type.includes(expectedType)) {
         throw new NotPublicError(url);
       }
-      return (await res.json()) as unknown;
+      return await read(res);
     });
-    return schema.parse(body);
   }
 }

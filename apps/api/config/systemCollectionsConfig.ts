@@ -19,6 +19,8 @@ import {
 import { TOPIC_NAMES } from '../services/monitor/types.js';
 import { type RemoteSourceId } from '../services/notebook/remoteSources/ids.js';
 
+import { ANTRAGSGRUEN_SOURCE_IDS } from './antragsgruenInstances.js';
+
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
 // =============================================================================
@@ -249,6 +251,24 @@ const LV_CONTENT_TYPE_FIELD: FilterableField<'content_type'> = {
   type: 'keyword',
   valueLabels: LV_CONTENT_TYPE_LABELS,
 };
+
+/**
+ * Filter für Parteitagsdokumente aus Antragsgrün (`ParteitageScraper`). Im
+ * LV-Notebook belegen nur diese Dokumente die Felder; wer danach filtert, sieht
+ * also nur Parteitagsmaterial — gewollt. Der Verfahrensvorschlag heißt auch
+ * hier so: er ist eine Empfehlung der Antragskommission, kein Abstimmungsergebnis.
+ */
+const PARTEITAG_FIELDS: FilterableField[] = [
+  { field: 'parteitag', label: 'Parteitag', type: 'keyword' },
+  { field: 'tagesordnungspunkt', label: 'Tagesordnungspunkt', type: 'keyword', collapsed: true },
+  { field: 'antragsteller', label: 'Antragsteller*in', type: 'keyword', collapsed: true },
+  {
+    field: 'votum',
+    label: 'Verfahrensvorschlag der Antragskommission',
+    type: 'keyword',
+    collapsed: true,
+  },
+];
 
 /** Shared "Organ" filter declaration — only used by LVs that have both Landesverband and Fraktion. */
 const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
@@ -848,38 +868,23 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'parteitage',
     country: 'DE',
     includeInDefaultSearch: false,
-    // Erst mit dem Notebook freischalten (siehe landtag-bayern-system).
+    // Erst mit dem Notebook freischalten (siehe landtag-bayern-system). Die
+    // Dokumente sind über das Notebook ihres Landesverbands ohnehin erreichbar.
     mcpExposed: false,
-    qdrantCollection: 'parteitage_documents',
+    // Dieselben Punkte wie im LV-Notebook, eingegrenzt auf Antragsgrün.
+    qdrantCollection: 'landesverbaende_documents',
     name: 'Parteitage',
     description:
-      'Anträge, Änderungsanträge und Beschlüsse grüner Parteitage aus Antragsgrün (bisher GRÜNE NRW: LDKs und Landesparteiräte), mit Status und Votum der Antragskommission. Ohne Bewerbungen.',
+      'Anträge, Änderungsanträge und Beschlüsse grüner Parteitage aus Antragsgrün (bisher GRÜNE NRW: LDKs und Landesparteiräte), mit Status, Beschlussdatum und Verfahrensvorschlag der Antragskommission. Ohne Bewerbungen.',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'parteitag', label: 'Parteitag', type: 'keyword' },
-      {
-        field: 'content_type',
-        label: 'Art',
-        type: 'keyword',
-        valueLabels: {
-          antrag: 'Antrag',
-          beschluss: 'Beschluss',
-          aenderungsantrag: 'Änderungsantrag',
-        },
-      },
-      { field: 'landesverband', label: 'Landesverband', type: 'keyword' },
-      {
-        field: 'tagesordnungspunkt',
-        label: 'Tagesordnungspunkt',
-        type: 'keyword',
-        collapsed: true,
-      },
-      { field: 'antragsteller', label: 'Antragsteller*in', type: 'keyword', collapsed: true },
-      { field: 'votum', label: 'Votum der Antragskommission', type: 'keyword', collapsed: true },
-      { field: 'status', label: 'Status', type: 'keyword', collapsed: true },
+      ...PARTEITAG_FIELDS,
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'landesverband', label: 'Landesverband', type: 'keyword', collapsed: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
+    defaultFilter: { field: 'source_id', value: ANTRAGSGRUEN_SOURCE_IDS },
   },
   'satzungen-system': {
     id: 'satzungen-system',
@@ -1111,12 +1116,13 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne NRW',
     description:
-      'Pressemitteilungen, Beschlüsse, Neuigkeiten, Fragen und Antworten und Soundingboard-Berichte der Grünen NRW sowie Pressemitteilungen, Fachnewsletter und Publikationen der Grünen Landtagsfraktion NRW',
+      'Pressemitteilungen, Beschlüsse, Neuigkeiten, Fragen und Antworten und Soundingboard-Berichte der Grünen NRW, Pressemitteilungen, Fachnewsletter und Publikationen der Grünen Landtagsfraktion NRW sowie Anträge, Änderungsanträge und Beschlüsse der Landesparteitage aus Antragsgrün',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
       LV_SOURCE_TYPE_FIELD,
+      ...PARTEITAG_FIELDS,
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['NRW', 'NRW-F'] },
@@ -1396,6 +1402,32 @@ export function buildSubcategoryFilter(
  * Merges the default filter with any user-specified filters
  */
 export function applyDefaultFilter(
+  collectionId: string,
+  existingFilter?: QdrantFilter
+): QdrantFilter | undefined {
+  const scoped = applyCollectionDefault(collectionId, existingFilter);
+  if (!SUPERSEDABLE_COLLECTIONS.has(qdrantCollectionOf(collectionId) ?? '')) return scoped;
+  return {
+    ...scoped,
+    must: [...(scoped?.must ?? []), { is_empty: { key: 'superseded_by' } }],
+  };
+}
+
+/**
+ * Sammlungen, in denen ein Punkt als Abschrift eines anderen markiert sein kann
+ * (`superseded_by`). Heute nur die LV-Sammlung: Website-Beiträge, die einen
+ * Antragsgrün-Beschluss wiederholen (`ParteitageScraper/websiteDuplicates.ts`).
+ * Jeder Leser einer System-Sammlung kommt über `applyDefaultFilter`, also
+ * blenden Suche, Facetten, Übersicht und Chat die Abschrift gleich aus.
+ */
+const SUPERSEDABLE_COLLECTIONS: ReadonlySet<string> = new Set(['landesverbaende_documents']);
+
+function qdrantCollectionOf(collectionId: string): string | null {
+  const config = SYSTEM_COLLECTIONS[collectionId];
+  return config && !isRemoteCollection(config) ? config.qdrantCollection : null;
+}
+
+function applyCollectionDefault(
   collectionId: string,
   existingFilter?: QdrantFilter
 ): QdrantFilter | undefined {

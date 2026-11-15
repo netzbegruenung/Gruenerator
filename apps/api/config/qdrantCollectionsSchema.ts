@@ -586,36 +586,6 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  parteitage_documents: {
-    name: 'parteitage_documents',
-    store: 'content',
-    // Rund 10.000 Punkte für NRW (15.11.2026 hochgerechnet), auch mit allen
-    // Landesverbänden kein `large`.
-    optimizer: 'small',
-    hnsw: 'standard',
-    datatype: 'float16',
-    indexes: [
-      ...NLP_FACET_INDEXES,
-      // „schon da?" und Filterzählung filtern auf chunk_index = 0.
-      { field: 'chunk_index', type: 'integer' },
-      { field: 'document_id', type: 'keyword' },
-      { field: 'source_url', type: 'keyword' },
-      { field: 'content_type', type: 'keyword' },
-      { field: 'landesverband', type: 'keyword' },
-      { field: 'parteitag', type: 'keyword' },
-      { field: 'parteitag_id', type: 'keyword' },
-      { field: 'status', type: 'keyword' },
-      { field: 'votum', type: 'keyword' },
-      { field: 'antragsteller', type: 'keyword' },
-      { field: 'tagesordnungspunkt', type: 'keyword' },
-      { field: 'kuerzel', type: 'keyword' },
-      // Alle Änderungsanträge eines Antrags.
-      { field: 'antrag_id', type: 'keyword' },
-      { field: 'published_at', type: 'datetime' },
-      { field: 'indexed_at', type: 'keyword' },
-      { field: 'chunk_text', type: 'text' },
-    ],
-  },
   gruenblog_documents: {
     name: 'gruenblog_documents',
     store: 'content',
@@ -662,6 +632,18 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
       { field: 'source_type', type: 'keyword' },
+      // Antragsgrün (`ParteitageScraper`): „schon da?", Löschen je Dokument und
+      // die Filter des Notebooks „Parteitage" bzw. des LV-Notebooks.
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parteitag', type: 'keyword' },
+      { field: 'parteitag_id', type: 'keyword' },
+      { field: 'votum', type: 'keyword' },
+      { field: 'antragsteller', type: 'keyword' },
+      { field: 'tagesordnungspunkt', type: 'keyword' },
+      { field: 'antrag_id', type: 'keyword' },
+      // Website-Abschrift eines Antragsgrün-Beschlusses; `applyDefaultFilter`
+      // blendet markierte Punkte aus (is_empty).
+      { field: 'superseded_by', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },

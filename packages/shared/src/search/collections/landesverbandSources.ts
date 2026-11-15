@@ -64,6 +64,8 @@ export const LANDESVERBAND_CONTENT_TYPES = [
   'presse',
   'beschluss',
   'antrag',
+  // Änderungsanträge aus Antragsgrün (`ParteitageScraper`), nur von Parteitagen.
+  'aenderungsantrag',
   'blog',
   'wahlprogramm',
   'wahlpruefstein',
@@ -79,6 +81,7 @@ export const LV_CONTENT_TYPE_LABELS: Record<LandesverbandContentType, string> = 
   presse: 'Pressemitteilungen',
   beschluss: 'Beschlüsse',
   antrag: 'Anträge',
+  aenderungsantrag: 'Änderungsanträge',
   blog: 'Blog',
   wahlprogramm: 'Wahlprogramme',
   wahlpruefstein: 'Wahlprüfsteine',

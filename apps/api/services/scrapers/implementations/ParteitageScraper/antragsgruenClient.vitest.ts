@@ -4,7 +4,7 @@ import { HttpStatusError } from '../../base/BaseScraper.js';
 import { PoliteGate, type Fetcher } from '../../parliament/index.js';
 
 import { AntragsgruenClient, NotPublicError, type ConsultationRef } from './antragsgruenClient.js';
-import { ANTRAGSGRUEN_INSTANCES } from './instances.js';
+import { ANTRAGSGRUEN_INSTANCES } from '../../../../config/antragsgruenInstances.js';
 
 const HOST = 'https://gruene-nrw.antragsgruen.de';
 const ref: ConsultationRef = {

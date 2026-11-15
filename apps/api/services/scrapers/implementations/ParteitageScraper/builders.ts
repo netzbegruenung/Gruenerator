@@ -1,14 +1,25 @@
 /**
- * Antragsgrün-Antrag bzw. -Änderungsantrag → Dokument des Notebooks „Parteitage".
+ * Antragsgrün-Antrag bzw. -Änderungsantrag → Dokument in `landesverbaende_documents`,
+ * sichtbar im Notebook des Landesverbands und im Notebook „Parteitage".
  *
  * Eine Einheit ist ein Antrag oder ein Änderungsantrag (ÄA). Der Text ist
  * strukturerhaltend (siehe CLAUDE.md, „full_text und chunk_text"): ein kurzer
  * Kopf, dann je Abschnitt eine `##`-Überschrift. Der Kopf bleibt kurz, weil die
  * NLP-Anreicherung nur die ersten 1500 Zeichen liest (`notebookEnrichmentService`).
+ *
+ * Präzision geht vor Vollständigkeit — das ist politisches Material:
+ *   - Ein Datum kommt aus der Quelle oder gar nicht: Beschlussdatum für
+ *     Beschlüsse, sonst Veröffentlichungs- bzw. Einreichungsdatum.
+ *   - Der Verfahrensvorschlag der Antragskommission ist eine Empfehlung, kein
+ *     Abstimmungsergebnis, und heißt im Text auch so.
+ *   - Der eingereichte Antrag nennt seinen Beschluss, wenn es einen gibt — sonst
+ *     stünde neben dem beschlossenen Text ein abweichender mit Status „Eingereicht".
  */
 
 import * as cheerio from 'cheerio';
 
+import { type AntragsgruenInstance } from '../../../../config/antragsgruenInstances.js';
+import { CONTENT_TYPE_LABELS } from '../../../../config/landesverbaendeConfig.js';
 import { generateContentHash } from '../../../../utils/validation/index.js';
 import { htmlToStructuredText } from '../../utils/htmlCleaner.js';
 
@@ -21,10 +32,10 @@ import {
   type MotionLink,
   type Section,
 } from './antragsgruenClient.js';
-import { type AntragsgruenInstance } from './instances.js';
+import { type PageFacts } from './pageFacts.js';
 
 export const PARTEITAGE_SOURCE = 'parteitage';
-export const PARTEITAGE_COLLECTION = 'parteitage_documents';
+export const PARTEITAGE_COLLECTION = 'landesverbaende_documents';
 
 export const PARTEITAGE_CONTENT_TYPES = ['antrag', 'beschluss', 'aenderungsantrag'] as const;
 export type ParteitageContentType = (typeof PARTEITAGE_CONTENT_TYPES)[number];
@@ -152,35 +163,51 @@ export function amendmentSignatureOf(link: AmendmentLink): string {
   return `${link.status_id}|${link.prefix ?? ''}`;
 }
 
-const isoDate = (value: string | null): string | null => {
+/** ISO-Zeitstempel der API → `YYYY-MM-DD` in Europe/Berlin; die Seite kennt nur Tage. */
+const dayOf = (value: string | null): string | null => {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 };
+
+const germanDay = (iso: string): string => iso.split('-').reverse().join('.');
+
+/** Für das neueste Fassung eines eingereichten Antrags — aus der Übersicht. */
+export interface NewestVersion {
+  documentId: string;
+  /** „Beschluss V-07: …" bzw. „Antrag V-07: …" */
+  title: string;
+  isBeschluss: boolean;
+}
+
+const PROCEDURE_LINE =
+  'Verfahrensvorschlag der Antragskommission (Empfehlung, kein Abstimmungsergebnis)';
 
 function headerOf(
   title: string,
   type: ParteitageContentType,
   ctx: ParteitagContext,
-  fields: { agendaItem: string | null; initiators: string; status: string; votum: string | null }
-): string {
-  const lines = [
+  lines: string[]
+) {
+  return [
     `# ${title}`,
     '',
     `${PARTEITAGE_CONTENT_TYPE_LABELS[type]} · ${ctx.consultation.title} · ${ctx.instance.name}`,
-  ];
-  if (fields.agendaItem) lines.push(`Tagesordnungspunkt: ${fields.agendaItem}`);
-  if (fields.initiators) lines.push(`Antragsteller*innen: ${fields.initiators}`);
-  if (fields.status) lines.push(`Status: ${fields.status}`);
-  if (fields.votum) lines.push(`Votum der Antragskommission: ${fields.votum}`);
-  return lines.join('\n');
+    ...lines,
+  ].join('\n');
 }
 
-function basePayload(ctx: ParteitagContext) {
+function basePayload(ctx: ParteitagContext, type: ParteitageContentType) {
   return {
     source: PARTEITAGE_SOURCE,
-    country: 'DE',
+    source_id: ctx.instance.sourceId,
+    source_name: `Antragsgrün ${ctx.instance.name}`,
+    source_type: 'landesverband',
     landesverband: ctx.instance.landesverband,
+    country: 'DE',
+    content_type: type,
+    content_type_label: CONTENT_TYPE_LABELS[type],
     parteitag: parteitagLabelOf(ctx.consultation),
     parteitag_id: `${ctx.instance.id}/${ctx.consultation.url_path}`,
   };
@@ -193,28 +220,51 @@ function procedureOf(motionOrAmendment: Motion | Amendment) {
   return { votum, text };
 }
 
+function statusOf(statusTitle: string, statusId: number): string {
+  const status = plainText(statusTitle);
+  // Antragsgrün zeigt einen vorläufigen Beschluss je nach Seite nur als „Beschluss".
+  return statusId === 25 && !/vorläufig/i.test(status) ? `${status} (vorläufig)` : status;
+}
+
 export function motionUnitOf(
   motion: Motion,
   link: MotionLink,
-  ctx: ParteitagContext
+  ctx: ParteitagContext,
+  facts: PageFacts,
+  newest: NewestVersion | null
 ): ParteitageUnit {
   const type = contentTypeOfMotion(motion);
-  const status = plainText(motion.status_title);
-  const initiators = plainText(motion.initiators_html);
+  const status = statusOf(motion.status_title, motion.status_id);
   const procedure = procedureOf(motion);
   // Antrag und Beschluss tragen in Antragsgrün denselben Titel; ohne die Art
   // im Titel sind sie in der Quellenliste nicht zu unterscheiden, und eine
   // Antwort schrieb dem Beschluss zu, was im Antrag stand (Live-Test 15.11.2026).
   const title = `${PARTEITAGE_CONTENT_TYPE_LABELS[type]} ${motion.title_with_prefix}`;
-  const header = headerOf(title, type, ctx, {
-    agendaItem: motion.agenda_item,
-    initiators,
-    status,
-    votum: procedure.votum,
-  });
+  const eingereichtAm = dayOf(motion.date_published) ?? facts.eingereichtAm;
+  const beschlossenAm = type === 'beschluss' ? facts.beschlossenAm : null;
+  const lines: string[] = [];
+  if (motion.agenda_item) lines.push(`Tagesordnungspunkt: ${motion.agenda_item.trim()}`);
+  const initiators = plainText(motion.initiators_html);
+  if (initiators) lines.push(`Antragsteller*innen: ${initiators}`);
+  lines.push(`Status: ${status}`);
+  if (beschlossenAm) {
+    const durch = facts.beschlussDurch ? ` durch ${facts.beschlussDurch}` : '';
+    lines.push(`Beschlossen am ${germanDay(beschlossenAm)}${durch}`);
+  } else if (eingereichtAm) {
+    lines.push(`Eingereicht am ${germanDay(eingereichtAm)}`);
+  }
+  if (newest) {
+    lines.push(
+      newest.isBeschluss
+        ? `Fassung: eingereichter Antrag. Beschlossen wurde die Fassung „${newest.title}" — sie kann von diesem Text abweichen.`
+        : `Fassung: eingereichter Antrag. Es gibt eine neuere Fassung: „${newest.title}".`
+    );
+  }
+  if (procedure.votum) lines.push(`${PROCEDURE_LINE}: ${procedure.votum}`);
+  const header = headerOf(title, type, ctx, lines);
   const body = [
     sectionsText(motion.sections, false),
-    procedure.text ? `## Verfahrensvorschlag der Antragskommission\n\n${procedure.text}` : '',
+    procedure.text ? `## ${PROCEDURE_LINE}\n\n${procedure.text}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -226,20 +276,25 @@ export function motionUnitOf(
     sourceUrl: motion.url_html,
     text,
     body,
-    publishedAt: isoDate(motion.date_published),
+    publishedAt: beschlossenAm ?? eingereichtAm,
     payload: {
-      ...basePayload(ctx),
+      ...basePayload(ctx, type),
       document_id: documentId,
       title,
+      antrag_titel: motion.title,
       source_url: motion.url_html,
-      content_type: type,
-      content_type_label: PARTEITAGE_CONTENT_TYPE_LABELS[type],
       kuerzel: motion.prefix,
       status,
       ...(procedure.votum ? { votum: procedure.votum } : {}),
       antragsteller: initiatorNames(motion.initiators),
       ...(motion.agenda_item ? { tagesordnungspunkt: motion.agenda_item.trim() } : {}),
-      published_at: isoDate(motion.date_published),
+      ...(eingereichtAm ? { eingereicht_am: eingereichtAm } : {}),
+      ...(beschlossenAm ? { beschlossen_am: beschlossenAm } : {}),
+      ...(type === 'beschluss' && facts.beschlussDurch
+        ? { beschluss_durch: facts.beschlussDurch }
+        : {}),
+      ...(newest ? { neueste_fassung_id: newest.documentId } : {}),
+      published_at: beschlossenAm ?? eingereichtAm,
       list_signature: motionSignatureOf(link),
       content_hash: generateContentHash(text),
     },
@@ -249,23 +304,26 @@ export function motionUnitOf(
 export function amendmentUnitOf(
   amendment: Amendment,
   link: AmendmentLink,
-  ctx: ParteitagContext
+  ctx: ParteitagContext,
+  facts: PageFacts | null
 ): ParteitageUnit {
   const motion = amendment.motion;
   const motionLabel = motion.prefix ? `${motion.prefix}: ${motion.title}` : motion.title;
   const title = `Änderungsantrag ${amendment.prefix ?? amendment.id} zu ${motionLabel}`;
-  const status = plainText(amendment.status_title);
-  const initiators = plainText(amendment.initiators_html);
+  const status = statusOf(amendment.status_title, amendment.status_id);
   const procedure = procedureOf(amendment);
-  const header = headerOf(title, 'aenderungsantrag', ctx, {
-    agendaItem: motion.agenda_item,
-    initiators,
-    status,
-    votum: procedure.votum,
-  });
+  const eingereichtAm = dayOf(amendment.date_published) ?? facts?.eingereichtAm ?? null;
+  const lines: string[] = [];
+  if (motion.agenda_item) lines.push(`Tagesordnungspunkt: ${motion.agenda_item.trim()}`);
+  const initiators = plainText(amendment.initiators_html);
+  if (initiators) lines.push(`Antragsteller*innen: ${initiators}`);
+  lines.push(`Status: ${status}`);
+  if (eingereichtAm) lines.push(`Eingereicht am ${germanDay(eingereichtAm)}`);
+  if (procedure.votum) lines.push(`${PROCEDURE_LINE}: ${procedure.votum}`);
+  const header = headerOf(title, 'aenderungsantrag', ctx, lines);
   const body = [
     sectionsText(amendment.sections, true),
-    procedure.text ? `## Verfahrensvorschlag der Antragskommission\n\n${procedure.text}` : '',
+    procedure.text ? `## ${PROCEDURE_LINE}\n\n${procedure.text}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -277,14 +335,12 @@ export function amendmentUnitOf(
     sourceUrl: amendment.url_html,
     text,
     body,
-    publishedAt: isoDate(amendment.date_published),
+    publishedAt: eingereichtAm,
     payload: {
-      ...basePayload(ctx),
+      ...basePayload(ctx, 'aenderungsantrag'),
       document_id: documentId,
       title,
       source_url: amendment.url_html,
-      content_type: 'aenderungsantrag',
-      content_type_label: PARTEITAGE_CONTENT_TYPE_LABELS.aenderungsantrag,
       kuerzel: amendment.prefix,
       antrag_id: motionDocumentId(ctx.instance, motion.id),
       antrag_kuerzel: motion.prefix,
@@ -292,7 +348,8 @@ export function amendmentUnitOf(
       ...(procedure.votum ? { votum: procedure.votum } : {}),
       antragsteller: initiatorNames(amendment.initiators),
       ...(motion.agenda_item ? { tagesordnungspunkt: motion.agenda_item.trim() } : {}),
-      published_at: isoDate(amendment.date_published),
+      ...(eingereichtAm ? { eingereicht_am: eingereichtAm } : {}),
+      published_at: eingereichtAm,
       list_signature: amendmentSignatureOf(link),
       content_hash: generateContentHash(text),
     },
