@@ -31,6 +31,7 @@ import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { getDesktopToken } from '../utils/desktopAuth';
+import { getDevBypassUserId } from '../utils/devBypassUser';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
 /**
@@ -50,6 +51,12 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
     const token = await getDesktopToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     return fetch(resolveApiAssetUrl(url), { ...options, headers });
+  }
+  const devUser = getDevBypassUserId();
+  if (devUser) {
+    const headers = new Headers(options?.headers);
+    headers.set('x-dev-auth-user', devUser);
+    return fetch(url, { ...options, headers, credentials: 'include' });
   }
   return fetch(url, { ...options, credentials: 'include' });
 };
