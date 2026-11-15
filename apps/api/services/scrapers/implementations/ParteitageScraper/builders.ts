@@ -202,7 +202,11 @@ export function motionUnitOf(
   const status = plainText(motion.status_title);
   const initiators = plainText(motion.initiators_html);
   const procedure = procedureOf(motion);
-  const header = headerOf(motion.title_with_prefix, type, ctx, {
+  // Antrag und Beschluss tragen in Antragsgrün denselben Titel; ohne die Art
+  // im Titel sind sie in der Quellenliste nicht zu unterscheiden, und eine
+  // Antwort schrieb dem Beschluss zu, was im Antrag stand (Live-Test 15.11.2026).
+  const title = `${PARTEITAGE_CONTENT_TYPE_LABELS[type]} ${motion.title_with_prefix}`;
+  const header = headerOf(title, type, ctx, {
     agendaItem: motion.agenda_item,
     initiators,
     status,
@@ -218,7 +222,7 @@ export function motionUnitOf(
   const documentId = motionDocumentId(ctx.instance, motion.id);
   return {
     documentId,
-    title: motion.title_with_prefix,
+    title,
     sourceUrl: motion.url_html,
     text,
     body,
@@ -226,9 +230,10 @@ export function motionUnitOf(
     payload: {
       ...basePayload(ctx),
       document_id: documentId,
-      title: motion.title_with_prefix,
+      title,
       source_url: motion.url_html,
       content_type: type,
+      content_type_label: PARTEITAGE_CONTENT_TYPE_LABELS[type],
       kuerzel: motion.prefix,
       status,
       ...(procedure.votum ? { votum: procedure.votum } : {}),
@@ -279,6 +284,7 @@ export function amendmentUnitOf(
       title,
       source_url: amendment.url_html,
       content_type: 'aenderungsantrag',
+      content_type_label: PARTEITAGE_CONTENT_TYPE_LABELS.aenderungsantrag,
       kuerzel: amendment.prefix,
       antrag_id: motionDocumentId(ctx.instance, motion.id),
       antrag_kuerzel: motion.prefix,

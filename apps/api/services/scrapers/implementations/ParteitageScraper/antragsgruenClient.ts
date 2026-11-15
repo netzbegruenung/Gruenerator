@@ -64,10 +64,20 @@ const motionLinkSchema = z.object({
 });
 export type MotionLink = z.infer<typeof motionLinkSchema>;
 
+/**
+ * Satzungsänderungen sind in Antragsgrün Änderungsanträge an einer verborgenen
+ * Satzung und stehen deshalb selbst in `motion_links` (LDK Essen 2026: FO-01,
+ * FO-02, S-01). Ein unbekannter `type` lässt die Konsultation scheitern —
+ * laut, und ohne dass ihre Dokumente als verschwunden gelöscht werden.
+ */
+const statuteAmendmentLinkSchema = amendmentLinkSchema.extend({ type: z.literal('amendment') });
+
 const consultationSchema = z.object({
   title: z.string(),
   title_short: z.string(),
-  motion_links: z.array(motionLinkSchema),
+  motion_links: z.array(
+    z.discriminatedUnion('type', [motionLinkSchema, statuteAmendmentLinkSchema])
+  ),
 });
 export type Consultation = z.infer<typeof consultationSchema>;
 

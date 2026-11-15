@@ -76,6 +76,8 @@ export interface ParteitageRunOptions {
   dryRun?: boolean;
   /** Jedes Dokument abrufen und neu schreiben. */
   force?: boolean;
+  /** Nur diese Konsultationen (`parteitag_id`, z. B. `nrw/ldk26-02`) — für gezielte Nachläufe. */
+  consultations?: readonly string[];
 }
 
 export interface ParteitageRunSummary {
@@ -150,6 +152,12 @@ export class ParteitageScraper extends BaseScraper {
       }
       for (const ref of refs) {
         if (this.#limitReached(options, summary)) break;
+        if (
+          options.consultations &&
+          !options.consultations.includes(`${instance.id}/${ref.url_path}`)
+        ) {
+          continue;
+        }
         await this.#consultation(client, { instance, consultation: ref }, options, summary);
       }
     }
@@ -199,6 +207,11 @@ export class ParteitageScraper extends BaseScraper {
     const seen = new Set<string>();
     const tasks: Array<() => Promise<void>> = [];
     for (const link of overview.motion_links) {
+      if (link.type === 'amendment') {
+        seen.add(amendmentDocumentId(ctx.instance, link.id));
+        tasks.push(() => this.#amendment(client, link, ctx, active, options, summary));
+        continue;
+      }
       const motionId = motionDocumentId(ctx.instance, link.id);
       seen.add(motionId);
       tasks.push(() => this.#motion(client, link, ctx, active, options, summary));

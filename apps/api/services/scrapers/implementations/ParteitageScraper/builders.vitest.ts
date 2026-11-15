@@ -63,6 +63,7 @@ describe('motionUnitOf', () => {
 
   it('liest den Beschluss als Beschluss, nicht als Antrag', () => {
     expect(unit.payload.content_type).toBe('beschluss');
+    expect(unit.payload.content_type_label).toBe('Beschluss');
     expect(unit.payload.status).toBe('Beschluss');
   });
 
@@ -81,7 +82,8 @@ describe('motionUnitOf', () => {
 
   it('beginnt mit einem kurzen Kopf und hält die Abschnitte als Überschriften', () => {
     const [header] = unit.text.split('\n\n## ');
-    expect(unit.text.startsWith(`# ${motion.title_with_prefix}\n\nBeschluss · `)).toBe(true);
+    expect(unit.title).toBe(`Beschluss ${motion.title_with_prefix}`);
+    expect(unit.text.startsWith(`# ${unit.title}\n\nBeschluss · `)).toBe(true);
     // Die NLP-Anreicherung liest nur die ersten 1500 Zeichen.
     expect(header.length).toBeLessThan(500);
     expect(unit.text).toContain('\n\n## Antragstext\n\n');
