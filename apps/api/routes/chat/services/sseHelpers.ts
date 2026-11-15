@@ -467,6 +467,7 @@ export const PROGRESS_MESSAGES = {
   // expired share) or it is shared with you read-only (review #5492).
   threadGone:
     'In dieser Unterhaltung kannst du nicht weiterschreiben: Sie wurde gelöscht oder ist nur zum Lesen mit dir geteilt. Starte eine neue Unterhaltung – gelöschte findest du 30 Tage im Papierkorb.',
+  threadBusy: 'Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist.',
   internalError: 'Es ist ein interner Fehler aufgetreten. Bitte versuche es erneut.',
 };
 

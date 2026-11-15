@@ -6,6 +6,8 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { type chatGraphContract } from '@gruenerator/contracts';
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
@@ -22,12 +24,14 @@ import {
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import { startStreamRecorder } from '../../../services/chat/resumableStreams.js';
+import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
   withLangfuseTrace,
 } from '../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../utils/logger.js';
+import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
@@ -62,6 +66,7 @@ import {
   sseFail,
   sseInternalError,
 } from './sseHelpers.js';
+import { canWriteThread } from './threadAccessService.js';
 import {
   createPendingAssistantMessage,
   deleteEmptyStreamingRows,
@@ -90,7 +95,34 @@ const log = createLogger('chatGraphContractRouter');
 type ResumeBody = ServerInferRequest<typeof chatGraphContract.resume>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
 
-export async function runChatGraphResume({
+/**
+ * A resume is a turn in its own right (it streams and persists an answer), so
+ * it takes the thread's run lock like a fresh send. Only a person who may write
+ * the thread can take it — an outsider must not be able to hold a team chat's
+ * lock; for them the inner pipeline rejects as before.
+ */
+export async function runChatGraphResume(args: {
+  req: Request;
+  body: ResumeBody;
+  sse: SSEStream;
+}): Promise<{ status: 200; body: undefined }> {
+  const { req, body, sse } = args;
+  const userId = getUser(req)?.id;
+  let lease: ThreadRunLease | null = null;
+  if (userId && body.threadId && (await canWriteThread(ThreadId(body.threadId), UserId(userId)))) {
+    lease = await acquireThreadRun(body.threadId, `resume_${Date.now()}:${randomUUID()}`);
+    if (!lease) {
+      return sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
+    }
+  }
+  try {
+    return await runChatGraphResumeUnlocked(args);
+  } finally {
+    await lease?.release();
+  }
+}
+
+async function runChatGraphResumeUnlocked({
   req,
   body,
   sse,

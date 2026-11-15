@@ -30,6 +30,7 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { resumableStreams, startStreamRecorder } from '../../services/chat/resumableStreams.js';
+import { type ThreadRunLease } from '../../services/chat/threadRunLock.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -100,11 +101,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
     };
 
+    // One running turn per thread (threadRunLock.ts): taken in buildStreamContext,
+    // released in the `finally` below on every way the turn can end.
+    let runLease: ThreadRunLease | null = null;
+
     try {
       const ctxResult = await buildStreamContext({ req, body: args.body, sse, requestId });
       if (ctxResult.done) {
         return { status: 200 as const, body: undefined };
       }
+      runLease = ctxResult.ctx.runLease;
 
       // Destructure the context into the same identifiers the staged pipeline
       // below was written against (requestId is already in scope from above).
@@ -499,6 +505,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       return { status: 200 as const, body: undefined };
     } finally {
       turnDeadline.clear();
+      await runLease?.release();
     }
   },
 

@@ -12,6 +12,8 @@
  * pipeline consumes.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import {
   type chatGraphContract,
   isVisualBlockKind,
@@ -32,6 +34,7 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
@@ -255,20 +258,52 @@ export interface StreamContext {
   /** Persisted row for the current user turn. Attachments link here so history
    * can render them on the same message after a reload. */
   userMessageId: string | null;
+  /** Lock on the thread's one running turn; null on a new thread. The caller
+   *  releases it in its `finally`. */
+  runLease: ThreadRunLease | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
 
-export async function buildStreamContext({
+/**
+ * Builds the turn context. On `done: false` the caller owns `ctx.runLease` and
+ * must release it when the turn ends; on `done: true` or a throw it is already
+ * released here.
+ */
+export async function buildStreamContext(args: {
+  req: Request;
+  body: StreamBody;
+  sse: SSEStream;
+  requestId: string;
+}): Promise<BuildStreamContextResult> {
+  const leaseBox: { lease: ThreadRunLease | null } = { lease: null };
+  try {
+    const result = await buildStreamContextInner({ ...args, leaseBox });
+    if (result.done) {
+      await leaseBox.lease?.release();
+      return result;
+    }
+    return { done: false, ctx: { ...result.ctx, runLease: leaseBox.lease } };
+  } catch (err) {
+    await leaseBox.lease?.release();
+    throw err;
+  }
+}
+
+async function buildStreamContextInner({
   req,
   body,
   sse,
   requestId,
+  leaseBox,
 }: {
   req: Request;
   body: StreamBody;
   sse: SSEStream;
   requestId: string;
+  /** Receives the thread run lease the moment it is taken, so the wrapper can
+   *  release it when this function throws or returns `{ done: true }`. */
+  leaseBox: { lease: ThreadRunLease | null };
 }): Promise<BuildStreamContextResult> {
   const {
     messages: clientMessages,
@@ -645,6 +680,19 @@ export async function buildStreamContext({
       isNewThread = true;
       sse.send('thread_created', { threadId: actualThreadId });
     }
+  }
+
+  // === One running turn per thread — before any row is written ===
+  // Team chats let several members write into one thread; a second send while
+  // a turn is answering would interleave two answers. Released by the caller
+  // (router `finally`), or by `buildStreamContext` if it never gets that far.
+  if (actualThreadId && !isNewThread) {
+    const lease = await acquireThreadRun(actualThreadId, `${requestId}:${randomUUID()}`);
+    if (!lease) {
+      sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
+      return { done: true };
+    }
+    leaseBox.lease = lease;
   }
 
   // Earlier user messages can arrive with no text at all (see historyBackfill);
@@ -1376,6 +1424,7 @@ export async function buildStreamContext({
   return {
     done: false,
     ctx: {
+      runLease: null,
       requestId,
       userId,
       notebookIds,

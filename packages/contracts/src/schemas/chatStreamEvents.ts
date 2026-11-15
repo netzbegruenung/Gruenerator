@@ -48,6 +48,8 @@ export const chatErrorCodeSchema = z.enum([
   'unauthorized',
   'invalid_request',
   'internal',
+  // A second send into a thread whose turn is still answering (team chats).
+  'thread_busy',
   // Tool-based editor edits (editor_operations path): planning exhausted its
   // retries server-side, or the client bridge failed to apply the ops.
   'edit_planning_failed',
