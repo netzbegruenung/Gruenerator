@@ -93,6 +93,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
     loadMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
     resolveRecipe: async () => null,
+    isForeignMcpServer: async () => false,
     ...over,
   } as unknown as CatalogDeps;
 }
@@ -185,6 +186,44 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     });
 
     expect(assembled.staleConnectorName).toBeNull();
+  });
+
+  // Team chats: the sticky server was written by whoever used a connector last.
+  // Another member's turn must never mount it, and must not be told it is gone.
+  it('mounts a sticky server that belongs to another member for nobody', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+    const isForeignMcpServer = vi.fn(async () => true);
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      {
+        threadId: 't1',
+        lastTurnToolSteps: [
+          { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+        ],
+      }
+    );
+
+    expect(isForeignMcpServer).toHaveBeenCalledWith('u1', 'server-von-a');
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('still mounts the sender’s own sticky server', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-u1');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+
+    await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+    });
+
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'server-von-u1' })
+    );
   });
 
   it('montiert ohne Scope nichts', async () => {

@@ -27,6 +27,12 @@ const {
   deleteMessagesFrom,
   getRecentToolSteps,
   readThreadToolHistory,
+  getThreadCloudFiles,
+  getThreadNotebookSources,
+  getThreadMentionRefs,
+  setThreadCloudFiles,
+  setThreadNotebookSources,
+  setThreadMentionRefs,
 } = await import('./threadPersistenceService.js');
 
 /** Collapse whitespace so assertions don't depend on SQL formatting. */
@@ -379,4 +385,30 @@ describe('toolSteps order', () => {
     expect(notebookIdFromSteps(history.lastTurnToolSteps())).toBe('berlin');
     // Der Import zieht den ganzen Werkzeugbaum — beim ersten Mal langsam.
   }, 60_000);
+});
+
+// Team chats: the pinned refs were written with one person's access, so every
+// read and write is keyed to the thread OWNER — another member's turn reads
+// nothing and overwrites nothing. A dropped `user_id` clause would hand the
+// owner's cloud files to every member.
+describe('thread-pinned refs are owner-scoped', () => {
+  const readers = [
+    ['cloud files', getThreadCloudFiles],
+    ['notebook sources', getThreadNotebookSources],
+    ['mention refs', getThreadMentionRefs],
+  ] as const;
+  it.each(readers)('reads %s only for the owner', async (_name, read) => {
+    await read('thread-1', 'user-b');
+    expect(sql()).toContain('id = $1 AND user_id = $2');
+    expect(params()).toEqual(['thread-1', 'user-b']);
+  });
+
+  it('writes only the owner’s row', async () => {
+    await setThreadCloudFiles('thread-1', 'user-b', { wolke: [], connect: [] });
+    expect(sql()).toContain('id = $2 AND user_id = $3');
+    await setThreadNotebookSources('thread-1', 'user-b', []);
+    expect(sql()).toContain('id = $2 AND user_id = $3');
+    await setThreadMentionRefs('thread-1', 'user-b', { texts: [], docs: [], links: [] });
+    expect(sql()).toContain('id = $2 AND user_id = $3');
+  });
 });
