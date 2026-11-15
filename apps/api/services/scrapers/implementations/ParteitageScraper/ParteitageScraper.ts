@@ -75,7 +75,11 @@ import {
   type ParteitageUnit,
 } from './builders.js';
 import { pageFactsOf, versionRoleOf } from './pageFacts.js';
-import { syncWebsiteDuplicates, type AntragsgruenBeschluss } from './websiteDuplicates.js';
+import {
+  normalizeTitle,
+  syncWebsiteDuplicates,
+  type AntragsgruenBeschluss,
+} from './websiteDuplicates.js';
 
 import type { ScraperResult } from '../../types.js';
 
@@ -263,14 +267,17 @@ export class ParteitageScraper extends BaseScraper {
     for (const link of overview.motion_links) {
       if (link.type === 'amendment') {
         seen.add(amendmentDocumentId(ctx.instance, link.id));
-        tasks.push(() => this.#amendment(client, link, ctx, active, options, summary));
+        tasks.push(() => this.#amendment(client, link, null, ctx, active, options, summary));
         continue;
       }
       seen.add(motionDocumentId(ctx.instance, link.id));
       tasks.push(() => this.#motion(client, link, motions, ctx, active, options, summary));
       for (const amendment of link.amendment_links) {
         seen.add(amendmentDocumentId(ctx.instance, amendment.id));
-        tasks.push(() => this.#amendment(client, amendment, ctx, active, options, summary));
+        const beschluss = titleTwinOf(link, motions, ctx);
+        tasks.push(() =>
+          this.#amendment(client, amendment, beschluss, ctx, active, options, summary)
+        );
       }
     }
     await runPool(tasks, options.concurrency ?? 3, (task) => task());
@@ -319,7 +326,12 @@ export class ParteitageScraper extends BaseScraper {
         await this.#drop(documentId, options, summary);
         return;
       }
-      const newest = role.role === 'original' ? newestOf(role.newestMotionId, motions, ctx) : null;
+      const newest =
+        role.role === 'original'
+          ? newestOf(role.newestMotionId, motions, ctx)
+          : contentTypeOfMotion(motion) === 'antrag'
+            ? titleTwinOf(link, motions, ctx)
+            : null;
       await this.#write(motionUnitOf(motion, link, ctx, facts, newest), options, summary);
     } catch (error: unknown) {
       this.#fail(documentId, error, summary);
@@ -329,6 +341,7 @@ export class ParteitageScraper extends BaseScraper {
   async #amendment(
     client: AntragsgruenClient,
     link: AmendmentLink,
+    beschluss: NewestVersion | null,
     ctx: ParteitagContext,
     active: boolean,
     options: ParteitageRunOptions,
@@ -345,7 +358,7 @@ export class ParteitageScraper extends BaseScraper {
       const facts = amendment.date_published
         ? null
         : pageFactsOf(await client.page(amendment.url_html));
-      await this.#write(amendmentUnitOf(amendment, link, ctx, facts), options, summary);
+      await this.#write(amendmentUnitOf(amendment, link, ctx, facts, beschluss), options, summary);
     } catch (error: unknown) {
       this.#fail(documentId, error, summary);
     }
@@ -455,6 +468,27 @@ export class ParteitageScraper extends BaseScraper {
       this.#fail(`${instance.id} website duplicates`, error, summary);
     }
   }
+}
+
+/**
+ * Ein Beschluss ohne Antragshistorie zum eingereichten Antrag: Landesparteirat
+ * Schwerte 2026 führt „V-1" (eingereicht) und „V-01" (Beschluss) als zwei
+ * unverknüpfte Anträge mit demselben Titel. Verknüpft wird nur, wenn es in der
+ * Konsultation genau einen Beschluss mit identischem Titel gibt.
+ */
+function titleTwinOf(
+  link: MotionLink,
+  motions: ReadonlyMap<number, MotionLink>,
+  ctx: ParteitagContext
+): NewestVersion | null {
+  const title = normalizeTitle(link.title);
+  const twins = [...motions.values()].filter(
+    (m) =>
+      m.id !== link.id &&
+      contentTypeOfMotion(m) === 'beschluss' &&
+      normalizeTitle(m.title) === title
+  );
+  return twins.length === 1 ? newestOf(twins[0].id, motions, ctx) : null;
 }
 
 /** Die neueste Fassung eines eingereichten Antrags, wie die Übersicht sie zeigt. */

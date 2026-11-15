@@ -60,6 +60,7 @@ const NO_FACTS: PageFacts = {
   eingereichtAm: null,
   beschlossenAm: null,
   beschlussDurch: null,
+  veranstaltungAm: null,
   version: null,
   otherVersions: [],
 };
@@ -122,6 +123,22 @@ describe('motionUnitOf', () => {
     );
   });
 
+  it('nimmt ohne Beschlussdatum den Tag einer eintägigen Veranstaltung und sagt das', () => {
+    const fromEvent = motionUnitOf(
+      motion,
+      link,
+      ctx,
+      { ...NO_FACTS, veranstaltungAm: '2026-03-22' },
+      null
+    );
+    expect(fromEvent.payload).toMatchObject({
+      beschlossen_am: '2026-03-22',
+      beschlussdatum_quelle: 'veranstaltung',
+    });
+    expect(fromEvent.text).toContain('Beschlossen am 22.03.2026 (Tag der Veranstaltung)');
+    expect(unit.payload.beschlussdatum_quelle).toBe('beschlossen_am');
+  });
+
   it('kennzeichnet einen vorläufigen Beschluss', () => {
     const vorlaeufig = motionUnitOf(
       motionSchema.parse({ ...motion, status_id: 25, status_title: 'Beschluss' }),
@@ -175,6 +192,7 @@ describe('amendmentUnitOf', () => {
     amendment,
     raw.link as AmendmentLink,
     { instance, consultation: essen },
+    null,
     null
   );
 
@@ -208,16 +226,38 @@ describe('amendmentUnitOf', () => {
       undated,
       raw.link as AmendmentLink,
       { instance, consultation: essen },
-      { ...NO_FACTS, eingereichtAm: '2026-10-30' }
+      { ...NO_FACTS, eingereichtAm: '2026-10-30' },
+      null
     );
     expect(fromPage.payload).toMatchObject({
       eingereicht_am: '2026-10-30',
       published_at: '2026-10-30',
     });
     expect(
-      amendmentUnitOf(undated, raw.link as AmendmentLink, { instance, consultation: essen }, null)
-        .payload.published_at
+      amendmentUnitOf(
+        undated,
+        raw.link as AmendmentLink,
+        { instance, consultation: essen },
+        null,
+        null
+      ).payload.published_at
     ).toBeNull();
+  });
+
+  it('kennzeichnet den Text als Vorschlag und nennt den maßgeblichen Beschluss', () => {
+    expect(unit.text).toContain('Hinweis: Änderungsvorschlag, kein beschlossener Text.');
+    expect(unit.text).toContain(
+      '## Vorgeschlagene Änderung (kein beschlossener Text): Antragstext'
+    );
+    const decided = amendmentUnitOf(
+      amendment,
+      raw.link as AmendmentLink,
+      { instance, consultation: essen },
+      null,
+      { documentId: 'ag-nrw-m1', title: 'Beschluss WP-01: Ein Land', isBeschluss: true }
+    );
+    expect(decided.text).toContain('Maßgeblich ist „Beschluss WP-01: Ein Land".');
+    expect(decided.payload.beschluss_id).toBe('ag-nrw-m1');
   });
 
   it('macht Einfügungen im Text als solche lesbar', () => {

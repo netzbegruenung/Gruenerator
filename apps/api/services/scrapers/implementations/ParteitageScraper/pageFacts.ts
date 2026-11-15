@@ -26,8 +26,14 @@ export interface PageFacts {
   eingereichtAm: string | null;
   /** ISO-Datum aus „Beschlossen am". */
   beschlossenAm: string | null;
-  /** „Beschluss durch", z. B. „Landesdelegiertenkonferenz". */
+  /**
+   * „Beschluss durch", nur wenn dort ein Gremium steht. Am 16.11.2026 stand bei
+   * V-01 des Landesparteirats Schwerte ein Personenname — als beschließendes
+   * Organ gelesen, wäre das falsch.
+   */
   beschlussDurch: string | null;
+  /** ISO-Datum der „Veranstaltung", nur wenn sie an genau einem Tag war. */
+  veranstaltungAm: string | null;
   /** Versionsnummer dieser Seite in der Antragshistorie; null ohne Historie. */
   version: number | null;
   /** Die anderen Versionen derselben Kette, mit ihrer Antrags-ID. */
@@ -38,6 +44,7 @@ const EMPTY: PageFacts = {
   eingereichtAm: null,
   beschlossenAm: null,
   beschlussDurch: null,
+  veranstaltungAm: null,
   version: null,
   otherVersions: [],
 };
@@ -48,6 +55,43 @@ export function germanDateToIso(text: string | null | undefined): string | null 
   if (!m) return null;
   return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
 }
+
+const MONTHS: Record<string, string> = {
+  januar: '01',
+  februar: '02',
+  märz: '03',
+  maerz: '03',
+  april: '04',
+  mai: '05',
+  juni: '06',
+  juli: '07',
+  august: '08',
+  september: '09',
+  oktober: '10',
+  november: '11',
+  dezember: '12',
+};
+
+/**
+ * Ein Datum in Fließtext: „am 21. Juni 2026", „vom 3 . September 2026",
+ * „am 16.11. 2025", „15.02.2020" → ISO-Datum.
+ */
+export function germanTextDateToIso(text: string): string | null {
+  const t = text.replace(/\s*\.\s*/g, '. ');
+  const numeric = /(\d{1,2})\. (\d{1,2})\. ?(\d{4})/.exec(t);
+  if (numeric) return germanDateToIso(`${numeric[1]}.${numeric[2]}.${numeric[3]}`);
+  const named = /(\d{1,2})\. ([A-Za-zÄÖÜäöü]+) (\d{4})/.exec(t);
+  const month = named ? MONTHS[named[2].toLowerCase()] : null;
+  return named && month ? `${named[3]}-${month}-${named[1].padStart(2, '0')}` : null;
+}
+
+/** Nur eine eintägige Veranstaltung liefert ein Beschlussdatum — „20./21. Juni" oder „13.-15. November" nicht. */
+export function singleEventDateOf(text: string | null): string | null {
+  if (!text || /\d{1,2}\.\s*[-–/]\s*\d{1,2}\./.test(text)) return null;
+  return germanTextDateToIso(text);
+}
+
+const GREMIUM = /konferenz|rat\b|vorstand|versammlung|kommission|präsidium|parteitag/i;
 
 const versionNumber = (text: string): number | null => {
   const m = /Version\s+(\d+)/.exec(text);
@@ -92,7 +136,8 @@ export function pageFactsOf(html: string): PageFacts {
   return {
     eingereichtAm: germanDateToIso(text('Eingereicht')),
     beschlossenAm: germanDateToIso(text('Beschlossen am')),
-    beschlussDurch: text('Beschluss durch'),
+    beschlussDurch: GREMIUM.test(text('Beschluss durch') ?? '') ? text('Beschluss durch') : null,
+    veranstaltungAm: singleEventDateOf(text('Veranstaltung')),
     version,
     otherVersions,
   };

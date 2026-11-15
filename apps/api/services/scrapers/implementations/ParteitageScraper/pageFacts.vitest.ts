@@ -21,6 +21,8 @@ describe('pageFactsOf', () => {
       eingereichtAm: null,
       beschlossenAm: '2026-06-21',
       beschlussDurch: 'Landesdelegiertenkonferenz',
+      // „20./21. Juni 2026" — zwei Tage, also kein Datum.
+      veranstaltungAm: null,
       version: 3,
       otherVersions: [
         { version: 1, motionId: 101856 },
@@ -40,8 +42,26 @@ describe('pageFactsOf', () => {
       eingereichtAm: null,
       beschlossenAm: null,
       beschlussDurch: null,
+      veranstaltungAm: null,
       version: null,
       otherVersions: [],
+    });
+  });
+
+  it('nimmt ein eintägiges Veranstaltungsdatum und lässt einen Personennamen als Gremium weg', () => {
+    // Landesparteirat Schwerte 2026, V-01 (16.11.2026): kein „Beschlossen am",
+    // unter „Beschluss durch" ein Personenname.
+    const html = `<table class="motionDataTable">
+      <tr><th scope="row">Veranstaltung:</th><td><a href="/lpr26">Landesparteirat GRÜNE NRW Schwerte 22. März 2026</a></td></tr>
+      <tr class="statusRow"><th scope="row">Status:</th><td>Beschluss</td></tr>
+      <tr><th scope="row">Beschluss durch:</th><td>Erika Beispiel</td></tr>
+      <tr><th scope="row">Eingereicht:</th><td>17.02.2026, 10:52</td></tr>
+    </table>`;
+    expect(pageFactsOf(html)).toMatchObject({
+      veranstaltungAm: '2026-03-22',
+      beschlossenAm: null,
+      beschlussDurch: null,
+      eingereichtAm: '2026-02-17',
     });
   });
 });

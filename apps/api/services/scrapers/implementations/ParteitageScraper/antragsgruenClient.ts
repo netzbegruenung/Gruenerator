@@ -25,7 +25,6 @@ import { BRAND } from '../../../../utils/domainUtils.js';
 import { HttpStatusError } from '../../base/BaseScraper.js';
 import { type Fetcher, type PoliteGate } from '../../parliament/index.js';
 
-
 const TIMEOUT_MS = 30_000;
 
 const consultationRefSchema = z.object({

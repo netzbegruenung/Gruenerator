@@ -114,6 +114,46 @@ describe('matchWebsiteDuplicates', () => {
   });
 });
 
+describe('matchWebsiteDuplicates — ähnliche Titel', () => {
+  const lpr: AntragsgruenBeschluss[] = [
+    {
+      documentId: 'ag-nrw-m1',
+      title: 'Innovationen made in NRW',
+      beschlossenAm: '2025-11-16',
+      beschlussDurch: 'Landesparteirat',
+    },
+    {
+      documentId: 'ag-nrw-m2',
+      title: 'Klimakurs statt Klimakrise',
+      beschlossenAm: '2025-11-16',
+      beschlussDurch: 'Landesparteirat',
+    },
+  ];
+
+  it('erkennt einen leicht abgewandelten Titel am selben Tag', () => {
+    // gruene-nrw.de schreibt „Innovation", Antragsgrün „Innovationen" (Krefeld 2025).
+    const { matches } = matchWebsiteDuplicates(lpr, [
+      {
+        sourceUrl: 'https://gruene-nrw.de/innovation/',
+        title: 'Innovation made in NRW',
+        head: 'Beschluss des Landesparteirats in Krefeld am 16.11. 2025 Als wir Grüne',
+      },
+    ]);
+    expect(matches.get('https://gruene-nrw.de/innovation/')).toBe('ag-nrw-m1');
+  });
+
+  it('bleibt bei einem nur entfernt ähnlichen Titel stehen', () => {
+    const { matches } = matchWebsiteDuplicates(lpr, [
+      {
+        sourceUrl: 'https://gruene-nrw.de/x/',
+        title: 'Klimaschutz statt Klimakrise jetzt',
+        head: 'Beschluss des Landesparteirats in Krefeld am 16.11. 2025',
+      },
+    ]);
+    expect(matches.size).toBe(0);
+  });
+});
+
 describe('normalizeTitle', () => {
   it('gleicht Satzzeichen und doppelte Leerzeichen aus', () => {
     expect(normalizeTitle('NRW-Ernährungspolitik 2030:  Nachhaltig, sicher, gerecht!')).toBe(

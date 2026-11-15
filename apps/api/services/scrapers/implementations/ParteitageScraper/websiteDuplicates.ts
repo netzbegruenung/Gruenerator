@@ -10,8 +10,11 @@
  *
  * Markiert wird nur, was eindeutig ist — eine falsch ausgeblendete Quelle
  * wiegt politisch schwerer als eine doppelte:
- *   - normalisierter Titel gleich (keine Ähnlichkeitsschwelle),
  *   - Beschlussdatum gleich (Website: aus dem ersten Satz),
+ *   - normalisierter Titel gleich; oder, nur wenn kein Titel exakt passt,
+ *     Titelähnlichkeit ≥ 0,9 und deutlich vor jedem anderen Beschluss desselben
+ *     Tags (Website „Innovation made in NRW" gegen Antragsgrün „Innovationen
+ *     made in NRW", Landesparteirat Krefeld 2025),
  *   - Gremium LDK oder Landesparteirat, und gleich, wo beide es nennen.
  *     Beschlüsse des Landesvorstands stehen nicht in Antragsgrün und bleiben.
  *   - Ein Website-Beitrag, der zu mehr als einem Beschluss passt, bleibt
@@ -26,25 +29,9 @@
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
-import { germanDateToIso } from './pageFacts.js';
+import { germanTextDateToIso } from './pageFacts.js';
 
 export const SUPERSEDED_BY_FIELD = 'superseded_by';
-
-const MONTHS: Record<string, string> = {
-  januar: '01',
-  februar: '02',
-  märz: '03',
-  maerz: '03',
-  april: '04',
-  mai: '05',
-  juni: '06',
-  juli: '07',
-  august: '08',
-  september: '09',
-  oktober: '10',
-  november: '11',
-  dezember: '12',
-};
 
 type Gremium = 'ldk' | 'lpr' | 'lavo' | null;
 
@@ -58,12 +45,30 @@ export function gremiumOf(text: string | null | undefined): Gremium {
 
 /** „am 21. Juni 2026", „vom 3 . September 2026", „am 16.11. 2025", „vom 02.07.2026" */
 export function websiteDateOf(head: string): string | null {
-  const text = head.replace(/\s*\.\s*/g, '. ');
-  const numeric = /(\d{1,2})\. (\d{1,2})\. ?(\d{4})/.exec(text);
-  if (numeric) return germanDateToIso(`${numeric[1]}.${numeric[2]}.${numeric[3]}`);
-  const named = /(\d{1,2})\. ([A-Za-zÄÖÜäöü]+) (\d{4})/.exec(text);
-  const month = named ? MONTHS[named[2].toLowerCase()] : null;
-  return named && month ? `${named[3]}-${month}-${named[1].padStart(2, '0')}` : null;
+  return germanTextDateToIso(head);
+}
+
+const SIMILAR = 0.9;
+const MARGIN = 0.15;
+
+/** 1 − Levenshtein-Abstand / Länge des längeren Titels. */
+export function similarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const longer = Math.max(a.length, b.length);
+  if (longer === 0) return 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    previous = current;
+  }
+  return 1 - previous[b.length] / longer;
 }
 
 export function normalizeTitle(title: string): string {
@@ -109,16 +114,22 @@ export function matchWebsiteDuplicates(
     const date = websiteDateOf(post.head.slice(0, 300));
     if (!date) continue;
     const title = normalizeTitle(post.title);
-    const hits = beschluesse.filter((b) => {
+    const sameDay = beschluesse.filter((b) => {
       const own = gremiumOf(b.beschlussDurch);
-      return (
-        b.beschlossenAm === date &&
-        normalizeTitle(b.title) === title &&
-        (own === null || own === gremium)
-      );
+      return b.beschlossenAm === date && (own === null || own === gremium);
     });
-    if (hits.length === 1) matches.set(post.sourceUrl, hits[0].documentId);
-    else if (hits.length > 1) ambiguous.push(post.sourceUrl);
+    const exact = sameDay.filter((b) => normalizeTitle(b.title) === title);
+    if (exact.length === 1) matches.set(post.sourceUrl, exact[0].documentId);
+    else if (exact.length > 1) ambiguous.push(post.sourceUrl);
+    else {
+      const ranked = sameDay
+        .map((b) => ({ b, score: similarity(normalizeTitle(b.title), title) }))
+        .sort((x, y) => y.score - x.score);
+      const [best, second] = ranked;
+      if (best && best.score >= SIMILAR && (!second || best.score - second.score >= MARGIN)) {
+        matches.set(post.sourceUrl, best.b.documentId);
+      }
+    }
   }
   return { matches, ambiguous };
 }

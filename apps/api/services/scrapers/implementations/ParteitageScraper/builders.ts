@@ -96,12 +96,25 @@ export function markDiff(html: string): string {
   return $.html();
 }
 
-function sectionsText(sections: readonly Section[], diff: boolean): string {
+/**
+ * Überschrift der Abschnitte eines Änderungsantrags. Sie steht im
+ * Überschriftenpfad jedes Chunks und damit auch in Passagen ohne Kopf — eine
+ * Antwort gab sonst den Text eines ÄA als Position des Landesverbands aus
+ * (NRW-Notebook, 16.11.2026: ÄA V-02-005, dessen Satz im Beschluss nicht steht).
+ */
+const PROPOSAL_HEADING = 'Vorgeschlagene Änderung (kein beschlossener Text)';
+
+function sectionsText(
+  sections: readonly Section[],
+  diff: boolean,
+  headingPrefix: string | null = null
+): string {
   return sections
     .filter((s) => !SKIPPED_SECTION_TYPES.has(s.type) && s.html)
     .map((s) => {
       const body = htmlToStructuredText(diff ? markDiff(s.html ?? '') : (s.html ?? '')).trim();
-      return body ? `## ${s.title}\n\n${body}` : '';
+      const heading = headingPrefix ? `${headingPrefix}: ${s.title}` : s.title;
+      return body ? `## ${heading}\n\n${body}` : '';
     })
     .filter(Boolean)
     .join('\n\n');
@@ -241,7 +254,12 @@ export function motionUnitOf(
   // Antwort schrieb dem Beschluss zu, was im Antrag stand (Live-Test 15.11.2026).
   const title = `${PARTEITAGE_CONTENT_TYPE_LABELS[type]} ${motion.title_with_prefix}`;
   const eingereichtAm = dayOf(motion.date_published) ?? facts.eingereichtAm;
-  const beschlossenAm = type === 'beschluss' ? facts.beschlossenAm : null;
+  // Ohne „Beschlossen am" das Datum einer eintägigen Veranstaltung — und so
+  // gekennzeichnet (Landesparteirat Schwerte 2026, V-01).
+  const beschlossenAm =
+    type === 'beschluss' ? (facts.beschlossenAm ?? facts.veranstaltungAm) : null;
+  const beschlussDatumQuelle =
+    beschlossenAm === null ? null : facts.beschlossenAm ? 'beschlossen_am' : 'veranstaltung';
   const lines: string[] = [];
   if (motion.agenda_item) lines.push(`Tagesordnungspunkt: ${motion.agenda_item.trim()}`);
   const initiators = plainText(motion.initiators_html);
@@ -249,7 +267,8 @@ export function motionUnitOf(
   lines.push(`Status: ${status}`);
   if (beschlossenAm) {
     const durch = facts.beschlussDurch ? ` durch ${facts.beschlussDurch}` : '';
-    lines.push(`Beschlossen am ${germanDay(beschlossenAm)}${durch}`);
+    const quelle = beschlussDatumQuelle === 'veranstaltung' ? ' (Tag der Veranstaltung)' : '';
+    lines.push(`Beschlossen am ${germanDay(beschlossenAm)}${quelle}${durch}`);
   } else if (eingereichtAm) {
     lines.push(`Eingereicht am ${germanDay(eingereichtAm)}`);
   }
@@ -289,7 +308,9 @@ export function motionUnitOf(
       antragsteller: initiatorNames(motion.initiators),
       ...(motion.agenda_item ? { tagesordnungspunkt: motion.agenda_item.trim() } : {}),
       ...(eingereichtAm ? { eingereicht_am: eingereichtAm } : {}),
-      ...(beschlossenAm ? { beschlossen_am: beschlossenAm } : {}),
+      ...(beschlossenAm
+        ? { beschlossen_am: beschlossenAm, beschlussdatum_quelle: beschlussDatumQuelle }
+        : {}),
       ...(type === 'beschluss' && facts.beschlussDurch
         ? { beschluss_durch: facts.beschlussDurch }
         : {}),
@@ -305,7 +326,8 @@ export function amendmentUnitOf(
   amendment: Amendment,
   link: AmendmentLink,
   ctx: ParteitagContext,
-  facts: PageFacts | null
+  facts: PageFacts | null,
+  beschluss: NewestVersion | null
 ): ParteitageUnit {
   const motion = amendment.motion;
   const motionLabel = motion.prefix ? `${motion.prefix}: ${motion.title}` : motion.title;
@@ -320,9 +342,14 @@ export function amendmentUnitOf(
   lines.push(`Status: ${status}`);
   if (eingereichtAm) lines.push(`Eingereicht am ${germanDay(eingereichtAm)}`);
   if (procedure.votum) lines.push(`${PROCEDURE_LINE}: ${procedure.votum}`);
+  lines.push(
+    beschluss?.isBeschluss
+      ? `Hinweis: Änderungsvorschlag, kein beschlossener Text. Maßgeblich ist „${beschluss.title}".`
+      : 'Hinweis: Änderungsvorschlag, kein beschlossener Text.'
+  );
   const header = headerOf(title, 'aenderungsantrag', ctx, lines);
   const body = [
-    sectionsText(amendment.sections, true),
+    sectionsText(amendment.sections, true, PROPOSAL_HEADING),
     procedure.text ? `## ${PROCEDURE_LINE}\n\n${procedure.text}` : '',
   ]
     .filter(Boolean)
@@ -344,6 +371,7 @@ export function amendmentUnitOf(
       kuerzel: amendment.prefix,
       antrag_id: motionDocumentId(ctx.instance, motion.id),
       antrag_kuerzel: motion.prefix,
+      ...(beschluss?.isBeschluss ? { beschluss_id: beschluss.documentId } : {}),
       status,
       ...(procedure.votum ? { votum: procedure.votum } : {}),
       antragsteller: initiatorNames(amendment.initiators),
