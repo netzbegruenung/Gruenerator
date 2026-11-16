@@ -273,6 +273,7 @@ export type ConventionEditorData = z.infer<typeof conventionEditorDataSchema>;
 
 export const parteitageErrorCodeSchema = z.enum([
   'NOT_FOUND',
+  'FORBIDDEN',
   'LOCKED',
   'WRONG_PASSWORD',
   'BLOCKED_SPEECHES',
