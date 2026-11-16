@@ -1,37 +1,35 @@
 import { config as dotenvConfig } from 'dotenv';
 import { defineConfig } from 'vitest/config';
 
-// Paid upstreams. With a key from .env, any suite that reaches the AI facade
-// without mocking `services/ai/execution` spends real tokens and waits on real
-// latency — and takes a different path than CI, which has no keys (#4299).
-const PROVIDER_KEYS = [
-  'MISTRAL_API_KEY',
-  'CORTECS_API_KEY',
-  'LITELLM_API_KEY',
-  'MELIOUS_API_KEY',
-  'GREENPT_API_KEY',
-  'LINKUP_API_KEY',
-  'BFL_API_KEY',
-  'KUGELAUDIO_API_KEY',
-  'DEEPL_API_KEY',
-];
 const LIVE_OPT_INS = [
   'RUN_LIVE_PROVIDER_TESTS',
   'RUN_LLM_EVAL_TESTS',
   'FORCE_LIVE',
   'NOTEBOOK_LIVE',
 ];
-const keysFromShell = new Set(PROVIDER_KEYS.filter((key) => process.env[key]));
+const liveOptIn = LIVE_OPT_INS.some((flag) => process.env[flag]);
 
-dotenvConfig();
-
-// Keys passed on the command line, or any live opt-in, keep the .env keys.
-// Blank, not deleted, for the same reason as QDRANT_URL below.
-if (!LIVE_OPT_INS.some((flag) => process.env[flag])) {
-  for (const key of PROVIDER_KEYS) {
-    if (!keysFromShell.has(key)) process.env[key] = '';
-  }
+// Tests run on the environment CI has: the shell's, without apps/api/.env.
+// The developer's .env changes outcomes (instance channel, thumbnail signing
+// secret), names the shared dev database (#5640) and carries paid provider
+// keys — any suite reaching the AI facade unmocked would spend real tokens and
+// take a different path than CI (#4299). Only a live opt-in loads it. DOTENV_PATH is the default every dotenv.config()
+// reads, so the module-level call in QdrantService and the forked
+// workers, which inherit process.env, skip the file as well.
+if (liveOptIn) {
+  dotenvConfig({ quiet: true });
+} else {
+  process.env.DOTENV_PATH = '.env.vitest-disabled';
+  process.env.DOTENV_QUIET = 'true';
 }
+
+// Without a .env, PostgresService still defaults to localhost:5432/gruenerator —
+// on a developer machine the shared dev database, where any test that calls
+// init() runs the migration runner with whatever branch migrations it sees
+// (#5640). Port 1 refuses at once, the same failure CI hits (its Postgres is on
+// 5433). The *.db.vitest.ts lane connects via MIGRATIONS_TEST_DATABASE_URL and
+// is unaffected; a DATABASE_URL passed on the command line wins.
+process.env.DATABASE_URL ??= 'postgresql://vitest@127.0.0.1:1/no-database';
 
 // The local .env points at the production Qdrant, and QdrantService starts
 // reconciling collections and indexes as soon as anything constructs it (#3589).
