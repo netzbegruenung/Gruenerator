@@ -413,7 +413,6 @@ pnpm run build:documentation   # Build documentation site
 ```
 documentation/
 ├── docs/           # Articles, grouped by section
-├── blog/           # News and updates
 ├── src/
 │   └── nav/sections.ts   # The sections: startpage grid, navbar, footer
 └── static/         # Images and assets

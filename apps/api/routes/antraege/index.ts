@@ -1,16 +1,14 @@
 /**
  * Antraege Routes Index
  *
- * Routes for Antrag/Anfrage generation with two modes:
- * - /generate-simple - Direct generation via LangGraph
- * - /experimental - Interactive multi-step generation
+ * Routes for Antrag/Anfrage generation:
+ * - /generate-simple - Direct generation
  */
 
 import express, { type Request, type Response, type NextFunction } from 'express';
 
 import { createLogger } from '../../utils/logger.js';
 
-import interactiveGenerationRouter from './interactiveGeneration.js';
 import simpleGenerationRouter from './simpleGeneration.js';
 
 const router = express.Router();
@@ -30,13 +28,5 @@ router.use((req: Request, res: Response, next: NextFunction) => {
  * POST /api/antraege/generate-simple
  */
 router.use('/generate-simple', simpleGenerationRouter);
-
-/**
- * Interactive Antrag generation endpoints
- * POST /api/antraege/experimental/initiate
- * POST /api/antraege/experimental/continue
- * GET /api/antraege/experimental/status/:sessionId
- */
-router.use('/experimental', interactiveGenerationRouter);
 
 export default router;

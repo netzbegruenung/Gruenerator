@@ -26,6 +26,7 @@ const TYPE_ICONS: Record<string, IoniconsIconName> = {
   group_role_changed: 'swap-horizontal-outline',
   group_content_shared: 'share-outline',
   group_comment_added: 'chatbubble-outline',
+  group_chat_message: 'chatbubbles-outline',
   group_post_created: 'newspaper-outline',
   group_user_mentioned: 'at-outline',
   group_mention_all: 'megaphone-outline',

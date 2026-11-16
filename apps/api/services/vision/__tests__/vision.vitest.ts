@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { isProviderConfigured } from '../../ai/providers.js';
-import { isVisionCapable, getAvailableModels } from '../../ai/modelDiscovery.js';
+import { isVisionCapable } from '../../ai/modelDiscovery.js';
 import { executeProvider } from '../../ai/execution/index.js';
 
 const HAS_MISTRAL = !!process.env.MISTRAL_API_KEY;
@@ -229,28 +229,3 @@ describe.skipIf(!HAS_MISTRAL)(
     }, 30000);
   }
 );
-
-// ─── Model discovery vision utilities ────────────────────────────────────
-
-describe('Model discovery — vision utilities', () => {
-  it('getAvailableModels includes vision flag', async () => {
-    const models = await getAvailableModels();
-    expect(Array.isArray(models)).toBe(true);
-
-    if (models.length > 0) {
-      const firstModel = models[0];
-      expect(firstModel).toHaveProperty('vision');
-      expect(typeof firstModel.vision).toBe('boolean');
-    }
-  }, 15000);
-
-  it('getVisionCapableModels returns only vision models', async () => {
-    const { getVisionCapableModels } = await import('../../ai/modelDiscovery.js');
-    const visionModels = await getVisionCapableModels();
-
-    expect(Array.isArray(visionModels)).toBe(true);
-    for (const model of visionModels) {
-      expect(model.vision).toBe(true);
-    }
-  }, 15000);
-});

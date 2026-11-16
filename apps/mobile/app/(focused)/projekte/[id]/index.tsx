@@ -20,6 +20,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
@@ -180,6 +181,13 @@ export default function ProjektDetailScreen() {
         }
       >
         <View style={styles.padded}>
+          {id ? (
+            <ProjectChatComposer
+              groupId={id}
+              groupName={group.name}
+              solo={isPersonal || group.is_system === true}
+            />
+          ) : null}
           {!isPersonal && (
             <SegmentedControl
               accessibilityLabel="Ansicht"
