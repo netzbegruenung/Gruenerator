@@ -454,56 +454,10 @@ describe('createToolLoopGuards — search budget', () => {
 });
 
 /**
- * The web is not gated behind the internal document search. What is left is a
- * one-way fallback: being ALLOWED to search the web was never enough —
- * permission the planner was free to ignore, and did. The same question was
- * researched properly in one session and answered ungrounded in the next,
- * decided by nothing but sampling.
+ * The web is not gated behind the internal document search: nothing in the
+ * guards may refuse it.
  */
-describe('createToolLoopGuards — internal fallback', () => {
-  const policy = { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' };
-
-  it('forces the web only after the internal search COMPLETED with nothing', () => {
-    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
-    // Never called — nothing to fall back FROM.
-    expect(guards.emptyResultFallback()).toBeNull();
-    guards.noteCall('gruenerator_search');
-    // In flight: the result may still land. Forcing here would race.
-    expect(guards.emptyResultFallback()).toBeNull();
-    guards.noteCompletion('gruenerator_search');
-    expect(guards.emptyResultFallback()).toBe('web_search');
-  });
-
-  it('stays quiet when the internal search actually found something', () => {
-    let sources = 0;
-    const guards = createToolLoopGuards({
-      internalFallback: policy,
-      getSourceCount: () => sources,
-    });
-    guards.noteCall('gruenerator_search');
-    guards.noteCompletion('gruenerator_search');
-    sources = 1;
-    expect(guards.emptyResultFallback()).toBeNull();
-  });
-
-  it('does not force a second time once the web has run', () => {
-    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
-    guards.noteCall('gruenerator_search');
-    guards.noteCompletion('gruenerator_search');
-    expect(guards.emptyResultFallback()).toBe('web_search');
-    guards.noteCall('web_search');
-    // Otherwise an empty web search would be forced over and over until the
-    // step budget ran out.
-    expect(guards.emptyResultFallback()).toBeNull();
-  });
-
-  it('is inert without a policy', () => {
-    const guards = createToolLoopGuards({ getSourceCount: () => 0 });
-    guards.noteCall('gruenerator_search');
-    guards.noteCompletion('gruenerator_search');
-    expect(guards.emptyResultFallback()).toBeNull();
-  });
-
+describe('createToolLoopGuards — web is never gated', () => {
   /**
    * The regression this whole change is about: a general-knowledge question
    * ("wer war marilyn monroe?") must reach the web without an internal party-
@@ -511,7 +465,6 @@ describe('createToolLoopGuards — internal fallback', () => {
    */
   it('never refuses web_search or scrape_url', () => {
     const guards = createToolLoopGuards({
-      internalFallback: policy,
       searchToolNames: new Set(['web_search', 'gruenerator_search', 'scrape_url']),
       getSourceCount: () => 9,
     });

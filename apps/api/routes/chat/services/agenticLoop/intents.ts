@@ -72,16 +72,3 @@ export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   ...intentsWithDisposition('loop'),
   ...AGENTIC_EXTRA_IDS,
 ]);
-
-/**
- * Intents, bei denen der Klassifikator die Recherche AUSDRÜCKLICH benannt hat.
- *
- * Abgeleitet aus der Dispositions-Achse: `loop` heisst „der Planer wählt die
- * Werkzeuge" — aber `agentic` ist der AUFFANGWERT dieser Gruppe und darf
- * deshalb nicht zwingen, sonst würde jede unklare Frage einen Werkzeugaufruf
- * erzwingen. Für die aus einem Recherche-Verdikt demotierten `agentic`-Turns
- * gibt es `loopDemotedFromRetrieval`, das genau diese Herkunft festhält.
- */
-export const NAMED_RETRIEVAL_INTENTS: ReadonlySet<string> = new Set(
-  [...intentsWithDisposition('loop')].filter((id) => id !== 'agentic')
-);

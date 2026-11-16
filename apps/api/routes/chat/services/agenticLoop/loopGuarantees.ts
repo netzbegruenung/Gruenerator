@@ -111,37 +111,6 @@ function turnHasArtifact(state: ChatGraphState): boolean {
   );
 }
 
-/**
- * The tool this turn still owes: the fat tool of an ordered compound
- * generation, or the edit tool of an open surface the ask wants changed. Null
- * once that tool ran (`calledToolNames`) or the artefact exists.
- *
- * The loop forces it as a named step — at step 0 when nothing else is forced,
- * otherwise as soon as the forced first call is done (`forcedToolForStep`) — so
- * the writer sees the tool result BEFORE it writes. `ensureOwedTools` stays as the
- * net for a host that ignores `tool_choice`.
- *
- * `userAsk` is the turn's last user text (the forced edit reads it too).
- */
-export function owedToolName(
-  state: ChatGraphState,
-  userAsk: string,
-  isMounted: (name: string) => boolean,
-  calledToolNames: readonly string[]
-): string | null {
-  const ran = (name: string): boolean => calledToolNames.includes(name);
-  const kind = state.compoundGenerationKind;
-  if (kind && compoundGenerationOwed(state) && !turnHasArtifact(state)) {
-    const name = artifactKind(kind).loopToolName;
-    if (isMounted(name) && !ran(name)) return name;
-  }
-  if (editGuaranteeOwed(state, userAsk)) {
-    const name = EDIT_TOOL_NAMES.find(isMounted);
-    if (name && !ran(name)) return name;
-  }
-  return null;
-}
-
 export interface GuaranteeContext {
   state: ChatGraphState;
   messages: ModelMessage[];
@@ -279,9 +248,9 @@ export function createEnsureOwedTools(p: GuaranteeContext): () => Promise<boolea
   const lastUserAsk = (): string => lastUserAskOf(p.messages);
 
   // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-  // artefact check, so it is safe to call more than once. The loop forces the
-  // tool itself first (`owedToolName`); this only catches a host that ignored
-  // the named step.
+  // artefact check, so it is safe to call more than once. Whether the model
+  // calls the tool is its own decision (no `tool_choice` is forced); this is the
+  // net for a turn that ordered the artefact and ended without it.
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
     // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
