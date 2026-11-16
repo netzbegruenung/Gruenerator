@@ -8,6 +8,7 @@ import { SpeechDetail } from './components/SpeechDetail';
 import { SpeechGrid, SpeechSearch } from './components/SpeechGrid';
 import { UnlockDialog } from './components/UnlockDialog';
 import { useConvention, useUnlockConvention } from './hooks/useParteitage';
+import { ParteitagStats } from './stats/ParteitagStats';
 import { useParteitagFilters } from './stats/useParteitagFilters';
 
 export default function ParteitagPage() {
@@ -16,7 +17,7 @@ export default function ParteitagPage() {
   const unlock = useUnlockConvention(slug);
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [statFilters] = useParteitagFilters();
+  const [statFilters, setStatFilters] = useParteitagFilters();
   const [selected, setSelected] = useState<ConventionSpeechPublic | null>(null);
 
   if (isLoading) {
@@ -64,6 +65,12 @@ export default function ParteitagPage() {
             {convention.organizer} · {convention.location} · {convention.speechCount} Reden
           </p>
         }
+      />
+      <ParteitagStats
+        stats={convention.stats}
+        speeches={convention.speeches}
+        filters={statFilters}
+        onFilter={setStatFilters}
       />
       <SpeechSearch value={search} onChange={setSearch} />
       <SpeechGrid

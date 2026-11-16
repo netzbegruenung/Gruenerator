@@ -11,7 +11,14 @@ import ParteitagPage from './ParteitagPage';
 
 const BASE = 'http://localhost/api/parteitage';
 
-const stats = {} as never;
+const stats = {
+  gesamt: { n: 2, topWoerter: [], anrede: [] },
+  liste: { bloecke: [] },
+  vergleichRaum: [],
+  signaturRaum: {},
+  methodik: [],
+  grenzen: '',
+} as never;
 
 function speech(id: string, firstName: string, listPlace: number, extra = {}) {
   return {
