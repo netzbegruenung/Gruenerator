@@ -13,7 +13,7 @@ import { createAntragsgruenSite, type CreatedSite, type SiteRequest } from './cr
 import { AntragsgruenFormError, FormClient } from './formClient.js';
 import { createMotionOnHostedSite, type CreatedMotion } from './motions.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
-import { hostingConfigFromEnv, login } from './session.js';
+import { hostingConfigFromEnv, isSiteAdmin, login } from './session.js';
 
 /** Jede Seite ist echt und bleibt bei Antragsgrün stehen; die Grenze hält Versehen klein. */
 export const MAX_SITES_PER_USER = 3;
@@ -104,18 +104,61 @@ async function record(userId: string, order: SiteOrder, url: string) {
 }
 
 export interface HostedSite {
+  id: string;
   subdomain: string;
   title: string;
   url: string;
+  created_at: Date;
 }
 
 /** Die Seiten, die die Person über den Grünerator angelegt hat — nur auf ihnen stellt er Anträge ein. */
 export async function hostedSitesOf(userId: string): Promise<HostedSite[]> {
   return (await getPostgresInstance().query(
-    `SELECT subdomain, title, url FROM antragsgruen_hosted_sites
+    `SELECT id, subdomain, title, url, created_at FROM antragsgruen_hosted_sites
      WHERE user_id = $1 ORDER BY created_at DESC`,
     [userId]
   )) as HostedSite[];
+}
+
+/** `unknown`: antragsgruen.de war nicht erreichbar oder der Login scheiterte. */
+export type SiteAccess = 'admin' | 'removed' | 'unknown';
+
+/** Live bei antragsgruen.de: ist das Grünerator-Konto auf jeder Seite der Person noch Admin? */
+export async function grueneratorAccessOn(userId: string): Promise<Record<string, SiteAccess>> {
+  const sites = await hostedSitesOf(userId);
+  const unknown = () => Object.fromEntries(sites.map((s) => [s.id, 'unknown' as const]));
+  const config = hostingConfigFromEnv();
+  if (!config || sites.length === 0) return unknown();
+  const client = new FormClient();
+  try {
+    await login(client, config);
+  } catch {
+    return unknown();
+  }
+  const entries = await Promise.all(
+    sites.map(async (site): Promise<[string, SiteAccess]> => {
+      try {
+        const { origin, consultation } = splitSiteUrl(site.url);
+        return [site.id, (await isSiteAdmin(client, origin, consultation)) ? 'admin' : 'removed'];
+      } catch {
+        return [site.id, 'unknown'];
+      }
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
+/**
+ * Vergisst eine Seite: der Grünerator speichert danach nichts mehr über sie und
+ * handelt dort nicht mehr. Bei Antragsgrün ändert das nichts — ob das Konto dort
+ * Admin bleibt, entscheidet die Person auf ihrer Seite.
+ */
+export async function forgetHostedSite(userId: string, id: string): Promise<boolean> {
+  const rows = (await getPostgresInstance().query(
+    `DELETE FROM antragsgruen_hosted_sites WHERE id = $1 AND user_id = $2 RETURNING id`,
+    [id, userId]
+  )) as { id: string }[];
+  return rows.length > 0;
 }
 
 export interface MotionOrder {
@@ -173,8 +216,7 @@ async function adminSessionOn(userId: string, subdomain: string) {
   const client = new FormClient();
   await login(client, config);
   const { origin, consultation } = splitSiteUrl(site.url);
-  const admin = await client.request(`${origin}/${consultation}/admin/users`);
-  if (admin.redirected || admin.status !== 200 || !admin.html.includes('data-users')) {
+  if (!(await isSiteAdmin(client, origin, consultation))) {
     throw new AntragsgruenFormError(
       'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
       'revoked'

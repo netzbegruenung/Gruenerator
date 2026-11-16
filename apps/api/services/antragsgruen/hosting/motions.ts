@@ -21,7 +21,7 @@ import { markdownToHtml } from '../../markdown/MarkdownService.js';
 
 import { agendaOf, findAgendaItem } from './agenda.js';
 import { AntragsgruenFormError, FormClient } from './formClient.js';
-import { login, type HostingConfig } from './session.js';
+import { isSiteAdmin, login, type HostingConfig } from './session.js';
 
 export interface MotionRequest {
   /** Startseite der Konsultation, wie in `antragsgruen_hosted_sites.url`. */
@@ -149,9 +149,7 @@ export async function createMotionOnHostedSite(
   const { origin, consultation } = splitSiteUrl(req.siteUrl);
   await login(client, config);
 
-  // Noch Admin? Die Personenverwaltung sehen nur Admins; sonst leitet Antragsgrün um.
-  const admin = await client.request(`${origin}/${consultation}/admin/users`);
-  if (admin.redirected || admin.status !== 200 || !admin.html.includes('data-users')) {
+  if (!(await isSiteAdmin(client, origin, consultation))) {
     throw new AntragsgruenFormError(
       'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
       'revoked'

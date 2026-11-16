@@ -141,21 +141,21 @@ export const CONFIRM_ACTION_CONFIG: Record<
     confirmLabel: 'Teilen',
   },
   create_antragsgruen_site: {
-    title: 'Antragsgrün-Seite anlegen',
+    title: 'Antragsgrün-Seite anlegen (Experimentell)',
     description:
       'Der Grünerator legt die Seite auf antragsgruen.de an und trägt dich mit der E-Mail-Adresse deines Kontos als Seiten-Admin ein. Antragsgrün schickt dir dazu eine Mail mit deinen Zugangsdaten. Die Seite ist danach noch nicht öffentlich; das Grünerator-Konto bleibt dort Mit-Admin.',
     icon: 'clipboard-list',
     confirmLabel: 'Anlegen',
   },
   create_antragsgruen_motion: {
-    title: 'Antrag bei Antragsgrün einreichen',
+    title: 'Antrag bei Antragsgrün einreichen (Experimentell)',
     description:
       'Der Grünerator reicht den Antrag auf deiner Antragsgrün-Seite ein, mit dir als Antragsteller*in. Er steht danach als „Eingereicht (ungeprüft)" in der Antragsliste; veröffentlicht wird er erst, wenn ihr ihn als Admins freischaltet.',
     icon: 'clipboard-list',
     confirmLabel: 'Einreichen',
   },
   set_antragsgruen_agenda: {
-    title: 'Tagesordnung bei Antragsgrün setzen',
+    title: 'Tagesordnung bei Antragsgrün setzen (Experimentell)',
     description:
       'Die Tagesordnung der Seite wird durch diese Liste ersetzt. Punkte, die hier fehlen, werden gelöscht; Punkte mit gleichem Code oder Titel behalten ihre Anträge.',
     icon: 'clipboard-list',

@@ -50,3 +50,17 @@ export async function login(client: FormClient, config: HostingConfig): Promise<
   // Erfolg ist eine Weiterleitung; ein Fehler zeigt das Formular erneut.
   if (!res.redirected) fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
 }
+
+/**
+ * Ist das Grünerator-Konto auf der Seite noch Admin? Die Personenverwaltung
+ * sehen nur Admins; sonst leitet Antragsgrün um. Die Person kann das Konto dort
+ * austragen — danach darf der Grünerator auf der Seite nichts mehr tun.
+ */
+export async function isSiteAdmin(
+  client: FormClient,
+  origin: string,
+  consultation: string
+): Promise<boolean> {
+  const res = await client.request(`${origin}/${consultation}/admin/users`);
+  return !res.redirected && res.status === 200 && res.html.includes('data-users');
+}

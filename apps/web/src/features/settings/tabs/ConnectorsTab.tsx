@@ -1,6 +1,10 @@
 import { toast } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
 
+import { antragsgruenSitesQuery } from '../hooks/useAntragsgruenSites';
+
+import AntragsgruenSection from './AntragsgruenSection';
+
 import CanvaSection from '@/features/canva/components/CanvaSection';
 import McpSection from '@/features/mcp/components/McpSection';
 import ToolApprovalsSection from '@/features/mcp/components/ToolApprovalsSection';
@@ -11,6 +15,7 @@ const onError = (message: string) => toast.error(message);
 
 export const prefetch = (queryClient: QueryClient) => {
   void queryClient.prefetchQuery(mcpServersQuery);
+  void queryClient.prefetchQuery(antragsgruenSitesQuery);
 };
 
 // This tab is itself lazy-loaded by SettingsDialog, so its sections load with it.
@@ -18,6 +23,7 @@ const ConnectorsTab = () => (
   <div className="flex flex-col gap-xl">
     <McpSection onSuccess={onSuccess} onError={onError} />
     <ToolApprovalsSection onSuccess={onSuccess} onError={onError} />
+    <AntragsgruenSection />
     {import.meta.env.DEV && <CanvaSection onSuccess={onSuccess} onError={onError} />}
   </div>
 );
