@@ -77,13 +77,27 @@ describe('notifyTeamChatParticipants', () => {
 
 describe('notifyTeamChatTurn', () => {
   it('resolves sender name and title, falling back to Jemand', async () => {
+    db.queryOne.mockResolvedValueOnce({ title: null, group_id: 'g1' });
     db.queryOne.mockResolvedValueOnce({ display_name: null });
-    db.queryOne.mockResolvedValueOnce({ title: null });
     db.query.mockResolvedValue([{ user_id: 'owner', group_id: 'g1', slug_suffix: 'abc123' }]);
     await notifyTeamChatTurn({ threadId: 't1', senderId: 'sender' });
     expect(createNotificationsForUsers).toHaveBeenCalledWith(
       ['owner'],
       expect.objectContaining({ title: 'Jemand im Chat „Neuer Chat“' })
     );
+  });
+
+  it('a private chat (no group_id) costs one lookup and nothing else', async () => {
+    db.queryOne.mockResolvedValueOnce({ title: 'Privat', group_id: null });
+    await notifyTeamChatTurn({ threadId: 't1', senderId: 'sender' });
+    expect(db.queryOne).toHaveBeenCalledTimes(1);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(createNotificationsForUsers).not.toHaveBeenCalled();
+  });
+
+  it('a missing or trashed thread notifies nobody', async () => {
+    db.queryOne.mockResolvedValueOnce(null);
+    await notifyTeamChatTurn({ threadId: 't1', senderId: 'sender' });
+    expect(db.query).not.toHaveBeenCalled();
   });
 });

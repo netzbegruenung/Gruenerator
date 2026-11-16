@@ -80,16 +80,18 @@ export async function notifyTeamChatTurn(params: {
   const { threadId, senderId } = params;
   try {
     const db = getPostgresInstance();
-    const [sender, thread] = (await Promise.all([
-      db.queryOne('SELECT display_name FROM profiles WHERE id = $1::uuid', [senderId], {
-        table: 'profiles',
-      }),
-      db.queryOne(
-        'SELECT title FROM chat_threads WHERE id = $1::uuid AND deleted_at IS NULL',
-        [threadId],
-        { table: 'chat_threads' }
-      ),
-    ])) as [{ display_name: string | null } | null, { title: string | null } | null];
+    // One lookup settles private chats: no group, no participants, no more queries.
+    const thread = (await db.queryOne(
+      'SELECT title, group_id FROM chat_threads WHERE id = $1::uuid AND deleted_at IS NULL',
+      [threadId],
+      { table: 'chat_threads' }
+    )) as { title: string | null; group_id: string | null } | null;
+    if (!thread?.group_id) return;
+    const sender = (await db.queryOne(
+      'SELECT display_name FROM profiles WHERE id = $1::uuid',
+      [senderId],
+      { table: 'profiles' }
+    )) as { display_name: string | null } | null;
     await notifyTeamChatParticipants({
       threadId,
       senderId,
