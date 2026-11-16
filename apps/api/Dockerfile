@@ -180,8 +180,10 @@ WORKDIR /app/apps/api
 RUN ln -s dist/config config && \
     ln -s dist/public public
 
-# Create runtime directories owned by app user
-RUN mkdir -p uploads logs
+# Create runtime directories owned by app user. uploads/system-media must exist in the image:
+# a separate volume mounted there only inherits the app user's ownership from an existing path
+# (otherwise it is created root-owned and the Parteitage import dies with EACCES).
+RUN mkdir -p uploads logs uploads/system-media
 
 # Symlink uploads/logs inside dist/ for code using __dirname-relative paths
 # (compiled JS runs from dist/, so __dirname resolves inside dist/)
