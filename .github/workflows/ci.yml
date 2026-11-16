@@ -34,8 +34,14 @@ permissions:
 # PRs in a row used to cancel all but the last run, so a break could land
 # unnoticed (it did — see #1988, where 6 of 7 master runs were cancelled and
 # only the last one caught a red format:check).
+#
+# `cancel-in-progress: false` alone does not do that. A group holds one running
+# and ONE pending run; a third push replaces the pending one, which is then
+# cancelled before it has a single job. 13 of 49 master pushes between 10 and
+# 16 Nov 2026 ended that way. So on master the group is the commit itself:
+# nothing shares it, nothing waits, nothing is replaced.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 # The Turborepo remote cache belongs in EVERY job that runs a turbo task, not
@@ -64,24 +70,37 @@ jobs:
   # task hashes of typecheck, lint, every test shard and every build matched
   # the CI logs.
   #
-  # Only pull_request skips anything. master, the merge queue and manual runs
-  # get the full set, the test jobs there with --force as before. A hit means
-  # a run with byte-identical inputs passed; a test reading a file outside its
-  # turbo `inputs` is what the post-merge --force run is for.
+  # pull_request skips any job that is all hits. A push to master skips only
+  # typecheck, lint and the builds: they run through the cache there too, so a
+  # hit replayed a log and nothing else (all six did in 20 of 36 master runs,
+  # 10 to 16 Nov 2026, at about 100 s of queue and setup each). The test jobs
+  # on master always run, with --force as before. The merge queue and manual
+  # runs get the full set. A hit means a run with byte-identical inputs
+  # passed; a test reading a file outside its turbo `inputs` is what the
+  # post-merge --force run is for.
   #
   # Skipping needs an explicit `false`. Any turbo error leaves the value empty
   # and the job runs.
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    # No job here had a limit, so the default of six hours applied. One
+    # checkout hung for 31 minutes on master and still passed (run
+    # 43323368063); the longest healthy job of 150 runs took under 12. A
+    # checkout normally takes 10 to 40 s, so that step gets its own limit
+    # and a stall turns into a quick failure that can be re-run.
+    timeout-minutes: 10
     outputs:
       typecheck: ${{ steps.plan.outputs.typecheck }}
       lint: ${{ steps.plan.outputs.lint }}
       tests: ${{ steps.plan.outputs.tests }}
       builds: ${{ steps.plan.outputs.builds }}
+      nlp: ${{ steps.plan.outputs.nlp }}
+      browser_agent: ${{ steps.plan.outputs.browser_agent }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           # HEAD^1 of the PR merge ref is the base tip, for the manifest diff.
           fetch-depth: 2
@@ -98,10 +117,20 @@ jobs:
       # screen and hook tests that need the real RN runtime. `test` there is
       # only Vitest, so without this entry those suites never ran in CI and a
       # stale one merged green (#4225).
+      #
+      # chat and `mobile native` share a job: 168 s and 100 s of tests each
+      # paid 70 s of setup and a runner slot of their own, and together they
+      # still finish before a web shard (299 s). A `run` entry names its turbo
+      # tasks itself and gets them one after the other, never side by side on
+      # the same cores; `install` is its pnpm filter. `{0}` stands for the
+      # package scope: GitHub drops a job output that contains the value of a
+      # secret, and with the scope spelled out the whole shard list was dropped
+      # ("Skip output 'tests' since it may contain secret", run 43880339136).
       - name: Decide which jobs have work
         id: plan
         env:
           EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
           SHARDS: >-
             [
               {"name": "api 1/3", "pkg": "api", "shard": "1/3"},
@@ -109,8 +138,11 @@ jobs:
               {"name": "api 3/3", "pkg": "api", "shard": "3/3"},
               {"name": "web 1/2", "pkg": "web", "shard": "1/2"},
               {"name": "web 2/2", "pkg": "web", "shard": "2/2"},
-              {"name": "chat", "pkg": "chat"},
-              {"name": "mobile native", "pkg": "mobile", "task": "test:native"},
+              {
+                "name": "chat + mobile native",
+                "run": "{0}chat#test {0}mobile#test:native",
+                "install": "--filter={0}chat... --filter={0}mobile..."
+              },
               {"name": "rest"}
             ]
           # Web builds `build:check`, not `build`: its output is a few hundred
@@ -136,7 +168,7 @@ jobs:
             jq '[.tasks[] | select(.command != "<NONEXISTENT>" and .cache.status != "HIT")] | length > 0' <<< "$dry"
           }
 
-          if [ "$EVENT" != pull_request ]; then
+          if [ "$EVENT" != pull_request ] && [ "$EVENT" != push ]; then
             {
               echo "typecheck=true"
               echo "lint=true"
@@ -146,14 +178,32 @@ jobs:
             exit 0
           fi
 
+          # What this run changed. pull_request: HEAD is the merge ref, HEAD^1
+          # the base tip. push: the tip before the push, which a push of
+          # several commits leaves deeper than fetch-depth 2.
+          # A file, not a pipe: under pipefail an early `grep -q` exit kills
+          # git diff with SIGPIPE and the condition reads as false. An empty
+          # file means the diff is unknown.
+          if [ "$EVENT" = push ]; then
+            BASE=$BEFORE
+            git fetch --quiet --no-tags --depth=1 origin "$BASE" || BASE=
+          else
+            BASE=HEAD^1
+          fi
+          [ -n "$BASE" ] && git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt" || : > "$RUNNER_TEMP/changed.txt"
+
+          # Prints true/false: did this run change a path matching the pattern?
+          # Prints nothing when the diff is unknown, and nothing means "run".
+          touched() {
+            [ -s "$RUNNER_TEMP/changed.txt" ] || return 0
+            if grep -qE "$1" "$RUNNER_TEMP/changed.txt"; then echo true; else echo false; fi
+          }
+
           TYPECHECK=$(needed typecheck)
           # The typecheck job also runs the two checks that read node_modules
           # against the manifests. A manifest change has to reach them even
           # when every typecheck task is a hit.
-          # A file, not a pipe: under pipefail an early `grep -q` exit kills
-          # git diff with SIGPIPE and the condition reads as false.
-          git diff --name-only HEAD^1 HEAD > "$RUNNER_TEMP/changed.txt"
-          if grep -qE '(^|/)package\.json$|^pnpm-lock\.yaml$|^pnpm-workspace\.yaml$|^\.npmrc$|^scripts/check-(override-ranges|installed-lockfile-drift)\.mjs$' "$RUNNER_TEMP/changed.txt"; then
+          if [ "$(touched '(^|/)package\.json$|^pnpm-lock\.yaml$|^pnpm-workspace\.yaml$|^\.npmrc$|^scripts/check-(override-ranges|installed-lockfile-drift)\.mjs$')" != false ]; then
             TYPECHECK=true
           fi
           LINT=$(needed lint)
@@ -161,16 +211,18 @@ jobs:
           TESTS='[]'
           while read -r entry; do
             pkg=$(jq -r '.pkg // empty' <<< "$entry")
-            task=$(jq -r '.task // "test"' <<< "$entry")
             shard=$(jq -r '.shard // empty' <<< "$entry")
             if [ -n "$pkg" ]; then
               filters=("--filter=@gruenerator/$pkg")
             else
               filters=(--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat)
             fi
-            args=("$task" "${filters[@]}")
+            args=(test "${filters[@]}")
             [ -n "$shard" ] && args+=(-- "--shard=$shard")
-            run=$(needed "${args[@]}")
+            targets=$(jq -r '.run // empty' <<< "$entry")
+            [ -n "$targets" ] && read -ra args <<< "${targets//'{0}'/@gruenerator/}"
+            # Forced on master, so there is nothing to ask the cache.
+            if [ "$EVENT" = push ]; then run=true; else run=$(needed "${args[@]}"); fi
             echo "Tests ($(jq -r .name <<< "$entry")): needed=$run"
             [ "$run" = false ] || TESTS=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$TESTS")
           done < <(jq -c '.[]' <<< "$SHARDS")
@@ -183,13 +235,29 @@ jobs:
             [ "$run" = false ] || BUILDS=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$BUILDS")
           done < <(jq -c '.[]' <<< "$APPS")
 
+          # The two Python services sit outside the pnpm workspace, so turbo
+          # cannot answer for them. Their inputs are their own directory and
+          # this file. Only pull_request asks: they ran on every run for 3 to
+          # 5 s of pytest behind a minute of queue and setup, and master keeps
+          # them as the net for anything this path list misses.
+          NLP=true
+          BROWSER_AGENT=true
+          if [ "$EVENT" = pull_request ]; then
+            NLP=$(touched '^services/nlp/|^\.github/workflows/ci\.yml$')
+            BROWSER_AGENT=$(touched '^services/browser-agent/|^\.github/workflows/ci\.yml$')
+          fi
+
           echo "Typecheck: needed=$TYPECHECK"
           echo "ESLint: needed=$LINT"
+          echo "NLP Service: needed=$NLP"
+          echo "Browser Agent: needed=$BROWSER_AGENT"
           {
             echo "typecheck=$TYPECHECK"
             echo "lint=$LINT"
             echo "tests=$TESTS"
             echo "builds=$BUILDS"
+            echo "nlp=$NLP"
+            echo "browser_agent=$BROWSER_AGENT"
           } >> "$GITHUB_OUTPUT"
 
           {
@@ -203,6 +271,8 @@ jobs:
             echo "| ESLint | $LINT |"
             echo "| Tests | $(jq -r 'map(.name) | join(", ") | if . == "" then "none" else . end' <<< "$TESTS") |"
             echo "| Build | $(jq -r 'join(", ") | if . == "" then "none" else . end' <<< "$BUILDS") |"
+            echo "| NLP Service | $NLP |"
+            echo "| Browser Agent | $BROWSER_AGENT |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Bare-node guards: no pnpm store restore (27s), no install (20s). They cost
@@ -212,9 +282,11 @@ jobs:
   guards:
     name: Guards
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -332,9 +404,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.typecheck != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -377,9 +451,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.lint != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -399,9 +475,11 @@ jobs:
   format:
     name: Format & Generated
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -462,6 +540,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.tests != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -477,9 +556,13 @@ jobs:
     # Not 55432 either: that sits in Linux's ephemeral range (32768-60999), so
     # the runner's own outbound connections could hold it and the service
     # container failed to bind ("address already in use", #3754).
+    #
+    # Only the api shards get it: every test that opens a database lives in
+    # apps/api, and the container cost the other shards 14 s each. An empty
+    # image is how a service is switched off.
     services:
       postgres:
-        image: postgres:17
+        image: ${{ matrix.pkg == 'api' && 'postgres:17' || '' }}
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
@@ -492,6 +575,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -503,13 +587,14 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile ${{ matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
+        run: pnpm install --frozen-lockfile ${{ matrix.install && format(matrix.install, '@gruenerator/') || matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
 
       # The app role owns its database but is no superuser. schema.sql creates
       # its own extensions, which only works while they stay trusted ones.
       # CREATEDB is for tests only: trashSchema.db.vitest.ts migrates a database
       # of its own, because migrations.db.vitest.ts needs this one empty.
       - name: Create the app role and its empty database
+        if: matrix.pkg == 'api'
         run: >-
           psql postgresql://postgres@localhost:5433/postgres
           -c "CREATE ROLE gruenerator LOGIN CREATEDB"
@@ -520,8 +605,8 @@ jobs:
       # package turbo.json files) would otherwise stay green on a stale hit.
       - name: Run tests
         run: >-
-          pnpm turbo run ${{ matrix.task || 'test' }}
-          ${{ matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
+          pnpm turbo run ${{ matrix.run && format(matrix.run, '@gruenerator/') || 'test' }}
+          ${{ matrix.run && '--concurrency=1' || matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
 
@@ -532,6 +617,7 @@ jobs:
     needs: [plan, test-shard]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: All test shards passed
         run: >-
@@ -549,13 +635,17 @@ jobs:
   # hand and needs no model at all.
   nlp:
     name: NLP Service (Python)
+    needs: plan
+    if: needs.plan.outputs.nlp != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: services/nlp
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       # The interpreter is named ONCE, in the Dockerfile's FROM lines, and read
       # from there. A literal `python-version` here is a second source of truth
@@ -594,13 +684,17 @@ jobs:
   # stub resolver. The image itself is built by browser-agent-image.yml.
   browser-agent:
     name: Browser Agent (Python)
+    needs: plan
+    if: needs.plan.outputs.browser_agent != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: services/browser-agent
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       # Same rule as for nlp: the interpreter is named once, in the Dockerfile.
       - name: Read Python version from the Dockerfile
@@ -629,6 +723,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.builds != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -636,6 +731,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
