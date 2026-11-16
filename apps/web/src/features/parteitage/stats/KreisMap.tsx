@@ -137,14 +137,10 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
             );
           })}
           {selShape ? (
-            <path
-              d={selShape.d}
-              fill="none"
-              stroke="var(--pt-ink)"
-              strokeWidth={3.5}
-              pointerEvents="none"
-              data-testid="kreis-selected"
-            />
+            <g pointerEvents="none" data-testid="kreis-selected">
+              <path d={selShape.d} fill="none" stroke="var(--pt-bg)" strokeWidth={6} />
+              <path d={selShape.d} fill="none" stroke="var(--pt-ink)" strokeWidth={3} />
+            </g>
           ) : null}
           {focusShape ? (
             <g pointerEvents="none" data-testid="kreis-focus">
@@ -190,7 +186,7 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
             style={{ background: c }}
           />
         ))}
-        <span>1 bis {max} Reden</span>
+        <span>{max === 1 ? '1 Rede' : `1 bis ${max} Reden`}</span>
       </div>
       <p className={`m-0 text-xs ${TEXT_CLASS}`}>© GeoBasis-DE / BKG (2026), dl-de/by-2.0</p>
     </figure>
