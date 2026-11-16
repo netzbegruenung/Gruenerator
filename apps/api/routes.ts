@@ -600,7 +600,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // weil createExpressEndpoints direkt auf der App registriert und die
   // Middleware eines späteren `app.use`-Mounts nie sieht. Eng am Pfad statt am
   // Präfix `/api/texte`, damit die weiter unten gemounteten Geschwister
-  // (adjustment, universal, playground) requireAuth und den Limiter nicht
+  // (adjustment, universal) requireAuth und den Limiter nicht
   // doppelt bekommen — zwei Sitzungsauflösungen und doppelte Kontingentzählung
   // pro Anfrage.
   app.use('/api/texte/alttext', requireAuth, requireAiConsent, aiGenerationLimiter);
