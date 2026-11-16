@@ -75,8 +75,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -265,9 +265,10 @@ export async function assembleToolCatalog(
   let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
-    // The sticky slot is one per thread, written by whoever used a connector
-    // last. In a team chat that may be another member: their server is neither
+    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId, userId) : null);
+    // The sticky slot is per person (#5675), so it normally holds the sender's
+    // own server. A slot written before that — one per thread, by whoever used
+    // a connector last — may still name another member's: it is neither
     // mounted nor reported as "gone" on this sender's turn.
     if (!explicitScope && scope) {
       try {
@@ -309,7 +310,7 @@ export async function assembleToolCatalog(
         // The resolved row id, not the scope: a pinned connector still sends
         // the legacy alias, and the thread should not keep carrying it.
         const sticky = mcpCatalog.resolvedServerId ?? scope;
-        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
+        void setThreadLastMcpServer(threadId, userId, sticky).catch((err: unknown) => {
           log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
         });
       }

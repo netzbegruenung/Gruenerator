@@ -40,8 +40,8 @@ const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null
 const setThreadLastMcpServer = vi.fn<(threadId: string, serverId: string) => Promise<void>>();
 
 vi.mock('../threadPersistenceService.js', () => ({
-  getThreadLastMcpServer: (threadId: string) => getThreadLastMcpServer(threadId),
-  setThreadLastMcpServer: (threadId: string, serverId: string) =>
+  getThreadLastMcpServer: (threadId: string, _userId: string) => getThreadLastMcpServer(threadId),
+  setThreadLastMcpServer: (threadId: string, _userId: string, serverId: string) =>
     setThreadLastMcpServer(threadId, serverId),
   getRecentThreadSources: async () => [],
   getRecentToolSteps: async () => [],
