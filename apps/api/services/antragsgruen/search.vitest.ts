@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { ANTRAGSGRUEN_INSTANCES } from '../../config/antragsgruenInstances.js';
 
 import { matchConsultations, matchValues, sameKuerzel } from './resolve.js';
-import { countAntragsgruen, findAntragsgruen, readAntragsgruen, type AgDeps } from './search.js';
+import {
+  countAntragsgruen,
+  findAntragsgruen,
+  passagesOf,
+  readAntragsgruen,
+  type AgDeps,
+} from './search.js';
 
 import type { AntragsgruenLive, LiveEntry } from './live.js';
 import type { AgCondition, AgFilter, AgPayload, AntragsgruenIndex } from './store.js';
@@ -264,5 +270,47 @@ describe('countAntragsgruen', () => {
     const r = await countAntragsgruen(deps(), 'parteitag', {}, 20);
     expect(r.rows).toEqual([{ wert: 'LDK Essen (2026)', anzahl: 3 }]);
     expect(r.nichtAufgenommen).toEqual([CONSULTATIONS[0].title]);
+  });
+});
+
+describe('passagesOf', () => {
+  const full = [
+    '## Antragstext',
+    '#### Wohnen',
+    '[Z. 1–3] Wir bauen mehr bezahlbare Wohnungen in allen Städten des Landes und fördern Genossenschaften.',
+    '[Z. 4–6] Mieten sollen nicht schneller steigen als die Einkommen der Menschen, die dort leben.',
+    '#### Verkehr',
+    '[Z. 7–9] Wir bauen Radwege entlang aller Landesstraßen und verbinden die Städte mit Radschnellwegen.',
+    '[Z. 10–12] Der Nahverkehr fährt im ländlichen Raum mindestens jede Stunde, auch am Wochenende.',
+  ].join('\n\n');
+
+  it('gibt ganze Absätze mit Zeilen und Überschrift zurück, Lücken als […]', () => {
+    // Ein Chunk, der mitten im Absatz beginnt (wie nach dem Überlappen).
+    const out = passagesOf(full, [
+      'Mieten sollen nicht schneller steigen als die Einkommen der Menschen',
+      'mindestens jede Stunde, auch am Wochenende.',
+    ]);
+    expect(out).toBe(
+      [
+        '#### Wohnen',
+        // Z. 1–3 ist ausgelassen.
+        '[…]',
+        '[Z. 4–6] Mieten sollen nicht schneller steigen als die Einkommen der Menschen, die dort leben.',
+        '#### Verkehr',
+        '[…]',
+        '[Z. 10–12] Der Nahverkehr fährt im ländlichen Raum mindestens jede Stunde, auch am Wochenende.',
+      ].join('\n\n')
+    );
+  });
+
+  it('schreibt überlappende Chunks nicht doppelt', () => {
+    const a =
+      'Wir bauen mehr bezahlbare Wohnungen in allen Städten des Landes und fördern Genossenschaften. Mieten sollen nicht';
+    const b =
+      'fördern Genossenschaften. Mieten sollen nicht schneller steigen als die Einkommen der Menschen, die dort leben.';
+    const out = passagesOf(full, [a, b]);
+    expect(out.match(/Genossenschaften/g)).toHaveLength(1);
+    expect(out).toContain('[Z. 1–3]');
+    expect(out).toContain('[Z. 4–6]');
   });
 });

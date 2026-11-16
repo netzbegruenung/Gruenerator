@@ -60,7 +60,7 @@ const quelleOf = (instance: AntragsgruenInstance) =>
   `Antragsgrün ${instance.name} (${instance.host})`;
 
 const STATUS_REGEL =
-  'Ein Änderungsantrag ist ein Vorschlag, kein beschlossener Text; ein Antrag ist erst mit einem Beschluss Position des Landesverbands. Der Verfahrensvorschlag der Antragskommission ist eine Empfehlung, kein Abstimmungsergebnis.';
+  'Ein Änderungsantrag ist ein Vorschlag, kein beschlossener Text; ein Antrag ist erst mit einem Beschluss Position des Landesverbands. Der Verfahrensvorschlag der Antragskommission ist eine Empfehlung, kein Abstimmungsergebnis. Bei einem Änderungsantrag steht je Zeilenblock „Bisher" (der Antragstext) und „Neu" (der Vorschlag). Stellen mit Zeilenmarke [Z. a–b] zitierst du mit ihren Zeilen, z. B. „(Z. 12–15)"; erfinde keine Zeilen.';
 
 const filterShape = {
   parteitag: z

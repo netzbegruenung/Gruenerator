@@ -61,6 +61,8 @@ const MAX_LIST = 25;
 const MAX_FOUND_DOCS = 12;
 const NEAREST_CHUNKS = 80;
 const EXCERPT_CHARS = 900;
+/** So viele der besten Treffer bekommen ihren ganzen Chunk (höchstens 1600 Zeichen) als Auszug. */
+const FULL_EXCERPT_DOCS = 6;
 /** Darüber liest `antragsgruen_lesen` nur die passenden Abschnitte bzw. den Anfang. */
 export const READ_FULL_CHARS = 12_000;
 const READ_CHUNKS = 6;
@@ -339,18 +341,65 @@ export async function findAntragsgruen(
     deps,
     picked.map((p) => str(p.parteitag_id))
   );
-  const documents = picked.map((p) => {
+  const documents = picked.map((p, i) => {
     const excerpt = str(p.chunk_text).trim();
-    return toDocument(
-      p,
-      live,
-      query && excerpt ? [`Auszug: ${excerpt.slice(0, EXCERPT_CHARS)}`] : []
-    );
+    // Die besten Treffer mit ganzem Chunk: der passende Satz steht oft in seiner zweiten Hälfte.
+    const cap = i < FULL_EXCERPT_DOCS ? excerpt.length : EXCERPT_CHARS;
+    return toDocument(p, live, query && excerpt ? [`Auszug: ${excerpt.slice(0, cap)}`] : []);
   });
   return { documents, gesamt, ranked: !!query, resolved, liveOk: live.byId != null };
 }
 
 // ── Lesen ───────────────────────────────────────────────────────────────────
+
+const fp = (s: string): string => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+/** So viele Zeichen (nach `fp`) genügen, um einen Chunk-Anfang bzw. -Schluss im Absatz wiederzufinden. */
+const ANCHOR = 60;
+
+/**
+ * Die Absätze aus `full_text`, in denen die gefundenen Chunks liegen — ganz,
+ * mit Zeilenmarke (`[Z. a–b]`) und der Überschrift davor, Lücken als „[…]".
+ * Chunks überlappen sich und beginnen oft mitten im Absatz; als Text
+ * aneinandergehängt, standen Sätze doppelt und ohne ihre Zeilen da.
+ */
+export function passagesOf(full: string, chunks: readonly string[]): string {
+  const paragraphs = full.split(/\n{2,}/);
+  const prints = paragraphs.map(fp);
+  const picked = new Set<number>();
+  const unmatched: string[] = [];
+  for (const chunk of chunks) {
+    const c = fp(chunk);
+    if (!c) continue;
+    const head = c.slice(0, ANCHOR);
+    const tail = c.slice(-ANCHOR);
+    // Ein ganz kurzer Absatz (eine Überschrift) steckt in vielen Chunks; er zählt nur über Anfang/Schluss.
+    const hits = prints.flatMap((p, i) =>
+      (p.length >= ANCHOR / 3 && c.includes(p)) || p.includes(head) || p.includes(tail) ? [i] : []
+    );
+    if (hits.length === 0) {
+      unmatched.push(chunk.trim());
+      continue;
+    }
+    // Alles zwischen erstem und letztem Treffer: der Chunk spannt über diese Absätze.
+    for (let i = Math.min(...hits); i <= Math.max(...hits); i++) picked.add(i);
+  }
+  // Die Überschrift über jeder Stelle gehört dazu: ohne sie fehlt der Abschnitt.
+  for (const i of [...picked]) {
+    for (let h = i - 1; h >= 0; h--) {
+      if (paragraphs[h].startsWith('#')) {
+        picked.add(h);
+        break;
+      }
+    }
+  }
+  const order = [...picked].sort((a, b) => a - b);
+  const out: string[] = [];
+  order.forEach((i, k) => {
+    if (k > 0 && i !== order[k - 1] + 1) out.push('[…]');
+    out.push(paragraphs[i]);
+  });
+  return [...out, ...unmatched].join('\n\n').slice(0, READ_FULL_CHARS);
+}
 
 export interface AgReadResult {
   documents: Array<AgDocument & { text: string; gekuerzt: boolean }>;
@@ -386,10 +435,10 @@ export async function readAntragsgruen(
             ],
           };
           const chunks = await deps.index.nearest(frage, filter, READ_CHUNKS);
-          text = chunks
-            .sort((a, b) => Number(a.chunk_index ?? 0) - Number(b.chunk_index ?? 0))
-            .map((c) => str(c.chunk_text))
-            .join('\n\n[…]\n\n');
+          text = passagesOf(
+            full,
+            chunks.map((c) => str(c.chunk_text))
+          );
         } else {
           text = full.slice(0, READ_FULL_CHARS);
         }
@@ -518,9 +567,7 @@ export async function countAntragsgruen(
     const wert = labelOf(nach, h.value);
     grouped.set(wert, (grouped.get(wert) ?? 0) + h.count);
   }
-  const all = [...grouped]
-    .sort((a, b) => b[1] - a[1])
-    .map(([wert, anzahl]) => ({ wert, anzahl }));
+  const all = [...grouped].sort((a, b) => b[1] - a[1]).map(([wert, anzahl]) => ({ wert, anzahl }));
   if (nach === 'antragsteller') {
     notes.push(
       'Ein Antrag mit mehreren Antragsteller*innen zählt bei jeder*jedem mit; die Summe ist deshalb größer als die Gesamtzahl.'
