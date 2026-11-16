@@ -17,18 +17,23 @@ const SESSION_CHECK_TIMEOUT_MS = 5000;
 /** Same id as the API's dev-bypass user (`apps/api/middleware/authMiddleware.ts`). */
 const DEV_BYPASS_USER_ID = '00000000-0000-4000-a000-000000000001';
 
+/** Mirror of `DEV_BYPASS_EXTRA_USERS` in `apps/api/config/devAuthBypass.ts`. */
+const DEV_BYPASS_EXTRA_USERS = ['00000000-0000-4000-a000-0000000000b2'];
+
 /**
  * Local dev only, mirroring the API's `requireAuth`: the Vite dev proxy forwards
  * `/ws` here and attaches `x-dev-auth-bypass`, so the bypass user can open its
  * own private documents without a session cookie.
  */
-function devBypassUserId(headers: Headers): string | null {
+function devBypassUserId(headers: Headers, params?: URLSearchParams): string | null {
   if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_AUTH_BYPASS !== 'true') {
     return null;
   }
   const expected = process.env.DEV_AUTH_BYPASS_TOKEN;
   if (!expected) return null;
-  return headers.get('x-dev-auth-bypass') === expected ? DEV_BYPASS_USER_ID : null;
+  if (headers.get('x-dev-auth-bypass') !== expected) return null;
+  const asUser = params?.get('dev_auth_user');
+  return asUser && DEV_BYPASS_EXTRA_USERS.includes(asUser) ? asUser : DEV_BYPASS_USER_ID;
 }
 
 /**
@@ -55,7 +60,7 @@ export class AuthService {
     log.debug(`[Auth] Starting authentication for ${documentName}, hasToken: ${!!token}`);
 
     try {
-      const bypassUserId = devBypassUserId(requestHeaders);
+      const bypassUserId = devBypassUserId(requestHeaders, requestParameters);
       if (bypassUserId) return this.checkRoomAccess(documentName, bypassUserId);
 
       if (token) {

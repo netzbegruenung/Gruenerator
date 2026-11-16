@@ -36,6 +36,7 @@ import { HiOutlineDocumentText } from 'react-icons/hi';
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
+import { useMayReplaceTurn } from '../../hooks/useMayReplaceTurn';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
 import {
@@ -98,6 +99,7 @@ export const MessageActions = memo(function MessageActions({
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);
+  const mayReplaceTurn = useMayReplaceTurn();
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -389,7 +391,7 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      {!readOnly && canReload && (
+      {!readOnly && canReload && mayReplaceTurn && (
         <button
           onClick={handleRegenerate}
           className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"

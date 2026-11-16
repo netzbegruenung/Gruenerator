@@ -5,6 +5,18 @@ import * as Y from 'yjs';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
+/** Dev bypass only: names this tab's second identity on the Hocuspocus upgrade. */
+function devBypassParams(): Record<string, string> {
+  const env = import.meta.env as unknown as Record<string, string | undefined>;
+  if (env['VITE_E2E_AUTH_BYPASS'] !== 'true' || typeof window === 'undefined') return {};
+  try {
+    const id = window.sessionStorage.getItem('gr.devBypassUser');
+    return id ? { dev_auth_user: id } : {};
+  } catch {
+    return {};
+  }
+}
+
 interface ChatCollaborationUser {
   id: string;
   name: string;
@@ -73,6 +85,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
       url,
       name: `chat-${threadId}`,
       document: ydoc,
+      parameters: devBypassParams(),
     } as ConstructorParameters<typeof HocuspocusProvider>[0]);
 
     providerRef.current = p;

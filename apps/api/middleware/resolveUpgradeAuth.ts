@@ -19,6 +19,7 @@
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { auth } from '../config/betterAuth.js';
+import { DEV_BYPASS_USER_ID, pickDevBypassUserId } from '../config/devAuthBypass.js';
 import { env } from '../config/env.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -43,7 +44,9 @@ function devBypassUserId(url: URL): string | null {
   if (env.NODE_ENV !== 'development' || !env.ALLOW_DEV_AUTH_BYPASS) return null;
   if (env.DEV_AUTH_BYPASS_TOKEN == null) return null;
   return url.searchParams.get('dev_auth_token') === env.DEV_AUTH_BYPASS_TOKEN
-    ? '00000000-0000-4000-a000-000000000001'
+    ? url.searchParams.has('dev_auth_user')
+      ? pickDevBypassUserId(url.searchParams.get('dev_auth_user'))
+      : DEV_BYPASS_USER_ID
     : null;
 }
 

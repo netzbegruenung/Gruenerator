@@ -27,6 +27,7 @@ import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { chatApiClient, createChatApiClient } from '../context/ChatContext';
 import { ChatNavigationProvider, type ChatNavigateOptions } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
+import { CurrentUserContext } from '../context/CurrentUserContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { useDailyBriefing } from '../hooks/useDailyBriefing';
@@ -604,9 +605,11 @@ export function GrueneratorChatRuntimeProvider({
             <BriefingOpenedEffect />
             <DailyBriefingEffect />
             {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
-            <ChatCollaborationBridge userId={userId} userName={userName}>
-              {children}
-            </ChatCollaborationBridge>
+            <CurrentUserContext.Provider value={userId}>
+              <ChatCollaborationBridge userId={userId} userName={userName}>
+                {children}
+              </ChatCollaborationBridge>
+            </CurrentUserContext.Provider>
           </ExternalThreadProvider>
         </ChatNavigationProvider>
       </AssistantRuntimeProvider>

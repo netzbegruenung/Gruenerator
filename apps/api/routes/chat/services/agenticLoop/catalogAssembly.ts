@@ -17,6 +17,7 @@ import { skillRole } from '@gruenerator/shared/agents';
 
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
@@ -150,6 +151,8 @@ export interface CatalogDeps {
   loadMcpCatalog: typeof loadMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
+  /** True when the sticky server id is another person's row. */
+  isForeignMcpServer: (userId: string, ref: string) => Promise<boolean>;
 }
 
 const defaultDeps: CatalogDeps = {
@@ -157,6 +160,7 @@ const defaultDeps: CatalogDeps = {
   loadMcpCatalog: loadMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
+  isForeignMcpServer: (userId, ref) => McpServerRegistry.isForeignServer(userId, ref),
 };
 
 export interface AssembledCatalog {
@@ -261,7 +265,22 @@ export async function assembleToolCatalog(
   let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    // The sticky slot is one per thread, written by whoever used a connector
+    // last. In a team chat that may be another member: their server is neither
+    // mounted nor reported as "gone" on this sender's turn.
+    if (!explicitScope && scope) {
+      try {
+        if (await deps.isForeignMcpServer(userId, scope)) {
+          log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
+          scope = null;
+        }
+      } catch (err) {
+        // An unverifiable owner is not a verified one: skip the sticky server.
+        log.warn(`[catalogAssembly] sticky MCP owner check failed; skipping: ${err}`);
+        scope = null;
+      }
+    }
     if (scope) {
       // One loader for every connector — a known one (Bahn, Wetter, …) is a
       // row like any other, and a legacy `system-<key>` scope resolves to it.

@@ -12,6 +12,8 @@
  * pipeline consumes.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import {
   type chatGraphContract,
   isVisualBlockKind,
@@ -32,6 +34,8 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
+import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
@@ -254,20 +258,52 @@ export interface StreamContext {
   /** Persisted row for the current user turn. Attachments link here so history
    * can render them on the same message after a reload. */
   userMessageId: string | null;
+  /** Lock on the thread's one running turn; null on a new thread. The caller
+   *  releases it in its `finally`. */
+  runLease: ThreadRunLease | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
 
-export async function buildStreamContext({
+/**
+ * Builds the turn context. On `done: false` the caller owns `ctx.runLease` and
+ * must release it when the turn ends; on `done: true` or a throw it is already
+ * released here.
+ */
+export async function buildStreamContext(args: {
+  req: Request;
+  body: StreamBody;
+  sse: SSEStream;
+  requestId: string;
+}): Promise<BuildStreamContextResult> {
+  const leaseBox: { lease: ThreadRunLease | null } = { lease: null };
+  try {
+    const result = await buildStreamContextInner({ ...args, leaseBox });
+    if (result.done) {
+      await leaseBox.lease?.release();
+      return result;
+    }
+    return { done: false, ctx: { ...result.ctx, runLease: leaseBox.lease } };
+  } catch (err) {
+    await leaseBox.lease?.release();
+    throw err;
+  }
+}
+
+async function buildStreamContextInner({
   req,
   body,
   sse,
   requestId,
+  leaseBox,
 }: {
   req: Request;
   body: StreamBody;
   sse: SSEStream;
   requestId: string;
+  /** Receives the thread run lease the moment it is taken, so the wrapper can
+   *  release it when this function throws or returns `{ done: true }`. */
+  leaseBox: { lease: ThreadRunLease | null };
 }): Promise<BuildStreamContextResult> {
   const {
     messages: clientMessages,
@@ -646,6 +682,19 @@ export async function buildStreamContext({
     }
   }
 
+  // === One running turn per thread — before any row is written ===
+  // Team chats let several members write into one thread; a second send while
+  // a turn is answering would interleave two answers. Released by the caller
+  // (router `finally`), or by `buildStreamContext` if it never gets that far.
+  if (actualThreadId && !isNewThread) {
+    const lease = await acquireThreadRun(actualThreadId, `${requestId}:${randomUUID()}`);
+    if (!lease) {
+      sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
+      return { done: true };
+    }
+    leaseBox.lease = lease;
+  }
+
   // Earlier user messages can arrive with no text at all (see historyBackfill);
   // the persisted rows still have it. Runs before this turn's own message is
   // written, so the persisted list is exactly the prior history. Only pay for the
@@ -703,13 +752,27 @@ export async function buildStreamContext({
         // A non-UUID id is exactly the case the fallback below already handles:
         // it names no persisted row. Route it there instead of to SQL.
         const removed = UUID_RE.test(rawReplaceFromMessageId)
-          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId, userId)
           : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
-        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+        const replaced =
+          removed === 0 ? await deleteTrailingAssistant(actualThreadId, userId) : removed;
+        if (replaced === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       } else if (rawRegenerate) {
-        await deleteTrailingAssistant(actualThreadId);
+        if ((await deleteTrailingAssistant(actualThreadId, userId)) === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       }
     }
 
@@ -1105,6 +1168,19 @@ export async function buildStreamContext({
   // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
   const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
 
+  // Anweisungen des Projekts, in dem der Chat liegt — für den Systemprompt.
+  // Ein Ausfall kostet nur diese Vorgaben, nicht den Turn.
+  const projectInstructions = actualThreadId
+    ? await withTimeout(
+        readThreadProjectInstructions(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project instructions'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project instructions (continuing):', err);
+        return null;
+      })
+    : null;
+
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
   // Gilt für den Rollen-Baustein ({{partyName}}) wie für den Graph-Zustand.
@@ -1268,6 +1344,7 @@ export async function buildStreamContext({
         rawActiveRecipeId
       ) ?? undefined,
     userInstructions,
+    projectInstructions,
     contextWindowTokens,
   });
 
@@ -1361,6 +1438,7 @@ export async function buildStreamContext({
   return {
     done: false,
     ctx: {
+      runLease: null,
       requestId,
       userId,
       notebookIds,

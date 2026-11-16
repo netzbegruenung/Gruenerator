@@ -122,6 +122,13 @@ interface AgentState {
    *  reader). AutoMessageSender attaches them along with the pending text. */
   pendingAttachments: MentionAttachment[];
   pendingInitialAssistantMessage: string | null;
+  /**
+   * Projekt the next new chat is filed into at creation (before its first turn
+   * runs). Set together with a pending hand-off by a Projekt page; consumed by
+   * the thread-list adapter's `initialize`. Expires so an abandoned hand-off
+   * cannot file an unrelated chat into the Projekt later.
+   */
+  pendingGroup: { id: string; expiresAt: number } | null;
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
@@ -188,6 +195,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
+  setPendingGroup: (groupId: string | null) => void;
   setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
@@ -239,6 +247,8 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
   compactionUpdatedAt: null,
 };
 
+const PENDING_GROUP_TTL_MS = 30_000;
+
 /**
  * Whether another surface queued content for the next new chat. AutoMessageSender
  * owns that hand-off; the views that would otherwise switch threads on mount
@@ -271,6 +281,7 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       pendingMessage: null,
       pendingDraft: null,
+      pendingGroup: null,
       pendingAttachments: [],
       pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
@@ -386,6 +397,13 @@ export const useAgentStore = create<AgentState>()(
       setPendingMessage: (message) => set({ pendingMessage: message }),
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
+
+      setPendingGroup: (groupId) =>
+        set({
+          pendingGroup: groupId
+            ? { id: groupId, expiresAt: Date.now() + PENDING_GROUP_TTL_MS }
+            : null,
+        }),
 
       setPendingAttachments: (attachments) => set({ pendingAttachments: attachments }),
 
