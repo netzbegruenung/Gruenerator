@@ -21,6 +21,9 @@ const adapter = {
     (await pool.query<Record<string, unknown>>(text, params)).rows,
 };
 
+// The admin-only gate would hide every convention from the non-admin test viewer.
+vi.mock('./adminOnlyGate.js', () => ({ PARTEITAGE_ADMIN_ONLY: false }));
+
 vi.mock('../../database/services/PostgresService/PostgresService.js', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getPostgresInstance: () => adapter,
