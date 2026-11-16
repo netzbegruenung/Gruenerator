@@ -99,7 +99,7 @@ async function tapText(stage: Konva.Stage, id: string): Promise<Konva.Text> {
 
 async function pressBigger() {
   const bar = await screen.findByRole('toolbar', { name: 'Auswahl bearbeiten' });
-  expect(within(bar).getByText('60')).toBeInTheDocument();
+  expect(within(bar).getByDisplayValue('60')).toBeInTheDocument();
   await act(async () => {
     within(bar).getByTitle('Schrift vergrößern').click();
   });
@@ -111,7 +111,7 @@ describe('mobile Auswahl-Leiste im Mehrseiten-Editor', () => {
     await renderTwoPages();
     const node = await tapText(Konva.stages[0]!, 'text-1');
     const bar = await pressBigger();
-    expect(within(bar).getByText('62')).toBeInTheDocument();
+    expect(within(bar).getByDisplayValue('62')).toBeInTheDocument();
     expect(node.fontSize()).toBe(62);
   });
 
@@ -127,7 +127,7 @@ describe('mobile Auswahl-Leiste im Mehrseiten-Editor', () => {
     });
     const node = await tapText(Konva.stages[1]!, 'text-2');
     const bar = await pressBigger();
-    expect(within(bar).getByText('62')).toBeInTheDocument();
+    expect(within(bar).getByDisplayValue('62')).toBeInTheDocument();
     expect(node.fontSize()).toBe(62);
     expect(Konva.stages[0]!.findOne<Konva.Text>('#text-1')!.fontSize()).toBe(60);
   });
