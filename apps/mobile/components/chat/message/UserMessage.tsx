@@ -11,6 +11,7 @@ import { useChatAccent } from '../chatAccent';
 import { BranchPicker } from './BranchPicker';
 import { MessageDaySeparator } from './MessageDaySeparator';
 import { messageLayout } from './messageLayout';
+import { useMayReplaceTurn } from './useMayReplaceTurn';
 
 /** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
 function UserBubbleText({ text }: { text: string }) {
@@ -42,6 +43,8 @@ export const UserMessage = memo(function UserMessage() {
   const accent = useChatAccent();
   const aui = useAui();
   const isEditing = useAuiState((s) => s.composer.isEditing);
+  // A teammate's turn in a team chat is not ours to edit (server: `not_your_message`).
+  const mayEdit = useMayReplaceTurn();
 
   // Long-press the bubble to edit — there is no pencil beside it any more. This
   // is what `ActionBarPrimitive.Edit` did (`useActionBarEdit` is two lines:
@@ -50,9 +53,9 @@ export const UserMessage = memo(function UserMessage() {
   // thread's. Same gesture as the thread rows in the drawer, so "hold to act on
   // this thing" means one thing across the app.
   const handleLongPress = useCallback(() => {
-    if (isEditing) return;
+    if (isEditing || !mayEdit) return;
     aui.composer.beginEdit();
-  }, [aui, isEditing]);
+  }, [aui, isEditing, mayEdit]);
 
   return (
     <Fragment>
@@ -62,7 +65,7 @@ export const UserMessage = memo(function UserMessage() {
           onLongPress={handleLongPress}
           delayLongPress={350}
           testID="chat-message-edit"
-          accessibilityLabel="Nachricht bearbeiten"
+          {...(mayEdit && { accessibilityLabel: 'Nachricht bearbeiten' })}
           style={({ pressed }) => [
             messageLayout.userBubble,
             accent && { backgroundColor: accent },

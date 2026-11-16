@@ -41,7 +41,7 @@ const TYPE_IDENTITY = ['@ts-rest/core'];
 
 // Expo-Apps bundeln separat via Metro und pinnen react exakt auf die
 // SDK-Version (siehe CLAUDE.md) — Abweichungen dort sind gewollt.
-const EXCLUDED_IMPORTERS = ['apps/mobile', 'apps/docs-expo'];
+const EXCLUDED_IMPORTERS = ['apps/mobile'];
 
 const lock = readFileSync(new URL('../pnpm-lock.yaml', import.meta.url), 'utf8');
 

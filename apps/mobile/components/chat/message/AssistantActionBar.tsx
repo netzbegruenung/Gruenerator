@@ -16,6 +16,7 @@ import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
 import { MenuActionSheet } from '../MenuActionSheet';
 
 import { flagRegenerate } from './threadRunSignals';
+import { useMayReplaceTurn } from './useMayReplaceTurn';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -71,6 +72,8 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   const { exporting, exportDocx, openInDocs, saveAsRecipe } = useMessageActions(target);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  // A teammate's turn in a team chat is not ours to regenerate (server: `not_your_message`).
+  const mayReplace = useMayReplaceTurn();
   const messageId = useAuiState((s) => s.message.id);
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
   const running = useAuiState((s) => s.message.status?.type === 'running');
@@ -143,14 +146,16 @@ export const AssistantActionBar = memo(function AssistantActionBar({
           color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
         />
       </Pressable>
-      <Pressable
-        onPress={handleReload}
-        testID="chat-message-reload"
-        style={styles.button}
-        accessibilityLabel="Neu generieren"
-      >
-        <Ionicons name="refresh-outline" size={ICON_SIZE} color={theme.textSecondary} />
-      </Pressable>
+      {mayReplace ? (
+        <Pressable
+          onPress={handleReload}
+          testID="chat-message-reload"
+          style={styles.button}
+          accessibilityLabel="Neu generieren"
+        >
+          <Ionicons name="refresh-outline" size={ICON_SIZE} color={theme.textSecondary} />
+        </Pressable>
+      ) : null}
       {messageText ? (
         <Pressable
           onPress={() => setMoreOpen(true)}
