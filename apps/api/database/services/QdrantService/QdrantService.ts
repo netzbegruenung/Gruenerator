@@ -162,7 +162,6 @@ export class QdrantService {
     gruene_at_documents: 'gruene_at_documents',
     landesverbaende_documents: 'landesverbaende_documents',
     abgeordnetenwatch_documents: 'abgeordnetenwatch_documents',
-    bundestag_dip_documents: 'bundestag_dip_documents',
     bundesrat_documents: 'bundesrat_documents',
   };
 
