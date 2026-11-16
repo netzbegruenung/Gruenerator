@@ -407,6 +407,19 @@ const TOOLS = [
     theme: true,
   },
   {
+    id: 'parteitage',
+    title: 'Parteitage',
+    path: '/parteitage',
+    icon: { navigation: 'reel' },
+    tile: { group: 'studio', description: 'Reden als Reels' },
+    search: {
+      id: 'tool-parteitage',
+      title: 'Parteitage',
+      subtitle: 'Reden vom Parteitag untertiteln und schneiden',
+      keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
+    },
+  },
+  {
     id: 'studio-voice',
     title: 'Voice',
     path: '/voice',
@@ -675,6 +688,7 @@ const MENU_ORDER = [
 const SEARCH_ORDER = [
   'tool-reel',
   'tool-videoeditor',
+  'tool-parteitage',
   'tool-studio',
   'tool-imagine',
   'tool-profilbild',

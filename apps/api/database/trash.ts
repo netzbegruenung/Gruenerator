@@ -6,6 +6,14 @@
  * Leser einer dieser Tabellen muss sie ausblenden. `services/trash/
  * trashReaders.vitest.ts` liest den Quelltext und hält das fest.
  * `user_documents` hat kein Drizzle-Schema und wird nur roh abgefragt.
+ *
+ * Bewusst NICHT hier: die Parteitage-Tabellen (`conventions`, `convention_speeches`,
+ * `convention_access`, `convention_deleted_speeches`) und `system_media`. Sie gehören keiner
+ * Person (kein `user_id`), tragen kein `deleted_at` und wandern nie in den Papierkorb: ein
+ * Admin löscht Reden und Parteitage endgültig (`services/parteitage/deleteService.ts`, eine
+ * Transaktion, Dateien erst danach), und `convention_deleted_speeches` verhindert, dass ein
+ * Re-Import eine entfernte Rede stillschweigend wiederbringt. Die Wächter dürfen für sie keine
+ * Trash-Klausel verlangen; `trashReaders.vitest.ts` prüft nur die Tabellen dieser Liste.
  */
 import { isNull, type SQL } from 'drizzle-orm';
 import { type PgColumn } from 'drizzle-orm/pg-core';

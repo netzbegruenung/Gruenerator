@@ -98,6 +98,14 @@ import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingC
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import notificationStreamRouter from './routes/notifications/stream.js';
+import {
+  PARTEITAGE_IMPORT_PATH,
+  parteitageImportBodyParser,
+} from './routes/parteitage/importBodyParser.js';
+import { mountParteitageAdminContractRouter } from './routes/parteitage/parteitageAdminContractRouter.js';
+import { mountParteitageContractRouter } from './routes/parteitage/parteitageContractRouter.js';
+import { parteitageMediaRouter } from './routes/parteitage/parteitageMediaRouter.js';
+import { parteitageUnlockLimiter } from './routes/parteitage/unlockLimiter.js';
 import { mountPodcastsContractRouter } from './routes/podcasts/podcastsContractRouter.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
@@ -539,6 +547,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Studio shop: user Sticker and Hintergründe.
   app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
   mountStudioAssetsContractRouter(app);
+  // Parteitage archive: media first (own Express route), then the contract routers.
+  // The unlock limiter skips everything but POST .../entsperren.
+  app.use('/api/parteitage', requireAuth, authenticatedReadLimiter, parteitageUnlockLimiter);
+  app.use(parteitageMediaRouter);
+  mountParteitageContractRouter(app);
+  app.use('/api/admin/parteitage', requireAuth);
+  app.post(PARTEITAGE_IMPORT_PATH, ...parteitageImportBodyParser);
+  mountParteitageAdminContractRouter(app);
   // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
   // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so
   // they take the general write ceiling.
@@ -832,6 +848,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // muss an seine bereits erzeugten Untertitel weiter herankommen.
   app.use('/api/subtitler', (req, res, next) => {
     // req.path ist hier relativ zum Mount.
+    // /process-parteitag nutzt gespeicherte Wortzeiten, kein KI-Modell: keine Einwilligung nötig.
+    if (req.path.startsWith('/process-parteitag')) return next();
     if (req.path.startsWith('/process') || req.path.startsWith('/generate-social')) {
       return requireAiConsent(req, res, next);
     }

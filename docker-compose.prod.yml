@@ -53,6 +53,7 @@ services:
       - HOCUSPOCUS_INTERNAL_URL=http://hocuspocus:1241
     volumes:
       - api-uploads:/app/apps/api/uploads
+      - system-media:/app/apps/api/uploads/system-media
       - api-logs:/app/apps/api/logs
     networks:
       - gruenerator
@@ -157,6 +158,7 @@ services:
 volumes:
   redis-data:
   api-uploads:
+  system-media:
   api-logs:
 
 networks:
