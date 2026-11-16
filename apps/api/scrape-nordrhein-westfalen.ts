@@ -3,8 +3,10 @@
  *
  * Scrapes Grüne NRW (gruene-nrw.de) and the Grüne Landtagsfraktion NRW
  * (gruene-fraktion-nrw.de), both WordPress, discovered via the WP REST API:
- *   nordrhein-westfalen-lv: Pressemitteilungen (cat 29), Beschlüsse (cat 5).
- *   nordrhein-westfalen-fraktion: Pressemitteilungen (cat 135), Publikationen (cat 137).
+ *   nordrhein-westfalen-lv: Pressemitteilungen (cat 29), Beschlüsse (cat 5),
+ *     FAQ (cat 431), Soundingboard (cat 558), Aktuelles (cat 1).
+ *   nordrhein-westfalen-fraktion: Pressemitteilungen (cat 135), Publikationen (cat 137),
+ *     Fachnewsletter (cat 144).
  *
  * Flags:
  *   --source <id>  → Run only a specific source (e.g., nordrhein-westfalen-lv)

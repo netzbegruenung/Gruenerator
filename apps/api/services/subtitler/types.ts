@@ -43,7 +43,12 @@ export interface SubtitlerProject extends Omit<
  */
 export type SubtitlerProjectListItem = Omit<
   SubtitlerProjectRow,
-  'subtitles' | 'video_path' | 'user_id' | 'style_settings' | 'deleted_at'
+  | 'subtitles'
+  | 'video_path'
+  | 'source_system_media_id'
+  | 'user_id'
+  | 'style_settings'
+  | 'deleted_at'
 >;
 
 /**
@@ -63,6 +68,8 @@ export interface CreateProjectData {
   videoFilename?: string | undefined;
   videoSize?: number | undefined;
   videoSourcePath?: string | undefined;
+  /** Source lives in system storage: the project references it, the file is not copied. */
+  sourceSystemMediaId?: string | undefined;
 }
 
 /**

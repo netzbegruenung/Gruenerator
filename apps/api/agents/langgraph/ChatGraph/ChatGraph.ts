@@ -230,6 +230,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
+    projectInstructions: input.projectInstructions ?? null,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

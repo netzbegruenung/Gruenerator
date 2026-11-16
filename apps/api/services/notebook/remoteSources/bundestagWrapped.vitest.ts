@@ -90,6 +90,22 @@ describe('bundestagWrappedSource.search', () => {
     });
   });
 
+  it('stays inside the limits the API accepts', async () => {
+    // Deep and ultra ask for 100 chunks, times the chunk multiplier of 3; the
+    // API rejects anything above 100 with a 400.
+    fetchMock.mockResolvedValue(ok({ results: [] }));
+
+    await bundestagWrappedSource.search({
+      vector: [0.1],
+      query: 'q'.repeat(2500),
+      filters: { match: {} },
+      limit: 300,
+      threshold: null,
+    });
+
+    expect(bodyOf()).toMatchObject({ limit: 100, query: 'q'.repeat(2000) });
+  });
+
   it('maps a hit into our payload, with the speech as its own document', async () => {
     fetchMock.mockResolvedValue(ok({ results: [{ ...SPEECH, score: 0.81, excerpt: 'Fenster' }] }));
 

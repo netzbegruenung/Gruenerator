@@ -121,7 +121,7 @@ describe('44pt-Ziele', () => {
   it('Schriftgröße (Leiste und Stepper)', () => {
     render(
       <>
-        <FloatingFontSizeControl fontSize={40} onFontSizeChange={() => {}} />
+        <FloatingFontSizeControl elementId="t1" fontSize={40} onFontSizeChange={() => {}} />
         <FontSizeStepper value={40} onChange={() => {}} />
       </>
     );

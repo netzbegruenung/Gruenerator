@@ -1,0 +1,45 @@
+/* Parteitage-Statistik: Flächenfarben und Kartenrampe, je Modus nachgemessen.
+   Gegen den Hintergrund >= 3:1 (WCAG 1.4.11); benachbarte Stapel-Segmente
+   (kreisfreie Stadt | Kreis | ohne KV) untereinander >= 3:1.
+   Zwei Gruppen: Gruen und Violett (Rot-Gruen-Schwaeche geprueft), dazu Form
+   (Kreis / Raute), damit die Farbe nicht allein traegt. */
+:root {
+  --pt-area-stadt: #2f8a4e;
+  --pt-area-kreis: #7a4fc9;
+  --pt-area-ohne: #6b6b6b;
+  --pt-ramp-1: #37a55b;
+  --pt-ramp-2: #2f8c4e;
+  --pt-ramp-3: #256f3d;
+  --pt-ramp-4: #1a4f2c;
+  --pt-zero-line: #6b6b6b;
+  --pt-ink: #000;
+  --pt-bg: #fff;
+}
+
+:root[data-theme='dark'] {
+  --pt-area-stadt: #3da06f;
+  --pt-area-kreis: #9b7fe6;
+  --pt-area-ohne: #9a9a9a;
+  --pt-ramp-1: #2a7f46;
+  --pt-ramp-2: #339955;
+  --pt-ramp-3: #3db766;
+  --pt-ramp-4: #77d295;
+  --pt-zero-line: #9a9a9a;
+  --pt-ink: #fff;
+  --pt-bg: #242424;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --pt-area-stadt: #3da06f;
+    --pt-area-kreis: #9b7fe6;
+    --pt-area-ohne: #9a9a9a;
+    --pt-ramp-1: #2a7f46;
+    --pt-ramp-2: #339955;
+    --pt-ramp-3: #3db766;
+    --pt-ramp-4: #77d295;
+    --pt-zero-line: #9a9a9a;
+    --pt-ink: #fff;
+    --pt-bg: #242424;
+  }
+}

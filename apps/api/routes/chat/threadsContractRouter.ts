@@ -19,11 +19,20 @@ import {
 } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
+import { addGroupShare } from '../../services/groups/groupShareWriter.js';
+import { ownsThreadSql, teamChatShareExistsSql } from '../../services/groups/projectThreadScope.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
+import { saveReviewedCreatorSpec } from './services/sharepicEditService.js';
+import {
+  canWriteThread,
+  getThreadAccessLevel,
+  isThreadOwner,
+} from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -75,13 +84,30 @@ export const threadsContractRouter = s.router(threadsContract, {
                 t.notebook_collection_id, t.notebook_collection_ids,
                 (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
                 COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                (SELECT p.display_name FROM profiles p WHERE p.id = t.user_id) AS owner_name,
+                EXISTS (
+                  SELECT 1 FROM groups tg
+                   WHERE tg.id = t.group_id AND tg.deleted_at IS NULL
+                     AND COALESCE(tg.is_active, TRUE) = TRUE
+                     AND ${teamChatShareExistsSql('t', 'tg.id')}
+                ) AS team_shared,
+                (
+                  EXISTS (
+                    SELECT 1 FROM group_content_shares sgcs
+                     WHERE sgcs.content_type = 'chat_threads' AND sgcs.content_id = t.id::text
+                       AND COALESCE((sgcs.permissions->>'read')::boolean, true) = true
+                  )
+                  OR COALESCE(t.permissions, '{}'::jsonb) <> '{}'::jsonb
+                  OR COALESCE(t.share_mode, 'private') <> 'private'
+                  OR t.is_public = true
+                ) AS shared,
                 CASE
-                  WHEN t.user_id::text = $1 THEN 'owner'
+                  WHEN ${ownsThreadSql('t', '$1')} THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
                   ELSE 'group'
                 END as access_type,
                 CASE
-                  WHEN t.user_id::text = $1 OR t.permissions ? $2::text OR t.is_public = true THEN false
+                  WHEN ${ownsThreadSql('t', '$1')} OR t.permissions ? $2::text OR t.is_public = true THEN false
                   ELSE NOT COALESCE((
                     SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
                     FROM group_content_shares gcs
@@ -103,7 +129,7 @@ export const threadsContractRouter = s.router(threadsContract, {
            LIMIT 1
          ) m ON true
          WHERE t.deleted_at IS NULL AND (
-           t.user_id::text = $1
+           ${ownsThreadSql('t', '$1')}
            OR t.permissions ? $2::text
            OR t.is_public = true
            OR t.id IN (
@@ -132,6 +158,9 @@ export const threadsContractRouter = s.router(threadsContract, {
         slugSuffix: (row.slug_suffix as string) ?? null,
         accessType: (row.access_type as 'owner' | 'shared' | 'group') ?? null,
         readOnly: row.read_only === true,
+        ownerName: (row.owner_name as string | null) ?? null,
+        teamShared: row.team_shared === true,
+        shared: row.shared === true,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -169,6 +198,9 @@ export const threadsContractRouter = s.router(threadsContract, {
         slugSuffix: t.slugSuffix,
         accessType: t.accessType,
         readOnly: t.readOnly,
+        ownerName: t.ownerName,
+        teamShared: t.teamShared,
+        shared: t.shared,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -191,23 +223,74 @@ export const threadsContractRouter = s.router(threadsContract, {
   create: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { title, agentId, threadType } = args.body;
+      const { title, agentId, threadType, groupId, teamShared } = args.body;
+
+      // Same gate as filing a thread afterwards (`update`): member of the
+      // Projekt and allowed to share into it — no system group for non-admins.
+      if (groupId != null) {
+        try {
+          await assertCanShareToGroup(groupId, userId);
+        } catch {
+          return { status: 403 as const, body: { error: 'Kein Zugriff auf dieses Projekt.' } };
+        }
+      }
 
       const postgres = getPostgresInstance();
-      const result = await insertThreadWithSlugRetry((slugSuffix) =>
-        postgres.query(
-          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
-          [
-            userId,
-            agentId || 'gruenerator-universal',
-            title ?? null,
-            threadType || 'chat',
-            slugSuffix,
-          ]
-        )
-      );
+
+      // „Für das Team": only in a team Projekt. Checked after the membership
+      // gate, so a stranger learns nothing about the Projekt's kind.
+      if (teamShared) {
+        const kind =
+          groupId != null
+            ? await postgres.queryOne(
+                `SELECT group_type FROM groups WHERE id = $1::uuid AND deleted_at IS NULL`,
+                [groupId]
+              )
+            : null;
+        if (!kind || kind.group_type === 'personal') {
+          return {
+            status: 400 as const,
+            body: {
+              error: 'Team-Chats gibt es nur in Team-Projekten.',
+              code: 'team_chat_needs_team_project',
+            },
+          };
+        }
+      }
+
+      const insertSql = `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix, group_id)
+           VALUES ($1, $2, $3, $4, $5, $6::uuid)
+           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`;
+      const insertParams = (slugSuffix: string) => [
+        userId,
+        agentId || 'gruenerator-universal',
+        title ?? null,
+        threadType || 'chat',
+        slugSuffix,
+        groupId ?? null,
+      ];
+      const result: Record<string, unknown>[] =
+        teamShared && groupId != null
+          ? // Whole transaction per attempt: a slug collision aborts it.
+            await insertThreadWithSlugRetry((slugSuffix) =>
+              postgres.transaction(async (client) => {
+                const rows = (await client.query(insertSql, insertParams(slugSuffix)))
+                  .rows as Record<string, unknown>[];
+                await addGroupShare({
+                  userId,
+                  groupId,
+                  contentType: 'chat_threads',
+                  contentId: String(rows[0].id),
+                  permissions: { read: true, write: true },
+                  notify: false,
+                  tx: client,
+                });
+                return rows;
+              })
+            )
+          : await insertThreadWithSlugRetry((slugSuffix) =>
+              postgres.query(insertSql, insertParams(slugSuffix))
+            );
 
       const thread = result[0];
       return {
@@ -244,7 +327,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
 
-      if (existingThreads[0].user_id !== userId) {
+      if (!(await isThreadOwner(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
@@ -390,7 +473,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (threads[0].user_id !== userId) {
+      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
@@ -414,6 +497,11 @@ export const threadsContractRouter = s.router(threadsContract, {
       const userId = getUserId(args.req);
       const { threadId } = args.params;
       const { customSystemPrompt, customEnabledTools, roleRef } = args.body;
+
+      // Prompt, tools and role are the owner's setup for everyone's turns.
+      if ((await getThreadAccessLevel(ThreadId(threadId), UserId(userId))) !== 'owner') {
+        return { status: 404 as const, body: { error: 'Thread not found or forbidden' } };
+      }
 
       const updated = await updateThreadSettings(threadId, userId, {
         ...(customSystemPrompt !== undefined && { customSystemPrompt }),
@@ -450,7 +538,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
 
-      if (threads[0].user_id !== userId) {
+      if (!(await isThreadOwner(ThreadId(threadId), UserId(userId)))) {
         log.warn(
           `[generate-title] Forbidden — thread owner=${threads[0].user_id as string}, requester=${userId}`
         );
@@ -541,15 +629,38 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (threads[0].user_id !== userId) {
+      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
-      const files = await getThreadTabularFiles(threadId, userId);
+      const files = await getThreadTabularFiles(threadId);
       return { status: 200 as const, body: { files } };
     } catch (error) {
       log.error('Error fetching tabular files:', error);
       return { status: 500 as const, body: { error: 'Failed to fetch tabular files' } };
+    }
+  },
+
+  saveReviewedSharepic: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { threadId, variantId } = args.params;
+      const access = await getThreadAccessLevel(ThreadId(threadId), UserId(userId));
+      if (access !== 'owner' && access !== 'write') {
+        return { status: 404 as const, body: { error: 'Thread not found' } };
+      }
+      const outcome = await saveReviewedCreatorSpec(threadId, variantId, args.body.creatorSpec);
+      if (outcome === 'saved') return { status: 200 as const, body: { success: true as const } };
+      if (outcome === 'not_found') {
+        return { status: 404 as const, body: { error: 'Sharepic not found' } };
+      }
+      if (outcome === 'minted') {
+        return { status: 409 as const, body: { error: 'Sharepic is already a canvas' } };
+      }
+      return { status: 400 as const, body: { error: 'The review must keep the design' } };
+    } catch (error) {
+      log.error('Error saving reviewed sharepic:', error);
+      return { status: 500 as const, body: { error: 'Failed to save reviewed sharepic' } };
     }
   },
 });

@@ -2,8 +2,7 @@
  * ChatGraph Type Definitions
  *
  * Defines the state structure and types for the LangGraph-based chat system.
- * This provides explicit control flow for agentic chat, solving the AI SDK
- * toolChoice: 'required' loop trap.
+ * This provides explicit control flow for agentic chat.
  *
  * NOTE: req/res are intentionally NOT part of the graph state.
  * The controller handles HTTP streaming via the @ai-sdk/langchain adapter,
@@ -694,6 +693,8 @@ export interface ChatGraphInput {
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
+  /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
+  projectInstructions?: { projectName: string; text: string } | null | undefined;
   contextWindowTokens?: number | undefined;
 }
 
@@ -730,16 +731,6 @@ export interface ChatGraphState {
   injectionSuspected?: boolean | undefined;
 
   /**
-   * This `agentic` turn reached the loop via Tier-3.5 demotion of a RETRIEVAL
-   * heuristic (web/search/examples/bundestag/…), not because the user asked
-   * for open-ended work. The loop requires a first tool call on such turns —
-   * without it the planner answered "Da ich in diesem Turn keine aktuellen
-   * Recherche-Ergebnisse habe …" to a plain factual question it was supposed
-   * to look up.
-   */
-  loopDemotedFromRetrieval?: boolean | undefined;
-
-  /**
    * Counterpart for PROSE verdicts: this `agentic` turn reached the loop
    * because the classifier's prose verdict (`produktion`, `direct`, …) goes
    * through `proseGoesToLoop`. Carries that verdict so the auto policy keeps
@@ -756,11 +747,8 @@ export interface ChatGraphState {
    * Vorwürfe zu identifizieren" — followed by `intent: direct`, zero searches,
    * and an answer that invented the facts.
    *
-   * Same consequence as {@link loopDemotedFromRetrieval} (a recognised
-   * retrieval need that produces no tool call), different source: that one
-   * comes from the Tier-3.5 heuristic demotion, this one from the model
-   * contradicting itself. Kept as a separate field so the log tells you WHICH
-   * of the two happened.
+   * The turn goes to the loop (`turnPlan`), where the model decides with the
+   * tools at hand whether to look it up.
    */
   classifierContradictedResearch?: boolean | undefined;
 
@@ -1056,6 +1044,9 @@ export interface ChatGraphState {
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
+
+  // Anweisungen der Projekt-Admins für alle Chats im Projekt (group_instructions).
+  projectInstructions: { projectName: string; text: string } | null;
 
   // The person's explicit memory for this turn (services/memory). `memoryContext`
   // is the rendered, numbered text the prompt shows; `memories` is the same
@@ -1386,8 +1377,8 @@ export interface ChatGraphState {
   // muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein sagt das
   // nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
   //
-  // Zwei Leser, beide im Loop: der erste Werkzeugaufruf wird beim NAMEN genannt
-  // statt nur „irgendeiner" verlangt (`pinnedFirstTool`), und der Pin selbst
+  // Zwei Leser, beide im Loop: das Werkzeug wird dem Modell beim NAMEN
+  // angekündigt (`buildPinnedToolNote`, nicht erzwungen), und der Pin selbst
   // zwingt den Turn in die Schleife (`turnPlan`) — dort und nur dort gibt es
   // Werkzeuge. Ein Werkzeugname und keine `ChatIntentId`, damit eine Erwähnung
   // eine Fähigkeit festzurren kann, deren Intent stillgelegt ist (`@umfragen`).

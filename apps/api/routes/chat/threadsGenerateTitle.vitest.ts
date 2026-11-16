@@ -14,6 +14,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Request } from 'express';
 
 const query = vi.fn();
+// The departed-owner rule (#5678) is pinned against Postgres in
+// services/threadOwnerLeftProject.db.vitest.ts.
+vi.mock('./services/threadAccessService.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  isThreadOwner: async () => true,
+}));
+
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
 }));

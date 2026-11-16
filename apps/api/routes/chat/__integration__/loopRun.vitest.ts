@@ -285,33 +285,14 @@ describe('loop decision maps', () => {
       ).toBe(expected.count);
     }
 
-    if (scenario.firstToolChoice) {
-      const choice = loopScript.calls[0]?.toolChoice;
-      const named =
-        choice && typeof choice === 'object' && 'toolName' in choice
-          ? (choice as { toolName: string }).toolName
-          : choice;
+    // Der Loop erzwingt keinen Aufruf mehr: der erste Schritt läuft mit
+    // `toolChoice` unset (auto).
+    // Szenarien, die den Loop gar nicht erreichen (Einzeldurchlauf), haben keinen Aufruf.
+    if (loopScript.calls[0]) {
       expect(
-        named,
-        `${scenario.id}: der erste Schritt des Loop-Aufrufs sollte ${scenario.firstToolChoice} verlangen`
-      ).toBe(scenario.firstToolChoice);
-    }
-
-    if (scenario.firstStepActiveTools) {
-      const active = loopScript.calls[0]?.firstStepActiveTools ?? null;
-      expect(
-        active,
-        `${scenario.id}: der erste Schritt des Loop-Aufrufs sollte einen zugeschnittenen Katalog sehen`
-      ).not.toBeNull();
-      for (const name of active ?? []) {
-        expect(
-          scenario.firstStepActiveTools.within,
-          `${scenario.id}: ${name} gehoert nicht in den ersten Schritt`
-        ).toContain(name);
-      }
-      for (const name of scenario.firstStepActiveTools.without) {
-        expect(active, `${scenario.id}: ${name} im ersten Schritt`).not.toContain(name);
-      }
+        loopScript.calls[0].toolChoice,
+        `${scenario.id}: der erste Schritt des Loop-Aufrufs darf kein toolChoice setzen`
+      ).toBeNull();
     }
 
     for (const needle of [scenario.systemIncludes ?? []].flat()) {
@@ -360,10 +341,8 @@ describe('unified loop', () => {
     expect(trace.fullText).toContain('Antwort mit');
   });
 
-  it('runs a compound sharepic turn unified and forces the sharepic right after the research', async () => {
-    // Until 11/2026 a turn that owed an artefact ran split, because unified ran
-    // the guarantee only after the answer. Now the owed tool is the next named
-    // step after the research, so the writer sees the sharepic before it writes.
+  it('runs a compound sharepic turn unified; the post-stream net delivers the owed sharepic', async () => {
+    // No step is forced any more: the step after the research is auto too.
     respond.resolution = MISTRAL;
     loopScript.script({
       calls: [{ tool: 'web_search', args: { query: 'Windkraft' } }],
@@ -375,11 +354,7 @@ describe('unified loop', () => {
     });
 
     expect(loopScript.calls).toHaveLength(1);
-    // The step after the research is the named sharepic call.
-    expect(loopScript.calls[0]?.afterCallsToolChoice).toEqual({
-      type: 'tool',
-      toolName: 'sharepic',
-    });
+    expect(loopScript.calls[0]?.afterCallsToolChoice).toBeNull();
     // The scripted response ends after the research, so the post-stream net
     // (ensureOwedTools) still delivers the sharepic.
     expect(events.map((e) => e.event)).toContain('sharepic_complete');

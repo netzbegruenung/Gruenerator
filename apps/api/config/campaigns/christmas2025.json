@@ -22,7 +22,6 @@
     "multiItemTemplate": "Erstelle 4 VERSCHIEDENE Weihnachtsgedichte mit je GENAU 5 Zeilen für diesen Ort: {{location}}.\n\nDetails (Optional): {{details}}\n\nRegeln für JEDES Gedicht:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nWICHTIG:\n- Erstelle 4 UNTERSCHIEDLICHE Gedichte\n- Trenne die Gedichte mit '---'\n- Nur die Zeilen ausgeben, getrennt durch '---'\n\nFormat:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5\n---\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5\n---\n(2 weitere Gedichte)",
     "options": {
       "temperature": 0.9,
-      "useBedrock": true,
       "max_tokens": 8000
     }
   },

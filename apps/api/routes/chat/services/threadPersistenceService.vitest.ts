@@ -24,8 +24,15 @@ const {
   discardPendingAssistantIfEmpty,
   deleteEmptyStreamingRows,
   deleteTrailingAssistant,
+  deleteMessagesFrom,
   getRecentToolSteps,
   readThreadToolHistory,
+  getThreadCloudFiles,
+  getThreadNotebookSources,
+  getThreadMentionRefs,
+  setThreadCloudFiles,
+  setThreadNotebookSources,
+  setThreadMentionRefs,
 } = await import('./threadPersistenceService.js');
 
 /** Collapse whitespace so assertions don't depend on SQL formatting. */
@@ -196,14 +203,45 @@ describe('deleteEmptyStreamingRows', () => {
   });
 });
 
-describe('deleteTrailingAssistant (regression)', () => {
-  it('still keys off the MAX(created_at) user-message subquery', async () => {
-    queryMock.mockResolvedValueOnce([]);
-    await deleteTrailingAssistant('thread-1');
+describe('deleteTrailingAssistant', () => {
+  it('keys off the newest user row and checks its author in the same statement', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 1, ok: true }]);
+    await expect(deleteTrailingAssistant('thread-1', 'user-a')).resolves.toBe(1);
     const q = sql();
-    expect(q).toContain('MAX(created_at)');
     expect(q).toContain("role = 'user'");
-    expect(params()).toEqual(['thread-1']);
+    expect(q).toContain('ORDER BY m.created_at DESC');
+    expect(q).toContain('COALESCE(m.user_id, (SELECT owner_id FROM live))');
+    expect(q).toContain('deleted_at IS NULL');
+    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM last_user/);
+    expect(params()).toEqual(['thread-1', 'user-a']);
+  });
+
+  it("returns 'not_author' when the last user row belongs to someone else", async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: false }]);
+    await expect(deleteTrailingAssistant('thread-1', 'user-b')).resolves.toBe('not_author');
+  });
+});
+
+describe('deleteMessagesFrom', () => {
+  it('deletes from the anchor on when the sender wrote it', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 2, ok: true }]);
+    await expect(deleteMessagesFrom('thread-1', 'msg-1', 'user-a')).resolves.toBe(2);
+    const q = sql();
+    expect(q).toMatch(/DELETE FROM chat_messages[\s\S]*SELECT ok FROM verdict/);
+    expect(q).toContain("m.role = 'user'");
+    expect(q).toContain('f.created_at >= a.created_at');
+    expect(q).toContain('t.deleted_at IS NULL');
+    expect(params()).toEqual(['thread-1', 'msg-1', 'user-a']);
+  });
+
+  it("returns 'not_author' for a row written by another member (also legacy NULL, non-owner)", async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: false }]);
+    await expect(deleteMessagesFrom('thread-1', 'msg-1', 'user-b')).resolves.toBe('not_author');
+  });
+
+  it('returns 0 when the id resolves to no row', async () => {
+    queryMock.mockResolvedValueOnce([{ deleted: 0, ok: true }]);
+    await expect(deleteMessagesFrom('thread-1', 'nope', 'user-a')).resolves.toBe(0);
   });
 });
 
@@ -347,4 +385,33 @@ describe('toolSteps order', () => {
     expect(notebookIdFromSteps(history.lastTurnToolSteps())).toBe('berlin');
     // Der Import zieht den ganzen Werkzeugbaum — beim ersten Mal langsam.
   }, 60_000);
+});
+
+// Team chats: the pinned refs are per person (#5675). Every read is keyed to
+// the sender — the owner's columns or the sender's own member row, never
+// another member's — and every write lands on exactly one of the two. The
+// behaviour against Postgres is pinned in threadMemberRefs.db.vitest.ts.
+describe('thread-pinned refs are per person', () => {
+  const readers = [
+    ['cloud files', getThreadCloudFiles],
+    ['notebook sources', getThreadNotebookSources],
+    ['mention refs', getThreadMentionRefs],
+  ] as const;
+  it.each(readers)('reads %s for the sender only', async (_name, read) => {
+    await read('thread-1', 'user-b');
+    expect(sql()).toContain('CASE WHEN t.user_id::text = $2::text');
+    expect(sql()).toContain('m.user_id::text = $2::text');
+    expect(params()).toEqual(['thread-1', 'user-b']);
+  });
+
+  it('writes the owner row or the sender’s member row', async () => {
+    await setThreadCloudFiles('thread-1', 'user-b', { wolke: [], connect: [] });
+    expect(sql()).toContain('WHERE id = $2 AND user_id::text = $3::text');
+    expect(sql()).toContain('ON CONFLICT (thread_id, user_id)');
+    expect(params()).toEqual([null, 'thread-1', 'user-b']);
+    await setThreadNotebookSources('thread-1', 'user-b', []);
+    expect(sql()).toContain('chat_thread_member_refs');
+    await setThreadMentionRefs('thread-1', 'user-b', { texts: [], docs: [], links: [] });
+    expect(sql()).toContain('chat_thread_member_refs');
+  });
 });

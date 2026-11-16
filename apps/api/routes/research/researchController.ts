@@ -6,10 +6,10 @@
  * needs:
  *   - snippet formatting (truncateSnippet / highlightSnippet) — also used by
  *     notebookContractRouter.ts
- *   - the in-memory filter-facet cache + warmFilterCache() — called at server
- *     startup (server.ts) and by the contract router's `filters` handler
- *   - computeMergedFilters() — the actual facet aggregation, shared by the
- *     route handler and the cache warmer so the logic exists once.
+ *   - getMergedFilters() — the facet aggregation behind the in-memory filter
+ *     cache, shared by the contract router's `filters` handler, the MCP tool
+ *     `gruenerator_get_filters` and warmFilterCache() (server startup), so the
+ *     aggregation and its caching rule exist once.
  */
 import {
   getSearchableSystemCollectionIds,
@@ -142,7 +142,7 @@ export interface MergedFilters {
 const FILTER_CACHE_TTL_MS = 30 * 60 * 1000;
 const filterCache = new Map<string, { data: MergedFilters; timestamp: number }>();
 
-export function getCachedFilters(key: string): MergedFilters | null {
+function getCachedFilters(key: string): MergedFilters | null {
   const entry = filterCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > FILTER_CACHE_TTL_MS) {
@@ -152,8 +152,21 @@ export function getCachedFilters(key: string): MergedFilters | null {
   return entry.data;
 }
 
-export function setCachedFilters(key: string, data: MergedFilters): void {
-  filterCache.set(key, { data, timestamp: Date.now() });
+/**
+ * Facets of the requested system collections, from the 30-minute cache or
+ * freshly aggregated. Only an answer in which every field succeeded is kept:
+ * a failed field is dropped from the merge, so caching it would hide that
+ * field for half an hour after a single outage (same rule as
+ * `notebook.getFilters`).
+ */
+export async function getMergedFilters(requestedIds: string[]): Promise<MergedFilters> {
+  const cacheKey = [...requestedIds].sort().join(',');
+  const cached = getCachedFilters(cacheKey);
+  if (cached) return cached;
+
+  const { merged, complete } = await computeMergedFilters(requestedIds);
+  if (complete) filterCache.set(cacheKey, { data: merged, timestamp: Date.now() });
+  return merged;
 }
 
 /**
@@ -161,7 +174,9 @@ export function setCachedFilters(key: string, data: MergedFilters): void {
  * Fetches keyword value-counts and date ranges per field in parallel, then
  * merges fields that appear in multiple collections.
  */
-export async function computeMergedFilters(requestedIds: string[]): Promise<MergedFilters> {
+async function computeMergedFilters(
+  requestedIds: string[]
+): Promise<{ merged: MergedFilters; complete: boolean }> {
   const fieldPromises = requestedIds.flatMap((collectionId) => {
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig) return [];
@@ -259,7 +274,10 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
     if (entry.type === 'keyword' && !offersChoice(entry.values)) delete mergedFilters[field];
   }
 
-  return { filters: mergedFilters };
+  return {
+    merged: { filters: mergedFilters },
+    complete: results.every((result) => !('error' in result)),
+  };
 }
 
 /**
@@ -269,13 +287,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
 export async function warmFilterCache(): Promise<void> {
   try {
     const allIds = getSearchableSystemCollectionIds();
-    const cacheKey = [...allIds].sort().join(',');
-
-    // Skip if already cached
-    if (getCachedFilters(cacheKey)) return;
-
-    const response = await computeMergedFilters(allIds);
-    setCachedFilters(cacheKey, response);
+    await getMergedFilters(allIds);
     log.info(`Filter cache warmed for ${allIds.length} collections`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

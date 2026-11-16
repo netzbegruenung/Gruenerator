@@ -91,6 +91,8 @@ export {
   sharedTemplateContract,
   templateInteractionsContract,
   studioAssetsContract,
+  parteitageContract,
+  parteitageAdminContract,
   marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
@@ -126,6 +128,7 @@ export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
 export * from './schemas/studioAssets.js';
+export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';

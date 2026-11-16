@@ -155,7 +155,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/campaign_generate', 'texte'],
     ['/api/generate-content-title', 'texte'],
     ['/api/text-forms', 'texte'],
-    ['/api/vision', 'texte'],
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],

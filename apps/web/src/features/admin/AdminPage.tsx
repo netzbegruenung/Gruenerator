@@ -14,6 +14,7 @@ import LandesverbandAssignmentTab from './landesverband-assignment/Landesverband
 import AgentsTab from './tabs/AgentsTab';
 import AppUpdatesTab from './tabs/AppUpdatesTab';
 import GlossarTab from './tabs/GlossarTab';
+import ParteitageTab from './tabs/ParteitageTab';
 import ReportsTab from './tabs/ReportsTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
@@ -100,6 +101,14 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       render: () => <GlossarTab />,
     },
   ];
+
+  tabs.push({
+    value: 'parteitage',
+    label: 'Parteitage',
+    title: 'Parteitage',
+    description: 'Status und Passwort setzen, Reden ausblenden oder endgültig löschen.',
+    render: () => <ParteitageTab />,
+  });
 
   if (isToolOfferedIn('vorlagen', instanceId)) {
     tabs.push({

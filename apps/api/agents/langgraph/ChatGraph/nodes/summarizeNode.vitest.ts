@@ -70,7 +70,11 @@ describe('summarizeNode — notebook sources', () => {
     );
     expect(out.summaryContext).toBe('## Hafen\n\nsummary:chat_summarize');
     expect(system.getSystemDocumentFullTextByUrl.mock.calls[0]![2]).toEqual({
-      must: [{ key: 'landesverband', match: { value: 'HH' } }],
+      must: [
+        { key: 'landesverband', match: { value: 'HH' } },
+        // Website-Abschriften von Antragsgrün-Beschlüssen (`applyDefaultFilter`).
+        { is_empty: { key: 'superseded_by' } },
+      ],
     });
   });
 

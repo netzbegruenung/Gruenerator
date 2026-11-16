@@ -18,8 +18,8 @@
  * No writer may touch the collection from the start of `export` to the end of
  * `import`: the count check catches a new point, not an update to an existing
  * one, and an update made before the delete is overwritten by the exported
- * version. Run outside the source's content-sync slot (`landtag-nrw` and
- * `bundestag-dip` only run in the daily full sync) or disable the workflow for
+ * version. Run outside the source's content-sync slot (`landtag-nrw` only
+ * runs in the daily full sync) or disable the workflow for
  * the duration. The local file is the only full copy while the collection is
  * gone — keep it until `verify` has passed; a failed import resumes with
  * `--phase import --skip <lines already imported>` (upserts are idempotent,

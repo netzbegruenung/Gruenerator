@@ -55,6 +55,9 @@ import {
   exportSegmentsResponseSchema,
   autoProcessRequestSchema,
   autoProcessStartResponseSchema,
+  parteitagProcessRequestSchema,
+  parteitagProcessStartResponseSchema,
+  parteitagProcessErrorResponseSchema,
   autoProgressSchema,
   subtitlerNotFoundResponseSchema,
   createShareRequestSchema,
@@ -311,6 +314,22 @@ export const subtitlerContract = c.router(
         500: subtitlerErrorResponseSchema,
       },
       summary: 'Start the auto transcribe + render pipeline',
+    },
+
+    /** POST /api/subtitler/process-parteitag — auto pipeline from a stored speech (no transcription). */
+    postProcessFromParteitag: {
+      method: 'POST',
+      path: '/api/subtitler/process-parteitag',
+      body: parteitagProcessRequestSchema,
+      responses: {
+        202: parteitagProcessStartResponseSchema,
+        403: parteitagProcessErrorResponseSchema,
+        404: parteitagProcessErrorResponseSchema,
+        410: parteitagProcessErrorResponseSchema,
+        500: parteitagProcessErrorResponseSchema,
+        501: parteitagProcessErrorResponseSchema,
+      },
+      summary: 'Start the auto pipeline from a parteitag speech using stored word timings',
     },
 
     /** GET /api/subtitler/auto-progress/:uploadId — poll the auto pipeline. */

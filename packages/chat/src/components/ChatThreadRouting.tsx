@@ -81,10 +81,30 @@ export function ChatThreadRouting({
     auiRef.current = aui;
   }, [aui]);
 
+  // Which effect run owns `threadRoutePending`. A superseded run keeps going
+  // after its cleanup (it only checks `cancelled` between awaits), so it must
+  // not clear the flag the newer run has just set.
+  const routeRunRef = useRef(0);
+  useEffect(
+    () => () => {
+      routeRunRef.current += 1;
+      useAgentStore.getState().setThreadRoutePending(false);
+    },
+    []
+  );
+
   // ---------------------------------------------------------------- URL → thread
   useEffect(() => {
     const aui = auiRef.current;
+    const run = ++routeRunRef.current;
+    const setPending = (pending: boolean) => {
+      if (routeRunRef.current !== run) return;
+      if (useAgentStore.getState().threadRoutePending !== pending) {
+        useAgentStore.getState().setThreadRoutePending(pending);
+      }
+    };
     if (!threadSlug) {
+      setPending(false);
       // Bare /chat means "no thread": park the runtime on a draft so the
       // composer opens a new conversation instead of silently continuing the
       // last one. Guarded on main actually holding a persisted thread — on a
@@ -120,10 +140,17 @@ export function ChatThreadRouting({
       settledRemoteId &&
       (suffix ? getThreadSlugSuffix(settledRemoteId) === suffix : settledRemoteId === threadSlug)
     ) {
+      setPending(false);
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }
 
+    // From here until the switch settles, main still holds the thread from
+    // before — on a deep link the blank draft. A message sent now would mint a
+    // new thread (and its late `mintThreadFromDraft` would then point
+    // `currentThreadId` at it while the view shows the linked one), so the
+    // composer waits for this flag to drop (#5701).
+    setPending(true);
     let cancelled = false;
     void (async () => {
       try {
@@ -199,6 +226,8 @@ export function ChatThreadRouting({
         // adapter's fetch() then rejects with "Thread <id> not found".
         console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);
         if (!cancelled) onThreadGone();
+      } finally {
+        setPending(false);
       }
     })();
 

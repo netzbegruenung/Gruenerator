@@ -10,6 +10,7 @@ import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 
 import { useChatVoiceAdapter } from '../hooks/useChatVoiceAdapter';
 import { useMobileChatRuntime } from '../hooks/useMobileChatRuntime';
+import { useTeamChatPolling } from '../hooks/useTeamChatPolling';
 import { getMobileChatApiClient } from '../services/chatConfig';
 
 interface MobileChatProviderProps {
@@ -65,6 +66,8 @@ export function MobileChatProvider({ children, threadId }: MobileChatProviderPro
       runtimeRef.current = null;
     };
   }, [runtime]);
+
+  useTeamChatPolling(runtimeRef);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

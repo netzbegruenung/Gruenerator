@@ -17,6 +17,7 @@ import { skillRole } from '@gruenerator/shared/agents';
 
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
@@ -30,7 +31,7 @@ import {
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
@@ -74,8 +75,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -150,6 +151,8 @@ export interface CatalogDeps {
   loadMcpCatalog: typeof loadMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
+  /** True when the sticky server id is another person's row. */
+  isForeignMcpServer: (userId: string, ref: string) => Promise<boolean>;
 }
 
 const defaultDeps: CatalogDeps = {
@@ -157,6 +160,7 @@ const defaultDeps: CatalogDeps = {
   loadMcpCatalog: loadMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
+  isForeignMcpServer: (userId, ref) => McpServerRegistry.isForeignServer(userId, ref),
 };
 
 export interface AssembledCatalog {
@@ -261,7 +265,23 @@ export async function assembleToolCatalog(
   let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId, userId) : null);
+    // The sticky slot is per person (#5675), so it normally holds the sender's
+    // own server. A slot written before that — one per thread, by whoever used
+    // a connector last — may still name another member's: it is neither
+    // mounted nor reported as "gone" on this sender's turn.
+    if (!explicitScope && scope) {
+      try {
+        if (await deps.isForeignMcpServer(userId, scope)) {
+          log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
+          scope = null;
+        }
+      } catch (err) {
+        // An unverifiable owner is not a verified one: skip the sticky server.
+        log.warn(`[catalogAssembly] sticky MCP owner check failed; skipping: ${err}`);
+        scope = null;
+      }
+    }
     if (scope) {
       // One loader for every connector — a known one (Bahn, Wetter, …) is a
       // row like any other, and a legacy `system-<key>` scope resolves to it.
@@ -290,7 +310,7 @@ export async function assembleToolCatalog(
         // The resolved row id, not the scope: a pinned connector still sends
         // the legacy alias, and the thread should not keep carrying it.
         const sticky = mcpCatalog.resolvedServerId ?? scope;
-        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
+        void setThreadLastMcpServer(threadId, userId, sticky).catch((err: unknown) => {
           log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
         });
       }
@@ -501,20 +521,6 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
-      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
-      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
-      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
-      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
-      if (methodEntries(recipeCatalog).length > 0) {
-        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
-          isMounted,
-          catalog: recipeCatalog,
-          registry: recipeRegistry,
-          userId: userId ?? null,
-          visualBlocks: state.visualBlocks ?? [],
-          only: 'methode',
-        });
-      }
     }
   }
 
@@ -602,15 +608,6 @@ export function createLoopGuards(
     // thread with prior research would have been told it had "already found
     // enough" before running a single search.
     getSourceCount: () => sourceRegistry.freshSize,
-    // The web is NOT gated behind the internal document search — no exemption
-    // list either, because there is nothing left to be exempt from. Which
-    // retrieval a question needs is the classifier's call, made with the whole
-    // message and the thread in hand. All the loop still does is refuse to let
-    // an internal search that found NOTHING end in an answer from model memory.
-    internalFallback: {
-      requiredTool: 'gruenerator_search',
-      fallbackTool: 'web_search',
-    },
   });
 }
 
@@ -668,8 +665,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
 
 /**
  * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen
- * oben zusammenkommen — `priorTurnRetrievalFailed` und der Zuschnitt des
- * erzwungenen ersten Schritts (`forcedFirstStepTools`) stellen dieselbe Frage.
+ * oben zusammenkommen — `priorTurnRetrievalFailed` stellt dieselbe Frage.
  * Verbindungs-Werkzeuge (`serverName`) entscheidet der Aufrufer, weil der
  * Name allein sie nicht verrät.
  */
@@ -925,7 +921,7 @@ export async function seedAttachedDocuments(params: {
  * Eine gewählte Cloud-Datei ist Material des Loop-Turns. `retrievableAttachedSources` lässt `wolke`/`connect` aber
  * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
  * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
- * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
+ * deshalb nie; der Planer griff zu `gruenerator_search`, und
  * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
  * hier über denselben Fan-out wie im Einzeldurchlauf.
  *

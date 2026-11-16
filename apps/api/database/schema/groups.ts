@@ -117,6 +117,17 @@ export const group_post_files = pgTable('group_post_files', {
   position: smallint('position').notNull().default(0),
 });
 
+// Laufzeit-DDL in schema.sql. `group_id` ist dort UNIQUE (eine Zeile je Projekt).
+export const group_instructions = pgTable('group_instructions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id'),
+  custom_prompt: text('custom_prompt').default(''),
+  instructions_enabled: boolean('instructions_enabled').default(false),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
 export type GroupJoinRequestRow = InferSelectModel<typeof group_join_requests>;
@@ -124,3 +135,4 @@ export type GroupContentShareRow = InferSelectModel<typeof group_content_shares>
 export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>;
 export type GroupPostRow = InferSelectModel<typeof group_posts>;
 export type GroupPostFileRow = InferSelectModel<typeof group_post_files>;
+export type GroupInstructionsRow = InferSelectModel<typeof group_instructions>;

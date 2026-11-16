@@ -31,6 +31,7 @@ const DEFAULT_CHAIN = env.WEB_SEARCH_CHAIN;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  env.SEARXNG_URL = 'https://searxng.test';
   greenptService = { webSearch: greenptSearch };
   linkupService = { webSearch: linkupSearch };
   greenptSearch.mockResolvedValue([{ url: 'https://gp.de/1', title: 'G', description: 'g' }]);
@@ -44,6 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   env.WEB_SEARCH_CHAIN = DEFAULT_CHAIN;
+  delete env.SEARXNG_URL;
 });
 
 describe('the chain decides, not the caller', () => {
@@ -148,6 +150,15 @@ describe('failure hands over, emptiness does not', () => {
     linkupSearch.mockRejectedValue(new Error('y'));
     const res = await webSearch({ query: 'q', maxResults: 5 });
     expect(res.provider).toBe('searxng');
+  });
+
+  it('treats SearXNG without SEARXNG_URL as not configured', async () => {
+    env.WEB_SEARCH_CHAIN = ['greenpt', 'linkup', 'searxng'];
+    delete env.SEARXNG_URL;
+    greenptSearch.mockRejectedValue(new Error('x'));
+    linkupSearch.mockRejectedValue(new Error('y'));
+    await expect(webSearch({ query: 'q', maxResults: 5 })).rejects.toThrow('y');
+    expect(searxngSearch).not.toHaveBeenCalled();
   });
 
   it("returns Linkup's empty answer as an answer — it has no silent-outage mode to guard against", async () => {

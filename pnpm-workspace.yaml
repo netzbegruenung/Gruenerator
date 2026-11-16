@@ -27,11 +27,11 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Vector export (SVG, vector PDF with brand CMYK, PPTX with SVG pictures;
-  # Movm/ggraphic#187-#189, #192). core alpha.3 published 2026-11-06 14:25 UTC,
-  # editor alpha.6 2026-11-06 14:26 UTC. Inert from 2026-11-09 14:27 UTC, remove then.
-  - '@ggraphic/core@0.1.0-alpha.3'
-  - '@ggraphic/editor@0.1.0-alpha.6'
+  # Canvas editor: text size typed and scaled by corners, crop pan that no longer
+  # jumps back on a resting pointer, filtered crop pan at frame rate
+  # (Movm/ggraphic#195, #198, #200). editor alpha.7 published 2026-11-16 18:35 UTC.
+  # Inert from 2026-11-19 18:36 UTC, remove then.
+  - '@ggraphic/editor@0.1.0-alpha.7'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -358,20 +358,12 @@ auditConfig:
     # parses its own stats file, nothing ships in the app. Re-check 2026-11-14.
     - GHSA-mjw6-4jj6-33hc
     - GHSA-hqr4-qq8f-hg3x
-    # postcss-selector-parser <7.1.6 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
-    # apps/wordpress → @wordpress/scripts / sass-loader → webpack → cssnano
-    # (stylehacks, postcss-merge-rules, postcss-minify-selectors declare
-    # ^6.0.16, postcss-calc ^6.0.11); no patched 6.x, a >=7.1.6 floor would
-    # cross the major. Build-time CSS minification of our own plugin styles.
-    # Re-check 2026-11-14.
+    # postcss-selector-parser <6.1.5 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
+    # documentation → @docusaurus/* → webpack → cssnano (stylehacks,
+    # postcss-merge-rules, postcss-minify-selectors). Build-time CSS
+    # minification of our own docs styles. The advisory now lists 6.1.5 as
+    # patched, so a floor inside the 6.x line can replace this entry.
     - GHSA-rj75-hqrm-r3gf
-    # @opentelemetry/instrumentation-{pg,mysql2,knex,mysql,mongoose,tedious}
-    # (GHSA-qqmp-wf37-98f9). Only via apps/wordpress → @wordpress/scripts →
-    # @wordpress/e2e-test-utils-playwright → lighthouse → @sentry/node 9.47.1,
-    # which pins every instrumentation exactly (e.g. instrumentation-pg
-    # 0.51.1), so no floor is possible. Lighthouse runs no database driver;
-    # wp-scripts is build/e2e tooling only. Re-check 2026-11-14.
-    - GHSA-qqmp-wf37-98f9
     # sprintf-js <=1.1.3 (GHSA-hp3w-g68c-fv3c, no patched release). Only via
     # packages/shared → gray-matter → js-yaml 3 → argparse 1 → sprintf-js
     # 1.0.3. gray-matter is a devDependency used by scripts/build-agents.ts
@@ -383,9 +375,7 @@ auditConfig:
     # (GHSA-mrhx-c7xc-m3w5). Our own validation runs on zod 4 (>=4.6.6). What
     # remains is tooling that keeps its own nested zod 3, which has no patched
     # release: apps/mobile → expo → @expo/cli (dev server / CLI, never in the
-    # app bundle) and apps/wordpress → @wordpress/scripts → puppeteer-core →
-    # chromium-bidi (build/e2e tooling; its schemas parse the browser's
-    # protocol messages, not user input).
+    # app bundle).
     # ignoreGhsas cannot be scoped to a version, so the `zod@>=4 <5` floor
     # override below keeps every zod 4 copy at >=4.6.6. Re-check 2026-11-25.
     - GHSA-mrhx-c7xc-m3w5
@@ -399,9 +389,8 @@ auditConfig:
     - GHSA-g3hv-75wg-m249
     - GHSA-3g3m-2fjr-6pw4
     # deepmerge <=4.3.1 prototype poisoning of returned objects (low, no
-    # patched release). Via @expo/config, @svgr/plugin-svgo, jest-config and
-    # the @wordpress/* editor packages; they merge their own config and block
-    # attribute objects, no code of ours imports deepmerge. Re-check 2026-12-01.
+    # patched release). Via @expo/config, @svgr/plugin-svgo and jest-config;
+    # they merge their own config objects, no code of ours imports deepmerge. Re-check 2026-12-01.
     - GHSA-gcqx-w48m-w2h4
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs

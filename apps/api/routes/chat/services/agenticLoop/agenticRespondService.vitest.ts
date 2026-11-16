@@ -15,7 +15,6 @@
  *  - dass ein ausgefallener MCP-Katalog den Turn NICHT abbricht,
  *  - dass die Erstellungs-Werkzeuge ihre eigene Zeitgrenze bekommen.
  */
-import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect, vi } from 'vitest';
 
 // Die Zusammenfassungszeile IST hier der Prüfgegenstand (siehe den letzten
@@ -628,10 +627,8 @@ describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', ()
   });
 });
 
-describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#3880)', () => {
+describe('streamAgenticResponse — @link-Seiten', () => {
   const tool = { execute: async () => ({}) };
-  // Das Feld, auf dem #3880 lief: Recherche-Werkzeuge neben den dreien, die der
-  // Planer unter `required` gegriffen hat.
   const MOUNTED = [
     'web_search',
     'gruenerator_search',
@@ -645,18 +642,6 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     tools: Object.fromEntries(names.map((n) => [n, tool])) as unknown as ToolSet,
     ...over,
   });
-  const historyWith = (toolNames: readonly string[]) => ({
-    artifacts: () => [],
-    toolSteps: (): PersistedStep[] =>
-      toolNames.map((toolName, i) => ({ toolCallId: `c${i}`, toolName, args: {}, result: {} })),
-    lastTurnToolSteps: () => [],
-    lastTurnArtifacts: () => [],
-    lastTurnIntent: () => null,
-    lastTurnOffer: () => null,
-    sources: () => [],
-    lastGeneratedImageUrl: () => null,
-  });
-
   async function loopParams(
     state: ChatGraphState,
     userText: string,
@@ -673,108 +658,6 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     return seen as NonNullable<typeof seen>;
   }
 
-  it('named_intent: der benannte Abruf-Intent sieht nur seine eigenen Werkzeuge', async () => {
-    const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED));
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstToolName).toBeNull();
-    expect(p.firstStepTools).toEqual(['gruenerator_search']);
-  });
-
-  it('Tabellen-Turn: kein Zwang auf die Suche, sondern die Wahl rechnen/direkt antworten (#5042)', async () => {
-    const p = await loopParams(
-      fakeState({ intent: 'search' }),
-      'Wie viel Umsatz im März?',
-      catalogWith([...MOUNTED, 'tabelle_auswerten', 'direkt_antworten'])
-    );
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(['tabelle_auswerten', 'direkt_antworten']);
-  });
-
-  it('Fortsetzung desselben Zuges: kein erneuter Zwang auf den ersten Schritt', async () => {
-    const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED), {
-      resumeApproval: {
-        priorSteps: [
-          { toolCallId: 'c0', toolName: 'gruenerator_search', args: {}, result: {} },
-        ] satisfies PersistedStep[],
-        approved: [],
-        denied: [],
-      },
-    });
-    expect(p.forceFirstToolCall).toBe(false);
-    expect(p.firstStepTools).toBeNull();
-  });
-
-  it('named_intent mit Anhang ohne Vorab-Treffer: nur die angehängten Dokumente (#3888)', async () => {
-    // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
-    // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.
-    // Neben dem Dokument griff der Planer sonst zur Programmsuche.
-    const p = await loopParams(
-      fakeState({
-        intent: 'search',
-        documentSources: [{ kind: 'document', id: 'doc-1' }],
-      } as never),
-      'Erstelle daraus eine Tabelle.',
-      catalogWith([...MOUNTED, 'dokumente_lesen'])
-    );
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(['dokumente_lesen']);
-  });
-
-  it('research_order: ein Rechercheauftrag sieht die Recherche-Werkzeuge, nicht den Rest', async () => {
-    infoLines.length = 0;
-    const p = await loopParams(
-      fakeState(),
-      'recherchiere aktuelle Zahlen zu Windkraft',
-      catalogWith(MOUNTED)
-    );
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual([...RESEARCH_LOOP_TOOLS].filter((t) => MOUNTED.includes(t)));
-    for (const wrong of ['read_pdf_form', 'media', 'summarize']) {
-      expect(p.firstStepTools).not.toContain(wrong);
-    }
-    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
-    expect(summary).toContain(` force=research_order:${p.firstStepTools!.length}`);
-  });
-
-  it('Anschlussfrage nach einem Abruf-Turn: kein Zwang, das Modell entscheidet (09.11.2026)', async () => {
-    const p = await loopParams(fakeState(), 'Und die FDP?', catalogWith(MOUNTED), {
-      toolHistory: historyWith(['bundestag']),
-    });
-    expect(p.forceFirstToolCall).toBe(false);
-    expect(p.firstStepTools).toBeNull();
-  });
-
-  it('mcp_scope: ein Turn mit Server-Scope sieht nur dessen Werkzeuge', async () => {
-    const mcpTools = ['mnotion__search', 'mnotion__create_page'];
-    const mcpCatalog = {
-      tools: Object.fromEntries(mcpTools.map((n) => [n, tool])),
-      labels: new Map(mcpTools.map((n) => [n, { serverName: 'Notion', toolName: n }])),
-      close: async () => {},
-      scopedServerMissing: false,
-      scopedServerUnreachable: false,
-      driftedServers: [],
-      catalogSummary: '',
-      promptHints: [],
-    };
-    const p = await loopParams(
-      fakeState({ intent: 'agentic', mcpServerScope: 'notion' } as never),
-      'Lege eine Seite zum Heizungsgesetz an',
-      catalogWith([...MOUNTED, ...mcpTools], { mcpCatalog })
-    );
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(mcpTools);
-  });
-
-  it('pinned: ein benanntes Werkzeug trägt sich selbst, ohne Zuschnitt', async () => {
-    const p = await loopParams(
-      fakeState({ mentionPinnedTool: 'bundestag' } as never),
-      'Was liegt zum Heizungsgesetz vor?',
-      catalogWith(MOUNTED)
-    );
-    expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstToolName).toBe('bundestag');
-    expect(p.firstStepTools).toBeNull();
-  });
   it('zeigt dem Planer die @link-Seite eines Loop-Turns als gelesenen scrape_url-Aufruf (#4896)', async () => {
     crawledSeeds.length = 0;
     const link = 'https://example.org/radweg';

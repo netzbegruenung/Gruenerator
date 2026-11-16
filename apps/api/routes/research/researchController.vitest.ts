@@ -3,9 +3,15 @@
  * search. The text comes from stored documents, so every return path must be
  * escaped — `<mark>` around the hits is the only markup it may carry.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { highlightSnippet } from './researchController.js';
+const facetValueCounts = vi.fn();
+vi.mock('../../services/notebook/collectionFacets.js', () => ({
+  facetValueCounts: (...a: unknown[]) => facetValueCounts(...a),
+  facetDateRange: async () => ({ min: '2020-01-01', max: '2026-01-01' }),
+}));
+
+import { getMergedFilters, highlightSnippet } from './researchController.js';
 
 const STORED_MARKUP = '<iframe srcdoc="<p>x</p>"></iframe> <img src="x" onerror="y"> A & B';
 const ESCAPED_MARKUP =
@@ -49,5 +55,38 @@ describe('highlightSnippet — escaping', () => {
 
   it('keeps an empty text empty', () => {
     expect(highlightSnippet('', 'Hitzeschutz')).toBe('');
+  });
+});
+
+describe('getMergedFilters — cache', () => {
+  const TWO_VALUES = [
+    { value: 'a', count: 2 },
+    { value: 'b', count: 1 },
+  ];
+
+  it('answers a second request from the cache when every field succeeded', async () => {
+    facetValueCounts.mockReset().mockResolvedValue(TWO_VALUES);
+
+    const first = await getMergedFilters(['gruene-de-system']);
+    const calls = facetValueCounts.mock.calls.length;
+    const second = await getMergedFilters(['gruene-de-system']);
+
+    expect(second).toEqual(first);
+    expect(facetValueCounts).toHaveBeenCalledTimes(calls);
+  });
+
+  it('does not keep an answer in which a field failed', async () => {
+    // A remote source being briefly down would otherwise hide its fields for
+    // the whole cache lifetime.
+    facetValueCounts
+      .mockReset()
+      .mockRejectedValueOnce(new Error('Bundestag-Quelle gerade nicht erreichbar'))
+      .mockResolvedValue(TWO_VALUES);
+
+    await getMergedFilters(['grundsatz-system']);
+    const calls = facetValueCounts.mock.calls.length;
+    await getMergedFilters(['grundsatz-system']);
+
+    expect(facetValueCounts.mock.calls.length).toBeGreaterThan(calls);
   });
 });

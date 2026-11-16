@@ -17,18 +17,23 @@ const SESSION_CHECK_TIMEOUT_MS = 5000;
 /** Same id as the API's dev-bypass user (`apps/api/middleware/authMiddleware.ts`). */
 const DEV_BYPASS_USER_ID = '00000000-0000-4000-a000-000000000001';
 
+/** Mirror of `DEV_BYPASS_EXTRA_USERS` in `apps/api/config/devAuthBypass.ts`. */
+const DEV_BYPASS_EXTRA_USERS = ['00000000-0000-4000-a000-0000000000b2'];
+
 /**
  * Local dev only, mirroring the API's `requireAuth`: the Vite dev proxy forwards
  * `/ws` here and attaches `x-dev-auth-bypass`, so the bypass user can open its
  * own private documents without a session cookie.
  */
-function devBypassUserId(headers: Headers): string | null {
+function devBypassUserId(headers: Headers, params?: URLSearchParams): string | null {
   if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_AUTH_BYPASS !== 'true') {
     return null;
   }
   const expected = process.env.DEV_AUTH_BYPASS_TOKEN;
   if (!expected) return null;
-  return headers.get('x-dev-auth-bypass') === expected ? DEV_BYPASS_USER_ID : null;
+  if (headers.get('x-dev-auth-bypass') !== expected) return null;
+  const asUser = params?.get('dev_auth_user');
+  return asUser && DEV_BYPASS_EXTRA_USERS.includes(asUser) ? asUser : DEV_BYPASS_USER_ID;
 }
 
 /**
@@ -55,7 +60,7 @@ export class AuthService {
     log.debug(`[Auth] Starting authentication for ${documentName}, hasToken: ${!!token}`);
 
     try {
-      const bypassUserId = devBypassUserId(requestHeaders);
+      const bypassUserId = devBypassUserId(requestHeaders, requestParameters);
       if (bypassUserId) return this.checkRoomAccess(documentName, bypassUserId);
 
       if (token) {
@@ -178,7 +183,7 @@ export class AuthService {
 
     const directAccess = await this.db(
       `SELECT user_id, permissions, is_public, doc_id FROM chat_threads
-       WHERE id = $1 LIMIT 1`,
+       WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
       [threadId]
     );
 
@@ -201,7 +206,31 @@ export class AuthService {
       return this.checkDocumentPermissions(thread.doc_id, userId);
     }
 
-    const isOwner = thread.user_id === userId;
+    // Mirrors ownsThreadSql (apps/api services/groups/projectThreadScope.ts):
+    // a team chat of a project the owner has left belongs to the project (#5678).
+    const isOwner =
+      thread.user_id === userId &&
+      (
+        await this.db(
+          `SELECT 1 FROM chat_threads t
+             JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
+              AND COALESCE(g.is_active, TRUE) = TRUE
+            WHERE t.id = $1 AND t.deleted_at IS NULL
+              AND EXISTS (
+                SELECT 1 FROM group_content_shares tcs
+                 WHERE tcs.content_type = 'chat_threads' AND tcs.content_id = t.id::text
+                   AND tcs.group_id = g.id
+                   AND COALESCE((tcs.permissions->>'read')::boolean, true) = true
+                   AND COALESCE((tcs.permissions->>'write')::boolean, true) = true
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM group_memberships gm
+                 WHERE gm.group_id = g.id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+              )
+            LIMIT 1`,
+          [threadId, userId]
+        )
+      ).length === 0;
     const hasDirectPermission = thread.permissions && userId in thread.permissions;
     const isPublic = thread.is_public;
 
@@ -218,26 +247,31 @@ export class AuthService {
       };
     }
 
+    // Mirrors threadAccessService: content_id is TEXT, a share missing its
+    // read key counts as readable, a write:false share is read-only.
+    // bool_or over zero rows is one row with NULL = no group share.
     const groupAccess = await this.db(
-      `SELECT 1 FROM group_content_shares gcs
+      `SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true)) AS can_write
+       FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type = 'chat_threads'
-       AND gcs.content_id = $1::uuid
+       AND gcs.content_id = $1::text
        AND gm.user_id = $2::uuid
        AND gm.is_active = TRUE
-       LIMIT 1`,
+       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
       [threadId, userId]
     );
 
-    if ((groupAccess as unknown[]).length > 0) {
+    const groupWrite = (groupAccess[0] as { can_write: boolean | null } | undefined)?.can_write;
+    if (groupWrite === true || groupWrite === false) {
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
       log.debug(`[Auth-Chat] User ${userId} has group access to thread ${threadId}`);
       return {
         authenticated: true,
         userId,
         userName: (userResult[0]?.display_name as string) || 'Unknown User',
-        readOnly: true,
+        readOnly: !groupWrite,
       };
     }
 

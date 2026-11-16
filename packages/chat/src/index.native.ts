@@ -81,11 +81,17 @@ export {
   getThreadAgentId,
   getThreadAccessType,
   isThreadReadOnly,
+  isThreadTeamChat,
+  isThreadCollaborative,
+  markThreadTeamShared,
+  setThreadGroupId,
+  subscribeThreadTags,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
   subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { mayReplaceTurn } from './hooks/mayReplaceTurn';
 export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
 // External Thread Context
@@ -258,6 +264,7 @@ export {
   useConnectProvidersQuery,
   useConnectBrowseQuery,
   useCanvaDesignsQuery,
+  MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,
   type ChatWolkeFile,
   type ChatConnectProvider,

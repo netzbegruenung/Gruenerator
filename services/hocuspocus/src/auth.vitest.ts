@@ -37,6 +37,12 @@ function makeDb(rows: Rows) {
     if (/FROM collaborative_documents/i.test(sql)) return rows.doc ? [rows.doc] : [];
     if (/FROM chat_threads/i.test(sql)) return rows.thread ? [rows.thread] : [];
     const groupVisible = !rows.groupTrashed || !LIVE_GROUP.test(sql);
+    if (/FROM group_content_shares/i.test(sql) && /can_write/.test(sql)) {
+      // Chat-thread share lookup: bool_or over zero rows is one row with NULL.
+      const g = rows.group;
+      const readable = !!g && g.read !== false && groupVisible;
+      return [{ can_write: readable ? (g.write ?? true) : null }];
+    }
     if (/FROM group_content_shares/i.test(sql)) {
       return rows.group && groupVisible ? [{ permissions: rows.group }] : [];
     }
@@ -414,6 +420,30 @@ describe('AuthService — local dev bypass', () => {
     expect(res.authenticated).toBe(false);
   });
 
+  it('switches to the allowlisted second identity via dev_auth_user', async () => {
+    const LENA = '00000000-0000-4000-a000-0000000000b2';
+    const { db } = makeDb({
+      doc: publicDoc({ created_by: LENA, is_public: false, share_mode: 'private' }),
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      ...viaProxy('doc-1', 'dev-token'),
+      requestParameters: new URLSearchParams({ dev_auth_user: LENA }),
+    });
+    expect(res.authenticated).toBe(true);
+    expect(res.userId).toBe(LENA);
+  });
+
+  it('ignores dev_auth_user outside the allowlist', async () => {
+    const { db } = makeDb({ doc: ownDoc() });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      ...viaProxy('doc-1', 'dev-token'),
+      requestParameters: new URLSearchParams({
+        dev_auth_user: '00000000-0000-4000-a000-0000000000ee',
+      }),
+    });
+    expect(res.userId).toBe('00000000-0000-4000-a000-000000000001');
+  });
+
   it('ignores a wrong token', async () => {
     const { db } = makeDb({ doc: ownDoc() });
     const res = await new AuthService({ db, redis }).authenticateConnection(
@@ -463,5 +493,61 @@ describe('AuthService — profiles lookup failure does not mask a denial', () =>
       redis,
     }).authenticateConnection(withToken('doc-1'));
     expect(res).toMatchObject({ authenticated: true, userName: 'Unknown User' });
+  });
+});
+
+describe('AuthService — team chat rooms (final review)', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const chat = {
+    thread: { user_id: 'owner-1', permissions: null, is_public: false, doc_id: null },
+  };
+  const run = (rows: Rows) =>
+    new AuthService({ db: makeDb(rows).db, redis }).authenticateConnection(
+      withToken('chat-thread-1')
+    );
+
+  it('compares the TEXT content_id as text, never as uuid', async () => {
+    const { db, captured } = makeDb({ ...chat, group: { read: true, write: true } });
+    await new AuthService({ db, redis }).authenticateConnection(withToken('chat-thread-1'));
+    const q = captured.find((c) => /FROM group_content_shares/i.test(c.sql));
+    expect(q?.sql).toMatch(/gcs\.content_id = \$1::text/);
+    expect(q?.sql).not.toMatch(/content_id = \$1::uuid/);
+  });
+
+  it('filters trashed threads in the room lookup', async () => {
+    const { db, captured } = makeDb(chat);
+    await new AuthService({ db, redis }).authenticateConnection(withToken('chat-thread-1'));
+    const q = captured.find((c) => /FROM chat_threads/i.test(c.sql));
+    expect(q?.sql).toMatch(/deleted_at IS NULL/);
+  });
+
+  it('write:true share gives a writable member, write:false a read-only one', async () => {
+    const w = await run({ ...chat, group: { read: true, write: true } });
+    expect(w.authenticated).toBe(true);
+    expect(w.readOnly).toBe(false);
+    const r = await run({ ...chat, group: { read: true, write: false } });
+    expect(r.authenticated).toBe(true);
+    expect(r.readOnly).toBe(true);
+  });
+
+  it('a share without read grants nothing', async () => {
+    const res = await run({ ...chat, group: { read: false, write: true } });
+    expect(res.authenticated).toBe(false);
+  });
+
+  it('requires the share to be readable in SQL', async () => {
+    const { db, captured } = makeDb({ ...chat, group: { read: true } });
+    await new AuthService({ db, redis }).authenticateConnection(withToken('chat-thread-1'));
+    const q = captured.find((c) => /FROM group_content_shares/i.test(c.sql));
+    expect(q?.sql).toMatch(/'read'/);
   });
 });

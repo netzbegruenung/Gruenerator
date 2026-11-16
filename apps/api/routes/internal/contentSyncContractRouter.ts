@@ -248,22 +248,6 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
-    case 'bundestag-dip': {
-      const { getBundestagDipScraperService } =
-        await import('../../services/scrapers/implementations/BundestagDipScraper/index.js');
-      const service = getBundestagDipScraperService();
-      config = {
-        name: 'Bundestag DIP (Reden + Drucksachen)',
-        // Inkrementell dauert Minuten. --force lädt alle Volltexte dreier
-        // Wahlperioden und schafft das in diesem Rahmen nicht — der Grundbestand
-        // kommt aus scripts/import-bundestag-wrapped.ts.
-        timeoutMs: 110 * 60 * 1000,
-        init: () => service.init(),
-        run: (opts) =>
-          service.scrapeAllSources({ forceUpdate: opts.forceUpdate, dryRun: opts.dryRun }),
-      };
-      break;
-    }
     case 'landtag-nrw': {
       const { getLandtagNrwScraper } =
         await import('../../services/scrapers/implementations/LandtagNrwScraper/index.js');
@@ -337,6 +321,34 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
           return {
             stored: result.stored,
             updated: 0,
+            skipped: result.skipped,
+            errors: result.failed,
+            errorSamples: result.errors.slice(0, 20),
+          };
+        },
+      };
+      break;
+    }
+    case 'parteitage': {
+      const { getParteitageScraper } =
+        await import('../../services/scrapers/implementations/ParteitageScraper/index.js');
+      const service = getParteitageScraper();
+      config = {
+        name: 'Parteitage (Antragsgrün)',
+        // Die Erstbefüllung (rund 3.800 Dokumente für NRW) braucht mehr als
+        // einen Lauf: `stopAt` beendet ihn vor dem Timeout, der nächste macht
+        // bei den noch fehlenden Dokumenten weiter.
+        timeoutMs: 50 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.run({
+            force: opts.forceUpdate,
+            dryRun: opts.dryRun,
+            stopAt: Date.now() + 40 * 60 * 1000,
+          });
+          return {
+            stored: result.stored,
+            updated: result.updated,
             skipped: result.skipped,
             errors: result.failed,
             errorSamples: result.errors.slice(0, 20),

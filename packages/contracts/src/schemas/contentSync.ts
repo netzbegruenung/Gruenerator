@@ -20,13 +20,13 @@ export const contentSyncSourceSchema = z.enum([
   'social-media',
   'lv-instagram',
   'abgeordnetenwatch',
-  'bundestag-dip',
   'grundsatz',
   'gruene-de',
   'oesterreich',
   'landtag-nrw',
   'landtag-berlin',
   'landtag-bayern',
+  'parteitage',
 ]);
 
 export type ContentSyncSource = z.infer<typeof contentSyncSourceSchema>;

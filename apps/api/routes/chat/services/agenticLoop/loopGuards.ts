@@ -102,31 +102,6 @@ export const MAX_SOURCES = 20;
 // Token-overlap at/above which two same-tool searches count as the same query.
 export const NEAR_DUPLICATE_JACCARD = 0.6;
 
-/**
- * What to do when the internal document search comes back EMPTY.
- *
- * This is all that is left of the former "internal-first" policy, which also
- * BLOCKED `web_search`/`scrape_url` until the party-document search had run, and
- * again once that search had yielded enough. The block is gone: it could not
- * tell a party question from a general one, so "wer war marilyn monroe?" was
- * refused the web and answered from model memory — hallucinated film title, not
- * one source. Which retrieval a question needs is the classifier's call, made
- * with the whole message and the thread in hand; a per-tool counter inside the
- * loop cannot second-guess it. The preference for party documents on party
- * questions stays where it works: in the tool descriptions and the planner
- * prompt, which name the topic ("für grüne Positionen, Programme, Beschlüsse").
- *
- * What remains is not a block — it only ever ADDS a search.
- */
-export interface InternalFallbackPolicy {
-  /** The internal document search whose empty result triggers the fallback. */
-  requiredTool: string;
-  /** Which tool to FORCE when the internal search completed with nothing. The
-   *  caller names it (and only when it is actually mounted) so this module keeps
-   *  no tool-catalog knowledge. */
-  fallbackTool: string;
-}
-
 export interface ToolLoopGuardOptions {
   maxFailuresPerTool?: number;
   maxTotalFailures?: number;
@@ -144,7 +119,6 @@ export interface ToolLoopGuardOptions {
   /** Jaccard overlap ≥ this on a same-tool query = a near-duplicate (turn scope
    *  only). 0 disables. */
   nearDuplicateJaccard?: number;
-  internalFallback?: InternalFallbackPolicy;
 }
 
 export interface ToolLoopGuards {
@@ -172,22 +146,12 @@ export interface ToolLoopGuards {
   checkSearchConcurrency(toolName: string): GuardVerdict;
   /** Records an executed call (after all guards passed). */
   noteCall(toolName: string): void;
-  /** Records that a call finished (result available). Lets emptyResultFallback
-   *  tell an in-flight internal search from a completed-but-empty one. */
+  /** Records that a call finished (result available). Lets the concurrency
+   *  check tell an in-flight search from a completed one. */
   noteCompletion(toolName: string): void;
   /** Records a model turn that produced neither text nor a tool call; returns the running count. */
   noteEmptyCompletion(): number;
   readonly emptyCompletions: number;
-  /**
-   * The tool the next step must be forced into, or null.
-   *
-   * Non-null exactly when the internal search has COMPLETED and registered
-   * nothing, and the fallback tool has not run yet. Being ALLOWED to search the
-   * web was never enough — permission the planner was free to ignore, and did:
-   * the same question researched properly in one session and answered
-   * ungrounded in the next, decided by nothing but sampling.
-   */
-  emptyResultFallback(): string | null;
 }
 
 /** Normalizes string values so re-phrasings of the same query collide:
@@ -409,7 +373,7 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       // In flight = called but not yet completed. `noteCall` bumps synchronously
       // before the tool is awaited and `noteCompletion` after its result lands,
       // so within one model step the first calls pass and the surplus sees a full
-      // count — the same window `emptyResultFallback` relies on.
+      // count.
       let inFlight = 0;
       for (const name of searchToolNames) {
         inFlight += (callCounts.get(name) ?? 0) - (completedCounts.get(name) ?? 0);
@@ -428,21 +392,6 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
     },
     noteCompletion(toolName) {
       completedCounts.set(toolName, (completedCounts.get(toolName) ?? 0) + 1);
-    },
-    emptyResultFallback() {
-      const policy = options.internalFallback;
-      if (!policy) return null;
-      // Three states — never called, in flight, completed. Only the third one
-      // can be judged empty: forcing while a result may still land would race.
-      const internalCalls = callCounts.get(policy.requiredTool) ?? 0;
-      const internalCompleted = completedCounts.get(policy.requiredTool) ?? 0;
-      if (internalCalls === 0 || internalCalls > internalCompleted) return null;
-      if ((options.getSourceCount?.() ?? 0) > 0) return null;
-      // Already searched the web on its own — nothing to force. Without this an
-      // empty web search would be forced again every step until the budget ran
-      // out.
-      if ((callCounts.get(policy.fallbackTool) ?? 0) > 0) return null;
-      return policy.fallbackTool;
     },
     noteEmptyCompletion() {
       emptyCompletions += 1;

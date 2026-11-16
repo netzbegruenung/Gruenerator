@@ -114,6 +114,11 @@ export interface AddGroupShareInput {
   sharerName?: string;
   /** `false` für Aufrufer mit eigener Benachrichtigung (Dokumente). */
   notify?: boolean;
+  /** Eine offene Transaktion des Aufrufers: Aufhebung und Freigabe-Zeile
+   * laufen auf ihr, damit sie mit dem Inhalt zusammen bestehen oder fallen.
+   * Der Aufrufer setzt dann `notify: false` — vor dem Commit gäbe es noch
+   * nichts zu lesen. */
+  tx?: { query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }> };
 }
 
 export interface AddGroupShareResult {
@@ -136,8 +141,18 @@ export class GroupShareForbiddenError extends Error {
 /** Wirft {@link GroupShareForbiddenError}, wenn die Person in diesem Projekt nicht teilen darf. */
 export async function addGroupShare(
   input: AddGroupShareInput,
-  deps: GroupShareWriterDeps = defaultDeps()
+  baseDeps: GroupShareWriterDeps = defaultDeps()
 ): Promise<AddGroupShareResult> {
+  const { tx } = input;
+  const deps: GroupShareWriterDeps = tx
+    ? {
+        ...baseDeps,
+        postgres: {
+          query: (async (text: string, params?: unknown[]) =>
+            (await tx.query(text, params)).rows) as GroupShareWriterDeps['postgres']['query'],
+        },
+      }
+    : baseDeps;
   const { userId, groupId, contentType, contentId, permissions } = input;
   try {
     await deps.assertCanShare(groupId, userId);

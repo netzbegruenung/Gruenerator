@@ -50,6 +50,7 @@ const {
   formatPastChatsBlock,
   formatOfficeDocsBlock,
   formatReelsBlock,
+  formatSpaceContentBlock,
 } = await import('./pastChatRecallService.js');
 
 function makeReel(id: string, title: string) {
@@ -371,5 +372,72 @@ describe('formatReelsBlock', () => {
   it('notes a reel that has no subtitles instead of emitting a blank line', () => {
     const block = formatReelsBlock([{ ...makeReel('r1', 'Stumm'), snippet: '' }]);
     expect(block).toContain('(keine Untertitel vorhanden)');
+  });
+});
+
+describe('formatSpaceContentBlock', () => {
+  const empty = {
+    documents: [],
+    generators: [],
+    notebooks: [],
+    texts: [],
+    templates: [],
+    collaborative_documents: [],
+    system_notebooks: [],
+    system_agents: [],
+    user_agents: [],
+    canvas_templates: [],
+    group_posts: [],
+    recipes: [],
+  };
+
+  it('names project notebooks with the id `notebooks` expects', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      notebooks: [{ id: 'nb-1', name: 'Hintergrund Wärmeplanung' }],
+    });
+    expect(block).toContain('„Hintergrund Wärmeplanung" (id: nb-1)');
+    expect(block).toContain('`notebooks` action="search"');
+  });
+
+  it('lists project files and marks the ones still being read in', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      documents: [
+        { id: 'd1', title: 'Förderbescheid.pdf', status: 'completed' },
+        { id: 'd2', title: null, filename: 'Entwurf.docx', status: 'processing' },
+      ],
+    });
+    expect(block).toContain('Dateien dieses Projekts:');
+    expect(block).toContain('- „Förderbescheid.pdf"\n');
+    expect(block).toContain('- „Entwurf.docx" (wird noch eingelesen)');
+    expect(block).toContain('`dokumente_lesen`');
+  });
+
+  it('says a failed file will not arrive, instead of "still being read in"', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      documents: [{ id: 'd3', title: 'Angebot.txt', status: 'failed' }],
+    });
+    expect(block).toContain('- „Angebot.txt" (konnte nicht eingelesen werden');
+    expect(block).not.toContain('wird noch eingelesen');
+  });
+
+  it('adds no file section without project files', () => {
+    expect(formatSpaceContentBlock({ ...empty })).not.toContain('Dateien dieses Projekts');
+  });
+
+  it('names project recipes with the catalog key `rezept_laden` expects', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      recipes: [{ mention: 'pm-waermeplanung', title: 'Pressemitteilung Wärmeplanung' }],
+    });
+    expect(block).toContain('„Pressemitteilung Wärmeplanung" (Kennung: pm-waermeplanung)');
+    expect(block).toContain('`rezept_laden`');
+  });
+
+  it('adds nothing when the project shares neither, or could not be read', () => {
+    expect(formatSpaceContentBlock(empty)).toBe('');
+    expect(formatSpaceContentBlock(null)).toBe('');
   });
 });

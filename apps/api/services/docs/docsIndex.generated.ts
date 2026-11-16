@@ -185,6 +185,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
   },
   {
+    "url": "/docs/features/parteitage",
+    "title": "Parteitage",
+    "category": "Features",
+    "lead": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
     "url": "/docs/features/podcasts",
     "title": "Podcasts",
     "category": "Features",
@@ -1147,7 +1153,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 28 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 29 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
   },
   {
     "url": "/docs/basics/tools",
@@ -1163,7 +1169,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund."
+    "text": "Parteitage: Reden als Reels Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund."
   },
   {
     "url": "/docs/basics/tools",
@@ -2204,6 +2210,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-nicht-im-papierkorb-landet",
     "category": "Features",
     "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Parteitage",
+    "anchor": "",
+    "category": "Features",
+    "text": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Eine Rede weiterverwenden",
+    "anchor": "#eine-rede-weiterverwenden",
+    "category": "Features",
+    "text": "Bei jeder Rede stehen zwei Wege offen: In Editor laden öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel. Nur untertiteln untertitelt die ganze Rede auf dem Server. Du bekommst ein fertiges Video, das du mit Herunterladen speicherst. Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Kartenquelle",
+    "anchor": "#kartenquelle",
+    "category": "Features",
+    "text": "Die Karte beruht auf den Verwaltungsgrenzen VG250: © GeoBasis-DE / BKG (2026), dl-de/by-2.0."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Statistik",
+    "anchor": "#statistik",
+    "category": "Features",
+    "text": "Die Statistik des Parteitags zeigt drei Dinge: Kreisfreie Städte und Kreise: Woher kamen die Redebeiträge, dargestellt auf einer Karte. Wahlergebnisse: Ergebnisse der Wahlgänge des Parteitags. Themen: Worüber gesprochen wurde. Bei Vergleichen prüft der Grünerator, ob ein Unterschied zufällig sein kann. Weil viele Vergleiche gleichzeitig laufen, wird die Falschentdeckungsrate nach Benjamini-Hochberg korrigiert. Das Ergebnis trägt eine von zwei Kennzeichnungen: Hinweis: Auffälligkeit, die ein Blick wert ist, aber nach der Korrektur nicht sicher genug ist. belastbar: Der Unterschied besteht auch nach der Korrektur. Eine Auswertung nach Geschlecht gibt es nicht. Bei Wahlplätzen unterscheidet der Grünerator nur zwischen Frauenplatz und offenem Platz."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Zugang",
+    "anchor": "#zugang",
+    "category": "Features",
+    "text": "Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
   },
   {
     "url": "/docs/features/podcasts",
@@ -3547,7 +3593,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Häufige Probleme und Lösungen",
     "anchor": "#häufige-probleme-und-lösungen",
     "category": "Guides",
-    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Meldet der Grünerator, die Verbindung sei abgelaufen oder abgewiesen, wurde der Link in der Wolke gelöscht, ist abgelaufen oder nachträglich mit einem Passwort versehen worden. Erstelle dann einen neuen Link und verbinde ihn unter Einstellungen → Konnektoren im Abschnitt Grüne Wolke neu. Meldet er eine Upload-Freigabe („Dateien ablegen\"), erstelle einen neuen Link mit der Berechtigung „Nur anzeigen\" — aus einer reinen Upload-Freigabe kann er nichts lesen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
+    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Meldet der Grünerator, die Verbindung sei abgelaufen oder abgewiesen, wurde der Link in der Wolke gelöscht, ist abgelaufen oder nachträglich mit einem Passwort versehen worden. Erstelle dann einen neuen Link und verbinde ihn unter Einstellungen → Wolke neu. Meldet er eine Upload-Freigabe („Dateien ablegen\"), erstelle einen neuen Link mit der Berechtigung „Nur anzeigen\" — aus einer reinen Upload-Freigabe kann er nichts lesen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -3579,7 +3625,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Link kopieren und verwenden",
     "anchor": "#schritt-3-link-kopieren-und-verwenden",
     "category": "Guides",
-    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Konnektoren im Abschnitt Grüne Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
+    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -3723,7 +3769,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "4. Dienst im Chat auswählen",
     "anchor": "#4-dienst-im-chat-auswählen",
     "category": "Guides",
-    "text": "Erwähne den Dienst in der ersten Anfrage per @, zum Beispiel: Erstelle mit @tally ein Anmeldeformular für unser Sommerfest. Die Mention erscheint als Chip in deiner Nachricht. Bei einer direkt anschließenden Folgefrage kann der Chat den zuletzt gewählten Konnektor weiterverwenden. Erwähne ihn erneut, wenn du den Dienst wechselst oder die Auswahl eindeutig machen möchtest. Vor einem schreibenden oder anderweitig sensiblen Werkzeug kann der Chat deine Bestätigung verlangen. Prüfe die vorgeschlagene Aktion, bevor du sie erlaubst. Dauerhaft erteilte Freigaben kannst du in den Einstellungen unter Datenschutz → Immer erlaubte Werkzeuge wieder entfernen; dieser Abschnitt erscheint erst, wenn eine solche Freigabe vorhanden ist."
+    "text": "Erwähne den Dienst in der ersten Anfrage per @, zum Beispiel: Erstelle mit @tally ein Anmeldeformular für unser Sommerfest. Die Mention erscheint als Chip in deiner Nachricht. Bei einer direkt anschließenden Folgefrage kann der Chat den zuletzt gewählten Konnektor weiterverwenden. Erwähne ihn erneut, wenn du den Dienst wechselst oder die Auswahl eindeutig machen möchtest. Vor einem schreibenden oder anderweitig sensiblen Werkzeug kann der Chat deine Bestätigung verlangen. Prüfe die vorgeschlagene Aktion, bevor du sie erlaubst. Dauerhaft erteilte Freigaben kannst du in den Konnektor-Einstellungen unter Immer erlaubte Werkzeuge wieder entfernen; dieser Abschnitt erscheint erst, wenn eine solche Freigabe vorhanden ist."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -4587,7 +4633,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing. Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren."
+    "text": "Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4595,7 +4641,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal. Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
+    "text": "Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen. Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4603,7 +4649,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner"
+    "text": "nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4611,7 +4657,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages Neue Avatare:"
+    "text": "veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Ist sie eingerichtet, kannst du Dateien von dort direkt im Chat und in den Notebooks nutzen und Ergebnisse dorthin zurückspeichern. Meine Websites."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4619,7 +4665,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Wenn neue Profil-Avatare verfügbar sind Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Alles, was der Grünerator von außen lesen darf, an einer Stelle: deine Grüne Wolke, weitere Dienste für den Chat und die Websites deines Verbands. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Grüne Wolke: Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Weitere Dienste (experimentell): Externe Dienste, die du im Chat per @-Erwähnung ansprichst. Meine Websites: WordPress-Seiten verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands. Die Kategorien werden einmal abgefragt und stehen danach überall zur Auswahl."
+    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4627,7 +4673,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Die Links /settings/wolke und /settings/websites führen weiterhin hierher — bis zum 11.11.2026 waren das eigene Bereiche. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
+    "text": "9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Animationen reduzieren und Transparenz reduzieren schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4635,7 +4681,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt."
+    "text": "Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich. Bäume. Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos. Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Nutzung. Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4643,15 +4689,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Animationen reduzieren und Transparenz reduzieren schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort. Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10."
-  },
-  {
-    "url": "/docs/sonstiges/einstellungen",
-    "pageTitle": "Einstellungen",
-    "heading": "Die Bereiche im Einzelnen",
-    "anchor": "#die-bereiche-im-einzelnen",
-    "category": "Sonstiges",
-    "text": "Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos. Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir\" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Der Link /settings/baeume führt weiterhin hierher. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
+    "text": "Nutzung: Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
   },
   {
     "url": "/docs/sonstiges/einstellungen",

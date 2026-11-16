@@ -75,6 +75,8 @@ void (async () => {
 })();
 
 const AUDIO_UPLOAD_PATH = '/api/audio/upload';
+// Admin-only Parteitage import (reels up to MAX_VIDEO_UPLOAD_BYTES, any filetype).
+const PARTEITAGE_UPLOAD_PATH = '/api/admin/parteitage/upload';
 
 /**
  * `filetype` from the client-supplied Upload-Metadata creation header
@@ -116,6 +118,7 @@ const tusServer = new Server({
     // req.url is an absolute URL here (@tus/server v2 hands the callback a
     // fetch Request), so match on the parsed pathname.
     const pathname = new URL(req.url, 'http://internal').pathname;
+    if (pathname.startsWith(PARTEITAGE_UPLOAD_PATH)) return MAX_VIDEO_UPLOAD_BYTES;
     if (!pathname.startsWith(AUDIO_UPLOAD_PATH)) return MAX_AUDIO_BYTES;
     // The ceiling matters at creation, where Upload-Metadata is present; PATCH
     // requests carry no metadata but validate against the size fixed at

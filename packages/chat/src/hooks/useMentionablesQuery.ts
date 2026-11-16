@@ -150,10 +150,18 @@ export function useUserNotebooksQuery() {
  * @brevo, …). Only enabled servers become mentions; anonymous users / no
  * servers resolve to an empty list.
  */
+/**
+ * Query key of the @mention server list. Exported so the connector settings can
+ * invalidate it after adding, removing or switching a server: the settings are a
+ * dialog over the chat, so the composer stays mounted and would otherwise keep
+ * the old list until it remounts after `STALE_TIME`.
+ */
+export const MCP_SERVER_MENTIONS_QUERY_KEY = ['mention-mcp-servers'] as const;
+
 export function useMcpServersQuery() {
   const get = useMentionableFetch();
   return useQuery<McpServerListItem[]>({
-    queryKey: ['mention-mcp-servers'],
+    queryKey: MCP_SERVER_MENTIONS_QUERY_KEY,
     queryFn: () => syncMcpServers(get),
     staleTime: STALE_TIME,
     retry: 1,
