@@ -183,7 +183,7 @@ export class AuthService {
 
     const directAccess = await this.db(
       `SELECT user_id, permissions, is_public, doc_id FROM chat_threads
-       WHERE id = $1 LIMIT 1`,
+       WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
       [threadId]
     );
 
@@ -223,26 +223,31 @@ export class AuthService {
       };
     }
 
+    // Mirrors threadAccessService: content_id is TEXT, a share missing its
+    // read key counts as readable, a write:false share is read-only.
+    // bool_or over zero rows is one row with NULL = no group share.
     const groupAccess = await this.db(
-      `SELECT 1 FROM group_content_shares gcs
+      `SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true)) AS can_write
+       FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type = 'chat_threads'
-       AND gcs.content_id = $1::uuid
+       AND gcs.content_id = $1::text
        AND gm.user_id = $2::uuid
        AND gm.is_active = TRUE
-       LIMIT 1`,
+       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
       [threadId, userId]
     );
 
-    if ((groupAccess as unknown[]).length > 0) {
+    const groupWrite = (groupAccess[0] as { can_write: boolean | null } | undefined)?.can_write;
+    if (groupWrite === true || groupWrite === false) {
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
       log.debug(`[Auth-Chat] User ${userId} has group access to thread ${threadId}`);
       return {
         authenticated: true,
         userId,
         userName: (userResult[0]?.display_name as string) || 'Unknown User',
-        readOnly: true,
+        readOnly: !groupWrite,
       };
     }
 
