@@ -5,7 +5,8 @@
  * on every turn with the reader's own access rules (resolveNotebookSources.ts),
  * so a stored ref never grants anything by itself.
  *
- * Stored in `chat_threads.notebook_source_refs`, scoped to the thread owner.
+ * Stored per person: the owner's in `chat_threads.notebook_source_refs`, a
+ * team-chat member's in `chat_thread_member_refs` (#5675).
  * Deliberately NOT in `chat_thread_attachments`: trashing and purging a thread
  * delete the vectors of every `document_id` there, which would destroy the
  * referenced (real) document.
