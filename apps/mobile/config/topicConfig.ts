@@ -4,20 +4,9 @@
  * icons / Tailwind class strings) — the German labels must stay in sync with web.
  */
 
-export type TopicCategory =
-  | 'migration'
-  | 'klima'
-  | 'wirtschaft'
-  | 'soziales'
-  | 'sicherheit'
-  | 'gesundheit'
-  | 'europa'
-  | 'digital'
-  | 'bildung'
-  | 'finanzen'
-  | 'justiz'
-  | 'arbeit'
-  | 'mobilitaet';
+import { type TopicCategory } from '@gruenerator/contracts';
+
+export type { TopicCategory };
 
 export const TOPIC_LABELS: Record<TopicCategory, string> = {
   migration: 'Migration',
@@ -33,4 +22,12 @@ export const TOPIC_LABELS: Record<TopicCategory, string> = {
   justiz: 'Justiz/Recht',
   arbeit: 'Arbeit',
   mobilitaet: 'Mobilität',
+  wohnen: 'Wohnen & Bauen',
+  landwirtschaft: 'Landwirtschaft & Ernährung',
+  tierschutz: 'Tierschutz',
+  gleichstellung: 'Gleichstellung & Vielfalt',
+  demokratie: 'Demokratie',
+  kultur: 'Kultur & Sport',
+  kommunales: 'Kommunales',
+  partei: 'Partei intern',
 };

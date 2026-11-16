@@ -280,7 +280,7 @@ const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
 
 /**
  * NLP-enriched per-document facets, appended to every in-scope collection below.
- * `themes` maps the 13 topic categories to German labels; `persons` are raw
+ * `themes` maps the topic categories (`topicCategorySchema`) to German labels; `persons` are raw
  * spaCy NER names (no label vocabulary). Populated by the nightly enrichment job.
  */
 const THEMES_FIELD: FilterableField<'themes'> = {
