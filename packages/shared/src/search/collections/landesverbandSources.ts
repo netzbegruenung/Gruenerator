@@ -64,6 +64,8 @@ export const LANDESVERBAND_CONTENT_TYPES = [
   'presse',
   'beschluss',
   'antrag',
+  // Änderungsanträge aus Antragsgrün (`ParteitageScraper`), nur von Parteitagen.
+  'aenderungsantrag',
   'blog',
   'wahlprogramm',
   'wahlpruefstein',
@@ -79,6 +81,7 @@ export const LV_CONTENT_TYPE_LABELS: Record<LandesverbandContentType, string> = 
   presse: 'Pressemitteilungen',
   beschluss: 'Beschlüsse',
   antrag: 'Anträge',
+  aenderungsantrag: 'Änderungsanträge',
   blog: 'Blog',
   wahlprogramm: 'Wahlprogramme',
   wahlpruefstein: 'Wahlprüfsteine',
@@ -153,6 +156,13 @@ export const FILTERABLE_FIELD_NAMES = [
   // Wahlprüfsteine (Bund/Europa): Wahl (btw21, ew24, btw25) und Ebene (bund, europa)
   'wahl',
   'ebene',
+  // Parteitage (Antragsgrün): Parteitag, Status, Votum der Antragskommission,
+  // Antragsteller*innen und Tagesordnungspunkt
+  'parteitag',
+  'status',
+  'votum',
+  'antragsteller',
+  'tagesordnungspunkt',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

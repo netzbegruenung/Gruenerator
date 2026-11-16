@@ -3,6 +3,7 @@ import {
   MdDiversity1,
   PiBank,
   PiBooks,
+  PiClipboardText,
   PiCompass,
   PiCrown,
   PiFlag,
@@ -63,6 +64,7 @@ export const NOTEBOOK_ICONS = {
   'landtag-nrw-notebook': PiBank,
   'landtag-berlin-notebook': PiBank,
   'landtag-bayern-notebook': PiBank,
+  'parteitage-notebook': PiClipboardText,
   'wahlpruefsteine-notebook': PiListChecks,
 } satisfies Record<NotebookId, IconType>;
 

@@ -75,6 +75,7 @@ const NOTEBOOK_IONICONS = {
   'landtag-nrw-notebook': 'business',
   'landtag-berlin-notebook': 'business',
   'landtag-bayern-notebook': 'business',
+  'parteitage-notebook': 'clipboard',
   'wahlpruefsteine-notebook': 'checkbox',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
@@ -162,6 +163,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'landtag-nrw-notebook': ['landtag-nrw-system'],
   'landtag-berlin-notebook': ['landtag-berlin-system'],
   'landtag-bayern-notebook': ['landtag-bayern-system'],
+  'parteitage-notebook': ['parteitage-system'],
   'wahlpruefsteine-notebook': ['wahlpruefsteine-system'],
 } satisfies Record<NotebookId, string[]>;
 

@@ -115,9 +115,16 @@ export function htmlToStructuredText(html: string): string {
   const renderList = (list: Element): string[] => {
     const isOrdered = list.tagName.toLowerCase() === 'ol';
     const lines: string[] = [];
+    // `start` an der Liste und `value` am Punkt setzen die Zählung wie im Browser
+    // fort: Antragsgrün rendert jeden Punkt als eigene Liste (`<ol start="8">
+    // <li value="8">`) — ohne sie wäre jede Forderung „1)".
+    const start = Number.parseInt($(list).attr('start') ?? '', 10);
+    let n = Number.isFinite(start) ? start : 1;
     $(list)
       .children('li')
-      .each((i, li) => {
+      .each((_i, li) => {
+        const value = Number.parseInt($(li).attr('value') ?? '', 10);
+        if (Number.isFinite(value)) n = value;
         const nested = $(li)
           .children('ul, ol')
           .get()
@@ -131,7 +138,8 @@ export function htmlToStructuredText(html: string): string {
         // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
         // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
         // und würde so einen echten heading_path unter einem Listenpunkt begraben.
-        const prefix = isOrdered ? `${i + 1}) ` : '- ';
+        const prefix = isOrdered ? `${n}) ` : '- ';
+        n += 1;
         const own = $(li).text().replace(/\s+/g, ' ').trim();
         if (own.length > 0) {
           lines.push(`${prefix}${own}`);

@@ -70,6 +70,15 @@ describe('htmlToStructuredText', () => {
     expect(out).toBe('1) Eins\n2) Zwei');
   });
 
+  it('zählt mit `start` und `value` weiter — Antragsgrün rendert jeden Punkt als eigene Liste', () => {
+    expect(
+      htmlToStructuredText('<ol start="8"><li value="8">Achter Punkt</li><li>Neunter</li></ol>')
+    ).toBe('8) Achter Punkt\n9) Neunter');
+    expect(
+      htmlToStructuredText('<ol start="3"><li>Drei</li><li value="7">Sieben</li><li>Acht</li></ol>')
+    ).toBe('3) Drei\n7) Sieben\n8) Acht');
+  });
+
   it('lässt eine leere Überschrift keine nackte ##-Zeile hinterlassen', () => {
     expect(htmlToStructuredText('<h2></h2><p>Text.</p>')).toBe('Text.');
   });

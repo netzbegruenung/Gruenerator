@@ -1,0 +1,69 @@
+{
+  "link": {
+    "id": 110621,
+    "prefix": "WP-01-000",
+    "status_id": 3,
+    "status_title": "<span class=\"screened\">Geprüft</span>",
+    "initiators_html": "GRÜNE JUGEND NRW (dort beschlossen am: 29.10.2026)",
+    "url_json": "https://gruene-nrw.antragsgruen.de/rest/ldk26-02/motion/ein-land-der-innovation-und-nachhaltigkeit-31228/amendment/110621",
+    "url_html": "https://gruene-nrw.antragsgruen.de/ldk26-02/ein-land-der-innovation-und-nachhaltigkeit-31228/110621"
+  },
+  "amendment": {
+    "type": "amendment",
+    "id": 110621,
+    "prefix": "WP-01-000",
+    "title": "WP-01-000: Ein Land der Innovation und Nachhaltigkeit",
+    "title_with_prefix": "WP-01-000: Ein Land der Innovation und Nachhaltigkeit",
+    "first_line": 0,
+    "status_id": 3,
+    "status_title": "<span class=\"screened\">Geprüft</span>",
+    "date_published": "2026-10-30T09:21:24+01:00",
+    "motion": {
+      "id": 105988,
+      "agenda_item": "Programm zur Landtagswahl 2027",
+      "prefix": "WP-01",
+      "title": "Ein Land der Innovation und Nachhaltigkeit",
+      "title_with_intro": "Ein Land der Innovation und Nachhaltigkeit",
+      "title_with_prefix": "WP-01: Ein Land der Innovation und Nachhaltigkeit",
+      "initiators_html": "Landesvorstand NRW (dort beschlossen am: 01.10.2026)",
+      "url_json": "https://gruene-nrw.antragsgruen.de/rest/ldk26-02/motion/ein-land-der-innovation-und-nachhaltigkeit-31228",
+      "url_html": "https://gruene-nrw.antragsgruen.de/ldk26-02/ein-land-der-innovation-und-nachhaltigkeit-31228"
+    },
+    "supporters": [],
+    "initiators": [
+      {
+        "id": 301557,
+        "name": null,
+        "type": "organization",
+        "organization": "GRÜNE JUGEND NRW",
+        "gender": null
+      }
+    ],
+    "initiators_html": "GRÜNE JUGEND NRW (dort beschlossen am: 29.10.2026)",
+    "sections": [
+      {
+        "type": "TextSimple",
+        "title": "Antragstext",
+        "html": "<div class=\"text motionTextFormattings textOrig\"><h4 class=\"lineSummary\">Vor Zeile 1 einfügen:</h4><div><p class=\"inserted\" style=\"color:#008000;text-decoration:underline;\">Innovation und Wirtschaftspolitik funktionieren nicht ohne Klimapolitik und Nachhaltigkeit. Diesen Sommer gab es 16.000 Hitzetote in Deutschland. Gleichzeitig gab es, laut Greenpeace, durch die Hitzewellen und das Niedrigwasser im Rhein mindestens 36 Milliarden wirtschaftlichen Schaden in Deutschland.</p><p class=\"inserted\" style=\"color:#008000;text-decoration:underline;\">Das zeigt: Die Klimakrise eskaliert und kostet Menschenleben und Wohlstand.</p><p class=\"inserted\" style=\"color:#008000;text-decoration:underline;\">Wir wissen, dass fossile Konzerne, Superreiche, unser kapitalistisches System und der globale Norden vor allem für die Klimakrise verantwortlich sind und gleichzeitig aber Menschen mit niedrigem Einkommen, Frauen, Kinder, alte Menschen, Schwangere und der globale Süden unter den Folgen leiden. Die Klimakrise verstärkt bestehende Ungleichheiten.</p><p class=\"inserted\" style=\"color:#008000;text-decoration:underline;\">Deshalb sind soziale Gerechtigkeit, Umverteilung, gemeinwohlorientiertes Wirtschaften und Nachhaltigkeit die Grundlage unserer Klima, Wirtschafts- und Mobilitätspolitik. Auf Bundesebene setzen wir uns für eine Übergewinnsteuer für fossile Konzerne oder ein Klimageld ein, um unsere Klimapolitik sozial gerecht auszugestalten.</p><p class=\"inserted\" style=\"color:#008000;text-decoration:underline;\">Und in NRW ?</p></div></div>"
+      }
+    ],
+    "proposed_procedure": {
+      "status_id": 6,
+      "status_title": "<span class=\"modifiedAccepted\">Modifizierte Übernahme</span>",
+      "sections": [
+        {
+          "type": "Title",
+          "title": "Verfahrensvorschlag: Titel",
+          "html": "<div class=\"text motionTextFormattings textOrig\">Ein Land der Innovation und Nachhaltigkeit</div>"
+        },
+        {
+          "type": "TextSimple",
+          "title": "Verfahrensvorschlag: Antragstext",
+          "html": "<div class=\"text motionTextFormattings textOrig\"><h4 class=\"lineSummary\">Von Zeile 37 bis 39:</h4><div><p>Klimaschutz gehört zu unserer politischen DNA, weil wir der nächsten Generation ein Land hinterlassen wollen, in dem man weiterhin gut leben kann. <del style=\"color:#FF0000;text-decoration:line-through;\">Wer</del><ins style=\"color:#008000;text-decoration:underline;\">Klimaschutz schützt Menschenleben und sichert Wohlstand. Und wer</ins> Klima und Natur schützt, schützt auch Frieden und Freiheit. Wir denken Klimaschutz in </p></div></div>"
+        }
+      ]
+    },
+    "url_json": "https://gruene-nrw.antragsgruen.de/rest/ldk26-02/motion/ein-land-der-innovation-und-nachhaltigkeit-31228/amendment/110621",
+    "url_html": "https://gruene-nrw.antragsgruen.de/ldk26-02/ein-land-der-innovation-und-nachhaltigkeit-31228/110621"
+  }
+}
