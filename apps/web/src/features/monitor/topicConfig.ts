@@ -1,3 +1,4 @@
+import { type TopicCategory } from '@gruenerator/contracts';
 import {
   Globe,
   Leaf,
@@ -12,24 +13,19 @@ import {
   Scale,
   Briefcase,
   Train,
+  House,
+  Wheat,
+  PawPrint,
+  Equal,
+  Vote,
+  Palette,
+  Landmark,
+  Users,
 } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
-export type TopicCategory =
-  | 'migration'
-  | 'klima'
-  | 'wirtschaft'
-  | 'soziales'
-  | 'sicherheit'
-  | 'gesundheit'
-  | 'europa'
-  | 'digital'
-  | 'bildung'
-  | 'finanzen'
-  | 'justiz'
-  | 'arbeit'
-  | 'mobilitaet';
+export type { TopicCategory };
 
 export interface TopicInfo {
   name: string;
@@ -54,6 +50,14 @@ export const TOPIC_COLORS: Record<string, string> = {
   justiz: '#78716c',
   arbeit: '#84cc16',
   mobilitaet: '#0ea5e9',
+  wohnen: '#d946ef',
+  landwirtschaft: '#10b981',
+  tierschutz: '#f43f5e',
+  gleichstellung: '#a855f7',
+  demokratie: '#ef4444',
+  kultur: '#be185d',
+  kommunales: '#64748b',
+  partei: '#52525b',
 };
 
 export const TOPIC_CONFIG: Record<TopicCategory, TopicInfo> = {
@@ -160,5 +164,69 @@ export const TOPIC_CONFIG: Record<TopicCategory, TopicInfo> = {
     color: 'text-sky-500',
     barColor: 'bg-sky-500',
     dotColor: 'bg-sky-500',
+  },
+  wohnen: {
+    name: 'Wohnen & Bauen',
+    description: 'Miete, Wohnungsbau, Stadtentwicklung',
+    icon: House,
+    color: 'text-fuchsia-500',
+    barColor: 'bg-fuchsia-500',
+    dotColor: 'bg-fuchsia-500',
+  },
+  landwirtschaft: {
+    name: 'Landwirtschaft & Ernährung',
+    description: 'Bauernhöfe, Lebensmittel, ländlicher Raum',
+    icon: Wheat,
+    color: 'text-emerald-500',
+    barColor: 'bg-emerald-500',
+    dotColor: 'bg-emerald-500',
+  },
+  tierschutz: {
+    name: 'Tierschutz',
+    description: 'Tierhaltung, Tierversuche, Tierheime',
+    icon: PawPrint,
+    color: 'text-rose-500',
+    barColor: 'bg-rose-500',
+    dotColor: 'bg-rose-500',
+  },
+  gleichstellung: {
+    name: 'Gleichstellung & Vielfalt',
+    description: 'Frauen, Queer, Antidiskriminierung',
+    icon: Equal,
+    color: 'text-purple-500',
+    barColor: 'bg-purple-500',
+    dotColor: 'bg-purple-500',
+  },
+  demokratie: {
+    name: 'Demokratie',
+    description: 'Rechtsextremismus, Wahlrecht, Beteiligung',
+    icon: Vote,
+    color: 'text-red-500',
+    barColor: 'bg-red-500',
+    dotColor: 'bg-red-500',
+  },
+  kultur: {
+    name: 'Kultur & Sport',
+    description: 'Kunst, Kulturförderung, Vereine, Sport',
+    icon: Palette,
+    color: 'text-pink-700',
+    barColor: 'bg-pink-700',
+    dotColor: 'bg-pink-700',
+  },
+  kommunales: {
+    name: 'Kommunales',
+    description: 'Kommunen, Landkreise, Kommunalfinanzen',
+    icon: Landmark,
+    color: 'text-slate-500',
+    barColor: 'bg-slate-500',
+    dotColor: 'bg-slate-500',
+  },
+  partei: {
+    name: 'Partei intern',
+    description: 'Satzung, Delegierte, Gremien, Wahlkampf',
+    icon: Users,
+    color: 'text-zinc-600',
+    barColor: 'bg-zinc-600',
+    dotColor: 'bg-zinc-600',
   },
 };

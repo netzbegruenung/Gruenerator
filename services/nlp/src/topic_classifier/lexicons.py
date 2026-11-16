@@ -1,8 +1,13 @@
 """Topic lexicons for German news article classification.
 
 Ported from bundestag-analysis (noun_analysis/lexicons/topics.py).
-13 political topic categories with 500+ German terms.
-Includes multi-label support for terms spanning multiple topics.
+21 political topic categories (the last eight from #5670, for party documents).
+Includes multi-label support for terms spanning multiple topics, and compound
+matching for German compounds the lexicon does not list (see get_topic_labels).
+
+The category ids are F0: they land in Qdrant `themes`/`primary_topic` and in
+`topicCategorySchema` (packages/contracts). Add, never rename — and add them
+there, or the API drops the new value silently.
 
 Note: spaCy de_core_news_lg handles lemmatization, so plural forms
 (e.g. "wälder" → "wald") are intentionally excluded to prevent
@@ -26,6 +31,14 @@ class TopicCategory(Enum):
     JUSTIZ = "justiz"
     ARBEIT = "arbeit"
     MOBILITAET = "mobilitaet"
+    WOHNEN = "wohnen"
+    LANDWIRTSCHAFT = "landwirtschaft"
+    TIERSCHUTZ = "tierschutz"
+    GLEICHSTELLUNG = "gleichstellung"
+    DEMOKRATIE = "demokratie"
+    KULTUR = "kultur"
+    KOMMUNALES = "kommunales"
+    PARTEI = "partei"
 
 
 TOPIC_CATEGORY_INFO: dict[TopicCategory, dict] = {
@@ -42,6 +55,14 @@ TOPIC_CATEGORY_INFO: dict[TopicCategory, dict] = {
     TopicCategory.JUSTIZ: {"name": "Justiz/Recht", "description": "Gerichte, Gesetze, Verfassung", "color": "#78716c"},
     TopicCategory.ARBEIT: {"name": "Arbeit", "description": "Lohn, Gewerkschaft, Beschäftigung", "color": "#84cc16"},
     TopicCategory.MOBILITAET: {"name": "Mobilität", "description": "Verkehr, Bahn, Auto, ÖPNV", "color": "#0ea5e9"},
+    TopicCategory.WOHNEN: {"name": "Wohnen & Bauen", "description": "Miete, Wohnungsbau, Stadtentwicklung", "color": "#d946ef"},
+    TopicCategory.LANDWIRTSCHAFT: {"name": "Landwirtschaft & Ernährung", "description": "Bauernhöfe, Lebensmittel, ländlicher Raum", "color": "#10b981"},
+    TopicCategory.TIERSCHUTZ: {"name": "Tierschutz", "description": "Tierhaltung, Tierversuche, Tierheime", "color": "#f43f5e"},
+    TopicCategory.GLEICHSTELLUNG: {"name": "Gleichstellung & Vielfalt", "description": "Frauen, Queer, Antidiskriminierung", "color": "#a855f7"},
+    TopicCategory.DEMOKRATIE: {"name": "Demokratie", "description": "Rechtsextremismus, Wahlrecht, Beteiligung", "color": "#ef4444"},
+    TopicCategory.KULTUR: {"name": "Kultur & Sport", "description": "Kunst, Kulturförderung, Vereine, Sport", "color": "#be185d"},
+    TopicCategory.KOMMUNALES: {"name": "Kommunales", "description": "Kommunen, Landkreise, Kommunalfinanzen", "color": "#64748b"},
+    TopicCategory.PARTEI: {"name": "Partei intern", "description": "Satzung, Delegierte, Gremien, Wahlkampf", "color": "#52525b"},
 }
 
 
@@ -73,7 +94,7 @@ TOPIC_LEXICONS: dict[TopicCategory, set[str]] = {
     },
 
     TopicCategory.KLIMA: {
-        "klimaschutz", "klimawandel", "klimakrise", "klimaziel",
+        "klima", "klimaschutz", "klimawandel", "klimakrise", "klimaziel",
         "klimaneutral", "klimaneutralität", "emission",
         "co2", "treibhausgas", "erderwärmung",
         "klimaabkommen", "pariser-abkommen", "klimakonferenz",
@@ -141,15 +162,13 @@ TOPIC_LEXICONS: dict[TopicCategory, set[str]] = {
         "sozialleistung", "sozialstaat",
         "sozialsystem", "sozialpolitik", "umverteilung",
         "transferleistung", "wohlfahrt", "fürsorge",
-        "wohnungsnot", "wohnungsmarkt", "mietpreisbremse",
-        "sozialwohnung", "sozialer-wohnungsbau", "wohngeld",
         "behinderung", "inklusion", "barrierefreiheit",
         "altenpflege", "seniorenheim", "altershilfe",
         "jugendarbeit", "jugendhilfe",
         "jugendamt", "kinderkrippe",
         # 2024-2026 terms
         "kindergrundsicherung", "aktienrente", "generationenkapital",
-        "rentenpaket", "wohngeld-plus", "einsamkeit", "familienstartzeit",
+        "rentenpaket", "einsamkeit", "familienstartzeit",
     },
 
     TopicCategory.SICHERHEIT: {
@@ -174,7 +193,7 @@ TOPIC_LEXICONS: dict[TopicCategory, set[str]] = {
         # 2024-2026 terms
         "messerangriff", "clankriminalität", "kriegstüchtigkeit",
         "zivilschutz", "zeitenwende", "wehrpflicht", "wehrdienst",
-        "resilienz",
+        "resilienz", "munition", "munitionsbeseitigung",
     },
 
     TopicCategory.GESUNDHEIT: {
@@ -329,14 +348,9 @@ TOPIC_LEXICONS: dict[TopicCategory, set[str]] = {
         "anklage", "angeklagte", "verurteilung", "freispruch",
         "haft", "gefängnis", "bewährung", "strafmaß",
         "zivilrecht", "kläger", "beklagte",
-        "schadenersatz", "haftung", "vertragsrecht", "mietrecht",
+        "schadenersatz", "haftung", "vertragsrecht",
         "anwalt", "rechtsanwalt", "verteidiger",
         "justizminister", "justizministerium", "justizreform",
-        "verbraucherschutz",
-        "diskriminierung", "gleichstellung", "gleichberechtigung",
-        # 2024-2026 terms
-        "parteiverbot", "verfassungstreue", "demokratiefördergesetz",
-        "afd-verbot",
     },
 
     TopicCategory.ARBEIT: {
@@ -391,7 +405,109 @@ TOPIC_LEXICONS: dict[TopicCategory, set[str]] = {
         "deutschlandticket", "49-euro-ticket",
         # 2024-2026 terms
         "verbrenner-aus", "e-scooter", "antriebswende", "sanierungsstau",
-        "brückenprüfung",
+        "brückenprüfung", "bundesverkehrswegeplan", "radverkehrsnetz",
+    },
+
+    TopicCategory.WOHNEN: {
+        "wohnen", "wohnung", "wohnungsbau", "wohnungsnot", "wohnungsmarkt",
+        "wohnraum", "wohnungslosigkeit", "wohnungslose", "wohnungspolitik",
+        "miete", "mieter", "mieterin", "mieterschutz", "mietrecht", "mietspiegel",
+        "mietpreis", "mietpreisbremse", "mietendeckel", "mieterhöhung", "vermieter",
+        "sozialwohnung", "sozialer-wohnungsbau", "wohngeld", "wohngeld-plus",
+        "eigenheim", "wohneigentum", "baugenehmigung", "bauland", "bebauungsplan",
+        "bauordnung", "bauen", "bauwende", "wohnungsneubau", "leerstand", "zweckentfremdung",
+        "wohnheim", "studierendenwohnheim", "genossenschaft", "wohnungsgenossenschaft",
+        "stadtentwicklung", "städtebau", "quartier", "landesentwicklungsplan",
+        "eigenbedarf", "zwangsräumung", "hessengeld",
+    },
+
+    TopicCategory.LANDWIRTSCHAFT: {
+        "landwirtschaft", "landwirt", "landwirtin", "bäuerin",
+        "bauernhof", "agrar", "agrarpolitik", "agrarwende", "agrarförderung",
+        "ökolandbau", "biolandbau", "bio-landwirtschaft", "ackerbau", "acker",
+        "dünger", "düngeverordnung", "glyphosat", "pflanzenschutzmittel",
+        "ernte", "saatgut", "gentechnik", "ernährung", "ernährungspolitik",
+        "lebensmittel", "nahrungsmittel", "lebensmittelverschwendung",
+        "schulessen", "schulverpflegung", "gemeinschaftsverpflegung",
+        "verbraucherschutz", "milch", "milchpreis", "weinbau", "forstwirtschaft",
+        "fischerei", "flächenverbrauch", "flächenversiegelung", "artenvielfalt",
+        "ländlicher-raum", "gap",
+    },
+
+    TopicCategory.TIERSCHUTZ: {
+        "tierschutz", "tierwohl", "tierhaltung", "massentierhaltung",
+        "nutztierhaltung", "tiertransport", "tierversuch", "tierheim",
+        "tierrecht", "tierschutzgesetz", "tierschutzbeauftragte",
+        "stallpflicht", "käfighaltung", "anbindehaltung", "schlachthof",
+        "wildtier", "haustier", "jagd", "tierquälerei", "pelz",
+    },
+
+    TopicCategory.GLEICHSTELLUNG: {
+        "gleichstellung", "gleichberechtigung", "diskriminierung",
+        "antidiskriminierung", "gleichbehandlung", "gleichbehandlungsgesetz", "agg",
+        "frauenhaus", "frauenpolitik", "frauentag", "frauenquote", "frauenrechte",
+        "frauenförderung", "frauenhass", "femizid", "gewaltschutz", "gewalthilfe",
+        "gewalthilfegesetz", "istanbul-konvention", "sexismus", "belästigung",
+        "parität", "paritätsgesetz", "gender", "gender-pay-gap", "lohnlücke",
+        "feminismus", "queer", "queerpolitik", "lsbtiq", "lgbtq", "csd",
+        "homosexualität", "transfeindlichkeit", "queerfeindlichkeit",
+        "selbstbestimmungsgesetz", "vielfalt", "diversität", "rassismus",
+        "antirassismus", "antisemitismus", "antiziganismus", "muslimfeindlichkeit",
+        "teilhabe", "chancengleichheit",
+    },
+
+    TopicCategory.DEMOKRATIE: {
+        "demokratie", "demokratieförderung", "demokratiefördergesetz",
+        "rechtsextremismus", "rechtsextremist", "rechtsruck", "rechtspopulismus",
+        "neonazi", "afd-verbot", "parteiverbot", "faschismus",
+        "wahlrecht", "wahlalter", "wahlbeteiligung", "wahlrechtsreform",
+        "bürgerbeteiligung", "bürgerrat", "bürgerentscheid", "volksbegehren",
+        "volksentscheid", "volksabstimmung", "direkte-demokratie",
+        "zivilgesellschaft", "ehrenamt",
+        "lobbyregister", "lobbyismus", "untersuchungsausschuss",
+        "erinnerungskultur", "gedenken", "gedenkstätte", "verfassungstreue",
+        "hetze", "hassrede", "hasskriminalität", "politische-bildung",
+        "untersuchungsausschuss",
+    },
+
+    TopicCategory.KULTUR: {
+        "kultur", "kulturpolitik", "kulturförderung", "kunst", "künstler",
+        "künstlerin", "theater", "museum", "oper", "orchester", "konzert",
+        "bibliothek", "denkmalschutz", "denkmal", "kulturerbe", "festival",
+        "clubkultur", "film", "filmförderung", "literatur", "musikschule",
+        "soziokultur", "kreativwirtschaft", "raubkunst", "raubgut",
+        "sport", "sportverein", "sportförderung", "sportstätte", "sportpolitik",
+        "schwimmbad", "breitensport", "spitzensport", "olympia", "fußball",
+        "verein", "religion", "kirche", "religionspolitik", "religionsgemeinschaft",
+    },
+
+    TopicCategory.KOMMUNALES: {
+        "kommune", "kommunalpolitik", "kommunalfinanzen", "kommunalwahl",
+        "kommunalverwaltung", "kommunalaufsicht", "kommunalabgabe",
+        "gemeinde", "gemeinderat", "stadtrat", "kreistag", "landkreis",
+        "landrat", "landrätin", "bürgermeister", "bürgermeisterin",
+        "oberbürgermeister", "stadtverwaltung", "kreisverwaltung",
+        "gebietsreform", "kreisgebietsreform", "daseinsvorsorge",
+        "kommunalfinanzausgleich", "finanzausgleich", "konnexität",
+        "stadtwerk", "bezirk", "bezirksamt", "ortsteil", "ortschaftsrat",
+        "dorf", "dorfentwicklung",
+    },
+
+    TopicCategory.PARTEI: {
+        "satzung", "satzungsänderung", "statut", "geschäftsordnung",
+        "delegierte", "delegierter", "landesvorstand",
+        "bundesvorstand", "kreisvorstand", "parteirat", "landesparteirat",
+        "länderrat",
+        "parteitag", "mitgliederversammlung", "landesmitgliederversammlung",
+        "kreisverband", "ortsverband", "urabstimmung", "urwahl",
+        "antragskommission", "beisitzer", "beisitzerin", "schatzmeister",
+        "schatzmeisterin", "mitgliedsbeitrag", "mitgliederentwicklung",
+        "landesarbeitsgemeinschaft", "bundesarbeitsgemeinschaft", "lag", "bag",
+        "listenaufstellung", "landesliste", "wahlversammlung", "spitzenkandidat",
+        "spitzenkandidatin", "sondierung", "sondierungsgespräch",
+        "koalitionsgespräch", "koalitionsverhandlung",
+        "wahlkampf", "strukturreform", "parteistruktur",
+        "protokoll", "frauenstatut", "vielfaltsstatut", "bundesfinanzrat",
     },
 }
 
@@ -436,6 +552,7 @@ TOPIC_MULTI_LABEL: dict[str, list[tuple[TopicCategory, float]]] = {
     "datenschutz": [(TopicCategory.DIGITAL, 0.8), (TopicCategory.JUSTIZ, 0.8)],
     "burnout": [(TopicCategory.GESUNDHEIT, 0.8), (TopicCategory.ARBEIT, 0.8)],
     "inflation": [(TopicCategory.FINANZEN, 1.0), (TopicCategory.WIRTSCHAFT, 0.7)],
+    "untersuchungsausschuss": [(TopicCategory.DEMOKRATIE, 0.8), (TopicCategory.JUSTIZ, 0.8)],
     "prävention": [(TopicCategory.GESUNDHEIT, 0.7), (TopicCategory.SICHERHEIT, 0.7)],
     # Political actors as topic signals (distinctive names with clear portfolios)
     "habeck": [(TopicCategory.WIRTSCHAFT, 1.0), (TopicCategory.KLIMA, 0.7)],
@@ -456,6 +573,36 @@ TOPIC_MULTI_LABEL: dict[str, list[tuple[TopicCategory, float]]] = {
 # Pre-built reverse lookup: lemma → TopicCategory (for single-label words)
 _TOPIC_LOOKUP: dict[str, TopicCategory] | None = None
 
+# Compound matching (#5670). German policy text is compound-heavy, and the
+# lexicon can never list every "Radverkehrsnetz" or "Frauenhausplatz". A lemma
+# that is not a lexicon term itself borrows the labels of a lexicon term it
+# ends with (the head: "kinder|armut") or, failing that, starts with (the
+# modifier: "klima|stiftung", "umwelt|ausschuss") — in policy compounds the
+# modifier usually names the field.
+#
+# Both parts need COMPOUND_MIN_PART characters: shorter terms ("auto", "bahn",
+# "haft") are prefixes of too many unrelated words ("Autonomie", "Haftung").
+COMPOUND_MIN_PART = 5
+# A modifier match is not a compound when only a derivational ending follows:
+# "steuer|ung" is Steuerung, not a tax.
+_DERIVATIONAL_ENDINGS = frozenset({
+    "ung", "ungen", "heit", "keit", "lich", "ler", "nis", "tum", "isch",
+    "ismus", "ist", "istin", "erin", "ern", "ers", "ens",
+})
+# Lexicon terms that are fine as whole words but mislead as a compound part:
+# "Regierungsbildung" is not about schools, "Zusammenarbeit" not about jobs.
+_NO_COMPOUND = frozenset({
+    "bildung", "handel", "verkehr", "arbeit", "verein", "kultur", "kunst",
+    "sport", "wachstum", "frieden", "gipfel", "abkommen", "europa", "kirche",
+    "bauen", "wohnen", "agrar", "verfassung", "demokratie", "online", "tafel",
+    "netzwerk", "betrieb", "finanzierung", "verordnung", "vorschrift", "novelle",
+    "gesetzgebung", "produktion", "kapital",
+})
+# Lemmas that parse as "lexicon term + word" but are not that compound.
+_NOT_A_COMPOUND = frozenset({"lebensmittelpunkt"})
+_COMPOUND_TERMS: tuple[str, ...] | None = None
+_COMPOUND_CACHE: dict[str, list[tuple[TopicCategory, float]]] = {}
+
 
 def _build_topic_lookup() -> dict[str, TopicCategory]:
     lookup: dict[str, TopicCategory] = {}
@@ -466,22 +613,64 @@ def _build_topic_lookup() -> dict[str, TopicCategory]:
     return lookup
 
 
-def get_topic_labels(lemma: str) -> list[tuple[TopicCategory, float]]:
-    """Get all topic labels for a lemma with weights.
-
-    Returns list of (TopicCategory, weight) tuples.
-    Empty list for uncategorized words.
-    """
-    lemma_lower = lemma.lower()
-
-    if lemma_lower in TOPIC_MULTI_LABEL:
-        return TOPIC_MULTI_LABEL[lemma_lower]
+def _exact_labels(term: str) -> list[tuple[TopicCategory, float]]:
+    if term in TOPIC_MULTI_LABEL:
+        return TOPIC_MULTI_LABEL[term]
 
     global _TOPIC_LOOKUP
     if _TOPIC_LOOKUP is None:
         _TOPIC_LOOKUP = _build_topic_lookup()
 
-    topic = _TOPIC_LOOKUP.get(lemma_lower)
-    if topic:
-        return [(topic, 1.0)]
-    return []
+    topic = _TOPIC_LOOKUP.get(term)
+    return [(topic, 1.0)] if topic else []
+
+
+def _compound_terms() -> tuple[str, ...]:
+    """Lexicon terms usable as compound parts, longest first."""
+    global _COMPOUND_TERMS
+    if _COMPOUND_TERMS is None:
+        terms = {t for ts in TOPIC_LEXICONS.values() for t in ts} | set(TOPIC_MULTI_LABEL)
+        _COMPOUND_TERMS = tuple(sorted(
+            (t for t in terms
+             if len(t) >= COMPOUND_MIN_PART and t.isalpha() and t not in _NO_COMPOUND),
+            key=len, reverse=True,
+        ))
+    return _COMPOUND_TERMS
+
+
+def _compound_labels(lemma: str) -> list[tuple[TopicCategory, float]]:
+    cached = _COMPOUND_CACHE.get(lemma)
+    if cached is not None:
+        return cached
+    labels: list[tuple[TopicCategory, float]] = []
+    if len(lemma) >= 2 * COMPOUND_MIN_PART and lemma.isalpha() and lemma not in _NOT_A_COMPOUND:
+        terms = _compound_terms()
+        head = next(
+            (t for t in terms if lemma.endswith(t) and len(lemma) - len(t) >= COMPOUND_MIN_PART),
+            None,
+        )
+        if head:
+            labels = _exact_labels(head)
+        else:
+            modifier = next(
+                (t for t in terms
+                 if lemma.startswith(t)
+                 and len(lemma) - len(t) >= COMPOUND_MIN_PART - 2
+                 and lemma[len(t):] not in _DERIVATIONAL_ENDINGS),
+                None,
+            )
+            if modifier:
+                labels = _exact_labels(modifier)
+    _COMPOUND_CACHE[lemma] = labels
+    return labels
+
+
+def get_topic_labels(lemma: str) -> list[tuple[TopicCategory, float]]:
+    """Get all topic labels for a lemma with weights.
+
+    Returns list of (TopicCategory, weight) tuples.
+    Empty list for uncategorized words. An exact lexicon term wins; otherwise
+    the lemma is tried as a compound of a lexicon term (see _compound_labels).
+    """
+    lemma_lower = lemma.lower()
+    return _exact_labels(lemma_lower) or _compound_labels(lemma_lower)
