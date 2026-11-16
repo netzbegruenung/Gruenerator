@@ -16,7 +16,6 @@ on:
       - 'patches/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
-      - 'tsconfig.strict-migration.json'
       - 'CHANGELOG.md'
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
@@ -183,7 +182,6 @@ jobs:
               - '.github/workflows/build-images.yml'
             tsconfig: &tsconfig
               - 'tsconfig.base.json'
-              - 'tsconfig.strict-migration.json'
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'

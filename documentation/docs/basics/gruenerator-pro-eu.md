@@ -18,7 +18,7 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 apps/api/services/ai/providers.ts, apps/api/services/ai/gemmaHosts.ts, apps/api/services/flux/,
 apps/api/services/transcription/providerPolicy.ts,
 apps/api/services/voice/ttsService.ts,
-apps/api/services/providers/providerSelector.ts,
+apps/api/services/ai/lanes.ts,
 apps/api/services/ai/intermediateLanes.ts, apps/api/services/search/ */}
 
 - **Mistral AI** (Frankreich) — Mistral Large 4 (`mistral-large-4`) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit `mistral-embed`, Transkription mit Voxtral (wenn Sprecher*innen erkannt werden sollen, sonst als Ausweichweg)

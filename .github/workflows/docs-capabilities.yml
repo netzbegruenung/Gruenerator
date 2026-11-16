@@ -22,7 +22,7 @@ on:
       - 'packages/contracts/src/schemas/chatStreamEvents.ts'
       - 'packages/chat/src/lib/mentionables.ts'
       - 'packages/shared/src/agents/userTools.ts'
-      - 'apps/api/services/mcp/systemMcpServers.ts'
+      - 'apps/api/services/mcp/connectorAdapters.ts'
       - 'documentation/src/components/ChatCapabilities/**'
       - 'documentation/src/generated/chat-capabilities.json'
   pull_request:
@@ -30,7 +30,7 @@ on:
       - 'packages/contracts/src/schemas/chatStreamEvents.ts'
       - 'packages/chat/src/lib/mentionables.ts'
       - 'packages/shared/src/agents/userTools.ts'
-      - 'apps/api/services/mcp/systemMcpServers.ts'
+      - 'apps/api/services/mcp/connectorAdapters.ts'
       - 'documentation/src/components/ChatCapabilities/**'
       - 'documentation/src/generated/chat-capabilities.json'
   schedule:

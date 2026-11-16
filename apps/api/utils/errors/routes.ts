@@ -19,7 +19,7 @@ import {
 } from './classes.js';
 import { ERROR_TYPES } from './constants.js';
 
-import type { ErrorClassification, RequestWithCorrelation, AiClientErrorResult } from './types.js';
+import type { ErrorClassification, RequestWithCorrelation } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -179,18 +179,6 @@ export function handleValidationError(res: Response, routePath: string, message:
  */
 export function handleAttachmentError(res: Response, routePath: string, message: string): void {
   const error = new Error(`Attachment error: ${message}`);
-  handleRouteError(error, routePath, res);
-}
-
-/**
- * Handle AI Worker errors specifically
- */
-export function handleAiClientError(
-  res: Response,
-  routePath: string,
-  aiResult: AiClientErrorResult
-): void {
-  const error = new AiClientError(`AI Worker failed: ${aiResult.error || 'Unknown AI error'}`);
   handleRouteError(error, routePath, res);
 }
 

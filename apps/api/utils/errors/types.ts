@@ -129,12 +129,3 @@ export type ExpressErrorHandler = (
 export interface RequestWithCorrelation extends Request {
   correlationId?: string | undefined;
 }
-
-/**
- * AI worker error result
- */
-export interface AiClientErrorResult {
-  success: false;
-  error: string;
-  [key: string]: unknown;
-}

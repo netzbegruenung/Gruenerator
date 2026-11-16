@@ -7,7 +7,7 @@
  * `content` bleibt leer, der Text-Fallback in aiObject hat nichts zu
  * greifen, also startet der Reparaturversuch und die Erstellung wird ein
  * zweites Mal bezahlt. Genau die Wartezeit, wegen der die Lane das Modell
- * gewechselt hat (ARTIFACT_MODEL in services/providers/providerSelector.ts).
+ * gewechselt hat (GEMMA_4_GREENPT in services/ai/lanes.ts).
  *
  * Ein fester Ersatzwert (12k) wurde verworfen: niemand kann vorab sagen, wie
  * lang ein bestelltes Dokument ist, jede Zahl ist in eine der beiden Richtungen

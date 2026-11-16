@@ -120,6 +120,13 @@ export function isThreadReadOnly(remoteId: string): boolean {
   return threadReadOnlyCache.has(remoteId);
 }
 
+/** A thread this client just created as a team chat: opens the live-sync
+ *  channel for the creator now, not only after the next list() refresh. */
+export function markThreadTeamShared(remoteId: string): void {
+  threadTeamSharedCache.add(remoteId);
+  tagListeners.forEach((l) => l());
+}
+
 /** Test seam: what list() records about a thread's sharing. */
 export function cacheThreadShareMetaForTest(
   remoteId: string,
