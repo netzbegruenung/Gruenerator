@@ -1,0 +1,36 @@
+{
+  "type": "motion",
+  "id": 103982,
+  "agenda_item": "Verschiedenes",
+  "prefix": "V-02",
+  "title": "Bundesweite Einf\u00fchrung der Widerspruchsregelung bei Organspende",
+  "title_with_intro": "Bundesweite Einf\u00fchrung der Widerspruchsregelung bei Organspende",
+  "title_with_prefix": "V-02: Bundesweite Einf\u00fchrung der Widerspruchsregelung bei Organspende",
+  "status_id": 26,
+  "status_title": "Beschluss",
+  "date_published": null,
+  "supporters": [],
+  "initiators": [
+    {
+      "id": 296912,
+      "name": null,
+      "type": "organization",
+      "organization": "Landesdelegiertenkonferenz",
+      "gender": null
+    }
+  ],
+  "initiators_html": "Landesdelegiertenkonferenz (dort beschlossen am: 21.06.2026)",
+  "sections": [
+    {
+      "type": "TextSimple",
+      "title": "Antragstext",
+      "html": "<div class=\"text motionTextFormattings textOrig\"><p>B\u00dcNDNIS 90\/DIE GR\u00dcNEN NRW spricht sich ausdr\u00fccklich f\u00fcr die Einf\u00fchrung einer Widerspruchsregelung bei Organspende aus.<\/p>\n<p>Die Landesdelegiertenkonferenz bekr\u00e4ftigt damit sowohl den Beschluss \u201eWiderspruchsl\u00f6sung in der Organspende implementieren\u201c der 48. Bundesdelegiertenkonferenz vom 16.10.2022 sowie das Regierungsprogramm zur Bundestagswahl 2025, in dem B\u00dcNDNIS 90\/DIE GR\u00dcNEN die Einf\u00fchrung einer Widerspruchsregelung und die weitere Verbesserung der Strukturen in der Transplantationsmedizin unterst\u00fctzt.<\/p>\n<p>Deutschland bleibt bei der Organspende im Eurotransplant-Verbund und im europ\u00e4ischen Vergleich weiter deutlich zur\u00fcck. Dieses Defizit beruht nicht auf einer grunds\u00e4tzlich fehlenden Spendenbereitschaft in der Bev\u00f6lkerung, sondern auch darauf, dass viele Menschen sich ohne klaren Anlass nicht aktiv mit der Frage der Organspende befassen. Gerade deshalb hat die zuletzt 2020 im Bundestag mehrheitlich getragene Entscheidungsl\u00f6sung, die anstelle der Widerspruchsregelung beschlossen wurde, zu keinerlei Verbesserung gef\u00fchrt.<\/p>\n<p>Die Zahlen belegen das deutlich: Ende 2025 warteten in Deutschland weiterhin 8.199 Menschen auf ein Spenderorgan. Zugleich wurden 2025 in Deutschland 3.256 Organe transplantiert, obwohl der Bedarf weiter erheblich h\u00f6her lag. Jedes Jahr sterben zudem weiterhin 600 bis 700 Menschen auf der Warteliste, w\u00e4hrend \u00fcber 80 Prozent der Bev\u00f6lkerung einer Organ- und Gewebespende grunds\u00e4tzlich positiv gegen\u00fcberstehen. Dass Deutschland 2025 mit ca. 11 Spender*innen pro Million Einwohner*innen nur minimal zulegen konnte und damit weiter hinter vielen europ\u00e4ischen L\u00e4ndern zur\u00fcckbleibt, zeigt, dass die Haltung von 2020 den Missstand strukturell nicht behoben hat.<\/p>\n<p>Vor diesem Hintergrund stellt die Widerspruchsregelung aus Sicht des Landesverbandes NRW eine zeitgem\u00e4\u00dfe, proeurop\u00e4ische, wissenschaftlich klar belegte und gesundheitspolitisch gebotene Antwort auf eine versorgungspolitisch eindeutige und erhebliche Problemlage dar.<\/p><\/div>",
+      "layout_right": false
+    }
+  ],
+  "proposed_procedure": null,
+  "amendment_links": [],
+  "url_json": "https:\/\/gruene-nrw.antragsgruen.de\/rest\/ldk26\/motion\/widerspruchsregelung-bei-organspende-bundesweit-einfuhren-45976",
+  "url_html": "https:\/\/gruene-nrw.antragsgruen.de\/ldk26\/widerspruchsregelung-bei-organspende-bundesweit-einfuhren-45976",
+  "pagination": null
+}

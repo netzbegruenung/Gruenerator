@@ -337,9 +337,12 @@ export function visibleToolMentionables(): Mentionable[] {
  */
 export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
+  // Mit der Instanz: ohne sie gilt `production`, und die bedient nur `stable` —
+  // dann bot der Picker auch auf beta und lokal kein Vorschau-Notebook an.
+  const instance = getMentionInstance();
+  const allowed = new Set<string>(getNotebooksForAudience(locale, { instance }).map((n) => n.id));
   return notebookMentionables.filter(
-    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, getMentionInstance())
+    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, instance)
   );
 }
 

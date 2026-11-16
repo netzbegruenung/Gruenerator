@@ -57,7 +57,12 @@ describe('GET /api/research/document', () => {
     expect(getSystemDocumentFullTextByUrl).toHaveBeenCalledWith(
       'landesverbaende_documents',
       'https://gruene.berlin/beschluesse/hitze',
-      { must: [{ key: 'landesverband', match: { any: ['BE', 'BE-F'] } }] }
+      {
+        must: [
+          { key: 'landesverband', match: { any: ['BE', 'BE-F'] } },
+          { is_empty: { key: 'superseded_by' } },
+        ],
+      }
     );
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
