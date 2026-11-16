@@ -200,25 +200,6 @@ export class DipClient {
     };
   }
 
-  /** Alle Seiten einer Liste; `onPage` verarbeitet jede Seite, bevor die nächste kommt. */
-  async forEachPage<T>(
-    endpoint: 'plenarprotokoll-text' | 'drucksache-text',
-    params: DipParams,
-    onPage: (documents: T[]) => Promise<void>
-  ): Promise<void> {
-    let cursor: string | null = null;
-    for (;;) {
-      const page: DipPage<T> = await this.#get<T>(endpoint, {
-        ...params,
-        ...(cursor ? { cursor } : {}),
-      });
-      const documents = page.documents ?? [];
-      if (documents.length > 0) await onPage(documents);
-      if (!page.cursor || page.cursor === cursor || documents.length === 0) return;
-      cursor = page.cursor;
-    }
-  }
-
   /** Wartet auf den Vorgänger, hält den Abstand ein und gibt den Platz erst nach dem Stempel frei. */
   async #takeSlot(): Promise<void> {
     const previous = this.#slot;

@@ -106,26 +106,6 @@ describe('DipClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('blättert in forEachPage weiter und hält am unveränderten Cursor an', async () => {
-    fetchMock
-      .mockResolvedValueOnce(respond({ cursor: 'A', documents: [{ id: '1' }] }))
-      .mockResolvedValueOnce(respond({ cursor: 'B', documents: [{ id: '2' }] }))
-      .mockResolvedValueOnce(respond({ cursor: 'B', documents: [{ id: '3' }] }));
-    const seen: string[][] = [];
-
-    await new DipClient('key', FAST).forEachPage<{ id: string }>(
-      'drucksache-text',
-      { 'f.wahlperiode': 21 },
-      async (documents) => {
-        seen.push(documents.map((d) => d.id));
-      }
-    );
-
-    expect(seen).toEqual([['1'], ['2'], ['3']]);
-    expect(calledUrl(1).searchParams.get('cursor')).toBe('A');
-    expect(calledUrl(2).searchParams.get('cursor')).toBe('B');
-  });
-
   it('hält den Abstand pacingMs auch bei gleichzeitigen Aufrufen ein', async () => {
     vi.useFakeTimers();
     try {
