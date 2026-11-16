@@ -1,6 +1,13 @@
 import { useAuiState } from '@assistant-ui/react';
+import { useSyncExternalStore } from 'react';
 
 import { useCurrentUserId } from '../context/CurrentUserContext';
+import {
+  getThreadAccessType,
+  isThreadTeamChat,
+  subscribeThreadTags,
+} from '../runtime/GrueneratorThreadListAdapter';
+import { useAgentStore } from '../stores/chatStore';
 
 interface SenderMessage {
   role: string;
@@ -18,14 +25,17 @@ function senderOf(message: SenderMessage | undefined): string | null {
  * the server refuses them on a teammate's turn (`not_your_message`), so the UI
  * hides them. Messages without a `senderId` (private chats, legacy rows) stay
  * editable. For an assistant message the relevant sender is the user message
- * right before it.
+ * right before it. `ownerOverride`: the author rule is absolute only in a team
+ * chat — the owner of a fork or person-shared thread may replace any turn (the
+ * server applies the same rule).
  */
 export function mayReplaceTurn(
   messages: readonly SenderMessage[],
   messageId: string,
-  currentUserId: string | null
+  currentUserId: string | null,
+  ownerOverride = false
 ): boolean {
-  if (!currentUserId) return true;
+  if (!currentUserId || ownerOverride) return true;
   const index = messages.findIndex((m) => (m as { id?: string }).id === messageId);
   if (index < 0) return true;
   const message = messages[index];
@@ -54,7 +64,18 @@ export function mayReplaceTurn(
 
 export function useMayReplaceTurn(): boolean {
   const currentUserId = useCurrentUserId();
+  const threadId = useAgentStore((s) => s.currentThreadId);
+  const ownerOverride = useSyncExternalStore(
+    subscribeThreadTags,
+    () => !!threadId && !isThreadTeamChat(threadId) && getThreadAccessType(threadId) === 'owner',
+    () => false
+  );
   return useAuiState((s) =>
-    mayReplaceTurn(s.thread.messages as readonly SenderMessage[], s.message.id, currentUserId)
+    mayReplaceTurn(
+      s.thread.messages as readonly SenderMessage[],
+      s.message.id,
+      currentUserId,
+      ownerOverride
+    )
   );
 }
