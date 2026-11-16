@@ -913,9 +913,9 @@ export async function getThreadSettings(threadId: string): Promise<ThreadSetting
   };
 }
 
+/** Callers check write access (`canWriteThread`) first; the row is not owner-scoped. */
 export async function updateThreadSettings(
   threadId: string,
-  userId: string,
   settings: {
     customSystemPrompt?: string | null;
     customEnabledTools?: Record<string, boolean> | null;
@@ -945,10 +945,10 @@ export async function updateThreadSettings(
     paramIdx++;
   }
 
-  params.push(threadId, userId);
+  params.push(threadId);
 
   const result = await postgres.query(
-    `UPDATE chat_threads SET ${setClauses.join(', ')} WHERE id = $${paramIdx} AND user_id = $${paramIdx + 1} RETURNING id`,
+    `UPDATE chat_threads SET ${setClauses.join(', ')} WHERE id = $${paramIdx} AND deleted_at IS NULL RETURNING id`,
     params
   );
   return (result as unknown[]).length > 0;

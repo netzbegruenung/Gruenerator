@@ -24,8 +24,10 @@ import { teamChatShareExistsSql } from '../../services/groups/projectThreadScope
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
+import { canAccessThread, canWriteThread } from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -454,7 +456,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (threads[0].user_id !== userId) {
+      if (!(await canAccessThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
@@ -479,7 +481,12 @@ export const threadsContractRouter = s.router(threadsContract, {
       const { threadId } = args.params;
       const { customSystemPrompt, customEnabledTools, roleRef } = args.body;
 
-      const updated = await updateThreadSettings(threadId, userId, {
+      // Writers of a team chat may change its settings; the owner always can.
+      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
+        return { status: 404 as const, body: { error: 'Thread not found or forbidden' } };
+      }
+
+      const updated = await updateThreadSettings(threadId, {
         ...(customSystemPrompt !== undefined && { customSystemPrompt }),
         ...(customEnabledTools !== undefined && { customEnabledTools }),
         ...(roleRef !== undefined && { roleRef }),
@@ -605,11 +612,11 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (threads[0].user_id !== userId) {
+      if (!(await canAccessThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
-      const files = await getThreadTabularFiles(threadId, userId);
+      const files = await getThreadTabularFiles(threadId);
       return { status: 200 as const, body: { files } };
     } catch (error) {
       log.error('Error fetching tabular files:', error);
