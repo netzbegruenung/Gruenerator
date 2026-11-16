@@ -706,10 +706,14 @@ const CardShell = memo(
   }) => (
     <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
       <McpLogo title={title} size={30} />
-      <span className="flex min-w-0 flex-1 items-center gap-xs">
-        <span className="truncate text-sm font-semibold text-foreground-heading">{title}</span>
+      {/* Stacked, not side by side: in the two-column grid a pill next to the
+          name squeezed „Microsoft 365" down to „Micr…". */}
+      <span className="flex min-w-0 flex-1 flex-col items-start">
+        <span className="max-w-full truncate text-sm font-semibold text-foreground-heading">
+          {title}
+        </span>
         {experimental && (
-          <span className="shrink-0 rounded-full border border-secondary-100 bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+          <span className="text-[11px] font-semibold text-secondary-700 dark:text-secondary-300">
             Experimentell
           </span>
         )}
