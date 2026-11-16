@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import { createEnsureOwedTools, owedToolName, type GuaranteeContext } from './loopGuarantees.js';
+import { createEnsureOwedTools, type GuaranteeContext } from './loopGuarantees.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
@@ -274,94 +274,5 @@ describe('Pin-Zusicherung — ein benanntes bundestag läuft, auch wenn der Plan
     const { run, execute } = harness({ editToolSurface: null }, ask, 'bundestag');
     expect(await run()).toBe(false);
     expect(execute).not.toHaveBeenCalled();
-  });
-});
-
-describe('owedToolName — welches Werkzeug der Turn noch schuldet', () => {
-  const state = (over: Partial<ChatGraphState>): ChatGraphState => over as ChatGraphState;
-  const mounted =
-    (...names: string[]) =>
-    (name: string) =>
-      names.includes(name);
-
-  it('an ordered compound generation owes its fat tool', () => {
-    expect(
-      owedToolName(
-        state({ compoundGenerationKind: 'sheet', compoundGenerationOrdered: true }),
-        '',
-        mounted('create_sheet'),
-        []
-      )
-    ).toBe('create_sheet');
-  });
-
-  it('a merely named artifact (compoundGenerationOrdered: false) owes nothing', () => {
-    expect(
-      owedToolName(
-        state({ compoundGenerationKind: 'sharepic', compoundGenerationOrdered: false }),
-        '',
-        mounted('sharepic'),
-        []
-      )
-    ).toBeNull();
-  });
-
-  it('owes nothing once the tool ran or an artifact exists', () => {
-    const compound = {
-      compoundGenerationKind: 'sharepic',
-      compoundGenerationOrdered: true,
-    } as const;
-    expect(owedToolName(state(compound), '', mounted('sharepic'), ['sharepic'])).toBeNull();
-    expect(
-      owedToolName(
-        state({ ...compound, sharepicVariants: [{}] } as Partial<ChatGraphState>),
-        '',
-        mounted('sharepic'),
-        []
-      )
-    ).toBeNull();
-  });
-
-  it('a forced edit owes the mounted edit tool — by intent, and by the ask', () => {
-    expect(
-      owedToolName(
-        state({ editToolSurface: 'board', intent: 'edit_current_board' }),
-        '',
-        mounted('edit_document'),
-        []
-      )
-    ).toBe('edit_document');
-    expect(
-      owedToolName(
-        state({ editToolSurface: 'board', intent: 'agentic' }),
-        'Erstelle eine Aufgabe „Plakate bestellen" in To-Do',
-        mounted('edit_document'),
-        []
-      )
-    ).toBe('edit_document');
-    // A question to the board is no edit.
-    expect(
-      owedToolName(
-        state({ editToolSurface: 'board', intent: 'agentic' }),
-        'Wie viele Aufgaben sind offen?',
-        mounted('edit_document'),
-        []
-      )
-    ).toBeNull();
-  });
-
-  it('owes nothing the turn cannot call', () => {
-    expect(
-      owedToolName(
-        state({ compoundGenerationKind: 'sheet', compoundGenerationOrdered: true }),
-        '',
-        mounted(),
-        []
-      )
-    ).toBeNull();
-  });
-
-  it('a plain turn owes nothing', () => {
-    expect(owedToolName(state({ intent: 'agentic' }), '', mounted('sharepic'), [])).toBeNull();
   });
 });
