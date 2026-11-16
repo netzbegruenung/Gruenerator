@@ -28,7 +28,7 @@ import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
-import { getThreadAccessLevel } from './services/threadAccessService.js';
+import { getThreadAccessLevel, isThreadOwner } from './services/threadAccessService.js';
 import { insertThreadWithSlugRetry } from './services/threadPersistenceService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -68,7 +68,9 @@ async function checkOwnership(
     [threadId]
   );
   if (rows.length === 0) return 'missing';
-  return String(rows[0]?.user_id) === userId ? 'ok' : 'forbidden';
+  if (String(rows[0]?.user_id) !== userId) return 'forbidden';
+  // A team chat of a project the owner has left belongs to the project (#5678).
+  return (await isThreadOwner(ThreadId(threadId), UserId(userId))) ? 'ok' : 'forbidden';
 }
 
 const s = initServer();

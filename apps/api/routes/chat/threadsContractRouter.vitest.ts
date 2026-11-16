@@ -28,6 +28,13 @@ const reportBackgroundError = vi.fn();
 /** Every statement and side store, in the order it ran (delete tests). */
 const effects: string[] = [];
 
+// The departed-owner rule (#5678) is pinned against Postgres in
+// services/threadOwnerLeftProject.db.vitest.ts.
+vi.mock('./services/threadAccessService.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  isThreadOwner: async () => true,
+}));
+
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
     query: queryMock,
