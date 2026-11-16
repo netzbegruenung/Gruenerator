@@ -3,15 +3,16 @@
  * Tests mocken die Datenbank und sahen `content_id = $1::uuid` (TEXT = uuid →
  * Fehler, Mitglieder kamen nie in den Raum) deshalb nicht.
  *
- * Läuft nur mit `MIGRATIONS_TEST_DATABASE_URL` (CI-Job „Tests").
+ * Läuft nur mit `MIGRATIONS_TEST_DATABASE_URL` (CI-Job „Tests"). Das Paket kann den
+ * Migrations-Runner der API nicht importieren (rootDir), darum legt der Test die
+ * wenigen Tabellen selbst an (Spalten wie in schema.sql).
  */
 import { randomUUID } from 'node:crypto';
 
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from '../../../database/services/PostgresService/migrations.js';
-import { AuthService } from '../../../../../services/hocuspocus/src/auth.js';
+import { AuthService } from './auth.js';
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 let pool: pg.Pool;
@@ -69,7 +70,19 @@ const access = (threadId: string, userId: string) => {
 describe.skipIf(!url)('Hocuspocus chat room auth gegen Postgres', () => {
   beforeAll(async () => {
     pool = new pg.Pool({ connectionString: url });
-    expect(await runMigrations(pool)).toBe(true);
+    await pool.query(`
+      CREATE TABLE profiles (id UUID PRIMARY KEY, email TEXT, display_name TEXT);
+      CREATE TABLE chat_threads (
+        id UUID PRIMARY KEY, user_id UUID, permissions JSONB DEFAULT '{}',
+        is_public BOOLEAN DEFAULT false, doc_id UUID, deleted_at TIMESTAMPTZ);
+      CREATE TABLE groups (
+        id UUID PRIMARY KEY, name TEXT, group_type TEXT DEFAULT 'standard',
+        deleted_at TIMESTAMPTZ);
+      CREATE TABLE group_memberships (
+        group_id UUID, user_id UUID, is_active BOOLEAN DEFAULT TRUE);
+      CREATE TABLE group_content_shares (
+        group_id UUID, shared_by_user_id UUID, content_type TEXT NOT NULL,
+        content_id TEXT NOT NULL, permissions JSONB DEFAULT '{}');`);
     for (const id of [OWNER, MEMBER, STRANGER, FORMER]) await profile(id);
   });
   afterAll(async () => {
