@@ -89,6 +89,8 @@ jobs:
       lint: ${{ steps.plan.outputs.lint }}
       tests: ${{ steps.plan.outputs.tests }}
       builds: ${{ steps.plan.outputs.builds }}
+      nlp: ${{ steps.plan.outputs.nlp }}
+      browser_agent: ${{ steps.plan.outputs.browser_agent }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -213,13 +215,29 @@ jobs:
             [ "$run" = false ] || BUILDS=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$BUILDS")
           done < <(jq -c '.[]' <<< "$APPS")
 
+          # The two Python services sit outside the pnpm workspace, so turbo
+          # cannot answer for them. Their inputs are their own directory and
+          # this file. Only pull_request asks: they ran on every run for 3 to
+          # 5 s of pytest behind a minute of queue and setup, and master keeps
+          # them as the net for anything this path list misses.
+          NLP=true
+          BROWSER_AGENT=true
+          if [ "$EVENT" = pull_request ]; then
+            NLP=$(touched '^services/nlp/|^\.github/workflows/ci\.yml$')
+            BROWSER_AGENT=$(touched '^services/browser-agent/|^\.github/workflows/ci\.yml$')
+          fi
+
           echo "Typecheck: needed=$TYPECHECK"
           echo "ESLint: needed=$LINT"
+          echo "NLP Service: needed=$NLP"
+          echo "Browser Agent: needed=$BROWSER_AGENT"
           {
             echo "typecheck=$TYPECHECK"
             echo "lint=$LINT"
             echo "tests=$TESTS"
             echo "builds=$BUILDS"
+            echo "nlp=$NLP"
+            echo "browser_agent=$BROWSER_AGENT"
           } >> "$GITHUB_OUTPUT"
 
           {
@@ -233,6 +251,8 @@ jobs:
             echo "| ESLint | $LINT |"
             echo "| Tests | $(jq -r 'map(.name) | join(", ") | if . == "" then "none" else . end' <<< "$TESTS") |"
             echo "| Build | $(jq -r 'join(", ") | if . == "" then "none" else . end' <<< "$BUILDS") |"
+            echo "| NLP Service | $NLP |"
+            echo "| Browser Agent | $BROWSER_AGENT |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Bare-node guards: no pnpm store restore (27s), no install (20s). They cost
@@ -579,6 +599,8 @@ jobs:
   # hand and needs no model at all.
   nlp:
     name: NLP Service (Python)
+    needs: plan
+    if: needs.plan.outputs.nlp != 'false'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -624,6 +646,8 @@ jobs:
   # stub resolver. The image itself is built by browser-agent-image.yml.
   browser-agent:
     name: Browser Agent (Python)
+    needs: plan
+    if: needs.plan.outputs.browser_agent != 'false'
     runs-on: ubuntu-latest
     defaults:
       run:
