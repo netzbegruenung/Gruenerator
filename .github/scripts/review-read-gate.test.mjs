@@ -1,8 +1,9 @@
 // node --test .github/scripts/review-read-gate.test.mjs
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { EXTRA, openedFiles, windows } from './review-read-gate.mjs';
+import { DIFF_CONTEXT, EXTRA, coverage, openedFiles, windows } from './review-read-gate.mjs';
 
 const WS = '/home/runner/work/Gruenerator/Gruenerator';
 
@@ -97,6 +98,46 @@ test('a peek that misses the changed region does not count', () => {
 test('the diff alone does not count for a file with deletions', () => {
   const diff = [`diff --git a/${FILE} b/${FILE}`, `+++ b/${FILE}`, PATCH].join('\n');
   assert.deepEqual(run([['Bash', { command: 'gh pr diff 1' }, diff]]), []);
+});
+
+// Was `git diff -U<n>` für die eine Änderung in Zeile 20 ausgibt.
+const diffWithContext = (n) =>
+  [
+    `diff --git a/${FILE} b/${FILE}`,
+    `+++ b/${FILE}`,
+    `@@ -${20 - n},${2 * n + 1} +${20 - n},${2 * n + 1} @@`,
+    ...lines(20 - n, 19).map((l) => ` ${l}`),
+    '-const line20 = 0;',
+    '+const line20 = 20;',
+    ...lines(21, 20 + n).map((l) => ` ${l}`),
+  ].join('\n');
+
+test('a diff with DIFF_CONTEXT lines counts, one line less does not (#5691)', () => {
+  const cmd = (n) => ({ command: `git diff -U${n} origin/master...HEAD -- ${FILE}` });
+  assert.deepEqual(run([['Bash', cmd(DIFF_CONTEXT), diffWithContext(DIFF_CONTEXT)]]), [FILE]);
+  assert.deepEqual(run([['Bash', cmd(DIFF_CONTEXT - 1), diffWithContext(DIFF_CONTEXT - 1)]]), []);
+  // Zu groß für die Antwort: die CLI legt den Diff ab, der Lauf liest ihn per Read.
+  const persisted = diffWithContext(DIFF_CONTEXT)
+    .split('\n')
+    .map((l, i) => `${String(i + 1).padStart(6)}\t${l}`)
+    .join('\n');
+  assert.deepEqual(run([['Read', { file_path: '/tmp/batch.diff' }, persisted]]), [FILE]);
+});
+
+test('the prompt asks for a diff the gate accepts (#5691)', () => {
+  const workflow = readFileSync(new URL('../workflows/pr-review.yml', import.meta.url), 'utf8');
+  const asked = [...workflow.matchAll(/git diff -U(\d+)/g)].map((m) => Number(m[1]));
+  assert.ok(asked.length > 0, 'pr-review.yml nennt kein `git diff -U<n>`');
+  for (const n of asked) assert.ok(n >= DIFF_CONTEXT, `-U${n} deckt die Fenster nicht`);
+});
+
+test('coverage names the first window a run did not see', () => {
+  const execution = [
+    { type: 'user', message: { content: [{ type: 'tool_result', content: PATCH }] } },
+  ];
+  assert.deepEqual(coverage(execution, PATCHES, headText, WS), [
+    { file: FILE, seen: false, reason: '0 von 1 Fenstern gesehen, es fehlt Zeile 12–28' },
+  ]);
 });
 
 test('pure additions count from a complete diff, not from a truncated one (#4839)', () => {
