@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { editorAppSrc, VIDEO_EDITOR_APP_PATH } from './editorAppSrc';
 import VideoEditorBetaDialog from './VideoEditorBetaDialog';
 
 /**
@@ -11,7 +12,7 @@ import VideoEditorBetaDialog from './VideoEditorBetaDialog';
  * same-origin under VIDEO_EDITOR_APP_PATH — by nginx in production, by the Vite
  * dev proxy locally — so it shares the session cookie and calls /api directly.
  */
-export const VIDEO_EDITOR_APP_PATH = '/videoeditor/app/';
+export { VIDEO_EDITOR_APP_PATH };
 
 /** localStorage key (F0): set once the beta notice was closed. */
 export const BETA_NOTICE_SEEN_KEY = 'videoeditor-beta-notice-seen';
@@ -25,6 +26,7 @@ function betaNoticeSeen(): boolean {
 }
 
 export default function VideoEditorPage() {
+  const [src] = useState(() => editorAppSrc(window.location.search));
   const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
 
   const closeBetaNotice = (open: boolean) => {
@@ -40,7 +42,7 @@ export default function VideoEditorPage() {
   return (
     <>
       <iframe
-        src={VIDEO_EDITOR_APP_PATH}
+        src={src}
         title="Grünerator Video-Editor"
         className="block h-dvh w-full border-0"
         allow="autoplay; fullscreen; clipboard-read; clipboard-write"
