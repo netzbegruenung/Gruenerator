@@ -327,6 +327,18 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
     expect((await pool.query('SELECT 1 FROM conventions')).rowCount).toBe(0);
   });
 
+  it('an upload whose file vanished is reported as missing with its names', async () => {
+    const m = manifest([speech(1, 'a', 'a')]);
+    const uploads = uploadsFor(m);
+    fs.rmSync(path.join(uploadDir, m.speeches[0]!.files.reel.name));
+    const error = await svc
+      .importConvention({ manifest: m, uploads, password: null, adminUserId: admin })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(svc.ImportMissingUploadError);
+    expect((error as { names: string[] }).names).toEqual([m.speeches[0]!.files.reel.name]);
+    expect((await pool.query('SELECT 1 FROM conventions')).rowCount).toBe(0);
+  });
+
   it('sha mismatch aborts', async () => {
     const m = manifest([speech(1, 'a', 'a')]);
     fs.writeFileSync(path.join(uploadDir, m.speeches[0]!.files.reel.name), 'tampered');

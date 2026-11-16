@@ -4,7 +4,7 @@
  * convention content goes through checkConventionAccess/checkSpeechAccess:
  * 'not_found' → 404, 'locked' → 403 LOCKED.
  */
-import { parteitageContract } from '@gruenerator/contracts';
+import { type ParteitageErrorCode, parteitageContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -36,7 +36,11 @@ import type { Application } from 'express';
 
 const log = createLogger('parteitageContractRouter');
 
-const err = <S extends 401 | 403 | 404 | 500>(status: S, code: string, message: string) => ({
+const err = <S extends 401 | 403 | 404 | 500>(
+  status: S,
+  code: ParteitageErrorCode,
+  message: string
+) => ({
   status,
   body: { success: false as const, code, message },
 });
@@ -103,13 +107,13 @@ export const parteitageContractRouter = s.router(parteitageContract, {
       const viewer = await viewerFromRequest(req);
       const convention = await getConventionBySlug(params.slug);
       if (!convention || !isConventionVisible(viewer, convention)) return notFound();
-      if (
-        convention.access_password_hash &&
-        !verifyPassword(body.password, convention.access_password_hash)
-      ) {
-        return err(401, 'WRONG_PASSWORD', 'Falsches Passwort.');
+      // Open conventions need no unlock and get no grant row.
+      if (convention.access_password_hash) {
+        if (!verifyPassword(body.password, convention.access_password_hash)) {
+          return err(401, 'WRONG_PASSWORD', 'Falsches Passwort.');
+        }
+        await grant(viewer.userId, convention.id);
       }
-      await grant(viewer.userId, convention.id);
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('[parteitageContract.unlock] Error:', error);

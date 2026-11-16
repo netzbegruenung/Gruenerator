@@ -72,4 +72,42 @@ describe('streamFile', () => {
     expect(r.headers['Content-Disposition']).toContain("filename*=UTF-8''M%C3%BCllerstein.mp4");
     expect(r.headers['Content-Disposition']).toContain('attachment; filename="M_llerstein.mp4"');
   });
+
+  it('a read error ends the response without throwing', async () => {
+    const req = { headers: {} } as unknown as Request;
+    const out = new PassThrough();
+    const res = Object.assign(out, { writeHead: () => undefined });
+    const source = new Readable({
+      read() {
+        this.destroy(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+      },
+    });
+    const ended = new Promise<void>((resolve) => out.on('close', () => resolve()));
+    expect(() =>
+      streamFile(req, res as unknown as Response, {
+        size: 10,
+        contentType: 'video/mp4',
+        downloadName: null,
+        open: () => source,
+      })
+    ).not.toThrow();
+    await ended;
+    expect(out.destroyed).toBe(true);
+  });
+
+  it('a client close destroys the source stream', async () => {
+    const req = { headers: {} } as unknown as Request;
+    const out = new PassThrough();
+    const res = Object.assign(out, { writeHead: () => undefined });
+    const source = new PassThrough();
+    streamFile(req, res as unknown as Response, {
+      size: 10,
+      contentType: 'video/mp4',
+      downloadName: null,
+      open: () => source,
+    });
+    out.destroy();
+    await new Promise((r) => setImmediate(r));
+    expect(source.destroyed).toBe(true);
+  });
 });

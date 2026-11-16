@@ -20,10 +20,13 @@ import {
   systemMedia,
 } from '../../database/schema/parteitage.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { createLogger } from '../../utils/logger.js';
 import { hashPassword } from '../../utils/passwordHash.js';
 import { getFilePathFromUploadId, markUploadAsPromoted } from '../subtitler/tusService.js';
 import { probeVideoMetadata } from '../subtitler/videoMetadata.js';
 import { getSystemMediaStorage } from '../systemMedia/storage.js';
+
+const log = createLogger('parteitageImport');
 
 export class ImportBlockedSpeechError extends Error {
   constructor(public readonly keys: string[]) {
@@ -174,6 +177,18 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
     else missing.push(file.name);
   }
   if (missing.length > 0) throw new ImportMissingUploadError(missing);
+
+  // An upload id without a file (reaped after the TUS retention, never finished) counts as missing.
+  const vanished: string[] = [];
+  for (const file of toStore) {
+    const { uploadId } = sources.get(file.storageKey)!;
+    const exists = await fs.promises
+      .stat(getFilePathFromUploadId(uploadId))
+      .then(() => true)
+      .catch(() => false);
+    if (!exists) vanished.push(file.name);
+  }
+  if (vanished.length > 0) throw new ImportMissingUploadError(vanished);
 
   // Verify before anything is moved.
   const verified: { file: PlannedFile; uploadId: string; filePath: string }[] = [];
@@ -381,41 +396,46 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
 
   for (const { uploadId } of verified) markUploadAsPromoted(uploadId);
 
-  // Remove media that is no longer referenced by anything.
+  // Remove media that is no longer referenced by anything. The import is already
+  // committed, so a failure here must not turn it into an error.
   let filesRemoved = 0;
   if (candidates.size > 0) {
-    const ids = [...candidates];
-    const used = new Set<string>();
-    const usedRows = await db
-      .select({ r: conventionSpeeches.reel_media_id, p: conventionSpeeches.poster_media_id })
-      .from(conventionSpeeches)
-      .where(
-        or(
-          inArray(conventionSpeeches.reel_media_id, ids),
-          inArray(conventionSpeeches.poster_media_id, ids)
-        )
-      );
-    for (const r of usedRows) {
-      used.add(r.r);
-      used.add(r.p);
-    }
-    const usedReports = await db
-      .select({ id: conventions.report_media_id })
-      .from(conventions)
-      .where(inArray(conventions.report_media_id, ids));
-    for (const r of usedReports) if (r.id) used.add(r.id);
-
-    const orphanIds = ids.filter((id) => !used.has(id));
-    if (orphanIds.length > 0) {
-      const rows = await db
-        .select({ id: systemMedia.id, storage_key: systemMedia.storage_key })
-        .from(systemMedia)
-        .where(inArray(systemMedia.id, orphanIds));
-      await db.delete(systemMedia).where(inArray(systemMedia.id, orphanIds));
-      for (const row of rows) {
-        await storage.remove(row.storage_key);
-        filesRemoved++;
+    try {
+      const ids = [...candidates];
+      const used = new Set<string>();
+      const usedRows = await db
+        .select({ r: conventionSpeeches.reel_media_id, p: conventionSpeeches.poster_media_id })
+        .from(conventionSpeeches)
+        .where(
+          or(
+            inArray(conventionSpeeches.reel_media_id, ids),
+            inArray(conventionSpeeches.poster_media_id, ids)
+          )
+        );
+      for (const r of usedRows) {
+        used.add(r.r);
+        used.add(r.p);
       }
+      const usedReports = await db
+        .select({ id: conventions.report_media_id })
+        .from(conventions)
+        .where(inArray(conventions.report_media_id, ids));
+      for (const r of usedReports) if (r.id) used.add(r.id);
+
+      const orphanIds = ids.filter((id) => !used.has(id));
+      if (orphanIds.length > 0) {
+        const rows = await db
+          .select({ id: systemMedia.id, storage_key: systemMedia.storage_key })
+          .from(systemMedia)
+          .where(inArray(systemMedia.id, orphanIds));
+        await db.delete(systemMedia).where(inArray(systemMedia.id, orphanIds));
+        for (const row of rows) {
+          await storage.remove(row.storage_key);
+          filesRemoved++;
+        }
+      }
+    } catch (error) {
+      log.error('[parteitageImport] post-commit cleanup failed:', error);
     }
   }
 

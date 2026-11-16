@@ -1,3 +1,5 @@
+import { pipeline } from 'node:stream';
+
 import { buildContentDisposition } from './contentDisposition.js';
 
 import type { Request, Response } from 'express';
@@ -54,10 +56,16 @@ export function streamFile(req: Request, res: Response, opts: StreamFileOptions)
       'Content-Type': contentType,
       ...disposition,
     });
-    open({ start, end }).pipe(res);
+    send(res, open({ start, end }));
     return;
   }
 
   res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': contentType, ...disposition });
-  open(null).pipe(res);
+  send(res, open(null));
+}
+
+/** A read error must end the response, not crash the worker; a client abort frees the file. */
+function send(res: Response, source: Readable): void {
+  pipeline(source, res, () => undefined);
+  res.on('close', () => source.destroy());
 }

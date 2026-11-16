@@ -3,12 +3,16 @@
  * applied at the /api/admin/parteitage prefix; every handler checks the admin
  * flag itself (403 FORBIDDEN). The TUS upload path is mounted in server.ts.
  */
-import { parteitageAdminContract } from '@gruenerator/contracts';
+import { type ParteitageErrorCode, parteitageAdminContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { eq } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
-import { conventions, conventionSpeeches } from '../../database/schema/parteitage.js';
+import {
+  conventionAccess,
+  conventions,
+  conventionSpeeches,
+} from '../../database/schema/parteitage.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { deleteConvention, deleteSpeech } from '../../services/parteitage/deleteService.js';
 import {
@@ -34,7 +38,11 @@ import type { Application } from 'express';
 
 const log = createLogger('parteitageAdminContractRouter');
 
-const err = <S extends 400 | 403 | 404 | 409 | 500>(status: S, code: string, message: string) => ({
+const err = <S extends 400 | 403 | 404 | 409 | 500>(
+  status: S,
+  code: ParteitageErrorCode,
+  message: string
+) => ({
   status,
   body: { success: false as const, code, message },
 });
@@ -98,7 +106,18 @@ export const parteitageAdminContractRouter = s.router(parteitageAdminContract, {
         return err(409, 'BLOCKED_SPEECHES', `Gesperrte Reden: ${error.keys.join(', ')}`);
       }
       if (error instanceof ZodError) return err(400, 'INVALID_MANIFEST', error.message);
-      if (error instanceof ImportMissingUploadError || error instanceof ImportFileMismatchError) {
+      if (error instanceof ImportMissingUploadError) {
+        return {
+          status: 400 as const,
+          body: {
+            success: false as const,
+            code: 'MISSING_UPLOADS' as const,
+            message: 'Für einige Dateien fehlt der Upload.',
+            files: error.names,
+          },
+        };
+      }
+      if (error instanceof ImportFileMismatchError) {
         return err(400, 'INVALID_MANIFEST', error.message);
       }
       log.error('[parteitageAdmin.import] Error:', error);
@@ -122,10 +141,15 @@ export const parteitageAdminContractRouter = s.router(parteitageAdminContract, {
         patch.access_password_hash = body.password === null ? null : hashPassword(body.password);
       }
       if (Object.keys(patch).length > 0) {
-        await getDrizzleInstance()
-          .update(conventions)
-          .set(patch)
-          .where(eq(conventions.id, convention.id));
+        await getDrizzleInstance().transaction(async (tx) => {
+          await tx.update(conventions).set(patch).where(eq(conventions.id, convention.id));
+          // A new, changed or removed password invalidates every earlier unlock.
+          if (body.password !== undefined) {
+            await tx
+              .delete(conventionAccess)
+              .where(eq(conventionAccess.convention_id, convention.id));
+          }
+        });
       }
       return ok();
     } catch (error) {

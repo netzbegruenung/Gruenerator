@@ -7,7 +7,11 @@ class ImportBlockedSpeechError extends Error {
     super('blocked');
   }
 }
-class ImportMissingUploadError extends Error {}
+class ImportMissingUploadError extends Error {
+  constructor(public readonly names: string[]) {
+    super('missing');
+  }
+}
 class ImportFileMismatchError extends Error {}
 
 const m = vi.hoisted(() => ({
@@ -19,6 +23,7 @@ const m = vi.hoisted(() => ({
   getConventionById: vi.fn(),
   getSpeech: vi.fn(),
   listAllConventions: vi.fn(),
+  getDrizzleInstance: vi.fn(),
 }));
 
 vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin: m.requireInstanceAdmin }));
@@ -41,7 +46,9 @@ vi.mock('../../services/parteitage/parteitageRepository.js', () => ({
 vi.mock('../../services/parteitage/parteitageViews.js', () => ({
   listAllConventions: m.listAllConventions,
 }));
-vi.mock('../../database/services/DrizzleService.js', () => ({ getDrizzleInstance: vi.fn() }));
+vi.mock('../../database/services/DrizzleService.js', () => ({
+  getDrizzleInstance: m.getDrizzleInstance,
+}));
 
 const { parteitageAdminContractRouter } = await import('./parteitageAdminContractRouter.js');
 
@@ -127,6 +134,41 @@ describe('admin', () => {
     expect(m.importConvention).toHaveBeenCalledWith(
       expect.objectContaining({ password: 'pw', adminUserId: 'a1' })
     );
+  });
+
+  it('import maps missing uploads → 400 MISSING_UPLOADS with the file names', async () => {
+    m.importConvention.mockRejectedValue(new ImportMissingUploadError(['a.mp4', 'b.jpg']));
+    const res = await call('import', { body: { manifest: {}, uploads: {}, password: null } });
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'MISSING_UPLOADS', files: ['a.mp4', 'b.jpg'] });
+  });
+
+  describe('update revokes unlock grants when the password is touched', () => {
+    const setup = () => {
+      const tx = {
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
+        delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+      };
+      m.getDrizzleInstance.mockReturnValue({
+        transaction: async (cb: (t: typeof tx) => Promise<void>) => cb(tx),
+      });
+      return tx;
+    };
+
+    it.each([['new-secret'], [null]])('password %s deletes convention_access', async (password) => {
+      const tx = setup();
+      const res = await call('update', { params: { id: 'c1' }, body: { password } });
+      expect(res.status).toBe(200);
+      expect(tx.update).toHaveBeenCalledTimes(1);
+      expect(tx.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('a status-only change keeps the grants', async () => {
+      const tx = setup();
+      await call('update', { params: { id: 'c1' }, body: { status: 'published' } });
+      expect(tx.update).toHaveBeenCalledTimes(1);
+      expect(tx.delete).not.toHaveBeenCalled();
+    });
   });
 
   it('fileHashes returns the stored map', async () => {

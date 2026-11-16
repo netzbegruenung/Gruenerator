@@ -179,6 +179,13 @@ describe('unlock', () => {
     expect(m.grant).toHaveBeenCalledWith('u1', 'c1');
   });
 
+  it('convention without password → 200, no grant row', async () => {
+    m.getConventionBySlug.mockResolvedValue(convention({ access_password_hash: null }));
+    const res = await call('unlock', { params: { slug: 'x' }, body: { password: 'egal' } });
+    expect(res).toEqual({ status: 200, body: { success: true } });
+    expect(m.grant).not.toHaveBeenCalled();
+  });
+
   it('unknown or invisible convention → 404', async () => {
     m.getConventionBySlug.mockResolvedValue(convention({ status: 'draft' }));
     const res = await call('unlock', { params: { slug: 'x' }, body: { password: 'geheim' } });

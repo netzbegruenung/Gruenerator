@@ -386,11 +386,11 @@ async function startWorker(): Promise<void> {
     }
   );
 
-  // Admin-only TUS uploads for the Parteitage import.
+  // Admin-only TUS uploads for the Parteitage import. No creation limiter: the import
+  // creates ~180 uploads in one run and every request is already admin-gated.
   const parteitageUploadPath = '/api/admin/parteitage/upload';
   app.all(
     parteitageUploadPath,
-    tusCreationLimiter,
     requireAuth,
     requireInstanceAdminMiddleware,
     (req: Request, res: Response) => {
@@ -399,7 +399,6 @@ async function startWorker(): Promise<void> {
   );
   app.all(
     parteitageUploadPath + '/*splat',
-    tusCreationLimiter,
     requireAuth,
     requireInstanceAdminMiddleware,
     (req: Request, res: Response) => {

@@ -21,6 +21,9 @@ const fakeRes = () => {
     send: vi.fn(),
     json: vi.fn(),
     end: vi.fn(),
+    on: vi.fn(),
+    once: vi.fn(),
+    removeListener: vi.fn(),
   };
   return res;
 };
@@ -46,6 +49,14 @@ describe('parteitageUnlockLimiter', () => {
     const { res, next } = await run(fakeReq('POST', '/abc-123/entsperren', 'u-limit'));
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(429);
+  });
+
+  it('keeps a separate bucket per Parteitag', async () => {
+    for (let i = 0; i < 10; i++) await run(fakeReq('POST', '/one-aaa111/entsperren', 'u-slug'));
+    const blocked = await run(fakeReq('POST', '/one-aaa111/entsperren', 'u-slug'));
+    expect(blocked.res.statusCode).toBe(429);
+    const other = await run(fakeReq('POST', '/two-bbb222/entsperren', 'u-slug'));
+    expect(other.next).toHaveBeenCalled();
   });
 
   it('does not count other requests or other users', async () => {
