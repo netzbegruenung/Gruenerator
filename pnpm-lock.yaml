@@ -595,8 +595,8 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -689,8 +689,8 @@ importers:
         specifier: 0.1.0-alpha.3
         version: 0.1.0-alpha.3
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@tanstack/react-query':
         specifier: ^5.106.1
         version: 5.106.1(@types/react@19.3.0)(react@19.3.0)
@@ -1341,8 +1341,8 @@ importers:
         specifier: 7.29.13
         version: 7.29.13(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1504,8 +1504,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.6))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1516,8 +1516,8 @@ importers:
         specifier: 0.1.0-alpha.3
         version: 0.1.0-alpha.3
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@ggraphic/schema':
         specifier: 0.1.0-alpha.2
         version: 0.1.0-alpha.2
@@ -5622,8 +5622,8 @@ packages:
   '@ggraphic/core@0.1.0-alpha.3':
     resolution: {integrity: sha512-j+neNUsicFzd7XxdOY56qfvNO1XvY07EcRTUc+T+Hlew1ln3db3FPvQ5H3NQjQo9qCvxAbSThcBjqEgdjN6dhw==}
 
-  '@ggraphic/editor@0.1.0-alpha.6':
-    resolution: {integrity: sha512-IubqDCzw0ZPewy+4cgC7VviXv56QIWlU1eljX+XgEDE7vLVwWE9+vZiHIRP3PiyE52M1tnQ7JVMZewFn5xqkcA==}
+  '@ggraphic/editor@0.1.0-alpha.7':
+    resolution: {integrity: sha512-ykWvgzIeeS7UF7UfY5Eepit1xPy3M/asaMvaQwhpNEtH6XDxduNuJ+90xZo+zwv2WTGBqFMlMycen9v5mPpj5Q==}
     peerDependencies:
       konva: ^10.9.0
       react: ^19.3.0
@@ -5739,9 +5739,6 @@ packages:
 
   '@iconify-json/iconoir@1.2.12':
     resolution: {integrity: sha512-9l6OtKntemFvgCbQ14AheNiUpm9eicNCwPuCmAVjmYORqhGFMEf33Yfo1S1pRFh9XIA3s7tiVmly6hm+dYNgEw==}
-
-  '@iconify-json/lucide@1.2.150':
-    resolution: {integrity: sha512-av3IH1CB8RuKrlKGDmBbt6dLYtZus1Vr89VOysxORLhKcTr4ARe4Dmp0gL7Q47sK9GMkyROn1a+h07tAYpSuEw==}
 
   '@iconify-json/lucide@1.2.151':
     resolution: {integrity: sha512-OCp+cNzynOlOI7zHq8bFGhBBzmSSWFICvOSTxZrajhFJC4YizvlLiBJMbaLzzlpMaGRidmZmAA8GpovoDKiy/w==}
@@ -15307,15 +15304,6 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.66.0:
-    resolution: {integrity: sha512-8zjbi/Us+ETXqfBwmXF/FHrWGIqOdE6zT1yUdRJLQVoptomSkB0zdFWVIM667t9K8djWDaXdkBkqi2qVTuDNiw==}
-    peerDependencies:
-      '@types/react': 19.3.0
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-
   lucide-react@1.70.0:
     resolution: {integrity: sha512-gCTPPN1MlQUBtUgdsUv+0CAUj+X8hifRUiRBw4E5v7lvDIOIpx0EZezdGQMSimS8pKA6esvullJub4GYr0mCHA==}
     peerDependencies:
@@ -24411,7 +24399,7 @@ snapshots:
 
   '@ggraphic/core@0.1.0-alpha.3': {}
 
-  '@ggraphic/editor@0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
+  '@ggraphic/editor@0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.3
       '@ggraphic/schema': 0.1.0-alpha.2
@@ -24420,7 +24408,7 @@ snapshots:
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.150
+      '@iconify-json/lucide': 1.2.151
       '@iconify-json/ri': 1.2.10
       '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.4(react@19.3.0)
@@ -24444,7 +24432,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.1
-      lucide-react: 1.66.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.70.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -24469,7 +24457,7 @@ snapshots:
       - redux
       - use-sync-external-store
 
-  '@ggraphic/editor@0.1.0-alpha.6(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
+  '@ggraphic/editor@0.1.0-alpha.7(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.3
       '@ggraphic/schema': 0.1.0-alpha.2
@@ -24478,7 +24466,7 @@ snapshots:
       '@iconify-json/flowbite': 1.2.7
       '@iconify-json/heroicons': 1.2.3
       '@iconify-json/iconoir': 1.2.12
-      '@iconify-json/lucide': 1.2.150
+      '@iconify-json/lucide': 1.2.151
       '@iconify-json/ri': 1.2.10
       '@iconify-json/tabler': 1.2.43
       '@iconify/react': 6.0.4(react@19.3.0)
@@ -24502,7 +24490,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.9
       konva: 10.9.1
-      lucide-react: 1.66.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.70.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -24646,10 +24634,6 @@ snapshots:
       '@iconify/types': 2.0.0
 
   '@iconify-json/iconoir@1.2.12':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/lucide@1.2.150':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -35502,12 +35486,6 @@ snapshots:
   lucide-react@0.525.0(react@19.3.0):
     dependencies:
       react: 19.3.0
-
-  lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-    optionalDependencies:
-      '@types/react': 19.3.0
 
   lucide-react@1.70.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
