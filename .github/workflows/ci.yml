@@ -84,6 +84,12 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    # No job here had a limit, so the default of six hours applied. One
+    # checkout hung for 31 minutes on master and still passed (run
+    # 43323368063); the longest healthy job of 150 runs took under 12. A
+    # checkout normally takes 10 to 40 s, so that step gets its own limit
+    # and a stall turns into a quick failure that can be re-run.
+    timeout-minutes: 10
     outputs:
       typecheck: ${{ steps.plan.outputs.typecheck }}
       lint: ${{ steps.plan.outputs.lint }}
@@ -94,6 +100,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           # HEAD^1 of the PR merge ref is the base tip, for the manifest diff.
           fetch-depth: 2
@@ -272,9 +279,11 @@ jobs:
   guards:
     name: Guards
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -392,9 +401,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.typecheck != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -437,9 +448,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.lint != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -459,9 +472,11 @@ jobs:
   format:
     name: Format & Generated
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -522,6 +537,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.tests != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -556,6 +572,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -597,6 +614,7 @@ jobs:
     needs: [plan, test-shard]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: All test shards passed
         run: >-
@@ -617,12 +635,14 @@ jobs:
     needs: plan
     if: needs.plan.outputs.nlp != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: services/nlp
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       # The interpreter is named ONCE, in the Dockerfile's FROM lines, and read
       # from there. A literal `python-version` here is a second source of truth
@@ -664,12 +684,14 @@ jobs:
     needs: plan
     if: needs.plan.outputs.browser_agent != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: services/browser-agent
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       # Same rule as for nlp: the interpreter is named once, in the Dockerfile.
       - name: Read Python version from the Dockerfile
@@ -698,6 +720,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.builds != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -705,6 +728,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
