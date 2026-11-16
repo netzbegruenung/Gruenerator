@@ -15,15 +15,15 @@ import {
   resultPoints,
   schlussCounts,
 } from './aggregate';
-import { AreaLegend } from './AreaLegend';
+import { AreaLegend, AreaMark } from './AreaLegend';
 import { FormulaBars } from './FormulaBars';
-import { GroupCompare } from './GroupCompare';
+import { flag, GroupCompare } from './GroupCompare';
 import { KreisMap } from './KreisMap';
 import { kvToAgs } from './kvToKreis';
 import { ListStrip } from './ListStrip';
 import { Methodik } from './Methodik';
 import { ResultScatter } from './ResultScatter';
-import { AREA_LABEL, AREA_ORDER, TEXT_CLASS } from './shared';
+import { AREA_LABEL, AREA_ORDER, CARD, TEXT_CLASS } from './shared';
 import { TopicBars } from './TopicBars';
 
 type Props = {
@@ -62,7 +62,7 @@ function Chip({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-sm ${TEXT_CLASS} ${pressed ? 'border-primary-600 ring-2 ring-primary-600' : 'border-grey-300 dark:border-grey-600'} bg-transparent`}
+      className={`min-h-9 cursor-pointer rounded-full border px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${TEXT_CLASS} ${pressed ? 'border-primary-600 bg-primary-500/10 ring-2 ring-primary-600' : 'border-grey-300 bg-transparent hover:bg-background-alt dark:border-grey-600'}`}
     >
       {children}
     </button>
@@ -85,9 +85,11 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
 
   return (
     <section aria-labelledby="pt-stats" className="flex flex-col gap-md">
-      <h2 id="pt-stats" className="m-0 text-lg font-semibold text-grey-800 dark:text-grey-100">
+      <h2 id="pt-stats" className="sr-only">
         Statistik
       </h2>
+
+      <Finding rows={stats.vergleichRaum} />
 
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter">
         {AREA_ORDER.map((a) => (
@@ -144,12 +146,14 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
         />
       ) : null}
 
-      <TopicBars
-        counts={countBy(filtered, 'topic')}
-        active={filters.topic}
-        onTopic={(topic) => onFilter({ topic })}
-      />
-      <FormulaBars anrede={countBy(filtered, 'anrede')} schluss={schlussCounts(filtered)} />
+      <div className="grid items-start gap-md lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <TopicBars
+          counts={countBy(filtered, 'topic')}
+          active={filters.topic}
+          onTopic={(topic) => onFilter({ topic })}
+        />
+        <FormulaBars anrede={countBy(filtered, 'anrede')} schluss={schlussCounts(filtered)} />
+      </div>
 
       {active ? (
         <div className={`flex flex-wrap items-center gap-2 text-sm ${TEXT_CLASS}`}>
@@ -157,7 +161,7 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
           <button
             type="button"
             onClick={() => onFilter(CLEAR)}
-            className="rounded border border-grey-300 bg-transparent px-3 py-1 text-sm dark:border-grey-600"
+            className="min-h-9 cursor-pointer rounded-full border border-grey-300 bg-transparent px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:border-grey-600"
           >
             Filter zurücksetzen
           </button>
@@ -174,6 +178,28 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
   );
 }
 
+function Finding({ rows }: { rows: ConventionStatsPublic['vergleichRaum'] }) {
+  if (rows.length === 0) return null;
+  const robust = rows.filter((r) => flag(r.p, r.q) === 'belastbar').length;
+  const hints = rows.filter((r) => flag(r.p, r.q) === 'Hinweis').length;
+  const headline =
+    robust === 0
+      ? 'Reden aus kreisfreien Städten und aus Kreisen unterscheiden sich nicht belastbar.'
+      : `Reden aus kreisfreien Städten und aus Kreisen unterscheiden sich in ${robust} von ${rows.length} Merkmalen belastbar.`;
+  const detail =
+    robust === 0
+      ? `Verglichen wurden ${rows.length} Merkmale.${hints > 0 ? ` ${hints} fallen einzeln betrachtet auf, keines hält der Korrektur für Mehrfachvergleiche stand.` : ' Keines fällt auf.'}`
+      : `Verglichen wurden ${rows.length} Merkmale; ${robust} halten der Korrektur für Mehrfachvergleiche stand.`;
+  return (
+    <div className="flex flex-col gap-1 rounded-lg bg-primary-500/10 p-md">
+      <p className="m-0 text-base font-semibold text-foreground-heading">{headline}</p>
+      <p className={`m-0 text-sm ${TEXT_CLASS}`}>
+        {detail} Ausgewertet werden nur Gruppen von Reden, nie einzelne Personen.
+      </p>
+    </div>
+  );
+}
+
 function Signatures({ stats }: { stats: ConventionStatsPublic }) {
   const entries = AREA_ORDER.flatMap((a) => {
     const words = stats.signaturRaum[a];
@@ -181,15 +207,26 @@ function Signatures({ stats }: { stats: ConventionStatsPublic }) {
   });
   if (entries.length === 0) return null;
   return (
-    <section className="flex flex-col gap-xs">
-      <h3 className="m-0 text-sm font-medium text-grey-800 dark:text-grey-100">
-        Typische Wörter je Herkunft
-      </h3>
-      <dl className={`m-0 text-sm ${TEXT_CLASS}`}>
+    <section className={`flex flex-col gap-sm ${CARD}`} aria-labelledby="pt-signatur">
+      <div className="flex flex-col gap-1">
+        <h3
+          id="pt-signatur"
+          className="m-0 text-base font-semibold text-grey-800 dark:text-grey-100"
+        >
+          Typische Wörter je Herkunft
+        </h3>
+        <p className={`m-0 text-sm ${TEXT_CLASS}`}>
+          Beschreibend, nicht getestet: Die Listen zeigen Wortwahl, keine Wirkung.
+        </p>
+      </div>
+      <dl className={`m-0 flex flex-col gap-2 text-sm ${TEXT_CLASS}`}>
         {entries.map(([a, words]) => (
-          <div key={a} className="flex gap-2">
-            <dt className="w-32 shrink-0 font-medium">{AREA_LABEL[a]}</dt>
-            <dd className="m-0">
+          <div key={a} className="flex flex-wrap gap-x-3 gap-y-1">
+            <dt className="flex w-36 shrink-0 items-center gap-1.5 font-medium text-foreground">
+              <AreaMark area={a} />
+              {AREA_LABEL[a]}
+            </dt>
+            <dd className="m-0 min-w-0 flex-1 basis-48">
               {words
                 .slice(0, 8)
                 .map((w) => w[0])

@@ -1,12 +1,12 @@
-import { TEXT_CLASS } from './shared';
+import { CARD, TEXT_CLASS } from './shared';
 
 function Bars({ title, counts }: { title: string; counts: [string, number][] }) {
   if (counts.length === 0) return null;
   const rows = counts.slice(0, 8);
   const max = Math.max(...rows.map(([, n]) => n));
   return (
-    <section className="flex flex-col gap-xs">
-      <h3 className="m-0 text-sm font-medium text-grey-800 dark:text-grey-100">{title}</h3>
+    <section className={`flex flex-col gap-xs ${CARD}`}>
+      <h3 className="m-0 text-base font-semibold text-grey-800 dark:text-grey-100">{title}</h3>
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {rows.map(([label, n]) => (
           <li key={label} className={`flex items-center gap-2 text-sm ${TEXT_CLASS}`}>

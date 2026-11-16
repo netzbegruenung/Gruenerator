@@ -7,7 +7,7 @@ import {
 } from '@gruenerator/ui/chart';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 
-import { AREA_COLOR, AREA_LABEL } from './shared';
+import { AREA_COLOR, AREA_LABEL, CARD } from './shared';
 
 type Block = { block: string; kreisfreieStadt: number; kreis: number; ohne: number };
 
@@ -38,8 +38,8 @@ export function ListStrip({
     )
     .join('; ');
   return (
-    <figure className="m-0 flex flex-col gap-xs">
-      <figcaption className="text-sm font-medium text-grey-800 dark:text-grey-100">
+    <figure className={`m-0 flex flex-col gap-xs ${CARD}`}>
+      <figcaption className="text-base font-semibold text-grey-800 dark:text-grey-100">
         Gewählte Listenplätze nach Herkunft
       </figcaption>
       <ChartContainer

@@ -7,9 +7,11 @@ import {
 } from '@gruenerator/ui/chart';
 import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis } from 'recharts';
 
-import { AREA_COLOR, AREA_LABEL, AREA_ORDER } from './shared';
+import { AREA_COLOR, AREA_LABEL, AREA_ORDER, CARD } from './shared';
 
 type Point = { listPlace: number; resultPercent: number; area: ConventionArea; name: string };
+
+const SHAPE = { kreisfreie_stadt: 'circle', kreis: 'diamond', ohne: 'square' } as const;
 
 const config = Object.fromEntries(
   AREA_ORDER.map((a) => [a, { label: AREA_LABEL[a], color: AREA_COLOR[a] }])
@@ -24,8 +26,8 @@ export function ResultScatter({
 }) {
   if (points.length === 0) return null;
   return (
-    <figure className="m-0 flex flex-col gap-xs">
-      <figcaption className="text-sm font-medium text-grey-800 dark:text-grey-100">
+    <figure className={`m-0 flex flex-col gap-xs ${CARD}`}>
+      <figcaption className="text-base font-semibold text-grey-800 dark:text-grey-100">
         Ergebnis nach Listenplatz
       </figcaption>
       <ChartContainer
@@ -51,6 +53,7 @@ export function ResultScatter({
               name={AREA_LABEL[a]}
               data={points.filter((p) => p.area === a)}
               fill={`var(--color-${a})`}
+              shape={SHAPE[a]}
               cursor="pointer"
               onClick={() => onArea(a)}
             />

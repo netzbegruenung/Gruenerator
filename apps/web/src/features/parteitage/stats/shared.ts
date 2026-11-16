@@ -15,6 +15,8 @@ export const AREA_COLOR: Record<ConventionArea, string> = {
   ohne: 'var(--pt-area-ohne)',
 };
 
+export const CARD = 'rounded-lg border border-grey-200 bg-background p-md dark:border-grey-700';
+
 export const TEXT_CLASS = 'text-grey-700 dark:text-grey-300';
 
 export function fmt(n: number, digits = 1): string {

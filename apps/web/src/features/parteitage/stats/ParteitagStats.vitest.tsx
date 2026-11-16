@@ -121,8 +121,10 @@ describe('ParteitagStats', () => {
   it('marks Hinweis vs belastbar', () => {
     render(<ParteitagStats stats={stats} speeches={speeches} filters={none} onFilter={vi.fn()} />);
     const rows = screen.getAllByRole('row');
-    expect(rows[1]).toHaveTextContent('Hinweis');
-    expect(rows[2]).toHaveTextContent('belastbar');
+    expect(rows[1]).toHaveTextContent('nach Korrektur nicht mehr');
+    expect(rows[1]).toHaveTextContent('0,012');
+    expect(rows[1]).toHaveTextContent('0,29');
+    expect(rows[2]).toHaveTextContent('Belastbarer Unterschied');
   });
 
   it('renders methodik from stats', () => {
