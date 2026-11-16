@@ -19,8 +19,11 @@ const row = (id: string, role = 'user', content: unknown = id): TeamSyncRow => (
 });
 const convert = (rows: TeamSyncRow[]) =>
   rows.map((r) => ({ id: r.id, role: r.role as 'user', content: String(r.content) }));
-const thread = (isRunning = false) => ({
-  getState: () => ({ isRunning }),
+const thread = (
+  isRunning = false,
+  messages: { status?: { type: string; reason?: string } }[] = []
+) => ({
+  getState: () => ({ isRunning, messages }),
   import: jest.fn(),
 });
 
@@ -61,5 +64,39 @@ describe('applyTeamChatRows', () => {
     expect(rowsSignature([row('a', 'assistant', 'x')])).not.toBe(
       rowsSignature([row('a', 'assistant', 'xyz')])
     );
+  });
+
+  it('keeps a just-finished local turn the server has not saved yet', () => {
+    const t = thread(false, [{}, {}, {}, {}]);
+    const sig = applyTeamChatRows({
+      rows: [row('a'), row('b', 'assistant')],
+      thread: t,
+      lastSignature: null,
+      convert,
+    });
+    expect(t.import).not.toHaveBeenCalled();
+    expect(sig).toBeNull();
+  });
+
+  it('keeps an unsaved busy or error notice instead of wiping it', () => {
+    const t = thread(false, [{}, { status: { type: 'incomplete', reason: 'error' } }]);
+    applyTeamChatRows({
+      rows: [row('a'), row('b', 'assistant')],
+      thread: t,
+      lastSignature: null,
+      convert,
+    });
+    expect(t.import).not.toHaveBeenCalled();
+  });
+
+  it('imports once the server has caught up with the local thread', () => {
+    const t = thread(false, [{}, {}]);
+    applyTeamChatRows({
+      rows: [row('a'), row('b', 'assistant')],
+      thread: t,
+      lastSignature: null,
+      convert,
+    });
+    expect(t.import).toHaveBeenCalledTimes(1);
   });
 });

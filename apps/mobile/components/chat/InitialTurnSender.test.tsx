@@ -9,6 +9,9 @@ const mockComposer = {
   send: jest.fn(),
 };
 jest.mock('@assistant-ui/react-native', () => ({ useAui: () => ({ composer: mockComposer }) }));
+jest.mock('../../stores/noticeStore', () => ({
+  useNoticeStore: { getState: () => ({ show: jest.fn() }) },
+}));
 jest.mock('../../stores/pendingAttachmentStore', () => ({
   usePendingAttachmentStore: { getState: () => ({ drain: () => [] }) },
 }));
@@ -28,6 +31,7 @@ describe('InitialTurnSender', () => {
     mockComposer.send.mockClear();
     const beforeSend = jest.fn(async () => {
       expect(mockComposer.send).not.toHaveBeenCalled();
+      return true;
     });
     await render(<InitialTurnSender message="Im Projekt" beforeSend={beforeSend} />);
     await waitFor(() => expect(mockComposer.send).toHaveBeenCalledTimes(1));
@@ -37,11 +41,19 @@ describe('InitialTurnSender', () => {
   it('hands the text back to the composer when the thread could not be created', async () => {
     mockComposer.send.mockClear();
     mockComposer.setText.mockClear();
-    const beforeSend = jest.fn(async () => {
+    const beforeSend = jest.fn(async (): Promise<boolean> => {
       throw new Error('offline');
     });
     await render(<InitialTurnSender message="Verloren?" beforeSend={beforeSend} />);
     await waitFor(() => expect(mockComposer.setText).toHaveBeenCalledWith('Verloren?'));
+    expect(mockComposer.send).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the hand-off already ran', async () => {
+    mockComposer.send.mockClear();
+    const beforeSend = jest.fn(async () => false);
+    await render(<InitialTurnSender message="Nochmal" beforeSend={beforeSend} />);
+    await waitFor(() => expect(beforeSend).toHaveBeenCalledTimes(1));
     expect(mockComposer.send).not.toHaveBeenCalled();
   });
 });

@@ -45,14 +45,27 @@ export function useTeamChatPolling(runtime: RefObject<AssistantRuntime | null>) 
     let busy = false;
     let timer: ReturnType<typeof setInterval> | null = null;
 
+    // Bumped whenever a local run starts or ends: a fetch that spans one holds
+    // rows from before it and must not be imported.
+    let runGeneration = 0;
+    let wasRunning = false;
+    const unsubscribeRuns = runtime.current?.thread.subscribe(() => {
+      const running = runtime.current?.thread.getState().isRunning ?? false;
+      if (running !== wasRunning) {
+        wasRunning = running;
+        runGeneration++;
+      }
+    });
+
     const tick = async () => {
       if (busy || disposed) return;
       busy = true;
+      const generation = runGeneration;
       try {
         const rows = await getMobileChatApiClient().get<TeamSyncRow[]>(
           `/api/chat-service/messages?threadId=${encodeURIComponent(threadId)}`
         );
-        if (disposed) return;
+        if (disposed || generation !== runGeneration) return;
         lastSignature.current = applyTeamChatRows({
           rows,
           thread: runtime.current?.thread ?? null,
@@ -83,6 +96,7 @@ export function useTeamChatPolling(runtime: RefObject<AssistantRuntime | null>) 
     });
     return () => {
       disposed = true;
+      unsubscribeRuns?.();
       stop();
       sub.remove();
     };

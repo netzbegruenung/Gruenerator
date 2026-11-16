@@ -21,7 +21,7 @@ import { VOICE_DOCK_INSET, VoiceCallBar, VoiceCallOverlay } from '../../componen
 import { WaveformIcon } from '../../components/voice/WaveformIcon';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
-import { createProjectChatThread } from '../../services/projectChatThread';
+import { runProjectChatHandoff } from '../../services/projectChatThread';
 import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
@@ -99,6 +99,8 @@ type ChatConversationParams = {
   groupId?: string;
   /** `1`: a team chat — every member of the Projekt may write in it. */
   teamShared?: string;
+  /** Unique per start from the Projekt page: a remount must not start it twice. */
+  handoff?: string;
 };
 
 export default function ChatConversationScreen() {
@@ -126,6 +128,7 @@ function ChatConversation({
   voice,
   groupId,
   teamShared,
+  handoff,
 }: ChatConversationParams) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -213,9 +216,11 @@ function ChatConversation({
           <InitialTurnSender
             message={initialMessage ?? ''}
             {...(groupId && {
-              beforeSend: async () => {
-                await createProjectChatThread({ groupId, teamShared: teamShared === '1' });
-              },
+              beforeSend: () =>
+                runProjectChatHandoff(`${groupId}:${handoff ?? ''}`, {
+                  groupId,
+                  teamShared: teamShared === '1',
+                }),
             })}
           />
         )}

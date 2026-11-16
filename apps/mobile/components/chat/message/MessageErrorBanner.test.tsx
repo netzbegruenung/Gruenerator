@@ -4,6 +4,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 // reference them — babel-plugin-jest-hoist rejects any other out-of-scope name.
 import { Text as MockText, View as MockView } from 'react-native';
 
+import {
+  ChatStreamError,
+  errorStatus,
+} from '../../../../../packages/chat/src/runtime/streamErrorMessage';
 import { lightTheme } from '../../../theme/colors';
 
 import { MessageErrorBanner } from './MessageErrorBanner';
@@ -14,7 +18,7 @@ import type { ReactNode } from 'react';
 const mockReload = jest.fn();
 let mockMessageError: string | undefined;
 // The error object the message status carries (`ChatStreamError` has a `code`).
-let mockStatusError: { code?: string } | null = null;
+let mockStatusError: object | null = null;
 let mockMayReplace = true;
 
 jest.mock('./threadRunSignals', () => ({ flagRegenerate: jest.fn() }));
@@ -32,7 +36,7 @@ jest.mock('@assistant-ui/react-native', () => ({
     select({
       message: {
         status: mockStatusError
-          ? { type: 'incomplete', reason: 'error', error: mockStatusError }
+          ? { type: 'incomplete', reason: 'error', ...mockStatusError }
           : { type: 'complete' },
       },
     }),
@@ -83,7 +87,10 @@ describe('MessageErrorBanner', () => {
   // Another member's answer is running: a queue, not a failure.
   it('shows thread_busy as a waiting notice and re-sends without replacing a turn', async () => {
     mockMessageError = 'Gerade entsteht schon eine Antwort in diesem Chat.';
-    mockStatusError = { code: 'thread_busy' };
+    // The real shape the adapter yields, not a hand-made one.
+    mockStatusError = errorStatus(
+      new ChatStreamError(mockMessageError, { code: 'thread_busy', retryable: true })
+    );
     await render(<MessageErrorBanner theme={lightTheme} />);
 
     expect(screen.getByTestId('chat-message-busy')).toBeTruthy();

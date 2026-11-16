@@ -62,10 +62,12 @@ export const STREAM_INTERRUPTED_MESSAGE = CODE_FALLBACK_MESSAGES.stream_interrup
 export function errorStatus(
   error: unknown,
   response?: Response
-): { type: 'incomplete'; reason: 'error'; error: string } {
+): { type: 'incomplete'; reason: 'error'; error: string; code?: string } {
   return {
     type: 'incomplete',
     reason: 'error',
+    // The wire code (`thread_busy`, ...) so a surface can tell a queue from a failure.
+    ...(error instanceof ChatStreamError && error.code ? { code: error.code } : {}),
     // Strip the markdown emphasis: the banner styles the text itself.
     error: streamErrorMessage(error, response).replace(/^⚠️\s*\*\*|\*\*/g, ''),
   };

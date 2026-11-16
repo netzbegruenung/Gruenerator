@@ -1,18 +1,37 @@
+import {
+  ChatStreamError,
+  errorStatus,
+} from '../../../../../packages/chat/src/runtime/streamErrorMessage';
 import { describe, expect, it } from 'vitest';
 
-import { isThreadBusyError } from './threadBusy';
+import { isThreadBusyStatus } from './threadBusy';
 
-describe('isThreadBusyError', () => {
-  it('recognises the stream error code of a busy team chat', () => {
-    expect(isThreadBusyError(Object.assign(new Error('busy'), { code: 'thread_busy' }))).toBe(true);
+describe('isThreadBusyStatus', () => {
+  it('recognises the real errorStatus() of a thread_busy stream error', () => {
+    const status = errorStatus(
+      new ChatStreamError('Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz.', {
+        code: 'thread_busy',
+        retryable: true,
+      })
+    );
+    expect(isThreadBusyStatus(status)).toBe(true);
+  });
+
+  it('falls back to the server wording when the code is missing', () => {
+    expect(
+      isThreadBusyStatus({
+        type: 'incomplete',
+        reason: 'error',
+        error: 'Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz.',
+      })
+    ).toBe(true);
   });
 
   it('leaves every other failure an error', () => {
-    expect(isThreadBusyError(Object.assign(new Error('x'), { code: 'not_your_message' }))).toBe(
-      false
-    );
-    expect(isThreadBusyError(new Error('x'))).toBe(false);
-    expect(isThreadBusyError(null)).toBe(false);
-    expect(isThreadBusyError('thread_busy')).toBe(false);
+    expect(
+      isThreadBusyStatus(errorStatus(new ChatStreamError('x', { code: 'not_your_message' })))
+    ).toBe(false);
+    expect(isThreadBusyStatus(errorStatus(new Error('x')))).toBe(false);
+    expect(isThreadBusyStatus(null)).toBe(false);
   });
 });

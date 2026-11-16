@@ -14,11 +14,14 @@ export function projectChatRoute(opts: {
   text: string;
   teamShared: boolean;
   solo: boolean;
+  /** Unique per start (defaults to now). */
+  handoff?: string;
 }): Href {
   return routeWithParams('/(focused)/chat-conversation', {
     threadId: 'new',
     initialMessage: opts.text,
     groupId: opts.groupId,
+    handoff: opts.handoff ?? String(Date.now()),
     ...(!opts.solo && opts.teamShared && { teamShared: '1' }),
   });
 }

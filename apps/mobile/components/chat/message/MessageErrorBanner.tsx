@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native'
 
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
-import { isThreadBusyError, THREAD_BUSY_NOTICE } from './threadBusy';
+import { isThreadBusyStatus, THREAD_BUSY_NOTICE } from './threadBusy';
 import { flagRegenerate } from './threadRunSignals';
 import { useMayReplaceTurn } from './useMayReplaceTurn';
 
@@ -40,7 +40,7 @@ export const MessageErrorBanner = memo(function MessageErrorBanner({ theme }: { 
   const busy = useAuiState((s) => {
     const status = s.message.status;
     return status?.type === 'incomplete' && status.reason === 'error'
-      ? isThreadBusyError(status.error)
+      ? isThreadBusyStatus(status)
       : false;
   });
 

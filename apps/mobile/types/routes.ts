@@ -75,6 +75,8 @@ export interface ModalRouteParams {
     groupId?: string;
     /** `1`: a team chat — every member of the Projekt may write in it. */
     teamShared?: string;
+    /** Unique per start; guards against a remount replaying the hand-off. */
+    handoff?: string;
   };
   '/notebook/[id]/chat': {
     /** Registry id of a system notebook, or the UUID of a user notebook. */

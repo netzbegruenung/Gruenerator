@@ -2,7 +2,10 @@ import { ExportedMessageRepository, type ThreadMessageLike } from '@assistant-ui
 
 /** The part of a thread runtime the poll reads and writes. */
 export interface TeamSyncThread {
-  getState(): { isRunning: boolean };
+  getState(): {
+    isRunning: boolean;
+    messages: readonly { status?: { type: string; reason?: string } }[];
+  };
   import(repository: ExportedMessageRepository): void;
 }
 
@@ -51,6 +54,17 @@ export function applyTeamChatRows<TRow extends TeamSyncRow>(args: {
   const signature = rowsSignature(rows);
   if (signature === lastSignature) return lastSignature;
   const settled = rows.filter((r) => !r.metadata?.live);
+  // This device is ahead of the server: its last answer is not saved yet
+  // (the server writes it after the stream), or it failed and was never saved
+  // (a busy or error notice). Importing now would wipe it. A later poll
+  // catches up once the server has the rows.
+  const local = thread.getState().messages;
+  if (
+    local.length > settled.length ||
+    local.some((m) => m.status?.type === 'incomplete' && m.status.reason === 'error')
+  ) {
+    return lastSignature;
+  }
   thread.import(ExportedMessageRepository.fromArray(convert(settled)));
   return signature;
 }
