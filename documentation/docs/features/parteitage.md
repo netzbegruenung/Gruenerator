@@ -20,7 +20,7 @@ Bei jeder Rede stehen zwei Wege offen:
 - **In Editor laden** öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel.
 - **Nur untertiteln** untertitelt die **ganze Rede** auf dem Server. Du bekommst ein fertiges Video, das du mit **Herunterladen** speicherst.
 
-Ist die Originaldatei nicht mehr vorhanden, steht an der Rede „Quelle nicht mehr verfügbar“.
+Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast.
 
 ## Statistik
 
