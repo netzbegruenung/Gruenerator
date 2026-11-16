@@ -249,14 +249,16 @@ export function thinksOnThisLane(
 /**
  * Resolve which AI model to use.
  *
- * Order: explicit user selection → auto policy (intent + complexity) → agent
- * default. The vision override runs last and beats all of them.
+ * Order: explicit user selection → auto policy (intent + complexity). The
+ * vision override runs last and beats both. Every answer is a pair from the
+ * model registry: an agent's stored `provider`/`model` is not read here — for
+ * a user-created agent those are free text from the create request.
  *
  * Stays async for its callers although nothing waits any more: the Redis slot
  * that once made it necessary is gone with the Verdigado host.
  */
 export async function resolveModel(
-  agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
+  _agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
   modelId: string | undefined,
   requestId: string,
   options?: {
@@ -277,8 +279,9 @@ export async function resolveModel(
     surface?: 'notebook';
   }
 ): Promise<ModelResolution> {
-  let modelProvider: string = agentConfig.provider;
-  let modelName = agentConfig.model;
+  // Last resort only: both branches below replace it with a registry pair.
+  let modelProvider: string = VISION_MODEL.provider;
+  let modelName = VISION_MODEL.model;
   let sibling: ModelResolution['sibling'];
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
@@ -288,19 +291,19 @@ export async function resolveModel(
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
 
-  if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId);
-    if (tuple) {
-      modelProvider = tuple.provider;
-      modelName = tuple.model;
-      resolvedId = modelId;
-      contextWindow = tuple.contextWindow;
-      if (tuple.sibling) sibling = tuple.sibling;
-      log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
-    } else {
-      log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
-      unknownModelId = modelId;
-    }
+  const requested = isAuto ? null : await resolveModelTuple(modelId, requestId);
+  if (!isAuto && !requested) {
+    log.warn(`[ChatGraph] Unknown model ID "${modelId}", using the auto policy`);
+    unknownModelId = modelId;
+  }
+
+  if (requested) {
+    modelProvider = requested.provider;
+    modelName = requested.model;
+    resolvedId = modelId;
+    contextWindow = requested.contextWindow;
+    if (requested.sibling) sibling = requested.sibling;
+    log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
   } else {
     // Auto: the classifier has already run, so the intent is known here. This
     // is the whole point of resolving auto on the server instead of the client.
@@ -330,9 +333,9 @@ export async function resolveModel(
       );
     } else {
       // The policy names a lane that is not in AVAILABLE_MODELS — a code bug,
-      // not user input. Fall back to the agent default rather than failing.
+      // not user input. Answer on the server default rather than failing.
       log.error(
-        `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using agent default`
+        `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using the server default`
       );
     }
   }
