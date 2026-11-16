@@ -256,9 +256,8 @@ export default defineConfig(({ command }) => ({
       'lucide-react',
     ],
     // Keep heavy/native-binary deps out of prebundling — they handle their
-    // own ESM and break esbuild's transformer (browser-image-compression
-    // uses dynamic workers).
-    exclude: ['browser-image-compression', 'pyodide'],
+    // own ESM and break esbuild's transformer.
+    exclude: ['pyodide'],
     rolldownOptions: {
       transform: {
         define: {},
