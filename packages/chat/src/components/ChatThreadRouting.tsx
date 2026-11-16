@@ -36,6 +36,14 @@ export interface ChatThreadRoutingProps {
   onLeaveThread: () => void;
   /** Notebook threads open on their notebook surface instead of /chat. */
   onOpenNotebookThread: (path: string) => void;
+  /**
+   * Bare /chat that should keep the thread main already holds instead of
+   * parking on a draft: a surface outside /chat (the /start composer) has just
+   * sent into it and hands it over. The thread → URL effect then claims the URL
+   * for it like for a thread minted right here — whether its remoteId arrives
+   * before or after this mounts.
+   */
+  adoptOpenThread?: boolean;
 }
 
 /**
@@ -66,6 +74,7 @@ export function ChatThreadRouting({
   onThreadGone,
   onLeaveThread,
   onOpenNotebookThread,
+  adoptOpenThread = false,
 }: ChatThreadRoutingProps) {
   const aui = useAui();
   const suffix = threadSlug ? extractSlugSuffix(threadSlug) : null;
@@ -113,6 +122,14 @@ export function ChatThreadRouting({
       // Content queued by another surface: AutoMessageSender owns that hand-off
       // and starts its own thread for it. A second switch here would race it.
       if (hasPendingHandoff(useAgentStore.getState())) return;
+      // Handed over from another surface with a send already running in main.
+      // assistant-ui reports a minted remoteId a commit after initialize()
+      // resolves, so main may or may not carry it by now; parking here when it
+      // does dropped the conversation the user had just sent.
+      if (adoptOpenThread) {
+        useAgentStore.getState().setChatViewMode('thread');
+        return;
+      }
 
       const state = aui.threads.getState();
       const mainRemoteId =
@@ -234,7 +251,7 @@ export function ChatThreadRouting({
     return () => {
       cancelled = true;
     };
-  }, [threadSlug, suffix, onThreadGone, onOpenNotebookThread]);
+  }, [threadSlug, suffix, onThreadGone, onOpenNotebookThread, adoptOpenThread]);
 
   // ---------------------------------------------------------------- thread → URL
   // Two primitive selectors rather than one object: a fresh object per render
@@ -266,7 +283,9 @@ export function ChatThreadRouting({
       mainTitle,
       threadSlug,
       suffix,
-      prevRemoteId,
+      // An adopted thread claims bare /chat like one minted here: that is the
+      // case the reconciler tells apart by an empty previous main.
+      prevRemoteId: adoptOpenThread && threadSlug === null ? null : prevRemoteId,
       slugStillResolves: suffix ? resolveThreadBySlugSuffix(suffix) != null : false,
     });
 
@@ -281,6 +300,7 @@ export function ChatThreadRouting({
     onNavigateToThread,
     onThreadGone,
     onLeaveThread,
+    adoptOpenThread,
   ]);
 
   return null;
