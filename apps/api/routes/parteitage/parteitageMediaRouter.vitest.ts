@@ -8,6 +8,8 @@ const m = vi.hoisted(() => ({
   viewerFromRequest: vi.fn(),
   findOwnerOfMedia: vi.fn(),
   hasGrant: vi.fn(),
+  getSpeech: vi.fn(),
+  getConventionById: vi.fn(),
   getMedia: vi.fn(),
   stat: vi.fn(),
   openRead: vi.fn(),
@@ -21,6 +23,8 @@ vi.mock('../../services/parteitage/parteitageRepository.js', async (importActual
   ...(await importActual<typeof import('../../services/parteitage/parteitageRepository.js')>()),
   findOwnerOfMedia: m.findOwnerOfMedia,
   hasGrant: m.hasGrant,
+  getSpeech: m.getSpeech,
+  getConventionById: m.getConventionById,
 }));
 vi.mock('../../services/parteitage/parteitageViews.js', async (importActual) => ({
   ...(await importActual<typeof import('../../services/parteitage/parteitageViews.js')>()),
@@ -30,7 +34,8 @@ vi.mock('../../services/systemMedia/storage.js', () => ({
   getSystemMediaStorage: () => ({ stat: m.stat, openRead: m.openRead }),
 }));
 
-const { parteitageMediaHandler } = await import('./parteitageMediaRouter.js');
+const { parteitageMediaHandler, parteitageCaptionsHandler } =
+  await import('./parteitageMediaRouter.js');
 
 const convention = (over: Record<string, unknown> = {}) => ({
   id: 'c1',
@@ -140,5 +145,45 @@ describe('media route', () => {
     m.getMedia.mockResolvedValue({ storage_key: 'k/r.pdf', mime_type: 'application/pdf' });
     const { headers } = await run({ download: '1' });
     expect(String(headers['Content-Disposition'])).toContain('LDK-Essen.pdf');
+  });
+});
+
+describe('captions route', () => {
+  const runCaptions = async () => {
+    const out = fakeRes();
+    const send = vi.fn();
+    (out.res as unknown as Record<string, unknown>).type = vi.fn(() => ({ send }));
+    await parteitageCaptionsHandler(
+      { params: { speechId: 's1' }, headers: {} } as unknown as Request,
+      out.res
+    );
+    return { ...out, send };
+  };
+
+  beforeEach(() => {
+    m.getSpeech.mockResolvedValue(
+      speech({ convention_id: 'c1', words: [{ word: 'Liebe', start: 0, end: 0.4 }] })
+    );
+    m.getConventionById.mockResolvedValue(convention());
+  });
+
+  it('serves WebVTT for an accessible speech', async () => {
+    const { raw, send } = await runCaptions();
+    expect(raw.statusCode).toBe(200);
+    expect(send).toHaveBeenCalledWith(expect.stringMatching(/^WEBVTT\n\n00:00:00\.000 --> /));
+  });
+
+  it('locked convention → 403', async () => {
+    m.getConventionById.mockResolvedValue(convention({ access_password_hash: 'a:b' }));
+    const { raw, send } = await runCaptions();
+    expect(raw.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('empty words → 404', async () => {
+    m.getSpeech.mockResolvedValue(speech({ convention_id: 'c1', words: [] }));
+    const { raw, send } = await runCaptions();
+    expect(raw.statusCode).toBe(404);
+    expect(send).not.toHaveBeenCalled();
   });
 });
