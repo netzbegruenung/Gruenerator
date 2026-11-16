@@ -270,8 +270,7 @@ export const INTERMEDIATE_LANES = {
    *
    * Dazu ZWEI Konstanten, die die Stufe weiterreichen und beim Zählen leicht
    * übersehen werden: `LANE` in `services/ai/lanes.ts` (bedient `image_picker`,
-   * `antrag_question_generation`, `antrag_qa_summary`, `gruenerator_ask`,
-   * `gruenerator_ask_grundsatz`).
+   * `gruenerator_ask`, `gruenerator_ask_grundsatz`).
    *
    * Eine gerissene Sperre liefert `null`, der Turn fällt auf Tier 4 durch und
    * zahlt den 27k-Zeichen-Prompt — die Quote, die die Dispositions-Serie
