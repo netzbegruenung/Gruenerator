@@ -15,6 +15,16 @@
  * `MISSING_UPLOADS` (Upload auf dem Server nach 4 h abgeräumt), lädt das Skript genau diese
  * Dateien erneut hoch und wiederholt den Import einmal.
  *
+ * Fortsetzen: Upload-IDs stehen in `<dir>/import-uploads.json` (Dateiname -> TUS-URL, sha256,
+ * Größe). Ein neuer Lauf prüft sie per HEAD und macht beim Server-Offset weiter, statt von vorn
+ * zu beginnen. Antwortet der Import mit 502/503/504 oder gar nicht (Proxy-Limit 300 s, der
+ * Server arbeitet weiter), fragt das Skript `…/files` ab, bis alle neuen sha256 gespeichert sind,
+ * und sendet den Import dann noch einmal (idempotent, geht schnell).
+ *
+ * Erneuter Lauf mit Passwort: ein unverändertes Passwort lässt Hash und Freigaben stehen, ein
+ * neues entzieht alle Freigaben. `--no-password` bei einem Re-Import ENTFERNT ein bestehendes
+ * Passwort NICHT, es lässt es unverändert (die Zusammenfassung sagt dann trotzdem „keins“).
+ *
  * ANMELDUNG (Stand der Prüfung von authMiddleware.ts und mobileTokenExchange.ts):
  *  - Prod/Beta: Es gibt keinen Login-Endpunkt für Skripte. Anmeldung läuft nur über Keycloak-OIDC
  *    im Browser; der Token-Tausch (`mobileTokenExchange`) gilt für die App und verlangt ein
@@ -35,6 +45,15 @@ import { join, resolve } from 'path';
 import { parseArgs } from 'util';
 
 import { conventionManifestSchema, type ConventionManifest } from '@gruenerator/contracts';
+
+import {
+  isStillRunning,
+  loadUploadMap,
+  reusableEntry,
+  saveUploadMap,
+  type UploadMap,
+  waitForHashes,
+} from './importParteitagHelpers.js';
 
 const CHUNK_BYTES = 5 * 1024 * 1024;
 
@@ -77,17 +96,26 @@ async function api<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pro
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await response.text();
-  if (!response.ok) fail(`${method} ${path} -> HTTP ${response.status}: ${text.slice(0, 500)}`);
+  if (!response.ok) {
+    throw new Error(`${method} ${path} -> HTTP ${response.status}: ${text.slice(0, 500)}`);
+  }
   return JSON.parse(text) as T;
 }
 
+/** Status 0 = no answer at all (timeout, connection reset): the server may still be working. */
 async function post(body: unknown) {
-  const response = await fetch(`${base}/api/admin/parteitage/import`, {
-    method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const text = await response.text();
+  let response: Response;
+  let text: string;
+  try {
+    response = await fetch(`${base}/api/admin/parteitage/import`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    text = await response.text();
+  } catch (error) {
+    return { status: 0, text: String(error), body: {} as { code?: string; files?: string[] } };
+  }
   let parsed: { code?: string; files?: string[] } = {};
   try {
     parsed = JSON.parse(text) as typeof parsed;
@@ -119,39 +147,73 @@ const RETRY_DELAYS_MS = [0, 1000, 3000, 5000];
 
 const b64 = (value: string) => Buffer.from(value).toString('base64');
 
-/** TUS 1.0.0 creation + 5 MB PATCH chunks; resumes from HEAD after a failed chunk. */
-async function uploadFile(name: string, path: string): Promise<string> {
+/** Server-side offset of an upload, or null when it is gone (reaped, consumed by an import). */
+async function headOffset(uploadUrl: string, tusHeaders: Record<string, string>) {
+  const head = await fetch(uploadUrl, { method: 'HEAD', headers: tusHeaders }).catch(() => null);
+  if (!head?.ok) return null;
+  const offset = Number(head.headers.get('upload-offset'));
+  return Number.isFinite(offset) ? offset : null;
+}
+
+/**
+ * TUS 1.0.0 creation + 5 MB PATCH chunks. Reuses an upload from `map` (HEAD decides where to
+ * continue); a failed chunk, including a 409 offset mismatch, asks the server for its offset.
+ */
+async function uploadFile(
+  name: string,
+  path: string,
+  file: { sha256: string },
+  map: UploadMap,
+  mapPath: string
+): Promise<string> {
   const size = statSync(path).size;
   const tusHeaders = { ...authHeaders(), 'Tus-Resumable': '1.0.0' };
 
-  const created = await fetch(`${base}/api/admin/parteitage/upload`, {
-    method: 'POST',
-    headers: {
-      ...tusHeaders,
-      'Upload-Length': String(size),
-      'Upload-Metadata': `filename ${b64(name)},filetype ${b64(filetypeOf(name))}`,
-    },
-  });
-  if (created.status !== 201) {
-    fail(
-      `TUS-Anlage für ${name} -> HTTP ${created.status}: ${(await created.text()).slice(0, 300)}`
-    );
+  let uploadUrl = '';
+  let uploadId = '';
+  let offset = 0;
+
+  const known = reusableEntry(map, name, { sha256: file.sha256, size });
+  const knownOffset = known ? await headOffset(known.uploadUrl, tusHeaders) : null;
+  if (known && knownOffset !== null) {
+    ({ uploadUrl, uploadId } = known);
+    offset = knownOffset;
+  } else {
+    const created = await fetch(`${base}/api/admin/parteitage/upload`, {
+      method: 'POST',
+      headers: {
+        ...tusHeaders,
+        'Upload-Length': String(size),
+        'Upload-Metadata': `filename ${b64(name)},filetype ${b64(filetypeOf(name))}`,
+      },
+    });
+    if (created.status !== 201) {
+      fail(
+        `TUS-Anlage für ${name} -> HTTP ${created.status}: ${(await created.text()).slice(0, 300)}`
+      );
+    }
+    const location = created.headers.get('location');
+    if (!location) fail(`TUS-Anlage für ${name}: keine Location.`);
+    // Follow the returned Location as is (it may point at the shared subtitler mount).
+    uploadUrl = new URL(location, base).toString();
+    uploadId = decodeURIComponent(new URL(uploadUrl).pathname.split('/').pop() ?? '');
+    if (!uploadId) fail(`Keine Upload-ID für ${name}.`);
+    map[name] = { sha256: file.sha256, size, uploadId, uploadUrl };
+    saveUploadMap(mapPath, map);
   }
-  const location = created.headers.get('location');
-  if (!location) fail(`TUS-Anlage für ${name}: keine Location.`);
-  // Follow the returned Location as is (it may point at the shared subtitler mount).
-  const uploadUrl = new URL(location, base).toString();
-  const uploadId = decodeURIComponent(new URL(uploadUrl).pathname.split('/').pop() ?? '');
-  if (!uploadId) fail(`Keine Upload-ID für ${name}.`);
 
   const handle = await open(path, 'r');
   try {
-    let offset = 0;
     let failures = 0;
     while (offset < size) {
       const length = Math.min(CHUNK_BYTES, size - offset);
       const chunk = Buffer.alloc(length);
-      await handle.read(chunk, 0, length, offset);
+      const { bytesRead } = await handle.read(chunk, 0, length, offset);
+      if (bytesRead !== length) {
+        fail(
+          `${name}: Datei beim Lesen verändert (${bytesRead} von ${length} Bytes bei ${offset}).`
+        );
+      }
       try {
         const response = await fetch(uploadUrl, {
           method: 'PATCH',
@@ -162,7 +224,7 @@ async function uploadFile(name: string, path: string): Promise<string> {
           },
           body: chunk,
         });
-        if (response.status >= 500 || response.status === 429) {
+        if (response.status >= 500 || response.status === 429 || response.status === 409) {
           throw new Error(`HTTP ${response.status}`);
         }
         if (response.status !== 204) {
@@ -177,11 +239,8 @@ async function uploadFile(name: string, path: string): Promise<string> {
         await sleep(RETRY_DELAYS_MS[failures]!);
         failures += 1;
         // Ask the server where it is before sending the chunk again.
-        const head = await fetch(uploadUrl, { method: 'HEAD', headers: tusHeaders }).catch(
-          () => null
-        );
-        const serverOffset = head?.ok ? Number(head.headers.get('upload-offset')) : NaN;
-        if (Number.isFinite(serverOffset)) offset = serverOffset;
+        const serverOffset = await headOffset(uploadUrl, tusHeaders);
+        if (serverOffset !== null) offset = serverOffset;
       }
     }
   } finally {
@@ -216,6 +275,8 @@ async function main(): Promise<void> {
   const skipped = files.length - todo.length;
   console.log(`${files.length} Dateien im Manifest, ${todo.length} fehlen auf dem Server.`);
 
+  const mapPath = join(dir, 'import-uploads.json');
+  const uploadMap = loadUploadMap(mapPath);
   const uploads: Record<string, string> = {};
   let done = 0;
   const upload = async (file: (typeof files)[number]) => {
@@ -223,7 +284,7 @@ async function main(): Promise<void> {
     const actual = await sha256Of(path);
     if (actual !== file.sha256)
       fail(`${file.name}: sha256 weicht vom Manifest ab (Export neu erzeugen).`);
-    uploads[file.name] = await uploadFile(file.name, path);
+    uploads[file.name] = await uploadFile(file.name, path, file, uploadMap, mapPath);
     done += 1;
     console.log(`  [${done}/${todo.length}] ${file.name} (${Math.round(file.sizeBytes / 1e6)} MB)`);
   };
@@ -239,6 +300,26 @@ async function main(): Promise<void> {
     done = 0;
     todo.splice(0, todo.length, ...again);
     for (const file of again) await upload(file);
+    result = await post(importBody());
+  }
+  if (isStillRunning(result.status)) {
+    // Proxy or client gave up while the server keeps working: wait until the new files are
+    // committed (their sha256 shows up in `…/files`), then post again. The re-post is idempotent.
+    console.log(
+      `Import ohne Antwort (HTTP ${result.status}), warte bis der Server alle Dateien gespeichert hat.`
+    );
+    const committed = await waitForHashes({
+      wanted: todo.map((f) => f.sha256),
+      fetchHashes: () =>
+        api<Record<string, string>>(
+          'GET',
+          `/api/admin/parteitage/by-key/${encodeURIComponent(manifest.key)}/files`
+        ),
+      sleep,
+      intervalMs: 15_000,
+      maxAttempts: 240,
+    });
+    if (!committed) fail('Der Server hat den Import nicht innerhalb von 60 Minuten abgeschlossen.');
     result = await post(importBody());
   }
   if (result.status !== 200) {
