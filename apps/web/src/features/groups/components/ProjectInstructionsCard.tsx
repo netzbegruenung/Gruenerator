@@ -13,6 +13,8 @@ import {
 import { useState } from 'react';
 import { PiSlidersHorizontal } from 'react-icons/pi';
 
+const firstLine = (text: string) => text.trim().split('\n')[0] ?? '';
+
 interface ProjectInstructionsCardProps {
   groupId: string;
   isAdmin: boolean;
@@ -58,19 +60,18 @@ export function ProjectInstructionsCard({
     <>
       <section
         aria-labelledby="projekt-anweisungen-titel"
-        className="flex items-start gap-sm rounded-[20px] bg-card p-md shadow-sm"
+        className="flex items-center gap-sm rounded-[20px] bg-card px-md py-sm shadow-sm"
       >
-        <PiSlidersHorizontal aria-hidden className="mt-0.5 size-5 shrink-0 text-primary-600" />
+        <PiSlidersHorizontal aria-hidden className="size-5 shrink-0 text-primary-600" />
         <div className="min-w-0 flex-1">
-          <h2 id="projekt-anweisungen-titel" className="m-0 text-[17px] font-semibold">
+          <h2 id="projekt-anweisungen-titel" className="m-0 text-[15px] font-semibold">
             Anweisungen
           </h2>
-          <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-[15px] text-muted-foreground">
-            {instructions ||
-              'Lege fest, wie Chats in diesem Projekt antworten sollen — etwa Ton, Zielgruppe oder Schwerpunkt.'}
+          <p className="m-0 truncate text-sm text-muted-foreground">
+            {instructions ? firstLine(instructions) : 'Ton, Zielgruppe oder Schwerpunkt festlegen'}
           </p>
         </div>
-        <Button variant="outline" onClick={openDialog}>
+        <Button variant="ghost" size="sm" onClick={openDialog} className="shrink-0">
           {isAdmin ? (instructions ? 'Bearbeiten' : 'Hinzufügen') : 'Ansehen'}
         </Button>
       </section>

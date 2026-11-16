@@ -1,18 +1,39 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
-import { SectionHeader } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { PiChatCircle } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+
+const MINUTE = 60_000;
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['day', 24 * 60 * MINUTE],
+  ['hour', 60 * MINUTE],
+  ['minute', MINUTE],
+];
+
+/** „vor 2 Stunden", „gestern" — grob genug für eine Chat-Liste. */
+export function formatRelativeDate(iso: string, now: number = Date.now()): string {
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) return '';
+  const diff = time - now;
+  const rtf = new Intl.RelativeTimeFormat('de', { numeric: 'auto' });
+  if (Math.abs(diff) < MINUTE) return 'gerade eben';
+  if (Math.abs(diff) >= 7 * 24 * 60 * MINUTE) {
+    return new Date(time).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  }
+  for (const [unit, ms] of UNITS) {
+    if (Math.abs(diff) >= ms) return rtf.format(Math.round(diff / ms), unit);
+  }
+  return '';
+}
 
 /**
- * Chats filed into this Space (chat_threads.group_id). A Space is a group; its
- * chats are the threads whose home Space is this group. Client-side filter over
- * the thread list — no dedicated endpoint needed.
+ * Chats filed into this project (chat_threads.group_id), newest first, as a
+ * slim list: title and relative date. Client-side filter over the thread list —
+ * no dedicated endpoint needed.
  */
 export function SpaceChatsSection({ groupId }: { groupId: string }) {
-  const navigate = useNavigate();
   const {
     data: threads = [],
     isLoading,
@@ -22,7 +43,9 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
     queryFn: async () => {
       const res = await getContractsClient().threads.list({ query: {} });
       if (res.status !== 200) return [];
-      return res.body.filter((t) => t.groupId === groupId && t.status !== 'archived');
+      return res.body
+        .filter((t) => t.groupId === groupId && t.status !== 'archived')
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
   });
 
@@ -34,30 +57,40 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
     return () => window.removeEventListener('gruenerator:space-threads-changed', onChanged);
   }, [refetch]);
 
-  if (!isLoading && threads.length === 0) return null;
+  if (isLoading) return null;
 
   return (
-    <div>
-      <SectionHeader title="Chats" />
-      <ul className="flex flex-col gap-1">
-        {threads.map((t) => {
-          const slug = t.slugSuffix ? buildChatThreadSlug(t.title, t.slugSuffix) : t.id;
-          return (
-            <li key={t.id}>
-              <button
-                type="button"
-                onClick={() => void navigate(`/chat/${slug}`)}
-                className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-secondary-50 dark:hover:bg-secondary-800/40"
-              >
-                <PiChatCircle size={18} className="shrink-0 text-grey-500" />
-                <span className="min-w-0 flex-1 truncate text-foreground">
-                  {t.title || 'Neue Unterhaltung'}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <section aria-labelledby="projekt-chats-titel" className="flex flex-col gap-xs">
+      <h2 id="projekt-chats-titel" className="sr-only">
+        Chats in diesem Projekt
+      </h2>
+      {threads.length === 0 ? (
+        <p className="m-0 px-sm text-[15px] text-muted-foreground">
+          Noch keine Chats. Starte oben den ersten.
+        </p>
+      ) : (
+        <ul className="m-0 flex list-none flex-col p-0">
+          {threads.map((t) => {
+            const slug = t.slugSuffix ? buildChatThreadSlug(t.title, t.slugSuffix) : t.id;
+            return (
+              <li key={t.id}>
+                <Link
+                  to={`/chat/${slug}`}
+                  className="flex w-full items-center gap-sm rounded-md px-sm py-2 text-foreground no-underline transition-colors hover:bg-background-alt"
+                >
+                  <PiChatCircle aria-hidden className="size-[18px] shrink-0 text-grey-500" />
+                  <span className="min-w-0 flex-1 truncate text-[15px]">
+                    {t.title || 'Neue Unterhaltung'}
+                  </span>
+                  <span className="shrink-0 text-[13px] text-muted-foreground">
+                    {formatRelativeDate(t.updatedAt)}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

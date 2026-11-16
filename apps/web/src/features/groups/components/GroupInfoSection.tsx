@@ -2,8 +2,8 @@ import { type GroupContentType } from '@gruenerator/contracts';
 import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { type GroupFeedItem } from '@gruenerator/shared/groups';
 import {
-  Badge,
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,16 +48,17 @@ import {
   type GroupLink,
 } from '../hooks/useGroups';
 
-import AddContentToGroupModal from './AddContentToGroupModal';
+import AddContentToGroupModal, { type CategoryId } from './AddContentToGroupModal';
 import { GroupContentArea } from './feed/GroupContentArea';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
+import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
-import { ProjectFileUploadButton } from './ProjectFileUploadButton';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
-import { ProjectTextAddButton } from './ProjectTextAddButton';
+import { ProjectKnowledgeList } from './ProjectKnowledgeList';
+import { ProjectMembersCard } from './ProjectMembersCard';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
@@ -253,6 +254,7 @@ const GroupInfoSection = memo(
     );
     const [showAddContent, setShowAddContent] = useState(false);
     const [shareInitialNote, setShareInitialNote] = useState('');
+    const [addCategory, setAddCategory] = useState<CategoryId | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -286,6 +288,10 @@ const GroupInfoSection = memo(
     const isTeam = !isPersonal && !isSystem;
     const canShare = !isSystem || !!data?.isAdmin;
     const groupLinks = data?.groupInfo?.links ?? [];
+    // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
+    const showChats = canShare && !isSystem;
+    // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
+    const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
 
     // Leaving is a member action, not an admin one: everybody except the
     // creator can leave (the backend rejects the creator — they must delete).
@@ -464,7 +470,6 @@ const GroupInfoSection = memo(
                   <h1 className="text-3xl max-md:text-xl font-semibold text-foreground-heading m-0 truncate">
                     {data?.groupInfo?.name}
                   </h1>
-                  {data?.isAdmin && <Badge variant="default">Admin</Badge>}
                 </div>
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
                   {isPersonal
@@ -473,6 +478,11 @@ const GroupInfoSection = memo(
                       ? 'Für alle im Grünerator'
                       : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
+                {isTeam && data?.groupInfo?.description && (
+                  <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {data.groupInfo.description}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -499,38 +509,39 @@ const GroupInfoSection = memo(
               </span>
             )}
             {canShare && !isSystem && (
-              <ProjectFileUploadButton
+              <ProjectAddMenu
                 groupId={groupId}
-                onAdded={(count) => {
+                canAddLink={!!data?.isAdmin && !!onAddLink}
+                onPickExisting={(category) => {
+                  setShareInitialNote('');
+                  setAddCategory(category);
+                  setShowAddContent(true);
+                }}
+                onFileAdded={(count) => {
                   refetchSharedContent?.();
                   onSuccessMessage?.(
                     count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
                   );
                 }}
-                onError={(message) => onErrorMessage?.(message)}
-              />
-            )}
-            {canShare && !isSystem && (
-              <ProjectTextAddButton
-                groupId={groupId}
-                onAdded={() => {
+                onTextAdded={() => {
                   refetchSharedContent?.();
                   onSuccessMessage?.('Text hinzugefügt.');
                 }}
                 onError={(message) => onErrorMessage?.(message)}
               />
             )}
-            {canShare && (
+            {canShare && isSystem && (
               <Button
                 variant="brand"
                 onClick={() => {
                   setShareInitialNote('');
+                  setAddCategory(null);
                   setShowAddContent(true);
                 }}
                 className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
               >
                 <PiPlus aria-hidden />
-                <span className="max-sm:sr-only">Inhalte teilen</span>
+                <span className="max-sm:sr-only">Hinzufügen</span>
               </Button>
             )}
             <DropdownMenu>
@@ -549,7 +560,7 @@ const GroupInfoSection = memo(
                   <>
                     <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
                       <HiOutlineUserGroup className="size-4 mr-xs" />
-                      Mitglieder ({memberCount})
+                      Mitglieder verwalten ({memberCount})
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
@@ -652,19 +663,6 @@ const GroupInfoSection = memo(
           />
         )}
 
-        {canShare && !isSystem && (
-          <ProjectChatComposer groupId={groupId} groupName={data?.groupInfo?.name ?? ''} />
-        )}
-
-        {!isSystem && (
-          <ProjectInstructionsCard
-            groupId={groupId}
-            isAdmin={!!data?.isAdmin}
-            onSuccessMessage={onSuccessMessage}
-            onErrorMessage={onErrorMessage}
-          />
-        )}
-
         <GroupContentArea
           groupId={groupId}
           groupName={data?.groupInfo?.name ?? ''}
@@ -676,13 +674,11 @@ const GroupInfoSection = memo(
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
-          description={data?.groupInfo?.description ?? null}
-          linkCount={groupLinks.length}
-          onShowMembers={() => setMembersDialogOpen(true)}
           onOpenShare={
             canShare
               ? (note) => {
                   setShareInitialNote(note ?? '');
+                  setAddCategory(null);
                   setShowAddContent(true);
                 }
               : null
@@ -694,22 +690,58 @@ const GroupInfoSection = memo(
           }
           onUseTemplate={handleCloneTemplate}
           cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
-          extraAllSections={
-            <>
-              {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
-                <div id="abschnitt-links" className="scroll-mt-lg">
-                  <GroupLinksSection
-                    links={groupLinks}
-                    isAdmin={!!data?.isAdmin}
-                    onUpdateLink={onUpdateLink}
-                    onDeleteLink={onDeleteLink}
-                    isUpdatingLink={!!isUpdatingLink}
-                  />
+          overview={({ onDiscuss }) => (
+            <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
+              {showChats && (
+                <div className="flex min-w-0 flex-1 flex-col gap-md">
+                  <ProjectChatComposer groupId={groupId} groupName={data?.groupInfo?.name ?? ''} />
+                  <SpaceChatsSection groupId={groupId} />
                 </div>
               )}
-              <SpaceChatsSection groupId={groupId} />
-            </>
-          }
+              <div
+                className={cn(
+                  'flex min-w-0 flex-col gap-md',
+                  showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
+                )}
+              >
+                {!isSystem && (
+                  <ProjectInstructionsCard
+                    groupId={groupId}
+                    isAdmin={!!data?.isAdmin}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                  />
+                )}
+                <ProjectKnowledgeList
+                  items={knowledgeItems}
+                  onUseTemplate={handleCloneTemplate}
+                  onRemove={
+                    data?.isAdmin && onUnshareContent
+                      ? (item) => onUnshareContent(item.id, item.contentType)
+                      : null
+                  }
+                  onDiscuss={onDiscuss}
+                />
+                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                  <div id="abschnitt-links" className="scroll-mt-lg">
+                    <GroupLinksSection
+                      links={groupLinks}
+                      isAdmin={!!data?.isAdmin}
+                      onUpdateLink={onUpdateLink}
+                      onDeleteLink={onDeleteLink}
+                      isUpdatingLink={!!isUpdatingLink}
+                    />
+                  </div>
+                )}
+                {isTeam && (
+                  <ProjectMembersCard
+                    members={members ?? []}
+                    onShowMembers={() => setMembersDialogOpen(true)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         />
 
         <AddContentToGroupModal
@@ -717,6 +749,7 @@ const GroupInfoSection = memo(
           onClose={() => setShowAddContent(false)}
           groupId={groupId}
           initialNote={shareInitialNote}
+          {...(addCategory && { initialCategory: addCategory })}
           onShareContent={handleShareContent}
           onSuccess={() => {
             setShowAddContent(false);
