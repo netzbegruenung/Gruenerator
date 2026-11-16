@@ -45,6 +45,51 @@ class TestTopicLookup:
             assert get_topic_labels(term) == TOPIC_MULTI_LABEL[term]
 
 
+class TestCompoundLookup:
+    """German compounds borrow the labels of a lexicon term they contain (#5670)."""
+
+    def test_head_of_a_compound_carries_its_topic(self):
+        # "kinder|armut": armut is a SOZIALES term, the compound is not listed.
+        assert get_topic_labels("kinderarmut") == [(TopicCategory.SOZIALES, 1.0)]
+
+    def test_modifier_of_a_compound_carries_its_topic(self):
+        # "klima|stiftung", "umwelt|ausschuss": the field sits in front.
+        assert get_topic_labels("klimastiftung") == [(TopicCategory.KLIMA, 1.0)]
+        assert get_topic_labels("umweltausschuss") == [(TopicCategory.KLIMA, 1.0)]
+
+    def test_head_wins_over_modifier(self):
+        # "luftverkehrs|steuer" starts with a MOBILITAET term and ends with a
+        # FINANZEN one; the head names what the word is.
+        assert get_topic_labels("luftverkehrssteuer") == [(TopicCategory.FINANZEN, 1.0)]
+
+    def test_compound_inherits_multi_label_weights(self):
+        assert get_topic_labels("energiewendeprojekt") == TOPIC_MULTI_LABEL["energiewende"]
+
+    def test_exact_term_beats_a_compound_reading(self):
+        assert get_topic_labels("landwirtschaft") == [(TopicCategory.LANDWIRTSCHAFT, 1.0)]
+
+    @pytest.mark.parametrize(
+        "lemma",
+        [
+            "steuerung",  # steuer + derivational ending, not a tax
+            "autonomie",  # auto is too short to be a compound part
+            "regierungsbildung",  # bildung is excluded as a compound part
+            "zusammenarbeit",
+            "lebensmittelpunkt",  # looks like lebensmittel + punkt
+            "stundentafel",  # the timetable, not the food bank
+        ],
+    )
+    def test_misleading_compounds_borrow_no_topic(self, lemma):
+        # A miss costs one noun; a wrong reading can tag the whole document.
+        assert get_topic_labels(lemma) == []
+
+    def test_generic_head_falls_back_to_the_modifier(self):
+        # betrieb is excluded as a head, so the farm is not WIRTSCHAFT.
+        assert get_topic_labels("landwirtschaftsbetrieb") == [
+            (TopicCategory.LANDWIRTSCHAFT, 1.0)
+        ]
+
+
 class TestTopicLexiconHygiene:
     def test_every_category_has_terms(self):
         for category in TopicCategory:
