@@ -250,15 +250,15 @@ export function partitionLinkupResults(results: readonly LinkupSearchResult[]): 
 }
 
 /**
- * SearXNG: opt-in last resort for dev/self-host (not in the default chain — it is
- * a hard-coded private instance). It DEGRADES rather than refuses on images and
+ * SearXNG: opt-in last resort for dev/self-host (not in the default chain; the
+ * instance is `SEARXNG_URL`, unset = not configured). It DEGRADES rather than refuses on images and
  * `toDate`, because a flat search is still better than none at the end of the
  * chain. It refuses what would make the answer wrong rather than thinner: a
  * domain scope ("such auf zeit.de" answered from anywhere), `deep` and page
  * text (every caller asking for those has a better fallback of its own).
  */
 const searxng: ProviderAdapter = {
-  available: () => true,
+  available: () => Boolean(env.SEARXNG_URL),
   unsupported(req) {
     if (req.depth === 'deep') return 'deep';
     if (req.needsContent) return 'page text';

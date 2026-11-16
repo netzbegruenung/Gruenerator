@@ -64,27 +64,13 @@ export interface FormattedSearchResults {
   answers: string[];
 }
 
-export interface SearxngSummary {
-  text: string;
-  generated: boolean;
-  model?: string | undefined;
-  timestamp?: string | undefined;
-  wordCount?: number | undefined;
-  basedOnResults?: number | undefined;
-  error?: string | undefined;
-}
-
-export interface FormattedSearchResultsWithSummary extends FormattedSearchResults {
-  summary?: SearxngSummary | undefined;
-}
-
 export interface CacheEntry<T> {
   data: T;
   timestamp: number;
 }
 
 export interface ServiceStatus {
-  baseUrl: string;
+  baseUrl: string | null;
   cache: {
     type: 'redis' | 'memory';
     size: number;
