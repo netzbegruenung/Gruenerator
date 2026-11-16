@@ -537,9 +537,13 @@ jobs:
     # Not 55432 either: that sits in Linux's ephemeral range (32768-60999), so
     # the runner's own outbound connections could hold it and the service
     # container failed to bind ("address already in use", #3754).
+    #
+    # Only the api shards get it: every test that opens a database lives in
+    # apps/api, and the container cost the other shards 14 s each. An empty
+    # image is how a service is switched off.
     services:
       postgres:
-        image: postgres:17
+        image: ${{ matrix.pkg == 'api' && 'postgres:17' || '' }}
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
@@ -570,6 +574,7 @@ jobs:
       # CREATEDB is for tests only: trashSchema.db.vitest.ts migrates a database
       # of its own, because migrations.db.vitest.ts needs this one empty.
       - name: Create the app role and its empty database
+        if: matrix.pkg == 'api'
         run: >-
           psql postgresql://postgres@localhost:5433/postgres
           -c "CREATE ROLE gruenerator LOGIN CREATEDB"
