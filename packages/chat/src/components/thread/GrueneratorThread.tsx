@@ -24,6 +24,7 @@ import { setMentionLocale } from '../../lib/mentionables';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
 import { cn } from '../../lib/utils';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useAgentStore } from '../../stores/chatStore';
 import { VoiceOrb } from '../assistant-ui/voice';
 import { GrueneratorHomeIconLoading } from '../icons';
 
@@ -199,6 +200,7 @@ export function GrueneratorThread({
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
   const activeAgent = useActiveAgentMeta(userLocale);
+  const threadRoutePending = useAgentStore((st) => st.threadRoutePending);
   // Der @-Picker filtert nach Land. Gesetzt wurde das bisher nur in ChatPage —
   // wer Docs, Sheets, Boards oder die Suche direkt öffnete, bekam die
   // deutsche Auswahl.
@@ -247,7 +249,9 @@ export function GrueneratorThread({
                     : 'relative flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
                 }
               >
-                <AuiIf condition={(s) => s.thread.isEmpty}>
+                {/* While the linked thread is still opening, main is the blank
+                    draft: show the skeleton, not that draft's welcome (#5701). */}
+                <AuiIf condition={(s) => s.thread.isEmpty && !threadRoutePending}>
                   <WelcomeScreen
                     firstName={firstName ?? null}
                     description={activeAgent?.description}
@@ -260,7 +264,7 @@ export function GrueneratorThread({
                   />
                 </AuiIf>
 
-                <AuiIf condition={(s) => s.thread.isLoading}>
+                <AuiIf condition={(s) => s.thread.isLoading || threadRoutePending}>
                   <ThreadLoadingSkeleton compact={isCompact} />
                 </AuiIf>
 

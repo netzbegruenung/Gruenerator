@@ -42,7 +42,7 @@ cymem==2.0.16
     #   preshed
     #   spacy
     #   thinc
-fastapi==0.162.5
+fastapi==0.162.6
     # via gruenerator-nlp (pyproject.toml)
 h11==0.16.0
     # via

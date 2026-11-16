@@ -257,14 +257,14 @@ function CancelButton() {
   );
 }
 
-function PeerRunningSendButton() {
+function DisabledSendButton({ title }: { title: string }) {
   const isCompact = useChatDensity() === 'compact';
   return (
     <button
       type="button"
       disabled
       aria-label="Nachricht senden"
-      title="Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist."
+      title={title}
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white opacity-30`}
     >
       <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -346,13 +346,21 @@ function ComposerButtons({
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
   const canQueue = useAuiState((s) => s.thread.capabilities.queue);
   const peerRunning = useChatCollaborationContext()?.peerRunning === true;
+  const threadRoutePending = useAgentStore((s) => s.threadRoutePending);
 
+  // The linked thread is still opening: anything sent now would land in a new
+  // thread instead (#5701).
+  if (threadRoutePending) return <DisabledSendButton title="Chat wird geöffnet…" />;
   // Dictation now outranks the run: with a queue you may type (or dictate) the
   // next turn while one is still streaming, so a live dictation must keep its
   // stop button instead of being replaced by the run's cancel button.
   if (isDictating) return <StopDictationButton />;
   // A teammate's answer is running here: only its sender may stop it.
-  if (isRunning && peerRunning) return <PeerRunningSendButton />;
+  if (isRunning && peerRunning) {
+    return (
+      <DisabledSendButton title="Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist." />
+    );
+  }
   if (isRunning && !canQueue) return <CancelButton />;
   if (isRunning) {
     // Send joins cancel only once there is something to queue — an empty draft
@@ -444,6 +452,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+  // Set while /chat/<slug> is still opening its thread; main is the draft until
+  // then, so typing or sending would start a new thread (#5701). The input's
+  // autoFocus re-runs once `disabled` drops.
+  const threadRoutePending = useAgentStore((s) => s.threadRoutePending);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
@@ -1076,6 +1088,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       placeholder={effectivePlaceholder}
       // Stable name: the placeholder disappears on input and differs on mobile.
       aria-label="Nachricht an den Grünerator"
+      disabled={threadRoutePending}
       minRows={1}
       // Capped by the visible viewport, not a row count: a fixed 8 rows hid most
       // of a pasted long prompt behind a scrollbar even on a tall screen. The
@@ -1110,6 +1123,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // Guarded on canSend: when the submit will be a no-op (attachment still
         // uploading), the pills must not be dumped into the text either.
         onSubmit={(e) => {
+          // preventDefault skips the Root's own send (composeEventHandlers).
+          if (threadRoutePending) {
+            e.preventDefault();
+            return;
+          }
           if (onTextSubmit) {
             // preventDefault skips the Root's own send (composeEventHandlers).
             e.preventDefault();

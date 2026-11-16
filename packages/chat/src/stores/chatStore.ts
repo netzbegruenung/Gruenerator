@@ -130,6 +130,14 @@ interface AgentState {
    */
   pendingGroup: { id: string; teamShared: boolean; expiresAt: number } | null;
   chatViewMode: 'overview' | 'thread';
+  /**
+   * The thread URL names a thread the runtime has not opened yet
+   * (ChatThreadRouting is still resolving and switching). Main is then whatever
+   * it was before — on a deep link the blank draft — so a send would mint a new
+   * thread instead of continuing the linked one (#5701). The composer and the
+   * thread body hold still while this is set. Written only by ChatThreadRouting.
+   */
+  threadRoutePending: boolean;
   threadMode: ThreadMode;
   searchMode: SearchMode;
   /**
@@ -199,6 +207,7 @@ interface AgentState {
   setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
+  setThreadRoutePending: (pending: boolean) => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
@@ -285,6 +294,7 @@ export const useAgentStore = create<AgentState>()(
       pendingAttachments: [],
       pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
+      threadRoutePending: false,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
@@ -411,6 +421,7 @@ export const useAgentStore = create<AgentState>()(
         set({ pendingInitialAssistantMessage: message }),
 
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
+      setThreadRoutePending: (pending) => set({ threadRoutePending: pending }),
 
       setThreadMode: (mode) => set({ threadMode: mode }),
 
