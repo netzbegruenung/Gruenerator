@@ -227,6 +227,11 @@
     "subtitle": "Wissensmanagement & Recherche",
     "path": "/notebooks"
   },
+  "catalog.tool-parteitage": {
+    "title": "Parteitage",
+    "subtitle": "Reden vom Parteitag untertiteln und schneiden",
+    "path": "/parteitage"
+  },
   "catalog.tool-profilbild": {
     "title": "Profilbild",
     "subtitle": "Profilbild freistellen und Hintergrund wechseln",
@@ -442,6 +447,11 @@
     "title": "Office",
     "subtitle": "Dokumente, Boards, Tabellen & Slides",
     "path": "/office"
+  },
+  "workplace.parteitage": {
+    "title": "Parteitage",
+    "subtitle": "Reden als Reels",
+    "path": "/parteitage"
   },
   "workplace.presentations": {
     "title": "Leere Präsentation",

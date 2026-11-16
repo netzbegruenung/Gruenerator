@@ -185,6 +185,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
   },
   {
+    "url": "/docs/features/parteitage",
+    "title": "Parteitage",
+    "category": "Features",
+    "lead": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
     "url": "/docs/features/podcasts",
     "title": "Podcasts",
     "category": "Features",
@@ -1147,7 +1153,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 28 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 29 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
   },
   {
     "url": "/docs/basics/tools",
@@ -1163,7 +1169,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund."
+    "text": "Parteitage: Reden als Reels Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund."
   },
   {
     "url": "/docs/basics/tools",
@@ -2204,6 +2210,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-nicht-im-papierkorb-landet",
     "category": "Features",
     "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Parteitage",
+    "anchor": "",
+    "category": "Features",
+    "text": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Eine Rede weiterverwenden",
+    "anchor": "#eine-rede-weiterverwenden",
+    "category": "Features",
+    "text": "Bei jeder Rede stehen zwei Wege offen: In Editor laden öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel. Nur untertiteln untertitelt die ganze Rede auf dem Server. Du bekommst ein fertiges Video, das du mit Herunterladen speicherst. Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Kartenquelle",
+    "anchor": "#kartenquelle",
+    "category": "Features",
+    "text": "Die Karte beruht auf den Verwaltungsgrenzen VG250: © GeoBasis-DE / BKG (2026), dl-de/by-2.0."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Statistik",
+    "anchor": "#statistik",
+    "category": "Features",
+    "text": "Die Statistik des Parteitags zeigt drei Dinge: Kreisfreie Städte und Kreise: Woher kamen die Redebeiträge, dargestellt auf einer Karte. Wahlergebnisse: Ergebnisse der Wahlgänge des Parteitags. Themen: Worüber gesprochen wurde. Bei Vergleichen prüft der Grünerator, ob ein Unterschied zufällig sein kann. Weil viele Vergleiche gleichzeitig laufen, wird die Falschentdeckungsrate nach Benjamini-Hochberg korrigiert. Das Ergebnis trägt eine von zwei Kennzeichnungen: Hinweis: Auffälligkeit, die ein Blick wert ist, aber nach der Korrektur nicht sicher genug ist. belastbar: Der Unterschied besteht auch nach der Korrektur. Eine Auswertung nach Geschlecht gibt es nicht. Bei Wahlplätzen unterscheidet der Grünerator nur zwischen Frauenplatz und offenem Platz."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Zugang",
+    "anchor": "#zugang",
+    "category": "Features",
+    "text": "Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
   },
   {
     "url": "/docs/features/podcasts",

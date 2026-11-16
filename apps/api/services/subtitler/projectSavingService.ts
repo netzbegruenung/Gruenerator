@@ -39,6 +39,8 @@ interface AutoSaveParams {
   heightPreference?: string;
   subtitlePreference?: string;
   exportToken?: string;
+  /** The source video is a system_media file: reference it, don't copy it. */
+  sourceSystemMediaId?: string | null;
 }
 
 /**
@@ -138,10 +140,16 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     heightPreference,
     subtitlePreference,
     exportToken,
+    sourceSystemMediaId = null,
   } = params;
 
   const service = await getProjectService();
-  const existingProject = await service.findProjectByVideoFilename(userId, originalFilename);
+  // A run from system storage always creates its own project: the filename is
+  // deterministic per speech, and reusing it would unlink the earlier export.
+  const existingProject =
+    sourceSystemMediaId != null
+      ? null
+      : await service.findProjectByVideoFilename(userId, originalFilename);
 
   if (existingProject?.id) {
     const result = await saveSubtitledVideo(
@@ -168,6 +176,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     videoFilename: originalFilename,
     videoSize: fileStats?.size || 0,
     videoSourcePath: originalVideoPath,
+    ...(sourceSystemMediaId != null && { sourceSystemMediaId }),
   });
 
   const result = await saveSubtitledVideo(userId, newProject.id, outputPath, null);

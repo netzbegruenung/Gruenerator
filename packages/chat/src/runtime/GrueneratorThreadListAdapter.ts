@@ -310,6 +310,12 @@ export function createGrueneratorThreadListAdapter(
     /** After the DELETE, only when the thread went to the Papierkorb (not for empty or doc chats). */
     onTrashed?: (remoteId: string, title: string | null) => void;
     getExternalThreads?: () => ExternalThreadEntry[];
+    /**
+     * Whether the draft with this local id is still the open thread. Its first
+     * send creates the thread lazily, and the POST can come back after the user
+     * has opened another one (#5719).
+     */
+    isMainThread?: (localId: string) => boolean;
   }
 ): RemoteThreadListAdapter {
   let cachedThreads: ApiThread[] = [];
@@ -454,7 +460,7 @@ export function createGrueneratorThreadListAdapter(
       }
     },
 
-    async initialize(_localId: string) {
+    async initialize(localId: string) {
       if (pendingInit) return pendingInit;
       pendingInit = (async (): Promise<{ remoteId: string; externalId: undefined }> => {
         // assistant-ui contracts initialize() to mint a NEW remoteId per local thread.
@@ -492,6 +498,17 @@ export function createGrueneratorThreadListAdapter(
         if (teamShared) {
           threadTeamSharedCache.add(result.id);
           tagListeners.forEach((l) => l());
+        }
+        // The store mirrors the OPEN thread. If the user has opened another one
+        // while the POST was in flight, MainThreadSyncEffect already points the
+        // store at it, and a mint now would re-point it at this thread (title,
+        // regenerate rights) and wipe that thread's compaction state and
+        // interpreter files (#5719). The run still lands here: assistant-ui
+        // hands it this remoteId as `unstable_threadId` once initialize()
+        // resolves. Returning to this thread later goes through
+        // MainThreadSyncEffect like any other switch.
+        if (callbacks?.isMainThread?.(localId) === false) {
+          return { remoteId: result.id, externalId: undefined };
         }
         useAgentStore.getState().mintThreadFromDraft(result.id);
         // Der Produktionspfad der Rollen-Promotion: das Backend sendet

@@ -16,6 +16,7 @@ export const subtitlerProjects = pgTable('subtitler_projects', {
   title: text('title').notNull(),
   status: text('status').notNull().default('saved'),
   video_path: text('video_path').notNull(),
+  source_system_media_id: uuid('source_system_media_id'),
   video_filename: text('video_filename').notNull(),
   video_size: bigint('video_size', { mode: 'number' }).notNull(),
   video_metadata: jsonb('video_metadata').$type<Record<string, unknown>>().notNull().default({}),

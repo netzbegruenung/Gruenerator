@@ -131,7 +131,10 @@ describe('Ebenen im Editor', () => {
       text.focus();
       fireEvent.keyDown(text, { key: 'Enter' });
     });
-    expect(await screen.findByRole('textbox')).toHaveTextContent('Klimaschutz jetzt');
+    // The toolbar's size field is a textbox too; the text editor is the other one.
+    expect(
+      await screen.findByRole('textbox', { name: (name) => name !== 'Schriftgröße' })
+    ).toHaveTextContent('Klimaschutz jetzt');
   });
 
   it('springt mit „Zu den Ebenen" in die Liste', async () => {

@@ -32,6 +32,7 @@ import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
+import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -380,6 +381,26 @@ async function startWorker(): Promise<void> {
     audioUploadPath + '/*splat',
     tusCreationLimiter,
     requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
+  // Admin-only TUS uploads for the Parteitage import. No creation limiter: the import
+  // creates ~180 uploads in one run and every request is already admin-gated.
+  const parteitageUploadPath = '/api/admin/parteitage/upload';
+  app.all(
+    parteitageUploadPath,
+    requireAuth,
+    requireInstanceAdminMiddleware,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+  app.all(
+    parteitageUploadPath + '/*splat',
+    requireAuth,
+    requireInstanceAdminMiddleware,
     (req: Request, res: Response) => {
       void tusServer.handle(req, res);
     }

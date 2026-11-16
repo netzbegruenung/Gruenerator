@@ -3,6 +3,7 @@
  * Defines state interfaces for the LangGraph search workflow
  */
 
+import type { WebSearchProviderId } from '../../../config/env.js';
 import type {
   Citation,
   ValidationResult,
@@ -34,7 +35,8 @@ export interface SearchResult {
 export interface WebSearchBatch {
   query: string;
   results: SearchResult[];
-  provider: 'searxng' | 'linkup';
+  /** The engine that answered; null when every engine failed. */
+  provider: WebSearchProviderId | null;
   success: boolean;
   error?: string | undefined;
 }

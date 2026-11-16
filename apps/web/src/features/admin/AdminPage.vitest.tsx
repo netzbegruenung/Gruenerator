@@ -80,6 +80,7 @@ describe('AdminPage', () => {
       'Statistik',
       'App-Updates',
       'Glossar',
+      'Parteitage',
       'Vorlagen',
       'Meldungen',
       'Landesverbände',
@@ -99,6 +100,7 @@ describe('AdminPage', () => {
       'Statistik',
       'App-Updates',
       'Glossar',
+      'Parteitage',
       'Meldungen',
     ]);
     expect(screen.queryByRole('tab', { name: 'Vorlagen' })).toBeNull();
