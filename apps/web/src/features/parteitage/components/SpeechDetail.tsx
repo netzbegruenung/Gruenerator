@@ -44,15 +44,22 @@ function SpeechDetailBody({ speech }: { speech: ConventionSpeechPublic }) {
         </SheetDescription>
       </SheetHeader>
 
-      {/* Untertitel sind im Reel eingebrannt; das Transkript steht darunter. */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         controls
+        playsInline
         preload="metadata"
         poster={speech.posterUrl}
         src={speech.reelUrl}
         className="aspect-[9/16] max-h-[60dvh] w-full rounded-md bg-black object-contain"
-      />
+      >
+        <track
+          kind="captions"
+          srcLang="de"
+          label="Deutsch"
+          src={`/api/parteitage/reden/${encodeURIComponent(speech.id)}/untertitel.vtt`}
+          default
+        />
+      </video>
 
       <div className="flex flex-wrap gap-sm">
         <Link

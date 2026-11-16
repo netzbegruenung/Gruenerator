@@ -69,6 +69,7 @@ function renderPage() {
   return renderWithProviders(
     <Routes>
       <Route path="/parteitage/:slug" element={<ParteitagPage />} />
+      <Route path="/parteitage" element={<p>Parteitage-Liste</p>} />
     </Routes>,
     { route: '/parteitage/essen-2026' }
   );
@@ -119,6 +120,13 @@ describe('ParteitagPage', () => {
     expect(screen.getByLabelText('Passwort')).toBeInTheDocument();
   });
 
+  it('cancel on the unlock dialog goes to the list', async () => {
+    lockedHandlers(200);
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Abbrechen' }));
+    expect(await screen.findByText('Parteitage-Liste')).toBeInTheDocument();
+  });
+
   it('after unlock renders speech tiles', async () => {
     lockedHandlers(200);
     const { user } = renderPage();
@@ -159,6 +167,16 @@ describe('ParteitagPage', () => {
       await waitFor(() =>
         expect(within(dialog).getByText('Liebe Freund*innen')).toBeInTheDocument()
       );
+    });
+
+    it('video carries a German captions track', async () => {
+      const { user } = open();
+      await user.click(await screen.findByRole('button', { name: /Anna Muster/ }));
+      const dialog = await screen.findByRole('dialog');
+      const track = dialog.querySelector('video track');
+      expect(track).toHaveAttribute('kind', 'captions');
+      expect(track).toHaveAttribute('srclang', 'de');
+      expect(track).toHaveAttribute('src', '/api/parteitage/reden/s1/untertitel.vtt');
     });
 
     it('axe has no violations on the grid', async () => {

@@ -1,6 +1,6 @@
 import { type ConventionSpeechPublic } from '@gruenerator/contracts';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { PageHero, PageShell } from '../../components/common/PageHero';
 
@@ -13,6 +13,7 @@ export default function ParteitagPage() {
   const { slug = '' } = useParams<{ slug: string }>();
   const { data, isLoading, isError } = useConvention(slug);
   const unlock = useUnlockConvention(slug);
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ConventionSpeechPublic | null>(null);
 
@@ -45,7 +46,7 @@ export default function ParteitagPage() {
           title="Passwort nötig"
           busy={unlock.isPending}
           onUnlock={(password) => unlock.mutateAsync(password).catch(() => 'error' as const)}
-          onCancel={() => history.back()}
+          onCancel={() => navigate('/parteitage')}
         />
       </PageShell>
     );

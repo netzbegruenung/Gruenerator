@@ -67,6 +67,9 @@ export function UnlockDialog({ title, busy, onUnlock, onCancel }: UnlockDialogPr
             ) : null}
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Abbrechen
+            </Button>
             <Button type="submit" disabled={!password || busy}>
               Entsperren
             </Button>
