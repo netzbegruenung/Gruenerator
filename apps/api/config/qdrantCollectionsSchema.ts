@@ -632,6 +632,18 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
       { field: 'source_type', type: 'keyword' },
+      // Antragsgrün (`ParteitageScraper`): „schon da?", Löschen je Dokument und
+      // die Filter des Notebooks „Parteitage" bzw. des LV-Notebooks.
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parteitag', type: 'keyword' },
+      { field: 'parteitag_id', type: 'keyword' },
+      { field: 'votum', type: 'keyword' },
+      { field: 'antragsteller', type: 'keyword' },
+      { field: 'tagesordnungspunkt', type: 'keyword' },
+      { field: 'antrag_id', type: 'keyword' },
+      // Website-Abschrift eines Antragsgrün-Beschlusses; `applyDefaultFilter`
+      // blendet markierte Punkte aus (is_empty).
+      { field: 'superseded_by', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },

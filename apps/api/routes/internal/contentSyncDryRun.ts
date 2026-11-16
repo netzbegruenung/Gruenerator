@@ -34,6 +34,8 @@ const DRY_RUN_SUPPORT: Record<ContentSyncSource, boolean> = {
   'landtag-berlin': true,
   // LandtagBayernScraper: ebenso.
   'landtag-bayern': true,
+  // ParteitageScraper: ebenso.
+  parteitage: true,
   gruenblog: false,
   'gruene-at': false,
   kommunalwiki: false,
