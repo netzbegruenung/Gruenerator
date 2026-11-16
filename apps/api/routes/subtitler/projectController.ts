@@ -41,19 +41,33 @@ router.get(
       const { projectId } = req.params;
 
       const service = await getProjectService();
-      const videoPathRelative = await service.getVideoPathOnly(userId, projectId);
+      const source = await service.getVideoSource(userId, projectId);
 
-      if (!videoPathRelative) {
+      if (!source) {
         res.status(404).json({ success: false, error: 'Video nicht gefunden' });
         return;
       }
 
-      const videoPath = service.getVideoPath(videoPathRelative);
-
-      try {
-        await fsPromises.access(videoPath);
-      } catch {
-        res.status(404).json({ success: false, error: 'Videodatei nicht gefunden' });
+      // Owner-scoped lookup only: a parteitag project belongs to the user, so it is served
+      // from system storage as long as the media row exists (no convention access re-check;
+      // a deleted speech nulls source_system_media_id and the file is gone -> 410).
+      const videoPath = source.path;
+      let exists = false;
+      if (videoPath) {
+        try {
+          await fsPromises.access(videoPath);
+          exists = true;
+        } catch {
+          exists = false;
+        }
+      }
+      if (!videoPath || !exists) {
+        // A system-storage source that is missing was removed with its speech.
+        if (source.system) {
+          res.status(410).json({ code: 'SOURCE_GONE', error: 'Quelle nicht mehr verfügbar' });
+        } else {
+          res.status(404).json({ success: false, error: 'Videodatei nicht gefunden' });
+        }
         return;
       }
 

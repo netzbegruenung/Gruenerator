@@ -1463,6 +1463,9 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE subtitler_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
+-- zz_20261117b_subtitler_source_system_media.sql (nach system_media und subtitler_projects)
+ALTER TABLE subtitler_projects ADD COLUMN IF NOT EXISTS source_system_media_id UUID NULL REFERENCES system_media(id) ON DELETE SET NULL;
 ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE custom_prompts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;

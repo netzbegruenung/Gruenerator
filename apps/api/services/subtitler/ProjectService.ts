@@ -11,10 +11,11 @@ import { fileURLToPath } from 'url';
 
 import { and, eq, isNull, sql, asc, type InferSelectModel } from 'drizzle-orm';
 
-import { subtitlerProjects } from '../../database/schema/index.js';
+import { subtitlerProjects, systemMedia } from '../../database/schema/index.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { getSystemMediaStorage } from '../systemMedia/storage.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 import { processSubtitleSegments } from './downloadUtils.js';
@@ -279,6 +280,54 @@ export class SubtitlerProjectService {
     }
   }
 
+  /**
+   * Location of the project's source video for streaming. A parteitag project
+   * references its file in system storage; the owner keeps access as long as the
+   * system_media row exists (a deleted speech sets source_system_media_id to NULL).
+   * `system` marks sources that are not under the project dir, so a missing file
+   * means "gone" (410), not "never there" (404).
+   */
+  async getVideoSource(
+    userId: string,
+    projectId: string
+  ): Promise<{ path: string | null; system: boolean; storageKey: string | null } | undefined> {
+    await this.ensureInitialized();
+    const rows = await this.db!.select({
+      video_path: subtitlerProjects.video_path,
+      source_system_media_id: subtitlerProjects.source_system_media_id,
+    })
+      .from(subtitlerProjects)
+      .where(
+        and(
+          eq(subtitlerProjects.id, projectId),
+          eq(subtitlerProjects.user_id, userId),
+          isNull(subtitlerProjects.deleted_at)
+        )
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row) return undefined;
+
+    if (row.source_system_media_id) {
+      const media = await this.db!.select({ storage_key: systemMedia.storage_key })
+        .from(systemMedia)
+        .where(eq(systemMedia.id, row.source_system_media_id))
+        .limit(1);
+      const key = media[0]?.storage_key ?? null;
+      if (!key) return { path: null, system: true, storageKey: null };
+      return {
+        path: getSystemMediaStorage().resolveLocalPath(key),
+        system: true,
+        storageKey: key,
+      };
+    }
+    if (path.isAbsolute(row.video_path)) {
+      // Reference to a system file whose media row is gone (FK set null).
+      return { path: row.video_path, system: true, storageKey: null };
+    }
+    return { path: this.getVideoPath(row.video_path), system: false, storageKey: null };
+  }
+
   async createProject(userId: string, projectData: CreateProjectData): Promise<SubtitlerProject> {
     await this.ensureInitialized();
 
@@ -293,6 +342,7 @@ export class SubtitlerProjectService {
       videoFilename,
       videoSize,
       videoSourcePath,
+      sourceSystemMediaId,
     } = projectData;
 
     try {
@@ -315,8 +365,12 @@ export class SubtitlerProjectService {
       if (!tusVideoPath.startsWith(UPLOADS_BASE + path.sep)) {
         throw new Error('Path traversal detected in tusVideoPath');
       }
+      const fromSystemMedia = sourceSystemMediaId != null && videoSourcePath != null;
       let sourceVideoPath: string;
-      if (videoSourcePath) {
+      if (fromSystemMedia) {
+        // Resolved server-side from system storage (270 MB): referenced, not copied.
+        sourceVideoPath = videoSourcePath;
+      } else if (videoSourcePath) {
         const resolvedSource = path.resolve(UPLOADS_BASE, videoSourcePath);
         if (!resolvedSource.startsWith(UPLOADS_BASE + path.sep)) {
           throw new Error('Path traversal detected in videoSourcePath');
@@ -342,22 +396,27 @@ export class SubtitlerProjectService {
         throw new Error(`Video file not found at ${sourceVideoPath}`);
       }
 
-      await fs.copyFile(sourceVideoPath, targetVideoPath);
-      console.log(`[SubtitlerProjectService] Copied video to ${targetVideoPath}`);
+      if (!fromSystemMedia) {
+        await fs.copyFile(sourceVideoPath, targetVideoPath);
+        console.log(`[SubtitlerProjectService] Copied video to ${targetVideoPath}`);
 
-      // Mark upload as promoted to prevent cleanup
-      try {
-        const { markUploadAsPromoted } = await import('./tusService.js');
-        markUploadAsPromoted(uploadId);
-      } catch (promoteError: unknown) {
-        console.warn(
-          '[SubtitlerProjectService] Could not mark upload as promoted:',
-          promoteError instanceof Error ? promoteError.message : String(promoteError)
-        );
+        // Mark upload as promoted to prevent cleanup
+        try {
+          const { markUploadAsPromoted } = await import('./tusService.js');
+          markUploadAsPromoted(uploadId);
+        } catch (promoteError: unknown) {
+          console.warn(
+            '[SubtitlerProjectService] Could not mark upload as promoted:',
+            promoteError instanceof Error ? promoteError.message : String(promoteError)
+          );
+        }
       }
 
       try {
-        await this.generateThumbnail(targetVideoPath, thumbnailPath);
+        await this.generateThumbnail(
+          fromSystemMedia ? sourceVideoPath : targetVideoPath,
+          thumbnailPath
+        );
         console.log(`[SubtitlerProjectService] Generated thumbnail at ${thumbnailPath}`);
       } catch (thumbError: unknown) {
         console.warn(
@@ -380,7 +439,10 @@ export class SubtitlerProjectService {
           user_id: userId,
           title: title || `Projekt ${new Date().toLocaleDateString('de-DE')}`,
           status: 'saved',
-          video_path: relativeVideoPath,
+          // System-storage source: the resolved local path (column is NOT NULL);
+          // the video route prefers source_system_media_id.
+          video_path: fromSystemMedia ? sourceVideoPath : relativeVideoPath,
+          source_system_media_id: fromSystemMedia ? sourceSystemMediaId : null,
           video_filename: videoFilename || 'video.mp4',
           video_size: videoSize || 0,
           video_metadata: videoMetadata || {},

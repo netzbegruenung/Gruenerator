@@ -186,6 +186,41 @@ const SubtitlerPage = (): React.ReactElement => {
       });
   }, [searchParams, user?.id, setSearchParams, goToStep]);
 
+  // Deep-link from a parteitag speech: ?parteitagRede=<speechId>. The server
+  // subtitles the stored speech from its word timings (no upload, no
+  // transcription); we only follow the usual progress screen.
+  const parteitagStartedRef = useRef(false);
+  useEffect(() => {
+    const speechId = searchParams.get('parteitagRede');
+    if (!speechId || !user?.id || parteitagStartedRef.current) return;
+    parteitagStartedRef.current = true;
+
+    void (async () => {
+      try {
+        const res = await getContractsClient().subtitler.postProcessFromParteitag({
+          body: { speechId },
+        });
+        if (res.status === 202) {
+          setUploadInfo({ uploadId: res.body.uploadId });
+          setError(null);
+          goToStep('auto-processing');
+        } else if (res.status === 410) {
+          setError('Quelle nicht mehr verfügbar');
+        } else {
+          setError(
+            (res.body as { error?: string } | null)?.error ||
+              'Fehler beim Starten der automatischen Verarbeitung.'
+          );
+        }
+      } catch (err) {
+        console.error('[SubtitlerPage] Failed to start parteitag processing:', err);
+        setError('Fehler beim Starten der automatischen Verarbeitung.');
+      } finally {
+        setSearchParams({}, { replace: true });
+      }
+    })();
+  }, [searchParams, user?.id, setSearchParams, goToStep]);
+
   // Browser history navigation - handle back button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {

@@ -850,6 +850,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // muss an seine bereits erzeugten Untertitel weiter herankommen.
   app.use('/api/subtitler', (req, res, next) => {
     // req.path ist hier relativ zum Mount.
+    // /process-parteitag nutzt gespeicherte Wortzeiten, kein KI-Modell: keine Einwilligung nötig.
+    if (req.path.startsWith('/process-parteitag')) return next();
     if (req.path.startsWith('/process') || req.path.startsWith('/generate-social')) {
       return requireAiConsent(req, res, next);
     }

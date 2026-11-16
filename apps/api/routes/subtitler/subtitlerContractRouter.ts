@@ -14,6 +14,7 @@
  * and the individual share/social handlers check `req.user` themselves.
  */
 
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 
 import { subtitlerContract } from '@gruenerator/contracts';
@@ -25,6 +26,13 @@ import {
   localizePlaceholders,
 } from '../../services/localization/index.js';
 import { buildReelThumbnailUrl } from '../../services/media/thumbnailUrl.js';
+import { checkSpeechAccess, viewerFromRequest } from '../../services/parteitage/access.js';
+import {
+  getConventionById,
+  getSpeech,
+  hasGrant,
+} from '../../services/parteitage/parteitageRepository.js';
+import { downloadBaseName, getMedia } from '../../services/parteitage/parteitageViews.js';
 import { startAutoProcessing } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
 import { generateDownloadToken } from '../../services/subtitler/downloadUtils.js';
@@ -46,6 +54,7 @@ import {
   getOriginalFilename,
   scheduleImmediateCleanup,
 } from '../../services/subtitler/tusService.js';
+import { getSystemMediaStorage } from '../../services/systemMedia/storage.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -263,7 +272,11 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
         if (!proj?.video_path) {
           return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
         }
-        videoPath = ps.getVideoPath(proj.video_path);
+        const source = await ps.getVideoSource(userId, projectId);
+        if (!source?.path) {
+          return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
+        }
+        videoPath = source.path;
       } else {
         videoPath = getFilePathFromUploadId(uploadId!);
       }
@@ -352,6 +365,83 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       return {
         status: 500 as const,
         body: { error: toUserFacingMessage(e) },
+      };
+    }
+  },
+
+  postProcessFromParteitag: async (args) => {
+    const { speechId, maxResolution = null } = args.body;
+    try {
+      const speech = await getSpeech(speechId);
+      const convention = speech ? await getConventionById(speech.convention_id) : null;
+      if (!speech || !convention) {
+        return {
+          status: 404 as const,
+          body: { code: 'NOT_FOUND' as const, error: 'Rede nicht gefunden.' },
+        };
+      }
+      const viewer = await viewerFromRequest(args.req);
+      const access = checkSpeechAccess(
+        viewer,
+        convention,
+        speech,
+        await hasGrant(viewer.userId, convention.id)
+      );
+      if (access === 'not_found') {
+        return {
+          status: 404 as const,
+          body: { code: 'NOT_FOUND' as const, error: 'Rede nicht gefunden.' },
+        };
+      }
+      if (access === 'locked') {
+        return {
+          status: 403 as const,
+          body: { code: 'LOCKED' as const, error: 'Parteitag ist gesperrt.' },
+        };
+      }
+
+      const media = await getMedia(speech.reel_media_id);
+      if (!media) {
+        return {
+          status: 410 as const,
+          body: { code: 'SOURCE_GONE' as const, error: 'Quelle nicht mehr verfügbar' },
+        };
+      }
+      const storage = getSystemMediaStorage();
+      const videoPath = storage.resolveLocalPath(media.storage_key);
+      if (videoPath === null) {
+        return {
+          status: 501 as const,
+          body: {
+            code: 'STORAGE_REMOTE' as const,
+            error: 'Der Systemspeicher liegt nicht lokal vor.',
+          },
+        };
+      }
+      if (!(await storage.stat(media.storage_key))) {
+        return {
+          status: 410 as const,
+          body: { code: 'SOURCE_GONE' as const, error: 'Quelle nicht mehr verfügbar' },
+        };
+      }
+
+      const uploadId = `parteitag-${speech.id}-${randomUUID().slice(0, 8)}`;
+      await startAutoProcessing({
+        uploadId,
+        videoPath,
+        originalFilename: `${downloadBaseName(convention, speech)}.mp4`,
+        userId: viewer.userId,
+        locale: extractLocaleFromRequest(args.req),
+        maxResolution,
+        precomputed: { fullText: speech.transcript, words: speech.words },
+        sourceSystemMediaId: media.id,
+      });
+      return { status: 202 as const, body: { uploadId } };
+    } catch (e: unknown) {
+      log.error('[process-parteitag] failed', e);
+      return {
+        status: 500 as const,
+        body: { code: 'INTERNAL' as const, error: toUserFacingMessage(e) },
       };
     }
   },

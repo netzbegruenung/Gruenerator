@@ -39,6 +39,8 @@ interface AutoSaveParams {
   heightPreference?: string;
   subtitlePreference?: string;
   exportToken?: string;
+  /** The source video is a system_media file: reference it, don't copy it. */
+  sourceSystemMediaId?: string | null;
 }
 
 /**
@@ -138,6 +140,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     heightPreference,
     subtitlePreference,
     exportToken,
+    sourceSystemMediaId = null,
   } = params;
 
   const service = await getProjectService();
@@ -168,6 +171,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     videoFilename: originalFilename,
     videoSize: fileStats?.size || 0,
     videoSourcePath: originalVideoPath,
+    ...(sourceSystemMediaId != null && { sourceSystemMediaId }),
   });
 
   const result = await saveSubtitledVideo(userId, newProject.id, outputPath, null);

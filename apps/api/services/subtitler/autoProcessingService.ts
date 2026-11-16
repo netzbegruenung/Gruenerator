@@ -27,6 +27,7 @@ import {
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg } from './ffmpegWrapper.js';
+import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { calculateFontSizing } from './subtitleSizingService.js';
 import { transcribeVideo } from './transcriptionService.js';
@@ -42,7 +43,10 @@ const log = createLogger('auto-processing');
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
 const UPLOADS_BASE_DIR = path.resolve(__dirname, '../../uploads');
 
-function validateVideoPath(videoPath: string): void {
+function validateVideoPath(videoPath: string, trustedSource = false): void {
+  // A system-storage source (parteitag speech) lives outside uploads/ and was
+  // resolved server-side from a system_media row, never from user input.
+  if (trustedSource) return;
   const resolvedPath = path.resolve(videoPath);
   if (!resolvedPath.startsWith(UPLOADS_BASE_DIR + path.sep)) {
     throw new Error('Invalid video path: path must be within uploads directory');
@@ -82,7 +86,16 @@ interface TrimPoints {
   hasTrimming: boolean;
 }
 
+/** Stored transcript + word timings that replace the transcription step. */
+interface PrecomputedTranscript {
+  fullText: string;
+  words: { word: string; start: number; end: number }[];
+}
+
 interface ProcessingOptions {
+  precomputed?: PrecomputedTranscript | null;
+  /** Input comes from system storage (resolved server-side), not from uploads/. */
+  trustedSource?: boolean;
   stylePreference?: string;
   heightPreference?: string;
   locale?: Locale;
@@ -193,9 +206,14 @@ async function processVideoAutomatically(
   uploadId: string,
   options: ProcessingOptions = {}
 ): Promise<ProcessingResult> {
-  validateVideoPath(inputPath);
+  validateVideoPath(inputPath, options.trustedSource === true);
   const autoProcessToken = uuidv4();
-  const { stylePreference = 'shadow', heightPreference = 'tief', locale = 'de-DE' } = options;
+  const {
+    stylePreference = 'shadow',
+    heightPreference = 'tief',
+    locale = 'de-DE',
+    precomputed = null,
+  } = options;
 
   log.info(`Starting automatic processing for: ${uploadId}, token: ${autoProcessToken}`);
 
@@ -273,10 +291,15 @@ async function processVideoAutomatically(
     let subtitles: string;
 
     try {
+      // Stored word timings (parteitag speech) replace the transcription —
+      // no audio extraction, no ASR call. Empty words fall back to ASR.
+      const usePrecomputed = precomputed != null && precomputed.words.length > 0;
       const [transcriptionResult, scaledPath] = await Promise.all([
         // The locale drives both the transcription vocabulary and, further
         // down, the ASS style/font.
-        transcribeVideo(inputPath, 'manual', locale),
+        usePrecomputed
+          ? generateManualSubtitles(precomputed.fullText, precomputed.words)
+          : transcribeVideo(inputPath, 'manual', locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
@@ -644,6 +667,10 @@ interface StartAutoProcessingOptions {
   userId?: string | null;
   locale?: Locale;
   maxResolution?: number | null;
+  /** Stored transcript/word timings; with words, transcription is skipped. */
+  precomputed?: PrecomputedTranscript | null;
+  /** Set when `videoPath` is a system_media file; the project references it instead of copying. */
+  sourceSystemMediaId?: string | null;
   /**
    * Called after the result was auto-saved as a project, before the Redis
    * 'complete' status is written (so the caller's bookkeeping exists by the
@@ -671,6 +698,8 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     userId = null,
     locale = 'de-DE',
     maxResolution = null,
+    precomputed = null,
+    sourceSystemMediaId = null,
     onProjectSaved,
   } = options;
 
@@ -685,6 +714,8 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     heightPreference: 'tief',
     locale,
     maxResolution,
+    precomputed,
+    trustedSource: sourceSystemMediaId != null,
     ...(userId != null && { userId }),
     originalFilename,
   })
@@ -704,6 +735,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
             heightPreference: 'tief',
             subtitlePreference: 'manual',
             exportToken: result.autoProcessToken,
+            sourceSystemMediaId,
           });
           savedProjectId = r.projectId;
         } catch (saveErr: unknown) {
