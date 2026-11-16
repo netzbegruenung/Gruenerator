@@ -32,6 +32,8 @@ export function useConvention(slug: string) {
       if (res.status === 403 && res.body.code === 'LOCKED') return { locked: true };
       throw new Error(`parteitage get ${res.status}`);
     },
+    // 404 (draft, hidden, foreign audience) is a final answer, not a hiccup.
+    retry: false,
   });
 }
 
@@ -44,7 +46,7 @@ export function useUnlockConvention(slug: string) {
         body: { password },
       });
       if (res.status === 200) return 'ok';
-      if (res.status === 401) return 'wrong_password';
+      if (res.status === 403 && res.body.code === 'WRONG_PASSWORD') return 'wrong_password';
       if (res.status === 429) return 'rate_limited';
       return 'error';
     },

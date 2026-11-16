@@ -62,7 +62,26 @@ const convention = (over: Record<string, unknown> = {}) => ({
   location: 'Essen',
   status: 'published',
   access_password_hash: hashPassword('geheim'),
-  stats: { gesamt: { n: 1 } },
+  stats: {
+    gesamt: { n: 1 },
+    wahl: {
+      formel: 'x',
+      kampf: [
+        {
+          platz: 3,
+          tag: 'Tag 1',
+          kandidierende: [{ name: 'Zora Verborgen', anteil: 51, gewaehlt: true }],
+        },
+      ],
+      extreme: { hoch: [[3, 'Zora Verborgen', 99]], tief: [] },
+      raum: {},
+    },
+    motto: {
+      gesamt: 1,
+      sinngemaess: 0,
+      reden: [{ platz: 3, name: 'Zora Verborgen', n: 1, zitat: 'Q' }],
+    },
+  },
   source_links: [],
   report_media_id: 'rep',
   ...over,
@@ -139,6 +158,21 @@ describe('with grant', () => {
     expect(res.body).toMatchObject({ locked: false, speechCount: 1 });
   });
 
+  it('get never carries person-level stats or the name of a hidden speaker', async () => {
+    m.listSpeeches.mockResolvedValue([
+      speech(),
+      speech({ id: 's2', first_name: 'Zora', last_name: 'Verborgen', moderation: 'hidden' }),
+    ]);
+    const res = await call('get', { params: { slug: 'ldk-abc123' } });
+    expect(res.status).toBe(200);
+    const text = JSON.stringify(res.body);
+    expect(text).not.toContain('Verborgen');
+    const stats = (res.body as { stats: { wahl: object; motto: object } }).stats;
+    expect(stats.wahl).not.toHaveProperty('kampf');
+    expect(stats.wahl).not.toHaveProperty('extreme');
+    expect(stats.motto).not.toHaveProperty('reden');
+  });
+
   it('get gives admins moderation state and reason, non-admins never', async () => {
     m.listSpeeches.mockResolvedValue([
       speech(),
@@ -187,9 +221,9 @@ describe('invisible convention', () => {
 });
 
 describe('unlock', () => {
-  it('wrong password → 401, no grant', async () => {
+  it('wrong password → 403 WRONG_PASSWORD, no grant', async () => {
     const res = await call('unlock', { params: { slug: 'x' }, body: { password: 'falsch' } });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(res.body).toMatchObject({ code: 'WRONG_PASSWORD' });
     expect(m.grant).not.toHaveBeenCalled();
   });

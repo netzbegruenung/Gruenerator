@@ -144,4 +144,20 @@ describe.skipIf(!url)('parteitageRepository (db)', () => {
 
     expect(await repo.listConventions({ ...viewer, isAdmin: true })).toHaveLength(4);
   });
+
+  it('speechCount skips hidden speeches; summaries carry no transcript or words', async () => {
+    const id = await insertConvention({ suffix: 'fff777' });
+    await insertSpeech(id, 'ggg888');
+    const hidden = await insertSpeech(id, 'hhh999');
+    await pool.query("UPDATE convention_speeches SET moderation = 'hidden' WHERE id = $1", [
+      hidden.id,
+    ]);
+    const [c] = await repo.listConventions(viewer);
+    expect(c!.speechCount).toBe(1);
+    const rows = await repo.listSpeeches(id);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).not.toHaveProperty('transcript');
+    expect(rows[0]).not.toHaveProperty('words');
+    expect((await repo.findOwnerOfMedia(hidden.reel))?.speech).not.toHaveProperty('words');
+  });
 });

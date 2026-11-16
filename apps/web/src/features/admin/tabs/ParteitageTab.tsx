@@ -51,7 +51,12 @@ async function expectOk(promise: Promise<ApiResult>, fallback: string): Promise<
 
 function useInvalidate() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ['admin', 'parteitage'] });
+  // The public archive caches the same conventions (hide, delete, status change).
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'parteitage'] }),
+      queryClient.invalidateQueries({ queryKey: ['parteitage'] }),
+    ]);
 }
 
 function errorMessage(error: unknown): string {

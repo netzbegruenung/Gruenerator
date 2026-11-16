@@ -27,6 +27,7 @@ import {
   buildEditorData,
   mediaUrl,
   toPublicSpeech,
+  toPublicStats,
 } from '../../services/parteitage/parteitageViews.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -90,7 +91,7 @@ export const parteitageContractRouter = s.router(parteitageContract, {
           location: convention.location,
           locked: false,
           speechCount: speeches.length,
-          stats: convention.stats,
+          stats: toPublicStats(convention.stats),
           sourceLinks: convention.source_links,
           reportUrl: convention.report_media_id ? mediaUrl(convention.report_media_id) : null,
           speeches: speeches.map((sp) => toPublicSpeech(sp, { admin: viewer.isAdmin })),
@@ -110,7 +111,7 @@ export const parteitageContractRouter = s.router(parteitageContract, {
       // Open conventions need no unlock and get no grant row.
       if (convention.access_password_hash) {
         if (!verifyPassword(body.password, convention.access_password_hash)) {
-          return err(401, 'WRONG_PASSWORD', 'Falsches Passwort.');
+          return err(403, 'WRONG_PASSWORD', 'Falsches Passwort.');
         }
         await grant(viewer.userId, convention.id);
       }

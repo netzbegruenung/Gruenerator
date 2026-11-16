@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   conventionManifestSchema,
+  conventionStatsPublicSchema,
   parteitageErrorSchema,
   parteitageImportBodySchema,
   parteitageUpdateBodySchema,
@@ -132,6 +133,35 @@ describe('conventionManifestSchema', () => {
     const m = manifest();
     (m.stats.wahl.kampf[0]!.kandidierende[0] as Record<string, unknown>)['geschlecht'] = 'weiblich';
     expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+  });
+
+  it('rejects a gender key in platzart', () => {
+    const m = manifest();
+    (m.stats.wahl.platzart as Record<string, unknown>)['weiblich'] = stat;
+    expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+  });
+
+  it.each(['javascript:alert(1)', 'data:text/html,x', '//evil.example'])(
+    'rejects source link url %s',
+    (url) => {
+      const m = manifest();
+      m.sourceLinks = [{ label: 'x', url }];
+      expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+    }
+  );
+
+  it.each(['13.11.2026', '2026-11', 'morgen'])('rejects non-ISO date %s', (d) => {
+    const m = manifest();
+    m.startsOn = d;
+    expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+  });
+
+  it('public stats take no person-level blocks', () => {
+    const { stats } = manifest();
+    expect(conventionStatsPublicSchema.safeParse(stats).success).toBe(false);
+    const { kampf: _kampf, extreme: _extreme, ...wahl } = stats.wahl;
+    const { reden: _reden, ...motto } = stats.motto;
+    expect(conventionStatsPublicSchema.safeParse({ ...stats, wahl, motto }).success).toBe(true);
   });
 
   it.each(['LDK-NRW', 'a/b', 'ab', '-abc', 'a_b_c'])('rejects convention key %s', (key) => {

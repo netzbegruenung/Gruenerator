@@ -60,6 +60,8 @@ export const parteitageContract = c.router(
       responses: {
         200: parteitageOkSchema,
         401: parteitageErrorSchema,
+        // WRONG_PASSWORD is 403, not 401: the web client treats a 401 as a dead session and replays the request.
+        403: parteitageErrorSchema,
         404: parteitageErrorSchema,
         429: parteitageErrorSchema,
         500: parteitageErrorSchema,

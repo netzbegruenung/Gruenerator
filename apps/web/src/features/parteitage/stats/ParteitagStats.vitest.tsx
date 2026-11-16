@@ -1,4 +1,4 @@
-import { type ConventionSpeechPublic, type ConventionStatsV1 } from '@gruenerator/contracts';
+import { type ConventionSpeechPublic, type ConventionStatsPublic } from '@gruenerator/contracts';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,7 +18,7 @@ const stats = {
   signaturRaum: { kreis: [['Heimat', 5, 2, 3]] },
   methodik: [{ titel: 'Datenbasis', text: 'Alle Reden des Parteitags.' }],
   grenzen: 'Kleine Gruppen.',
-} as unknown as ConventionStatsV1;
+} as unknown as ConventionStatsPublic;
 
 function speech(id: string, topic: string): ConventionSpeechPublic {
   return {

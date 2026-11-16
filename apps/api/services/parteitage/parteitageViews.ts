@@ -2,6 +2,8 @@
 import {
   type ConventionEditorData,
   type ConventionSpeechPublic,
+  type ConventionStatsV1,
+  type ConventionStatsPublic,
   type ConventionStatus,
 } from '@gruenerator/contracts';
 import { count, desc, eq } from 'drizzle-orm';
@@ -16,7 +18,11 @@ import {
 } from '../../database/schema/parteitage.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 
-import { conventionSlug, speechSlug } from './parteitageRepository.js';
+import {
+  conventionSlug,
+  type ConventionSpeechSummaryRow,
+  speechSlug,
+} from './parteitageRepository.js';
 
 export const mediaUrl = (mediaId: string): string => `/api/parteitage/media/${mediaId}`;
 
@@ -45,8 +51,15 @@ export function downloadBaseName(
     : clean(convention.short_title);
 }
 
+/** Stats without the blocks that name individual people (see `conventionStatsPublicSchema`). */
+export function toPublicStats(stats: ConventionStatsV1): ConventionStatsPublic {
+  const { kampf: _kampf, extreme: _extreme, ...wahl } = stats.wahl;
+  const { reden: _reden, ...motto } = stats.motto;
+  return { ...stats, wahl, motto };
+}
+
 export function toPublicSpeech(
-  s: ConventionSpeechRow,
+  s: ConventionSpeechSummaryRow,
   opts: { admin?: boolean } = {}
 ): ConventionSpeechPublic {
   return {

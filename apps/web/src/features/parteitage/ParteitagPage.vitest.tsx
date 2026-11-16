@@ -119,7 +119,7 @@ describe('ParteitagPage', () => {
   });
 
   it('wrong password shows error and stays locked', async () => {
-    lockedHandlers(401);
+    lockedHandlers(403);
     const { user } = renderPage();
     await user.type(await screen.findByLabelText('Passwort'), 'falsch');
     await user.click(screen.getByRole('button', { name: 'Entsperren' }));

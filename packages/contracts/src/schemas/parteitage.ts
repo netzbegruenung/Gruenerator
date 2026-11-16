@@ -64,6 +64,63 @@ const statGroupSchema = z.record(z.string(), resultStatSchema);
 
 const areaKeySchema = z.enum(['kreisfreie_stadt', 'kreis']);
 
+const wahlSchema = z
+  .object({
+    formel: z.string(),
+    gesamt: resultStatSchema,
+    // Keyed by the seat-type enum: no other grouping key (gender) can slip in.
+    platzart: z.partialRecord(seatTypeSchema, resultStatSchema),
+    block: statGroupSchema,
+    thema: statGroupSchema,
+    anrede: statGroupSchema,
+    korrelation: z.record(z.string(), z.number()),
+    korrelationP: z.record(z.string(), z.number()),
+    kampf: z.array(
+      z
+        .object({
+          platz: z.number().int(),
+          tag: z.string(),
+          kandidierende: z.array(
+            z
+              .object({
+                name: z.string(),
+                anteil: z.number(),
+                gewaehlt: z.boolean(),
+              })
+              .strict()
+          ),
+        })
+        .strict()
+    ),
+    extreme: z
+      .object({
+        hoch: z.array(z.tuple([z.number().int(), z.string(), z.number()])),
+        tief: z.array(z.tuple([z.number().int(), z.string(), z.number()])),
+      })
+      .strict(),
+    raum: z.partialRecord(areaKeySchema, resultStatSchema),
+    raumPlatzMedian: z.partialRecord(areaKeySchema, z.number()),
+  })
+  .strict();
+
+const mottoSchema = z
+  .object({
+    gesamt: z.number().int(),
+    sinngemaess: z.number().int(),
+    reden: z.array(
+      z
+        .object({
+          platz: z.number().int(),
+          name: z.string(),
+          n: z.number().int(),
+          zitat: z.string(),
+        })
+        .strict()
+    ),
+  })
+  .strict();
+
+/** Full stats as the pipeline exports and the database stores them. */
 export const conventionStatsV1Schema = z
   .object({
     gesamt: z
@@ -73,43 +130,7 @@ export const conventionStatsV1Schema = z
         anrede: z.array(countPairSchema),
       })
       .strict(),
-    wahl: z
-      .object({
-        formel: z.string(),
-        gesamt: resultStatSchema,
-        platzart: statGroupSchema,
-        block: statGroupSchema,
-        thema: statGroupSchema,
-        anrede: statGroupSchema,
-        korrelation: z.record(z.string(), z.number()),
-        korrelationP: z.record(z.string(), z.number()),
-        kampf: z.array(
-          z
-            .object({
-              platz: z.number().int(),
-              tag: z.string(),
-              kandidierende: z.array(
-                z
-                  .object({
-                    name: z.string(),
-                    anteil: z.number(),
-                    gewaehlt: z.boolean(),
-                  })
-                  .strict()
-              ),
-            })
-            .strict()
-        ),
-        extreme: z
-          .object({
-            hoch: z.array(z.tuple([z.number().int(), z.string(), z.number()])),
-            tief: z.array(z.tuple([z.number().int(), z.string(), z.number()])),
-          })
-          .strict(),
-        raum: z.partialRecord(areaKeySchema, resultStatSchema),
-        raumPlatzMedian: z.partialRecord(areaKeySchema, z.number()),
-      })
-      .strict(),
+    wahl: wahlSchema,
     liste: z
       .object({
         bloecke: z.array(
@@ -143,36 +164,38 @@ export const conventionStatsV1Schema = z
       conventionAreaSchema,
       z.array(z.tuple([z.string(), z.number(), z.number(), z.number()]))
     ),
-    motto: z
-      .object({
-        gesamt: z.number().int(),
-        sinngemaess: z.number().int(),
-        reden: z.array(
-          z
-            .object({
-              platz: z.number().int(),
-              name: z.string(),
-              n: z.number().int(),
-              zitat: z.string(),
-            })
-            .strict()
-        ),
-      })
-      .strict(),
+    motto: mottoSchema,
     methodik: z.array(z.object({ titel: z.string(), text: z.string() }).strict()),
     grenzen: z.string(),
   })
   .strict();
+
 export type ConventionStatsV1 = z.infer<typeof conventionStatsV1Schema>;
+
+/**
+ * Stats as the API serves them. `wahl.kampf`, `wahl.extreme` and `motto.reden`
+ * name individual people (vote shares, lowest results, quotes); the page shows
+ * none of them, and a removed or hidden speech would stay visible there until
+ * the next import. They stay in the database, never on the wire.
+ */
+export const conventionStatsPublicSchema = conventionStatsV1Schema
+  .extend({
+    wahl: wahlSchema.omit({ kampf: true, extreme: true }),
+    motto: mottoSchema.omit({ reden: true }),
+  })
+  .strict();
+export type ConventionStatsPublic = z.infer<typeof conventionStatsPublicSchema>;
 
 // ── Manifest (Import) ───────────────────────────────────────────────────────
 
 /** Convention key; also the storage-key prefix of its media. */
 export const conventionKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{2,63}$/);
 
+const isoDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 const speechCoreShape = {
   key: z.string().min(1),
-  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  day: isoDaySchema,
   dayLabel: z.string(),
   listPlace: z.number().int(),
   seatType: seatTypeSchema,
@@ -200,7 +223,8 @@ export const conventionSpeechManifestSchema = z
   .strict();
 export type ConventionSpeechManifest = z.infer<typeof conventionSpeechManifestSchema>;
 
-const sourceLinkSchema = z.object({ label: z.string(), url: z.string() }).strict();
+const httpUrlSchema = z.string().regex(/^https?:\/\//i);
+const sourceLinkSchema = z.object({ label: z.string(), url: httpUrlSchema }).strict();
 
 export const conventionManifestSchema = z
   .object({
@@ -211,8 +235,8 @@ export const conventionManifestSchema = z
     shortTitle: z.string(),
     organizer: z.string(),
     audience: conventionAudienceSchema,
-    startsOn: z.string(),
-    endsOn: z.string(),
+    startsOn: isoDaySchema,
+    endsOn: isoDaySchema,
     location: z.string(),
     sourceLinks: z.array(sourceLinkSchema),
     report: manifestFileSchema.nullable(),
@@ -252,7 +276,7 @@ export const conventionSpeechPublicSchema = z.object({
 export type ConventionSpeechPublic = z.infer<typeof conventionSpeechPublicSchema>;
 
 export const conventionDetailSchema = conventionSummarySchema.extend({
-  stats: conventionStatsV1Schema,
+  stats: conventionStatsPublicSchema,
   sourceLinks: z.array(sourceLinkSchema),
   reportUrl: z.string().nullable(),
   speeches: z.array(conventionSpeechPublicSchema),

@@ -1,7 +1,7 @@
 import {
   type ConventionArea,
   type ConventionSpeechPublic,
-  type ConventionStatsV1,
+  type ConventionStatsPublic,
   type SeatType,
 } from '@gruenerator/contracts';
 
@@ -27,7 +27,7 @@ import { AREA_LABEL, AREA_ORDER, TEXT_CLASS } from './shared';
 import { TopicBars } from './TopicBars';
 
 type Props = {
-  stats: ConventionStatsV1;
+  stats: ConventionStatsPublic;
   speeches: ConventionSpeechPublic[];
   filters: ParteitagFilters;
   onFilter: (patch: Partial<ParteitagFilters>) => void;
@@ -174,7 +174,7 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
   );
 }
 
-function Signatures({ stats }: { stats: ConventionStatsV1 }) {
+function Signatures({ stats }: { stats: ConventionStatsPublic }) {
   const entries = AREA_ORDER.flatMap((a) => {
     const words = stats.signaturRaum[a];
     return words && words.length > 0 ? [[a, words] as const] : [];

@@ -1,6 +1,6 @@
 import { type ConventionSummary } from '@gruenerator/contracts';
 import { shareLinkKey, slugifyName } from '@gruenerator/shared/utils';
-import { and, asc, count, desc, eq, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, or } from 'drizzle-orm';
 
 import {
   conventionAccess,
@@ -12,6 +12,15 @@ import {
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 
 import { type ConventionViewer, isConventionVisible } from './access.js';
+
+/** A speech row without the bulky `words` and `transcript` columns (~30 KB each). */
+export type ConventionSpeechSummaryRow = Omit<ConventionSpeechRow, 'words' | 'transcript'>;
+
+const {
+  words: _words,
+  transcript: _transcript,
+  ...speechSummaryColumns
+} = getTableColumns(conventionSpeeches);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,7 +39,14 @@ export async function listConventions(viewer: ConventionViewer): Promise<Convent
   const rows = await db
     .select({ convention: conventions, speechCount: count(conventionSpeeches.id) })
     .from(conventions)
-    .leftJoin(conventionSpeeches, eq(conventionSpeeches.convention_id, conventions.id))
+    // Hidden speeches must not show up in the count (deleted rows are gone).
+    .leftJoin(
+      conventionSpeeches,
+      and(
+        eq(conventionSpeeches.convention_id, conventions.id),
+        eq(conventionSpeeches.moderation, 'ok')
+      )
+    )
     .groupBy(conventions.id)
     .orderBy(desc(conventions.starts_on));
 
@@ -96,9 +112,9 @@ export async function getSpeech(slugOrId: string): Promise<ConventionSpeechRow |
   return row ?? null;
 }
 
-export async function listSpeeches(conventionId: string): Promise<ConventionSpeechRow[]> {
+export async function listSpeeches(conventionId: string): Promise<ConventionSpeechSummaryRow[]> {
   return getDrizzleInstance()
-    .select()
+    .select(speechSummaryColumns)
     .from(conventionSpeeches)
     .where(eq(conventionSpeeches.convention_id, conventionId))
     .orderBy(asc(conventionSpeeches.list_place));
@@ -107,11 +123,11 @@ export async function listSpeeches(conventionId: string): Promise<ConventionSpee
 /** Who owns a media row: a speech's reel/poster, or a convention's report. */
 export async function findOwnerOfMedia(
   mediaId: string
-): Promise<{ convention: ConventionRow; speech: ConventionSpeechRow | null } | null> {
+): Promise<{ convention: ConventionRow; speech: ConventionSpeechSummaryRow | null } | null> {
   if (!UUID_RE.test(mediaId)) return null;
   const db = getDrizzleInstance();
   const [speech] = await db
-    .select()
+    .select(speechSummaryColumns)
     .from(conventionSpeeches)
     .where(
       or(
