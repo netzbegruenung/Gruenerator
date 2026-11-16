@@ -45,6 +45,12 @@ const FILTER_FIELDS: Record<string, string> = {
 };
 const NUMERIC_FILTER_FIELDS = new Set(['wahlperiode']);
 
+// Obergrenzen der Gegenseite (`searchRequestSchema`), darüber antwortet sie
+// mit 400. Unsere Suche fragt nach dem `chunkMultiplier` bis zu 300 Chunks an,
+// und der Text ist dort nur noch für die Wahl des Ausschnitts da.
+const MAX_SEARCH_LIMIT = 100;
+const MAX_QUERY_CHARS = 2000;
+
 const chunkSchema = z.object({
   id: z.string(),
   source: z.enum(['speeches', 'documents']),
@@ -156,7 +162,13 @@ export const bundestagWrappedSource: RemoteNotebookSource = {
     if (!wire) return [];
     const { results } = await http.post(
       '/api/v1/search',
-      { vector, query, limit, ...(threshold != null && { scoreThreshold: threshold }), ...wire },
+      {
+        vector,
+        query: query.slice(0, MAX_QUERY_CHARS),
+        limit: Math.min(limit, MAX_SEARCH_LIMIT),
+        ...(threshold != null && { scoreThreshold: threshold }),
+        ...wire,
+      },
       searchResponseSchema
     );
     return results.map((hit) => ({
