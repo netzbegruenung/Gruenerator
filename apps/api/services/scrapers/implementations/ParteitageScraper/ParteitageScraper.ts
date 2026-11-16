@@ -148,6 +148,10 @@ const isActive = (ref: ConsultationRef): boolean =>
   !ref.date_published ||
   Date.now() - new Date(ref.date_published).getTime() < ACTIVE_DAYS * 86_400_000;
 
+/** Ob die Instanz diese Konsultation überhaupt führt (`consultations` in `antragsgruenInstances.ts`). */
+export const isEnabled = (instance: AntragsgruenInstance, ref: ConsultationRef): boolean =>
+  instance.consultations === null || instance.consultations.includes(ref.url_path);
+
 export class ParteitageScraper extends BaseScraper {
   readonly #store = new ParliamentStore(PARTEITAGE_COLLECTION, PARTEITAGE_SOURCE, 'Parteitage', [
     { key: 'source_id', match: { any: ANTRAGSGRUEN_SOURCE_IDS } },
@@ -206,6 +210,7 @@ export class ParteitageScraper extends BaseScraper {
       }
       for (const ref of refs) {
         if (this.#limitReached(options, summary)) break;
+        if (!isEnabled(instance, ref)) continue;
         if (
           options.consultations &&
           !options.consultations.includes(`${instance.id}/${ref.url_path}`)

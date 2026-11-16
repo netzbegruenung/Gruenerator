@@ -23,6 +23,15 @@ export const ANTRAGSGRUEN_INSTANCES = [
      * Dubletten markiert (`websiteDuplicates.ts`).
      */
     websiteSourceIds: ['nordrhein-westfalen-lv'],
+    /**
+     * Nur diese Konsultationen (`url_path`) werden gelesen; `null` = alle öffentlichen.
+     * Start mit der neuesten LDK (Essen, 13.–15.11.2026); der Rest folgt, sobald
+     * der Bestand sich im Betrieb bewährt hat (#5685). Ein Eintrag, der hier
+     * wegfällt, wird nicht gelöscht: der Scraper besucht die Konsultation dann
+     * gar nicht mehr, also auch nicht ihr Aufräumen.
+     */
+    // Breit typisiert: `null` (alle) ist ein gültiger Wert für die nächste Instanz.
+    consultations: ['ldk26-02'] as readonly string[] | null,
   },
 ] as const;
 
