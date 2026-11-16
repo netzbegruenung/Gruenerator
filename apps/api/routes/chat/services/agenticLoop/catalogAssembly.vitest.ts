@@ -40,8 +40,8 @@ const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null
 const setThreadLastMcpServer = vi.fn<(threadId: string, serverId: string) => Promise<void>>();
 
 vi.mock('../threadPersistenceService.js', () => ({
-  getThreadLastMcpServer: (threadId: string) => getThreadLastMcpServer(threadId),
-  setThreadLastMcpServer: (threadId: string, serverId: string) =>
+  getThreadLastMcpServer: (threadId: string, _userId: string) => getThreadLastMcpServer(threadId),
+  setThreadLastMcpServer: (threadId: string, _userId: string, serverId: string) =>
     setThreadLastMcpServer(threadId, serverId),
   getRecentThreadSources: async () => [],
   getRecentToolSteps: async () => [],
@@ -93,6 +93,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
     loadMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
     resolveRecipe: async () => null,
+    isForeignMcpServer: async () => false,
     ...over,
   } as unknown as CatalogDeps;
 }
@@ -185,6 +186,62 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     });
 
     expect(assembled.staleConnectorName).toBeNull();
+  });
+
+  // Team chats: the sticky server was written by whoever used a connector last.
+  // Another member's turn must never mount it, and must not be told it is gone.
+  it('mounts a sticky server that belongs to another member for nobody', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+    const isForeignMcpServer = vi.fn(async () => true);
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      {
+        threadId: 't1',
+        lastTurnToolSteps: [
+          { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+        ],
+      }
+    );
+
+    expect(isForeignMcpServer).toHaveBeenCalledWith('u1', 'server-von-a');
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('skips the sticky server when the owner check fails, and still assembles', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+    const isForeignMcpServer = vi.fn(async () => {
+      throw new Error('db down');
+    });
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      { threadId: 't1' }
+    );
+
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('still mounts the sender’s own sticky server', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-u1');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+
+    await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+    });
+
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'server-von-u1' })
+    );
   });
 
   it('montiert ohne Scope nichts', async () => {
@@ -364,21 +421,16 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeCatalog).toHaveLength(1);
   });
 
-  // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
-  // bleibt offen, und das Modell muss sie selbst laden können.
-  it('montiert methode_laden nur, wenn der Katalog eine Methode trägt, und scoped es aus späteren Schritten', async () => {
-    const without = await assemble(fakeState(), withRecipes());
-    expect(without.tools.methode_laden).toBeUndefined();
-
+  // `methode_laden` wird nicht mehr montiert — auch nicht, wenn der Katalog
+  // eine Methode trägt; `rezept_laden` bleibt montiert.
+  it('montiert methode_laden nie, auch nicht bei einem Methoden-Rezept im Katalog', async () => {
     const rechtsstand = { ...catalog[0]!, key: 'rechtsstand', mention: 'rechtsstand' };
     const assembled = await assemble(
       fakeState(),
       withRecipes({ buildRecipeCatalog: async () => [...catalog, rechtsstand] })
     );
-    expect(assembled.tools.methode_laden).toBeDefined();
-    // Nur der erzwungene erste Schritt wählt es selbst; sonst fehlt es im Umfang.
-    expect(assembled.toolScope.activeTools([])).not.toContain('methode_laden');
-    expect(assembled.toolScope.activeTools([])).toContain('rezept_laden');
+    expect(assembled.tools.methode_laden).toBeUndefined();
+    expect(assembled.tools.rezept_laden).toBeDefined();
   });
 
   it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {

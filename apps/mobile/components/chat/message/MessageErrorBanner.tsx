@@ -1,11 +1,13 @@
-import { ErrorPrimitive, useAui } from '@assistant-ui/react-native';
+import { ErrorPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
+import { isThreadBusyStatus, THREAD_BUSY_NOTICE } from './threadBusy';
 import { flagRegenerate } from './threadRunSignals';
+import { useMayReplaceTurn } from './useMayReplaceTurn';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -24,46 +26,74 @@ import type { Theme } from '../../../theme/colors';
  *
  * Retry goes through `flagRegenerate` before `reload`, exactly like the action
  * bar's regenerate: without the flag the failed turn stays behind in
- * `chat_messages` and the thread grows a duplicate on every attempt.
+ * `chat_messages` and the thread grows a duplicate on every attempt. It is
+ * left out on a teammate's turn (the server refuses it: `not_your_message`).
+ *
+ * `thread_busy` (a team chat where someone else's answer is running) is not a
+ * failure: calm notice, and a plain re-send WITHOUT the regenerate flag — the
+ * server refused before it saved anything, so there is no turn to replace.
  */
 export const MessageErrorBanner = memo(function MessageErrorBanner({ theme }: { theme: Theme }) {
   const aui = useAui();
   const isDark = useColorScheme() === 'dark';
+  const mayReplace = useMayReplaceTurn();
+  const busy = useAuiState((s) => {
+    const status = s.message.status;
+    return status?.type === 'incomplete' && status.reason === 'error'
+      ? isThreadBusyStatus(status)
+      : false;
+  });
 
   const handleRetry = useCallback(() => {
-    flagRegenerate();
+    if (!busy) flagRegenerate();
     aui.message.reload();
-  }, [aui]);
+  }, [aui, busy]);
 
-  const tint = isDark ? colors.error[400] : colors.error[700];
+  const tint = busy ? theme.textSecondary : isDark ? colors.error[400] : colors.error[700];
 
   return (
     <ErrorPrimitive.Root
       style={[
         styles.banner,
-        {
-          backgroundColor: isDark ? colors.error[950] : colors.error[50],
-          borderColor: isDark ? colors.error[800] : colors.error[200],
-        },
+        busy
+          ? { backgroundColor: theme.card, borderColor: theme.border }
+          : {
+              backgroundColor: isDark ? colors.error[950] : colors.error[50],
+              borderColor: isDark ? colors.error[800] : colors.error[200],
+            },
       ]}
     >
       <View style={styles.row}>
-        <Ionicons name="alert-circle-outline" size={15} color={tint} />
-        <ErrorPrimitive.Message style={[styles.message, { color: tint }]} />
+        <Ionicons
+          name={busy ? 'hourglass-outline' : 'alert-circle-outline'}
+          size={15}
+          color={tint}
+        />
+        {busy ? (
+          <Text style={[styles.message, { color: tint }]} testID="chat-message-busy">
+            {THREAD_BUSY_NOTICE}
+          </Text>
+        ) : (
+          <ErrorPrimitive.Message style={[styles.message, { color: tint }]} />
+        )}
       </View>
-      <Pressable
-        onPress={handleRetry}
-        testID="chat-message-error-retry"
-        accessibilityRole="button"
-        accessibilityLabel="Erneut versuchen"
-        style={({ pressed }) => [
-          styles.retry,
-          { borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
-        ]}
-      >
-        <Ionicons name="refresh-outline" size={14} color={theme.text} />
-        <Text style={[styles.retryLabel, { color: theme.text }]}>Erneut versuchen</Text>
-      </Pressable>
+      {busy || mayReplace ? (
+        <Pressable
+          onPress={handleRetry}
+          testID="chat-message-error-retry"
+          accessibilityRole="button"
+          accessibilityLabel={busy ? 'Jetzt senden' : 'Erneut versuchen'}
+          style={({ pressed }) => [
+            styles.retry,
+            { borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="refresh-outline" size={14} color={theme.text} />
+          <Text style={[styles.retryLabel, { color: theme.text }]}>
+            {busy ? 'Jetzt senden' : 'Erneut versuchen'}
+          </Text>
+        </Pressable>
+      ) : null}
     </ErrorPrimitive.Root>
   );
 });

@@ -24,7 +24,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # before it installs anything, so the patch files have to be in the image
 # even when the patched package is outside this filter's closure.
 COPY patches ./patches
-COPY tsconfig.base.json tsconfig.strict-migration.json ./
+COPY tsconfig.base.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/

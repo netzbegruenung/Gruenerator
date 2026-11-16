@@ -21,6 +21,7 @@ import { VOICE_DOCK_INSET, VoiceCallBar, VoiceCallOverlay } from '../../componen
 import { WaveformIcon } from '../../components/voice/WaveformIcon';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
+import { runProjectChatHandoff } from '../../services/projectChatThread';
 import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
@@ -94,6 +95,12 @@ type ChatConversationParams = {
   initialComposerText?: string;
   /** `1` opens the chat in a voice call (the start page's call button). */
   voice?: string;
+  /** New chat filed in this Projekt (the Projekt page's composer). */
+  groupId?: string;
+  /** `1`: a team chat — every member of the Projekt may write in it. */
+  teamShared?: string;
+  /** Unique per start from the Projekt page: a remount must not start it twice. */
+  handoff?: string;
 };
 
 export default function ChatConversationScreen() {
@@ -119,6 +126,9 @@ function ChatConversation({
   agentId,
   initialComposerText,
   voice,
+  groupId,
+  teamShared,
+  handoff,
 }: ChatConversationParams) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -202,7 +212,18 @@ function ChatConversation({
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
         <ConversationThread theme={theme} welcome={welcome} startInCall={voice === '1'} />
-        {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
+        {isNewChat && (
+          <InitialTurnSender
+            message={initialMessage ?? ''}
+            {...(groupId && {
+              beforeSend: () =>
+                runProjectChatHandoff(`${groupId}:${handoff ?? ''}`, {
+                  groupId,
+                  teamShared: teamShared === '1',
+                }),
+            })}
+          />
+        )}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>
     </ScreenScaffold>

@@ -76,7 +76,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'chat_threads',
     PERMANENT_BACKFILL,
   ],
-  ['services/hocuspocus/src/auth.ts', 'chat_threads', HOCUSPOCUS],
   ['services/hocuspocus/src/auth.ts', 'collaborative_documents', HOCUSPOCUS],
   ['services/hocuspocus/src/persistence.ts', 'collaborative_documents', HOCUSPOCUS],
   [

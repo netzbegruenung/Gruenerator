@@ -9,15 +9,14 @@
 import { streamText } from 'ai';
 
 import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
+import { laneTarget, resolveLane } from '../../services/ai/lanes.js';
 import { clampToModelOutputLimit } from '../../services/ai/modelOutputLimits.js';
-import { getModel, type ProviderName } from '../../services/ai/providers.js';
+import { getDefaultModel, getModel } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
   type RequestWithLocale,
 } from '../../services/localization/index.js';
-import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
-import { type ProviderOptions } from '../../services/providers/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -89,14 +88,11 @@ export async function processGraphRequestStreaming(
     const requestData = req.body as {
       platforms?: string[];
       customPrompt?: { instructions?: string; knowledgeContent?: string } | string;
-      provider?: string;
-      model?: string;
       knowledgeContent?: string;
       selectedDocumentIds?: string[];
       selectedTextIds?: string[];
       searchQuery?: string;
       useNotebookEnrich?: boolean;
-      reasoningEffort?: string;
       slug?: string;
       theme?: string;
       thema?: string;
@@ -105,7 +101,6 @@ export async function processGraphRequestStreaming(
     };
     const {
       customPrompt,
-      provider,
       knowledgeContent,
       selectedDocumentIds,
       selectedTextIds,
@@ -189,7 +184,6 @@ export async function processGraphRequestStreaming(
         selectedTextIds: selectedTextIds || [],
         searchQuery: searchQuery || null,
         examples: [],
-        provider,
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       req
@@ -232,26 +226,11 @@ export async function processGraphRequestStreaming(
     // Resolve provider and model
     const aiOptions = getAIOptions(config, requestData);
 
-    const selection = selectProviderAndModel({
-      type: routeType,
-      // AIOptions carries provider/model via index signature; ProviderOptions is a weak type
-      options: aiOptions as ProviderOptions,
-      metadata: {},
-      env: process.env,
-    });
+    const target = laneTarget(resolveLane(routeType));
+    const effectiveProvider = target.provider;
+    const effectiveModel = target.model ?? getDefaultModel(effectiveProvider);
 
-    let effectiveProvider = selection.provider;
-    let effectiveModel = selection.model;
-
-    // Explicit provider + model override (from request data, e.g. playground)
-    if (requestData.provider) {
-      effectiveProvider = requestData.provider as ProviderName;
-    }
-    if (requestData.model) {
-      effectiveModel = requestData.model;
-    }
-
-    // Reasoning effort: explicit from request (playground), or auto-detect from content type
+    // Reasoning effort follows the content type.
     const REASONING_BY_TYPE: Record<string, string> = {
       antrag_simple: 'medium',
       antrag: 'high',
@@ -265,8 +244,7 @@ export async function processGraphRequestStreaming(
       buergeranfragen: 'low',
       leichte_sprache: 'low',
     };
-    const reasoningEffort =
-      (requestData.reasoningEffort as string | undefined) || REASONING_BY_TYPE[routeType];
+    const reasoningEffort = REASONING_BY_TYPE[routeType];
 
     /**
      * `providerOptions` is namespaced BY PROVIDER: the SDK hands a model only

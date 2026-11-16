@@ -25,7 +25,7 @@ describe('file_data readers', () => {
       { name: 'export.csv', mime_type: 'text/csv', file_data: 'eg==' },
     ]);
 
-    const files = await getThreadTabularFiles('thread-1', 'user-1');
+    const files = await getThreadTabularFiles('thread-1');
 
     expect(files.map((f) => f.name)).toEqual(['umsatz.xlsx', 'export.csv']);
   });

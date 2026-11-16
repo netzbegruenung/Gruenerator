@@ -877,6 +877,7 @@ CREATE INDEX IF NOT EXISTS idx_groups_join_token ON groups(join_token) WHERE joi
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_group_content_shares_target ON group_content_shares(group_id, content_type, content_id);
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_content ON group_content_shares(content_type, content_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
@@ -1166,6 +1167,18 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS mention_refs JSONB;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
+
+-- Thread-pinned refs of team-chat members other than the owner (#5675)
+CREATE TABLE IF NOT EXISTS chat_thread_member_refs (
+    thread_id UUID NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    cloud_file_refs JSONB,
+    notebook_source_refs JSONB,
+    mention_refs JSONB,
+    last_mcp_server_id TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (thread_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
 -- Spaces: a thread's home Space (a group). See migration add_chat_threads_group_id.sql.

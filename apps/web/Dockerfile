@@ -20,7 +20,7 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 # before it installs anything, so the patch files have to be in the image
 # even when the patched package is outside this filter's closure.
 COPY patches ./patches
-COPY tsconfig.base.json tsconfig.strict-migration.json ./
+COPY tsconfig.base.json ./
 
 # Copy only package.json files needed by pnpm filter (better layer caching)
 COPY packages/shared/package.json ./packages/shared/
@@ -238,6 +238,21 @@ server {
     location / {
         add_header Cache-Control "no-cache";
         try_files $uri /index.html;
+
+        # index.html is the link-preview fallback for every route without its
+        # own crawler rewrite, and the same file ships to every instance. Open
+        # Graph needs absolute URLs, so the host-neutral tags become absolute
+        # for the host being shared (#5629). $host is passed through by the
+        # root nginx (the worker CSP above relies on it too); https is fixed
+        # because every instance terminates TLS in front of this server.
+        # sub_filter only touches text/html, and it drops the ETag, so keep
+        # Last-Modified for the 304s. Pinned by
+        # src/services/ogFallbackTags.vitest.ts.
+        sub_filter_once off;
+        sub_filter_last_modified on;
+        sub_filter 'content="/og-image.png"' 'content="https://$host/og-image.png"';
+        sub_filter 'property="og:url" content="/"' 'property="og:url" content="https://$host/"';
+        sub_filter 'property="twitter:url" content="/"' 'property="twitter:url" content="https://$host/"';
     }
 
     # Health check

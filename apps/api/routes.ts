@@ -372,13 +372,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
-  // Playground stillgelegt (siehe apps/web/src/config/routes.ts) — die Route nahm
-  // freie provider/model-Wahl entgegen und wäre sonst ein Empfänger, den die
-  // Datenschutzerklärung nicht mehr nennt.
-  // const { default: playgroundRouter } = await import('./routes/texte/playground.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
-  const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
   // ts-rest contract router — sole owner of /api/auth/profile/* and
@@ -621,7 +616,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // weil createExpressEndpoints direkt auf der App registriert und die
   // Middleware eines späteren `app.use`-Mounts nie sieht. Eng am Pfad statt am
   // Präfix `/api/texte`, damit die weiter unten gemounteten Geschwister
-  // (adjustment, universal, playground) requireAuth und den Limiter nicht
+  // (adjustment, universal) requireAuth und den Limiter nicht
   // doppelt bekommen — zwei Sitzungsauflösungen und doppelte Kontingentzählung
   // pro Anfrage.
   app.use('/api/texte/alttext', requireAuth, requireAiConsent, aiGenerationLimiter);
@@ -637,7 +632,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/translation', requireAuth, requireAiConsent, standardMutationLimiter);
   mountTranslationContractRouter(app);
   app.use('/api/translation', translationUploadRouter);
-  app.use('/api/vision', aiGenerationLimiter, requireAuth, requireAiConsent, visionRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
@@ -796,7 +790,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAiConsent,
     universalRouter
   );
-  // app.use('/api/texte/playground', requireAuth, requireAiConsent, aiGenerationLimiter, playgroundRouter);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy

@@ -272,10 +272,6 @@ const LandesverbandAdminPage = lazy(
 );
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage'));
-// Playground stillgelegt: die Seite war der zweite Ort mit freier Modellwahl und
-// musste deshalb in der Datenschutzerklärung als Empfänger benannt werden. Die
-// Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
-// const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
@@ -610,7 +606,6 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/admin/konnektoren', component: ConnectorTestPage },
-  // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },

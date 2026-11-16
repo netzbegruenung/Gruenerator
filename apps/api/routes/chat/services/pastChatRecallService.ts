@@ -24,6 +24,15 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
+import {
+  type GroupContentBuckets,
+  hydrateGroupContent,
+} from '../../../services/groups/groupContent.js';
+import {
+  ownsThreadSql,
+  teamChatMemberSql,
+  teamChatShareExistsSql,
+} from '../../../services/groups/projectThreadScope.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -66,8 +75,14 @@ export async function resolveSpaceThreadIds(
   try {
     const rows = (await db.query(
       `SELECT id, title FROM chat_threads
-       WHERE group_id = $1::uuid AND user_id = $2 AND deleted_at IS NULL
+       WHERE group_id = $1::uuid AND deleted_at IS NULL
          AND COALESCE(status, 'regular') = 'regular'
+         AND (${ownsThreadSql('chat_threads', '$2')} OR (
+           EXISTS (SELECT 1 FROM group_memberships gm
+                    WHERE gm.group_id = chat_threads.group_id AND gm.user_id = $2::uuid
+                      AND gm.is_active = TRUE)
+           AND ${teamChatShareExistsSql('chat_threads', 'chat_threads.group_id')}
+         ))
        ORDER BY updated_at DESC`,
       [groupId, userId]
     )) as Array<{ id: string; title: string | null }>;
@@ -92,14 +107,21 @@ export async function getSpaceRecallScope(
   const db = getPostgresInstance();
   try {
     const rows = (await db.query(
-      `SELECT g.id, g.name
+      `SELECT g.id, g.name,
+              EXISTS (SELECT 1 FROM group_memberships gm
+                       WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE) AS is_member
        FROM chat_threads t
        JOIN groups g ON g.id = t.group_id
-       WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL AND g.deleted_at IS NULL
+       WHERE t.id = $1::uuid AND t.deleted_at IS NULL AND g.deleted_at IS NULL
          AND COALESCE(g.is_active, TRUE) = TRUE
+         AND (${ownsThreadSql('t', '$2')} OR (
+           EXISTS (SELECT 1 FROM group_memberships gm
+                    WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE)
+           AND ${teamChatShareExistsSql('t', 'g.id')}
+         ))
        LIMIT 1`,
       [threadId, userId]
-    )) as Array<{ id: string; name: string }>;
+    )) as Array<{ id: string; name: string; is_member: boolean }>;
     if (rows.length === 0) return null;
     const space = rows[0];
 
@@ -113,15 +135,92 @@ export async function getSpaceRecallScope(
       siblings.length > 0
         ? siblings.map((s) => `- ${s.title || 'Unbenannter Chat'}`).join('\n')
         : '- (noch keine weiteren Chats)';
+    // Was im Projekt geteilt ist, gehört zum Projekt-Kontext: ohne diese Zeilen
+    // wusste das Modell im Projekt-Chat nur von den anderen Chats und schrieb
+    // eine Projekt-Pressemitteilung ohne eine Zahl aus dem Projektwissen.
+    // Nur für aktive Mitglieder — wer das Projekt verlassen hat, behält den
+    // Chat, aber nicht den Zugriff auf dessen Inhalte.
+    const content = space.is_member
+      ? await hydrateGroupContent(space.id, userId).catch((err: unknown) => {
+          log.warn(`[Recall] space content failed: ${err}`);
+          return null;
+        })
+      : null;
     const rosterBlock =
       `## SPACE: ${space.name}\n` +
       `Dieser Chat liegt im Projekt „${space.name}". Enthaltene weitere Chats:\n${list}\n` +
-      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.`;
+      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.` +
+      formatSpaceContentBlock(content);
     return { spaceName: space.name, threadIds, rosterBlock };
   } catch (err) {
     log.warn(`[Recall] getSpaceRecallScope failed: ${err}`);
     return null;
   }
+}
+
+const SPACE_CONTENT_MAX = 8;
+
+/**
+ * Notebooks und Rezepte, die im Projekt geteilt sind — mit dem Schlüssel, den
+ * das jeweilige Werkzeug erwartet (Notebook-ID für `notebooks`, Erwähnung für
+ * `rezept_laden`). Leer, wenn nichts davon geteilt ist.
+ */
+export function formatSpaceContentBlock(content: GroupContentBuckets | null): string {
+  if (!content) return '';
+  const str = (item: Record<string, unknown>, key: string): string | null => {
+    const v = item[key];
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  };
+  const notebooks = content.notebooks
+    .flatMap((n) => {
+      const id = str(n, 'id');
+      return id ? [`- „${str(n, 'name') ?? 'Notebook'}" (id: ${id})`] : [];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
+  const recipes = content.recipes
+    .flatMap((r) => {
+      const mention = str(r, 'mention');
+      return mention ? [`- „${str(r, 'title') ?? mention}" (Kennung: ${mention})`] : [];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
+  const files = content.documents
+    .flatMap((d) => {
+      const name = str(d, 'title') ?? str(d, 'filename');
+      if (!name) return [];
+      // Nur fertig eingelesene Dateien kann `dokumente_lesen` abrufen. Eine
+      // gescheiterte Datei wird nie fertig — „wird noch eingelesen" hieße
+      // dort, für immer auf sie zu warten.
+      const status = str(d, 'status');
+      const note =
+        status === 'completed'
+          ? ''
+          : status === 'failed'
+            ? ' (konnte nicht eingelesen werden — bitte erneut hochladen)'
+            : ' (wird noch eingelesen)';
+      return [`- „${name}"${note}`];
+    })
+    .slice(0, SPACE_CONTENT_MAX);
+  const parts: string[] = [];
+  if (notebooks.length > 0) {
+    parts.push(
+      `\nWissen dieses Projekts (Notebooks):\n${notebooks.join('\n')}\n` +
+        `Fragen zum Projekt beantwortest du zuerst hieraus: \`notebooks\` action="search" mit der id.\n` +
+        `Schreibst du einen Text zum Thema des Projekts (Pressemitteilung, Rede, Post, Antrag …), suchst du VOR dem Schreiben dort nach Fakten zum konkreten Anlass und baust Zahlen, Namen und Termine daraus ein — statt sie offenzulassen oder eine „Studie" zu fordern, deren Ergebnis schon im Projekt steht.`
+    );
+  }
+  if (files.length > 0) {
+    parts.push(
+      `\nDateien dieses Projekts:\n${files.join('\n')}\n` +
+        `Sie hängen an jedem Turn dieses Chats. Fragen zu ihrem Inhalt beantwortest du mit \`dokumente_lesen\` (Dateiname als Eingrenzung), nicht aus dem Gedächtnis.`
+    );
+  }
+  if (recipes.length > 0) {
+    parts.push(
+      `\nRezepte dieses Projekts:\n${recipes.join('\n')}\n` +
+        `Passt eines zur Textsorte, lädst du es mit \`rezept_laden\` und der Kennung.`
+    );
+  }
+  return parts.join('\n');
 }
 
 export interface OfficeDocHit {
@@ -339,7 +438,13 @@ export async function listRecentThreads(
   const db = getPostgresInstance();
   try {
     const params: unknown[] = [userId];
-    const where = [`user_id = $1`, `COALESCE(status, 'regular') = 'regular'`];
+    // A scope list comes from `resolveSpaceThreadIds` (own + team chats).
+    const where = [
+      threadIds
+        ? `(${ownsThreadSql('chat_threads', '$1')} OR ${teamChatMemberSql('chat_threads', '$1')})`
+        : ownsThreadSql('chat_threads', '$1'),
+      `COALESCE(status, 'regular') = 'regular'`,
+    ];
     if (excludeThreadId) {
       params.push(excludeThreadId);
       where.push(`id <> $${params.length}::uuid`);
@@ -385,7 +490,8 @@ export async function getThreadRecallContext(
       `SELECT title, updated_at, compaction_summary
        FROM chat_threads
        WHERE id = $1::uuid AND deleted_at IS NULL
-         AND (user_id = $2 OR permissions ? $2::text)
+         AND (${ownsThreadSql('chat_threads', '$2')} OR permissions ? $2::text
+              OR ${teamChatMemberSql('chat_threads', '$2')})
          AND COALESCE(status, 'regular') = 'regular'`,
       [threadId, userId]
     )) as Array<{
@@ -558,7 +664,7 @@ async function hydrateThreadsAsResults(
          ) AS snippet_content
        FROM chat_threads t
        WHERE t.id = ANY($1::uuid[]) AND t.deleted_at IS NULL
-         AND (t.user_id = $2 OR t.permissions ? $2::text)
+         AND (${ownsThreadSql('t', '$2')} OR t.permissions ? $2::text OR ${teamChatMemberSql('t', '$2')})
          AND COALESCE(t.status, 'regular') = 'regular'`,
       [threadIds, userId]
     )) as Array<{

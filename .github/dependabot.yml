@@ -14,7 +14,7 @@
 #     both regenerating the single root pnpm-lock.yaml and conflicting;
 #   - the per-directory `ignore:` rules looked authoritative but did not apply
 #     to the PRs the root entry raised, so bumps we had explicitly ignored for
-#     apps/mobile and apps/wordpress kept reappearing (e.g. #1966-#1969).
+#     apps/mobile and the former apps/wordpress kept reappearing (e.g. #1966-#1969).
 #
 # There is exactly ONE pnpm-lock.yaml, at the repo root, so every npm update in
 # this repo is a root-level change no matter which manifest it edits. The
@@ -109,13 +109,6 @@ updates:
         patterns:
           - '@commitlint/*'
           - 'husky'
-      # The Gutenberg toolchain (apps/wordpress) is one coherent unit driven by
-      # wp-scripts' webpack config — never bump a part of it on its own.
-      wordpress-gutenberg:
-        patterns:
-          - '@wordpress/*'
-          - 'sass'
-          - 'sass-loader'
       # @ggraphic/* (schema, core, collab, editor, ...) come from npm and are
       # versioned together, so they move in ONE PR — a partial bump desyncs the
       # document schema between editor and collab. Pins are EXACT (no caret);
@@ -141,9 +134,6 @@ updates:
           - 'prettier-*'
           - '@commitlint/*'
           - 'husky'
-          - '@wordpress/*'
-          - 'sass'
-          - 'sass-loader'
     ignore:
       # --- React: deliberately NOT auto-updated at all ---------------------
       # react/react-dom are decoupled between web and mobile on purpose (see
@@ -166,19 +156,6 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # @wordpress/scripts 33 pulls a typescript-eslint/ts-api-utils combination
-      # that breaks linting monorepo-wide. Drop once the ts-api-utils override
-      # in pnpm.overrides can go (i.e. after the eslint-10 bump above).
-      #
-      # The rest of the Gutenberg stack is gated on the SAME unblock: wp-scripts
-      # owns the webpack/babel/sass pipeline, so @wordpress/components 37,
-      # block-editor 16, base-styles 11 and sass-loader 17 cannot land while
-      # scripts stays on 31 — they would desync the build. Drop ALL of these
-      # together and do the Gutenberg upgrade in ONE deliberate PR.
-      - dependency-name: '@wordpress/*'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'sass-loader'
         update-types: ['version-update:semver-major']
 
       # --- Expo SDK owns these versions — ALL update types ------------------

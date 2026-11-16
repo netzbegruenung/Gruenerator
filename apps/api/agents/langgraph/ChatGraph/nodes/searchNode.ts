@@ -1921,8 +1921,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // Track which collections were searched for observability
         searchedCollections = uniqueCollections;
 
-        // Empty internal search → go to the web, same rule the loop path got
-        // (loopGuards.emptyResultFallback). This path could not follow it:
+        // Empty internal search → go to the web, same rule the loop path once had
+        // (loopGuards.emptyResultFallback, since removed). This path could not follow it:
         // `search` is an exclusive, one-time intent choice, so a turn that
         // found nothing internally answered from the model's memory — ungrounded
         // and, to the reader, indistinguishable from a researched answer.

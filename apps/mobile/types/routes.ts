@@ -71,6 +71,12 @@ export interface ModalRouteParams {
     initialComposerText?: string;
     /** `1` opens the chat in a voice call. */
     voice?: string;
+    /** New chat filed in this Projekt; created together with its first turn. */
+    groupId?: string;
+    /** `1`: a team chat — every member of the Projekt may write in it. */
+    teamShared?: string;
+    /** Unique per start; guards against a remount replaying the hand-off. */
+    handoff?: string;
   };
   '/notebook/[id]/chat': {
     /** Registry id of a system notebook, or the UUID of a user notebook. */

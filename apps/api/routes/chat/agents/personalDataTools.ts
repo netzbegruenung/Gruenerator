@@ -374,7 +374,7 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
         if (results.length === 0) {
           return {
             ...leeresErgebnis({
-              filter: `Suchbegriff „${q}“ in Dokumenten, Präsentationen, Tabellen und Reels (Notebooks sind ausgenommen)`,
+              filter: `Suchbegriff „${q}“ in Docs, Präsentationen, Tabellen, Boards und Reels (hochgeladene Dateien und Notebooks sind ausgenommen — dafür 'documents' bzw. 'notebooks')`,
               hinweis: 'Versuche ein kürzeres oder anderes Stichwort',
             }),
             results,

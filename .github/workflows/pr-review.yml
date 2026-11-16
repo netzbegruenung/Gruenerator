@@ -154,14 +154,20 @@ jobs:
             Der PR-Branch ist bereits in das Arbeitsverzeichnis ausgecheckt.
 
             Arbeite selbst, ohne Subagenten, in dieser Reihenfolge:
-            1. `gh pr view` und `gh pr diff` lesen. Lockfiles, generierte
-               Dateien, Snapshots und reine Doku überspringen.
-            2. Jede geänderte Quelldatei mit Read öffnen und den umliegenden
-               Code lesen; Aufrufer und Gegenstellen per Grep suchen. Kein
-               Befund ohne gelesenen Kontext. Dateien nie per Bash lesen
-               (`cat`, `sed`, `head`, `rg` …) — das ist gesperrt. Der Check
-               verlangt jeden geänderten Bereich samt einigen Zeilen
-               Umgebung; ein Read daneben zählt nicht.
+            1. `gh pr view` lesen, dann den Diff mit
+               `git diff -U10 origin/${{ github.event.pull_request.base.ref }}...HEAD -- <Dateien>`,
+               mehrere Dateien je Aufruf. Immer mit `-U10`, nie `gh pr diff`
+               und nie ein `git diff` ohne `-U10`: der Check verlangt jeden
+               geänderten Bereich samt Umgebung, und die üblichen drei
+               Kontextzeilen zählen bei ihm als nicht gelesen. Lockfiles,
+               generierte Dateien, Snapshots und reine Doku überspringen.
+            2. Wo der Diff für ein Urteil nicht reicht, die Datei mit Read
+               öffnen und den umliegenden Code lesen; Aufrufer und
+               Gegenstellen per Grep suchen. Kein Befund ohne gelesenen
+               Kontext. Dateien nie per Bash lesen (`cat`, `sed`, `head`,
+               `rg` …) — das ist gesperrt. Ein Read mit `offset`/`limit`
+               zählt für den Check nur, wenn er den geänderten Bereich samt
+               Umgebung trifft; ein Read daneben zählt nicht.
             3. Jeden Kandidaten am Code verifizieren. CONFIRMED nur mit einem
                konkreten Fehlerszenario (Eingabe oder Zustand → falsches
                Ergebnis); sonst PLAUSIBLE oder verwerfen.
@@ -171,7 +177,7 @@ jobs:
             Werkzeugaufrufen ist ein Zug, egal wie viele Aufrufe sie enthält —
             darum unabhängige Aufrufe immer bündeln: alle Reads einer Runde,
             alle Greps einer Runde in EINER Antwort, mehrere Dateien je
-            `git diff`-Aufruf statt Datei für Datei. Spätestens nach drei
+            `git diff -U10`-Aufruf statt Datei für Datei. Spätestens nach drei
             Vierteln des Budgets nichts mehr lesen, sondern posten und die
             Zusammenfassung abgeben; was ungelesen blieb, gehört in die
             Übersicht.
@@ -236,8 +242,15 @@ jobs:
           # einem flachen Review nur die Zahl, nicht der Grund.
           echo "Werkzeugaufrufe:"
           jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")
-            | "  \(.name) \((.input.file_path // .input.path // .input.command // .input.pattern // "") | tostring | .[0:200])"' "$EXEC"
+            | "  \(.name) \((.input.file_path // .input.path // .input.command // .input.pattern // "") | tostring | .[0:200])"
+              + (if .name == "Read" and (.input.offset != null or .input.limit != null)
+                 then " [offset=\(.input.offset // "-") limit=\(.input.limit // "-")]" else "" end)' "$EXEC"
           jq -r '"Werkzeugergebnisse: \([.[] | select(.type == "user") | .message.content[]? | select(.type == "tool_result")] | length)"' "$EXEC"
+          # Ein Read, der statt Inhalt einen Fehler lieferte (Token-Grenze,
+          # Pfad), sieht in der Liste oben aus wie ein gelesener (#5691).
+          echo "Fehlgeschlagene Werkzeugergebnisse:"
+          jq -r '.[] | select(.type == "user") | .message.content[]? | select(.type == "tool_result" and .is_error == true)
+            | "  \((if (.content | type) == "string" then .content else ([.content[]?.text // ""] | join(" ")) end) | gsub("\\s+"; " ") | .[0:200])"' "$EXEC"
 
       - name: Gate on confirmed findings
         if: steps.scope.outputs.skip != 'true'
@@ -262,8 +275,10 @@ jobs:
           # mindestens drei der geänderten Dateien wirklich gesehen haben (bei
           # weniger Dateien: alle). Gezählt wird, was in den Werkzeugergebnissen
           # steht, nicht welches Werkzeug lief: jeder geänderte Bereich samt
-          # etwas Umgebung, ob per Read, `cat` oder `git log -p` (#4854).
-          # Die Regeln stehen im Kopf von review-read-gate.mjs.
+          # etwas Umgebung, ob per Read, `cat` oder `git log -p` (#4854) —
+          # oder per `git diff -U10`, wie der Prompt es verlangt (#5691).
+          # Die Regeln stehen im Kopf von review-read-gate.mjs; was einer
+          # Datei fehlte, schreibt das Skript je Zeile ins Log.
           NEED=$(( FILES < 3 ? FILES : 3 ))
           OPENED=$(node .github/scripts/review-read-gate.mjs \
               "$RUNNER_TEMP/claude-execution-output.json" \
@@ -272,7 +287,7 @@ jobs:
               "$GITHUB_WORKSPACE" | grep -c . || true)
           echo "Geöffnete geänderte Dateien: $OPENED von $FILES (nötig: $NEED)"
           if [ "$OPENED" -lt "$NEED" ]; then
-            echo "::error::Der Review hat nur $OPENED der geänderten Dateien gelesen (nötig: $NEED) — das ist kein Review, egal was die Ausgabe meldet. Label claude-review setzen, um ihn neu zu starten."
+            echo "::error::Der Review hat nur $OPENED der geänderten Dateien gelesen (nötig: $NEED) — das ist kein Review, egal was die Ausgabe meldet. Was je Datei fehlte, steht darüber. Label claude-review setzen, um ihn neu zu starten."
             exit 1
           fi
 

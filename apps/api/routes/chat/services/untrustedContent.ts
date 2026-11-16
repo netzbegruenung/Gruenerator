@@ -26,6 +26,8 @@ export type UntrustedKind =
   | 'fruehere_bilder'
   | 'suchergebnis'
   | 'nutzer_anweisung'
+  /** Anweisungen der Projekt-Admins (group_instructions) — Text Dritter. */
+  | 'projekt_anweisung'
   | 'gedaechtnis'
   | 'agenten_prompt';
 
