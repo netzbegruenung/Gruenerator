@@ -7,10 +7,12 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getConnection = vi.fn();
+const createConnectLink = vi.fn();
 const browseDrive = vi.fn();
+class ConnectionNotAllowedError extends Error {}
 vi.mock('../../services/connections/ConnectionService.js', () => ({
-  ConnectionService: { getConnection },
-  ConnectionNotAllowedError: class ConnectionNotAllowedError extends Error {},
+  ConnectionService: { getConnection, createConnectLink },
+  ConnectionNotAllowedError,
 }));
 vi.mock('../../services/connections/driveBrowse.js', () => ({ browseDrive }));
 
@@ -67,5 +69,30 @@ describe('connectionsContractRouter.browse', () => {
   it('meldet einen unbekannten Ordner als 404', async () => {
     browseDrive.mockRejectedValue(axiosError(404));
     expect(await browse('gone')).toMatchObject({ status: 404, body: { reauth: false } });
+  });
+});
+
+describe('connectionsContractRouter.connectLink', () => {
+  const connectLink = () =>
+    connectionsContractRouter.connectLink({ req, params: { provider: 'microsoft' } } as never);
+
+  it('holt den Link mit der Kennung der angemeldeten Person', async () => {
+    createConnectLink.mockReset().mockResolvedValue('https://nango.example/connect?x=1');
+
+    expect(await connectLink()).toEqual({
+      status: 200,
+      body: { success: true, connectLink: 'https://nango.example/connect?x=1' },
+    });
+    expect(createConnectLink).toHaveBeenCalledWith('user-1', 'microsoft');
+  });
+
+  it('meldet einen gesperrten Anbieter als 403', async () => {
+    createConnectLink.mockReset().mockRejectedValue(new ConnectionNotAllowedError('gesperrt'));
+    expect(await connectLink()).toMatchObject({ status: 403, body: { success: false } });
+  });
+
+  it('meldet einen Nango-Fehler als 500', async () => {
+    createConnectLink.mockReset().mockRejectedValue(new Error('nango down'));
+    expect(await connectLink()).toMatchObject({ status: 500, body: { success: false } });
   });
 });

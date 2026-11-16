@@ -56,6 +56,20 @@ export const connectionsContractRouter = s.router(connectionsContract, {
       return failure(500, 'Ordner konnte nicht geladen werden.');
     }
   },
+
+  // Die Karte im Konnektor-Verzeichnis öffnet den Link im Popup. Ob die Person
+  // den Anbieter verbinden darf, entscheidet `ConnectionService`.
+  connectLink: async ({ req, params }) => {
+    const userId = getAuthedUser(req).id;
+    try {
+      const connectLink = await ConnectionService.createConnectLink(userId, params.provider);
+      return { status: 200 as const, body: { success: true as const, connectLink } };
+    } catch (err) {
+      if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
+      log.error(`[connectLink] ${params.provider} failed`, err);
+      return failure(500, 'Verbindung konnte nicht gestartet werden.');
+    }
+  },
 });
 
 export function mountConnectionsContractRouter(app: Application): void {

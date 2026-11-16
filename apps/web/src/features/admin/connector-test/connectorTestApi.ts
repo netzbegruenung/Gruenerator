@@ -18,13 +18,18 @@ export function unwrap<R extends { status: number; body: unknown }>(
  * Connect-Link und wartet, bis das Fenster zu ist.
  */
 export async function connectInPopup(provider: ConnectorTestProvider): Promise<void> {
+  await openConnectPopup(
+    async () =>
+      unwrap(await getContractsClient().connectorTest.connect({ params: { provider } })).connectLink
+  );
+}
+
+/** Wie `connectInPopup`, aber mit beliebiger Quelle für den Link (Nutzer- statt Admin-Route). */
+export async function openConnectPopup(fetchLink: () => Promise<string>): Promise<void> {
   const popup = window.open('', '_blank', 'width=600,height=720');
   if (!popup) throw new Error('Popup wurde blockiert.');
   try {
-    const { connectLink } = unwrap(
-      await getContractsClient().connectorTest.connect({ params: { provider } })
-    );
-    popup.location.href = connectLink;
+    popup.location.href = await fetchLink();
   } catch (err) {
     popup.close();
     throw err;

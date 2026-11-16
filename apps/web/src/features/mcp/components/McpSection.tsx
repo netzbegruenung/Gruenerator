@@ -51,7 +51,6 @@ import { mcpToolScopeKey, setToolDecision } from '../lib/toolApprovalsApi';
 import { McpToolStages } from './McpToolStages';
 
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
-import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
 interface RunOAuthResult {
@@ -690,8 +689,11 @@ const CardShell = memo(
     onConnect,
     onUseKey,
     onDisconnect,
+    experimental = false,
   }: {
     title: string;
+    /** Open to everyone but not yet settled — says so next to the name. */
+    experimental?: boolean;
     connecting: boolean;
     onConnect: () => void;
     /** Provider also takes an API key — offered next to the one-click login. */
@@ -704,8 +706,13 @@ const CardShell = memo(
   }) => (
     <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
       <McpLogo title={title} size={30} />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
-        {title}
+      <span className="flex min-w-0 flex-1 items-center gap-xs">
+        <span className="truncate text-sm font-semibold text-foreground-heading">{title}</span>
+        {experimental && (
+          <span className="shrink-0 rounded-full border border-secondary-100 bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+            Experimentell
+          </span>
+        )}
       </span>
       {onUseKey && !connecting && (
         <button type="button" onClick={onUseKey} className={textBtnClass}>
@@ -997,8 +1004,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
-  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
-  const microsoft = useMicrosoftConnector(isInstanceAdmin);
+  const microsoft = useMicrosoftConnector();
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
 
@@ -1042,7 +1048,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     const items = merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-    if (isInstanceAdmin && MICROSOFT_SEARCH_TEXT.includes(debouncedSearch.toLowerCase())) {
+    if (microsoft.available && MICROSOFT_SEARCH_TEXT.includes(debouncedSearch.toLowerCase())) {
       items.push({
         kind: 'microsoft',
         key: 'nango:microsoft',
@@ -1051,7 +1057,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       });
     }
     return items;
-  }, [registry, connectedHosts, connectedKeys, isInstanceAdmin, debouncedSearch]);
+  }, [registry, connectedHosts, connectedKeys, microsoft.available, debouncedSearch]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1220,6 +1226,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       <CardShell
         key={it.key}
         title={it.title}
+        experimental
         connecting={microsoft.connect.isPending}
         onConnect={() =>
           microsoft.connect.mutate(undefined, {
@@ -1250,17 +1257,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const hasConnected = connected.length > 0;
 
   return (
-    <div>
+    <div className="mt-xl">
       {/* Header */}
       <div className="flex items-center gap-md">
         <div className="w-[52px] h-[52px] flex-none rounded-[14px] bg-primary-50 border border-primary-100 dark:bg-primary-950/30 dark:border-primary-800 flex items-center justify-center text-primary dark:text-primary-400">
           <FiServer className="w-6 h-6" />
         </div>
         <div className="flex items-center gap-sm flex-wrap">
-          {/* Im Konnektoren-Reiter unter Wolke und Websites — „Konnektoren"
-              hieße hier der ganze Reiter, nicht dieser Abschnitt. */}
           <h2 className="text-2xl font-semibold text-foreground-heading m-0 tracking-tight">
-            Weitere Dienste
+            Konnektoren
           </h2>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 border-secondary-100 dark:bg-secondary-900/30 dark:text-secondary-300 dark:border-secondary-600 text-xs font-semibold border">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />

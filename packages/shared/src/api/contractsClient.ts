@@ -81,6 +81,7 @@ import {
   chunkInspectorContract,
   bundestagQaContract,
   connectorTestContract,
+  connectionsContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   adminStatsContract,
@@ -354,6 +355,7 @@ const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _bundestagQaClient = () => initClient(bundestagQaContract, CLIENT_OPTS);
 const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
+const _connectionsClient = () => initClient(connectionsContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _adminStatsClient = () => initClient(adminStatsContract, CLIENT_OPTS);
@@ -451,6 +453,7 @@ export interface ContractsClient {
   chunkInspector: ReturnType<typeof _chunkInspectorClient>;
   bundestagQa: ReturnType<typeof _bundestagQaClient>;
   connectorTest: ReturnType<typeof _connectorTestClient>;
+  connections: ReturnType<typeof _connectionsClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   adminStats: ReturnType<typeof _adminStatsClient>;
@@ -560,6 +563,7 @@ export function getContractsClient(): ContractsClient {
     chunkInspector: _chunkInspectorClient(),
     bundestagQa: _bundestagQaClient(),
     connectorTest: _connectorTestClient(),
+    connections: _connectionsClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     adminStats: _adminStatsClient(),

@@ -8,13 +8,12 @@ import { MCP_SERVER_MENTIONS_QUERY_KEY } from '@gruenerator/chat';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
 import McpSection from './McpSection';
 
-import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders, userEvent } from '@/test-utils';
 
 const API = 'http://localhost/api';
@@ -102,71 +101,46 @@ describe('McpSection — bekannte Konnektoren', () => {
 
 /**
  * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
- * selben Verzeichnis unter „Sonstige" — und vorerst nur für Instanz-Admins.
+ * selben Verzeichnis unter „Sonstige". Seit 16.11.2026 für alle, als experimentell
+ * markiert; Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
  */
 describe('McpSection — Microsoft 365', () => {
-  const STATUS_URL = `${API}/auth/admin/connector-test`;
+  const STATUS_URL = `${API}/connections/status`;
 
-  function serveMicrosoft(connected: boolean) {
-    const statusHits = { count: 0 };
+  function serveMicrosoft(providers: { provider: string; connected: boolean }[]) {
     serve([]);
-    server.use(
-      http.get(STATUS_URL, () => {
-        statusHits.count += 1;
-        return HttpResponse.json({
-          success: true,
-          nangoConfigured: true,
-          pickerConfigured: false,
-          providers: [
-            {
-              provider: 'microsoft',
-              label: 'Microsoft 365',
-              connected,
-              connectedAt: connected ? '2026-11-01T10:00:00.000Z' : null,
-            },
-          ],
-        });
-      })
-    );
-    return statusHits;
+    server.use(http.get(STATUS_URL, () => HttpResponse.json({ providers })));
   }
 
-  function setAdmin(isAdmin: boolean) {
-    useAuthStore.setState({ user: { id: 'u1', is_admin: isAdmin } as never });
-  }
+  const cardOf = async () =>
+    (await screen.findByText('Microsoft 365')).closest('div.rounded-xl') as HTMLElement;
 
-  afterEach(() => useAuthStore.setState({ user: null } as never));
-
-  it('steht für Admins unter „Sonstige" mit „Verbinden"', async () => {
-    setAdmin(true);
-    serveMicrosoft(false);
+  it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: false }]);
     renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
-    const title = await screen.findByText('Microsoft 365');
-    const group = title.closest('div.grid')?.parentElement as HTMLElement;
+    const card = await cardOf();
+    const group = card.closest('div.grid')?.parentElement as HTMLElement;
     expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
-    const card = title.parentElement as HTMLElement;
+    expect(within(card).getByText('Experimentell')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
   });
 
   it('zeigt verbunden „Trennen" statt „Verbinden"', async () => {
-    setAdmin(true);
-    serveMicrosoft(true);
+    serveMicrosoft([{ provider: 'microsoft', connected: true }]);
     renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
-    const card = (await screen.findByText('Microsoft 365')).parentElement as HTMLElement;
+    const card = await cardOf();
     expect(await within(card).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
   });
 
-  it('fehlt für Nicht-Admins und fragt den Admin-Status nicht ab', async () => {
-    setAdmin(false);
-    const statusHits = serveMicrosoft(true);
+  it('fehlt, wenn der Server Microsoft nicht meldet', async () => {
+    serveMicrosoft([]);
     renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     await screen.findByText('Rateo');
     expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
-    expect(statusHits.count).toBe(0);
   });
 });
 

@@ -1,39 +1,51 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { connectInPopup, unwrap } from '@/features/admin/connector-test/connectorTestApi';
+import { openConnectPopup, unwrap } from '@/features/admin/connector-test/connectorTestApi';
 
-// Shared with the admin connector test page, so both show the same state.
-const STATUS_KEY = ['connector-test-status'];
+// Dieselbe Abfrage wie der @connect-Picker im Chat (`/api/connections/status`).
+const STATUS_KEY = ['connections-status'];
+
+interface ConnectionsStatus {
+  providers?: { provider: string; connected: boolean }[];
+}
 
 /**
  * Microsoft 365 (OneDrive, via Nango) as a card in the connector directory.
- * Instance admins only until it opens to everyone — the server enforces that in
- * `ConnectionService`; `enabled: false` just keeps non-admins from asking.
+ * Open to everyone since 16.11.2026 and marked experimental in the card.
+ * Status and disconnect use the existing `/api/connections` routes the chat's
+ * @connect picker reads; the connect link comes from `connections.connectLink`.
  */
-export function useMicrosoftConnector(enabled: boolean) {
+export function useMicrosoftConnector() {
   const queryClient = useQueryClient();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: STATUS_KEY });
 
   const status = useQuery({
     queryKey: STATUS_KEY,
-    queryFn: async () => unwrap(await getContractsClient().connectorTest.status()),
-    enabled,
+    queryFn: async () =>
+      (await getGlobalApiClient().get<ConnectionsStatus>('/connections/status')).data,
   });
   const connect = useMutation({
-    mutationFn: () => connectInPopup('microsoft'),
+    mutationFn: () =>
+      openConnectPopup(
+        async () =>
+          unwrap(
+            await getContractsClient().connections.connectLink({
+              params: { provider: 'microsoft' },
+            })
+          ).connectLink
+      ),
     onSettled: refresh,
   });
   const disconnect = useMutation({
-    mutationFn: async () =>
-      unwrap(
-        await getContractsClient().connectorTest.disconnect({ params: { provider: 'microsoft' } })
-      ),
+    mutationFn: () => getGlobalApiClient().delete('/connections/microsoft'),
     onSettled: refresh,
   });
 
   return {
-    connected: status.data?.providers.find((p) => p.provider === 'microsoft')?.connected === true,
+    /** False until the status answered; the card then shows „Verbinden". */
+    available: status.data?.providers?.some((p) => p.provider === 'microsoft') === true,
+    connected: status.data?.providers?.find((p) => p.provider === 'microsoft')?.connected === true,
     connect,
     disconnect,
   };
