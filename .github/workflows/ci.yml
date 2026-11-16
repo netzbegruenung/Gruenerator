@@ -557,12 +557,15 @@ jobs:
     # the runner's own outbound connections could hold it and the service
     # container failed to bind ("address already in use", #3754).
     #
-    # Only the api shards get it: every test that opens a database lives in
-    # apps/api, and the container cost the other shards 14 s each. An empty
-    # image is how a service is switched off.
+    # The web shards and the chat + mobile native shard go without: no test
+    # there opens a database, and the container cost them 14 s each. Every
+    # other shard gets it, `rest` included, so a database test in a new
+    # package has one (services/hocuspocus/src/auth.db.vitest.ts landed in
+    # `rest` the day it was switched off there and failed on master, run
+    # 43885943669). An empty image is how a service is switched off.
     services:
       postgres:
-        image: ${{ matrix.pkg == 'api' && 'postgres:17' || '' }}
+        image: ${{ matrix.pkg != 'web' && !matrix.run && 'postgres:17' || '' }}
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
@@ -594,7 +597,7 @@ jobs:
       # CREATEDB is for tests only: trashSchema.db.vitest.ts migrates a database
       # of its own, because migrations.db.vitest.ts needs this one empty.
       - name: Create the app role and its empty database
-        if: matrix.pkg == 'api'
+        if: matrix.pkg != 'web' && !matrix.run
         run: >-
           psql postgresql://postgres@localhost:5433/postgres
           -c "CREATE ROLE gruenerator LOGIN CREATEDB"
