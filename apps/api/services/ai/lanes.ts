@@ -200,16 +200,6 @@ export const AI_LANES = {
     model: LANE.model,
     structuredMode: 'tool',
   },
-  antrag_question_generation: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
-  antrag_qa_summary: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
   gruenerator_ask: {
     provider: LANE.provider,
     model: LANE.model,
