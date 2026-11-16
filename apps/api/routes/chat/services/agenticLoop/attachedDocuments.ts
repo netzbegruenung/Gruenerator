@@ -101,7 +101,7 @@ export const ATTACHED_DOC_SNIPPET_CHARS = 6_000;
  * - `prompt`: steht schon im Prompt, kein Abruf.
  *
  * Bis #5266 entschieden vier Stellen getrennt, welches Material ein Turn trägt
- * (Allowlist, drei Seed-Filter, Montage, erzwungener erster Aufruf), und jede
+ * (Allowlist, drei Seed-Filter, Montage, Erzwingen des ersten Aufrufs), und jede
  * neue Anhangsart brauchte vier Patches — vergass einer davon die Art, kam sie
  * im Loop still nicht mehr beim Modell an. Die Tabelle ist vollständig über
  * `DocumentSourceKind`: eine neue Art kompiliert erst mit einem Eintrag hier.
@@ -131,12 +131,11 @@ export interface TurnMaterial {
 
 /**
  * Die eine Antwort auf „welches Material trägt dieser Turn?" — für den
- * Vorab-Abruf, die Montage von `dokumente_lesen`/`summarize` und den
- * erzwungenen ersten Aufruf.
+ * Vorab-Abruf und die Montage von `dokumente_lesen`/`summarize`.
  */
 export function resolveTurnMaterial(state: ChatGraphState): TurnMaterial {
   // Ein Ganzdokument-Turn hat sein Material ganz im Prompt (wholeDocument.ts):
-  // kein Vorab-Abruf, kein erzwungenes `dokumente_lesen`/`summarize` dafür.
+  // kein Vorab-Abruf, kein `dokumente_lesen`/`summarize` dafür.
   // Live-Test 06.11.2026: ohne das erzwang `material_order` eine Planer-Runde
   // für `dokumente_lesen`, obwohl der Schreiber die 68k Zeichen schon hatte.
   const skip = wholeDocumentSkipsRetrieval(state.wholeDocument, state.threadAttachments ?? []);

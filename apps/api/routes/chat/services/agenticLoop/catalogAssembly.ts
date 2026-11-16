@@ -30,7 +30,7 @@ import {
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
@@ -501,20 +501,6 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
-      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
-      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
-      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
-      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
-      if (methodEntries(recipeCatalog).length > 0) {
-        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
-          isMounted,
-          catalog: recipeCatalog,
-          registry: recipeRegistry,
-          userId: userId ?? null,
-          visualBlocks: state.visualBlocks ?? [],
-          only: 'methode',
-        });
-      }
     }
   }
 
@@ -602,15 +588,6 @@ export function createLoopGuards(
     // thread with prior research would have been told it had "already found
     // enough" before running a single search.
     getSourceCount: () => sourceRegistry.freshSize,
-    // The web is NOT gated behind the internal document search — no exemption
-    // list either, because there is nothing left to be exempt from. Which
-    // retrieval a question needs is the classifier's call, made with the whole
-    // message and the thread in hand. All the loop still does is refuse to let
-    // an internal search that found NOTHING end in an answer from model memory.
-    internalFallback: {
-      requiredTool: 'gruenerator_search',
-      fallbackTool: 'web_search',
-    },
   });
 }
 
@@ -668,8 +645,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
 
 /**
  * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen
- * oben zusammenkommen — `priorTurnRetrievalFailed` und der Zuschnitt des
- * erzwungenen ersten Schritts (`forcedFirstStepTools`) stellen dieselbe Frage.
+ * oben zusammenkommen — `priorTurnRetrievalFailed` stellt dieselbe Frage.
  * Verbindungs-Werkzeuge (`serverName`) entscheidet der Aufrufer, weil der
  * Name allein sie nicht verrät.
  */
@@ -925,7 +901,7 @@ export async function seedAttachedDocuments(params: {
  * Eine gewählte Cloud-Datei ist Material des Loop-Turns. `retrievableAttachedSources` lässt `wolke`/`connect` aber
  * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
  * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
- * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
+ * deshalb nie; der Planer griff zu `gruenerator_search`, und
  * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
  * hier über denselben Fan-out wie im Einzeldurchlauf.
  *
