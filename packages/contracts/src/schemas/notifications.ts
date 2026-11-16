@@ -37,6 +37,7 @@ export const notificationTypeSchema = z.enum([
   'group_content_shared',
   'group_comment_added',
   'group_post_created',
+  'group_chat_message',
   'group_user_mentioned',
   'group_mention_all',
   'group_deleted',

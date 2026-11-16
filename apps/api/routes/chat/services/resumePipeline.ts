@@ -110,7 +110,7 @@ export async function runChatGraphResume(args: {
   const userId = getUser(req)?.id;
   let lease: ThreadRunLease | null = null;
   if (userId && body.threadId && (await canWriteThread(ThreadId(body.threadId), UserId(userId)))) {
-    lease = await acquireThreadRun(body.threadId, `resume_${Date.now()}:${randomUUID()}`);
+    lease = await acquireThreadRun(body.threadId, userId, `resume_${Date.now()}:${randomUUID()}`);
     if (!lease) {
       return sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
     }

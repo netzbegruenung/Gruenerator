@@ -12,7 +12,13 @@ beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
 
-const thread = (id: string, title: string, updatedAt: string, groupId: string | null) => ({
+const thread = (
+  id: string,
+  title: string,
+  updatedAt: string,
+  groupId: string | null,
+  extra: Record<string, unknown> = {}
+) => ({
   id,
   userId: 'u1',
   agentId: 'a',
@@ -25,6 +31,7 @@ const thread = (id: string, title: string, updatedAt: string, groupId: string | 
   slugSuffix: null,
   createdAt: updatedAt,
   updatedAt,
+  ...extra,
 });
 
 describe('formatRelativeDate', () => {
@@ -62,5 +69,38 @@ describe('SpaceChatsSection', () => {
     server.use(http.get('http://localhost/api/chat-service/threads', () => HttpResponse.json([])));
     renderWithProviders(<SpaceChatsSection groupId="g1" />);
     expect(await screen.findByText(/Noch keine Chats/)).toBeInTheDocument();
+  });
+
+  it('marks team chats with author and „Privat" only on own private chats', async () => {
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () =>
+        HttpResponse.json([
+          thread('t1', 'Förderung klären', '2026-11-12T10:00:00Z', 'g1', {
+            teamShared: true,
+            accessType: 'group',
+            ownerName: 'Anna Beispiel',
+          }),
+          thread('t2', 'Mein Entwurf', '2026-11-11T10:00:00Z', 'g1', {
+            teamShared: false,
+            accessType: 'owner',
+            ownerName: 'Ich',
+          }),
+          thread('t3', 'Wärmeplan', '2026-11-10T10:00:00Z', 'g1', {
+            teamShared: true,
+            accessType: 'owner',
+            ownerName: 'Ich',
+          }),
+        ])
+      )
+    );
+    const { container } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    const items = await screen.findAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Team');
+    expect(items[0]).toHaveTextContent('Anna Beispiel');
+    expect(items[0]).not.toHaveTextContent('Privat');
+    expect(items[1]).toHaveTextContent('Privat');
+    expect(items[1]).not.toHaveTextContent('Team');
+    expect(items[2]).toHaveTextContent('Team');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

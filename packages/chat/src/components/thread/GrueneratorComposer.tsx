@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 
+import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -256,6 +257,21 @@ function CancelButton() {
   );
 }
 
+function PeerRunningSendButton() {
+  const isCompact = useChatDensity() === 'compact';
+  return (
+    <button
+      type="button"
+      disabled
+      aria-label="Nachricht senden"
+      title="Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist."
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white opacity-30`}
+    >
+      <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+    </button>
+  );
+}
+
 function DictateButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
@@ -329,11 +345,14 @@ function ComposerButtons({
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
   const canQueue = useAuiState((s) => s.thread.capabilities.queue);
+  const peerRunning = useChatCollaborationContext()?.peerRunning === true;
 
   // Dictation now outranks the run: with a queue you may type (or dictate) the
   // next turn while one is still streaming, so a live dictation must keep its
   // stop button instead of being replaced by the run's cancel button.
   if (isDictating) return <StopDictationButton />;
+  // A teammate's answer is running here: only its sender may stop it.
+  if (isRunning && peerRunning) return <PeerRunningSendButton />;
   if (isRunning && !canQueue) return <CancelButton />;
   if (isRunning) {
     // Send joins cancel only once there is something to queue — an empty draft
@@ -387,6 +406,9 @@ const INITIAL_MENTION_STATE: MentionState = {
   anchorRect: null,
   mentionStart: -1,
 };
+
+/** How often a continuously changing draft re-announces typing. */
+const TYPING_REFRESH_MS = 2000;
 
 const COMPOSER_CORNERS = ['bottom-left', 'bottom-right'] as const;
 
@@ -833,6 +855,40 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
+  // Team chats show "X schreibt …" to the other members. `setTyping(true)` arms
+  // a 3 s timer that publishes "stopped" (the pause detector), so a draft that
+  // keeps changing refreshes it every 2 s — not on every key. An emptied
+  // composer, a send and an unmount clear it.
+  const collab = useChatCollaborationContext();
+  const setTyping = collab?.setTyping;
+  const typingSentAtRef = useRef<number | null>(null);
+  const announceTyping = useCallback(
+    (typing: boolean) => {
+      const sentAt = typingSentAtRef.current;
+      if (typing) {
+        if (sentAt !== null && Date.now() - sentAt < TYPING_REFRESH_MS) return;
+        typingSentAtRef.current = Date.now();
+      } else {
+        if (sentAt === null) return;
+        typingSentAtRef.current = null;
+      }
+      setTyping?.(typing);
+    },
+    [setTyping]
+  );
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      announceTyping(e.target.value.length > 0);
+      if (showMentions) handleChange(e);
+    },
+    [announceTyping, showMentions, handleChange]
+  );
+  const draftEmpty = useAuiState((s) => s.composer.text === '');
+  useEffect(() => {
+    if (draftEmpty || isRunning) announceTyping(false);
+  }, [draftEmpty, isRunning, announceTyping]);
+  useEffect(() => () => announceTyping(false), [announceTyping]);
+
   const inputHistory = unstable_useComposerInputHistory();
 
   const handleKeyDown = useCallback(
@@ -1034,7 +1090,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             ? 'max-h-[min(calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.3),40cqh)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
             : 'max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
       }
-      onChange={showMentions ? handleChange : undefined}
+      onChange={handleInputChange}
       // Not gated on showMentions: the pill handling (Enter/Backspace) must
       // also work on surfaces whose pills come from the plus menu only. The
       // popover branches inside are inert there (mention.visible stays false).

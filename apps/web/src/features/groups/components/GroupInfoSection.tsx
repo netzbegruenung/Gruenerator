@@ -694,7 +694,11 @@ const GroupInfoSection = memo(
             <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
               {showChats && (
                 <div className="flex min-w-0 flex-1 flex-col gap-md">
-                  <ProjectChatComposer groupId={groupId} groupName={data?.groupInfo?.name ?? ''} />
+                  <ProjectChatComposer
+                    groupId={groupId}
+                    groupName={data?.groupInfo?.name ?? ''}
+                    isPersonal={isPersonal || isSystem}
+                  />
                   <SpaceChatsSection groupId={groupId} />
                 </div>
               )}
