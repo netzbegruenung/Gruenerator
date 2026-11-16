@@ -3,6 +3,7 @@
     "abgeordnetenhaus",
     "abgeordnetenwatch",
     "agentic",
+    "antragsgruen",
     "artifact",
     "bundestag",
     "chart",
@@ -49,6 +50,12 @@
       "title": "Abgeordnetenwatch",
       "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",
       "mention": "@abgeordnetenwatch",
+      "audience": "de-DE"
+    },
+    "antragsgruen": {
+      "title": "Antragsgrün NRW",
+      "description": "Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW",
+      "mention": "@antragsgruennrw",
       "audience": "de-DE"
     },
     "board-erstellen": {
@@ -800,6 +807,14 @@
       "title": "Reise vorbereiten NRW (Beta)",
       "description": "Checkliste, was vor einer Reise im Auftrag des Landesverbands NRW zu klären ist (Beta). Nutzen, wenn eine Reise geplant wird, die der LV NRW erstattet.",
       "avatar": "🧳",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@antragsgruen-seite",
+      "title": "Antragsgrün-Seite anlegen (Experimentell)",
+      "description": "Legt für eine Versammlung eine eigene Antragsgrün-Seite auf antragsgruen.de an und trägt dich als Seiten-Admin ein. Nutzen, wenn für einen Parteitag, eine KMV oder MV ein Antragstool gebraucht wird (experimentell).",
+      "avatar": "🗳️",
       "category": "dokumente",
       "audience": "de-DE"
     }

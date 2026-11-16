@@ -1,3 +1,5 @@
+import { topicCategorySchema, type TopicCategory } from '@gruenerator/contracts';
+
 import type {
   KeywordEntry as NlpKeywordEntry,
   NlpClassificationResult as NlpClassificationResultBase,
@@ -6,36 +8,9 @@ import type {
 
 export type { NounCount } from '../nlp/types.js';
 
-export type TopicCategory =
-  | 'migration'
-  | 'klima'
-  | 'wirtschaft'
-  | 'soziales'
-  | 'sicherheit'
-  | 'gesundheit'
-  | 'europa'
-  | 'digital'
-  | 'bildung'
-  | 'finanzen'
-  | 'justiz'
-  | 'arbeit'
-  | 'mobilitaet';
+export type { TopicCategory };
 
-export const TOPIC_CATEGORIES: TopicCategory[] = [
-  'migration',
-  'klima',
-  'wirtschaft',
-  'soziales',
-  'sicherheit',
-  'gesundheit',
-  'europa',
-  'digital',
-  'bildung',
-  'finanzen',
-  'justiz',
-  'arbeit',
-  'mobilitaet',
-];
+export const TOPIC_CATEGORIES: readonly TopicCategory[] = topicCategorySchema.options;
 
 export type MonitorLocale = 'de' | 'at';
 
@@ -79,6 +54,8 @@ export interface MonitorSnapshot {
   articlesByLocale: { de: number; at: number };
 }
 
+// `satisfies` makes a missing category a type error; the wide type keeps
+// lookups by arbitrary payload strings (briefing items) legal.
 export const TOPIC_NAMES: Record<string, string> = {
   migration: 'Migration',
   klima: 'Klima & Umwelt',
@@ -93,7 +70,15 @@ export const TOPIC_NAMES: Record<string, string> = {
   justiz: 'Justiz/Recht',
   arbeit: 'Arbeit',
   mobilitaet: 'Mobilität',
-};
+  wohnen: 'Wohnen & Bauen',
+  landwirtschaft: 'Landwirtschaft & Ernährung',
+  tierschutz: 'Tierschutz',
+  gleichstellung: 'Gleichstellung & Vielfalt',
+  demokratie: 'Demokratie',
+  kultur: 'Kultur & Sport',
+  kommunales: 'Kommunales',
+  partei: 'Partei intern',
+} satisfies Record<TopicCategory, string>;
 
 // --- Meinungsbild (GERDA MRP estimates) ---
 

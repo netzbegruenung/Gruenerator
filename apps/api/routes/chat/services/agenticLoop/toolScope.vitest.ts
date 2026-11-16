@@ -379,3 +379,28 @@ describe('createToolScope — keepVisible', () => {
     expect(scope.deferredToolNames()).not.toContain('notebook_quellen');
   });
 });
+
+describe('createToolScope — die Antwort auf eine Rückfrage', () => {
+  // Live 16.11.2026: „Wir brauchen ein Antragsgrün …" → Rückfrage → „KMV Köln
+  // März 2027, die Adresse schlag du vor." Die Gruppe war zu, das Anlegen wurde
+  // nur angekündigt.
+  it('keeps a group open for the turn right after its hint matched', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Welche Aufgaben stehen auf meinem Board?',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).toBeUndefined();
+  });
+
+  it('does not open a group because of an unrelated earlier message', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Schreib eine Pressemitteilung zum Radentscheid',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).not.toContain(PERSONAL[0]);
+  });
+});

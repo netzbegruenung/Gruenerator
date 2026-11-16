@@ -33,12 +33,13 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { CURRENT_INSTANCE } from '@/config/instance';
 import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '@/features/agents/api';
+import { isAdoptOpenThreadState } from '@/features/chat/adoptOpenThread';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
 import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
@@ -109,6 +110,9 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
   const { slug, threadSlug } = useParams<{ slug?: string; threadSlug?: string }>();
+  // /start sent into the runtime and hands the running thread over (see
+  // adoptOpenThread.ts). Gone once ChatThreadRouting replaces the URL.
+  const adoptOpenThread = isAdoptOpenThreadState(useLocation().state) && !threadSlug;
   const navigate = useNavigate();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
@@ -287,7 +291,9 @@ function ChatPage() {
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
   const effectiveViewMode =
-    agentParam || threadSlug || modeParam || rezeptParam ? 'thread' : chatViewMode;
+    agentParam || threadSlug || modeParam || rezeptParam || adoptOpenThread
+      ? 'thread'
+      : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -330,7 +336,7 @@ function ChatPage() {
         }
         // else: user agent whose data hasn't loaded yet — wait for the next run.
       }
-    } else if (!threadSlug) {
+    } else if (!threadSlug && !adoptOpenThread) {
       // Not on a thread deep link: /chat without agent context is a blank
       // slate. With a threadSlug the agent is restored from the thread row
       // (ChatThreadRouting) and must not be wiped by a late userAgents re-run.
@@ -343,7 +349,15 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam, threadSlug, userLocale, userAgents, userAgentsSettled]);
+  }, [
+    agentParam,
+    modeParam,
+    threadSlug,
+    adoptOpenThread,
+    userLocale,
+    userAgents,
+    userAgentsSettled,
+  ]);
 
   // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
   // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
@@ -434,6 +448,7 @@ function ChatPage() {
           onThreadGone={handleThreadGone}
           onLeaveThread={handleLeaveThread}
           onOpenNotebookThread={handleNavigate}
+          adoptOpenThread={adoptOpenThread}
         />
       )}
       {/* `min-w-0`: ohne das ist die Mindestbreite dieses Flex-Items die

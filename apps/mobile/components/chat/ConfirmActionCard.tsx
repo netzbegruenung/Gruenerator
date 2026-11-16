@@ -35,6 +35,9 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   share_user_agent: 'share-social-outline',
   share_text_form: 'share-social-outline',
   apply_canvas_deck_edit: 'easel-outline',
+  create_antragsgruen_site: 'clipboard-outline',
+  create_antragsgruen_motion: 'clipboard-outline',
+  set_antragsgruen_agenda: 'list-outline',
 };
 
 /**

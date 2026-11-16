@@ -182,6 +182,9 @@ export const INTENT_KEYWORDS: Record<
     // ohnehin (de-DE montiert, `LANDTAG_RE` in domainTools weist hin), und das Wort
     // ist zugleich `queryAliases` des Abgeordnetenhaus-Notebooks.
     | 'abgeordnetenhaus'
+    // Nur per @-Erwähnung bzw. über die Werkzeuggruppe (`toolScope.ts`, Stichwörter
+    // wie „LDK" oder „Änderungsantrag"): ein eigenes Verdikt bräuchte es nicht.
+    | 'antragsgruen'
     // Decided by the creative-task branches, not by keyword scoring.
     | 'produktion'
     | 'image_edit'

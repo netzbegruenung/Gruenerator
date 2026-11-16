@@ -49,6 +49,10 @@
       "label": "Meine Websites"
     },
     {
+      "value": "antragsgruen",
+      "label": "Antragsgrün"
+    },
+    {
       "value": "datenschutz",
       "label": "Datenschutz & Barrierefreiheit"
     },

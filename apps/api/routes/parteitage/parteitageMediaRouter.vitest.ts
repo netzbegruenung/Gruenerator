@@ -15,6 +15,8 @@ const m = vi.hoisted(() => ({
   openRead: vi.fn(),
 }));
 
+// These tests cover the open-policy logic; the admin-only gate has its own test.
+vi.mock('../../services/parteitage/adminOnlyGate.js', () => ({ PARTEITAGE_ADMIN_ONLY: false }));
 vi.mock('../../services/parteitage/access.js', async (importActual) => ({
   ...(await importActual<typeof import('../../services/parteitage/access.js')>()),
   viewerFromRequest: m.viewerFromRequest,
