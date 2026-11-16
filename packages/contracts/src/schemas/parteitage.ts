@@ -308,6 +308,7 @@ export const parteitageAdminSummarySchema = conventionSummarySchema.extend({
   status: conventionStatusSchema,
   audience: conventionAudienceSchema,
 });
+export type ParteitageAdminSummary = z.infer<typeof parteitageAdminSummarySchema>;
 export const parteitageAdminListResponseSchema = z.object({
   conventions: z.array(parteitageAdminSummarySchema),
 });
