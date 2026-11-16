@@ -1441,7 +1441,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) @antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren."
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Chat",
+    "text": "Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -4665,7 +4673,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
+    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
