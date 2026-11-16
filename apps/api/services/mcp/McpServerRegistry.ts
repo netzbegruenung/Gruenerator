@@ -196,6 +196,21 @@ export class McpServerRegistry {
     return rows.find((r) => r.registry_key === key)?.id ?? null;
   }
 
+  /**
+   * True when `ref` is a row id that exists and belongs to someone else. A
+   * missing row, a legacy `system-<key>` alias (always the caller's own) and a
+   * garbled id are not foreign. Used for the thread-sticky scope in team chats.
+   */
+  static async isForeignServer(userId: string, ref: string): Promise<boolean> {
+    if (!UUID_SHAPE.test(ref)) return false;
+    const db = getDrizzleInstance();
+    const [row] = await db
+      .select({ user_id: mcp_servers.user_id })
+      .from(mcp_servers)
+      .where(eq(mcp_servers.id, ref));
+    return row != null && row.user_id !== userId;
+  }
+
   /** The known-connector key of one of the person's rows; null for own servers and unknown ids. */
   static async getRegistryKey(userId: string, id: string): Promise<SystemMcpKey | null> {
     const db = getDrizzleInstance();

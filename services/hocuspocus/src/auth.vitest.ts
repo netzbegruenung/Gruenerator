@@ -414,6 +414,30 @@ describe('AuthService — local dev bypass', () => {
     expect(res.authenticated).toBe(false);
   });
 
+  it('switches to the allowlisted second identity via dev_auth_user', async () => {
+    const LENA = '00000000-0000-4000-a000-0000000000b2';
+    const { db } = makeDb({
+      doc: publicDoc({ created_by: LENA, is_public: false, share_mode: 'private' }),
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      ...viaProxy('doc-1', 'dev-token'),
+      requestParameters: new URLSearchParams({ dev_auth_user: LENA }),
+    });
+    expect(res.authenticated).toBe(true);
+    expect(res.userId).toBe(LENA);
+  });
+
+  it('ignores dev_auth_user outside the allowlist', async () => {
+    const { db } = makeDb({ doc: ownDoc() });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      ...viaProxy('doc-1', 'dev-token'),
+      requestParameters: new URLSearchParams({
+        dev_auth_user: '00000000-0000-4000-a000-0000000000ee',
+      }),
+    });
+    expect(res.userId).toBe('00000000-0000-4000-a000-000000000001');
+  });
+
   it('ignores a wrong token', async () => {
     const { db } = makeDb({ doc: ownDoc() });
     const res = await new AuthService({ db, redis }).authenticateConnection(

@@ -144,11 +144,14 @@ export async function searchThreadRecall(
   const vector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
   const ops = await getOps();
-  const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
-  // Space scope: restrict to a specific set of thread ids (indexed keyword).
-  if (threadIds && threadIds.length > 0) {
-    filter.must!.push({ key: 'thread_id', match: { any: threadIds } });
-  }
+  // Space scope: an explicit id list the caller already authorised (own chats
+  // plus team chats of the project, `resolveSpaceThreadIds`) — it replaces the
+  // `user_id` condition, which would hide every teammate's team chat. Without
+  // a list the search stays own-chats-only.
+  const filter: QdrantFilter =
+    threadIds && threadIds.length > 0
+      ? { must: [{ key: 'thread_id', match: { any: threadIds } }] }
+      : { must: [{ key: 'user_id', match: { value: userId } }] };
   const hits = await ops.vectorSearch(CHAT_THREAD_RECALL_COLLECTION, vector, filter, {
     limit,
     threshold: SEMANTIC_SCORE_THRESHOLD,

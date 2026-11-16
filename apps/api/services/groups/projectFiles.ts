@@ -10,10 +10,13 @@
  *
  * DIE Zugriffsregel steht in der Abfrage, nicht davor: aktive Mitgliedschaft
  * der anfragenden Person im Projekt des Threads. Wer das Projekt verlassen hat,
- * behält den Chat, aber nicht die Dateien. Der Thread muss der Person gehören,
- * sonst würde eine fremde Thread-ID das Projekt öffnen.
+ * behält den Chat, aber nicht die Dateien. Der Thread muss der Person gehören
+ * oder ein Team-Chat des Projekts sein (`projectThreadScopeSql`), sonst würde die
+ * Thread-ID eines fremden privaten Chats das Projekt öffnen.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
+import { projectThreadScopeSql } from './projectThreadScope.js';
 
 import type { ResolvedNotebookSource } from '../../agents/langgraph/ChatGraph/types.js';
 
@@ -38,16 +41,11 @@ export async function getProjectFileSources(
 ): Promise<ResolvedNotebookSource[]> {
   const rows = (await getPostgresInstance().query(
     `SELECT d.id, d.title, d.filename, d.user_id
-       FROM chat_threads t
-       JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
-         AND COALESCE(g.is_active, TRUE) = TRUE
-       JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2
-         AND gm.is_active = TRUE
+       FROM ${projectThreadScopeSql('$1', '$2')}
        JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'documents'
        -- content_id ist text (es trägt auch Nicht-UUID-Kennungen), documents.id uuid.
        JOIN documents d ON d.id::text = gcs.content_id
-      WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL
-        AND d.deleted_at IS NULL AND d.status = 'completed' AND d.user_id IS NOT NULL
+      WHERE d.deleted_at IS NULL AND d.status = 'completed' AND d.user_id IS NOT NULL
       ORDER BY gcs.shared_at DESC
       LIMIT $3`,
     [threadId, userId, limit]

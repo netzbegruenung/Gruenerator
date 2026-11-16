@@ -15,6 +15,7 @@ import { captureAuthIssue } from '../lib/observability/captureAuthIssue';
 import { sessionDebug } from '../lib/sessionDebug';
 import { sessionUserToProfile } from '../lib/sessionUserToProfile';
 import { useAuthStore, type User } from '../stores/authStore';
+import { getDevBypassUserId } from '../utils/devBypassUser';
 
 /**
  * Hit Better Auth's native session endpoint and adapt the response to the
@@ -386,7 +387,7 @@ const buildE2EBypassAuthData = (): AuthData => {
   return {
     isAuthenticated: true,
     user: {
-      id: '00000000-0000-4000-a000-000000000001',
+      id: getDevBypassUserId() ?? '00000000-0000-4000-a000-000000000001',
       email: 'dev@gruenerator.de',
       display_name: 'Test User',
       avatar_robot_id: 1,

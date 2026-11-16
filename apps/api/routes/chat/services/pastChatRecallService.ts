@@ -28,6 +28,10 @@ import {
   type GroupContentBuckets,
   hydrateGroupContent,
 } from '../../../services/groups/groupContent.js';
+import {
+  teamChatMemberSql,
+  teamChatShareExistsSql,
+} from '../../../services/groups/projectThreadScope.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -70,8 +74,14 @@ export async function resolveSpaceThreadIds(
   try {
     const rows = (await db.query(
       `SELECT id, title FROM chat_threads
-       WHERE group_id = $1::uuid AND user_id = $2 AND deleted_at IS NULL
+       WHERE group_id = $1::uuid AND deleted_at IS NULL
          AND COALESCE(status, 'regular') = 'regular'
+         AND (user_id = $2 OR (
+           EXISTS (SELECT 1 FROM group_memberships gm
+                    WHERE gm.group_id = chat_threads.group_id AND gm.user_id = $2::uuid
+                      AND gm.is_active = TRUE)
+           AND ${teamChatShareExistsSql('chat_threads', 'chat_threads.group_id')}
+         ))
        ORDER BY updated_at DESC`,
       [groupId, userId]
     )) as Array<{ id: string; title: string | null }>;
@@ -101,8 +111,13 @@ export async function getSpaceRecallScope(
                        WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE) AS is_member
        FROM chat_threads t
        JOIN groups g ON g.id = t.group_id
-       WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL AND g.deleted_at IS NULL
+       WHERE t.id = $1::uuid AND t.deleted_at IS NULL AND g.deleted_at IS NULL
          AND COALESCE(g.is_active, TRUE) = TRUE
+         AND (t.user_id = $2 OR (
+           EXISTS (SELECT 1 FROM group_memberships gm
+                    WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE)
+           AND ${teamChatShareExistsSql('t', 'g.id')}
+         ))
        LIMIT 1`,
       [threadId, userId]
     )) as Array<{ id: string; name: string; is_member: boolean }>;
@@ -422,7 +437,11 @@ export async function listRecentThreads(
   const db = getPostgresInstance();
   try {
     const params: unknown[] = [userId];
-    const where = [`user_id = $1`, `COALESCE(status, 'regular') = 'regular'`];
+    // A scope list comes from `resolveSpaceThreadIds` (own + team chats).
+    const where = [
+      threadIds ? `(user_id = $1 OR ${teamChatMemberSql('chat_threads', '$1')})` : `user_id = $1`,
+      `COALESCE(status, 'regular') = 'regular'`,
+    ];
     if (excludeThreadId) {
       params.push(excludeThreadId);
       where.push(`id <> $${params.length}::uuid`);
@@ -468,7 +487,8 @@ export async function getThreadRecallContext(
       `SELECT title, updated_at, compaction_summary
        FROM chat_threads
        WHERE id = $1::uuid AND deleted_at IS NULL
-         AND (user_id = $2 OR permissions ? $2::text)
+         AND (user_id = $2 OR permissions ? $2::text
+              OR ${teamChatMemberSql('chat_threads', '$2')})
          AND COALESCE(status, 'regular') = 'regular'`,
       [threadId, userId]
     )) as Array<{
@@ -641,7 +661,7 @@ async function hydrateThreadsAsResults(
          ) AS snippet_content
        FROM chat_threads t
        WHERE t.id = ANY($1::uuid[]) AND t.deleted_at IS NULL
-         AND (t.user_id = $2 OR t.permissions ? $2::text)
+         AND (t.user_id = $2 OR t.permissions ? $2::text OR ${teamChatMemberSql('t', '$2')})
          AND COALESCE(t.status, 'regular') = 'regular'`,
       [threadIds, userId]
     )) as Array<{
