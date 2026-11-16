@@ -20,7 +20,7 @@ import {
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import { addGroupShare } from '../../services/groups/groupShareWriter.js';
-import { teamChatShareExistsSql } from '../../services/groups/projectThreadScope.js';
+import { ownsThreadSql, teamChatShareExistsSql } from '../../services/groups/projectThreadScope.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
@@ -28,7 +28,11 @@ import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
 import { saveReviewedCreatorSpec } from './services/sharepicEditService.js';
-import { canWriteThread, getThreadAccessLevel } from './services/threadAccessService.js';
+import {
+  canWriteThread,
+  getThreadAccessLevel,
+  isThreadOwner,
+} from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -98,12 +102,12 @@ export const threadsContractRouter = s.router(threadsContract, {
                   OR t.is_public = true
                 ) AS shared,
                 CASE
-                  WHEN t.user_id::text = $1 THEN 'owner'
+                  WHEN ${ownsThreadSql('t', '$1')} THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
                   ELSE 'group'
                 END as access_type,
                 CASE
-                  WHEN t.user_id::text = $1 OR t.permissions ? $2::text OR t.is_public = true THEN false
+                  WHEN ${ownsThreadSql('t', '$1')} OR t.permissions ? $2::text OR t.is_public = true THEN false
                   ELSE NOT COALESCE((
                     SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
                     FROM group_content_shares gcs
@@ -125,7 +129,7 @@ export const threadsContractRouter = s.router(threadsContract, {
            LIMIT 1
          ) m ON true
          WHERE t.deleted_at IS NULL AND (
-           t.user_id::text = $1
+           ${ownsThreadSql('t', '$1')}
            OR t.permissions ? $2::text
            OR t.is_public = true
            OR t.id IN (
@@ -323,7 +327,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
 
-      if (existingThreads[0].user_id !== userId) {
+      if (!(await isThreadOwner(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
@@ -534,7 +538,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
 
-      if (threads[0].user_id !== userId) {
+      if (!(await isThreadOwner(ThreadId(threadId), UserId(userId)))) {
         log.warn(
           `[generate-title] Forbidden — thread owner=${threads[0].user_id as string}, requester=${userId}`
         );

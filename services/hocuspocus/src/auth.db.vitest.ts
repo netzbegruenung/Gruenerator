@@ -16,6 +16,7 @@ import { AuthService } from './auth.js';
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 let pool: pg.Pool;
+let lastGroup = '';
 
 const OWNER = randomUUID();
 const MEMBER = randomUUID();
@@ -45,12 +46,17 @@ async function teamChat(permissions: object): Promise<string> {
       [group, u, active]
     );
   }
-  await pool.query(`INSERT INTO chat_threads (id, user_id) VALUES ($1, $2)`, [thread, OWNER]);
+  await pool.query(`INSERT INTO chat_threads (id, user_id, group_id) VALUES ($1, $2, $3)`, [
+    thread,
+    OWNER,
+    group,
+  ]);
   await pool.query(
     `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id, permissions)
      VALUES ($1, $2, 'chat_threads', $3, $4::jsonb)`,
     [group, OWNER, thread, JSON.stringify(permissions)]
   );
+  lastGroup = group;
   return thread;
 }
 
@@ -74,10 +80,10 @@ describe.skipIf(!url)('Hocuspocus chat room auth gegen Postgres', () => {
       CREATE TABLE profiles (id UUID PRIMARY KEY, email TEXT, display_name TEXT);
       CREATE TABLE chat_threads (
         id UUID PRIMARY KEY, user_id UUID, permissions JSONB DEFAULT '{}',
-        is_public BOOLEAN DEFAULT false, doc_id UUID, deleted_at TIMESTAMPTZ);
+        is_public BOOLEAN DEFAULT false, doc_id UUID, group_id UUID, deleted_at TIMESTAMPTZ);
       CREATE TABLE groups (
         id UUID PRIMARY KEY, name TEXT, group_type TEXT DEFAULT 'standard',
-        deleted_at TIMESTAMPTZ);
+        is_active BOOLEAN DEFAULT TRUE, deleted_at TIMESTAMPTZ);
       CREATE TABLE group_memberships (
         group_id UUID, user_id UUID, is_active BOOLEAN DEFAULT TRUE);
       CREATE TABLE group_content_shares (
@@ -116,5 +122,18 @@ describe.skipIf(!url)('Hocuspocus chat room auth gegen Postgres', () => {
     await pool.query(`UPDATE chat_threads SET deleted_at = now() WHERE id = $1`, [t]);
     expect((await access(t, OWNER)).authenticated).toBe(false);
     expect((await access(t, MEMBER)).authenticated).toBe(false);
+  });
+
+  it('an owner who left the project loses the team chat room (#5678)', async () => {
+    const t = await teamChat({ read: true, write: true });
+    expect((await access(t, OWNER)).readOnly).toBe(false);
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [lastGroup, OWNER]
+    );
+    expect((await access(t, OWNER)).authenticated).toBe(false);
+    expect((await access(t, MEMBER)).authenticated).toBe(true);
+    await pool.query(`UPDATE groups SET deleted_at = now() WHERE id = $1`, [lastGroup]);
+    expect((await access(t, OWNER)).readOnly).toBe(false);
   });
 });

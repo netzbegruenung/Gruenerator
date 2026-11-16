@@ -29,6 +29,7 @@ import {
   hydrateGroupContent,
 } from '../../../services/groups/groupContent.js';
 import {
+  ownsThreadSql,
   teamChatMemberSql,
   teamChatShareExistsSql,
 } from '../../../services/groups/projectThreadScope.js';
@@ -76,7 +77,7 @@ export async function resolveSpaceThreadIds(
       `SELECT id, title FROM chat_threads
        WHERE group_id = $1::uuid AND deleted_at IS NULL
          AND COALESCE(status, 'regular') = 'regular'
-         AND (user_id = $2 OR (
+         AND (${ownsThreadSql('chat_threads', '$2')} OR (
            EXISTS (SELECT 1 FROM group_memberships gm
                     WHERE gm.group_id = chat_threads.group_id AND gm.user_id = $2::uuid
                       AND gm.is_active = TRUE)
@@ -113,7 +114,7 @@ export async function getSpaceRecallScope(
        JOIN groups g ON g.id = t.group_id
        WHERE t.id = $1::uuid AND t.deleted_at IS NULL AND g.deleted_at IS NULL
          AND COALESCE(g.is_active, TRUE) = TRUE
-         AND (t.user_id = $2 OR (
+         AND (${ownsThreadSql('t', '$2')} OR (
            EXISTS (SELECT 1 FROM group_memberships gm
                     WHERE gm.group_id = g.id AND gm.user_id = $2 AND gm.is_active = TRUE)
            AND ${teamChatShareExistsSql('t', 'g.id')}
@@ -439,7 +440,9 @@ export async function listRecentThreads(
     const params: unknown[] = [userId];
     // A scope list comes from `resolveSpaceThreadIds` (own + team chats).
     const where = [
-      threadIds ? `(user_id = $1 OR ${teamChatMemberSql('chat_threads', '$1')})` : `user_id = $1`,
+      threadIds
+        ? `(${ownsThreadSql('chat_threads', '$1')} OR ${teamChatMemberSql('chat_threads', '$1')})`
+        : ownsThreadSql('chat_threads', '$1'),
       `COALESCE(status, 'regular') = 'regular'`,
     ];
     if (excludeThreadId) {
@@ -487,7 +490,7 @@ export async function getThreadRecallContext(
       `SELECT title, updated_at, compaction_summary
        FROM chat_threads
        WHERE id = $1::uuid AND deleted_at IS NULL
-         AND (user_id = $2 OR permissions ? $2::text
+         AND (${ownsThreadSql('chat_threads', '$2')} OR permissions ? $2::text
               OR ${teamChatMemberSql('chat_threads', '$2')})
          AND COALESCE(status, 'regular') = 'regular'`,
       [threadId, userId]
@@ -661,7 +664,7 @@ async function hydrateThreadsAsResults(
          ) AS snippet_content
        FROM chat_threads t
        WHERE t.id = ANY($1::uuid[]) AND t.deleted_at IS NULL
-         AND (t.user_id = $2 OR t.permissions ? $2::text OR ${teamChatMemberSql('t', '$2')})
+         AND (${ownsThreadSql('t', '$2')} OR t.permissions ? $2::text OR ${teamChatMemberSql('t', '$2')})
          AND COALESCE(t.status, 'regular') = 'regular'`,
       [threadIds, userId]
     )) as Array<{
