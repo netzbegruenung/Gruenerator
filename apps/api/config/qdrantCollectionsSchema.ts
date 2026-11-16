@@ -689,37 +689,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  // Bundestag-DIP: Plenarreden + Drucksachen-Abschnitte in einer Sammlung
-  // (content_type rede | drucksache). `section_type` trägt Redeform bzw.
-  // Abschnittsart — `chunk_type` bleibt das Strukturfeld des Chunkers.
-  bundestag_dip_documents: {
-    name: 'bundestag_dip_documents',
-    store: 'content',
-    optimizer: 'medium',
-    hnsw: 'standard',
-    datatype: 'float16',
-    indexes: [
-      ...NLP_FACET_INDEXES,
-      // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
-      { field: 'chunk_index', type: 'integer' },
-      { field: 'document_id', type: 'keyword' },
-      { field: 'parent_id', type: 'keyword' },
-      { field: 'source_url', type: 'keyword' },
-      { field: 'content_type', type: 'keyword' },
-      { field: 'party', type: 'keyword' },
-      { field: 'wahlperiode', type: 'keyword' },
-      { field: 'speaker', type: 'keyword' },
-      { field: 'drucksachetyp', type: 'keyword' },
-      { field: 'urheber', type: 'keyword' },
-      { field: 'section_type', type: 'keyword' },
-      { field: 'published_at', type: 'datetime' },
-      // datetime: der Scraper liest den jüngsten Wert per order_by (Aufholfenster).
-      { field: 'indexed_at', type: 'datetime' },
-      { field: 'chunk_text', type: 'text' },
-    ],
-  },
   // Bundesrats-Drucksachen aus dem DIP (Anträge der Länder, Gesetzentwürfe,
-  // Beschlüsse). Stammen aus demselben Import wie bundestag_dip_documents.
+  // Beschlüsse). Einmalig importiert; einen Scraper dafür gibt es nicht.
   bundesrat_documents: {
     name: 'bundesrat_documents',
     store: 'content',
