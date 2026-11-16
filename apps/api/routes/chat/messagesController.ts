@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { resumableStreams } from '../../services/chat/resumableStreams.js';
+import { markGroupAsRead } from '../../services/notifications/NotificationService.js';
 import { removePageMarkerLines } from '../../services/OcrService/pageMarkers.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -116,6 +117,15 @@ router.get('/', async (req, res) => {
     if (!(await canAccessThread(ThreadId(threadId), UserId(user.id)))) {
       return res.status(404).json({ error: 'Thread not found' });
     }
+
+    // Opening a thread settles its team-chat notification bundle (no-op for
+    // threads without one). Fire and forget.
+    markGroupAsRead(`group-chat:${threadId}`, user.id).catch((err: unknown) =>
+      log.warn('Failed to mark team chat notifications read', {
+        threadId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
 
     const messages = await postgres.query(
       `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.status, cm.created_at,

@@ -19,6 +19,8 @@ const query = vi.fn();
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
 }));
+const markGroupAsRead = vi.fn(async () => undefined);
+vi.mock('../../services/notifications/NotificationService.js', () => ({ markGroupAsRead }));
 vi.mock('./services/threadAccessService.js', () => ({ canAccessThread: async () => true }));
 vi.mock('./services/threadPersistenceService.js', () => ({
   getUser: (req: { user?: unknown }) => req.user,
@@ -227,5 +229,12 @@ describe('GET /api/chat-service/messages — notebook reader chips', () => {
         truncated: false,
       },
     ]);
+  });
+});
+
+describe('opening a thread', () => {
+  it('marks its team-chat notification bundle read', async () => {
+    await load({});
+    expect(markGroupAsRead).toHaveBeenCalledWith('group-chat:t1', 'u1');
   });
 });
