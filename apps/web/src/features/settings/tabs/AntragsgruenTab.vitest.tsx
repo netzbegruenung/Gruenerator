@@ -10,7 +10,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { server } from '../../../test/msw-server';
 import { renderWithProviders, screen, waitFor } from '../../../test-utils';
 
-import AntragsgruenSection from './AntragsgruenSection';
+import AntragsgruenTab from './AntragsgruenTab';
 
 const LIST = 'http://localhost/api/auth/antragsgruen-sites';
 const ACCESS = `${LIST}/access`;
@@ -38,23 +38,10 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe('AntragsgruenSection', () => {
-  it('renders nothing where sites cannot be created and none exist', async () => {
-    let asked = false;
-    server.use(
-      http.get(LIST, () => {
-        asked = true;
-        return HttpResponse.json({ enabled: false, botAccount: null, limit: 3, sites: [] });
-      })
-    );
-    const { container } = renderWithProviders(<AntragsgruenSection />);
-    await waitFor(() => expect(asked).toBe(true));
-    expect(container).toBeEmptyDOMElement();
-  });
-
+describe('AntragsgruenTab', () => {
   it('marks the feature experimental and points to the chat when there is no site', async () => {
     server.use(list({ sites: [] }));
-    renderWithProviders(<AntragsgruenSection />);
+    renderWithProviders(<AntragsgruenTab />);
     expect(await screen.findByText('Experimentell')).toBeInTheDocument();
     expect(screen.getByText(/Noch keine Seite/)).toBeInTheDocument();
   });
@@ -64,9 +51,9 @@ describe('AntragsgruenSection', () => {
       list({ sites: [SITE] }),
       http.get(ACCESS, () => HttpResponse.json({ access: { [SITE_ID]: 'admin' } }))
     );
-    const { user } = renderWithProviders(<AntragsgruenSection />);
+    const { user } = renderWithProviders(<AntragsgruenTab />);
     expect(await screen.findByText('Der Grünerator ist dort Admin')).toBeInTheDocument();
-    expect(screen.getByText('1 von 3')).toBeInTheDocument();
+    expect(screen.getByText('1 von 3 Seiten')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Zugriff entziehen' }));
     expect(
@@ -88,7 +75,7 @@ describe('AntragsgruenSection', () => {
         return HttpResponse.json({ success: true });
       })
     );
-    const { user } = renderWithProviders(<AntragsgruenSection />);
+    const { user } = renderWithProviders(<AntragsgruenTab />);
     await user.click(await screen.findByRole('button', { name: 'Aus der Liste entfernen' }));
     expect(screen.queryByText(/bleibt dort Admin/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Entfernen' }));

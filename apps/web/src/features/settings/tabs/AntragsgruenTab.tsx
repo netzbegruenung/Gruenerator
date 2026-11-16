@@ -1,5 +1,5 @@
 /**
- * „Antragsgrün" (experimental) — the sites the Grünerator created for the
+ * Settings tab „Antragsgrün" (experimental) — the sites the Grünerator created for the
  * person on antragsgruen.de, and the way to take its access away again.
  *
  * Antragsgrün does not let a site admin remove itself, so the Grünerator
@@ -9,11 +9,14 @@
  * stores nothing about the site and never acts on it again.
  */
 import { type AntragsgruenSite, type AntragsgruenSiteAccess } from '@gruenerator/contracts';
-import { Button, SectionHeader } from '@gruenerator/ui';
+import { Button } from '@gruenerator/ui';
+import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { HiClipboardList, HiExternalLink } from 'react-icons/hi';
 
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
+  antragsgruenSitesQuery,
   useAntragsgruenSiteAccess,
   useAntragsgruenSites,
   useForgetAntragsgruenSite,
@@ -125,7 +128,7 @@ function SiteCard({ site, access, botAccount, onCheck, checking }: SiteCardProps
             Antragsgrün lässt den Grünerator sich nicht selbst austragen. Das machst du als
             Seiten-Admin:
           </p>
-          <ol className="m-0 flex flex-col gap-1 pl-md">
+          <ol className="m-0 flex list-decimal flex-col gap-1 pl-md">
             <li>
               <a
                 href={site.usersUrl}
@@ -196,33 +199,31 @@ function SiteCard({ site, access, botAccount, onCheck, checking }: SiteCardProps
   );
 }
 
-export default function AntragsgruenSection() {
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(antragsgruenSitesQuery);
+};
+
+export default function AntragsgruenTab() {
   const { data, isPending, isError } = useAntragsgruenSites();
   const hasSites = (data?.sites.length ?? 0) > 0;
   const access = useAntragsgruenSiteAccess(hasSites);
 
-  // Ohne eingerichtetes Bot-Konto (oder in Österreich) gibt es nichts anzulegen;
-  // wer trotzdem Seiten hat, muss sie verwalten können.
-  if (isPending || (data && !data.enabled && !hasSites)) return null;
+  if (isPending) return <SettingsCardsSkeleton cards={2} />;
 
   return (
     <section className="flex flex-col gap-md">
-      <SectionHeader
-        title="Antragsgrün"
-        actions={
-          <span className="flex items-center gap-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary-100 bg-secondary-50 px-2.5 py-1 text-xs font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-secondary-500" />
-              Experimentell
-            </span>
-            {data && hasSites && (
-              <span className="text-sm text-grey-500">
-                {data.sites.length} von {data.limit}
-              </span>
-            )}
+      <div className="flex flex-wrap items-center gap-sm">
+        <h2 className="m-0 text-lg font-semibold text-foreground-heading">Antragsgrün</h2>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary-100 bg-secondary-50 px-2.5 py-1 text-xs font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-secondary-500" />
+          Experimentell
+        </span>
+        {data && hasSites && (
+          <span className="text-sm text-grey-500">
+            {data.sites.length} von {data.limit} Seiten
           </span>
-        }
-      />
+        )}
+      </div>
 
       <div className="flex flex-col gap-xs text-sm text-grey-500">
         <p className="m-0">
