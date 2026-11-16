@@ -144,7 +144,12 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
   } = params;
 
   const service = await getProjectService();
-  const existingProject = await service.findProjectByVideoFilename(userId, originalFilename);
+  // A run from system storage always creates its own project: the filename is
+  // deterministic per speech, and reusing it would unlink the earlier export.
+  const existingProject =
+    sourceSystemMediaId != null
+      ? null
+      : await service.findProjectByVideoFilename(userId, originalFilename);
 
   if (existingProject?.id) {
     const result = await saveSubtitledVideo(

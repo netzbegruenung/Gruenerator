@@ -9,6 +9,8 @@ const copyFile = vi.fn();
 const rename = vi.fn();
 const inserted: Record<string, unknown>[] = [];
 let selectResult: unknown[] = [];
+// Optional ordered results for multi-query lookups (getVideoSource).
+let queue: unknown[][] = [];
 
 vi.mock('fs/promises', () => ({
   default: {
@@ -32,8 +34,10 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
     chain.from = self;
     chain.where = self;
     chain.orderBy = self;
-    chain.limit = () => Promise.resolve(selectResult);
-    chain.then = (resolve: (v: unknown) => void) => resolve([{ count: 0 }]);
+    chain.limit = () => Promise.resolve(queue.length ? queue.shift() : selectResult);
+    chain.innerJoin = self;
+    chain.then = (resolve: (v: unknown) => void) =>
+      resolve(queue.length ? queue.shift() : [{ count: 0 }]);
     chain.insert = self;
     chain.values = (v: Record<string, unknown>) => {
       inserted.push(v);
@@ -57,6 +61,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   inserted.length = 0;
   selectResult = [];
+  queue = [];
 });
 
 describe('subtitler project from system storage', () => {
@@ -85,6 +90,31 @@ describe('subtitler project from system storage', () => {
 
     const source = await service.getVideoSource(USER, 'p1');
 
-    expect(source).toEqual({ path: SOURCE, system: true, storageKey: null });
+    expect(source).toEqual({ path: null, system: true, storageKey: null });
+  });
+
+  it.each([
+    ['moderation hidden', [{ moderation: 'hidden', status: 'published' }]],
+    ['convention not published', [{ moderation: 'ok', status: 'draft' }]],
+  ])('withholds the source when the speech is hidden (%s)', async (_n, speeches) => {
+    const service = new SubtitlerProjectService();
+    queue = [
+      [{ video_path: SOURCE, source_system_media_id: 'media-1' }],
+      [{ storage_key: 'parteitage/s1.mp4' }],
+      speeches,
+    ];
+    expect(await service.getVideoSource(USER, 'p1')).toMatchObject({ path: null, system: true });
+  });
+
+  it('serves the source for a visible speech', async () => {
+    const service = new SubtitlerProjectService();
+    queue = [
+      [{ video_path: SOURCE, source_system_media_id: 'media-1' }],
+      [{ storage_key: 'parteitage/s1.mp4' }],
+      [{ moderation: 'ok', status: 'published' }],
+    ];
+    expect(await service.getVideoSource(USER, 'p1')).toMatchObject({
+      path: '/srv/system-media/parteitage/s1.mp4',
+    });
   });
 });

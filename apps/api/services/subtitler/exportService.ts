@@ -41,6 +41,10 @@ interface Project {
 
 interface ProjectService {
   getVideoPath(relativePath: string): string;
+  getVideoSource(
+    userId: string,
+    projectId: string
+  ): Promise<{ path: string | null; system: boolean } | undefined>;
 }
 
 interface ExportResult {
@@ -91,7 +95,16 @@ async function processProjectExport(
   log.info(`Starting project export for project ${project.id}, token: ${exportToken}`);
 
   try {
-    const inputPath = projService.getVideoPath(project.video_path);
+    // A project from a parteitag speech references system storage (absolute path,
+    // not under the project dir), so resolve through the owner-scoped source lookup.
+    let inputPath: string;
+    if (ownerUserId) {
+      const source = await projService.getVideoSource(ownerUserId, project.id);
+      if (!source?.path) throw new Error('Video file not found');
+      inputPath = source.path;
+    } else {
+      inputPath = projService.getVideoPath(project.video_path);
+    }
 
     try {
       await fs.access(inputPath);

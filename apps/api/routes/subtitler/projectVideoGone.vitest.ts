@@ -1,13 +1,15 @@
-/** GET /api/subtitler/projects/:id/video for a source that lives in system storage. */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+/** GET /api/subtitler/projects/:id/video: system-storage sources, 410 and range handling. */
+import fs from 'fs';
+import http from 'http';
+import os from 'os';
+import path from 'path';
+import { type AddressInfo } from 'net';
+
+import express from 'express';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getVideoSource = vi.fn();
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  const promises = { ...actual.promises, access: vi.fn().mockRejectedValue(new Error('ENOENT')) };
-  return { ...actual, default: { ...actual, promises }, promises };
-});
 vi.mock('../../middleware/authMiddleware.js', () => ({
   requireAuth: (_q: unknown, _s: unknown, next: () => void) => next(),
 }));
@@ -23,40 +25,60 @@ vi.mock('../../utils/logger.js', () => ({
 
 const router = (await import('./projectController.js')).default;
 
-type Layer = { route?: { path: string; stack: { handle: (...a: unknown[]) => Promise<void> }[] } };
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'video-route-'));
+const file = path.join(dir, 'v.mp4');
+fs.writeFileSync(file, Buffer.from('0123456789ABCDEFGHIJ')); // 20 bytes
 
-async function getVideo() {
-  const layer = (router.stack as Layer[]).find((l) => l.route?.path === '/:projectId/video');
-  const handler = layer!.route!.stack.at(-1)!.handle;
-  const res = {
-    statusCode: 0,
-    body: null as unknown,
-    headersSent: false,
-    status(c: number) {
-      this.statusCode = c;
-      return this;
-    },
-    json(b: unknown) {
-      this.body = b;
-    },
-  };
-  await handler({ user: { id: 'u1' }, params: { projectId: 'p1' }, headers: {} }, res);
-  return res;
-}
+let server: http.Server;
+let base = '';
 
+beforeAll(async () => {
+  const app = express();
+  app.use((req, _res, next) => {
+    (req as unknown as { user: { id: string } }).user = { id: 'u1' };
+    next();
+  });
+  app.use('/projects', router);
+  server = app.listen(0);
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/projects/p1/video`;
+});
+afterAll(() => {
+  server.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 beforeEach(() => vi.clearAllMocks());
 
 describe('project video route', () => {
-  it('returns 410 SOURCE_GONE when source_system_media_id is null and video_path is missing', async () => {
-    getVideoSource.mockResolvedValue({ path: '/srv/system-media/gone.mp4', system: true });
-    const res = await getVideo();
-    expect(res.statusCode).toBe(410);
-    expect(res.body).toMatchObject({ code: 'SOURCE_GONE' });
+  it('returns 410 SOURCE_GONE when the system source is missing', async () => {
+    getVideoSource.mockResolvedValue({ path: path.join(dir, 'gone.mp4'), system: true });
+    const res = await fetch(base);
+    expect(res.status).toBe(410);
+    expect(await res.json()).toMatchObject({ code: 'SOURCE_GONE' });
+  });
+
+  it('returns 410 SOURCE_GONE when the source is withheld (hidden speech: path null)', async () => {
+    getVideoSource.mockResolvedValue({ path: null, system: true });
+    const res = await fetch(base);
+    expect(res.status).toBe(410);
+    expect(await res.json()).toMatchObject({ code: 'SOURCE_GONE' });
   });
 
   it('keeps 404 for a missing file of a regular project', async () => {
-    getVideoSource.mockResolvedValue({ path: '/p/video.mp4', system: false });
-    const res = await getVideo();
-    expect(res.statusCode).toBe(404);
+    getVideoSource.mockResolvedValue({ path: path.join(dir, 'nope.mp4'), system: false });
+    expect((await fetch(base)).status).toBe(404);
+  });
+
+  it('serves a suffix range (bytes=-10) as 206 with the last 10 bytes', async () => {
+    getVideoSource.mockResolvedValue({ path: file, system: true });
+    const res = await fetch(base, { headers: { range: 'bytes=-10' } });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('content-range')).toBe('bytes 10-19/20');
+    expect(await res.text()).toBe('ABCDEFGHIJ');
+  });
+
+  it('answers a malformed or unsatisfiable range with 416', async () => {
+    getVideoSource.mockResolvedValue({ path: file, system: true });
+    expect((await fetch(base, { headers: { range: 'bytes=abc' } })).status).toBe(416);
+    expect((await fetch(base, { headers: { range: 'bytes=50-60' } })).status).toBe(416);
   });
 });

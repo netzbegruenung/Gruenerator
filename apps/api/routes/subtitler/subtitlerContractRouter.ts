@@ -17,9 +17,10 @@
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 
-import { subtitlerContract } from '@gruenerator/contracts';
+import { AI_CONSENT_REQUIRED_CODE, subtitlerContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { sessionHasAiConsent } from '../../middleware/requireAiConsent.js';
 import { aiText } from '../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
@@ -57,6 +58,7 @@ import {
 import { getSystemMediaStorage } from '../../services/systemMedia/storage.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -397,6 +399,20 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
         return {
           status: 403 as const,
           body: { code: 'LOCKED' as const, error: 'Parteitag ist gesperrt.' },
+        };
+      }
+
+      // Stored word timings run no model. Without them the pipeline falls back to
+      // external transcription, which needs the same Art.-9 consent as /process.
+      if (speech.words.length === 0 && !sessionHasAiConsent(getAuthedUser(args.req))) {
+        return {
+          status: 403 as const,
+          body: {
+            code: AI_CONSENT_REQUIRED_CODE,
+            error: 'AI consent required',
+            message:
+              'Für die KI-Funktionen fehlt Deine ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO.',
+          },
         };
       }
 

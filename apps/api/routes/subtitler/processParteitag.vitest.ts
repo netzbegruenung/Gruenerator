@@ -52,7 +52,10 @@ vi.mock('../../utils/logger.js', () => ({
 
 const { subtitlerContractRouter } = await import('./subtitlerContractRouter.js');
 
-const req = { user: { id: 'u1', locale: 'de-DE' }, headers: {} };
+let req: { user: Record<string, unknown>; headers: object } = {
+  user: { id: 'u1', locale: 'de-DE' },
+  headers: {},
+};
 const words = [
   { word: 'Hallo', start: 0, end: 0.5 },
   { word: 'Welt', start: 0.5, end: 1 },
@@ -76,6 +79,7 @@ function call(speechId = 's1') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  req = { user: { id: 'u1', locale: 'de-DE' }, headers: {} };
   viewerFromRequest.mockResolvedValue({ userId: 'u1', isAdmin: false, audience: 'de-DE' });
   getSpeech.mockResolvedValue(speech);
   getConventionById.mockResolvedValue(convention);
@@ -131,5 +135,27 @@ describe('postProcessFromParteitag', () => {
     const res = await call();
     expect(res.status).toBe(410);
     expect(res.body).toMatchObject({ code: 'SOURCE_GONE' });
+  });
+
+  describe('speech without word timings (ASR fallback)', () => {
+    it('without AI consent -> refused with the consent response, nothing started', async () => {
+      getSpeech.mockResolvedValue({ ...speech, words: [] });
+      const res = await call();
+      expect(res.status).toBe(403);
+      expect(res.body).toMatchObject({ code: 'ai_consent_required' });
+      expect(startAutoProcessing).not.toHaveBeenCalled();
+    });
+
+    it('with AI consent -> starts', async () => {
+      getSpeech.mockResolvedValue({ ...speech, words: [] });
+      req.user.ai_consent_at = new Date();
+      const res = await call();
+      expect(res.status).toBe(202);
+    });
+
+    it('stored words need no consent', async () => {
+      const res = await call();
+      expect(res.status).toBe(202);
+    });
   });
 });

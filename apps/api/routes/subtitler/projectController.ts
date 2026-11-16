@@ -11,6 +11,7 @@ import fs from 'fs';
 import express, { type Response, type Router } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { streamFile } from '../../utils/http/streamFile.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -72,27 +73,13 @@ router.get(
       }
 
       const stat = await fsPromises.stat(videoPath);
-      const fileSize = stat.size;
-      const range = req.headers.range;
-
-      if (range) {
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunkSize = end - start + 1;
-
-        res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunkSize,
-          'Content-Type': 'video/mp4',
-        });
-
-        fs.createReadStream(videoPath, { start, end }).pipe(res);
-      } else {
-        res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
-        fs.createReadStream(videoPath).pipe(res);
-      }
+      streamFile(req, res, {
+        size: stat.size,
+        contentType: 'video/mp4',
+        open: (range) =>
+          range ? fs.createReadStream(videoPath, range) : fs.createReadStream(videoPath),
+        downloadName: null,
+      });
     } catch (error: unknown) {
       log.error('Failed to stream video:', error);
       if (!res.headersSent) {

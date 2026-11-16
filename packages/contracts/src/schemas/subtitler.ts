@@ -349,6 +349,7 @@ export const parteitagProcessStartResponseSchema = z.object({
 });
 
 export const parteitagProcessErrorCodeSchema = z.enum([
+  'ai_consent_required',
   'NOT_FOUND',
   'LOCKED',
   'SOURCE_GONE',
@@ -359,6 +360,7 @@ export const parteitagProcessErrorCodeSchema = z.enum([
 export const parteitagProcessErrorResponseSchema = z.object({
   error: z.string(),
   code: parteitagProcessErrorCodeSchema,
+  message: z.string().optional(),
 });
 
 export const autoProcessStartResponseSchema = z.object({

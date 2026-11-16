@@ -11,7 +11,12 @@ import { fileURLToPath } from 'url';
 
 import { and, eq, isNull, sql, asc, type InferSelectModel } from 'drizzle-orm';
 
-import { subtitlerProjects, systemMedia } from '../../database/schema/index.js';
+import {
+  conventions,
+  conventionSpeeches,
+  subtitlerProjects,
+  systemMedia,
+} from '../../database/schema/index.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
@@ -315,6 +320,18 @@ export class SubtitlerProjectService {
         .limit(1);
       const key = media[0]?.storage_key ?? null;
       if (!key) return { path: null, system: true, storageKey: null };
+      // A speech an admin hid (or whose convention is not published) is out of
+      // all streams, like a deleted one. Rendered exports of the project stay.
+      const speeches = await this.db!.select({
+        moderation: conventionSpeeches.moderation,
+        status: conventions.status,
+      })
+        .from(conventionSpeeches)
+        .innerJoin(conventions, eq(conventions.id, conventionSpeeches.convention_id))
+        .where(eq(conventionSpeeches.reel_media_id, row.source_system_media_id));
+      if (speeches.some((sp) => sp.moderation === 'hidden' || sp.status !== 'published')) {
+        return { path: null, system: true, storageKey: key };
+      }
       return {
         path: getSystemMediaStorage().resolveLocalPath(key),
         system: true,
@@ -322,8 +339,8 @@ export class SubtitlerProjectService {
       };
     }
     if (path.isAbsolute(row.video_path)) {
-      // Reference to a system file whose media row is gone (FK set null).
-      return { path: row.video_path, system: true, storageKey: null };
+      // Reference to a system file whose media row is gone (FK set null): gone.
+      return { path: null, system: true, storageKey: null };
     }
     return { path: this.getVideoPath(row.video_path), system: false, storageKey: null };
   }
