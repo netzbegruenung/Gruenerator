@@ -155,8 +155,7 @@ jobs:
             [
               {"app": "web", "task": "build:check"},
               {"app": "api", "task": "build"},
-              {"app": "docs", "task": "build"},
-              {"app": "wordpress", "task": "build"}
+              {"app": "docs", "task": "build"}
             ]
         run: |
           TURBO="npx --yes turbo@$(grep -m1 -oE '^  turbo@[0-9.]+' pnpm-lock.yaml | cut -d@ -f2)"
