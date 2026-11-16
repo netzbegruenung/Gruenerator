@@ -545,7 +545,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     country: 'DE',
     includeInDefaultSearch: false,
     mcpExposed: true,
-    qdrantCollection: 'bundestag_dip_documents',
+    remote: 'bundestag-wrapped',
     name: 'Bundestag: Reden & Drucksachen',
     description:
       'Plenarreden und Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus dem DIP des Bundestags',

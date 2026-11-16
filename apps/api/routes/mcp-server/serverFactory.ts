@@ -35,11 +35,7 @@ import { makeRecurringTasksTool } from '../chat/agents/recurringTaskTools.js';
 import { makeRecipesTool } from '../chat/agents/textFormTools.js';
 import { makeUserAgentsTool } from '../chat/agents/userAgentTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
-import {
-  computeMergedFilters,
-  getCachedFilters,
-  setCachedFilters,
-} from '../research/researchController.js';
+import { getMergedFilters } from '../research/researchController.js';
 
 import { registerAgentPrompts } from './agentPrompts.js';
 import {
@@ -70,9 +66,9 @@ import {
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
-import type { McpAuthContext } from './mcpAuth.js';
 import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { QAResponse } from '../../services/notebook/types.js';
+import type { McpAuthContext } from './mcpAuth.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
 
@@ -460,9 +456,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
         // Same 30-minute cache the Recherche page uses; the aggregation is a
         // fan-out of Qdrant facet queries and far too costly per tool call.
-        const cacheKey = config.id;
-        const merged = getCachedFilters(cacheKey) ?? (await computeMergedFilters([config.id]));
-        setCachedFilters(cacheKey, merged);
+        const merged = await getMergedFilters([config.id]);
 
         const entries = Object.entries(merged.filters);
         const fields = entries.map(([field, entry]) => ({

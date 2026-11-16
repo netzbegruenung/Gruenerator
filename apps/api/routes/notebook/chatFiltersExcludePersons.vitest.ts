@@ -29,6 +29,12 @@ const mockQdrant = vi.hoisted(() => ({
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => mockQdrant,
 }));
+// The Bundestag notebook is served by Bundestag Wrapped: its facets come from
+// the remote source, not from our Qdrant.
+const mockRemote = vi.hoisted(() => ({ facetCounts: vi.fn(TWO_VALUES) }));
+vi.mock('../../services/notebook/remoteSources/registry.js', () => ({
+  getRemoteSource: () => mockRemote,
+}));
 
 // An in-memory stand-in, so whether a test sees the cache never depends on a
 // redis that happens to run on the machine.
@@ -114,8 +120,8 @@ describe('notebook.getFilters — the chat surface', () => {
   });
 
   it('drops a facet with a single value and marks collapsed ones', async () => {
-    mockQdrant.getFieldValueCounts.mockImplementation(async (...args: unknown[]) =>
-      args[1] === 'wahlperiode'
+    mockRemote.facetCounts.mockImplementation(async (...args: unknown[]) =>
+      args[0] === 'wahlperiode'
         ? [{ value: '21', count: 30721 }]
         : [
             { value: 'a', count: 2 },
@@ -129,7 +135,7 @@ describe('notebook.getFilters — the chat surface', () => {
     expect(Object.keys(filters)).not.toContain('wahlperiode');
     expect(filters.section_type?.collapsed).toBe(true);
     expect(filters.party?.collapsed).toBeUndefined();
-    mockQdrant.getFieldValueCounts.mockImplementation(TWO_VALUES);
+    mockRemote.facetCounts.mockImplementation(TWO_VALUES);
   });
 
   it('leaves the registry itself untouched, so manual research still sees it', async () => {
