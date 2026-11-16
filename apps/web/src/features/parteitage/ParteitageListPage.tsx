@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { PageHero, PageShell } from '../../components/common/PageHero';
 
+import { formatDateRange } from './formatDateRange';
 import { useConventions } from './hooks/useParteitage';
 
 export default function ParteitageListPage() {
@@ -37,6 +38,9 @@ export default function ParteitageListPage() {
                 <span className="text-base font-semibold">{c.title}</span>
                 <span className="text-sm text-grey-500 dark:text-grey-400">
                   {c.organizer} · {c.location}
+                </span>
+                <span className="text-sm text-grey-500 dark:text-grey-400">
+                  {formatDateRange(c.startsOn, c.endsOn)}
                 </span>
                 <span className="flex items-center gap-xs text-xs text-grey-500 dark:text-grey-400">
                   {c.locked ? (

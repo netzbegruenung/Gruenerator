@@ -7,6 +7,7 @@ import { PageHero, PageShell } from '../../components/common/PageHero';
 import { SpeechDetail } from './components/SpeechDetail';
 import { SpeechGrid, SpeechSearch } from './components/SpeechGrid';
 import { UnlockDialog } from './components/UnlockDialog';
+import { formatDateRange } from './formatDateRange';
 import { useConvention, useUnlockConvention } from './hooks/useParteitage';
 import { ParteitagStats } from './stats/ParteitagStats';
 import { useParteitagFilters } from './stats/useParteitagFilters';
@@ -61,9 +62,29 @@ export default function ParteitagPage() {
       <PageHero
         title={convention.title}
         description={
-          <p className="m-0 text-sm text-grey-500 dark:text-grey-400">
-            {convention.organizer} · {convention.location} · {convention.speechCount} Reden
-          </p>
+          <div className="flex flex-col gap-xs text-sm text-grey-500 dark:text-grey-400">
+            <p className="m-0">
+              {convention.organizer} · {convention.location} ·{' '}
+              {formatDateRange(convention.startsOn, convention.endsOn)} · {convention.speechCount}{' '}
+              Reden
+            </p>
+            {convention.reportUrl || convention.sourceLinks.length > 0 ? (
+              <ul className="m-0 flex list-none flex-wrap gap-x-md gap-y-xs p-0">
+                {convention.reportUrl ? (
+                  <li>
+                    <a href={`${convention.reportUrl}?download=1`}>Bericht (PDF)</a>
+                  </li>
+                ) : null}
+                {convention.sourceLinks.map((link) => (
+                  <li key={link.url}>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         }
       />
       <ParteitagStats

@@ -176,6 +176,28 @@ describe('ParteitagPage', () => {
       );
     });
 
+    it('hero shows the date range, the report and source links', async () => {
+      server.use(
+        http.get(`${BASE}/essen-2026`, () =>
+          HttpResponse.json({
+            ...detail,
+            reportUrl: '/api/parteitage/media/rep',
+            sourceLinks: [{ label: 'Livestream Samstag', url: 'https://example.org/live' }],
+          })
+        )
+      );
+      renderPage();
+      expect(await screen.findByText(/14\.–15\. November 2026/)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Bericht (PDF)' })).toHaveAttribute(
+        'href',
+        '/api/parteitage/media/rep?download=1'
+      );
+      const live = screen.getByRole('link', { name: 'Livestream Samstag' });
+      expect(live).toHaveAttribute('href', 'https://example.org/live');
+      expect(live).toHaveAttribute('target', '_blank');
+      expect(live).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('video carries a German captions track', async () => {
       const { user } = open();
       await user.click(await screen.findByRole('button', { name: /Anna Muster/ }));
