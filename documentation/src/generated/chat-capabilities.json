@@ -3,6 +3,7 @@
     "abgeordnetenhaus",
     "abgeordnetenwatch",
     "agentic",
+    "antragsgruen",
     "artifact",
     "bundestag",
     "chart",
@@ -49,6 +50,12 @@
       "title": "Abgeordnetenwatch",
       "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",
       "mention": "@abgeordnetenwatch",
+      "audience": "de-DE"
+    },
+    "antragsgruen": {
+      "title": "Antragsgrün NRW",
+      "description": "Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW",
+      "mention": "@antragsgruennrw",
       "audience": "de-DE"
     },
     "board-erstellen": {

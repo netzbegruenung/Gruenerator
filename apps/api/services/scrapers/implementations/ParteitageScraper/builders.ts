@@ -228,7 +228,7 @@ function procedureOf(motionOrAmendment: Motion | Amendment) {
   return { votum, text };
 }
 
-function statusOf(statusTitle: string, statusId: number): string {
+export function statusOf(statusTitle: string, statusId: number): string {
   const status = plainText(statusTitle);
   // Antragsgrün zeigt einen vorläufigen Beschluss je nach Seite nur als „Beschluss".
   return statusId === 25 && !/vorläufig/i.test(status) ? `${status} (vorläufig)` : status;

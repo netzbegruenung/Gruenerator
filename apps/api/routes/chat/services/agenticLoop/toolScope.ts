@@ -231,6 +231,17 @@ export const DEFERRABLE_GROUPS = [
     loaderDescription:
       'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
   },
+  {
+    // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): nur NRW-Parteitage, für die
+    // meisten Turns ohne Belang — deshalb die ganze Familie hinter dem Lader,
+    // auch der Einstieg. Die Erwähnung heftet `antragsgruen` an und öffnet damit.
+    id: 'antragsgruen',
+    loaderTool: 'antragsgruen_werkzeuge_laden',
+    tools: ['antragsgruen', 'antragsgruen_lesen', 'antragsgruen_auswerten'],
+    hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
+    loaderDescription:
+      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission.',
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];
