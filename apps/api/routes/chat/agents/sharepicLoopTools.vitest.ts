@@ -10,7 +10,8 @@ const reviseCreatorSharepic = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock('../services/sharepicLoopTarget.js', () => ({
   resolveLoopSharepicTarget: (...a: unknown[]) => resolveTarget(...a),
 }));
-vi.mock('../services/sharepicCreatorVariant.js', () => ({
+vi.mock('../services/sharepicCreatorVariant.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/sharepicCreatorVariant.js')>()),
   reviseCreatorSharepic: (...a: unknown[]) => reviseCreatorSharepic(...a),
 }));
 
@@ -93,6 +94,7 @@ describe('edit_sharepic', () => {
     expect(out).toMatchObject({ variantId: 'v2', unchanged: false, variants: [variant] });
     expect(events.find((e) => e.type === 'sharepic_complete')?.payload).toMatchObject({
       variants: [variant],
+      review: { brief: 'Headline: Neu', mode: 'edit' },
     });
     expect(reviseCreatorSharepic.mock.calls[0]?.[0]).toMatchObject({
       instruction: 'Headline: Neu',

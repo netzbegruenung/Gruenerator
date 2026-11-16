@@ -1073,7 +1073,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne NRW',
     description:
-      'Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW',
+      'Pressemitteilungen, Beschlüsse, Neuigkeiten, Fragen und Antworten und Soundingboard-Berichte der Grünen NRW sowie Pressemitteilungen, Fachnewsletter und Publikationen der Grünen Landtagsfraktion NRW',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [

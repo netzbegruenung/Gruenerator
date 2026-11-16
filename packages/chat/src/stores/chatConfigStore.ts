@@ -8,6 +8,7 @@ import type {
   CurrentCanvas,
   EditorOperationsEvent,
   RoleRef,
+  SharepicChatReview,
 } from '@gruenerator/contracts';
 import type { ResearchDocumentParams, UnauthorizedInfo } from '@gruenerator/shared/api';
 
@@ -126,6 +127,17 @@ export interface ChatConfig {
    * one image, a carousel as a numbered contact sheet. Web only.
    */
   renderSharepicSheet?: (initialProps: Record<string, unknown>) => Promise<string | null>;
+  /**
+   * The studio's vision review for a creator sharepic the chat just made:
+   * render, review, patch, save onto the thread's variant. Returns the
+   * corrected props, null when nothing changed. Web only.
+   */
+  reviewSharepic?: (input: {
+    threadId: string;
+    variantId: string;
+    initialProps: Record<string, unknown>;
+    review: SharepicChatReview;
+  }) => Promise<Record<string, unknown> | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
@@ -330,6 +342,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: ChatConfig['renderSharepic'];
   renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
+  reviewSharepic?: ChatConfig['reviewSharepic'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
@@ -469,6 +482,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
       renderSharepicSheet: config?.renderSharepicSheet,
+      reviewSharepic: config?.reviewSharepic,
       runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
