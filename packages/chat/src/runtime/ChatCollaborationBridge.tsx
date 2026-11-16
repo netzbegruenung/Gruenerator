@@ -42,9 +42,17 @@ export function ChatCollaborationBridge({
     runtime,
     collab,
   });
-  return (
-    <ChatCollaborationProvider value={{ ...collab, peerRunning }}>
-      {children}
-    </ChatCollaborationProvider>
+  const { provider, typingUsers, setTyping, broadcastNewMessage, broadcastTurnStarted } = collab;
+  const value = useMemo(
+    () => ({
+      provider,
+      typingUsers,
+      setTyping,
+      broadcastNewMessage,
+      broadcastTurnStarted,
+      peerRunning,
+    }),
+    [provider, typingUsers, setTyping, broadcastNewMessage, broadcastTurnStarted, peerRunning]
   );
+  return <ChatCollaborationProvider value={value}>{children}</ChatCollaborationProvider>;
 }

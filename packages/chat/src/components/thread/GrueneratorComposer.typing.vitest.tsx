@@ -5,7 +5,7 @@ import {
   type ChatModelAdapter,
 } from '@assistant-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -118,5 +118,34 @@ describe('GrueneratorComposer — typing indicator', () => {
     const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
     await user.type(input, 'ab');
     expect(input).toHaveValue('ab');
+  });
+
+  it('keeps the peer-visible state typing while keystrokes continue, and drops it after a pause', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const { setTyping } = mount(true);
+      // What a peer sees: setTyping(true) arms the 3 s timer that publishes false.
+      let visible = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let updates = 0;
+      setTyping.mockImplementation((v: boolean) => {
+        updates++;
+        visible = v;
+        if (timer) clearTimeout(timer);
+        if (v) timer = setTimeout(() => (visible = false), 3000);
+      });
+      const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
+      for (let i = 0; i < 14; i++) {
+        fireEvent.change(input, { target: { value: 'a'.repeat(i + 1) } });
+        expect(visible).toBe(true);
+        await vi.advanceTimersByTimeAsync(500);
+      }
+      // 14 keystrokes over ~7 s: about one update per 2 s, not one per key.
+      expect(updates).toBeLessThanOrEqual(5);
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(visible).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -407,6 +407,9 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
+/** How often a continuously changing draft re-announces typing. */
+const TYPING_REFRESH_MS = 2000;
+
 const COMPOSER_CORNERS = ['bottom-left', 'bottom-right'] as const;
 
 export const GrueneratorComposer = memo(function GrueneratorComposer({
@@ -852,16 +855,23 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
-  // Team chats show "X schreibt …" to the other members. Only the edge goes
-  // out (the 3 s timer in useChatCollaboration ends a long pause on its own);
-  // an emptied composer, a send and an unmount clear it.
+  // Team chats show "X schreibt …" to the other members. `setTyping(true)` arms
+  // a 3 s timer that publishes "stopped" (the pause detector), so a draft that
+  // keeps changing refreshes it every 2 s — not on every key. An emptied
+  // composer, a send and an unmount clear it.
   const collab = useChatCollaborationContext();
   const setTyping = collab?.setTyping;
-  const typingSentRef = useRef(false);
+  const typingSentAtRef = useRef<number | null>(null);
   const announceTyping = useCallback(
     (typing: boolean) => {
-      if (typingSentRef.current === typing) return;
-      typingSentRef.current = typing;
+      const sentAt = typingSentAtRef.current;
+      if (typing) {
+        if (sentAt !== null && Date.now() - sentAt < TYPING_REFRESH_MS) return;
+        typingSentAtRef.current = Date.now();
+      } else {
+        if (sentAt === null) return;
+        typingSentAtRef.current = null;
+      }
       setTyping?.(typing);
     },
     [setTyping]
