@@ -71,4 +71,12 @@ describe('ProjectChatComposer', () => {
     await user.type(screen.getByRole('textbox'), 'Hallo{Enter}');
     expect(useAgentStore.getState().pendingGroup).toMatchObject({ id: 'g1', teamShared: false });
   });
+
+  it('starts with the default agent, not the one picked in another thread (#5676)', async () => {
+    useAgentStore.setState({ selectedAgentId: 'gruene-jugend-vor-ort', pinnedConnector: null });
+    const { user } = renderComposer();
+    await user.type(screen.getByRole('textbox'), 'Hallo{Enter}');
+    expect(useAgentStore.getState().selectedAgentId).toBeNull();
+    expect(useAgentStore.getState().pendingMessage).toBe('Hallo');
+  });
 });

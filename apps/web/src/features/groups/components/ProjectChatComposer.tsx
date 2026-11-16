@@ -30,6 +30,9 @@ export function ProjectChatComposer({
   const start = () => {
     if (!trimmed) return;
     const store = useAgentStore.getState();
+    // Ein neuer Projekt-Chat beginnt frisch: ohne den Agent, das Rezept oder
+    // den Konnektor, die zuletzt in einem anderen Thread gewählt waren (#5676).
+    store.resetChatContext();
     store.setPendingMessage(trimmed);
     store.setPendingGroup(groupId, !isPersonal && teamShared);
     store.setChatViewMode('thread');

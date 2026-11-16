@@ -385,11 +385,18 @@ export async function touchThread(_threadId: string): Promise<void> {
   // no-op
 }
 
-export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
+export async function getThreadLastMcpServer(
+  threadId: string,
+  _userId: string
+): Promise<string | null> {
   return threads.get(threadId)?.lastMcpServerId ?? null;
 }
 
-export async function setThreadLastMcpServer(threadId: string, serverId: string): Promise<void> {
+export async function setThreadLastMcpServer(
+  threadId: string,
+  _userId: string,
+  serverId: string
+): Promise<void> {
   const row = threads.get(threadId);
   if (row) row.lastMcpServerId = serverId;
 }

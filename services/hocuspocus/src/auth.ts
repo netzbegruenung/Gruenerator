@@ -206,7 +206,31 @@ export class AuthService {
       return this.checkDocumentPermissions(thread.doc_id, userId);
     }
 
-    const isOwner = thread.user_id === userId;
+    // Mirrors ownsThreadSql (apps/api services/groups/projectThreadScope.ts):
+    // a team chat of a project the owner has left belongs to the project (#5678).
+    const isOwner =
+      thread.user_id === userId &&
+      (
+        await this.db(
+          `SELECT 1 FROM chat_threads t
+             JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
+              AND COALESCE(g.is_active, TRUE) = TRUE
+            WHERE t.id = $1 AND t.deleted_at IS NULL
+              AND EXISTS (
+                SELECT 1 FROM group_content_shares tcs
+                 WHERE tcs.content_type = 'chat_threads' AND tcs.content_id = t.id::text
+                   AND tcs.group_id = g.id
+                   AND COALESCE((tcs.permissions->>'read')::boolean, true) = true
+                   AND COALESCE((tcs.permissions->>'write')::boolean, true) = true
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM group_memberships gm
+                 WHERE gm.group_id = g.id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+              )
+            LIMIT 1`,
+          [threadId, userId]
+        )
+      ).length === 0;
     const hasDirectPermission = thread.permissions && userId in thread.permissions;
     const isPublic = thread.is_public;
 
