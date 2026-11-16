@@ -16,6 +16,41 @@ import {
 } from '../components/chat/teamChatSync';
 import { getMobileChatApiClient } from '../services/chatConfig';
 
+// Outside the hook on purpose: the React Compiler cannot lower try/catch with
+// optional chaining or a finalizer (test/reactCompilerCoverage.vitest.ts).
+
+/** Best effort: `null` when the request fails — the next tick tries again. */
+async function fetchTeamChatRows(threadId: string): Promise<TeamSyncRow[] | null> {
+  try {
+    return await getMobileChatApiClient().get<TeamSyncRow[]>(
+      `/api/chat-service/messages?threadId=${encodeURIComponent(threadId)}`
+    );
+  } catch {
+    // swallow-ok: best-effort — the next tick tries again
+    return null;
+  }
+}
+
+/** A failed import leaves the thread as it was; the signature stays unchanged. */
+function importTeamChatRows(
+  rows: TeamSyncRow[],
+  thread: Parameters<typeof applyTeamChatRows>[0]['thread'],
+  lastSignature: string | null
+): string | null {
+  try {
+    return applyTeamChatRows({
+      rows,
+      thread,
+      lastSignature,
+      convert: (r) =>
+        convertToThreadMessageLike(r as Parameters<typeof convertToThreadMessageLike>[0]),
+    });
+  } catch {
+    // swallow-ok: the next tick retries the import
+    return lastSignature;
+  }
+}
+
 /**
  * Live sync of a team chat on the phone: while the thread is open, on screen
  * and the app in the foreground, ask the server for its messages every few
@@ -53,7 +88,7 @@ export function useTeamChatPolling(runtime: RefObject<AssistantRuntime | null>) 
       const running = runtime.current?.thread.getState().isRunning ?? false;
       if (running !== wasRunning) {
         wasRunning = running;
-        runGeneration++;
+        runGeneration += 1;
       }
     });
 
@@ -61,23 +96,14 @@ export function useTeamChatPolling(runtime: RefObject<AssistantRuntime | null>) 
       if (busy || disposed) return;
       busy = true;
       const generation = runGeneration;
-      try {
-        const rows = await getMobileChatApiClient().get<TeamSyncRow[]>(
-          `/api/chat-service/messages?threadId=${encodeURIComponent(threadId)}`
-        );
-        if (disposed || generation !== runGeneration) return;
-        lastSignature.current = applyTeamChatRows({
-          rows,
-          thread: runtime.current?.thread ?? null,
-          lastSignature: lastSignature.current,
-          convert: (r) =>
-            convertToThreadMessageLike(r as Parameters<typeof convertToThreadMessageLike>[0]),
-        });
-      } catch {
-        // swallow-ok: best-effort — the next tick tries again
-      } finally {
-        busy = false;
-      }
+      const rows = await fetchTeamChatRows(threadId);
+      busy = false;
+      if (!rows || disposed || generation !== runGeneration) return;
+      lastSignature.current = importTeamChatRows(
+        rows,
+        runtime.current?.thread ?? null,
+        lastSignature.current
+      );
     };
 
     const start = () => {
