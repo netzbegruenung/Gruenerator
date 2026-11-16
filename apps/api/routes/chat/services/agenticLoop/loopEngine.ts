@@ -36,6 +36,7 @@ import {
   DEGENERATE_FINISH_REASON,
   trimDegenerate,
 } from './degeneration.js';
+import { ForcedStepProseError, holdForcedStepProse } from './forcedStepProse.js';
 import { toolsForProvider } from './providerTools.js';
 import { findSourceEchoCut } from './sourceRegistry.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
@@ -841,6 +842,21 @@ async function streamWithTools(
   let firstResponse: IdleDeadline | null = hasNextLane
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
+  const prepareStep = buildPrepareStep(
+    unifiedSystem,
+    () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
+    p.maxSteps,
+    p.forceFinish,
+    p.forceFirstToolCall ?? false,
+    p.forcedToolForStep,
+    p.getRecipeBlock,
+    p.firstToolName ?? null,
+    p.activeTools,
+    p.firstStepTools ?? null
+  );
+  /** Ob der laufende Schritt einen Aufruf erzwingt — gesetzt von `prepareStep`,
+   *  gelesen von {@link holdForcedStepProse} beim `start-step`. */
+  let stepForced = false;
   const result = deps.streamText({
     model,
     system: withTurnContext(unifiedSystem, p.turnContext),
@@ -857,21 +873,11 @@ async function streamWithTools(
       idle.signal,
       ...(firstResponse ? [firstResponse.signal] : []),
     ]),
-    prepareStep: withTurnContextOnSteps(
-      buildPrepareStep(
-        unifiedSystem,
-        () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
-        p.maxSteps,
-        p.forceFinish,
-        p.forceFirstToolCall ?? false,
-        p.forcedToolForStep,
-        p.getRecipeBlock,
-        p.firstToolName ?? null,
-        p.activeTools,
-        p.firstStepTools ?? null
-      ),
-      p.turnContext
-    ),
+    prepareStep: withTurnContextOnSteps((args: Parameters<typeof prepareStep>[0]) => {
+      const step = prepareStep(args);
+      stepForced = step.toolChoice != null && step.toolChoice !== 'none';
+      return step;
+    }, p.turnContext),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
     onError: logStreamError('unified'),
@@ -884,14 +890,17 @@ async function streamWithTools(
     if (clean.length > 0) p.onText(clean);
   };
   const observed: Drainable = {
-    stream: observeLane(
-      result.stream,
-      probe,
-      () => firstResponse,
-      () => {
-        firstResponse?.clear();
-        firstResponse = null;
-      }
+    stream: holdForcedStepProse(
+      observeLane(
+        result.stream,
+        probe,
+        () => firstResponse,
+        () => {
+          firstResponse?.clear();
+          firstResponse = null;
+        }
+      ),
+      () => stepForced
     ),
   };
   // Was schon auf dem Draht ist, falls `drain` wirft.
@@ -914,7 +923,11 @@ async function streamWithTools(
     // den Zug: danach legt `ensureOwedTools` das Artefakt an, und die
     // Reparatur schreibt die Antwort (`abnormal_finish`). Live 07.11.2026:
     // Mistral Large 4 ohne `create_sheet` → Fehlermeldung statt Tabelle.
-    if (!ToolChoiceViolationError.isInstance(error)) throw error;
+    // `ForcedStepProseError` ist derselbe Verstoß, nur früher erkannt — für
+    // Schritte, die nie enden (siehe forcedStepProse.ts).
+    if (!ToolChoiceViolationError.isInstance(error) && !(error instanceof ForcedStepProseError)) {
+      throw error;
+    }
     log.warn(`[Engine] ${modelLabel(model)} ignored the forced tool step — ${error.message}`);
     firstResponse?.clear();
     return { text: streamed, finishReason: TOOL_CHOICE_VIOLATION_FINISH };
