@@ -641,6 +641,9 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'antragsteller', type: 'keyword' },
       { field: 'tagesordnungspunkt', type: 'keyword' },
       { field: 'antrag_id', type: 'keyword' },
+      // Kürzel von Antrag bzw. Bezugsantrag: Filter und Zählung im Chat (`services/antragsgruen`).
+      { field: 'kuerzel', type: 'keyword' },
+      { field: 'antrag_kuerzel', type: 'keyword' },
       // Website-Abschrift eines Antragsgrün-Beschlusses; `applyDefaultFilter`
       // blendet markierte Punkte aus (is_empty).
       { field: 'superseded_by', type: 'keyword' },

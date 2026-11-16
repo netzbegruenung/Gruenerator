@@ -98,6 +98,8 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   ['explainable-erstellen', 'explainable-erstellen', undefined],
   // 11/2026: das Abgeordnetenhaus war über `landtag` schon erreichbar, nur kein `@` führte hin.
   ['abgeordnetenhaus', 'abgeordnetenhaus', 'de-DE'],
+  // 11/2026: Antragsgrün GRÜNE NRW, heftet `antragsgruen` an (Index + Live-Status).
+  ['antragsgruennrw', 'antragsgruen', 'de-DE'],
 ];
 
 describe('registry totality', () => {

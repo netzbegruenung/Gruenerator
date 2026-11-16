@@ -169,6 +169,8 @@ export const searchIntentSchema = z.enum([
   'abgeordnetenwatch',
   'bundestag',
   'abgeordnetenhaus',
+  // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): Parteitagsanträge aus Index + Live-API.
+  'antragsgruen',
   // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
   // ARD-Tagesschau) — built-in like bundestag, active only when the matching
   // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/connectorAdapters.ts).

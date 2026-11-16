@@ -665,13 +665,15 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('zehn Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('elf Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
       .sort();
     expect(pinned).toEqual([
       'abgeordnetenwatch',
+      // `@antragsgruennrw`: Parteitage der GRÜNEN NRW (Index + Live-Status).
+      'antragsgruen',
       'bundestag',
       'gruenerator_docs_search',
       'gruenerator_pressemitteilung_examples',

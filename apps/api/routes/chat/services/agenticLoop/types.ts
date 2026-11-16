@@ -271,6 +271,10 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // Aufruf hat seine eigene Frist (`landtagTool.ts`, dieser Wert minus Rand) und bricht
   // alles ab, was hängt — die Schleife wartet also höchstens so lange.
   landtag: 45_000,
+  // Index plus ein Live-Abruf je Parteitag (Frist 6 s, `services/antragsgruen/live.ts`).
+  antragsgruen: 30_000,
+  antragsgruen_lesen: 30_000,
+  antragsgruen_auswerten: 30_000,
 };
 
 /**
@@ -346,4 +350,8 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // Wie `bundestag`: die Verfeinerung (Fraktion, Art, Zeitraum) teilt die Wörter der ersten Suche.
   'landtag',
   'nationalrat',
+  // Filterverfeinerung (Parteitag, Antrag, Antragsteller*in) teilt die Wörter der ersten Suche.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
 ]);

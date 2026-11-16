@@ -107,6 +107,8 @@ const PIN_ROUTES: readonly PinRoute[] = [
   { intent: 'abgeordnetenwatch' },
   { intent: 'bundestag' },
   { intent: 'abgeordnetenhaus' },
+  // `@antragsgruennrw`: Token = Intent-Id, `pinsTool` heftet `antragsgruen` an.
+  { intent: 'antragsgruen' },
   { intent: 'hilfe' },
   /**
    * `@umfragen` — der erste Eintrag, dessen Intent stillgelegt ist.

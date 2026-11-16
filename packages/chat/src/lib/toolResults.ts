@@ -262,6 +262,47 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'globe',
     accent: 'external',
   },
+  // `@antragsgruennrw`: Parteitage der GRÜNEN NRW (Index + Live-Status).
+  antragsgruen: {
+    label: 'Antragsgrün NRW',
+    activeLabel: 'Durchsuche Antragsgrün',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query', 'antrag', 'parteitag'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  antragsgruen_lesen: {
+    label: 'Anträge lesen',
+    activeLabel: 'Liest Anträge …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['frage'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'resultCount');
+      return n ? `${n} gelesen` : null;
+    },
+  },
+  antragsgruen_auswerten: {
+    label: 'Antragsgrün-Auswertung',
+    activeLabel: 'Zählt in Antragsgrün …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['nach'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `über ${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  antragsgruen_werkzeuge_laden: {
+    label: 'Antragsgrün-Werkzeuge',
+    activeLabel: 'Öffne die Antragsgrün-Werkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'Antragsgrün-Werkzeuge freigeschaltet',
+  },
   // toolScope.ts: Lader der Parlamentsgruppe — nur Statuszeile, keine Karte.
   parlament_werkzeuge_laden: {
     label: 'Parlamentswerkzeuge',
