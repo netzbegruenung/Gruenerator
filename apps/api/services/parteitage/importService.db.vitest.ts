@@ -387,6 +387,23 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
     );
   });
 
+  it('re-import with new password revokes existing grants', async () => {
+    const m = manifest([speech(1, 'a', 'a')]);
+    const base = { manifest: m, uploads: uploadsFor(m), adminUserId: admin };
+    await svc.importConvention({ ...base, password: 'alt' });
+    const user = randomUUID();
+    await pool.query('INSERT INTO profiles (id, display_name) VALUES ($1, $2)', [user, 'U']);
+    await pool.query(
+      'INSERT INTO convention_access (user_id, convention_id) SELECT $1, id FROM conventions',
+      [user]
+    );
+    // null keeps the password and the grants
+    await svc.importConvention({ ...base, uploads: {}, password: null });
+    expect((await pool.query('SELECT 1 FROM convention_access')).rowCount).toBe(1);
+    await svc.importConvention({ ...base, uploads: {}, password: 'neu' });
+    expect((await pool.query('SELECT 1 FROM convention_access')).rowCount).toBe(0);
+  });
+
   it('fileHashesForKey maps sha to storage key', async () => {
     const m = manifest([speech(1, 'a', 'a')]);
     await svc.importConvention({

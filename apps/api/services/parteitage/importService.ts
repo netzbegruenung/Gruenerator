@@ -14,6 +14,7 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { eq, inArray, like, or } from 'drizzle-orm';
 
 import {
+  conventionAccess,
   conventionDeletedSpeeches,
   conventions,
   conventionSpeeches,
@@ -280,6 +281,10 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
         conventionId = existing.id;
         if (existing.report_media_id) candidates.add(existing.report_media_id);
         await tx.update(conventions).set(fields).where(eq(conventions.id, existing.id));
+        // A password given on re-import replaces the old one: earlier unlocks no longer count.
+        if (input.password !== null) {
+          await tx.delete(conventionAccess).where(eq(conventionAccess.convention_id, existing.id));
+        }
         const rows = await tx
           .select()
           .from(conventionSpeeches)
