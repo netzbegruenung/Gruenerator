@@ -20,6 +20,7 @@ import {
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { isSystemMediaMarker, systemMediaMarker } from '../systemMedia/marker.js';
 import { getSystemMediaStorage } from '../systemMedia/storage.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
@@ -338,7 +339,7 @@ export class SubtitlerProjectService {
         storageKey: key,
       };
     }
-    if (path.isAbsolute(row.video_path)) {
+    if (isSystemMediaMarker(row.video_path)) {
       // Reference to a system file whose media row is gone (FK set null): gone.
       return { path: null, system: true, storageKey: null };
     }
@@ -383,6 +384,15 @@ export class SubtitlerProjectService {
         throw new Error('Path traversal detected in tusVideoPath');
       }
       const fromSystemMedia = sourceSystemMediaId != null && videoSourcePath != null;
+      let systemMediaKey: string | null = null;
+      if (fromSystemMedia) {
+        const [media] = await this.db!.select({ storage_key: systemMedia.storage_key })
+          .from(systemMedia)
+          .where(eq(systemMedia.id, sourceSystemMediaId))
+          .limit(1);
+        if (!media) throw new Error(`System media ${sourceSystemMediaId} not found`);
+        systemMediaKey = media.storage_key;
+      }
       let sourceVideoPath: string;
       if (fromSystemMedia) {
         // Resolved server-side from system storage (270 MB): referenced, not copied.
@@ -456,9 +466,10 @@ export class SubtitlerProjectService {
           user_id: userId,
           title: title || `Projekt ${new Date().toLocaleDateString('de-DE')}`,
           status: 'saved',
-          // System-storage source: the resolved local path (column is NOT NULL);
-          // the video route prefers source_system_media_id.
-          video_path: fromSystemMedia ? sourceVideoPath : relativeVideoPath,
+          // System-storage source: a `system-media:<storage_key>` marker (column is NOT NULL);
+          // reads resolve it through source_system_media_id and SystemMediaStorage.
+          video_path:
+            systemMediaKey !== null ? systemMediaMarker(systemMediaKey) : relativeVideoPath,
           source_system_media_id: fromSystemMedia ? sourceSystemMediaId : null,
           video_filename: videoFilename || 'video.mp4',
           video_size: videoSize || 0,

@@ -67,6 +67,7 @@ beforeEach(() => {
 describe('subtitler project from system storage', () => {
   it('saving a parteitag project does not copy the video file', async () => {
     const service = new SubtitlerProjectService();
+    selectResult = [{ storage_key: 'parteitage/s1.mp4' }];
     vi.spyOn(service, 'generateThumbnail').mockRejectedValue(new Error('no ffmpeg'));
 
     await service.createProject(USER, {
@@ -80,13 +81,14 @@ describe('subtitler project from system storage', () => {
     expect(rename).not.toHaveBeenCalled();
     expect(inserted[0]).toMatchObject({
       source_system_media_id: 'media-1',
-      video_path: SOURCE,
+      // a storage key marker, never an absolute server path
+      video_path: 'system-media:parteitage/s1.mp4',
     });
   });
 
   it('project video lookup is "gone" when source_system_media_id is null and video_path is missing', async () => {
     const service = new SubtitlerProjectService();
-    selectResult = [{ video_path: SOURCE, source_system_media_id: null }];
+    selectResult = [{ video_path: 'system-media:parteitage/s1.mp4', source_system_media_id: null }];
 
     const source = await service.getVideoSource(USER, 'p1');
 

@@ -95,7 +95,7 @@ async function processProjectExport(
   log.info(`Starting project export for project ${project.id}, token: ${exportToken}`);
 
   try {
-    // A project from a parteitag speech references system storage (absolute path,
+    // A project from a parteitag speech references system storage (a `system-media:` marker,
     // not under the project dir), so resolve through the owner-scoped source lookup.
     let inputPath: string;
     if (ownerUserId) {

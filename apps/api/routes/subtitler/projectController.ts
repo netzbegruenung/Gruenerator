@@ -52,6 +52,8 @@ router.get(
       // Owner-scoped lookup only: a parteitag project belongs to the user, so it is served
       // from system storage as long as the media row exists (no convention access re-check;
       // a deleted speech nulls source_system_media_id and the file is gone -> 410).
+      // Deliberate: projects made before a password rotation or audience change keep streaming
+      // their original. That equals what "Herunterladen" already handed out.
       const videoPath = source.path;
       let exists = false;
       if (videoPath) {
