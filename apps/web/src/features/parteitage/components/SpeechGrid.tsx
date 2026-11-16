@@ -2,8 +2,11 @@ import { type ConventionSpeechPublic } from '@gruenerator/contracts';
 import { Input } from '@gruenerator/ui';
 import { useMemo } from 'react';
 
+import { applyFilters, type ParteitagFilters } from '../stats/aggregate';
+
 export interface SpeechFilters {
   search: string;
+  stats?: ParteitagFilters;
 }
 
 export function formatDuration(seconds: number): string {
@@ -30,7 +33,8 @@ export function filterSpeeches(
   filters: SpeechFilters
 ): ConventionSpeechPublic[] {
   const q = filters.search.trim().toLowerCase();
-  return speeches
+  const base = filters.stats ? applyFilters(speeches, filters.stats) : speeches;
+  return base
     .filter((s) => !q || `${speechName(s)} ${s.kv}`.toLowerCase().includes(q))
     .sort((a, b) => a.day.localeCompare(b.day) || a.listPlace - b.listPlace);
 }
