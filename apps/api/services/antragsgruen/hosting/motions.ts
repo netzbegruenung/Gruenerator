@@ -17,6 +17,8 @@
  * Die Person kann es austragen; dann darf es dort nichts mehr anlegen — auch
  * wenn die Seite eingeloggten Personen Anträge erlaubt.
  */
+import * as cheerio from 'cheerio';
+
 import { markdownToHtml } from '../../markdown/MarkdownService.js';
 
 import { agendaOf, findAgendaItem } from './agenda.js';
@@ -63,8 +65,9 @@ export function splitSiteUrl(siteUrl: string): { origin: string; consultation: s
   return { origin: url.origin, consultation };
 }
 
+/** Klartext aus Antragsgrüns HTML-Statustitel — per Parser, nicht per Regex. */
 function stripTags(html: string): string {
-  return html.replace(/<[^>]+>/g, '').trim();
+  return cheerio.load(html).text().trim();
 }
 
 async function restJson<T>(
