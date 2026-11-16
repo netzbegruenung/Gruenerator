@@ -166,7 +166,7 @@ describe('icon-only buttons', () => {
           onChangeTemplate={() => {}}
           onDelete={() => {}}
         />
-        <FloatingFontSizeControl fontSize={20} onFontSizeChange={() => {}} />
+        <FloatingFontSizeControl elementId="t1" fontSize={20} onFontSizeChange={() => {}} />
         <CanvasMetaBar pageCount={2} currentPageIndex={0} zoom={1} onZoomChange={() => {}} />
       </>
     );
