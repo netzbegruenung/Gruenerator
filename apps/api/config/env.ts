@@ -259,11 +259,14 @@ const envSchema = z.object({
 
   // ── Web Search Providers ───────────────────────────────────────────────
   LINKUP_API_KEY: z.string().optional(),
+  // Base URL of a SearXNG instance (no trailing `/search`). Only read when
+  // WEB_SEARCH_CHAIN lists `searxng`; unset = the engine counts as not configured.
+  SEARXNG_URL: z.string().optional(),
   // Ordered web search engines, comma-separated (`services/search/webSearch.ts`).
   // Each search goes to the first engine that is configured and can honour all
   // its constraints (GreenPT: no dates, domain scope, images or `deep`); a
   // failing engine hands over to the next. Swapping engines = editing this line.
-  // `searxng` (a private instance, no key) is opt-in for key-less dev setups.
+  // `searxng` (SEARXNG_URL, no key) is opt-in for key-less dev setups.
   // Replaces GREENPT_SEARCH_ENABLED (removed 29.09.2026, ignored with a warning).
   WEB_SEARCH_CHAIN: z
     .string()
