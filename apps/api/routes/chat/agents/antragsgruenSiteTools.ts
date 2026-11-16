@@ -10,16 +10,23 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { type AgendaItemRef } from '../../../services/antragsgruen/hosting/agenda.js';
 import {
   SUBDOMAIN_RE,
-  hostingConfigFromEnv,
   isSubdomainAvailable,
 } from '../../../services/antragsgruen/hosting/createSite.js';
-import { FormClient } from '../../../services/antragsgruen/hosting/formClient.js';
+import {
+  AntragsgruenFormError,
+  FormClient,
+} from '../../../services/antragsgruen/hosting/formClient.js';
+import { hostingConfigFromEnv } from '../../../services/antragsgruen/hosting/session.js';
 import {
   MAX_SITES_PER_USER,
+  hostedSitesOf,
   inviteeOf,
+  readAntragsgruenAgenda,
   sitesOrderedBy,
+  type HostedSite,
 } from '../../../services/antragsgruen/hosting/sites.js';
 import { createLogger } from '../../../utils/logger.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -37,6 +44,41 @@ import type { PendingAction } from '../../../agents/langgraph/ChatGraph/types.js
 const log = createLogger('antragsgruenSiteTools');
 
 export const ANTRAGSGRUEN_SITE_TOOL = 'antragsgruen_seite_anlegen';
+
+/** Ein Tagesordnungspunkt im Werkzeug; `toAgenda` macht daraus den Eintrag für Antragsgrün. */
+const AGENDA_ITEM = z.object({
+  code: z.string().max(20).optional().describe('z. B. „1." oder „TOP 3"'),
+  titel: z.string().min(1).max(250),
+  uhrzeit: z
+    .string()
+    .regex(/^\d{1,2}:\d{2}$/)
+    .optional()
+    .describe('„HH:MM"'),
+  antraege: z
+    .boolean()
+    .optional()
+    .describe(
+      'true, wenn unter diesem Punkt Anträge eingereicht werden (z. B. „Anträge", „Satzung")'
+    ),
+});
+const AGENDA = z.array(AGENDA_ITEM).min(1).max(40);
+
+function toAgenda(items: z.infer<typeof AGENDA>) {
+  // Ohne jeden Code nummeriert der Grünerator selbst: so steht auf der Seite, was
+  // die Person sagt („TOP 3"), und ein Antrag findet seinen Punkt über den Code.
+  const numbered = items.every((i) => !i.code?.trim());
+  return items.map((i, n) => ({
+    code: numbered ? `${n + 1}.` : i.code?.trim() || null,
+    title: i.titel.trim(),
+    time: i.uhrzeit ?? null,
+    motions: i.antraege === true,
+  }));
+}
+
+const agendaLine = (items: ReturnType<typeof toAgenda>) =>
+  items
+    .map((i) => `${i.code ? `${i.code} ` : ''}${i.title}${i.motions ? ' (Anträge)' : ''}`)
+    .join(' · ');
 
 export interface SiteToolDeps {
   /** Host, unter dem die Seiten liegen (`antragsgruen.de`; lokal die Testinstanz). */
@@ -79,6 +121,9 @@ Ablauf, Fehlerfälle und die nächsten Schritte danach: Rezept „antragsgruen-s
       title: z.string().min(3).max(120).describe('Titel der Versammlung, z. B. „KMV Köln 2027"'),
       organization: z.string().min(2).max(120).describe('Gliederung, z. B. „GRÜNE KV Köln"'),
       subdomain: z.string().describe('Adresse: <subdomain>.antragsgruen.de'),
+      tagesordnung: AGENDA.optional().describe(
+        'Optional: die Tagesordnung, wenn die Person sie schon kennt; sonst weglassen'
+      ),
     }),
     execute: async (args) => {
       const userId = requireUserId(state);
@@ -119,10 +164,12 @@ Ablauf, Fehlerfälle und die nächsten Schritte danach: Rezept „antragsgruen-s
         };
       }
 
+      const agenda = args.tagesordnung ? toAgenda(args.tagesordnung) : null;
       const payload = {
         title: args.title.trim(),
         organization: args.organization.trim(),
         subdomain,
+        agenda,
       };
       const pending: PendingAction = {
         actionId: newActionId(),
@@ -138,9 +185,210 @@ Ablauf, Fehlerfälle und die nächsten Schritte danach: Rezept „antragsgruen-s
         { key: 'Titel', value: payload.title },
         { key: 'Gliederung', value: payload.organization },
         { key: 'Adresse', value: `${subdomain}.${deps.host}` },
+        ...(agenda ? [{ key: 'Tagesordnung', value: agendaLine(agenda) }] : []),
       ]);
       const note = `Bestätigung zum Anlegen der Antragsgrün-Seite „${payload.title}" (${subdomain}.${deps.host}) angefordert. Erst nach dem Klick auf „Anlegen" entsteht die Seite.`;
       groundNote(sourceRegistry, 'Antragsgrün-Seite anlegen', note);
+      return { ok: true, note };
+    },
+  });
+}
+
+export const ANTRAGSGRUEN_MOTION_TOOL = 'antragsgruen_antrag_stellen';
+
+/** Antrags- und Begründungstext zusammen; darüber wird es kein Antrag mehr, sondern ein Programm. */
+const MAX_MOTION_CHARS = 30_000;
+
+export interface MotionToolDeps {
+  sitesOf: (userId: string) => Promise<HostedSite[]>;
+}
+
+export function makeAntragsgruenMotionTool(
+  ctx: PersonalToolCtx,
+  deps: MotionToolDeps = { sitesOf: hostedSitesOf }
+): Tool {
+  const { state, sse, threadId, sourceRegistry } = ctx;
+  return tool({
+    description: `Reicht einen Antrag auf einer Antragsgrün-Seite ein, die die Person über den Grünerator angelegt hat (antragsgruen_seite_anlegen). Die Person steht als Antragsteller*in drin; der Antrag ist danach „Eingereicht (ungeprüft)" und wird erst nach Freischaltung durch die Admins öffentlich.
+
+NUTZE NUR, wenn die Person ausdrücklich will, dass ein Antrag bei Antragsgrün eingereicht wird — nicht, um einen Antrag nur zu schreiben. Schreib den Antrag vorher fertig und lass ihn bestätigen; übergib Titel, Antragstext (Markdown) und optional die Begründung. Auf fremden Antragsgrün-Seiten (z. B. der LDK) kann der Grünerator nichts einreichen.
+
+Das Werkzeug zeigt eine Karte zur Bestätigung; kündige nichts als eingereicht an, solange die Person nicht bestätigt hat.`,
+    inputSchema: z.object({
+      seite: z
+        .string()
+        .optional()
+        .describe('Adresse (Subdomain) der eigenen Seite; weglassen, wenn die Person nur eine hat'),
+      titel: z.string().min(3).max(300),
+      antragstext: z.string().min(20).describe('Antragstext als Markdown, ohne Titel'),
+      begruendung: z.string().optional().describe('Begründung als Markdown'),
+      organisation: z
+        .string()
+        .optional()
+        .describe(
+          'Nur wenn eine Gliederung statt der Person den Antrag stellt, z. B. „GRÜNE OV Ehrenfeld"'
+        ),
+      top: z
+        .string()
+        .optional()
+        .describe(
+          'Tagesordnungspunkt, unter dem der Antrag läuft — Code („3") oder Titel; ohne Tagesordnung weglassen'
+        ),
+    }),
+    execute: async (args) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+      const forbidden = refuseForbiddenAction(state);
+      if (forbidden) return forbidden;
+      if (!threadId) return { error: 'Einreichen ist in diesem Kontext nicht möglich.' };
+
+      const sites = await deps.sitesOf(userId);
+      if (sites.length === 0) {
+        return {
+          error:
+            'Die Person hat noch keine Antragsgrün-Seite über den Grünerator angelegt. Auf anderen Seiten kann der Grünerator nichts einreichen.',
+        };
+      }
+      const wanted = args.seite?.trim().toLowerCase();
+      const site = wanted
+        ? sites.find((s) => s.subdomain === wanted)
+        : sites.length === 1
+          ? sites[0]
+          : undefined;
+      if (!site) {
+        const list = sites.map((s) => `${s.subdomain} („${s.title}")`).join(', ');
+        return {
+          error: wanted
+            ? `„${wanted}" ist keine Seite der Person. Ihre Seiten: ${list}.`
+            : `Die Person hat mehrere Seiten — frag, auf welche: ${list}.`,
+        };
+      }
+      const text = args.antragstext.trim();
+      const reason = args.begruendung?.trim() || null;
+      if (text.length + (reason?.length ?? 0) > MAX_MOTION_CHARS) {
+        return {
+          error: `Antrag und Begründung sind zusammen länger als ${MAX_MOTION_CHARS} Zeichen.`,
+        };
+      }
+
+      const payload = {
+        subdomain: site.subdomain,
+        title: args.titel.trim(),
+        text,
+        reason,
+        organization: args.organisation?.trim() || null,
+        agendaItem: args.top?.trim() || null,
+      };
+      const pending: PendingAction = {
+        actionId: newActionId(),
+        threadId,
+        userId,
+        title: 'Antrag bei Antragsgrün einreichen',
+        preview: `„${payload.title}" auf ${site.title} einreichen`,
+        createdAt: Date.now(),
+        type: 'create_antragsgruen_motion',
+        payload,
+      };
+      await emitToolConfirmAction(sse, pending, [
+        { key: 'Antrag', value: payload.title },
+        { key: 'Seite', value: site.title },
+        ...(payload.organization ? [{ key: 'Antragsteller*in', value: payload.organization }] : []),
+        ...(payload.agendaItem ? [{ key: 'TOP', value: payload.agendaItem }] : []),
+      ]);
+      const note = `Bestätigung zum Einreichen des Antrags „${payload.title}" auf „${site.title}" angefordert. Erst nach dem Klick auf „Einreichen" steht er bei Antragsgrün.`;
+      groundNote(sourceRegistry, 'Antrag einreichen', note);
+      return { ok: true, note };
+    },
+  });
+}
+
+export const ANTRAGSGRUEN_AGENDA_TOOL = 'antragsgruen_tagesordnung';
+
+export interface AgendaToolDeps {
+  sitesOf: (userId: string) => Promise<HostedSite[]>;
+  readAgenda: (userId: string, subdomain: string) => Promise<AgendaItemRef[]>;
+}
+
+export function makeAntragsgruenAgendaTool(
+  ctx: PersonalToolCtx,
+  deps: AgendaToolDeps = { sitesOf: hostedSitesOf, readAgenda: readAntragsgruenAgenda }
+): Tool {
+  const { state, sse, threadId, sourceRegistry } = ctx;
+  return tool({
+    description: `Liest oder setzt die Tagesordnung einer Antragsgrün-Seite, die die Person über den Grünerator angelegt hat.
+
+Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die GANZE Tagesordnung durch diese Liste (Karte zur Bestätigung) — wer nur einen Punkt ergänzen oder ändern will, liest zuerst und übergibt dann die vollständige neue Liste. Punkte mit gleichem Code oder Titel behalten ihre Anträge; fehlende Punkte werden gelöscht. Markiere mit „antraege: true" die Punkte, unter denen Anträge eingereicht werden.`,
+    inputSchema: z.object({
+      seite: z
+        .string()
+        .optional()
+        .describe('Adresse (Subdomain); weglassen, wenn die Person nur eine Seite hat'),
+      punkte: AGENDA.optional(),
+    }),
+    execute: async (args) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+      const sites = await deps.sitesOf(userId);
+      if (sites.length === 0) {
+        return { error: 'Die Person hat keine Antragsgrün-Seite über den Grünerator angelegt.' };
+      }
+      const wanted = args.seite?.trim().toLowerCase();
+      const site = wanted
+        ? sites.find((s) => s.subdomain === wanted)
+        : sites.length === 1
+          ? sites[0]
+          : undefined;
+      if (!site) {
+        const list = sites.map((s) => `${s.subdomain} („${s.title}")`).join(', ');
+        return {
+          error: wanted
+            ? `„${wanted}" ist keine Seite der Person. Ihre Seiten: ${list}.`
+            : `Die Person hat mehrere Seiten — frag, auf welche: ${list}.`,
+        };
+      }
+
+      if (!args.punkte) {
+        try {
+          const items = await deps.readAgenda(userId, site.subdomain);
+          const text = items.length
+            ? items.map((i) => `${i.code ? `${i.code} ` : ''}${i.title}`).join('\n')
+            : '(keine Tagesordnung)';
+          groundNote(sourceRegistry, `Tagesordnung „${site.title}"`, text);
+          return {
+            seite: site.subdomain,
+            punkte: items.map((i) => ({ code: i.code, titel: i.title })),
+          };
+        } catch (err) {
+          log.warn(`agenda read failed: ${err instanceof Error ? err.message : String(err)}`);
+          return {
+            error:
+              err instanceof AntragsgruenFormError && err.step === 'revoked'
+                ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin.'
+                : 'Die Tagesordnung ist gerade nicht abrufbar.',
+          };
+        }
+      }
+
+      const forbidden = refuseForbiddenAction(state);
+      if (forbidden) return forbidden;
+      if (!threadId) return { error: 'Ändern ist in diesem Kontext nicht möglich.' };
+      const entries = toAgenda(args.punkte);
+      const pending: PendingAction = {
+        actionId: newActionId(),
+        threadId,
+        userId,
+        title: 'Tagesordnung bei Antragsgrün setzen',
+        preview: `${entries.length} Punkte für „${site.title}"`,
+        createdAt: Date.now(),
+        type: 'set_antragsgruen_agenda',
+        payload: { subdomain: site.subdomain, entries },
+      };
+      await emitToolConfirmAction(sse, pending, [
+        { key: 'Seite', value: site.title },
+        { key: 'Tagesordnung', value: agendaLine(entries) },
+      ]);
+      const note = `Bestätigung zum Setzen der Tagesordnung (${entries.length} Punkte) auf „${site.title}" angefordert.`;
+      groundNote(sourceRegistry, 'Tagesordnung setzen', note);
       return { ok: true, note };
     },
   });

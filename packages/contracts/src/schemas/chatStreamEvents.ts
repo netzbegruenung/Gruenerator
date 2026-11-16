@@ -377,6 +377,8 @@ export const confirmActionTypeSchema = z.enum([
   'apply_canvas_deck_edit',
   // Karte des `antragsgruen_seite_anlegen`-Werkzeugs (11/2026), additiv.
   'create_antragsgruen_site',
+  'create_antragsgruen_motion',
+  'set_antragsgruen_agenda',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

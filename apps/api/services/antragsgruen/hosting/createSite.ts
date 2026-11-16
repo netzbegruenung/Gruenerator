@@ -19,22 +19,18 @@
  */
 import * as cheerio from 'cheerio';
 
-import { env } from '../../../config/env.js';
-
+import { setAgenda, type AgendaEntry } from './agenda.js';
 import { AntragsgruenFormError, FormClient, alertsOf, csrfOf, formValuesOf } from './formClient.js';
-
-export interface HostingConfig {
-  /** z. B. `https://antragsgruen.de` — Seiten liegen unter `https://<sub>.<host>/`. */
-  baseUrl: string;
-  botEmail: string;
-  botPassword: string;
-}
+import { motionTypeOf, splitSiteUrl } from './motions.js';
+import { login, type HostingConfig } from './session.js';
 
 export interface SiteRequest {
   title: string;
   organization: string;
   subdomain: string;
   invitee: { email: string; nameGiven: string; nameFamily: string };
+  /** Eigene Tagesordnung; ohne sie hat die Seite keine. */
+  agenda?: readonly AgendaEntry[] | null;
 }
 
 export interface CreatedSite {
@@ -43,25 +39,12 @@ export interface CreatedSite {
   url: string;
   /** `false`: die Admin-Adresse der Veranstaltung steht noch auf dem Grünerator-Konto. */
   adminEmailHandedOver: boolean;
+  /** `null`: keine Tagesordnung bestellt; `false`: bestellt, aber nicht gesetzt. */
+  agendaSet: boolean | null;
 }
 
 /** Was Antragsgrün als Subdomain annimmt (`[\w_-]+`), enger: klein, 3–40 Zeichen. */
 export const SUBDOMAIN_RE = /^[a-z0-9][a-z0-9-]{2,39}$/;
-
-/** Ohne Zugangsdaten des Grünerator-Kontos gibt es das Werkzeug nicht. */
-export function hostingConfigFromEnv(): HostingConfig | null {
-  const botEmail = env.ANTRAGSGRUEN_BOT_EMAIL?.trim();
-  const botPassword = env.ANTRAGSGRUEN_BOT_PASSWORD;
-  if (!botEmail || !botPassword) return null;
-  return {
-    baseUrl: (env.ANTRAGSGRUEN_HOSTING_URL?.trim() || 'https://antragsgruen.de').replace(
-      /\/+$/,
-      ''
-    ),
-    botEmail,
-    botPassword,
-  };
-}
 
 const WELCOME_TEXT = [
   'Hallo %NAME_GIVEN%,',
@@ -83,6 +66,8 @@ function wizardForm(req: SiteRequest, csrf: string): URLSearchParams {
   f.set('language', 'de');
   const set = (k: string, v: string) => f.set(`SiteCreateForm[${k}]`, v);
   f.append('SiteCreateForm[functionality][]', '1'); // Anträge
+  // Tagesordnung: Startseite nach TOPs; die Vorlage des Assistenten ersetzt `setAgenda` danach.
+  if (req.agenda?.length) f.append('SiteCreateForm[functionality][]', '4');
   set('singleMotion', '0');
   set('hasAmendments', '1');
   set('amendSinglePara', '0');
@@ -116,21 +101,6 @@ function fail(step: string, message: string, html?: string): never {
     alerts.length ? `${message}: ${alerts.join(' · ')}` : message,
     step
   );
-}
-
-async function login(client: FormClient, config: HostingConfig): Promise<void> {
-  const page = await client.request(`${config.baseUrl}/user/login`);
-  const csrf = csrfOf(page.html);
-  if (!csrf) fail('login', 'Kein CSRF-Token auf der Login-Seite');
-  const form = new URLSearchParams({
-    _csrf: csrf,
-    username: config.botEmail,
-    password: config.botPassword,
-    loginusernamepassword: '',
-  });
-  const res = await client.request(`${config.baseUrl}/user/login`, { method: 'POST', form });
-  // Erfolg ist eine Weiterleitung; ein Fehler zeigt das Formular erneut.
-  if (!res.redirected) fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
 }
 
 export async function isSubdomainAvailable(
@@ -280,5 +250,17 @@ export async function createAntragsgruenSite(
     if (!(err instanceof AntragsgruenFormError)) throw err;
     adminEmailHandedOver = false;
   }
-  return { subdomain: req.subdomain, url, adminEmailHandedOver };
+  let agendaSet: boolean | null = null;
+  if (req.agenda?.length) {
+    try {
+      const { origin, consultation } = splitSiteUrl(url);
+      const { type } = await motionTypeOf(client, origin, consultation);
+      await setAgenda(client, origin, consultation, req.agenda, type.id);
+      agendaSet = true;
+    } catch (err) {
+      if (!(err instanceof AntragsgruenFormError)) throw err;
+      agendaSet = false;
+    }
+  }
+  return { subdomain: req.subdomain, url, adminEmailHandedOver, agendaSet };
 }

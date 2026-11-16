@@ -147,6 +147,20 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'clipboard-list',
     confirmLabel: 'Anlegen',
   },
+  create_antragsgruen_motion: {
+    title: 'Antrag bei Antragsgrün einreichen',
+    description:
+      'Der Grünerator reicht den Antrag auf deiner Antragsgrün-Seite ein, mit dir als Antragsteller*in. Er steht danach als „Eingereicht (ungeprüft)" in der Antragsliste; veröffentlicht wird er erst, wenn ihr ihn als Admins freischaltet.',
+    icon: 'clipboard-list',
+    confirmLabel: 'Einreichen',
+  },
+  set_antragsgruen_agenda: {
+    title: 'Tagesordnung bei Antragsgrün setzen',
+    description:
+      'Die Tagesordnung der Seite wird durch diese Liste ersetzt. Punkte, die hier fehlen, werden gelöscht; Punkte mit gleichem Code oder Titel behalten ihre Anträge.',
+    icon: 'clipboard-list',
+    confirmLabel: 'Übernehmen',
+  },
   apply_canvas_deck_edit: {
     title: 'Folien löschen',
     description: 'Die Änderung löscht Folien aus der Präsentation.',

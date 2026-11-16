@@ -127,6 +127,8 @@ export const UI_TOOL_NAMES = z.enum([
   'antragsgruen_auswerten',
   'antragsgruen_werkzeuge_laden',
   'antragsgruen_seite_anlegen',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_tagesordnung',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1390,6 +1392,16 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   })),
   // Nur Prüfung und Karte; angelegt wird erst nach der Bestätigung.
   antragsgruen_seite_anlegen: entry('antragsgruen_seite_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_tagesordnung: entry('antragsgruen_tagesordnung', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'note') ? 'Bestätigung angefordert' : 'Tagesordnung gelesen'),
+  })),
+  antragsgruen_antrag_stellen: entry('antragsgruen_antrag_stellen', 'text-note', (_a, r) => ({
     kind: 'text-note',
     text: getString(r, 'error') ?? 'Bestätigung angefordert',
   })),

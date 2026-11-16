@@ -285,6 +285,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return n ? `${n} gelesen` : null;
     },
   },
+  antragsgruen_tagesordnung: {
+    label: 'Antragsgrün-Tagesordnung',
+    activeLabel: 'Sehe die Tagesordnung an …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_antrag_stellen: {
+    label: 'Antrag bei Antragsgrün',
+    activeLabel: 'Bereite den Antrag vor …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   antragsgruen_seite_anlegen: {
     label: 'Antragsgrün-Seite',
     activeLabel: 'Prüfe die Adresse bei Antragsgrün …',

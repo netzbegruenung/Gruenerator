@@ -77,21 +77,35 @@ export class FormClient {
   /** Ein Aufruf mit Cookies; Weiterleitungen werden selbst verfolgt, damit kein Cookie verloren geht. */
   async request(
     url: string,
-    init: { method?: 'GET' | 'POST'; form?: URLSearchParams } = {}
+    init: {
+      method?: 'GET' | 'POST';
+      form?: URLSearchParams;
+      /** JSON-Body samt CSRF-Token (Kopf `X-CSRF-Token`) für die Admin-Endpunkte, die keine REST-Controller sind. */
+      json?: { body: unknown; csrf?: string };
+      /** JWT für die REST-API (`Authorization: Bearer`). */
+      bearer?: string;
+    } = {}
   ): Promise<{ status: number; url: string; html: string; redirected: boolean }> {
     let target = new URL(url);
     let method = init.method ?? 'GET';
-    let body: URLSearchParams | null = init.form ?? null;
+    let body: string | null = init.json
+      ? JSON.stringify(init.json.body)
+      : init.form
+        ? init.form.toString()
+        : null;
+    const contentType = init.json ? 'application/json' : 'application/x-www-form-urlencoded';
     let redirected = false;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const headers: Record<string, string> = { 'user-agent': this.userAgent };
       const cookie = this.#cookieHeader(target);
       if (cookie) headers.cookie = cookie;
-      if (body) headers['content-type'] = 'application/x-www-form-urlencoded';
+      if (body) headers['content-type'] = contentType;
+      if (body && init.json?.csrf) headers['x-csrf-token'] = init.json.csrf;
+      if (init.bearer) headers.authorization = `Bearer ${init.bearer}`;
       const res = await this.fetchImpl(target.toString(), {
         method,
         headers,
-        body: body ? body.toString() : null,
+        body,
         redirect: 'manual',
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });

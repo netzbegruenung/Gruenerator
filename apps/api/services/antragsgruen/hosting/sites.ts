@@ -8,13 +8,12 @@
  */
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
-import {
-  createAntragsgruenSite,
-  hostingConfigFromEnv,
-  type CreatedSite,
-  type SiteRequest,
-} from './createSite.js';
-import { AntragsgruenFormError } from './formClient.js';
+import { agendaOf, setAgenda, type AgendaEntry, type AgendaItemRef } from './agenda.js';
+import { createAntragsgruenSite, type CreatedSite, type SiteRequest } from './createSite.js';
+import { AntragsgruenFormError, FormClient } from './formClient.js';
+import { createMotionOnHostedSite, type CreatedMotion } from './motions.js';
+import { motionTypeOf, splitSiteUrl } from './motions.js';
+import { hostingConfigFromEnv, login } from './session.js';
 
 /** Jede Seite ist echt und bleibt bei Antragsgrün stehen; die Grenze hält Versehen klein. */
 export const MAX_SITES_PER_USER = 3;
@@ -23,6 +22,7 @@ export interface SiteOrder {
   title: string;
   organization: string;
   subdomain: string;
+  agenda?: AgendaEntry[] | null;
 }
 
 const DELIVERABLE_EMAIL_RE = /^[^@\s]+@[^@\s:]+\.[a-z]{2,}$/i;
@@ -101,4 +101,107 @@ async function record(userId: string, order: SiteOrder, url: string) {
      VALUES ($1, $2, $3, $4)`,
     [userId, order.subdomain, order.title, url]
   );
+}
+
+export interface HostedSite {
+  subdomain: string;
+  title: string;
+  url: string;
+}
+
+/** Die Seiten, die die Person über den Grünerator angelegt hat — nur auf ihnen stellt er Anträge ein. */
+export async function hostedSitesOf(userId: string): Promise<HostedSite[]> {
+  return (await getPostgresInstance().query(
+    `SELECT subdomain, title, url FROM antragsgruen_hosted_sites
+     WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId]
+  )) as HostedSite[];
+}
+
+export interface MotionOrder {
+  subdomain: string;
+  title: string;
+  text: string;
+  reason: string | null;
+  organization: string | null;
+  /** Tagesordnungspunkt nach Code oder Titel. */
+  agendaItem?: string | null;
+}
+
+/** Läuft erst nach der Bestätigung durch die Person (`confirmController`). */
+export async function orderAntragsgruenMotion(
+  userId: string,
+  order: MotionOrder
+): Promise<CreatedMotion> {
+  const config = hostingConfigFromEnv();
+  if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
+  // Erneut gegen die Datenbank, nicht gegen die Karte: zwischen Karte und Klick
+  // kann die Seite den Besitz gewechselt haben.
+  const site = (await hostedSitesOf(userId)).find((s) => s.subdomain === order.subdomain);
+  if (!site)
+    throw new SiteOrderRefused(
+      'Diese Antragsgrün-Seite hast du nicht über den Grünerator angelegt.'
+    );
+  const person = await inviteeOf(userId);
+  if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
+  return createMotionOnHostedSite(
+    {
+      siteUrl: site.url,
+      title: order.title,
+      text: order.text,
+      reason: order.reason,
+      initiator: {
+        name: `${person.nameGiven} ${person.nameFamily}`.trim() || person.email,
+        email: person.email,
+        organization: order.organization,
+      },
+      agendaItem: order.agendaItem ?? null,
+    },
+    config
+  );
+}
+
+/** Eine eigene Seite der Person, mit eingeloggtem Grünerator-Konto, das dort noch Admin ist. */
+async function adminSessionOn(userId: string, subdomain: string) {
+  const config = hostingConfigFromEnv();
+  if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
+  const site = (await hostedSitesOf(userId)).find((s) => s.subdomain === subdomain);
+  if (!site)
+    throw new SiteOrderRefused(
+      'Diese Antragsgrün-Seite hast du nicht über den Grünerator angelegt.'
+    );
+  const client = new FormClient();
+  await login(client, config);
+  const { origin, consultation } = splitSiteUrl(site.url);
+  const admin = await client.request(`${origin}/${consultation}/admin/users`);
+  if (admin.redirected || admin.status !== 200 || !admin.html.includes('data-users')) {
+    throw new AntragsgruenFormError(
+      'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
+      'revoked'
+    );
+  }
+  return { client, origin, consultation, site };
+}
+
+export async function readAntragsgruenAgenda(
+  userId: string,
+  subdomain: string
+): Promise<AgendaItemRef[]> {
+  const { client, origin, consultation } = await adminSessionOn(userId, subdomain);
+  return agendaOf(client, origin, consultation);
+}
+
+/**
+ * Ersetzt die Tagesordnung. Punkte mit demselben Code (sonst Titel) wie ein
+ * vorhandener behalten dessen Id — die Anträge darunter bleiben dort.
+ */
+export async function orderAntragsgruenAgenda(
+  userId: string,
+  subdomain: string,
+  entries: AgendaEntry[]
+): Promise<AgendaItemRef[]> {
+  const { client, origin, consultation } = await adminSessionOn(userId, subdomain);
+  const { type } = await motionTypeOf(client, origin, consultation);
+  const existing = await agendaOf(client, origin, consultation);
+  return setAgenda(client, origin, consultation, entries, type.id, existing);
 }

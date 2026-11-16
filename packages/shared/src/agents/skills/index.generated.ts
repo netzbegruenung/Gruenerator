@@ -1011,6 +1011,10 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Lege eine Antragsgrün-Seite an für: ',
     rolle: 'methode',
-    recommendedTools: ['antragsgruen_seite_anlegen'],
+    recommendedTools: [
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+    ],
   },
 ] as const satisfies readonly SystemSkill[];

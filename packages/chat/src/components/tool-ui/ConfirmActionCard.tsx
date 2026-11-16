@@ -44,6 +44,8 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   share_text_form: Share2,
   apply_canvas_deck_edit: LayoutGrid,
   create_antragsgruen_site: ClipboardList,
+  create_antragsgruen_motion: ClipboardList,
+  set_antragsgruen_agenda: ClipboardList,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
@@ -129,15 +131,19 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
                   ? 'Board öffnen'
                   : action.type === 'create_antragsgruen_site'
                     ? 'Seite öffnen'
-                    : action.type === 'create_recurring_task'
-                      ? 'Aufgaben öffnen'
-                      : action.type === 'create_user_agent'
-                        ? 'Grünerator-Agent öffnen'
-                        : GROUP_ACTION_TYPES.has(action.type)
-                          ? 'Gruppe öffnen'
-                          : NOTEBOOK_ACTION_TYPES.has(action.type)
-                            ? 'Notebook öffnen'
-                            : 'Dokument öffnen'}
+                    : action.type === 'create_antragsgruen_motion'
+                      ? 'Antrag öffnen'
+                      : action.type === 'set_antragsgruen_agenda'
+                        ? 'Tagesordnung öffnen'
+                        : action.type === 'create_recurring_task'
+                          ? 'Aufgaben öffnen'
+                          : action.type === 'create_user_agent'
+                            ? 'Grünerator-Agent öffnen'
+                            : GROUP_ACTION_TYPES.has(action.type)
+                              ? 'Gruppe öffnen'
+                              : NOTEBOOK_ACTION_TYPES.has(action.type)
+                                ? 'Notebook öffnen'
+                                : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

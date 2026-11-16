@@ -8,7 +8,12 @@ vi.mock('../services/pendingActionStore.js', () => ({
   pendingActionStore: { store: async () => {} },
 }));
 
-import { makeAntragsgruenSiteTool, type SiteToolDeps } from './antragsgruenSiteTools.js';
+import {
+  makeAntragsgruenAgendaTool,
+  makeAntragsgruenMotionTool,
+  makeAntragsgruenSiteTool,
+  type SiteToolDeps,
+} from './antragsgruenSiteTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -84,5 +89,117 @@ describe('antragsgruen_seite_anlegen', () => {
       }),
     });
     expect((await run(ARGS)).error).toMatch(/nicht erreichbar/);
+  });
+});
+
+describe('antragsgruen_antrag_stellen', () => {
+  const SITE = {
+    subdomain: 'kv-koeln-kmv27',
+    title: 'KMV Köln 2027',
+    url: 'https://kv-koeln-kmv27.antragsgruen.de/kv-koeln-kmv27',
+  };
+  const OTHER = {
+    subdomain: 'kv-koeln-klausur27',
+    title: 'Klausur 2027',
+    url: 'https://kv-koeln-klausur27.antragsgruen.de/kv-koeln-klausur27',
+  };
+  const MOTION = {
+    titel: 'Mehr Radwege',
+    antragstext: 'Die KMV möge beschließen: 50 km neue Radwege.',
+  };
+
+  function motionCtx(sites: (typeof SITE)[]) {
+    const sseEvents: Array<[string, unknown]> = [];
+    const sse = { send: (e: string, p: unknown) => sseEvents.push([e, p]) } as unknown as SSEWriter;
+    const state = { agentConfig: { userId: 'user-1' }, messages: [] } as unknown as ChatGraphState;
+    const tool = makeAntragsgruenMotionTool(
+      {
+        state,
+        sse,
+        threadId: 'thread-1',
+        sourceRegistry: { note: () => {} } as unknown as SourceRegistry,
+      },
+      { sitesOf: async () => sites }
+    );
+    const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
+      (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(args, {})) ?? {};
+    return { run, sseEvents };
+  }
+
+  it('uses the only site and shows a card', async () => {
+    const { run, sseEvents } = motionCtx([SITE]);
+    expect((await run(MOTION)).ok).toBe(true);
+    const [event, payload] = sseEvents[0] as [
+      string,
+      { type: string; payload: { subdomain: string } },
+    ];
+    expect(event).toBe('confirm_action');
+    expect(payload.type).toBe('create_antragsgruen_motion');
+  });
+
+  it('refuses without an own site — foreign Antragsgrün sites are out of reach', async () => {
+    const { run, sseEvents } = motionCtx([]);
+    expect((await run(MOTION)).error).toMatch(/keine Antragsgrün-Seite/);
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('asks which site when there are several', async () => {
+    const { run } = motionCtx([SITE, OTHER]);
+    expect((await run(MOTION)).error).toMatch(/mehrere Seiten.*kv-koeln-kmv27.*kv-koeln-klausur27/);
+  });
+
+  it('rejects a site the person does not own', async () => {
+    const { run } = motionCtx([SITE]);
+    expect((await run({ ...MOTION, seite: 'ldk26-02' })).error).toMatch(/keine Seite der Person/);
+  });
+});
+
+describe('antragsgruen_tagesordnung', () => {
+  const SITE = {
+    subdomain: 'kv-koeln-kmv27',
+    title: 'KMV Köln 2027',
+    url: 'https://kv-koeln-kmv27.antragsgruen.de/kv-koeln-kmv27',
+  };
+
+  function agendaCtx(read = vi.fn(async () => [{ id: 1, code: '1.', title: 'Begrüßung' }])) {
+    const sseEvents: Array<[string, unknown]> = [];
+    const sse = { send: (e: string, p: unknown) => sseEvents.push([e, p]) } as unknown as SSEWriter;
+    const state = { agentConfig: { userId: 'user-1' }, messages: [] } as unknown as ChatGraphState;
+    const tool = makeAntragsgruenAgendaTool(
+      {
+        state,
+        sse,
+        threadId: 'thread-1',
+        sourceRegistry: { note: () => {} } as unknown as SourceRegistry,
+      },
+      { sitesOf: async () => [SITE], readAgenda: read }
+    );
+    const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
+      (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(args, {})) ?? {};
+    return { run, sseEvents, read };
+  }
+
+  it('reads the agenda when no items are given, without a card', async () => {
+    const { run, sseEvents, read } = agendaCtx();
+    const out = await run({});
+    expect(read).toHaveBeenCalledWith('user-1', 'kv-koeln-kmv27');
+    expect(out.punkte).toEqual([{ code: '1.', titel: 'Begrüßung' }]);
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('shows a replace card when items are given', async () => {
+    const { run, sseEvents, read } = agendaCtx();
+    const out = await run({
+      punkte: [
+        { code: '1.', titel: 'Begrüßung' },
+        { titel: 'Anträge', antraege: true },
+      ],
+    });
+    expect(out.ok).toBe(true);
+    expect(read).not.toHaveBeenCalled();
+    const [, payload] = sseEvents[0] as [string, { type: string; details?: { value: string }[] }];
+    expect(payload.type).toBe('set_antragsgruen_agenda');
+    // Ohne Codes nummeriert der Grünerator selbst.
+    expect(JSON.stringify(payload)).toContain('1. Begrüßung');
   });
 });

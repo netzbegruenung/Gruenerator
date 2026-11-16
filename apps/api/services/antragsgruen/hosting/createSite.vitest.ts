@@ -6,8 +6,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createAntragsgruenSite, type HostingConfig, type SiteRequest } from './createSite.js';
+import { createAntragsgruenSite, type SiteRequest } from './createSite.js';
 import { FormClient, type FetchLike } from './formClient.js';
+import { type HostingConfig } from './session.js';
 
 const CONFIG: HostingConfig = {
   baseUrl: 'https://antragsgruen.de',
@@ -45,6 +46,7 @@ function fakeSite(opts: FakeOptions = {}) {
   } = opts;
   const calls: Call[] = [];
   const settingsPosts: URLSearchParams[] = [];
+  const agendaPosts: unknown[] = [];
   let invited: string | null = null;
   let adminEmail = 'bot@gruenerator.eu';
   const html = (body: string, cookies: string[] = [], status = 200) => {
@@ -115,6 +117,23 @@ function fakeSite(opts: FakeOptions = {}) {
             `<select name="consultation[wordingBase]"><option value="de-parteitag">a</option><option value="de-bdk" selected>b</option></select>` +
             `<button type="submit" name="save">Speichern</button></form>`
         );
+      case 'GET kv-koeln.antragsgruen.de/kv-koeln/token':
+        return new Response(JSON.stringify({ token: 'jwt-1' }));
+      case 'GET kv-koeln.antragsgruen.de/rest/kv-koeln/motion-types':
+        if (headers.get('authorization') !== 'Bearer jwt-1') return html('no', [], 401);
+        return new Response(JSON.stringify({ items: [{ id: 7, sections: [] }] }));
+      case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/agenda':
+        return html('<meta name="csrf-token" content="c-agenda">');
+      case 'POST kv-koeln.antragsgruen.de/rest/kv-koeln/agenda': {
+        if (headers.get('x-csrf-token') !== 'c-agenda') return html('Bad Request', [], 400);
+        agendaPosts.push(JSON.parse(String(init.body)));
+        const items = (JSON.parse(String(init.body)) as { items: { title: string }[] }).items;
+        return new Response(
+          JSON.stringify({
+            items: items.map((it, n) => ({ id: n + 1, title: it.title, children: [] })),
+          })
+        );
+      }
       case 'POST kv-koeln.antragsgruen.de/kv-koeln/admin/consultation':
         settingsPosts.push(form!);
         if (adminEmailSaves) adminEmail = form!.get('consultation[adminEmail]') ?? adminEmail;
@@ -128,7 +147,7 @@ function fakeSite(opts: FakeOptions = {}) {
         return html(`unbekannt: ${key}`, [], 404);
     }
   };
-  return { fetchImpl, calls, settingsPosts };
+  return { fetchImpl, calls, settingsPosts, agendaPosts };
 }
 
 describe('createAntragsgruenSite', () => {
@@ -140,6 +159,7 @@ describe('createAntragsgruenSite', () => {
       subdomain: 'kv-koeln',
       url: 'https://kv-koeln.antragsgruen.de/kv-koeln',
       adminEmailHandedOver: true,
+      agendaSet: null,
     });
 
     // Die Einstellungen gehen als ganzes Formular zurück — nur die Admin-Adresse ist neu.
@@ -169,6 +189,41 @@ describe('createAntragsgruenSite', () => {
     expect(invite.form?.get('emailText')).toContain('%LINK%');
     // Ohne %ACCOUNT% schickt Antragsgrün die Mail ohne Zugangsdaten (lokal gemessen).
     expect(invite.form?.get('emailText')).toContain('%ACCOUNT%');
+  });
+
+  it('orders the agenda layout and sets the agenda after creating the site', async () => {
+    const site = fakeSite();
+    const created = await createAntragsgruenSite(
+      {
+        ...REQ,
+        agenda: [
+          { code: '1.', title: 'Begrüßung', time: '10:00', motions: false },
+          { code: '2.', title: 'Anträge', time: null, motions: true },
+        ],
+      },
+      CONFIG,
+      new FormClient(site.fetchImpl)
+    );
+    expect(created.agendaSet).toBe(true);
+    const create = site.calls.find((c) => c.method === 'POST' && c.url.endsWith('/createsite'))!;
+    expect(create.form?.getAll('SiteCreateForm[functionality][]')).toEqual(['1', '4']);
+    expect(site.agendaPosts).toEqual([
+      {
+        items: [
+          expect.objectContaining({
+            code: '1.',
+            title: 'Begrüßung',
+            time: '10:00',
+            settings: expect.objectContaining({ motion_types: [] }),
+          }),
+          expect.objectContaining({
+            code: '2.',
+            title: 'Anträge',
+            settings: expect.objectContaining({ motion_types: [7] }),
+          }),
+        ],
+      },
+    ]);
   });
 
   it('still reports the site when only the admin address could not be handed over', async () => {
