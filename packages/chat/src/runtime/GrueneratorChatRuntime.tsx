@@ -515,8 +515,16 @@ export function GrueneratorChatRuntimeProvider({
   const onThreadTrashedRef = useRef(onThreadTrashed);
   onThreadTrashedRef.current = onThreadTrashed;
 
+  // Read by the adapter's initialize(); the runtime only exists after the
+  // adapter it is built from, hence the ref.
+  const runtimeRef = useRef<ReturnType<typeof useRemoteThreadListRuntime> | null>(null);
+
   const threadListAdapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {
+      isMainThread: (localId) => {
+        const runtime = runtimeRef.current;
+        return runtime ? runtime.threads.getState().mainThreadId === localId : true;
+      },
       onDelete: (remoteId) => {
         if (useAgentStore.getState().currentThreadId === remoteId) {
           useAgentStore.getState().setCurrentThread(null);
@@ -535,6 +543,7 @@ export function GrueneratorChatRuntimeProvider({
     runtimeHook: useGrueneratorThreadRuntime,
     adapter: threadListAdapter,
   });
+  runtimeRef.current = runtime;
 
   // MCP-Apps widget host (SYSTEM MCP tools only): renders any tool part carrying
   // a `ui://` mcp.app pointer as a sandboxed widget iframe, driven through the
