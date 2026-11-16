@@ -129,10 +129,21 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'antragsgruen',
+    intro:
+      'Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst.',
+    extras: [
+      'Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast.',
+      'Antragsgrün lässt den Grünerator sich nicht selbst austragen. **Zugriff entziehen** zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist.',
+      '**Aus der Liste entfernen** löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen.',
+    ],
+  },
+  {
     tab: 'konnektoren',
     intro:
       'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
     extras: [
+      '**Microsoft 365** (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus.',
       '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
     ],
   },

@@ -1,6 +1,6 @@
 /**
  * Antragsgrün sites the Grünerator created for the account (settings →
- * Konnektoren). The list comes from our table; the admin status is a live
+ * Antragsgrün). The list comes from our table; the admin status is a live
  * check against antragsgruen.de and loads separately so it never holds the
  * list back.
  */
