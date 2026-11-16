@@ -95,7 +95,7 @@ export default function BriefingTab() {
       </section>
 
       {import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && (
-        <div className="flex gap-sm">
+        <div className="flex flex-wrap gap-sm">
           <Button
             variant="outline"
             size="sm"

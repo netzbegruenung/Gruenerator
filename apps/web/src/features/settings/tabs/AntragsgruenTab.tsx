@@ -79,14 +79,16 @@ function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps)
 
   return (
     <li className="flex flex-col gap-sm py-3">
-      <div className="flex flex-col gap-sm sm:flex-row sm:items-center sm:gap-md">
+      {/* Icon and text always side by side; on narrow screens the actions
+          wrap below, indented under the text instead of under the icon. */}
+      <div className="grid grid-cols-[30px_minmax(0,1fr)] items-center gap-x-md gap-y-sm sm:grid-cols-[30px_minmax(0,1fr)_auto]">
         <span
           aria-hidden
           className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-secondary-50 text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300"
         >
           <HiClipboardList size={16} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <div className="truncate text-sm text-foreground" title={site.url}>
             {site.title}
           </div>
@@ -97,7 +99,7 @@ function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps)
             <AccessLine access={access} />
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-xs">
+        <div className="col-start-2 flex flex-wrap items-center gap-xs sm:col-start-3">
           <Button asChild variant="outline" size="sm">
             <a href={site.url} target="_blank" rel="noopener noreferrer">
               <HiExternalLink size={12} aria-hidden />
