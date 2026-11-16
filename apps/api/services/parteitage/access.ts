@@ -5,6 +5,8 @@ import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { extractLocaleFromRequest } from '../localization/index.js';
 
+import { PARTEITAGE_ADMIN_ONLY } from './adminOnlyGate.js';
+
 export type ConventionViewer = {
   userId: string;
   isAdmin: boolean;
@@ -33,6 +35,7 @@ export function isConventionVisible(
   convention: Pick<ConventionRow, 'status' | 'audience'>
 ): boolean {
   if (viewer.isAdmin) return true;
+  if (PARTEITAGE_ADMIN_ONLY) return false;
   if (convention.status !== 'published') return false;
   return convention.audience === 'all' || convention.audience === viewer.audience;
 }

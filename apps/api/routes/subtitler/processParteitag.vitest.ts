@@ -35,6 +35,8 @@ vi.mock('../../services/parteitage/parteitageViews.js', () => ({
   getMedia: (...a: unknown[]) => getMedia(...a),
   downloadBaseName: () => 'Muster-Max_KV-Essen',
 }));
+// These tests cover the open-policy logic; the admin-only gate has its own test.
+vi.mock('../../services/parteitage/adminOnlyGate.js', () => ({ PARTEITAGE_ADMIN_ONLY: false }));
 vi.mock('../../services/parteitage/access.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/parteitage/access.js')>()),
   viewerFromRequest: (...a: unknown[]) => viewerFromRequest(...a),
