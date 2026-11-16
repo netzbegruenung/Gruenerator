@@ -22,7 +22,7 @@ import {
 } from '../../database/schema/parteitage.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
-import { hashPassword } from '../../utils/passwordHash.js';
+import { hashPassword, verifyPassword } from '../../utils/passwordHash.js';
 import { getFilePathFromUploadId, markUploadAsPromoted } from '../subtitler/tusService.js';
 import { probeVideoMetadata } from '../subtitler/videoMetadata.js';
 import { getSystemMediaStorage } from '../systemMedia/storage.js';
@@ -169,12 +169,26 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
   const known = new Set(knownRows.map((r) => r.storage_key));
   const toStore = [...planned.values()].filter((p) => !known.has(p.storageKey));
 
-  // Every missing file needs an upload (any name carrying the same sha will do).
-  const sources = new Map<string, { name: string; uploadId: string }>();
+  // Every missing file needs an upload (any name carrying the same sha will do). A file that
+  // an earlier, failed run already moved into the content-addressed store needs none: it is
+  // verified in place below.
+  const sources = new Map<string, { name: string; uploadId: string | null; filePath: string }>();
   const missing: string[] = [];
   for (const file of toStore) {
     const uploadId = input.uploads[file.name];
-    if (uploadId) sources.set(file.storageKey, { name: file.name, uploadId });
+    if (uploadId) {
+      sources.set(file.storageKey, {
+        name: file.name,
+        uploadId,
+        filePath: getFilePathFromUploadId(uploadId),
+      });
+      continue;
+    }
+    const storedPath = (await storage.stat(file.storageKey))
+      ? storage.resolveLocalPath(file.storageKey)
+      : null;
+    if (storedPath)
+      sources.set(file.storageKey, { name: file.name, uploadId: null, filePath: storedPath });
     else missing.push(file.name);
   }
   if (missing.length > 0) throw new ImportMissingUploadError(missing);
@@ -182,9 +196,9 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
   // An upload id without a file (reaped after the TUS retention, never finished) counts as missing.
   const vanished: string[] = [];
   for (const file of toStore) {
-    const { uploadId } = sources.get(file.storageKey)!;
+    const { filePath } = sources.get(file.storageKey)!;
     const exists = await fs.promises
-      .stat(getFilePathFromUploadId(uploadId))
+      .stat(filePath)
       .then(() => true)
       .catch(() => false);
     if (!exists) vanished.push(file.name);
@@ -192,10 +206,9 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
   if (vanished.length > 0) throw new ImportMissingUploadError(vanished);
 
   // Verify before anything is moved.
-  const verified: { file: PlannedFile; uploadId: string; filePath: string }[] = [];
+  const verified: { file: PlannedFile; uploadId: string | null; filePath: string }[] = [];
   for (const file of toStore) {
-    const { uploadId } = sources.get(file.storageKey)!;
-    const filePath = getFilePathFromUploadId(uploadId);
+    const { uploadId, filePath } = sources.get(file.storageKey)!;
     const actual = await sha256OfFile(filePath);
     if (actual !== file.sha256) throw new ImportFileMismatchError(file.name, file.sha256, actual);
     verified.push({ file, uploadId, filePath });
@@ -221,15 +234,26 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
     }
   }
 
+  const passwordChanged =
+    input.password !== null &&
+    !(
+      existing?.access_password_hash &&
+      verifyPassword(input.password, existing.access_password_hash)
+    );
+
   const stored: string[] = [];
   let created = false;
   const counts = { added: 0, updated: 0, unchanged: 0 };
   const candidates = new Set<string>();
   let conventionId = '';
 
-  try {
-    for (const { file, filePath } of verified) {
-      await storage.putFromFile(file.storageKey, filePath);
+  // No cleanup if the transaction fails: the moved files are content-addressed
+  // (`<key>/<sha256>.<ext>`) and harmless without a row, and the uploads they came from are
+  // gone. A retry finds them in the store, verifies the hash and needs no new upload
+  // (see "verified in place" above).
+  {
+    for (const { file, uploadId, filePath } of verified) {
+      if (uploadId !== null) await storage.putFromFile(file.storageKey, filePath);
       stored.push(file.storageKey);
     }
 
@@ -273,7 +297,7 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
         stats_version: manifest.statsVersion,
         source_links: manifest.sourceLinks,
         report_media_id: report ? mediaIds.get(report.storageKey)! : null,
-        ...(input.password !== null && { access_password_hash: hashPassword(input.password) }),
+        ...(passwordChanged && { access_password_hash: hashPassword(input.password!) }),
       };
 
       const existingSpeeches = new Map<string, typeof conventionSpeeches.$inferSelect>();
@@ -281,8 +305,9 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
         conventionId = existing.id;
         if (existing.report_media_id) candidates.add(existing.report_media_id);
         await tx.update(conventions).set(fields).where(eq(conventions.id, existing.id));
-        // A password given on re-import replaces the old one: earlier unlocks no longer count.
-        if (input.password !== null) {
+        // A new password replaces the old one: earlier unlocks no longer count. The same password
+        // again (correction run: pipeline + re-import) keeps hash and grants.
+        if (passwordChanged) {
           await tx.delete(conventionAccess).where(eq(conventionAccess.convention_id, existing.id));
         }
         const rows = await tx
@@ -393,13 +418,9 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
         candidates.add(old.poster_media_id);
       }
     });
-  } catch (error) {
-    // Content-addressed keys: a failed run leaves only unreferenced new files.
-    await Promise.all(stored.map((key) => storage.remove(key).catch(() => undefined)));
-    throw error;
   }
 
-  for (const { uploadId } of verified) markUploadAsPromoted(uploadId);
+  for (const { uploadId } of verified) if (uploadId !== null) markUploadAsPromoted(uploadId);
 
   // Remove media that is no longer referenced by anything. The import is already
   // committed, so a failure here must not turn it into an error.

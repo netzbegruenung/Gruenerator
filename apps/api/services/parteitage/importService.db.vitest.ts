@@ -354,8 +354,9 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
     expect((await pool.query('SELECT 1 FROM system_media')).rowCount).toBe(0);
   });
 
-  it('failed transaction removes newly stored files', async () => {
-    const bad = { ...manifest([speech(1, 'a', 'a')]), startsOn: 'not-a-date' };
+  it('failed transaction keeps the stored files; a retry without uploads succeeds', async () => {
+    // ISO-shaped but not a calendar date: passes the schema, fails in Postgres.
+    const bad = { ...manifest([speech(1, 'a', 'a')]), startsOn: '2026-13-45' };
     await expect(
       svc.importConvention({
         manifest: bad,
@@ -365,8 +366,19 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
       })
     ).rejects.toThrow();
     const key = `${bad.key}/${bad.speeches[0]!.files.reel.sha256}.mp4`;
-    expect(await getSystemMediaStorage().stat(key)).toBeNull();
+    expect(await getSystemMediaStorage().stat(key)).not.toBeNull();
     expect((await pool.query('SELECT 1 FROM system_media')).rowCount).toBe(0);
+
+    fs.rmSync(uploadDir, { recursive: true, force: true });
+    const good = { ...bad, startsOn: '2026-11-13' };
+    const r = await svc.importConvention({
+      manifest: good,
+      uploads: {},
+      password: null,
+      adminUserId: admin,
+    });
+    expect(r).toMatchObject({ created: true, filesStored: 2 });
+    expect((await pool.query('SELECT 1 FROM system_media')).rowCount).toBe(2);
   });
 
   it('password is stored hashed', async () => {
@@ -400,6 +412,13 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
     // null keeps the password and the grants
     await svc.importConvention({ ...base, uploads: {}, password: null });
     expect((await pool.query('SELECT 1 FROM convention_access')).rowCount).toBe(1);
+    // the same password again keeps hash and grants
+    const before = (await pool.query('SELECT access_password_hash h FROM conventions')).rows[0].h;
+    await svc.importConvention({ ...base, uploads: {}, password: 'alt' });
+    expect((await pool.query('SELECT 1 FROM convention_access')).rowCount).toBe(1);
+    expect((await pool.query('SELECT access_password_hash h FROM conventions')).rows[0].h).toBe(
+      before
+    );
     await svc.importConvention({ ...base, uploads: {}, password: 'neu' });
     expect((await pool.query('SELECT 1 FROM convention_access')).rowCount).toBe(0);
   });
