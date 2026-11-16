@@ -167,6 +167,9 @@ export type ConventionStatsV1 = z.infer<typeof conventionStatsV1Schema>;
 
 // ── Manifest (Import) ───────────────────────────────────────────────────────
 
+/** Convention key; also the storage-key prefix of its media. */
+export const conventionKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{2,63}$/);
+
 const speechCoreShape = {
   key: z.string().min(1),
   day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -202,7 +205,7 @@ const sourceLinkSchema = z.object({ label: z.string(), url: z.string() }).strict
 export const conventionManifestSchema = z
   .object({
     version: z.literal(1),
-    key: z.string().min(1),
+    key: conventionKeySchema,
     slugName: z.string().min(1),
     title: z.string(),
     shortTitle: z.string(),
@@ -278,11 +281,14 @@ export const parteitageErrorCodeSchema = z.enum([
   'WRONG_PASSWORD',
   'BLOCKED_SPEECHES',
   'INVALID_MANIFEST',
+  'MISSING_UPLOADS',
+  'INTERNAL',
+  'RATE_LIMITED',
 ]);
 
 export const parteitageErrorSchema = z.object({
   success: z.literal(false),
-  code: z.string(),
+  code: parteitageErrorCodeSchema,
   message: z.string(),
 });
 
@@ -307,7 +313,7 @@ export const parteitageFileHashesSchema = z.record(z.string(), z.string());
 export const parteitageImportBodySchema = z.object({
   manifest: conventionManifestSchema,
   uploads: z.record(z.string(), z.string()),
-  password: z.string().nullable(),
+  password: z.string().min(1).nullable(),
 });
 export const parteitageImportResponseSchema = z.object({
   success: z.literal(true),
@@ -318,7 +324,7 @@ export const parteitageImportResponseSchema = z.object({
 
 export const parteitageUpdateBodySchema = z.object({
   status: conventionStatusSchema.optional(),
-  password: z.string().nullable().optional(),
+  password: z.string().min(1).nullable().optional(),
 });
 
 export const parteitageSpeechHiddenBodySchema = z.object({

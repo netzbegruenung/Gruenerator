@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { conventionManifestSchema } from './parteitage.js';
+import {
+  conventionManifestSchema,
+  parteitageErrorSchema,
+  parteitageImportBodySchema,
+  parteitageUpdateBodySchema,
+} from './parteitage.js';
 
 const file = (name: string) => ({ name, sha256: 'a'.repeat(64), sizeBytes: 1234 });
 
@@ -127,5 +132,28 @@ describe('conventionManifestSchema', () => {
     const m = manifest();
     (m.stats.wahl.kampf[0]!.kandidierende[0] as Record<string, unknown>)['geschlecht'] = 'weiblich';
     expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+  });
+
+  it.each(['LDK-NRW', 'a/b', 'ab', '-abc', 'a_b_c'])('rejects convention key %s', (key) => {
+    const m = manifest();
+    m.key = key;
+    expect(conventionManifestSchema.safeParse(m).success).toBe(false);
+  });
+
+  it('error schema accepts only known codes', () => {
+    const base = { success: false, message: 'x' };
+    for (const code of ['INTERNAL', 'RATE_LIMITED', 'MISSING_UPLOADS', 'LOCKED']) {
+      expect(parteitageErrorSchema.safeParse({ ...base, code }).success).toBe(true);
+    }
+    expect(parteitageErrorSchema.safeParse({ ...base, code: 'WHATEVER' }).success).toBe(false);
+  });
+
+  it('rejects an empty password but allows null', () => {
+    expect(parteitageUpdateBodySchema.safeParse({ password: '' }).success).toBe(false);
+    expect(parteitageUpdateBodySchema.safeParse({ password: null }).success).toBe(true);
+    expect(
+      parteitageImportBodySchema.safeParse({ manifest: manifest(), uploads: {}, password: '' })
+        .success
+    ).toBe(false);
   });
 });

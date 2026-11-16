@@ -120,7 +120,7 @@ export const parteitageAdminContract = c.router(
         404: parteitageErrorSchema,
         500: parteitageErrorSchema,
       },
-      summary: 'Stored file name to sha256 map, for incremental imports',
+      summary: 'Stored sha256 to storage key map, for incremental imports',
     },
     import: {
       method: 'POST',
@@ -146,8 +146,6 @@ export const parteitageAdminContract = c.router(
         401: parteitageErrorSchema,
         403: parteitageErrorSchema,
         404: parteitageErrorSchema,
-        // BLOCKED_SPEECHES: publishing blocked by unresolved speeches.
-        409: parteitageErrorSchema,
         500: parteitageErrorSchema,
       },
       summary: 'Change status or password of a Parteitag',
