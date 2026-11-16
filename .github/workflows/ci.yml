@@ -122,7 +122,10 @@ jobs:
       # paid 70 s of setup and a runner slot of their own, and together they
       # still finish before a web shard (299 s). A `run` entry names its turbo
       # tasks itself and gets them one after the other, never side by side on
-      # the same cores; `install` is its pnpm filter.
+      # the same cores; `install` is its pnpm filter. `{0}` stands for the
+      # package scope: GitHub drops a job output that contains the value of a
+      # secret, and with the scope spelled out the whole shard list was dropped
+      # ("Skip output 'tests' since it may contain secret", run 43880339136).
       - name: Decide which jobs have work
         id: plan
         env:
@@ -137,8 +140,8 @@ jobs:
               {"name": "web 2/2", "pkg": "web", "shard": "2/2"},
               {
                 "name": "chat + mobile native",
-                "run": "@gruenerator/chat#test @gruenerator/mobile#test:native",
-                "install": "--filter=@gruenerator/chat... --filter=@gruenerator/mobile..."
+                "run": "{0}chat#test {0}mobile#test:native",
+                "install": "--filter={0}chat... --filter={0}mobile..."
               },
               {"name": "rest"}
             ]
@@ -217,7 +220,7 @@ jobs:
             args=(test "${filters[@]}")
             [ -n "$shard" ] && args+=(-- "--shard=$shard")
             targets=$(jq -r '.run // empty' <<< "$entry")
-            [ -n "$targets" ] && read -ra args <<< "$targets"
+            [ -n "$targets" ] && read -ra args <<< "${targets//'{0}'/@gruenerator/}"
             # Forced on master, so there is nothing to ask the cache.
             if [ "$EVENT" = push ]; then run=true; else run=$(needed "${args[@]}"); fi
             echo "Tests ($(jq -r .name <<< "$entry")): needed=$run"
@@ -584,7 +587,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile ${{ matrix.install || matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
+        run: pnpm install --frozen-lockfile ${{ matrix.install && format(matrix.install, '@gruenerator/') || matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
 
       # The app role owns its database but is no superuser. schema.sql creates
       # its own extensions, which only works while they stay trusted ones.
@@ -602,7 +605,7 @@ jobs:
       # package turbo.json files) would otherwise stay green on a stale hit.
       - name: Run tests
         run: >-
-          pnpm turbo run ${{ matrix.run || 'test' }}
+          pnpm turbo run ${{ matrix.run && format(matrix.run, '@gruenerator/') || 'test' }}
           ${{ matrix.run && '--concurrency=1' || matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
