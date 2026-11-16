@@ -105,13 +105,23 @@ describe('purgeExpiredTrash', () => {
     expect(report[0]).toEqual({ kind: 'chat_thread', found: 0, purged: 0, failed: 1 });
   });
 
-  it('der Probelauf ist der Standard und ruft kein purge', async () => {
+  it('der Probelauf ruft kein purge', async () => {
     kinds.chat_thread.listExpired.mockResolvedValue(expiredIds(['a', 'b']));
 
-    const report = await purgeExpiredTrash();
+    const report = await purgeExpiredTrash(false);
 
     expect(kinds.chat_thread.purge).not.toHaveBeenCalled();
     expect(kinds.notebook.purge).not.toHaveBeenCalled();
     expect(report[0]).toEqual({ kind: 'chat_thread', found: 2, purged: 0, failed: 0 });
+  });
+
+  it('ohne Argument wird angewendet', async () => {
+    kinds.chat_thread.listExpired.mockResolvedValue(expiredIds(['a']));
+    kinds.chat_thread.purge.mockResolvedValue(true);
+
+    const report = await purgeExpiredTrash();
+
+    expect(kinds.chat_thread.purge).toHaveBeenCalledWith('a', CUTOFF);
+    expect(report[0]).toEqual({ kind: 'chat_thread', found: 1, purged: 1, failed: 0 });
   });
 });
