@@ -1,15 +1,13 @@
 /**
  * Deep Research Node
  *
- * Wraps WebSearchGraph nodes (planner → searxng → crawler → enricher → aggregator)
+ * Wraps WebSearchGraph nodes (planner → web search → crawler → enricher → aggregator)
  * into a single SearchGraph node for deep research mode.
  *
  * Converts WebSearchGraph's state format to SearchGraph's format on output.
  */
 
-import { getLinkupService } from '../../../../services/search/LinkupService.js';
 import { canWebSearch, webSearch } from '../../../../services/search/webSearch.js';
-import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { buildCitations } from '../../ChatGraph/nodes/searchNode.js';
 import { aggregatorNode } from '../../WebSearchGraph/nodes/AggregatorNode.js';
@@ -17,9 +15,9 @@ import { contentEnricherNode } from '../../WebSearchGraph/nodes/ContentEnricherN
 import { grundsatzNode } from '../../WebSearchGraph/nodes/GrundsatzNode.js';
 import { intelligentCrawlerNode } from '../../WebSearchGraph/nodes/IntelligentCrawlerNode.js';
 import { plannerNode } from '../../WebSearchGraph/nodes/PlannerNode.js';
-import { searxngNode } from '../../WebSearchGraph/nodes/SearxngNode.js';
+import { webSearchNode } from '../../WebSearchGraph/nodes/WebSearchNode.js';
 
-import type { WebSearchBatch, WebSearchState } from '../../WebSearchGraph/types.js';
+import type { WebSearchState } from '../../WebSearchGraph/types.js';
 import type { SearchGraphState, ChatSearchResult } from '../types.js';
 
 const log = createLogger('SearchGraph:DeepResearch');
@@ -43,62 +41,6 @@ export function setResearchProgressCallback(cb: ResearchProgressCallback | null)
 
 function emitProgress(step: string, message: string): void {
   progressCallback?.(step, message);
-}
-
-/**
- * Linkup-backed alternative to searxngNode for deep research.
- * Returns the same `{ webResults: WebSearchBatch[] }` shape, so downstream
- * nodes (crawler, enricher, aggregator) work unchanged.
- *
- * Falls back to null when LINKUP_API_KEY is unset — caller routes to searxngNode.
- */
-async function searchViaLinkup(state: WebSearchState): Promise<Partial<WebSearchState> | null> {
-  const linkup = getLinkupService();
-  if (!linkup) return null;
-  const subqueries = state.subqueries || [];
-  if (subqueries.length === 0) return null;
-
-  const maxResults = state.searchOptions?.maxResults ?? 10;
-  const batches: WebSearchBatch[] = await Promise.all(
-    subqueries.map(async (query): Promise<WebSearchBatch> => {
-      try {
-        const res = await linkup.webSearch({ query, maxResults });
-        return {
-          query,
-          success: true,
-          provider: 'linkup',
-          results: res.results.map((r) => ({
-            url: r.url,
-            title: r.name || 'Unbekannt',
-            content: r.content || '',
-            snippet: (r.content || '').slice(0, 300),
-          })),
-        };
-      } catch (err: unknown) {
-        return {
-          query,
-          success: false,
-          provider: 'linkup',
-          results: [],
-          error: toUserFacingMessage(err),
-        };
-      }
-    })
-  );
-
-  const successful = batches.filter((b) => b.success);
-  log.info(`[DeepResearch] Linkup completed ${successful.length}/${batches.length} subqueries`);
-
-  return {
-    webResults: batches,
-    metadata: {
-      ...state.metadata,
-      webSearches: batches.length,
-      successfulWebSearches: successful.length,
-      totalWebResults: successful.reduce((sum, b) => sum + b.results.length, 0),
-      providersUsed: { linkup: batches.length },
-    },
-  };
 }
 
 /**
@@ -200,9 +142,10 @@ function convertToSearchResults(webState: WebSearchState): ChatSearchResult[] {
 }
 
 /**
- * @deprecated since 2026-05 — superseded by Linkup's deepResearch API in `deepResearchNode`.
- * Kept for rollback in case Linkup output quality regresses; not on any live code path
- * when LINKUP_API_KEY is set. Safe to delete once Linkup is proven in production.
+ * @deprecated since 2026-05 — superseded by the `depth: 'deep'` search in `deepResearchNode`.
+ * Still live: `deepResearchNode` falls back here when no engine in the chain can serve
+ * `deep`, and when that search fails (network, quota, revoked key). Its web step goes
+ * through the facade like every other search.
  */
 export async function deepResearchNodeLegacy(
   state: SearchGraphState
@@ -226,32 +169,22 @@ export async function deepResearchNodeLegacy(
     log.warn(`[DeepResearch] Planner failed: ${errorMessage(err)}`);
   }
 
-  // Step 2: SearXNG + Grundsatz in parallel (both only need planner output, not each other)
+  // Step 2: web search + Grundsatz in parallel (both only need planner output, not each other)
   emitProgress('searching', 'Durchsuche das Web...');
   emitProgress('grundsatz', 'Durchsuche Parteiprogramme...');
 
-  // Prefer Linkup when configured; fall back to SearXNG for dev/no-key envs.
-  const webSearchPromise = (async (): Promise<Partial<WebSearchState>> => {
-    const webResult = await searchViaLinkup(webState).catch((err: unknown) => {
-      log.warn(`[DeepResearch] Linkup failed: ${errorMessage(err)}`);
-      return null;
-    });
-    if (webResult) return webResult;
-    return searxngNode(webState).catch((err: unknown) => {
-      log.warn(`[DeepResearch] SearXNG failed: ${errorMessage(err)}`);
+  const [webSearchResult, grundsatzResult] = await Promise.all([
+    webSearchNode(webState).catch((err: unknown): Partial<WebSearchState> => {
+      log.warn(`[DeepResearch] Web search failed: ${errorMessage(err)}`);
       return {};
-    });
-  })();
-
-  const [searxngResult, grundsatzResult] = await Promise.all([
-    webSearchPromise,
+    }),
     grundsatzNode(webState).catch((err: unknown) => {
       log.warn(`[DeepResearch] Grundsatz failed: ${errorMessage(err)}`);
       return {};
     }),
   ]);
 
-  webState = mergeWebState(webState, searxngResult);
+  webState = mergeWebState(webState, webSearchResult);
   webState = mergeWebState(webState, grundsatzResult);
 
   // Step 3: Intelligent Crawler
@@ -303,7 +236,7 @@ export async function deepResearchNodeLegacy(
  * Linkup serves `deep`) — same search
  * depth as `deepResearch`, but `outputType: 'searchResults'` instead of
  * `sourcedAnswer`, so we get the same sources without paying for (and
- * discarding) an LLM-written answer. Replaces our planner → searxng →
+ * discarding) an LLM-written answer. Replaces our planner → web search →
  * crawler → enricher → aggregator chain (now `deepResearchNodeLegacy`).
  *
  * Grundsatz (party-document) search runs in parallel against our internal
