@@ -11,6 +11,7 @@ import {
 } from '@assistant-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
@@ -69,7 +70,11 @@ function mount(collabOverrides: Partial<{ broadcastTurnStarted: () => void }> = 
   const awareness = makeAwareness();
   const broadcastNewMessage = vi.fn();
   const broadcastTurnStarted = collabOverrides.broadcastTurnStarted ?? vi.fn();
-  const box: { runtime: AssistantRuntime | null } = { runtime: null };
+  const box: {
+    runtime: AssistantRuntime | null;
+    peerRunning: boolean;
+    setThread: (id: string) => void;
+  } = { runtime: null, peerRunning: false, setThread: () => {} };
   const adapter: ChatModelAdapter = {
     async *run() {
       yield { content: [{ type: 'text' as const, text: 'lokal' }] };
@@ -79,11 +84,14 @@ function mount(collabOverrides: Partial<{ broadcastTurnStarted: () => void }> = 
 
   function Sync({ runtime }: { runtime: AssistantRuntime }) {
     box.runtime = runtime;
-    usePeerMessageSync({
-      threadId: THREAD,
+    const [threadId, setThreadId] = useState(THREAD);
+    box.setThread = setThreadId;
+    const { peerRunning } = usePeerMessageSync({
+      threadId,
       runtime,
       collab: { provider, broadcastNewMessage, broadcastTurnStarted },
     });
+    box.peerRunning = peerRunning;
     return null;
   }
   function Harness() {
@@ -125,10 +133,11 @@ describe('usePeerMessageSync', () => {
     const gate = new Promise<void>((r) => (release = r));
     let rows: unknown[] = [USER_ROW, LIVE_ROW];
     const fetchMock = serve(() => rows, gate);
-    const { awareness, thread, texts, broadcastNewMessage } = mount();
+    const { awareness, thread, texts, broadcastNewMessage, box } = mount();
 
     act(() => awareness.peer({ chatTurnStarted: { t: 1 } }));
     await waitFor(() => expect(thread().getState().isRunning).toBe(true));
+    expect(box.peerRunning).toBe(true);
     // The live row is not imported as a finished message next to its replay.
     expect(texts()).toEqual(['Frage', '']);
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('stream-1'))).toBe(true);
@@ -137,6 +146,7 @@ describe('usePeerMessageSync', () => {
     release();
     await waitFor(() => expect(thread().getState().isRunning).toBe(false));
     await waitFor(() => expect(texts()).toEqual(['Frage', 'Teil und Rest']));
+    expect(box.peerRunning).toBe(false);
     // A peer-driven run does not echo a broadcast back at the room.
     expect(broadcastNewMessage).not.toHaveBeenCalled();
   });
@@ -205,5 +215,58 @@ describe('usePeerMessageSync', () => {
     });
     await waitFor(() => expect(broadcastNewMessage).toHaveBeenCalledTimes(1));
     expect(broadcastTurnStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it('a turn-start tick that lands while a refresh is in flight still re-attaches', async () => {
+    let releaseFirst: () => void = () => {};
+    const firstGate = new Promise<void>((r) => (releaseFirst = r));
+    let call = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('stream-1')) {
+        return new Response(
+          sse([
+            { event: 'text_delta', data: { text: 'Teil und Rest' } },
+            { event: 'done', data: { threadId: THREAD } },
+          ])
+        );
+      }
+      call++;
+      if (call === 1) {
+        await firstGate;
+        return new Response(JSON.stringify([USER_ROW]));
+      }
+      return new Response(JSON.stringify([USER_ROW, LIVE_ROW]));
+    });
+    useChatConfigStore.setState({ fetch: fetchMock as unknown as typeof fetch });
+    const { awareness, texts } = mount();
+
+    act(() => awareness.peer({ chatNewMessage: { t: 1 } }));
+    await waitFor(() => expect(call).toBe(1));
+    act(() => awareness.peer({ chatTurnStarted: { t: 2 } }));
+    releaseFirst();
+
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('stream-1'))).toBe(true)
+    );
+    await waitFor(() => expect(texts()).toEqual(['Frage', 'Teil und Rest']));
+  });
+
+  it('imports nothing into a thread the user has already left', async () => {
+    let releaseFetch: () => void = () => {};
+    const gate = new Promise<void>((r) => (releaseFetch = r));
+    const fetchMock = vi.fn(async () => {
+      await gate;
+      return new Response(JSON.stringify([USER_ROW, DONE_ROW]));
+    });
+    useChatConfigStore.setState({ fetch: fetchMock as unknown as typeof fetch });
+    const { awareness, box, texts } = mount();
+    await waitFor(() => expect(box.runtime).not.toBeNull());
+
+    act(() => awareness.peer({ chatNewMessage: { t: 1 } }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    act(() => box.setThread('t-2'));
+    releaseFetch();
+    await act(async () => {});
+    expect(texts()).toEqual([]);
   });
 });

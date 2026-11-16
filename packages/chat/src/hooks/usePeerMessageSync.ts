@@ -2,8 +2,8 @@
 
 import { type AssistantRuntime, ExportedMessageRepository } from '@assistant-ui/react';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { resumeChatTurn } from '../runtime/GrueneratorModelAdapter';
 import { splitLiveTurn } from '../runtime/resumableStream';
@@ -50,20 +50,29 @@ type PeerAwarenessState = {
  * replace the in-progress assistant message. A tick that lands mid-run is
  * remembered and refreshed at the next idle moment.
  */
-export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessageSyncArgs) {
+export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessageSyncArgs): {
+  peerRunning: boolean;
+} {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const endpoints = useChatConfigStore((s) => s.endpoints);
-  const queryClient = useQueryClient();
+  // Optional: the bridge mounts this in hosts without a QueryClientProvider.
+  const queryClient = useContext(QueryClientContext);
 
   const lastSeenPeerTickRef = useRef(0);
-  // Refresh-in-flight guard. Lives outside the awareness effect so it
-  // survives effect re-runs (provider/runtime dep changes) — a closure
-  // variable would silently reset and allow concurrent refreshes.
-  const pendingRefreshRef = useRef(false);
+  // Latest collab callbacks, so the subscribe effect does not re-run (and
+  // re-subscribe) every time the hook above hands out a fresh object.
+  const collabRef = useRef(collab);
+  collabRef.current = collab;
   // A tick arrived while we were running; refresh once the run ends.
   const dirtyRef = useRef(false);
   // The run in flight was started by a peer sync (re-attach), not by us.
   const peerRunRef = useRef(false);
+  // Same fact as state, for the composer: a peer's turn is not ours to stop.
+  const [peerRunning, setPeerRunning] = useState(false);
+  const setPeerRun = (v: boolean) => {
+    peerRunRef.current = v;
+    setPeerRunning(v);
+  };
   // Stream ids already re-attached: a second sighting means the replay ended
   // and the row is just not finalized yet — import it as it is, no second run.
   const resumedStreamsRef = useRef(new Set<string>());
@@ -72,7 +81,8 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
   useEffect(() => {
     resumedStreamsRef.current.clear();
     dirtyRef.current = false;
-    peerRunRef.current = false;
+    lastSeenPeerTickRef.current = 0;
+    setPeerRun(false);
   }, [threadId]);
 
   useEffect(() => {
@@ -83,25 +93,36 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
 
     const localClientId = awareness.clientID;
     let disposed = false;
+    // Per effect run: a refresh of the thread we just left must neither block
+    // the new thread's ticks nor import into it (`disposed` guards that).
+    let pending = false;
+    // A tick that landed mid-refresh: run once more when this one is done.
+    let refetchAfter: readonly number[] | null = null;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
     const tryRefresh = async (retries: readonly number[]): Promise<void> => {
-      if (disposed || pendingRefreshRef.current) return;
+      if (disposed) return;
+      if (pending) {
+        if (!refetchAfter || retries.length > refetchAfter.length) refetchAfter = retries;
+        return;
+      }
       if (runtime.thread.getState().isRunning) {
         dirtyRef.current = true;
         return;
       }
-      pendingRefreshRef.current = true;
+      pending = true;
       let sawLive = false;
       try {
         const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
         if (!res.ok || disposed) return;
-        const parsed = loadedThreadMessagesSchema.parse(await res.json());
-        // The run may have started while the fetch was in flight.
+        const json: unknown = await res.json();
+        // The user may have switched threads, or started a run, meanwhile.
+        if (disposed) return;
         if (runtime.thread.getState().isRunning) {
           dirtyRef.current = true;
           return;
         }
+        const parsed = loadedThreadMessagesSchema.parse(json);
         const split = splitLiveTurn(parsed);
         // Already re-attached and the row is still not finalized: what we
         // streamed is newer than the row. Keep it.
@@ -112,11 +133,11 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
           rows as Parameters<typeof convertToThreadMessageLike>[0]
         );
         runtime.thread.import(ExportedMessageRepository.fromArray(converted));
-        queryClient.setQueryData(['chat-thread-messages', threadId], converted);
+        queryClient?.setQueryData(['chat-thread-messages', threadId], converted);
         if (live) {
           sawLive = true;
           resumedStreamsRef.current.add(live.streamId);
-          peerRunRef.current = true;
+          setPeerRun(true);
           const parentId = runtime.thread.getState().messages.at(-1)?.id ?? null;
           runtime.thread.resumeRun({
             parentId,
@@ -126,7 +147,14 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
       } catch {
         // best-effort — peer pings can be lossy
       } finally {
-        pendingRefreshRef.current = false;
+        pending = false;
+      }
+      if (disposed) return;
+      if (refetchAfter) {
+        const next = refetchAfter;
+        refetchAfter = null;
+        await tryRefresh(next);
+        return;
       }
       const delay = retries[0];
       if (!sawLive && delay !== undefined) {
@@ -176,12 +204,12 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
       if (!wasRunning && isRunning && !peerRunRef.current) {
-        collab.broadcastTurnStarted?.();
+        collabRef.current.broadcastTurnStarted?.();
       }
       if (wasRunning && !isRunning) {
         const wasPeerRun = peerRunRef.current;
-        peerRunRef.current = false;
-        if (!wasPeerRun) collab.broadcastNewMessage();
+        if (wasPeerRun) setPeerRun(false);
+        if (!wasPeerRun) collabRef.current.broadcastNewMessage();
         // A peer-driven run ends on the replay's own ids: re-import the
         // canonical rows so later refreshes line up with them.
         if (wasPeerRun || dirtyRef.current) {
@@ -193,5 +221,7 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
     return () => {
       unsubscribe();
     };
-  }, [runtime, collab]);
+  }, [runtime]);
+
+  return { peerRunning };
 }

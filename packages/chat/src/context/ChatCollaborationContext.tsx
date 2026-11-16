@@ -8,6 +8,8 @@ export interface ChatCollaborationState {
   setTyping: (isTyping: boolean) => void;
   broadcastNewMessage: () => void;
   broadcastTurnStarted?: () => void;
+  /** A teammate's turn is running here (re-attached): not ours to stop. */
+  peerRunning?: boolean;
 }
 
 const ChatCollaborationContext = createContext<ChatCollaborationState | null>(null);

@@ -36,24 +36,15 @@ export function ChatCollaborationBridge({
   const activeThreadId = chatViewMode === 'thread' && collaborative ? threadId : null;
   const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
   const collab = useChatCollaboration(activeThreadId, user);
-
+  // Always called; without a provider (private thread) it does nothing.
+  const { peerRunning } = usePeerMessageSync({
+    threadId: activeThreadId ?? '',
+    runtime,
+    collab,
+  });
   return (
-    <ChatCollaborationProvider value={collab}>
-      {activeThreadId && <PeerSync threadId={activeThreadId} runtime={runtime} collab={collab} />}
+    <ChatCollaborationProvider value={{ ...collab, peerRunning }}>
       {children}
     </ChatCollaborationProvider>
   );
-}
-
-function PeerSync({
-  threadId,
-  runtime,
-  collab,
-}: {
-  threadId: string;
-  runtime: AssistantRuntime;
-  collab: ReturnType<typeof useChatCollaboration>;
-}) {
-  usePeerMessageSync({ threadId, runtime, collab });
-  return null;
 }

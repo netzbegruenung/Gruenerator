@@ -398,6 +398,30 @@ export async function getAssistantMessageThreadId(messageId: string): Promise<st
 }
 
 /**
+ * Whether `userId` wrote the user message a stream answers: the latest user row
+ * at or before the assistant row. A NULL `user_id` (legacy rows, deleted
+ * profile) counts as the thread owner. False when the stream is unknown.
+ */
+export async function isStreamTurnSender(streamId: string, userId: string): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT COALESCE(
+              (SELECT m.user_id FROM chat_messages m
+                WHERE m.thread_id = a.thread_id AND m.role = 'user'
+                  AND m.created_at <= a.created_at
+                ORDER BY m.created_at DESC, m.id DESC
+                LIMIT 1),
+              t.user_id
+            )::text = $2::text AS is_sender
+       FROM chat_messages a
+       JOIN chat_threads t ON t.id = a.thread_id AND t.deleted_at IS NULL
+      WHERE a.id = $1 AND a.role = 'assistant'`,
+    [streamId, userId]
+  )) as { is_sender: boolean | null }[];
+  return rows[0]?.is_sender === true;
+}
+
+/**
  * Sweep this thread's empty streaming orphans before a new turn starts — rows a
  * previous crash left behind that carry no text. Rows with partial text stay as
  * aborted turns.

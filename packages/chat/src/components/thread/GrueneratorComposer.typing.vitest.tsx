@@ -5,7 +5,7 @@ import {
   type ChatModelAdapter,
 } from '@assistant-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ import { ChatCollaborationProvider } from '../../context/ChatCollaborationContex
 
 import { GrueneratorComposer } from './GrueneratorComposer';
 
-function mount(withCollab: boolean, isRunning = false) {
+function mount(withCollab: boolean, isRunning = false, peerRunning = false) {
   const setTyping = vi.fn();
   const adapter: ChatModelAdapter = {
     async *run() {
@@ -41,6 +41,7 @@ function mount(withCollab: boolean, isRunning = false) {
               typingUsers: [],
               setTyping,
               broadcastNewMessage: vi.fn(),
+              peerRunning,
             }}
           >
             {composer}
@@ -70,9 +71,45 @@ describe('GrueneratorComposer — typing indicator', () => {
     expect(setTyping).toHaveBeenLastCalledWith(false);
   });
 
+  it('reports the edge only: one true for a burst of keystrokes', async () => {
+    const user = userEvent.setup();
+    const { setTyping } = mount(true);
+    const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
+    await user.type(input, 'abc');
+    expect(setTyping.mock.calls.filter(([v]) => v === true)).toHaveLength(1);
+  });
+
+  it('clears typing on send', async () => {
+    const user = userEvent.setup();
+    const { setTyping } = mount(true);
+    const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
+    await user.type(input, 'ab{Enter}');
+    await waitFor(() => expect(setTyping).toHaveBeenLastCalledWith(false));
+  });
+
+  it('clears typing on unmount', async () => {
+    const user = userEvent.setup();
+    const { setTyping, unmount } = mount(true);
+    const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
+    await user.type(input, 'ab');
+    unmount();
+    expect(setTyping).toHaveBeenLastCalledWith(false);
+  });
+
+  it('shows no cancel button while a PEER turn runs, only a disabled send', () => {
+    mount(true, true, true);
+    expect(screen.queryByRole('button', { name: 'Abbrechen' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Nachricht senden' })).toBeDisabled();
+  });
+
+  it('keeps the cancel button for the sender’s own running turn', () => {
+    mount(true, true, false);
+    expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
+  });
+
   it('stops reporting typing when a turn is running', () => {
     const { setTyping } = mount(true, true);
-    expect(setTyping).toHaveBeenCalledWith(false);
+    expect(setTyping).not.toHaveBeenCalledWith(true);
   });
 
   it('works without a collaboration context (private chat)', async () => {

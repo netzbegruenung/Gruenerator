@@ -97,6 +97,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
     setProvider(p);
 
     return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       p.awareness?.setLocalState(null);
       p.destroy();
       providerRef.current = null;

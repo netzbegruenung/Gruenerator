@@ -45,6 +45,7 @@ import {
   discardPendingAssistantIfEmpty,
   getAssistantMessageThreadId,
   getUser,
+  isStreamTurnSender,
 } from './services/threadPersistenceService.js';
 import { createTurnDeadline } from './services/turnDeadline.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
@@ -534,6 +535,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     // Write access: a reader of a shared thread must not stop the owner's turn.
     const denied = await checkStreamAccess(req, params.streamId, 'write');
     if (denied) return denied;
+    // And only the sender stops their own answer: a teammate who can write the
+    // thread sees it run but cannot cancel it. 404, like no access at all.
+    const userId = getUser(req)?.id;
+    if (!userId || !(await isStreamTurnSender(params.streamId, userId))) {
+      return { status: 404 as const, body: { error: 'Stream not found' } };
+    }
     // Deleting the stream makes the producer's next append fail as `missing`,
     // which aborts the turn on whichever worker runs it (resumableStreams.ts).
     await resumableStreams.delete(params.streamId).catch((err: unknown) => {

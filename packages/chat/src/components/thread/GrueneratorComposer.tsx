@@ -257,6 +257,21 @@ function CancelButton() {
   );
 }
 
+function PeerRunningSendButton() {
+  const isCompact = useChatDensity() === 'compact';
+  return (
+    <button
+      type="button"
+      disabled
+      aria-label="Nachricht senden"
+      title="Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist."
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white opacity-30`}
+    >
+      <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+    </button>
+  );
+}
+
 function DictateButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
@@ -330,11 +345,14 @@ function ComposerButtons({
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
   const canQueue = useAuiState((s) => s.thread.capabilities.queue);
+  const peerRunning = useChatCollaborationContext()?.peerRunning === true;
 
   // Dictation now outranks the run: with a queue you may type (or dictate) the
   // next turn while one is still streaming, so a live dictation must keep its
   // stop button instead of being replaced by the run's cancel button.
   if (isDictating) return <StopDictationButton />;
+  // A teammate's answer is running here: only its sender may stop it.
+  if (isRunning && peerRunning) return <PeerRunningSendButton />;
   if (isRunning && !canQueue) return <CancelButton />;
   if (isRunning) {
     // Send joins cancel only once there is something to queue — an empty draft
@@ -834,19 +852,32 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
-  // Team chats show "X schreibt …" to the other members.
+  // Team chats show "X schreibt …" to the other members. Only the edge goes
+  // out (the 3 s timer in useChatCollaboration ends a long pause on its own);
+  // an emptied composer, a send and an unmount clear it.
   const collab = useChatCollaborationContext();
   const setTyping = collab?.setTyping;
+  const typingSentRef = useRef(false);
+  const announceTyping = useCallback(
+    (typing: boolean) => {
+      if (typingSentRef.current === typing) return;
+      typingSentRef.current = typing;
+      setTyping?.(typing);
+    },
+    [setTyping]
+  );
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setTyping?.(e.target.value.length > 0);
+      announceTyping(e.target.value.length > 0);
       if (showMentions) handleChange(e);
     },
-    [setTyping, showMentions, handleChange]
+    [announceTyping, showMentions, handleChange]
   );
+  const draftEmpty = useAuiState((s) => s.composer.text === '');
   useEffect(() => {
-    if (isRunning) setTyping?.(false);
-  }, [isRunning, setTyping]);
+    if (draftEmpty || isRunning) announceTyping(false);
+  }, [draftEmpty, isRunning, announceTyping]);
+  useEffect(() => () => announceTyping(false), [announceTyping]);
 
   const inputHistory = unstable_useComposerInputHistory();
 
