@@ -34,8 +34,14 @@ permissions:
 # PRs in a row used to cancel all but the last run, so a break could land
 # unnoticed (it did — see #1988, where 6 of 7 master runs were cancelled and
 # only the last one caught a red format:check).
+#
+# `cancel-in-progress: false` alone does not do that. A group holds one running
+# and ONE pending run; a third push replaces the pending one, which is then
+# cancelled before it has a single job. 13 of 49 master pushes between 10 and
+# 16 Nov 2026 ended that way. So on master the group is the commit itself:
+# nothing shares it, nothing waits, nothing is replaced.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 # The Turborepo remote cache belongs in EVERY job that runs a turbo task, not
