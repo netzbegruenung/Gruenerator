@@ -69,8 +69,8 @@ describe.skipIf(!url)('notifyTeamChatParticipants gegen Postgres', () => {
       );
     }
     await pool.query(
-      `INSERT INTO chat_threads (id, user_id, group_id, slug_suffix) VALUES ($1, $2, $3, 'abc234')`,
-      [THREAD, OWNER, GROUP]
+      `INSERT INTO chat_threads (id, user_id, group_id, slug_suffix) VALUES ($1, $2, $3, $4)`,
+      [THREAD, OWNER, GROUP, randomUUID().slice(0, 8)]
     );
     await pool.query(
       `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id, permissions)
