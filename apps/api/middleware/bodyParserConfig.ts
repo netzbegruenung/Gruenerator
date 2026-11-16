@@ -6,7 +6,11 @@
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
-export const TUS_UPLOAD_PATHS = ['/api/subtitler/upload', '/api/audio/upload'];
+export const TUS_UPLOAD_PATHS = [
+  '/api/subtitler/upload',
+  '/api/audio/upload',
+  '/api/admin/parteitage/upload',
+];
 
 // `/api/browser-agent/llm`: jeder Schritt trägt einen base64-Screenshot, der
 // Verlauf mehrere — eigener 20-MB-Parser im Router statt des globalen 10 MB.
