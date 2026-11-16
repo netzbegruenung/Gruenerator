@@ -186,16 +186,64 @@ describe('ParteitagPage', () => {
           })
         )
       );
-      renderPage();
+      const { user } = renderPage();
       expect(await screen.findByText(/14\.–15\. November 2026/)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Bericht (PDF)' })).toHaveAttribute(
         'href',
         '/api/parteitage/media/rep?download=1'
       );
-      const live = screen.getByRole('link', { name: 'Livestream Samstag' });
+      await user.click(screen.getByRole('button', { name: 'Livestreams' }));
+      const live = await screen.findByRole('menuitem', { name: 'Livestream Samstag' });
       expect(live).toHaveAttribute('href', 'https://example.org/live');
       expect(live).toHaveAttribute('target', '_blank');
       expect(live).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('search matches the Kreisverband as well as the name', async () => {
+      server.use(
+        http.get(`${BASE}/essen-2026`, () =>
+          HttpResponse.json({
+            ...detail,
+            speeches: [
+              speech('s1', 'Anna', 1, { kv: 'KV Bielefeld' }),
+              speech('s2', 'Ben', 2, { kv: 'KV Köln' }),
+            ],
+          })
+        )
+      );
+      const { user } = renderPage();
+      await screen.findByText(/Anna Muster/);
+      await user.type(screen.getByRole('searchbox', { name: 'Reden durchsuchen' }), 'bielefeld');
+      expect(screen.getByText(/Anna Muster/)).toBeInTheDocument();
+      expect(screen.queryByText(/Ben Muster/)).not.toBeInTheDocument();
+      expect(screen.getByText('1 Rede')).toBeInTheDocument();
+    });
+
+    it('cards carry both actions and show a result only for the elected', async () => {
+      server.use(
+        http.get(`${BASE}/essen-2026`, () =>
+          HttpResponse.json({
+            ...detail,
+            speeches: [
+              speech('s1', 'Anna', 1),
+              speech('s2', 'Ben', 2, { elected: false, contested: true, resultPercent: 40 }),
+            ],
+          })
+        )
+      );
+      renderPage();
+      await screen.findByText(/Anna Muster/);
+      expect(screen.getByRole('link', { name: 'In Editor laden: Anna Muster' })).toHaveAttribute(
+        'href',
+        '/studio/videoeditor?parteitagRede=s1'
+      );
+      expect(screen.getByRole('link', { name: 'Nur untertiteln: Ben Muster' })).toHaveAttribute(
+        'href',
+        '/studio/video?parteitagRede=s2'
+      );
+      expect(screen.getAllByText(/Gewählt mit/)).toHaveLength(1);
+      expect(screen.getByText('Kampfkandidatur')).toBeInTheDocument();
+      expect(screen.queryByText(/40 %/)).not.toBeInTheDocument();
     });
 
     it('video carries a German captions track', async () => {
@@ -217,8 +265,8 @@ describe('ParteitagPage', () => {
 
   it('axe has no violations on the unlock dialog', async () => {
     lockedHandlers(200);
-    renderPage();
+    const { container } = renderPage();
     await screen.findByLabelText('Passwort');
-    expect(await axe(document.body)).toHaveNoViolations();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
