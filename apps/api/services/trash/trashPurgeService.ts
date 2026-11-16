@@ -7,10 +7,9 @@
  * item restored between listing and purging no longer matches the conditional
  * delete, and `purge` reports that as `false` rather than removing a live row.
  *
- * Reports, does not delete. The scheduled run calls this with `apply` at its
- * default of false: it lists what it would purge and writes it down. Switching
- * it on is one word below — a code change someone signs off on after a deploy
- * with clean logs, not a setting that can stand differently on one host.
+ * The scheduled run deletes: `apply` defaults to `APPLY` below. With `false` it
+ * only lists what it would purge and writes it down. The switch is a code
+ * constant, not a setting that can stand differently on one host.
  */
 import { type TrashKind } from '@gruenerator/contracts';
 
@@ -27,8 +26,8 @@ const INTERVAL_MS = 6 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 10 * 60 * 1000;
 /** Per kind and tick; the rest is picked up by the next tick. */
 export const PER_KIND_BATCH = 200;
-/** Probelauf. Turning it on is a one-word code change, never an env switch. */
-const APPLY = false;
+/** `false` is the dry run. A code change, never an env switch. */
+const APPLY = true;
 
 export interface KindPurgeReport {
   kind: TrashKind;
