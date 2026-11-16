@@ -14,7 +14,7 @@ describe('useParteitagFilters', () => {
   it('reads known url values', () => {
     const { result } = renderHook(() => useParteitagFilters(), {
       wrapper: wrap(
-        '/?bereich=kreis&platz=frauenplatz&thema=Klima&tag=2026-01-10&ergebnis=gewaehlt'
+        '/?bereich=kreis&platz=frauenplatz&thema=Klima&tag=2026-01-10&ergebnis=gewaehlt&kreis=05911'
       ),
     });
     expect(result.current[0]).toEqual({
@@ -23,6 +23,7 @@ describe('useParteitagFilters', () => {
       topic: 'Klima',
       day: '2026-01-10',
       outcome: 'gewaehlt',
+      kreis: '05911',
     });
   });
   it('unknown url values are ignored', () => {
@@ -35,6 +36,7 @@ describe('useParteitagFilters', () => {
       topic: null,
       day: null,
       outcome: null,
+      kreis: null,
     });
   });
 });

@@ -4,12 +4,16 @@ import {
   type SeatType,
 } from '@gruenerator/contracts';
 
+import { kvToAgs } from './kvToKreis';
+
 export type ParteitagFilters = {
   area: ConventionArea | null;
   seatType: SeatType | null;
   topic: string | null;
   day: string | null;
   outcome: 'gewaehlt' | 'unterlegen' | null;
+  /** AGS des Kreises bzw. der kreisfreien Stadt (NRW). */
+  kreis: string | null;
 };
 
 export function applyFilters(
@@ -21,6 +25,7 @@ export function applyFilters(
     if (f.seatType && s.seatType !== f.seatType) return false;
     if (f.topic && s.topic !== f.topic) return false;
     if (f.day && s.day !== f.day) return false;
+    if (f.kreis && kvToAgs(s.kv) !== f.kreis) return false;
     if (f.outcome === 'gewaehlt' && s.elected !== true) return false;
     if (f.outcome === 'unterlegen' && !(s.contested && s.elected === false)) return false;
     return true;

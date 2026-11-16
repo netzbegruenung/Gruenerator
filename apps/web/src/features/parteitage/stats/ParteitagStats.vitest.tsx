@@ -60,6 +60,7 @@ const none: ParteitagFilters = {
   topic: null,
   day: null,
   outcome: null,
+  kreis: null,
 };
 const speeches = [speech('1', 'Klima'), speech('2', 'Verkehr')];
 

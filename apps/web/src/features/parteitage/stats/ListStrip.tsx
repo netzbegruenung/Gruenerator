@@ -7,7 +7,6 @@ import {
 } from '@gruenerator/ui/chart';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 
-
 import { AREA_COLOR, AREA_LABEL } from './shared';
 
 type Block = { block: string; kreisfreieStadt: number; kreis: number; ohne: number };

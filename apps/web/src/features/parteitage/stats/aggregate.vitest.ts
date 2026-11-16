@@ -53,6 +53,7 @@ const none: ParteitagFilters = {
   topic: null,
   day: null,
   outcome: null,
+  kreis: null,
 };
 
 describe('applyFilters', () => {
@@ -69,6 +70,11 @@ describe('applyFilters', () => {
 
   it('returns all without filters', () => {
     expect(applyFilters(all, none)).toHaveLength(3);
+  });
+  it('filters by Kreis via the KV name', () => {
+    const bochum = speech({ kv: 'Bochum&Wattenscheid' });
+    const essen = speech({ kv: 'Essen' });
+    expect(applyFilters([bochum, essen], { ...none, kreis: '05911' })).toEqual([bochum]);
   });
   it('combines filters with AND', () => {
     expect(applyFilters(all, { ...none, area: 'kreis', day: '2026-01-11' })).toEqual([c]);

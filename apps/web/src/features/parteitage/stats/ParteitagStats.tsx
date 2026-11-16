@@ -14,6 +14,8 @@ import {
 } from './aggregate';
 import { FormulaBars } from './FormulaBars';
 import { GroupCompare } from './GroupCompare';
+import { KreisMap } from './KreisMap';
+import { kvToAgs } from './kvToKreis';
 import { ListStrip } from './ListStrip';
 import { Methodik } from './Methodik';
 import { ResultScatter } from './ResultScatter';
@@ -33,6 +35,7 @@ const CLEAR: ParteitagFilters = {
   topic: null,
   day: null,
   outcome: null,
+  kreis: null,
 };
 
 function Chip({
@@ -58,6 +61,11 @@ function Chip({
 
 export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
   const filtered = applyFilters(speeches, filters);
+  const kreisCounts: Record<string, number> = {};
+  for (const s of applyFilters(speeches, { ...filters, kreis: null })) {
+    const ags = kvToAgs(s.kv);
+    if (ags) kreisCounts[ags] = (kreisCounts[ags] ?? 0) + 1;
+  }
   const active = Object.values(filters).some((v) => v !== null);
   const toggleArea = (a: ConventionArea) => onFilter({ area: filters.area === a ? null : a });
 
@@ -93,6 +101,12 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
         <ListStrip blocks={listBlocks(filtered)} onArea={toggleArea} />
         <ResultScatter points={resultPoints(filtered)} onArea={toggleArea} />
       </div>
+
+      <KreisMap
+        counts={kreisCounts}
+        selected={filters.kreis}
+        onSelect={(kreis) => onFilter({ kreis })}
+      />
 
       <TopicBars
         counts={countBy(filtered, 'topic')}

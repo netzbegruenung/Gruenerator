@@ -10,6 +10,7 @@ const PARAMS = {
   topic: 'thema',
   day: 'tag',
   outcome: 'ergebnis',
+  kreis: 'kreis',
 } as const satisfies Record<keyof ParteitagFilters, string>;
 
 function parse(params: URLSearchParams): ParteitagFilters {
@@ -17,12 +18,14 @@ function parse(params: URLSearchParams): ParteitagFilters {
   const seatType = seatTypeSchema.safeParse(params.get(PARAMS.seatType));
   const outcome = params.get(PARAMS.outcome);
   const day = params.get(PARAMS.day);
+  const kreis = params.get(PARAMS.kreis);
   return {
     area: area.success ? area.data : null,
     seatType: seatType.success ? seatType.data : null,
     topic: params.get(PARAMS.topic) || null,
     day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
     outcome: outcome === 'gewaehlt' || outcome === 'unterlegen' ? outcome : null,
+    kreis: kreis && /^05\d{3}$/.test(kreis) ? kreis : null,
   };
 }
 
