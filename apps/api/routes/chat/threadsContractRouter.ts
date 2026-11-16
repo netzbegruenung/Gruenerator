@@ -27,7 +27,7 @@ import { toIsoString } from '../../utils/toIsoString.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
-import { canAccessThread, canWriteThread } from './services/threadAccessService.js';
+import { canAccessThread, getThreadAccessLevel } from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -481,12 +481,12 @@ export const threadsContractRouter = s.router(threadsContract, {
       const { threadId } = args.params;
       const { customSystemPrompt, customEnabledTools, roleRef } = args.body;
 
-      // Writers of a team chat may change its settings; the owner always can.
-      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
+      // Prompt, tools and role are the owner's setup for everyone's turns.
+      if ((await getThreadAccessLevel(ThreadId(threadId), UserId(userId))) !== 'owner') {
         return { status: 404 as const, body: { error: 'Thread not found or forbidden' } };
       }
 
-      const updated = await updateThreadSettings(threadId, {
+      const updated = await updateThreadSettings(threadId, userId, {
         ...(customSystemPrompt !== undefined && { customSystemPrompt }),
         ...(customEnabledTools !== undefined && { customEnabledTools }),
         ...(roleRef !== undefined && { roleRef }),

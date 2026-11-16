@@ -15,10 +15,10 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 
 const canAccessThread = vi.fn();
-const canWriteThread = vi.fn();
+const getThreadAccessLevel = vi.fn();
 vi.mock('./services/threadAccessService.js', () => ({
   canAccessThread: (...a: unknown[]) => canAccessThread(...a) as unknown,
-  canWriteThread: (...a: unknown[]) => canWriteThread(...a) as unknown,
+  getThreadAccessLevel: (...a: unknown[]) => getThreadAccessLevel(...a) as unknown,
 }));
 
 const getThreadSettings = vi.fn();
@@ -116,7 +116,7 @@ async function callSummarize(method: 'get' | 'post') {
 beforeEach(() => {
   query.mockReset();
   canAccessThread.mockReset();
-  canWriteThread.mockReset();
+  getThreadAccessLevel.mockReset();
   getThreadSettings.mockReset().mockResolvedValue({
     custom_system_prompt: 'p',
     custom_enabled_tools: null,
@@ -154,15 +154,15 @@ describe('GET settings', () => {
 });
 
 describe('PUT settings', () => {
-  it('lets a writer of the thread change them', async () => {
-    canWriteThread.mockResolvedValue(true);
+  it('lets the owner change them', async () => {
+    getThreadAccessLevel.mockResolvedValue('owner');
     const res = await call('updateSettings', { customSystemPrompt: 'x' });
     expect(res.status).toBe(200);
     expect(updateThreadSettings).toHaveBeenCalled();
   });
 
-  it('refuses someone without write access with the old 404 shape', async () => {
-    canWriteThread.mockResolvedValue(false);
+  it('refuses a member with write access: settings stay with the owner', async () => {
+    getThreadAccessLevel.mockResolvedValue('write');
     const res = await call('updateSettings', { customSystemPrompt: 'x' });
     expect(res.status).toBe(404);
     expect(updateThreadSettings).not.toHaveBeenCalled();
