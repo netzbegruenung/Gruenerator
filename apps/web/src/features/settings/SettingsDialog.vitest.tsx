@@ -19,6 +19,11 @@ describe('visibleSettingsNav', () => {
   it('lässt alle übrigen Bereiche unberührt', () => {
     expect(visibleSettingsNav(true)).toHaveLength(visibleSettingsNav(false).length + 1);
   });
+
+  it('führt Antragsgrün nur, wo es die Funktion gibt', () => {
+    expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('antragsgruen');
+    expect(visibleSettingsNav(false, true).map((e) => e.value)).toContain('antragsgruen');
+  });
 });
 
 describe('resolveSettingsTab', () => {

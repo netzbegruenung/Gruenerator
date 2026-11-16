@@ -34,6 +34,7 @@ import {
 import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
+import { extractTextContent } from '../messageHelpers.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
@@ -550,6 +551,7 @@ export async function assembleToolCatalog(
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
+    previousUserText: previousUserText(state.messages ?? []),
     // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
     // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
     // hinter „meine Inhalte" warten.
@@ -579,6 +581,16 @@ function lastTurnConnectorName(toolHistory: ThreadToolHistory | null | undefined
   } catch {
     return null;
   }
+}
+
+/** Die Nachricht der Person im Turn vor dem aktuellen (für `createToolScope`). */
+function previousUserText(messages: readonly ModelMessage[]): string | null {
+  let seen = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== 'user') continue;
+    if (++seen === 2) return extractTextContent(messages[i].content);
+  }
+  return null;
 }
 
 /** Die vorhandene Projektion lesen, nie werfen. */

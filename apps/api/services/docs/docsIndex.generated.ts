@@ -1441,7 +1441,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) @antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren."
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Chat",
+    "text": "Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1457,7 +1465,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenhaus Abgeordnetenhaus Berlin @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenhaus Abgeordnetenhaus Berlin @abgeordnetenwatch Abgeordnetenwatch @antragsgruennrw Antragsgrün NRW @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1465,7 +1473,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen du etwas erzeugst — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter Erstellen. Ein Klick setzt die passende @-Erwähnung in deine Nachricht, und sie gilt jeweils für diese eine Nachricht. Werkzeuge, die etwas nachschlagen (@bundestag, @umfragen, @doku, @verlauf …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du @ tippst — die Liste filtert mit. Zwei Schalter im Menü bleiben dagegen dauerhaft gesetzt, bis du sie wieder umlegst: Websuche und Dokumentensuche. Beide sind ab Werk an. Tiefenrecherche direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht."
+    "text": "kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen du etwas erzeugst — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter Erstellen. Ein Klick setzt die passende @-Erwähnung in deine Nachricht, und sie gilt jeweils für diese eine Nachricht. Werkzeuge, die etwas nachschlagen (@bundestag, @umfragen, @doku, @verlauf …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du @ tippst — die Liste filtert mit. Zwei Schalter im Menü bleiben dagegen dauerhaft gesetzt, bis du sie wieder umlegst: Websuche und Dokumentensuche. Beide sind ab Werk an. Tiefenrecherche direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -2249,7 +2257,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Zugang",
     "anchor": "#zugang",
     "category": "Features",
-    "text": "Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
+    "text": "Vorerst sind Parteitage nur für Instanz-Admins sichtbar; für alle anderen Personen existiert die Seite noch nicht. Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
   },
   {
     "url": "/docs/features/podcasts",
@@ -4665,7 +4673,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
+    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
   },
   {
     "url": "/docs/sonstiges/einstellungen",

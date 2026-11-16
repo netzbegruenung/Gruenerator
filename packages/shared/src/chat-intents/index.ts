@@ -190,6 +190,12 @@ export interface RetrievalIntent extends IntentBase, Mentionable {
    * `compare` hat keins von beiden.
    */
   loopTools?: readonly string[];
+  /**
+   * `false`: die `loopTools` gehören NICHT zu `RESEARCH_LOOP_TOOLS`. Für Quellen,
+   * die nur auf Zuruf gelten (Erwähnung, Werkzeuggruppe in `toolScope.ts`) —
+   * ein erzwungener Recherche-Schritt ohne Bezug soll sie nicht angeboten bekommen.
+   */
+  researchFamily?: false;
 }
 
 /** Produces a rendered artefact in the turn (image, sharepic, chart). */
@@ -311,6 +317,9 @@ const DECLINE_ABGEORDNETENWATCH =
 const DECLINE_BUNDESTAG =
   'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. ' +
   'Für den österreichischen Nationalrat liegen hier keine Daten vor.';
+const DECLINE_ANTRAGSGRUEN =
+  'Antragsgrün ist hier nur für die Parteitage der GRÜNEN NRW angebunden; für Österreich liegen keine Daten vor.';
+
 const DECLINE_ABGEORDNETENHAUS =
   'PARDOK erfasst nur das Abgeordnetenhaus von Berlin. ' +
   'Für österreichische Landtage und den Nationalrat liegen hier keine Daten vor.';
@@ -505,6 +514,29 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       avatar: '🏛️',
       backgroundColor: '#4B5563',
       pinsTool: 'landtag',
+    },
+  },
+  // `@antragsgruennrw` heftet die Antragsgrün-Werkzeuge an (`antragsgruen` und
+  // seine Gruppe in `toolScope.ts`): Anträge, Änderungsanträge und Beschlüsse
+  // der Parteitage der GRÜNEN NRW, Index plus Live-Status. Die Intent-Id ist
+  // allgemein; eine weitere Instanz wäre eine eigene Erwähnung.
+  antragsgruen: {
+    id: 'antragsgruen',
+    category: 'retrieval',
+    loopTools: ['antragsgruen'],
+    // Nur NRW-Parteitage: ein erzwungener Recherche-Schritt ohne Bezug (`research_order`
+    // u. a.) soll das Werkzeug nicht angeboten bekommen. Die Erwähnung heftet es an.
+    researchFamily: false,
+    audience: 'de-DE',
+    degradeTo: 'web',
+    declineNote: DECLINE_ANTRAGSGRUEN,
+    mention: {
+      slug: 'antragsgruennrw',
+      title: 'Antragsgrün NRW',
+      description: 'Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW',
+      avatar: '📋',
+      backgroundColor: '#4B5563',
+      pinsTool: 'antragsgruen',
     },
   },
   // ── Retired: moved to the managed-connector path ─────────────────────────
@@ -1018,12 +1050,14 @@ export function loopToolsFor(intent: string): readonly string[] {
 /**
  * Alle Loop-Werkzeuge der Recherche-Familie: die Vereinigung über jeden
  * Abruf-Intent mit `loopTools`, `chat_history` ausgenommen (eigene Inhalte,
- * keine Recherche). Das ist die Menge, die ein Turn sehen darf, dessen Zwang
+ * keine Recherche) und jeder mit `researchFamily: false` (nur auf Zuruf). Das ist die Menge, die ein Turn sehen darf, dessen Zwang
  * nur „hol Information" sagt, ohne den Intent zu nennen.
  */
 export const RESEARCH_LOOP_TOOLS: ReadonlySet<string> = new Set(
   ALL_CHAT_INTENTS.flatMap((i) =>
-    i.category === 'retrieval' && i.id !== 'chat_history' ? [...(i.loopTools ?? [])] : []
+    i.category === 'retrieval' && i.id !== 'chat_history' && i.researchFamily !== false
+      ? [...(i.loopTools ?? [])]
+      : []
   )
 );
 

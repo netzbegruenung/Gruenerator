@@ -121,6 +121,14 @@ export const UI_TOOL_NAMES = z.enum([
   'website_werkzeug_laden',
   // Lader der Parlamentsgruppe (parlament_lesen, bundestag_reden, …).
   'parlament_werkzeuge_laden',
+  // `@antragsgruennrw` und der Lader seiner Gruppe.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
+  'antragsgruen_werkzeuge_laden',
+  'antragsgruen_seite_anlegen',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_tagesordnung',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1368,6 +1376,38 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   parlament_werkzeuge_laden: entry('parlament_werkzeuge_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Parlamentswerkzeuge freigeschaltet',
+  })),
+  // Loop-Ergebnisse sind schlank ({ resultCount, sources }); die Zitate stehen unter der Antwort.
+  antragsgruen: entry('antragsgruen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_lesen: entry('antragsgruen_lesen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_auswerten: entry('antragsgruen_auswerten', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  // Nur Prüfung und Karte; angelegt wird erst nach der Bestätigung.
+  antragsgruen_seite_anlegen: entry('antragsgruen_seite_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_tagesordnung: entry('antragsgruen_tagesordnung', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'note') ? 'Bestätigung angefordert' : 'Tagesordnung gelesen'),
+  })),
+  antragsgruen_antrag_stellen: entry('antragsgruen_antrag_stellen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_werkzeuge_laden: entry('antragsgruen_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Antragsgrün-Werkzeuge freigeschaltet',
   })),
 };
 

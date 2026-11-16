@@ -75,6 +75,17 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 import { turnImagesOf } from '../services/turnImages.js';
 
+import {
+  makeAntragsgruenAgendaTool,
+  makeAntragsgruenMotionTool,
+  makeAntragsgruenSiteTool,
+  siteCreationConfigured,
+} from './antragsgruenSiteTools.js';
+import {
+  makeAntragsgruenAuswertenTool,
+  makeAntragsgruenLesenTool,
+  makeAntragsgruenTool,
+} from './antragsgruenTools.js';
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
@@ -958,6 +969,14 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.nationalrat = makeNationalratTool({ state, sourceRegistry });
       tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
+    // Antragsgrün (GRÜNE NRW): montiert wie die Parlamente, aber hinter der Gruppe
+    // `antragsgruen` (`toolScope.ts`) — sichtbar erst auf @antragsgruennrw, ein
+    // Stichwort oder eine frühere Nutzung im Thread.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale)) {
+      tools.antragsgruen = makeAntragsgruenTool({ state, sourceRegistry });
+      tools.antragsgruen_lesen = makeAntragsgruenLesenTool({ state, sourceRegistry });
+      tools.antragsgruen_auswerten = makeAntragsgruenAuswertenTool({ state, sourceRegistry });
+    }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
@@ -1178,6 +1197,13 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     }
     if (state.enabledTools?.['groups'] !== false) {
       tools.groups = makeGroupsTool(personalCtx);
+    }
+    // Hinter der Gruppe `antragsgruen` (`toolScope.ts`); ohne Zugangsdaten des
+    // Grünerator-Kontos bei antragsgruen.de gibt es nichts anzulegen.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale) && siteCreationConfigured()) {
+      tools.antragsgruen_seite_anlegen = makeAntragsgruenSiteTool(personalCtx);
+      tools.antragsgruen_antrag_stellen = makeAntragsgruenMotionTool(personalCtx);
+      tools.antragsgruen_tagesordnung = makeAntragsgruenAgendaTool(personalCtx);
     }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);

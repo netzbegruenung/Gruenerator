@@ -135,6 +135,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   abgeordnetenwatch: 'loop',
   bundestag: 'loop',
   abgeordnetenhaus: 'loop',
+  antragsgruen: 'loop',
   // ── D6 retired — als verwaltete Connectoren aus der Intent-Achse ausgezogen.
   // Sie standen hier als `loop` mit der Begründung, der Auflöser wähle nur die
   // Quelle und der Turn gehe ohnehin an den Planer. Genau das war das Argument,

@@ -1569,6 +1569,37 @@ export interface CreateGroupPayload {
   description: string | null;
 }
 
+/** Eine Antragsgrün-Seite auf antragsgruen.de (`services/antragsgruen/hosting/`). */
+export interface CreateAntragsgruenSitePayload {
+  title: string;
+  organization: string;
+  subdomain: string;
+  agenda?: AntragsgruenAgendaEntry[] | null;
+}
+
+/** Ein Tagesordnungspunkt, wie ihn `services/antragsgruen/hosting/agenda.ts` setzt. */
+export interface AntragsgruenAgendaEntry {
+  code: string | null;
+  title: string;
+  time: string | null;
+  motions: boolean;
+}
+
+export interface SetAntragsgruenAgendaPayload {
+  subdomain: string;
+  entries: AntragsgruenAgendaEntry[];
+}
+
+/** Ein Antrag auf einer über den Grünerator angelegten Antragsgrün-Seite. */
+export interface CreateAntragsgruenMotionPayload {
+  subdomain: string;
+  title: string;
+  text: string;
+  reason: string | null;
+  organization: string | null;
+  agendaItem?: string | null;
+}
+
 export interface JoinGroupPayload {
   joinToken: string;
   groupName: string;
@@ -1720,6 +1751,9 @@ export type PendingAction = {
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
   | { type: 'share_text_form'; payload: ShareTextFormPayload }
   | { type: 'apply_canvas_deck_edit'; payload: ApplyCanvasDeckEditPayload }
+  | { type: 'create_antragsgruen_site'; payload: CreateAntragsgruenSitePayload }
+  | { type: 'create_antragsgruen_motion'; payload: CreateAntragsgruenMotionPayload }
+  | { type: 'set_antragsgruen_agenda'; payload: SetAntragsgruenAgendaPayload }
 );
 
 /**

@@ -44,6 +44,7 @@ export type SettingsTab =
   | 'benachrichtigungen'
   | 'wolke'
   | 'websites'
+  | 'antragsgruen'
   | 'konnektoren'
   | 'baeume'
   | 'nutzung'
