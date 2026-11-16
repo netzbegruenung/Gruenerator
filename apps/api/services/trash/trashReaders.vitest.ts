@@ -20,6 +20,10 @@
  *
  * SQL the scan cannot see (assembled from table-name strings) is listed in
  * `FRAGMENTED_SQL` instead.
+ *
+ * Only tables in `TRASHABLE_TABLES` are scanned. The Parteitage tables and `system_media` are
+ * deliberately absent (hard delete by an admin, no owner, no `deleted_at`); the reason is in
+ * the header of `database/trash.ts`.
  */
 import fs from 'node:fs';
 import path from 'node:path';

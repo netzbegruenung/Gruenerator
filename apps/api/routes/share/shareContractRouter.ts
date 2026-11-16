@@ -63,6 +63,10 @@ interface ProjectService {
   ensureInitialized(): Promise<void>;
   getProject(userId: string, projectId: string): Promise<Project>;
   getVideoPath(relativePath: string): string;
+  getVideoSource(
+    userId: string,
+    projectId: string
+  ): Promise<{ path: string | null; system: boolean } | undefined>;
   getSubtitledVideoPath(relativePath: string): string;
   getThumbnailPath(relativePath: string): string;
   updateSubtitledVideoPath(userId: string, projectId: string, relativePath: string): Promise<void>;

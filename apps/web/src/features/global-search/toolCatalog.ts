@@ -59,6 +59,14 @@ export const CATALOG: ToolCatalogEntry[] = [
     keywords: ['video editor', 'video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
   },
   {
+    id: 'tool-parteitage',
+    title: 'Parteitage',
+    subtitle: 'Reden vom Parteitag untertiteln und schneiden',
+    path: '/parteitage',
+    icon: nav('reel'),
+    keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
+  },
+  {
     id: 'tool-studio',
     title: 'Studio',
     subtitle: 'Sharepics, KI-Bilder & Videos',
