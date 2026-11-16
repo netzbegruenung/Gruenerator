@@ -85,10 +85,10 @@ async function insertSpeech(
 
 describe.skipIf(!url)('parteitageRepository (db)', () => {
   const dbName = `parteitage_${randomUUID().replace(/-/g, '')}`;
-  const admin = new pg.Pool({ connectionString: url });
+  const adminPool = new pg.Pool({ connectionString: url });
 
   beforeAll(async () => {
-    await admin.query(`CREATE DATABASE ${dbName}`);
+    await adminPool.query(`CREATE DATABASE ${dbName}`);
     const target = new URL(url!);
     target.pathname = `/${dbName}`;
     pool = new pg.Pool({ connectionString: target.toString() });
@@ -100,8 +100,8 @@ describe.skipIf(!url)('parteitageRepository (db)', () => {
   });
   afterAll(async () => {
     await pool?.end();
-    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
-    await admin.end();
+    await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+    await adminPool.end();
   });
   beforeEach(async () => {
     await pool.query(

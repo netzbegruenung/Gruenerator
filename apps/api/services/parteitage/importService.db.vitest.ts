@@ -148,10 +148,10 @@ const admin = randomUUID();
 
 describe.skipIf(!url)('importConvention (postgres)', () => {
   const dbName = `parteitage_${randomUUID().replace(/-/g, '')}`;
-  const admin = new pg.Pool({ connectionString: url });
+  const adminPool = new pg.Pool({ connectionString: url });
 
   beforeAll(async () => {
-    await admin.query(`CREATE DATABASE ${dbName}`);
+    await adminPool.query(`CREATE DATABASE ${dbName}`);
     const target = new URL(url!);
     target.pathname = `/${dbName}`;
     pool = new pg.Pool({ connectionString: target.toString() });
@@ -160,8 +160,8 @@ describe.skipIf(!url)('importConvention (postgres)', () => {
   });
   afterAll(async () => {
     await pool?.end();
-    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
-    await admin.end();
+    await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+    await adminPool.end();
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.rmSync(uploadDir, { recursive: true, force: true });
   });
