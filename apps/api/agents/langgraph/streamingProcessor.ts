@@ -9,15 +9,14 @@
 import { streamText } from 'ai';
 
 import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
+import { laneTarget, resolveLane } from '../../services/ai/lanes.js';
 import { clampToModelOutputLimit } from '../../services/ai/modelOutputLimits.js';
-import { getModel } from '../../services/ai/providers.js';
+import { getDefaultModel, getModel } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
   type RequestWithLocale,
 } from '../../services/localization/index.js';
-import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
-import { type ProviderOptions } from '../../services/providers/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -227,16 +226,9 @@ export async function processGraphRequestStreaming(
     // Resolve provider and model
     const aiOptions = getAIOptions(config, requestData);
 
-    const selection = selectProviderAndModel({
-      type: routeType,
-      // AIOptions carries provider/model via index signature; ProviderOptions is a weak type
-      options: aiOptions as ProviderOptions,
-      metadata: {},
-      env: process.env,
-    });
-
-    const effectiveProvider = selection.provider;
-    const effectiveModel = selection.model;
+    const target = laneTarget(resolveLane(routeType));
+    const effectiveProvider = target.provider;
+    const effectiveModel = target.model ?? getDefaultModel(effectiveProvider);
 
     // Reasoning effort follows the content type.
     const REASONING_BY_TYPE: Record<string, string> = {

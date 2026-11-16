@@ -54,6 +54,8 @@ vi.mock('../../database/services/GenerationStatsService/index.js', () => ({
 }));
 
 const { processGraphRequestStreaming } = await import('./streamingProcessor.js');
+const { laneTarget, resolveLane } = await import('../../services/ai/lanes.js');
+const { getDefaultModel } = await import('../../services/ai/providers.js');
 
 const ROUTE_TYPES = ['universal', 'custom_prompt', 'social', 'antrag_simple'] as const;
 
@@ -115,4 +117,13 @@ describe('processGraphRequestStreaming', () => {
       expect(named).toEqual(plain);
     }
   );
+
+  it.each(ROUTE_TYPES)('%s is answered on its lane from AI_LANES', async (routeType) => {
+    const { getModelCalls } = await answer(routeType, baseBody(routeType));
+    const target = laneTarget(resolveLane(routeType), {}, {});
+
+    expect(getModelCalls).toEqual([
+      [target.provider, target.model ?? getDefaultModel(target.provider)],
+    ]);
+  });
 });

@@ -19,16 +19,12 @@
  * wird über die Tabelle in `lanes.ts` (`resolveLane`/`laneTarget`/
  * `laneFallback`).
  *
- * `providers/providerSelector.ts` — die if/else-Kette, die die Tabelle ersetzt
- * hat — läuft noch, aber nur noch als PRÜFMITTEL: der Paritätstest in
- * `__tests__/lanes.vitest.ts` fährt jede geroutete Lane durch beide und
- * verlangt dasselbe Paar. Er ist das Netz unter einem Umbau der Tabelle, und er
- * fährt beide mit LEEREN Optionen — eine Prompt-Config, die ein `model` mit-
- * brächte, sähe er nicht. Genau deshalb bringt keine mehr eines mit:
- * `promptConfigRouting.vitest.ts` verbietet `model` und `provider` in allen
- * Configs.
+ * Die Tabelle ist die einzige Routing-Quelle: die if/else-Kette, die sie
+ * ersetzt hat (`providers/providerSelector.ts`), ist gelöscht. Eine Prompt-Config
+ * bringt kein `model` und keinen `provider` mit; `promptConfigRouting.vitest.ts`
+ * verbietet beides in allen Configs.
  *
- * Was die Parität ebenfalls nicht abdeckt: ein `type` ohne Zeile in `AI_LANES`.
+ * Was kein Test abdeckt: ein `type` ohne Zeile in `AI_LANES`.
  * `resolveLane` schickt ihn auf `default` und protokolliert das — richtig für
  * einen Typ, den niemand geroutet hat, falsch für die Aufrufstellen, die eine
  * Stufe aus `intermediateLanes.ts` oder ein Provider/Modell-Paar hart benennen.

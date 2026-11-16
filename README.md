@@ -146,7 +146,6 @@ Professional subtitle generation for videos:
 - **User-managed MCP connectors** — connect third-party MCP servers to the chat, with OAuth support
 - **System search sources** — Deutsche Bahn, weather, and news available as chat tools
 - **Grüne Wolke** — Nextcloud integration for file storage and sharing
-- **WordPress Plugin** — candidate sites for Green party WordPress installations
 
 ### Additional Features
 
@@ -167,7 +166,7 @@ Professional subtitle generation for videos:
 ```
 ┌────────────────────────── CLIENTS ───────────────────────────┐
 │  Web (React 19 + Vite)         │  Mobile (Expo / RN)         │
-│  Desktop (Tauri 2)             │  WordPress Plugin           │
+│  Desktop (Tauri 2)             │                             │
 └───────────────────────────┬──────────────────────────────────┘
                             │ REST API (ts-rest) + SSE
 ┌───────────────────────────▼──────────────────────────────────┐
@@ -219,7 +218,6 @@ This is a **pnpm + Turborepo** monorepo: 7 apps, 16 packages, and 5 services.
 | `apps/mobile`        | Expo / React Native mobile app            |
 | `apps/desktop`       | Tauri 2 desktop wrapper                   |
 | `apps/gruen-o-mat`   | Political compass tool                    |
-| `apps/wordpress`     | WordPress plugin for candidate sites      |
 | `apps/ggraphic-demo` | Neutral host page for the ggraphic editor |
 
 ### Packages
@@ -439,7 +437,7 @@ A weekly CI workflow (`docs-freshness.yml`) runs a read-only AI audit that check
 - [x] Notebooks / RAG knowledge bases
 - [x] Multi-domain support (.de, .at, .eu) with first-class Austrian locale
 - [x] Native mobile apps (Expo)
-- [x] API for third-party integrations (MCP server, WordPress plugin)
+- [x] API for third-party integrations (MCP server)
 - [x] User-managed MCP connectors (OAuth)
 - [x] Accessible (tagged) PDF generation
 - [ ] Plugin system
