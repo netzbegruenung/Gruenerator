@@ -36,6 +36,7 @@ import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import { dryRunCapableSources, supportsDryRun } from './contentSyncDryRun.js';
+import { JOB_HEARTBEAT_INTERVAL_MS, orphanedJobView } from './contentSyncJobHeartbeat.js';
 
 import type { Application } from 'express';
 
@@ -715,8 +716,22 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
         };
       }
 
+      // Await the last beat before the final write, or a beat still in
+      // flight could land after it and flip `completed` back to `running`.
+      let lastBeat: Promise<void> = Promise.resolve();
+      const heartbeat = setInterval(() => {
+        lastBeat = setCachedJson(
+          jobKey(jobId),
+          { jobId, sourceId, status: 'running', startedAt, heartbeatAt: new Date().toISOString() },
+          JOB_TTL_SECONDS
+        );
+      }, JOB_HEARTBEAT_INTERVAL_MS);
+      heartbeat.unref();
+
       void executeSyncRun(sourceId, lockKey, opts, landesverband, runUrl, fallbackEmail)
         .then(async (outcome) => {
+          clearInterval(heartbeat);
+          await lastBeat;
           const persisted = await persistJobStatus({
             jobId,
             sourceId,
@@ -729,6 +744,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
           }
         })
         .catch((error) => {
+          clearInterval(heartbeat);
           log.error(`Background sync job ${jobId} crashed: ${toError(error).message}`);
         });
 
@@ -743,7 +759,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
     if (!job) {
       return { status: 404 as const, body: { error: `Unknown or expired job: ${params.jobId}` } };
     }
-    return { status: 200 as const, body: job };
+    return { status: 200 as const, body: orphanedJobView(job, Date.now()) ?? job };
   },
 
   listSources: async () => {
