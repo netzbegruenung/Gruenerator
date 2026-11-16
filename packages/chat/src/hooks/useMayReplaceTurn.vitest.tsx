@@ -12,6 +12,8 @@ vi.mock('@assistant-ui/react', () => ({
 }));
 
 const { mayReplaceTurn, useMayReplaceTurn } = await import('./useMayReplaceTurn');
+const { cacheThreadShareMetaForTest } = await import('../runtime/GrueneratorThreadListAdapter');
+const { useAgentStore } = await import('../stores/chatStore');
 
 const user = (id: string, senderId?: string) => ({
   id,
@@ -39,6 +41,12 @@ describe('mayReplaceTurn', () => {
     expect(mayReplaceTurn(t, 'u1', 'anna')).toBe(false);
   });
 
+  it('the thread owner may replace anything when the chat is no team chat (fork, person-shared)', () => {
+    expect(mayReplaceTurn(thread, 'u2', 'anna', true)).toBe(true);
+    expect(mayReplaceTurn(thread, 'a2', 'anna', true)).toBe(true);
+    expect(mayReplaceTurn(thread, 'u1', 'anna', true)).toBe(true);
+  });
+
   it('keeps messages without senderId (private chats, legacy rows) editable', () => {
     expect(mayReplaceTurn([user('u', undefined), assistant('a')], 'u', 'anna')).toBe(true);
     expect(mayReplaceTurn([user('u', undefined), assistant('a')], 'a', 'anna')).toBe(true);
@@ -55,5 +63,16 @@ describe('useMayReplaceTurn', () => {
     expect(renderHook(() => useMayReplaceTurn(), { wrapper }).result.current).toBe(false);
     aui.state = { thread: { messages: [user('u1', 'anna')] }, message: { id: 'u1' } };
     expect(renderHook(() => useMayReplaceTurn(), { wrapper }).result.current).toBe(true);
+  });
+
+  it('hook: owner of a non-team thread may edit a foreign turn; in a team chat not', () => {
+    aui.state = { thread: { messages: [user('u2', 'ben')] }, message: { id: 'u2' } };
+    useAgentStore.setState({ currentThreadId: 'th-fork' });
+    cacheThreadShareMetaForTest('th-fork', { accessType: 'owner', teamShared: false });
+    expect(renderHook(() => useMayReplaceTurn(), { wrapper }).result.current).toBe(true);
+    cacheThreadShareMetaForTest('th-fork', { accessType: 'owner', teamShared: true });
+    expect(renderHook(() => useMayReplaceTurn(), { wrapper }).result.current).toBe(false);
+    cacheThreadShareMetaForTest('th-fork', { accessType: 'shared', teamShared: false });
+    expect(renderHook(() => useMayReplaceTurn(), { wrapper }).result.current).toBe(false);
   });
 });

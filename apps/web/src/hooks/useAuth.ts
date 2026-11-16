@@ -389,7 +389,7 @@ const buildE2EBypassAuthData = (): AuthData => {
     user: {
       id: getDevBypassUserId() ?? '00000000-0000-4000-a000-000000000001',
       email: 'dev@gruenerator.de',
-      display_name: 'Test User',
+      display_name: getDevBypassUserId() ? 'Lena Hoffmann' : 'Test User',
       avatar_robot_id: 1,
       beta_features: { workplace: true },
       user_defaults: {},

@@ -1,6 +1,6 @@
 /**
- * One running turn per thread: a second send into a thread whose first turn is
- * still answering is refused with `thread_busy` before any row is written, and
+ * One running turn per thread: a send from another user into a thread whose turn is
+ * still answering is refused (the same user's own stale lease is taken over) with `thread_busy` before any row is written, and
  * the lock is released on every way a turn can end.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -35,14 +35,20 @@ const redisFake = vi.hoisted(() => {
     held,
     client: {
       isReady: true,
-      set: (key: string, value: string) => {
-        if (held.has(key)) return Promise.resolve(null);
-        held.set(key, value);
-        return Promise.resolve('OK');
-      },
-      eval: (_s: string, o: { keys: string[]; arguments: string[] }) => {
-        if (held.get(o.keys[0]) === o.arguments[0]) held.delete(o.keys[0]);
-        return Promise.resolve(1);
+      // Emulates the two Lua scripts of threadRunLock (acquire / release).
+      eval: (script: string, o: { keys: string[]; arguments: string[] }) => {
+        const key = o.keys[0];
+        if (script.includes("redis.call('del'")) {
+          if (held.get(key) === o.arguments[0]) held.delete(key);
+          return Promise.resolve(1);
+        }
+        const [holder, userId] = o.arguments;
+        const cur = held.get(key);
+        if (cur === undefined || cur.startsWith(`${userId}:`)) {
+          held.set(key, holder);
+          return Promise.resolve(1);
+        }
+        return Promise.resolve(0);
       },
     },
   };
@@ -113,6 +119,7 @@ const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
 const { messages } = await import('./harness/fakeThreadStore.js');
+const { TEST_USER } = await import('./harness/fakeUser.js');
 
 const suite = useChatApp();
 
@@ -140,14 +147,10 @@ describe('thread run lock', () => {
     redisFake.held.clear();
   });
 
-  it('refuses a second turn while the first runs, then admits a third', async () => {
+  it("refuses a peer's turn while another user's turn runs, then admits it", async () => {
     const threadId = await seedThread();
     const rowsBefore = messages.size;
-
-    gate.close();
-    const first = runTurn(suite.baseUrl(), { threadId, messages: [userTurn('Eins', 'm2')] });
-    await settle();
-    const rowsWhileRunning = messages.size;
+    redisFake.held.set(`chat:thread-run:${threadId}`, 'peer-user:run-1');
 
     const second = await runTurn(
       suite.baseUrl(),
@@ -156,14 +159,19 @@ describe('thread run lock', () => {
     );
     const err = second.events.find((e) => e.event === 'error');
     expect(err?.data).toMatchObject({ code: 'thread_busy', retryable: true });
-    expect(messages.size).toBe(rowsWhileRunning);
-    expect(rowsWhileRunning).toBeGreaterThan(rowsBefore);
+    expect(messages.size).toBe(rowsBefore);
 
-    gate.release();
-    await first;
-
+    redisFake.held.clear();
     const third = await runTurn(suite.baseUrl(), { threadId, messages: [userTurn('Drei', 'm4')] });
     expect(third.trace.error).toBeNull();
+  });
+
+  it("takes over the sender's own stale lease instead of stranding her chat", async () => {
+    const threadId = await seedThread();
+    redisFake.held.set(`chat:thread-run:${threadId}`, `${TEST_USER.id}:stale-run`);
+
+    const res = await runTurn(suite.baseUrl(), { threadId, messages: [userTurn('Wieder', 'm2')] });
+    expect(res.trace.error).toBeNull();
   });
 
   it('releases the lock when the turn throws', async () => {

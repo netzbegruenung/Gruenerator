@@ -128,7 +128,7 @@ interface AgentState {
    * the thread-list adapter's `initialize`. Expires so an abandoned hand-off
    * cannot file an unrelated chat into the Projekt later.
    */
-  pendingGroup: { id: string; expiresAt: number } | null;
+  pendingGroup: { id: string; teamShared: boolean; expiresAt: number } | null;
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
@@ -195,7 +195,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
-  setPendingGroup: (groupId: string | null) => void;
+  setPendingGroup: (groupId: string | null, teamShared?: boolean) => void;
   setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
@@ -398,10 +398,10 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
-      setPendingGroup: (groupId) =>
+      setPendingGroup: (groupId, teamShared = false) =>
         set({
           pendingGroup: groupId
-            ? { id: groupId, expiresAt: Date.now() + PENDING_GROUP_TTL_MS }
+            ? { id: groupId, teamShared, expiresAt: Date.now() + PENDING_GROUP_TTL_MS }
             : null,
         }),
 

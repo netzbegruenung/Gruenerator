@@ -23,13 +23,11 @@ import { useShallow } from 'zustand/shallow';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
-import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { chatApiClient, createChatApiClient } from '../context/ChatContext';
 import { ChatNavigationProvider, type ChatNavigateOptions } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { CurrentUserContext } from '../context/CurrentUserContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
-import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { useDailyBriefing } from '../hooks/useDailyBriefing';
 import { useInterruptSignal, useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { adoptRejection } from '../lib/adoptRejection';
@@ -42,6 +40,7 @@ import { useAgentStore } from '../stores/chatStore';
 
 import { ActiveRoleSyncEffect } from './ActiveRoleSyncEffect';
 import { AgentSwitchListener } from './AgentSwitchListener';
+import { ChatCollaborationBridge } from './ChatCollaborationBridge';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createGrueneratorModelAdapter,
@@ -476,24 +475,6 @@ function ThreadTitleEffect() {
   return null;
 }
 
-function ChatCollaborationBridge({
-  userId,
-  userName,
-  children,
-}: {
-  userId: string;
-  userName?: string;
-  children: ReactNode;
-}) {
-  const threadId = useAgentStore((s) => s.currentThreadId);
-  const chatViewMode = useAgentStore((s) => s.chatViewMode);
-  const activeThreadId = chatViewMode === 'thread' ? threadId : null;
-  const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
-  const collab = useChatCollaboration(activeThreadId, user);
-
-  return <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>;
-}
-
 export function GrueneratorChatRuntimeProvider({
   children,
   userId,
@@ -606,7 +587,7 @@ export function GrueneratorChatRuntimeProvider({
             <DailyBriefingEffect />
             {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
             <CurrentUserContext.Provider value={userId}>
-              <ChatCollaborationBridge userId={userId} userName={userName}>
+              <ChatCollaborationBridge userId={userId} userName={userName} runtime={runtime}>
                 {children}
               </ChatCollaborationBridge>
             </CurrentUserContext.Provider>

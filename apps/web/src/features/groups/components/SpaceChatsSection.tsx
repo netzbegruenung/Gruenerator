@@ -72,6 +72,8 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
         <ul className="m-0 flex list-none flex-col p-0">
           {threads.map((t) => {
             const slug = t.slugSuffix ? buildChatThreadSlug(t.title, t.slugSuffix) : t.id;
+            const isTeam = t.teamShared === true || t.accessType === 'group';
+            const isOwn = !t.accessType || t.accessType === 'owner';
             return (
               <li key={t.id}>
                 <Link
@@ -82,6 +84,26 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
                   <span className="min-w-0 flex-1 truncate text-[15px]">
                     {t.title || 'Neue Unterhaltung'}
                   </span>
+                  {isTeam && t.ownerName ? (
+                    <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                      <span
+                        aria-hidden
+                        className="flex size-5 items-center justify-center rounded-full bg-background-alt text-[11px] font-medium text-foreground"
+                      >
+                        {t.ownerName.trim().charAt(0).toUpperCase()}
+                      </span>
+                      {t.ownerName}
+                    </span>
+                  ) : null}
+                  {isTeam ? (
+                    <span className="shrink-0 rounded-full bg-background-alt px-2 py-0.5 text-xs font-medium text-foreground">
+                      Team
+                    </span>
+                  ) : isOwn ? (
+                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                      Privat
+                    </span>
+                  ) : null}
                   <span className="shrink-0 text-[13px] text-muted-foreground">
                     {formatRelativeDate(t.updatedAt)}
                   </span>

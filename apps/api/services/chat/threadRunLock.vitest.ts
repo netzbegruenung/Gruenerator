@@ -12,17 +12,21 @@ const fake = vi.hoisted(() => {
     get isReady() {
       return state.ready;
     },
-    set: (key: string, value: string, opts: { NX?: boolean; PX?: number }) => {
+    eval: (script: string, o: { keys: string[]; arguments: string[] }) => {
       if (state.throwing) return Promise.reject(new Error('down'));
-      if (opts.NX && live(key)) return Promise.resolve(null);
-      store.set(key, { value, expiresAt: state.now + (opts.PX ?? Infinity) });
-      return Promise.resolve('OK');
-    },
-    eval: (_script: string, o: { keys: string[]; arguments: string[] }) => {
-      if (state.throwing) return Promise.reject(new Error('down'));
-      const e = live(o.keys[0]);
-      if (e && e.value === o.arguments[0]) {
-        store.delete(o.keys[0]);
+      const key = o.keys[0];
+      const e = live(key);
+      if (script.includes("redis.call('del'")) {
+        if (e && e.value === o.arguments[0]) {
+          store.delete(key);
+          return Promise.resolve(1);
+        }
+        return Promise.resolve(0);
+      }
+      // acquire: [holder, userId, ttl]
+      const [holder, userId, ttl] = o.arguments;
+      if (!e || e.value.startsWith(userId + ':')) {
+        store.set(key, { value: holder, expiresAt: state.now + Number(ttl) });
         return Promise.resolve(1);
       }
       return Promise.resolve(0);
@@ -44,44 +48,59 @@ beforeEach(() => {
 
 describe('acquireThreadRun', () => {
   it('refuses a second acquire on the same thread', async () => {
-    expect(await acquireThreadRun('t1', 'a')).not.toBeNull();
-    expect(await acquireThreadRun('t1', 'b')).toBeNull();
-    expect(await acquireThreadRun('t2', 'b')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-a', 'a')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).toBeNull();
+    expect(await acquireThreadRun('t2', 'u-b', 'b')).not.toBeNull();
   });
 
   it('frees the thread on release', async () => {
-    const lease = await acquireThreadRun('t1', 'a');
+    const lease = await acquireThreadRun('t1', 'u-a', 'a');
     await lease?.release();
-    expect(await acquireThreadRun('t1', 'b')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).not.toBeNull();
   });
 
   it('does not free a lock another holder took over', async () => {
-    const first = await acquireThreadRun('t1', 'a');
+    const first = await acquireThreadRun('t1', 'u-a', 'a');
     fake.state.now = 420_000; // lease expired
-    const second = await acquireThreadRun('t1', 'b');
+    const second = await acquireThreadRun('t1', 'u-b', 'b');
     expect(second).not.toBeNull();
     await first?.release(); // stale holder
-    expect(await acquireThreadRun('t1', 'c')).toBeNull();
+    expect(await acquireThreadRun('t1', 'u-c', 'c')).toBeNull();
+  });
+
+  it('lets the same user take over her own stale lease; the old holder cannot free the new one', async () => {
+    const stale = await acquireThreadRun('t1', 'u-a', 'run-1');
+    const retake = await acquireThreadRun('t1', 'u-a', 'run-2');
+    expect(retake).not.toBeNull();
+    await stale?.release(); // old holder after takeover must not free the new lease
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).toBeNull();
+    await retake?.release();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).not.toBeNull();
+  });
+
+  it('still refuses a peer while another user holds the lease', async () => {
+    await acquireThreadRun('t1', 'u-a', 'run-1');
+    expect(await acquireThreadRun('t1', 'u-b', 'run-2')).toBeNull();
   });
 
   it('expires after 420 000 ms', async () => {
-    await acquireThreadRun('t1', 'a');
+    await acquireThreadRun('t1', 'u-a', 'a');
     fake.state.now = 419_999;
-    expect(await acquireThreadRun('t1', 'b')).toBeNull();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).toBeNull();
     fake.state.now = 420_000;
-    expect(await acquireThreadRun('t1', 'b')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).not.toBeNull();
   });
 
   it('fails open when Redis throws', async () => {
     fake.state.throwing = true;
-    const lease = await acquireThreadRun('t1', 'a');
+    const lease = await acquireThreadRun('t1', 'u-a', 'a');
     expect(lease).not.toBeNull();
     await expect(lease?.release()).resolves.toBeUndefined();
   });
 
   it('fails open when Redis is not ready', async () => {
     fake.state.ready = false;
-    expect(await acquireThreadRun('t1', 'a')).not.toBeNull();
-    expect(await acquireThreadRun('t1', 'b')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-a', 'a')).not.toBeNull();
+    expect(await acquireThreadRun('t1', 'u-b', 'b')).not.toBeNull();
   });
 });

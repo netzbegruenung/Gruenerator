@@ -687,7 +687,7 @@ async function buildStreamContextInner({
   // a turn is answering would interleave two answers. Released by the caller
   // (router `finally`), or by `buildStreamContext` if it never gets that far.
   if (actualThreadId && !isNewThread) {
-    const lease = await acquireThreadRun(actualThreadId, `${requestId}:${randomUUID()}`);
+    const lease = await acquireThreadRun(actualThreadId, userId, `${requestId}:${randomUUID()}`);
     if (!lease) {
       sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
       return { done: true };

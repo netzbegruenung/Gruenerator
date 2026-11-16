@@ -398,6 +398,30 @@ export async function getAssistantMessageThreadId(messageId: string): Promise<st
 }
 
 /**
+ * Whether `userId` wrote the user message a stream answers: the latest user row
+ * at or before the assistant row. A NULL `user_id` (legacy rows, deleted
+ * profile) counts as the thread owner. False when the stream is unknown.
+ */
+export async function isStreamTurnSender(streamId: string, userId: string): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT COALESCE(
+              (SELECT m.user_id FROM chat_messages m
+                WHERE m.thread_id = a.thread_id AND m.role = 'user'
+                  AND m.created_at <= a.created_at
+                ORDER BY m.created_at DESC, m.id DESC
+                LIMIT 1),
+              t.user_id
+            )::text = $2::text AS is_sender
+       FROM chat_messages a
+       JOIN chat_threads t ON t.id = a.thread_id AND t.deleted_at IS NULL
+      WHERE a.id = $1 AND a.role = 'assistant'`,
+    [streamId, userId]
+  )) as { is_sender: boolean | null }[];
+  return rows[0]?.is_sender === true;
+}
+
+/**
  * Sweep this thread's empty streaming orphans before a new turn starts — rows a
  * previous crash left behind that carry no text. Rows with partial text stay as
  * aborted turns.
@@ -425,6 +449,9 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
  * row of a live (not trashed) thread. A legacy row with `user_id` NULL counts as
  * written by the thread owner. Check and delete are ONE statement, so a
  * concurrent write can't slip between them.
+ *
+ * The rule is absolute only in a team chat (a write-capable group share).
+ * Without one (forks, person-shared threads) the thread owner may replace too.
  */
 export async function deleteMessagesFrom(
   threadId: string,
@@ -439,15 +466,30 @@ export async function deleteMessagesFrom(
        JOIN chat_threads t ON t.id = m.thread_id
        WHERE m.id = $2 AND m.thread_id = $1 AND m.role = 'user' AND t.deleted_at IS NULL
      ),
+     team AS (
+       -- A team chat = a write-capable share into a live Projekt. Only there is
+       -- the author rule absolute; elsewhere (fork, person-shared thread) the
+       -- owner may replace turns too.
+       SELECT EXISTS (
+         SELECT 1 FROM group_content_shares gcs
+         INNER JOIN groups tg ON tg.id = gcs.group_id AND tg.deleted_at IS NULL
+         WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1::text
+           AND COALESCE((gcs.permissions->>'write')::boolean, true)
+       ) AS is_team
+     ),
      verdict AS (
        -- The cut takes every later row with it: a teammate's message after the
-       -- anchor blocks the edit just like a foreign anchor does.
-       SELECT NOT EXISTS (
-         SELECT 1 FROM chat_messages f, anchor a
-         WHERE f.thread_id = $1 AND f.role = 'user' AND f.created_at >= a.created_at
-           AND COALESCE(f.user_id, a.owner_id)::text <> $3::text
+       -- anchor blocks the edit just like a foreign anchor does — unless the
+       -- thread is no team chat and the sender owns it.
+       SELECT (
+         NOT EXISTS (
+           SELECT 1 FROM chat_messages f, anchor a
+           WHERE f.thread_id = $1 AND f.role = 'user' AND f.created_at >= a.created_at
+             AND COALESCE(f.user_id, a.owner_id)::text <> $3::text
+         )
+         OR (NOT (SELECT is_team FROM team) AND a.owner_id::text = $3::text)
        ) AS ok
-       FROM anchor
+       FROM anchor a
      ),
      deleted AS (
        DELETE FROM chat_messages
@@ -484,9 +526,22 @@ export async function deleteTrailingAssistant(
     `WITH live AS (
        SELECT user_id AS owner_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL
      ),
+     team AS (
+       -- A team chat = a write-capable share into a live Projekt. Only there is
+       -- the author rule absolute; elsewhere (fork, person-shared thread) the
+       -- owner may replace turns too.
+       SELECT EXISTS (
+         SELECT 1 FROM group_content_shares gcs
+         INNER JOIN groups tg ON tg.id = gcs.group_id AND tg.deleted_at IS NULL
+         WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1::text
+           AND COALESCE((gcs.permissions->>'write')::boolean, true)
+       ) AS is_team
+     ),
      last_user AS (
        SELECT m.created_at,
-              COALESCE(m.user_id, (SELECT owner_id FROM live))::text = $2::text AS ok
+              (COALESCE(m.user_id, (SELECT owner_id FROM live))::text = $2::text
+               OR (NOT (SELECT is_team FROM team) AND (SELECT owner_id FROM live)::text = $2::text)
+              ) AS ok
        FROM chat_messages m
        WHERE m.thread_id = $1 AND m.role = 'user' AND EXISTS (SELECT 1 FROM live)
        ORDER BY m.created_at DESC

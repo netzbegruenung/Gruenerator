@@ -1,11 +1,17 @@
 'use client';
 
+import { useCollaborators } from '@gruenerator/collab';
 import { buildGroupPath, useUserGroups } from '@gruenerator/shared/groups';
 import { FolderOpen } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 
+import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useChatNavigation } from '../../context/ChatNavigationContext';
-import { getThreadGroupId, subscribeThreadTags } from '../../runtime/GrueneratorThreadListAdapter';
+import {
+  getThreadGroupId,
+  isThreadTeamChat,
+  subscribeThreadTags,
+} from '../../runtime/GrueneratorThreadListAdapter';
 import { useAgentStore } from '../../stores/chatStore';
 
 /**
@@ -24,6 +30,14 @@ export function ThreadProjectCrumb() {
     () => (threadId ? getThreadGroupId(threadId) : null),
     () => null
   );
+  const isTeam = useSyncExternalStore(
+    subscribeThreadTags,
+    () => (threadId ? isThreadTeamChat(threadId) : false),
+    () => false
+  );
+  // Same collaboration context as the thread header — no second provider.
+  const collab = useChatCollaborationContext();
+  const onlineCount = useCollaborators(collab?.provider ?? null).length;
   const { data: groups } = useUserGroups({ enabled: !!groupId });
   const group = groupId ? groups?.find((g) => g.id === groupId) : undefined;
   if (!group) return null;
@@ -48,6 +62,14 @@ export function ThreadProjectCrumb() {
       >
         {group.name}
       </a>
+      {isTeam ? (
+        <span className="shrink-0 rounded-full bg-background-alt px-2 py-0.5 text-xs font-medium text-foreground">
+          Team
+        </span>
+      ) : null}
+      {isTeam && onlineCount > 0 ? (
+        <span className="shrink-0 text-xs">{onlineCount} online</span>
+      ) : null}
       {title ? (
         <>
           <span aria-hidden>/</span>
