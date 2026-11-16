@@ -286,10 +286,14 @@ export const parteitageErrorCodeSchema = z.enum([
   'RATE_LIMITED',
 ]);
 
+export type ParteitageErrorCode = z.infer<typeof parteitageErrorCodeSchema>;
+
 export const parteitageErrorSchema = z.object({
   success: z.literal(false),
   code: parteitageErrorCodeSchema,
   message: z.string(),
+  /** MISSING_UPLOADS: manifest file names without a usable upload. */
+  files: z.array(z.string()).optional(),
 });
 
 export const parteitageUnlockBodySchema = z.object({ password: z.string().min(1) });
