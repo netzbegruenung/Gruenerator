@@ -28,6 +28,7 @@ interface ApiThread {
   tags?: string[];
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
+  teamShared?: boolean;
   readOnly?: boolean | null;
   briefing?: { day: string; unread: boolean } | null;
   createdAt: string;
@@ -89,6 +90,14 @@ export function getThreadAgentId(remoteId: string): string | null {
 // or against an older server that doesn't send the fields.
 const threadAccessTypeCache = new Map<string, 'owner' | 'shared' | 'group'>();
 const threadReadOnlyCache = new Set<string>();
+// Own threads that carry a group share (team chats). Together with a non-owner
+// access type this is what opens the live-sync socket.
+const threadTeamSharedCache = new Set<string>();
+
+/** A thread other people write into: someone else's, or shared with a group. */
+export function isThreadCollaborative(remoteId: string): boolean {
+  return threadTeamSharedCache.has(remoteId) || getThreadAccessType(remoteId) !== 'owner';
+}
 
 export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'group' {
   return threadAccessTypeCache.get(remoteId) ?? 'owner';
@@ -96,6 +105,17 @@ export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'gro
 
 export function isThreadReadOnly(remoteId: string): boolean {
   return threadReadOnlyCache.has(remoteId);
+}
+
+/** Test seam: what list() records about a thread's sharing. */
+export function cacheThreadShareMetaForTest(
+  remoteId: string,
+  meta: { accessType: 'owner' | 'shared' | 'group'; teamShared: boolean }
+): void {
+  threadAccessTypeCache.set(remoteId, meta.accessType);
+  if (meta.teamShared) threadTeamSharedCache.add(remoteId);
+  else threadTeamSharedCache.delete(remoteId);
+  tagListeners.forEach((l) => l());
 }
 
 // Tagesbriefing threads that were not opened yet; drives the "Neu" badge.
@@ -154,6 +174,7 @@ function forgetThreadCaches(remoteId: string): void {
   threadTagsCache.delete(remoteId);
   threadAccessTypeCache.delete(remoteId);
   threadReadOnlyCache.delete(remoteId);
+  threadTeamSharedCache.delete(remoteId);
   unreadBriefingCache.delete(remoteId);
 }
 
@@ -331,6 +352,12 @@ export function createGrueneratorThreadListAdapter(
           const accessType = t.accessType ?? 'owner';
           if (threadAccessTypeCache.get(t.id) !== accessType) {
             threadAccessTypeCache.set(t.id, accessType);
+            shareMetaChanged = true;
+          }
+          const teamShared = t.teamShared === true;
+          if (threadTeamSharedCache.has(t.id) !== teamShared) {
+            if (teamShared) threadTeamSharedCache.add(t.id);
+            else threadTeamSharedCache.delete(t.id);
             shareMetaChanged = true;
           }
           const readOnly = t.readOnly === true;

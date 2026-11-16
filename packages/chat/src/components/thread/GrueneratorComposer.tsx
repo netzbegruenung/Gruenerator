@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 
+import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -833,6 +834,20 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [mention.mode, dismissPopover]
   );
 
+  // Team chats show "X schreibt …" to the other members.
+  const collab = useChatCollaborationContext();
+  const setTyping = collab?.setTyping;
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setTyping?.(e.target.value.length > 0);
+      if (showMentions) handleChange(e);
+    },
+    [setTyping, showMentions, handleChange]
+  );
+  useEffect(() => {
+    if (isRunning) setTyping?.(false);
+  }, [isRunning, setTyping]);
+
   const inputHistory = unstable_useComposerInputHistory();
 
   const handleKeyDown = useCallback(
@@ -1034,7 +1049,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             ? 'max-h-[min(calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.3),40cqh)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
             : 'max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
       }
-      onChange={showMentions ? handleChange : undefined}
+      onChange={handleInputChange}
       // Not gated on showMentions: the pill handling (Enter/Backspace) must
       // also work on surfaces whose pills come from the plus menu only. The
       // popover branches inside are inert there (mention.visible stays false).

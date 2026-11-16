@@ -124,10 +124,15 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
     providerRef.current?.awareness?.setLocalStateField('chatNewMessage', { t: Date.now() });
   }, []);
 
+  const broadcastTurnStarted = useCallback(() => {
+    providerRef.current?.awareness?.setLocalStateField('chatTurnStarted', { t: Date.now() });
+  }, []);
+
   return {
     provider,
     typingUsers,
     setTyping,
     broadcastNewMessage,
+    broadcastTurnStarted,
   };
 }

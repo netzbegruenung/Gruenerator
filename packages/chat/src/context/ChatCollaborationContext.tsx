@@ -7,6 +7,7 @@ export interface ChatCollaborationState {
   typingUsers: string[];
   setTyping: (isTyping: boolean) => void;
   broadcastNewMessage: () => void;
+  broadcastTurnStarted?: () => void;
 }
 
 const ChatCollaborationContext = createContext<ChatCollaborationState | null>(null);
