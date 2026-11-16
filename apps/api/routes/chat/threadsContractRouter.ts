@@ -19,6 +19,8 @@ import {
 } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
+import { addGroupShare } from '../../services/groups/groupShareWriter.js';
+import { teamChatShareExistsSql } from '../../services/groups/projectThreadScope.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
@@ -75,6 +77,8 @@ export const threadsContractRouter = s.router(threadsContract, {
                 t.notebook_collection_id, t.notebook_collection_ids,
                 (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
                 COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                (SELECT p.display_name FROM profiles p WHERE p.id::text = t.user_id::text) AS owner_name,
+                (t.group_id IS NOT NULL AND ${teamChatShareExistsSql('t', 't.group_id')}) AS team_shared,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -132,6 +136,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         slugSuffix: (row.slug_suffix as string) ?? null,
         accessType: (row.access_type as 'owner' | 'shared' | 'group') ?? null,
         readOnly: row.read_only === true,
+        ownerName: (row.owner_name as string | null) ?? null,
+        teamShared: row.team_shared === true,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -169,6 +175,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         slugSuffix: t.slugSuffix,
         accessType: t.accessType,
         readOnly: t.readOnly,
+        ownerName: t.ownerName,
+        teamShared: t.teamShared,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -191,7 +199,7 @@ export const threadsContractRouter = s.router(threadsContract, {
   create: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { title, agentId, threadType, groupId } = args.body;
+      const { title, agentId, threadType, groupId, teamShared } = args.body;
 
       // Same gate as filing a thread afterwards (`update`): member of the
       // Projekt and allowed to share into it — no system group for non-admins.
@@ -204,21 +212,61 @@ export const threadsContractRouter = s.router(threadsContract, {
       }
 
       const postgres = getPostgresInstance();
-      const result = await insertThreadWithSlugRetry((slugSuffix) =>
-        postgres.query(
-          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix, group_id)
+
+      // „Für das Team": only in a team Projekt. Checked after the membership
+      // gate, so a stranger learns nothing about the Projekt's kind.
+      if (teamShared) {
+        const kind =
+          groupId != null
+            ? await postgres.queryOne(
+                `SELECT group_type FROM groups WHERE id = $1::uuid AND deleted_at IS NULL`,
+                [groupId]
+              )
+            : null;
+        if (!kind || kind.group_type === 'personal') {
+          return {
+            status: 400 as const,
+            body: {
+              error: 'Team-Chats gibt es nur in Team-Projekten.',
+              code: 'team_chat_needs_team_project',
+            },
+          };
+        }
+      }
+
+      const insertSql = `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix, group_id)
            VALUES ($1, $2, $3, $4, $5, $6::uuid)
-           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
-          [
-            userId,
-            agentId || 'gruenerator-universal',
-            title ?? null,
-            threadType || 'chat',
-            slugSuffix,
-            groupId ?? null,
-          ]
-        )
-      );
+           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`;
+      const insertParams = (slugSuffix: string) => [
+        userId,
+        agentId || 'gruenerator-universal',
+        title ?? null,
+        threadType || 'chat',
+        slugSuffix,
+        groupId ?? null,
+      ];
+      const result: Record<string, unknown>[] =
+        teamShared && groupId != null
+          ? // Whole transaction per attempt: a slug collision aborts it.
+            await insertThreadWithSlugRetry((slugSuffix) =>
+              postgres.transaction(async (client) => {
+                const rows = (await client.query(insertSql, insertParams(slugSuffix)))
+                  .rows as Record<string, unknown>[];
+                await addGroupShare({
+                  userId,
+                  groupId,
+                  contentType: 'chat_threads',
+                  contentId: String(rows[0].id),
+                  permissions: { read: true, write: true },
+                  notify: false,
+                  tx: client,
+                });
+                return rows;
+              })
+            )
+          : await insertThreadWithSlugRetry((slugSuffix) =>
+              postgres.query(insertSql, insertParams(slugSuffix))
+            );
 
       const thread = result[0];
       return {

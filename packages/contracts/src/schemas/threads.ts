@@ -46,6 +46,12 @@ export const threadSchema = z.object({
   // True when the caller's only grant is a read-only group share — the
   // sidebar routes such threads to the archive view instead of the live chat.
   readOnly: z.boolean().nullable().optional(),
+  // Display name of the thread's owner (profiles.display_name); null when the
+  // profile has none. Optional (F0): older servers do not send it.
+  ownerName: z.string().nullable().optional(),
+  // True when the thread is a team chat: shared into its own Projekt with read
+  // and write. Optional (F0): older servers do not send it.
+  teamShared: z.boolean().optional(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
@@ -63,6 +69,9 @@ export const createThreadBodySchema = z.object({
   // File the new thread into a Projekt from the start, so its first turn
   // already sees the Projekt's context (instructions, files, notebooks).
   groupId: z.string().optional(),
+  // Start the chat „Für das Team": the thread is shared into `groupId` with
+  // read + write in the same transaction. Team Projekte only.
+  teamShared: z.boolean().optional(),
 });
 
 export const patchThreadBodySchema = z.object({
@@ -126,6 +135,11 @@ export type GenerateTitleResponse = z.infer<typeof generateTitleResponseSchema>;
 
 export const errorResponseSchema = z.object({
   error: z.string(),
+});
+
+/** An error with a machine-readable `code` (e.g. `team_chat_needs_team_project`). */
+export const codedErrorResponseSchema = errorResponseSchema.extend({
+  code: z.string().optional(),
 });
 
 export const successResponseSchema = z.object({
