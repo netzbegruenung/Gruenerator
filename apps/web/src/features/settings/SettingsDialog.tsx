@@ -15,6 +15,7 @@ import { type IconType } from 'react-icons';
 import {
   FiBarChart2,
   FiBell,
+  FiClipboard,
   FiCloud,
   FiGlobe,
   FiHelpCircle,
@@ -33,6 +34,7 @@ import {
 } from 'react-icons/pi';
 
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
+import { useAntragsgruenSites } from './hooks/useAntragsgruenSites';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
 import {
   cancelSettingsHoverPreload,
@@ -51,6 +53,8 @@ import { useOnboarding } from './useOnboarding';
 //
 // hideHeading: the tab's content brings its own top-level heading.
 // onlyWhileOnboarding: verschwindet, sobald die Einrichtung erledigt ist.
+// onlyWithAntragsgruen: nur, wo der Grünerator Antragsgrün-Seiten anlegen kann
+// oder die Person schon welche hat (experimentell, nur de-DE).
 //
 // Die Liste bleibt ein statisches Array-Literal: documentation/scripts/
 // generate-settings.mjs liest sie per AST aus, um die Doku gegen die Oberfläche
@@ -61,6 +65,7 @@ const NAV: {
   icon: IconType;
   hideHeading?: boolean;
   onlyWhileOnboarding?: boolean;
+  onlyWithAntragsgruen?: boolean;
 }[] = [
   {
     value: 'onboarding',
@@ -80,6 +85,13 @@ const NAV: {
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
   {
+    value: 'antragsgruen',
+    label: 'Antragsgrün',
+    icon: FiClipboard,
+    hideHeading: true,
+    onlyWithAntragsgruen: true,
+  },
+  {
     value: 'datenschutz',
     label: 'Datenschutz & Barrierefreiheit',
     icon: FiShield,
@@ -90,8 +102,11 @@ const NAV: {
 ];
 
 /** Die Seitenleiste, wie sie in diesem Moment aussieht. */
-export function visibleSettingsNav(isOnboarding: boolean) {
-  return NAV.filter((entry) => !entry.onlyWhileOnboarding || isOnboarding);
+export function visibleSettingsNav(isOnboarding: boolean, antragsgruen = false) {
+  return NAV.filter(
+    (entry) =>
+      (!entry.onlyWhileOnboarding || isOnboarding) && (!entry.onlyWithAntragsgruen || antragsgruen)
+  );
 }
 
 /**
@@ -110,10 +125,11 @@ export function visibleSettingsNav(isOnboarding: boolean) {
 export function resolveSettingsTab(
   tab: SettingsTab,
   tabWasNamed: boolean,
-  isOnboarding: boolean
+  isOnboarding: boolean,
+  antragsgruen = false
 ): SettingsTab {
   const wanted = !tabWasNamed && isOnboarding ? 'onboarding' : tab;
-  return visibleSettingsNav(isOnboarding).some((entry) => entry.value === wanted)
+  return visibleSettingsNav(isOnboarding, antragsgruen).some((entry) => entry.value === wanted)
     ? wanted
     : 'allgemein';
 }
@@ -158,8 +174,14 @@ const SettingsDialog = () => {
   const queryClient = useQueryClient();
   const { isActive: isOnboarding, complete: completeOnboarding } = useOnboarding();
 
-  const nav = visibleSettingsNav(isOnboarding);
-  const activeTab = resolveSettingsTab(tab, tabWasNamed, isOnboarding);
+  const { data: antragsgruenSites } = useAntragsgruenSites();
+  // Solange die Liste lädt, bleibt ein direkt angesteuerter Reiter stehen,
+  // statt auf Allgemein zurückzufallen.
+  const antragsgruen = antragsgruenSites
+    ? antragsgruenSites.enabled || antragsgruenSites.sites.length > 0
+    : tab === 'antragsgruen';
+  const nav = visibleSettingsNav(isOnboarding, antragsgruen);
+  const activeTab = resolveSettingsTab(tab, tabWasNamed, isOnboarding, antragsgruen);
 
   // The active tab is the one signal we have that this user is in settings at
   // all: warm its data now, and pull the other tab chunks in during idle time

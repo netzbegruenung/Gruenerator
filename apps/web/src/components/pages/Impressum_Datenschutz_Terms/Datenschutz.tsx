@@ -58,7 +58,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 4. November 2026</p>
+      <p>Stand: 16. November 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -526,6 +526,25 @@ const Datenschutz = () => {
         Deine Suchanfragen über die selbst gehostete Metasuche (SearXNG) sowie über Linkup
         Technologies (Frankreich, EU) verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit.
         f DSGVO.
+      </p>
+
+      <h3 id="antragsgruen">Antragsgrün-Seiten (experimentell)</h3>
+      <p>
+        Auf Deinen Wunsch und erst nach Deiner Bestätigung legt der GRÜNERATOR mit einem eigenen
+        Konto eine Antragsgrün-Seite auf antragsgruen.de an. Dabei werden an den Betreiber von
+        antragsgruen.de übermittelt: Titel und Organisation der Versammlung, Dein Name als Kontakt
+        im Impressum der Seite (öffentlich sichtbar, änderbar durch Dich) sowie Dein Name und die
+        E-Mail-Adresse Deines GRÜNERATOR-Kontos, mit der Du als Seiten-Admin eingetragen wirst;
+        Antragsgrün schickt Dir dorthin Deine Zugangsdaten. Reichst Du über den GRÜNERATOR einen
+        Antrag ein, werden dessen Titel, Text und Begründung, Dein Name, gegebenenfalls Deine
+        Organisation und Deine E-Mail-Adresse als Kontakt (nur für Admins der Seite sichtbar)
+        übermittelt. Für die Verarbeitung bei antragsgruen.de gilt dessen Datenschutzerklärung.
+      </p>
+      <p>
+        Der GRÜNERATOR speichert nur Titel und Adresse der Seite mit der Zuordnung zu Deinem Konto.
+        Unter „Einstellungen“ → „Antragsgrün“ kannst Du eine Seite jederzeit entfernen; mit dem
+        Löschen Deines Kontos entfällt die Zuordnung. Das GRÜNERATOR-Konto bleibt Admin auf der
+        Seite, bis Du es dort austrägst. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Fehler- und Anwendungsmonitoring (GlitchTip)</h3>

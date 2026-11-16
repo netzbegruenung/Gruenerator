@@ -237,10 +237,19 @@ export const DEFERRABLE_GROUPS = [
     // auch der Einstieg. Die Erwähnung heftet `antragsgruen` an und öffnet damit.
     id: 'antragsgruen',
     loaderTool: 'antragsgruen_werkzeuge_laden',
-    tools: ['antragsgruen', 'antragsgruen_lesen', 'antragsgruen_auswerten'],
+    // `antragsgruen_seite_anlegen` gilt nicht nur für NRW; es steht hier, weil
+    // dieselben Wörter es aufrufen und es sonst in jedem Turn ein Platz wäre.
+    tools: [
+      'antragsgruen',
+      'antragsgruen_lesen',
+      'antragsgruen_auswerten',
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+    ],
     hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
     loaderDescription:
-      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission.',
+      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen) sowie antragsgruen_seite_anlegen (eine eigene Antragsgrün-Seite auf antragsgruen.de anlegen), antragsgruen_antrag_stellen (einen Antrag auf dieser eigenen Seite einreichen) und antragsgruen_tagesordnung (ihre Tagesordnung lesen oder setzen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder wenn jemand eine eigene Antragsgrün-Seite für eine Versammlung haben will.',
   },
 ] as const satisfies readonly DeferrableGroup[];
 
@@ -287,6 +296,12 @@ export interface ToolScope {
  *   gerufen haben. Hat einer davon in einer Gruppe gelegen, bleibt sie offen:
  *   nach "Zeig meine Aufgaben" trägt "und die vom Radentscheid?" kein einziges
  *   Wort mehr, an dem das Tor die Absicht erkennen könnte.
+ * @param previousUserText  Die Nachricht der Person im Turn davor. Passte der
+ *   `hint` dort, bleibt die Gruppe einen Turn länger offen: die Antwort auf eine
+ *   Rückfrage („KMV Köln März 2027, die Adresse schlag du vor") trägt kein
+ *   Stichwort mehr, und ohne Werkzeugaufruf im Turn davor greift auch
+ *   `priorToolNames` nicht. Gemessen 16.11.2026: die Gruppe war zu, Gemma rief
+ *   den Lader nicht und kündigte das Anlegen nur an.
  * @param enforce  `false` = Schattenbetrieb: das Tor entscheidet und wird
  *   protokolliert, schneidet aber nichts ab. Siehe `isToolScopeEnforced`.
  */
@@ -295,6 +310,7 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  previousUserText?: string | null;
   /**
    * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
    * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
@@ -319,6 +335,7 @@ export function createToolScope(params: {
     const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
+    if (params.previousUserText && group.hint.test(params.previousUserText)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];
     if (pinned && opening.includes(pinned)) continue;
     if (opening.some((t) => prior.has(t))) continue;

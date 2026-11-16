@@ -275,6 +275,12 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   antragsgruen: 30_000,
   antragsgruen_lesen: 30_000,
   antragsgruen_auswerten: 30_000,
+  // Nur die Adressprüfung bei antragsgruen.de (Frist 20 s, `hosting/formClient.ts`).
+  antragsgruen_seite_anlegen: 25_000,
+  // Nur die Liste der eigenen Seiten; eingereicht wird erst nach der Bestätigung.
+  antragsgruen_antrag_stellen: 10_000,
+  // Lesen meldet sich bei Antragsgrün an (Login, Admin-Prüfung, Tagesordnung).
+  antragsgruen_tagesordnung: 30_000,
 };
 
 /**
@@ -346,4 +352,10 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'antragsgruen',
   'antragsgruen_lesen',
   'antragsgruen_auswerten',
+  // Lesen und dann Setzen der Tagesordnung tragen fast dieselben Argumente
+  // ({seite} gegen {seite, punkte}); als Duplikat blockiert, kündigte das Modell
+  // die Änderung nur an (dev bypass 16.11.2026).
+  'antragsgruen_tagesordnung',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_seite_anlegen',
 ]);
