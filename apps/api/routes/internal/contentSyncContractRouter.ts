@@ -329,6 +329,34 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'parteitage': {
+      const { getParteitageScraper } =
+        await import('../../services/scrapers/implementations/ParteitageScraper/index.js');
+      const service = getParteitageScraper();
+      config = {
+        name: 'Parteitage (Antragsgrün)',
+        // Die Erstbefüllung (rund 3.800 Dokumente für NRW) braucht mehr als
+        // einen Lauf: `stopAt` beendet ihn vor dem Timeout, der nächste macht
+        // bei den noch fehlenden Dokumenten weiter.
+        timeoutMs: 50 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.run({
+            force: opts.forceUpdate,
+            dryRun: opts.dryRun,
+            stopAt: Date.now() + 40 * 60 * 1000,
+          });
+          return {
+            stored: result.stored,
+            updated: result.updated,
+            skipped: result.skipped,
+            errors: result.failed,
+            errorSamples: result.errors.slice(0, 20),
+          };
+        },
+      };
+      break;
+    }
     case 'grundsatz': {
       const { grundsatzPdfScraperService } =
         await import('../../services/scrapers/implementations/ProgramPdfScraper.js');

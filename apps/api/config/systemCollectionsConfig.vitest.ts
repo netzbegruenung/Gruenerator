@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COLLECTION_MAP } from './collectionMap.js';
 import { LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
 import {
+  applyDefaultFilter,
   SYSTEM_COLLECTIONS,
   contentTypeLabel,
   getSystemCollectionConfig,
@@ -196,5 +197,30 @@ describe('contentTypeLabel', () => {
     expect(contentTypeLabel('landtag-nrw-system', 'unbekannt')).toBeNull();
     expect(contentTypeLabel('bundestag-dip-system', null)).toBeNull();
     expect(contentTypeLabel('gruene-de-system', 'artikel')).toBeNull();
+  });
+});
+
+describe('applyDefaultFilter — Website-Abschriften von Parteitagsbeschlüssen', () => {
+  const DUPLICATE = { is_empty: { key: 'superseded_by' } };
+
+  it('blendet in der LV-Sammlung markierte Abschriften aus', () => {
+    expect(applyDefaultFilter('nordrhein-westfalen-system')).toEqual({
+      must: [{ key: 'landesverband', match: { any: ['NRW', 'NRW-F'] } }, DUPLICATE],
+    });
+  });
+
+  it('grenzt die Parteitage-Sicht auf die Antragsgrün-Quellen ein', () => {
+    expect(applyDefaultFilter('parteitage-system')).toEqual({
+      must: [{ key: 'source_id', match: { any: ['nrw-antragsgruen'] } }, DUPLICATE],
+    });
+  });
+
+  it('lässt Sammlungen ohne Abschriften unberührt', () => {
+    expect(applyDefaultFilter('landtag-nrw-system')).toBeUndefined();
+    expect(
+      applyDefaultFilter('gruene-de-system', { must: [{ key: 'a', match: { value: 'b' } }] })
+    ).toEqual({
+      must: [{ key: 'a', match: { value: 'b' } }],
+    });
   });
 });

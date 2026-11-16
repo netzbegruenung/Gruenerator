@@ -112,6 +112,8 @@ describe('notebook.getFilters — the chat surface', () => {
         must: [
           { key: 'chunk_index', match: { value: 0 } },
           { key: 'landesverband', match: { value: 'HH' } },
+          // Website-Abschriften von Antragsgrün-Beschlüssen (`applyDefaultFilter`).
+          { is_empty: { key: 'superseded_by' } },
         ],
       });
     }

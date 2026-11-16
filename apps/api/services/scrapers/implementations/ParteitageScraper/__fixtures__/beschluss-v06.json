@@ -1,0 +1,53 @@
+{
+  "link": {
+    "type": "motion",
+    "id": 103941,
+    "agenda_item": "Verschiedenes",
+    "prefix": "V-06",
+    "title": "Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "title_with_intro": "Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "title_with_prefix": "V-06: Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "status_id": 26,
+    "status_title": "Beschluss",
+    "initiators_html": "Landesdelegiertenkonferenz (dort beschlossen am: 20.06.2026)",
+    "amendment_links": [],
+    "url_json": "https://gruene-nrw.antragsgruen.de/rest/ldk26/motion/digitale-bildung-in-offentlicher-hand-fur-bildungsgerechtigkeit-und-so-53327",
+    "url_html": "https://gruene-nrw.antragsgruen.de/ldk26/digitale-bildung-in-offentlicher-hand-fur-bildungsgerechtigkeit-und-so-53327"
+  },
+  "motion": {
+    "type": "motion",
+    "id": 103941,
+    "agenda_item": "Verschiedenes",
+    "prefix": "V-06",
+    "title": "Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "title_with_intro": "Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "title_with_prefix": "V-06: Digitale Bildung in öffentlicher Hand für Bildungsgerechtigkeit und Souveränität",
+    "status_id": 26,
+    "status_title": "Beschluss",
+    "date_published": null,
+    "supporters": [],
+    "initiators": [
+      {
+        "id": 296851,
+        "name": null,
+        "type": "organization",
+        "organization": "Landesdelegiertenkonferenz",
+        "gender": null
+      }
+    ],
+    "initiators_html": "Landesdelegiertenkonferenz (dort beschlossen am: 20.06.2026)",
+    "sections": [
+      {
+        "type": "TextSimple",
+        "title": "Antragstext",
+        "html": "<div class=\"text motionTextFormattings textOrig\"><p>Die Landesdelegiertenkonferenz möge beschließen:</p>\n<p>BÜNDNIS 90/DIE GRÜNEN setzen sich auf Landesebene für eine öffentlich getragene, gerechte und souveräne digitale Bildung in Nordrhein-Westfalen ein.</p>\n<p>Dazu zählen insbesondere folgende Punkte:</p>\n<ol start=\"1\">\n<li>\n<p>Alle Schüler*innen und Lehrkräfte in Nordrhein-Westfalen haben Zugang zu sicheren, datenschutzgerechten und kostenfreien digitalen Bildungswerkzeugen — unabhängig von Schulform, Schulträger oder Wohnort.</p>\n</li>\n<li>\n<p>Die digitale Bildungsinfrastruktur der Schulen liegt in öffentlicher Hand. Das Land trägt sie gemeinsam mit anderen Bundesländern, dem Bund sowie europäischen Partner*innen, statt isolierte Einzellösungen zu finanzieren.</p>\n</li>\n<li>\n<p>Der Betrieb digitaler Werkzeuge in den Schulen ist nicht auf Konzerne außerhalb des Rechtsraums der Europäischen Union angewiesen. Daten von Schüler*innen und Lehrkräften bleiben in europäischer Hand und fließen nicht in die Geschäftsmodelle einzelner Anbieter ein.</p>\n</li>\n<li>\n<p>Lehrkräfte konzentrieren sich auf das Unterrichten. Beschaffung, Wartung und Support digitaler Werkzeuge übernimmt die öffentliche Hand zentral — etwa über eine Landesstelle, die Schulen einheitlich versorgt.</p>\n</li>\n<li>\n<p>Lehrkräfte erhalten praxisnahe Fortbildungen, die sie befähigen, digitale Werkzeuge im Unterricht selbstbestimmt einzusetzen und den sachgerechten Umgang mit diesen zu vermitteln. Dies gilt insbesondere auch für Werkzeuge mit Künstlicher Intelligenz.</p>\n</li>\n<li>\n<p>Werkzeuge mit Künstlicher Intelligenz im Unterricht sind pädagogisch geeignet, gerecht und vorab ethisch geprüft. Sie fördern Kinder gezielt und unter Einbeziehung individueller Stärken und Schwächen in ihrer sprachlichen, fachlichen und sozialen Entwicklung. Sie entlasten Lehrkräfte, ohne diese in ihrer pädagogischen Verantwortung zu ersetzen.</p>\n</li>\n</ol></div>",
+        "layout_right": false
+      }
+    ],
+    "proposed_procedure": null,
+    "amendment_links": [],
+    "url_json": "https://gruene-nrw.antragsgruen.de/rest/ldk26/motion/digitale-bildung-in-offentlicher-hand-fur-bildungsgerechtigkeit-und-so-53327",
+    "url_html": "https://gruene-nrw.antragsgruen.de/ldk26/digitale-bildung-in-offentlicher-hand-fur-bildungsgerechtigkeit-und-so-53327",
+    "pagination": null
+  }
+}

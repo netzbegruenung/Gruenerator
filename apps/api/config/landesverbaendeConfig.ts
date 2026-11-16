@@ -1543,6 +1543,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   presse: 'Pressemitteilung',
   beschluss: 'Beschluss/Resolution',
   antrag: 'Antrag/Motion',
+  aenderungsantrag: 'Änderungsantrag',
   blog: 'Blog/News',
   wahlprogramm: 'Wahlprogramm',
   wahlpruefstein: 'Wahlprüfstein',
