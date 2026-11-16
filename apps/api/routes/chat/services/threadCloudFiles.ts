@@ -4,11 +4,11 @@
  * file is re-read from the provider on every turn, so the "no storage of file
  * contents" promise holds and a follow-up always sees the file's current state.
  *
- * Stored in `chat_threads.cloud_file_refs` (`getThreadCloudFiles` /
- * `setThreadCloudFiles` in threadPersistenceService), scoped to the thread
- * owner: a Wolke share link and a Nango connection belong to one person; a
- * collaborator's turn could not read the owner's files, and its ownership
- * filter would otherwise erase the owner's refs.
+ * Stored per person (`getThreadCloudFiles` / `setThreadCloudFiles` in
+ * threadPersistenceService): the owner's in `chat_threads.cloud_file_refs`, a
+ * team-chat member's in `chat_thread_member_refs` (#5675). A Wolke share link
+ * and a Nango connection belong to one person; another member's turn could not
+ * read them, so nobody's turn sees or overwrites anybody else's.
  */
 
 import { connectFileRefSchema, wolkeFileRefSchema } from '@gruenerator/contracts';

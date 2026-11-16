@@ -966,7 +966,7 @@ async function buildStreamContextInner({
     !storedNotebookSourcesUnknown &&
     !sameThreadNotebookSources(storedNotebookSources, keptNotebookSources)
   ) {
-    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    // Fire-and-forget, per person: a lost write costs the next turn its carried refs.
     setThreadNotebookSources(actualThreadId, userId, keptNotebookSources).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread notebook sources:', err)
     );
@@ -1017,7 +1017,7 @@ async function buildStreamContextInner({
     !storedMentionRefsUnknown &&
     !sameThreadMentionRefs(storedMentionRefs, threadMentionRefs)
   ) {
-    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    // Fire-and-forget, per person: a lost write costs the next turn its carried refs.
     setThreadMentionRefs(actualThreadId, userId, threadMentionRefs).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread mention refs:', err)
     );
