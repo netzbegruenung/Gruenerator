@@ -110,6 +110,12 @@ jobs:
       # screen and hook tests that need the real RN runtime. `test` there is
       # only Vitest, so without this entry those suites never ran in CI and a
       # stale one merged green (#4225).
+      #
+      # chat and `mobile native` share a job: 168 s and 100 s of tests each
+      # paid 70 s of setup and a runner slot of their own, and together they
+      # still finish before a web shard (299 s). A `run` entry names its turbo
+      # tasks itself and gets them one after the other, never side by side on
+      # the same cores; `install` is its pnpm filter.
       - name: Decide which jobs have work
         id: plan
         env:
@@ -122,8 +128,11 @@ jobs:
               {"name": "api 3/3", "pkg": "api", "shard": "3/3"},
               {"name": "web 1/2", "pkg": "web", "shard": "1/2"},
               {"name": "web 2/2", "pkg": "web", "shard": "2/2"},
-              {"name": "chat", "pkg": "chat"},
-              {"name": "mobile native", "pkg": "mobile", "task": "test:native"},
+              {
+                "name": "chat + mobile native",
+                "run": "@gruenerator/chat#test @gruenerator/mobile#test:native",
+                "install": "--filter=@gruenerator/chat... --filter=@gruenerator/mobile..."
+              },
               {"name": "rest"}
             ]
           # Web builds `build:check`, not `build`: its output is a few hundred
@@ -192,15 +201,16 @@ jobs:
           TESTS='[]'
           while read -r entry; do
             pkg=$(jq -r '.pkg // empty' <<< "$entry")
-            task=$(jq -r '.task // "test"' <<< "$entry")
             shard=$(jq -r '.shard // empty' <<< "$entry")
             if [ -n "$pkg" ]; then
               filters=("--filter=@gruenerator/$pkg")
             else
               filters=(--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat)
             fi
-            args=("$task" "${filters[@]}")
+            args=(test "${filters[@]}")
             [ -n "$shard" ] && args+=(-- "--shard=$shard")
+            targets=$(jq -r '.run // empty' <<< "$entry")
+            [ -n "$targets" ] && read -ra args <<< "$targets"
             # Forced on master, so there is nothing to ask the cache.
             if [ "$EVENT" = push ]; then run=true; else run=$(needed "${args[@]}"); fi
             echo "Tests ($(jq -r .name <<< "$entry")): needed=$run"
@@ -553,7 +563,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile ${{ matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
+        run: pnpm install --frozen-lockfile ${{ matrix.install || matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
 
       # The app role owns its database but is no superuser. schema.sql creates
       # its own extensions, which only works while they stay trusted ones.
@@ -570,8 +580,8 @@ jobs:
       # package turbo.json files) would otherwise stay green on a stale hit.
       - name: Run tests
         run: >-
-          pnpm turbo run ${{ matrix.task || 'test' }}
-          ${{ matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
+          pnpm turbo run ${{ matrix.run || 'test' }}
+          ${{ matrix.run && '--concurrency=1' || matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
 
