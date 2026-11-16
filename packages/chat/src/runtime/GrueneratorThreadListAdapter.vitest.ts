@@ -214,6 +214,38 @@ describe('initialize', () => {
   });
 });
 
+describe('isThreadCollaborative for owners (regression: presence before team chats)', () => {
+  const t = (id: string, extra: Record<string, unknown>) => ({
+    id,
+    agentId: 'chat',
+    title: id,
+    status: 'regular',
+    updatedAt: new Date().toISOString(),
+    accessType: 'owner',
+    ...extra,
+  });
+
+  it('an own thread is collaborative when shared with anyone, not when private', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi
+      .fn()
+      .mockResolvedValue([
+        t('own-private', { shared: false }),
+        t('own-shared', { shared: true }),
+        t('own-old-server', {}),
+        t('own-team', { teamShared: true }),
+        t('theirs', { accessType: 'shared' }),
+      ]);
+    await createGrueneratorThreadListAdapter(apiClient, 'chat').list();
+
+    expect(isThreadCollaborative('own-private')).toBe(false);
+    expect(isThreadCollaborative('own-old-server')).toBe(false);
+    expect(isThreadCollaborative('own-shared')).toBe(true);
+    expect(isThreadCollaborative('own-team')).toBe(true);
+    expect(isThreadCollaborative('theirs')).toBe(true);
+  });
+});
+
 describe('delete', () => {
   it('räumt die Routing-Caches auf, damit der gelöschte Thread nicht re-resolvierbar ist', async () => {
     // GlitchTip #566, second leg: a deleted thread whose slug still sat in the

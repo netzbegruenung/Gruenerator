@@ -29,6 +29,7 @@ interface ApiThread {
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
   teamShared?: boolean;
+  shared?: boolean;
   readOnly?: boolean | null;
   briefing?: { day: string; unread: boolean } | null;
   createdAt: string;
@@ -93,10 +94,17 @@ const threadReadOnlyCache = new Set<string>();
 // Own threads that carry a group share (team chats). Together with a non-owner
 // access type this is what opens the live-sync socket.
 const threadTeamSharedCache = new Set<string>();
+// Threads shared with anyone (person, link, public, any group): the owner needs
+// the live-sync room for those too, as before team chats existed.
+const threadSharedCache = new Set<string>();
 
 /** A thread other people write into: someone else's, or shared with a group. */
 export function isThreadCollaborative(remoteId: string): boolean {
-  return threadTeamSharedCache.has(remoteId) || getThreadAccessType(remoteId) !== 'owner';
+  return (
+    threadTeamSharedCache.has(remoteId) ||
+    threadSharedCache.has(remoteId) ||
+    getThreadAccessType(remoteId) !== 'owner'
+  );
 }
 
 /** A Projekt chat the whole team writes in (own team chat or via the group share). */
@@ -115,8 +123,10 @@ export function isThreadReadOnly(remoteId: string): boolean {
 /** Test seam: what list() records about a thread's sharing. */
 export function cacheThreadShareMetaForTest(
   remoteId: string,
-  meta: { accessType: 'owner' | 'shared' | 'group'; teamShared: boolean }
+  meta: { accessType: 'owner' | 'shared' | 'group'; teamShared: boolean; shared?: boolean }
 ): void {
+  if (meta.shared) threadSharedCache.add(remoteId);
+  else threadSharedCache.delete(remoteId);
   threadAccessTypeCache.set(remoteId, meta.accessType);
   if (meta.teamShared) threadTeamSharedCache.add(remoteId);
   else threadTeamSharedCache.delete(remoteId);
@@ -363,6 +373,12 @@ export function createGrueneratorThreadListAdapter(
           if (threadTeamSharedCache.has(t.id) !== teamShared) {
             if (teamShared) threadTeamSharedCache.add(t.id);
             else threadTeamSharedCache.delete(t.id);
+            shareMetaChanged = true;
+          }
+          const shared = t.shared === true;
+          if (threadSharedCache.has(t.id) !== shared) {
+            if (shared) threadSharedCache.add(t.id);
+            else threadSharedCache.delete(t.id);
             shareMetaChanged = true;
           }
           const readOnly = t.readOnly === true;

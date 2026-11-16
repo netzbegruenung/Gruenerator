@@ -192,6 +192,30 @@ describe.skipIf(!url)('threads create — team chat', () => {
     });
   });
 
+  it('lists shared: false for a private chat, true for every kind of sharing', async () => {
+    const priv = (await create(ada, {})).body.id as string;
+    const person = (await create(ada, {})).body.id as string;
+    const link = (await create(ada, {})).body.id as string;
+    const pub = (await create(ada, {})).body.id as string;
+    const otherGroup = (await create(ada, {})).body.id as string;
+    await pool.query(`UPDATE chat_threads SET permissions = $2::jsonb WHERE id = $1`, [
+      person,
+      JSON.stringify({ [bea]: { read: true, write: true } }),
+    ]);
+    await pool.query(`UPDATE chat_threads SET share_mode = 'authenticated' WHERE id = $1`, [link]);
+    await pool.query(`UPDATE chat_threads SET is_public = true WHERE id = $1`, [pub]);
+    await pool.query(
+      `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id, permissions)
+       VALUES ($1, $2, 'chat_threads', $3, '{"read":true,"write":false}'::jsonb)`,
+      [teamProject, ada, otherGroup]
+    );
+    const rows = await list(ada);
+    const shared = (id: string) => rows.find((r) => r.id === id)?.shared;
+    expect(shared(priv)).toBe(false);
+    for (const id of [person, link, pub, otherGroup]) expect(shared(id)).toBe(true);
+    expect(() => threadSchema.parse(rows.find((r) => r.id === priv))).not.toThrow();
+  });
+
   it('reports teamShared false once the project is trashed or inactive', async () => {
     const team = await create(ada, { groupId: teamProject, teamShared: true });
     const id = team.body.id as string;

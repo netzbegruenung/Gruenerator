@@ -86,6 +86,16 @@ export const threadsContractRouter = s.router(threadsContract, {
                      AND COALESCE(tg.is_active, TRUE) = TRUE
                      AND ${teamChatShareExistsSql('t', 'tg.id')}
                 ) AS team_shared,
+                (
+                  EXISTS (
+                    SELECT 1 FROM group_content_shares sgcs
+                     WHERE sgcs.content_type = 'chat_threads' AND sgcs.content_id = t.id::text
+                       AND COALESCE((sgcs.permissions->>'read')::boolean, true) = true
+                  )
+                  OR COALESCE(t.permissions, '{}'::jsonb) <> '{}'::jsonb
+                  OR COALESCE(t.share_mode, 'private') <> 'private'
+                  OR t.is_public = true
+                ) AS shared,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -145,6 +155,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         readOnly: row.read_only === true,
         ownerName: (row.owner_name as string | null) ?? null,
         teamShared: row.team_shared === true,
+        shared: row.shared === true,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -184,6 +195,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         readOnly: t.readOnly,
         ownerName: t.ownerName,
         teamShared: t.teamShared,
+        shared: t.shared,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage

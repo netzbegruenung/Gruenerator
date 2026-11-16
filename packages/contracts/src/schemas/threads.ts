@@ -52,6 +52,10 @@ export const threadSchema = z.object({
   // True when the thread is a team chat: shared into its own Projekt with read
   // and write. Optional (F0): older servers do not send it.
   teamShared: z.boolean().optional(),
+  // True when the thread is shared with anyone at all (a readable group share,
+  // per-user permissions, a link, or public) — it then needs the live-sync room
+  // even though it is no team chat. Optional (F0): older servers do not send it.
+  shared: z.boolean().optional(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
