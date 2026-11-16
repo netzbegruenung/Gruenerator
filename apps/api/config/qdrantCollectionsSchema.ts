@@ -704,30 +704,6 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  // Bundesrats-Drucksachen aus dem DIP (Anträge der Länder, Gesetzentwürfe,
-  // Beschlüsse). Einmalig importiert; einen Scraper dafür gibt es nicht.
-  bundesrat_documents: {
-    name: 'bundesrat_documents',
-    store: 'content',
-    optimizer: 'medium',
-    hnsw: 'standard',
-    datatype: 'float16',
-    indexes: [
-      ...NLP_FACET_INDEXES,
-      // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
-      { field: 'chunk_index', type: 'integer' },
-      { field: 'document_id', type: 'keyword' },
-      { field: 'parent_id', type: 'keyword' },
-      { field: 'source_url', type: 'keyword' },
-      { field: 'content_type', type: 'keyword' },
-      { field: 'drucksachetyp', type: 'keyword' },
-      { field: 'urheber', type: 'keyword' },
-      { field: 'section_type', type: 'keyword' },
-      { field: 'published_at', type: 'datetime' },
-      { field: 'indexed_at', type: 'datetime' },
-      { field: 'chunk_text', type: 'text' },
-    ],
-  },
   // The person's explicit memory — only `kind = 'fakt'` rows are mirrored here
   // for retrieval; instructions live in the prompt (services/memory/memoryStore.ts).
   // Same collection mem0 used; its old points lack `kind` and are filtered out.

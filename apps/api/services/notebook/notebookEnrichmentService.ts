@@ -92,7 +92,6 @@ export const ENRICHMENT_COLLECTIONS = [
   'boell_stiftung_documents',
   'landesverbaende_documents',
   'abgeordnetenwatch_documents',
-  'bundesrat_documents',
   'landtag_bayern_documents',
   'wahlpruefstein_examples',
 ] as const;
