@@ -876,9 +876,10 @@ const GroupInfoSection = memo(
             <DialogHeader>
               <DialogTitle>Gruppe verlassen</DialogTitle>
               <DialogDescription>
-                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe. Die Gruppe selbst und deine
-                eigenen Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue
-                Einladung möglich.
+                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe, auch auf Team-Chats, die du
+                begonnen hast: sie bleiben in der Gruppe. Die Gruppe selbst und deine privaten
+                Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue Einladung
+                möglich.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-xs">

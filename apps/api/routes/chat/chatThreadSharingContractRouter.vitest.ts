@@ -29,6 +29,9 @@ vi.mock('../../services/groups/groupMembership.js', () => ({
 
 vi.mock('./services/threadAccessService.js', () => ({
   getThreadAccessLevel: accessLevelMock,
+  // The departed-owner rule (#5678) is pinned against Postgres in
+  // threadOwnerLeftProject.db.vitest.ts.
+  isThreadOwner: async () => true,
 }));
 
 vi.mock('../../services/collab/collabRooms.js', () => ({
