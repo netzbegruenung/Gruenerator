@@ -70,10 +70,21 @@ const PIXEL_RATIO: Record<RenderQuality, number> = {
 
 /**
  * Longest wait for the editor module and the icon sets before a render gives
- * up. With the fonts and the capture's own ten seconds it stays inside the
- * app's 30 s per attempt.
+ * up — a guard against a load that never settles, not a performance budget.
+ *
+ * The import is ~140 chunks (~830 KB gzipped, measured on prod 16.11.2026),
+ * and on a slow connection the first load of a session took longer than ten
+ * seconds. A chat card then showed its error and never asked again, while the
+ * import went on loading in the background (GRUENERATOR-M9). The chat and the
+ * download wait as long as the preview waits for its photo. The app's render
+ * page keeps ten seconds: with the fonts and the capture's own ten it stays
+ * inside the app's 30 s per attempt, and the app retries.
  */
-const PREPARE_TIMEOUT_MS = 10_000;
+const PREPARE_TIMEOUT_MS: Record<RenderQuality, number> = {
+  preview: 30_000,
+  app: 10_000,
+  full: 30_000,
+};
 
 /**
  * How long a capture waits for the canvas images before it takes what it has.
@@ -132,10 +143,11 @@ function runRender(
       // two timeouts and no preview. A load that never settles does the same,
       // hence the deadline. The cause goes to GlitchTip, the render ends.
       let deadline: ReturnType<typeof setTimeout> | undefined;
+      const prepareTimeoutMs = PREPARE_TIMEOUT_MS[quality];
       const stalled = new Promise<never>((_, reject) => {
         deadline = setTimeout(
-          () => reject(new Error(`canvas editor not ready after ${PREPARE_TIMEOUT_MS} ms`)),
-          PREPARE_TIMEOUT_MS
+          () => reject(new Error(`canvas editor not ready after ${prepareTimeoutMs} ms`)),
+          prepareTimeoutMs
         );
       });
       const editor = await Promise.race([prepare(), stalled])

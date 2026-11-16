@@ -16,7 +16,7 @@ const mounts = vi.hoisted(() => ({
   services: [] as Array<Record<string, unknown>>,
 }));
 const compose = vi.hoisted(() => ({ fn: vi.fn() }));
-const failing = vi.hoisted(() => ({ prepare: 'no' as 'no' | 'reject' | 'stall' }));
+const failing = vi.hoisted(() => ({ prepare: 'no' as 'no' | 'reject' | 'stall' | 'slow' }));
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
 
 vi.mock('@sentry/react', () => ({ captureException: sentry.captureException }));
@@ -33,7 +33,9 @@ vi.mock('@gruenerator/canvas-editor', () => ({
       ? Promise.reject(new Error('icon sets unavailable'))
       : failing.prepare === 'stall'
         ? new Promise<void>(() => undefined)
-        : Promise.resolve(),
+        : failing.prepare === 'slow'
+          ? new Promise<void>((resolve) => setTimeout(resolve, 12_000))
+          : Promise.resolve(),
   catalogIconId: (id: string) => id,
   CanvasEditorProvider: ({
     services,
@@ -99,7 +101,7 @@ describe('renderSharepicToImage', () => {
         line1: `x${seq++}`,
         iconStates: { a: { iconId: 'x' } },
       });
-      await vi.advanceTimersByTimeAsync(mode === 'stall' ? 10_000 : 0);
+      await vi.advanceTimersByTimeAsync(mode === 'stall' ? 30_000 : 0);
       await expect(broken).resolves.toBeNull();
       expect(sentry.captureException).toHaveBeenCalledOnce();
 
@@ -110,6 +112,28 @@ describe('renderSharepicToImage', () => {
       await expect(next).resolves.toMatch(/^data:image\/png/);
     }
   );
+
+  // GRUENERATOR-M9: the editor import is ~140 chunks. On a slow connection it
+  // took longer than ten seconds, the card gave up with no image and never
+  // asked again — while the import went on loading in the background.
+  it('keeps a chat preview waiting past ten seconds for a slow editor load', async () => {
+    failing.prepare = 'slow';
+    handle.settled = true;
+    const result = render();
+    await vi.advanceTimersByTimeAsync(13_000);
+    await expect(result).resolves.toMatch(/^data:image\/png/);
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  // The app's attempts have 30 s and the app retries: its render page keeps
+  // the short deadline so a stall cannot eat the whole attempt.
+  it('gives the app render page ten seconds to load the editor', async () => {
+    failing.prepare = 'stall';
+    const result = renderSharepicToImage('dreizeilen', { line1: `x${seq++}` }, { quality: 'app' });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(result).resolves.toBeNull();
+    expect(sentry.captureException).toHaveBeenCalledOnce();
+  });
 
   // The hidden Android WebView loses the photo from a capture above 1x, so the
   // app's render page must not inherit the export default of 2x.
