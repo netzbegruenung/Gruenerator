@@ -820,6 +820,44 @@ describe('runAgenticLoop — unified repair', () => {
     expect(out.replacement).toBe('unified_repair');
   });
 
+  // Live 16.11.2026: Mistral Large 4 (and Melious-Gemma) under `required`
+  // started with prose and never reached a stop token — "Ich höre jetzt
+  // wirklich auf … ?=false" for 43 s, up to 77.707 chars, all streamed live.
+  // The SDK only checks tool choice at step END, which never came.
+  it('cuts a forced step that streams prose instead of a call, before the person sees any of it', async () => {
+    const onText = vi.fn();
+    const calls: string[] = [];
+    let pulled = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((
+        o: StreamOpts & {
+          prepareStep: (a: { stepNumber: number; steps: [] }) => { toolChoice?: unknown };
+        }
+      ) => {
+        calls.push(o.model.id);
+        if (o.model.id === 'repair') return streamOf([{ type: 'text-delta', text: GOOD }]);
+        return {
+          stream: (async function* () {
+            expect(o.prepareStep({ stepNumber: 0, steps: [] }).toolChoice).toBe('required');
+            yield { type: 'start-step' };
+            while (true) {
+              pulled++;
+              yield { type: 'text-delta', text: 'Kurz: Hier kein Bild von mir. ?=false\n\n' };
+            }
+          })(),
+        } as unknown as ReturnType<LoopDeps['streamText']>;
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(params({ onText, forceFirstToolCall: true }), deps);
+    expect(calls).toEqual(['synth', 'repair']);
+    expect(out.text).toBe(GOOD);
+    expect(out.replacement).toBe('unified_repair');
+    expect(onText).not.toHaveBeenCalled();
+    // Stopped at the budget, not at a provider cap.
+    expect(pulled).toBeLessThan(30);
+  });
+
   it('does not repair an empty answer after an artifact (the caller confirms it)', async () => {
     const { deps, calls } = setup([]);
     const out = await runAgenticLoop(params({ producedArtifact: () => true }), deps);
