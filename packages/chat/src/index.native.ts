@@ -81,11 +81,17 @@ export {
   getThreadAgentId,
   getThreadAccessType,
   isThreadReadOnly,
+  isThreadTeamChat,
+  isThreadCollaborative,
+  markThreadTeamShared,
+  setThreadGroupId,
+  subscribeThreadTags,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
   subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { mayReplaceTurn } from './hooks/mayReplaceTurn';
 export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
 // External Thread Context

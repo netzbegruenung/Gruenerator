@@ -23,4 +23,25 @@ describe('InitialTurnSender', () => {
     expect(mockComposer.setText).toHaveBeenCalledWith('Erste');
     expect(mockComposer.setText).not.toHaveBeenCalledWith('Zweite');
   });
+
+  it('creates the Projekt thread before it sends', async () => {
+    mockComposer.send.mockClear();
+    const beforeSend = jest.fn(async () => {
+      expect(mockComposer.send).not.toHaveBeenCalled();
+    });
+    await render(<InitialTurnSender message="Im Projekt" beforeSend={beforeSend} />);
+    await waitFor(() => expect(mockComposer.send).toHaveBeenCalledTimes(1));
+    expect(beforeSend).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the text back to the composer when the thread could not be created', async () => {
+    mockComposer.send.mockClear();
+    mockComposer.setText.mockClear();
+    const beforeSend = jest.fn(async () => {
+      throw new Error('offline');
+    });
+    await render(<InitialTurnSender message="Verloren?" beforeSend={beforeSend} />);
+    await waitFor(() => expect(mockComposer.setText).toHaveBeenCalledWith('Verloren?'));
+    expect(mockComposer.send).not.toHaveBeenCalled();
+  });
 });

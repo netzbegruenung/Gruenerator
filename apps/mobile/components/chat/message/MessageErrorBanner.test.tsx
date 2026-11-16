@@ -13,8 +13,12 @@ import type { ReactNode } from 'react';
 
 const mockReload = jest.fn();
 let mockMessageError: string | undefined;
+// The error object the message status carries (`ChatStreamError` has a `code`).
+let mockStatusError: { code?: string } | null = null;
+let mockMayReplace = true;
 
 jest.mock('./threadRunSignals', () => ({ flagRegenerate: jest.fn() }));
+jest.mock('./useMayReplaceTurn', () => ({ useMayReplaceTurn: () => mockMayReplace }));
 
 /**
  * `ErrorPrimitive` is stubbed rather than driven through a real runtime: the
@@ -24,6 +28,14 @@ jest.mock('./threadRunSignals', () => ({ flagRegenerate: jest.fn() }));
  */
 jest.mock('@assistant-ui/react-native', () => ({
   useAui: () => ({ message: { reload: mockReload } }),
+  useAuiState: (select: (s: unknown) => unknown) =>
+    select({
+      message: {
+        status: mockStatusError
+          ? { type: 'incomplete', reason: 'error', error: mockStatusError }
+          : { type: 'complete' },
+      },
+    }),
   ErrorPrimitive: {
     Root: ({ children, ...props }: { children?: ReactNode }) =>
       mockMessageError === undefined ? null : <MockView {...props}>{children}</MockView>,
@@ -37,6 +49,8 @@ const mockFlagRegenerate = flagRegenerate as jest.MockedFunction<typeof flagRege
 beforeEach(() => {
   jest.clearAllMocks();
   mockMessageError = undefined;
+  mockStatusError = null;
+  mockMayReplace = true;
 });
 
 describe('MessageErrorBanner', () => {
@@ -64,5 +78,29 @@ describe('MessageErrorBanner', () => {
     expect(mockFlagRegenerate.mock.invocationCallOrder[0]).toBeLessThan(
       mockReload.mock.invocationCallOrder[0] as number
     );
+  });
+
+  // Another member's answer is running: a queue, not a failure.
+  it('shows thread_busy as a waiting notice and re-sends without replacing a turn', async () => {
+    mockMessageError = 'Gerade entsteht schon eine Antwort in diesem Chat.';
+    mockStatusError = { code: 'thread_busy' };
+    await render(<MessageErrorBanner theme={lightTheme} />);
+
+    expect(screen.getByTestId('chat-message-busy')).toBeTruthy();
+    expect(screen.queryByText('Gerade entsteht schon eine Antwort in diesem Chat.')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('chat-message-error-retry'));
+
+    expect(mockFlagRegenerate).not.toHaveBeenCalled();
+    expect(mockReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no retry on a teammate’s turn, which the server would refuse', async () => {
+    mockMessageError = 'Zeitüberschreitung';
+    mockMayReplace = false;
+    await render(<MessageErrorBanner theme={lightTheme} />);
+
+    expect(screen.getByText('Zeitüberschreitung')).toBeTruthy();
+    expect(screen.queryByTestId('chat-message-error-retry')).toBeNull();
   });
 });
