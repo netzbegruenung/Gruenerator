@@ -38,7 +38,7 @@ interface RunnableTool {
  * schema first, and only a valid one reaches `execute`.
  */
 function runnable(built: ReturnType<typeof createNotebookTool>): RunnableTool {
-  const schema = built.inputSchema as { parse: (input: unknown) => unknown };
+  const schema = built.inputSchema as unknown as { parse: (input: unknown) => unknown };
   const execute = built.execute;
   if (!execute) throw new Error('notebook tool has no execute');
   return {
