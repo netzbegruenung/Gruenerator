@@ -139,6 +139,27 @@ describe('with grant', () => {
     expect(res.body).toMatchObject({ locked: false, speechCount: 1 });
   });
 
+  it('get gives admins moderation state and reason, non-admins never', async () => {
+    m.listSpeeches.mockResolvedValue([
+      speech(),
+      speech({ id: 's2', moderation: 'hidden', hidden_reason: 'Persönlichkeitsrecht' }),
+    ]);
+    type Sp = { id: string; moderation?: string; hiddenReason?: string | null };
+    const plain = await call('get', { params: { slug: 'ldk-abc123' } });
+    const plainSp = (plain.body as { speeches: Sp[] }).speeches;
+    expect(plainSp).toHaveLength(1);
+    expect('moderation' in plainSp[0]!).toBe(false);
+    expect('hiddenReason' in plainSp[0]!).toBe(false);
+
+    m.viewerFromRequest.mockResolvedValue({ ...viewer, isAdmin: true });
+    const admin = await call('get', { params: { slug: 'ldk-abc123' } });
+    const adminSp = (admin.body as { speeches: Sp[] }).speeches;
+    expect(adminSp.map((x) => [x.id, x.moderation, x.hiddenReason])).toEqual([
+      ['s1', 'ok', undefined],
+      ['s2', 'hidden', 'Persönlichkeitsrecht'],
+    ]);
+  });
+
   it('editorData hands off stream url, file name and words', async () => {
     const res = await call('editorData', { params: { speechId: 's1' } });
     expect(res.status).toBe(200);

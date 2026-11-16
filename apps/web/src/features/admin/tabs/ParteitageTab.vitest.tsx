@@ -23,6 +23,7 @@ const convention = {
   key: 'essen-2026',
   status: 'published',
   audience: 'all',
+  hasPassword: true,
 };
 
 const speech = {
@@ -36,7 +37,7 @@ function stub() {
   server.use(
     http.get(`${base}/admin/parteitage`, () => HttpResponse.json({ conventions: [convention] })),
     http.get(`${base}/parteitage/essen-2026`, () =>
-      HttpResponse.json({ ...convention, speeches: [speech] })
+      HttpResponse.json({ ...convention, speeches: [{ ...speech, moderation: 'ok' }] })
     )
   );
 }
@@ -108,9 +109,32 @@ describe('ParteitageTab', () => {
     renderWithProviders(<ParteitageTab />);
 
     await user.click(await screen.findByRole('button', { name: 'Reden verwalten' }));
+    expect(screen.queryByRole('button', { name: 'Erika Muster einblenden' })).toBeNull();
     await user.type(await screen.findByLabelText('Grund für Erika Muster'), 'Persönlichkeitsrecht');
     await user.click(screen.getByRole('button', { name: 'Erika Muster ausblenden' }));
     await waitFor(() => expect(body).toEqual({ hidden: true, reason: 'Persönlichkeitsrecht' }));
-    expect(await screen.findByText(/ausgeblendet\)/)).toBeInTheDocument();
+  });
+
+  it('shows password state and hidden speeches with their reason', async () => {
+    server.use(
+      http.get(`${base}/admin/parteitage`, () =>
+        HttpResponse.json({ conventions: [{ ...convention, hasPassword: false }] })
+      ),
+      http.get(`${base}/parteitage/essen-2026`, () =>
+        HttpResponse.json({
+          ...convention,
+          speeches: [{ ...speech, moderation: 'hidden', hiddenReason: 'Rechte' }],
+        })
+      )
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ParteitageTab />);
+
+    expect(await screen.findByText('Offen für alle Eingeloggten')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Passwort entfernen' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Reden verwalten' }));
+    expect(await screen.findByText('ausgeblendet: Rechte')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Erika Muster einblenden' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Erika Muster ausblenden' })).toBeNull();
   });
 });

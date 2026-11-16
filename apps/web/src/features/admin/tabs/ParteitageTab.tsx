@@ -26,10 +26,8 @@ import { useId, useState } from 'react';
 /**
  * Admin-Reiter „Parteitage“: Status, Passwort, Reden ausblenden oder löschen.
  *
- * Die Liste kennt weder „hat Passwort“ noch den Ausblende-Zustand einer Rede
- * (die öffentlichen Schemas führen keine Moderation). Darum bieten wir
- * Passwort setzen UND entfernen immer an und merken uns „ausgeblendet“ nur für
- * die Dauer der Sitzung, sobald hier umgeschaltet wurde.
+ * Die Liste meldet `hasPassword`, und `get` liefert Admins `moderation` und
+ * `hiddenReason` je Rede; angeboten wird nur die passende Aktion.
  */
 const LIST_KEY = ['admin', 'parteitage'] as const;
 
@@ -63,7 +61,6 @@ function errorMessage(error: unknown): string {
 function Speeches({ slug, conventionId }: { slug: string; conventionId: string }) {
   const invalidate = useInvalidate();
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [hiddenNow, setHiddenNow] = useState<Record<string, boolean>>({});
   const reasonBase = useId();
 
   const detail = useQuery({
@@ -87,7 +84,7 @@ function Speeches({ slug, conventionId }: { slug: string; conventionId: string }
       );
       return vars;
     },
-    onSuccess: (vars) => setHiddenNow((prev) => ({ ...prev, [vars.speechId]: vars.hidden })),
+    onSuccess: () => invalidate(),
   });
 
   const del = useMutation({
@@ -112,47 +109,55 @@ function Speeches({ slug, conventionId }: { slug: string; conventionId: string }
     <ul className="flex flex-col gap-sm">
       {detail.data.speeches.map((sp) => {
         const name = `${sp.firstName} ${sp.lastName}`;
+        const isHidden = sp.moderation === 'hidden';
         const inputId = `${reasonBase}-${sp.id}`;
         return (
           <li key={sp.id} className="flex flex-wrap items-center gap-sm">
-            <span className="min-w-48 text-sm">
-              {name}
-              {hiddenNow[sp.id] === true ? ' (ausgeblendet)' : ''}
-            </span>
-            <label htmlFor={inputId} className="sr-only">
-              Grund für {name}
-            </label>
-            <Input
-              id={inputId}
-              className="w-56"
-              placeholder="Grund"
-              value={reasons[sp.id] ?? ''}
-              onChange={(e) => setReasons((prev) => ({ ...prev, [sp.id]: e.target.value }))}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={`${name} ausblenden`}
-              disabled={!(reasons[sp.id] ?? '').trim() || hide.isPending}
-              onClick={() =>
-                hide.mutate({
-                  speechId: sp.id,
-                  hidden: true,
-                  reason: (reasons[sp.id] ?? '').trim(),
-                })
-              }
-            >
-              Ausblenden
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={`${name} einblenden`}
-              disabled={hide.isPending}
-              onClick={() => hide.mutate({ speechId: sp.id, hidden: false, reason: '' })}
-            >
-              Einblenden
-            </Button>
+            <span className="min-w-48 text-sm">{name}</span>
+            {isHidden && (
+              <span className="text-sm text-muted-foreground">
+                ausgeblendet: {sp.hiddenReason ?? ''}
+              </span>
+            )}
+            {isHidden ? (
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={`${name} einblenden`}
+                disabled={hide.isPending}
+                onClick={() => hide.mutate({ speechId: sp.id, hidden: false, reason: '' })}
+              >
+                Einblenden
+              </Button>
+            ) : (
+              <>
+                <label htmlFor={inputId} className="sr-only">
+                  Grund für {name}
+                </label>
+                <Input
+                  id={inputId}
+                  className="w-56"
+                  placeholder="Grund"
+                  value={reasons[sp.id] ?? ''}
+                  onChange={(e) => setReasons((prev) => ({ ...prev, [sp.id]: e.target.value }))}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={`${name} ausblenden`}
+                  disabled={!(reasons[sp.id] ?? '').trim() || hide.isPending}
+                  onClick={() =>
+                    hide.mutate({
+                      speechId: sp.id,
+                      hidden: true,
+                      reason: (reasons[sp.id] ?? '').trim(),
+                    })
+                  }
+                >
+                  Ausblenden
+                </Button>
+              </>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="sm" aria-label={`${name} löschen`}>
@@ -264,25 +269,30 @@ function ConventionRow({ convention }: { convention: ParteitageAdminSummary }) {
         >
           Passwort setzen
         </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost">Passwort entfernen</Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Passwort entfernen?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Danach sehen alle Eingeloggten diesen Parteitag.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={() => update.mutate({ password: null })}>
-                Passwort entfernen
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <p className="text-sm">
+          {convention.hasPassword ? 'Passwort gesetzt' : 'Offen für alle Eingeloggten'}
+        </p>
+        {convention.hasPassword && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost">Passwort entfernen</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Passwort entfernen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Danach sehen alle Eingeloggten diesen Parteitag.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={() => update.mutate({ password: null })}>
+                  Passwort entfernen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-sm">

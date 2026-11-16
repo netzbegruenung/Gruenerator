@@ -45,8 +45,17 @@ export function downloadBaseName(
     : clean(convention.short_title);
 }
 
-export function toPublicSpeech(s: ConventionSpeechRow): ConventionSpeechPublic {
+export function toPublicSpeech(
+  s: ConventionSpeechRow,
+  opts: { admin?: boolean } = {}
+): ConventionSpeechPublic {
   return {
+    ...(opts.admin === true
+      ? {
+          moderation: s.moderation === 'hidden' ? ('hidden' as const) : ('ok' as const),
+          hiddenReason: s.hidden_reason,
+        }
+      : {}),
     id: s.id,
     slug: speechSlug(s),
     key: s.speech_key,
@@ -108,6 +117,7 @@ export async function listAllConventions() {
     endsOn: c.ends_on,
     location: c.location,
     locked: c.access_password_hash !== null,
+    hasPassword: c.access_password_hash !== null,
     speechCount: Number(speechCount),
   }));
 }

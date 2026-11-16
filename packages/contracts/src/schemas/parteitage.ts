@@ -245,6 +245,9 @@ export const conventionSpeechPublicSchema = z.object({
   slug: z.string(),
   reelUrl: z.string(),
   posterUrl: z.string(),
+  /** Only present for instance admins. */
+  moderation: z.enum(['ok', 'hidden']).optional(),
+  hiddenReason: z.string().nullable().optional(),
 });
 export type ConventionSpeechPublic = z.infer<typeof conventionSpeechPublicSchema>;
 
@@ -307,6 +310,7 @@ export const parteitageAdminSummarySchema = conventionSummarySchema.extend({
   key: z.string(),
   status: conventionStatusSchema,
   audience: conventionAudienceSchema,
+  hasPassword: z.boolean(),
 });
 export type ParteitageAdminSummary = z.infer<typeof parteitageAdminSummarySchema>;
 export const parteitageAdminListResponseSchema = z.object({

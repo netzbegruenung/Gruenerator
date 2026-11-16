@@ -93,7 +93,7 @@ export const parteitageContractRouter = s.router(parteitageContract, {
           stats: convention.stats,
           sourceLinks: convention.source_links,
           reportUrl: convention.report_media_id ? mediaUrl(convention.report_media_id) : null,
-          speeches: speeches.map(toPublicSpeech),
+          speeches: speeches.map((sp) => toPublicSpeech(sp, { admin: viewer.isAdmin })),
         },
       };
     } catch (error) {
