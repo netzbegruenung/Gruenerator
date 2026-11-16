@@ -39,6 +39,7 @@ import { CompactionIndicator } from './CompactionIndicator';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { InlineAttachmentNotice } from './InlineAttachmentNotice';
 import { ThreadLoadingSkeleton } from './ThreadLoadingSkeleton';
+import { ThreadProjectCrumb } from './ThreadProjectCrumb';
 import { ThreadSearchBar } from './ThreadSearchBar';
 import { UserMessage } from './UserMessage';
 import { WelcomeScreen } from './WelcomeScreen';
@@ -213,6 +214,8 @@ export function GrueneratorThread({
             className={cn('relative flex h-full min-h-0 flex-col bg-background', className)}
           >
             <AutoMessageSender />
+
+            {!isCompact && <ThreadProjectCrumb />}
 
             {collaborators.length > 0 && (
               <div className="absolute top-3 left-3 z-10 pointer-events-auto">

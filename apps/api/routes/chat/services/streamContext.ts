@@ -32,6 +32,7 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
@@ -1105,6 +1106,19 @@ export async function buildStreamContext({
   // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
   const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
 
+  // Anweisungen des Projekts, in dem der Chat liegt — für den Systemprompt.
+  // Ein Ausfall kostet nur diese Vorgaben, nicht den Turn.
+  const projectInstructions = actualThreadId
+    ? await withTimeout(
+        readThreadProjectInstructions(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project instructions'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project instructions (continuing):', err);
+        return null;
+      })
+    : null;
+
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
   // Gilt für den Rollen-Baustein ({{partyName}}) wie für den Graph-Zustand.
@@ -1268,6 +1282,7 @@ export async function buildStreamContext({
         rawActiveRecipeId
       ) ?? undefined,
     userInstructions,
+    projectInstructions,
     contextWindowTokens,
   });
 

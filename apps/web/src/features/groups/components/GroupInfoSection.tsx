@@ -54,7 +54,10 @@ import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
+import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectFileUploadButton } from './ProjectFileUploadButton';
+import { ProjectInstructionsCard } from './ProjectInstructionsCard';
+import { ProjectTextAddButton } from './ProjectTextAddButton';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
@@ -507,6 +510,16 @@ const GroupInfoSection = memo(
                 onError={(message) => onErrorMessage?.(message)}
               />
             )}
+            {canShare && !isSystem && (
+              <ProjectTextAddButton
+                groupId={groupId}
+                onAdded={() => {
+                  refetchSharedContent?.();
+                  onSuccessMessage?.('Text hinzugefügt.');
+                }}
+                onError={(message) => onErrorMessage?.(message)}
+              />
+            )}
             {canShare && (
               <Button
                 variant="brand"
@@ -636,6 +649,19 @@ const GroupInfoSection = memo(
             isAdmin={!!data?.isAdmin}
             onSuccessMessage={onSuccessMessage ?? (() => {})}
             onErrorMessage={onErrorMessage ?? (() => {})}
+          />
+        )}
+
+        {canShare && !isSystem && (
+          <ProjectChatComposer groupId={groupId} groupName={data?.groupInfo?.name ?? ''} />
+        )}
+
+        {!isSystem && (
+          <ProjectInstructionsCard
+            groupId={groupId}
+            isAdmin={!!data?.isAdmin}
+            onSuccessMessage={onSuccessMessage}
+            onErrorMessage={onErrorMessage}
           />
         )}
 

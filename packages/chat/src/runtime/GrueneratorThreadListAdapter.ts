@@ -24,6 +24,7 @@ interface ApiThread {
   threadType?: string;
   notebookCollectionId?: string | null;
   notebookCollectionIds?: string[] | null;
+  groupId?: string | null;
   tags?: string[];
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
@@ -149,6 +150,7 @@ function forgetThreadCaches(remoteId: string): void {
   threadTypeCache.delete(remoteId);
   notebookCollectionCache.delete(remoteId);
   threadAgentCache.delete(remoteId);
+  threadGroupCache.delete(remoteId);
   threadTagsCache.delete(remoteId);
   threadAccessTypeCache.delete(remoteId);
   threadReadOnlyCache.delete(remoteId);
@@ -203,6 +205,22 @@ export function requestThreadListReload(): void {
  *  without waiting for the next list() refresh. */
 export function setThreadTagsCache(remoteId: string, tags: string[]): void {
   updateThreadTagsCache(remoteId, tags);
+}
+
+// Projekt a thread is filed in (chat_threads.group_id), for the chat's
+// "Projekt / Titel" crumb. Same listener channel as the tags cache.
+const threadGroupCache = new Map<string, string | null>();
+
+export function getThreadGroupId(remoteId: string): string | null {
+  return threadGroupCache.get(remoteId) ?? null;
+}
+
+/** Record where a thread is filed (list(), creation, or a move) and notify
+ *  subscribers only on a real change. */
+export function setThreadGroupId(remoteId: string, groupId: string | null): void {
+  if ((threadGroupCache.get(remoteId) ?? null) === groupId) return;
+  threadGroupCache.set(remoteId, groupId);
+  tagListeners.forEach((l) => l());
 }
 
 function isExternal(remoteId: string) {
@@ -309,6 +327,7 @@ export function createGrueneratorThreadListAdapter(
           updateThreadTagsCache(t.id, t.tags ?? []);
           cacheThreadSlug(t.id, t.slugSuffix);
           threadAgentCache.set(t.id, t.agentId);
+          setThreadGroupId(t.id, t.groupId ?? null);
           const accessType = t.accessType ?? 'owner';
           if (threadAccessTypeCache.get(t.id) !== accessType) {
             threadAccessTypeCache.set(t.id, accessType);
@@ -393,16 +412,24 @@ export function createGrueneratorThreadListAdapter(
         const state = useAgentStore.getState();
         const effectiveAgentId = state.selectedAgentId ?? agentId;
         const threadMode = state.threadMode;
+        // A Projekt page hands the chat over with the Projekt it belongs to:
+        // filed here, at creation, so the first turn already reads the Projekt.
+        const pendingGroup = state.pendingGroup;
+        if (pendingGroup) useAgentStore.getState().setPendingGroup(null);
+        const groupId =
+          pendingGroup && pendingGroup.expiresAt > Date.now() ? pendingGroup.id : null;
         const result = await apiClient.post<{ id: string; slugSuffix?: string | null }>(
           '/api/chat-service/threads',
           {
             agentId: effectiveAgentId,
             threadType: threadMode,
+            ...(groupId ? { groupId } : {}),
           }
         );
         threadTypeCache.set(result.id, threadMode);
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
+        if (groupId) setThreadGroupId(result.id, groupId);
         useAgentStore.getState().mintThreadFromDraft(result.id);
         // Der Produktionspfad der Rollen-Promotion: das Backend sendet
         // `thread_created` (und damit `onThreadCreated`) nur für Threads, die
