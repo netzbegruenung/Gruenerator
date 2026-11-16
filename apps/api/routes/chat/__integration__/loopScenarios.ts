@@ -1,5 +1,3 @@
-import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
-
 import { type DecisionPointId } from '../../../utils/decisionJournal.js';
 
 import { type ScriptedResponse } from './harness/loopScript.js';
@@ -47,28 +45,9 @@ export interface LoopScenario {
   backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
   /**
-   * Der `toolChoice` des ERSTEN Schritts des Loop-Aufrufs, als Name oder `'required'`.
-   *
-   * Die einzige Stelle, an der ein BENANNTER erster Aufruf beobachtbar wird: die
-   * Entscheidungskarte zeigt nur, welches Werkzeug lief, und das steht im Skript
-   * ohnehin. Ohne diese Zusicherung liesse sich der Werkzeug-Pin ausbauen, ohne
-   * dass ein Integrationstest es merkt.
-   */
-  firstToolChoice?: string;
-  /**
-   * Das `activeTools` des ERSTEN Schritts des Loop-Aufrufs: jedes Werkzeug darin muss aus
-   * `within` stammen, keines aus `without`.
-   *
-   * Gegenstück zu `firstToolChoice` für den Zwang OHNE benanntes Werkzeug
-   * (#3880): `'required'` allein sagt nicht, unter WELCHEN Werkzeugen der
-   * Modell wählen muss — und genau dort griff es zu `media`, `read_pdf_form`
-   * und `summarize`.
-   */
-  firstStepActiveTools?: { within: readonly string[]; without: readonly string[] };
-  /**
    * Ein Textstück, das im Systemtext des Loop-Aufrufs stehen MUSS.
    *
-   * Gegenstück zu `firstToolChoice` für die zweite Hälfte einer umgehängten
+   * Die zweite Hälfte einer umgehängten
    * Erwähnung: der Pin sagt, WORAUS der Turn holt, das Rezept sagt, WIE er
    * schreibt — und Letzteres ist sonst nirgends beobachtbar, weil die
    * Entscheidungskarte den Systemtext nicht rendert. Der Rezepttext selbst ist
@@ -289,11 +268,11 @@ const SCENARIOS: readonly LoopScenario[] = [
       { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'bundestag',
     // `@bundestag` laedt das Rezept `bundestagsrecherche` mit (`activatesSkill`) —
     // ein Eintrag im Menue statt zwei. Es ist ein METHODEN-Rezept: eigene
     // Ueberschrift aus der Rezept-Registry, nicht der Textsorten-Platz.
-    systemIncludes: '## RECHERCHE-METHODE: Bundestag-Recherche',
+    // Der Pin zwingt nichts mehr; er wird dem Modell nur angekündigt.
+    systemIncludes: ['## RECHERCHE-METHODE: Bundestag-Recherche', '## ANGESPROCHENES WERKZEUG'],
   },
   // Mehrere Rezepte in einem Turn: die Bundestag-Recherche (Methode, aus
   // `@bundestag`) und die gewaehlte Buergeranfrage (Textsorte, Composer-Chip)
@@ -309,7 +288,6 @@ const SCENARIOS: readonly LoopScenario[] = [
       { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'bundestag',
     systemIncludes: [
       '## RECHERCHE-METHODE: Bundestag-Recherche',
       '## AKTIVE PLATTFORM: Bürger*innen-Mail Berlin',
@@ -346,7 +324,6 @@ const SCENARIOS: readonly LoopScenario[] = [
       },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'gruenerator_search',
   },
   {
     id: 'mention-recherche-loop',
@@ -358,7 +335,6 @@ const SCENARIOS: readonly LoopScenario[] = [
       { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }], text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'web_search',
   },
   // `@deepresearch` ist eine Variante von `research`, pinnt aber kein Werkzeug
   // — so bleibt er im Einzeldurchlauf, wo seine Engines und sein Kontingent
@@ -399,7 +375,6 @@ const SCENARIOS: readonly LoopScenario[] = [
     // Der benannte erste Aufruf, den `agentic` allein nicht mehr hergaebe: kein
     // Werkzeug heisst `agentic`, und aus NAMED_RETRIEVAL_INTENTS ist es
     // ausgenommen. Nur der Pin traegt das hier.
-    firstToolChoice: 'umfragen',
     // Der Auffang, den der Pin verhindert: ohne ihn faellt `agentic` auf
     // `search` — eine Dokumentensuche statt PolitPro.
     notReached: ['router.intent_override'],
@@ -422,7 +397,6 @@ const SCENARIOS: readonly LoopScenario[] = [
     // Wie bei `@umfragen`: `agentic` allein gaebe den benannten ersten Aufruf
     // nicht her. Dass hier der PM- und nicht der Social-Beispiel-Abruf steht,
     // ist der ganze Unterschied, den der Pin traegt.
-    firstToolChoice: 'gruenerator_pressemitteilung_examples',
     // Die zweite Haelfte: das Rezept `presse` steht im Systemtext des Loops.
     // `buildSystemMessage` ueberschreibt den Block mit dem Titel des Rezepts —
     // ohne `activatesSkill` faende der Turn hier gar keins.
@@ -442,7 +416,6 @@ const SCENARIOS: readonly LoopScenario[] = [
       },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'gruenerator_docs_search',
     // Die Seitenkarte haengt seit diesem PR am PIN statt am Intent. Sie ist kein
     // Rezepttext — nur ihre Aktivierungsbedingung hat gewechselt.
     systemIncludes: '## GRÜNERATOR-DOKUMENTATION',
@@ -455,7 +428,6 @@ const SCENARIOS: readonly LoopScenario[] = [
     body: { documentChatIds: ['doc-1'] },
     streams: [{ calls: [{ tool: 'summarize', args: {} }], text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'summarize',
     // Die zweite Haelfte desselben Turns: der EINE Aufruf traegt die Werkzeuge
     // und schreibt die Antwort, also muessen die Antwortregeln im selben
     // Systemtext stehen (`UNIFIED_WRITER_RULES`), sonst schriebe niemand sie vor.
@@ -464,7 +436,7 @@ const SCENARIOS: readonly LoopScenario[] = [
   {
     id: 'notebook-dokument-zusammenfassung-loop',
     category: 'mention-lane',
-    note: 'Keine Modellannahme: dasselbe Gitter wie `anhang-zusammenfassung-loop`, nur kommt das Dokument aus dem Notebook-Reader („Mit KI zusammenfassen") als `notebookSourceRefs`-Verweis auf ein System-Dokument. streamContext prueft den Verweis mit der Regel des Readers (Sammlung + Standardfilter, Qdrant-Scroll gestubbt) und reicht ihn als `system_document`-Quelle weiter; `retrievableAttachedSources` zaehlt ihn, also wird `summarize` montiert und als erster Aufruf erzwungen. Das Skript traegt NUR den `summarize`-Aufruf samt Antworttext.',
+    note: 'Keine Modellannahme: dasselbe Gitter wie `anhang-zusammenfassung-loop`, nur kommt das Dokument aus dem Notebook-Reader („Mit KI zusammenfassen") als `notebookSourceRefs`-Verweis auf ein System-Dokument. streamContext prueft den Verweis mit der Regel des Readers (Sammlung + Standardfilter, Qdrant-Scroll gestubbt) und reicht ihn als `system_document`-Quelle weiter; `retrievableAttachedSources` zaehlt ihn, also wird `summarize` montiert. Das Skript traegt NUR den `summarize`-Aufruf samt Antworttext.',
     prompt: 'Fasse dieses Dokument zusammen.',
     body: {
       notebookSourceRefs: [
@@ -476,27 +448,7 @@ const SCENARIOS: readonly LoopScenario[] = [
     },
     streams: [{ calls: [{ tool: 'summarize', args: {} }], text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'summarize',
     systemIncludes: 'ANTWORTPHASE',
-  },
-  {
-    id: 'recherche-auftrag-zuschnitt',
-    category: 'forced-scope',
-    note: 'Keine Modellannahme: ein ausdruecklicher Rechercheauftrag zwingt den ersten Aufruf (`research_order` in `shouldForceFirstToolCall`), und `forcedFirstStepTools` schneidet den Schritt auf die Recherche-Familie zu. Beides entscheidet ohne Modell. Gemessener Ausfall (#3880): `required` ueber den vollen Katalog, und das Modell griff zu `media`, `read_pdf_form` oder `summarize`. Das Skript ruft `web_search`; die Websuche ist gestubbt. `read_pdf_form` montiert diese Harness nicht (kein ausfuellbares PDF am Turn) — die Negativ-Zusicherung tragen `media` und `summarize`, die hier montiert sind.',
-    prompt: 'recherchiere aktuelle Zahlen zu Windkraft',
-    streams: [
-      {
-        calls: [{ tool: 'web_search', args: { query: 'Windkraft aktuelle Zahlen' } }],
-        text: GERMAN_ANSWER,
-      },
-    ],
-    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
-    firstToolChoice: 'required',
-    firstStepActiveTools: {
-      // `methode_laden`: die Methoden-Rezepte (Rechtsstand …), nie eine Textsorte.
-      within: [...RESEARCH_LOOP_TOOLS, 'methode_laden'],
-      without: ['read_pdf_form', 'media', 'summarize', 'rezept_laden'],
-    },
   },
 ];
 

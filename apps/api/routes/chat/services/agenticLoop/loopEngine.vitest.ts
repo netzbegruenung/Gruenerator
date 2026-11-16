@@ -27,172 +27,26 @@ import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 const { reportBackgroundError } = vi.hoisted(() => ({ reportBackgroundError: vi.fn() }));
 vi.mock('../../../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 
-describe('buildPrepareStep — forceFirstToolCall', () => {
+// Kein Schritt verlangt einen Aufruf (11/2026): der Zwang wurde in ~30 % der
+// Fälle gebrochen, und Mistral Large 4 / Melious-Gemma schrieben danach endlos.
+describe('buildPrepareStep — kein erzwungener Aufruf', () => {
   const never = () => false;
-  it('requires a tool call on step 0 when forced', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, true);
-    expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'required' });
-    // later steps go back to auto (no override)
-    expect(prep({ stepNumber: 1 })).toEqual({});
-  });
 
-  it('does not force when the flag is off', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+  it('setzt auf keinem Arbeitsschritt einen toolChoice', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     expect(prep({ stepNumber: 0 })).toEqual({});
+    expect(prep({ stepNumber: 1 })).toEqual({});
+    expect(prep({ stepNumber: 3 })).toEqual({});
   });
 
-  it('force-finish still wins over force-first on the last step', () => {
-    const prep = buildPrepareStep('sys', 'SUFF', 1, never, true);
-    // maxSteps=1 → step 0 is the last step → toolChoice:'none' + finish system
+  it('nur der Schlussschritt entzieht die Werkzeuge', () => {
+    const prep = buildPrepareStep('sys', 'SUFF', 1, never);
     expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
   });
 
-  // Eine @-Erwähnung hat ein Werkzeug benannt. `required` würde nur IRGENDEINEN
-  // Aufruf garantieren — und der Erwähnungstext ist zu diesem Zeitpunkt aus der
-  // Nachricht entfernt, das Modell sieht die Wahl also nicht mehr.
-  it('nennt das erwähnte Werkzeug auf Schritt 0 statt nur "required"', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      'bundestag'
-    );
-    expect(prep({ stepNumber: 0 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'bundestag' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['bundestag'],
-    });
-    // Danach entscheidet wieder der Planer.
-    expect(prep({ stepNumber: 1 })).toEqual({});
-  });
-
-  // Stillstand vom 28.10.2026: der Prompt sagt „Fragen nach Reden gehen immer an
-  // `bundestag_reden`, nicht an `bundestag`", der Schritt erzwingt `bundestag` —
-  // Cortecs/Melious schwiegen 15 s. Der Hinweis steht NACH dem Prompt.
-  it('hängt an einen benannten Schritt den Hinweis, dass nur dieses Werkzeug zur Wahl steht', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      () => 'web_search',
-      undefined,
-      'bundestag'
-    );
-    const first = prep({ stepNumber: 0 }).system ?? '';
-    expect(first.startsWith('sys')).toBe(true);
-    expect(first).toContain('Aufruf in diesem Schritt ist `bundestag`');
-    expect(first).toContain('stehen diesem Schritt nicht zur Wahl');
-    expect(prep({ stepNumber: 1 }).system).toContain('Aufruf in diesem Schritt ist `web_search`');
-  });
-
-  it('ohne Namen (required) bleibt der Systemprompt unberührt', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, true);
-    expect(prep({ stepNumber: 0 }).system).toBeUndefined();
-  });
-
-  it('ohne den Zwang wirkt der Name gar nicht — der Bann vetot zuerst', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      false,
-      undefined,
-      undefined,
-      'bundestag'
-    );
-    expect(prep({ stepNumber: 0 })).toEqual({});
-  });
-
-  it('gibt dem erzwungenen Schritt 0 die eigene Werkzeugmenge, Schritt 1 behält den Umfang', () => {
-    const first = ['web_search', 'gruenerator_search'];
-    const noScope = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      null,
-      undefined,
-      first
-    );
-    expect(noScope({ stepNumber: 0 })).toEqual({ toolChoice: 'required', activeTools: first });
-    expect(noScope({ stepNumber: 1 })).toEqual({});
-
-    const withScope = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      null,
-      () => ['a', 'b', 'meine_inhalte_laden'],
-      first
-    );
-    expect(withScope({ stepNumber: 0 })).toEqual({ toolChoice: 'required', activeTools: first });
-    expect(withScope({ stepNumber: 1 })).toEqual({
-      activeTools: ['a', 'b', 'meine_inhalte_laden'],
-    });
-  });
-
-  it('ein benanntes Werkzeug schlägt die Menge des ersten Schritts', () => {
-    const named = {
-      toolChoice: { type: 'tool', toolName: 'bundestag' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['bundestag'],
-    };
-    const bare = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      'bundestag',
-      undefined,
-      ['web_search']
-    );
-    expect(bare({ stepNumber: 0 })).toEqual(named);
-    const scoped = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      'bundestag',
-      () => ['a'],
-      ['web_search']
-    );
-    expect(scoped({ stepNumber: 0 })).toEqual(named);
-  });
-
-  it('die Menge des ersten Schritts wird ohne Zwang nie gelesen', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      false,
-      undefined,
-      undefined,
-      null,
-      undefined,
-      ['web_search']
-    );
-    expect(prep({ stepNumber: 0 })).toEqual({});
+  it('forceFinish beendet auch vor dem letzten Schritt', () => {
+    const prep = buildPrepareStep('sys', 'SUFF', 5, () => true);
+    expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
   });
 });
 
@@ -203,24 +57,14 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
   it('lässt den Aufruf unverändert, solange nichts zurückgestellt ist', () => {
     // `undefined` ist das Verhalten vor toolScope.ts — kein `activeTools`-Feld,
     // also schickt das SDK den ganzen montierten Katalog.
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, undefined, undefined, null);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     expect(prep({ stepNumber: 0 })).toEqual({});
   });
 
   it('schneidet auf JEDEM Zweig, auch auf dem Schlussschritt', () => {
     // `toolChoice: 'none'` unterdrückt den AUFRUF, nicht die Definitionen: ohne
     // das Feld hier zahlt der Schlussschritt den vollen Katalog noch einmal.
-    const prep = buildPrepareStep(
-      'sys',
-      'SUFF',
-      1,
-      never,
-      false,
-      undefined,
-      undefined,
-      null,
-      scope
-    );
+    const prep = buildPrepareStep('sys', 'SUFF', 1, never, undefined, scope);
     expect(prep({ stepNumber: 0 })).toEqual({
       toolChoice: 'none',
       system: 'sysSUFF',
@@ -228,165 +72,17 @@ describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
     });
   });
 
-  it('schneidet auch, wenn ein Werkzeug erzwungen wird', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      () => 'web_search',
-      undefined,
-      'bundestag',
-      scope
-    );
-    // Ein benannter Schritt schickt nur sein Werkzeug — siehe
-    // "ein benanntes Werkzeug geht allein".
-    expect(prep({ stepNumber: 0 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'bundestag' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['bundestag'],
-    });
-    expect(prep({ stepNumber: 1 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'web_search' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['web_search'],
-    });
-  });
-
   it('liest den Umfang bei JEDEM Schritt neu — ein Lader wirkt sofort', () => {
     // Der Getter ist der Punkt: ruft das Modell in Schritt 0 den Lader, muss
     // Schritt 1 die geöffnete Gruppe sehen. Ein eingefangenes Array wäre blind.
     let offen = false;
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      false,
-      undefined,
-      undefined,
-      null,
-      () => (offen ? undefined : ['gruenerator_search', 'meine_inhalte_laden'])
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, undefined, () =>
+      offen ? undefined : ['gruenerator_search', 'meine_inhalte_laden']
     );
     expect(prep({ stepNumber: 0 })).toEqual({
       activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
     });
     offen = true;
-    expect(prep({ stepNumber: 1 })).toEqual({});
-  });
-});
-
-describe('buildPrepareStep — ein benanntes Werkzeug geht allein', () => {
-  const never = () => false;
-  // Der Umfang zeigt `documents` nicht. Wird es trotzdem benannt, muss die
-  // Definition mit — sonst verlangt derselbe Schritt einen Aufruf und liefert
-  // das Werkzeug nicht mit. Und NUR sie: ein Name über dem vollen Katalog liess
-  // Gemma 4 bei Cortecs und Melious bis zum Abbruch stumm generieren (28.10.2026).
-  const eng = () => ['gruenerator_search', 'meine_inhalte_laden'];
-
-  it('schickt nur das erwähnte Werkzeug, auch wenn der Umfang es zurückstellt', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      true,
-      undefined,
-      undefined,
-      'documents',
-      eng
-    );
-    expect(prep({ stepNumber: 0 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'documents' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['documents'],
-    });
-  });
-
-  it('schickt nur das erzwungene Ausweich-Werkzeug', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      false,
-      () => 'documents',
-      undefined,
-      null,
-      eng
-    );
-    expect(prep({ stepNumber: 1 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'documents' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['documents'],
-    });
-  });
-
-  it('schneidet den Umfang weg, auch wenn das Werkzeug ohnehin mitgeht', () => {
-    const prep = buildPrepareStep(
-      'sys',
-      'suffix',
-      5,
-      never,
-      false,
-      () => 'gruenerator_search',
-      undefined,
-      null,
-      eng
-    );
-    expect(prep({ stepNumber: 1 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['gruenerator_search'],
-    });
-  });
-});
-
-describe('buildPrepareStep — forced fallback tool', () => {
-  const never = () => false;
-
-  it('names the tool instead of merely requiring one', () => {
-    // `required` would let the planner re-run the internal search that just
-    // came back empty — which is exactly the loop the fallback has to break.
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
-    expect(prep({ stepNumber: 1 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'web_search' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['web_search'],
-    });
-  });
-
-  it('never forces on step 0 — there is no tool result to react to yet', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
-    expect(prep({ stepNumber: 0 })).toEqual({});
-  });
-
-  it('leaves the choice to the model when the guard returns null', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => null);
-    expect(prep({ stepNumber: 1 })).toEqual({});
-  });
-
-  it('is re-evaluated per step, not captured once', () => {
-    let forced: string | null = null;
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => forced);
-    expect(prep({ stepNumber: 1 })).toEqual({});
-    forced = 'web_search';
-    expect(prep({ stepNumber: 2 })).toEqual({
-      toolChoice: { type: 'tool', toolName: 'web_search' },
-      system: expect.stringContaining('DIESER SCHRITT'),
-      activeTools: ['web_search'],
-    });
-  });
-
-  it('force-finish beats the fallback on the last step', () => {
-    // Otherwise the turn would end on a tool call with no answer written.
-    const prep = buildPrepareStep('sys', 'SUFF', 2, never, false, () => 'web_search');
-    expect(prep({ stepNumber: 1 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
-  });
-
-  it('stays inert when no fallback is wired (default arg)', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
     expect(prep({ stepNumber: 1 })).toEqual({});
   });
 });
@@ -411,7 +107,7 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
   };
 
   it('nudges the next step with the tool name and its error', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     const out = prep({ stepNumber: 1, steps: [failedStep] });
     expect(out.toolChoice).toBeUndefined();
     expect(out.system).toContain('sys');
@@ -422,7 +118,7 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
   });
 
   it('counts a thrown tool (tool-error part) as failed too', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     const out = prep({
       stepNumber: 1,
       steps: [
@@ -434,7 +130,7 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
   });
 
   it('only once per turn', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     expect(prep({ stepNumber: 1, steps: [failedStep] }).system).toContain('notebook_quellen');
     expect(prep({ stepNumber: 2, steps: [failedStep, failedStep] })).toEqual({});
   });
@@ -442,7 +138,7 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
   // Review PR #3568: eine Wächter-Absage („Zu viele Fehlversuche … erkläre,
   // was nicht geklappt hat") ist eine Weisung, kein behebbarer Fehler.
   it('not after a guard refusal', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     const guarded = {
       content: [
         {
@@ -456,28 +152,21 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
   });
 
   it('not when one call of the step succeeded', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     expect(prep({ stepNumber: 1, steps: [okStep] })).toEqual({});
   });
 
   it('not after a step without tool calls', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const prep = buildPrepareStep('sys', 'suffix', 5, never);
     expect(prep({ stepNumber: 1, steps: [{ content: [{ type: 'text' }] }] })).toEqual({});
   });
 
   it('force-finish still wins on the last step', () => {
-    const prep = buildPrepareStep('sys', 'SUFF', 2, never, false);
+    const prep = buildPrepareStep('sys', 'SUFF', 2, never);
     expect(prep({ stepNumber: 1, steps: [failedStep] })).toEqual({
       toolChoice: 'none',
       system: 'sysSUFF',
     });
-  });
-
-  it('keeps a forced fallback tool and adds the nudge to its system', () => {
-    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
-    const out = prep({ stepNumber: 1, steps: [failedStep] });
-    expect(out.toolChoice).toEqual({ type: 'tool', toolName: 'web_search' });
-    expect(out.system).toContain('notebook_quellen');
   });
 });
 
@@ -803,9 +492,9 @@ describe('runAgenticLoop — unified repair', () => {
     expect(onText).not.toHaveBeenCalled();
   });
 
-  it('ends the stream, not the turn, when the model ignores a forced tool step', async () => {
+  it('ends the stream, not the turn, when the model calls a tool on the tool-less final step', async () => {
     const violation = new ToolChoiceViolationError({
-      toolChoice: { type: 'tool', toolName: 'create_sheet' },
+      toolChoice: { type: 'none' },
     } as unknown as ConstructorParameters<typeof ToolChoiceViolationError>[0]);
     const ensureOwedTools = vi.fn(async () => {});
     const { deps, calls } = setup([{ type: 'error', error: violation }]);
@@ -818,44 +507,6 @@ describe('runAgenticLoop — unified repair', () => {
     expect(calls).toEqual(['synth', 'repair']);
     expect(out.text).toBe(GOOD);
     expect(out.replacement).toBe('unified_repair');
-  });
-
-  // Live 16.11.2026: Mistral Large 4 (and Melious-Gemma) under `required`
-  // started with prose and never reached a stop token — "Ich höre jetzt
-  // wirklich auf … ?=false" for 43 s, up to 77.707 chars, all streamed live.
-  // The SDK only checks tool choice at step END, which never came.
-  it('cuts a forced step that streams prose instead of a call, before the person sees any of it', async () => {
-    const onText = vi.fn();
-    const calls: string[] = [];
-    let pulled = 0;
-    const deps: LoopDeps = {
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-      streamText: ((
-        o: StreamOpts & {
-          prepareStep: (a: { stepNumber: number; steps: [] }) => { toolChoice?: unknown };
-        }
-      ) => {
-        calls.push(o.model.id);
-        if (o.model.id === 'repair') return streamOf([{ type: 'text-delta', text: GOOD }]);
-        return {
-          stream: (async function* () {
-            expect(o.prepareStep({ stepNumber: 0, steps: [] }).toolChoice).toBe('required');
-            yield { type: 'start-step' };
-            while (true) {
-              pulled++;
-              yield { type: 'text-delta', text: 'Kurz: Hier kein Bild von mir. ?=false\n\n' };
-            }
-          })(),
-        } as unknown as ReturnType<LoopDeps['streamText']>;
-      }) as unknown as LoopDeps['streamText'],
-    };
-    const out = await runAgenticLoop(params({ onText, forceFirstToolCall: true }), deps);
-    expect(calls).toEqual(['synth', 'repair']);
-    expect(out.text).toBe(GOOD);
-    expect(out.replacement).toBe('unified_repair');
-    expect(onText).not.toHaveBeenCalled();
-    // Stopped at the budget, not at a provider cap.
-    expect(pulled).toBeLessThan(30);
   });
 
   it('does not repair an empty answer after an artifact (the caller confirms it)', async () => {
