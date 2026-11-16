@@ -98,6 +98,10 @@ import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingC
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import notificationStreamRouter from './routes/notifications/stream.js';
+import {
+  PARTEITAGE_IMPORT_PATH,
+  parteitageImportBodyParser,
+} from './routes/parteitage/importBodyParser.js';
 import { mountParteitageAdminContractRouter } from './routes/parteitage/parteitageAdminContractRouter.js';
 import { mountParteitageContractRouter } from './routes/parteitage/parteitageContractRouter.js';
 import { parteitageMediaRouter } from './routes/parteitage/parteitageMediaRouter.js';
@@ -554,6 +558,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use(parteitageMediaRouter);
   mountParteitageContractRouter(app);
   app.use('/api/admin/parteitage', requireAuth);
+  app.post(PARTEITAGE_IMPORT_PATH, ...parteitageImportBodyParser);
   mountParteitageAdminContractRouter(app);
   // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
   // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so

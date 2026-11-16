@@ -14,7 +14,13 @@ export const TUS_UPLOAD_PATHS = [
 
 // `/api/browser-agent/llm`: jeder Schritt trägt einen base64-Screenshot, der
 // Verlauf mehrere — eigener 20-MB-Parser im Router statt des globalen 10 MB.
-const CUSTOM_BODY_PARSER_PATHS = ['/api/chat-graph/stream', '/api/browser-agent/llm'];
+// `/api/admin/parteitage/import`: das Manifest trägt alle Wortzeiten (~230k Werte), mehr als
+// der Wertedeckel des globalen Parsers — eigener Parser hinter dem Admin-Gate in routes.ts.
+const CUSTOM_BODY_PARSER_PATHS = [
+  '/api/chat-graph/stream',
+  '/api/browser-agent/llm',
+  '/api/admin/parteitage/import',
+];
 
 export interface BodyParserSkipConfig {
   skipPaths: string[];
