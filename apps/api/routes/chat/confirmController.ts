@@ -455,6 +455,38 @@ export async function executeAction(
       };
     }
 
+    case 'create_antragsgruen_site': {
+      const { orderAntragsgruenSite, SiteOrderRefused } =
+        await import('../../services/antragsgruen/hosting/sites.js');
+      const { AntragsgruenFormError } =
+        await import('../../services/antragsgruen/hosting/formClient.js');
+      try {
+        const site = await orderAntragsgruenSite(action.userId, action.payload);
+        const adminEmailNote = site.adminEmailHandedOver
+          ? ''
+          : ' Die Admin-E-Mail-Adresse der Veranstaltung steht noch auf dem Grünerator; trag unter „Einstellungen" deine eigene ein, sonst gehen Antworten auf Mails der Seite an uns.';
+        return {
+          message: `Die Antragsgrün-Seite **„${action.payload.title}"** steht unter ${site.url}. Antragsgrün schickt dir gleich eine Mail mit deinen Zugangsdaten.${adminEmailNote}`,
+          url: site.url,
+        };
+      } catch (err) {
+        if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof AntragsgruenFormError) {
+          log.warn(
+            `[antragsgruen-site] step=${err.step} site=${err.siteUrl ?? '-'}: ${err.message}`
+          );
+          throw new ConfirmActionRefusal(
+            err.step === 'check-subdomain'
+              ? `Die Adresse „${action.payload.subdomain}" ist bei Antragsgrün schon vergeben. Nimm eine andere.`
+              : err.siteUrl
+                ? `Die Seite steht unter ${err.siteUrl}, aber dich dort als Admin einzutragen hat nicht geklappt. Das holen wir von Hand nach.`
+                : 'Antragsgrün hat das Anlegen nicht angenommen. Es wurde nichts angelegt.'
+          );
+        }
+        throw err;
+      }
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

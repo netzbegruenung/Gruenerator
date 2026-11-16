@@ -75,6 +75,7 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 import { turnImagesOf } from '../services/turnImages.js';
 
+import { makeAntragsgruenSiteTool, siteCreationConfigured } from './antragsgruenSiteTools.js';
 import {
   makeAntragsgruenAuswertenTool,
   makeAntragsgruenLesenTool,
@@ -1191,6 +1192,11 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     }
     if (state.enabledTools?.['groups'] !== false) {
       tools.groups = makeGroupsTool(personalCtx);
+    }
+    // Hinter der Gruppe `antragsgruen` (`toolScope.ts`); ohne Zugangsdaten des
+    // Grünerator-Kontos bei antragsgruen.de gibt es nichts anzulegen.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale) && siteCreationConfigured()) {
+      tools.antragsgruen_seite_anlegen = makeAntragsgruenSiteTool(personalCtx);
     }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);

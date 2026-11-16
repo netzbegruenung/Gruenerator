@@ -106,6 +106,15 @@ const envSchema = z.object({
    */
   BROWSER_AGENT_URL: z.string().optional(),
   /**
+   * Antragsgrün-Seiten für Personen anlegen (`services/antragsgruen/hosting/`):
+   * das Grünerator-Konto bei antragsgruen.de. Ohne beide Werte wird das Werkzeug
+   * `antragsgruen_seite_anlegen` nicht montiert. `ANTRAGSGRUEN_HOSTING_URL` nur
+   * für Tests gegen eine eigene Instanz (Standard `https://antragsgruen.de`).
+   */
+  ANTRAGSGRUEN_BOT_EMAIL: z.string().optional(),
+  ANTRAGSGRUEN_BOT_PASSWORD: z.string().optional(),
+  ANTRAGSGRUEN_HOSTING_URL: z.string().url().optional(),
+  /**
    * Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default
    * `http://localhost:3001`; im Betrieb `browser-gateway:8898`, das nur den
    * Modell-Pfad durchlässt.

@@ -275,6 +275,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   antragsgruen: 30_000,
   antragsgruen_lesen: 30_000,
   antragsgruen_auswerten: 30_000,
+  // Nur die Adressprüfung bei antragsgruen.de (Frist 20 s, `hosting/formClient.ts`).
+  antragsgruen_seite_anlegen: 25_000,
 };
 
 /**

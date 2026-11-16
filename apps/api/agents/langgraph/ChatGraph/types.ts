@@ -1569,6 +1569,13 @@ export interface CreateGroupPayload {
   description: string | null;
 }
 
+/** Eine Antragsgrün-Seite auf antragsgruen.de (`services/antragsgruen/hosting/`). */
+export interface CreateAntragsgruenSitePayload {
+  title: string;
+  organization: string;
+  subdomain: string;
+}
+
 export interface JoinGroupPayload {
   joinToken: string;
   groupName: string;
@@ -1720,6 +1727,7 @@ export type PendingAction = {
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
   | { type: 'share_text_form'; payload: ShareTextFormPayload }
   | { type: 'apply_canvas_deck_edit'; payload: ApplyCanvasDeckEditPayload }
+  | { type: 'create_antragsgruen_site'; payload: CreateAntragsgruenSitePayload }
 );
 
 /**

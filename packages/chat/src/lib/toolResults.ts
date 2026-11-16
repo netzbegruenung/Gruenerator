@@ -285,6 +285,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return n ? `${n} gelesen` : null;
     },
   },
+  antragsgruen_seite_anlegen: {
+    label: 'Antragsgrün-Seite',
+    activeLabel: 'Prüfe die Adresse bei Antragsgrün …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   antragsgruen_auswerten: {
     label: 'Antragsgrün-Auswertung',
     activeLabel: 'Zählt in Antragsgrün …',

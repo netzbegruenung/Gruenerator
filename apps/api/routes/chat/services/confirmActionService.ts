@@ -140,6 +140,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
+  create_antragsgruen_site: {
+    title: 'Antragsgrün-Seite anlegen',
+    description:
+      'Der Grünerator legt die Seite auf antragsgruen.de an und trägt dich mit der E-Mail-Adresse deines Kontos als Seiten-Admin ein. Antragsgrün schickt dir dazu eine Mail mit deinen Zugangsdaten. Die Seite ist danach noch nicht öffentlich; das Grünerator-Konto bleibt dort Mit-Admin.',
+    icon: 'clipboard-list',
+    confirmLabel: 'Anlegen',
+  },
   apply_canvas_deck_edit: {
     title: 'Folien löschen',
     description: 'Die Änderung löscht Folien aus der Präsentation.',
