@@ -21,6 +21,8 @@
 import * as cheerio from 'cheerio';
 import { type Element } from 'domhandler';
 
+import { numberedSectionsOf, type NumberedSection } from './lineNumbers.js';
+
 export interface PageFacts {
   /** ISO-Datum (`YYYY-MM-DD`) aus „Eingereicht". */
   eingereichtAm: string | null;
@@ -38,6 +40,8 @@ export interface PageFacts {
   version: number | null;
   /** Die anderen Versionen derselben Kette, mit ihrer Antrags-ID. */
   otherVersions: Array<{ version: number; motionId: number }>;
+  /** Abschnitte mit Zeilennummern (`lineNumbers.ts`); leer, wenn die Seite keine zeigt. */
+  numbered: NumberedSection[];
 }
 
 const EMPTY: PageFacts = {
@@ -47,6 +51,7 @@ const EMPTY: PageFacts = {
   veranstaltungAm: null,
   version: null,
   otherVersions: [],
+  numbered: [],
 };
 
 /** „04.06.2026, 12:29" bzw. „21.06.2026" → „2026-06-04" */
@@ -101,7 +106,7 @@ const versionNumber = (text: string): number | null => {
 export function pageFactsOf(html: string): PageFacts {
   const $ = cheerio.load(html);
   const table = $('table.motionDataTable').first();
-  if (table.length === 0) return EMPTY;
+  if (table.length === 0) return { ...EMPTY, numbered: numberedSectionsOf(html) };
 
   const rows = new Map<string, Element>();
   table.find('tr').each((_, tr) => {
@@ -140,6 +145,7 @@ export function pageFactsOf(html: string): PageFacts {
     veranstaltungAm: singleEventDateOf(text('Veranstaltung')),
     version,
     otherVersions,
+    numbered: numberedSectionsOf(html),
   };
 }
 
