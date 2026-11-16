@@ -56,31 +56,6 @@ export interface ConversationStats {
 }
 
 /**
- * Experimental Antrag session data
- */
-export interface ExperimentalSession {
-  sessionId: string;
-  userId: string;
-  conversationState: string;
-  createdAt: number;
-  updatedAt: number;
-  expiresAt: number;
-  [key: string]: unknown;
-}
-
-/**
- * Session summary for listing user sessions
- */
-export interface SessionSummary {
-  sessionId: string;
-  conversationState: string;
-  thema?: string | undefined;
-  requestType?: string | undefined;
-  createdAt: number;
-  expiresAt: number;
-}
-
-/**
  * Recent form value record
  */
 export interface RecentValue {
