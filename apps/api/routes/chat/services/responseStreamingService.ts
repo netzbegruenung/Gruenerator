@@ -10,7 +10,6 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { GemmaChannelLoopError } from '../../../services/ai/gemmaChannelFilter.js';
-import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
@@ -338,16 +337,6 @@ export async function resolveModel(
         `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using the server default`
       );
     }
-  }
-
-  // F0: gespeicherte Agenten-Konfigurationen nennen weiter `provider: 'regolo'`
-  // (Regolo ist seit 30.09.2026 abgeschaltet). Hier umbiegen, BEVOR Vision-Weiche,
-  // Denk-Strom-Wahl und Kontextfenster den Namen ansehen — `getModel` biegt ihn
-  // zwar auch um, aber erst danach.
-  if (modelProvider === 'regolo') {
-    const live = retireLiteLLM(modelProvider, modelName);
-    modelProvider = live.provider;
-    modelName = live.model ?? modelName;
   }
 
   // For image_edit, the chat model narrates from pre-grounded BILDVERGLEICH
