@@ -29,10 +29,6 @@ vi.mock('../providerInstances.js', () => ({
   logProviderAvailability: () => {},
 }));
 
-vi.mock('../usageTracking.js', () => ({
-  withUsageTracking: (model: unknown) => model,
-}));
-
 const { getMonitorModel } = await import('../providers.js');
 
 function hostOf(model: unknown): { provider: string; modelId: string } {

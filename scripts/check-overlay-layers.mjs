@@ -49,7 +49,6 @@ const UI_LAYERS = {
   'alert-dialog.tsx': MODAL,
   'sheet.tsx': MODAL,
   'popover.tsx': POPUP,
-  'hover-card.tsx': POPUP,
   'combobox.tsx': POPUP,
   'select.tsx': POPUP,
   'dropdown-menu.tsx': POPUP,

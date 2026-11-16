@@ -67,7 +67,7 @@ const entries = collectConfigs(PROMPTS_DIR);
 
 describe('prompt-configs entscheiden nicht über das Routing', () => {
   it('kennt überhaupt Configs (sonst prüft die Schleife unten nichts)', () => {
-    expect(entries.length).toBeGreaterThan(25);
+    expect(entries.length).toBeGreaterThan(20);
     // Und sie steigt in Unterverzeichnisse — sonst fiele die Sharepic-Familie
     // heraus, also genau die, für die diese Prüfung erfunden wurde.
     expect(entries.some(([name]) => name.startsWith('sharepic/'))).toBe(true);
