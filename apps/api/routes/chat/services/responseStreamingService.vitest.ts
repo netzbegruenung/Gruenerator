@@ -269,12 +269,25 @@ describe('getFirstTokenDeadlineMs', () => {
 describe('resolveModel', () => {
   const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
 
-  it('flags an unknown modelId and falls back to the agent default', async () => {
-    mockResolveModelTuple.mockResolvedValue(null);
+  it('flags an unknown modelId and answers through the auto policy', async () => {
+    mockResolveModelTuple.mockImplementation(async (id: string) =>
+      id === 'no-such-model' ? null : { provider: 'melious', model: 'gemma-4-31b:balanced' }
+    );
     const resolution = await resolveModel(agentConfig, 'no-such-model', 'req_test');
     expect(resolution.unknownModelId).toBe('no-such-model');
-    expect(resolution.provider).toBe('mistral');
-    expect(resolution.modelName).toBe('mistral-medium-2604');
+    expect(resolution.provider).toBe('melious');
+    expect(resolution.modelName).toBe('gemma-4-31b:balanced');
+  });
+
+  it("never answers on an agent's stored provider and model", async () => {
+    const stored = { provider: 'greenpt', model: 'agent-chosen-model' };
+    mockResolveModelTuple.mockResolvedValue(null);
+    for (const modelId of ['no-such-model', undefined, 'auto']) {
+      mockGetModel.mockClear();
+      const resolution = await resolveModel(stored, modelId, 'req_test');
+      expect(resolution.modelName).not.toBe('agent-chosen-model');
+      expect(JSON.stringify(mockGetModel.mock.calls)).not.toContain('agent-chosen-model');
+    }
   });
 
   it('uses the resolved tuple for a known modelId without flagging', async () => {
