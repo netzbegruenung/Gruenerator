@@ -196,7 +196,7 @@ export async function importConvention(input: ImportInput): Promise<ImportResult
       const probe = await probeVideoMetadata(filePath);
       metadata.set(file.storageKey, {
         size,
-        duration: probe.duration,
+        duration: Number(probe.duration) || null,
         width: probe.width,
         height: probe.height,
       });
