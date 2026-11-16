@@ -13,6 +13,7 @@ import {
   createGrueneratorThreadListAdapter,
   getThreadAgentId,
   getThreadSlugSuffix,
+  isThreadCollaborative,
   resolveThreadBySlugSuffix,
 } from './GrueneratorThreadListAdapter';
 
@@ -180,6 +181,36 @@ describe('initialize', () => {
     await adapter.initialize('__LOCALID_2');
 
     expect(apiClient.patch).not.toHaveBeenCalled();
+  });
+
+  it('sends teamShared and opens live sync for the creator right away', async () => {
+    useAgentStore.setState({ threadMode: 'chat', customRoleRef: null, roleRefSource: 'load' });
+    useAgentStore.getState().setPendingGroup('g1', true);
+    const apiClient = makeApiClient({ id: 'thread-team' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.initialize('__LOCALID_3');
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/chat-service/threads',
+      expect.objectContaining({ groupId: 'g1', teamShared: true })
+    );
+    expect(isThreadCollaborative('thread-team')).toBe(true);
+  });
+
+  it('keeps a private project chat private', async () => {
+    useAgentStore.setState({ threadMode: 'chat', customRoleRef: null, roleRefSource: 'load' });
+    useAgentStore.getState().setPendingGroup('g1', false);
+    const apiClient = makeApiClient({ id: 'thread-priv' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.initialize('__LOCALID_4');
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/chat-service/threads',
+      expect.not.objectContaining({ teamShared: true })
+    );
+    expect(isThreadCollaborative('thread-priv')).toBe(false);
   });
 });
 

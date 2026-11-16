@@ -99,6 +99,11 @@ export function isThreadCollaborative(remoteId: string): boolean {
   return threadTeamSharedCache.has(remoteId) || getThreadAccessType(remoteId) !== 'owner';
 }
 
+/** A Projekt chat the whole team writes in (own team chat or via the group share). */
+export function isThreadTeamChat(remoteId: string): boolean {
+  return threadTeamSharedCache.has(remoteId) || getThreadAccessType(remoteId) === 'group';
+}
+
 export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'group' {
   return threadAccessTypeCache.get(remoteId) ?? 'owner';
 }
@@ -445,18 +450,26 @@ export function createGrueneratorThreadListAdapter(
         if (pendingGroup) useAgentStore.getState().setPendingGroup(null);
         const groupId =
           pendingGroup && pendingGroup.expiresAt > Date.now() ? pendingGroup.id : null;
+        const teamShared = !!groupId && pendingGroup?.teamShared === true;
         const result = await apiClient.post<{ id: string; slugSuffix?: string | null }>(
           '/api/chat-service/threads',
           {
             agentId: effectiveAgentId,
             threadType: threadMode,
             ...(groupId ? { groupId } : {}),
+            ...(teamShared ? { teamShared: true } : {}),
           }
         );
         threadTypeCache.set(result.id, threadMode);
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
         if (groupId) setThreadGroupId(result.id, groupId);
+        // Seed the share meta so the live-sync socket opens for the creator now,
+        // not only after the next list() refresh.
+        if (teamShared) {
+          threadTeamSharedCache.add(result.id);
+          tagListeners.forEach((l) => l());
+        }
         useAgentStore.getState().mintThreadFromDraft(result.id);
         // Der Produktionspfad der Rollen-Promotion: das Backend sendet
         // `thread_created` (und damit `onThreadCreated`) nur für Threads, die
