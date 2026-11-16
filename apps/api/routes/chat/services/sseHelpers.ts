@@ -376,6 +376,11 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
   abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
   bundestag: ['Durchsuche das DIP...', 'Blättere Drucksachen...', 'Höre Reden nach...'],
+  antragsgruen: [
+    'Durchsuche Antragsgrün...',
+    'Blättere Änderungsanträge...',
+    'Prüfe Verfahrensvorschläge...',
+  ],
   abgeordnetenhaus: [
     'Durchsuche PARDOK...',
     'Blättere Berliner Drucksachen...',

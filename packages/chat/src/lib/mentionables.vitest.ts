@@ -84,6 +84,12 @@ const BEFORE: Row[] = [
     audience: 'de-DE',
   },
   {
+    identifier: 'antragsgruen',
+    mention: 'antragsgruennrw',
+    title: 'Antragsgrün NRW',
+    audience: 'de-DE',
+  },
+  {
     identifier: 'summary',
     mention: 'zusammenfassung',
     title: 'Zusammenfassung',

@@ -998,4 +998,23 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Ich plane eine Reise für den Landesverband: ',
   },
+  {
+    identifier: 'gruenerator-universal',
+    title: 'Antragsgrün-Seite anlegen (Experimentell)',
+    description:
+      'Legt für eine Versammlung eine eigene Antragsgrün-Seite auf antragsgruen.de an und trägt dich als Seiten-Admin ein. Nutzen, wenn für einen Parteitag, eine KMV oder MV ein Antragstool gebraucht wird (experimentell).',
+    iconKey: 'PiListChecks',
+    avatar: '🗳️',
+    backgroundColor: '#316049',
+    mention: 'antragsgruen-seite',
+    skillCategory: 'dokumente',
+    audience: 'de-DE',
+    promptTemplate: 'Lege eine Antragsgrün-Seite an für: ',
+    rolle: 'methode',
+    recommendedTools: [
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+    ],
+  },
 ] as const satisfies readonly SystemSkill[];

@@ -1684,3 +1684,14 @@ CREATE TABLE IF NOT EXISTS monitor_lagebilder (
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_lagebilder_locale_generated ON monitor_lagebilder(locale, generated_at DESC);
+
+CREATE TABLE IF NOT EXISTS antragsgruen_hosted_sites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    subdomain TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_antragsgruen_hosted_sites_user ON antragsgruen_hosted_sites(user_id);

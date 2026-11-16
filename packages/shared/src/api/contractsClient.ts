@@ -50,6 +50,7 @@ import {
   wolkePendingContract,
   notebookWordpressContract,
   userWebsitesContract,
+  antragsgruenSitesContract,
   letterheadsContract,
   notebookSharingContract,
   notificationsContract,
@@ -322,6 +323,7 @@ const _notebookCollectionsClient = () => initClient(notebookCollectionsContract,
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
 const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
+const _antragsgruenSitesClient = () => initClient(antragsgruenSitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
@@ -418,6 +420,7 @@ export interface ContractsClient {
   wolkePending: ReturnType<typeof _wolkePendingClient>;
   notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
   userWebsites: ReturnType<typeof _userWebsitesClient>;
+  antragsgruenSites: ReturnType<typeof _antragsgruenSitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
@@ -527,6 +530,7 @@ export function getContractsClient(): ContractsClient {
     wolkePending: _wolkePendingClient(),
     notebookWordpress: _notebookWordpressClient(),
     userWebsites: _userWebsitesClient(),
+    antragsgruenSites: _antragsgruenSitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     chatThreadSharing: _chatThreadSharingClient(),

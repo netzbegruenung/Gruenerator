@@ -20,7 +20,6 @@ export const contentSyncSourceSchema = z.enum([
   'social-media',
   'lv-instagram',
   'abgeordnetenwatch',
-  'bundestag-dip',
   'grundsatz',
   'gruene-de',
   'oesterreich',
@@ -131,6 +130,12 @@ export const contentSyncFailureSchema = z.object({
   sourceId: contentSyncSourceSchema,
   error: z.string(),
   durationMs: z.number(),
+  /**
+   * Set when the job record was still `running` but its worker stopped
+   * heartbeating (API restarted mid-run). Nothing finished the work and the
+   * in-process lock died with the worker, so the caller may simply re-trigger.
+   */
+  orphaned: z.literal(true).optional(),
 });
 
 export type ContentSyncFailure = z.infer<typeof contentSyncFailureSchema>;
@@ -154,6 +159,8 @@ export const contentSyncJobStatusSchema = z.object({
   sourceId: contentSyncSourceSchema,
   status: z.enum(['running', 'completed', 'failed']),
   startedAt: z.string(),
+  /** Refreshed by the worker while `running`; a stale one means the worker is gone. */
+  heartbeatAt: z.string().optional(),
   result: z.union([contentSyncResultSchema, contentSyncFailureSchema]).optional(),
 });
 

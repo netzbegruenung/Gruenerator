@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkConventionAccess, checkSpeechAccess, type ConventionViewer } from './access.js';
+import { PARTEITAGE_ADMIN_ONLY } from './adminOnlyGate.js';
 
 const user: ConventionViewer = { userId: 'u', isAdmin: false, audience: 'de-DE' };
 const admin: ConventionViewer = { ...user, isAdmin: true };
@@ -14,7 +15,21 @@ const conv = (o: Partial<Parameters<typeof checkConventionAccess>[1]> = {}) => (
   ...o,
 });
 
-describe('checkConventionAccess', () => {
+describe('admin-only gate', () => {
+  it.skipIf(!PARTEITAGE_ADMIN_ONLY)(
+    'non-admins see nothing, even a published open convention',
+    () => {
+      expect(checkConventionAccess(user, conv(), true)).toBe('not_found');
+      expect(checkSpeechAccess(user, conv(), { moderation: 'ok' }, true)).toBe('not_found');
+    }
+  );
+  it('admins pass', () => {
+    expect(checkConventionAccess(admin, conv(), false)).toBe('ok');
+  });
+});
+
+// The open-policy tables below describe the behaviour once the gate is removed.
+describe.skipIf(PARTEITAGE_ADMIN_ONLY)('checkConventionAccess', () => {
   it.each([
     ['draft/user', user, conv({ status: 'draft' }), false, 'not_found'],
     ['draft/admin', admin, conv({ status: 'draft' }), false, 'ok'],
@@ -37,7 +52,7 @@ describe('checkConventionAccess', () => {
   });
 });
 
-describe('checkSpeechAccess', () => {
+describe.skipIf(PARTEITAGE_ADMIN_ONLY)('checkSpeechAccess', () => {
   it('hidden speech/user -> not_found', () => {
     expect(checkSpeechAccess(user, conv(), { moderation: 'hidden' }, false)).toBe('not_found');
   });

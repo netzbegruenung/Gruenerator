@@ -173,6 +173,8 @@ export const searchIntentSchema = z.enum([
   'abgeordnetenwatch',
   'bundestag',
   'abgeordnetenhaus',
+  // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): Parteitagsanträge aus Index + Live-API.
+  'antragsgruen',
   // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
   // ARD-Tagesschau) — built-in like bundestag, active only when the matching
   // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/connectorAdapters.ts).
@@ -373,6 +375,10 @@ export const confirmActionTypeSchema = z.enum([
   'share_text_form',
   // Karte des `edit_presentation`-Werkzeugs bei Folien-Löschung (10/2026), additiv.
   'apply_canvas_deck_edit',
+  // Karte des `antragsgruen_seite_anlegen`-Werkzeugs (11/2026), additiv.
+  'create_antragsgruen_site',
+  'create_antragsgruen_motion',
+  'set_antragsgruen_agenda',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

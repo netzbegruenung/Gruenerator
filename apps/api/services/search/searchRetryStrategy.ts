@@ -2,8 +2,8 @@
  * Search Retry Strategy
  *
  * Provides retry-with-backoff and circuit breaker utilities for search services.
- * Used by both SearxngNode (WebSearchGraph) and directSearch (ChatGraph)
- * to handle transient failures gracefully.
+ * Used by the web-search engines behind `webSearch.ts` to handle transient
+ * failures gracefully.
  */
 
 import { createLogger } from '../../utils/logger.js';
