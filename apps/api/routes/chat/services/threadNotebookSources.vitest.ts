@@ -51,29 +51,30 @@ describe('sameThreadNotebookSources', () => {
 describe('thread storage', () => {
   beforeEach(() => query.mockReset());
 
-  it('reads only the owner’s live thread', async () => {
-    query.mockResolvedValue([{ notebook_source_refs: [userDoc(1)] }]);
+  it('reads the sender’s own refs on a live thread', async () => {
+    query.mockResolvedValue([{ value: [userDoc(1)] }]);
     expect(await getThreadNotebookSources('t1', 'u1')).toEqual([userDoc(1)]);
     const [sql, params] = query.mock.calls[0] as [string, unknown[]];
-    expect(sql).toMatch(/user_id = \$2/);
+    expect(sql).toMatch(/CASE WHEN t\.user_id::text = \$2::text/);
+    expect(sql).toMatch(/m\.user_id::text = \$2::text/);
     expect(sql).toMatch(/deleted_at IS NULL/);
     expect(params).toEqual(['t1', 'u1']);
   });
 
   it('treats an empty or malformed column as no refs', async () => {
-    query.mockResolvedValueOnce([{ notebook_source_refs: null }]);
+    query.mockResolvedValueOnce([{ value: null }]);
     expect(await getThreadNotebookSources('t1', 'u1')).toEqual(NO_NOTEBOOK_SOURCES);
-    query.mockResolvedValueOnce([{ notebook_source_refs: [{ documentId: 'not-a-uuid' }] }]);
+    query.mockResolvedValueOnce([{ value: [{ documentId: 'not-a-uuid' }] }]);
     expect(await getThreadNotebookSources('t1', 'u1')).toEqual(NO_NOTEBOOK_SOURCES);
-    query.mockResolvedValueOnce([{ notebook_source_refs: '{not json' }]);
+    query.mockResolvedValueOnce([{ value: '{not json' }]);
     expect(await getThreadNotebookSources('t1', 'u1')).toEqual(NO_NOTEBOOK_SOURCES);
   });
 
-  it('stores refs owner-scoped and clears the column when nothing is left', async () => {
+  it('stores refs per person and clears the column when nothing is left', async () => {
     query.mockResolvedValue([]);
     await setThreadNotebookSources('t1', 'u1', [userDoc(1)]);
     expect(query.mock.calls[0][1]).toEqual([JSON.stringify([userDoc(1)]), 't1', 'u1']);
-    expect(query.mock.calls[0][0]).toMatch(/user_id = \$3/);
+    expect(query.mock.calls[0][0]).toMatch(/user_id::text = \$3::text/);
 
     await setThreadNotebookSources('t1', 'u1', NO_NOTEBOOK_SOURCES);
     expect(query.mock.calls[1][1]).toEqual([null, 't1', 'u1']);

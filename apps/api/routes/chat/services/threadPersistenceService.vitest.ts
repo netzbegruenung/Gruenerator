@@ -387,28 +387,31 @@ describe('toolSteps order', () => {
   }, 60_000);
 });
 
-// Team chats: the pinned refs were written with one person's access, so every
-// read and write is keyed to the thread OWNER — another member's turn reads
-// nothing and overwrites nothing. A dropped `user_id` clause would hand the
-// owner's cloud files to every member.
-describe('thread-pinned refs are owner-scoped', () => {
+// Team chats: the pinned refs are per person (#5675). Every read is keyed to
+// the sender — the owner's columns or the sender's own member row, never
+// another member's — and every write lands on exactly one of the two. The
+// behaviour against Postgres is pinned in threadMemberRefs.db.vitest.ts.
+describe('thread-pinned refs are per person', () => {
   const readers = [
     ['cloud files', getThreadCloudFiles],
     ['notebook sources', getThreadNotebookSources],
     ['mention refs', getThreadMentionRefs],
   ] as const;
-  it.each(readers)('reads %s only for the owner', async (_name, read) => {
+  it.each(readers)('reads %s for the sender only', async (_name, read) => {
     await read('thread-1', 'user-b');
-    expect(sql()).toContain('id = $1 AND user_id = $2');
+    expect(sql()).toContain('CASE WHEN t.user_id::text = $2::text');
+    expect(sql()).toContain('m.user_id::text = $2::text');
     expect(params()).toEqual(['thread-1', 'user-b']);
   });
 
-  it('writes only the owner’s row', async () => {
+  it('writes the owner row or the sender’s member row', async () => {
     await setThreadCloudFiles('thread-1', 'user-b', { wolke: [], connect: [] });
-    expect(sql()).toContain('id = $2 AND user_id = $3');
+    expect(sql()).toContain('WHERE id = $2 AND user_id::text = $3::text');
+    expect(sql()).toContain('ON CONFLICT (thread_id, user_id)');
+    expect(params()).toEqual([null, 'thread-1', 'user-b']);
     await setThreadNotebookSources('thread-1', 'user-b', []);
-    expect(sql()).toContain('id = $2 AND user_id = $3');
+    expect(sql()).toContain('chat_thread_member_refs');
     await setThreadMentionRefs('thread-1', 'user-b', { texts: [], docs: [], links: [] });
-    expect(sql()).toContain('id = $2 AND user_id = $3');
+    expect(sql()).toContain('chat_thread_member_refs');
   });
 });
