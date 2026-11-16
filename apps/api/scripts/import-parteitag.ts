@@ -4,13 +4,16 @@
  *
  *   pnpm --filter @gruenerator/api exec tsx scripts/import-parteitag.ts \
  *     --dir ~/Downloads/ldk-nrw/grünerator-export --base https://gruenerator.eu \
- *     [--password-file <datei>]
+ *     (--password-file <datei> | --no-password)
  *
  * Ablauf: (1) `GET /api/admin/parteitage/by-key/:key/files` (sha256 -> storage_key der schon
  * gespeicherten Dateien), (2) nur Dateien, deren sha256 dort fehlt, per TUS nach
  * `/api/admin/parteitage/upload`, (3) `POST /api/admin/parteitage/import` mit
  * `{ manifest, uploads, password }`, (4) Zusammenfassung. Erneute Läufe laden nichts doppelt hoch.
- * Ohne `--password-file` bekommt die Anlage `password: null` (offen für alle Eingeloggten).
+ * Eines von `--password-file` oder `--no-password` ist Pflicht (`--no-password` = offen für alle
+ * Eingeloggten). Der Upload spricht TUS per fetch (kein tus-js-client). Meldet der Import
+ * `MISSING_UPLOADS` (Upload auf dem Server nach 4 h abgeräumt), lädt das Skript genau diese
+ * Dateien erneut hoch und wiederholt den Import einmal.
  *
  * ANMELDUNG (Stand der Prüfung von authMiddleware.ts und mobileTokenExchange.ts):
  *  - Prod/Beta: Es gibt keinen Login-Endpunkt für Skripte. Anmeldung läuft nur über Keycloak-OIDC
@@ -27,11 +30,11 @@
  */
 import { createHash } from 'crypto';
 import { createReadStream, readFileSync, statSync } from 'fs';
+import { open } from 'fs/promises';
 import { join, resolve } from 'path';
 import { parseArgs } from 'util';
 
 import { conventionManifestSchema, type ConventionManifest } from '@gruenerator/contracts';
-import { Upload } from 'tus-js-client';
 
 const CHUNK_BYTES = 5 * 1024 * 1024;
 
@@ -40,6 +43,7 @@ const { values } = parseArgs({
     dir: { type: 'string' },
     base: { type: 'string' },
     'password-file': { type: 'string' },
+    'no-password': { type: 'boolean' },
   },
 });
 
@@ -77,6 +81,22 @@ async function api<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pro
   return JSON.parse(text) as T;
 }
 
+async function post(body: unknown) {
+  const response = await fetch(`${base}/api/admin/parteitage/import`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  let parsed: { code?: string; files?: string[] } = {};
+  try {
+    parsed = JSON.parse(text) as typeof parsed;
+  } catch {
+    // non-JSON error page
+  }
+  return { status: response.status, text, body: parsed };
+}
+
 function sha256Of(path: string): Promise<string> {
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
@@ -94,25 +114,80 @@ function filetypeOf(name: string): string {
   return 'application/octet-stream';
 }
 
-function uploadFile(name: string, path: string): Promise<string> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const RETRY_DELAYS_MS = [0, 1000, 3000, 5000];
+
+const b64 = (value: string) => Buffer.from(value).toString('base64');
+
+/** TUS 1.0.0 creation + 5 MB PATCH chunks; resumes from HEAD after a failed chunk. */
+async function uploadFile(name: string, path: string): Promise<string> {
   const size = statSync(path).size;
-  return new Promise((resolveUpload, reject) => {
-    const upload = new Upload(createReadStream(path), {
-      endpoint: `${base}/api/admin/parteitage/upload`,
-      uploadSize: size,
-      chunkSize: CHUNK_BYTES,
-      retryDelays: [0, 1000, 3000, 5000],
-      headers: authHeaders(),
-      metadata: { filename: name, filetype: filetypeOf(name) },
-      onError: reject,
-      onSuccess: () => {
-        const id = upload.url?.split('/').pop();
-        if (!id) return reject(new Error(`Keine Upload-ID für ${name}`));
-        resolveUpload(decodeURIComponent(id));
-      },
-    });
-    upload.start();
+  const tusHeaders = { ...authHeaders(), 'Tus-Resumable': '1.0.0' };
+
+  const created = await fetch(`${base}/api/admin/parteitage/upload`, {
+    method: 'POST',
+    headers: {
+      ...tusHeaders,
+      'Upload-Length': String(size),
+      'Upload-Metadata': `filename ${b64(name)},filetype ${b64(filetypeOf(name))}`,
+    },
   });
+  if (created.status !== 201) {
+    fail(
+      `TUS-Anlage für ${name} -> HTTP ${created.status}: ${(await created.text()).slice(0, 300)}`
+    );
+  }
+  const location = created.headers.get('location');
+  if (!location) fail(`TUS-Anlage für ${name}: keine Location.`);
+  // Follow the returned Location as is (it may point at the shared subtitler mount).
+  const uploadUrl = new URL(location, base).toString();
+  const uploadId = decodeURIComponent(new URL(uploadUrl).pathname.split('/').pop() ?? '');
+  if (!uploadId) fail(`Keine Upload-ID für ${name}.`);
+
+  const handle = await open(path, 'r');
+  try {
+    let offset = 0;
+    let failures = 0;
+    while (offset < size) {
+      const length = Math.min(CHUNK_BYTES, size - offset);
+      const chunk = Buffer.alloc(length);
+      await handle.read(chunk, 0, length, offset);
+      try {
+        const response = await fetch(uploadUrl, {
+          method: 'PATCH',
+          headers: {
+            ...tusHeaders,
+            'Content-Type': 'application/offset+octet-stream',
+            'Upload-Offset': String(offset),
+          },
+          body: chunk,
+        });
+        if (response.status >= 500 || response.status === 429) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        if (response.status !== 204) {
+          fail(
+            `PATCH ${name} -> HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`
+          );
+        }
+        offset = Number(response.headers.get('upload-offset') ?? offset + length);
+        failures = 0;
+      } catch (error) {
+        if (failures >= RETRY_DELAYS_MS.length) throw error;
+        await sleep(RETRY_DELAYS_MS[failures]!);
+        failures += 1;
+        // Ask the server where it is before sending the chunk again.
+        const head = await fetch(uploadUrl, { method: 'HEAD', headers: tusHeaders }).catch(
+          () => null
+        );
+        const serverOffset = head?.ok ? Number(head.headers.get('upload-offset')) : NaN;
+        if (Number.isFinite(serverOffset)) offset = serverOffset;
+      }
+    }
+  } finally {
+    await handle.close();
+  }
+  return uploadId;
 }
 
 function manifestFiles(manifest: ConventionManifest) {
@@ -124,8 +199,12 @@ async function main(): Promise<void> {
   const manifest = conventionManifestSchema.parse(
     JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
   );
+  if (!values['password-file'] === !values['no-password']) {
+    fail('Genau eines von --password-file oder --no-password angeben.');
+  }
   const password = values['password-file']
-    ? readFileSync(values['password-file'], 'utf8').trim() || null
+    ? readFileSync(values['password-file'], 'utf8').trim() ||
+      fail('--password-file ist leer (für „offen“ --no-password nutzen).')
     : null;
   const files = manifestFiles(manifest);
 
@@ -134,11 +213,12 @@ async function main(): Promise<void> {
     `/api/admin/parteitage/by-key/${encodeURIComponent(manifest.key)}/files`
   );
   const todo = files.filter((f) => !(f.sha256 in stored));
+  const skipped = files.length - todo.length;
   console.log(`${files.length} Dateien im Manifest, ${todo.length} fehlen auf dem Server.`);
 
   const uploads: Record<string, string> = {};
   let done = 0;
-  for (const file of todo) {
+  const upload = async (file: (typeof files)[number]) => {
     const path = join(dir, file.name);
     const actual = await sha256Of(path);
     if (actual !== file.sha256)
@@ -146,16 +226,30 @@ async function main(): Promise<void> {
     uploads[file.name] = await uploadFile(file.name, path);
     done += 1;
     console.log(`  [${done}/${todo.length}] ${file.name} (${Math.round(file.sizeBytes / 1e6)} MB)`);
-  }
+  };
+  for (const file of todo) await upload(file);
 
-  const result = await api<{ id: string; slug: string; speechCount: number }>(
-    'POST',
-    '/api/admin/parteitage/import',
-    { manifest, uploads, password }
-  );
+  const importBody = () => ({ manifest, uploads, password });
+  let result = await post(importBody());
+  if (result.status === 400 && result.body.code === 'MISSING_UPLOADS') {
+    // Uploads the server reaped meanwhile: send exactly those again, then retry once.
+    const names = new Set(result.body.files ?? []);
+    const again = files.filter((f) => names.has(f.name));
+    console.log(`${again.length} Uploads fehlen auf dem Server, lade sie erneut hoch.`);
+    done = 0;
+    todo.splice(0, todo.length, ...again);
+    for (const file of again) await upload(file);
+    result = await post(importBody());
+  }
+  if (result.status !== 200) {
+    fail(
+      `POST /api/admin/parteitage/import -> HTTP ${result.status}: ${result.text.slice(0, 500)}`
+    );
+  }
+  const imported = result.body as unknown as { id: string; slug: string; speechCount: number };
   console.log(
-    `Import ok: ${manifest.key} -> ${result.slug} (${result.speechCount} Reden, ` +
-      `${todo.length} hochgeladen, ${files.length - todo.length} übersprungen, ` +
+    `Import ok: ${manifest.key} -> ${imported.slug} (${imported.speechCount} Reden, ` +
+      `${files.length - skipped} hochgeladen, ${skipped} übersprungen, ` +
       `Passwort ${password ? 'gesetzt' : 'keins'}).`
   );
 }
