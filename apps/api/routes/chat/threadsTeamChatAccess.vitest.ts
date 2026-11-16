@@ -1,6 +1,7 @@
 /**
  * Team chats: a project member who is not the thread's owner reads the
- * thread's settings, tabular files and summary state through
+ * thread's summary state (read level) and settings and tabular files (write
+ * level — a read-only viewer must not see the prompt) through
  * `threadAccessService` (the one place that knows owner / share / group rules),
  * not through a `chat_threads.user_id` comparison. Strangers stay refused with
  * the same status and body as before.
@@ -16,7 +17,9 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 
 const canAccessThread = vi.fn();
 const getThreadAccessLevel = vi.fn();
+const canWriteThread = vi.fn();
 vi.mock('./services/threadAccessService.js', () => ({
+  canWriteThread: (...a: unknown[]) => canWriteThread(...a) as unknown,
   canAccessThread: (...a: unknown[]) => canAccessThread(...a) as unknown,
   getThreadAccessLevel: (...a: unknown[]) => getThreadAccessLevel(...a) as unknown,
 }));
@@ -116,6 +119,7 @@ async function callSummarize(method: 'get' | 'post') {
 beforeEach(() => {
   query.mockReset();
   canAccessThread.mockReset();
+  canWriteThread.mockReset();
   getThreadAccessLevel.mockReset();
   getThreadSettings.mockReset().mockResolvedValue({
     custom_system_prompt: 'p',
@@ -126,18 +130,26 @@ beforeEach(() => {
   getThreadTabularFiles.mockReset().mockResolvedValue([]);
 });
 
-describe('GET settings', () => {
-  it('lets a member with access read a thread owned by someone else', async () => {
+describe('GET settings (write level: a read-only viewer must not see the prompt)', () => {
+  it('lets a member with write access read a thread owned by someone else', async () => {
     threadOwnedByOther();
-    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(true);
     const res = await call('getSettings');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ customSystemPrompt: 'p' });
   });
 
+  it('refuses a read-only share / link viewer with 403, even though they can read', async () => {
+    threadOwnedByOther();
+    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(false);
+    expect((await call('getSettings')).status).toBe(403);
+    expect(getThreadSettings).not.toHaveBeenCalled();
+  });
+
   it('refuses a stranger with 403', async () => {
     threadOwnedByOther();
-    canAccessThread.mockResolvedValue(false);
+    canWriteThread.mockResolvedValue(false);
     expect((await call('getSettings')).status).toBe(403);
   });
 
@@ -148,7 +160,7 @@ describe('GET settings', () => {
 
   it('keeps the owner working', async () => {
     query.mockResolvedValue([{ user_id: MEMBER }]);
-    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(true);
     expect((await call('getSettings')).status).toBe(200);
   });
 });
@@ -169,25 +181,32 @@ describe('PUT settings', () => {
   });
 });
 
-describe('GET tabular-files', () => {
-  it('lets a member with access read the thread files', async () => {
+describe('GET tabular-files (write level)', () => {
+  it('lets a member with write access read the thread files', async () => {
     threadOwnedByOther();
-    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(true);
     const res = await call('getTabularFiles');
     expect(res.status).toBe(200);
     expect(getThreadTabularFiles).toHaveBeenCalledWith(THREAD);
   });
 
-  it('refuses a stranger with 403', async () => {
+  it('refuses a read-only viewer with 403', async () => {
     threadOwnedByOther();
-    canAccessThread.mockResolvedValue(false);
+    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(false);
     expect((await call('getTabularFiles')).status).toBe(403);
     expect(getThreadTabularFiles).not.toHaveBeenCalled();
   });
 
+  it('refuses a stranger with 403', async () => {
+    threadOwnedByOther();
+    canWriteThread.mockResolvedValue(false);
+    expect((await call('getTabularFiles')).status).toBe(403);
+  });
+
   it('keeps the owner working', async () => {
     query.mockResolvedValue([{ user_id: MEMBER }]);
-    canAccessThread.mockResolvedValue(true);
+    canWriteThread.mockResolvedValue(true);
     expect((await call('getTabularFiles')).status).toBe(200);
   });
 });

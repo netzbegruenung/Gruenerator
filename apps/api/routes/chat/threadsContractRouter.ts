@@ -27,7 +27,7 @@ import { toIsoString } from '../../utils/toIsoString.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
-import { canAccessThread, getThreadAccessLevel } from './services/threadAccessService.js';
+import { canWriteThread, getThreadAccessLevel } from './services/threadAccessService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -456,7 +456,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (!(await canAccessThread(ThreadId(threadId), UserId(userId)))) {
+      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
@@ -612,7 +612,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (threads.length === 0) {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-      if (!(await canAccessThread(ThreadId(threadId), UserId(userId)))) {
+      if (!(await canWriteThread(ThreadId(threadId), UserId(userId)))) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
