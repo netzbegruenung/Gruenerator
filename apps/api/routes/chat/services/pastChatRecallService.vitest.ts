@@ -50,6 +50,7 @@ const {
   formatPastChatsBlock,
   formatOfficeDocsBlock,
   formatReelsBlock,
+  formatSpaceContentBlock,
 } = await import('./pastChatRecallService.js');
 
 function makeReel(id: string, title: string) {
@@ -371,5 +372,45 @@ describe('formatReelsBlock', () => {
   it('notes a reel that has no subtitles instead of emitting a blank line', () => {
     const block = formatReelsBlock([{ ...makeReel('r1', 'Stumm'), snippet: '' }]);
     expect(block).toContain('(keine Untertitel vorhanden)');
+  });
+});
+
+describe('formatSpaceContentBlock', () => {
+  const empty = {
+    documents: [],
+    generators: [],
+    notebooks: [],
+    texts: [],
+    templates: [],
+    collaborative_documents: [],
+    system_notebooks: [],
+    system_agents: [],
+    user_agents: [],
+    canvas_templates: [],
+    group_posts: [],
+    recipes: [],
+  };
+
+  it('names project notebooks with the id `notebooks` expects', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      notebooks: [{ id: 'nb-1', name: 'Hintergrund Wärmeplanung' }],
+    });
+    expect(block).toContain('„Hintergrund Wärmeplanung" (id: nb-1)');
+    expect(block).toContain('`notebooks` action="search"');
+  });
+
+  it('names project recipes with the catalog key `rezept_laden` expects', () => {
+    const block = formatSpaceContentBlock({
+      ...empty,
+      recipes: [{ mention: 'pm-waermeplanung', title: 'Pressemitteilung Wärmeplanung' }],
+    });
+    expect(block).toContain('„Pressemitteilung Wärmeplanung" (Kennung: pm-waermeplanung)');
+    expect(block).toContain('`rezept_laden`');
+  });
+
+  it('adds nothing when the project shares neither, or could not be read', () => {
+    expect(formatSpaceContentBlock(empty)).toBe('');
+    expect(formatSpaceContentBlock(null)).toBe('');
   });
 });
