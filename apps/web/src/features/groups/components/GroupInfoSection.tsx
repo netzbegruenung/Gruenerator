@@ -54,6 +54,7 @@ import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
+import { ProjectFileUploadButton } from './ProjectFileUploadButton';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
@@ -493,6 +494,18 @@ const GroupInfoSection = memo(
                   </span>
                 )}
               </span>
+            )}
+            {canShare && !isSystem && (
+              <ProjectFileUploadButton
+                groupId={groupId}
+                onAdded={(count) => {
+                  refetchSharedContent?.();
+                  onSuccessMessage?.(
+                    count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
+                  );
+                }}
+                onError={(message) => onErrorMessage?.(message)}
+              />
             )}
             {canShare && (
               <Button
