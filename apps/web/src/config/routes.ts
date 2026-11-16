@@ -324,6 +324,8 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
+const ParteitageListPage = lazy(() => import('../features/parteitage/ParteitageListPage'));
+const ParteitagPage = lazy(() => import('../features/parteitage/ParteitagPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -941,6 +943,18 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/videoeditor',
     component: VideoEditorPage,
     layoutMode: 'immersive',
+  },
+  {
+    accent: 'studio',
+    path: '/parteitage',
+    component: ParteitageListPage,
+    layoutMode: 'default',
+  },
+  {
+    accent: 'studio',
+    path: '/parteitage/:slug',
+    component: ParteitagPage,
+    layoutMode: 'default',
   },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
