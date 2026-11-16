@@ -77,8 +77,13 @@ export const threadsContractRouter = s.router(threadsContract, {
                 t.notebook_collection_id, t.notebook_collection_ids,
                 (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
                 COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
-                (SELECT p.display_name FROM profiles p WHERE p.id::text = t.user_id::text) AS owner_name,
-                (t.group_id IS NOT NULL AND ${teamChatShareExistsSql('t', 't.group_id')}) AS team_shared,
+                (SELECT p.display_name FROM profiles p WHERE p.id = t.user_id) AS owner_name,
+                EXISTS (
+                  SELECT 1 FROM groups tg
+                   WHERE tg.id = t.group_id AND tg.deleted_at IS NULL
+                     AND COALESCE(tg.is_active, TRUE) = TRUE
+                     AND ${teamChatShareExistsSql('t', 'tg.id')}
+                ) AS team_shared,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'

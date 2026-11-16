@@ -191,4 +191,24 @@ describe.skipIf(!url)('threads create — team chat', () => {
       teamShared: false,
     });
   });
+
+  it('reports teamShared false once the project is trashed or inactive', async () => {
+    const team = await create(ada, { groupId: teamProject, teamShared: true });
+    const id = team.body.id as string;
+    try {
+      await pool.query('UPDATE groups SET is_active = FALSE WHERE id = $1', [teamProject]);
+      expect((await list(ada)).find((r) => r.id === id)).toMatchObject({ teamShared: false });
+      await pool.query('UPDATE groups SET is_active = TRUE, deleted_at = NOW() WHERE id = $1', [
+        teamProject,
+      ]);
+      expect((await list(ada)).find((r) => r.id === id)).toMatchObject({
+        groupId: null,
+        teamShared: false,
+      });
+    } finally {
+      await pool.query('UPDATE groups SET is_active = TRUE, deleted_at = NULL WHERE id = $1', [
+        teamProject,
+      ]);
+    }
+  });
 });
