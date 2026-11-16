@@ -21,6 +21,7 @@ import {
   successResponseSchema,
   deleteThreadResponseSchema,
   errorResponseSchema,
+  codedErrorResponseSchema,
   threadStatusSchema,
 } from '../schemas/threads.js';
 
@@ -57,7 +58,9 @@ export const threadsContract = c.router(
       body: createThreadBodySchema,
       responses: {
         201: createThreadResponseSchema,
+        400: codedErrorResponseSchema,
         401: errorResponseSchema,
+        403: errorResponseSchema,
         500: errorResponseSchema,
       },
       summary: 'Create a chat thread',

@@ -127,11 +127,7 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
-import {
-  isTabelleAuswertenMountable,
-  makeDirektAntwortenTool,
-  makeTabelleAuswertenTool,
-} from './tabelleAuswertenTool.js';
+import { isTabelleAuswertenMountable, makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { werkzeugFehler } from './toolFailure.js';
@@ -1230,8 +1226,8 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     //
     // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
     //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
-    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
-    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Pin zwingt den Turn in die Schleife und kündigt dem Modell das
+    //    Werkzeug an (`buildPinnedToolNote`) — ein Pin auf ein nicht montiertes
     //    Werkzeug wäre still wirkungslos.
     // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
     //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
@@ -1320,7 +1316,6 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
     if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
       tools.tabelle_auswerten = makeTabelleAuswertenTool();
-      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

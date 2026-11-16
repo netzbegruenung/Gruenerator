@@ -64,7 +64,7 @@ interface ContentCategory {
   contentType: string;
 }
 
-type CategoryId =
+export type CategoryId =
   | 'agents'
   | 'recipes'
   | 'collabDocs'
@@ -120,6 +120,8 @@ interface AddContentToGroupModalProps {
   isAddingLink?: boolean;
   /** Vorbelegung der Notiz, z. B. der Text aus dem Feed-Composer. */
   initialNote?: string;
+  /** Opens straight in this category (the „Hinzufügen" menu). */
+  initialCategory?: CategoryId;
 }
 
 const CONTENT_CATEGORIES: ContentCategory[] = [
@@ -176,6 +178,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   onAddLink,
   isAddingLink,
   initialNote,
+  initialCategory,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [selectedItems, setSelectedItems] = useState<SelectedItemsState>({});
@@ -201,6 +204,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     setWasOpen(isOpen);
     if (isOpen) {
       setNote((initialNote ?? '').slice(0, GROUP_SHARE_NOTE_MAX));
+      setActiveCategory(initialCategory ?? null);
     } else {
       setSelectedItems({});
       setActiveCategory(null);
@@ -627,6 +631,11 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         ) : (
           /* ── Item grid ── */
           <div className="grid grid-cols-4 gap-xs px-lg py-sm">
+            {paginatedItems.length === 0 && (
+              <p className="col-span-4 m-0 text-sm text-muted-foreground">
+                Hier gibt es noch nichts, was du hinzufügen kannst.
+              </p>
+            )}
             {paginatedItems.map((item: ContentItem) => {
               const isSelected = currentSelections.some((sel) => String(sel) === String(item.id));
               const title = item.title || item.name || 'Ohne Titel';

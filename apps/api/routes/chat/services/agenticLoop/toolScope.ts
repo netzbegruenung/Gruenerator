@@ -67,9 +67,10 @@ import { z } from 'zod';
 import type { ToolSet } from 'ai';
 
 /**
- * Das engere Rezept-Werkzeug für den erzwungenen Recherche-Schritt (Enum nur über
- * Methoden-Rezepte, `recipeTools.ts`). Hier definiert, weil der Umfang es aus
- * jedem anderen Schritt heraushält.
+ * Das frühere engere Rezept-Werkzeug (Enum nur über Methoden-Rezepte), bis
+ * 11/2026 nur im erzwungenen Recherche-Schritt montiert. Heute nicht mehr
+ * montiert; der Name bleibt, weil gespeicherte Schritte ihn tragen (F0) und
+ * beim Fortsetzen und im Verlauf als Rezept-Aufruf gelesen werden.
  */
 export const METHOD_RECIPE_TOOL = 'methode_laden';
 
@@ -281,7 +282,7 @@ export interface ToolScope {
  * @param pinnedTool  Ein von einer @-Erwähnung festgezurrtes Werkzeug
  *   (`mentionPinnedTool`). MUSS die Gruppe öffnen, in der es liegt: das Label
  *   der Erwähnung ist aus `userText` entfernt, das Tor sieht die Absicht also
- *   gar nicht — und `pinnedFirstTool` erzwingt dieses Werkzeug auf Schritt 0.
+ *   gar nicht — und `buildPinnedToolNote` kündigt dieses Werkzeug dem Modell an.
  * @param priorToolNames  Die Werkzeuge, die frühere Turns dieses Threads
  *   gerufen haben. Hat einer davon in einer Gruppe gelegen, bleibt sie offen:
  *   nach "Zeig meine Aufgaben" trägt "und die vom Radentscheid?" kein einziges
@@ -341,16 +342,8 @@ export function createToolScope(params: {
           if (group.opensOn?.some((t) => called.has(t))) closed.delete(group.id);
         }
       }
-      // `methode_laden` gehört allein dem erzwungenen ersten Schritt (er schneidet
-      // seine `activeTools` selbst zu); in jedem anderen Schritt bleibt es aus,
-      // dort gilt `rezept_laden` mit dem ganzen Katalog. Unabhängig von `enforce`.
-      const methodOnly = mounted.has(METHOD_RECIPE_TOOL) ? [METHOD_RECIPE_TOOL] : [];
-      if (!params.enforce || closed.size === 0) {
-        return methodOnly.length > 0
-          ? params.toolNames.filter((t) => t !== METHOD_RECIPE_TOOL)
-          : undefined;
-      }
-      const hidden = new Set<string>(methodOnly);
+      if (!params.enforce || closed.size === 0) return undefined;
+      const hidden = new Set<string>();
       for (const group of closed.values()) for (const t of group.tools) hidden.add(t);
       // Die Lader stehen nicht in `toolNames` — sie werden erst nach diesem
       // Aufruf montiert. Deshalb ausdrücklich anhängen, sonst schneidet

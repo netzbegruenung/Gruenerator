@@ -48,7 +48,7 @@ const SRC = {
   // Kontextfenster und Ausweich-Kennung daraus ab. Ohne diese Quelle liest
   // der Generator dort Property-Zugriffe auf einen Namen, den er nicht kennt.
   gemmaHosts: 'apps/api/services/ai/gemmaHosts.ts',
-  selector: 'apps/api/services/providers/providerSelector.ts',
+  aiLanes: 'apps/api/services/ai/lanes.ts',
   transcription: 'apps/api/services/transcription/providerPolicy.ts',
   voxtral: 'apps/api/services/voice/mistralVoiceService.ts',
   greenptStt: 'apps/api/services/transcription/greenptListen.ts',
@@ -414,7 +414,7 @@ function generate() {
 
   const chat = parse(SRC.chatProviders);
   const lanes = parse(SRC.intermediate);
-  const selector = parse(SRC.selector);
+  const aiLanes = parse(SRC.aiLanes);
   const transcription = parse(SRC.transcription);
   const catalog = parse(SRC.catalog);
 
@@ -511,10 +511,13 @@ function generate() {
   findModelName(embeddings);
   if (!embeddingModel) fail(SRC.embeddings, 'modelName', 'a string literal model id');
 
-  const artifact = {
-    provider: constString(selector, 'ARTIFACT_PROVIDER', SRC.selector),
-    model: constString(selector, 'ARTIFACT_MODEL', SRC.selector),
-  };
+  const aiLaneDecl = findDeclaration(aiLanes, 'AI_LANES');
+  if (!aiLaneDecl || !ts.isObjectLiteralExpression(aiLaneDecl)) {
+    fail(SRC.aiLanes, 'AI_LANES', 'an object literal keyed by lane id');
+  }
+  const artifactNode = objectEntries(aiLaneDecl).get('doc_generation');
+  if (!artifactNode) fail(SRC.aiLanes, 'AI_LANES.doc_generation', 'a lane entry');
+  const artifact = readLane(aiLanes, artifactNode, SRC.aiLanes, 'AI_LANES.doc_generation');
 
   // The German task wording is the hand-written half — see the header note.
   const rows = [
@@ -548,7 +551,7 @@ function generate() {
     {
       id: 'artefakte',
       task: 'Dokumente, Präsentationen, PDFs, Tabellen',
-      models: [entry(artifact.provider, artifact.model, `${SRC.selector} ARTIFACT_MODEL`)],
+      models: [entry(artifact.provider, artifact.model, `${SRC.aiLanes} AI_LANES.doc_generation`)],
     },
     {
       id: 'bilder-verstehen',

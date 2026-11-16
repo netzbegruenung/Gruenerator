@@ -398,6 +398,30 @@ export async function getAssistantMessageThreadId(messageId: string): Promise<st
 }
 
 /**
+ * Whether `userId` wrote the user message a stream answers: the latest user row
+ * at or before the assistant row. A NULL `user_id` (legacy rows, deleted
+ * profile) counts as the thread owner. False when the stream is unknown.
+ */
+export async function isStreamTurnSender(streamId: string, userId: string): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT COALESCE(
+              (SELECT m.user_id FROM chat_messages m
+                WHERE m.thread_id = a.thread_id AND m.role = 'user'
+                  AND m.created_at <= a.created_at
+                ORDER BY m.created_at DESC, m.id DESC
+                LIMIT 1),
+              t.user_id
+            )::text = $2::text AS is_sender
+       FROM chat_messages a
+       JOIN chat_threads t ON t.id = a.thread_id AND t.deleted_at IS NULL
+      WHERE a.id = $1 AND a.role = 'assistant'`,
+    [streamId, userId]
+  )) as { is_sender: boolean | null }[];
+  return rows[0]?.is_sender === true;
+}
+
+/**
  * Sweep this thread's empty streaming orphans before a new turn starts — rows a
  * previous crash left behind that carry no text. Rows with partial text stay as
  * aborted turns.
@@ -418,19 +442,69 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
  * edit-and-resubmit: the edited user message and its now-stale replies are
  * removed before the fresh turn is written. Returns the number of rows deleted
  * (0 when the id doesn't resolve to a message in this thread).
+ *
+ * In a team chat several members write into one thread, so the cut is allowed
+ * only when EVERY user row at or after the anchor was written by `authorId`:
+ * otherwise `'not_author'` and nothing is deleted. The anchor must be a user
+ * row of a live (not trashed) thread. A legacy row with `user_id` NULL counts as
+ * written by the thread owner. Check and delete are ONE statement, so a
+ * concurrent write can't slip between them.
+ *
+ * The rule is absolute only in a team chat (a write-capable group share).
+ * Without one (forks, person-shared threads) the thread owner may replace too.
  */
-export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+export async function deleteMessagesFrom(
+  threadId: string,
+  messageId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `DELETE FROM chat_messages
-     WHERE thread_id = $1
-       AND created_at >= (
-         SELECT created_at FROM chat_messages WHERE id = $2 AND thread_id = $1
-       )
-     RETURNING id`,
-    [threadId, messageId]
-  )) as unknown[];
-  return result.length;
+  const rows = (await postgres.query(
+    `WITH anchor AS (
+       SELECT m.created_at, t.user_id AS owner_id
+       FROM chat_messages m
+       JOIN chat_threads t ON t.id = m.thread_id
+       WHERE m.id = $2 AND m.thread_id = $1 AND m.role = 'user' AND t.deleted_at IS NULL
+     ),
+     team AS (
+       -- A team chat = a write-capable share into a live Projekt. Only there is
+       -- the author rule absolute; elsewhere (fork, person-shared thread) the
+       -- owner may replace turns too.
+       SELECT EXISTS (
+         SELECT 1 FROM group_content_shares gcs
+         INNER JOIN groups tg ON tg.id = gcs.group_id AND tg.deleted_at IS NULL
+         WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1::text
+           AND COALESCE((gcs.permissions->>'write')::boolean, true)
+       ) AS is_team
+     ),
+     verdict AS (
+       -- The cut takes every later row with it: a teammate's message after the
+       -- anchor blocks the edit just like a foreign anchor does — unless the
+       -- thread is no team chat and the sender owns it.
+       SELECT (
+         NOT EXISTS (
+           SELECT 1 FROM chat_messages f, anchor a
+           WHERE f.thread_id = $1 AND f.role = 'user' AND f.created_at >= a.created_at
+             AND COALESCE(f.user_id, a.owner_id)::text <> $3::text
+         )
+         OR (NOT (SELECT is_team FROM team) AND a.owner_id::text = $3::text)
+       ) AS ok
+       FROM anchor a
+     ),
+     deleted AS (
+       DELETE FROM chat_messages
+       WHERE thread_id = $1
+         AND (SELECT ok FROM verdict)
+         AND created_at >= (SELECT created_at FROM anchor)
+       RETURNING id
+     )
+     SELECT (SELECT COUNT(*) FROM deleted)::int AS deleted,
+            COALESCE((SELECT ok FROM verdict), true) AS ok`,
+    [threadId, messageId, authorId]
+  )) as Array<{ deleted: number; ok: boolean }>;
+  const row = rows[0];
+  if (row && row.ok === false) return 'not_author';
+  return row ? Number(row.deleted) : 0;
 }
 
 /**
@@ -438,20 +512,56 @@ export async function deleteMessagesFrom(threadId: string, messageId: string): P
  * most recent user message. Used for regenerate (the user message stays; only
  * the last reply is replaced) and as the fallback for edit-resubmit when the
  * frontend id doesn't resolve to a persisted row (in-session message).
+ *
+ * Same author rule as `deleteMessagesFrom`, checked against the last user row
+ * (`'not_author'`, nothing deleted). A thread without a user row has nothing to
+ * protect.
  */
-export async function deleteTrailingAssistant(threadId: string): Promise<number> {
+export async function deleteTrailingAssistant(
+  threadId: string,
+  authorId: string
+): Promise<number | 'not_author'> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `DELETE FROM chat_messages
-     WHERE thread_id = $1
-       AND created_at > COALESCE(
-         (SELECT MAX(created_at) FROM chat_messages WHERE thread_id = $1 AND role = 'user'),
-         '-infinity'::timestamptz
-       )
-     RETURNING id`,
-    [threadId]
-  )) as unknown[];
-  return result.length;
+  const rows = (await postgres.query(
+    `WITH live AS (
+       SELECT user_id AS owner_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL
+     ),
+     team AS (
+       -- A team chat = a write-capable share into a live Projekt. Only there is
+       -- the author rule absolute; elsewhere (fork, person-shared thread) the
+       -- owner may replace turns too.
+       SELECT EXISTS (
+         SELECT 1 FROM group_content_shares gcs
+         INNER JOIN groups tg ON tg.id = gcs.group_id AND tg.deleted_at IS NULL
+         WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1::text
+           AND COALESCE((gcs.permissions->>'write')::boolean, true)
+       ) AS is_team
+     ),
+     last_user AS (
+       SELECT m.created_at,
+              (COALESCE(m.user_id, (SELECT owner_id FROM live))::text = $2::text
+               OR (NOT (SELECT is_team FROM team) AND (SELECT owner_id FROM live)::text = $2::text)
+              ) AS ok
+       FROM chat_messages m
+       WHERE m.thread_id = $1 AND m.role = 'user' AND EXISTS (SELECT 1 FROM live)
+       ORDER BY m.created_at DESC
+       LIMIT 1
+     ),
+     deleted AS (
+       DELETE FROM chat_messages
+       WHERE thread_id = $1
+         AND EXISTS (SELECT 1 FROM live)
+         AND COALESCE((SELECT ok FROM last_user), true)
+         AND created_at > COALESCE((SELECT created_at FROM last_user), '-infinity'::timestamptz)
+       RETURNING id
+     )
+     SELECT (SELECT COUNT(*) FROM deleted)::int AS deleted,
+            COALESCE((SELECT ok FROM last_user), true) AS ok`,
+    [threadId, authorId]
+  )) as Array<{ deleted: number; ok: boolean }>;
+  const row = rows[0];
+  if (row && row.ok === false) return 'not_author';
+  return row ? Number(row.deleted) : 0;
 }
 
 // Removed: `threadExists()` — an existence-only check with no user_id predicate.
@@ -471,26 +581,70 @@ export async function touchThread(threadId: string): Promise<void> {
 }
 
 /**
+ * Thread-pinned refs are per person (#5675): the owner's live on
+ * `chat_threads`, every other writer of a team chat has a row in
+ * `chat_thread_member_refs`. A sender only ever reads and writes their own —
+ * another member's turn never resolves them, and nobody overwrites anybody's.
+ */
+type ThreadRefColumn =
+  'cloud_file_refs' | 'notebook_source_refs' | 'mention_refs' | 'last_mcp_server_id';
+
+async function readThreadRef(
+  threadId: string,
+  userId: string,
+  column: ThreadRefColumn
+): Promise<unknown> {
+  const rows = await getPostgresInstance().query(
+    `SELECT CASE WHEN t.user_id::text = $2::text THEN t.${column} ELSE m.${column} END AS value
+       FROM chat_threads t
+       LEFT JOIN chat_thread_member_refs m ON m.thread_id = t.id AND m.user_id::text = $2::text
+      WHERE t.id = $1 AND t.deleted_at IS NULL`,
+    [threadId, userId]
+  );
+  return (rows[0] as { value?: unknown } | undefined)?.value ?? null;
+}
+
+async function writeThreadRef(
+  threadId: string,
+  userId: string,
+  column: ThreadRefColumn,
+  value: string | null
+): Promise<void> {
+  await getPostgresInstance().query(
+    `WITH owner AS (
+       UPDATE chat_threads SET ${column} = $1 WHERE id = $2 AND user_id::text = $3::text RETURNING id
+     )
+     INSERT INTO chat_thread_member_refs (thread_id, user_id, ${column})
+     SELECT t.id, $3::uuid, $1 FROM chat_threads t
+      WHERE t.id = $2 AND t.deleted_at IS NULL
+        AND t.user_id::text IS DISTINCT FROM $3::text
+        AND NOT EXISTS (SELECT 1 FROM owner)
+     ON CONFLICT (thread_id, user_id)
+     DO UPDATE SET ${column} = EXCLUDED.${column}, updated_at = now()`,
+    [value, threadId, userId]
+  );
+}
+
+/**
  * Sticky MCP scope: the last connected server this thread's agentic loop was
  * scoped to. Read as the fallback when a follow-up names no server; written
  * (fire-and-forget) after a scoped MCP turn. A stale id (server since deleted)
  * simply resolves to no config → the loop falls back to the fan-out.
  */
-export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
-  const postgres = getPostgresInstance();
-  const result = await postgres.query(
-    `SELECT last_mcp_server_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
-    [threadId]
-  );
-  return (result[0]?.last_mcp_server_id as string) || null;
+export async function getThreadLastMcpServer(
+  threadId: string,
+  userId: string
+): Promise<string | null> {
+  const value = await readThreadRef(threadId, userId, 'last_mcp_server_id');
+  return typeof value === 'string' && value ? value : null;
 }
 
-export async function setThreadLastMcpServer(threadId: string, serverId: string): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(`UPDATE chat_threads SET last_mcp_server_id = $1 WHERE id = $2`, [
-    serverId,
-    threadId,
-  ]);
+export async function setThreadLastMcpServer(
+  threadId: string,
+  userId: string,
+  serverId: string
+): Promise<void> {
+  await writeThreadRef(threadId, userId, 'last_mcp_server_id', serverId);
 }
 
 /**
@@ -527,18 +681,14 @@ export async function setThreadToolContext(
 
 /**
  * Cloud files picked in this thread — refs only, see threadCloudFiles.ts.
- * Owner-scoped on both ends: a collaborator neither inherits nor overwrites them.
+ * Per person on both ends (see readThreadRef): a member neither inherits nor overwrites
+ * anybody else's.
  */
 export async function getThreadCloudFiles(
   threadId: string,
   userId: string
 ): Promise<ThreadCloudFiles> {
-  const postgres = getPostgresInstance();
-  const result = await postgres.query(
-    `SELECT cloud_file_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [threadId, userId]
-  );
-  return parseThreadCloudFiles(result[0]?.cloud_file_refs);
+  return parseThreadCloudFiles(await readThreadRef(threadId, userId, 'cloud_file_refs'));
 }
 
 export async function setThreadCloudFiles(
@@ -546,28 +696,19 @@ export async function setThreadCloudFiles(
   userId: string,
   files: ThreadCloudFiles
 ): Promise<void> {
-  const postgres = getPostgresInstance();
   const empty = files.wolke.length === 0 && files.connect.length === 0;
-  await postgres.query(
-    `UPDATE chat_threads SET cloud_file_refs = $1 WHERE id = $2 AND user_id = $3`,
-    [empty ? null : JSON.stringify(files), threadId, userId]
-  );
+  await writeThreadRef(threadId, userId, 'cloud_file_refs', empty ? null : JSON.stringify(files));
 }
 
 /**
  * Notebook documents handed to this thread from the reader — refs only, see
- * threadNotebookSources.ts. Owner-scoped like the cloud files.
+ * threadNotebookSources.ts. Per person like the cloud files.
  */
 export async function getThreadNotebookSources(
   threadId: string,
   userId: string
 ): Promise<NotebookSourceRef[]> {
-  const postgres = getPostgresInstance();
-  const result = await postgres.query(
-    `SELECT notebook_source_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [threadId, userId]
-  );
-  return parseThreadNotebookSources(result[0]?.notebook_source_refs);
+  return parseThreadNotebookSources(await readThreadRef(threadId, userId, 'notebook_source_refs'));
 }
 
 export async function setThreadNotebookSources(
@@ -575,27 +716,23 @@ export async function setThreadNotebookSources(
   userId: string,
   refs: NotebookSourceRef[]
 ): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET notebook_source_refs = $1 WHERE id = $2 AND user_id = $3`,
-    [refs.length === 0 ? null : JSON.stringify(refs), threadId, userId]
+  await writeThreadRef(
+    threadId,
+    userId,
+    'notebook_source_refs',
+    refs.length === 0 ? null : JSON.stringify(refs)
   );
 }
 
 /**
  * @doc, saved-text and @link picks of this thread — refs only, see
- * threadMentionRefs.ts. Owner-scoped like the cloud files.
+ * threadMentionRefs.ts. Per person like the cloud files.
  */
 export async function getThreadMentionRefs(
   threadId: string,
   userId: string
 ): Promise<ThreadMentionRefs> {
-  const postgres = getPostgresInstance();
-  const result = await postgres.query(
-    `SELECT mention_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [threadId, userId]
-  );
-  return parseThreadMentionRefs(result[0]?.mention_refs);
+  return parseThreadMentionRefs(await readThreadRef(threadId, userId, 'mention_refs'));
 }
 
 export async function setThreadMentionRefs(
@@ -603,12 +740,12 @@ export async function setThreadMentionRefs(
   userId: string,
   refs: ThreadMentionRefs
 ): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(`UPDATE chat_threads SET mention_refs = $1 WHERE id = $2 AND user_id = $3`, [
-    isEmptyThreadMentionRefs(refs) ? null : JSON.stringify(refs),
+  await writeThreadRef(
     threadId,
     userId,
-  ]);
+    'mention_refs',
+    isEmptyThreadMentionRefs(refs) ? null : JSON.stringify(refs)
+  );
 }
 
 const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));

@@ -9,10 +9,10 @@
  * Kanzleirunde.
  *
  * Die Formulierung zur Anbieterwahl („von Dir je Anfrage gewählt") war ebenfalls
- * falsch — sie trifft nur auf den Chat zu, sonst routet `selectProviderAndModel`
- * (`services/providers/providerSelector.ts`) nach Anfragetyp. Der zweite Ort mit
- * freier Modellwahl war der Playground; dessen Route ist stillgelegt
- * (`config/routes.ts`), deshalb nennt der Absatz ihn nicht.
+ * falsch — sie trifft nur auf den Chat zu, sonst routet die Lane-Tabelle
+ * (`AI_LANES` in `services/ai/lanes.ts`) nach Anfragetyp. Der zweite Ort mit
+ * freier Modellwahl war der Playground; er ist entfernt, deshalb nennt der
+ * Absatz ihn nicht.
  * Der Absatz steht jetzt in der Nachbesserung der Kanzlei
  * (Rückmeldung vom 11.08.2026), die die Zuordnung funktionsabhängig offenlegt,
  * wie Art. 13 DSGVO es für bestimmbare Empfänger verlangt. Einzige Abweichung

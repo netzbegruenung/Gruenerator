@@ -10,6 +10,7 @@ import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import {
   getCompactionState,
@@ -17,6 +18,7 @@ import {
   getMessageCount,
   getTailTokenBudget,
 } from './services/compactionService.js';
+import { canAccessThread } from './services/threadAccessService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
 const log = createLogger('SummarizeController');
@@ -38,7 +40,7 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'Thread ID is required' });
     }
 
-    // Verify thread ownership
+    // Verify the thread exists and the user may read it
     const postgres = getPostgresInstance();
     const threads = await postgres.query(
       `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
@@ -49,7 +51,7 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
-    if ((threads[0].user_id as string) !== user.id) {
+    if (!(await canAccessThread(ThreadId(threadId), UserId(user.id)))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -116,7 +118,7 @@ router.post(
 
       const { threadId } = req.body;
 
-      // Verify thread ownership
+      // Verify the thread exists and the user may read it
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
         `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
@@ -127,7 +129,7 @@ router.post(
         return res.status(404).json({ error: 'Thread not found' });
       }
 
-      if ((threads[0].user_id as string) !== user.id) {
+      if (!(await canAccessThread(ThreadId(threadId), UserId(user.id)))) {
         return res.status(403).json({ error: 'Forbidden' });
       }
 

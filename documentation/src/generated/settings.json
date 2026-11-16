@@ -370,6 +370,12 @@
         "group": "groups"
       },
       {
+        "key": "group_chat_message",
+        "label": "Team-Chats",
+        "description": "Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist",
+        "group": "groups"
+      },
+      {
         "key": "group_user_mentioned",
         "label": "Erwähnungen",
         "description": "Wenn dich jemand in einem Projekt mit @Name erwähnt",

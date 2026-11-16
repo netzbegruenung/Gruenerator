@@ -219,8 +219,6 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       4,
       () => true,
-      false,
-      () => null,
       () => block
     );
     const out = prep({ stepNumber: 0 });
@@ -236,8 +234,6 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       3,
       () => false,
-      false,
-      () => null,
       () => block
     );
     expect(prep({ stepNumber: 2 }).system).toContain('Max 600 Zeichen.');
@@ -249,28 +245,11 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       8,
       () => false,
-      false,
-      () => null,
       () => block
     );
     const out = prep({ stepNumber: 2 });
     expect(out.system).toContain('Max 600 Zeichen.');
     expect(out.toolChoice).toBeUndefined();
-  });
-
-  it('folds the recipe into the forced-tool branch', () => {
-    const prep = buildPrepareStep(
-      base,
-      suffix,
-      8,
-      () => false,
-      false,
-      () => 'web_search',
-      () => block
-    );
-    const out = prep({ stepNumber: 1 });
-    expect(out.toolChoice).toEqual({ type: 'tool', toolName: 'web_search' });
-    expect(out.system).toContain('Max 600 Zeichen.');
   });
 
   it('reads the block per step — the registry fills up MID-loop', () => {
@@ -280,8 +259,6 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       8,
       () => false,
-      false,
-      () => null,
       () => loaded
     );
     expect(prep({ stepNumber: 1 }).system).toBeUndefined();
@@ -295,8 +272,6 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       8,
       () => false,
-      false,
-      () => null,
       () => ''
     );
     expect(prep({ stepNumber: 2 })).toEqual({});
@@ -306,8 +281,6 @@ describe('buildPrepareStep — recipe block reaches every branch', () => {
       suffix,
       8,
       () => true,
-      false,
-      () => null,
       () => ''
     );
     expect(finishing({ stepNumber: 0 }).system).toBe(`${base}${suffix}`);

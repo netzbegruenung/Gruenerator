@@ -22,8 +22,6 @@ export const DEFAULT_VISION_PROVIDER: ProviderName = GEMMA_31B_PRIMARY.provider;
 export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || GEMMA_31B_PRIMARY.model;
 
 export interface VisionOptions {
-  provider?: ProviderName | undefined;
-  model?: string | undefined;
   maxTokens?: number | undefined;
   temperature?: number | undefined;
 }
@@ -75,13 +73,9 @@ function resolveImageContent(
   return { type: 'image', image: `data:image/jpeg;base64,${imageSource}` };
 }
 
-function resolveVisionModel(options?: VisionOptions) {
-  // F0: ein Aufrufer, der noch `regolo` nennt (abgeschaltet 30.09.2026), bekommt den Standard statt eines Gemma ohne Bildannahme.
-  const legacy = (options?.provider as string | undefined) === 'regolo';
-  const provider = legacy
-    ? DEFAULT_VISION_PROVIDER
-    : (options?.provider ?? DEFAULT_VISION_PROVIDER);
-  const modelId = legacy ? DEFAULT_VISION_MODEL : (options?.model ?? DEFAULT_VISION_MODEL);
+function resolveVisionModel() {
+  const provider = DEFAULT_VISION_PROVIDER;
+  const modelId = DEFAULT_VISION_MODEL;
   return { model: getModel(provider, modelId), provider, modelId };
 }
 
@@ -100,7 +94,7 @@ export class VisionService {
     instruction: string,
     options?: VisionOptions
   ): Promise<string> {
-    const { model, provider, modelId } = resolveVisionModel(options);
+    const { model, provider, modelId } = resolveVisionModel();
     const imageContent = resolveImageContent(imageSource);
 
     log.info(
@@ -134,11 +128,8 @@ export class VisionService {
     );
   }
 
-  async detectTextContent(
-    imageSource: string,
-    options?: VisionOptions
-  ): Promise<TextDetectionResult> {
-    const { model, provider, modelId } = resolveVisionModel(options);
+  async detectTextContent(imageSource: string): Promise<TextDetectionResult> {
+    const { model, provider, modelId } = resolveVisionModel();
     const imageContent = resolveImageContent(imageSource);
 
     log.info(`[Vision] Detecting text content (${provider}/${modelId})`);
@@ -181,7 +172,7 @@ export class VisionService {
     instruction?: string,
     options?: VisionOptions
   ): Promise<VisionAnalysisResult> {
-    const textDetection = await this.detectTextContent(imageSource, options);
+    const textDetection = await this.detectTextContent(imageSource);
 
     const defaultInstruction =
       instruction || 'Beschreibe dieses Bild detailliert. Was ist darauf zu sehen?';
@@ -228,7 +219,7 @@ export class VisionService {
     context?: string,
     options?: VisionOptions
   ): Promise<string> {
-    const { model, provider, modelId } = resolveVisionModel(options);
+    const { model, provider, modelId } = resolveVisionModel();
     const imageContent = resolveImageContent(imageSource);
 
     let userPrompt =
@@ -266,7 +257,7 @@ export class VisionService {
     slide: { texts: readonly string[]; index: number; total: number },
     options?: VisionOptions
   ): Promise<string> {
-    const { model, provider, modelId } = resolveVisionModel(options);
+    const { model, provider, modelId } = resolveVisionModel();
     const startTime = Date.now();
 
     const result = await generateText({

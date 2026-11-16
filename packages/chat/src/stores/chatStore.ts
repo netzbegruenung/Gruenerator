@@ -122,7 +122,22 @@ interface AgentState {
    *  reader). AutoMessageSender attaches them along with the pending text. */
   pendingAttachments: MentionAttachment[];
   pendingInitialAssistantMessage: string | null;
+  /**
+   * Projekt the next new chat is filed into at creation (before its first turn
+   * runs). Set together with a pending hand-off by a Projekt page; consumed by
+   * the thread-list adapter's `initialize`. Expires so an abandoned hand-off
+   * cannot file an unrelated chat into the Projekt later.
+   */
+  pendingGroup: { id: string; teamShared: boolean; expiresAt: number } | null;
   chatViewMode: 'overview' | 'thread';
+  /**
+   * The thread URL names a thread the runtime has not opened yet
+   * (ChatThreadRouting is still resolving and switching). Main is then whatever
+   * it was before — on a deep link the blank draft — so a send would mint a new
+   * thread instead of continuing the linked one (#5701). The composer and the
+   * thread body hold still while this is set. Written only by ChatThreadRouting.
+   */
+  threadRoutePending: boolean;
   threadMode: ThreadMode;
   searchMode: SearchMode;
   /**
@@ -188,9 +203,11 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
+  setPendingGroup: (groupId: string | null, teamShared?: boolean) => void;
   setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
+  setThreadRoutePending: (pending: boolean) => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
@@ -239,6 +256,8 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
   compactionUpdatedAt: null,
 };
 
+const PENDING_GROUP_TTL_MS = 30_000;
+
 /**
  * Whether another surface queued content for the next new chat. AutoMessageSender
  * owns that hand-off; the views that would otherwise switch threads on mount
@@ -271,9 +290,11 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       pendingMessage: null,
       pendingDraft: null,
+      pendingGroup: null,
       pendingAttachments: [],
       pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
+      threadRoutePending: false,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
@@ -387,12 +408,20 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
+      setPendingGroup: (groupId, teamShared = false) =>
+        set({
+          pendingGroup: groupId
+            ? { id: groupId, teamShared, expiresAt: Date.now() + PENDING_GROUP_TTL_MS }
+            : null,
+        }),
+
       setPendingAttachments: (attachments) => set({ pendingAttachments: attachments }),
 
       setPendingInitialAssistantMessage: (message) =>
         set({ pendingInitialAssistantMessage: message }),
 
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
+      setThreadRoutePending: (pending) => set({ threadRoutePending: pending }),
 
       setThreadMode: (mode) => set({ threadMode: mode }),
 

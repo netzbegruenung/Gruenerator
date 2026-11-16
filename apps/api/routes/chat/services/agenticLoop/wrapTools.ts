@@ -24,12 +24,7 @@ import { beschreibeWurf, klassifiziereWurf } from '../../agents/toolFailure.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel, wasShortened } from './truncate.js';
-import {
-  readMcpResult,
-  TURN_ABORTABLE_TOOLS,
-  UNRECORDED_TOOLS,
-  type PersistedStep,
-} from './types.js';
+import { readMcpResult, TURN_ABORTABLE_TOOLS, type PersistedStep } from './types.js';
 
 import type { AskHumanGate } from './askHumanGate.js';
 import type { ClientToolGate } from './clientToolGate.js';
@@ -504,13 +499,6 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         result: asRecord(result),
       });
     };
-
-    // Eine reine Entscheidung (`UNRECORDED_TOOLS`): läuft an allem vorbei, was
-    // einen Aufruf zur Tat macht — Karte, Schritt, Budget, Wächter.
-    if (UNRECORDED_TOOLS.has(toolName)) {
-      wrapped[toolName] = toolDef;
-      continue;
-    }
 
     const wrappedExecute: ExecuteFn = async (input, options) => {
       const stepId = uniqueStepId(options.toolCallId);

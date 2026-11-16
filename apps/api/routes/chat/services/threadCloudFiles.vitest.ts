@@ -51,25 +51,26 @@ describe('sameThreadCloudFiles', () => {
 describe('thread storage', () => {
   beforeEach(() => query.mockReset());
 
-  it('reads only the owner’s live thread', async () => {
-    query.mockResolvedValue([{ cloud_file_refs: { wolke: [wolke('/a')], connect: [] } }]);
+  it('reads the sender’s own refs on a live thread', async () => {
+    query.mockResolvedValue([{ value: { wolke: [wolke('/a')], connect: [] } }]);
     expect(await getThreadCloudFiles('t1', 'u1')).toEqual({ wolke: [wolke('/a')], connect: [] });
     const [sql, params] = query.mock.calls[0] as [string, unknown[]];
-    expect(sql).toMatch(/user_id = \$2/);
+    expect(sql).toMatch(/CASE WHEN t\.user_id::text = \$2::text/);
+    expect(sql).toMatch(/m\.user_id::text = \$2::text/);
     expect(sql).toMatch(/deleted_at IS NULL/);
     expect(params).toEqual(['t1', 'u1']);
   });
 
   it('treats an empty or malformed column as no files', async () => {
-    query.mockResolvedValueOnce([{ cloud_file_refs: null }]);
+    query.mockResolvedValueOnce([{ value: null }]);
     expect(await getThreadCloudFiles('t1', 'u1')).toEqual(NO_CLOUD_FILES);
-    query.mockResolvedValueOnce([{ cloud_file_refs: { wolke: [{ path: 1 }] } }]);
+    query.mockResolvedValueOnce([{ value: { wolke: [{ path: 1 }] } }]);
     expect(await getThreadCloudFiles('t1', 'u1')).toEqual(NO_CLOUD_FILES);
-    query.mockResolvedValueOnce([{ cloud_file_refs: '{not json' }]);
+    query.mockResolvedValueOnce([{ value: '{not json' }]);
     expect(await getThreadCloudFiles('t1', 'u1')).toEqual(NO_CLOUD_FILES);
   });
 
-  it('stores refs only, owner-scoped, and clears the column when nothing is left', async () => {
+  it('stores refs only, per person, and clears the column when nothing is left', async () => {
     query.mockResolvedValue([]);
     await setThreadCloudFiles('t1', 'u1', { wolke: [wolke('/a')], connect: [] });
     expect(query.mock.calls[0][1]).toEqual([
@@ -77,7 +78,7 @@ describe('thread storage', () => {
       't1',
       'u1',
     ]);
-    expect(query.mock.calls[0][0]).toMatch(/user_id = \$3/);
+    expect(query.mock.calls[0][0]).toMatch(/user_id::text = \$3::text/);
 
     await setThreadCloudFiles('t1', 'u1', NO_CLOUD_FILES);
     expect(query.mock.calls[1][1]).toEqual([null, 't1', 'u1']);

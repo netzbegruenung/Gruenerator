@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 // Spiegelt pnpm-workspace.yaml.
-const GLOBS = ['apps/*', 'packages/*', 'services/hocuspocus', 'services/mcp', 'documentation'];
+const GLOBS = ['apps/*', 'packages/*', 'services/hocuspocus', 'documentation'];
 
 const manifests = [];
 for (const glob of GLOBS) {

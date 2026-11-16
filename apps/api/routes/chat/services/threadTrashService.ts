@@ -26,12 +26,14 @@ import {
 } from '../../../services/trash/trashCursor.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
+import { ThreadId, UserId } from '../../../utils/types/branded.js';
 
 import {
   deleteAttachmentVectors,
   readThreadAttachmentVectorHandles,
   setAttachmentVectorsDeletedAt,
 } from './attachmentPersistenceService.js';
+import { isThreadOwner } from './threadAccessService.js';
 
 const log = createLogger('threadTrash');
 
@@ -65,6 +67,8 @@ async function ownThreadRow(
   );
   if (rows.length === 0) return 'not_found';
   if (rows[0].user_id !== userId) return 'forbidden';
+  // A team chat of a project the owner has left belongs to the project (#5678).
+  if (!(await isThreadOwner(ThreadId(threadId), UserId(userId)))) return 'forbidden';
   return rows[0];
 }
 

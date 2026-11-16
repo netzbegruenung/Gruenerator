@@ -4,7 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "build/**"]
+      "outputs": ["dist/**", "build/**"]
     },
     "@gruenerator/web#build:check": {
       "dependsOn": ["^build"],

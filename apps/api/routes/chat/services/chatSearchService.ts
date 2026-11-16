@@ -8,6 +8,7 @@
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { ownsThreadSql, teamChatMemberSql } from '../../../services/groups/projectThreadScope.js';
 import { createLogger } from '../../../utils/logger.js';
 import { likeContainsPattern } from '../../../utils/sqlLike.js';
 import { toIsoString } from '../../../utils/toIsoString.js';
@@ -168,8 +169,9 @@ export async function searchChatHistory(
     FROM chat_messages m
     INNER JOIN chat_threads t ON t.id = m.thread_id
     WHERE t.deleted_at IS NULL AND (
-      t.user_id = $1
+      ${ownsThreadSql('t', '$1')}
       OR t.permissions ? $1::text
+      ${threadIds && threadIds.length > 0 ? `OR ${teamChatMemberSql('t', '$1')}` : ''}
       ${ownedOnly ? '' : 'OR t.is_public = true'}
     )
     AND m.role IN ('user', 'assistant')

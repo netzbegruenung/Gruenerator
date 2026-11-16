@@ -101,9 +101,9 @@ describe('aiObject', () => {
 
   it('routes through the lane registry instead of leaving the model open', async () => {
     // `generateStructured` set no provider and no model and left both to
-    // `providerSelector`. The lane table is that decision, written down:
+    // the old selector chain. The lane table is that decision, written down:
     // `doc_generation` is Gemma 4 on GreenPT because Medium 3.5 does not call
-    // the tool here (ARTIFACT_MODEL in providerSelector.ts).
+    // the tool here (GEMMA_4_GREENPT in lanes.ts).
     answering(toolCall({ title: 'X' }));
 
     await aiObject(base);

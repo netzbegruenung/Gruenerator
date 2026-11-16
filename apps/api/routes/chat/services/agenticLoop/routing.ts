@@ -232,33 +232,16 @@ export function reworksSuppliedText(raw: string): boolean {
 }
 
 /**
- * Die Frage benennt einen mitgebrachten Text als ihren Gegenstand — „Welche vier
- * Maßnahmen stehen im Antrag?", „Wie hoch sind die Kosten laut Antrag?", „Was
- * steht darin zur Finanzierung?". Ob es diesen Text im Thread gibt, weiss der
- * Aufrufer; hier steht nur, ob die Frage auf ihn zeigt (#4789).
- *
- * „Programm" fehlt bewusst: „im Wahlprogramm" meint die Beschlusslage, nach der
- * gesucht werden soll, nicht den eingefügten Text.
- */
-const SUPPLIED_MATERIAL_REF_RE =
-  /(?<!\p{L})(?:(?:im|(?:laut|gem[äa](?:ß|ss))(?:\s+(?:de[rms]|diese[rms]))?|(?:in|aus|nach)\s+(?:de[rm]|diese[rm]))\s+(?:\p{L}+en\s+)?(?:antrag|text|dokument|entwurf|artikel|beitrag|newsletter|brief|schreiben|papier|beschluss|pressemitteilung|anfrage|stellungnahme|vorlage|e-?mail)\p{L}*|darin|drin)(?!\p{L})/iu;
-
-export function asksAboutSuppliedMaterial(raw: string): boolean {
-  return SUPPLIED_MATERIAL_REF_RE.test(orderText((raw ?? '').trim()));
-}
-
-/**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
  *
  * Gemessen am Klassifikator (20.08.2026, Zwei-Turn-Sonde auf `classifierNode`):
- * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
- * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
- * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
+ * so ein Turn bekommt `direct@0.25` und wird nach `agentic` demotiert —
+ * das Abruf-Verdikt (damals `loopDemotedFromRetrieval: false`) stand im Turn
+ * DAVOR, nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
  * Prüfung allein nicht, ob der Turn nachschlagen muss — das entscheidet seit
  * dem 09.11.2026 das Modell mit dem Verlauf. Gelesen wird sie für
- * Anschlussfragen an eine Tabelle (`asksAboutTheTable`) und für die
- * Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
+ * die Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
  *
  * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
  * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
@@ -382,47 +365,6 @@ export function looksLikeUnsourcedWritingOrder(
   return WRITING_ORDER_RE.test(t);
 }
 
-/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
- *  „stimmt"/„stimmen" zählt hier nicht: „die Stimmen und Zahlen der Wahl" ist
- *  das Nomen, und „stimmt, schreib den Post mit den Zahlen" eine Zustimmung.
- *  Das Verb trägt nur im ob-Satz und in der Frage (unten). */
-const CHECK_WORD = String.raw`(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier)\p{L}*`;
-const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen|richtigkeit|korrektheit|wahrheitsgehalt)(?!\p{L})`;
-/** Satzanfang — auch unter dem Stoff, wenn beide Ränder Auftrag sind. */
-const SENTENCE_START = String.raw`(?:^|[.?!:\n]\s*)`;
-const FACT_CHECK_ORDER_RE = new RegExp(
-  [
-    String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}`,
-    String.raw`(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}`,
-    // „…, ob die Zahlen stimmen" — das Verb steht am Ende des ob-Satzes.
-    String.raw`(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm(?:t|en)(?:\s+oder\s+nicht)?\s*(?:[.?!,;:)]|$)`,
-    // „stimmt das so?", „stimmen die Angaben?" — als Frage, nicht als Aussage
-    // („Stimmen der Jugend werden lauter.").
-    String.raw`${SENTENCE_START}stimm(?:t|en)\s+(?:das|dies|diese\p{L}*|die|der)(?!\p{L})[^.?!\n]*(?:\?|$)`,
-    // „Ist das korrekt?", „Sind die Zahlen richtig?"
-    String.raw`${SENTENCE_START}(?:ist|sind)\s+(?:das|dies|die\s+${FACT_NOUN})(?:\s+so)?\s+(?:korrekt|richtig|zutreffend|wahr|belegt)(?!\p{L})`,
-    String.raw`(?<!\p{L})(?:fakten-?check|fact-?check)`,
-  ].join('|'),
-  'iu'
-);
-
-/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt", „Ist das
- *  korrekt formuliert?". Mit Wortende, wo ein Stamm Sachwörter trifft:
- *  „Stilllegung", „Kommando". „Ausdruck" fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
-const LANGUAGE_CHECK_RE =
-  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich|(?:formuliert|geschrieben|ausgedrückt|ausgedrueckt)(?!\p{L}))/iu;
-
-/**
- * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",
- * „stimmen die Angaben?". Enger als `FACT_CHECK_RE` in `routing.ts` — das ist
- * ein Veto gegen die Überarbeitungs-Abkürzung und darf grosszügig sein; hier
- * ERZWINGT der Treffer eine Websuche, und „prüfe, ob die Rechtschreibung
- * korrekt ist" darf das nicht (#3903).
- */
-export function looksLikeFactCheckOrder(order: string): boolean {
-  return FACT_CHECK_ORDER_RE.test(order) && !LANGUAGE_CHECK_RE.test(order);
-}
-
 /**
  * Generation intents that can enter the loop as a COMPOUND turn (research +
  * generation composed in one turn via an opaque fat tool). Each keeps its
@@ -524,9 +466,7 @@ const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschla
 /**
  * The user explicitly told the assistant to look something up in THIS turn.
  *
- * Why this exists: `forceFirstToolCall` was scoped to connector turns (then
- * `intent === 'mcp'`, now a set `mcpServerScope`, #4043), while
- * the classifier's loop demotion routes search/web asks into `agentic`, where
+ * Why this exists: the classifier's loop demotion routes search/web asks into `agentic`, where
  * the planner is free to call nothing at all. Live result: "Recherchiere bitte
  * mit Quellen" answered "Ich habe keinen Zugriff auf eine Live-Datenbank …
  * soll ich das für Dich übernehmen?" with steps=0 — after the assistant had

@@ -368,7 +368,6 @@ describe('wrapToolsForLoop', () => {
   it('runs web_search straight away — no internal search required first', async () => {
     const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
-        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
         searchToolNames: new Set(['web_search', 'gruenerator_search']),
       }),
     });
@@ -382,25 +381,6 @@ describe('wrapToolsForLoop', () => {
     expect(out.results).toHaveLength(1);
     expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
     expect(steps).toHaveLength(1);
-  });
-
-  it('forces the web after an internal search that found nothing', async () => {
-    const { ctx } = makeCtx({
-      guards: createToolLoopGuards({
-        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
-        getSourceCount: () => 0,
-      }),
-    });
-    const tools = wrapToolsForLoop(
-      {
-        gruenerator_search: { execute: async () => ({ results: [] }) },
-      } as unknown as ToolSet,
-      ctx
-    );
-
-    expect(ctx.guards.emptyResultFallback()).toBeNull();
-    await run(tools, 'gruenerator_search', { query: 'x' });
-    expect(ctx.guards.emptyResultFallback()).toBe('web_search');
   });
 
   it('truncates the model-facing payload but records the full result', async () => {
@@ -812,26 +792,6 @@ describe('wrapToolsForLoop — tabelle_auswerten: Freigabe vor Codegen', () => {
       stepId: 'call_t',
       args: { auftrag: 'Summe' },
     });
-  });
-});
-
-describe('wrapToolsForLoop — reine Entscheidung (direkt_antworten, #5042)', () => {
-  it('läuft ohne Karte, ohne Schritt und ohne Freigabe-Gate', async () => {
-    const { ctx, events, steps } = makeCtx({
-      approvalGate: createToolApprovalGate({
-        enabled: true,
-        allowlist: new Set(),
-        originFor: () => null,
-      }),
-    });
-    const tools = wrapToolsForLoop(
-      { direkt_antworten: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
-      ctx
-    );
-
-    expect(await run(tools, 'direkt_antworten', {})).toEqual({ ok: true });
-    expect(events).toEqual([]);
-    expect(steps).toEqual([]);
   });
 });
 
