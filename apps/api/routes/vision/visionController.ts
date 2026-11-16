@@ -12,8 +12,6 @@ import {
 } from '../../services/vision/VisionService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { ProviderName } from '../../services/ai/providers.js';
-
 const log = createLogger('vision');
 
 const router: Router = express.Router();
@@ -26,8 +24,6 @@ const imageSchema = z.string().min(1).max(MAX_IMAGE_LENGTH);
 const analyzeSchema = z.object({
   image: imageSchema,
   instruction: z.string().max(MAX_INSTRUCTION_LENGTH).optional(),
-  provider: z.string().optional(),
-  model: z.string().optional(),
   maxTokens: z.number().optional(),
 });
 
@@ -43,22 +39,16 @@ const ocrSchema = z.object({
 const altTextSchema = z.object({
   image: imageSchema,
   context: z.string().optional(),
-  provider: z.string().optional(),
-  model: z.string().optional(),
 });
 
 router.post(
   '/analyze',
   validateBody(analyzeSchema),
   async (req: TypedRequest<z.infer<typeof analyzeSchema>>, res: Response): Promise<void> => {
-    const { image, instruction, provider, model, maxTokens } = req.body;
+    const { image, instruction, maxTokens } = req.body;
 
     try {
-      const options = {
-        provider: provider as ProviderName | undefined,
-        model: model as string | undefined,
-        maxTokens: maxTokens as number | undefined,
-      };
+      const options = { maxTokens: maxTokens as number | undefined };
 
       const result = await visionService.analyzeWithOcr(image, instruction, options);
 
@@ -67,8 +57,8 @@ router.post(
         textDetection: result.textDetection,
         extractedText: result.extractedText,
         ocrMethod: result.ocrMethod ?? null,
-        model: options.model ?? DEFAULT_VISION_MODEL,
-        provider: options.provider ?? DEFAULT_VISION_PROVIDER,
+        model: DEFAULT_VISION_MODEL,
+        provider: DEFAULT_VISION_PROVIDER,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -135,20 +125,15 @@ router.post(
   '/alt-text',
   validateBody(altTextSchema),
   async (req: TypedRequest<z.infer<typeof altTextSchema>>, res: Response): Promise<void> => {
-    const { image, context, provider, model } = req.body;
+    const { image, context } = req.body;
 
     try {
-      const options = {
-        provider: provider as ProviderName | undefined,
-        model: model as string | undefined,
-      };
-
-      const altText = await visionService.generateAltText(image, context, options);
+      const altText = await visionService.generateAltText(image, context);
 
       res.json({
         altText,
-        model: options.model ?? DEFAULT_VISION_MODEL,
-        provider: options.provider ?? DEFAULT_VISION_PROVIDER,
+        model: DEFAULT_VISION_MODEL,
+        provider: DEFAULT_VISION_PROVIDER,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
