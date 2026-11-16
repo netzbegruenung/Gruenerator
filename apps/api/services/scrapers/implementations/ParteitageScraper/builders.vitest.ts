@@ -25,7 +25,6 @@ import {
   amendmentUnitOf,
   initiatorNames,
   isCandidacy,
-  markDiff,
   motionUnitOf,
   parteitagLabelOf,
   plainText,
@@ -63,6 +62,7 @@ const NO_FACTS: PageFacts = {
   veranstaltungAm: null,
   version: null,
   otherVersions: [],
+  numbered: [],
 };
 const BESCHLUSS_FACTS: PageFacts = {
   ...NO_FACTS,
@@ -260,19 +260,10 @@ describe('amendmentUnitOf', () => {
     expect(decided.payload.beschluss_id).toBe('ag-nrw-m1');
   });
 
-  it('macht Einfügungen im Text als solche lesbar', () => {
-    expect(unit.text).toContain('#### Vor Zeile 1 einfügen:');
-    expect(unit.text).toContain('[eingefügt: Innovation und Wirtschaftspolitik');
-  });
-});
-
-describe('markDiff', () => {
-  it('markiert eingefügten und gestrichenen Text, inline wie als Absatz', () => {
-    const html =
-      '<p>Wir wollen <del>wenig</del><ins>mehr</ins> Radwege.</p><p class="deleted">Alter Satz.</p><p class="inserted">Neuer Satz.</p>';
-    expect(markDiff(html)).toBe(
-      '<p>Wir wollen <del>[gestrichen: wenig]</del><ins>[eingefügt: mehr]</ins> Radwege.</p><p class="deleted">[gestrichen: Alter Satz.]</p><p class="inserted">[eingefügt: Neuer Satz.]</p>'
-    );
+  it('schreibt eine Einfügung als „Bisher/Neu" mit ihrer Zeilenangabe', () => {
+    expect(unit.text).toContain('#### Vor Zeile 1 einfügen');
+    expect(unit.text).toContain('Bisher: (nichts — reine Einfügung)');
+    expect(unit.text).toContain('Neu: Innovation und Wirtschaftspolitik');
   });
 });
 

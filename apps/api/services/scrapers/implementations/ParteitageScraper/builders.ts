@@ -32,6 +32,8 @@ import {
   type MotionLink,
   type Section,
 } from './antragsgruenClient.js';
+import { beforeAfterText } from './beforeAfter.js';
+import { type NumberedSection, withLineNumbers } from './lineNumbers.js';
 import { type PageFacts } from './pageFacts.js';
 
 export const PARTEITAGE_SOURCE = 'parteitage';
@@ -80,23 +82,6 @@ export function contentTypeOfMotion(motion: Pick<Motion, 'status_id'>): Parteita
 }
 
 /**
- * Antragsgrün markiert Einfügungen und Streichungen nur farbig (`<ins>`,
- * `<del>`, `.inserted`, `.deleted`). Ohne Übertragung in Text verschwände der
- * Unterschied in `htmlToStructuredText`, und ein ÄA läse sich wie Antragstext.
- */
-export function markDiff(html: string): string {
-  const $ = cheerio.load(html, null, false);
-  const wrap = (selector: string, label: string) => {
-    $(selector).each((_, el) => {
-      $(el).prepend(`[${label}: `).append(']');
-    });
-  };
-  wrap('ins, .inserted', 'eingefügt');
-  wrap('del, .deleted', 'gestrichen');
-  return $.html();
-}
-
-/**
  * Überschrift der Abschnitte eines Änderungsantrags. Sie steht im
  * Überschriftenpfad jedes Chunks und damit auch in Passagen ohne Kopf — eine
  * Antwort gab sonst den Text eines ÄA als Position des Landesverbands aus
@@ -104,15 +89,25 @@ export function markDiff(html: string): string {
  */
 const PROPOSAL_HEADING = 'Vorgeschlagene Änderung (kein beschlossener Text)';
 
+/**
+ * `diff`: Abschnitte mit Änderungen (ÄA, Verfahrensvorschlag) als „Bisher/Neu"
+ * (`beforeAfter.ts`). `numbered`: die Zeilenabschnitte der Antragsseite; trägt
+ * einer denselben Text, bekommt jeder Absatz seine Zeilenmarke (`lineNumbers.ts`).
+ */
 function sectionsText(
   sections: readonly Section[],
-  diff: boolean,
-  headingPrefix: string | null = null
+  opts: { diff: boolean; numbered?: readonly NumberedSection[]; headingPrefix?: string }
 ): string {
+  const { diff, numbered = [], headingPrefix = null } = opts;
   return sections
     .filter((s) => !SKIPPED_SECTION_TYPES.has(s.type) && s.html)
     .map((s) => {
-      const body = htmlToStructuredText(diff ? markDiff(s.html ?? '') : (s.html ?? '')).trim();
+      const html = s.html ?? '';
+      const body = (
+        diff
+          ? beforeAfterText(html)
+          : (withLineNumbers(html, numbered) ?? htmlToStructuredText(html))
+      ).trim();
       const heading = headingPrefix ? `${headingPrefix}: ${s.title}` : s.title;
       return body ? `## ${heading}\n\n${body}` : '';
     })
@@ -229,7 +224,7 @@ function basePayload(ctx: ParteitagContext, type: ParteitageContentType) {
 function procedureOf(motionOrAmendment: Motion | Amendment) {
   const procedure = motionOrAmendment.proposed_procedure;
   const votum = plainText(procedure?.status_title) || null;
-  const text = procedure?.sections ? sectionsText(procedure.sections, true) : '';
+  const text = procedure?.sections ? sectionsText(procedure.sections, { diff: true }) : '';
   return { votum, text };
 }
 
@@ -282,7 +277,7 @@ export function motionUnitOf(
   if (procedure.votum) lines.push(`${PROCEDURE_LINE}: ${procedure.votum}`);
   const header = headerOf(title, type, ctx, lines);
   const body = [
-    sectionsText(motion.sections, false),
+    sectionsText(motion.sections, { diff: false, numbered: facts.numbered }),
     procedure.text ? `## ${PROCEDURE_LINE}\n\n${procedure.text}` : '',
   ]
     .filter(Boolean)
@@ -349,7 +344,7 @@ export function amendmentUnitOf(
   );
   const header = headerOf(title, 'aenderungsantrag', ctx, lines);
   const body = [
-    sectionsText(amendment.sections, true, PROPOSAL_HEADING),
+    sectionsText(amendment.sections, { diff: true, headingPrefix: PROPOSAL_HEADING }),
     procedure.text ? `## ${PROCEDURE_LINE}\n\n${procedure.text}` : '',
   ]
     .filter(Boolean)

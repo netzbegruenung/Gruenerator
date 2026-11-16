@@ -28,6 +28,8 @@ describe('pageFactsOf', () => {
         { version: 1, motionId: 101856 },
         { version: 2, motionId: 103905 },
       ],
+      // Die gekürzte Fixture enthält keinen Antragstext.
+      numbered: [],
     });
   });
 
@@ -45,6 +47,7 @@ describe('pageFactsOf', () => {
       veranstaltungAm: null,
       version: null,
       otherVersions: [],
+      numbered: [],
     });
   });
 
