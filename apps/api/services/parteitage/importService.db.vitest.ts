@@ -147,13 +147,21 @@ function uploadsFor(m: ReturnType<typeof manifest>): Record<string, string> {
 const admin = randomUUID();
 
 describe.skipIf(!url)('importConvention (postgres)', () => {
+  const dbName = `parteitage_${randomUUID().replace(/-/g, '')}`;
+  const admin = new pg.Pool({ connectionString: url });
+
   beforeAll(async () => {
-    pool = new pg.Pool({ connectionString: url });
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const target = new URL(url!);
+    target.pathname = `/${dbName}`;
+    pool = new pg.Pool({ connectionString: target.toString() });
     expect(await runMigrations(pool)).toBe(true);
     tmp = process.env.SYSTEM_MEDIA_DIR!;
   });
   afterAll(async () => {
     await pool?.end();
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+    await admin.end();
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.rmSync(uploadDir, { recursive: true, force: true });
   });

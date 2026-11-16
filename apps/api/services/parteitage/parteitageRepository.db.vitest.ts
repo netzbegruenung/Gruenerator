@@ -84,8 +84,14 @@ async function insertSpeech(
 }
 
 describe.skipIf(!url)('parteitageRepository (db)', () => {
+  const dbName = `parteitage_${randomUUID().replace(/-/g, '')}`;
+  const admin = new pg.Pool({ connectionString: url });
+
   beforeAll(async () => {
-    pool = new pg.Pool({ connectionString: url });
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const target = new URL(url!);
+    target.pathname = `/${dbName}`;
+    pool = new pg.Pool({ connectionString: target.toString() });
     expect(await runMigrations(pool)).toBe(true);
     await pool.query('INSERT INTO profiles (id, display_name) VALUES ($1, $2)', [
       viewer.userId,
@@ -94,6 +100,8 @@ describe.skipIf(!url)('parteitageRepository (db)', () => {
   });
   afterAll(async () => {
     await pool?.end();
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+    await admin.end();
   });
   beforeEach(async () => {
     await pool.query(
