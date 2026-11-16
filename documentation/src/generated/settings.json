@@ -41,6 +41,14 @@
       "label": "Konnektoren"
     },
     {
+      "value": "wolke",
+      "label": "Wolke"
+    },
+    {
+      "value": "websites",
+      "label": "Meine Websites"
+    },
+    {
       "value": "datenschutz",
       "label": "Datenschutz & Barrierefreiheit"
     },

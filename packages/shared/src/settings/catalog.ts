@@ -32,10 +32,9 @@
  * Zeilen-ids `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei
  * davon über `getSettingsEntry`).
  *
- * Am 11.11.2026 sind `wolke` und `websites` in `konnektoren` aufgegangen (alles,
- * was der Grünerator von außen liest, an einer Stelle) und `baeume` in
- * `nutzung` (das Kontingent steht über dem Verbrauch, der es aufbraucht).
- * `tagesbriefing` ist dafür aus den Erinnerungen herausgezogen.
+ * `baeume` ist in `nutzung` aufgegangen (das Kontingent steht über dem
+ * Verbrauch, der es aufbraucht); `tagesbriefing` ist dafür aus den Erinnerungen
+ * herausgezogen.
  */
 export type SettingsTab =
   | 'onboarding'
@@ -48,6 +47,8 @@ export type SettingsTab =
   | 'erinnerungen'
   | 'tagesbriefing'
   | 'benachrichtigungen'
+  | 'wolke'
+  | 'websites'
   | 'konnektoren'
   | 'nutzung'
   | 'support';

@@ -7,9 +7,7 @@ import {
 } from '@gruenerator/wolke';
 import { type QueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { FiCloud } from 'react-icons/fi';
 
-import { ConnectorHeader } from '../components/ConnectorHeader';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
 import CloudButton from '@/features/wolke/components/CloudButton';
@@ -31,7 +29,7 @@ export const prefetch = (queryClient: QueryClient) => {
   });
 };
 
-const WolkeSection = () => {
+const WolkeTab = () => {
   const { data: shareLinks = [], isLoading } = useShareLinks();
   const { data: sharedWithMe = [] } = useSharedWithMeLinks();
   const [showWizard, setShowWizard] = useState(false);
@@ -47,12 +45,7 @@ const WolkeSection = () => {
   }, []);
 
   return (
-    <section className="flex flex-col gap-lg">
-      <ConnectorHeader icon={FiCloud} title="Grüne Wolke">
-        Gib einen Ordner aus der Wolke frei, und der Grünerator kann seine Dateien lesen — im Chat
-        per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück.
-      </ConnectorHeader>
-
+    <div className="flex flex-col gap-xl">
       {(hasLinks || showManualForm) && <WolkeAddForm onSuccess={onSuccess} onError={onError} />}
 
       {isLoading && <SettingsCardsSkeleton cards={2} />}
@@ -74,7 +67,7 @@ const WolkeSection = () => {
       )}
 
       {!isLoading && shareLinks.length === 0 && !showManualForm && !showWizard && (
-        <div className="flex flex-col items-center gap-sm py-sm">
+        <div className="flex flex-col items-center gap-sm py-lg">
           <CloudButton onClick={() => setShowWizard(true)} />
           <button
             type="button"
@@ -112,8 +105,8 @@ const WolkeSection = () => {
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 };
 
-export default WolkeSection;
+export default WolkeTab;

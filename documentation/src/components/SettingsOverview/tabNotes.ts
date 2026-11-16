@@ -60,7 +60,6 @@ export const TAB_NOTES: TabNote[] = [
     extras: [
       '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
       '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
-      '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
       '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
       'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich.',
     ],
@@ -116,14 +115,25 @@ export const TAB_NOTES: TabNote[] = [
       'Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal.',
   },
   {
+    tab: 'wolke',
+    intro:
+      'Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung.',
+  },
+  {
+    tab: 'websites',
+    intro:
+      'Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe.',
+    extras: [
+      'Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist.',
+      'Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl.',
+    ],
+  },
+  {
     tab: 'konnektoren',
     intro:
-      'Alles, was der Grünerator von außen lesen darf, an einer Stelle: deine Grüne Wolke, weitere Dienste für den Chat und die Websites deines Verbands.',
+      'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
     extras: [
-      '**Grüne Wolke**: Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung.',
-      '**Weitere Dienste** (experimentell): Externe Dienste, die du im Chat per @-Erwähnung ansprichst.',
-      '**Meine Websites**: WordPress-Seiten verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands. Die Kategorien werden einmal abgefragt und stehen danach überall zur Auswahl.',
-      'Die Links **/settings/wolke** und **/settings/websites** führen weiterhin hierher — bis zum 11.11.2026 waren das eigene Bereiche.',
+      '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
     ],
   },
   {
