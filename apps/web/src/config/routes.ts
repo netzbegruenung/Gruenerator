@@ -21,6 +21,7 @@ import { startTabLink } from '../utils/startpage';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
+import { withParteitageAdminGate } from './parteitageAdminGate';
 
 /**
  * Route configuration interface
@@ -320,8 +321,15 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
-const ParteitageListPage = lazy(() => import('../features/parteitage/ParteitageListPage'));
-const ParteitagPage = lazy(() => import('../features/parteitage/ParteitagPage'));
+// admin only until the system-media volume is live (Salt #5527) — see parteitageAdminGate.
+const ParteitageListPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitageListPage');
+  return { default: withParteitageAdminGate(Page) };
+});
+const ParteitagPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitagPage');
+  return { default: withParteitageAdminGate(Page) };
+});
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));

@@ -2249,7 +2249,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Zugang",
     "anchor": "#zugang",
     "category": "Features",
-    "text": "Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
+    "text": "Vorerst sind Parteitage nur für Instanz-Admins sichtbar; für alle anderen Personen existiert die Seite noch nicht. Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
   },
   {
     "url": "/docs/features/podcasts",
