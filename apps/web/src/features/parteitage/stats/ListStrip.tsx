@@ -57,6 +57,8 @@ export function ListStrip({
               key={key}
               dataKey={key}
               stackId="a"
+              stroke="var(--pt-bg)"
+              strokeWidth={1}
               fill={`var(--color-${key})`}
               cursor="pointer"
               onClick={() => onArea(KEY_AREA[key])}

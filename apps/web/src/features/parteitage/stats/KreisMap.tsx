@@ -1,5 +1,4 @@
 import { geoMercator, geoPath } from 'd3-geo';
-import { scaleLinear } from 'd3-scale';
 import { useEffect, useMemo, useState } from 'react';
 
 import { TEXT_CLASS } from './shared';
@@ -9,8 +8,13 @@ import type { FeatureCollection, Geometry } from 'geojson';
 const URL_NRW = '/geo/nrw-kreise.geo.json';
 const WIDTH = 420;
 const HEIGHT = 440;
-const RAMP_LOW = '#e6f2dc';
-const RAMP_HIGH = '#1a5e30';
+const STEPS = ['var(--pt-ramp-1)', 'var(--pt-ramp-2)', 'var(--pt-ramp-3)', 'var(--pt-ramp-4)'];
+
+/** Gestufte Rampe; 0 Reden bekommt eine Schraffur, nie eine Rampenfarbe. */
+export function kreisFill(n: number, max: number): string {
+  if (n <= 0) return 'url(#pt-zero)';
+  return STEPS[Math.min(STEPS.length, Math.max(1, Math.ceil((n / max) * STEPS.length))) - 1];
+}
 
 type KreisProps = { AGS: string; GEN: string };
 
@@ -43,6 +47,7 @@ function label(name: string, n: number): string {
 export function KreisMap({ counts, selected, onSelect }: Props) {
   const geo = useGeo();
   const [hover, setHover] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
 
   const max = Math.max(1, ...Object.values(counts));
   const shapes = useMemo(() => {
@@ -56,16 +61,14 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
       cy: path.centroid(f)[1],
     }));
   }, [geo]);
-  const color = useMemo(
-    () => scaleLinear<string>().domain([1, max]).range([RAMP_LOW, RAMP_HIGH]).clamp(true),
-    [max]
-  );
 
   if (geo === 'error') {
     return <p className={`m-0 text-sm ${TEXT_CLASS}`}>Karte konnte nicht geladen werden.</p>;
   }
   if (!geo) return null;
 
+  const selShape = shapes.find((s) => s.ags === selected) ?? null;
+  const focusShape = shapes.find((s) => s.ags === focus) ?? null;
   const active = shapes.find((s) => s.ags === hover) ?? null;
 
   return (
@@ -80,6 +83,18 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
           role="group"
           aria-label="Karte der NRW-Kreise mit Anzahl der Reden"
         >
+          <defs>
+            <pattern
+              id="pt-zero"
+              width={6}
+              height={6}
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <rect width={6} height={6} fill="var(--pt-bg)" />
+              <line x1={0} y1={0} x2={0} y2={6} stroke="var(--pt-zero-line)" strokeWidth={1.5} />
+            </pattern>
+          </defs>
           {shapes.map((s) => {
             const n = counts[s.ags] ?? 0;
             const isSel = selected === s.ags;
@@ -91,10 +106,10 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
                 tabIndex={0}
                 aria-label={label(s.name, n)}
                 aria-pressed={isSel}
-                fill={n > 0 ? color(n) : 'var(--grey-100, #eee)'}
-                stroke={isSel ? 'var(--primary-600)' : 'var(--grey-50, #fff)'}
-                strokeWidth={isSel ? 2.5 : 0.8}
-                className="cursor-pointer outline-none focus-visible:stroke-[var(--primary-600)] focus-visible:[stroke-width:2.5px]"
+                fill={kreisFill(n, max)}
+                stroke="var(--pt-bg)"
+                strokeWidth={0.8}
+                className="cursor-pointer outline-none"
                 onClick={() => onSelect(isSel ? null : s.ags)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -104,11 +119,45 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
                 }}
                 onMouseEnter={() => setHover(s.ags)}
                 onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(s.ags)}
-                onBlur={() => setHover(null)}
+                onFocus={(e) => {
+                  setHover(s.ags);
+                  let visible = true;
+                  try {
+                    visible = e.currentTarget.matches(':focus-visible');
+                  } catch {
+                    visible = true;
+                  }
+                  setFocus(visible ? s.ags : null);
+                }}
+                onBlur={() => {
+                  setHover(null);
+                  setFocus(null);
+                }}
               />
             );
           })}
+          {selShape ? (
+            <path
+              d={selShape.d}
+              fill="none"
+              stroke="var(--pt-ink)"
+              strokeWidth={3.5}
+              pointerEvents="none"
+              data-testid="kreis-selected"
+            />
+          ) : null}
+          {focusShape ? (
+            <g pointerEvents="none" data-testid="kreis-focus">
+              <path d={focusShape.d} fill="none" stroke="var(--pt-bg)" strokeWidth={5} />
+              <path
+                d={focusShape.d}
+                fill="none"
+                stroke="var(--pt-ink)"
+                strokeWidth={2}
+                strokeDasharray="4 3"
+              />
+            </g>
+          ) : null}
         </svg>
         {active ? (
           <div
@@ -123,14 +172,25 @@ export function KreisMap({ counts, selected, onSelect }: Props) {
         ) : null}
       </div>
       <div className={`flex items-center gap-2 text-xs ${TEXT_CLASS}`}>
-        <span>0</span>
         <span
           aria-hidden="true"
-          className="inline-block h-2 w-24 rounded"
-          style={{ background: `linear-gradient(to right, ${RAMP_LOW}, ${RAMP_HIGH})` }}
+          className="inline-block h-3 w-3 rounded-sm border"
+          style={{
+            borderColor: 'var(--pt-zero-line)',
+            background:
+              'repeating-linear-gradient(45deg, var(--pt-zero-line) 0 1.5px, var(--pt-bg) 1.5px 4px)',
+          }}
         />
-        <span>{max} Reden</span>
-        <span>· grau: keine Reden</span>
+        <span>keine Reden</span>
+        {STEPS.map((c) => (
+          <span
+            key={c}
+            aria-hidden="true"
+            className="inline-block h-3 w-5"
+            style={{ background: c }}
+          />
+        ))}
+        <span>1 bis {max} Reden</span>
       </div>
       <p className={`m-0 text-xs ${TEXT_CLASS}`}>© GeoBasis-DE / BKG (2026), dl-de/by-2.0</p>
     </figure>

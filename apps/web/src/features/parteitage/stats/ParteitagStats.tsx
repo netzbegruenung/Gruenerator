@@ -2,7 +2,10 @@ import {
   type ConventionArea,
   type ConventionSpeechPublic,
   type ConventionStatsV1,
+  type SeatType,
 } from '@gruenerator/contracts';
+
+import './parteitag-colors.css';
 
 import {
   applyFilters,
@@ -12,6 +15,7 @@ import {
   resultPoints,
   schlussCounts,
 } from './aggregate';
+import { AreaLegend } from './AreaLegend';
 import { FormulaBars } from './FormulaBars';
 import { GroupCompare } from './GroupCompare';
 import { KreisMap } from './KreisMap';
@@ -28,6 +32,12 @@ type Props = {
   filters: ParteitagFilters;
   onFilter: (patch: Partial<ParteitagFilters>) => void;
 };
+
+const SEAT_LABEL: Record<SeatType, string> = {
+  frauenplatz: 'Frauenplatz',
+  offen: 'Offener Platz',
+};
+const SEAT_ORDER: SeatType[] = ['frauenplatz', 'offen'];
 
 const CLEAR: ParteitagFilters = {
   area: null,
@@ -66,6 +76,10 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
     const ags = kvToAgs(s.kv);
     if (ags) kreisCounts[ags] = (kreisCounts[ags] ?? 0) + 1;
   }
+  const days = [...new Map(speeches.map((s) => [s.day, s.dayLabel])).entries()].sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
+  const hasKreisData = speeches.some((s) => kvToAgs(s.kv) !== null);
   const active = Object.values(filters).some((v) => v !== null);
   const toggleArea = (a: ConventionArea) => onFilter({ area: filters.area === a ? null : a });
 
@@ -79,6 +93,24 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
         {AREA_ORDER.map((a) => (
           <Chip key={a} pressed={filters.area === a} onClick={() => toggleArea(a)}>
             {AREA_LABEL[a]}
+          </Chip>
+        ))}
+        {SEAT_ORDER.map((t) => (
+          <Chip
+            key={t}
+            pressed={filters.seatType === t}
+            onClick={() => onFilter({ seatType: filters.seatType === t ? null : t })}
+          >
+            {SEAT_LABEL[t]}
+          </Chip>
+        ))}
+        {days.map(([day, label]) => (
+          <Chip
+            key={day}
+            pressed={filters.day === day}
+            onClick={() => onFilter({ day: filters.day === day ? null : day })}
+          >
+            {label}
           </Chip>
         ))}
         <Chip
@@ -97,16 +129,20 @@ export function ParteitagStats({ stats, speeches, filters, onFilter }: Props) {
         </Chip>
       </div>
 
+      <AreaLegend />
+
       <div className="grid gap-md md:grid-cols-2">
         <ListStrip blocks={listBlocks(filtered)} onArea={toggleArea} />
         <ResultScatter points={resultPoints(filtered)} onArea={toggleArea} />
       </div>
 
-      <KreisMap
-        counts={kreisCounts}
-        selected={filters.kreis}
-        onSelect={(kreis) => onFilter({ kreis })}
-      />
+      {hasKreisData ? (
+        <KreisMap
+          counts={kreisCounts}
+          selected={filters.kreis}
+          onSelect={(kreis) => onFilter({ kreis })}
+        />
+      ) : null}
 
       <TopicBars
         counts={countBy(filtered, 'topic')}

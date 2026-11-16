@@ -8,11 +8,11 @@ export const AREA_LABEL: Record<ConventionArea, string> = {
 
 export const AREA_ORDER: ConventionArea[] = ['kreisfreie_stadt', 'kreis', 'ohne'];
 
-/** Zwei vorhandene Theme-Tokens; die Bedeutung steckt zusätzlich in Legende und Beschriftung. */
+/** Definiert in parteitag-colors.css (hell/dunkel); die Bedeutung steht zusätzlich in der Legende. */
 export const AREA_COLOR: Record<ConventionArea, string> = {
-  kreisfreie_stadt: 'var(--primary-500)',
-  kreis: 'var(--grey-500)',
-  ohne: 'var(--secondary-700)',
+  kreisfreie_stadt: 'var(--pt-area-stadt)',
+  kreis: 'var(--pt-area-kreis)',
+  ohne: 'var(--pt-area-ohne)',
 };
 
 export const TEXT_CLASS = 'text-grey-700 dark:text-grey-300';

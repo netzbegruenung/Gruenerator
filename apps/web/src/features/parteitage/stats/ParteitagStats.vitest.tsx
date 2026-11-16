@@ -64,6 +64,30 @@ const none: ParteitagFilters = {
 };
 const speeches = [speech('1', 'Klima'), speech('2', 'Verkehr')];
 
+describe('ParteitagStats controls', () => {
+  it('shows the area legend', () => {
+    render(<ParteitagStats stats={stats} speeches={speeches} filters={none} onFilter={vi.fn()} />);
+    const legend = screen.getByRole('list', { name: 'Legende Herkunft' });
+    expect(legend).toHaveTextContent('kreisfreie Stadt');
+    expect(legend).toHaveTextContent('Kreis');
+    expect(legend).toHaveTextContent('ohne KV');
+  });
+
+  it('platz and tag chips set filters', async () => {
+    const onFilter = vi.fn();
+    render(<ParteitagStats stats={stats} speeches={speeches} filters={none} onFilter={onFilter} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Frauenplatz' }));
+    expect(onFilter).toHaveBeenCalledWith({ seatType: 'frauenplatz' });
+    await userEvent.click(screen.getByRole('button', { name: 'Samstag' }));
+    expect(onFilter).toHaveBeenCalledWith({ day: '2026-11-14' });
+  });
+
+  it('hides the NRW map when no KV maps to a district', () => {
+    render(<ParteitagStats stats={stats} speeches={speeches} filters={none} onFilter={vi.fn()} />);
+    expect(screen.queryByText('Reden nach Kreis')).not.toBeInTheDocument();
+  });
+});
+
 describe('ParteitagStats', () => {
   it('click on topic bar sets topic filter', async () => {
     const onFilter = vi.fn();
