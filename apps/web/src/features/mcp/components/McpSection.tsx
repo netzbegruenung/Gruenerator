@@ -1239,7 +1239,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       <div>
         <div className="flex items-center gap-md">
           <div className="flex items-center gap-sm flex-wrap">
-            <h2 className="m-0 font-[Raleway] text-xl text-foreground-heading">Konnektoren</h2>
+            <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">
+              Konnektoren
+            </h2>
             <span className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-grey-600 dark:bg-grey-800 dark:text-grey-300">
               Experimentell
             </span>
@@ -1371,9 +1373,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
               <div className="flex flex-col gap-md">
                 {groups.map(([c, items]) => (
                   <div key={c}>
-                    <h4 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
+                    <h3 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
                       {c}
-                    </h4>
+                    </h3>
                     <SettingsList>{items.map(renderCard)}</SettingsList>
                   </div>
                 ))}
@@ -1386,9 +1388,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           {!registryLoading && externalServers.length > 0 && (
             <div>
               <div className="flex items-baseline gap-sm">
-                <h4 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
+                <h3 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
                   Weitere Server im offenen Register
-                </h4>
+                </h3>
                 <span className="text-xs text-grey-600 dark:text-grey-400">
                   {externalServers.length}
                 </span>

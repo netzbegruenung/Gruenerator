@@ -61,7 +61,6 @@ const NAV_GROUPS: { key: SettingsNavGroup; label: string }[] = [
 
 type SettingsNavGroup = 'praeferenzen' | 'gruenerator' | 'verbindungen' | 'uebersicht';
 
-// hideHeading: the tab's content brings its own top-level heading.
 // onlyWhileOnboarding: verschwindet, sobald die Einrichtung erledigt ist.
 // onlyWithAntragsgruen: nur, wo der Grünerator Antragsgrün-Seiten anlegen kann
 // oder die Person schon welche hat (experimentell, nur de-DE).
@@ -75,7 +74,6 @@ const NAV: {
   label: string;
   icon: IconType;
   group?: SettingsNavGroup;
-  hideHeading?: boolean;
   onlyWhileOnboarding?: boolean;
   onlyWithAntragsgruen?: boolean;
 }[] = [
@@ -83,7 +81,6 @@ const NAV: {
     value: 'onboarding',
     label: 'Onboarding',
     icon: PiRocketLaunch,
-    hideHeading: true,
     onlyWhileOnboarding: true,
   },
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings, group: 'praeferenzen' },
@@ -102,7 +99,6 @@ const NAV: {
     label: 'Erinnerungen',
     icon: PiBrain,
     group: 'gruenerator',
-    hideHeading: true,
   },
   { value: 'tagesbriefing', label: 'Tagesbriefing', icon: PiSunHorizon, group: 'gruenerator' },
   { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple, group: 'gruenerator' },
@@ -111,7 +107,6 @@ const NAV: {
     label: 'Konnektoren',
     icon: FiServer,
     group: 'verbindungen',
-    hideHeading: true,
   },
   { value: 'wolke', label: 'Wolke', icon: FiCloud, group: 'verbindungen' },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe, group: 'verbindungen' },
@@ -120,7 +115,6 @@ const NAV: {
     label: 'Antragsgrün',
     icon: FiClipboard,
     group: 'verbindungen',
-    hideHeading: true,
     onlyWithAntragsgruen: true,
   },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2, group: 'uebersicht' },
@@ -513,11 +507,6 @@ const SettingsDialog = () => {
               className="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
             >
               <div className="px-md py-lg md:px-xl">
-                {!activeEntry.hideHeading && (
-                  <h2 className="mt-0 mb-lg text-lg font-semibold text-foreground-heading">
-                    {activeEntry.label}
-                  </h2>
-                )}
                 <SettingsTabBody tab={activeTab} />
               </div>
             </section>
