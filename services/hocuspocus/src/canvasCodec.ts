@@ -22,6 +22,10 @@
  * 7. A write that spans several pages (or a page and the root mirror) checks every value first
  *    (`assertStateWritable`), outside the transaction: Yjs cannot roll a transaction back, so a
  *    throw halfway would leave the pages before it written and persisted.
+ * 8. A patch that comes from a read taken earlier carries its base and is merged into the page
+ *    as it is now (`canvasMerge.ts`); `writeStateKeys` alone would delete every element id the
+ *    stale value lacks, including those a client added meanwhile (#5765). A patch without a base
+ *    is written as given and has that limitation.
  */
 import {
   ELEMENT_STORAGE_VERSION,
