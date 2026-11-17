@@ -13,7 +13,7 @@ import { server } from '../../../test/msw-server';
 import MemoriesSection from './MemoriesSection';
 
 import { useAuthStore } from '@/stores/authStore';
-import { axe, renderWithProviders, screen, waitFor } from '@/test-utils';
+import { axe, renderWithProviders, screen, waitFor, within } from '@/test-utils';
 
 const LIST = 'http://localhost/api/memory';
 const PROFILE = 'http://localhost/api/auth/profile';
@@ -111,7 +111,11 @@ describe('MemoriesSection', () => {
     server.use(http.get(LIST, () => HttpResponse.json({ memories: ROWS })));
     const { user } = renderWithProviders(<MemoriesSection />);
     await screen.findByText('Immer in der Sie-Form schreiben.');
-    await user.click(screen.getByRole('button', { name: 'Fakt', pressed: false }));
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Nach Art filtern' })).getByRole('radio', {
+        name: 'Fakt',
+      })
+    );
     expect(screen.queryByText('Immer in der Sie-Form schreiben.')).not.toBeInTheDocument();
     expect(screen.getByText('Schreibt für den Kreisverband Köln.')).toBeInTheDocument();
   });

@@ -113,7 +113,7 @@ function TreeBudget() {
       )}
 
       {showNewsletterCard && (
-        <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+        <section className="flex flex-col gap-sm border-t border-grey-200 pt-lg dark:border-grey-700">
           <h3 className="m-0 text-sm font-semibold text-foreground-heading">
             5 Bäume mehr pro Tag
           </h3>

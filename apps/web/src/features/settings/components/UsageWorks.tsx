@@ -218,9 +218,7 @@ export function UsageWorks() {
         ) : (
           <>
             {tiles.length === 0 ? (
-              <p className="m-0 rounded-xl border border-dashed border-grey-300 p-lg text-sm text-grey-500 dark:border-grey-700">
-                Du hast noch nichts erstellt.
-              </p>
+              <p className="m-0 text-sm text-grey-500">Du hast noch nichts erstellt.</p>
             ) : (
               <div className="grid grid-cols-2 gap-sm md:grid-cols-4">
                 {tiles.map((tile) => (
