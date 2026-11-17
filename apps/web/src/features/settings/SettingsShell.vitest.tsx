@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsDialog from './SettingsDialog';
 import { useSettingsDialogStore } from './settingsDialogStore';
 
-import { act, axe, renderWithProviders, screen, userEvent, within } from '@/test-utils';
+import { act, axe, renderWithProviders, screen, userEvent, waitFor, within } from '@/test-utils';
 
 /**
  * Die Hülle des Dialogs: Titelzeile, Navigation in Gruppen, aktive Pille und
@@ -116,6 +116,30 @@ describe('Einstellungen Suche', () => {
     expect(screen.getByRole('region', { name: 'Wolke' })).toBeInTheDocument();
     expect(field).toHaveValue('');
     expect(within(nav).getAllByRole('list').length).toBeGreaterThan(1);
+  });
+
+  it('lässt den Fokus nach einem Treffer nicht auf <body> fallen (breit)', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'wolke');
+    await userEvent.click(screen.getAllByRole('button', { name: /Wolke/ })[0]);
+
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('leert die Suche, wenn der Dialog von außen schließt', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox');
+    await userEvent.type(field, 'wolke');
+    act(() => useSettingsDialogStore.getState().close());
+    act(() => useSettingsDialogStore.getState().openSettings('allgemein'));
+    expect(await screen.findByRole('searchbox')).toHaveValue('');
   });
 
   it('findet Umlaute auch ohne Umlaut', async () => {

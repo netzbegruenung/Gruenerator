@@ -231,6 +231,9 @@ const SettingsDialog = () => {
   const navRef = useRef<HTMLElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const findFrameRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const flashedRowRef = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState('');
 
   const { data: antragsgruenSites } = useAntragsgruenSites();
@@ -258,7 +261,6 @@ const SettingsDialog = () => {
   }, [isOpen, activeTab, queryClient]);
 
   const handleClose = () => {
-    setQuery('');
     if (closeCompletesOnboarding(isOnboarding, activeTab)) completeOnboarding();
     close();
   };
@@ -281,26 +283,71 @@ const SettingsDialog = () => {
   const searching = query.trim() !== '';
   const hits = searching ? searchSettings(query, nav) : [];
 
+  const cancelFind = () => {
+    if (findFrameRef.current !== null) cancelAnimationFrame(findFrameRef.current);
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    findFrameRef.current = null;
+    flashTimerRef.current = null;
+    flashedRowRef.current?.classList.remove(...FLASH_CLASSES);
+    flashedRowRef.current = null;
+  };
+
+  // Schließt der Dialog (auch von außen) oder verschwindet er, endet die Suche:
+  // Feld leer, keine Schleife, kein Timer, der auf eine alte Zeile zeigt.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    if (!isOpen) setQuery('');
+  }
+  useEffect(() => {
+    if (!isOpen) cancelFind();
+    return cancelFind;
+  }, [isOpen]);
+
   const openHit = (hit: SettingsSearchHit) => {
+    cancelFind();
     setTab(hit.tab);
     setQuery('');
     const rowId = hit.rowId;
-    if (rowId === null) return;
+    // Der angeklickte Treffer verschwindet mit der Liste und nimmt den Fokus
+    // mit. Breit führen wir ihn selbst nach; schmal übernimmt der Effekt oben.
+    const wide = narrowView === null;
     // Die Reiter laden lazy: die Zeile steht oft erst ein paar Frames später da.
     let frames = 0;
     const find = () => {
-      const row = sectionRef.current?.querySelector<HTMLElement>(
-        `[data-settings-id="${CSS.escape(rowId)}"]`
-      );
+      findFrameRef.current = null;
+      const row =
+        rowId === null
+          ? null
+          : sectionRef.current?.querySelector<HTMLElement>(
+              `[data-settings-id="${CSS.escape(rowId)}"]`
+            );
+      const navEntry =
+        rowId === null ? navRef.current?.querySelector<HTMLElement>('[aria-current="page"]') : null;
       if (row) {
         row.scrollIntoView({ block: 'center' });
         row.classList.add(...FLASH_CLASSES);
-        window.setTimeout(() => row.classList.remove(...FLASH_CLASSES), FLASH_MS);
+        flashedRowRef.current = row;
+        flashTimerRef.current = window.setTimeout(() => {
+          row.classList.remove(...FLASH_CLASSES);
+          flashedRowRef.current = null;
+          flashTimerRef.current = null;
+        }, FLASH_MS);
+        if (wide) {
+          const control = row.querySelector<HTMLElement>(
+            'button, a[href], input, select, textarea, [role="combobox"], [tabindex]:not([tabindex="-1"])'
+          );
+          (control ?? sectionRef.current)?.focus({ preventScroll: true });
+        }
+      } else if (navEntry) {
+        if (wide) navEntry.focus();
       } else if (++frames < FIND_ROW_FRAMES) {
-        requestAnimationFrame(find);
+        findFrameRef.current = requestAnimationFrame(find);
+      } else if (wide) {
+        sectionRef.current?.focus({ preventScroll: true });
       }
     };
-    requestAnimationFrame(find);
+    findFrameRef.current = requestAnimationFrame(find);
   };
 
   return (
@@ -458,11 +505,12 @@ const SettingsDialog = () => {
           {activeEntry && narrowView !== 'nav' && (
             <section
               ref={sectionRef}
+              tabIndex={-1}
               // Neuer Bereich, neuer Scroll-Container: sonst öffnet ein Wechsel
               // mitten im neuen Bereich, so tief, wie man im alten war.
               key={activeTab}
               aria-label={activeEntry.label}
-              className="min-h-0 min-w-0 flex-1 overflow-y-auto"
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
             >
               <div className="px-md py-lg md:px-xl">
                 {!activeEntry.hideHeading && (

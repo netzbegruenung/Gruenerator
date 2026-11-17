@@ -35,14 +35,18 @@ describe('searchSettings', () => {
   });
 
   it('verlangt jedes Wort (UND)', () => {
-    const both = searchSettings('wolke hintergrund', NAV);
-    expect(both.every((h) => h.tab !== 'hintergrund' || h.rowId !== null)).toBe(true);
+    // Jedes Wort für sich trifft mehrere Zeilen, beide zusammen nur eine.
+    expect(searchSettings('allgemein', NAV).length).toBeGreaterThan(1);
+    expect(searchSettings('stimme', NAV).length).toBeGreaterThan(0);
+    expect(searchSettings('allgemein stimme', NAV).map((h) => h.key)).toEqual(['allgemein.stimme']);
     expect(searchSettings('xyzzy wolke', NAV)).toEqual([]);
   });
 
-  it('lässt Reiter aus, die nicht in der Navigation stehen', () => {
-    const hits = searchSettings('wolke', [{ value: 'allgemein', label: 'Allgemein' }]);
-    expect(hits.every((h) => h.tab === 'allgemein')).toBe(true);
+  it('lässt Zeilen aus, deren Reiter nicht in der Navigation steht', () => {
+    // allgemein.stimme gehört zu „allgemein" — das hier nicht mitgegeben wird.
+    expect(searchSettings('stimme', NAV).some((h) => h.rowId === 'allgemein.stimme')).toBe(true);
+    const withoutAllgemein = NAV.filter((e) => e.value !== 'allgemein');
+    expect(searchSettings('stimme', withoutAllgemein)).toEqual([]);
   });
 
   it('deckelt auf 20 Treffer', () => {
