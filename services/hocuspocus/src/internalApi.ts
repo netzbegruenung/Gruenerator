@@ -6,9 +6,12 @@ import * as Y from 'yjs';
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
 import {
   CANVAS_DOCUMENT_NEWER_CODE,
+  CANVAS_STATE_UNWRITABLE_CODE,
   CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
   YDOC_KEYS,
   assertCanvasDocumentWritable,
+  assertStateWritable,
   buildPageState,
   readState,
   stampCreatedDocument,
@@ -39,6 +42,9 @@ const KEY_CONFIG = YDOC_KEYS.config;
 
 /** HTTP status of a refused write into a canvas document newer than this build ("upgrade needed"). */
 export const CANVAS_DOCUMENT_NEWER_STATUS = 426;
+
+/** HTTP status of a refused write of a value the codec cannot store (nothing was written). */
+export const CANVAS_STATE_UNWRITABLE_STATUS = 400;
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
 
@@ -290,7 +296,7 @@ function buildPageYMap(doc: Y.Doc, def: PageDef, pos: string): Y.Map<unknown> {
   page.set(KEY_ID, def.id);
   page.set(KEY_CONFIG_ID, def.configId);
   page.set(KEY_POS, pos);
-  page.set(KEY_STATE, buildPageState(doc, def.state));
+  page.set(KEY_STATE, buildPageState(doc, def.state, def.id));
   if (def.config && Object.keys(def.config).length > 0) {
     const config = new Y.Map<unknown>();
     for (const [k, v] of Object.entries(def.config)) config.set(k, v);
@@ -375,20 +381,45 @@ export function readMergedState(doc: Y.Doc): {
 export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
   // Refused before anything is written: a newer document stays byte-identical.
   assertCanvasDocumentWritable(doc);
-  doc.transact(() => {
-    const pagesMap = getPagesMap(doc);
-    const legacyPages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
-    const meta = doc.getMap<unknown>(KEY_META);
-    const hasPages = () => pagesMap.size > 0 || legacyPages.length > 0;
+  const pagesMap = getPagesMap(doc);
+  const legacyPages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+  const meta = doc.getMap<unknown>(KEY_META);
+  const hasPages = () => pagesMap.size > 0 || legacyPages.length > 0;
 
-    // The first pages written into a document that had none create it: stamp it here, in the
-    // same transaction and before any page value, so the codec sees the stamp. A document that
-    // already has pages keeps its stamp (or its lack of one) as it is.
-    const writesPages =
-      (changes.seedPages?.length ?? 0) > 0 ||
-      (changes.replacePages?.length ?? 0) > 0 ||
-      (changes.pageOps?.some((op) => op.op === 'add') ?? false);
-    if (writesPages && !hasPages()) stampCreatedDocument(doc);
+  const findPage = (pageId: string): Y.Map<unknown> | null => {
+    const fromMap = pagesMap.get(pageId);
+    if (fromMap) return fromMap;
+    for (let i = 0; i < legacyPages.length; i++) {
+      if (legacyPages.get(i).get(KEY_ID) === pageId) return legacyPages.get(i);
+    }
+    return null;
+  };
+
+  // The first pages written into a document that had none create it: stamp it here, in the
+  // same transaction and before any page value, so the codec sees the stamp. A document that
+  // already has pages keeps its stamp (or its lack of one) as it is.
+  const writesPages =
+    (changes.seedPages?.length ?? 0) > 0 ||
+    (changes.replacePages?.length ?? 0) > 0 ||
+    (changes.pageOps?.some((op) => op.op === 'add') ?? false);
+  const stamping = writesPages && !hasPages();
+
+  // Everything is checked before the transaction opens: Yjs cannot roll one back, so a value
+  // the codec refuses halfway would leave the pages before it written (and persisted).
+  if (changes.seedPages && !hasPages()) {
+    for (const def of changes.seedPages) assertStateWritable(doc, def.state, null, stamping);
+  }
+  for (const { pageId, patch } of changes.pagePatches ?? []) {
+    const yState = findPage(pageId)?.get(KEY_STATE);
+    assertStateWritable(doc, patch, yState instanceof Y.Map ? yState : null, stamping);
+  }
+  for (const op of changes.pageOps ?? []) {
+    if (op.op === 'add') assertStateWritable(doc, op.page.state, null, stamping);
+  }
+  for (const def of changes.replacePages ?? []) assertStateWritable(doc, def.state, null, stamping);
+
+  doc.transact(() => {
+    if (stamping) stampCreatedDocument(doc);
 
     if (changes.seedPages && changes.seedPages.length > 0 && !hasPages()) {
       let pos: string | null = null;
@@ -399,19 +430,10 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
       meta.set(KEY_PAGES_SEEDED, true);
     }
 
-    const findPage = (pageId: string): Y.Map<unknown> | null => {
-      const fromMap = pagesMap.get(pageId);
-      if (fromMap) return fromMap;
-      for (let i = 0; i < legacyPages.length; i++) {
-        if (legacyPages.get(i).get(KEY_ID) === pageId) return legacyPages.get(i);
-      }
-      return null;
-    };
-
     if (changes.pagePatches) {
       for (const { pageId, patch } of changes.pagePatches) {
         const yState = findPage(pageId)?.get(KEY_STATE);
-        if (yState instanceof Y.Map) writePageState(doc, yState, patch);
+        if (yState instanceof Y.Map) writePageState(doc, yState, patch, pageId);
       }
     }
 
@@ -522,6 +544,15 @@ export function applyPatchToDoc(
   seedState: Record<string, unknown> | null
 ): void {
   assertCanvasDocumentWritable(doc);
+  // Nothing to write: do not stamp or seed a document for it.
+  if (Object.keys(patch).length === 0) return;
+
+  // Checked before the transaction (and before the root mirror is written): see applyDeckChanges.
+  for (const yMap of readPageYMaps(doc)) {
+    const pageState = yMap.get(KEY_STATE);
+    if (pageState instanceof Y.Map) assertStateWritable(doc, patch, pageState);
+  }
+
   doc.transact(() => {
     const formState = doc.getMap<unknown>(KEY_FORM_STATE);
     const pageYMaps = readPageYMaps(doc);
@@ -547,7 +578,9 @@ export function applyPatchToDoc(
     // the root formState above is the legacy mirror and stays plain JSON.
     for (const yMap of pageYMaps) {
       const pageState = yMap.get(KEY_STATE);
-      if (pageState instanceof Y.Map) writePageState(doc, pageState, patch);
+      if (pageState instanceof Y.Map) {
+        writePageState(doc, pageState, patch, yMap.get(KEY_ID) as string | null);
+      }
     }
   }, TRANSACT_ORIGIN);
 }
@@ -660,6 +693,15 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
           code: CANVAS_DOCUMENT_NEWER_CODE,
           found: error.found,
           known: error.known,
+        });
+        return;
+      }
+      if (error instanceof CanvasStateUnwritableError) {
+        // The caller sent a value the codec cannot store; nothing was written.
+        log.warn(`POST state rejected for ${documentId}: ${error.message}`);
+        res.status(CANVAS_STATE_UNWRITABLE_STATUS).json({
+          error: 'canvas state contains a value that cannot be stored',
+          code: CANVAS_STATE_UNWRITABLE_CODE,
         });
         return;
       }

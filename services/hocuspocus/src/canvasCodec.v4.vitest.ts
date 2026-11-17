@@ -1,19 +1,22 @@
 /**
- * The next ggraphic release raises `CANVAS_DOCUMENT_VERSION` to 4 (element-level storage). This
- * file runs the service as that build will: the schema package's constant is mocked to 4.
- * `canvasCodec.vitest.ts` covers the build as it is today (3), including the refusal of a
- * version 4 document.
+ * The service as it runs against `@ggraphic/schema` at `CANVAS_DOCUMENT_VERSION` 4 (element-level
+ * storage): concurrent edits of different elements survive, created documents are stamped 4.
+ * `canvasCodec.vitest.ts` covers the refusals and the routes.
  */
 import { readState, writeStateKeys } from '@ggraphic/core/ydoc';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
-vi.mock('@ggraphic/schema', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@ggraphic/schema')>()),
-  CANVAS_DOCUMENT_VERSION: 4,
+const warn = vi.hoisted(() => vi.fn());
+vi.mock('./logger.js', () => ({
+  createLogger: () => ({ info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() }),
 }));
 
-import { CANVAS_KEY_CLASSES, CanvasDocumentNewerError } from './canvasCodec.js';
+import {
+  CANVAS_KEY_CLASSES,
+  CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
+} from './canvasCodec.js';
 import { SAMPLE_STATE, bytesOf, clientDoc, fork, stateOf, sync } from './canvasDoc.testUtils.js';
 import {
   applyDeckChangesToDoc,
@@ -184,6 +187,94 @@ describe('version 4 build writing documents', () => {
     expect(() =>
       applyDeckChangesToDoc(doc, { pagePatches: [{ pageId: 'p1', patch: { headline: 'x' } }] })
     ).toThrow(CanvasDocumentNewerError);
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+});
+
+describe('a refused value writes nothing (Yjs cannot roll a transaction back)', () => {
+  // JSON.parse makes `__proto__` an own key, which the codec refuses.
+  const bad = () => JSON.parse('{"__proto__":1}') as Record<string, unknown>;
+  const page = (id: string, state: Record<string, unknown>): PageDef => ({
+    id,
+    configId: 'slider',
+    state,
+  });
+  const twoPages = () => {
+    const doc = clientDoc({ stamp: 4, structured: true });
+    applyDeckChangesToDoc(doc, {
+      pageOps: [{ op: 'add', index: 1, page: page('p2', SAMPLE_STATE()) }],
+    });
+    return doc;
+  };
+
+  it('pagePatches: the second page is invalid, the first stays untouched', () => {
+    const doc = twoPages();
+    const before = bytesOf(doc);
+    expect(() =>
+      applyDeckChangesToDoc(doc, {
+        pagePatches: [
+          { pageId: 'p1', patch: { headline: 'zuerst' } },
+          { pageId: 'p2', patch: { headline: 'dann', iconStates: { i: bad() } } },
+        ],
+      })
+    ).toThrow(CanvasStateUnwritableError);
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+
+  it('replacePages: an invalid second page leaves the old pages in place', () => {
+    const doc = twoPages();
+    const before = bytesOf(doc);
+    expect(() =>
+      applyDeckChangesToDoc(doc, {
+        replacePages: [page('n1', SAMPLE_STATE()), page('n2', { iconStates: { i: bad() } })],
+      })
+    ).toThrow(CanvasStateUnwritableError);
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+
+  it('seedPages: an invalid page creates and stamps nothing', () => {
+    const doc = new Y.Doc();
+    const before = bytesOf(doc);
+    expect(() =>
+      applyDeckChangesToDoc(doc, {
+        seedPages: [page('a', SAMPLE_STATE()), page('b', { iconStates: { i: bad() } })],
+      })
+    ).toThrow(CanvasStateUnwritableError);
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+
+  it('applyPatchToDoc: the root formState mirror is not written when a page refuses', () => {
+    const doc = twoPages();
+    const before = bytesOf(doc);
+    expect(() => applyPatchToDoc(doc, { headline: 'x', iconStates: { i: bad() } }, null)).toThrow(
+      CanvasStateUnwritableError
+    );
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+});
+
+describe('plain fallback and empty patches', () => {
+  beforeEach(() => warn.mockClear());
+
+  it('accepts a collection the structure cannot hold, and logs it with canvas, page and key', () => {
+    const doc = clientDoc({ stamp: 4, structured: true });
+    const dup = [
+      { id: 't1', text: 'a' },
+      { id: 't1', text: 'b' },
+    ];
+    applyPatchToDoc(doc, { additionalTexts: dup }, null);
+    expect(readState(stateOf(doc)).additionalTexts).toEqual(dup);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = String(warn.mock.calls[0]?.[0]);
+    expect(line).toContain(doc.guid);
+    expect(line).toContain('p1');
+    expect(line).toContain('additionalTexts');
+  });
+
+  it('an empty patch neither stamps nor seeds an empty document', () => {
+    const doc = new Y.Doc();
+    const before = bytesOf(doc);
+    applyPatchToDoc(doc, {}, SAMPLE_STATE());
     expect(bytesOf(doc).equals(before)).toBe(true);
   });
 });

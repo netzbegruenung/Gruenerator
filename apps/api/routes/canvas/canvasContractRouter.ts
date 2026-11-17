@@ -50,8 +50,13 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../services/canvas/canvasVersionRepository.js';
+import {
+  CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
+} from '../../services/canvas/canvasWriteErrors.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/userFacing.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -79,6 +84,28 @@ const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
       typeof (p as CanvasPageDef).configId === 'string' &&
       typeof (p as CanvasPageDef).state === 'object'
   );
+
+/**
+ * A write the collab service refused on purpose is not a server failure: the document is newer
+ * than the server can write (409) or the value cannot be stored (400). Null for anything else.
+ */
+function writeRefusalResponse(error: unknown) {
+  if (error instanceof CanvasDocumentNewerError) {
+    log.warn(`[canvas] write refused for ${error.canvasId}: document is newer`);
+    return {
+      status: 409 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_DOCUMENT_NEWER' as const },
+    };
+  }
+  if (error instanceof CanvasStateUnwritableError) {
+    log.warn(`[canvas] write refused for ${error.canvasId}: value cannot be stored`);
+    return {
+      status: 400 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_STATE_UNWRITABLE' as const },
+    };
+  }
+  return null;
+}
 
 const s = initServer();
 
@@ -431,6 +458,8 @@ export const canvasContractRouter = s.router(canvasContract, {
       });
       return { status: 200 as const, body: { version: newVersion, state: snapshot.state } };
     } catch (error) {
+      const refused = writeRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.restoreVersion] Error:', err);
       return {
@@ -514,6 +543,8 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (format !== undefined) await updateCanvas(args.params.id, userId, { format });
       return { status: 200 as const, body: { message: 'Canvas pages replaced successfully' } };
     } catch (error) {
+      const refused = writeRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.replacePages] Error:', err);
       return {

@@ -22,10 +22,15 @@ import {
   slideDeckOperationsSchema,
 } from '@gruenerator/contracts/slides';
 
+import { toUserFacingMessage } from '../../utils/errors/userFacing.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiObject } from '../ai/generate.js';
 import { checkCanvasWriteAccess, getCanvas } from '../canvas/canvasRepository.js';
 import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateService.js';
+import {
+  CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
+} from '../canvas/canvasWriteErrors.js';
 
 import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
 
@@ -40,7 +45,10 @@ export type CanvasDeckEditOutcome =
       operations: SlideDeckOperation[];
       basePageIds: string[];
     }
-  | { status: 'failed'; message: string };
+  | { status: 'failed'; message: string; reason?: CanvasWriteFailure };
+
+/** Why writing a planned edit failed; `document_newer` and `unwritable` are not worth a retry. */
+export type CanvasWriteFailure = 'document_newer' | 'unwritable' | 'write_failed';
 
 export type CanvasDeckPlan =
   | {
@@ -273,10 +281,11 @@ export async function planCanvasDeckEdit(opts: {
   };
 }
 
+/** The failure a write ended in, as the outcome a caller hands on; null when it worked. */
 async function writeResult(
   canvasId: string,
   plan: Pick<Extract<CanvasDeckPlan, { status: 'planned' }>, 'result' | 'seedPages'>
-): Promise<boolean> {
+): Promise<{ status: 'failed'; message: string; reason: CanvasWriteFailure } | null> {
   const { result, seedPages } = plan;
   try {
     await applyDeckChanges(
@@ -285,10 +294,17 @@ async function writeResult(
         ? { seedPages, replacePages: result.pages, newPages: result.pages }
         : { seedPages, pagePatches: result.pagePatches, newPages: result.pages }
     );
-    return true;
+    return null;
   } catch (err) {
     log.error(`writing to ${canvasId} failed: ${err}`);
-    return false;
+    // Retrying cannot help in these two cases, so they do not get the retry hint.
+    if (err instanceof CanvasDocumentNewerError) {
+      return { status: 'failed', message: toUserFacingMessage(err), reason: 'document_newer' };
+    }
+    if (err instanceof CanvasStateUnwritableError) {
+      return { status: 'failed', message: toUserFacingMessage(err), reason: 'unwritable' };
+    }
+    return { status: 'failed', message: WRITE_FAILED, reason: 'write_failed' };
   }
 }
 
@@ -304,7 +320,7 @@ export async function applyPlannedCanvasDeckOperations(opts: {
   basePageIds: string[];
 }): Promise<
   | { status: 'applied'; title: string; summary: string; skipped: string[] }
-  | { status: 'stale' | 'failed'; message: string }
+  | { status: 'stale' | 'failed'; message: string; reason?: CanvasWriteFailure }
 > {
   const { canvasId, userId, operations, basePageIds } = opts;
   const access = await checkCanvasWriteAccess(canvasId, userId);
@@ -346,9 +362,8 @@ export async function applyPlannedCanvasDeckOperations(opts: {
       message: `An der Präsentation hat sich nichts geändert: ${result.refused.join(' ') || 'keine passende Folie.'}`,
     };
   }
-  if (!(await writeResult(canvasId, { result, seedPages: pages }))) {
-    return { status: 'failed', message: WRITE_FAILED };
-  }
+  const writeFailure = await writeResult(canvasId, { result, seedPages: pages });
+  if (writeFailure) return writeFailure;
   return { status: 'applied', title, summary: result.applied.join('; '), skipped: result.refused };
 }
 
@@ -370,9 +385,8 @@ export async function planAndApplyCanvasDeckEdit(opts: {
       basePageIds: plan.basePageIds,
     };
   }
-  if (!(await writeResult(opts.canvasId, plan))) {
-    return { status: 'failed', message: WRITE_FAILED };
-  }
+  const writeFailure = await writeResult(opts.canvasId, plan);
+  if (writeFailure) return writeFailure;
   return {
     status: 'applied',
     title: plan.title,
