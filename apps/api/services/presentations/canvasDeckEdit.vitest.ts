@@ -105,7 +105,12 @@ describe('planAndApplyCanvasDeckEdit', () => {
     const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [string, Record<string, unknown>];
     expect(changes['replacePages']).toBeUndefined();
     expect(changes['pagePatches']).toEqual([
-      { pageId: pages[1]!.id, patch: { additionalTexts: expect.any(Array) } },
+      {
+        pageId: pages[1]!.id,
+        patch: { additionalTexts: expect.any(Array) },
+        // The page as it was read: the server merges the patch into what is there now (#5765).
+        base: { additionalTexts: pages[1]!.state['additionalTexts'] },
+      },
     ]);
   });
 
