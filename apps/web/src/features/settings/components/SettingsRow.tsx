@@ -15,7 +15,10 @@ interface SettingsRowProps {
 const SettingsRow = ({ id, children }: SettingsRowProps) => {
   const { title, description } = getSettingsEntry(id);
   return (
-    <div className="flex items-center justify-between gap-md py-4">
+    <div
+      data-settings-id={id}
+      className="flex scroll-mt-4 items-center justify-between gap-md py-4"
+    >
       <div className="min-w-0">
         <p className="m-0 text-sm font-medium text-foreground">{title}</p>
         {description && (
