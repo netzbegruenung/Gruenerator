@@ -21,7 +21,7 @@
  * without a string id, a key absent from the document), the patch is taken whole: the behaviour
  * before the base existed.
  */
-import { sameStateValue } from '@ggraphic/core/ydoc';
+import { isDeepStrictEqual } from 'node:util';
 
 import type { StateKeyClasses } from '@ggraphic/core/ydoc';
 
@@ -53,7 +53,7 @@ const idList = (v: unknown): string[] | null => {
 function mergeProps(current: Json, base: Json, patch: Json): Json {
   const out: Json = { ...current };
   for (const [k, v] of Object.entries(patch)) {
-    if (!(k in base) || !sameStateValue(base[k], v)) out[k] = v;
+    if (!(k in base) || !isDeepStrictEqual(base[k], v)) out[k] = v;
   }
   for (const k of Object.keys(base)) if (!(k in patch)) delete out[k];
   return out;
@@ -96,7 +96,7 @@ function mergeElements(current: Json[], base: Json[], patch: Json[]): Json[] | n
     }
     const p = pat.get(id);
     if (!p) continue; // deleted by the patch
-    out.push(sameStateValue(b, p) ? el : mergeProps(el, b, p));
+    out.push(isDeepStrictEqual(b, p) ? el : mergeProps(el, b, p));
   }
   patch.forEach((el, index) => {
     const id = el.id as string;
@@ -117,7 +117,7 @@ function mergeOrder(current: string[], base: string[], patch: string[]): string[
   const curSet = new Set(cur);
   const baseKept = bas.filter((id) => patchSet.has(id));
   const patchKnown = pat.filter((id) => baseSet.has(id));
-  const reordered = !sameStateValue(baseKept, patchKnown);
+  const reordered = !isDeepStrictEqual(baseKept, patchKnown);
 
   // Start from the current order, or from the patch's when the patch reordered what it knew.
   const out = reordered
@@ -157,7 +157,7 @@ function mergeKey(
     if (isObject(current) && isObject(base) && isObject(patch)) {
       return mergeProps(current, base, patch);
     }
-  } else if (sameStateValue(base, patch)) {
+  } else if (isDeepStrictEqual(base, patch)) {
     return current;
   } else {
     return patch;
