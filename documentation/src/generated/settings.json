@@ -9,8 +9,24 @@
       "label": "Allgemein"
     },
     {
+      "value": "konto",
+      "label": "Konto"
+    },
+    {
       "value": "hintergrund",
       "label": "Hintergrund"
+    },
+    {
+      "value": "friends",
+      "label": "Friends"
+    },
+    {
+      "value": "benachrichtigungen",
+      "label": "Benachrichtigungen"
+    },
+    {
+      "value": "datenschutz",
+      "label": "Datenschutz"
     },
     {
       "value": "personalisierung",
@@ -21,12 +37,8 @@
       "label": "Erinnerungen"
     },
     {
-      "value": "friends",
-      "label": "Friends"
-    },
-    {
-      "value": "benachrichtigungen",
-      "label": "Benachrichtigungen"
+      "value": "tagesbriefing",
+      "label": "Tagesbriefing"
     },
     {
       "value": "briefe",
@@ -49,14 +61,6 @@
       "label": "Antragsgrün"
     },
     {
-      "value": "datenschutz",
-      "label": "Datenschutz & Barrierefreiheit"
-    },
-    {
-      "value": "baeume",
-      "label": "Bäume"
-    },
-    {
       "value": "nutzung",
       "label": "Nutzung"
     },
@@ -67,7 +71,7 @@
   ],
   "rows": {
     "allgemein.konto": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Konto",
       "description": "Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert"
     },
@@ -112,12 +116,12 @@
       "description": "Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können"
     },
     "barrierefreiheit.animationen": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Animationen reduzieren",
       "description": "Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
     "barrierefreiheit.transparenz": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
@@ -132,7 +136,7 @@
       "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
     "allgemein.papierkorb": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Papierkorb",
       "description": "Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen"
     },
@@ -146,8 +150,8 @@
       "title": "Gedächtnis",
       "description": "Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
     },
-    "erinnerungen.tagesbriefing": {
-      "tab": "erinnerungen",
+    "tagesbriefing.schalter": {
+      "tab": "tagesbriefing",
       "title": "Tagesbriefing im Chat",
       "description": "Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute."
     },
@@ -171,15 +175,15 @@
       "title": "Konnektoren",
       "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind"
     },
-    "baeume.stand": {
-      "tab": "baeume",
+    "nutzung.baeume": {
+      "tab": "nutzung",
       "title": "Bäume",
       "description": "Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche"
     },
     "nutzung.uebersicht": {
       "tab": "nutzung",
       "title": "Nutzung",
-      "description": "Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen"
+      "description": "Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen"
     },
     "support.kontakt": {
       "tab": "support",

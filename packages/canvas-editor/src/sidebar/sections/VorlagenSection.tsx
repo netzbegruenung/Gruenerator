@@ -24,7 +24,7 @@
  * or replace with it (one undo step, offered back through the top bar banner).
  */
 import { useCanvasEditorServices } from '@ggraphic/editor/host-react';
-import { GalleryTabs } from '@ggraphic/editor/internal/sidebar/sections/StudioGallery';
+import { GalleryTabs } from '@ggraphic/editor/internal/sidebar/sections/AssetGallery';
 import {
   AlertDialog,
   AlertDialogAction,

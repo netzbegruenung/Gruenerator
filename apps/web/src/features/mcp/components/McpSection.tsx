@@ -7,6 +7,7 @@
 import { connectorBrandIcon } from '@gruenerator/chat/connectors';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -17,7 +18,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
+import { FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 
 import {
   useMcpServers,
@@ -29,6 +30,7 @@ import {
   useMcpRegistry,
   invalidateMcpServers,
 } from '../hooks/useMcpServers';
+import { useMicrosoftConnector } from '../hooks/useMicrosoftConnector';
 import {
   connectRegistryConnector,
   createMcpServer,
@@ -49,6 +51,12 @@ import { mcpToolScopeKey, setToolDecision } from '../lib/toolApprovalsApi';
 
 import { McpToolStages } from './McpToolStages';
 
+import {
+  ROW_TEXT_INDENT,
+  SettingsList,
+  SettingsListRow,
+} from '@/features/settings/components/SettingsListRow';
+import SettingsSection from '@/features/settings/components/SettingsSection';
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
 
@@ -121,26 +129,13 @@ McpLogo.displayName = 'McpLogo';
 const inputClass =
   'w-full px-md py-sm rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure text-sm text-foreground focus:border-primary-400 focus:outline-none transition-colors';
 
-const connectBtnClass =
-  'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30 transition-colors cursor-pointer';
-
 const chipClass =
   'inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 dark:bg-primary-950/30 dark:text-primary-300 dark:border-primary-800 text-[11px] font-medium';
 
 const okTextClass = 'text-primary-700 dark:text-primary-400';
 
-const textBtnClass =
-  'text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50';
-
 const secondaryBtnClass =
   'px-lg py-sm rounded-xl font-medium text-sm cursor-pointer bg-transparent border border-grey-300 text-foreground hover:bg-grey-50 dark:border-grey-600 dark:hover:bg-grey-800 transition-colors';
-
-const dotOnClass =
-  'bg-primary shadow-[0_0_0_3px_var(--color-primary-100)] dark:shadow-[0_0_0_3px_var(--color-primary-950)]';
-
-/** A healthy (green) row border once the connector's test passed. */
-const rowBorder = (healthy: boolean) =>
-  healthy ? 'border-primary-400 dark:border-primary-600' : 'border-grey-200 dark:border-grey-700';
 
 const ToolChips = memo(({ tools, max = 16 }: { tools: string[]; max?: number }) => {
   if (tools.length === 0) return null;
@@ -448,7 +443,6 @@ const McpServerRow = memo(
     const isManaged = server.registryKey != null || server.managed === true;
     const needsAuth = !isManaged && server.authType === 'oauth' && !server.hasToken;
     const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
-    const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
 
     const authorize = () => {
       void runOAuth(async () => server.id).then((result) => {
@@ -503,40 +497,16 @@ const McpServerRow = memo(
       autoTest();
     }, [needsFirstTest]);
 
-    const healthy = testResult?.ok === true;
-
     return (
-      <div
-        className={cn(
-          'flex flex-col gap-sm bg-background-pure border rounded-2xl p-md sm:px-lg shadow-sm transition-colors',
-          rowBorder(healthy)
-        )}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-md">
-          <div className="flex items-center gap-md min-w-0 flex-1">
-            <McpLogo title={server.name} size={48} />
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-sm flex-wrap">
-                <span className="text-base font-bold text-foreground-heading truncate">
-                  {server.name}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-grey-500">
-                  <span className={cn('w-1.5 h-1.5 rounded-full', dotClass)} />
-                  <span
-                    className={cn(needsAuth ? 'text-amber-600 dark:text-amber-400' : okTextClass)}
-                  >
-                    {statusLabel}
-                  </span>
-                </span>
-              </div>
-              {isManaged ? (
-                <span className="text-xs text-grey-400 truncate">{server.description}</span>
-              ) : (
-                <span className="text-xs text-grey-400 font-mono truncate">{server.url}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-md flex-wrap sm:flex-none sm:justify-end">
+      <SettingsListRow
+        mark={<McpLogo title={server.name} size={30} />}
+        name={server.name}
+        badge={{ label: statusLabel, tone: !needsAuth && server.enabled ? 'primary' : 'neutral' }}
+        meta={
+          isManaged ? server.description : <span className="font-mono text-xs">{server.url}</span>
+        }
+        actions={
+          <>
             <label className="inline-flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer">
               <Switch
                 checked={server.enabled}
@@ -550,30 +520,33 @@ const McpServerRow = memo(
               Aktiv
             </label>
             {needsAuth && (
-              <button type="button" onClick={authorize} className={connectBtnClass}>
+              <Button type="button" variant="outline" size="sm" onClick={authorize}>
                 Autorisieren
-              </button>
+              </Button>
             )}
             {needsAuth && onUseKey && (
-              <button type="button" onClick={onUseKey} className={textBtnClass}>
+              <Button type="button" variant="ghost" size="sm" onClick={onUseKey}>
                 Stattdessen API-Key
-              </button>
+              </Button>
             )}
             {!isManaged && !needsAuth && server.authType === 'oauth' && (
-              <button type="button" onClick={authorize} className={textBtnClass}>
+              <Button type="button" variant="ghost" size="sm" onClick={authorize}>
                 Neu verbinden
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => runTest()}
               disabled={test.isPending}
-              className={textBtnClass}
             >
               {test.isPending ? 'Teste…' : 'Testen'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() =>
                 del.mutate(server.id, {
                   onSuccess: () => onSuccess('Konnektor entfernt'),
@@ -581,105 +554,110 @@ const McpServerRow = memo(
                 })
               }
               disabled={del.isPending}
-              className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+              className="hover:text-[var(--error-red)]"
             >
               Entfernen
-            </button>
-          </div>
-        </div>
-        {server.toolsDrift && (
-          <div className="flex flex-col gap-1.5" role="status">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <FiAlertCircle className="w-3.5 h-3.5" />
-              {server.toolsDrift.changed.length > 0
-                ? 'Werkzeug-Beschreibungen geändert — dieser Konnektor ist bis zur Freigabe gesperrt'
-                : 'Neue Werkzeuge seit der Freigabe — sie bleiben bis zur Freigabe ungenutzt'}
-            </span>
-            {server.toolsDrift.changed.length > 0 && (
-              <>
-                <span className="text-xs text-grey-500">Geändert:</span>
-                <ToolChips tools={server.toolsDrift.changed} />
-              </>
-            )}
-            {server.toolsDrift.added.length > 0 && (
-              <>
-                <span className="text-xs text-grey-500">Neu:</span>
-                <ToolChips tools={server.toolsDrift.added} />
-              </>
-            )}
-            <div className="flex flex-wrap items-center gap-md">
-              <button
-                type="button"
-                onClick={() =>
-                  approve.mutate(server.id, {
-                    onSuccess: () => onSuccess(`Werkzeuge von ${server.name} freigegeben`),
-                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
-                  })
-                }
-                disabled={approve.isPending}
-                className={connectBtnClass}
-              >
-                {approve.isPending ? 'Gebe frei…' : 'Werkzeuge freigeben'}
-              </button>
-              <button
-                type="button"
-                onClick={() => void rejectDrifted()}
-                disabled={approve.isPending}
-                className={textBtnClass}
-              >
-                Diese Werkzeuge abschalten
-              </button>
-            </div>
-          </div>
-        )}
-        {!isManaged && server.toolNames && (
-          <McpToolStages
-            serverId={server.id}
-            serverName={server.name}
-            toolNames={server.toolNames}
-            newTools={server.toolsDrift?.added ?? []}
-            onError={onError}
-          />
-        )}
-        {testResult &&
-          (testResult.ok ? (
-            <div className="flex flex-col gap-1.5">
-              {/* Ein erreichbarer Server ohne Werkzeuge ist kein Erfolg — grün mit
-                  „0 Tools verfügbar" hat genau diesen Fall als in Ordnung gemeldet. */}
-              {testResult.tools.length === 0 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <FiAlertCircle className="w-3.5 h-3.5" />
-                  Verbunden, aber der Server meldet keine Werkzeuge
-                </span>
-              ) : (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-semibold',
-                    okTextClass
-                  )}
-                >
-                  <FiCheck className="w-3.5 h-3.5" />
-                  {testResult.tools.length} Tools verfügbar
-                </span>
+            </Button>
+          </>
+        }
+      >
+        <div className={cn('flex flex-col gap-sm empty:hidden', ROW_TEXT_INDENT)}>
+          {server.toolsDrift && (
+            <div className="flex flex-col gap-1.5" role="status">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                <FiAlertCircle className="w-3.5 h-3.5" />
+                {server.toolsDrift.changed.length > 0
+                  ? 'Werkzeug-Beschreibungen geändert — dieser Konnektor ist bis zur Freigabe gesperrt'
+                  : 'Neue Werkzeuge seit der Freigabe — sie bleiben bis zur Freigabe ungenutzt'}
+              </span>
+              {server.toolsDrift.changed.length > 0 && (
+                <>
+                  <span className="text-xs text-grey-500">Geändert:</span>
+                  <ToolChips tools={server.toolsDrift.changed} />
+                </>
               )}
-              <ToolChips tools={testResult.tools} />
-              <McpTestDiagnostics result={testResult} />
+              {server.toolsDrift.added.length > 0 && (
+                <>
+                  <span className="text-xs text-grey-500">Neu:</span>
+                  <ToolChips tools={server.toolsDrift.added} />
+                </>
+              )}
+              <div className="flex flex-wrap items-center gap-md">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    approve.mutate(server.id, {
+                      onSuccess: () => onSuccess(`Werkzeuge von ${server.name} freigegeben`),
+                      onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                    })
+                  }
+                  disabled={approve.isPending}
+                >
+                  {approve.isPending ? 'Gebe frei…' : 'Werkzeuge freigeben'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void rejectDrifted()}
+                  disabled={approve.isPending}
+                >
+                  Diese Werkzeuge abschalten
+                </Button>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-grey-500">✗ {testResult.error}</span>
-              <McpTestDiagnostics result={testResult} />
-            </div>
-          ))}
-      </div>
+          )}
+          {!isManaged && server.toolNames && (
+            <McpToolStages
+              serverId={server.id}
+              serverName={server.name}
+              toolNames={server.toolNames}
+              newTools={server.toolsDrift?.added ?? []}
+              onError={onError}
+            />
+          )}
+          {testResult &&
+            (testResult.ok ? (
+              <div className="flex flex-col gap-1.5">
+                {/* Ein erreichbarer Server ohne Werkzeuge ist kein Erfolg — grün mit
+                  „0 Tools verfügbar" hat genau diesen Fall als in Ordnung gemeldet. */}
+                {testResult.tools.length === 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    <FiAlertCircle className="w-3.5 h-3.5" />
+                    Verbunden, aber der Server meldet keine Werkzeuge
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 text-xs font-semibold',
+                      okTextClass
+                    )}
+                  >
+                    <FiCheck className="w-3.5 h-3.5" />
+                    {testResult.tools.length} Tools verfügbar
+                  </span>
+                )}
+                <ToolChips tools={testResult.tools} />
+                <McpTestDiagnostics result={testResult} />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-grey-500">✗ {testResult.error}</span>
+                <McpTestDiagnostics result={testResult} />
+              </div>
+            ))}
+        </div>
+      </SettingsListRow>
     );
   }
 );
 McpServerRow.displayName = 'McpServerRow';
 
-// ── Available cards ──────────────────────────────────────────────────────────
+// ── Available rows ──────────────────────────────────────────────────────────
 
-// Compact one-line card: logo + name + connect. No auth badge, description or
+// Compact one-line row: logo + name + connect. No auth badge, description or
 // category (the section heading already carries the category).
 const CardShell = memo(
   ({
@@ -687,34 +665,58 @@ const CardShell = memo(
     connecting,
     onConnect,
     onUseKey,
+    onDisconnect,
+    experimental = false,
   }: {
     title: string;
+    /** Open to everyone but not yet settled — says so next to the name. */
+    experimental?: boolean;
     connecting: boolean;
     onConnect: () => void;
     /** Provider also takes an API key — offered next to the one-click login. */
     onUseKey?: (() => void) | null;
+    /**
+     * Set for a connection that stays a card once connected (Microsoft 365 is
+     * no MCP row, so it has no place under „Verbunden").
+     */
+    onDisconnect?: (() => void) | null;
   }) => (
-    <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
-      <McpLogo title={title} size={30} />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
-        {title}
-      </span>
-      {onUseKey && !connecting && (
-        <button type="button" onClick={onUseKey} className={textBtnClass}>
-          oder API-Key
-        </button>
-      )}
-      {connecting ? (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-primary-400">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-200 border-t-primary dark:border-primary-800" />
-          Verbinden …
-        </span>
-      ) : (
-        <button type="button" onClick={onConnect} className={connectBtnClass}>
-          Verbinden
-        </button>
-      )}
-    </div>
+    <SettingsListRow
+      mark={<McpLogo title={title} size={30} />}
+      name={title}
+      badge={experimental ? { label: 'Experimentell', tone: 'neutral' } : undefined}
+      actions={
+        <>
+          {onUseKey && !connecting && (
+            <Button type="button" variant="ghost" size="sm" onClick={onUseKey}>
+              oder API-Key
+            </Button>
+          )}
+          {onDisconnect ? (
+            <>
+              <span
+                className={cn('inline-flex items-center gap-1 text-xs font-semibold', okTextClass)}
+              >
+                <FiCheck className="w-3.5 h-3.5" />
+                Verbunden
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={onDisconnect}>
+                Trennen
+              </Button>
+            </>
+          ) : connecting ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-primary-400">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-200 border-t-primary dark:border-primary-800" />
+              Verbinden …
+            </span>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={onConnect}>
+              Verbinden
+            </Button>
+          )}
+        </>
+      }
+    />
   )
 );
 CardShell.displayName = 'CardShell';
@@ -907,12 +909,14 @@ const BearerConnectDialog = ({
  * One card under "Dienste verbinden": a directory entry — a curated vendor or a
  * known connector (`registryKey`), which connects by its key instead of a URL.
  */
-interface AvailableItem {
-  key: string;
-  category: string;
-  title: string;
-  entry: McpRegistryEntry;
-}
+type AvailableItem =
+  | { kind: 'mcp'; key: string; category: string; title: string; entry: McpRegistryEntry }
+  /** A Nango connection (not MCP) that lives in the same directory. */
+  | { kind: 'microsoft'; key: string; category: string; title: string };
+
+const MICROSOFT_TITLE = 'Microsoft 365';
+/** What the directory search matches for the Microsoft card (it isn't in the registry). */
+const MICROSOFT_SEARCH_TEXT = 'microsoft 365 onedrive office';
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -977,6 +981,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
+  const microsoft = useMicrosoftConnector();
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
 
@@ -1008,6 +1013,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           : !connectedHosts.has(hostOf(e.url) ?? e.url)
       )
       .map((entry): AvailableItem => ({
+        kind: 'mcp',
         key: entry.registryKey ?? entry.url,
         category: mergeCategory(entry.category),
         title: entry.title,
@@ -1016,10 +1022,19 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
     for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
-    return merged.map((it) =>
+    const items = merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedHosts, connectedKeys]);
+    if (microsoft.available && MICROSOFT_SEARCH_TEXT.includes(debouncedSearch.toLowerCase())) {
+      items.push({
+        kind: 'microsoft',
+        key: 'nango:microsoft',
+        category: OTHER_CATEGORY,
+        title: MICROSOFT_TITLE,
+      });
+    }
+    return items;
+  }, [registry, connectedHosts, connectedKeys, microsoft.available, debouncedSearch]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1183,69 +1198,87 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
-  const renderCard = (it: AvailableItem) => (
-    <CardShell
-      key={it.key}
-      title={it.title}
-      connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
-      onConnect={() => handlePickMcp(it.entry)}
-      onUseKey={keyAlternative(it.entry)}
-    />
-  );
+  const renderCard = (it: AvailableItem) =>
+    it.kind === 'microsoft' ? (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        experimental
+        connecting={microsoft.connect.isPending}
+        onConnect={() =>
+          microsoft.connect.mutate(undefined, {
+            onError: (err) =>
+              onError(err instanceof Error ? err.message : 'Verbinden fehlgeschlagen'),
+          })
+        }
+        onDisconnect={
+          microsoft.connected
+            ? () =>
+                microsoft.disconnect.mutate(undefined, {
+                  onSuccess: () => onSuccess(`${MICROSOFT_TITLE} getrennt`),
+                  onError: () => onError('Verbindung konnte nicht getrennt werden'),
+                })
+            : null
+        }
+      />
+    ) : (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
+        onConnect={() => handlePickMcp(it.entry)}
+        onUseKey={keyAlternative(it.entry)}
+      />
+    );
 
   const hasConnected = connected.length > 0;
 
   return (
-    <div className="mt-xl">
+    <div className="flex flex-col gap-8">
       {/* Header */}
-      <div className="flex items-center gap-md">
-        <div className="w-[52px] h-[52px] flex-none rounded-[14px] bg-primary-50 border border-primary-100 dark:bg-primary-950/30 dark:border-primary-800 flex items-center justify-center text-primary dark:text-primary-400">
-          <FiServer className="w-6 h-6" />
+      <div>
+        <div className="flex items-center gap-md">
+          <div className="flex items-center gap-sm flex-wrap">
+            <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">
+              Konnektoren
+            </h2>
+            <span className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-grey-600 dark:bg-grey-800 dark:text-grey-300">
+              Experimentell
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={refreshMcp}
+            disabled={isFetching}
+            className="ml-auto"
+          >
+            <FiRefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
+            Aktualisieren
+          </Button>
         </div>
-        <div className="flex items-center gap-sm flex-wrap">
-          <h2 className="text-2xl font-semibold text-foreground-heading m-0 tracking-tight">
-            Konnektoren
-          </h2>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 border-secondary-100 dark:bg-secondary-900/30 dark:text-secondary-300 dark:border-secondary-600 text-xs font-semibold border">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />
-            Experimentell
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={refreshMcp}
-          disabled={isFetching}
-          className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-        >
-          <FiRefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
-          Aktualisieren
-        </button>
+        <p className="m-0 mt-sm max-w-[64ch] text-[13px] text-grey-600 dark:text-grey-400">
+          Verbinde externe Dienste und nutze sie direkt im Chat – jeder verbundene Server ist per
+          eigenem Mention ansprechbar, z. B.{' '}
+          <span className="text-foreground font-semibold">@notion</span> oder{' '}
+          <span className="text-foreground font-semibold">@brevo</span>. Ein Klick startet die
+          Verbindung.
+        </p>
       </div>
-      <p className="mt-sm max-w-xl text-sm text-grey-500 leading-relaxed">
-        Verbinde externe Dienste und nutze sie direkt im Chat – jeder verbundene Server ist per
-        eigenem Mention ansprechbar, z. B.{' '}
-        <span className="text-foreground font-semibold">@notion</span> oder{' '}
-        <span className="text-foreground font-semibold">@brevo</span>. Ein Klick startet die
-        Verbindung.
-      </p>
 
-      {isLoading && (
-        <div className="mt-md">
-          <SettingsCardsSkeleton cards={3} />
-        </div>
-      )}
+      {isLoading && <SettingsCardsSkeleton cards={3} />}
 
       {/* OAuth servers still waiting for their authorization — kept out of
           "Verbunden" so a pending server never looks usable. */}
       {authPending.length > 0 && (
-        <div className="mt-xl">
-          <div className="flex items-baseline gap-sm mb-sm">
-            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-amber-600 dark:text-amber-400">
-              Autorisierung erforderlich
-            </h3>
-            <span className="text-xs text-grey-400">noch nicht nutzbar</span>
-          </div>
-          <div className="flex flex-col gap-sm">
+        <SettingsSection
+          title="Autorisierung erforderlich"
+          aside={
+            <span className="text-xs text-grey-600 dark:text-grey-400">noch nicht nutzbar</span>
+          }
+        >
+          <SettingsList>
             {authPending.map((server) => (
               <McpServerRow
                 key={server.id}
@@ -1256,21 +1289,20 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 onUseKey={rowKeyAction(server)}
               />
             ))}
-          </div>
-        </div>
+          </SettingsList>
+        </SettingsSection>
       )}
 
       {/* Connected — only shown once at least one server is connected; an empty
           state here would just be noise. */}
       {hasConnected && (
-        <div className="mt-xl">
-          <div className="flex items-baseline gap-sm mb-sm">
-            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-              Verbunden
-            </h3>
-            <span className="text-xs text-grey-400">{activeCount} aktiv</span>
-          </div>
-          <div className="flex flex-col gap-sm">
+        <SettingsSection
+          title="Verbunden"
+          aside={
+            <span className="text-xs text-grey-600 dark:text-grey-400">{activeCount} aktiv</span>
+          }
+        >
+          <SettingsList>
             {connected.map((server) => (
               <McpServerRow
                 key={server.id}
@@ -1280,126 +1312,134 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 onNeedsClient={askForClient(server)}
               />
             ))}
-          </div>
-        </div>
+          </SettingsList>
+        </SettingsSection>
       )}
 
       {/* Available */}
-      <div className="mt-xl">
-        <div className="flex items-baseline justify-between gap-sm mb-md flex-wrap">
-          <h3 className="m-0 text-lg font-bold text-foreground-heading tracking-tight">
-            Dienste verbinden
-          </h3>
-          <span className="text-xs text-grey-400">{available.length} verfügbar</span>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-md">
-          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-400 pointer-events-none" />
-          <input
-            className={cn(inputClass, 'h-12 pl-11')}
-            aria-label="Server suchen"
-            placeholder="Server suchen …"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Category pills */}
-        {cats.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-md">
-            {cats.map((c) => {
-              const active = c === cat;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCat(c)}
-                  className={cn(
-                    'px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors border',
-                    active
-                      ? 'bg-primary text-white border-primary shadow-sm'
-                      : 'bg-background-pure text-foreground border-grey-200 dark:border-grey-700 hover:border-primary-300'
-                  )}
-                >
-                  {c}
-                </button>
-              );
-            })}
+      <SettingsSection
+        title="Dienste verbinden"
+        aside={
+          <span className="text-xs text-grey-600 dark:text-grey-400">
+            {available.length} verfügbar
+          </span>
+        }
+      >
+        <div className="flex flex-col gap-md py-3">
+          {/* Search */}
+          <div className="relative">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-500 pointer-events-none" />
+            <input
+              className={cn(inputClass, 'h-10 pl-11')}
+              aria-label="Server suchen"
+              placeholder="Server suchen …"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        )}
 
-        {registryLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
-
-        {!registryLoading &&
-          filtered.length > 0 &&
-          (cat === 'Alle' && groups ? (
-            <div className="flex flex-col gap-lg">
-              {groups.map(([c, items]) => (
-                <div key={c}>
-                  <h4 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
+          {/* Category pills */}
+          {cats.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {cats.map((c) => {
+                const active = c === cat;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCat(c)}
+                    aria-pressed={active}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs cursor-pointer transition-colors border',
+                      active
+                        ? 'bg-primary-100 text-primary-700 border-primary-100 dark:bg-primary-950 dark:text-primary-200 dark:border-primary-950'
+                        : 'bg-transparent text-grey-600 border-grey-200 hover:border-primary-300 dark:text-grey-300 dark:border-grey-700'
+                    )}
+                  >
                     {c}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-                    {items.map(renderCard)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {registryLoading && (
+            <p className="m-0 text-sm text-grey-600 dark:text-grey-400 text-center py-md">Lade…</p>
+          )}
+
+          {!registryLoading &&
+            filtered.length > 0 &&
+            (cat === 'Alle' && groups ? (
+              <div className="flex flex-col gap-md">
+                {groups.map(([c, items]) => (
+                  <div key={c}>
+                    <h3 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
+                      {c}
+                    </h3>
+                    <SettingsList>{items.map(renderCard)}</SettingsList>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">{filtered.map(renderCard)}</div>
-          ))}
+                ))}
+              </div>
+            ) : (
+              <SettingsList>{filtered.map(renderCard)}</SettingsList>
+            ))}
 
-        {/* Server suchen — remote hits from the open MCP registry */}
-        {!registryLoading && externalServers.length > 0 && (
-          <div className="mt-lg">
-            <div className="flex items-baseline gap-sm mb-sm">
-              <h4 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-                Weitere Server im offenen Register
-              </h4>
-              <span className="text-xs text-grey-400">{externalServers.length}</span>
+          {/* Server suchen — remote hits from the open MCP registry */}
+          {!registryLoading && externalServers.length > 0 && (
+            <div>
+              <div className="flex items-baseline gap-sm">
+                <h3 className="m-0 text-xs font-semibold text-grey-600 dark:text-grey-400">
+                  Weitere Server im offenen Register
+                </h3>
+                <span className="text-xs text-grey-600 dark:text-grey-400">
+                  {externalServers.length}
+                </span>
+              </div>
+              <SettingsList>
+                {externalServers.map((entry) => (
+                  <CardShell
+                    key={entry.url}
+                    title={entry.title}
+                    connecting={connecting === entry.url}
+                    onConnect={() => handlePickExternal(entry)}
+                  />
+                ))}
+              </SettingsList>
+              {registry?.nextCursor && (
+                <p className="m-0 mt-sm text-xs text-grey-600 dark:text-grey-400">
+                  Weitere Treffer vorhanden – verfeinere die Suche für passendere Ergebnisse.
+                </p>
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-              {externalServers.map((entry) => (
-                <CardShell
-                  key={entry.url}
-                  title={entry.title}
-                  connecting={connecting === entry.url}
-                  onConnect={() => handlePickExternal(entry)}
-                />
-              ))}
-            </div>
-            {registry?.nextCursor && (
-              <p className="mt-sm text-xs text-grey-400">
-                Weitere Treffer vorhanden – verfeinere die Suche für passendere Ergebnisse.
-              </p>
-            )}
-          </div>
-        )}
+          )}
 
-        {!registryLoading && filtered.length === 0 && externalServers.length === 0 && (
-          <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center bg-background-pure">
-            <div className="text-sm font-semibold text-foreground">Kein Dienst gefunden</div>
-            <div className="mt-1 text-xs text-grey-500">
-              {debouncedSearch
-                ? 'Auch im offenen MCP-Register nichts gefunden. Passe die Suche an.'
-                : 'Passe die Suche an oder wähle eine andere Kategorie.'}
+          {!registryLoading && filtered.length === 0 && externalServers.length === 0 && (
+            <div className="py-md text-center">
+              <div className="text-sm font-semibold text-foreground">Kein Dienst gefunden</div>
+              <div className="mt-1 text-xs text-grey-600 dark:text-grey-400">
+                {debouncedSearch
+                  ? 'Auch im offenen MCP-Register nichts gefunden. Passe die Suche an.'
+                  : 'Passe die Suche an oder wähle eine andere Kategorie.'}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </SettingsSection>
 
       {/* Custom MCP server */}
-      <div ref={addFormRef} className="mt-xl scroll-mt-24">
-        <h3 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
-          {prefill ? `${prefill.name} verbinden` : 'Eigenen MCP-Server hinzufügen'}
-        </h3>
-        <McpAddForm
-          onSuccess={onSuccess}
-          onError={onError}
-          prefill={prefill}
-          redirectUri={registry?.oauthRedirectUri ?? null}
-        />
+      <div ref={addFormRef} className="scroll-mt-24">
+        <SettingsSection
+          title={prefill ? `${prefill.name} verbinden` : 'Eigenen MCP-Server hinzufügen'}
+        >
+          <div className="py-3">
+            <McpAddForm
+              onSuccess={onSuccess}
+              onError={onError}
+              prefill={prefill}
+              redirectUri={registry?.oauthRedirectUri ?? null}
+            />
+          </div>
+        </SettingsSection>
       </div>
 
       {bearerTarget && (

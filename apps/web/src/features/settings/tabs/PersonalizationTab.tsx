@@ -3,6 +3,7 @@ import { Button, toast } from '@gruenerator/ui';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
+import SettingsSection from '../components/SettingsSection';
 import { SettingsFormSkeleton } from '../components/SettingsSkeleton';
 
 import { readCustomPrompt } from './customPromptField';
@@ -35,6 +36,7 @@ const CustomPromptSection = () => {
   const [customPrompt, setCustomPrompt] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const savedPromptRef = useRef('');
+  const [justSaved, setJustSaved] = useState(false);
   const isInitialized = useRef(false);
 
   // Die Spalte gehört jetzt allein diesem Feld. Ein Rollenblock, den der
@@ -61,51 +63,63 @@ const CustomPromptSection = () => {
       }
       savedPromptRef.current = customPrompt;
       setIsDirty(false);
-      toast.success('Anweisungen gespeichert');
+      setJustSaved(true);
     },
     onError: () => {
       toast.error('Fehler beim Speichern der Anweisungen.');
     },
   });
 
+  const savedLabel = justSaved ? 'Gespeichert' : 'Speichern';
+
   if (isLoading) return <SettingsFormSkeleton />;
 
   return (
-    <div className="flex flex-col gap-sm">
-      <div>
-        <h3 className="m-0 text-sm font-medium text-foreground">Anweisungen</h3>
-        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-          Persönliche Hinweise, die der Grünerator bei jeder Antwort berücksichtigt.
-        </p>
-      </div>
-      <textarea
-        value={customPrompt}
-        onChange={(e) => {
-          setCustomPrompt(e.target.value);
-          setIsDirty(e.target.value !== savedPromptRef.current);
-        }}
-        placeholder="z.B. 'Duze die Leser*innen und schreibe knapp.'"
-        rows={4}
-        className="w-full resize-y rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
-      />
-      {isDirty && (
+    <SettingsSection
+      title="Anweisungen"
+      description="Persönliche Hinweise, die der Grünerator bei jeder Antwort berücksichtigt."
+    >
+      <div className="flex flex-col gap-sm pt-3">
+        <textarea
+          value={customPrompt}
+          onChange={(e) => {
+            setCustomPrompt(e.target.value);
+            setIsDirty(e.target.value !== savedPromptRef.current);
+            setJustSaved(false);
+          }}
+          aria-label="Anweisungen"
+          placeholder="z.B. 'Duze die Leser*innen und schreibe knapp.'"
+          rows={4}
+          className="w-full resize-y rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
+        />
         <div className="flex justify-end">
+          {/* aria-disabled statt disabled: ein fokussierter Knopf, der
+              `disabled` wird, verliert in Chrome den Fokus an <body> — genau
+              nach dem Klick auf „Speichern". So bleibt er fokussierbar, und der
+              Klick tut im sauberen Zustand nichts. */}
           <Button
             type="button"
             size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
+            onClick={() => {
+              if (saveMutation.isPending || !isDirty) return;
+              saveMutation.mutate();
+            }}
+            aria-disabled={saveMutation.isPending || !isDirty}
+            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
           >
-            {saveMutation.isPending ? 'Wird gespeichert…' : 'Speichern'}
+            {saveMutation.isPending ? 'Wird gespeichert…' : isDirty ? 'Speichern' : savedLabel}
           </Button>
+          <span role="status" className="sr-only">
+            {justSaved && !isDirty ? 'Anweisungen gespeichert' : ''}
+          </span>
         </div>
-      )}
-    </div>
+      </div>
+    </SettingsSection>
   );
 };
 
 const PersonalizationTab = () => (
-  <div className="flex flex-col gap-xl">
+  <div className="flex flex-col gap-8">
     <CustomPromptSection />
     <RolesSection />
   </div>

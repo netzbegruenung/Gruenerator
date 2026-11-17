@@ -77,9 +77,8 @@ describe('McpSection — bekannte Konnektoren', () => {
     const { container } = renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     const title = await screen.findByText('Rateo');
-    const card = title.closest('div.flex') ?? title.parentElement!;
     await userEvent.click(
-      within(card.parentElement as HTMLElement).getByRole('button', { name: 'Verbinden' })
+      within(title.closest('li') as HTMLElement).getByRole('button', { name: 'Verbinden' })
     );
 
     await waitFor(() => expect(connected).toEqual(['rateo']));
@@ -96,6 +95,51 @@ describe('McpSection — bekannte Konnektoren', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
+ * selben Verzeichnis unter „Sonstige". Seit 16.11.2026 für alle, als experimentell
+ * markiert; Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
+ */
+describe('McpSection — Microsoft 365', () => {
+  const STATUS_URL = `${API}/connections/status`;
+
+  function serveMicrosoft(providers: { provider: string; connected: boolean }[]) {
+    serve([]);
+    server.use(http.get(STATUS_URL, () => HttpResponse.json({ providers })));
+  }
+
+  const cardOf = async () =>
+    (await screen.findByText('Microsoft 365')).closest('li') as HTMLElement;
+
+  it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: false }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    const group = card.closest('ul')?.parentElement as HTMLElement;
+    expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
+    expect(within(card).getByText('Experimentell')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
+  });
+
+  it('zeigt verbunden „Trennen" statt „Verbinden"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: true }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    expect(await within(card).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
+  });
+
+  it('fehlt, wenn der Server Microsoft nicht meldet', async () => {
+    serveMicrosoft([]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Rateo');
+    expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
   });
 });
 

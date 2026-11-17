@@ -27,11 +27,10 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Canvas editor: text size typed and scaled by corners, crop pan that no longer
-  # jumps back on a resting pointer, filtered crop pan at frame rate
-  # (Movm/ggraphic#195, #198, #200). editor alpha.7 published 2026-11-16 18:35 UTC.
-  # Inert from 2026-11-19 18:36 UTC, remove then.
-  - '@ggraphic/editor@0.1.0-alpha.7'
+  # Closed export maps (Movm/ggraphic#147). editor alpha.10 and schema alpha.3 published
+  # 2026-11-17 01:16 UTC. Inert from 2026-11-20 01:17 UTC, remove then.
+  - '@ggraphic/editor@0.1.0-alpha.10'
+  - '@ggraphic/schema@0.1.0-alpha.3'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -453,7 +452,7 @@ overrides:
   lodash-es: '>=4.18.0'
   lodash: '>=4.18.0'
   '@esbuild-kit/core-utils>esbuild': ^0.25.0
-  axios: '>=1.19.0'
+  axios: '>=1.21.1'
   postcss: '>=8.5.32'
   uuid: '>=14.0.2'
   qs: '>=6.16.1'
@@ -490,13 +489,13 @@ overrides:
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
   '@types/node': 26.6.6
-  '@tanstack/react-query': ^5.106.1
+  '@tanstack/react-query': ^5.107.1
   zustand: 5.1.0
   katex: ^0.19.0
   pyodide: ^314.0.7
-  react-dropzone: ^20.1.2
+  react-dropzone: ^20.2.0
   prosemirror-view: ^1.42.6
-  prosemirror-model: ^1.25.12
+  prosemirror-model: ^1.25.13
   prosemirror-transform: ^1.12.2
   '@blocknote/core': ^0.57.0
   '@blocknote/react': ^0.57.0
@@ -504,30 +503,30 @@ overrides:
   '@blocknote/xl-ai': ^0.57.0
   '@blocknote/xl-docx-exporter': ^0.57.0
   '@blocknote/xl-odt-exporter': ^0.57.0
-  '@assistant-ui/core': ^0.3.32
-  '@assistant-ui/store': ^0.3.22
-  '@assistant-ui/react': ^0.15.32
-  '@assistant-ui/tap': ^0.9.24
-  '@assistant-ui/react-markdown': ^0.14.24
-  '@assistant-ui/react-streamdown': ^0.3.21
+  '@assistant-ui/core': ^0.3.36
+  '@assistant-ui/store': ^0.3.23
+  '@assistant-ui/react': ^0.15.36
+  '@assistant-ui/tap': ^0.9.26
+  '@assistant-ui/react-markdown': ^0.14.26
+  '@assistant-ui/react-streamdown': ^0.3.22
   '@assistant-ui/react-native': 0.1.51
-  '@tiptap/core': ^3.33.0
-  '@tiptap/extension-bold': ^3.33.0
-  '@tiptap/extension-code': ^3.33.0
-  '@tiptap/extension-collaboration': ^3.33.0
-  '@tiptap/extension-document': ^3.33.0
-  '@tiptap/extension-hard-break': ^3.33.0
-  '@tiptap/extension-heading': ^3.33.0
-  '@tiptap/extension-image': ^3.33.0
-  '@tiptap/extension-italic': ^3.33.0
-  '@tiptap/extension-list': ^3.33.0
-  '@tiptap/extension-paragraph': ^3.33.0
-  '@tiptap/extension-strike': ^3.33.0
-  '@tiptap/extension-table': ^3.33.0
-  '@tiptap/extension-text': ^3.33.0
-  '@tiptap/extension-underline': ^3.33.0
-  '@tiptap/extensions': ^3.33.0
-  '@tiptap/pm': ^3.33.0
-  '@tiptap/react': ^3.33.0
-  '@tiptap/static-renderer': ^3.33.0
+  '@tiptap/core': ^3.34.0
+  '@tiptap/extension-bold': ^3.34.0
+  '@tiptap/extension-code': ^3.34.0
+  '@tiptap/extension-collaboration': ^3.34.0
+  '@tiptap/extension-document': ^3.34.0
+  '@tiptap/extension-hard-break': ^3.34.0
+  '@tiptap/extension-heading': ^3.34.0
+  '@tiptap/extension-image': ^3.34.0
+  '@tiptap/extension-italic': ^3.34.0
+  '@tiptap/extension-list': ^3.34.0
+  '@tiptap/extension-paragraph': ^3.34.0
+  '@tiptap/extension-strike': ^3.34.0
+  '@tiptap/extension-table': ^3.34.0
+  '@tiptap/extension-text': ^3.34.0
+  '@tiptap/extension-underline': ^3.34.0
+  '@tiptap/extensions': ^3.34.0
+  '@tiptap/pm': ^3.34.0
+  '@tiptap/react': ^3.34.0
+  '@tiptap/static-renderer': ^3.34.0
   '@babel/core': 7.29.13

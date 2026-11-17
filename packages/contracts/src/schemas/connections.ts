@@ -38,6 +38,12 @@ export const driveBrowseResponseSchema = z.object({
 });
 export type DriveBrowseResponse = z.infer<typeof driveBrowseResponseSchema>;
 
+/** Nango-Link, der genau diesen Anbieter verbindet (öffnet im Popup). */
+export const driveConnectLinkResponseSchema = z.object({
+  success: z.literal(true),
+  connectLink: z.string(),
+});
+
 export const driveBrowseErrorSchema = z.object({
   success: z.literal(false),
   message: z.string(),

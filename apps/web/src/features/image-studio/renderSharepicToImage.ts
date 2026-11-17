@@ -186,6 +186,10 @@ function runRender(
             // auto-save (network writes plus its own pixelRatio-2 capture every
             // 1500ms), keyboard/undo listeners, and Konva's hit graph.
             preview: true,
+            // The capture's own scale: a tinted photo's look bitmap is cached at
+            // this ratio, not at the offscreen stage's display scale, which
+            // settles only after the first effects (#5597).
+            previewCaptureRatio: pixelRatio,
             canvasRef: (ref: CanvasHandle | null) => {
               canvasRef = ref;
             },

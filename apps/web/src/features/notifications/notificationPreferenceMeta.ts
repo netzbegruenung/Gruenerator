@@ -15,9 +15,6 @@
  */
 import {
   AtSign,
-  Bell,
-  BellOff,
-  BellRing,
   CloudDownload,
   FileText,
   Heart,
@@ -311,7 +308,6 @@ export interface LevelOption {
   value: 'low' | 'medium' | 'high';
   label: string;
   description: string;
-  icon: ComponentType<{ className?: string }>;
 }
 
 export const LEVEL_OPTIONS: LevelOption[] = [
@@ -319,18 +315,15 @@ export const LEVEL_OPTIONS: LevelOption[] = [
     value: 'low',
     label: 'Wenig',
     description: 'Nur kritische & persönliche Benachrichtigungen',
-    icon: BellOff,
   },
   {
     value: 'medium',
     label: 'Mittel',
     description: 'Empfohlen – wichtige Ereignisse',
-    icon: Bell,
   },
   {
     value: 'high',
     label: 'Viele',
     description: 'Alle Benachrichtigungen',
-    icon: BellRing,
   },
 ];

@@ -33,11 +33,20 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'allgemein',
     intro:
-      'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+      'Aussehen und Grundverhalten der Oberfläche. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
     extras: [
-      'Die Zeile **Konto** zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest.',
       'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
       'Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)" bekommst du österreichische Quellen und Begriffe statt deutscher.',
+      '**Animationen reduzieren** und **Transparenz reduzieren** (Gruppe „Bedienungshilfen") schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie folgen zunächst den Vorgaben deines Betriebssystems, gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
+      'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich, danach die untere Hälfte von „Datenschutz".',
+    ],
+  },
+  {
+    tab: 'konto',
+    intro:
+      'Wer du bist und was am Konto hängt. Hier steht nichts, was du einstellen müsstest — es ist der Ort für den Papierkorb und fürs endgültige Löschen.',
+    extras: [
+      'Die Gruppe **Grüner Login** zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest.',
       'Die Zeile **Papierkorb** öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt" im Workplace.',
       'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
     ],
@@ -56,12 +65,10 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'datenschutz',
     intro:
-      'Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern.',
+      'Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt.',
     extras: [
       '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
       '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
-      '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
-      'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich.',
     ],
   },
   {
@@ -101,6 +108,15 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'tagesbriefing',
+    intro:
+      'Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung.',
+    extras: [
+      'Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute.',
+      'Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt.',
+    ],
+  },
+  {
     tab: 'benachrichtigungen',
     intro:
       'Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal.',
@@ -108,7 +124,7 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'wolke',
     intro:
-      'Die Verbindung zur Grünen Wolke (Nextcloud). Ist sie eingerichtet, kannst du Dateien von dort direkt im Chat und in den Notebooks nutzen und Ergebnisse dorthin zurückspeichern.',
+      'Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung.',
   },
   {
     tab: 'websites',
@@ -120,28 +136,34 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'antragsgruen',
+    intro:
+      'Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst.',
+    extras: [
+      'Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast.',
+      'Antragsgrün lässt den Grünerator sich nicht selbst austragen. **Zugriff entziehen** zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist.',
+      '**Aus der Liste entfernen** löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen.',
+    ],
+  },
+  {
     tab: 'konnektoren',
     intro:
       'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
-  },
-  {
-    tab: 'baeume',
-    intro:
-      'Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben.',
     extras: [
-      'Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
-      'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
-      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche.',
-      'Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
+      '**Microsoft 365** (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus.',
+      '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
     ],
   },
   {
     tab: 'nutzung',
     intro:
-      'Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen.',
+      'Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe.',
     extras: [
-      'Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf.',
-      'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit.',
+      '**Bäume** sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
+      'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
+      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
+      'Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier.',
+      'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Der Link **/settings/baeume** führt weiterhin hierher.',
     ],
   },
   {

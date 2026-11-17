@@ -57,10 +57,11 @@ describe('MemoriesSection', () => {
 
     expect(await screen.findByText('Immer in der Sie-Form schreiben.')).toBeInTheDocument();
     expect(screen.getByText('Schreibt für den Kreisverband Köln.')).toBeInTheDocument();
-    expect(screen.getByText('Erinnerungen (2)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Erinnerungen' })).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
     // Kind chips on the rows (the filter buttons carry the same words, hence ≥).
     expect(screen.getAllByText('Anweisung').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Manuell')).toBeInTheDocument();
+    expect(screen.getByText(/^Manuell/)).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Gedächtnis einschalten' })).toBeInTheDocument();
 
     expect(await axe(container)).toHaveNoViolations();
@@ -104,34 +105,6 @@ describe('MemoriesSection', () => {
     await waitFor(() => expect(toggle).toBeEnabled());
     await user.click(toggle);
     await waitFor(() => expect(sent).toEqual({ memory_enabled: false }));
-  });
-
-  it('persists the Tagesbriefing switch through the profile update', async () => {
-    server.use(http.get(LIST, () => HttpResponse.json({ memories: [] })));
-    let sent: unknown = null;
-    server.use(
-      http.put(PROFILE, async ({ request }) => {
-        sent = await request.json();
-        return HttpResponse.json({
-          success: true,
-          profile: { id: 'u1', proactive_briefing_enabled: true },
-        });
-      })
-    );
-    const { user } = renderWithProviders(<MemoriesSection />);
-    const toggle = await screen.findByRole('switch', { name: 'Tagesbriefing im Chat einschalten' });
-    await waitFor(() => expect(toggle).toBeEnabled());
-    // opt-in: off until the person switches it on
-    expect(toggle).not.toBeChecked();
-    await user.click(toggle);
-    await waitFor(() => expect(sent).toEqual({ proactive_briefing_enabled: true }));
-  });
-
-  it('hides the dev rerun buttons outside the dev auth bypass', async () => {
-    server.use(http.get(LIST, () => HttpResponse.json({ memories: [] })));
-    renderWithProviders(<MemoriesSection />);
-    await screen.findByRole('switch', { name: 'Tagesbriefing im Chat einschalten' });
-    expect(screen.queryByText('Folgetag simulieren')).not.toBeInTheDocument();
   });
 
   it('filters by kind client-side', async () => {
