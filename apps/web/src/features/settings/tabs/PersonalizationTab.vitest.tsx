@@ -7,7 +7,7 @@ import { server } from '../../../test/msw-server';
 import PersonalizationTab from './PersonalizationTab';
 
 import { useAuthStore } from '@/stores/authStore';
-import { renderWithProviders, screen, waitFor } from '@/test-utils';
+import { renderWithProviders, screen } from '@/test-utils';
 
 const PROFILE = 'http://localhost/api/auth/profile';
 
