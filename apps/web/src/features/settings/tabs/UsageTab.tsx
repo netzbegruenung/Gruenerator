@@ -1,38 +1,35 @@
 /**
- * "Nutzung" — what this account has created (UsageWorks) and consumed.
+ * "Nutzung" — today's tree budget, what this account has created
+ * (UsageWorks), and how much it asked of the Grünerator.
  *
- * Shows real numbers rather than an abstract quota: requests and tokens per
- * day, broken down by tool and by model, plus the non-token operations
- * (generated images, transcriptions, web researches). The daily chart is plain
- * CSS bars — a charting library would be a lot of bundle for ten numbers.
+ * Deliberately in the user's terms: requests, images, transcriptions,
+ * researches. Tokens, model names and providers are not here since 11.11.2026
+ * — they answered "what runs where", which is the platform's question and is
+ * answered in full on /transparenz.
  */
 import { type UsageFootprintDto } from '@gruenerator/contracts';
 import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { getDocsUrl } from '../../../utils/docsUrl';
 import {
   FEATURE_LABELS,
   formatCount,
-  formatDay,
   formatDuration,
   formatEnergy,
   formatCorridor,
   formatGrams,
   formatDate,
-  formatApproxWords,
-  formatTokens,
-  FUNCTION_LABELS,
-  FUNCTION_ORDER,
-  providerLabel,
   referenceComparison,
-  UNIT_LABELS,
   USAGE_TRACKED_SINCE,
 } from '../../../utils/usageFormat';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
+import { prefetchTreeBudget, TreeBudgetSection } from '../components/TreeBudgetSection';
 import { UsageWorks } from '../components/UsageWorks';
 import { usageActivityQuery } from '../hooks/useUsageActivity';
 import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
+import { useSettingsDialogStore } from '../settingsDialogStore';
 
 /** The range the tab opens on — also the one worth prefetching. */
 const DEFAULT_DAYS = 30;
@@ -40,6 +37,7 @@ const DEFAULT_DAYS = 30;
 export const prefetch = (queryClient: QueryClient) => {
   void queryClient.prefetchQuery(usageStatsQuery(DEFAULT_DAYS));
   void queryClient.prefetchQuery(usageActivityQuery());
+  prefetchTreeBudget(queryClient);
 };
 
 const RANGES = [
@@ -48,12 +46,11 @@ const RANGES = [
   { days: 90, label: '90 Tage' },
 ] as const;
 
-function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
       <span className="text-xs text-grey-500">{label}</span>
       <span className="text-xl font-semibold text-foreground-heading">{value}</span>
-      {hint && <span className="text-xs text-grey-500">{hint}</span>}
     </div>
   );
 }
@@ -108,28 +105,43 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
         </div>
       </div>
       <p className="m-0 text-xs leading-relaxed text-grey-500">
-        Vergleich zu GPT-4o (Jegham et al. 2025), nur Text — Bilder haben keine vergleichbar sauber
-        abgegrenzte OpenAI-Zahl. Deinen eigenen Verbrauch weisen wir bewusst nicht aus; was die
-        Plattform insgesamt braucht, steht auf der Transparenz-Seite.{' '}
-        {comparison.marketDiffers && (
-          <>
-            Die Spanne umfasst zwei Dinge: die Unsicherheit der GPT-4o-Zahl (±30 %) und die beiden
-            anerkannten Bilanzierungsmethoden. Das günstige Ende rechnet unseren Ökostrom an
-            (marktbasiert) — unsere Rechenzentren beziehen zertifizierten Grünstrom, Hetzner
-            EMAS-geprüft. <strong>Es gilt nur für unsere Seite:</strong> Microsoft kauft ebenfalls
-            Erneuerbare ein, aber deren Nachweise können wir nicht verrechnen. Unsere Bilanz ist das
-            ungünstige Ende.{' '}
-          </>
-        )}
-        <a
-          href={`${getDocsUrl()}/docs/basics/nachhaltigkeit`}
-          target="_blank"
-          rel="noreferrer"
+        Geschätzt für dieselbe Textarbeit auf GPT-4o. Deinen eigenen Verbrauch weisen wir bewusst
+        nicht aus; was die Plattform insgesamt braucht, steht auf der{' '}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; die Navigation ist tastaturzugänglich, onClick schließt nur den Dialog */}
+        <Link
+          to="/transparenz"
+          onClick={() => useSettingsDialogStore.getState().close()}
           className="underline hover:text-foreground"
         >
-          Wie wir rechnen
-        </a>
+          Transparenz-Seite
+        </Link>
+        .
       </p>
+      {/* Die Herleitung bleibt vollständig, nur zugeklappt: eine CO₂-Zahl ohne
+          sie wäre auf einem Werkzeug der Grünen genau die Behauptung, die
+          jemand nachprüft. Sie hängt an dieser Karte und verschwindet mit ihr. */}
+      <details className="group text-xs leading-relaxed text-grey-500">
+        <summary className="cursor-pointer select-none hover:text-foreground">
+          So rechnen wir
+        </summary>
+        <div className="mt-sm flex flex-col gap-sm">
+          <p className="m-0">
+            Vergleich zu GPT-4o (Jegham et al. 2025), nur Text — Bilder haben keine vergleichbar
+            sauber abgegrenzte OpenAI-Zahl.{' '}
+            {comparison.marketDiffers && (
+              <>
+                Die Spanne umfasst zwei Dinge: die Unsicherheit der GPT-4o-Zahl (±30 %) und die
+                beiden anerkannten Bilanzierungsmethoden. Das günstige Ende rechnet unseren Ökostrom
+                an (marktbasiert) — unsere Rechenzentren beziehen zertifizierten Grünstrom, Hetzner
+                EMAS-geprüft. <strong>Es gilt nur für unsere Seite:</strong> Microsoft kauft
+                ebenfalls Erneuerbare ein, aber deren Nachweise können wir nicht verrechnen. Unsere
+                Bilanz ist das ungünstige Ende.
+              </>
+            )}
+          </p>
+          <FootprintNote footprint={footprint} />
+        </div>
+      </details>
     </section>
   );
 }
@@ -144,7 +156,7 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
   const boundedPct = Math.round(footprint.bounded_share * 100);
   const coveredPct = Math.round(footprint.covered_share * 100);
   return (
-    <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
+    <p className="m-0">
       {measuredPct > 0
         ? `${formatCount(measuredPct)} % der Ersparnis oben stützen sich auf Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
         : 'Die Ersparnis oben ist '}
@@ -184,6 +196,7 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
 export default function UsageTab() {
   return (
     <div className="flex flex-col gap-xl">
+      <TreeBudgetSection />
       <UsageWorks />
       <section className="flex flex-col gap-lg">
         <div className="flex flex-col gap-1">
@@ -212,26 +225,32 @@ function AiUsage() {
     );
   }
 
-  const { totals, footprint, daily, byFeature, byModel } = data;
-  const maxDayTokens = daily.reduce((max, d) => Math.max(max, d.input_tokens + d.output_tokens), 0);
+  const { totals, footprint, byFeature } = data;
   const hasAnything =
     totals.requests > 0 ||
     totals.images > 0 ||
     totals.transcriptions > 0 ||
     totals.speech_seconds > 0;
+  // Nur Kacheln mit Inhalt: eine Reihe Nullen sagt nichts, was die Leere
+  // nicht auch sagt.
+  const tiles = [
+    { label: 'KI-Anfragen', value: totals.requests, format: formatCount },
+    { label: 'Bilder', value: totals.images, format: formatCount },
+    { label: 'Transkriptionen', value: totals.transcriptions, format: formatCount },
+    { label: 'Web-Recherchen', value: totals.searches, format: formatCount },
+    { label: 'Sprachausgabe', value: totals.speech_seconds, format: formatDuration },
+  ].filter((tile) => tile.value > 0);
 
   return (
     <div className="flex flex-col gap-lg">
       <div className="flex flex-wrap items-center justify-between gap-sm">
-        <p className="m-0 text-sm text-grey-500">
-          Dein Verbrauch über die letzten {days} Tage. Die Zahlen aktualisieren sich wenige Sekunden
-          nach einer Anfrage.
-        </p>
+        <p className="m-0 text-sm text-grey-500">Die letzten {days} Tage.</p>
         <div className="flex shrink-0 gap-1 rounded-lg border border-grey-200 p-1 dark:border-grey-700">
           {RANGES.map((range) => (
             <button
               key={range.days}
               type="button"
+              aria-pressed={days === range.days}
               onClick={() => setDays(range.days)}
               className={`rounded-md px-2 py-1 text-xs transition-colors ${
                 days === range.days
@@ -252,16 +271,9 @@ function AiUsage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-sm md:grid-cols-3">
-            <StatTile label="KI-Anfragen" value={formatCount(totals.requests)} />
-            <StatTile
-              label="Tokens gesamt"
-              value={formatTokens(totals.total_tokens)}
-              hint={`${formatTokens(totals.input_tokens)} rein · ${formatTokens(totals.output_tokens)} raus (ca. ${formatApproxWords(totals.output_tokens)} Wörter)`}
-            />
-            <StatTile label="Bilder" value={formatCount(totals.images)} />
-            <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
-            <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
-            <StatTile label="Sprachausgabe" value={formatDuration(totals.speech_seconds)} />
+            {tiles.map((tile) => (
+              <StatTile key={tile.label} label={tile.label} value={tile.format(tile.value)} />
+            ))}
             {/* No CO2 tile here on purpose: this tab reports what you DID, and
                 the comparison below reports what that saved. An individual
                 footprint would make one person answerable for a platform
@@ -269,155 +281,51 @@ function AiUsage() {
                 not theirs. The platform's own figure is on /transparenz. */}
           </div>
 
-          {/* One gate for both: the note explains the card, so it must not
-              outlive it. Pure image usage has emissions but no comparison. */}
-          {footprint.emissions_g > 0 && referenceComparison(footprint).hasComparison && (
-            <>
-              <ReferenceComparison footprint={footprint} />
-              <FootprintNote footprint={footprint} />
-            </>
-          )}
+          {/* Pure image usage has emissions but no comparison — the card (and
+              the methodology folded into it) only appears when there is one. */}
+          {footprint.emissions_g > 0 && <ReferenceComparison footprint={footprint} />}
 
-          <section className="flex flex-col gap-sm">
-            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Tokens pro Tag</h3>
-            {maxDayTokens === 0 ? (
-              <p className="m-0 text-sm text-grey-500">Keine Token-Nutzung im Zeitraum.</p>
-            ) : (
-              <div className="flex h-40 items-end gap-[2px] overflow-x-auto rounded-xl border border-grey-200 p-sm dark:border-grey-700">
-                {daily.map((entry) => {
-                  const total = entry.input_tokens + entry.output_tokens;
-                  const heightPct = Math.max(2, Math.round((total / maxDayTokens) * 100));
-                  const outputPct = total > 0 ? Math.round((entry.output_tokens / total) * 100) : 0;
+          {byFeature.length > 1 && (
+            <section className="flex flex-col gap-sm">
+              <h3 className="m-0 text-sm font-semibold text-foreground-heading">Wofür</h3>
+              <ul className="m-0 flex list-none flex-col p-0 text-sm">
+                {byFeature.map((entry) => {
+                  const extras = [
+                    entry.images ? `${formatCount(entry.images)} Bilder` : null,
+                    entry.transcriptions
+                      ? `${formatCount(entry.transcriptions)} Transkriptionen`
+                      : null,
+                    entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
+                    entry.speech_seconds
+                      ? `${formatDuration(entry.speech_seconds)} Sprachausgabe`
+                      : null,
+                  ].filter(Boolean);
                   return (
-                    <div
-                      key={entry.day}
-                      className="flex min-w-[6px] flex-1 flex-col justify-end"
-                      style={{ height: '100%' }}
-                      title={`${formatDay(entry.day)}: ${formatCount(total)} Tokens (${formatCount(entry.requests)} Anfragen)`}
+                    <li
+                      key={entry.feature}
+                      className="flex items-baseline gap-sm border-b border-grey-100 py-1.5 last:border-0 dark:border-grey-800"
                     >
-                      <div
-                        className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-primary/30"
-                        style={{ height: `${heightPct}%` }}
-                      >
-                        <div className="w-full bg-primary" style={{ height: `${outputPct}%` }} />
-                      </div>
-                    </div>
+                      <span className="flex-1">
+                        {FEATURE_LABELS[entry.feature] ?? entry.feature}
+                      </span>
+                      {extras.length > 0 && (
+                        <span className="text-xs text-grey-500">{extras.join(' · ')}</span>
+                      )}
+                      <span className="text-right tabular-nums text-grey-500">
+                        {formatCount(entry.requests)} Anfragen
+                      </span>
+                    </li>
                   );
                 })}
-              </div>
-            )}
-            <p className="m-0 text-xs text-grey-500">
-              Dunkel = erzeugte Tokens, hell = gesendete Tokens.
-            </p>
-          </section>
-
-          <section className="flex flex-col gap-sm">
-            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Bereich</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[28rem] text-sm">
-                <thead>
-                  <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
-                    <th className="py-1 font-normal">Bereich</th>
-                    <th className="py-1 text-right font-normal">Anfragen</th>
-                    <th className="py-1 text-right font-normal">Tokens</th>
-                    <th className="py-1 text-right font-normal">Sonstiges</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {byFeature.map((entry) => {
-                    const extras = [
-                      entry.images ? `${formatCount(entry.images)} Bilder` : null,
-                      entry.transcriptions
-                        ? `${formatCount(entry.transcriptions)} Transkriptionen`
-                        : null,
-                      entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
-                      entry.speech_seconds
-                        ? `${formatDuration(entry.speech_seconds)} Sprachausgabe`
-                        : null,
-                    ].filter(Boolean);
-                    return (
-                      <tr
-                        key={entry.feature}
-                        className="border-b border-grey-100 last:border-0 dark:border-grey-800"
-                      >
-                        <td className="py-1.5">{FEATURE_LABELS[entry.feature] ?? entry.feature}</td>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {formatCount(entry.requests)}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {formatCount(entry.total_tokens)}
-                        </td>
-                        <td className="py-1.5 text-right text-xs text-grey-500">
-                          {extras.length ? extras.join(' · ') : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Grouped by what the model DOES, not flat: Voxtral and Linkup are
-              not chat models with a strange unit, and a flat list made them
-              read that way. */}
-          <section className="flex flex-col gap-md">
-            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Funktion</h3>
-            {FUNCTION_ORDER.map((unit) => {
-              const rows = byModel.filter((entry) => entry.unit === unit);
-              if (rows.length === 0) return null;
-              return (
-                <div key={unit} className="flex flex-col gap-1">
-                  <h4 className="m-0 text-xs font-semibold uppercase tracking-wide text-grey-500">
-                    {FUNCTION_LABELS[unit]}
-                  </h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[28rem] text-sm">
-                      <thead>
-                        <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
-                          <th className="py-1 font-normal">Modell</th>
-                          <th className="py-1 font-normal">Anbieter</th>
-                          <th className="py-1 text-right font-normal">
-                            {unit === 'tokens' ? 'Anfragen' : UNIT_LABELS[unit]}
-                          </th>
-                          {unit === 'tokens' && (
-                            <th className="py-1 text-right font-normal">Tokens</th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((entry) => (
-                          <tr
-                            key={`${entry.provider}|${entry.model}`}
-                            className="border-b border-grey-100 last:border-0 dark:border-grey-800"
-                          >
-                            <td className="py-1.5">{entry.model}</td>
-                            <td className="py-1.5 text-grey-500">
-                              {providerLabel(entry.provider)}
-                            </td>
-                            <td className="py-1.5 text-right tabular-nums">
-                              {formatCount(unit === 'tokens' ? entry.requests : entry.ops)}
-                            </td>
-                            {unit === 'tokens' && (
-                              <td className="py-1.5 text-right tabular-nums">
-                                {formatCount(entry.total_tokens)}
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })}
-          </section>
+              </ul>
+            </section>
+          )}
         </>
       )}
 
       <p className="m-0 text-xs text-grey-500">
-        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen, Web-Recherchen
-        und die Dauer der Sprachausgabe. Automatische Hintergrundprozesse zählen nicht mit.
+        Gezählt werden deine Anfragen an die KI sowie erzeugte Bilder, Transkriptionen,
+        Web-Recherchen und Sprachausgabe. Automatische Hintergrundprozesse zählen nicht mit.
       </p>
     </div>
   );

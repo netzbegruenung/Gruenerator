@@ -69,32 +69,37 @@ interface SiteCardProps {
   checking: boolean;
 }
 
-function SiteCard({ site, access, botAccount, onCheck, checking }: SiteCardProps) {
+// One flat list row per site (settings list pattern: no card, hairline between
+// rows). The revoke and forget steps open underneath the row they belong to.
+function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps) {
   const forget = useForgetAntragsgruenSite();
   const [revoking, setRevoking] = useState(false);
   const [confirmForget, setConfirmForget] = useState(false);
   const stillAdmin = access !== 'removed';
 
   return (
-    <div className="flex flex-col gap-sm rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800">
-      <div className="flex flex-col gap-sm sm:flex-row sm:items-center">
-        <HiClipboardList
-          size={18}
-          className="shrink-0 text-secondary-600 dark:text-secondary-400"
+    <li className="flex flex-col gap-sm py-3">
+      {/* Icon and text always side by side; on narrow screens the actions
+          wrap below, indented under the text instead of under the icon. */}
+      <div className="grid grid-cols-[30px_minmax(0,1fr)] items-center gap-x-md gap-y-sm sm:grid-cols-[30px_minmax(0,1fr)_auto]">
+        <span
           aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-foreground" title={site.url}>
+          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-secondary-50 text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300"
+        >
+          <HiClipboardList size={16} />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm text-foreground" title={site.url}>
             {site.title}
           </div>
-          <div className="mt-[2px] text-xs text-grey-500">
-            {hostOf(site.url)} · {formatCreated(site.createdAt)}
-          </div>
-          <div className="mt-xs">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-sm gap-y-0.5 text-xs text-grey-500">
+            <span>
+              {hostOf(site.url)} · {formatCreated(site.createdAt)}
+            </span>
             <AccessLine access={access} />
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-xs">
+        <div className="col-start-2 flex flex-wrap items-center gap-xs sm:col-start-3">
           <Button asChild variant="outline" size="sm">
             <a href={site.url} target="_blank" rel="noopener noreferrer">
               <HiExternalLink size={12} aria-hidden />
@@ -195,7 +200,7 @@ function SiteCard({ site, access, botAccount, onCheck, checking }: SiteCardProps
           </div>
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -211,21 +216,24 @@ export default function AntragsgruenTab() {
   if (isPending) return <SettingsCardsSkeleton cards={2} />;
 
   return (
-    <section className="flex flex-col gap-md">
-      <div className="flex flex-wrap items-center gap-sm">
-        <h2 className="m-0 text-lg font-semibold text-foreground-heading">Antragsgrün</h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary-100 bg-secondary-50 px-2.5 py-1 text-xs font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-secondary-500" />
+    // Settings design: no tab title, the section heading carries the name; the
+    // nav entry keeps hideHeading so this h2 is the only one.
+    <section className="flex flex-col">
+      <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs pb-1">
+        <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">
+          Antragsgrün
+        </h2>
+        <span className="self-center rounded-full border border-secondary-100 bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
           Experimentell
         </span>
         {data && hasSites && (
-          <span className="text-sm text-grey-500">
+          <span className="text-sm tabular-nums text-grey-500">
             {data.sites.length} von {data.limit} Seiten
           </span>
         )}
       </div>
 
-      <div className="flex flex-col gap-xs text-sm text-grey-500">
+      <div className="flex max-w-[64ch] flex-col gap-xs pb-sm text-sm text-grey-500">
         <p className="m-0">
           Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat. Solange
           er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen –
@@ -239,18 +247,18 @@ export default function AntragsgruenTab() {
       </div>
 
       {isError ? (
-        <p className="m-0 text-sm text-grey-500">
+        <p className="m-0 border-t border-grey-200 py-md text-sm text-grey-500 dark:border-grey-800">
           Antragsgrün-Seiten konnten nicht geladen werden.
         </p>
       ) : !hasSites ? (
-        <p className="m-0 rounded-xl border border-dashed border-grey-300 p-md text-sm text-grey-500 dark:border-grey-700">
+        <p className="m-0 border-t border-grey-200 py-md text-sm text-grey-500 dark:border-grey-800">
           Noch keine Seite. Schreib im Chat zum Beispiel: „Leg mir eine Antragsgrün-Seite für unsere
           Kreismitgliederversammlung an.“
         </p>
       ) : (
-        <div className="flex flex-col gap-sm">
+        <ul className="m-0 list-none divide-y divide-grey-200 border-t border-grey-200 p-0 dark:divide-grey-800 dark:border-grey-800">
           {data?.sites.map((site) => (
-            <SiteCard
+            <SiteRow
               key={site.id}
               site={site}
               botAccount={data.botAccount}
@@ -259,7 +267,7 @@ export default function AntragsgruenTab() {
               onCheck={() => void access.refetch()}
             />
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );

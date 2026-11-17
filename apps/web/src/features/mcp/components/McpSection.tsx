@@ -29,6 +29,7 @@ import {
   useMcpRegistry,
   invalidateMcpServers,
 } from '../hooks/useMcpServers';
+import { useMicrosoftConnector } from '../hooks/useMicrosoftConnector';
 import {
   connectRegistryConnector,
   createMcpServer,
@@ -687,24 +688,52 @@ const CardShell = memo(
     connecting,
     onConnect,
     onUseKey,
+    onDisconnect,
+    experimental = false,
   }: {
     title: string;
+    /** Open to everyone but not yet settled — says so next to the name. */
+    experimental?: boolean;
     connecting: boolean;
     onConnect: () => void;
     /** Provider also takes an API key — offered next to the one-click login. */
     onUseKey?: (() => void) | null;
+    /**
+     * Set for a connection that stays a card once connected (Microsoft 365 is
+     * no MCP row, so it has no place under „Verbunden").
+     */
+    onDisconnect?: (() => void) | null;
   }) => (
     <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
       <McpLogo title={title} size={30} />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
-        {title}
+      {/* Stacked, not side by side: in the two-column grid a pill next to the
+          name squeezed „Microsoft 365" down to „Micr…". */}
+      <span className="flex min-w-0 flex-1 flex-col items-start">
+        <span className="max-w-full truncate text-sm font-semibold text-foreground-heading">
+          {title}
+        </span>
+        {experimental && (
+          <span className="text-[11px] font-semibold text-secondary-700 dark:text-secondary-300">
+            Experimentell
+          </span>
+        )}
       </span>
       {onUseKey && !connecting && (
         <button type="button" onClick={onUseKey} className={textBtnClass}>
           oder API-Key
         </button>
       )}
-      {connecting ? (
+      {onDisconnect ? (
+        <>
+          <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', okTextClass)}>
+            <FiCheck className="w-3.5 h-3.5" />
+            Verbunden
+          </span>
+          <button type="button" onClick={onDisconnect} className={textBtnClass}>
+            Trennen
+          </button>
+        </>
+      ) : connecting ? (
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-primary-400">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-200 border-t-primary dark:border-primary-800" />
           Verbinden …
@@ -907,12 +936,14 @@ const BearerConnectDialog = ({
  * One card under "Dienste verbinden": a directory entry — a curated vendor or a
  * known connector (`registryKey`), which connects by its key instead of a URL.
  */
-interface AvailableItem {
-  key: string;
-  category: string;
-  title: string;
-  entry: McpRegistryEntry;
-}
+type AvailableItem =
+  | { kind: 'mcp'; key: string; category: string; title: string; entry: McpRegistryEntry }
+  /** A Nango connection (not MCP) that lives in the same directory. */
+  | { kind: 'microsoft'; key: string; category: string; title: string };
+
+const MICROSOFT_TITLE = 'Microsoft 365';
+/** What the directory search matches for the Microsoft card (it isn't in the registry). */
+const MICROSOFT_SEARCH_TEXT = 'microsoft 365 onedrive office';
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -977,6 +1008,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
+  const microsoft = useMicrosoftConnector();
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
 
@@ -1008,6 +1040,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           : !connectedHosts.has(hostOf(e.url) ?? e.url)
       )
       .map((entry): AvailableItem => ({
+        kind: 'mcp',
         key: entry.registryKey ?? entry.url,
         category: mergeCategory(entry.category),
         title: entry.title,
@@ -1016,10 +1049,19 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
     for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
-    return merged.map((it) =>
+    const items = merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedHosts, connectedKeys]);
+    if (microsoft.available && MICROSOFT_SEARCH_TEXT.includes(debouncedSearch.toLowerCase())) {
+      items.push({
+        kind: 'microsoft',
+        key: 'nango:microsoft',
+        category: OTHER_CATEGORY,
+        title: MICROSOFT_TITLE,
+      });
+    }
+    return items;
+  }, [registry, connectedHosts, connectedKeys, microsoft.available, debouncedSearch]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1183,15 +1225,38 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
-  const renderCard = (it: AvailableItem) => (
-    <CardShell
-      key={it.key}
-      title={it.title}
-      connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
-      onConnect={() => handlePickMcp(it.entry)}
-      onUseKey={keyAlternative(it.entry)}
-    />
-  );
+  const renderCard = (it: AvailableItem) =>
+    it.kind === 'microsoft' ? (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        experimental
+        connecting={microsoft.connect.isPending}
+        onConnect={() =>
+          microsoft.connect.mutate(undefined, {
+            onError: (err) =>
+              onError(err instanceof Error ? err.message : 'Verbinden fehlgeschlagen'),
+          })
+        }
+        onDisconnect={
+          microsoft.connected
+            ? () =>
+                microsoft.disconnect.mutate(undefined, {
+                  onSuccess: () => onSuccess(`${MICROSOFT_TITLE} getrennt`),
+                  onError: () => onError('Verbindung konnte nicht getrennt werden'),
+                })
+            : null
+        }
+      />
+    ) : (
+      <CardShell
+        key={it.key}
+        title={it.title}
+        connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
+        onConnect={() => handlePickMcp(it.entry)}
+        onUseKey={keyAlternative(it.entry)}
+      />
+    );
 
   const hasConnected = connected.length > 0;
 

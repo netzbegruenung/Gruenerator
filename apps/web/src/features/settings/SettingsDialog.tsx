@@ -30,7 +30,7 @@ import {
   PiPaintBrushBroad,
   PiRobot,
   PiRocketLaunch,
-  PiTree,
+  PiSunHorizon,
 } from 'react-icons/pi';
 
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
@@ -78,6 +78,7 @@ const NAV: {
   { value: 'hintergrund', label: 'Hintergrund', icon: PiPaintBrushBroad },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
+  { value: 'tagesbriefing', label: 'Tagesbriefing', icon: PiSunHorizon },
   { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
   { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple },
@@ -96,7 +97,6 @@ const NAV: {
     label: 'Datenschutz & Barrierefreiheit',
     icon: FiShield,
   },
-  { value: 'baeume', label: 'Bäume', icon: PiTree },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];

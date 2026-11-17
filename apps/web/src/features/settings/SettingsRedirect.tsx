@@ -19,6 +19,8 @@ const TAB_ALIASES: Record<string, SettingsTab> = {
   briefkoepfe: 'briefe',
   verbindungen: 'wolke',
   mcp: 'konnektoren',
+  // Bis zum 16.11.2026 ein eigener Bereich, jetzt über dem Verbrauch in der Nutzung.
+  baeume: 'nutzung',
   // Bis zum 28.08.2026 ein eigener Bereich, jetzt die untere Hälfte von
   // „Datenschutz & Barrierefreiheit".
   barrierefreiheit: 'datenschutz',

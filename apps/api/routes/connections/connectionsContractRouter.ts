@@ -9,7 +9,10 @@ import { connectionsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import axios from 'axios';
 
-import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import {
+  ConnectionNotAllowedError,
+  ConnectionService,
+} from '../../services/connections/ConnectionService.js';
 import { browseDrive } from '../../services/connections/driveBrowse.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -33,6 +36,7 @@ export const connectionsContractRouter = s.router(connectionsContract, {
     try {
       ({ accessToken } = await ConnectionService.getConnection(userId, params.provider));
     } catch (err) {
+      if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
       log.warn(`[browse] ${params.provider} connection lookup failed`, err);
       return failure(403, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
     }
@@ -50,6 +54,20 @@ export const connectionsContractRouter = s.router(connectionsContract, {
       }
       log.error(`[browse] ${params.provider} listing failed`, err);
       return failure(500, 'Ordner konnte nicht geladen werden.');
+    }
+  },
+
+  // Die Karte im Konnektor-Verzeichnis öffnet den Link im Popup. Ob die Person
+  // den Anbieter verbinden darf, entscheidet `ConnectionService`.
+  connectLink: async ({ req, params }) => {
+    const userId = getAuthedUser(req).id;
+    try {
+      const connectLink = await ConnectionService.createConnectLink(userId, params.provider);
+      return { status: 200 as const, body: { success: true as const, connectLink } };
+    } catch (err) {
+      if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
+      log.error(`[connectLink] ${params.provider} failed`, err);
+      return failure(500, 'Verbindung konnte nicht gestartet werden.');
     }
   },
 });
