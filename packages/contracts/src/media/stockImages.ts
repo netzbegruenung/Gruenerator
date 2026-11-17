@@ -4,7 +4,7 @@ export type {
   StockImage,
   FetchStockImagesResponse,
   UnsplashSearchResult,
-} from '@ggraphic/schema/media/stockImages';
+} from '@ggraphic/schema';
 
 export type ImageSourceTab = 'device' | 'stock' | 'unsplash' | 'mediathek';
 
