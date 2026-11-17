@@ -27,11 +27,10 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Canvas editor: a photo's look is a bitmap made once per look, so panning,
-  # zooming and cropping a filtered photo never filter again (Movm/ggraphic#202).
-  # editor alpha.8 published 2026-11-16 23:07 UTC. Inert from 2026-11-19 23:08 UTC,
+  # Canvas editor: previewCaptureRatio and discardPlacedUserImage (Movm/ggraphic#193,
+  # #180). editor alpha.9 published 2026-11-17 00:41 UTC. Inert from 2026-11-20 00:42 UTC,
   # remove then.
-  - '@ggraphic/editor@0.1.0-alpha.8'
+  - '@ggraphic/editor@0.1.0-alpha.9'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
