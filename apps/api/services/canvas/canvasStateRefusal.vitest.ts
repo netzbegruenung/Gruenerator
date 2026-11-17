@@ -83,6 +83,38 @@ describe('a refused canvas write', () => {
     expect(classifyUserFacingError(error).message).toContain('neueres Format');
   });
 
+  it('an unwritable value (400): throws CanvasStateUnwritableError, not "Collab-Dienst nicht erreichbar"', async () => {
+    hocuspocusAnswers(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: 'canvas state contains a value that cannot be stored',
+            code: 'CANVAS_STATE_UNWRITABLE',
+          }),
+          { status: 400 }
+        )
+    );
+    query.mockResolvedValue([{ '?column?': 1 }]); // Yjs rows exist: an ordinary failure would throw "nicht erreichbar"
+    const { applyCanvasStatePatch, applyDeckChanges, CanvasStateUnwritableError } = await load();
+
+    const flat = await applyCanvasStatePatch('c1', { a: 1 }, { seedState: {} }).catch(
+      (e: unknown) => e
+    );
+    expect(flat).toBeInstanceOf(CanvasStateUnwritableError);
+    expect((flat as Error).message).not.toContain('nicht erreichbar');
+    await expect(
+      applyDeckChanges('c1', { seedPages: [page], newPages: [page] })
+    ).rejects.toBeInstanceOf(CanvasStateUnwritableError);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('a plain 400 without the code is an ordinary failure', async () => {
+    hocuspocusAnswers(() => new Response('bad request', { status: 400 }));
+    query.mockResolvedValue([]);
+    const { applyCanvasStatePatch } = await load();
+    await expect(applyCanvasStatePatch('c1', { a: 1 }, { seedState: {} })).resolves.toBeUndefined();
+  });
+
   it('a plain 426 without the code is an ordinary failure, not a refusal', async () => {
     hocuspocusAnswers(() => new Response('upgrade', { status: 426 }));
     query.mockResolvedValue([]);

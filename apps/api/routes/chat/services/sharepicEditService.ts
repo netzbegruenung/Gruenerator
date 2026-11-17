@@ -38,6 +38,7 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
+import { CanvasWriteRefusedError } from '../../../services/canvas/canvasWriteErrors.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
 import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
@@ -937,9 +938,12 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       sse.send('sharepic_edit_error', {
         error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
+      // A refused write (newer document, value that cannot be stored) is no use retrying.
       await finishWithText(
         args,
-        'Bei der Bearbeitung ist etwas schiefgelaufen. Versuch es bitte noch einmal.'
+        error instanceof CanvasWriteRefusedError
+          ? error.message
+          : 'Bei der Bearbeitung ist etwas schiefgelaufen. Versuch es bitte noch einmal.'
       );
     }
     return true;
