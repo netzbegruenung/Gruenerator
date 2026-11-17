@@ -71,7 +71,6 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
 
     try {
       await deleteMutation.mutateAsync(shareLink.id);
-      onSuccess?.('Wolke-Verbindung wurde gelöscht.');
     } catch (error) {
       onError?.('Fehler beim Löschen: ' + (error instanceof Error ? error.message : String(error)));
     }
@@ -87,7 +86,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
           aria-expanded={expanded}
           aria-controls={`wolke-files-${shareLink.id}`}
           onClick={() => setExpanded((v) => !v)}
-          className="flex max-w-full items-center gap-xs text-left"
+          className="flex max-w-full items-center gap-xs rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
         >
           <FiChevronDown
             aria-hidden

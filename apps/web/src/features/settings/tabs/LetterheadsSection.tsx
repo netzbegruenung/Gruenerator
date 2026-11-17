@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useRef, useState } from 'react';
 
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
-import { SettingsList, SettingsListRow } from '../components/SettingsListRow';
+import { ROW_TEXT_INDENT, SettingsList, SettingsListRow } from '../components/SettingsListRow';
 import SettingsSection from '../components/SettingsSection';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
@@ -349,103 +349,106 @@ const LetterheadsSection = () => {
         </>
       }
     >
-      <SettingsList
-        isEmpty={letterheads.length === 0 && !isAdding}
-        empty="Noch kein Briefkopf angelegt."
-      >
-        {letterheads.map((lh: Letterhead) =>
-          editingId === lh.id ? (
-            <li key={lh.id}>
-              <LetterheadForm
-                initial={{
-                  label: lh.label,
-                  organization: lh.organization ?? '',
-                  address: lh.address ?? '',
-                  dispatch_mode: lh.dispatch_mode,
-                  show_return_line: lh.show_return_line,
-                  show_fold_marks: lh.show_fold_marks,
-                }}
-                submitLabel="Speichern"
-                isPending={updateMutation.isPending}
-                onCancel={() => setEditingId(null)}
-                onSubmit={(input) => updateMutation.mutate({ id: lh.id, input })}
-              />
-            </li>
-          ) : (
-            <SettingsListRow
-              key={lh.id}
-              mark={lh.label.trim().charAt(0).toUpperCase()}
-              name={lh.label}
-              badge={lh.is_default ? { label: 'Standard' } : undefined}
-              meta={
-                <>
-                  <div className="whitespace-pre-line">
-                    {[lh.organization, lh.address].filter(Boolean).join('\n')}
-                  </div>
-                  <div className="mt-xs">
-                    {lh.dispatch_mode === 'direktfrankierung'
-                      ? 'Direkt aufs Blatt frankiert'
-                      : 'Fensterkuvert'}
-                    {!lh.show_return_line && ' · ohne Rücksendeangabe'}
-                    {!lh.show_fold_marks && ' · ohne Falzmarken'}
-                  </div>
-                </>
-              }
-              actions={
-                <>
-                  {!lh.is_default && (
+      {(letterheads.length > 0 || !isAdding) && (
+        <SettingsList isEmpty={letterheads.length === 0} empty="Noch kein Briefkopf angelegt.">
+          {letterheads.map((lh: Letterhead) =>
+            editingId === lh.id ? (
+              <li key={lh.id}>
+                <LetterheadForm
+                  initial={{
+                    label: lh.label,
+                    organization: lh.organization ?? '',
+                    address: lh.address ?? '',
+                    dispatch_mode: lh.dispatch_mode,
+                    show_return_line: lh.show_return_line,
+                    show_fold_marks: lh.show_fold_marks,
+                  }}
+                  submitLabel="Speichern"
+                  isPending={updateMutation.isPending}
+                  onCancel={() => setEditingId(null)}
+                  onSubmit={(input) => updateMutation.mutate({ id: lh.id, input })}
+                />
+              </li>
+            ) : (
+              <SettingsListRow
+                key={lh.id}
+                mark={lh.label.trim().charAt(0).toUpperCase()}
+                name={lh.label}
+                badge={lh.is_default ? { label: 'Standard' } : undefined}
+                meta={
+                  <>
+                    <div className="whitespace-pre-line">
+                      {[lh.organization, lh.address].filter(Boolean).join('\n')}
+                    </div>
+                    <div className="mt-xs">
+                      {lh.dispatch_mode === 'direktfrankierung'
+                        ? 'Direkt aufs Blatt frankiert'
+                        : 'Fensterkuvert'}
+                      {!lh.show_return_line && ' · ohne Rücksendeangabe'}
+                      {!lh.show_fold_marks && ' · ohne Falzmarken'}
+                    </div>
+                  </>
+                }
+                actions={
+                  <>
+                    {!lh.is_default && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          updateMutation.mutate({ id: lh.id, input: { is_default: true } })
+                        }
+                      >
+                        Als Standard
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() =>
-                        updateMutation.mutate({ id: lh.id, input: { is_default: true } })
-                      }
+                      onClick={() => setEditingId(lh.id)}
                     >
-                      Als Standard
+                      Bearbeiten
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEditingId(lh.id)}
-                  >
-                    Bearbeiten
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      // Deleting the default silently promotes another one, so ask first.
-                      const trashed = `„${lh.label}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`;
-                      void confirm({
-                        title: `„${lh.label}" löschen?`,
-                        description: lh.is_default
-                          ? `${trashed} Das ist dein Standard-Briefkopf; ein anderer wird zum Standard.`
-                          : trashed,
-                      }).then((confirmed) => {
-                        if (!confirmed) return;
-                        deleteMutation.mutate(lh.id, {
-                          onSuccess: () =>
-                            showTrashUndo({ kind: 'user_letterhead', id: lh.id, title: lh.label }),
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        // Deleting the default silently promotes another one, so ask first.
+                        const trashed = `„${lh.label}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`;
+                        void confirm({
+                          title: `„${lh.label}" löschen?`,
+                          description: lh.is_default
+                            ? `${trashed} Das ist dein Standard-Briefkopf; ein anderer wird zum Standard.`
+                            : trashed,
+                        }).then((confirmed) => {
+                          if (!confirmed) return;
+                          deleteMutation.mutate(lh.id, {
+                            onSuccess: () =>
+                              showTrashUndo({
+                                kind: 'user_letterhead',
+                                id: lh.id,
+                                title: lh.label,
+                              }),
+                          });
                         });
-                      });
-                    }}
-                  >
-                    Löschen
-                  </Button>
-                </>
-              }
-            >
-              <div className="pl-[46px]">
-                <StationeryField letterhead={lh} />
-              </div>
-            </SettingsListRow>
-          )
-        )}
-      </SettingsList>
+                      }}
+                    >
+                      Löschen
+                    </Button>
+                  </>
+                }
+              >
+                <div className={ROW_TEXT_INDENT}>
+                  <StationeryField letterhead={lh} />
+                </div>
+              </SettingsListRow>
+            )
+          )}
+        </SettingsList>
+      )}
 
       {isAdding && (
         <LetterheadForm

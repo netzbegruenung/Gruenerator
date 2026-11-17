@@ -2,6 +2,9 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@/utils/cn';
 
+/** Left padding that lines content under a row up with its text (30px mark + 16px gap). */
+export const ROW_TEXT_INDENT = 'pl-[46px]';
+
 interface SettingsListRowProps {
   /** Small icon or an initial, shown in a 30px rounded square. */
   mark: ReactNode;
