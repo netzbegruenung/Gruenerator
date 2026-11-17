@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import FeedbackWidget from '../../../features/feedback/FeedbackWidget';
+import { useDesktopMenu } from '../../../hooks/useDesktopMenu';
 import { useNotificationSSE } from '../../../hooks/useNotificationSSE';
 import { useAuthStore } from '../../../stores/authStore';
 import { isEmbedded } from '../../../utils/platform';
@@ -8,6 +9,8 @@ import { isEmbedded } from '../../../utils/platform';
 export function GlobalBridges() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
+
+  useDesktopMenu();
 
   useNotificationSSE(
     useCallback((data: { title?: string; body?: string }) => {
