@@ -69,11 +69,6 @@
       "mention": "@bundestag",
       "audience": "de-DE"
     },
-    "canva-trigger": {
-      "title": "Canva",
-      "description": "Eigene Canva-Designs einfügen",
-      "mention": "@canva"
-    },
     "chart": {
       "title": "Diagramm",
       "description": "Zahlen als Diagramm darstellen",

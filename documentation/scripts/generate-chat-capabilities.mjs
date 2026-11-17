@@ -362,7 +362,7 @@ function extractIntentMentions() {
  * Every mentionable literal (identifier + title + description). Covers the
  * non-intent mentionables that still live as literals — the artefact creators
  * (`board-erstellen`, `sheet-erstellen`, …) and the picker triggers (`@wolke`,
- * `@connect`, `@canva`, `@web`) — merged with the intent-backed `@tool` mentions
+ * `@connect`, `@web`) — merged with the intent-backed `@tool` mentions
  * from the registry. Agents merged in at runtime are not literals and are out of
  * scope (they have their own generated manifest via AgentTiles).
  */
