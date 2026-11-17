@@ -12,6 +12,14 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import {
+  CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
+  CanvasWriteRefusedError,
+} from './canvasWriteErrors.js';
+
+export { CanvasDocumentNewerError, CanvasStateUnwritableError, CanvasWriteRefusedError };
+
 const log = createLogger('canvasStateService');
 
 const INTERNAL_URL = process.env.HOCUSPOCUS_INTERNAL_URL || 'http://localhost:1241';
@@ -19,6 +27,32 @@ const INTERNAL_TOKEN = process.env.HOCUSPOCUS_INTERNAL_TOKEN || '';
 const FETCH_TIMEOUT_MS = 5000;
 
 const db = getPostgresInstance();
+
+/** Code the Hocuspocus internal API answers a refused canvas write with (HTTP 426). */
+const CANVAS_DOCUMENT_NEWER_CODE = 'CANVAS_DOCUMENT_NEWER';
+/** Code it answers a value the canvas codec cannot store with (HTTP 400). */
+const CANVAS_STATE_UNWRITABLE_CODE = 'CANVAS_STATE_UNWRITABLE';
+
+/** Throws unless the internal write was accepted; a refusal becomes `CanvasDocumentNewerError`. */
+async function assertInternalWriteAccepted(canvasId: string, res: Response): Promise<void> {
+  if (res.ok) return;
+  const text = await res.text().catch(() => '');
+  if (res.status === 426 || res.status === 400) {
+    let code: unknown = null;
+    try {
+      code = (JSON.parse(text) as { code?: unknown }).code;
+    } catch {
+      // not JSON: a plain 426/400 from somewhere else is an ordinary failure below
+    }
+    if (res.status === 426 && code === CANVAS_DOCUMENT_NEWER_CODE) {
+      throw new CanvasDocumentNewerError(canvasId);
+    }
+    if (res.status === 400 && code === CANVAS_STATE_UNWRITABLE_CODE) {
+      throw new CanvasStateUnwritableError(canvasId);
+    }
+  }
+  throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
+}
 
 export interface CanvasPageDef {
   id: string;
@@ -126,12 +160,10 @@ export async function applyCanvasStatePatch(
       method: 'POST',
       body: JSON.stringify({ patch, seedState: options.seedState }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
     internalOk = true;
   } catch (err) {
+    if (err instanceof CanvasWriteRefusedError) throw err;
     if (await hasYjsRows(canvasId)) {
       throw new Error(
         `Canvas-Status konnte nicht aktualisiert werden (Collab-Dienst nicht erreichbar): ${err}`
@@ -186,11 +218,9 @@ export async function seedCanvasPages(
       method: 'POST',
       body: JSON.stringify({ seedPages: pages }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
   } catch (err) {
+    if (err instanceof CanvasDocumentNewerError) throw err;
     log.warn(`Page seed for ${canvasId} failed (client seed is the fallback): ${err}`);
   }
 }
@@ -286,12 +316,10 @@ export async function applyDeckChanges(canvasId: string, changes: DeckChangesInp
         ...(changes.replacePages ? { replacePages: changes.replacePages } : {}),
       }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
     internalOk = true;
   } catch (err) {
+    if (err instanceof CanvasWriteRefusedError) throw err;
     if (await hasYjsRows(canvasId)) {
       throw new Error(
         `Folien konnten nicht aktualisiert werden (Collab-Dienst nicht erreichbar): ${err}`

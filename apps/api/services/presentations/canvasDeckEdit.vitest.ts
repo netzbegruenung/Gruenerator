@@ -19,6 +19,8 @@ vi.mock('../canvas/canvasStateService.js', () => ({
   applyDeckChanges: (...a: unknown[]) => mocks.applyDeckChanges(...a),
 }));
 
+const { CanvasDocumentNewerError, CanvasStateUnwritableError } =
+  await import('../canvas/canvasWriteErrors.js');
 const {
   describeDeckForEditing,
   planAndApplyCanvasDeckEdit,
@@ -105,6 +107,40 @@ describe('planAndApplyCanvasDeckEdit', () => {
     expect(changes['pagePatches']).toEqual([
       { pageId: pages[1]!.id, patch: { additionalTexts: expect.any(Array) } },
     ]);
+  });
+
+  it.each([
+    ['CanvasDocumentNewerError', new CanvasDocumentNewerError('c1'), 'document_newer'],
+    ['CanvasStateUnwritableError', new CanvasStateUnwritableError('c1'), 'unwritable'],
+  ])(
+    'a refused write (%s) is its own outcome, without the retry hint',
+    async (_n, error, reason) => {
+      modelAnswers([
+        {
+          kind: 'edit-slide',
+          slide: 2,
+          operations: [
+            { kind: 'set-text', field: 'folie-headline', label: 'Titel', value: 'Darum' },
+          ],
+        },
+      ]);
+      mocks.applyDeckChanges.mockRejectedValue(error);
+      const out = await run();
+      expect(out).toMatchObject({ status: 'failed', reason, message: (error as Error).message });
+      expect((out as { message: string }).message).not.toMatch(/noch einmal|erneut/);
+    }
+  );
+
+  it('any other write failure keeps the retry message', async () => {
+    modelAnswers([
+      {
+        kind: 'edit-slide',
+        slide: 2,
+        operations: [{ kind: 'set-text', field: 'folie-headline', label: 'Titel', value: 'Darum' }],
+      },
+    ]);
+    mocks.applyDeckChanges.mockRejectedValue(new Error('fetch failed'));
+    expect(await run()).toMatchObject({ status: 'failed', reason: 'write_failed' });
   });
 
   it('asks before removing a slide and writes nothing', async () => {
