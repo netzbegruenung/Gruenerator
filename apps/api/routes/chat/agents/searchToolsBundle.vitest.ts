@@ -68,7 +68,7 @@ describe('gruenerator_search — the Austrian bundle', () => {
   it('asks for eight sources when the model names no limit', () => {
     // The default lives in the schema; the AI SDK applies it before `execute`.
     const schema = (
-      createSearchTools(AGENT, { userLocale: 'de-DE' }).gruenerator_search as {
+      createSearchTools(AGENT, { userLocale: 'de-DE' }).gruenerator_search as unknown as {
         inputSchema: { parse: (v: unknown) => { limit: number } };
       }
     ).inputSchema;
