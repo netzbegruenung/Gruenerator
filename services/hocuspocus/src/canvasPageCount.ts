@@ -1,10 +1,9 @@
+import { YDOC_KEYS } from '@ggraphic/core/ydoc';
 import * as Y from 'yjs';
 
-// Y.Doc keys mirrored from packages/canvas-editor/src/collab/ydocKeys.ts —
-// this service keeps canvas literals inline (see internalApi.ts).
-const KEY_PAGES_BY_ID = 'pagesById';
-const KEY_PAGES = 'pages';
-const KEY_FORM_STATE = 'formState';
+const KEY_PAGES_BY_ID = YDOC_KEYS.pagesById;
+const KEY_PAGES = YDOC_KEYS.pages;
+const KEY_FORM_STATE = YDOC_KEYS.formState;
 
 /**
  * Page count of a canvas Y.Doc, or null when the doc is not a canvas.
@@ -22,9 +21,9 @@ export function countCanvasPages(ydoc: Y.Doc): number | null {
     ydoc.getMap<Y.Map<unknown>>(KEY_PAGES_BY_ID).forEach((page) => {
       if (
         page instanceof Y.Map &&
-        typeof page.get('id') === 'string' &&
-        typeof page.get('configId') === 'string' &&
-        typeof page.get('pos') === 'string'
+        typeof page.get(YDOC_KEYS.id) === 'string' &&
+        typeof page.get(YDOC_KEYS.configId) === 'string' &&
+        typeof page.get(YDOC_KEYS.pos) === 'string'
       ) {
         count++;
       }

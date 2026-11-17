@@ -8,6 +8,7 @@
  */
 import { CANVAS_AI_GEOMETRY_FIELDS, aiLabelFormat } from '@ggraphic/editor/ai';
 import { messages } from '@ggraphic/editor/i18n';
+import { CANVAS_HOST_STATE_KEYS } from '@gruenerator/contracts';
 
 import type { BalkenInstance } from '../utils/balkenUtils';
 import type { ElementKindRegistration } from '@ggraphic/editor/host';
@@ -16,7 +17,7 @@ const { position, turned, quote } = aiLabelFormat;
 
 export const BALKEN_KIND: ElementKindRegistration<'balken'> = {
   kind: 'balken',
-  stateKey: 'balkenInstances',
+  stateKey: CANVAS_HOST_STATE_KEYS.balken,
   actions: { update: 'updateBalken', remove: 'removeBalken' },
   add: { action: 'addBalken', args: ({ mode }) => [mode] },
   name: () => messages().layers.bar,

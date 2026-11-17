@@ -92,8 +92,8 @@ describe('stored Grünerator canvas documents', () => {
     expect(verifyMigrationRegistry(documentMigrations, samples)).toEqual([]);
   });
 
-  it('is at version 3', () => {
-    expect(CANVAS_DOCUMENT_VERSION).toBe(3);
+  it('is at version 4', () => {
+    expect(CANVAS_DOCUMENT_VERSION).toBe(4);
   });
 
   it.each(CORPUS)('%s loads as migrated, only the version stamp added', (_name, stored) => {
@@ -124,7 +124,8 @@ describe('stored Grünerator canvas documents', () => {
 
   it.each([
     [2, 'migrated'],
-    [3, 'current'],
+    [3, 'migrated'],
+    [4, 'current'],
   ] as const)('opens a stored version %i document editable (%s)', (version, status) => {
     const raw = { ...(JSON.parse(CORPUS[0]![1]) as { pages: unknown[] }), schemaVersion: version };
     const result = migrateDocument(raw);
@@ -134,9 +135,9 @@ describe('stored Grünerator canvas documents', () => {
     expect(read.pages).toHaveLength(raw.pages.length);
   });
 
-  it('still refuses a stored version 4 document', () => {
-    const raw = { ...JSON.parse(CORPUS[0]![1]), schemaVersion: 4 };
-    expect(readInitialDocument(raw).refusal).toMatchObject({ status: 'newer', version: 4 });
+  it('still refuses a stored version 5 document', () => {
+    const raw = { ...JSON.parse(CORPUS[0]![1]), schemaVersion: 5 };
+    expect(readInitialDocument(raw).refusal).toMatchObject({ status: 'newer', version: 5 });
   });
 
   it('refuses a document whose Balken are newer than this build', () => {

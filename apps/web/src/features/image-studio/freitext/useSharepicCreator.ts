@@ -472,6 +472,11 @@ async function saveCreatorCanvas(
       body: { pages, format },
     });
     if (response.status === 200) return canvasId;
+    // The collab service refused the write on purpose; the server's sentence says why
+    // (newer document format, or a value the canvas cannot store). Retrying changes nothing.
+    if (response.status === 409 || (response.status === 400 && response.body.code)) {
+      throw new ApiError(response.status, response.body.error);
+    }
     if (response.status !== 404 && response.status !== 403) {
       throw new ApiError(
         response.status,
