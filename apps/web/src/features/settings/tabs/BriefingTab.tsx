@@ -83,12 +83,12 @@ export default function BriefingTab() {
       )}
 
       <section aria-labelledby="briefing-contents" className="flex flex-col gap-sm">
-        <h3
+        <h2
           id="briefing-contents"
           className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading"
         >
           Was drinsteht
-        </h3>
+        </h2>
         <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-sm text-grey-600 dark:text-grey-400">
           {CONTENTS.map((item) => (
             <li key={item}>{item}</li>

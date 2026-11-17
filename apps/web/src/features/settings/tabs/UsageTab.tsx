@@ -24,6 +24,7 @@ import {
   referenceComparison,
   USAGE_TRACKED_SINCE,
 } from '../../../utils/usageFormat';
+import SettingsSection from '../components/SettingsSection';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
 import { prefetchTreeBudget, TreeBudgetSection } from '../components/TreeBudgetSection';
 import { UsageWorks } from '../components/UsageWorks';
@@ -195,18 +196,17 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
 
 export default function UsageTab() {
   return (
-    <div className="flex flex-col gap-xl">
+    <div className="flex flex-col gap-8">
       <TreeBudgetSection />
       <UsageWorks />
-      <section className="flex flex-col gap-lg">
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-lg font-semibold text-foreground-heading">KI-Verbrauch</h2>
-          <p className="m-0 text-sm text-grey-500">
-            Erfasst seit {formatDate(USAGE_TRACKED_SINCE)}.
-          </p>
+      <SettingsSection
+        title="KI-Verbrauch"
+        description={`Erfasst seit ${formatDate(USAGE_TRACKED_SINCE)}.`}
+      >
+        <div className="pt-2">
+          <AiUsage />
         </div>
-        <AiUsage />
-      </section>
+      </SettingsSection>
     </div>
   );
 }

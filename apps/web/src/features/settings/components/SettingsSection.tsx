@@ -15,12 +15,12 @@ const SettingsSection = ({ title, description, aside, children }: SettingsSectio
   return (
     <section aria-labelledby={headingId} className="flex flex-col">
       <div className="flex items-baseline gap-sm pb-1">
-        <h3
+        <h2
           id={headingId}
           className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading"
         >
           {title}
-        </h3>
+        </h2>
         {aside && <div className="ml-auto flex items-center gap-xs">{aside}</div>}
       </div>
       {description && (
