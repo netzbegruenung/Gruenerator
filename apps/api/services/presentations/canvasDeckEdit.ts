@@ -30,12 +30,41 @@ import { checkCanvasWriteAccess, getCanvas } from '../canvas/canvasRepository.js
 import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateService.js';
 import {
   CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
   CanvasStateUnwritableError,
 } from '../canvas/canvasWriteErrors.js';
 
 import { prepareOverflowMeasuring, serverMeasureText } from './canvasDeckOverflow.js';
 
 const log = createLogger('CanvasDeckEdit');
+
+/**
+ * The deck's current pages, or a refusal when the server cannot read the document completely
+ * (newer than the server): an edit planned on the partial pages would be written back as if
+ * the rest did not exist.
+ */
+async function readDeckPages(
+  canvasId: string
+): Promise<
+  | { pages: Awaited<ReturnType<typeof getCurrentDeckState>>['pages'] }
+  | { status: 'failed'; message: string; reason: CanvasWriteFailure }
+> {
+  try {
+    return { pages: (await getCurrentDeckState(canvasId)).pages };
+  } catch (err) {
+    if (err instanceof CanvasDocumentNewerReadError) {
+      log.warn(`reading ${canvasId} refused: ${err.message}`);
+      return {
+        status: 'failed',
+        message:
+          'Diese Präsentation nutzt ein neueres Format, als der Server derzeit bearbeiten kann. ' +
+          'Die Änderung wurde nicht gemacht.',
+        reason: 'document_newer',
+      };
+    }
+    throw err;
+  }
+}
 
 export type CanvasDeckEditOutcome =
   | { status: 'applied'; title: string; summary: string; applied: number; skipped: string[] }
@@ -214,7 +243,9 @@ export async function planCanvasDeckEdit(opts: {
     };
   }
   const title = found.canvas.title;
-  const { pages } = await getCurrentDeckState(canvasId);
+  const read = await readDeckPages(canvasId);
+  if ('status' in read) return read;
+  const { pages } = read;
   if (pages.length === 0) {
     return {
       status: 'failed',
@@ -350,7 +381,9 @@ export async function applyPlannedCanvasDeckOperations(opts: {
     };
   }
   const title = found.canvas.title;
-  const { pages } = await getCurrentDeckState(canvasId);
+  const read = await readDeckPages(canvasId);
+  if ('status' in read) return read;
+  const { pages } = read;
   const deckPages = pages as DeckPage[];
   const sameDeck =
     deckPages.length === basePageIds.length && deckPages.every((p, i) => p.id === basePageIds[i]);

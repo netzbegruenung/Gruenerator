@@ -166,7 +166,7 @@ export const canvasCloneResponseSchema = z.object({
 /**
  * Why the collab service refused a canvas write on purpose (retrying changes nothing):
  * `CANVAS_DOCUMENT_NEWER` (409) — the document was saved by a newer editor than the server can
- * write, `CANVAS_STATE_UNWRITABLE` (400) — a value the canvas cannot store.
+ * write (or, for a read, read), `CANVAS_STATE_UNWRITABLE` (400) — a value the canvas cannot store.
  */
 export const canvasWriteRefusalCodeSchema = z.enum([
   'CANVAS_DOCUMENT_NEWER',
