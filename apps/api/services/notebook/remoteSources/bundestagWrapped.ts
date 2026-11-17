@@ -99,7 +99,11 @@ interface WireFilters {
 }
 
 /** `null` = die Filter schliessen sich aus, es gibt nichts zu fragen. */
-function toWireFilters(filters: FieldFilters, herausgeber: Herausgeber): WireFilters | null {
+function toWireFilters(
+  filters: FieldFilters,
+  herausgeber: Herausgeber,
+  sourceId: RemoteSourceId
+): WireFilters | null {
   const wire: WireFilters = { filters: { herausgeber: [herausgeber] } };
   for (const [field, values] of Object.entries(filters.match)) {
     if (values.length === 0) return null;
@@ -110,7 +114,7 @@ function toWireFilters(filters: FieldFilters, herausgeber: Herausgeber): WireFil
       continue;
     }
     const wireField = FILTER_FIELDS[field];
-    if (!wireField) throw new Error(`[Bundestag Wrapped] Filter "${field}" wird nicht unterstützt`);
+    if (!wireField) throw new Error(`[${sourceId}] Filter "${field}" wird nicht unterstützt`);
     wire.filters[wireField] = NUMERIC_FILTER_FIELDS.has(field) ? values.map(Number) : [...values];
   }
   if (filters.published_at?.gte) wire.filters.from = filters.published_at.gte.slice(0, 10);
@@ -180,7 +184,7 @@ function createBundestagWrappedSource({ id, label, herausgeber }: WrappedSourceC
     label,
 
     async search({ vector, query, filters, limit, threshold }): Promise<RemoteHit[]> {
-      const wire = toWireFilters(filters, herausgeber);
+      const wire = toWireFilters(filters, herausgeber, id);
       if (!wire) return [];
       const { results } = await http.post(
         '/api/v1/search',
@@ -201,7 +205,7 @@ function createBundestagWrappedSource({ id, label, herausgeber }: WrappedSourceC
     },
 
     async facetCounts(field, filters, limit): Promise<FacetCount[]> {
-      const wire = toWireFilters(filters, herausgeber);
+      const wire = toWireFilters(filters, herausgeber, id);
       if (!wire) return [];
       const wireField = field === 'content_type' ? 'source' : FILTER_FIELDS[field];
       if (!wireField) throw new Error(`[${id}] Facette "${field}" wird nicht unterstützt`);
