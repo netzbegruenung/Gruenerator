@@ -39,18 +39,11 @@ import {
   type DocumentMention,
   type CollabDocSelection,
 } from '../../lib/documentMentionables';
+import { mentionableKey, vorlageToMentionable, type Mentionable } from '../../lib/mentionables';
 import {
-  mentionableKey,
-  vorlageToMentionable,
-  type Mentionable,
-  type CanvaDesignToken,
-} from '../../lib/mentionables';
-import {
-  appendToDraft,
   buildConnectAttachment,
   buildWebpageAttachment,
   buildWolkeAttachment,
-  canvaDesignsMarkdown,
 } from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import {
@@ -71,7 +64,6 @@ import { useUserProfileStore } from '../../stores/userProfileStore';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 
-import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
 import { CloudFileBrowser, type CloudSelection, type CloudSourceHint } from './CloudFileBrowser';
 import { ComposerMentionPills } from './ComposerMentionPills';
@@ -397,7 +389,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'datei' | 'cloud' | 'canva' | 'vorlagen' | 'web';
+  mode: 'functions' | 'datei' | 'cloud' | 'vorlagen' | 'web';
   /** Bei `mode: 'cloud'`: welche Ablage der Browser vorwählt. */
   cloudSource?: CloudSourceHint;
   query: string;
@@ -629,24 +621,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      // When user selects the @canva trigger, swap to the Canva design picker
-      if (mentionable.type === 'canva') {
-        // Strip the in-progress "@canv…" trigger from the textarea — the picker
-        // inserts a markdown link per chosen design via handleCanvaSelect.
-        if (mention.mentionStart >= 0) {
-          const currentText = composerRuntime.getState().text;
-          const before = currentText.slice(0, mention.mentionStart);
-          const after = currentText.slice(textarea.selectionStart);
-          composerRuntime.setText(`${before}${after}`);
-          requestAnimationFrame(() => {
-            const pos = before.length;
-            textarea.setSelectionRange(pos, pos);
-          });
-        }
-        setMention((prev) => ({ ...prev, mode: 'canva', visible: true, mentionStart: -1 }));
-        return;
-      }
-
       // When user selects the @vorlagen trigger, swap to the Vorlagen picker.
       if (mentionable.type === 'vorlagen') {
         if (mention.mentionStart >= 0) {
@@ -782,25 +756,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover]
   );
 
-  const handleCanvaSelect = useCallback(
-    (designs: CanvaDesignToken[]) => {
-      if (designs.length === 0) return;
-      // Insert each chosen design as a markdown link — a direct, durable
-      // reference (view URLs are valid 30 days) the user/agent can act on.
-      const newText = appendToDraft(composerRuntime.getState().text, canvaDesignsMarkdown(designs));
-      composerRuntime.setText(newText);
-      dismissPopover();
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.setSelectionRange(newText.length, newText.length);
-          textarea.focus();
-        }
-      });
-    },
-    [composerRuntime, dismissPopover]
-  );
-
   const handleVorlagenSelect = useCallback(
     (vorlage: SharepicVorlage) => {
       setPillMentions((prev) => [
@@ -832,11 +787,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      // Don't interfere when file/doc browser, wolke, connect, canva, or vorlagen picker is open
+      // Don't interfere when file/doc browser, wolke, connect, or vorlagen picker is open
       if (
         mention.mode === 'datei' ||
         mention.mode === 'cloud' ||
-        mention.mode === 'canva' ||
         mention.mode === 'vorlagen' ||
         mention.mode === 'web'
       )
@@ -949,7 +903,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       if (
         mention.mode === 'datei' ||
         mention.mode === 'cloud' ||
-        mention.mode === 'canva' ||
         mention.mode === 'vorlagen' ||
         mention.mode === 'web'
       ) {
@@ -1240,12 +1193,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               visible={mention.visible}
               initialSource={mention.cloudSource ?? 'wolke'}
               onSelect={handleCloudSelect}
-              onDismiss={dismissPopover}
-            />
-          ) : mention.mode === 'canva' ? (
-            <CanvaMentionPopover
-              visible={mention.visible}
-              onSelect={handleCanvaSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'vorlagen' ? (

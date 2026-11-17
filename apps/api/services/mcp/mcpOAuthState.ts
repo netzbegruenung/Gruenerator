@@ -1,7 +1,7 @@
 /**
  * One-time PKCE/OAuth state for MCP server authorization (Redis).
  *
- * Mirrors the Canva OAuth state store. The `startAuthorization` step returns a
+ * The `startAuthorization` step returns a
  * PKCE `codeVerifier` that the callback needs; we park it (plus which user/server
  * and the resolved authorization server) under an opaque single-use `state` key
  * with a short TTL. `getDel` guarantees single-use so replay is impossible. The

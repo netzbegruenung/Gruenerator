@@ -358,11 +358,6 @@ const envSchema = z.object({
   GOOGLE_PICKER_API_KEY: z.string().optional(),
   GOOGLE_PICKER_APP_ID: z.string().optional(),
 
-  // ── Canva Connect API (direct OAuth2 + PKCE, no Nango) ──────────────────
-  CANVA_CLIENT_ID: z.string().optional(),
-  CANVA_CLIENT_SECRET: z.string().optional(),
-  CANVA_REDIRECT_URI: z.string().optional(),
-
   // ── MCP ────────────────────────────────────────────────────────────────
   BUNDESTAG_MCP_URL: z.string().optional(),
   // DIP-API des Bundestags — Volltexte für das Bundestag-DIP-Notebook.
