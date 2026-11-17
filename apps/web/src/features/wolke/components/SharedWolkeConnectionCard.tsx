@@ -1,4 +1,4 @@
-import { Badge, Button } from '@gruenerator/ui';
+import { Button } from '@gruenerator/ui';
 import {
   connectionErrorMessage,
   generateDisplayName,
@@ -7,8 +7,9 @@ import {
   type SharedWithMeLink,
 } from '@gruenerator/wolke';
 import { useMemo } from 'react';
-import { FiExternalLink, FiUsers, FiWifi } from 'react-icons/fi';
+import { FiExternalLink, FiWifi } from 'react-icons/fi';
 
+import SettingsListRow from '@/features/settings/components/SettingsListRow';
 import { cn } from '@/utils/cn';
 
 interface SharedWolkeConnectionCardProps {
@@ -50,34 +51,15 @@ const SharedWolkeConnectionCard = ({
   };
 
   return (
-    <div className="rounded-md border border-grey-100 dark:border-grey-800">
-      <div className="flex items-center justify-between gap-sm px-md py-sm">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-xs flex-wrap">
-            <span className="font-medium text-foreground truncate text-base">{displayName}</span>
-            <Badge variant="secondary" className="text-[0.65rem] px-1.5 py-0">
-              <FiUsers className="w-3 h-3 mr-1" />
-              {groupName}
-            </Badge>
-          </div>
-          <div className="text-xs text-grey-500 dark:text-grey-400 flex items-center gap-xs flex-wrap">
-            <span>{hostname}</span>
-            {sharedByName && (
-              <>
-                <span>·</span>
-                <span>geteilt von {sharedByName}</span>
-              </>
-            )}
-            {sharedAtDate && (
-              <>
-                <span>·</span>
-                <span>{sharedAtDate}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-xxs shrink-0">
+    <SettingsListRow
+      mark={displayName.charAt(0).toUpperCase()}
+      name={displayName}
+      badge={{ label: groupName, tone: 'neutral' }}
+      meta={[hostname, sharedByName ? `geteilt von ${sharedByName}` : null, sharedAtDate]
+        .filter(Boolean)
+        .join(' · ')}
+      actions={
+        <>
           <Button
             variant="ghost"
             size="icon"
@@ -85,6 +67,7 @@ const SharedWolkeConnectionCard = ({
             onClick={handleTest}
             disabled={testMutation.isPending}
             title="Verbindung testen"
+            aria-label="Verbindung testen"
           >
             <FiWifi className={cn('w-4 h-4', testMutation.isPending && 'animate-pulse')} />
           </Button>
@@ -95,13 +78,14 @@ const SharedWolkeConnectionCard = ({
               className="h-9 w-9"
               onClick={() => window.open(link.share_link, '_blank')}
               title="In Nextcloud öffnen"
+              aria-label="In Nextcloud öffnen"
             >
               <FiExternalLink className="w-4 h-4" />
             </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 };
 

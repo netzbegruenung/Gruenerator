@@ -57,10 +57,11 @@ describe('MemoriesSection', () => {
 
     expect(await screen.findByText('Immer in der Sie-Form schreiben.')).toBeInTheDocument();
     expect(screen.getByText('Schreibt für den Kreisverband Köln.')).toBeInTheDocument();
-    expect(screen.getByText('Erinnerungen (2)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Erinnerungen' })).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
     // Kind chips on the rows (the filter buttons carry the same words, hence ≥).
     expect(screen.getAllByText('Anweisung').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Manuell')).toBeInTheDocument();
+    expect(screen.getByText(/^Manuell/)).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Gedächtnis einschalten' })).toBeInTheDocument();
 
     expect(await axe(container)).toHaveNoViolations();
