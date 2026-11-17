@@ -2560,6 +2560,15 @@ importers:
 
   services/hocuspocus:
     dependencies:
+      '@ggraphic/core':
+        specifier: 0.1.0-alpha.4
+        version: 0.1.0-alpha.4(yjs@13.6.33)
+      '@ggraphic/schema':
+        specifier: 0.1.0-alpha.3
+        version: 0.1.0-alpha.3
+      '@gruenerator/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../../packages/shared

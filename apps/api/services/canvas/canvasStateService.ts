@@ -20,6 +20,43 @@ const FETCH_TIMEOUT_MS = 5000;
 
 const db = getPostgresInstance();
 
+/** Code the Hocuspocus internal API answers a refused canvas write with (HTTP 426). */
+const CANVAS_DOCUMENT_NEWER_CODE = 'CANVAS_DOCUMENT_NEWER';
+
+/**
+ * Hocuspocus refused to write into a canvas document that is newer than it knows
+ * (`meta.schemaVersion` or a kind version above its own, or malformed). The Y.Doc is the
+ * authority and the next open reads it, not `canvas_documents.initial_state`: answering this by
+ * patching that JSON mirror would leave the edit in one copy only. So it is never caught into
+ * the Hocuspocus-down fallback below; every caller sees it as an error. The message is a
+ * sentence a user may read (see `utils/errors/userFacing.ts`).
+ */
+export class CanvasDocumentNewerError extends Error {
+  constructor(readonly canvasId: string) {
+    super(
+      'Dieser Canvas nutzt ein neueres Format, als der Server derzeit bearbeiten kann. ' +
+        'Die Änderung wurde nicht gespeichert, bitte versuche es später erneut.'
+    );
+    this.name = 'CanvasDocumentNewerError';
+  }
+}
+
+/** Throws unless the internal write was accepted; a refusal becomes `CanvasDocumentNewerError`. */
+async function assertInternalWriteAccepted(canvasId: string, res: Response): Promise<void> {
+  if (res.ok) return;
+  const text = await res.text().catch(() => '');
+  if (res.status === 426) {
+    let code: unknown = null;
+    try {
+      code = (JSON.parse(text) as { code?: unknown }).code;
+    } catch {
+      // not JSON: a plain 426 from somewhere else is an ordinary failure below
+    }
+    if (code === CANVAS_DOCUMENT_NEWER_CODE) throw new CanvasDocumentNewerError(canvasId);
+  }
+  throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
+}
+
 export interface CanvasPageDef {
   id: string;
   configId: string;
@@ -126,12 +163,10 @@ export async function applyCanvasStatePatch(
       method: 'POST',
       body: JSON.stringify({ patch, seedState: options.seedState }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
     internalOk = true;
   } catch (err) {
+    if (err instanceof CanvasDocumentNewerError) throw err;
     if (await hasYjsRows(canvasId)) {
       throw new Error(
         `Canvas-Status konnte nicht aktualisiert werden (Collab-Dienst nicht erreichbar): ${err}`
@@ -186,11 +221,9 @@ export async function seedCanvasPages(
       method: 'POST',
       body: JSON.stringify({ seedPages: pages }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
   } catch (err) {
+    if (err instanceof CanvasDocumentNewerError) throw err;
     log.warn(`Page seed for ${canvasId} failed (client seed is the fallback): ${err}`);
   }
 }
@@ -286,12 +319,10 @@ export async function applyDeckChanges(canvasId: string, changes: DeckChangesInp
         ...(changes.replacePages ? { replacePages: changes.replacePages } : {}),
       }),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
-    }
+    await assertInternalWriteAccepted(canvasId, res);
     internalOk = true;
   } catch (err) {
+    if (err instanceof CanvasDocumentNewerError) throw err;
     if (await hasYjsRows(canvasId)) {
       throw new Error(
         `Folien konnten nicht aktualisiert werden (Collab-Dienst nicht erreichbar): ${err}`
