@@ -100,6 +100,79 @@ describe('Einstellungen breit', () => {
   });
 });
 
+describe('Einstellungen Suche', () => {
+  it('zeigt Treffer statt der Gruppen und wechselt per Klick den Bereich', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox', { name: 'Einstellungen durchsuchen' });
+    await userEvent.type(field, 'wolke');
+
+    const nav = screen.getByRole('navigation', { name: 'Bereiche' });
+    expect(within(nav).queryByText('Präferenzen')).toBeNull();
+    await userEvent.click(within(nav).getAllByRole('button', { name: /Wolke/ })[0]);
+
+    expect(screen.getByRole('region', { name: 'Wolke' })).toBeInTheDocument();
+    expect(field).toHaveValue('');
+    expect(within(nav).getAllByRole('list').length).toBeGreaterThan(1);
+  });
+
+  it('findet Umlaute auch ohne Umlaut', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'barriere');
+    expect(
+      screen.getAllByRole('button', { name: /Datenschutz & Barrierefreiheit/ }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('meldet einen leeren Treffer', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'xyzzy');
+    expect(screen.getByText('Keine Treffer für „xyzzy“')).toBeInTheDocument();
+  });
+
+  it('leert mit Escape zuerst das Feld und schließt erst beim zweiten', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox');
+    await userEvent.type(field, 'wolke');
+    await userEvent.keyboard('{Escape}');
+    expect(field).toHaveValue('');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(true);
+
+    await userEvent.keyboard('{Escape}');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(false);
+  });
+
+  it('öffnet schmal nach einem Treffer den Bereich', async () => {
+    setWidth(390);
+    useSettingsDialogStore.getState().openSettings();
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'support');
+    await userEvent.click(screen.getAllByRole('button', { name: /Support/ })[0]);
+    expect(await screen.findByRole('region', { name: 'Support' })).toBeInTheDocument();
+  });
+
+  it('hat keine axe-Befunde mit Treffern', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'dunkel');
+    expect(await axe(await screen.findByRole('dialog'))).toHaveNoViolations();
+  });
+});
+
 describe('Einstellungen schmal', () => {
   it('öffnet ohne Ziel in der Liste', async () => {
     setWidth(390);
