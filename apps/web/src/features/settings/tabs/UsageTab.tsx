@@ -81,7 +81,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   const co2Saved = comparison.saved;
 
   return (
-    <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+    <section className="flex flex-col gap-sm border-t border-grey-200 pt-lg dark:border-grey-700">
       <h3 className="m-0 text-sm font-semibold text-foreground-heading">
         {co2Saved ? 'Ersparnis gegenüber ChatGPT' : 'Vergleich zu ChatGPT'}
       </h3>
@@ -265,7 +265,7 @@ function AiUsage() {
       </div>
 
       {!hasAnything ? (
-        <p className="m-0 rounded-xl border border-dashed border-grey-300 p-lg text-sm text-grey-500 dark:border-grey-700">
+        <p className="m-0 text-sm text-grey-500">
           In diesem Zeitraum wurde noch nichts verbraucht.
         </p>
       ) : (

@@ -17,7 +17,7 @@ import {
   Switch,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { memo, type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 
 import {
@@ -187,6 +187,8 @@ McpTestDiagnostics.displayName = 'McpTestDiagnostics';
 interface McpSectionProps {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  /** Rendered right after „Verbunden“ — or last when nothing is connected. */
+  afterConnected?: ReactNode;
 }
 
 interface McpPrefill {
@@ -960,7 +962,7 @@ function orderCategories(present: Iterable<string>): string[] {
   return [...known, ...extra, ...(set.has(OTHER_CATEGORY) ? [OTHER_CATEGORY] : [])];
 }
 
-const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
+const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps) => {
   const { data: servers = [], isLoading, isFetching } = useMcpServers();
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('Alle');
@@ -1316,6 +1318,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         </SettingsSection>
       )}
 
+      {hasConnected && afterConnected}
+
       {/* Available */}
       <SettingsSection
         title="Dienste verbinden"
@@ -1441,6 +1445,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           </div>
         </SettingsSection>
       </div>
+
+      {!hasConnected && afterConnected}
 
       {bearerTarget && (
         <BearerConnectDialog

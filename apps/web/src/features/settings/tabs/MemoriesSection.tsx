@@ -27,6 +27,7 @@ import { Trash2, Plus, RefreshCw, Search, Pencil, Check, X, Download } from 'luc
 import React, { memo, useState, useMemo } from 'react';
 
 import { downloadBlob } from '../../../utils/downloadFile';
+import SegmentedControl from '../components/SegmentedControl';
 import { SettingsList, SettingsListRow } from '../components/SettingsListRow';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
@@ -66,8 +67,8 @@ const KIND_HINT: Record<MemoryKind, string> = {
 
 const KINDS: MemoryKind[] = ['anweisung', 'fakt'];
 
-const FILTER_OPTIONS: Array<{ value: MemoryKind | ''; label: string }> = [
-  { value: '', label: 'Alle' },
+const FILTER_OPTIONS: Array<{ value: MemoryKind | 'alle'; label: string }> = [
+  { value: 'alle', label: 'Alle' },
   ...KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] })),
 ];
 
@@ -118,13 +119,13 @@ export default memo(function MemoriesSection() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterKind, setFilterKind] = useState<MemoryKind | ''>('');
+  const [filterKind, setFilterKind] = useState<MemoryKind | 'alle'>('alle');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
   const filteredMemories = useMemo(() => {
     let result = memories;
-    if (filterKind) result = result.filter((m) => m.kind === filterKind);
+    if (filterKind !== 'alle') result = result.filter((m) => m.kind === filterKind);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((m) => m.text.toLowerCase().includes(q));
@@ -232,13 +233,6 @@ export default memo(function MemoriesSection() {
   const textareaClass =
     'w-full resize-none rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600';
 
-  const chipClass = (active: boolean) =>
-    `rounded-full px-2.5 py-1 text-xs transition-colors ${
-      active
-        ? 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
-        : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-400 dark:hover:bg-grey-700'
-    }`;
-
   return (
     <div className="flex flex-col gap-8">
       <SettingsSection title="Gedächtnis">
@@ -288,21 +282,17 @@ export default memo(function MemoriesSection() {
               disabled={addMutation.isPending}
             />
             <div className="flex flex-wrap items-center gap-sm">
-              <div className="flex gap-1" role="radiogroup" aria-label="Art der Erinnerung">
-                {KINDS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="radio"
-                    aria-checked={newKind === k}
-                    title={KIND_HINT[k]}
-                    onClick={() => setNewKind(k)}
-                    className={chipClass(newKind === k)}
-                  >
-                    {KIND_LABEL[k]}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                aria-label="Art der Erinnerung"
+                value={newKind}
+                onChange={setNewKind}
+                options={KINDS.map((k) => ({
+                  value: k,
+                  label: KIND_LABEL[k],
+                  title: KIND_HINT[k],
+                }))}
+              />
+              <span className="text-xs text-grey-600 dark:text-grey-400">{KIND_HINT[newKind]}</span>
               <div className="flex-1" />
               <span className="text-xs text-grey-600 dark:text-grey-400">
                 {newText.length}/{MEMORY_TEXT_MAX_CHARS}
@@ -336,19 +326,12 @@ export default memo(function MemoriesSection() {
                 className="w-full rounded-md border border-grey-300 bg-input-bg py-1.5 pl-8 pr-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
               />
             </div>
-            <div className="flex flex-wrap gap-1">
-              {FILTER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={filterKind === opt.value}
-                  onClick={() => setFilterKind(opt.value)}
-                  className={chipClass(filterKind === opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              aria-label="Nach Art filtern"
+              value={filterKind}
+              onChange={setFilterKind}
+              options={FILTER_OPTIONS}
+            />
           </div>
         )}
 
