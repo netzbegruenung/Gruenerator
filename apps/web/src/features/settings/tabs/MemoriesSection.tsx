@@ -12,7 +12,6 @@ import { MEMORY_TEXT_MAX_CHARS, type MemoryKind, type UserMemory } from '@gruene
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import {
-  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -21,24 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
   Switch,
+  toast,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import {
-  Trash2,
-  Plus,
-  AlertTriangle,
-  Brain,
-  RefreshCw,
-  Search,
-  Pencil,
-  Check,
-  X,
-  Download,
-} from 'lucide-react';
+import { Trash2, Plus, RefreshCw, Search, Pencil, Check, X, Download } from 'lucide-react';
 import React, { memo, useState, useMemo } from 'react';
 
 import { downloadBlob } from '../../../utils/downloadFile';
+import { SettingsList, SettingsListRow } from '../components/SettingsListRow';
 import SettingsRow from '../components/SettingsRow';
+import SettingsSection from '../components/SettingsSection';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
@@ -73,17 +64,32 @@ const KIND_HINT: Record<MemoryKind, string> = {
   fakt: 'Wird genutzt, wenn es zur Frage passt',
 };
 
-const KIND_COLORS: Record<MemoryKind, string> = {
-  anweisung: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
-  fakt: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-};
-
 const KINDS: MemoryKind[] = ['anweisung', 'fakt'];
 
 const FILTER_OPTIONS: Array<{ value: MemoryKind | ''; label: string }> = [
   { value: '', label: 'Alle' },
   ...KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] })),
 ];
+
+function ManageRow({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3.5">
+      <div className="min-w-0 flex-1 basis-44">
+        <p className="m-0 text-sm font-medium text-foreground">{title}</p>
+        <p className="m-0 mt-0.5 text-xs text-grey-500 dark:text-grey-400">{description}</p>
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
 
 export default memo(function MemoriesSection() {
   const user = useAuthStore((s) => s.user);
@@ -111,13 +117,10 @@ export default memo(function MemoriesSection() {
   const [newKind, setNewKind] = useState<MemoryKind>('fakt');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
-  const [mutationError, setMutationError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterKind, setFilterKind] = useState<MemoryKind | ''>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-
-  const error = queryError?.message ?? mutationError;
 
   const filteredMemories = useMemo(() => {
     let result = memories;
@@ -136,9 +139,8 @@ export default memo(function MemoriesSection() {
         ...old,
         ...updated,
       }));
-      setMutationError(null);
     },
-    onError: () => setMutationError('Der Schalter konnte nicht gespeichert werden.'),
+    onError: () => toast.error('Der Schalter konnte nicht gespeichert werden.'),
   });
 
   const addMutation = useMutation({
@@ -150,10 +152,10 @@ export default memo(function MemoriesSection() {
     onSuccess: (body) => {
       setNewText('');
       setShowAddForm(false);
-      setMutationError(body.duplicate ? 'Diese Erinnerung gab es schon.' : null);
+      if (body.duplicate) toast.info('Diese Erinnerung gab es schon.');
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: (err: Error) => setMutationError(err.message || 'Fehler beim Speichern.'),
+    onError: (err: Error) => toast.error(err.message || 'Fehler beim Speichern.'),
   });
 
   const updateMutation = useMutation({
@@ -165,10 +167,9 @@ export default memo(function MemoriesSection() {
     onSuccess: () => {
       setEditingId(null);
       setEditText('');
-      setMutationError(null);
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: (err: Error) => setMutationError(err.message || 'Fehler beim Aktualisieren.'),
+    onError: (err: Error) => toast.error(err.message || 'Fehler beim Aktualisieren.'),
   });
 
   const deleteMutation = useMutation({
@@ -183,12 +184,11 @@ export default memo(function MemoriesSection() {
         old ? old.filter((m) => m.id !== id) : []
       );
       setConfirmDeleteId(null);
-      setMutationError(null);
       return { previous };
     },
     onError: (err: Error, _id, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
-      setMutationError(err.message || 'Fehler beim Löschen.');
+      toast.error(err.message || 'Fehler beim Löschen.');
     },
     onSettled: () => void queryClient.invalidateQueries({ queryKey }),
   });
@@ -201,10 +201,8 @@ export default memo(function MemoriesSection() {
     onSuccess: () => {
       queryClient.setQueryData<UserMemory[]>(queryKey, []);
       setShowDeleteAllDialog(false);
-      setMutationError(null);
     },
-    onError: (err: Error) =>
-      setMutationError(err.message || 'Fehler beim Löschen aller Erinnerungen.'),
+    onError: (err: Error) => toast.error(err.message || 'Fehler beim Löschen aller Erinnerungen.'),
     onSettled: () => void queryClient.invalidateQueries({ queryKey }),
   });
 
@@ -215,7 +213,7 @@ export default memo(function MemoriesSection() {
       const blob = new Blob([JSON.stringify(res.body, null, 2)], { type: 'application/json' });
       await downloadBlob(blob, `gruenerator-erinnerungen-${res.body.exportedAt.slice(0, 10)}.json`);
     } catch (err: unknown) {
-      setMutationError((err instanceof Error ? err.message : null) ?? 'Export fehlgeschlagen.');
+      toast.error((err instanceof Error ? err.message : null) ?? 'Export fehlgeschlagen.');
     }
   }
 
@@ -234,9 +232,16 @@ export default memo(function MemoriesSection() {
   const textareaClass =
     'w-full resize-none rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600';
 
+  const chipClass = (active: boolean) =>
+    `rounded-full px-2.5 py-1 text-xs transition-colors ${
+      active
+        ? 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
+        : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-400 dark:hover:bg-grey-700'
+    }`;
+
   return (
-    <div>
-      <div className="mb-md -mt-4 border-b border-grey-200 dark:border-grey-800">
+    <div className="flex flex-col gap-8">
+      <SettingsSection title="Gedächtnis">
         <SettingsRow id="erinnerungen.gedaechtnis">
           <Switch
             checked={memoryEnabled}
@@ -245,272 +250,245 @@ export default memo(function MemoriesSection() {
             aria-label="Gedächtnis einschalten"
           />
         </SettingsRow>
-      </div>
+      </SettingsSection>
 
-      <div className="flex items-center gap-sm mb-sm">
-        <div className="flex-1 flex items-center gap-xs text-sm font-medium text-foreground-heading">
-          <Brain className="size-4 text-grey-500" />
-          Erinnerungen ({isLoading ? '…' : memories.length})
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-grey-500 hover:text-foreground"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          <Plus className="size-4" />
-          Hinzufügen
-        </Button>
-      </div>
+      <SettingsSection
+        title="Erinnerungen"
+        aside={
+          <>
+            <span className="text-sm tabular-nums text-grey-600 dark:text-grey-400">
+              {isLoading ? '…' : memories.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={showAddForm}
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              <Plus className="size-4" />
+              Hinzufügen
+            </Button>
+          </>
+        }
+      >
+        {showAddForm && (
+          <div className="flex flex-col gap-sm py-3">
+            <textarea
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              placeholder={
+                newKind === 'anweisung'
+                  ? 'z.B. „Immer in der Sie-Form schreiben."'
+                  : 'z.B. „Ich bin Kreisverbandsvorstand in Berlin-Mitte."'
+              }
+              aria-label="Neue Erinnerung"
+              className={textareaClass}
+              rows={2}
+              maxLength={MEMORY_TEXT_MAX_CHARS}
+              disabled={addMutation.isPending}
+            />
+            <div className="flex flex-wrap items-center gap-sm">
+              <div className="flex gap-1" role="radiogroup" aria-label="Art der Erinnerung">
+                {KINDS.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={newKind === k}
+                    title={KIND_HINT[k]}
+                    onClick={() => setNewKind(k)}
+                    className={chipClass(newKind === k)}
+                  >
+                    {KIND_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1" />
+              <span className="text-xs text-grey-600 dark:text-grey-400">
+                {newText.length}/{MEMORY_TEXT_MAX_CHARS}
+              </span>
+              <Button
+                size="sm"
+                onClick={() => addMutation.mutate({ text: newText.trim(), kind: newKind })}
+                disabled={addMutation.isPending || !newText.trim()}
+              >
+                {addMutation.isPending ? (
+                  <RefreshCw className="size-3.5 animate-spin" />
+                ) : (
+                  <Plus className="size-3.5" />
+                )}
+                Speichern
+              </Button>
+            </div>
+          </div>
+        )}
 
-      {error && (
-        <div
-          role="alert"
-          className="flex items-center gap-sm rounded-md border border-red-300 bg-red-50 p-sm mb-md text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-        >
-          <AlertTriangle className="size-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <Button variant="ghost" size="xs" onClick={() => setMutationError(null)}>
-            OK
-          </Button>
-        </div>
-      )}
-
-      {showAddForm && (
-        <div className="flex flex-col gap-sm rounded-lg bg-background-alt p-md mb-md">
-          <textarea
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            placeholder={
-              newKind === 'anweisung'
-                ? 'z.B. „Immer in der Sie-Form schreiben."'
-                : 'z.B. „Ich bin Kreisverbandsvorstand in Berlin-Mitte."'
-            }
-            aria-label="Neue Erinnerung"
-            className={textareaClass}
-            rows={2}
-            maxLength={MEMORY_TEXT_MAX_CHARS}
-            disabled={addMutation.isPending}
-          />
-          <div className="flex flex-wrap items-center gap-sm">
-            <div className="flex gap-1" role="radiogroup" aria-label="Art der Erinnerung">
-              {KINDS.map((k) => (
+        {memories.length > 0 && (
+          <div className="flex flex-col gap-sm py-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-grey-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Erinnerungen durchsuchen..."
+                aria-label="Erinnerungen durchsuchen"
+                className="w-full rounded-md border border-grey-300 bg-input-bg py-1.5 pl-8 pr-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {FILTER_OPTIONS.map((opt) => (
                 <button
-                  key={k}
+                  key={opt.value}
                   type="button"
-                  role="radio"
-                  aria-checked={newKind === k}
-                  title={KIND_HINT[k]}
-                  onClick={() => setNewKind(k)}
-                  className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
-                    newKind === k
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-400 dark:hover:bg-grey-700'
-                  }`}
+                  aria-pressed={filterKind === opt.value}
+                  onClick={() => setFilterKind(opt.value)}
+                  className={chipClass(filterKind === opt.value)}
                 >
-                  {KIND_LABEL[k]}
+                  {opt.label}
                 </button>
               ))}
             </div>
-            <div className="flex-1" />
-            <span className="text-xs text-grey-400">
-              {newText.length}/{MEMORY_TEXT_MAX_CHARS}
-            </span>
-            <Button
-              size="sm"
-              onClick={() => addMutation.mutate({ text: newText.trim(), kind: newKind })}
-              disabled={addMutation.isPending || !newText.trim()}
-            >
-              {addMutation.isPending ? (
-                <RefreshCw className="size-3.5 animate-spin" />
-              ) : (
-                <Plus className="size-3.5" />
-              )}
-              Speichern
-            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {memories.length > 0 && (
-        <div className="flex flex-col gap-sm mb-md sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-grey-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Erinnerungen durchsuchen..."
-              aria-label="Erinnerungen durchsuchen"
-              className="w-full rounded-md border border-grey-300 bg-input-bg py-1.5 pl-8 pr-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
-            />
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                aria-pressed={filterKind === opt.value}
-                onClick={() => setFilterKind(opt.value)}
-                className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
-                  filterKind === opt.value
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-400 dark:hover:bg-grey-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <SettingsCardsSkeleton cards={4} />
-      ) : filteredMemories.length === 0 ? (
-        <p className="text-sm text-grey-400">
-          {memories.length === 0
-            ? 'Noch keine Erinnerungen. Sag dem Grünerator im Chat „merk dir …" — oder trag hier etwas ein.'
-            : 'Keine Erinnerungen gefunden.'}
-        </p>
-      ) : (
-        <ul className="m-0 list-none space-y-sm p-0">
-          {filteredMemories.map((memory) => (
-            <li
-              key={memory.id}
-              className="group flex items-start gap-sm rounded-lg bg-background p-md transition-colors hover:bg-background-alt"
-            >
-              <div className="min-w-0 flex-1">
-                {editingId === memory.id ? (
-                  <div className="flex flex-col gap-sm">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      aria-label="Erinnerung bearbeiten"
-                      className={textareaClass}
-                      rows={2}
-                      maxLength={MEMORY_TEXT_MAX_CHARS}
-                    />
-                    <div className="flex gap-1">
-                      <Button
-                        size="xs"
-                        onClick={() => saveEdit(memory.id)}
-                        disabled={updateMutation.isPending || !editText.trim()}
-                      >
-                        {updateMutation.isPending ? (
-                          <RefreshCw className="size-3 animate-spin" />
-                        ) : (
-                          <Check className="size-3" />
-                        )}
-                        Speichern
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => {
-                          setEditingId(null);
-                          setEditText('');
-                        }}
-                      >
-                        <X className="size-3" />
-                        Abbrechen
-                      </Button>
-                    </div>
+        {isLoading ? (
+          <SettingsCardsSkeleton cards={4} />
+        ) : queryError ? (
+          <p role="alert" className="m-0 py-3 text-sm text-red-700 dark:text-red-300">
+            {queryError.message}
+          </p>
+        ) : (
+          <SettingsList
+            isEmpty={filteredMemories.length === 0}
+            empty={
+              memories.length === 0
+                ? 'Noch keine Erinnerungen. Sag dem Grünerator im Chat „merk dir …" — oder trag hier etwas ein.'
+                : 'Keine Erinnerungen gefunden.'
+            }
+          >
+            {filteredMemories.map((memory) =>
+              editingId === memory.id ? (
+                <li key={memory.id} className="flex flex-col gap-sm py-3">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    aria-label="Erinnerung bearbeiten"
+                    className={textareaClass}
+                    rows={2}
+                    maxLength={MEMORY_TEXT_MAX_CHARS}
+                  />
+                  <div className="flex gap-1">
+                    <Button
+                      size="xs"
+                      onClick={() => saveEdit(memory.id)}
+                      disabled={updateMutation.isPending || !editText.trim()}
+                    >
+                      {updateMutation.isPending ? (
+                        <RefreshCw className="size-3 animate-spin" />
+                      ) : (
+                        <Check className="size-3" />
+                      )}
+                      Speichern
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditText('');
+                      }}
+                    >
+                      <X className="size-3" />
+                      Abbrechen
+                    </Button>
                   </div>
-                ) : (
-                  <p className="m-0 text-sm text-foreground">{memory.text}</p>
-                )}
-
-                <div className="mt-xs flex flex-wrap items-center gap-sm">
-                  <span
-                    className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${KIND_COLORS[memory.kind]}`}
-                    title={KIND_HINT[memory.kind]}
-                  >
-                    {KIND_LABEL[memory.kind]}
-                  </span>
-                  {memory.source === 'manual' && (
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">
-                      Manuell
-                    </Badge>
-                  )}
-                  <span className="text-xs text-grey-400">
-                    {formatRelativeTime(memory.updated_at)}
-                  </span>
-                </div>
-              </div>
-
-              {editingId !== memory.id && (
-                <div className="flex shrink-0 items-center gap-0.5">
-                  {confirmDeleteId === memory.id ? (
-                    <>
-                      <Button
-                        variant="destructive"
-                        size="xs"
-                        onClick={() => deleteMutation.mutate(memory.id)}
-                        disabled={
-                          deleteMutation.isPending && deleteMutation.variables === memory.id
-                        }
-                      >
-                        {deleteMutation.isPending && deleteMutation.variables === memory.id ? (
-                          <RefreshCw className="size-3 animate-spin" />
-                        ) : (
-                          'Ja'
-                        )}
-                      </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteId(null)}>
-                        Nein
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-grey-400 hover:text-foreground"
-                        onClick={() => startEdit(memory)}
-                        aria-label="Erinnerung bearbeiten"
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-grey-400 hover:text-red-500"
-                        onClick={() => setConfirmDeleteId(memory.id)}
-                        aria-label="Erinnerung löschen"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+                </li>
+              ) : (
+                <SettingsListRow
+                  key={memory.id}
+                  mark={KIND_LABEL[memory.kind].charAt(0)}
+                  name={memory.text}
+                  wrapName
+                  badge={{
+                    label: KIND_LABEL[memory.kind],
+                    tone: memory.kind === 'anweisung' ? 'primary' : 'neutral',
+                  }}
+                  meta={`${memory.source === 'manual' ? 'Manuell · ' : ''}${formatRelativeTime(memory.updated_at)}`}
+                  actions={
+                    confirmDeleteId === memory.id ? (
+                      <>
+                        <Button
+                          variant="destructive"
+                          size="xs"
+                          onClick={() => deleteMutation.mutate(memory.id)}
+                          disabled={
+                            deleteMutation.isPending && deleteMutation.variables === memory.id
+                          }
+                        >
+                          {deleteMutation.isPending && deleteMutation.variables === memory.id ? (
+                            <RefreshCw className="size-3 animate-spin" />
+                          ) : (
+                            'Ja'
+                          )}
+                        </Button>
+                        <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteId(null)}>
+                          Nein
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0 text-grey-500 hover:text-foreground"
+                          onClick={() => startEdit(memory)}
+                          aria-label="Erinnerung bearbeiten"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0 text-grey-500 hover:text-red-500"
+                          onClick={() => setConfirmDeleteId(memory.id)}
+                          aria-label="Erinnerung löschen"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </>
+                    )
+                  }
+                />
+              )
+            )}
+          </SettingsList>
+        )}
+      </SettingsSection>
 
       {memories.length > 0 && (
-        <div className="mt-md flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-grey-500 hover:text-foreground"
-            onClick={() => void handleExport()}
+        <SettingsSection title="Verwalten">
+          <ManageRow title="Erinnerungen exportieren" description="Alle Einträge als JSON-Datei">
+            <Button variant="outline" size="sm" onClick={() => void handleExport()}>
+              <Download className="size-3.5" />
+              Exportieren
+            </Button>
+          </ManageRow>
+          <ManageRow
+            title="Alle Erinnerungen löschen"
+            description="Entfernt jeden Eintrag. Das lässt sich nicht rückgängig machen."
           >
-            <Download className="size-3.5" />
-            Exportieren
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-grey-500 hover:text-red-500"
-            onClick={() => setShowDeleteAllDialog(true)}
-          >
-            <Trash2 className="size-3.5" />
-            Alle löschen
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-700 hover:text-red-700 dark:text-red-300"
+              onClick={() => setShowDeleteAllDialog(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Alle löschen
+            </Button>
+          </ManageRow>
+        </SettingsSection>
       )}
 
       <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>

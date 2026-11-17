@@ -11,6 +11,8 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useRef, useState } from 'react';
 
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
+import { SettingsList, SettingsListRow } from '../components/SettingsListRow';
+import SettingsSection from '../components/SettingsSection';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
   letterheadApi,
@@ -109,7 +111,7 @@ function LetterheadForm({
   const [foldMarks, setFoldMarks] = useState(initial.show_fold_marks ?? true);
 
   return (
-    <div className="flex flex-col gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700">
+    <div className="flex flex-col gap-sm py-3">
       <div className="flex flex-col gap-xs">
         <label className={LABEL} htmlFor="lh-label">
           Name
@@ -233,7 +235,6 @@ function StationeryField({ letterhead }: { letterhead: Letterhead }) {
     mutationFn: (file: File) => letterheadApi.uploadStationery(letterhead.id, file),
     onSuccess: async () => {
       await invalidate();
-      toast.success('Briefpapier hinterlegt');
     },
     onError: () => toast.error('Briefpapier konnte nicht hochgeladen werden.'),
   });
@@ -242,13 +243,12 @@ function StationeryField({ letterhead }: { letterhead: Letterhead }) {
     mutationFn: () => letterheadApi.removeStationery(letterhead.id),
     onSuccess: async () => {
       await invalidate();
-      toast.success('Briefpapier entfernt');
     },
     onError: () => toast.error('Briefpapier konnte nicht entfernt werden.'),
   });
 
   return (
-    <div className="mt-xs flex flex-wrap items-center gap-xs">
+    <div className="flex flex-wrap items-center gap-xs">
       <input
         ref={inputRef}
         type="file"
@@ -306,7 +306,6 @@ const LetterheadsSection = () => {
     onSuccess: async () => {
       setIsAdding(false);
       await invalidate();
-      toast.success('Briefkopf angelegt');
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -317,7 +316,6 @@ const LetterheadsSection = () => {
     onSuccess: async () => {
       setEditingId(null);
       await invalidate();
-      toast.success('Briefkopf gespeichert');
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -331,19 +329,30 @@ const LetterheadsSection = () => {
   if (isLoading) return <SettingsCardsSkeleton cards={2} />;
 
   return (
-    <div className="flex flex-col gap-sm">
-      <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-        Briefköpfe für den PDF-Export: Absenderangaben, Versandweg und eigener Briefbogen. Beim
-        Export wählst du aus, welcher davon oben links erscheint.
-      </p>
-
-      {letterheads.length === 0 && !isAdding && (
-        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-          Noch kein Briefkopf angelegt.
-        </p>
-      )}
-
-      <ul className="m-0 flex list-none flex-col gap-xs p-0">
+    <SettingsSection
+      title="Briefköpfe"
+      description="Absenderangaben, Versandweg und eigener Briefbogen für den PDF-Export. Beim Export wählst du aus, welcher davon oben links erscheint."
+      aside={
+        <>
+          <span className="text-sm tabular-nums text-grey-600 dark:text-grey-400">
+            {letterheads.length}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={isAdding}
+            onClick={() => setIsAdding(true)}
+          >
+            Briefkopf hinzufügen
+          </Button>
+        </>
+      }
+    >
+      <SettingsList
+        isEmpty={letterheads.length === 0 && !isAdding}
+        empty="Noch kein Briefkopf angelegt."
+      >
         {letterheads.map((lh: Letterhead) =>
           editingId === lh.id ? (
             <li key={lh.id}>
@@ -363,77 +372,82 @@ const LetterheadsSection = () => {
               />
             </li>
           ) : (
-            <li
+            <SettingsListRow
               key={lh.id}
-              className="flex flex-wrap items-start justify-between gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700"
-            >
-              <div className="min-w-0">
-                <p className="m-0 text-sm text-foreground">
-                  {lh.label}
-                  {lh.is_default && (
-                    <span className="ml-xs rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                      Standard
-                    </span>
+              mark={lh.label.trim().charAt(0).toUpperCase()}
+              name={lh.label}
+              badge={lh.is_default ? { label: 'Standard' } : undefined}
+              meta={
+                <>
+                  <div className="whitespace-pre-line">
+                    {[lh.organization, lh.address].filter(Boolean).join('\n')}
+                  </div>
+                  <div className="mt-xs">
+                    {lh.dispatch_mode === 'direktfrankierung'
+                      ? 'Direkt aufs Blatt frankiert'
+                      : 'Fensterkuvert'}
+                    {!lh.show_return_line && ' · ohne Rücksendeangabe'}
+                    {!lh.show_fold_marks && ' · ohne Falzmarken'}
+                  </div>
+                </>
+              }
+              actions={
+                <>
+                  {!lh.is_default && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        updateMutation.mutate({ id: lh.id, input: { is_default: true } })
+                      }
+                    >
+                      Als Standard
+                    </Button>
                   )}
-                </p>
-                <p className="m-0 whitespace-pre-line text-xs text-grey-500 dark:text-grey-400">
-                  {[lh.organization, lh.address].filter(Boolean).join('\n')}
-                </p>
-                <p className="m-0 mt-xs text-xs text-grey-500 dark:text-grey-400">
-                  {lh.dispatch_mode === 'direktfrankierung'
-                    ? 'Direkt aufs Blatt frankiert'
-                    : 'Fensterkuvert'}
-                  {!lh.show_return_line && ' · ohne Rücksendeangabe'}
-                  {!lh.show_fold_marks && ' · ohne Falzmarken'}
-                </p>
-                <StationeryField letterhead={lh} />
-              </div>
-              <div className="flex flex-wrap gap-xs">
-                {!lh.is_default && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={() =>
-                      updateMutation.mutate({ id: lh.id, input: { is_default: true } })
-                    }
+                    onClick={() => setEditingId(lh.id)}
                   >
-                    Als Standard
+                    Bearbeiten
                   </Button>
-                )}
-                <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(lh.id)}>
-                  Bearbeiten
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    // Deleting the default silently promotes another one, so ask first.
-                    const trashed = `„${lh.label}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`;
-                    void confirm({
-                      title: `„${lh.label}" löschen?`,
-                      description: lh.is_default
-                        ? `${trashed} Das ist dein Standard-Briefkopf; ein anderer wird zum Standard.`
-                        : trashed,
-                    }).then((confirmed) => {
-                      if (!confirmed) return;
-                      deleteMutation.mutate(lh.id, {
-                        onSuccess: () =>
-                          showTrashUndo({ kind: 'user_letterhead', id: lh.id, title: lh.label }),
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      // Deleting the default silently promotes another one, so ask first.
+                      const trashed = `„${lh.label}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`;
+                      void confirm({
+                        title: `„${lh.label}" löschen?`,
+                        description: lh.is_default
+                          ? `${trashed} Das ist dein Standard-Briefkopf; ein anderer wird zum Standard.`
+                          : trashed,
+                      }).then((confirmed) => {
+                        if (!confirmed) return;
+                        deleteMutation.mutate(lh.id, {
+                          onSuccess: () =>
+                            showTrashUndo({ kind: 'user_letterhead', id: lh.id, title: lh.label }),
+                        });
                       });
-                    });
-                  }}
-                >
-                  Löschen
-                </Button>
+                    }}
+                  >
+                    Löschen
+                  </Button>
+                </>
+              }
+            >
+              <div className="pl-[46px]">
+                <StationeryField letterhead={lh} />
               </div>
-            </li>
+            </SettingsListRow>
           )
         )}
-      </ul>
+      </SettingsList>
 
-      {isAdding ? (
+      {isAdding && (
         <LetterheadForm
           initial={EMPTY}
           submitLabel="Anlegen"
@@ -441,14 +455,8 @@ const LetterheadsSection = () => {
           onCancel={() => setIsAdding(false)}
           onSubmit={(input) => createMutation.mutate(input)}
         />
-      ) : (
-        <div>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setIsAdding(true)}>
-            Briefkopf hinzufügen
-          </Button>
-        </div>
       )}
-    </div>
+    </SettingsSection>
   );
 };
 
