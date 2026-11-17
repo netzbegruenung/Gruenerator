@@ -55,7 +55,7 @@ const SRC = {
 };
 
 const EXAMPLES_FILE = 'documentation/src/components/SettingsOverview/tabNotes.ts';
-const ARTICLE = 'documentation/docs/Profil/einstellungen.mdx';
+const ARTICLE = 'documentation/docs/sonstiges/einstellungen.mdx';
 const ISSUE_LABEL = 'docs-freshness';
 const ISSUE_TITLE = 'Docs freshness: Einstellungen ohne Beschreibung';
 const ISSUE_MARKER = '<!-- docs-settings -->';
