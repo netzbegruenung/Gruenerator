@@ -31,6 +31,10 @@
  * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen; die
  * Zeilen-ids `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei
  * davon über `getSettingsEntry`).
+ *
+ * `baeume` ist in `nutzung` aufgegangen (das Kontingent steht über dem
+ * Verbrauch, der es aufbraucht); `tagesbriefing` ist dafür aus den Erinnerungen
+ * herausgezogen.
  */
 export type SettingsTab =
   | 'onboarding'
@@ -41,12 +45,12 @@ export type SettingsTab =
   | 'personalisierung'
   | 'briefe'
   | 'erinnerungen'
+  | 'tagesbriefing'
   | 'benachrichtigungen'
   | 'wolke'
   | 'websites'
   | 'antragsgruen'
   | 'konnektoren'
-  | 'baeume'
   | 'nutzung'
   | 'support';
 
@@ -218,8 +222,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet.',
   },
   {
-    id: 'erinnerungen.tagesbriefing',
-    tab: 'erinnerungen',
+    id: 'tagesbriefing.schalter',
+    tab: 'tagesbriefing',
     title: 'Tagesbriefing im Chat',
     platforms: BOTH,
     description:
@@ -262,8 +266,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   {
     // Web-only: der Fortschrittsbalken und die Newsletter-Karte sind eine
     // eigene Fläche, keine Zeile, wie bei der Nutzungsübersicht.
-    id: 'baeume.stand',
-    tab: 'baeume',
+    id: 'nutzung.baeume',
+    tab: 'nutzung',
     title: 'Bäume',
     description:
       'Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche',
@@ -274,7 +278,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     id: 'nutzung.uebersicht',
     tab: 'nutzung',
     title: 'Nutzung',
-    description: 'Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen',
+    description:
+      'Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen',
   },
   {
     // Web-only: die App hat keine Support-Fläche. Der Weg dorthin führt

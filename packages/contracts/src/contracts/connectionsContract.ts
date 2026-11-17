@@ -15,6 +15,7 @@ import {
   driveBrowseParamsSchema,
   driveBrowseQuerySchema,
   driveBrowseResponseSchema,
+  driveConnectLinkResponseSchema,
 } from '../schemas/connections.js';
 
 const c = initContract();
@@ -33,6 +34,18 @@ export const connectionsContract = c.router(
         500: driveBrowseErrorSchema,
       },
       summary: 'Einen Ordner des verbundenen Laufwerks auflisten',
+    },
+    connectLink: {
+      method: 'POST',
+      path: '/api/connections/:provider/connect-link',
+      pathParams: driveBrowseParamsSchema,
+      body: c.noBody(),
+      responses: {
+        200: driveConnectLinkResponseSchema,
+        403: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Nango-Link zum Verbinden genau dieses Laufwerks',
     },
   },
   { pathPrefix: '' }

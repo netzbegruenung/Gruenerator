@@ -35,6 +35,7 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   hintergrund: () => import('./tabs/BackgroundTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
+  tagesbriefing: () => import('./tabs/BriefingTab'),
   friends: () => import('./tabs/FriendsTab'),
   benachrichtigungen: () => import('./tabs/NotificationsTab'),
   briefe: () => import('./tabs/LetterheadsSection'),
@@ -43,7 +44,6 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   websites: () => import('./tabs/WebsitesTab'),
   antragsgruen: () => import('./tabs/AntragsgruenTab'),
   datenschutz: () => import('./tabs/PrivacyAccessibilityTab'),
-  baeume: () => import('./tabs/TreesTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };

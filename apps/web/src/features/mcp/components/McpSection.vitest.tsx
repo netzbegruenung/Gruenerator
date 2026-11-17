@@ -100,6 +100,51 @@ describe('McpSection — bekannte Konnektoren', () => {
 });
 
 /**
+ * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
+ * selben Verzeichnis unter „Sonstige". Seit 16.11.2026 für alle, als experimentell
+ * markiert; Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
+ */
+describe('McpSection — Microsoft 365', () => {
+  const STATUS_URL = `${API}/connections/status`;
+
+  function serveMicrosoft(providers: { provider: string; connected: boolean }[]) {
+    serve([]);
+    server.use(http.get(STATUS_URL, () => HttpResponse.json({ providers })));
+  }
+
+  const cardOf = async () =>
+    (await screen.findByText('Microsoft 365')).closest('div.rounded-xl') as HTMLElement;
+
+  it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: false }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    const group = card.closest('div.grid')?.parentElement as HTMLElement;
+    expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
+    expect(within(card).getByText('Experimentell')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
+  });
+
+  it('zeigt verbunden „Trennen" statt „Verbinden"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: true }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    expect(await within(card).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
+  });
+
+  it('fehlt, wenn der Server Microsoft nicht meldet', async () => {
+    serveMicrosoft([]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Rateo');
+    expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
+  });
+});
+
+/**
  * Den Werkzeug-Snapshot schreibt erst ein Verbindungsaufbau. Eine eigene Zeile
  * ohne Anmeldung zeigte deshalb keine Werkzeuge, bis jemand „Testen" klickte,
  * und die @-Liste im Chat kannte den neuen Server erst nach einem Remount.

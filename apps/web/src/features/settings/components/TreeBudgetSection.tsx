@@ -1,6 +1,9 @@
 /**
- * "Bäume" — the daily budget shared by images, Grünerator Voice, translation
- * and deep research (see apps/web/src/hooks/useTreeBudget.ts).
+ * "Bäume heute" — the daily budget shared by images, Grünerator Voice,
+ * translation and deep research (see apps/web/src/hooks/useTreeBudget.ts).
+ *
+ * Top of the Nutzung tab since 11.11.2026 (was its own tab): the budget is what
+ * the usage below spends, so the two belong on one page.
  */
 import { Button } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
@@ -9,9 +12,10 @@ import { formatTrees } from '../../../components/common/TreeBudgetLine';
 import { NEWSLETTER_SIGNUP_URL } from '../../../config/newsletter';
 import { treeBudgetQuery, useTreeBudget } from '../../../hooks/useTreeBudget';
 import { useAuthStore } from '../../../stores/authStore';
-import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-export const prefetch = (queryClient: QueryClient) => {
+import { SettingsCardsSkeleton } from './SettingsSkeleton';
+
+export const prefetchTreeBudget = (queryClient: QueryClient) => {
   void queryClient.prefetchQuery(treeBudgetQuery(useAuthStore.getState().user?.id));
 };
 
@@ -30,10 +34,19 @@ function Tile({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function TreesTab() {
+export function TreeBudgetSection() {
+  return (
+    <section className="flex flex-col gap-lg">
+      <h2 className="m-0 text-lg font-semibold text-foreground-heading">Bäume heute</h2>
+      <TreeBudget />
+    </section>
+  );
+}
+
+function TreeBudget() {
   const { data, isPending, isError } = useTreeBudget();
 
-  if (isPending) return <SettingsCardsSkeleton cards={2} />;
+  if (isPending) return <SettingsCardsSkeleton cards={1} />;
 
   if (isError || !data) {
     return (
@@ -85,14 +98,17 @@ export default function TreesTab() {
         )}
       </Tile>
 
-      <section className="flex flex-col gap-sm">
-        <h3 className="m-0 text-sm font-semibold text-foreground-heading">Was ein Baum ist</h3>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm text-grey-500">
-          {COST_ITEMS.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </section>
+      {/* Ohne Kontingent ist die Umrechnung nur Rauschen. */}
+      {limit !== null && (
+        <section className="flex flex-col gap-sm">
+          <h3 className="m-0 text-sm font-semibold text-foreground-heading">Was ein Baum ist</h3>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm text-grey-500">
+            {COST_ITEMS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {showNewsletterCard && (
         <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
