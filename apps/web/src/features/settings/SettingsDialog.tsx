@@ -252,17 +252,19 @@ const SettingsDialog = () => {
   };
 
   // Schmal verschwindet beim Wechsel das Element, das den Fokus hatte. Ohne
-  // Nachführen fiele er auf <body>, und ein Screenreader wüsste nicht, wo er ist.
-  const selectTab = (value: SettingsTab) => {
-    setTab(value);
-    if (isMobile) requestAnimationFrame(() => backRef.current?.focus());
-  };
-  const goBack = () => {
-    showNav();
-    requestAnimationFrame(() =>
-      navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus()
-    );
-  };
+  // Nachführen fiele er auf <body>, und ein Screenreader wüsste nicht, wo er
+  // ist. Ein Effekt statt der Klick-Handler, weil auch Reiter selbst den
+  // Bereich wechseln (Allgemein → „Einrichtung erneut starten"). Den ersten
+  // Durchlauf übernimmt onOpenAutoFocus.
+  const narrowPlace = narrowView === null ? null : `${narrowView}:${activeTab}`;
+  const lastNarrowPlace = useRef(narrowPlace);
+  useEffect(() => {
+    if (narrowPlace === lastNarrowPlace.current) return;
+    lastNarrowPlace.current = narrowPlace;
+    if (narrowView === 'pane') backRef.current?.focus();
+    else if (narrowView === 'nav')
+      navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
+  }, [narrowPlace, narrowView]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -290,7 +292,7 @@ const SettingsDialog = () => {
             <button
               ref={backRef}
               type="button"
-              onClick={goBack}
+              onClick={showNav}
               aria-label="Zurück zu allen Bereichen"
               className="-ml-xs flex size-11 items-center justify-center rounded-md text-foreground/70 hover:bg-hover-alt hover:text-foreground"
             >
@@ -334,7 +336,7 @@ const SettingsDialog = () => {
                       <button
                         type="button"
                         aria-current={value === activeTab ? 'page' : undefined}
-                        onClick={() => selectTab(value)}
+                        onClick={() => setTab(value)}
                         // Settling on a nav entry is enough intent to fetch its
                         // chunk and data — by the time the click lands the tab
                         // renders with content instead of a placeholder. Merely

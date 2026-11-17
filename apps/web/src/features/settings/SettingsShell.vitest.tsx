@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsDialog from './SettingsDialog';
 import { useSettingsDialogStore } from './settingsDialogStore';
 
-import { axe, renderWithProviders, screen, userEvent, within } from '@/test-utils';
+import { act, axe, renderWithProviders, screen, userEvent, within } from '@/test-utils';
 
 /**
  * Die Hülle des Dialogs: Titelzeile, Navigation in Gruppen, aktive Pille und
@@ -128,9 +128,29 @@ describe('Einstellungen schmal', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Briefe' }));
     expect(screen.getByRole('region', { name: 'Briefe' })).toBeInTheDocument();
 
+    expect(screen.getByRole('button', { name: 'Zurück zu allen Bereichen' })).toHaveFocus();
+
     await userEvent.click(screen.getByRole('button', { name: 'Zurück zu allen Bereichen' }));
     expect(screen.getByRole('navigation', { name: 'Bereiche' })).toBeVisible();
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Briefe' })).toHaveFocus();
+  });
+
+  it('führt den Fokus nach, wenn ein Reiter selbst den Bereich wechselt', async () => {
+    // Wie „Einrichtung erneut starten" in Allgemein: setTab direkt, nicht
+    // über die Navigation des Dialogs.
+    setWidth(390);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+    await screen.findByRole('region', { name: 'Allgemein' });
+    // Sonst stünde der Fokus vom Öffnen schon auf „Zurück", und der Test
+    // bewiese nichts.
+    screen.getByRole('button', { name: 'Einstellungen schließen' }).focus();
+
+    act(() => useSettingsDialogStore.getState().setTab('support'));
+
+    expect(await screen.findByRole('region', { name: 'Support' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zurück zu allen Bereichen' })).toHaveFocus();
   });
 
   it('hat keine axe-Befunde in der Liste', async () => {
