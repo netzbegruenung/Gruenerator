@@ -1,7 +1,7 @@
 import { SettingsRowLayout } from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
 
-const LINK_CLASS = 'font-medium text-primary-600 hover:underline dark:text-primary-400';
+const LINK_CLASS = 'text-sm font-medium text-primary-600 hover:underline dark:text-primary-400';
 
 const SupportTab = () => (
   <SettingsSection

@@ -93,14 +93,25 @@ const CustomPromptSection = () => {
           className="w-full resize-y rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
         />
         <div className="flex justify-end">
+          {/* aria-disabled statt disabled: ein fokussierter Knopf, der
+              `disabled` wird, verliert in Chrome den Fokus an <body> — genau
+              nach dem Klick auf „Speichern". So bleibt er fokussierbar, und der
+              Klick tut im sauberen Zustand nichts. */}
           <Button
             type="button"
             size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !isDirty}
+            onClick={() => {
+              if (saveMutation.isPending || !isDirty) return;
+              saveMutation.mutate();
+            }}
+            aria-disabled={saveMutation.isPending || !isDirty}
+            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
           >
             {saveMutation.isPending ? 'Wird gespeichert…' : isDirty ? 'Speichern' : savedLabel}
           </Button>
+          <span role="status" className="sr-only">
+            {justSaved && !isDirty ? 'Anweisungen gespeichert' : ''}
+          </span>
         </div>
       </div>
     </SettingsSection>

@@ -34,17 +34,26 @@ describe('PersonalizationTab', () => {
     const { user } = renderWithProviders(<PersonalizationTab />);
     const field = await screen.findByRole('textbox', { name: 'Anweisungen' });
     const button = screen.getByRole('button', { name: 'Speichern' });
-    expect(button).toBeDisabled();
+    // aria-disabled, nicht disabled: ein disabled gewordener Knopf gibt in
+    // Chrome den Fokus an <body> ab — jsdom bildet das nicht nach.
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
 
     await user.type(field, 'Duze alle.');
-    expect(button).toBeEnabled();
+    expect(button).toHaveAttribute('aria-disabled', 'false');
     button.focus();
     await user.click(button);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Gespeichert' })).toBeDisabled());
-    expect(document.activeElement).not.toBe(document.body);
+    const saved = await screen.findByRole('button', { name: 'Gespeichert' });
+    expect(saved).toHaveAttribute('aria-disabled', 'true');
+    expect(saved).not.toBeDisabled();
+    expect(saved).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Anweisungen gespeichert');
 
     await user.type(field, '!');
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Speichern' })).toHaveAttribute(
+      'aria-disabled',
+      'false'
+    );
   });
 });
