@@ -265,13 +265,21 @@ const overlayAtConfig: FullCanvasConfig<OverlayAtState, OverlayAtFullActions> = 
       line3: getPlaceholder('line3'),
     } as Partial<OverlayAtState>,
   },
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    callbacks,
+    history
+  ) => {
     const base = baseOverlayAtConfig.createActions(
       getState,
       setState,
       saveToHistory,
       debouncedSaveToHistory,
-      callbacks
+      callbacks,
+      history
     );
     return {
       ...base,

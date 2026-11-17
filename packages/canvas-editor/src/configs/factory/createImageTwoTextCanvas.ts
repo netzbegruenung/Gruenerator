@@ -569,7 +569,14 @@ export function createImageTwoTextCanvas<
         ),
       }) as State,
 
-    createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+    createActions: (
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks,
+      history
+    ) => {
       const baseActions = createBaseActions(
         getState,
         setState,
@@ -580,7 +587,9 @@ export function createImageTwoTextCanvas<
         // Diese Vorlagen setzen ihren Text durchweg weiß über den Bildverlauf —
         // hinzugefügter Text und Icons folgen derselben Vorgabe.
         '#FFFFFF',
-        brand
+        brand,
+        1,
+        history
       );
 
       // Callback keys for external sync
