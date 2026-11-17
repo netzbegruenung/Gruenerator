@@ -18,6 +18,19 @@ describe('searchSettings', () => {
     expect(searchSettings('   ', NAV)).toEqual([]);
   });
 
+  it('faltet Umlaute: „barriere" findet den Reiter mit den Bedienungshilfen', () => {
+    expect(searchSettings('barriere', NAV)[0]).toMatchObject({ tab: 'allgemein', rowId: null });
+  });
+
+  it('findet einen Reiter über seinen früheren Namen', () => {
+    const nav = [...NAV, { value: 'konnektoren', label: 'Konnektoren' }] as const;
+    expect(searchSettings('mcp', nav)[0]).toMatchObject({
+      tab: 'konnektoren',
+      title: 'Konnektoren',
+      rowId: null,
+    });
+  });
+
   it('findet die Bedienungshilfen in Allgemein, nicht mehr in Datenschutz', () => {
     const hits = searchSettings('animationen reduzieren', NAV);
     expect(hits[0]).toMatchObject({ tab: 'allgemein', rowId: 'barrierefreiheit.animationen' });

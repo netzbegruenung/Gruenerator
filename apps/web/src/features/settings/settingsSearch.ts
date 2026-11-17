@@ -2,6 +2,7 @@ import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { settingsForPlatform } from './settingsCatalog';
 import { type SettingsTab } from './settingsDialogStore';
+import { TAB_ALIASES } from './settingsTabAliases';
 
 export interface SettingsSearchHit {
   /** Eindeutig über alle Treffer: Reiter oder Reiter + Zeile. */
@@ -46,7 +47,12 @@ export function searchSettings(
   const hits: SettingsSearchHit[] = [];
 
   for (const entry of navEntries) {
-    const label = normalize(entry.label);
+    // Frühere Namen des Reiters zählen wie sein Label: wer „mcp" oder „barriere"
+    // tippt, landet dort, wo das Gesuchte heute steht.
+    const aliases = Object.entries(TAB_ALIASES)
+      .filter(([, target]) => target === entry.value)
+      .map(([name]) => name);
+    const label = normalize(`${entry.label} ${aliases.join(' ')}`);
     if (words.every((w) => includesWord(label, w))) {
       hits.push({
         key: entry.value,

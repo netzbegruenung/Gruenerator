@@ -2,28 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
+import { TAB_ALIASES } from './settingsTabAliases';
 import { SETTINGS_TABS } from './settingsTabs';
-
-/**
- * Namen, die es mal gab — geteilte Links sollen nicht ins Leere laufen.
- *
- * Nur die *Aliasse* stehen hier. Die kanonischen Schlüssel kommen aus
- * `SETTINGS_TABS`, das der Compiler über `Record<SettingsTab, …>` vollständig
- * hält: eine von Hand gepflegte Zweitliste driftete sonst beim nächsten neuen
- * Reiter wieder ab — `/settings/datenschutz`, `/settings/websites` und
- * `/settings/barrierefreiheit` landeten so auf Allgemein.
- */
-const TAB_ALIASES: Record<string, SettingsTab> = {
-  profil: 'allgemein',
-  briefkoepfe: 'briefe',
-  verbindungen: 'wolke',
-  mcp: 'konnektoren',
-  // Bis zum 16.11.2026 ein eigener Bereich, jetzt über dem Verbrauch in der Nutzung.
-  baeume: 'nutzung',
-  // Bis zum 28.08.2026 ein eigener Bereich, in „Datenschutz & Barrierefreiheit"
-  // aufgegangen, seit 17.11.2026 die Gruppe „Bedienungshilfen" in Allgemein.
-  barrierefreiheit: 'allgemein',
-};
 
 /**
  * `/settings/:tab` → Bereich. Unbekannte Namen fallen auf Allgemein zurück.

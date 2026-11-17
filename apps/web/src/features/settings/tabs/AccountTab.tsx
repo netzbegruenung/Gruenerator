@@ -17,6 +17,7 @@ import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import { QUERY_KEYS } from '@/features/auth/hooks/useProfileData';
 import { profileApiService } from '@/features/auth/services/profileApiService';
+import { useOptimizedAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 
 // Die Kontozeile ganz oben liest das Profil — vorwärmen, damit sie beim Öffnen
@@ -31,25 +32,38 @@ export const prefetch = (queryClient: QueryClient) => {
   });
 };
 
-const AccountTab = () => (
-  <div className="flex flex-col gap-8">
-    <SettingsSection title="Grüner Login">
-      <AccountIdentityRow />
-    </SettingsSection>
+const AccountTab = () => {
+  const authUser = useAuthStore((s) => s.user);
+  const { user: optimizedUser } = useOptimizedAuth();
+  // Dieselbe Bedingung wie in AccountIdentityRow: ohne Nutzer keine leere Gruppe.
+  const hasUser = Boolean(optimizedUser || authUser);
 
-    <SettingsSection title="Inhalte">
-      <SettingsRow id="allgemein.papierkorb">
-        <Button asChild variant="outline" onClick={() => useSettingsDialogStore.getState().close()}>
-          <Link to="/papierkorb">
-            <Trash2 aria-hidden="true" className="mr-xs h-4 w-4" />
-            Öffnen
-          </Link>
-        </Button>
-      </SettingsRow>
-    </SettingsSection>
+  return (
+    <div className="flex flex-col gap-8">
+      {hasUser && (
+        <SettingsSection title="Grüner Login">
+          <AccountIdentityRow />
+        </SettingsSection>
+      )}
 
-    <DeleteAccountSection />
-  </div>
-);
+      <SettingsSection title="Inhalte">
+        <SettingsRow id="allgemein.papierkorb">
+          <Button
+            asChild
+            variant="outline"
+            onClick={() => useSettingsDialogStore.getState().close()}
+          >
+            <Link to="/papierkorb">
+              <Trash2 aria-hidden="true" className="mr-xs h-4 w-4" />
+              Öffnen
+            </Link>
+          </Button>
+        </SettingsRow>
+      </SettingsSection>
+
+      <DeleteAccountSection />
+    </div>
+  );
+};
 
 export default AccountTab;
