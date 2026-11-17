@@ -12,7 +12,7 @@
  * übersteuern. Sie standen bis zum 28.08.2026 in einem eigenen Reiter mit genau
  * diesen zwei Zeilen.
  *
- * Die Gruppen tragen `h3`-Überschriften, weil der Dialog die `h2` (das
+ * Die Gruppen sind `SettingsSection`s (`h3`), weil der Dialog die `h2` (das
  * Reiter-Label) selbst setzt.
  */
 
@@ -20,6 +20,7 @@ import { Switch } from '@gruenerator/ui';
 import { useSyncExternalStore } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
+import SettingsSection from '../components/SettingsSection';
 
 import { useAuthStore } from '@/stores/authStore';
 
@@ -44,10 +45,6 @@ function readAnalyticsConsent(): boolean {
   }
 }
 
-const SectionHeading = ({ children }: { children: string }) => (
-  <h3 className="mt-0 mb-sm text-sm font-semibold text-foreground-heading">{children}</h3>
-);
-
 const PrivacyAccessibilityTab = () => {
   const analyticsConsent = useSyncExternalStore(
     subscribeToAnalyticsConsent,
@@ -67,73 +64,65 @@ const PrivacyAccessibilityTab = () => {
   };
 
   return (
-    <div className="flex flex-col gap-xl">
-      <section>
-        <SectionHeading>Datenschutz</SectionHeading>
-        <div className="-mb-4 divide-y divide-grey-200 dark:divide-grey-800">
-          <SettingsRow id="datenschutz.reichweitenmessung">
-            <Switch
-              checked={analyticsConsent}
-              onCheckedChange={toggleAnalytics}
-              aria-label="Reichweitenmessung mit Umami erlauben"
-            />
-          </SettingsRow>
+    <div className="flex flex-col gap-8">
+      <SettingsSection title="Einwilligungen">
+        <SettingsRow id="datenschutz.reichweitenmessung">
+          <Switch
+            checked={analyticsConsent}
+            onCheckedChange={toggleAnalytics}
+            aria-label="Reichweitenmessung mit Umami erlauben"
+          />
+        </SettingsRow>
 
-          <SettingsRow id="datenschutz.ki-einwilligung">
-            <Switch
-              checked={aiConsentAt != null}
-              onCheckedChange={(checked) => void setAiConsent(checked)}
-              aria-label="Einwilligung in die Verarbeitung besonderer Kategorien"
-            />
-          </SettingsRow>
+        <SettingsRow id="datenschutz.ki-einwilligung">
+          <Switch
+            checked={aiConsentAt != null}
+            onCheckedChange={(checked) => void setAiConsent(checked)}
+            aria-label="Einwilligung in die Verarbeitung besonderer Kategorien"
+          />
+        </SettingsRow>
 
-          <div className="py-4 text-xs text-grey-500 dark:text-grey-400">
-            {aiConsentAt != null && (
-              <p className="m-0 mb-2">
-                Einwilligung erteilt am{' '}
-                {new Date(aiConsentAt).toLocaleDateString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })}
-                .
-              </p>
-            )}
-            <p className="m-0">
-              Ohne diese Einwilligung kannst du die KI-Funktionen nicht nutzen: nimmst du sie
-              zurück, steht sofort wieder die Einwilligungsabfrage da — dort kannst du erneut
-              einwilligen oder dich abmelden. Was wir verarbeiten, steht in der{' '}
-              <a href="/datenschutz" className="underline">
-                Datenschutzerklärung
-              </a>
+        <div className="py-4 text-xs text-grey-500 dark:text-grey-400">
+          {aiConsentAt != null && (
+            <p className="m-0 mb-2">
+              Einwilligung erteilt am{' '}
+              {new Date(aiConsentAt).toLocaleDateString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
               .
             </p>
-          </div>
+          )}
+          <p className="m-0">
+            Ohne diese Einwilligung kannst du die KI-Funktionen nicht nutzen: nimmst du sie zurück,
+            steht sofort wieder die Einwilligungsabfrage da — dort kannst du erneut einwilligen oder
+            dich abmelden. Was wir verarbeiten, steht in der{' '}
+            <a href="/datenschutz" className="underline">
+              Datenschutzerklärung
+            </a>
+            .
+          </p>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <SectionHeading>Barrierefreiheit</SectionHeading>
-        <div className="-mb-4 divide-y divide-grey-200 dark:divide-grey-800">
-          <SettingsRow id="barrierefreiheit.animationen">
-            <Switch
-              checked={reduceMotion}
-              onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
-              aria-label="Animationen reduzieren"
-            />
-          </SettingsRow>
+      <SettingsSection title="Barrierefreiheit">
+        <SettingsRow id="barrierefreiheit.animationen">
+          <Switch
+            checked={reduceMotion}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
+            aria-label="Animationen reduzieren"
+          />
+        </SettingsRow>
 
-          <SettingsRow id="barrierefreiheit.transparenz">
-            <Switch
-              checked={reduceTransparency}
-              onCheckedChange={(checked) =>
-                void updateA11yPreference('reduce_transparency', checked)
-              }
-              aria-label="Transparenz und Unschärfe reduzieren"
-            />
-          </SettingsRow>
-        </div>
-      </section>
+        <SettingsRow id="barrierefreiheit.transparenz">
+          <Switch
+            checked={reduceTransparency}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
+            aria-label="Transparenz und Unschärfe reduzieren"
+          />
+        </SettingsRow>
+      </SettingsSection>
     </div>
   );
 };

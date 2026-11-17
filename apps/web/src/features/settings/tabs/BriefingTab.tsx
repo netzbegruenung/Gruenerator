@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
+import SettingsSection from '../components/SettingsSection';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
@@ -63,8 +64,8 @@ export default function BriefingTab() {
   if (!userId) return null;
 
   return (
-    <div className="flex flex-col gap-lg">
-      <div className="-mt-4 border-b border-grey-200 dark:border-grey-800">
+    <div className="flex flex-col gap-8">
+      <SettingsSection title="Tagesbriefing">
         <SettingsRow id="tagesbriefing.schalter">
           <Switch
             checked={enabled}
@@ -73,7 +74,7 @@ export default function BriefingTab() {
             aria-label="Tagesbriefing im Chat einschalten"
           />
         </SettingsRow>
-      </div>
+      </SettingsSection>
 
       {error && (
         <p role="alert" className="m-0 text-sm text-red-700 dark:text-red-300">
@@ -81,14 +82,19 @@ export default function BriefingTab() {
         </p>
       )}
 
-      <section className="flex flex-col gap-sm">
-        <h3 className="m-0 text-sm font-semibold text-foreground-heading">Was drinsteht</h3>
-        <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-sm text-grey-500">
+      <section aria-labelledby="briefing-contents" className="flex flex-col gap-sm">
+        <h3
+          id="briefing-contents"
+          className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading"
+        >
+          Was drinsteht
+        </h3>
+        <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-sm text-grey-600 dark:text-grey-400">
           {CONTENTS.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
-        <p className="m-0 text-xs text-grey-500">
+        <p className="m-0 max-w-[64ch] text-[13px] text-grey-600 dark:text-grey-400">
           Das Briefing erscheint als neuer Chat in deiner Seitenleiste. Hast du nicht darauf
           geantwortet, tritt am nächsten Tag das neue an seine Stelle.
         </p>
