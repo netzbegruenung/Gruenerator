@@ -97,16 +97,3 @@ export const CanvaLogoIcon: IconType = ({ className, size }: IconBaseProps) => {
     />
   );
 };
-
-/**
- * "Powered by Canva" lockup — the brand-approved alternative to showing the logo
- * at an integration entry point.
- */
-export function PoweredByCanva({ className }: { className?: string }): JSX.Element {
-  return (
-    <span className={cn('inline-flex items-center gap-1 text-xs text-grey-400', className)}>
-      Powered by
-      <CanvaLogo size={14} variant="script" />
-    </span>
-  );
-}
