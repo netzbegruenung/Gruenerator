@@ -1098,7 +1098,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Saarland',
-    description: 'Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland',
+    description:
+      'Pressemitteilungen, Artikel, Parteitagsbeschlüsse und Wahlprogramme der Grünen Saarland',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
