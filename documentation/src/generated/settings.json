@@ -13,6 +13,18 @@
       "label": "Hintergrund"
     },
     {
+      "value": "friends",
+      "label": "Friends"
+    },
+    {
+      "value": "benachrichtigungen",
+      "label": "Benachrichtigungen"
+    },
+    {
+      "value": "datenschutz",
+      "label": "Datenschutz & Barrierefreiheit"
+    },
+    {
       "value": "personalisierung",
       "label": "Personalisierung"
     },
@@ -23,14 +35,6 @@
     {
       "value": "tagesbriefing",
       "label": "Tagesbriefing"
-    },
-    {
-      "value": "friends",
-      "label": "Friends"
-    },
-    {
-      "value": "benachrichtigungen",
-      "label": "Benachrichtigungen"
     },
     {
       "value": "briefe",
@@ -51,10 +55,6 @@
     {
       "value": "antragsgruen",
       "label": "Antragsgrün"
-    },
-    {
-      "value": "datenschutz",
-      "label": "Datenschutz & Barrierefreiheit"
     },
     {
       "value": "nutzung",
