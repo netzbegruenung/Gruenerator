@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { closeCompletesOnboarding, resolveSettingsTab, visibleSettingsNav } from './SettingsDialog';
+import {
+  closeCompletesOnboarding,
+  groupSettingsNav,
+  resolveSettingsTab,
+  visibleSettingsNav,
+} from './SettingsDialog';
 import { SETTINGS_TAB_MAP } from './SettingsRedirect';
 
 /**
@@ -23,6 +28,26 @@ describe('visibleSettingsNav', () => {
   it('führt Antragsgrün nur, wo es die Funktion gibt', () => {
     expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('antragsgruen');
     expect(visibleSettingsNav(false, true).map((e) => e.value)).toContain('antragsgruen');
+  });
+});
+
+describe('groupSettingsNav', () => {
+  it('stellt die Einrichtung ohne Überschrift vor die vier Gruppen', () => {
+    const groups = groupSettingsNav(visibleSettingsNav(true));
+    expect(groups.map((g) => g.label)).toEqual([
+      null,
+      'Präferenzen',
+      'Dein Grünerator',
+      'Verbindungen',
+      'Übersicht',
+    ]);
+    expect(groups[0]?.entries.map((e) => e.value)).toEqual(['onboarding']);
+  });
+
+  it('verliert keinen Eintrag und behält die Reihenfolge', () => {
+    const flat = visibleSettingsNav(true, true);
+    const regrouped = groupSettingsNav(flat).flatMap((g) => g.entries);
+    expect(regrouped.map((e) => e.value)).toEqual(flat.map((e) => e.value));
   });
 });
 
