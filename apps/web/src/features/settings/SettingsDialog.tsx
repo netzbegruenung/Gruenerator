@@ -357,7 +357,7 @@ const SettingsDialog = () => {
         // Escape leert zuerst die Suche; erst ein zweites schließt den Dialog.
         // Radix hört auf Dokumentebene, ein stopPropagation am Feld käme zu spät.
         onEscapeKeyDown={(event) => {
-          if (query === '') return;
+          if (query.trim() === '') return;
           event.preventDefault();
           setQuery('');
         }}

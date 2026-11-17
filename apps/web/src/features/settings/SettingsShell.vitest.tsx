@@ -177,6 +177,18 @@ describe('Einstellungen Suche', () => {
     expect(useSettingsDialogStore.getState().isOpen).toBe(false);
   });
 
+  it('schließt sofort, wenn im Feld nur Leerzeichen stehen', async () => {
+    // Dann zeigt der Dialog keine Treffer, sondern die normale Navigation —
+    // ein Escape, das erst das Feld leert, wäre für niemanden sichtbar.
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), '   ');
+    await userEvent.keyboard('{Escape}');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(false);
+  });
+
   it('öffnet schmal nach einem Treffer den Bereich', async () => {
     setWidth(390);
     useSettingsDialogStore.getState().openSettings();
