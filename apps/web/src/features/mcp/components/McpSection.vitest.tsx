@@ -77,9 +77,8 @@ describe('McpSection — bekannte Konnektoren', () => {
     const { container } = renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     const title = await screen.findByText('Rateo');
-    const card = title.closest('div.flex') ?? title.parentElement!;
     await userEvent.click(
-      within(card.parentElement as HTMLElement).getByRole('button', { name: 'Verbinden' })
+      within(title.closest('li') as HTMLElement).getByRole('button', { name: 'Verbinden' })
     );
 
     await waitFor(() => expect(connected).toEqual(['rateo']));
@@ -113,14 +112,14 @@ describe('McpSection — Microsoft 365', () => {
   }
 
   const cardOf = async () =>
-    (await screen.findByText('Microsoft 365')).closest('div.rounded-xl') as HTMLElement;
+    (await screen.findByText('Microsoft 365')).closest('li') as HTMLElement;
 
   it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
     serveMicrosoft([{ provider: 'microsoft', connected: false }]);
     renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     const card = await cardOf();
-    const group = card.closest('div.grid')?.parentElement as HTMLElement;
+    const group = card.closest('ul')?.parentElement as HTMLElement;
     expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
     expect(within(card).getByText('Experimentell')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
