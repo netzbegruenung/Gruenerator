@@ -247,7 +247,8 @@ describe('POST /internal/canvas/:id/state', () => {
         hocuspocus: {
           documents: new Map(),
           openDirectConnection: async () => ({
-            transact: async (fn: (d: Y.Doc) => void) => fn(doc),
+            // As Hocuspocus' DirectConnection does: the callback runs inside one document.transact.
+            transact: async (fn: (d: Y.Doc) => void) => doc.transact(() => fn(doc)),
             disconnect: async () => {},
           }),
         },
@@ -282,6 +283,24 @@ describe('POST /internal/canvas/:id/state', () => {
       found: CANVAS_DOCUMENT_VERSION + 1,
       known: CANVAS_DOCUMENT_VERSION,
     });
+    expect(bytesOf(doc).equals(before)).toBe(true);
+  });
+
+  it('answers 400 with a distinct code for a value the codec refuses, and writes nothing', async () => {
+    const doc = clientDoc({ stamp: 4, structured: true });
+    applyDeckChangesToDoc(doc, {
+      pageOps: [{ op: 'add', index: 1, page: { id: 'p2', configId: 'slider', state: {} } }],
+    });
+    const before = bytesOf(doc);
+    // Page p1 is fine, p2 is not: the first write must not survive.
+    const res = await post(await start(doc), {
+      pagePatches: [
+        { pageId: 'p1', patch: { headline: 'zuerst' } },
+        { pageId: 'p2', patch: { iconStates: JSON.parse('{"i":{"__proto__":1}}') } },
+      ],
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: 'CANVAS_STATE_UNWRITABLE' });
     expect(bytesOf(doc).equals(before)).toBe(true);
   });
 

@@ -19,20 +19,30 @@
  *    writes plain JSON, so its values stay plain until an editor opens and lifts the document.
  * 5. The host's collection keys are passed to the codec (`CANVAS_HOST_COLLECTION_KEYS`).
  * 6. A refusal is an error. The caller must not answer it by patching a flat JSON mirror.
+ * 7. A write that spans several pages (or a page and the root mirror) checks every value first
+ *    (`assertStateWritable`), outside the transaction: Yjs cannot roll a transaction back, so a
+ *    throw halfway would leave the pages before it written and persisted.
  */
 import {
+  ELEMENT_STORAGE_VERSION,
   YDOC_KEYS,
+  assertWritableState,
   buildStateMap,
   mayWriteStructured,
   readState,
   stateKeyClasses,
   writeStateKeys,
+  type PlainFallback,
   type StateKeyClasses,
 } from '@ggraphic/core/ydoc';
 import { CANVAS_DOCUMENT_VERSION } from '@ggraphic/schema';
 import { CANVAS_HOST_COLLECTION_KEYS } from '@gruenerator/contracts/canvas-host-keys';
 
+import { createLogger } from './logger.js';
+
 import type * as Y from 'yjs';
+
+const log = createLogger('CanvasCodec');
 
 export { YDOC_KEYS, readState };
 
@@ -117,22 +127,77 @@ export function stampCreatedDocument(doc: Y.Doc): void {
   }
 }
 
-/** Codec options for one write: structure only where the document is (or was just stamped) 4+. */
-export const writeOptions = (doc: Y.Doc) => ({
+/** The Hocuspocus document name (the canvas id); a bare Y.Doc has none. */
+const canvasIdOf = (doc: Y.Doc): string => (doc as { name?: string }).name ?? doc.guid;
+
+/**
+ * Codec options for one write: structure only where the document is (or was just stamped) 4+.
+ * A structured collection that is replaced by a plain value is accepted (the value is not
+ * representable as elements) and logged: a peer's concurrent per-element edits of it are lost.
+ */
+export const writeOptions = (doc: Y.Doc, pageId: string | null = null) => ({
   classes: CANVAS_KEY_CLASSES,
   lift: mayWriteStructured(doc),
+  onPlainFallback: (fallback: PlainFallback) => {
+    log.warn(
+      `canvas ${canvasIdOf(doc)} page ${pageId ?? 'unknown'}: key ${fallback.key} written as plain ` +
+        `value (${fallback.reason})${fallback.replaced ? ', replaced a structured collection' : ''}`
+    );
+  },
 });
+
+/** The error code the internal API answers an unwritable value with. */
+export const CANVAS_STATE_UNWRITABLE_CODE = 'CANVAS_STATE_UNWRITABLE';
+
+/** A value the codec refuses to write; the internal API answers it with 400. */
+export class CanvasStateUnwritableError extends Error {
+  readonly code = CANVAS_STATE_UNWRITABLE_CODE;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'CanvasStateUnwritableError';
+  }
+}
+
+/**
+ * Throws `CanvasStateUnwritableError` when writing `value` into `stateY` (or, without one, into
+ * a new page state) would be rejected by the codec. Reads only; call it for every part of a
+ * write before the transaction opens. `stamping` says that this write stamps the document in
+ * its transaction, so structure will be allowed by the time the codec runs.
+ */
+export function assertStateWritable(
+  doc: Y.Doc,
+  value: Record<string, unknown>,
+  stateY: Y.Map<unknown> | null,
+  stamping = false
+): void {
+  const options = writeOptions(doc);
+  try {
+    assertWritableState(
+      value,
+      stamping ? { ...options, lift: CANVAS_DOCUMENT_VERSION >= ELEMENT_STORAGE_VERSION } : options,
+      stateY
+    );
+  } catch (error) {
+    throw new CanvasStateUnwritableError(error instanceof Error ? error.message : String(error));
+  }
+}
 
 /** Write `partial` into a page's state map through the codec. Inside the caller's transaction. */
 export function writePageState(
   doc: Y.Doc,
   stateY: Y.Map<unknown>,
-  partial: Record<string, unknown>
+  partial: Record<string, unknown>,
+  pageId: string | null = null
 ): void {
-  writeStateKeys(stateY, partial, writeOptions(doc));
+  writeStateKeys(stateY, partial, writeOptions(doc, pageId));
 }
 
 /** A fresh state map for a new page; structured only if the document allows it. */
-export function buildPageState(doc: Y.Doc, state: Record<string, unknown>): Y.Map<unknown> {
-  return buildStateMap(state, writeOptions(doc));
+export function buildPageState(
+  doc: Y.Doc,
+  state: Record<string, unknown>,
+  pageId: string | null = null
+): Y.Map<unknown> {
+  return buildStateMap(state, writeOptions(doc, pageId));
 }
