@@ -40,6 +40,7 @@ import {
   applyCanvasStatePatch,
   applyDeckChanges,
   getCurrentCanvasState,
+  getCanvasSnapshotState,
   getCurrentDeckState,
   seedCanvasPages,
   type CanvasPageDef,
@@ -329,13 +330,18 @@ export const canvasContractRouter = s.router(canvasContract, {
   clone: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const result = await cloneCanvas(args.params.id, userId);
+      // The live state comes from Hocuspocus (the editor's authority), not the `initial_state`
+      // mirror, as in the template freeze. `cloneCanvas` checks access first, so it takes a reader
+      // instead of the state: nothing is read from Hocuspocus for a canvas the caller may not see.
+      const result = await cloneCanvas(args.params.id, userId, getCanvasSnapshotState);
       if (result.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
+      // The copy gets a Yjs document of its own, seeded like a canvas created from a template.
+      await seedCanvasPages(result.newCanvasId, result.templateType, result.seededState);
       return {
         status: 201 as const,
         body:
@@ -344,6 +350,8 @@ export const canvasContractRouter = s.router(canvasContract, {
             : { newCanvasId: result.newCanvasId },
       };
     } catch (error) {
+      const refused = readRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.clone] Error:', err);
       return {

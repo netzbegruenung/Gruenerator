@@ -134,6 +134,7 @@ export const canvasContract = c.router(
         401: canvasErrorResponseSchema,
         403: canvasErrorResponseSchema,
         404: canvasErrorResponseSchema,
+        409: canvasErrorResponseSchema,
         500: canvasErrorResponseSchema,
       },
       summary: 'Clone a canvas',
