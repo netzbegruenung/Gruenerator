@@ -59,7 +59,7 @@ const card = (state: FreeformState, id: string) =>
   (state.shapeInstances as ShapeInstance[]).find((s) => s.id === `${id}-card`)!;
 
 afterEach(() => {
-  vi.doUnmock('@ggraphic/editor/utils/textUtils');
+  vi.doUnmock('@ggraphic/editor/internal/utils/textUtils');
   vi.resetModules();
 });
 
