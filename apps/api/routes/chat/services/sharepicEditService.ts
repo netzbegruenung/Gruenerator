@@ -28,6 +28,7 @@ import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
+import { baseForPatch } from '../../../services/canvas/canvasPatchBase.js';
 import { checkCanvasWriteAccess, createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
@@ -741,7 +742,12 @@ export async function applySharepicOpsToCanvas(args: {
   }
 
   const newState = { ...state, ...opsResult.patch };
-  await applyCanvasStatePatch(canvasId, opsResult.patch, { seedState: newState });
+  await applyCanvasStatePatch(canvasId, opsResult.patch, {
+    seedState: newState,
+    // The patch was computed from `state`, read seconds ago: let the server keep what a studio
+    // tab changed since.
+    base: baseForPatch(state, opsResult.patch),
+  });
   const version = await insertCanvasVersion({
     canvasId,
     state: newState,
