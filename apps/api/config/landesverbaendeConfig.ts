@@ -1348,6 +1348,31 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           ],
           disableOffPathFilter: true,
         },
+        {
+          // Landtagswahlprogramm 2027 (LTW 18.04.2027), online seit 16.11.2026 als
+          // Landingpage + Präambel + neun Kapitel-Seiten an Root-Permalinks. Keine
+          // Archivseite verlinkt sie, deshalb staticUrls. Das Gesamt-PDF
+          // (/uploads/sites/2/2026/11/Unser-Wahlprogramm-Landtagswahl-2027.pdf)
+          // bleibt bewusst draußen: es ist derselbe Text und würde jede Passage
+          // doppelt einspeisen.
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: [
+            'https://gruene-saar.de/unser-wahlprogramm/',
+            'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
+          ],
+          disableOffPathFilter: true,
+        },
         // Die zwei Wolke-Freigaben (Wahlprüfsteine-Arbeitsordner, Protokolle) sind
         // bewusst nicht mehr konfiguriert: beide enthielten personenbezogene und
         // interne Dateien. Die öffentlichen Antworten bleiben als gespeicherte
@@ -1530,10 +1555,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       label: 'Wahlprogramm',
       shortName: 'SL',
       // Landtagswahlprogramm 2022, found by the /dokumente-2/ PDF archive whose
-      // path type is 'beschluss' (#3808).
+      // path type is 'beschluss' (#3808), plus the Landtagswahlprogramm 2027 pages.
       contentType: 'wahlprogramm',
       urls: [
         'https://gruene-saar.de/wp-content/uploads/sites/2/2022/02/22-02-17-wahlprogramm-ltw-2022.pdf',
+        'https://gruene-saar.de/unser-wahlprogramm/',
+        'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
       ],
     },
   ],
