@@ -128,7 +128,7 @@ export { SHAREPIC_COLOR_HEX, type MeasureText };
 export { SCRIM_MAX } from './sharepicGround';
 export type { ComposedSharepic, ComposedSlide, ComposeOptions, PhotoTone } from './composeTypes';
 export { balancedWrap, largestSizeWordsFit, wrapWords } from '@ggraphic/editor/text';
-export { fitStoererText, STOERER_LINE_STEP } from '@ggraphic/editor/internal/composer/textFit';
+export { fitStoererText, STOERER_LINE_STEP } from './stoererFit';
 
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
 const BILD_TINT: Record<SharepicBrandId, string> = {
