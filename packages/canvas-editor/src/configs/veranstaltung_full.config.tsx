@@ -659,7 +659,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     };
   },
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    callbacks,
+    history
+  ) => {
     const { width: CANVAS_WIDTH, height: CANVAS_HEIGHT } = VERANSTALTUNG_CONFIG.canvas;
 
     // Use common action creators for shared functionality
@@ -748,7 +755,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       saveToHistory,
       debouncedSaveToHistory,
       CANVAS_WIDTH,
-      CANVAS_HEIGHT
+      CANVAS_HEIGHT,
+      history
     );
 
     return {

@@ -868,7 +868,14 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
       };
     },
 
-    createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+    createActions: (
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks,
+      history
+    ) => {
       const { width, height } = SLIDER_CONFIG.canvas;
 
       const getFontColor = () => {
@@ -884,7 +891,9 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         width,
         height,
         getFontColor(),
-        brand.pack
+        brand.pack,
+        1,
+        history
       );
 
       return {

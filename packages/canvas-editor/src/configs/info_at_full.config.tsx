@@ -182,13 +182,21 @@ const infoAtConfig: FullCanvasConfig<InfoAtState, InfoAtFullActions> = {
       accent: getPlaceholder('accent'),
     } as Partial<InfoAtState>,
   },
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    callbacks,
+    history
+  ) => ({
     ...baseInfoAtConfig.createActions(
       getState,
       setState,
       saveToHistory,
       debouncedSaveToHistory,
-      callbacks
+      callbacks,
+      history
     ),
     setAccent: (val: string) => {
       setState({ accent: val } as Partial<InfoAtState>);

@@ -2,7 +2,11 @@
  * The Grünerator's action set: the core's element actions plus Balken.
  */
 
-import { createElementActions, type BaseCanvasState } from '@ggraphic/editor/config';
+import {
+  createElementActions,
+  type BaseCanvasState,
+  type CanvasActionHistory,
+} from '@ggraphic/editor/config';
 
 import { createBalkenActions } from './balkenActions';
 
@@ -19,7 +23,9 @@ export function createBaseActions<TState extends BaseCanvasState>(
   /** The document's pack (`FullCanvasConfig.brand`); absent: the active brand. */
   brand?: BrandPack,
   /** Startgröße neuer Elemente (`insertScaleFor`); 1 = Sharepic-Werte. */
-  insertScale = 1
+  insertScale = 1,
+  /** `createActions`' last argument; without it an upload's blob swap/discard is an undo step. */
+  history?: CanvasActionHistory
 ) {
   return {
     ...createElementActions(
@@ -33,7 +39,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
       // No chart palette: the document brand (last argument) supplies it.
       undefined,
       insertScale,
-      brand
+      brand,
+      history
     ),
     ...createBalkenActions(
       getState,
