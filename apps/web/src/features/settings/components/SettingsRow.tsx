@@ -17,9 +17,9 @@ const SettingsRow = ({ id, children }: SettingsRowProps) => {
   return (
     <div
       data-settings-id={id}
-      className="flex scroll-mt-4 items-center justify-between gap-md py-4"
+      className="flex min-h-14 scroll-mt-4 flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3.5"
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-44">
         <p className="m-0 text-sm font-medium text-foreground">{title}</p>
         {description && (
           <p className="m-0 mt-0.5 text-xs text-grey-500 dark:text-grey-400">{description}</p>

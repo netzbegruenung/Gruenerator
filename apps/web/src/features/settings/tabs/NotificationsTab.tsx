@@ -57,7 +57,6 @@ const TestEmailRow = () => {
 
 const NotificationsTab = () => (
   <NotificationPreferences
-    onSuccessMessage={(message) => toast.success(message)}
     onErrorMessage={(message) => toast.error(message)}
     expertExtras={<TestEmailRow />}
   />
