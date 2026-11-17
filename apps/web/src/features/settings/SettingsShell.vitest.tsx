@@ -148,9 +148,7 @@ describe('Einstellungen Suche', () => {
     renderWithProviders(<SettingsDialog />);
 
     await userEvent.type(await screen.findByRole('searchbox'), 'barriere');
-    expect(
-      screen.getAllByRole('button', { name: /Datenschutz & Barrierefreiheit/ }).length
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Allgemein/ }).length).toBeGreaterThan(0);
   });
 
   it('meldet einen leeren Treffer', async () => {

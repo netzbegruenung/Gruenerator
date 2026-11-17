@@ -32,6 +32,7 @@ interface SettingsTabModule {
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   onboarding: () => import('./tabs/OnboardingTab'),
   allgemein: () => import('./tabs/GeneralTab'),
+  konto: () => import('./tabs/AccountTab'),
   hintergrund: () => import('./tabs/BackgroundTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
@@ -43,7 +44,7 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   wolke: () => import('./tabs/WolkeTab'),
   websites: () => import('./tabs/WebsitesTab'),
   antragsgruen: () => import('./tabs/AntragsgruenTab'),
-  datenschutz: () => import('./tabs/PrivacyAccessibilityTab'),
+  datenschutz: () => import('./tabs/PrivacyTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };

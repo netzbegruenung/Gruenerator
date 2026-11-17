@@ -84,7 +84,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
         <button
           type="button"
           aria-expanded={expanded}
-          aria-controls={`wolke-files-${shareLink.id}`}
+          aria-controls={expanded ? `wolke-files-${shareLink.id}` : undefined}
           onClick={() => setExpanded((v) => !v)}
           className="flex max-w-full items-center gap-xs rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
         >
@@ -108,7 +108,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
+            className="h-9 w-9 pointer-coarse:size-11"
             onClick={handleTest}
             disabled={testMutation.isPending || !shareLink.is_active}
             title="Verbindung testen"
@@ -121,7 +121,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 pointer-coarse:size-11"
               onClick={() => window.open(shareLink.share_link, '_blank')}
               title="In Nextcloud öffnen"
               aria-label="In Nextcloud öffnen"
@@ -133,7 +133,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
+            className="h-9 w-9 pointer-coarse:size-11"
             onClick={() => setShareDialogOpen(true)}
             title="Mit Projekt oder Gruppe teilen"
             aria-label="Mit Projekt oder Gruppe teilen"
@@ -145,7 +145,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
             variant="ghost"
             size="icon"
             className={cn(
-              'h-9 w-9',
+              'h-9 w-9 pointer-coarse:size-11',
               deleteArmed && 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
             )}
             onClick={handleDelete}

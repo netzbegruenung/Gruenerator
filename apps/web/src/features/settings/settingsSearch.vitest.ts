@@ -5,7 +5,8 @@ import { searchSettings } from './settingsSearch';
 const NAV = [
   { value: 'allgemein', label: 'Allgemein' },
   { value: 'hintergrund', label: 'Hintergrund' },
-  { value: 'datenschutz', label: 'Datenschutz & Barrierefreiheit' },
+  { value: 'konto', label: 'Konto' },
+  { value: 'datenschutz', label: 'Datenschutz' },
   { value: 'wolke', label: 'Wolke' },
   { value: 'personalisierung', label: 'Personalisierung' },
   { value: 'erinnerungen', label: 'Erinnerungen' },
@@ -17,9 +18,30 @@ describe('searchSettings', () => {
     expect(searchSettings('   ', NAV)).toEqual([]);
   });
 
-  it('faltet Umlaute: „barriere" findet Barrierefreiheit', () => {
-    const hits = searchSettings('barriere', NAV);
-    expect(hits[0]).toMatchObject({ tab: 'datenschutz', rowId: null });
+  it('faltet Umlaute: „barriere" findet den Reiter mit den Bedienungshilfen', () => {
+    expect(searchSettings('barriere', NAV)[0]).toMatchObject({ tab: 'allgemein', rowId: null });
+  });
+
+  it('findet einen Reiter über seinen früheren Namen', () => {
+    const nav = [...NAV, { value: 'konnektoren', label: 'Konnektoren' }] as const;
+    expect(searchSettings('mcp', nav)[0]).toMatchObject({
+      tab: 'konnektoren',
+      title: 'Konnektoren',
+      rowId: null,
+    });
+  });
+
+  it('findet die Bedienungshilfen in Allgemein, nicht mehr in Datenschutz', () => {
+    const hits = searchSettings('animationen reduzieren', NAV);
+    expect(hits[0]).toMatchObject({ tab: 'allgemein', rowId: 'barrierefreiheit.animationen' });
+    expect(hits.some((h) => h.tab === 'datenschutz')).toBe(false);
+  });
+
+  it('findet den Papierkorb im Konto', () => {
+    expect(searchSettings('papierkorb', NAV)[0]).toMatchObject({
+      tab: 'konto',
+      rowId: 'allgemein.papierkorb',
+    });
   });
 
   it('findet „hintergrund" als Reiter vor allen Zeilen', () => {

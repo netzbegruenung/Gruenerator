@@ -33,11 +33,20 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'allgemein',
     intro:
-      'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+      'Aussehen und Grundverhalten der Oberfläche. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
     extras: [
-      'Die Zeile **Konto** zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest.',
       'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
       'Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)" bekommst du österreichische Quellen und Begriffe statt deutscher.',
+      '**Animationen reduzieren** und **Transparenz reduzieren** (Gruppe „Bedienungshilfen") schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie folgen zunächst den Vorgaben deines Betriebssystems, gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
+      'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich, danach die untere Hälfte von „Datenschutz".',
+    ],
+  },
+  {
+    tab: 'konto',
+    intro:
+      'Wer du bist und was am Konto hängt. Hier steht nichts, was du einstellen müsstest — es ist der Ort für den Papierkorb und fürs endgültige Löschen.',
+    extras: [
+      'Die Gruppe **Grüner Login** zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest.',
       'Die Zeile **Papierkorb** öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt" im Workplace.',
       'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
     ],
@@ -56,12 +65,10 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'datenschutz',
     intro:
-      'Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern.',
+      'Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt.',
     extras: [
       '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
       '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
-      '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
-      'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich.',
     ],
   },
   {

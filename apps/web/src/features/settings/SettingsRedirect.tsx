@@ -2,29 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
+import { TAB_ALIASES } from './settingsTabAliases';
 import { SETTINGS_TABS } from './settingsTabs';
-
-/**
- * Namen, die es mal gab — geteilte Links sollen nicht ins Leere laufen.
- *
- * Nur die *Aliasse* stehen hier. Die kanonischen Schlüssel kommen aus
- * `SETTINGS_TABS`, das der Compiler über `Record<SettingsTab, …>` vollständig
- * hält: eine von Hand gepflegte Zweitliste driftete sonst beim nächsten neuen
- * Reiter wieder ab — `/settings/datenschutz`, `/settings/websites` und
- * `/settings/barrierefreiheit` landeten so auf Allgemein.
- */
-const TAB_ALIASES: Record<string, SettingsTab> = {
-  profil: 'allgemein',
-  konto: 'allgemein',
-  briefkoepfe: 'briefe',
-  verbindungen: 'wolke',
-  mcp: 'konnektoren',
-  // Bis zum 16.11.2026 ein eigener Bereich, jetzt über dem Verbrauch in der Nutzung.
-  baeume: 'nutzung',
-  // Bis zum 28.08.2026 ein eigener Bereich, jetzt die untere Hälfte von
-  // „Datenschutz & Barrierefreiheit".
-  barrierefreiheit: 'datenschutz',
-};
 
 /**
  * `/settings/:tab` → Bereich. Unbekannte Namen fallen auf Allgemein zurück.
@@ -53,8 +32,8 @@ const SettingsRedirect = () => {
     const pageRedirect = tab ? PAGE_REDIRECTS[tab] : null;
     if (!pageRedirect) {
       // Ohne Bereich im Pfad wird auch keiner benannt: Der Store steht bei einem
-      // frisch geladenen Link ohnehin auf Allgemein — das Konto steht dort, und
-      // der eigene Konto-Reiter existiert nicht mehr —, aber eine offene
+      // frisch geladenen Link ohnehin auf Allgemein — das Konto hat seinen
+      // eigenen Reiter, der Standard bleibt Allgemein —, aber eine offene
       // Einrichtung geht vor. Ein Pfad MIT Bereich meint genau den.
       useSettingsDialogStore
         .getState()

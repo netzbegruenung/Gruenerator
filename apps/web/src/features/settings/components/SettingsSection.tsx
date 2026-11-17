@@ -1,4 +1,4 @@
-import { type ReactNode, useId } from 'react';
+import { type ReactNode } from 'react';
 
 interface SettingsSectionProps {
   title: string;
@@ -11,14 +11,10 @@ interface SettingsSectionProps {
 // One heading, an optional description and the rows underneath, separated by
 // hairlines. Sections replace the old cards.
 const SettingsSection = ({ title, description, aside, children }: SettingsSectionProps) => {
-  const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="flex flex-col">
+    <div className="flex flex-col">
       <div className="flex items-baseline gap-sm pb-1">
-        <h2
-          id={headingId}
-          className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading"
-        >
+        <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">
           {title}
         </h2>
         {aside && <div className="ml-auto flex items-center gap-xs">{aside}</div>}
@@ -29,7 +25,7 @@ const SettingsSection = ({ title, description, aside, children }: SettingsSectio
         </p>
       )}
       <div className="divide-y divide-grey-200 dark:divide-grey-800">{children}</div>
-    </section>
+    </div>
   );
 };
 
