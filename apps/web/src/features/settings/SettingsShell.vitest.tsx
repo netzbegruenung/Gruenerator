@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsDialog from './SettingsDialog';
 import { useSettingsDialogStore } from './settingsDialogStore';
 
-import { act, axe, renderWithProviders, screen, userEvent, within } from '@/test-utils';
+import { act, axe, renderWithProviders, screen, userEvent, waitFor, within } from '@/test-utils';
 
 /**
  * Die Hülle des Dialogs: Titelzeile, Navigation in Gruppen, aktive Pille und
@@ -97,6 +97,115 @@ describe('Einstellungen breit', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(await axe(dialog)).toHaveNoViolations();
+  });
+});
+
+describe('Einstellungen Suche', () => {
+  it('zeigt Treffer statt der Gruppen und wechselt per Klick den Bereich', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox', { name: 'Einstellungen durchsuchen' });
+    await userEvent.type(field, 'wolke');
+
+    const nav = screen.getByRole('navigation', { name: 'Bereiche' });
+    expect(within(nav).queryByText('Präferenzen')).toBeNull();
+    await userEvent.click(within(nav).getAllByRole('button', { name: /Wolke/ })[0]);
+
+    expect(screen.getByRole('region', { name: 'Wolke' })).toBeInTheDocument();
+    expect(field).toHaveValue('');
+    expect(within(nav).getAllByRole('list').length).toBeGreaterThan(1);
+  });
+
+  it('lässt den Fokus nach einem Treffer nicht auf <body> fallen (breit)', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'wolke');
+    await userEvent.click(screen.getAllByRole('button', { name: /Wolke/ })[0]);
+
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('leert die Suche, wenn der Dialog von außen schließt', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox');
+    await userEvent.type(field, 'wolke');
+    act(() => useSettingsDialogStore.getState().close());
+    act(() => useSettingsDialogStore.getState().openSettings('allgemein'));
+    expect(await screen.findByRole('searchbox')).toHaveValue('');
+  });
+
+  it('findet Umlaute auch ohne Umlaut', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'barriere');
+    expect(
+      screen.getAllByRole('button', { name: /Datenschutz & Barrierefreiheit/ }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('meldet einen leeren Treffer', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'xyzzy');
+    expect(screen.getByText('Keine Treffer für „xyzzy“')).toBeInTheDocument();
+  });
+
+  it('leert mit Escape zuerst das Feld und schließt erst beim zweiten', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    const field = await screen.findByRole('searchbox');
+    await userEvent.type(field, 'wolke');
+    await userEvent.keyboard('{Escape}');
+    expect(field).toHaveValue('');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(true);
+
+    await userEvent.keyboard('{Escape}');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(false);
+  });
+
+  it('schließt sofort, wenn im Feld nur Leerzeichen stehen', async () => {
+    // Dann zeigt der Dialog keine Treffer, sondern die normale Navigation —
+    // ein Escape, das erst das Feld leert, wäre für niemanden sichtbar.
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), '   ');
+    await userEvent.keyboard('{Escape}');
+    expect(useSettingsDialogStore.getState().isOpen).toBe(false);
+  });
+
+  it('öffnet schmal nach einem Treffer den Bereich', async () => {
+    setWidth(390);
+    useSettingsDialogStore.getState().openSettings();
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'support');
+    await userEvent.click(screen.getAllByRole('button', { name: /Support/ })[0]);
+    expect(await screen.findByRole('region', { name: 'Support' })).toBeInTheDocument();
+  });
+
+  it('hat keine axe-Befunde mit Treffern', async () => {
+    setWidth(1280);
+    useSettingsDialogStore.getState().openSettings('allgemein');
+    renderWithProviders(<SettingsDialog />);
+
+    await userEvent.type(await screen.findByRole('searchbox'), 'dunkel');
+    expect(await axe(await screen.findByRole('dialog'))).toHaveNoViolations();
   });
 });
 

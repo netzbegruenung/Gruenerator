@@ -8,7 +8,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { type IconType } from 'react-icons';
 import {
   FiBarChart2,
@@ -19,6 +19,7 @@ import {
   FiCloud,
   FiGlobe,
   FiHelpCircle,
+  FiSearch,
   FiServer,
   FiSettings,
   FiShield,
@@ -37,6 +38,7 @@ import {
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
 import { useAntragsgruenSites } from './hooks/useAntragsgruenSites';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
+import { searchSettings, type SettingsSearchHit } from './settingsSearch';
 import {
   cancelSettingsHoverPreload,
   getSettingsTabComponent,
@@ -208,6 +210,13 @@ const SettingsTabBody = ({ tab }: { tab: SettingsTab }) => {
   );
 };
 
+// Das Aufblitzen der gefundenen Zeile: nur ein Farbton, keine Bewegung, damit es
+// unter prefers-reduced-motion nichts zu unterdrücken gibt. Als Literal, weil
+// Tailwind die Klassen aus dem Quelltext liest.
+const FLASH_CLASSES = 'rounded-md bg-primary-100 dark:bg-primary-950'.split(' ');
+const FLASH_MS = 1200;
+const FIND_ROW_FRAMES = 120; // ≈ 2 s
+
 const SettingsDialog = () => {
   const isOpen = useSettingsDialogStore((s) => s.isOpen);
   const tab = useSettingsDialogStore((s) => s.tab);
@@ -221,6 +230,11 @@ const SettingsDialog = () => {
   const { isActive: isOnboarding, complete: completeOnboarding } = useOnboarding();
   const navRef = useRef<HTMLElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const findFrameRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const flashedRowRef = useRef<HTMLElement | null>(null);
+  const [query, setQuery] = useState('');
 
   const { data: antragsgruenSites } = useAntragsgruenSites();
   // Solange die Liste lädt, bleibt ein direkt angesteuerter Reiter stehen,
@@ -266,10 +280,87 @@ const SettingsDialog = () => {
       navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
   }, [narrowPlace, narrowView]);
 
+  const searching = query.trim() !== '';
+  const hits = searching ? searchSettings(query, nav) : [];
+
+  const cancelFind = () => {
+    if (findFrameRef.current !== null) cancelAnimationFrame(findFrameRef.current);
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    findFrameRef.current = null;
+    flashTimerRef.current = null;
+    flashedRowRef.current?.classList.remove(...FLASH_CLASSES);
+    flashedRowRef.current = null;
+  };
+
+  // Schließt der Dialog (auch von außen) oder verschwindet er, endet die Suche:
+  // Feld leer, keine Schleife, kein Timer, der auf eine alte Zeile zeigt.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    if (!isOpen) setQuery('');
+  }
+  useEffect(() => {
+    if (!isOpen) cancelFind();
+    return cancelFind;
+  }, [isOpen]);
+
+  const openHit = (hit: SettingsSearchHit) => {
+    cancelFind();
+    setTab(hit.tab);
+    setQuery('');
+    const rowId = hit.rowId;
+    // Der angeklickte Treffer verschwindet mit der Liste und nimmt den Fokus
+    // mit. Breit führen wir ihn selbst nach; schmal übernimmt der Effekt oben.
+    const wide = narrowView === null;
+    // Die Reiter laden lazy: die Zeile steht oft erst ein paar Frames später da.
+    let frames = 0;
+    const find = () => {
+      findFrameRef.current = null;
+      const row =
+        rowId === null
+          ? null
+          : sectionRef.current?.querySelector<HTMLElement>(
+              `[data-settings-id="${CSS.escape(rowId)}"]`
+            );
+      const navEntry =
+        rowId === null ? navRef.current?.querySelector<HTMLElement>('[aria-current="page"]') : null;
+      if (row) {
+        row.scrollIntoView({ block: 'center' });
+        row.classList.add(...FLASH_CLASSES);
+        flashedRowRef.current = row;
+        flashTimerRef.current = window.setTimeout(() => {
+          row.classList.remove(...FLASH_CLASSES);
+          flashedRowRef.current = null;
+          flashTimerRef.current = null;
+        }, FLASH_MS);
+        if (wide) {
+          const control = row.querySelector<HTMLElement>(
+            'button, a[href], input, select, textarea, [role="combobox"], [tabindex]:not([tabindex="-1"])'
+          );
+          (control ?? sectionRef.current)?.focus({ preventScroll: true });
+        }
+      } else if (navEntry) {
+        if (wide) navEntry.focus();
+      } else if (++frames < FIND_ROW_FRAMES) {
+        findFrameRef.current = requestAnimationFrame(find);
+      } else if (wide) {
+        sectionRef.current?.focus({ preventScroll: true });
+      }
+    };
+    findFrameRef.current = requestAnimationFrame(find);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent
         showCloseButton={false}
+        // Escape leert zuerst die Suche; erst ein zweites schließt den Dialog.
+        // Radix hört auf Dokumentebene, ein stopPropagation am Feld käme zu spät.
+        onEscapeKeyDown={(event) => {
+          if (query.trim() === '') return;
+          event.preventDefault();
+          setQuery('');
+        }}
         // Radix fokussiert sonst das erste Fokussierbare, und das ist jetzt
         // das Schließen-Kreuz. Der Fokus gehört dahin, wo man ist: auf den
         // offenen Bereich in der Navigation, schmal im Bereich auf „Zurück".
@@ -317,63 +408,109 @@ const SettingsDialog = () => {
             hidden={narrowView === 'pane'}
             className="flex min-h-0 w-full shrink-0 flex-col gap-md overflow-y-auto px-sm py-md md:w-60 md:border-r md:border-grey-200 md:bg-background-alt/50 md:px-2.5 md:py-3.5 dark:md:border-grey-800"
           >
-            {groupSettingsNav(nav).map((group) => (
-              <div key={group.key} className="flex flex-col">
-                {group.label && (
-                  <h3
-                    id={`settings-nav-${group.key}`}
-                    className="m-0 px-2.5 pt-1.5 pb-1 text-xs font-normal text-foreground/65"
-                  >
-                    {group.label}
-                  </h3>
-                )}
-                <ul
-                  aria-labelledby={group.label ? `settings-nav-${group.key}` : undefined}
-                  className="m-0 flex list-none flex-col gap-px p-0"
-                >
-                  {group.entries.map(({ value, label, icon: Icon }) => (
-                    <li key={value}>
+            <div className="relative">
+              <FiSearch
+                size={15}
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-foreground/60"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Suchen"
+                aria-label="Einstellungen durchsuchen"
+                autoComplete="off"
+                className="h-11 w-full rounded-md border-0 bg-input-bg pr-3 pl-9 text-sm text-input-text outline-none placeholder:text-foreground/70 focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-[34px]"
+              />
+              <p className="sr-only" aria-live="polite">
+                {searching ? `${hits.length} Treffer` : ''}
+              </p>
+            </div>
+            {searching ? (
+              hits.length === 0 ? (
+                <p className="m-0 px-2.5 text-sm text-foreground/65">
+                  Keine Treffer für „{query.trim()}“
+                </p>
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-px p-0">
+                  {hits.map((hit) => (
+                    <li key={hit.key}>
                       <button
                         type="button"
-                        aria-current={value === activeTab ? 'page' : undefined}
-                        onClick={() => setTab(value)}
-                        // Settling on a nav entry is enough intent to fetch its
-                        // chunk and data — by the time the click lands the tab
-                        // renders with content instead of a placeholder. Merely
-                        // passing over it on the way down the list is not, hence
-                        // the intent delay.
-                        onPointerEnter={() => preloadSettingsTabOnHover(value, queryClient)}
-                        onPointerLeave={cancelSettingsHoverPreload}
-                        onFocus={() => preloadSettingsTabOnHover(value, queryClient)}
-                        className={cn(
-                          'flex w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-foreground transition-colors hover:bg-hover-alt',
-                          'min-h-11 py-1.5 md:min-h-8.5',
-                          // Schmal ist die Liste eine Übersicht, kein Ort:
-                          // dort markiert die Pille nichts.
-                          narrowView === null &&
-                            'aria-[current=page]:bg-primary-100 aria-[current=page]:font-semibold aria-[current=page]:text-primary-700 dark:aria-[current=page]:bg-primary-950 dark:aria-[current=page]:text-primary-200'
-                        )}
+                        onClick={() => openHit(hit)}
+                        className="flex min-h-11 w-full flex-col justify-center rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-hover-alt md:min-h-8.5"
                       >
-                        <Icon size={16} className="shrink-0" aria-hidden />
-                        <span className="min-w-0 flex-1">{label}</span>
-                        {narrowView === 'nav' && (
-                          <FiChevronRight size={16} className="text-foreground/50" aria-hidden />
+                        <span>{hit.title}</span>
+                        {hit.tabLabel && (
+                          <span className="text-xs text-foreground/65">{hit.tabLabel}</span>
                         )}
                       </button>
                     </li>
                   ))}
                 </ul>
-              </div>
-            ))}
+              )
+            ) : (
+              groupSettingsNav(nav).map((group) => (
+                <div key={group.key} className="flex flex-col">
+                  {group.label && (
+                    <h3
+                      id={`settings-nav-${group.key}`}
+                      className="m-0 px-2.5 pt-1.5 pb-1 text-xs font-normal text-foreground/65"
+                    >
+                      {group.label}
+                    </h3>
+                  )}
+                  <ul
+                    aria-labelledby={group.label ? `settings-nav-${group.key}` : undefined}
+                    className="m-0 flex list-none flex-col gap-px p-0"
+                  >
+                    {group.entries.map(({ value, label, icon: Icon }) => (
+                      <li key={value}>
+                        <button
+                          type="button"
+                          aria-current={value === activeTab ? 'page' : undefined}
+                          onClick={() => setTab(value)}
+                          // Settling on a nav entry is enough intent to fetch its
+                          // chunk and data — by the time the click lands the tab
+                          // renders with content instead of a placeholder. Merely
+                          // passing over it on the way down the list is not, hence
+                          // the intent delay.
+                          onPointerEnter={() => preloadSettingsTabOnHover(value, queryClient)}
+                          onPointerLeave={cancelSettingsHoverPreload}
+                          onFocus={() => preloadSettingsTabOnHover(value, queryClient)}
+                          className={cn(
+                            'flex w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-foreground transition-colors hover:bg-hover-alt',
+                            'min-h-11 py-1.5 md:min-h-8.5',
+                            // Schmal ist die Liste eine Übersicht, kein Ort:
+                            // dort markiert die Pille nichts.
+                            narrowView === null &&
+                              'aria-[current=page]:bg-primary-100 aria-[current=page]:font-semibold aria-[current=page]:text-primary-700 dark:aria-[current=page]:bg-primary-950 dark:aria-[current=page]:text-primary-200'
+                          )}
+                        >
+                          <Icon size={16} className="shrink-0" aria-hidden />
+                          <span className="min-w-0 flex-1">{label}</span>
+                          {narrowView === 'nav' && (
+                            <FiChevronRight size={16} className="text-foreground/50" aria-hidden />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
           </nav>
 
           {activeEntry && narrowView !== 'nav' && (
             <section
+              ref={sectionRef}
+              tabIndex={-1}
               // Neuer Bereich, neuer Scroll-Container: sonst öffnet ein Wechsel
               // mitten im neuen Bereich, so tief, wie man im alten war.
               key={activeTab}
               aria-label={activeEntry.label}
-              className="min-h-0 min-w-0 flex-1 overflow-y-auto"
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
             >
               <div className="px-md py-lg md:px-xl">
                 {!activeEntry.hideHeading && (
