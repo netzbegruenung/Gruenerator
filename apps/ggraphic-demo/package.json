@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@ggraphic/core": "0.1.0-alpha.3",
-    "@ggraphic/editor": "0.1.0-alpha.8",
+    "@ggraphic/editor": "0.1.0-alpha.9",
     "@tanstack/react-query": "^5.106.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"

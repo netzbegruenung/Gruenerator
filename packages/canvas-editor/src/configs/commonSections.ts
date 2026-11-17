@@ -21,9 +21,9 @@ import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
 import { buildSharepicText } from './buildSharepicText';
 
-import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { BalkenInstance } from '../utils/balkenUtils';
+import type { SharepicAiCapabilities } from './aiCapabilities';
 import type { CanvasAiEditBridge } from '@ggraphic/editor/shell';
 
 interface ActionsWithChart {
@@ -55,6 +55,7 @@ interface ActionsWithUploads {
   placeUserImageFromFile?: (file: File) => Promise<string>;
   updateUserImage?: (id: string, partial: { src?: string }) => void;
   removeUserImage?: (id: string) => void;
+  discardPlacedUserImage?: (id: string) => void;
 }
 
 /**
@@ -78,7 +79,10 @@ export const uploadsSectionEntry = defineCommonSection({
       const update = a.updateUserImage;
       props.onSwapPlacedUrl = (id, url) => update(id, { src: url });
     }
-    if (a.removeUserImage) props.onRemovePlaced = a.removeUserImage;
+    // `onRemovePlaced` takes back a placement whose upload failed: that must also
+    // leave the undo history, which `removeUserImage` (a user's delete) does not.
+    const discard = a.discardPlacedUserImage ?? a.removeUserImage;
+    if (discard) props.onRemovePlaced = discard;
     return props;
   },
 });

@@ -98,7 +98,7 @@
   },
   "dependencies": {
     "@ggraphic/core": "0.1.0-alpha.3",
-    "@ggraphic/editor": "0.1.0-alpha.8",
+    "@ggraphic/editor": "0.1.0-alpha.9",
     "@ggraphic/schema": "0.1.0-alpha.2",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
