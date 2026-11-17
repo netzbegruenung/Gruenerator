@@ -15,15 +15,14 @@ import { SETTINGS_TABS } from './settingsTabs';
  */
 const TAB_ALIASES: Record<string, SettingsTab> = {
   profil: 'allgemein',
-  konto: 'allgemein',
   briefkoepfe: 'briefe',
   verbindungen: 'wolke',
   mcp: 'konnektoren',
   // Bis zum 16.11.2026 ein eigener Bereich, jetzt über dem Verbrauch in der Nutzung.
   baeume: 'nutzung',
-  // Bis zum 28.08.2026 ein eigener Bereich, jetzt die untere Hälfte von
-  // „Datenschutz & Barrierefreiheit".
-  barrierefreiheit: 'datenschutz',
+  // Bis zum 28.08.2026 ein eigener Bereich, in „Datenschutz & Barrierefreiheit"
+  // aufgegangen, seit 17.11.2026 die Gruppe „Bedienungshilfen" in Allgemein.
+  barrierefreiheit: 'allgemein',
 };
 
 /**
@@ -53,8 +52,8 @@ const SettingsRedirect = () => {
     const pageRedirect = tab ? PAGE_REDIRECTS[tab] : null;
     if (!pageRedirect) {
       // Ohne Bereich im Pfad wird auch keiner benannt: Der Store steht bei einem
-      // frisch geladenen Link ohnehin auf Allgemein — das Konto steht dort, und
-      // der eigene Konto-Reiter existiert nicht mehr —, aber eine offene
+      // frisch geladenen Link ohnehin auf Allgemein — das Konto hat seinen
+      // eigenen Reiter, der Standard bleibt Allgemein —, aber eine offene
       // Einrichtung geht vor. Ein Pfad MIT Bereich meint genau den.
       useSettingsDialogStore
         .getState()

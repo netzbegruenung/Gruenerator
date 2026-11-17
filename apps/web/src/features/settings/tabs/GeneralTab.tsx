@@ -1,9 +1,8 @@
 import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
-import { Button, toast } from '@gruenerator/ui';
-import { type QueryClient } from '@tanstack/react-query';
-import { Rocket, RotateCcw, Trash2 } from 'lucide-react';
+import { Button, Switch, toast } from '@gruenerator/ui';
+import { Rocket, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
   PiBriefcase,
@@ -15,11 +14,9 @@ import {
   PiSun,
   PiTextT,
 } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import VoicePicker from '../../voice/components/VoicePicker';
-import { AccountIdentityRow, DeleteAccountSection } from '../components/AccountSection';
 import SegmentedControl from '../components/SegmentedControl';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
@@ -27,22 +24,8 @@ import { useSettingsDialogStore } from '../settingsDialogStore';
 import { useOnboarding } from '../useOnboarding';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
-import { QUERY_KEYS } from '@/features/auth/hooks/useProfileData';
-import { profileApiService } from '@/features/auth/services/profileApiService';
 import { resetAllTours } from '@/features/tours/tourState';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
-
-// Die Kontozeile ganz oben liest das Profil — vorwärmen, damit sie beim Öffnen
-// schon steht statt kurz zu pulsieren.
-export const prefetch = (queryClient: QueryClient) => {
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) return;
-  void queryClient.prefetchQuery({
-    queryKey: QUERY_KEYS.profile(userId),
-    queryFn: profileApiService.getProfile,
-    staleTime: 15 * 60 * 1000,
-  });
-};
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: IconType }[] = [
   { value: 'light', label: 'Hell', icon: PiSun },
@@ -77,6 +60,9 @@ const GeneralTab = () => {
   const updateTtsVoice = useAuthStore((s) => s.updateTtsVoice);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
   const updateFeedbackButton = useAuthStore((s) => s.updateFeedbackButton);
+  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
+  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
+  const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
   const setTab = useSettingsDialogStore((s) => s.setTab);
   const { isActive: isOnboarding, restart: restartOnboarding } = useOnboarding();
 
@@ -146,6 +132,24 @@ const GeneralTab = () => {
         </SettingsSection>
       )}
 
+      <SettingsSection title="Bedienungshilfen">
+        <SettingsRow id="barrierefreiheit.animationen">
+          <Switch
+            checked={reduceMotion}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
+            aria-label="Animationen reduzieren"
+          />
+        </SettingsRow>
+
+        <SettingsRow id="barrierefreiheit.transparenz">
+          <Switch
+            checked={reduceTransparency}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
+            aria-label="Transparenz und Unschärfe reduzieren"
+          />
+        </SettingsRow>
+      </SettingsSection>
+
       <SettingsSection title="Einführung">
         {/* Nur, wenn die Einrichtung nicht ohnehin offen ist: eine Zeile, die
             einen Bereich zurückholt, der zwei Zentimeter weiter oben in der
@@ -180,25 +184,6 @@ const GeneralTab = () => {
           </Button>
         </SettingsRow>
       </SettingsSection>
-
-      <SettingsSection title="Konto">
-        <AccountIdentityRow />
-
-        <SettingsRow id="allgemein.papierkorb">
-          <Button
-            asChild
-            variant="outline"
-            onClick={() => useSettingsDialogStore.getState().close()}
-          >
-            <Link to="/papierkorb">
-              <Trash2 aria-hidden="true" className="mr-xs h-4 w-4" />
-              Öffnen
-            </Link>
-          </Button>
-        </SettingsRow>
-      </SettingsSection>
-
-      <DeleteAccountSection />
     </div>
   );
 };

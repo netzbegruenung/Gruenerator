@@ -24,6 +24,7 @@ import {
   FiSettings,
   FiShield,
   FiSliders,
+  FiUser,
   FiX,
 } from 'react-icons/fi';
 import {
@@ -84,12 +85,13 @@ const NAV: {
     onlyWhileOnboarding: true,
   },
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings, group: 'praeferenzen' },
+  { value: 'konto', label: 'Konto', icon: FiUser, group: 'praeferenzen' },
   { value: 'hintergrund', label: 'Hintergrund', icon: PiPaintBrushBroad, group: 'praeferenzen' },
   { value: 'friends', label: 'Friends', icon: PiRobot, group: 'praeferenzen' },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell, group: 'praeferenzen' },
   {
     value: 'datenschutz',
-    label: 'Datenschutz & Barrierefreiheit',
+    label: 'Datenschutz',
     icon: FiShield,
     group: 'praeferenzen',
   },

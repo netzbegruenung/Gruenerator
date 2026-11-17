@@ -147,9 +147,9 @@ describe('Einstellungen Suche', () => {
     useSettingsDialogStore.getState().openSettings('allgemein');
     renderWithProviders(<SettingsDialog />);
 
-    await userEvent.type(await screen.findByRole('searchbox'), 'barriere');
+    await userEvent.type(await screen.findByRole('searchbox'), 'animationen');
     expect(
-      screen.getAllByRole('button', { name: /Datenschutz & Barrierefreiheit/ }).length
+      screen.getAllByRole('button', { name: /Animationen reduzieren/ }).length
     ).toBeGreaterThan(0);
   });
 
