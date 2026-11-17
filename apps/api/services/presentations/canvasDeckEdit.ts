@@ -25,6 +25,7 @@ import {
 import { toUserFacingMessage } from '../../utils/errors/userFacing.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiObject } from '../ai/generate.js';
+import { baseForPatch } from '../canvas/canvasPatchBase.js';
 import { checkCanvasWriteAccess, getCanvas } from '../canvas/canvasRepository.js';
 import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateService.js';
 import {
@@ -323,7 +324,18 @@ async function writeResult(
       canvasId,
       result.structural
         ? { seedPages, replacePages: result.pages, newPages: result.pages }
-        : { seedPages, pagePatches: result.pagePatches, newPages: result.pages }
+        : {
+            seedPages,
+            // Each patch carries the page state it was computed from (`seedPages` is that read),
+            // so the server keeps what a studio tab changed since.
+            pagePatches: result.pagePatches.map(({ pageId, patch }) => {
+              const before = seedPages.find((p) => p.id === pageId)?.state;
+              return before
+                ? { pageId, patch, base: baseForPatch(before, patch) }
+                : { pageId, patch };
+            }),
+            newPages: result.pages,
+          }
     );
     return null;
   } catch (err) {

@@ -135,3 +135,28 @@ describe('a refused canvas write', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the base of a patch (#5765)', () => {
+  it('goes to the internal API with the patch, and is left out when there is none', async () => {
+    const fetchMock = hocuspocusAnswers(() => new Response('{}', { status: 200 }));
+    query.mockResolvedValue([]);
+    const { applyCanvasStatePatch, applyDeckChanges } = await load();
+
+    await applyCanvasStatePatch('c1', { a: 2 }, { seedState: {}, base: { a: 1 } });
+    await applyCanvasStatePatch('c1', { a: 2 }, { seedState: {} });
+    await applyDeckChanges('c1', {
+      seedPages: [page],
+      pagePatches: [{ pageId: 'p1', patch: { headline: 'y' }, base: { headline: 'x' } }],
+      newPages: [page],
+    });
+
+    const bodies = (fetchMock.mock.calls as unknown as Array<[string, { body: string }]>).map(
+      ([, init]) => JSON.parse(init.body)
+    );
+    expect(bodies[0]).toMatchObject({ patch: { a: 2 }, base: { a: 1 } });
+    expect(bodies[1]).not.toHaveProperty('base');
+    expect(bodies[2].pagePatches).toEqual([
+      { pageId: 'p1', patch: { headline: 'y' }, base: { headline: 'x' } },
+    ]);
+  });
+});

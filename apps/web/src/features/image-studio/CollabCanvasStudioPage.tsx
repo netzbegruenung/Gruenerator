@@ -273,9 +273,14 @@ function CollabCanvasStudioContent() {
   // should also appear when collab sync is slow.
   // Not embedded: the tour paints a full-viewport overlay with its own
   // controls over a WebView the user cannot navigate away from.
-  useTourAutostart('canvas', !isLoading && !!canvas && canEdit && !isEmbedded(), () => {
-    void import('../tours/canvasTour').then((m) => m.startCanvasTour());
-  });
+  // Read-only (viewer scope) gets no editing tour: it explains how to edit.
+  useTourAutostart(
+    'canvas',
+    !isLoading && !!canvas && canEdit && !collab.isReadOnly && !isEmbedded(),
+    () => {
+      void import('../tours/canvasTour').then((m) => m.startCanvasTour());
+    }
+  );
 
   const chromeCenter = canvas ? (
     <div className="flex items-center gap-sm min-w-0 max-canvas-mobile:flex-col max-canvas-mobile:items-start max-canvas-mobile:gap-0">
@@ -377,6 +382,17 @@ function CollabCanvasStudioContent() {
     <WebCanvasEditorProvider allowVorlagen={canEdit}>
       <CanvasChatDocContext.Provider value={chatDoc}>
         <div className="relative flex flex-col h-[var(--editor-height)] bg-[var(--editor-bg)]">
+          {/* In flow above the editor, so it never covers canvas controls. A
+              document newer than this build is announced by the editor itself
+              (its `shell.schemaRefusal` alert), also when that happens in an open tab. */}
+          {collab.isReadOnly && (
+            <p
+              role="status"
+              className="m-0 shrink-0 border-b border-[var(--editor-border-strong)] bg-[var(--editor-surface)] px-3 py-2 text-sm text-[var(--editor-text)]"
+            >
+              Nur Ansicht: Du hast nur Leserechte für dieses Design und kannst es nicht ändern.
+            </p>
+          )}
           <div className="flex-1 min-h-0">
             <MasterCanvasEditor
               key={canvas.id}

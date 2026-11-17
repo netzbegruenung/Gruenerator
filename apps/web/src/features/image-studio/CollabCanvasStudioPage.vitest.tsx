@@ -16,7 +16,9 @@ const collab = vi.hoisted(() => ({
     isSynced: false,
     isConnected: false,
     authError: null as string | null,
+    isReadOnly: false,
   },
+  tourEnabled: [] as boolean[],
   editorProps: [] as Array<{
     collaborative?: { previewBeforeSync?: boolean };
     onInvitePeople?: () => void;
@@ -76,6 +78,7 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
             template_type: 'freeform',
             initial_state: {},
             created_by: 'u1',
+            can_edit: true,
           },
         }),
     },
@@ -87,7 +90,11 @@ vi.mock('../../components/common/LoginRequired/withAuthRequired', () => ({
 const handleUnauthorized = vi.hoisted(() => vi.fn(() => Promise.resolve('logout')));
 vi.mock('../../components/utils/apiClient', () => ({ handleUnauthorized }));
 vi.mock('../../hooks/useCollaborationConfig', () => ({ useCollaborationConfig: () => ({}) }));
-vi.mock('../tours/useTourAutostart', () => ({ useTourAutostart: () => undefined }));
+vi.mock('../tours/useTourAutostart', () => ({
+  useTourAutostart: (_id: string, enabled: boolean) => {
+    collab.tourEnabled.push(enabled);
+  },
+}));
 vi.mock('./WebCanvasEditorProvider', () => ({
   WebCanvasEditorProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -120,7 +127,14 @@ function renderPage(route: string) {
 const lastPreviewFlag = () => collab.editorProps.at(-1)?.collaborative?.previewBeforeSync;
 
 beforeEach(() => {
-  collab.state = { ...collab.state, isSynced: false, isConnected: false, authError: null };
+  collab.state = {
+    ...collab.state,
+    isSynced: false,
+    isConnected: false,
+    authError: null,
+    isReadOnly: false,
+  };
+  collab.tourEnabled = [];
   handleUnauthorized.mockClear();
   handleUnauthorized.mockResolvedValue('logout');
   collab.state.provider.connect.mockClear();
@@ -164,6 +178,26 @@ describe('CollabCanvasStudioPage', () => {
       'Dieses Design wurde mit einer neueren Version gespeichert und kann hier nicht bearbeitet werden. Aktualisiere die App oder lade die Seite neu.'
     );
     expect(collab.editorProps).toEqual([]);
+  });
+
+  it('shows no read-only notice to someone who can edit', async () => {
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+    expect(screen.queryByRole('status', { name: /Nur Ansicht/ })).toBeNull();
+    expect(screen.queryByText(/Nur Ansicht/)).toBeNull();
+  });
+
+  it('tells a viewer the canvas is read-only and starts no editing tour', async () => {
+    collab.state = { ...collab.state, isReadOnly: true };
+    renderPage('/studio/canvas/c1');
+    expect(await screen.findByText(/Nur Ansicht/)).toHaveAttribute('role', 'status');
+    expect(collab.tourEnabled.at(-1)).toBe(false);
+  });
+
+  it('enables the editing tour for a writer', async () => {
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+    expect(collab.tourEnabled.at(-1)).toBe(true);
   });
 
   it('does not preview a canvas opened without the flag', async () => {

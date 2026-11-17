@@ -156,6 +156,13 @@ export interface ApplyPatchOptions {
    * the patch). Without it a later studio open would only see the patch keys.
    */
   seedState: Record<string, unknown>;
+  /**
+   * The state the patch was computed from (what the caller read before its work), per patched
+   * key. Sent along so the server merges the patch into the document as it is now instead of
+   * replacing whole collections: an edit a client made in between survives. Without it the
+   * patch is written as given.
+   */
+  base?: Record<string, unknown>;
 }
 
 /**
@@ -174,7 +181,11 @@ export async function applyCanvasStatePatch(
   try {
     const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`, {
       method: 'POST',
-      body: JSON.stringify({ patch, seedState: options.seedState }),
+      body: JSON.stringify({
+        patch,
+        seedState: options.seedState,
+        ...(options.base ? { base: options.base } : {}),
+      }),
     });
     await assertInternalWriteAccepted(canvasId, res);
     internalOk = true;
@@ -304,7 +315,12 @@ export interface DeckChangesInput {
    * the retry-seed for decks whose mint happened while Hocuspocus was down.
    */
   seedPages: CanvasPageDef[];
-  pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
+  pagePatches?: Array<{
+    pageId: string;
+    patch: Record<string, unknown>;
+    /** What the patch was computed from, per patched key; see `ApplyPatchOptions.base`. */
+    base?: Record<string, unknown>;
+  }>;
   pageOps?: Array<
     { op: 'add'; index: number; page: CanvasPageDef } | { op: 'remove'; pageId: string }
   >;

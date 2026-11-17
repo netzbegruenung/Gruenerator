@@ -16,7 +16,9 @@ import {
   readState,
   stampCreatedDocument,
   writePageState,
+  CANVAS_KEY_CLASSES,
 } from './canvasCodec.js';
+import { mergeStalePatch } from './canvasMerge.js';
 import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
 
@@ -281,7 +283,16 @@ export interface DeckChanges {
   /** Seed the page set — applied only when the doc has no pages yet. */
   seedPages?: PageDef[];
   /** Per-page state patches, addressed by page id (stable under reorders). */
-  pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
+  pagePatches?: Array<{
+    pageId: string;
+    patch: Record<string, unknown>;
+    /**
+     * The page state the patch was computed from, per patched key (what the caller read before
+     * it worked). With it the patch is merged into the page as it is now (`canvasMerge.ts`);
+     * keys it lacks, and patches without it, are written as given.
+     */
+    base?: Record<string, unknown>;
+  }>;
   /** Structural changes, applied after patches. */
   pageOps?: Array<{ op: 'add'; index: number; page: PageDef } | { op: 'remove'; pageId: string }>;
   /** Restore: replace the whole page set. Applied last, wins over the rest. */
@@ -409,10 +420,18 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
   if (changes.seedPages && !hasPages()) {
     for (const def of changes.seedPages) assertStateWritable(doc, def.state, null, stamping);
   }
-  for (const { pageId, patch } of changes.pagePatches ?? []) {
+  // A patch that carries its base is merged into the page as it is now; nothing awaits between
+  // this read and the write below, so the merge is computed on the state it is written into.
+  const mergedPatches = new Map<number, Record<string, unknown>>();
+  (changes.pagePatches ?? []).forEach(({ pageId, patch, base }, index) => {
     const yState = findPage(pageId)?.get(KEY_STATE);
-    assertStateWritable(doc, patch, yState instanceof Y.Map ? yState : null, stamping);
-  }
+    const merged =
+      base && yState instanceof Y.Map
+        ? mergeStalePatch(readState(yState), patch, base, CANVAS_KEY_CLASSES)
+        : patch;
+    mergedPatches.set(index, merged);
+    assertStateWritable(doc, merged, yState instanceof Y.Map ? yState : null, stamping);
+  });
   for (const op of changes.pageOps ?? []) {
     if (op.op === 'add') assertStateWritable(doc, op.page.state, null, stamping);
   }
@@ -431,10 +450,11 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
     }
 
     if (changes.pagePatches) {
-      for (const { pageId, patch } of changes.pagePatches) {
+      changes.pagePatches.forEach(({ pageId, patch }, index) => {
         const yState = findPage(pageId)?.get(KEY_STATE);
-        if (yState instanceof Y.Map) writePageState(doc, yState, patch, pageId);
-      }
+        if (yState instanceof Y.Map)
+          writePageState(doc, yState, mergedPatches.get(index) ?? patch, pageId);
+      });
     }
 
     if (changes.pageOps) {
@@ -517,10 +537,16 @@ function validateDeckChanges(body: Record<string, unknown>): string | null {
           typeof p === 'object' &&
           typeof (p as Record<string, unknown>).pageId === 'string' &&
           typeof (p as Record<string, unknown>).patch === 'object' &&
-          (p as Record<string, unknown>).patch !== null
+          (p as Record<string, unknown>).patch !== null &&
+          (() => {
+            const base = (p as Record<string, unknown>).base;
+            return (
+              base === undefined || (!!base && typeof base === 'object' && !Array.isArray(base))
+            );
+          })()
       )
     )
-      return 'pagePatches must be an array of {pageId, patch}';
+      return 'pagePatches must be an array of {pageId, patch, base?}';
   }
   if (body.pageOps !== undefined) {
     if (
@@ -541,16 +567,25 @@ function validateDeckChanges(body: Record<string, unknown>): string | null {
 export function applyPatchToDoc(
   doc: Y.Doc,
   patch: Record<string, unknown>,
-  seedState: Record<string, unknown> | null
+  seedState: Record<string, unknown> | null,
+  /** The state the patch was computed from, per patched key; see `DeckChanges.pagePatches`. */
+  base: Record<string, unknown> | null = null
 ): void {
   assertCanvasDocumentWritable(doc);
   // Nothing to write: do not stamp or seed a document for it.
   if (Object.keys(patch).length === 0) return;
 
   // Checked before the transaction (and before the root mirror is written): see applyDeckChanges.
+  // With a base each page gets the patch merged into its own current state (see canvasMerge.ts).
+  const pageWrites = new Map<Y.Map<unknown>, Record<string, unknown>>();
   for (const yMap of readPageYMaps(doc)) {
     const pageState = yMap.get(KEY_STATE);
-    if (pageState instanceof Y.Map) assertStateWritable(doc, patch, pageState);
+    if (!(pageState instanceof Y.Map)) continue;
+    const merged = base
+      ? mergeStalePatch(readState(pageState), patch, base, CANVAS_KEY_CLASSES)
+      : patch;
+    pageWrites.set(pageState, merged);
+    assertStateWritable(doc, merged, pageState);
   }
 
   doc.transact(() => {
@@ -571,7 +606,13 @@ export function applyPatchToDoc(
       formState.set(KEY_SEEDED, true);
     }
 
-    for (const [k, v] of Object.entries(patch)) formState.set(k, v);
+    // The root mirror is merged only where it is authoritative (a document without pages), and
+    // only for keys it holds; a partial mirror next to pages could be folded over a page.
+    const rootPatch =
+      base && pageYMaps.length === 0
+        ? mergeStalePatch(Object.fromEntries(formState.entries()), patch, base, CANVAS_KEY_CLASSES)
+        : patch;
+    for (const [k, v] of Object.entries(rootPatch)) formState.set(k, v);
 
     // Mirror into every page's state map (pagesById or legacy array) —
     // page state is what a mounted studio page reads for template fields. Through the codec;
@@ -579,7 +620,12 @@ export function applyPatchToDoc(
     for (const yMap of pageYMaps) {
       const pageState = yMap.get(KEY_STATE);
       if (pageState instanceof Y.Map) {
-        writePageState(doc, pageState, patch, yMap.get(KEY_ID) as string | null);
+        writePageState(
+          doc,
+          pageState,
+          pageWrites.get(pageState) ?? patch,
+          yMap.get(KEY_ID) as string | null
+        );
       }
     }
   }, TRANSACT_ORIGIN);
@@ -652,6 +698,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     const body = (req.body ?? {}) as Record<string, unknown> & {
       patch?: Record<string, unknown>;
       seedState?: Record<string, unknown>;
+      base?: Record<string, unknown>;
     } & DeckChanges;
 
     const isFlatPatch = body.patch !== undefined;
@@ -663,6 +710,13 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     if (isFlatPatch) {
       if (!body.patch || typeof body.patch !== 'object' || Array.isArray(body.patch)) {
         res.status(400).json({ error: 'patch (object) is required' });
+        return;
+      }
+      if (
+        body.base !== undefined &&
+        (!body.base || typeof body.base !== 'object' || Array.isArray(body.base))
+      ) {
+        res.status(400).json({ error: 'base must be an object' });
         return;
       }
     } else if (isDeck) {
@@ -682,7 +736,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
         let result: ReturnType<typeof readMergedState> | null = null;
         await connection.transact((doc) => {
           if (isFlatPatch) {
-            applyPatchToDoc(doc, body.patch!, body.seedState ?? null);
+            applyPatchToDoc(doc, body.patch!, body.seedState ?? null, body.base ?? null);
           } else {
             applyDeckChangesToDoc(doc, body);
           }
