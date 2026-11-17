@@ -15,8 +15,11 @@ export const prefetch = (queryClient: QueryClient) => {
 // This tab is itself lazy-loaded by SettingsDialog, so its sections load with it.
 const ConnectorsTab = () => (
   <div className="flex flex-col gap-8">
-    <McpSection onSuccess={onSuccess} onError={onError} />
-    <ToolApprovalsSection onSuccess={onSuccess} onError={onError} />
+    <McpSection
+      onSuccess={onSuccess}
+      onError={onError}
+      afterConnected={<ToolApprovalsSection onSuccess={onSuccess} onError={onError} />}
+    />
   </div>
 );
 

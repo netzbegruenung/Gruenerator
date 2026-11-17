@@ -96,6 +96,40 @@ describe('McpSection — bekannte Konnektoren', () => {
     expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
   });
+
+  it('setzt den Slot afterConnected zwischen „Verbunden" und „Dienste verbinden"', async () => {
+    serve([RATEO_ROW]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText(RATEO_ROW.description);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const at = (name: string) => headings.indexOf(name);
+    expect(at('Verbunden')).toBeGreaterThanOrEqual(0);
+    expect(at('Immer erlaubte Werkzeuge')).toBe(at('Verbunden') + 1);
+    expect(at('Dienste verbinden')).toBe(at('Verbunden') + 2);
+  });
+
+  it('setzt den Slot ans Ende, wenn nichts verbunden ist', async () => {
+    serve([]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText('Rateo');
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings[0]).not.toBe('Immer erlaubte Werkzeuge');
+    expect(headings.at(-1)).toBe('Immer erlaubte Werkzeuge');
+  });
 });
 
 /**
