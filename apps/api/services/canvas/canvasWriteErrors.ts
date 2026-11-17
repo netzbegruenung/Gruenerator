@@ -41,3 +41,22 @@ export class CanvasStateUnwritableError extends CanvasWriteRefusedError {
     this.name = 'CanvasStateUnwritableError';
   }
 }
+
+/**
+ * Hocuspocus refused to READ a canvas document that is newer than it knows (same check and the
+ * same 426 `CANVAS_DOCUMENT_NEWER` as the write refusal). Its reader omits the keys of a class it
+ * does not know, so the state it could hand over would pass as complete while it is not; a copy,
+ * a frozen template or a chat edit built on it would lose content without a word. Not a
+ * `CanvasWriteRefusedError`: nothing was being written, and the fallback to
+ * `canvas_documents.initial_state` must not answer it either (the mirror is as old as the last
+ * server-side write). The message is a sentence a user may read.
+ */
+export class CanvasDocumentNewerReadError extends Error {
+  constructor(readonly canvasId: string) {
+    super(
+      'Dieser Canvas nutzt ein neueres Format, als der Server derzeit lesen kann. ' +
+        'Er lässt sich vorerst nicht vollständig auslesen.'
+    );
+    this.name = 'CanvasDocumentNewerReadError';
+  }
+}

@@ -40,7 +40,7 @@ const KEY_PAGES_SEEDED = YDOC_KEYS.pagesSeeded;
 const KEY_SEEDED = YDOC_KEYS.seeded;
 const KEY_CONFIG = YDOC_KEYS.config;
 
-/** HTTP status of a refused write into a canvas document newer than this build ("upgrade needed"). */
+/** HTTP status of a refused read or write of a canvas document newer than this build ("upgrade needed"). */
 export const CANVAS_DOCUMENT_NEWER_STATUS = 426;
 
 /** HTTP status of a refused write of a value the codec cannot store (nothing was written). */
@@ -613,8 +613,11 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
       // Live doc first (includes unsaved in-flight edits); otherwise decode
       // the persisted Yjs state without opening a direct connection (a pure
       // read must not create + persist an empty doc).
+      // A document newer than this build is refused, as on write: `readState` omits the keys of
+      // a class it does not know, so the answer would pass as complete while it is not.
       const liveDoc = deps.server.hocuspocus.documents.get(documentId);
       if (liveDoc) {
+        assertCanvasDocumentWritable(liveDoc);
         res.json({ ...readMergedState(liveDoc), live: true });
         return;
       }
@@ -625,8 +628,19 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
       }
       const doc = new Y.Doc();
       Y.applyUpdate(doc, stored);
+      assertCanvasDocumentWritable(doc);
       res.json({ ...readMergedState(doc), live: false });
     } catch (error) {
+      if (error instanceof CanvasDocumentNewerError) {
+        log.warn(`GET state refused for ${documentId}: ${error.message}`);
+        res.status(CANVAS_DOCUMENT_NEWER_STATUS).json({
+          error: 'canvas document is newer than this service supports',
+          code: CANVAS_DOCUMENT_NEWER_CODE,
+          found: error.found,
+          known: error.known,
+        });
+        return;
+      }
       const msg = error instanceof Error ? error.message : String(error);
       log.error(`GET state failed for ${documentId}: ${msg}`);
       res.status(500).json({ error: msg });

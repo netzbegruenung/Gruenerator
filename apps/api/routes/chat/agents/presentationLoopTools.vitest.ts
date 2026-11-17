@@ -68,6 +68,19 @@ describe('read_presentation', () => {
     expect(out).toMatchObject({ presentationId: 'p1', slideCount: 2, inhalt: 'Folie 1: Start' });
   });
 
+  it('answers a canvas newer than the server with the refusal, not "not found"', async () => {
+    const { CanvasDocumentNewerReadError } =
+      await import('../../../services/canvas/canvasWriteErrors.js');
+    const refusal = new CanvasDocumentNewerReadError('p1');
+    mocks.loadPresentationState.mockResolvedValue(null);
+    mocks.loadCanvasAsContext.mockRejectedValue(refusal);
+    const out = await run(
+      makeReadPresentationTool({ state: stateWith(), threadId: 't1', sse: sse as never }),
+      {}
+    );
+    expect(out).toEqual({ error: refusal.message });
+  });
+
   it('reads a canvas deck through the canvas reader', async () => {
     mocks.loadPresentationState.mockResolvedValue(null);
     mocks.loadCanvasAsContext.mockResolvedValue('# Deck\n\n## Folie 1\nA\n\n## Folie 2\nB');

@@ -52,6 +52,7 @@ import {
 } from '../../services/canvas/canvasVersionRepository.js';
 import {
   CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
   CanvasStateUnwritableError,
 } from '../../services/canvas/canvasWriteErrors.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -102,6 +103,21 @@ function writeRefusalResponse(error: unknown) {
     return {
       status: 400 as const,
       body: { error: toUserFacingMessage(error), code: 'CANVAS_STATE_UNWRITABLE' as const },
+    };
+  }
+  return null;
+}
+
+/**
+ * A read the collab service refused because the document is newer than the server: 409 with the
+ * same code as the write refusal. Null for anything else.
+ */
+function readRefusalResponse(error: unknown) {
+  if (error instanceof CanvasDocumentNewerReadError) {
+    log.warn(`[canvas] read refused for ${error.canvasId}: document is newer`);
+    return {
+      status: 409 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_DOCUMENT_NEWER' as const },
     };
   }
   return null;
@@ -362,6 +378,8 @@ export const canvasContractRouter = s.router(canvasContract, {
         },
       };
     } catch (error) {
+      const refused = readRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.getState] Error:', err);
       return {
