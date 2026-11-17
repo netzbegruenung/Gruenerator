@@ -1,19 +1,15 @@
 /**
- * Ein Bereich, zwei Gruppen: die beiden Einwilligungen, die der Grünerator
- * einholt, und die Schalter, die die Oberfläche zugänglicher machen.
+ * Datenschutz: die beiden Einwilligungen, die der Grünerator einholt.
  *
- * Datenschutz: die Datenschutzerklärung sagt beides ausdrücklich zu — die
- * Umami-Einwilligung sei „über die Datenschutz-Einstellungen der Plattform"
- * widerrufbar, die Art.-9-Einwilligung „jederzeit mit Wirkung für die Zukunft".
- * Vorher gab es dafür nur den Weg über die Browser-Einstellungen
- * (localStorage-Eintrag löschen), was die Zusage nicht einlöst.
+ * Die Datenschutzerklärung sagt beides ausdrücklich zu — die Umami-Einwilligung
+ * sei „über die Datenschutz-Einstellungen der Plattform" widerrufbar, die
+ * Art.-9-Einwilligung „jederzeit mit Wirkung für die Zukunft". Vorher gab es
+ * dafür nur den Weg über die Browser-Einstellungen (localStorage-Eintrag
+ * löschen), was die Zusage nicht einlöst.
  *
- * Barrierefreiheit: zwei Profil-Schalter, die die Vorgaben des Betriebssystems
- * übersteuern. Sie standen bis zum 28.08.2026 in einem eigenen Reiter mit genau
- * diesen zwei Zeilen.
- *
- * Die Gruppen sind `SettingsSection`s (`h2`); der Dialog setzt keine
- * eigene Reiter-Überschrift mehr.
+ * Die beiden Barrierefreiheits-Schalter (zuvor eigener Reiter, dann untere
+ * Hälfte dieses Bereichs) stehen seit 17.11.2026 als „Bedienungshilfen" in
+ * Allgemein.
  */
 
 import { Switch } from '@gruenerator/ui';
@@ -45,7 +41,7 @@ function readAnalyticsConsent(): boolean {
   }
 }
 
-const PrivacyAccessibilityTab = () => {
+const PrivacyTab = () => {
   const analyticsConsent = useSyncExternalStore(
     subscribeToAnalyticsConsent,
     readAnalyticsConsent,
@@ -54,9 +50,6 @@ const PrivacyAccessibilityTab = () => {
 
   const aiConsentAt = useAuthStore((s) => s.user?.ai_consent_at ?? null);
   const setAiConsent = useAuthStore((s) => s.setAiConsent);
-  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
-  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
-  const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
 
   const toggleAnalytics = (checked: boolean) => {
     if (checked) window.grantAnalyticsConsent?.();
@@ -105,26 +98,8 @@ const PrivacyAccessibilityTab = () => {
           </p>
         </div>
       </SettingsSection>
-
-      <SettingsSection title="Barrierefreiheit">
-        <SettingsRow id="barrierefreiheit.animationen">
-          <Switch
-            checked={reduceMotion}
-            onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
-            aria-label="Animationen reduzieren"
-          />
-        </SettingsRow>
-
-        <SettingsRow id="barrierefreiheit.transparenz">
-          <Switch
-            checked={reduceTransparency}
-            onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
-            aria-label="Transparenz und Unschärfe reduzieren"
-          />
-        </SettingsRow>
-      </SettingsSection>
     </div>
   );
 };
 
-export default PrivacyAccessibilityTab;
+export default PrivacyTab;

@@ -97,8 +97,6 @@ const FriendsTab = ({ starterOnly = false }: FriendsTabProps) => {
       window.dispatchEvent(
         new CustomEvent('avatarUpdated', { detail: { avatarRobotId: friendId } })
       );
-      const friend = GRUENERATOR_FRIENDS.find((f) => f.id === friendId);
-      toast.success(`${friend?.name ?? 'Avatar'} ist jetzt dein Profilbild.`);
     },
     onError: (_error, _friendId, context) => {
       if (context?.previous) {

@@ -99,7 +99,7 @@ describe('SETTINGS_TAB_MAP', () => {
   });
 
   it('hält die Namen am Leben, die ein Bereich mal hatte', () => {
-    expect(SETTINGS_TAB_MAP.barrierefreiheit).toBe('datenschutz');
+    expect(SETTINGS_TAB_MAP.barrierefreiheit).toBe('allgemein');
     expect(SETTINGS_TAB_MAP.profil).toBe('allgemein');
     expect(SETTINGS_TAB_MAP.mcp).toBe('konnektoren');
   });
@@ -110,13 +110,20 @@ describe('SETTINGS_TAB_MAP', () => {
   });
 });
 
-describe('Datenschutz & Barrierefreiheit', () => {
+describe('Konto, Datenschutz und Bedienungshilfen', () => {
+  it('führt Konto als eigenen Bereich direkt nach Allgemein', () => {
+    const values = visibleSettingsNav(false).map((e) => String(e.value));
+    expect(values.indexOf('konto')).toBe(values.indexOf('allgemein') + 1);
+    expect(SETTINGS_TAB_MAP.konto).toBe('konto');
+    expect(resolveSettingsTab('konto', true, false)).toBe('konto');
+  });
+
   it('führt Barrierefreiheit nicht mehr als eigenen Bereich', () => {
     expect(visibleSettingsNav(true).map((e) => String(e.value))).not.toContain('barrierefreiheit');
   });
 
-  it('nennt beide Hälften im Label des zusammengelegten Bereichs', () => {
+  it('nennt den Bereich nur noch Datenschutz', () => {
     const entry = visibleSettingsNav(false).find((e) => e.value === 'datenschutz');
-    expect(entry?.label).toBe('Datenschutz & Barrierefreiheit');
+    expect(entry?.label).toBe('Datenschutz');
   });
 });

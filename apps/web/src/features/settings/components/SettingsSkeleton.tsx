@@ -157,6 +157,7 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   // Schritt 1 der Einrichtung ist die Rollen-Karte.
   onboarding: () => <SettingsCardsSkeleton cards={1} />,
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
+  konto: () => <SettingsRowsSkeleton rows={3} />,
   hintergrund: () => <SettingsTilesSkeleton />,
   datenschutz: () => <SettingsRowsSkeleton rows={4} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,

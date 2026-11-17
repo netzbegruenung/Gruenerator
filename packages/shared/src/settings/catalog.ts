@@ -28,9 +28,12 @@
  * `SETTINGS_TAB_MAP` (apps/web … settings/SettingsRedirect.tsx) stehen — hier
  * verschwindet er.
  *
- * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen; die
- * Zeilen-ids `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei
- * davon über `getSettingsEntry`).
+ * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen und steht
+ * seit 17.11.2026 als „Bedienungshilfen" in `allgemein`; die Zeilen-ids
+ * `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei davon über
+ * `getSettingsEntry`). `konto` ist ein eigener Bereich (Grüner Login,
+ * Papierkorb, Konto löschen); die Zeilen-ids `allgemein.konto` und
+ * `allgemein.papierkorb` behalten ihren Namen.
  *
  * `baeume` ist in `nutzung` aufgegangen (das Kontingent steht über dem
  * Verbrauch, der es aufbraucht); `tagesbriefing` ist dafür aus den Erinnerungen
@@ -39,6 +42,7 @@
 export type SettingsTab =
   | 'onboarding'
   | 'allgemein'
+  | 'konto'
   | 'hintergrund'
   | 'datenschutz'
   | 'friends'
@@ -83,7 +87,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     // irreversible and takes a typed confirmation, so it stays on the surface
     // the user sits down at; mobile points at it in prose.
     id: 'allgemein.konto',
-    tab: 'allgemein',
+    tab: 'konto',
     title: 'Konto',
     description:
       'Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert',
@@ -163,7 +167,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   },
   {
     id: 'barrierefreiheit.animationen',
-    tab: 'datenschutz',
+    tab: 'allgemein',
     title: 'Animationen reduzieren',
     description:
       'Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -171,7 +175,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   },
   {
     id: 'barrierefreiheit.transparenz',
-    tab: 'datenschutz',
+    tab: 'allgemein',
     title: 'Transparenz reduzieren',
     description:
       'Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -203,7 +207,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     // Web-only, und nur ein Einstieg: der Papierkorb ist eine eigene Seite
     // (/papierkorb), kein Bereich des Dialogs.
     id: 'allgemein.papierkorb',
-    tab: 'allgemein',
+    tab: 'konto',
     title: 'Papierkorb',
     description: 'Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen',
   },

@@ -9,6 +9,10 @@
       "label": "Allgemein"
     },
     {
+      "value": "konto",
+      "label": "Konto"
+    },
+    {
       "value": "hintergrund",
       "label": "Hintergrund"
     },
@@ -22,7 +26,7 @@
     },
     {
       "value": "datenschutz",
-      "label": "Datenschutz & Barrierefreiheit"
+      "label": "Datenschutz"
     },
     {
       "value": "personalisierung",
@@ -67,7 +71,7 @@
   ],
   "rows": {
     "allgemein.konto": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Konto",
       "description": "Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert"
     },
@@ -112,12 +116,12 @@
       "description": "Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können"
     },
     "barrierefreiheit.animationen": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Animationen reduzieren",
       "description": "Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
     "barrierefreiheit.transparenz": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
@@ -132,7 +136,7 @@
       "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
     "allgemein.papierkorb": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Papierkorb",
       "description": "Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen"
     },

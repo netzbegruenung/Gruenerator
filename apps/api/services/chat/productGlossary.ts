@@ -156,7 +156,7 @@ export const PRODUCT_GLOSSARY = [
     terms: /\b(konto|account|benutzerkonto)\b/i,
     routes: null,
     definition:
-      'Einstellungen → Allgemein: ganz oben die Kontodaten aus dem Grünen Login, ganz unten „Konto löschen" — endgültig, ohne Papierkorb. Auch in der App möglich.',
+      'Einstellungen → Konto: oben „Grüner Login" mit den Kontodaten, darunter „Inhalte" (mit dem Papierkorb) und ganz unten „Konto löschen" — endgültig, ohne Papierkorb. Auch in der App möglich. Die Schalter für Barrierefreiheit stehen unter Einstellungen → Allgemein → „Bedienungshilfen".',
     docsPath: '/docs/sonstiges/einstellungen',
   },
   {

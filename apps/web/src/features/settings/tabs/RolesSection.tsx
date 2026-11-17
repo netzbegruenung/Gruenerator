@@ -67,6 +67,9 @@ import { readCustomPrompt } from './customPromptField';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+// Wizard steps sit under the section's h2, so they are h3s with the section look.
+const WIZARD_HEADING = 'm-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading';
+
 const MdBSuggestions = memo(function MdBSuggestions({
   query,
   onSelect,
@@ -740,9 +743,7 @@ export default function RolesSection() {
         ) : wizardStep === 'ebene' ? (
           <>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground-heading m-0">
-                Rolle hinzufügen
-              </h2>
+              <h3 className={WIZARD_HEADING}>Rolle hinzufügen</h3>
               <Button variant="ghost" size="sm" onClick={cancelAddRole}>
                 Abbrechen
               </Button>
@@ -763,9 +764,7 @@ export default function RolesSection() {
         ) : wizardStep === 'bundesland' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
-              In welchem Bundesland?
-            </h2>
+            <h3 className={WIZARD_HEADING}>In welchem Bundesland?</h3>
             <Combobox
               items={bundeslandNamen}
               value={wizBundesland}
@@ -791,9 +790,9 @@ export default function RolesSection() {
         ) : wizardStep === 'gliederung' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
+            <h3 className={WIZARD_HEADING}>
               {LOCAL_NAME_LABELS[wizEbene || ''] || 'Name deiner Gliederung'}
-            </h2>
+            </h3>
             <p className="text-sm text-grey-500 -mt-md">{wizBundesland}</p>
             <div className="flex gap-sm">
               <Input
@@ -818,7 +817,7 @@ export default function RolesSection() {
         ) : wizardStep === 'rolle' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">Was ist deine Rolle?</h2>
+            <h3 className={WIZARD_HEADING}>Was ist deine Rolle?</h3>
             {wizEbene && (
               <p className="text-sm text-grey-500 -mt-md">
                 {ebenen.find((e) => e.id === wizEbene)?.label}
@@ -884,9 +883,7 @@ export default function RolesSection() {
         ) : wizardStep === 'instructions' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
-              Zusätzliche Anweisungen
-            </h2>
+            <h3 className={WIZARD_HEADING}>Zusätzliche Anweisungen</h3>
             <p className="text-sm text-grey-500 -mt-md">Optionale Hinweise für diese Rolle</p>
             <textarea
               value={wizInstructions}
