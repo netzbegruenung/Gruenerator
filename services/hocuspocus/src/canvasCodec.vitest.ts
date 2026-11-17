@@ -173,10 +173,11 @@ describe('documents this service creates are stamped', () => {
     expect(metaOf(doc).get('schemaVersion')).toBe(2);
   });
 
-  it('a seed into an empty document stays plain while the schema version is below 4', () => {
+  it('a seed into an empty document is stamped 4 and written structured', () => {
     const doc = new Y.Doc();
     applyDeckChangesToDoc(doc, { seedPages: pages() });
-    expect(stateOf(doc).get('additionalTexts')).not.toBeInstanceOf(Y.Map);
+    expect(metaOf(doc).get('schemaVersion')).toBe(4);
+    expect(stateOf(doc).get('additionalTexts')).toBeInstanceOf(Y.Map);
   });
 });
 
