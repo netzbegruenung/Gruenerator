@@ -31,7 +31,7 @@ const REPO_ROOT = path.resolve(HERE, '../..'); // documentation/scripts → repo
 // it, because the docs CI installs only `@gruenerator/documentation...`.
 const requireFromDocs = createRequire(path.join(REPO_ROOT, 'documentation/package.json'));
 const editorFile = (subpath) =>
-  path.relative(REPO_ROOT, requireFromDocs.resolve(`@ggraphic/editor/${subpath}`));
+  path.relative(REPO_ROOT, requireFromDocs.resolve(`@ggraphic/editor/internal/${subpath}`));
 const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/ui-labels.json');
 
 // group → source file (relative to repo root). The group namespaces ids so the
