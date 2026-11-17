@@ -97,7 +97,6 @@ export function buildMentionSections(query: string): MentionSection[] {
     documents,
     wolke,
     connect,
-    canva,
     vorlagen,
   } = filterMentionables(query);
 
@@ -125,7 +124,6 @@ export function buildMentionSections(query: string): MentionSection[] {
     { kind: 'flat', label: 'Dateien', items: documents },
     { kind: 'flat', label: 'Wolke', items: wolke },
     { kind: 'flat', label: 'Verbundene Accounts', items: connect },
-    { kind: 'flat', label: 'Canva', items: canva },
     { kind: 'flat', label: 'Vorlagen', items: vorlagen },
     ...(notebookGroups.length > 0
       ? [{ kind: 'grouped' as const, label: 'Notebooks', groups: notebookGroups }]

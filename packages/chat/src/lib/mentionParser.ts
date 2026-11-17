@@ -192,15 +192,6 @@ export function parseAllMentions(text: string): ParsedMentions {
       continue;
     }
 
-    // Handle bare @canva trigger (popover hint — strip, no payload). Picked
-    // designs are inserted as plain markdown links, not @canva: tokens, so
-    // there's no payload form to decode here.
-    if (trigger === '@' && alias === 'canva') {
-      const triggerIndex = match.index + match[0].indexOf('@');
-      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
-      continue;
-    }
-
     // Handle bare @vorlage trigger (popover hint — strip, no payload). A picked
     // Vorlage travels as a pill / durable `vorlage:` token, never as typed text.
     if (trigger === '@' && VORLAGEN_ALIASES.has(alias.toLowerCase())) {
@@ -448,7 +439,6 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
         alias === 'dokumentchat' ||
         alias === 'wolke' ||
         alias === 'connect' ||
-        alias === 'canva' ||
         VORLAGEN_ALIASES.has(alias.toLowerCase()))
     ) {
       continue;
