@@ -247,7 +247,14 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
 
   createInitialState: createProfilbildInitialState,
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory) => {
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    _callbacks,
+    history
+  ) => {
     const baseActions = createBaseActions<ProfilbildFullState>(
       getState,
       setState,
@@ -257,7 +264,10 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
       CANVAS_SIZE,
       // Readable on the Tanne default background — also the default color for
       // added text and icons.
-      '#FFFFFF'
+      '#FFFFFF',
+      undefined,
+      1,
+      history
     );
 
     return {
