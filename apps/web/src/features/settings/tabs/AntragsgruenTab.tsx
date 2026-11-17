@@ -84,7 +84,7 @@ function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps)
       <div className="grid grid-cols-[30px_minmax(0,1fr)] items-center gap-x-md gap-y-sm sm:grid-cols-[30px_minmax(0,1fr)_auto]">
         <span
           aria-hidden
-          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-secondary-50 text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300"
+          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200"
         >
           <HiClipboardList size={16} />
         </span>
@@ -216,14 +216,13 @@ export default function AntragsgruenTab() {
   if (isPending) return <SettingsCardsSkeleton cards={2} />;
 
   return (
-    // Settings design: no tab title, the section heading carries the name; the
-    // nav entry keeps hideHeading so this h2 is the only one.
-    <section className="flex flex-col">
+    // Settings design: no tab title, the section heading carries the name.
+    <div className="flex flex-col">
       <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs pb-1">
         <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">
           Antragsgrün
         </h2>
-        <span className="self-center rounded-full border border-secondary-100 bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700 dark:border-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+        <span className="self-center rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-200">
           Experimentell
         </span>
         {data && hasSites && (
@@ -269,6 +268,6 @@ export default function AntragsgruenTab() {
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

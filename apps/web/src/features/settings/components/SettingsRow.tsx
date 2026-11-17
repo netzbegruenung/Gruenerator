@@ -2,6 +2,14 @@ import { type ReactNode } from 'react';
 
 import { getSettingsEntry } from '../settingsCatalog';
 
+interface SettingsRowLayoutProps {
+  title: string;
+  description?: string;
+  /** Catalog id the search scrolls to. */
+  id?: string;
+  children: ReactNode;
+}
+
 interface SettingsRowProps {
   /** Catalog id, e.g. "allgemein.aussehen" — supplies title and description. */
   id: string;
@@ -12,8 +20,7 @@ interface SettingsRowProps {
 // separate consecutive rows with a subtle divider (divide-y), not cards.
 // The wording comes from settingsCatalog.ts so the settings surface stays
 // enumerable (consistent labels, and the docs can embed the real list).
-const SettingsRow = ({ id, children }: SettingsRowProps) => {
-  const { title, description } = getSettingsEntry(id);
+export const SettingsRowLayout = ({ id, title, description, children }: SettingsRowLayoutProps) => {
   return (
     <div
       data-settings-id={id}
@@ -27,6 +34,15 @@ const SettingsRow = ({ id, children }: SettingsRowProps) => {
       </div>
       <div className="shrink-0">{children}</div>
     </div>
+  );
+};
+
+const SettingsRow = ({ id, children }: SettingsRowProps) => {
+  const { title, description } = getSettingsEntry(id);
+  return (
+    <SettingsRowLayout id={id} title={title} description={description}>
+      {children}
+    </SettingsRowLayout>
   );
 };
 

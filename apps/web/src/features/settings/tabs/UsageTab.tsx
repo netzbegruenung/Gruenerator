@@ -24,6 +24,7 @@ import {
   referenceComparison,
   USAGE_TRACKED_SINCE,
 } from '../../../utils/usageFormat';
+import SettingsSection from '../components/SettingsSection';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
 import { prefetchTreeBudget, TreeBudgetSection } from '../components/TreeBudgetSection';
 import { UsageWorks } from '../components/UsageWorks';
@@ -80,7 +81,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   const co2Saved = comparison.saved;
 
   return (
-    <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+    <section className="flex flex-col gap-sm border-t border-grey-200 pt-lg dark:border-grey-700">
       <h3 className="m-0 text-sm font-semibold text-foreground-heading">
         {co2Saved ? 'Ersparnis gegenüber ChatGPT' : 'Vergleich zu ChatGPT'}
       </h3>
@@ -195,18 +196,17 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
 
 export default function UsageTab() {
   return (
-    <div className="flex flex-col gap-xl">
+    <div className="flex flex-col gap-8">
       <TreeBudgetSection />
       <UsageWorks />
-      <section className="flex flex-col gap-lg">
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-lg font-semibold text-foreground-heading">KI-Verbrauch</h2>
-          <p className="m-0 text-sm text-grey-500">
-            Erfasst seit {formatDate(USAGE_TRACKED_SINCE)}.
-          </p>
+      <SettingsSection
+        title="KI-Verbrauch"
+        description={`Erfasst seit ${formatDate(USAGE_TRACKED_SINCE)}.`}
+      >
+        <div className="pt-2">
+          <AiUsage />
         </div>
-        <AiUsage />
-      </section>
+      </SettingsSection>
     </div>
   );
 }
@@ -265,7 +265,7 @@ function AiUsage() {
       </div>
 
       {!hasAnything ? (
-        <p className="m-0 rounded-xl border border-dashed border-grey-300 p-lg text-sm text-grey-500 dark:border-grey-700">
+        <p className="m-0 text-sm text-grey-500">
           In diesem Zeitraum wurde noch nichts verbraucht.
         </p>
       ) : (

@@ -1,4 +1,4 @@
-import type { CanvaDesignToken, ConnectFileToken, WolkeFileToken } from './mentionables';
+import type { ConnectFileToken, WolkeFileToken } from './mentionables';
 
 /**
  * Composer attachments for the typed `@` mentions — Nextcloud (Wolke),
@@ -10,10 +10,6 @@ import type { CanvaDesignToken, ConnectFileToken, WolkeFileToken } from './menti
  * does not recognise it, and the model answers without ever seeing the file.
  * That silence is why these live in one shared module with tests rather than
  * inline in each platform's composer.
- *
- * Canva is deliberately absent — a Canva pick is not an attachment but a
- * markdown link in the draft (`canvaDesignsMarkdown`), because a design is a
- * place to go rather than content to read.
  */
 
 export interface MentionAttachment {
@@ -110,23 +106,4 @@ export function buildWebpageAttachment(url: string): MentionAttachment {
     'application/x-gruenerator-webpage',
     { kind: 'webpage', url, name: hostname }
   );
-}
-
-/**
- * Chosen Canva designs as markdown links, ready to append to the draft. View
- * URLs stay valid for 30 days, so the link is a durable reference the user or
- * the agent can act on.
- */
-export function canvaDesignsMarkdown(designs: readonly CanvaDesignToken[]): string {
-  return designs.map((d) => `[🎨 ${d.title}](${d.viewUrl})`).join(' ');
-}
-
-/**
- * Append text to a composer draft with exactly one separating space — never a
- * double space, never a word glued to the previous one.
- */
-export function appendToDraft(current: string, addition: string): string {
-  if (!addition) return current;
-  const needsSpace = current.length > 0 && !current.endsWith(' ');
-  return `${current}${needsSpace ? ' ' : ''}${addition} `;
 }

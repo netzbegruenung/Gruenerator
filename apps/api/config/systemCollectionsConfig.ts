@@ -592,7 +592,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     country: 'DE',
     includeInDefaultSearch: false,
     mcpExposed: false,
-    qdrantCollection: 'bundesrat_documents',
+    remote: 'bundesrat-wrapped',
     name: 'Bundesrat: Drucksachen',
     description:
       'Volltext von Bundesrats-Drucksachen aus dem DIP: Gesetzentwürfe, Anträge der Länder und Beschlüsse',
@@ -1098,7 +1098,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Saarland',
-    description: 'Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland',
+    description:
+      'Pressemitteilungen, Artikel, Parteitagsbeschlüsse und Wahlprogramme der Grünen Saarland',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [

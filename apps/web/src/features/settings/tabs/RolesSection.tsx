@@ -37,11 +37,6 @@ import {
   Button,
   SelectCard,
   Input,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
   Combobox,
   ComboboxCollection,
   ComboboxContent,
@@ -50,6 +45,7 @@ import {
   ComboboxItem,
   ComboboxList,
   Switch,
+  toast,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
@@ -63,11 +59,16 @@ import { profileApiService, type Profile } from '../../../features/auth/services
 import { useAuthStore } from '../../../stores/authStore';
 import { platformFetch } from '../../../utils/platformFetch';
 import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
+import { SettingsList, SettingsListRow } from '../components/SettingsListRow';
+import SettingsSection from '../components/SettingsSection';
 import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import { readCustomPrompt } from './customPromptField';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+// Wizard steps sit under the section's h2, so they are h3s with the section look.
+const WIZARD_HEADING = 'm-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading';
 
 const MdBSuggestions = memo(function MdBSuggestions({
   query,
@@ -142,54 +143,64 @@ function RoleCard({
   // dem Server. Der Knopf erscheint nur bei frei eingetippten Rollen.
   const canRegenerate = !roleBausteinKey(role.ebene, role.rolle);
 
+  const meta = [
+    subtitle,
+    role.abgeordnete,
+    role.systemPrompt ? `${role.systemPrompt.slice(0, 80)}…` : null,
+  ].filter(Boolean);
+
   return (
-    <div className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md transition-colors">
-      <span className="text-lg shrink-0">{ebene?.icon || '📌'}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground-heading m-0 truncate">{role.rolle}</p>
-        {subtitle && <p className="text-xs text-grey-500 m-0 truncate">{subtitle}</p>}
-        {role.abgeordnete && (
-          <p className="text-xs text-grey-400 m-0 truncate">{role.abgeordnete}</p>
-        )}
-        {role.systemPrompt && (
-          <p className="text-xs text-grey-400 italic m-0 line-clamp-1">
-            {role.systemPrompt.slice(0, 80)}…
-          </p>
-        )}
-      </div>
-      {onToggleSidebar && (
-        <label className="flex shrink-0 items-center gap-xs text-xs text-grey-500">
-          <span className="max-sm:sr-only">Seitenleiste</span>
-          <Switch
-            checked={role.showInSidebar !== false}
-            onCheckedChange={onToggleSidebar}
-            aria-label={`${role.rolle} in der Seitenleiste anzeigen`}
-          />
-        </label>
-      )}
-      {canRegenerate && (
-        <button
-          type="button"
-          onClick={onRegenerate}
-          disabled={regenerating}
-          className="shrink-0 p-1 text-grey-400 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100 disabled:opacity-50"
-          aria-label={`Rollenprofil für ${role.rolle} neu erzeugen`}
-          title="Rollenprofil neu erzeugen"
-        >
-          <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
-        </button>
-      )}
-      {!fixed && (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
-          aria-label={`Rolle ${role.rolle} entfernen`}
-        >
-          <HiOutlineTrash className="size-4" />
-        </button>
-      )}
-    </div>
+    <SettingsListRow
+      mark={ebene?.icon || '📌'}
+      name={role.rolle}
+      meta={
+        meta.length > 0 ? (
+          <>
+            {meta.map((line) => (
+              <div key={line} className="truncate">
+                {line}
+              </div>
+            ))}
+          </>
+        ) : undefined
+      }
+      actions={
+        <>
+          {onToggleSidebar && (
+            <label className="flex shrink-0 items-center gap-xs text-xs text-grey-600 dark:text-grey-400">
+              <span className="max-sm:sr-only">Seitenleiste</span>
+              <Switch
+                checked={role.showInSidebar !== false}
+                onCheckedChange={onToggleSidebar}
+                aria-label={`${role.rolle} in der Seitenleiste anzeigen`}
+              />
+            </label>
+          )}
+          {canRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={regenerating}
+              className="shrink-0 p-1 text-grey-500 hover:text-foreground transition-colors disabled:opacity-50"
+              aria-label={`Rollenprofil für ${role.rolle} neu erzeugen`}
+              title="Rollenprofil neu erzeugen"
+            >
+              <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          {!fixed && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="shrink-0 p-1 text-grey-500 hover:text-red-500 transition-colors"
+              aria-label={`Rolle ${role.rolle} entfernen`}
+            >
+              <HiOutlineTrash className="size-4" />
+            </button>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -303,9 +314,6 @@ export default function RolesSection() {
       beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig im Marktplatz und im Chat.`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
-
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
@@ -550,7 +558,6 @@ export default function RolesSection() {
     let promptGenFailed = false;
     if (!roleBausteinKey(newRole.ebene, newRole.rolle)) {
       setGenerating(true);
-      setErrorMessage(null);
       const generated = await fetchRolePrompt(
         buildRoleDescription(newRole, ebeneLabel, isAustrian)
       );
@@ -570,14 +577,11 @@ export default function RolesSection() {
     // role that disappears on reload.
     const result = await persistRoles(nextRoles);
     if (result.ok) {
-      setSuccessMessage(
-        promptGenFailed
-          ? 'Rolle gespeichert (System-Prompt-Generierung fehlgeschlagen)'
-          : 'Rolle gespeichert'
-      );
-      setTimeout(() => setSuccessMessage(null), 3000);
+      if (promptGenFailed) {
+        toast.warning('Rolle gespeichert (System-Prompt-Generierung fehlgeschlagen)');
+      }
     } else {
-      setErrorMessage(
+      toast.error(
         `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte neu anlegen — nach dem Neuladen ist sie sonst weg.`
       );
     }
@@ -606,13 +610,12 @@ export default function RolesSection() {
       if (!role || roleBausteinKey(role.ebene, role.rolle)) return;
 
       setRegeneratingIndex(index);
-      setErrorMessage(null);
       const ebeneLabel = ebenen.find((e) => e.id === role.ebene)?.label || '';
       const generated = await fetchRolePrompt(buildRoleDescription(role, ebeneLabel, isAustrian));
       setRegeneratingIndex(null);
 
       if (!generated) {
-        setErrorMessage('Rollenprofil konnte nicht neu erzeugt werden. Bitte später erneut.');
+        toast.error('Rollenprofil konnte nicht neu erzeugt werden. Bitte später erneut.');
         return;
       }
 
@@ -621,11 +624,8 @@ export default function RolesSection() {
       );
       setRoles(nextRoles);
       const result = await persistRoles(nextRoles);
-      if (result.ok) {
-        setSuccessMessage('Rollenprofil neu erzeugt');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setErrorMessage(`Neues Profil konnte nicht gespeichert werden: ${result.detail}`);
+      if (!result.ok) {
+        toast.error(`Neues Profil konnte nicht gespeichert werden: ${result.detail}`);
       }
     },
     [roles, ebenen, isAustrian, persistRoles]
@@ -682,13 +682,9 @@ export default function RolesSection() {
     async (index: number) => {
       const nextRoles = roles.filter((_, i) => i !== index);
       setRoles(nextRoles);
-      setErrorMessage(null);
       const result = await persistRoles(nextRoles);
-      if (result.ok) {
-        setSuccessMessage('Rolle entfernt');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setErrorMessage(`Löschen konnte nicht gespeichert werden: ${result.detail}`);
+      if (!result.ok) {
+        toast.error(`Löschen konnte nicht gespeichert werden: ${result.detail}`);
       }
     },
     [roles, persistRoles]
@@ -703,10 +699,9 @@ export default function RolesSection() {
         return show ? rest : { ...rest, showInSidebar: false };
       });
       setRoles(nextRoles);
-      setErrorMessage(null);
       const result = await persistRoles(nextRoles);
       if (!result.ok) {
-        setErrorMessage(`Einstellung konnte nicht gespeichert werden: ${result.detail}`);
+        toast.error(`Einstellung konnte nicht gespeichert werden: ${result.detail}`);
       }
     },
     [roles, persistRoles]
@@ -738,18 +733,6 @@ export default function RolesSection() {
 
   return (
     <div className="flex flex-col gap-lg">
-      {successMessage && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-lg py-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
-          {successMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-lg py-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-          {errorMessage}
-        </div>
-      )}
-
       {addingRole ? (
         // ─── Add Role Wizard ───────────────────────────────────────────
         generating ? (
@@ -760,9 +743,7 @@ export default function RolesSection() {
         ) : wizardStep === 'ebene' ? (
           <>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground-heading m-0">
-                Rolle hinzufügen
-              </h2>
+              <h3 className={WIZARD_HEADING}>Rolle hinzufügen</h3>
               <Button variant="ghost" size="sm" onClick={cancelAddRole}>
                 Abbrechen
               </Button>
@@ -783,9 +764,7 @@ export default function RolesSection() {
         ) : wizardStep === 'bundesland' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
-              In welchem Bundesland?
-            </h2>
+            <h3 className={WIZARD_HEADING}>In welchem Bundesland?</h3>
             <Combobox
               items={bundeslandNamen}
               value={wizBundesland}
@@ -811,9 +790,9 @@ export default function RolesSection() {
         ) : wizardStep === 'gliederung' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
+            <h3 className={WIZARD_HEADING}>
               {LOCAL_NAME_LABELS[wizEbene || ''] || 'Name deiner Gliederung'}
-            </h2>
+            </h3>
             <p className="text-sm text-grey-500 -mt-md">{wizBundesland}</p>
             <div className="flex gap-sm">
               <Input
@@ -838,7 +817,7 @@ export default function RolesSection() {
         ) : wizardStep === 'rolle' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">Was ist deine Rolle?</h2>
+            <h3 className={WIZARD_HEADING}>Was ist deine Rolle?</h3>
             {wizEbene && (
               <p className="text-sm text-grey-500 -mt-md">
                 {ebenen.find((e) => e.id === wizEbene)?.label}
@@ -904,9 +883,7 @@ export default function RolesSection() {
         ) : wizardStep === 'instructions' ? (
           <>
             {renderWizardBack}
-            <h2 className="text-lg font-semibold text-foreground-heading">
-              Zusätzliche Anweisungen
-            </h2>
+            <h3 className={WIZARD_HEADING}>Zusätzliche Anweisungen</h3>
             <p className="text-sm text-grey-500 -mt-md">Optionale Hinweise für diese Rolle</p>
             <textarea
               value={wizInstructions}
@@ -944,31 +921,37 @@ export default function RolesSection() {
       ) : (
         // ─── Role List ──────────────────────────────────────────────────
         <>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Deine Rollen</CardTitle>
-                {roles.length > 0 && !assignedRole && (
-                  <Button variant="ghost" size="sm" onClick={startAddRole}>
-                    <HiPlus className="size-4 mr-1" />
-                    Hinzufügen
-                  </Button>
-                )}
-              </div>
-              <CardDescription>
-                {assignedRole
+          <div data-settings-id="personalisierung.rollen" className="scroll-mt-4">
+            <SettingsSection
+              title="Rollen"
+              description={
+                assignedRole
                   ? 'Diese Instanz führt genau eine Rolle — sie ist gesetzt, der Grünerator schreibt dafür.'
-                  : 'Definiere deine Rollen — der Grünerator passt sich automatisch an.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+                  : 'Definiere deine Rollen — der Grünerator passt sich automatisch an.'
+              }
+              aside={
+                roles.length > 0 ? (
+                  <>
+                    <span className="text-sm tabular-nums text-grey-600 dark:text-grey-400">
+                      {roles.length}
+                    </span>
+                    {!assignedRole && (
+                      <Button variant="ghost" size="sm" onClick={startAddRole}>
+                        <HiPlus className="size-4 mr-1" />
+                        Hinzufügen
+                      </Button>
+                    )}
+                  </>
+                ) : undefined
+              }
+            >
               {emailRole && (
-                <div className="mb-md flex flex-wrap items-center gap-sm rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
+                <div className="flex flex-wrap items-center gap-sm py-3">
                   <div className="min-w-0 flex-1">
                     <p className="m-0 text-sm font-medium text-foreground-heading">
                       Vorschlag anhand deiner Mailadresse
                     </p>
-                    <p className="m-0 mt-xs text-sm text-foreground-muted">
+                    <p className="m-0 mt-xs text-sm text-grey-600 dark:text-grey-400">
                       {emailRole.rolle} · {emailRole.bundesland}
                     </p>
                   </div>
@@ -978,7 +961,7 @@ export default function RolesSection() {
                 </div>
               )}
               {roles.length === 0 ? (
-                <div className="text-center py-md">
+                <div className="py-3">
                   {assignedRole ? (
                     // Die Rolle kommt vom Server, beim Lesen der User-Defaults.
                     // Sie fehlt hier also nur, solange die Abfrage läuft — ein
@@ -993,7 +976,7 @@ export default function RolesSection() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col gap-sm">
+                <SettingsList>
                   {roles.map((role, i) => (
                     <RoleCard
                       key={roleKey(role)}
@@ -1018,23 +1001,23 @@ export default function RolesSection() {
                       }
                     />
                   ))}
-                </div>
+                </SettingsList>
               )}
 
               {/* Die Zuteilung war bisher unsichtbar: man legte eine Rolle an
-                  und musste selbst darauf kommen, in der Agentur nachzusehen.
-                  Dieser Weg schließt den Kreis — er erscheint nur, wenn
-                  wirklich etwas zugeteilt ist, sonst führte er ins Leere. Der
-                  Dialog schließt mit, sonst läge die Agentur dahinter.
+          und musste selbst darauf kommen, in der Agentur nachzusehen.
+          Dieser Weg schließt den Kreis — er erscheint nur, wenn
+          wirklich etwas zugeteilt ist, sonst führte er ins Leere. Der
+          Dialog schließt mit, sonst läge die Agentur dahinter.
 
-                  Grüneratoren und Rezepte des Landesverbands stehen seit dem
-                  Regal-Umbau beide im Marktplatz unter von=landesverband, deshalb
-                  ein Knopf statt zwei. Die Herkunft steht AUSDRÜCKLICH im Link:
-                  ein nacktes `/marktplatz` zeigt alle, und das Zugeteilte stünde
-                  zwischen den offiziellen. */}
+          Grüneratoren und Rezepte des Landesverbands stehen seit dem
+          Regal-Umbau beide im Marktplatz unter von=landesverband, deshalb
+          ein Knopf statt zwei. Die Herkunft steht AUSDRÜCKLICH im Link:
+          ein nacktes `/marktplatz` zeigt alle, und das Zugeteilte stünde
+          zwischen den offiziellen. */}
               {lvIds !== null && lvIds.length > 0 && (
-                <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
-                  <p className="m-0 text-sm text-foreground-muted">
+                <div className="py-3">
+                  <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
                     Über deine Rolle sind dir die Inhalte von <strong>{lvHeadings.agents}</strong>{' '}
                     zugeteilt.
                   </p>
@@ -1062,8 +1045,8 @@ export default function RolesSection() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </SettingsSection>
+          </div>
         </>
       )}
     </div>

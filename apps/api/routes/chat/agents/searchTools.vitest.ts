@@ -25,8 +25,9 @@ const AGENT = {
 
 /** The collection the tool falls back to when the model names none. */
 function defaultCollection(tools: ReturnType<typeof createSearchTools>): unknown {
-  const schema = (tools.gruenerator_search as { inputSchema: { parse: (v: unknown) => unknown } })
-    .inputSchema;
+  const schema = (
+    tools.gruenerator_search as unknown as { inputSchema: { parse: (v: unknown) => unknown } }
+  ).inputSchema;
   return (schema.parse({ query: 'test' }) as { collection?: unknown }).collection;
 }
 
@@ -38,7 +39,7 @@ function defaultCollection(tools: ReturnType<typeof createSearchTools>): unknown
  */
 function canName(tools: ReturnType<typeof createSearchTools>, collection: string): boolean {
   const schema = (
-    tools.gruenerator_search as {
+    tools.gruenerator_search as unknown as {
       inputSchema: { safeParse: (v: unknown) => { success: boolean } };
     }
   ).inputSchema;

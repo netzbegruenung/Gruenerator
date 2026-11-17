@@ -63,7 +63,6 @@ export type MentionableType =
   | 'presentation'
   | 'wolke'
   | 'connect'
-  | 'canva'
   | 'vorlagen'
   | 'webpage';
 export type MentionableCategory = 'skill' | 'function';
@@ -1056,33 +1055,6 @@ export function decodeConnectToken(token: string): ConnectFileToken | null {
   }
 }
 
-// @canva opens a sub-popover that lists the user's Canva designs (fetched live
-// from the Connect API via React Query). Picking designs inserts a markdown
-// link per design into the composer — a direct "insert the design" reference,
-// not a RAG document source (designs are visual, not text). Mirrors the
-// trigger-then-picker UX of @wolke/@connect.
-export const canvaMentionables: Mentionable[] = [
-  {
-    type: 'canva',
-    category: 'function',
-    trigger: '@',
-    identifier: 'canva-trigger',
-    title: 'Canva',
-    description: 'Eigene Canva-Designs einfügen',
-    avatar: '🎨',
-    icon: PiPaintBrush,
-    backgroundColor: '#00C4CC',
-    mention: 'canva',
-  },
-];
-
-export interface CanvaDesignToken {
-  id: string;
-  title: string;
-  viewUrl: string;
-  thumbnailUrl?: string;
-}
-
 // @vorlage opens a sub-popover listing the Grünerator Sharepic-Vorlagen
 // catalogue. The picked Vorlage becomes a pill whose identifier is the
 // catalogue id (the trigger below never becomes a token) and is sent as a
@@ -1139,7 +1111,6 @@ export function getAllMentionables(): Mentionable[] {
     ...documentMentionables,
     ...wolkeMentionables,
     ...connectMentionables,
-    ...canvaMentionables,
     ...vorlagenMentionables,
     ...webpageMentionables,
   ];
@@ -1169,7 +1140,6 @@ function rebuildMentionableMap(): void {
     documentMentionables,
     wolkeMentionables,
     connectMentionables,
-    canvaMentionables,
     vorlagenMentionables,
     webpageMentionables,
   ];
@@ -1209,7 +1179,6 @@ export function filterMentionables(query: string): {
   documents: Mentionable[];
   wolke: Mentionable[];
   connect: Mentionable[];
-  canva: Mentionable[];
   vorlagen: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
@@ -1236,7 +1205,6 @@ export function filterMentionables(query: string): {
       documents: documentMentionables,
       wolke: wolkeMentionables,
       connect: connectMentionables,
-      canva: canvaMentionables,
       vorlagen: vorlagenMentionables,
     };
   }
@@ -1279,7 +1247,6 @@ export function filterMentionables(query: string): {
     documents: documentMentionables.filter(matchFn),
     wolke: wolkeMentionables.filter(matchFn),
     connect: connectMentionables.filter(matchFn),
-    canva: canvaMentionables.filter(matchFn),
     vorlagen: vorlagenMentionables.filter(matchFn),
   };
 }
@@ -1299,7 +1266,6 @@ export function filterMentionablesByCategory(
     ...all.documents,
     ...all.wolke,
     ...all.connect,
-    ...all.canva,
     ...all.vorlagen,
     ...all.userNotebooks,
     ...all.notebooks,

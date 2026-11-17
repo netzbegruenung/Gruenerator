@@ -24,6 +24,7 @@ import {
   FiSettings,
   FiShield,
   FiSliders,
+  FiUser,
   FiX,
 } from 'react-icons/fi';
 import {
@@ -61,7 +62,6 @@ const NAV_GROUPS: { key: SettingsNavGroup; label: string }[] = [
 
 type SettingsNavGroup = 'praeferenzen' | 'gruenerator' | 'verbindungen' | 'uebersicht';
 
-// hideHeading: the tab's content brings its own top-level heading.
 // onlyWhileOnboarding: verschwindet, sobald die Einrichtung erledigt ist.
 // onlyWithAntragsgruen: nur, wo der Grünerator Antragsgrün-Seiten anlegen kann
 // oder die Person schon welche hat (experimentell, nur de-DE).
@@ -75,7 +75,6 @@ const NAV: {
   label: string;
   icon: IconType;
   group?: SettingsNavGroup;
-  hideHeading?: boolean;
   onlyWhileOnboarding?: boolean;
   onlyWithAntragsgruen?: boolean;
 }[] = [
@@ -83,16 +82,16 @@ const NAV: {
     value: 'onboarding',
     label: 'Onboarding',
     icon: PiRocketLaunch,
-    hideHeading: true,
     onlyWhileOnboarding: true,
   },
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings, group: 'praeferenzen' },
+  { value: 'konto', label: 'Konto', icon: FiUser, group: 'praeferenzen' },
   { value: 'hintergrund', label: 'Hintergrund', icon: PiPaintBrushBroad, group: 'praeferenzen' },
   { value: 'friends', label: 'Friends', icon: PiRobot, group: 'praeferenzen' },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell, group: 'praeferenzen' },
   {
     value: 'datenschutz',
-    label: 'Datenschutz & Barrierefreiheit',
+    label: 'Datenschutz',
     icon: FiShield,
     group: 'praeferenzen',
   },
@@ -102,7 +101,6 @@ const NAV: {
     label: 'Erinnerungen',
     icon: PiBrain,
     group: 'gruenerator',
-    hideHeading: true,
   },
   { value: 'tagesbriefing', label: 'Tagesbriefing', icon: PiSunHorizon, group: 'gruenerator' },
   { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple, group: 'gruenerator' },
@@ -111,7 +109,6 @@ const NAV: {
     label: 'Konnektoren',
     icon: FiServer,
     group: 'verbindungen',
-    hideHeading: true,
   },
   { value: 'wolke', label: 'Wolke', icon: FiCloud, group: 'verbindungen' },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe, group: 'verbindungen' },
@@ -120,7 +117,6 @@ const NAV: {
     label: 'Antragsgrün',
     icon: FiClipboard,
     group: 'verbindungen',
-    hideHeading: true,
     onlyWithAntragsgruen: true,
   },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2, group: 'uebersicht' },
@@ -216,6 +212,13 @@ const SettingsTabBody = ({ tab }: { tab: SettingsTab }) => {
 const FLASH_CLASSES = 'rounded-md bg-primary-100 dark:bg-primary-950'.split(' ');
 const FLASH_MS = 1200;
 const FIND_ROW_FRAMES = 120; // ≈ 2 s
+const SETTLED_GIVE_UP_FRAMES = 6;
+
+// Der lazy Reiter ist aufgelöst, wenn Inhalt da ist und kein Skelett mehr lädt.
+const tabBodySettled = (root: HTMLElement | null) =>
+  root !== null &&
+  root.querySelector('h2') !== null &&
+  root.querySelector('[aria-busy="true"]') === null;
 
 const SettingsDialog = () => {
   const isOpen = useSettingsDialogStore((s) => s.isOpen);
@@ -314,6 +317,7 @@ const SettingsDialog = () => {
     const wide = narrowView === null;
     // Die Reiter laden lazy: die Zeile steht oft erst ein paar Frames später da.
     let frames = 0;
+    let settled = 0;
     const find = () => {
       findFrameRef.current = null;
       const row =
@@ -341,7 +345,12 @@ const SettingsDialog = () => {
         }
       } else if (navEntry) {
         if (wide) navEntry.focus();
-      } else if (++frames < FIND_ROW_FRAMES) {
+      } else if (
+        ++frames < FIND_ROW_FRAMES &&
+        // Steht der Reiter fertig da (Inhalt, kein Skelett) und die Zeile fehlt
+        // weiter, wird sie gar nicht gerendert: nach wenigen Frames aufgeben.
+        (settled += tabBodySettled(sectionRef.current) ? 1 : 0) < SETTLED_GIVE_UP_FRAMES
+      ) {
         findFrameRef.current = requestAnimationFrame(find);
       } else if (wide) {
         sectionRef.current?.focus({ preventScroll: true });
@@ -513,11 +522,6 @@ const SettingsDialog = () => {
               className="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
             >
               <div className="px-md py-lg md:px-xl">
-                {!activeEntry.hideHeading && (
-                  <h2 className="mt-0 mb-lg text-lg font-semibold text-foreground-heading">
-                    {activeEntry.label}
-                  </h2>
-                )}
                 <SettingsTabBody tab={activeTab} />
               </div>
             </section>

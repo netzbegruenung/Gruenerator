@@ -77,9 +77,8 @@ describe('McpSection — bekannte Konnektoren', () => {
     const { container } = renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     const title = await screen.findByText('Rateo');
-    const card = title.closest('div.flex') ?? title.parentElement!;
     await userEvent.click(
-      within(card.parentElement as HTMLElement).getByRole('button', { name: 'Verbinden' })
+      within(title.closest('li') as HTMLElement).getByRole('button', { name: 'Verbinden' })
     );
 
     await waitFor(() => expect(connected).toEqual(['rateo']));
@@ -97,6 +96,40 @@ describe('McpSection — bekannte Konnektoren', () => {
     expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
   });
+
+  it('setzt den Slot afterConnected zwischen „Verbunden" und „Dienste verbinden"', async () => {
+    serve([RATEO_ROW]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText(RATEO_ROW.description);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const at = (name: string) => headings.indexOf(name);
+    expect(at('Verbunden')).toBeGreaterThanOrEqual(0);
+    expect(at('Immer erlaubte Werkzeuge')).toBe(at('Verbunden') + 1);
+    expect(at('Dienste verbinden')).toBe(at('Verbunden') + 2);
+  });
+
+  it('setzt den Slot ans Ende, wenn nichts verbunden ist', async () => {
+    serve([]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText('Rateo');
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings[0]).not.toBe('Immer erlaubte Werkzeuge');
+    expect(headings.at(-1)).toBe('Immer erlaubte Werkzeuge');
+  });
 });
 
 /**
@@ -113,14 +146,14 @@ describe('McpSection — Microsoft 365', () => {
   }
 
   const cardOf = async () =>
-    (await screen.findByText('Microsoft 365')).closest('div.rounded-xl') as HTMLElement;
+    (await screen.findByText('Microsoft 365')).closest('li') as HTMLElement;
 
   it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
     serveMicrosoft([{ provider: 'microsoft', connected: false }]);
     renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
 
     const card = await cardOf();
-    const group = card.closest('div.grid')?.parentElement as HTMLElement;
+    const group = card.closest('ul')?.parentElement as HTMLElement;
     expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
     expect(within(card).getByText('Experimentell')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();

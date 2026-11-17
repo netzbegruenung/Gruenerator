@@ -368,7 +368,7 @@ describe('locale-aware picker', () => {
 
 // ---------------------------------------------------------------------------
 // Slug uniqueness ACROSS sources. Each source (agents, notebooks, tools, boards,
-// docs, wolke, connect, canva, …) keeps its own slugs unique on its own; nothing
+// docs, wolke, connect, …) keeps its own slugs unique on its own; nothing
 // checked the union. `rebuildMentionableMap` is first-wins, so a later source
 // that reuses a slug is silently unreachable — the picker offers the entry, the
 // parser resolves it to a different one, and the turn routes somewhere else.

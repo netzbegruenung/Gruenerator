@@ -13,6 +13,7 @@ import { NEWSLETTER_SIGNUP_URL } from '../../../config/newsletter';
 import { treeBudgetQuery, useTreeBudget } from '../../../hooks/useTreeBudget';
 import { useAuthStore } from '../../../stores/authStore';
 
+import SettingsSection from './SettingsSection';
 import { SettingsCardsSkeleton } from './SettingsSkeleton';
 
 export const prefetchTreeBudget = (queryClient: QueryClient) => {
@@ -36,10 +37,11 @@ function Tile({ children }: { children: React.ReactNode }) {
 
 export function TreeBudgetSection() {
   return (
-    <section className="flex flex-col gap-lg">
-      <h2 className="m-0 text-lg font-semibold text-foreground-heading">Bäume heute</h2>
-      <TreeBudget />
-    </section>
+    <SettingsSection title="Bäume">
+      <div className="pt-2">
+        <TreeBudget />
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -111,7 +113,7 @@ function TreeBudget() {
       )}
 
       {showNewsletterCard && (
-        <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+        <section className="flex flex-col gap-sm border-t border-grey-200 pt-lg dark:border-grey-700">
           <h3 className="m-0 text-sm font-semibold text-foreground-heading">
             5 Bäume mehr pro Tag
           </h3>
