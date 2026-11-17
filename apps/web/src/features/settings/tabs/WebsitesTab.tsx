@@ -156,6 +156,7 @@ export default function WebsitesTab() {
                       type="button"
                       variant="ghost"
                       size="icon-xs"
+                      className="pointer-coarse:size-11"
                       onClick={() => deleteWebsite.mutate(site.id)}
                       disabled={deleteWebsite.isPending}
                       title="Bereits importierte Beiträge bleiben in den Notebooks."

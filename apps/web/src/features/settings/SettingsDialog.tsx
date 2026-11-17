@@ -212,6 +212,13 @@ const SettingsTabBody = ({ tab }: { tab: SettingsTab }) => {
 const FLASH_CLASSES = 'rounded-md bg-primary-100 dark:bg-primary-950'.split(' ');
 const FLASH_MS = 1200;
 const FIND_ROW_FRAMES = 120; // ≈ 2 s
+const SETTLED_GIVE_UP_FRAMES = 6;
+
+// Der lazy Reiter ist aufgelöst, wenn Inhalt da ist und kein Skelett mehr lädt.
+const tabBodySettled = (root: HTMLElement | null) =>
+  root !== null &&
+  root.querySelector('h2') !== null &&
+  root.querySelector('[aria-busy="true"]') === null;
 
 const SettingsDialog = () => {
   const isOpen = useSettingsDialogStore((s) => s.isOpen);
@@ -310,6 +317,7 @@ const SettingsDialog = () => {
     const wide = narrowView === null;
     // Die Reiter laden lazy: die Zeile steht oft erst ein paar Frames später da.
     let frames = 0;
+    let settled = 0;
     const find = () => {
       findFrameRef.current = null;
       const row =
@@ -337,7 +345,12 @@ const SettingsDialog = () => {
         }
       } else if (navEntry) {
         if (wide) navEntry.focus();
-      } else if (++frames < FIND_ROW_FRAMES) {
+      } else if (
+        ++frames < FIND_ROW_FRAMES &&
+        // Steht der Reiter fertig da (Inhalt, kein Skelett) und die Zeile fehlt
+        // weiter, wird sie gar nicht gerendert: nach wenigen Frames aufgeben.
+        (settled += tabBodySettled(sectionRef.current) ? 1 : 0) < SETTLED_GIVE_UP_FRAMES
+      ) {
         findFrameRef.current = requestAnimationFrame(find);
       } else if (wide) {
         sectionRef.current?.focus({ preventScroll: true });

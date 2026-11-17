@@ -36,6 +36,7 @@ const CustomPromptSection = () => {
   const [customPrompt, setCustomPrompt] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const savedPromptRef = useRef('');
+  const [justSaved, setJustSaved] = useState(false);
   const isInitialized = useRef(false);
 
   // Die Spalte gehört jetzt allein diesem Feld. Ein Rollenblock, den der
@@ -62,11 +63,14 @@ const CustomPromptSection = () => {
       }
       savedPromptRef.current = customPrompt;
       setIsDirty(false);
+      setJustSaved(true);
     },
     onError: () => {
       toast.error('Fehler beim Speichern der Anweisungen.');
     },
   });
+
+  const savedLabel = justSaved ? 'Gespeichert' : 'Speichern';
 
   if (isLoading) return <SettingsFormSkeleton />;
 
@@ -81,24 +85,23 @@ const CustomPromptSection = () => {
           onChange={(e) => {
             setCustomPrompt(e.target.value);
             setIsDirty(e.target.value !== savedPromptRef.current);
+            setJustSaved(false);
           }}
           aria-label="Anweisungen"
           placeholder="z.B. 'Duze die Leser*innen und schreibe knapp.'"
           rows={4}
           className="w-full resize-y rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
         />
-        {isDirty && (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending ? 'Wird gespeichert…' : 'Speichern'}
-            </Button>
-          </div>
-        )}
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || !isDirty}
+          >
+            {saveMutation.isPending ? 'Wird gespeichert…' : isDirty ? 'Speichern' : savedLabel}
+          </Button>
+        </div>
       </div>
     </SettingsSection>
   );
