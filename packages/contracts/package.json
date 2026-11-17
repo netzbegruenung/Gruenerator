@@ -37,6 +37,12 @@
       "import": "./dist/brand/grueneBrand.js",
       "default": "./dist/brand/grueneBrand.js"
     },
+    "./canvas-host-keys": {
+      "development": "./src/canvasHostKeys.ts",
+      "types": "./src/canvasHostKeys.ts",
+      "import": "./dist/canvasHostKeys.js",
+      "default": "./dist/canvasHostKeys.js"
+    },
     "./slides": {
       "development": "./src/slides/index.ts",
       "types": "./src/slides/index.ts",
