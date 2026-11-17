@@ -79,6 +79,21 @@ describe('@doc mention of a presentation', () => {
     expect(context).toContain('Sichere Kreuzungen');
   });
 
+  it('names a canvas newer than the server as unreadable instead of dropping the context', async () => {
+    const { CanvasDocumentNewerReadError } =
+      await import('../../../services/canvas/canvasWriteErrors.js');
+    const refusal = new CanvasDocumentNewerReadError('c1');
+    pg.query.mockResolvedValue([
+      { id: 'c1', title: 'Radwege', content: null, document_subtype: 'canvas' },
+    ]);
+    canvas.loadCanvasAsContext.mockRejectedValue(refusal);
+
+    const context = await enrichWith(['c1']);
+
+    expect(context).toContain('### Radwege');
+    expect(context).toContain(refusal.message);
+  });
+
   it('keeps reading text documents from Yjs', async () => {
     pg.query.mockResolvedValue([
       { id: 'd1', title: 'Antrag', content: null, document_subtype: 'docs' },

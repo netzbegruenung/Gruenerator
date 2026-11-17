@@ -14,11 +14,17 @@ import { createLogger } from '../../utils/logger.js';
 
 import {
   CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
   CanvasStateUnwritableError,
   CanvasWriteRefusedError,
 } from './canvasWriteErrors.js';
 
-export { CanvasDocumentNewerError, CanvasStateUnwritableError, CanvasWriteRefusedError };
+export {
+  CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
+  CanvasStateUnwritableError,
+  CanvasWriteRefusedError,
+};
 
 const log = createLogger('canvasStateService');
 
@@ -28,7 +34,7 @@ const FETCH_TIMEOUT_MS = 5000;
 
 const db = getPostgresInstance();
 
-/** Code the Hocuspocus internal API answers a refused canvas write with (HTTP 426). */
+/** Code the Hocuspocus internal API answers a refused canvas write or read with (HTTP 426). */
 const CANVAS_DOCUMENT_NEWER_CODE = 'CANVAS_DOCUMENT_NEWER';
 /** Code it answers a value the canvas codec cannot store with (HTTP 400). */
 const CANVAS_STATE_UNWRITABLE_CODE = 'CANVAS_STATE_UNWRITABLE';
@@ -117,12 +123,22 @@ export interface CurrentCanvasState {
   source: 'yjs' | 'initial_state';
 }
 
+/**
+ * The live state, or null when Hocuspocus cannot answer (callers fall back to the mirror).
+ * Throws `CanvasDocumentNewerReadError` when it refuses on purpose: a document newer than the
+ * server is not answered from the mirror either.
+ */
 async function fetchInternalState(canvasId: string): Promise<InternalStateResponse | null> {
   try {
     const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`);
     if (res.ok) return (await res.json()) as InternalStateResponse;
+    if (res.status === 426) {
+      const code = ((await res.json().catch(() => null)) as { code?: unknown } | null)?.code;
+      if (code === CANVAS_DOCUMENT_NEWER_CODE) throw new CanvasDocumentNewerReadError(canvasId);
+    }
     log.warn(`internal GET state for ${canvasId} returned ${res.status}`);
   } catch (err) {
+    if (err instanceof CanvasDocumentNewerReadError) throw err;
     log.warn(`internal GET state for ${canvasId} failed: ${err}`);
   }
   return null;
