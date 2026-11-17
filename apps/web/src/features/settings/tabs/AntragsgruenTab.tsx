@@ -216,8 +216,7 @@ export default function AntragsgruenTab() {
   if (isPending) return <SettingsCardsSkeleton cards={2} />;
 
   return (
-    // Settings design: no tab title, the section heading carries the name; the
-    // nav entry keeps hideHeading so this h2 is the only one.
+    // Settings design: no tab title, the section heading carries the name.
     <section className="flex flex-col">
       <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs pb-1">
         <h2 className="m-0 font-[Raleway] text-[15px] font-semibold text-foreground-heading">

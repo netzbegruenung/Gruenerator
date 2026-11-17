@@ -9,6 +9,8 @@ import { fetchShareLinks, useShareLinks, wolkeKeys } from '@gruenerator/wolke';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Check, Lock } from 'lucide-react';
 
+import SettingsSection from '../components/SettingsSection';
+
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
 import { useAuthStore } from '@/stores/authStore';
@@ -106,75 +108,76 @@ const FriendsTab = ({ starterOnly = false }: FriendsTabProps) => {
     },
   });
 
-  return (
-    <div className="flex flex-col gap-lg">
-      {!starterOnly && (
-        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-          Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats,
-          Projekten und Kommentaren.
-        </p>
-      )}
+  const picker = (
+    <div className={cn('grid gap-sm', starterOnly ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4')}>
+      {friends.map((friend) => {
+        const isLocked = friend.unlock === 'wolke' && !wolkeConnected;
+        const isSelected = selectedId === friend.id;
+        const style = friend.starter ? STARTER_STYLE[friend.starter] : NEUTRAL_STYLE;
 
-      <div
-        className={cn('grid gap-sm', starterOnly ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4')}
-      >
-        {friends.map((friend) => {
-          const isLocked = friend.unlock === 'wolke' && !wolkeConnected;
-          const isSelected = selectedId === friend.id;
-          const style = friend.starter ? STARTER_STYLE[friend.starter] : NEUTRAL_STYLE;
-
-          return (
-            <button
-              key={friend.id}
-              type="button"
-              onClick={() => !isLocked && selectMutation.mutate(friend.id)}
-              disabled={isLocked || selectMutation.isPending}
-              aria-pressed={isSelected}
-              aria-label={
-                isLocked
-                  ? `${friend.name} — verbinde deine Wolke zum Freischalten`
-                  : `${friend.name} auswählen`
-              }
-              title={isLocked ? 'Verbinde deine Wolke, um Wolki freizuschalten' : friend.tagline}
+        return (
+          <button
+            key={friend.id}
+            type="button"
+            onClick={() => !isLocked && selectMutation.mutate(friend.id)}
+            disabled={isLocked || selectMutation.isPending}
+            aria-pressed={isSelected}
+            aria-label={
+              isLocked
+                ? `${friend.name} — verbinde deine Wolke zum Freischalten`
+                : `${friend.name} auswählen`
+            }
+            title={isLocked ? 'Verbinde deine Wolke, um Wolki freizuschalten' : friend.tagline}
+            className={cn(
+              'flex flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30',
+              isLocked ? 'cursor-not-allowed opacity-40' : 'hover:bg-background-alt'
+            )}
+          >
+            <div
               className={cn(
-                'flex flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30',
-                isLocked ? 'cursor-not-allowed opacity-40' : 'hover:bg-background-alt'
+                'relative aspect-square w-full rounded-full p-1.5 transition-all',
+                style.tint,
+                isSelected && !isLocked ? cn('ring-4', style.ring) : cn('ring-2', style.idle)
               )}
             >
-              <div
-                className={cn(
-                  'relative aspect-square w-full rounded-full p-1.5 transition-all',
-                  style.tint,
-                  isSelected && !isLocked ? cn('ring-4', style.ring) : cn('ring-2', style.idle)
-                )}
-              >
-                <img
-                  src={getRobotAvatarPath(friend.id)}
-                  alt=""
-                  className={cn('size-full object-contain', isLocked && 'grayscale')}
-                  width={88}
-                  height={88}
-                  loading="lazy"
-                  decoding="async"
-                />
-                {isSelected && !isLocked && (
-                  <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-primary-500 text-white ring-2 ring-background">
-                    <Check className="size-3" />
-                  </span>
-                )}
-                {isLocked && (
-                  <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-grey-400 text-white ring-2 ring-background dark:bg-grey-600">
-                    <Lock className="size-3" />
-                  </span>
-                )}
-              </div>
-              <span className="text-xs font-medium text-foreground">{friend.name}</span>
-            </button>
-          );
-        })}
-      </div>
+              <img
+                src={getRobotAvatarPath(friend.id)}
+                alt=""
+                className={cn('size-full object-contain', isLocked && 'grayscale')}
+                width={88}
+                height={88}
+                loading="lazy"
+                decoding="async"
+              />
+              {isSelected && !isLocked && (
+                <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-primary-500 text-white ring-2 ring-background">
+                  <Check className="size-3" />
+                </span>
+              )}
+              {isLocked && (
+                <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-grey-400 text-white ring-2 ring-background dark:bg-grey-600">
+                  <Lock className="size-3" />
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-medium text-foreground">{friend.name}</span>
+          </button>
+        );
+      })}
     </div>
+  );
+
+  // Im Einrichtungsschritt trägt der Schritt selbst die Überschrift.
+  if (starterOnly) return picker;
+
+  return (
+    <SettingsSection
+      title="Dein Friend"
+      description="Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats, Projekten und Kommentaren."
+    >
+      {picker}
+    </SettingsSection>
   );
 };
 

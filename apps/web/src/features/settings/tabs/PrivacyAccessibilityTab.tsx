@@ -12,8 +12,8 @@
  * übersteuern. Sie standen bis zum 28.08.2026 in einem eigenen Reiter mit genau
  * diesen zwei Zeilen.
  *
- * Die Gruppen sind `SettingsSection`s (`h3`), weil der Dialog die `h2` (das
- * Reiter-Label) selbst setzt.
+ * Die Gruppen sind `SettingsSection`s (`h2`); der Dialog setzt keine
+ * eigene Reiter-Überschrift mehr.
  */
 
 import { Switch } from '@gruenerator/ui';
