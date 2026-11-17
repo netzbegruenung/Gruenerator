@@ -2,7 +2,7 @@
  * Per-user registry of MCP servers (EXPERIMENTAL).
  *
  * Stores server records in the `mcp_servers` table; access tokens are encrypted
- * at rest with the shared credential helper (same scheme as Canva).
+ * at rest with the shared credential helper.
  * The chat tool-loop reads {@link getConnectionConfigs} to connect to the one
  * server a turn addresses; the settings UI drives the CRUD methods.
  *

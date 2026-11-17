@@ -350,7 +350,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
-  const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
@@ -1175,9 +1174,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/connections', standardMutationLimiter, requireAuth);
   mountConnectionsContractRouter(app);
   app.use('/api/connections', connectionsRouter);
-  // Direct Canva Connect API (OAuth2 + PKCE). Auth is applied per-route inside
-  // the router — the OAuth callback answers with a popup page, never a 401.
-  app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Link-shared Vorlagen. optionalAuth, NOT requireAuth: a Vorlage shared with
   // share_mode='public' has to open without an account, and the handler
   // answers 401 itself when the link needs one. Mounted before the legacy
