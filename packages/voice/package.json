@@ -13,11 +13,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.32",
+    "@assistant-ui/core": "^0.3.36",
     "@gruenerator/shared": "workspace:*",
     "@mistralai/mistralai": "^3.5.0",
-    "livekit-client": "^2.23.0",
-    "zustand": "5.0.16"
+    "livekit-client": "^2.24.0",
+    "zustand": "5.1.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.28",
