@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { env } from '../../../config/env.js';
 
 import { createRemoteHttpClient } from './http.js';
+import { type RemoteSourceId } from './ids.js';
 import {
   type FacetCount,
   type FieldFilters,
@@ -21,7 +22,14 @@ import {
  * Quelle zusammen (unser eigener Scraper trennte Reden aus genau dem Grund).
  * `party` trägt Kurznamen (`GRÜNE`), bei Drucksachen die einbringenden
  * Fraktionen.
+ *
+ * Der Index enthält beide Kammern — das DIP liefert Bundesrats-Drucksachen aus
+ * demselben Endpunkt (Movm/Bundestag_Wrapped#297). Jede Quelle fragt deshalb
+ * mit festem `herausgeber`: `bundestag-wrapped` nur BT, `bundesrat-wrapped`
+ * nur BR. Von aussen ist das Feld kein Filter, es steht nicht in FILTER_FIELDS.
  */
+
+type Herausgeber = 'BT' | 'BR';
 
 type Source = 'speeches' | 'documents';
 
@@ -85,23 +93,18 @@ const facetsResponseSchema = z.object({
   values: z.array(z.object({ value: z.union([z.string(), z.number()]), count: z.number() })),
 });
 
-const http = createRemoteHttpClient({
-  id: 'bundestag-wrapped',
-  label: 'Bundestag-Quelle',
-  credentials: () => ({
-    baseUrl: env.BUNDESTAG_NOTEBOOK_API_URL,
-    apiKey: env.BUNDESTAG_NOTEBOOK_API_KEY,
-  }),
-});
-
 interface WireFilters {
   sources?: Source[];
   filters: Record<string, Array<string | number>> & { from?: string; to?: string };
 }
 
 /** `null` = die Filter schliessen sich aus, es gibt nichts zu fragen. */
-function toWireFilters(filters: FieldFilters): WireFilters | null {
-  const wire: WireFilters = { filters: {} };
+function toWireFilters(
+  filters: FieldFilters,
+  herausgeber: Herausgeber,
+  sourceId: RemoteSourceId
+): WireFilters | null {
+  const wire: WireFilters = { filters: { herausgeber: [herausgeber] } };
   for (const [field, values] of Object.entries(filters.match)) {
     if (values.length === 0) return null;
     if (field === 'content_type') {
@@ -111,7 +114,7 @@ function toWireFilters(filters: FieldFilters): WireFilters | null {
       continue;
     }
     const wireField = FILTER_FIELDS[field];
-    if (!wireField) throw new Error(`[bundestag-wrapped] Filter "${field}" wird nicht unterstützt`);
+    if (!wireField) throw new Error(`[${sourceId}] Filter "${field}" wird nicht unterstützt`);
     wire.filters[wireField] = NUMERIC_FILTER_FIELDS.has(field) ? values.map(Number) : [...values];
   }
   if (filters.published_at?.gte) wire.filters.from = filters.published_at.gte.slice(0, 10);
@@ -129,7 +132,11 @@ function parseDocumentId(documentId: string): { source: Source; doc_id: string }
   return source && rest.length > 0 ? { source, doc_id: rest.join(':') } : null;
 }
 
-function toPayload(chunk: WireChunk, chunkText: string): Record<string, unknown> {
+function toPayload(
+  chunk: WireChunk,
+  chunkText: string,
+  sourceId: RemoteSourceId
+): Record<string, unknown> {
   // Reden teilen sich die PDF-URL ihres Protokolls; der Anker hält sie in
   // URL-Deduplizierung und Zitaten auseinander.
   const sourceUrl =
@@ -149,67 +156,104 @@ function toPayload(chunk: WireChunk, chunkText: string): Record<string, unknown>
     section_type: chunk.section_type,
     chunk_index: chunk.chunk_index,
     chunk_text: chunkText,
-    source: 'bundestag-wrapped',
+    source: sourceId,
   };
 }
 
-export const bundestagWrappedSource: RemoteNotebookSource = {
+interface WrappedSourceConfig {
+  id: RemoteSourceId;
+  label: string;
+  herausgeber: Herausgeber;
+}
+
+function createBundestagWrappedSource({ id, label, herausgeber }: WrappedSourceConfig): {
+  source: RemoteNotebookSource;
+  resetBreakerForTests: () => void;
+} {
+  const http = createRemoteHttpClient({
+    id,
+    label,
+    credentials: () => ({
+      baseUrl: env.BUNDESTAG_NOTEBOOK_API_URL,
+      apiKey: env.BUNDESTAG_NOTEBOOK_API_KEY,
+    }),
+  });
+
+  const source: RemoteNotebookSource = {
+    id,
+    label,
+
+    async search({ vector, query, filters, limit, threshold }): Promise<RemoteHit[]> {
+      const wire = toWireFilters(filters, herausgeber, id);
+      if (!wire) return [];
+      const { results } = await http.post(
+        '/api/v1/search',
+        {
+          vector,
+          query: query.slice(0, MAX_QUERY_CHARS),
+          limit: Math.min(limit, MAX_SEARCH_LIMIT),
+          ...(threshold != null && { scoreThreshold: threshold }),
+          ...wire,
+        },
+        searchResponseSchema
+      );
+      return results.map((hit) => ({
+        id: hit.id,
+        score: hit.score,
+        payload: toPayload(hit, hit.excerpt ?? hit.text, id),
+      }));
+    },
+
+    async facetCounts(field, filters, limit): Promise<FacetCount[]> {
+      const wire = toWireFilters(filters, herausgeber, id);
+      if (!wire) return [];
+      const wireField = field === 'content_type' ? 'source' : FILTER_FIELDS[field];
+      if (!wireField) throw new Error(`[${id}] Facette "${field}" wird nicht unterstützt`);
+      const { values } = await http.post(
+        '/api/v1/facets',
+        { field: wireField, limit, ...wire },
+        facetsResponseSchema
+      );
+      return values.map(({ value, count }) => ({
+        value:
+          field === 'content_type'
+            ? (CONTENT_TYPE_BY_SOURCE[value as Source] ?? String(value))
+            : String(value),
+        count,
+      }));
+    },
+
+    async chunks(documentId, chunkIndexes): Promise<RemoteChunk[]> {
+      const ref = parseDocumentId(documentId);
+      if (!ref || chunkIndexes.length === 0) return [];
+      const { chunks } = await http.post(
+        '/api/v1/chunks',
+        { ...ref, chunk_indexes: [...chunkIndexes] },
+        chunksResponseSchema
+      );
+      return chunks
+        .map((chunk) => ({ id: chunk.id, payload: toPayload(chunk, chunk.text, id) }))
+        .sort((a, b) => (a.payload.chunk_index as number) - (b.payload.chunk_index as number));
+    },
+  };
+  return { source, resetBreakerForTests: () => http.resetBreakerForTests() };
+}
+
+const bundestag = createBundestagWrappedSource({
   id: 'bundestag-wrapped',
   label: 'Bundestag-Quelle',
+  herausgeber: 'BT',
+});
+const bundesrat = createBundestagWrappedSource({
+  id: 'bundesrat-wrapped',
+  label: 'Bundesrat-Quelle',
+  herausgeber: 'BR',
+});
 
-  async search({ vector, query, filters, limit, threshold }): Promise<RemoteHit[]> {
-    const wire = toWireFilters(filters);
-    if (!wire) return [];
-    const { results } = await http.post(
-      '/api/v1/search',
-      {
-        vector,
-        query: query.slice(0, MAX_QUERY_CHARS),
-        limit: Math.min(limit, MAX_SEARCH_LIMIT),
-        ...(threshold != null && { scoreThreshold: threshold }),
-        ...wire,
-      },
-      searchResponseSchema
-    );
-    return results.map((hit) => ({
-      id: hit.id,
-      score: hit.score,
-      payload: toPayload(hit, hit.excerpt ?? hit.text),
-    }));
-  },
+export const bundestagWrappedSource = bundestag.source;
+export const bundesratWrappedSource = bundesrat.source;
 
-  async facetCounts(field, filters, limit): Promise<FacetCount[]> {
-    const wire = toWireFilters(filters);
-    if (!wire) return [];
-    const wireField = field === 'content_type' ? 'source' : FILTER_FIELDS[field];
-    if (!wireField)
-      throw new Error(`[bundestag-wrapped] Facette "${field}" wird nicht unterstützt`);
-    const { values } = await http.post(
-      '/api/v1/facets',
-      { field: wireField, limit, ...wire },
-      facetsResponseSchema
-    );
-    return values.map(({ value, count }) => ({
-      value:
-        field === 'content_type'
-          ? (CONTENT_TYPE_BY_SOURCE[value as Source] ?? String(value))
-          : String(value),
-      count,
-    }));
-  },
-
-  async chunks(documentId, chunkIndexes): Promise<RemoteChunk[]> {
-    const ref = parseDocumentId(documentId);
-    if (!ref || chunkIndexes.length === 0) return [];
-    const { chunks } = await http.post(
-      '/api/v1/chunks',
-      { ...ref, chunk_indexes: [...chunkIndexes] },
-      chunksResponseSchema
-    );
-    return chunks
-      .map((chunk) => ({ id: chunk.id, payload: toPayload(chunk, chunk.text) }))
-      .sort((a, b) => (a.payload.chunk_index as number) - (b.payload.chunk_index as number));
-  },
+export const resetBundestagWrappedBreakerForTests = (): void => {
+  bundestag.resetBreakerForTests();
+  bundesrat.resetBreakerForTests();
 };
-
-export const resetBundestagWrappedBreakerForTests = (): void => http.resetBreakerForTests();

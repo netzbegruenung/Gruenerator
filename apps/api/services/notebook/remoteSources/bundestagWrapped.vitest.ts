@@ -16,7 +16,7 @@ vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
-const { bundestagWrappedSource, resetBundestagWrappedBreakerForTests } =
+const { bundestagWrappedSource, bundesratWrappedSource, resetBundestagWrappedBreakerForTests } =
   await import('./bundestagWrapped.js');
 const { RemoteSourceUnavailableError } = await import('./errors.js');
 
@@ -81,6 +81,7 @@ describe('bundestagWrappedSource.search', () => {
       scoreThreshold: 0.35,
       sources: ['speeches'],
       filters: {
+        herausgeber: ['BT'],
         party: ['GRÜNE'],
         wahlperiode: [21],
         section_type: ['rede'],
@@ -144,6 +145,56 @@ describe('bundestagWrappedSource.search', () => {
   it('rejects a filter field it cannot express', async () => {
     await expect(search({ themes: ['klima'] })).rejects.toThrow(/themes/);
   });
+
+  it('never lets a caller pick the chamber', async () => {
+    await expect(search({ herausgeber: ['BR'] })).rejects.toThrow(/herausgeber/);
+  });
+});
+
+describe('bundesratWrappedSource', () => {
+  it('asks the same API for Bundesrat papers only, on search and facets', async () => {
+    fetchMock.mockResolvedValue(ok({ results: [], values: [] }));
+
+    await bundesratWrappedSource.search({
+      vector: [0.1],
+      query: 'Vereine',
+      filters: { match: { urheber: ['Bayern'] } },
+      limit: 10,
+      threshold: null,
+    });
+    await bundesratWrappedSource.facetCounts('drucksachetyp', { match: {} }, 20);
+
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('https://bw.test/api/v1/search');
+    expect(bodyOf(0).filters).toEqual({ herausgeber: ['BR'], urheber: ['Bayern'] });
+    expect(bodyOf(1).filters).toEqual({ herausgeber: ['BR'] });
+  });
+
+  it('names itself in payload and outage', async () => {
+    fetchMock.mockResolvedValue(
+      ok({
+        results: [{ ...SPEECH, source: 'documents', doc_id: '330001', score: 0.7, excerpt: null }],
+      })
+    );
+    const [hit] = await bundesratWrappedSource.search({
+      vector: [0.1],
+      query: 'q',
+      filters: { match: {} },
+      limit: 5,
+      threshold: null,
+    });
+    expect(hit!.payload.source).toBe('bundesrat-wrapped');
+
+    fetchMock.mockResolvedValue(status(503));
+    await expect(
+      bundesratWrappedSource.search({
+        vector: [0.1],
+        query: 'q',
+        filters: { match: {} },
+        limit: 5,
+        threshold: null,
+      })
+    ).rejects.toMatchObject({ label: 'Bundesrat-Quelle' });
+  });
 });
 
 describe('outages arrive as unavailable, never as an empty list', () => {
@@ -190,7 +241,7 @@ describe('bundestagWrappedSource.facetCounts', () => {
 
     const values = await bundestagWrappedSource.facetCounts('content_type', { match: {} }, 50);
 
-    expect(bodyOf()).toEqual({ field: 'source', limit: 50, filters: {} });
+    expect(bodyOf()).toEqual({ field: 'source', limit: 50, filters: { herausgeber: ['BT'] } });
     expect(values).toEqual([
       { value: 'rede', count: 120 },
       { value: 'drucksache', count: 40 },

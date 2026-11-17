@@ -54,7 +54,6 @@ export interface CollectionNames {
   gruene_at_documents: string;
   landesverbaende_documents: string;
   abgeordnetenwatch_documents: string;
-  bundesrat_documents: string;
 }
 
 /**

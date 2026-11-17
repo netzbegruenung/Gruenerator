@@ -592,7 +592,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     country: 'DE',
     includeInDefaultSearch: false,
     mcpExposed: false,
-    qdrantCollection: 'bundesrat_documents',
+    remote: 'bundesrat-wrapped',
     name: 'Bundesrat: Drucksachen',
     description:
       'Volltext von Bundesrats-Drucksachen aus dem DIP: Gesetzentwürfe, Anträge der Länder und Beschlüsse',
