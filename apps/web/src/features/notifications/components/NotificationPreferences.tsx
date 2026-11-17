@@ -82,7 +82,8 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
   return (
     <div className="flex flex-col gap-8">
       {!expertMode && (
-        <SettingsSection title="Wie viel wir melden">
+        <div>
+          {/* The catalog row already carries the title, so no section heading repeats it. */}
           <SettingsRow id="benachrichtigungen.stufe">
             <SegmentedControl<NotificationLevel>
               aria-label="Wie viel wir melden"
@@ -93,7 +94,7 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
               options={LEVEL_OPTIONS.map(({ value, label }) => ({ value, label }))}
             />
           </SettingsRow>
-        </SettingsSection>
+        </div>
       )}
 
       <SettingsSection title="Feinsteuerung">

@@ -36,7 +36,7 @@ function SegmentedControl<T extends string>({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
-          className="h-auto gap-1.5 rounded-[7px] px-[11px] py-1 text-sm font-normal text-grey-600 hover:bg-transparent hover:text-foreground data-[spacing=0]:rounded-[7px] data-[state=on]:bg-white data-[state=on]:font-medium data-[state=on]:text-foreground-heading data-[state=on]:shadow-sm dark:text-grey-400 dark:data-[state=on]:bg-grey-700"
+          className="h-auto gap-1.5 rounded-[7px] px-[11px] py-1 text-sm font-normal text-grey-600 hover:bg-transparent hover:text-foreground data-[spacing=0]:rounded-[7px] data-[state=on]:bg-white data-[state=on]:font-medium data-[state=on]:text-foreground-heading data-[spacing=0]:data-[state=on]:shadow-sm dark:text-grey-400 dark:data-[state=on]:bg-grey-700"
         >
           {option.icon}
           {option.label}
