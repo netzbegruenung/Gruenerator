@@ -103,6 +103,13 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
     }
     return segments.length - 1;
   };
+  // The opening title belongs to the opening, not to its sentence: when
+  // set_hook puts another unit first, it stays on #0.
+  const openingChanged = setHook !== null && segments[0].unitId !== originalOrder[0];
+  const follow = (o: VideoAiEdl['overlays'][number], oldSegment: number): number =>
+    openingChanged && o.kind === 'titel' && o.preset === 'hook' && oldSegment === 0
+      ? 0
+      : newIndex(oldSegment);
 
   const removed = new Set<number>();
   const updated = new Map<number, VideoAiEdl['overlays'][number]>();
@@ -139,9 +146,9 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
       !('atSegment' in (patch?.overlay ?? {}))
     ) {
       // Not moved by the round: it follows its sentence like the others.
-      overlays.push({ ...replacement, atSegment: newIndex(o.atSegment) });
+      overlays.push({ ...replacement, atSegment: follow(o, o.atSegment) });
     } else if (replacement) overlays.push(replacement);
-    else overlays.push('atSegment' in o ? { ...o, atSegment: newIndex(o.atSegment) } : o);
+    else overlays.push('atSegment' in o ? { ...o, atSegment: follow(o, o.atSegment) } : o);
   });
   for (const op of ops) if (op.kind === 'add_overlay') overlays.push(op.overlay);
 

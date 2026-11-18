@@ -142,6 +142,42 @@ describe('reviseEdl', () => {
     expect((aiObject.mock.calls[0][0] as Call).lane).toBe('video_ai');
   });
 
+  it('refuses a round whose hook removal moves b-roll onto the opening', async () => {
+    let turn: StructuredValidation<unknown> | null = null;
+    aiObject.mockImplementation(async (call: Call) => {
+      turn = call.validate(
+        { ops: [{ kind: 'set_hook', unitId: null }], zusammenfassung: 'x', antwort: 'x' },
+        1,
+        1
+      );
+      return { ok: false, error: 'x' };
+    });
+    const withBroll = {
+      ...input,
+      current: {
+        ...current,
+        edl: {
+          ...current.edl,
+          overlays: [
+            // On c1.s5; without the hook c1.s5 opens the video.
+            {
+              kind: 'broll' as const,
+              clipId: 'c2',
+              sourceStart: 0,
+              atSegment: 1,
+              durationSeconds: 2,
+            },
+          ],
+        },
+      },
+    };
+    await expect(reviseEdl(withBroll)).rejects.toThrow();
+    expect(turn).toEqual({
+      ok: false,
+      error: expect.stringContaining('Im Stück #0 (Hook) kein Vollbild und keine B-Roll.'),
+    });
+  });
+
   it('shows the plan, the omitted sentences and where the person pointed', () => {
     const prompt = buildRevisePrompt(input);
     expect(prompt).toMatch(/#0 c1\.s8 \[0\.0–/);

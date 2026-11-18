@@ -77,10 +77,10 @@ describe('applyOps', () => {
     if (!result.ok) throw new Error(result.error);
     expect(result.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s5', 'c1.s8', 'c1.s11']);
     const at = result.edl.overlays.map((o) => ('atSegment' in o ? o.atSegment : null));
-    // The old hook title follows c1.s8 to its spoken place, the lower third
-    // stays on c1.s5, the statement on the removed c1.s7 hands over to the
-    // next survivor c1.s11.
-    expect(at).toEqual([2, 1, 3]);
+    // The hook title stays on the opening (now c1.s6), the lower third stays
+    // on c1.s5, the statement on the removed c1.s7 hands over to the next
+    // survivor c1.s11.
+    expect(at).toEqual([0, 1, 3]);
     expect(result.omitted['c1.s7']).toBe('Entfernt');
   });
 
@@ -261,6 +261,24 @@ describe('the hook across rounds', () => {
 });
 
 describe('set_hook', () => {
+  it('keeps the opening title on the new hook, the other overlays follow their sentence', () => {
+    const r = applyOps(
+      {
+        ...plain(['c1.s5', 'c1.s1', 'c1.s6']),
+        overlays: [
+          { kind: 'titel', preset: 'hook', text: 'Radweg', atSegment: 0, durationSeconds: 3 },
+          { kind: 'titel', preset: 'statement', text: 'Jetzt', atSegment: 0, durationSeconds: 3 },
+          { kind: 'bauchbinde', atSegment: 1, durationSeconds: 4 },
+        ],
+      },
+      [{ kind: 'set_hook', unitId: 'c1.s6' }],
+      ctx
+    );
+    if (!r.ok) throw new Error(r.error);
+    expect(r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s1', 'c1.s5']);
+    expect(r.edl.overlays.map((o) => ('atSegment' in o ? o.atSegment : null))).toEqual([0, 2, 1]);
+  });
+
   it('pulls a sentence to the front as the hook and keeps the rest in spoken order', () => {
     const r = applyOps(
       plain(['c1.s5', 'c1.s6', 'c1.s7']),
