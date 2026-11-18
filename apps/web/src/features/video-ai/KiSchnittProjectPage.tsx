@@ -193,6 +193,30 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
     );
   }
 
+  const endActions = (
+    <div className="mt-md flex flex-wrap items-center justify-center gap-sm">
+      <Button asChild>
+        <Link to="/studio/ki-schnitt">Neuen KI-Schnitt anlegen</Link>
+      </Button>
+      {trash}
+    </div>
+  );
+
+  // The person stopped it themselves: news, not an error.
+  if (project.status === 'cancelled') {
+    return (
+      <div
+        role="status"
+        className="mt-lg rounded-xl border border-grey-200 p-lg text-center dark:border-grey-700"
+      >
+        <X className="mx-auto size-8 text-grey-500" aria-hidden />
+        <h2 className="mt-sm text-lg font-semibold">{STATUS_LABEL[project.status]}</h2>
+        {project.error && <p className="mt-xs text-sm text-grey-500">{project.error}</p>}
+        {endActions}
+      </div>
+    );
+  }
+
   if (project.status !== 'ready') {
     return (
       <div
@@ -204,12 +228,7 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
           {STATUS_LABEL[project.status]}
         </h2>
         {project.error && <p className="mt-xs text-sm text-grey-500">{project.error}</p>}
-        <div className="mt-md flex flex-wrap items-center justify-center gap-sm">
-          <Button asChild>
-            <Link to="/studio/ki-schnitt">Neuen KI-Schnitt anlegen</Link>
-          </Button>
-          {trash}
-        </div>
+        {endActions}
       </div>
     );
   }

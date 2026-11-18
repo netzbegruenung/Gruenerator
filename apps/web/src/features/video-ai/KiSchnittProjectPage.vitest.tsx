@@ -5,7 +5,7 @@ import { Route, Routes } from 'react-router-dom';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../test/msw-server';
-import { axe, renderWithProviders, screen } from '../../test-utils';
+import { axe, renderWithProviders, screen, waitFor } from '../../test-utils';
 
 import KiSchnittProjectPage from './KiSchnittProjectPage';
 
@@ -93,11 +93,31 @@ function render(route: string) {
 }
 
 describe('KiSchnittProjectPage', () => {
-  it('offers the trash for a failed project and shows no empty error line', async () => {
+  it('trashes a failed project and shows no empty error line', async () => {
     serve({ ...failed, error: null });
-    const { container } = render('/studio/ki-schnitt/failed1');
-    expect(await screen.findByRole('button', { name: 'In den Papierkorb' })).toBeInTheDocument();
+    const removed: string[] = [];
+    server.use(
+      http.delete('http://localhost/api/video-ai/projects/:id', ({ params }) => {
+        removed.push(String(params.id));
+        return HttpResponse.json({ success: true });
+      })
+    );
+    const { container, user } = render('/studio/ki-schnitt/failed1');
+    const trash = await screen.findByRole('button', { name: 'In den Papierkorb' });
     expect(screen.getByRole('alert').querySelectorAll('p:empty')).toHaveLength(0);
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(trash);
+    await waitFor(() => expect(removed).toEqual([failed.id]));
+  });
+
+  it('shows a cancelled project as a status, not as an error', async () => {
+    serve({ ...failed, id: ID(5), slugSuffix: 'cancel1', status: 'cancelled', error: null });
+    const { container } = render('/studio/ki-schnitt/cancel1');
+    expect(await screen.findByRole('heading', { name: 'Abgebrochen' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Abgebrochen');
+    expect(screen.getByRole('button', { name: 'In den Papierkorb' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Neuen KI-Schnitt anlegen' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
