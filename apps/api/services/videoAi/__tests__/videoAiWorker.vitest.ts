@@ -246,6 +246,36 @@ describe('claim', () => {
     expect(beats()).toBe(JOB_BUDGET_MS / HEARTBEAT_MS - 1);
   });
 
+  it('sends no heartbeat while a failed attempt is being released', async () => {
+    vi.useFakeTimers();
+    const queries: string[] = [];
+    const deps: VideoAiWorkerDeps = {
+      ...harness({
+        analyzeClip: vi.fn(async () => {
+          throw new Error('GreenPT 502');
+        }),
+      }).deps,
+      db: {
+        query: async <T>(sql: string): Promise<T[]> => {
+          queries.push(sql);
+          if (sql === GIVE_UP_SQL) return [];
+          if (sql === CLAIM_SQL) return [ROW] as T[];
+          if (sql.includes('SET claim_at = now() - ')) {
+            // A slow release: two heartbeat intervals long.
+            await new Promise((resolve) => setTimeout(resolve, 2 * HEARTBEAT_MS + 1));
+          }
+          return [{ id: ROW.id }] as T[];
+        },
+      },
+    };
+    const run = drainVideoAiProjects(deps);
+    await vi.advanceTimersByTimeAsync(3 * HEARTBEAT_MS);
+    await run;
+    const release = queries.findIndex((q) => q.includes('SET claim_at = now() - '));
+    expect(release).toBeGreaterThan(0);
+    expect(queries.slice(release).filter((q) => q === HEARTBEAT_SQL)).toHaveLength(0);
+  });
+
   it('makes a failed attempt claimable again only after the retry delay', async () => {
     const { deps, queries } = recording();
     await handleFailure({ ...ROW, attempts: 1 }, new Error('provider down'), deps);

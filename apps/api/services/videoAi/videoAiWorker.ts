@@ -135,7 +135,7 @@ export const GIVE_UP_SQL = `WITH before AS (
 
 /** Keeps a running job's claim fresh; a cancel or trash in between is not revived. */
 export const HEARTBEAT_SQL = `UPDATE video_ai_projects SET claim_at = now()
-  WHERE id = $1 AND claim_at IS NOT NULL AND status IN (${ACTIVE_LIST}) AND deleted_at IS NULL`;
+  WHERE id = $1 AND status IN (${ACTIVE_LIST}) AND deleted_at IS NULL`;
 
 /** Only while still wanted: a cancel or a trash in between wins. */
 const SET_STATUS_SQL = `UPDATE video_ai_projects
@@ -338,6 +338,8 @@ export async function drainVideoAiProjects(
       processClaimed(row, deps)
     );
   } catch (error) {
+    // Before the release: a tick during it would set claim_at back to now().
+    clearInterval(heartbeat);
     log.warn(`KI-Schnitt ${row.id} attempt ${row.attempts} failed: ${(error as Error).message}`);
     await handleFailure(row, error, deps);
   } finally {
