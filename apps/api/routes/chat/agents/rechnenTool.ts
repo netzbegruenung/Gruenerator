@@ -20,6 +20,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 import type { ComputeResult } from '../../../agents/langgraph/ChatGraph/nodes/computeEngine.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { DraftLedger } from '../services/agenticLoop/draftLedger.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
 const log = createLogger('RechnenTool');
@@ -27,6 +28,9 @@ const log = createLogger('RechnenTool');
 export interface RechnenToolCtx {
   state: ChatGraphState;
   sse: SSEWriter;
+  /** Der Entwurf, den das Modell in diesem Zug als Antwort geschrieben hat
+   *  (draftLedger.ts). Fehlt außerhalb des Loops. */
+  draft?: Pick<DraftLedger, 'take'>;
 }
 
 /**
@@ -49,7 +53,8 @@ export function makeRechnenTool(ctx: RechnenToolCtx): Tool {
 
 NUTZE WENN eine Antwort eine ausgerechnete oder gezählte Zahl braucht — rechne und zähle NIE selbst, auch nicht „im Kopf“. Zahlen aus einer Recherche erst holen, dann hier rechnen.
 NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.
-Für die Länge eines Textes — auch deines eigenen Entwurfs bei einer Längenvorgabe — gib ihn in \`text\` und setze \`textlaenge: true\`.`,
+Länge eines Textes aus der Nachricht: \`text\` bzw. \`anhang\` und \`textlaenge: true\`.
+Länge deines EIGENEN Entwurfs (Längenvorgabe): schreib ihn zuerst vollständig als Antwort, dann rufe \`textlaenge: true\` OHNE \`text\` — gezählt wird, was du seit dem letzten Werkzeug geschrieben hast. Kopiere den Entwurf nie in \`text\`.`,
     inputSchema: z.object({
       auftrag: z
         .string()
@@ -75,7 +80,7 @@ Für die Länge eines Textes — auch deines eigenen Entwurfs bei einer Längenv
         .boolean()
         .optional()
         .describe(
-          'true, wenn nur die Länge von `text` bzw. `anhang` gefragt ist (Zeichen, Wörter, Zeilen, Sätze).'
+          'true, wenn nur die Länge gefragt ist (Zeichen, Wörter, Zeilen, Sätze): von `text` bzw. `anhang`, ohne beide von deinem eben geschriebenen Entwurf.'
         ),
     }),
     execute: async ({ auftrag, text: typed, anhang, textlaenge }) => {
@@ -109,6 +114,22 @@ Für die Länge eines Textes — auch deines eigenen Entwurfs bei einer Längenv
       // a 3,900-character text (measured 18.11.2026) — over the per-call budget,
       // because the plan had to echo the whole text before anything was counted.
       if (textlaenge && text) return show(computeTextMetrics(text), 'text_metrics');
+      if (textlaenge && ctx.draft) {
+        // The draft is already on the user's screen; counting it by reference
+        // costs no tool argument (Mistral streams those silently, ~44 s for a
+        // guest article — loopEngine.ts SILENT_TOOL_ARGUMENT_ALLOWANCE_MS).
+        const draft = ctx.draft.take();
+        if (!draft.trim()) {
+          return {
+            error:
+              'Noch kein Entwurf in dieser Antwort. Schreib den Text zuerst vollständig als Antwort und zähle dann.',
+          };
+        }
+        return {
+          ...show(computeTextMetrics(draft), 'text_metrics'),
+          note: 'Gezählt wurde dein Entwurf, der schon als Antwort beim Nutzer steht. Passt die Länge, schreib NICHTS mehr — kein Wiederholen, keine Zusammenfassung. Passt sie nicht, schreib die vollständige neue Fassung und zähle sie wieder so; die alte Fassung wird dann ersetzt.',
+        };
+      }
 
       const request = text ? `Anfrage: "${auftrag}"\n\nText:\n${text}` : `Anfrage: "${auftrag}"`;
       let outcome;

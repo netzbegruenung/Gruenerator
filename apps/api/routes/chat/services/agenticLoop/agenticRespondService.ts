@@ -54,6 +54,7 @@ import {
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
+import { createDraftLedger } from './draftLedger.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
@@ -246,6 +247,10 @@ export async function streamAgenticResponse(
   // protokolliert — reine Buchführung, kein Budget.
   const costLedger = createToolCostLedger({ onInfo: (m) => log.info(m) });
   const emitter = createAnswerEmitter(sse);
+  const drafts = createDraftLedger(
+    () => emitter.text,
+    () => steps.map((s) => s.textOffset)
+  );
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
@@ -315,6 +320,7 @@ export async function streamAgenticResponse(
       threadId: threadId ?? null,
       toolHistory: toolHistory ?? null,
       ...(params.resumeApproval && { resumedSteps: params.resumeApproval.priorSteps }),
+      draft: drafts,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
@@ -694,6 +700,15 @@ export async function streamAgenticResponse(
       emitter.setText(loopResult.text);
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
+    } else {
+      // The model counted a second version of its draft: the first one is
+      // superseded and must not stay above it (draftLedger.ts).
+      const withoutSuperseded = drafts.withoutSuperseded(emitter.text);
+      if (withoutSuperseded != null) {
+        emitter.setText(withoutSuperseded);
+        for (const s of steps) delete s.textOffset;
+        sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
+      }
     }
 
     // An answer written before its edit landed says what came of it.

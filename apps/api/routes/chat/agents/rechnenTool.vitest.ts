@@ -27,12 +27,16 @@ import type { SSEWriter } from '../services/sseHelpers.js';
 
 type RunInput = { auftrag: string; text?: string; anhang?: string; textlaenge?: boolean };
 
-function setup(state = {} as ChatGraphState) {
+function setup(state = {} as ChatGraphState, draft?: () => string) {
   const sent: { event: string; data: unknown }[] = [];
   const sse = {
     send: (event: string, data: unknown) => sent.push({ event, data }),
   } as unknown as SSEWriter;
-  const t = makeRechnenTool({ state, sse }) as unknown as {
+  const t = makeRechnenTool({
+    state,
+    sse,
+    ...(draft && { draft: { take: draft } }),
+  }) as unknown as {
     execute: (input: RunInput, opts: unknown) => Promise<unknown>;
   };
   return { state, sent, run: (input: RunInput) => t.execute(input, {}) };
@@ -101,6 +105,34 @@ describe('rechnen', () => {
     await run({ auftrag: '20 % von 340', textlaenge: true });
 
     expect(calls).toHaveLength(1);
+  });
+
+  // Mistral streams tool arguments silently (~44 s for a guest article): the
+  // loop's own draft is counted by reference, not copied into `text`.
+  it('counts the draft already written as answer when no text is given', async () => {
+    const { sent, run } = setup({} as ChatGraphState, () => 'Mehr Radwege für alle!');
+
+    const out = (await run({ auftrag: 'Länge prüfen', textlaenge: true })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(calls).toEqual([]);
+    expect(out.ergebnis).toContain('Zeichen (inkl. Leerzeichen): 22');
+    expect(String(out.note)).toContain('schreib NICHTS mehr');
+    expect(sent.map((s) => s.event)).toEqual(['compute']);
+  });
+
+  it('asks for the draft first when nothing was written yet', async () => {
+    const { sent, run } = setup({} as ChatGraphState, () => '  ');
+
+    const out = (await run({ auftrag: 'Länge prüfen', textlaenge: true })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(out.error).toMatch(/Noch kein Entwurf/);
+    expect(sent).toEqual([]);
   });
 
   // #5493: a paste is read by name, not copied into the call.

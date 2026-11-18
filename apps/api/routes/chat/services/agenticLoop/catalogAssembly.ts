@@ -77,6 +77,7 @@ import {
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { DraftLedger } from './draftLedger.js';
 import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
@@ -211,6 +212,8 @@ export async function assembleToolCatalog(
     /** Die Schritte eines pausierten Zuges, den dieser fortsetzt (Rückfrage,
      *  Freigabe): seine geladenen Rezepte gelten weiter. */
     resumedSteps?: readonly PersistedStep[];
+    /** Der Entwurf dieses Zugs, für `rechnen` (draftLedger.ts). */
+    draft?: Pick<DraftLedger, 'take'>;
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
@@ -225,6 +228,7 @@ export async function assembleToolCatalog(
     threadId,
     toolHistory,
     resumedSteps,
+    draft,
   } = params;
   const allowed = (name: string): boolean => !toolAllowlist || toolAllowlist.includes(name);
   const agentConfig = state.agentConfig;
@@ -240,7 +244,7 @@ export async function assembleToolCatalog(
     agentConfig,
     sourceRegistry,
     recipeRegistry,
-    loop: { sse, state, ...(req && { req }), threadId },
+    loop: { sse, state, ...(req && { req }), threadId, ...(draft && { draft }) },
     ...(searchToolKeys?.length ? { searchToolKeys } : {}),
     ...(toolAllowlist ? { toolAllowlist } : {}),
   });

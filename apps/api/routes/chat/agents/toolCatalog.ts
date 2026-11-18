@@ -142,11 +142,12 @@ import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
 import { makeSuggestVorlagenTool, vorlagenForTurn } from './vorlagenTools.js';
 
-import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { DraftLedger } from '../services/agenticLoop/draftLedger.js';
 import type { RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
+import type { AgentConfig } from './types.js';
 import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
@@ -389,7 +390,14 @@ export function buildChatToolCatalog(params: {
    * tools (summary/bundestag/abgeordnetenwatch) which run existing ChatGraph
    * nodes. Absent in unit tests → search family only.
    */
-  loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
+  loop?: {
+    sse: SSEWriter;
+    state: ChatGraphState;
+    req?: Request;
+    threadId?: string | null;
+    /** Der Entwurf dieses Zugs, für `rechnen` (draftLedger.ts). */
+    draft?: Pick<DraftLedger, 'take'>;
+  };
   /**
    * Beschränkt die Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten
    * (`enabledToolKeys` in `createSearchTools`) — der headless Pfad (#3221)
@@ -1358,7 +1366,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // Ersetzt im Loop den Einzeldurchlauf-Zweig `compute`; das Modell entscheidet,
     // wann es rechnet, auch mitten in einer Recherche.
     if (!editorSurface && state.enabledTools?.['rechnen'] !== false) {
-      tools.rechnen = makeRechnenTool({ state, sse });
+      tools.rechnen = makeRechnenTool({ state, sse, ...(loop.draft && { draft: loop.draft }) });
     }
     // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
     // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.
