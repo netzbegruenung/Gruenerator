@@ -132,6 +132,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 vi.mock('../../../services/document-services/DocumentSearchService/index.js', async (orig) => {
   const { fakeQdrantDocumentService } = await import('./harness/searchBackendStub.js');
   return {
@@ -503,21 +507,18 @@ describe('@verlauf runs in the loop', () => {
   it.each([
     ['the mention', { forcedTools: ['chat_history'] }, 'Was steht zum Radweg drin?'],
     ['the classified intent', {}, 'Was haben wir letzte Woche zum Radweg besprochen?'],
-  ])('%s forces search_threads as the first call', async (_name, extra, prompt) => {
-    loopScript.script({ text: ANSWER });
-    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(prompt)], ...extra });
+  ])(
+    '%s runs in the loop with search_threads on offer and no forced step',
+    async (_name, extra, prompt) => {
+      loopScript.script({ text: ANSWER });
+      const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(prompt)], ...extra });
 
-    expect(trace.agentic, `intent=${trace.intent}`).toBe(true);
-    // Named (`@verlauf` pin) or required over exactly the history search.
-    const first = loopScript.calls[0];
-    const forcedName = (first?.toolChoice as { toolName?: string } | null)?.toolName ?? null;
-    expect(
-      forcedName === 'search_threads' ||
-        (first?.toolChoice === 'required' &&
-          JSON.stringify(first.firstStepActiveTools) === JSON.stringify(['search_threads'])),
-      `toolChoice=${JSON.stringify(first?.toolChoice)} active=${JSON.stringify(first?.firstStepActiveTools)}`
-    ).toBe(true);
-  });
+      expect(trace.agentic, `intent=${trace.intent}`).toBe(true);
+      const first = loopScript.calls[0];
+      expect(first?.toolNames).toContain('search_threads');
+      expect(first?.toolChoice ?? null).toBeNull();
+    }
+  );
 });
 
 describe('prose with a typed address runs in the loop', () => {

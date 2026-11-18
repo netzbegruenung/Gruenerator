@@ -12,6 +12,8 @@
  * pipeline consumes.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import {
   type chatGraphContract,
   isVisualBlockKind,
@@ -32,6 +34,9 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
+import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
+import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
@@ -76,7 +81,7 @@ import {
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type NotebookSourceCheck, resolveNotebookSources } from './resolveNotebookSources.js';
-import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
+import { type createSSEStream, PROGRESS_MESSAGES, sseFail } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
   type ThreadCloudFiles,
@@ -253,20 +258,52 @@ export interface StreamContext {
   /** Persisted row for the current user turn. Attachments link here so history
    * can render them on the same message after a reload. */
   userMessageId: string | null;
+  /** Lock on the thread's one running turn; null on a new thread. The caller
+   *  releases it in its `finally`. */
+  runLease: ThreadRunLease | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
 
-export async function buildStreamContext({
+/**
+ * Builds the turn context. On `done: false` the caller owns `ctx.runLease` and
+ * must release it when the turn ends; on `done: true` or a throw it is already
+ * released here.
+ */
+export async function buildStreamContext(args: {
+  req: Request;
+  body: StreamBody;
+  sse: SSEStream;
+  requestId: string;
+}): Promise<BuildStreamContextResult> {
+  const leaseBox: { lease: ThreadRunLease | null } = { lease: null };
+  try {
+    const result = await buildStreamContextInner({ ...args, leaseBox });
+    if (result.done) {
+      await leaseBox.lease?.release();
+      return result;
+    }
+    return { done: false, ctx: { ...result.ctx, runLease: leaseBox.lease } };
+  } catch (err) {
+    await leaseBox.lease?.release();
+    throw err;
+  }
+}
+
+async function buildStreamContextInner({
   req,
   body,
   sse,
   requestId,
+  leaseBox,
 }: {
   req: Request;
   body: StreamBody;
   sse: SSEStream;
   requestId: string;
+  /** Receives the thread run lease the moment it is taken, so the wrapper can
+   *  release it when this function throws or returns `{ done: true }`. */
+  leaseBox: { lease: ThreadRunLease | null };
 }): Promise<BuildStreamContextResult> {
   const {
     messages: clientMessages,
@@ -602,6 +639,21 @@ export async function buildStreamContext({
       // Nothing to persist, so no thread to mint: run the turn thread-less.
       log.warn('[StreamContext] Dropping unwritable threadId on a turn without a user message');
       actualThreadId = undefined;
+    } else if (validMessages.length > 1) {
+      // The request carries earlier turns, so the person is mid-conversation in
+      // a thread that was trashed/expired/unshared. A fresh thread would have
+      // none of that history or its attachments, while the browser keeps showing
+      // the old conversation — refuse instead of forking silently (#5471).
+      // No thread or message row has been written yet (both come further down);
+      // only the agent/notebook usage counters above already ran.
+      captureSseError({
+        code: 'thread-gone-refused',
+        message: 'Send to an unwritable thread with prior turns refused',
+        level: 'warning',
+        extras: { staleThreadId: actualThreadId, userId, agentId },
+      });
+      sseFail(sse, PROGRESS_MESSAGES.threadGone, { code: 'invalid_request', retryable: false });
+      return { done: true };
     } else {
       // The client-supplied threadId is gone or not writable — most often a
       // freshly-created empty thread reaped by the sidebar's auto-cleanup race
@@ -628,6 +680,19 @@ export async function buildStreamContext({
       isNewThread = true;
       sse.send('thread_created', { threadId: actualThreadId });
     }
+  }
+
+  // === One running turn per thread — before any row is written ===
+  // Team chats let several members write into one thread; a second send while
+  // a turn is answering would interleave two answers. Released by the caller
+  // (router `finally`), or by `buildStreamContext` if it never gets that far.
+  if (actualThreadId && !isNewThread) {
+    const lease = await acquireThreadRun(actualThreadId, userId, `${requestId}:${randomUUID()}`);
+    if (!lease) {
+      sseFail(sse, PROGRESS_MESSAGES.threadBusy, { code: 'thread_busy', retryable: true });
+      return { done: true };
+    }
+    leaseBox.lease = lease;
   }
 
   // Earlier user messages can arrive with no text at all (see historyBackfill);
@@ -687,13 +752,27 @@ export async function buildStreamContext({
         // A non-UUID id is exactly the case the fallback below already handles:
         // it names no persisted row. Route it there instead of to SQL.
         const removed = UUID_RE.test(rawReplaceFromMessageId)
-          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId, userId)
           : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
-        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+        const replaced =
+          removed === 0 ? await deleteTrailingAssistant(actualThreadId, userId) : removed;
+        if (replaced === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       } else if (rawRegenerate) {
-        await deleteTrailingAssistant(actualThreadId);
+        if ((await deleteTrailingAssistant(actualThreadId, userId)) === 'not_author') {
+          sseFail(sse, PROGRESS_MESSAGES.notYourMessage, {
+            code: 'not_your_message',
+            retryable: false,
+          });
+          return { done: true };
+        }
       }
     }
 
@@ -887,10 +966,34 @@ export async function buildStreamContext({
     !storedNotebookSourcesUnknown &&
     !sameThreadNotebookSources(storedNotebookSources, keptNotebookSources)
   ) {
-    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    // Fire-and-forget, per person: a lost write costs the next turn its carried refs.
     setThreadNotebookSources(actualThreadId, userId, keptNotebookSources).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread notebook sources:', err)
     );
+  }
+
+  // === Dateien des Projekts ===
+  // Liegt der Chat in einem Projekt, sind dessen Dateien Material jedes Turns —
+  // nach Mitgliedschaft geprüft, nicht am Thread gespeichert (`projectFiles.ts`).
+  // Sie laufen als „mitgetragen": sie erzwingen keine Route, ein Duplikat zu
+  // einer gewählten @datei zählt nur einmal.
+  if (actualThreadId) {
+    try {
+      const have = new Set(
+        notebookSources.flatMap((s) => (s.kind === 'user' ? [s.documentId] : []))
+      );
+      const projectFiles = await withTimeout(
+        getProjectFileSources(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project files'
+      );
+      notebookSources = [
+        ...notebookSources,
+        ...projectFiles.filter((s) => s.kind !== 'user' || !have.has(s.documentId)),
+      ];
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project files (continuing):', err);
+    }
   }
 
   // === @doc / saved-text / @link picks: carried per thread ===
@@ -914,7 +1017,7 @@ export async function buildStreamContext({
     !storedMentionRefsUnknown &&
     !sameThreadMentionRefs(storedMentionRefs, threadMentionRefs)
   ) {
-    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    // Fire-and-forget, per person: a lost write costs the next turn its carried refs.
     setThreadMentionRefs(actualThreadId, userId, threadMentionRefs).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread mention refs:', err)
     );
@@ -1064,6 +1167,19 @@ export async function buildStreamContext({
   // Spalte geschrieben hat — eine Liste aller verfügbaren Rollen — läuft nicht
   // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
   const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
+
+  // Anweisungen des Projekts, in dem der Chat liegt — für den Systemprompt.
+  // Ein Ausfall kostet nur diese Vorgaben, nicht den Turn.
+  const projectInstructions = actualThreadId
+    ? await withTimeout(
+        readThreadProjectInstructions(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project instructions'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project instructions (continuing):', err);
+        return null;
+      })
+    : null;
 
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
@@ -1228,6 +1344,7 @@ export async function buildStreamContext({
         rawActiveRecipeId
       ) ?? undefined,
     userInstructions,
+    projectInstructions,
     contextWindowTokens,
   });
 
@@ -1321,6 +1438,7 @@ export async function buildStreamContext({
   return {
     done: false,
     ctx: {
+      runLease: null,
       requestId,
       userId,
       notebookIds,

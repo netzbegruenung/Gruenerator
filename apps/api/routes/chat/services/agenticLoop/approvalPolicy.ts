@@ -80,7 +80,7 @@ export function approvalScopeKey(toolName: string, origin?: ToolOrigin | null): 
  * EINE Ausnahme, und sie ist die einzige Stelle, an der ein Server über sein
  * eigenes Gatter mitredet: ein `readOnlyHint: true` erlässt die Frage NUR bei
  * `kind: 'managed'`. Das sind die fünf von uns betriebenen Konnektoren
- * (systemMcpServers.ts) — die Annotation kommt dort aus unserem eigenen
+ * (connectorAdapters.ts) — die Annotation kommt dort aus unserem eigenen
  * Deploy, also aus derselben Quelle wie bei einem internen Werkzeug, das
  * ohnehin ungefragt läuft.
  *

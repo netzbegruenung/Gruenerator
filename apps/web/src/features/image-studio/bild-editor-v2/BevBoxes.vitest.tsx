@@ -51,7 +51,7 @@ describe('BevBoxOverlay', () => {
     render(<BevBoxOverlay bev={fakeBev()} />);
     expect(screen.getByRole('button', { name: 'Himmel (unverändert)' })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Sonnenschirm (wird entfernt)' })
+      screen.getByRole('button', { name: 'Sonnenschirm – weg (wird entfernt)' })
     ).toBeInTheDocument();
   });
 

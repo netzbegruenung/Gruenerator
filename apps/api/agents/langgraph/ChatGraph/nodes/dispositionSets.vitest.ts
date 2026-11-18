@@ -29,15 +29,12 @@ import {
   type ChatIntentId,
 } from '@gruenerator/shared/chat-intents';
 
-import {
-  AGENTIC_INTENTS,
-  NAMED_RETRIEVAL_INTENTS,
-} from '../../../../routes/chat/services/agenticLoop/intents.js';
+import { AGENTIC_INTENTS } from '../../../../routes/chat/services/agenticLoop/intents.js';
 import {
   decideRunAgentic,
   type AgenticDecisionInput,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/connectorAdapters.js';
 import {
   DEMOTABLE_HEURISTIC_INTENTS,
   NON_SEARCH_INTENTS,
@@ -188,7 +185,6 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     // Derselbe Weg für den Dauerauftrag (09/2026): das Werkzeug heißt
     // `recurring_tasks`, der Pin kommt aus Tier 3.4 statt aus einer Erwähnung.
     expect(dispositionOf('create_recurring_task')).toBe('retired');
-    expect(NAMED_RETRIEVAL_INTENTS.has('research')).toBe(true);
   });
 });
 
@@ -217,44 +213,6 @@ describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Dispositio
     // stillschweigend die Suchanfrage optimiert.
     for (const id of NON_SEARCH_INTENTS) {
       expect(dispositionOf(id), `${id} steht nicht in der Registry`).not.toBeNull();
-    }
-  });
-});
-
-describe('NAMED_RETRIEVAL_INTENTS — der vierte Zwang zum Werkzeugaufruf', () => {
-  it('ist die loop-Gruppe ohne den Auffangwert', () => {
-    // Die Ableitung ist die ganze Aussage: „loop" heisst, der Planer wählt die
-    // Werkzeuge — aber `agentic` ist der AUFFANGWERT dieser Gruppe. Ihn
-    // mitzuzwingen hiesse, jede unklare Frage zu einem Werkzeugaufruf zu
-    // verpflichten; für die aus einem Recherche-Verdikt demotierten Turns gibt
-    // es `loopDemotedFromRetrieval`, das die Herkunft festhält.
-    expect(NAMED_RETRIEVAL_INTENTS.has('agentic')).toBe(false);
-    expect(sorted(NAMED_RETRIEVAL_INTENTS)).toEqual(
-      sorted([...intentsWithDisposition('loop')].filter((id) => id !== 'agentic'))
-    );
-  });
-
-  it('enthält jedes Verdikt, das ohne Abruf sinnlos wäre', () => {
-    // Live gemessen, bevor es diese Menge gab: „Wie komme ich am Montag früh von
-    // Wien nach Graz?" wurde auf `web` degradiert und dann mit steps=0,
-    // sources=0 aus dem Modellgedächtnis beantwortet — samt einer erfundenen
-    // Aussage über den Nutzer.
-    // `news` stand hier und ist raus: als verwalteter Connector ist es kein
-    // Verdikt mehr, das man erzwingen könnte. Der zitierte Live-Fall (eine
-    // Fahrplanfrage, aus dem Modellgedächtnis beantwortet) wird jetzt eine Stufe
-    // früher verhindert — der Trigger montiert die Quelle, statt dass ein
-    // Verdikt einen Abruf erzwingen muss.
-    for (const id of ['web', 'search', 'research', 'compare', 'bundestag'] as const) {
-      expect(NAMED_RETRIEVAL_INTENTS.has(id), `${id} müsste einen Abruf erzwingen`).toBe(true);
-    }
-  });
-
-  it('zwingt nichts, was gar nicht im Loop landet', () => {
-    // Ein Zwang auf einem Intent, der den Planer nie erreicht, wäre tot — und
-    // tote Bedingungen sind genau die, die beim nächsten Umbau falsch gelesen
-    // werden.
-    for (const id of NAMED_RETRIEVAL_INTENTS) {
-      expect(AGENTIC_INTENTS.has(id as ChatIntentId), `${id} fehlt in AGENTIC_INTENTS`).toBe(true);
     }
   });
 });

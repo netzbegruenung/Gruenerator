@@ -103,6 +103,7 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
                 <input
                   readOnly
                   value={shareUrl}
+                  aria-label="Teilen-Link"
                   onFocus={(e) => e.currentTarget.select()}
                   className="min-w-0 flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-xs text-foreground-muted"
                 />
@@ -131,13 +132,14 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
 
           {!loading && userGroups.length === 0 && (
             <p className="text-sm text-grey-400 py-4 text-center">
-              Du bist in keiner Gruppe. Erstelle oder trete einer Gruppe bei.
+              Du bist in keinem Projekt und keiner Gruppe. Lege ein Projekt an oder tritt einer
+              Gruppe bei.
             </p>
           )}
 
           {!loading && userGroups.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-grey-400 mb-2">Mit Gruppe teilen:</p>
+              <p className="text-xs text-grey-400 mb-2">Mit Projekt oder Gruppe teilen:</p>
               {userGroups.map((group) => {
                 const share = sharedGroups.find((g) => g.group_id === group.id);
                 const isShared = Boolean(share);

@@ -101,6 +101,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 // NOT mocked here, unlike every sibling file: agenticRespondService. Doubling it
 // is exactly what puts the loop out of reach.
 //
@@ -450,6 +454,20 @@ describe.each(Object.keys(KINDS) as Kind[])('Folgeauftrag auf %s', (kind) => {
       expect(row.singlePassEdit, JSON.stringify(row)).toBe(false);
     });
   });
+});
+
+// Alfter 09.11.2026 (#5511): „dann erstelle ein neues" nach einer gescheiterten
+// Umwandlung bekam nur edit_sharepic — neu erstellen konnte der Planer nicht.
+describe('Sharepic im Gespräch, ein neues bestellt', () => {
+  it.each(['dann erstelle ein neues', 'nun als karussel'])(
+    'montiert neben edit_sharepic auch sharepic, ohne Zwang: %s',
+    async (prompt) => {
+      await probe('sharepic', prompt, await artifactThread('sharepic', true), 'direkt danach');
+      const call = loopScript.calls[0];
+      expect(call?.toolNames).toEqual(expect.arrayContaining(['edit_sharepic', 'sharepic']));
+      expect(call?.toolChoice ?? null).toBeNull();
+    }
+  );
 });
 
 describe('ohne Artefakt im Gespräch', () => {

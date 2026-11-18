@@ -107,15 +107,12 @@ const ARTIFACT_KIND_BY_INTENT: Partial<Record<ChatIntentId, ThreadToolContext['k
  *    statt zur Demotion zurückgegeben zu werden. Ein VERBREITERTER
  *    `SYSTEM_MCP_PHRASING` sähe dann wie ein Rückschritt aus, obwohl er in
  *    Produktion das Gegenteil bewirkt.
- *  - Bearbeitungsziel → „0" (keines), damit der Auflöser das Verhalten ohne ihn
- *    nicht verändert.
  *
  * Gespiegelt von `RESOLVER_DEFAULTS` im Integrations-Stub — dieselbe Aufgabe,
  * dieselbe Antwort. Ein NEUER Auflöser braucht seinen Präfix in BEIDEN Listen.
  */
 const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Anfrage Daten', reply: 'keine' },
-  { prefix: 'Ein Gespräch hat mehrere Artefakte', reply: '0' },
   { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 

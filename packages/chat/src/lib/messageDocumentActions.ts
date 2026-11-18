@@ -10,7 +10,7 @@
 
 /** Identifiers, not labels — the component maps these to icons and handlers. */
 export type DocumentActionId =
-  'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable' | 'podcast';
+  'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable' | 'podcast' | 'recipe';
 
 export interface DocumentActionDescriptor {
   id: DocumentActionId;
@@ -36,6 +36,31 @@ export interface DocumentActionOptions {
    * not read-only — the podcast is made from the text itself.
    */
   canCreatePodcast: boolean;
+  /**
+   * The answer can become a recipe ({@link canSaveAsRecipe}). Optional so hosts
+   * and callers that never offer it need not name it.
+   */
+  canSaveAsRecipe?: boolean;
+}
+
+/**
+ * „Als Rezept speichern“ is for an assistant answer that has text and sits in a
+ * chat the person can write to; the host must be able to open the recipe
+ * creator (it carries the answer as navigation state, which a bare
+ * `location.assign` cannot). The user's own messages never get the menu.
+ */
+export function canSaveAsRecipe({
+  role,
+  text,
+  hasNavigation,
+  readOnly,
+}: {
+  role: string;
+  text: string;
+  hasNavigation: boolean;
+  readOnly: boolean;
+}): boolean {
+  return role === 'assistant' && text.trim().length > 0 && hasNavigation && !readOnly;
 }
 
 /**
@@ -59,6 +84,7 @@ export function buildDocumentActions({
   canExportPdfLetterhead,
   canCreateExplainable,
   canCreatePodcast,
+  canSaveAsRecipe = false,
 }: DocumentActionOptions): DocumentActionDescriptor[] {
   return [
     { id: 'docs', label: hasLinkedDoc ? 'Im Editor öffnen' : 'Im Editor bearbeiten' },
@@ -71,6 +97,7 @@ export function buildDocumentActions({
       ? [{ id: 'explainable' as const, label: 'Als Explainable öffnen' }]
       : []),
     ...(canCreatePodcast ? [{ id: 'podcast' as const, label: 'Als Podcast anhören' }] : []),
+    ...(canSaveAsRecipe ? [{ id: 'recipe' as const, label: 'Als Rezept speichern' }] : []),
   ];
 }
 

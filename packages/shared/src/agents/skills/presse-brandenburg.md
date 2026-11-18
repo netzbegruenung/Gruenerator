@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg'
 title: 'PM Brandenburg'
-description: 'Pressemitteilung im Stil Brandenburger Bündnisgrüne'
+description: 'Pressemitteilung im Stil der Grünen Brandenburg. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Brandenburg geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '🌻'
 backgroundColor: '#316049'

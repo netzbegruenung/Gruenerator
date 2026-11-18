@@ -813,7 +813,7 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 
 **🎉 Phase 2.1 complete (2026-04-12)**: Better Auth runs on `@better-auth/drizzle-adapter` end-to-end. Verified by real Keycloak OAuth flow → session creation → chat working on top. The shipping chain took 16 commits across 5 layers (Drizzle schema → adapter swap → Docker contracts build → declared dep → trustedProviders + DB constraint fix → debug logging → contract router body parser + validation logger). Each layer was a different bug class; the diagnostic infrastructure built along the way (drizzle adapter `debugLogs`, Better Auth `logger.level: debug`, `logContractValidationError`) is now permanent value for any future auth/contract debugging.
 
-**Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Ratchet CI script (`scripts/type-safety-ratchet.sh`) prevents further regression.
+**Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Ratchet CI script (`scripts/type-safety-ratchet.sh`) prevents further regression. (Removed 2026-11 together with `.type-safety-baseline`: no workflow, hook or script ever ran it, and the count had passed the baseline.)
 
 ## Principles
 

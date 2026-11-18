@@ -100,6 +100,18 @@ describe('threadsContractRouter.list — share metadata on the wire', () => {
     expect(parsed[1]?.readOnly).toBe(true);
   });
 
+  it('carries ownerName and teamShared from the row', async () => {
+    query.mockResolvedValueOnce([
+      row({ owner_name: 'Ada', team_shared: true }),
+      row({ id: '550e8400-e29b-41d4-a716-446655440009', owner_name: null }),
+    ]);
+
+    const parsed = z.array(threadSchema).parse(await callList());
+
+    expect(parsed[0]).toMatchObject({ ownerName: 'Ada', teamShared: true });
+    expect(parsed[1]).toMatchObject({ ownerName: null, teamShared: false });
+  });
+
   it('emits the read-only flag from the SQL (read_only column), not a default', async () => {
     query.mockResolvedValueOnce([
       row({ user_id: 'someone-else', access_type: 'group', read_only: true }),

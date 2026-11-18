@@ -16,7 +16,6 @@ on:
       - 'patches/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
-      - 'tsconfig.strict-migration.json'
       - 'CHANGELOG.md'
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
@@ -109,6 +108,8 @@ jobs:
       contents: read
       # paths-filter lists a PR's files through the API instead of git.
       pull-requests: read
+      # diffbase looks up the last successful build of this workflow.
+      actions: read
     outputs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
@@ -123,19 +124,35 @@ jobs:
         with:
           fetch-depth: 2
 
-      # Resolve the paths-filter base to a REAL commit SHA. Push builds are
-      # unchanged — they keep using the pre-push SHA (github.event.before). Only
-      # the workflow_dispatch case (the beta rebuild kicked off by
-      # sync-test-branch.yml, where `before` is empty) changes: instead of the
+      # Resolve the paths-filter base to a REAL commit SHA. For the
+      # workflow_dispatch case (the beta rebuild kicked off by
+      # sync-test-branch.yml, where `before` is empty): instead of the
       # literal `<sha>^` — which paths-filter can't `git fetch` (fatal: invalid
       # refspec, breaking every dispatch build) — resolve the first parent to a
       # full SHA locally (present at fetch-depth: 2).
+      #
+      # Push builds diff against the head of the last SUCCESSFUL push build on
+      # this branch, not the pre-push SHA. A concurrency group keeps only one
+      # pending run: a third push while one build runs replaces the pending run
+      # without it ever starting, and a pre-push diff would drop that push's
+      # range for good (#5623 — #5609's web change was never built, every later
+      # run green with build-web skipped). Falls back to the pre-push SHA when
+      # there is no such run or it is not an ancestor of HEAD (force push).
       - id: diffbase
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           before='${{ github.event.before }}'
           if [ -n "$before" ]; then
-            # push: identical to before — diff against the pre-push SHA.
-            echo "sha=$before" >> "$GITHUB_OUTPUT"
+            base=$(gh api "repos/${{ github.repository }}/actions/workflows/build-images.yml/runs?branch=${{ github.ref_name }}&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty' || true)
+            if [ -n "$base" ] && [ "$base" != "${{ github.sha }}" ] \
+              && [ "$(gh api "repos/${{ github.repository }}/compare/${base}...${{ github.sha }}" --jq .status || true)" = "ahead" ]; then
+              echo "Diffing against last successful build $base (pre-push SHA: $before)"
+              echo "sha=$base" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=$before" >> "$GITHUB_OUTPUT"
+            fi
           else
             # workflow_dispatch (beta rebuild): resolve the first parent to a full
             # SHA instead of the un-fetchable `<sha>^`.
@@ -145,7 +162,7 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          # Real pre-push SHA (push) or first-parent SHA (dispatch) — see diffbase.
+          # Last successful build / pre-push SHA (push) or first-parent SHA (dispatch) — see diffbase.
           # For a sync merge the first parent is the previous tip, so the whole
           # incoming master delta is diffed and the right images get built.
           base: ${{ steps.diffbase.outputs.sha }}
@@ -165,7 +182,6 @@ jobs:
               - '.github/workflows/build-images.yml'
             tsconfig: &tsconfig
               - 'tsconfig.base.json'
-              - 'tsconfig.strict-migration.json'
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
@@ -243,7 +259,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -252,7 +268,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -267,6 +283,45 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
+
+      # Load each route of the production bundle once and fail on chunk-init
+      # errors ("s is not a function" from Rolldown chunks initialising in a
+      # cycle, 298ebe2f1). Dev mode never shows them; only the built bundle
+      # does. The push below reuses this build from the builder cache.
+      - name: Build for bundle smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: smoke-web:ci
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache
+          build-args: |
+            VITE_API_BASE_URL=/api
+            VITE_APP_ENV=production
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Only Playwright, not the workspace: the tests talk to the running
+      # image. The version follows the lockfile; the symlink lets apps/web
+      # resolve `@playwright/test` without a pnpm install.
+      - name: Bundle smoke test
+        env:
+          SMOKE_BASE_URL: http://localhost:8080
+          SMOKE_SKIP_SERVER: '1'
+        run: |
+          docker run -d --name smoke-web -p 8080:80 smoke-web:ci
+          PW_VERSION=$(grep -m1 -oE "^  '@playwright/test@[0-9]+\.[0-9]+\.[0-9]+" pnpm-lock.yaml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$')
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save "@playwright/test@$PW_VERSION"
+          ln -s "$RUNNER_TEMP/pw/node_modules" node_modules
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+          timeout 30 sh -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+          cd apps/web && "$RUNNER_TEMP/pw/node_modules/.bin/playwright" test -c playwright.smoke.config.ts
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -300,7 +355,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -309,7 +364,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -370,7 +425,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -379,7 +434,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -444,7 +499,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -453,7 +508,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -497,7 +552,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -506,7 +561,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -550,7 +605,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -559,7 +614,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -603,7 +658,7 @@ jobs:
       - name: Login to Docker Hub
         # Dependabot PRs see only Dependabot secrets; they pull anonymously.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -612,7 +667,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -737,7 +792,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         if: steps.mirror.outputs.head
-        uses: docker/login-action@v4.7.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

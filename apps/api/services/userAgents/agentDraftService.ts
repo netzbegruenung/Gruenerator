@@ -44,12 +44,21 @@ const ICON_CATALOG = SUGGESTED_AGENT_ICONS.join(', ');
 const DraftSchema = z.object({
   title: z.string().min(1).describe('Kurzer Anzeigename, z.B. "Pressestelle Kreisverband"'),
   description: z.string().min(1).describe('Ein bis zwei Sätze: was der*die Agent*in tut'),
-  systemRole: z
-    .string()
-    .min(20)
-    .describe(
-      'Ausführlicher System-Prompt für den*die Agent*in: Rolle, Aufgabe, Ton, Arbeitsweise. Du-Form, Genderstern (*innen).'
-    ),
+  // An array, not one string: Gemma on the forced tool call drops the
+  // backslash of `\n` (".n- Nutze …", #5591, #5587), so a role asked for as
+  // one string arrives as one block or with stray "n"s. The server joins.
+  // A bare string (the old shape) counts as one block instead of costing a
+  // repair round; the tool schema the model sees stays the array.
+  systemRoleBlocks: z.preprocess(
+    (v) => (typeof v === 'string' ? [v] : v),
+    z
+      .array(z.string())
+      .min(1)
+      .refine((blocks) => joinRoleBlocks(blocks).length >= 20, 'systemRole zu kurz')
+      .describe(
+        'Ausführlicher System-Prompt für den*die Agent*in, ein Eintrag je Absatz (Rolle, Aufgabe, Ton, Arbeitsweise); jeder Listenpunkt ein eigener Eintrag, beginnend mit "- ". Du-Form, Genderstern (*innen).'
+      )
+  ),
   iconKey: z
     .string()
     .describe('Icon-Schlüssel, ausschließlich aus dem Katalog (z.B. PiSparkle, PiMegaphone)'),
@@ -67,6 +76,18 @@ type Draft = z.infer<typeof DraftSchema>;
 
 const DRAFT_TOOL_SCHEMA = toolInputJsonSchema(DraftSchema);
 
+/** Paragraphs apart by a blank line; consecutive "- " items form one list. */
+function joinRoleBlocks(blocks: readonly string[]): string {
+  const parts = blocks.map((b) => b.trim()).filter((b) => b.length > 0);
+  return parts
+    .map((part, i) => {
+      if (i === 0) return part;
+      const tight = part.startsWith('- ') && parts[i - 1].startsWith('- ');
+      return `${tight ? '\n' : '\n\n'}${part}`;
+    })
+    .join('');
+}
+
 function validateDraft(input: unknown): StructuredValidation<Draft> {
   const parsed = DraftSchema.safeParse(input);
   if (parsed.success) return { ok: true, value: parsed.data };
@@ -81,13 +102,14 @@ function buildSystemPrompt(recipes: readonly RecipeCatalogEntry[]): string {
   const recipeRule =
     recipes.length > 0
       ? `- defaultRecipeMention: Das eine Kern-Rezept dieses Agenten, NUR aus diesem Katalog (null, wenn nichts passt):
-${recipes.map((r) => `- ${r.mention}: ${r.title}`).join('\n')}`
+${recipes.map((r) => `- ${r.key}: ${r.title}${r.ownerName ? ` (von ${r.ownerName})` : ''}`).join('\n')}`
       : '- defaultRecipeMention: immer null.';
   return `Du bist der Spezifikations-Generator des Grünerator Agent-Creators. Aus der folgenden Beschreibung der Nutzer*in (eine kurze Vorgabe oder ein Gespräch) erstellst du die finale Konfiguration für eine*n neue*n KI-Agent*in.
 
 Regeln:
 - Schreibe alle nutzersichtbaren Texte auf Deutsch, in Du-Form und mit Genderstern (*innen).
-- Der systemRole ist der wichtigste Teil: formuliere eine klare Rolle, Aufgabe, Tonalität und Arbeitsweise, passend zum besprochenen Zweck. Schreibe ihn so, als würdest du den*die Agent*in direkt instruieren ("Du bist ...").
+- Der systemRole (systemRoleBlocks) ist der wichtigste Teil: formuliere eine klare Rolle, Aufgabe, Tonalität und Arbeitsweise, passend zum besprochenen Zweck. Schreibe ihn so, als würdest du den*die Agent*in direkt instruieren ("Du bist ...").
+- Gliedere ihn: ein Eintrag in systemRoleBlocks je Absatz (Rolle, Aufgabe, Tonalität, Arbeitsweise), jeder Listenpunkt ein eigener Eintrag mit "- ". Keine Zeilenumbrüche innerhalb eines Eintrags.
 - enabledTools: Wähle NUR Schlüssel aus diesem Katalog, passend zum Zweck:
 ${TOOL_CATALOG}
 ${recipeRule}
@@ -133,10 +155,13 @@ export async function draftAgentSpec(
   const draft = generated.data;
 
   const enabledTools = draft.enabledTools.filter((t) => TOOL_KEYS.has(t));
-  const defaultRecipeMention =
-    draft.defaultRecipeMention && recipes.some((r) => r.mention === draft.defaultRecipeMention)
-      ? draft.defaultRecipeMention
-      : null;
+  // The model answers with a catalogue `key`. Only an entry whose key IS its
+  // mention can be bound: the persisted value is the mention (F0), and a
+  // collided foreign `antrag-<id6>` would resolve to the caller's own `antrag`.
+  const picked = draft.defaultRecipeMention
+    ? recipes.find((r) => r.key === draft.defaultRecipeMention)
+    : undefined;
+  const defaultRecipeMention = picked && picked.key === picked.mention ? picked.mention : null;
   // Clamp to the curated set so the synthesized name always resolves to an icon.
   const iconKey = isSuggestedAgentIcon(draft.iconKey.trim())
     ? draft.iconKey.trim()
@@ -149,7 +174,7 @@ export async function draftAgentSpec(
   return {
     title: draft.title.trim().slice(0, 100),
     description: draft.description.trim().slice(0, 500),
-    systemRole: draft.systemRole.trim(),
+    systemRole: joinRoleBlocks(draft.systemRoleBlocks),
     iconKey,
     backgroundColor: HEX_RE.test(draft.backgroundColor) ? draft.backgroundColor : DEFAULT_COLOR,
     enabledTools: enabledTools.length > 0 ? enabledTools : [...DEFAULT_USER_AGENT_TOOLS],

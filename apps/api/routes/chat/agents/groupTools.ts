@@ -142,7 +142,10 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
         name,
         `/notebooks/${slug ? buildNotebookSlug(name, slug) : id}`,
         'Notebook',
-        str(item, 'description') ?? sharedBy(item)
+        str(item, 'description') ?? sharedBy(item),
+        // Die ID, die `notebooks` (get/search) erwartet — ohne sie riet das
+        // Modell aus der URL und lief in „nicht gefunden".
+        id
       )
     );
   }
@@ -166,6 +169,18 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
         str(item, 'title') ?? identifier,
         `/agents/${getAgentSlug(identifier)}`,
         'Grünerator-Agent',
+        str(item, 'description') ?? sharedBy(item)
+      )
+    );
+  }
+  for (const item of buckets.recipes) {
+    const mention = str(item, 'mention');
+    if (!mention) continue;
+    rows.push(
+      makeRow(
+        str(item, 'title') ?? mention,
+        `/agentura/rezept/${encodeURIComponent(mention)}`,
+        'Rezept',
         str(item, 'description') ?? sharedBy(item)
       )
     );

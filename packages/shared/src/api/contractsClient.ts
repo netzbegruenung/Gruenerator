@@ -50,6 +50,7 @@ import {
   wolkePendingContract,
   notebookWordpressContract,
   userWebsitesContract,
+  antragsgruenSitesContract,
   letterheadsContract,
   notebookSharingContract,
   notificationsContract,
@@ -72,6 +73,8 @@ import {
   templateInteractionsContract,
   studioAssetsContract,
   marketplaceContract,
+  parteitageContract,
+  parteitageAdminContract,
   userAgentsContract,
   userAgentsSharingContract,
   skillPromptContract,
@@ -79,6 +82,7 @@ import {
   chunkInspectorContract,
   bundestagQaContract,
   connectorTestContract,
+  connectionsContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   adminStatsContract,
@@ -321,6 +325,7 @@ const _notebookCollectionsClient = () => initClient(notebookCollectionsContract,
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
 const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
+const _antragsgruenSitesClient = () => initClient(antragsgruenSitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
@@ -344,6 +349,8 @@ const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OP
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _studioAssetsClient = () => initClient(studioAssetsContract, CLIENT_OPTS);
 const _marketplaceClient = () => initClient(marketplaceContract, CLIENT_OPTS);
+const _parteitageClient = () => initClient(parteitageContract, CLIENT_OPTS);
+const _parteitageAdminClient = () => initClient(parteitageAdminContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
@@ -351,6 +358,7 @@ const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _bundestagQaClient = () => initClient(bundestagQaContract, CLIENT_OPTS);
 const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
+const _connectionsClient = () => initClient(connectionsContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _adminStatsClient = () => initClient(adminStatsContract, CLIENT_OPTS);
@@ -416,6 +424,7 @@ export interface ContractsClient {
   wolkePending: ReturnType<typeof _wolkePendingClient>;
   notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
   userWebsites: ReturnType<typeof _userWebsitesClient>;
+  antragsgruenSites: ReturnType<typeof _antragsgruenSitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
@@ -440,6 +449,8 @@ export interface ContractsClient {
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   studioAssets: ReturnType<typeof _studioAssetsClient>;
   marketplace: ReturnType<typeof _marketplaceClient>;
+  parteitage: ReturnType<typeof _parteitageClient>;
+  parteitageAdmin: ReturnType<typeof _parteitageAdminClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
@@ -447,6 +458,7 @@ export interface ContractsClient {
   chunkInspector: ReturnType<typeof _chunkInspectorClient>;
   bundestagQa: ReturnType<typeof _bundestagQaClient>;
   connectorTest: ReturnType<typeof _connectorTestClient>;
+  connections: ReturnType<typeof _connectionsClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   adminStats: ReturnType<typeof _adminStatsClient>;
@@ -524,6 +536,7 @@ export function getContractsClient(): ContractsClient {
     wolkePending: _wolkePendingClient(),
     notebookWordpress: _notebookWordpressClient(),
     userWebsites: _userWebsitesClient(),
+    antragsgruenSites: _antragsgruenSitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     chatThreadSharing: _chatThreadSharingClient(),
@@ -548,6 +561,8 @@ export function getContractsClient(): ContractsClient {
     templateInteractions: _templateInteractionsClient(),
     studioAssets: _studioAssetsClient(),
     marketplace: _marketplaceClient(),
+    parteitage: _parteitageClient(),
+    parteitageAdmin: _parteitageAdminClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
@@ -555,6 +570,7 @@ export function getContractsClient(): ContractsClient {
     chunkInspector: _chunkInspectorClient(),
     bundestagQa: _bundestagQaClient(),
     connectorTest: _connectorTestClient(),
+    connections: _connectionsClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     adminStats: _adminStatsClient(),

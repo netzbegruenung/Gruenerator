@@ -1,15 +1,10 @@
-import {
-  getAgentSlug,
-  getSystemAgent,
-  landesverbandAgentRole,
-  localizeAgent,
-  type LvHub,
-} from '@gruenerator/shared/agents';
+import { getAgentSlug, type LvHub } from '@gruenerator/shared/agents';
 import { landesverbandHubHref } from '@gruenerator/shared/marketplace';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { SelectCard } from '@gruenerator/ui';
 import { PiArrowRight } from 'react-icons/pi';
 
+import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 
 interface LandesverbandHubProps {
@@ -29,14 +24,7 @@ export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandH
   const HubIcon = NOTEBOOK_ICONS[hub.notebookId];
   const notebookPath = getNotebookById(hub.notebookId)?.path;
 
-  const cards = hub.agentIds.flatMap((agentId) => {
-    const role = landesverbandAgentRole(agentId);
-    if (!role) return [];
-    const agent = getSystemAgent(agentId);
-    if (!agent) return [];
-    const localized = localizeAgent(agent, userLocale);
-    return [{ agentId, role, agent: localized }];
-  });
+  const cards = landesverbandHubCards(hub, userLocale);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-lg px-md py-xl">

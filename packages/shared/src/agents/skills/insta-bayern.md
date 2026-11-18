@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern'
 title: 'Insta Bayern'
-description: 'Instagram-Post im Stil Grüne Bayern'
+description: 'Instagram-Post im Stil der Grünen Bayern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Bayern geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '🦁'
 backgroundColor: '#316049'

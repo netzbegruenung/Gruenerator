@@ -5,6 +5,7 @@ import { Users, FolderPlus, X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { memo, useEffect, useState } from 'react';
 
+import { setThreadGroupId } from '../../runtime/GrueneratorThreadListAdapter';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 interface Space {
@@ -65,6 +66,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
         setErrorMsg('Chat konnte nicht verschoben werden.');
         return;
       }
+      if (threadId) setThreadGroupId(threadId, groupId);
       // Let the web Space page / sidebar refresh their filed-chats lists.
       try {
         window.dispatchEvent(new CustomEvent('gruenerator:space-threads-changed'));
@@ -161,6 +163,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                   if (e.key === 'Enter') void createAndFile();
                 }}
                 placeholder="Neues Projekt erstellen…"
+                aria-label="Name des neuen Projekts"
                 className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none dark:border-grey-700"
               />
               <button

@@ -24,7 +24,9 @@ import {
   computeUnitConvert,
   computeDateDiff,
   computeDateAdd,
+  computeTermCounts,
   type ComputeResult,
+  type TermCount,
 } from './computeEngine.js';
 
 import type { ChatGraphState } from '../types.js';
@@ -32,7 +34,13 @@ import type { ChatGraphState } from '../types.js';
 const log = createLogger('ChatGraph:Compute');
 
 export type ComputeOperation =
-  'text_metrics' | 'arithmetic' | 'unit_convert' | 'date_diff' | 'date_add' | 'unsupported';
+  | 'text_metrics'
+  | 'count_terms'
+  | 'arithmetic'
+  | 'unit_convert'
+  | 'date_diff'
+  | 'date_add'
+  | 'unsupported';
 
 interface PlanCheck {
   label: string | null;
@@ -55,6 +63,7 @@ interface ComputePlan {
    * that request build a one-element array would be ceremony.
    */
   checks: PlanCheck[] | null;
+  terms: TermCount[] | null;
   value: number | null;
   fromUnit: string | null;
   toUnit: string | null;
@@ -71,6 +80,10 @@ Heutiges Datum (ISO): ${todayISO}
 
 Wähle GENAU EINE operation:
 - "text_metrics": Zeichen/Wörter/Zeilen/Vokale eines Textes zählen. Gib in "text" den EXAKTEN, unveränderten Zieltext an (kopiere ihn wörtlich inkl. Zeilenumbrüche; lasse die Aufforderung wie "zähl die Zeichen von" weg). Der Text kann in der aktuellen Nachricht oder weiter oben im Verlauf stehen.
+- "count_terms": Wie oft Wörter, Namen, Daten oder Wortfolgen im Text vorkommen, auch je Gruppe ("wie oft kommt X vor", "Termine pro Monat"). Trage in "terms" je Begriff bzw. Gruppe {"label","phrase"} ein:
+  · "phrase": eine Zeichenfolge, die WÖRTLICH im Text steht, in seiner Schreibweise — z.B. "01.2027" für Januar, wenn die Daten als "07.01.2027" stehen, "Januar", wenn sie ausgeschrieben sind. Sie muss NUR ihre Gruppe treffen: bei Daten immer Monat UND Jahr, nie eine bloße Zahl wie "01" (die trifft auch Tage, Uhrzeiten, Nummern). Gezählt werden ganze Wörter, Groß/klein egal; den Text NICHT in "text" kopieren.
+  · "label": die Gruppe, z.B. "Januar", oder null
+  Für eine Gesamtzahl nimm eine phrase, die in jedem Eintrag genau einmal steht. Gezählt wird nur Wörtliches: verlangt die Anfrage eine Einordnung nach Bedeutung ("wie viele davon sind Demos"), die kein Wort im Text eindeutig markiert → "unsupported".
 - "arithmetic": Rechenausdruck. Gib in "expression" einen NORMALISIERTEN Ausdruck mit '.' als Dezimaltrennzeichen und nur den Operatoren + - * / % ^ und Klammern an. Wandle Prozente um: "20% von 340" → "0.2 * 340". KEINE Einheiten, keine Wörter.
   Soll ein Text auf RECHNERISCHE WIDERSPRÜCHE geprüft werden ("stimmen die Zahlen", "prüfe die Angaben", "sind die Zahlen konsistent"), dann trage in "checks" JEDE nachrechenbare Behauptung des Textes EINZELN ein — Summen, Differenzen, Anteile, Prozentangaben, Zwischensummen. Pro Eintrag:
   · "expression": wie oben normalisiert, NUR die Operanden aus dem Text
@@ -86,7 +99,7 @@ Setze "label" auf eine kurze deutsche Beschreibung (z.B. "Zeichen zählen", "20%
 Alle nicht zutreffenden Felder auf null.
 
 Antworte NUR mit JSON:
-{"operation":"...","label":"...","text":null,"expression":null,"checks":null,"value":null,"fromUnit":null,"toUnit":null,"dateFrom":null,"dateTo":null,"dateAmount":null,"dateUnit":null}`;
+{"operation":"...","label":"...","text":null,"expression":null,"checks":null,"terms":null,"value":null,"fromUnit":null,"toUnit":null,"dateFrom":null,"dateTo":null,"dateAmount":null,"dateUnit":null}`;
 }
 
 /** Parse the LLM plan JSON tolerantly (direct parse, then first JSON object). */
@@ -124,6 +137,18 @@ function relocateOriginal(echo: string, raw: string): string {
   return echo;
 }
 
+/** The plan is model output (`parsePlan` only casts): keep the well-formed terms. */
+function planTerms(terms: unknown): TermCount[] {
+  if (!Array.isArray(terms)) return [];
+  return terms.flatMap((t: unknown) => {
+    if (typeof t !== 'object' || t === null) return [];
+    const { phrase, label } = t as Record<string, unknown>;
+    return typeof phrase === 'string'
+      ? [{ phrase, label: typeof label === 'string' ? label : null }]
+      : [];
+  });
+}
+
 function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | null {
   switch (plan.operation) {
     case 'text_metrics': {
@@ -131,6 +156,8 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
       const result = computeTextMetrics(target);
       return plan.label ? { ...result, operation: plan.label } : result;
     }
+    case 'count_terms':
+      return computeTermCounts(rawUserText, planTerms(plan.terms));
     case 'arithmetic': {
       // A consistency check outranks the single expression: when the model
       // listed the material's claims, THEY are the answer, and `expression`

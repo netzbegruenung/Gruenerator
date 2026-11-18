@@ -78,6 +78,12 @@ function loopToolNames(): ReadonlySet<string> {
   );
   for (const m of (catalog?.[1] ?? '').matchAll(/'([^']+)'/g)) names.add(m[1] as string);
 
+  // `tools[METHOD_RECIPE_TOOL] = ...` — the constant lives in toolScope.ts.
+  const method = /METHOD_RECIPE_TOOL\s*=\s*'([^']+)'/.exec(
+    repoFile('apps/api/routes/chat/services/agenticLoop/toolScope.ts')
+  );
+  if (method?.[1]) names.add(method[1]);
+
   // `tools[group.loaderTool] = ...` — the loaders of the deferrable groups.
   for (const m of repoFile('apps/api/routes/chat/services/agenticLoop/toolScope.ts').matchAll(
     /loaderTool:\s*'([^']+)'/g
@@ -86,15 +92,6 @@ function loopToolNames(): ReadonlySet<string> {
   }
 
   return names;
-}
-
-/** `UNRECORDED_TOOLS`: tools `wrapTools` passes through without card or step — they never reach the UI. */
-function unrecordedToolNames(): ReadonlySet<string> {
-  const block = /UNRECORDED_TOOLS[^=]*=\s*new Set\(\[([^\]]*)\]\)/.exec(
-    repoFile('apps/api/routes/chat/services/agenticLoop/types.ts')
-  );
-  if (!block?.[1]) throw new Error('UNRECORDED_TOOLS not found — did types.ts move?');
-  return new Set([...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1] as string));
 }
 
 /** The `UI_TOOL_NAMES` zod enum in packages/chat. */
@@ -116,15 +113,12 @@ describe('loop catalog ↔ UI registry coverage', () => {
     // One per mount site, so a broken regex fails here and names the site.
     expect(names, 'tools.<name> site').toContain('rezept_laden');
     expect(names, 'artifactKindRegistry loopToolName site').toContain('create_pdf');
+    expect(names, 'METHOD_RECIPE_TOOL site').toContain('methode_laden');
     expect(names, 'ATTACHED_DOCS_TOOL site').toContain('dokumente_lesen');
     expect(names, 'CATALOG_TOOLS site').toContain('web_search');
     expect(names, 'toolScope loaderTool site').toContain('meine_inhalte_laden');
     expect(names, 'EDIT_TOOL_NAMES site').toContain('edit_document');
     expect(names, 'EDIT_TOOL_NAMES site').toContain('edit_current_sharepic');
-  });
-
-  it('actually extracts the unrecorded tools', () => {
-    expect(unrecordedToolNames()).toContain('direkt_antworten');
   });
 
   it('actually extracts the UI registry', () => {
@@ -133,10 +127,7 @@ describe('loop catalog ↔ UI registry coverage', () => {
 
   it('every mountable loop tool has a UI registry entry', () => {
     const ui = uiToolNames();
-    const unrecorded = unrecordedToolNames();
-    const missing = [...loopToolNames()]
-      .filter((n) => !ui.includes(n) && !unrecorded.has(n))
-      .sort();
+    const missing = [...loopToolNames()].filter((n) => !ui.includes(n)).sort();
     expect(
       missing,
       `Tools ohne UI-Eintrag — sie rendern sonst mit dem ROHEN Namen und einem ` +

@@ -63,6 +63,15 @@ export const mcp_servers = pgTable('mcp_servers', {
    * user's approval (raw tool names). NULL = nothing pending. `changed` blocks
    * the server, `added` only withholds the new tools.
    */
+  /**
+   * Key of a known connector (Bahn, Wetter, Rateo, …, see `services/mcp/connectorAdapters.ts`).
+   * Such a row is a connector from the directory whose server we operate or
+   * know: URL and token come from deploy env and are never stored here (`url`
+   * is ''), name/description come from the code definition, and the key is the
+   * tool prefix (`rateo__…`). NULL = a server the person added themselves.
+   * One row per person and key (partial unique index).
+   */
+  registry_key: text('registry_key'),
   tools_drift: jsonb('tools_drift').$type<{
     changed: string[];
     added: string[];

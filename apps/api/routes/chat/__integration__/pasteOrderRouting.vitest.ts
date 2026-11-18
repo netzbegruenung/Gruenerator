@@ -88,6 +88,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 // NOT mocked here, unlike every sibling file: agenticRespondService. Doubling it
 // is exactly what puts the loop out of reach.
 //
@@ -312,6 +316,32 @@ const CASES: Case[] = [
     body: { activeSkillMention: 'wahlpruefstein' },
     lane: 'single_pass',
   },
+  // #5484: die Zeile stellt den Paste nur vor — keine erzwungene Suche, der
+  // Paste bleibt Material (Einzeldurchlauf wie ohne Notebook gibt es nicht, der
+  // Turn läuft im Loop).
+  {
+    id: 'nb-nur-vorgestellt',
+    prompt: 'Hier sind die Termine',
+    body: NOTEBOOK,
+    lane: 'loop',
+    summarizeMounted: false,
+  },
+  // Gegenprobe: ein Ein-Rezept-Agent (Bürger*innenanfragen) bleibt im Loop.
+  {
+    id: 'buerger-nur-vorgestellt',
+    prompt: 'Hier ist die Mail',
+    body: { ...NOTEBOOK, agentId: 'gruenerator-buergeranfragen-berlin' },
+    lane: 'loop',
+    summarizeMounted: false,
+  },
+  // Gegenprobe: eine Antwort-Bestellung läuft im Loop.
+  {
+    id: 'nb-antwort-auf-mail',
+    prompt: 'Antworte auf diese Mail',
+    body: NOTEBOOK,
+    lane: 'loop',
+    summarizeMounted: false,
+  },
   // Der Auftrag steht im Turn davor, dieser Turn traegt keinen: die Notebook-
   // Suche bleibt, aber ohne `summarize` als Koeder.
   {
@@ -399,6 +429,8 @@ describe('pasted text + an order about it', () => {
       expect(planner?.toolNames.includes('summarize'), `${c.id}: summarize on offer`).toBe(
         c.summarizeMounted
       );
+      // Der Loop erzwingt keinen Aufruf: der erste Schritt läuft mit `toolChoice` unset.
+      expect(planner?.toolChoice ?? null, `${c.id}: no forced first step`).toBeNull();
       // System ODER Nachrichten: bei einem Turn ohne Auftragstext steht das
       // Eingefügte in der Nutzernachricht, nicht im Systemprompt.
       expect(

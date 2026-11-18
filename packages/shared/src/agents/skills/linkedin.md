@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit'
 title: 'LinkedIn'
-description: 'LinkedIn-Posts & Artikel'
+description: 'LinkedIn-Posts und Artikel in sachlich-professionellem Ton. Nutzen, wenn ein Beitrag für LinkedIn oder ein Fachpublikum im Netz geschrieben werden soll.'
 iconKey: 'PiLinkedinLogo'
 avatar: '💼'
 backgroundColor: '#316049'

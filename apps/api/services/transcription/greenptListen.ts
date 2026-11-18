@@ -140,11 +140,20 @@ export async function listenWithGreenpt(
     throw new Error('GREENPT_API_KEY is not configured');
   }
 
+  // `filler_words` must stay ON for German, although we do not want fillers.
+  // GreenPT filters English fillers by default, and the German preposition
+  // "um" is spelled like one. Without the flag, every "um" vanished.
+  // Measured 10.11.2026:
+  //   - synthetic speech: 4 of 4 dropped ("Es geht die Umwelt").
+  //   - real speech: "…erschlossen, um den Hunger nach Gas…" lost its "um".
+  // The price: a spoken "ähm" can now come back as "um" (one suspected case in
+  // a 24 s clip). A missing "um" breaks the sentence; a stray one only stutters.
   const query = new URLSearchParams({
     model: GREENPT_STT_MODEL,
     language: 'multi',
     punctuate: 'true',
     smart_format: 'false',
+    filler_words: 'true',
   });
   if (options.diarize === true) {
     query.set('diarize_model', 'v2');

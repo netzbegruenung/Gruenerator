@@ -262,6 +262,65 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'globe',
     accent: 'external',
   },
+  // `@antragsgruennrw`: Parteitage der GRÜNEN NRW (Index + Live-Status).
+  antragsgruen: {
+    label: 'Antragsgrün NRW',
+    activeLabel: 'Durchsuche Antragsgrün',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query', 'antrag', 'parteitag'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  antragsgruen_lesen: {
+    label: 'Anträge lesen',
+    activeLabel: 'Liest Anträge …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['frage'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'resultCount');
+      return n ? `${n} gelesen` : null;
+    },
+  },
+  antragsgruen_tagesordnung: {
+    label: 'Antragsgrün-Tagesordnung',
+    activeLabel: 'Sehe die Tagesordnung an …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_antrag_stellen: {
+    label: 'Antrag bei Antragsgrün',
+    activeLabel: 'Bereite den Antrag vor …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_seite_anlegen: {
+    label: 'Antragsgrün-Seite',
+    activeLabel: 'Prüfe die Adresse bei Antragsgrün …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_auswerten: {
+    label: 'Antragsgrün-Auswertung',
+    activeLabel: 'Zählt in Antragsgrün …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['nach'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `über ${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  antragsgruen_werkzeuge_laden: {
+    label: 'Antragsgrün-Werkzeuge',
+    activeLabel: 'Öffne die Antragsgrün-Werkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'Antragsgrün-Werkzeuge freigeschaltet',
+  },
   // toolScope.ts: Lader der Parlamentsgruppe — nur Statuszeile, keine Karte.
   parlament_werkzeuge_laden: {
     label: 'Parlamentswerkzeuge',
@@ -354,6 +413,21 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
         return titel ? `Rezept: ${titel}` : 'Rezept geladen';
       }
       return getString(result, 'grund') ?? 'Rezept nicht verfügbar';
+    },
+  },
+  methode_laden: {
+    label: 'Recherche-Methode',
+    activeLabel: 'Lade Recherche-Methode',
+    iconKey: 'book',
+    accent: 'knowledge',
+    queryKeys: ['rezept'],
+    // Same result shape as `rezept_laden` (recipeTools.ts), shown as a method.
+    summarize: (_args, result) => {
+      if (getBoolean(result, 'geladen')) {
+        const titel = getString(result, 'titel') ?? getString(result, 'rezept');
+        return titel ? `Methode: ${titel}` : 'Methode geladen';
+      }
+      return getString(result, 'grund') ?? 'Methode nicht verfügbar';
     },
   },
 
@@ -490,7 +564,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     accent: 'personal',
   },
   recipes: {
-    label: 'Rezepte & Textformen',
+    label: 'Rezepte',
     activeLabel: 'Sehe bei den Rezepten nach',
     iconKey: 'sparkles',
     accent: 'personal',

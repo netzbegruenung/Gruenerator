@@ -4,7 +4,12 @@ import {
   landesverbandLabel,
   landesverbandRegion,
 } from '@gruenerator/shared/agents';
-import { resolveAgentBySlug, type AgentLookupResult } from '@gruenerator/shared/grueneratoren';
+import {
+  resolveAgentBySlug,
+  useAgentLink,
+  type AgentLookupResult,
+} from '@gruenerator/shared/grueneratoren';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 
 import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '../../agents/api';
 
@@ -18,23 +23,33 @@ export interface AgentLookup extends AgentLookupResult {
   isLoading: boolean;
 }
 
-/** Resolve an Agentura agent-detail `:slug` — see {@link resolveAgentBySlug}. */
+/**
+ * Resolve an Agentura agent-detail `:slug` — see {@link resolveAgentBySlug}.
+ * A share link none of the three lists holds (opened to every signed-in user,
+ * not listed) is asked of the server, and only once the lists have answered.
+ */
 export function useAgentBySlug(slug: string | undefined): AgentLookup {
   const own = useUserAgents();
   const shared = useSharedUserAgents();
   const pub = usePublicUserAgents();
   // A teammate's agent comes from the shared or public list, so a deep link
   // is only "not found" once all three have answered.
-  const isLoading = own.isLoading || shared.isLoading || pub.isLoading;
-  if (!slug) return { agent: null, isUserAgent: false, isOwn: false, isLoading };
-  return {
-    ...resolveAgentBySlug(slug, {
-      own: own.data ?? [],
-      shared: (shared.data ?? []).map((e) => e.agent),
-      public: pub.data ?? [],
-    }),
-    isLoading,
-  };
+  const listsLoading = own.isLoading || shared.isLoading || pub.isLoading;
+  const fromLists = slug
+    ? resolveAgentBySlug(slug, {
+        own: own.data ?? [],
+        shared: (shared.data ?? []).map((e) => e.agent),
+        public: pub.data ?? [],
+      })
+    : { agent: null, isUserAgent: false, isOwn: false };
+  const decoded = slug ? decodeURIComponent(slug) : '';
+  const askServer = !listsLoading && !fromLists.agent && shareLinkKey(decoded) !== null;
+  const link = useAgentLink(askServer ? decoded : null);
+
+  if (fromLists.agent || !askServer) return { ...fromLists, isLoading: listsLoading };
+  return link.data
+    ? { agent: link.data, isUserAgent: true, isOwn: false, isLoading: false }
+    : { ...fromLists, isLoading: link.isLoading };
 }
 
 /** Find a skill (with resolved icon) by its `mention`. */

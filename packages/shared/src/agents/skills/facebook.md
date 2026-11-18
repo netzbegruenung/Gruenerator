@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit'
 title: 'Facebook'
-description: 'Facebook-Posts & Beiträge'
+description: 'Facebook-Posts mit Haltung, kurzem Einstieg und Handlungsaufforderung. Nutzen, wenn ein Beitrag für eine Facebook-Seite oder -Gruppe geschrieben werden soll.'
 iconKey: 'PiFacebookLogo'
 avatar: '👍'
 backgroundColor: '#316049'

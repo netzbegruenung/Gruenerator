@@ -136,6 +136,7 @@ describe('listSystemSources', () => {
       must: [
         { key: 'chunk_index', match: { value: 0 } },
         { key: 'landesverband', match: { value: 'HH' } },
+        { is_empty: { key: 'superseded_by' } },
       ],
     });
     // Nie den Volltext mitschleppen: 5000 Punkte × full_text wären Hunderte MB.
@@ -298,7 +299,10 @@ describe('readSystemSourceText', () => {
         'Quelle nicht in diesem System-Notebook — die sourceId ist die URL aus list (Feld ref).',
     });
     expect(getSystemDocumentFullTextByUrl).toHaveBeenCalledWith(LV, BE_A, {
-      must: [{ key: 'landesverband', match: { value: 'HH' } }],
+      must: [
+        { key: 'landesverband', match: { value: 'HH' } },
+        { is_empty: { key: 'superseded_by' } },
+      ],
     });
     expect(getDocumentChunks).not.toHaveBeenCalled();
   });
@@ -404,6 +408,7 @@ describe('findSystemPassages', () => {
       must: [
         { key: 'source_url', match: { value: HH_A } },
         { key: 'landesverband', match: { value: 'HH' } },
+        { is_empty: { key: 'superseded_by' } },
       ],
     });
   });
@@ -772,6 +777,7 @@ describe('checkSystemSource', () => {
         { key: 'source_url', match: { value: BE_A } },
         { key: 'chunk_index', match: { value: 0 } },
         { key: 'landesverband', match: { value: 'HH' } },
+        { is_empty: { key: 'superseded_by' } },
       ],
     });
   });

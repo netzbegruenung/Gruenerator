@@ -72,57 +72,30 @@ interface ReasoningStreamConfig {
 const LITELLM_REASONING_MODELS = new Set<string>();
 
 /**
- * Cortecs-Modelle, die uns Denken streamen — und der Hebel dafür ist ein
- * ANDERER als bei Melious.
+ * Denk-Hebel je Host für Gemma 4 31B — gemessen 09.11.2026, Rechenaufgabe,
+ * 2–3 Läufe je Zeile, Reasoning-Tokens / erstes Antwort-Token (#5494):
  *
- * Gemessen 25.08.2026 live gegen api.cortecs.ai (`gemma-4-31b-it`, identischer
- * Prompt, max_tokens 1500, Zeichen Reasoning / Zeichen Inhalt):
+ *   Melious `:balanced`  nichts                  ~470   4,2–4,6 s  ← denkt von selbst
+ *                        `reasoning_effort` none     0   0,2 s
+ *                        low / medium / high   382–587   5,6–7,9 s  ← keine Stufe
+ *                        enable_thinking=false       0   0,2 s
+ *   Cortecs `-it`        nichts                      0   0,9 s
+ *                        enable_thinking=true  485–620   1,7–3,5 s
+ *                        `reasoning_effort` high ~530    2,0–3,4 s  (25.08.: wirkungslos)
+ *                        `reasoning_effort` none     0   HTTP 200   (25.08.: 400)
+ *                        `thinking_budget`      ignoriert
  *
- *   nichts                                  0 / 1005
- *   reasoning_effort: 'low' | 'medium' | 'high'
- *                                           0 / 1005   ← HTTP 200, wirkungslos
- *   reasoning_effort: 'none'                HTTP 400    ← „value must be one of
- *                                                          'low','medium','high'"
- *   chat_template_kwargs.enable_thinking=true
- *                                        1387 / 1335   ← der Hebel, der wirkt
- *   chat_template_kwargs.enable_thinking=false
- *                                           0 / 1013   ← und er schaltet auch ab
+ * Die Stufen sind auf keinem Host ein Regler: dieses Modul zu erreichen heisst
+ * „denken an". Melious bekommt die Stufe trotzdem, weil sie dort „an" bedeutet;
+ * Cortecs bekommt den binären Template-Schalter, der beide Richtungen sicher
+ * trägt. Denken zählt gegen `max_tokens` (Cortecs, max_tokens 200: Inhalt
+ * leer, `finish=length`).
  *
- * Zwei Dinge, die im Repo bis zu diesem Tag falsch standen und deshalb hier
- * ausdrücklich gerade gerückt werden:
- *
- *  1. „infercom weist `reasoning_effort` mit HTTP 400 ab" — genau umgekehrt.
- *     Die gradierten Werte gehen durch und tun nichts, `none` ist der
- *     abgelehnte. Ein Modell, das einen Parameter annimmt und ignoriert, ist
- *     die teuerste Sorte Fehler: er sieht wie ein funktionierender Regler aus.
- *  2. Diese Lane könne über Cortecs nicht denken. Sie kann — nur nicht über
- *     `reasoning_effort`.
- *
- * Der Wert wird deshalb NICHT aus `effort` abgeleitet: `enable_thinking` ist
- * binär, und dieses Modul zu erreichen heisst bereits „denken an". Eine Stufe
- * hineinzulesen, die der Upstream nicht anbietet, ist derselbe Fehler wie bei
- * Melious' Gemma (siehe unten: gradierte Werte sind dort Rauschen).
+ * `:speed` und DeepSeek v4.1 Flash (Lane „Panda") folgen Melious' Hebel
+ * (gemessen 06.11. bzw. 01.10.2026). Das Denken kommt als `reasoning_content`.
  */
 const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
 
-/**
- * Melious' Gemma 4 31B (`gemmaHosts.ts`, GEMMA_31B_ON_MELIOUS) — der Ausweich
- * der Gemma-Antwortlane und die zweite Seite von `heavy`/`pruefung`.
- *
- * Der Hebel ist `reasoning_effort`: `none` schaltet ab (das tut
- * `meliousThinkingFetch.ts` auf dem SDK-Pfad), die gradierten Werte schalten
- * an. Gemessen 23.09.2026, Reasoning-Tokens: low 252 · medium 1124 · high 572
- * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, kein Dial.
- * `chat_template_kwargs.enable_thinking` wirkt
- * hier NICHT. Das Denken kommt als `delta.reasoning_content`.
- *
- * DeepSeek v4.1 Flash (Lane „Panda") folgt demselben Hebel, gemessen
- * 01.10.2026: `high` streamt `reasoning_content`, `none` denkt gar nicht.
- *
- * `:speed` (dieselben Gewichte über infercom/DE, Ausweich für einen zähen
- * `:balanced`) folgt demselben Hebel, gemessen 06.11.2026 mit Zwei-Satz-Frage:
- * `high` 500 Reasoning-Tokens und `reasoning_content` im Strom, `none` 0.
- */
 const MELIOUS_REASONING_MODELS = new Set([
   'gemma-4-31b:balanced',
   'gemma-4-31b:speed',
@@ -157,9 +130,6 @@ function resolveConfig(provider: string, effort?: ThinkingEffort): ReasoningStre
     return {
       endpoint: `${cortecsBaseUrl()}/chat/completions`,
       apiKey: env.CORTECS_API_KEY,
-      // `effortExtra` bewusst NICHT gespreizt: gradierte Werte sind auf diesem
-      // Host wirkungslos und `none` wird mit 400 abgelehnt (Messreihe oben).
-      //
       // Die drei Souveränitäts-Felder MÜSSEN hier stehen und sind keine
       // Dopplung: dieser Pfad ist ein Roh-`fetch` und läuft NICHT durch
       // `cortecsFetchWithPolicy`. Ohne sie wäre ausgerechnet der Denk-Pfad der

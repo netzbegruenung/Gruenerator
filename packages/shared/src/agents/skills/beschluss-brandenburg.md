@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-brandenburg'
 title: 'Beschlussantrag Brandenburg'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Brandenburg, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Brandenburg. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Brandenburg geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '📜'
 backgroundColor: '#316049'

@@ -711,7 +711,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     };
   },
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    callbacks,
+    history
+  ) => {
     // Helper: Update balken instances when balken-related state changes
     const updateBalkenInstances = (state: DreizeilenFullState): BalkenInstance[] =>
       reconcileBalkenInstances(state, state.balkenInstances);
@@ -802,7 +809,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       saveToHistory,
       debouncedSaveToHistory,
       DREIZEILEN_CONFIG.canvas.width,
-      DREIZEILEN_CONFIG.canvas.height
+      DREIZEILEN_CONFIG.canvas.height,
+      history
     );
 
     return {

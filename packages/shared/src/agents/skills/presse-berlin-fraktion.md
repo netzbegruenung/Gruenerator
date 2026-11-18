@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin'
 title: 'PM Berlin (Fraktion)'
-description: 'Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik'
+description: 'Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.'
 iconKey: 'PiBuildings'
 avatar: '🐻'
 backgroundColor: '#316049'

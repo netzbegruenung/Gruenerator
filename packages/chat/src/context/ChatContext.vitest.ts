@@ -65,3 +65,52 @@ describe('createChatApiClient — 401 context', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('createChatApiClient — unreadable 2xx JSON body', () => {
+  // GlitchTip #718: a 200 with `application/json` and an empty body (Firefox,
+  // long-lived tab) rejected `response.json()` with a bare SyntaxError, which
+  // the toast layer could not classify.
+  function emptyJson(status = 200): Response {
+    return new Response('', { status, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  it('refetches a GET once past the HTTP cache and returns the good body', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(emptyJson())
+      .mockResolvedValueOnce(jsonResponse(200, [{ id: 'd1' }]));
+
+    const client = createChatApiClient(fetchFn, vi.fn());
+
+    await expect(client.get('/api/docs')).resolves.toEqual([{ id: 'd1' }]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      '/api/docs',
+      expect.objectContaining({ method: 'GET', cache: 'no-store' })
+    );
+  });
+
+  it('throws a typed ApiError when the refetch is unreadable too', async () => {
+    const fetchFn = vi.fn(() => Promise.resolve(emptyJson()));
+
+    const client = createChatApiClient(fetchFn, vi.fn());
+
+    await expect(client.get('/api/docs')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 200,
+      code: 'invalid_response_body',
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not replay a write', async () => {
+    const fetchFn = vi.fn(() => Promise.resolve(emptyJson(201)));
+
+    const client = createChatApiClient(fetchFn, vi.fn());
+
+    await expect(client.post('/api/x', { a: 1 })).rejects.toMatchObject({
+      code: 'invalid_response_body',
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+});

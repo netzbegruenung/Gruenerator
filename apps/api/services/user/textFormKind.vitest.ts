@@ -50,6 +50,23 @@ describe('deriveRecipeMention', () => {
 });
 
 describe('resolveTextFormKind', () => {
+  it('lets an existing row with a reserved name be saved again', () => {
+    expect(resolveTextFormKind({ mention: 'neu', lvIds: null, existing: true })).toMatchObject({
+      ok: true,
+      kind: 'custom',
+    });
+  });
+
+  it.each(['neu', 'bearbeiten'])(
+    'rejects the route segment "%s" as a mention with 400',
+    (mention) => {
+      expect(resolveTextFormKind({ mention, lvIds: null })).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+  );
+
   it('resolves a preset mention (mention === type)', () => {
     const verdict = resolveTextFormKind({ mention: 'presse', lvIds: null });
     expect(verdict).toEqual({ ok: true, kind: 'preset', textType: 'presse', mention: 'presse' });

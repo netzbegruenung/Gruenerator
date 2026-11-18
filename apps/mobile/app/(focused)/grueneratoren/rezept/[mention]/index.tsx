@@ -1,8 +1,4 @@
-import {
-  useSkillFavoritesStore,
-  useUserLandesverbaende,
-  type AgentListItem,
-} from '@gruenerator/chat';
+import { useUserLandesverbaende, type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import {
   SKILL_CATEGORY_LABELS,
@@ -42,6 +38,7 @@ import { useSkillPrompt } from '../../../../../components/agentura/detail/useSki
 import { Button, ListGroup, ListRow, SkeletonRows } from '../../../../../components/common';
 import { MarketplaceDiscussion } from '../../../../../components/marketplace/MarketplaceDiscussion';
 import { useRecipeByMention } from '../../../../../hooks/agents/useRecipeByMention';
+import { useUserLibrary } from '../../../../../hooks/agents/useUserLibrary';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { colors } from '../../../../../theme';
 import { routeWithParams } from '../../../../../types/routes';
@@ -99,16 +96,19 @@ function useOpenRecipeChat() {
     );
 }
 
-function FavoriteButton({ mention }: { mention: string }) {
-  const isFavorite = useSkillFavoritesStore((s) => s.favorites.includes(mention.toLowerCase()));
-  const toggle = useSkillFavoritesStore((s) => s.toggleFavorite);
+/** Der Stern ist „Zu meinen Grüneratoren": dieselbe Bibliothek am Konto wie im Web. */
+function FavoriteButton({ libraryRef }: { libraryRef: string | null }) {
+  const library = useUserLibrary();
   const theme = useTheme();
+  // Ein eigenes Rezept steht ohnehin unter „Meine" und hat keinen Verweis.
+  if (!libraryRef) return null;
+  const isFavorite = library.has('recipe', libraryRef);
   return (
     <HeaderIconButton
       icon={isFavorite ? 'star' : 'star-outline'}
       label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
       color={isFavorite ? colors.secondary[600] : theme.text}
-      onPress={() => toggle(mention)}
+      onPress={() => library.toggle('recipe', libraryRef)}
     />
   );
 }
@@ -153,11 +153,11 @@ function SystemRecipe({
           title: skill.title,
           headerRight: () => (
             <HeaderButtons>
-              <FavoriteButton mention={skill.mention} />
+              <FavoriteButton libraryRef={skill.mention} />
               <HeaderIconButton
                 icon="share-outline"
                 label="Link teilen"
-                onPress={() => shareLink(recipeShareUrl(skill.mention), skill.title)}
+                onPress={() => shareLink(recipeShareUrl({ mention: skill.mention }), skill.title)}
               />
             </HeaderButtons>
           ),
@@ -257,7 +257,7 @@ function UserRecipe({ form, source }: { form: TextForm | PublicTextForm; source:
           title: form.title,
           headerRight: () => (
             <HeaderButtons>
-              <FavoriteButton mention={form.mention} />
+              <FavoriteButton libraryRef={libraryRef} />
               <HeaderIconButton
                 icon="share-outline"
                 label={isOwn ? 'Teilen' : 'Link teilen'}
@@ -267,7 +267,7 @@ function UserRecipe({ form, source }: { form: TextForm | PublicTextForm; source:
                         pathname: '/(focused)/grueneratoren/rezept/[mention]/teilen',
                         params: { mention: form.mention },
                       })
-                    : shareLink(recipeShareUrl(form.mention), form.title)
+                    : shareLink(recipeShareUrl(form), form.title)
                 }
               />
             </HeaderButtons>

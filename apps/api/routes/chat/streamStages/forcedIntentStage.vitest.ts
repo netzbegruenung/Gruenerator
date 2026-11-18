@@ -213,12 +213,14 @@ describe('@social — Erwähnung weg, Token bleibt', () => {
   // zeigt auf ein Werkzeug, `@pressemitteilungen` auf Werkzeug plus Rezept —
   // ein Social-Post hat kein Werkzeug, er ist eine Textsorte. Der Token landet
   // deshalb schlicht auf dem Einzeldurchlauf; welches Rezept ihn schreibt,
-  // entscheidet `deriveImplicitRecipeMention` in routingStage aus dem Text.
+  // entscheidet die Rezeptwahl über `rezept_laden` im Loop.
   it('setzt `produktion` und zurrt kein Werkzeug fest', async () => {
     const { state, forcedTool } = await run(['social_post']);
     expect(state.intent).toBe('produktion');
     expect(state.mentionPinnedTool).toBe(null);
-    expect(forcedTool).toBe(true);
+    // Kein erzwungenes Werkzeug: sonst bliebe der Turn im Einzeldurchlauf
+    // (`pinned_tool_without_loop`) und bekäme nie ein Rezept.
+    expect(forcedTool).toBe(false);
   });
 
   it('lädt kein Rezept aus der Erwähnung — das tut der Text', async () => {

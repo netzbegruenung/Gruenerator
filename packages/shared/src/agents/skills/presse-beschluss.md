@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-universal'
 title: 'Pressemitteilung (Beschlusslage)'
-description: 'PM ausschließlich auf Beschlussgrundlage, mit Belegtabelle'
+description: 'Pressemitteilung, die allein auf vorliegenden Beschlüssen steht, mit Belegtabelle. Nutzen, wenn eine PM strikt aus der Beschlusslage und ohne Websuche entstehen soll.'
 iconKey: 'PiNewspaper'
 avatar: '🗞️'
 backgroundColor: '#316049'

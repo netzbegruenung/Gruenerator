@@ -29,11 +29,12 @@
  * Der Rumpf geht ausschliesslich in den Systemprompt: er wird weder geloggt
  * noch gespeichert, und er ist kein Werkzeug-Ergebnis.
  */
-import { type TextFormKind } from '@gruenerator/contracts';
+import { type TextFormKind, type VisualBlockKind } from '@gruenerator/contracts';
 import { hasSystemRecipe, SKILLS } from '@gruenerator/shared/agents';
 
 import { embedUntrusted } from '../../routes/chat/services/untrustedContent.js';
 import { createLogger } from '../../utils/logger.js';
+import { CODE_RECIPE_BODIES } from '../skills/codeRecipes.js';
 import { getInternalSkillPrompt } from '../skills/internalPrompts.js';
 import { normalizeTextFormMention } from '../user/textFormKind.js';
 import {
@@ -97,7 +98,8 @@ function fromUserForm(form: TextFormInjection): ResolvedRecipeBody {
  *    Composer) — eine Umbenennung der Mention tauscht das Rezept damit nicht
  *    still unter der Konfiguration aus.
  * 2. Der angelernte Stil zur Mention.
- * 3. Der mitgelieferte Rezepttext.
+ * 3. Der mitgelieferte Rezepttext — zuerst ein Code-Rezept (`CODE_RECIPE_BODIES`,
+ *    öffentliche Produktmechanik), dann der interne Rezepttext.
  *
  * Eine id, die die Person nicht (mehr) sehen darf, fällt auf 2./3. zurück statt
  * den Turn zu kippen: eine zurückgezogene Freigabe ist ein erwarteter Zustand,
@@ -112,6 +114,8 @@ export async function resolveRecipeBody(params: {
   mention: string | null;
   recipeId?: string | null;
   userId: string | null;
+  /** Die Bausteinarten, die der Client zeichnet — nur für Code-Rezepte. */
+  visualBlocks?: readonly VisualBlockKind[];
 }): Promise<ResolvedRecipeBody | null> {
   const { userId } = params;
   // Dieselbe Normalisierung wie `isRecipeUsableForAgent`: ein getipptes
@@ -137,7 +141,10 @@ export async function resolveRecipeBody(params: {
 
   const skill = mention ? SKILLS.find((s) => s.mention === mention) : undefined;
   if (!skill) return null;
-  const internal = getInternalSkillPrompt(skill.mention);
+  const codeBody = CODE_RECIPE_BODIES[skill.mention];
+  const internal = codeBody
+    ? codeBody({ kinds: params.visualBlocks ?? [] })
+    : getInternalSkillPrompt(skill.mention);
   if (!internal) return null;
 
   return {

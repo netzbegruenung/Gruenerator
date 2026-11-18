@@ -1,5 +1,9 @@
 import { useAui } from '@assistant-ui/react';
-import { sharepicFormLabel, type SharepicFormId } from '@gruenerator/contracts';
+import {
+  sharepicAlternativeRequest,
+  sharepicFormLabel,
+  type SharepicFormId,
+} from '@gruenerator/contracts';
 import { ImageOff, Loader2 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
@@ -141,7 +145,7 @@ function SharepicAlternatives({ forms }: { forms: readonly SharepicFormId[] }) {
           <button
             key={form}
             type="button"
-            onClick={() => aui.thread().append(`Andere Variante als ${label}`)}
+            onClick={() => aui.thread().append(sharepicAlternativeRequest(form))}
             className="rounded-full border border-border px-3 py-1 text-sm text-foreground hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Als {label}

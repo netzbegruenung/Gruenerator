@@ -6,13 +6,17 @@
 
 import { isDeepStrictEqual } from 'node:util';
 
-import { parseSharepicChatProps, type SharepicVorlage } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  sharepicAlternativeForm,
+  type SharepicChatReview,
+  type SharepicVorlage,
+} from '@gruenerator/contracts';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 
 import { requestedBrand } from '../../../../services/sharepicCreator/brandWords.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
-import { namedSharepicForm, wantsOneSlide } from '../../../../services/sharepicCreator/forms.js';
 import { getSharepicVorlage } from '../../../../services/sharepicVorlagen/catalog.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -29,6 +33,7 @@ import {
   asksForAlternative,
   createCreatorSharepic,
   firstSlideText,
+  reviewHint,
   reviseCreatorSharepic,
 } from '../sharepicCreatorVariant.js';
 import { photosForTurn } from '../sharepicTurnPhotos.js';
@@ -206,7 +211,10 @@ export async function runSharepicGeneration(opts: {
     );
 
     let variant: SharepicVariant;
+    // What the browser's review checks the rendered sharepic against: the person's words.
+    let review: SharepicChatReview;
     if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
+      review = { brief: refinement.instruction, mode: 'edit' };
       const { photos, bericht } = await safePhotosForTurn(state, refinement.prior.props);
       variant = await reviseCreatorSharepic({
         instruction: refinement.instruction,
@@ -241,7 +249,12 @@ export async function runSharepicGeneration(opts: {
           : topicText;
       // Form and slide count come from the person's words, never the planner's rewrite.
       const ownWords = refinement?.instruction ?? opts.request ?? messageText;
-      const form = namedSharepicForm(ownWords);
+      // A follow-up like "mach daraus ein Sharepic" names no subject: the resolved topic goes along.
+      const order = ownWords.trim();
+      review = {
+        brief: !order || order === topicText ? topicText : `${order}\n\nThema: ${topicText}`,
+        mode: 'draft',
+      };
       // „Eine andere Variante“ keeps the design of the draft it replaces; an
       // active Grüne Jugend role drafts in the GJ design unless named otherwise.
       const brand = avoid
@@ -257,15 +270,21 @@ export async function runSharepicGeneration(opts: {
         locale,
         brand,
         userId: state.agentConfig?.userId ?? null,
-        form,
-        // "Eine andere Variante" of a carousel may stay one.
-        oneSlide: wantsOneSlide(ownWords, form) && !(avoid && avoid.slides.length > 1),
+        request: ownWords,
+        // The chip's own request is a pick; anything typed is read by the creator.
+        form: sharepicAlternativeForm(ownWords),
+        // An open count is one slide — but "eine andere Variante" of a carousel may stay one.
+        oneSlide: !(avoid && avoid.slides.length > 1),
         vorlage,
         photos,
         photoBericht: bericht,
       });
     }
-    sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
+    sse.send('sharepic_complete', {
+      message: 'Sharepic entworfen',
+      variants: [variant],
+      ...reviewHint(review),
+    });
     return { variants: [variant], failure: null };
   } catch (error) {
     if (error instanceof DraftFailedError) {

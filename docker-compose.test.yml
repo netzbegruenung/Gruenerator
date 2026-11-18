@@ -30,6 +30,7 @@ services:
       - REDIS_URL=redis://host.docker.internal:6379
     volumes:
       - api-uploads:/app/apps/api/uploads
+      - system-media:/app/apps/api/uploads/system-media
       - api-logs:/app/apps/api/logs
     networks:
       - gruenerator
@@ -91,6 +92,7 @@ services:
 
 volumes:
   api-uploads:
+  system-media:
   api-logs:
 
 networks:

@@ -227,6 +227,19 @@ describe('canvas.replacePages', () => {
     expect(updateCanvas).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['a newer document', 'CanvasDocumentNewerError', 409, 'CANVAS_DOCUMENT_NEWER'],
+    ['a value that cannot be stored', 'CanvasStateUnwritableError', 400, 'CANVAS_STATE_UNWRITABLE'],
+  ])('answers %s with %i and its code, not a generic 500', async (_n, errorClass, status, code) => {
+    const errors = await import('../../services/canvas/canvasWriteErrors.js');
+    const Refused = errors[errorClass as 'CanvasDocumentNewerError'];
+    applyDeckChanges.mockRejectedValue(new Refused('c1'));
+    const res = await replace({ pages, format: 'post-portrait-tall' });
+    expect(res.status).toBe(status);
+    expect(res.body).toMatchObject({ code });
+    expect(updateCanvas).not.toHaveBeenCalled();
+  });
+
   it('does not look up the format when none is sent', async () => {
     await replace({ pages });
     expect(formatChangeCrossesCategory).not.toHaveBeenCalled();

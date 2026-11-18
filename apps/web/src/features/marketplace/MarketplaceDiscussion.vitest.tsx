@@ -121,7 +121,7 @@ describe('MarketplaceDiscussion', () => {
       <MarketplaceDiscussion target={target} item={recipe} canModerate={false} />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Gefällt mir (4)' }));
+    await user.click(screen.getByRole('button', { name: 'Gefällt mir, 4' }));
     await waitFor(() => expect(like).toHaveBeenCalledWith('recipe', 'recipe-fremdes-rezept'));
   });
 

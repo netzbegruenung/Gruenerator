@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-wahlprogramm-brandenburg'
 title: 'Wahlprogramm Brandenburg'
-description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg'
+description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg. Nutzen, wenn gefragt wird, was das Programm in Brandenburg zu einem Thema sagt.'
 iconKey: 'PiFlowerLight'
 avatar: '📘'
 backgroundColor: '#316049'

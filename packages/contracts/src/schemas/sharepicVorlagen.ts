@@ -29,6 +29,7 @@ import {
   sharepicThemaSchema,
   themaOfColor,
   type SharepicFormat,
+  type SharepicSpec,
 } from './sharepicCreator.js';
 
 export const sharepicVorlageIdSchema = z.string().regex(/^[a-z0-9-]{3,64}$/);
@@ -122,6 +123,15 @@ export const sharepicSeiteSchema = sharepicSeiteFileEntrySchema.extend({
   thumbVersion: z.string().optional(),
 });
 export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
+
+/** A Seite as a one-slide spec in `format`: what composes it, and what a draft revises. */
+export const sharepicSeiteSpec = (seite: SharepicSeite, format: SharepicFormat): SharepicSpec => ({
+  locale: seite.locale,
+  ...(seite.brand ? { brand: seite.brand } : {}),
+  format,
+  ...(seite.thema ? { thema: seite.thema } : {}),
+  slides: [seite.slide],
+});
 
 /**
  * Grünerator-Blöcke: one or two slide items (a list on its card, a quote, a
@@ -380,6 +390,14 @@ export const sharepicVorlageThumbPath = (id: string, seite = 1, version?: string
 /** The change request that fills a Vorlage's spec with new content (studio copy and chat). */
 export const vorlageFillPrompt = (beitrag: string): string =>
   `Übertrage den Inhalt dieses Beitrags in das Sharepic. Behalte Form, Layout, Farben und Seitenzahl bei, ersetze nur die Texte (und passende Fotos), kürze auf das Wesentliche:\n\n${beitrag}`;
+
+/**
+ * The change request that turns a Seite into the next page of a design: its
+ * text continues what the pages so far say („Mit KI hinzufügen" in the page
+ * picker). `deck` is that text, page by page.
+ */
+export const nextSeitePrompt = (deck: string): string =>
+  `Diese Seite kommt als nächste Seite an ein bestehendes Sharepic-Karussell. Schreibe ihre Texte so, dass sie den Gedanken der bisherigen Seiten weiterführt: ein neuer Punkt, keine Wiederholung, im Ton der anderen Seiten. Behalte Form, Layout, Farben und die eine Seite bei, ersetze nur die Texte (und passende Fotos). Die bisherigen Seiten:\n\n${deck}`;
 
 /**
  * The chat's `vorlagen_vorschlagen` result: catalogue Vorlagen picked for the

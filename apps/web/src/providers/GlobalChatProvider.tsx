@@ -2,6 +2,7 @@ import {
   GrueneratorChatProvider,
   TooltipProvider,
   preloadChatRuntime,
+  type ChatConfig,
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
@@ -31,6 +32,7 @@ import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { getDesktopToken } from '../utils/desktopAuth';
+import { getDevBypassUserId } from '../utils/devBypassUser';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
 /**
@@ -50,6 +52,12 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
     const token = await getDesktopToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     return fetch(resolveApiAssetUrl(url), { ...options, headers });
+  }
+  const devUser = getDevBypassUserId();
+  if (devUser) {
+    const headers = new Headers(options?.headers);
+    headers.set('x-dev-auth-user', devUser);
+    return fetch(url, { ...options, headers, credentials: 'include' });
   }
   return fetch(url, { ...options, credentials: 'include' });
 };
@@ -157,8 +165,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   // Router access for the chat package — the thread list opens a thread by
   // navigating to its URL, which works the same on /chat and off it.
   const handleChatNavigate = useCallback(
-    (path: string, opts?: { replace?: boolean }) => {
-      void navigate(path, { replace: opts?.replace ?? false });
+    (path: string, opts?: { replace?: boolean; state?: unknown }) => {
+      void navigate(path, {
+        replace: opts?.replace ?? false,
+        ...(opts?.state != null ? { state: opts.state } : {}),
+      });
     },
     [navigate]
   );
@@ -215,6 +226,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(
           initialProps
         ),
+      reviewSharepic: async (input: Parameters<NonNullable<ChatConfig['reviewSharepic']>>[0]) =>
+        (await import('../features/image-studio/freitext/creatorRender')).reviewChatSharepic(input),
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
         // Already a real canvas document → open it directly.

@@ -134,9 +134,18 @@ describe('headline line limit counts what the slide shows', () => {
 });
 
 describe('a request for one sharepic', () => {
-  const needs = (form: string) => ({
+  const needs = (form: string, folien = 'offen', form_bestellt = false) => ({
     ok: true,
-    data: { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [], form, alternativen: [] },
+    data: {
+      land: 'de-DE',
+      anlass: [],
+      kapitel: [],
+      fotos_suchen: [],
+      form,
+      form_bestellt,
+      folien,
+      alternativen: [],
+    },
   });
   const three = { slides: [slide(['Eins']), slide(['Zwei']), slide(['Drei'])] };
 
@@ -199,5 +208,60 @@ describe('a request for one sharepic', () => {
         return Promise.resolve({ ok: false, error: 'stop' });
       });
     return draftSharepic('Karussell zur Mitgliederwerbung', 'de-DE').catch(() => null);
+  });
+
+  const withFlag = (prompt: string) =>
+    draftSharepic(prompt, 'de-DE', null, [], {}, null, prompt, null, null, true);
+
+  it('keeps a carousel the person asks for several slides of, flag or not', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs('karussell', 'mehrere'))
+      .mockImplementationOnce((call: { prompt: string; validate: (i: unknown) => unknown }) => {
+        expect(call.prompt).toContain('Form: Karussell');
+        expect(call.prompt).toContain('eine Slide oder ein Karussell');
+        expect((call.validate(three) as { ok: boolean }).ok).toBe(true);
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    await withFlag('Mach drei Slides zur Mitgliederwerbung').catch(() => null);
+    expect(aiObject.mock.calls[1]).toBeDefined();
+  });
+
+  it('keeps a carousel the person ordered, even with the count left open', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs('karussell', 'offen', true))
+      .mockImplementationOnce((call: { prompt: string }) => {
+        expect(call.prompt).toContain('Form: Karussell');
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    await withFlag('Karussell zur Mitgliederwerbung').catch(() => null);
+    expect(aiObject.mock.calls[1]).toBeDefined();
+  });
+
+  it('holds the Studio to one slide when the person asks for one', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs('karussell', 'eine'))
+      .mockImplementationOnce((call: { prompt: string; validate: (i: unknown) => unknown }) => {
+        expect(call.prompt).toContain('Form: Einzelbild');
+        expect(call.prompt).toContain('genau eine Slide');
+        expect((call.validate(three) as { ok: boolean; error: string }).error).toContain(
+          'genau eine Slide'
+        );
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    await draftSharepic('Nur ein einziges Bild: Danke an alle Helfer*innen', 'de-DE').catch(
+      () => null
+    );
+    expect(aiObject.mock.calls[1]).toBeDefined();
+  });
+
+  it('leaves an open count to the Studio model without the flag', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs('einzelbild', 'offen'))
+      .mockImplementationOnce((call: { prompt: string }) => {
+        expect(call.prompt).toContain('eine Slide oder ein Karussell');
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    await draftSharepic('Sharepic zur Mitgliederwerbung', 'de-DE').catch(() => null);
+    expect(aiObject.mock.calls[0]![0].prompt).not.toContain('Ist folien "offen"');
   });
 });

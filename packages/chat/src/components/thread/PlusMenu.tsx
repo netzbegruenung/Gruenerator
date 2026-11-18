@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
+import { useRecipeLibrary } from '../../hooks/useRecipeLibrary';
 import {
   COMPOSER_MODES_TITLE,
   COMPOSER_TOOLS,
@@ -62,7 +63,6 @@ import {
   composerToolbarButtonClass,
 } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 
@@ -134,7 +134,8 @@ export const PlusMenu = memo(function PlusMenu({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isCompact = useChatDensity() === 'compact';
-  const favorites = useSkillFavoritesStore((s) => s.favorites);
+  const { items: libraryItems } = useRecipeLibrary();
+  const favorites = libraryItems.filter((i) => i.kind === 'recipe').map((i) => i.ref.toLowerCase());
   // Own agents and learned recipes were reachable only via typeahead before.
   const allQuickSkills = quickSkillMentionables(favorites);
   const creationItems = creationMentionables();

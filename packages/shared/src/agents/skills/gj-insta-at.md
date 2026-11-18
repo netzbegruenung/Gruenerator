@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-at'
 title: 'Insta Grüne Jugend'
-description: 'Instagram-Post im Stil der Grünen Jugend Österreich'
+description: 'Instagram-Post im Stil der Grünen Jugend Österreich, direkt und jugendlich. Nutzen statt des Insta-Österreich-Rezepts, wenn für die Grüne Jugend in Österreich geschrieben wird.'
 iconKey: 'PiInstagramLogo'
 avatar: '🍃'
 backgroundColor: '#005424'

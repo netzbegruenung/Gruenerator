@@ -270,9 +270,7 @@ export const INTERMEDIATE_LANES = {
    *
    * Dazu ZWEI Konstanten, die die Stufe weiterreichen und beim Zählen leicht
    * übersehen werden: `LANE` in `services/ai/lanes.ts` (bedient `image_picker`,
-   * `antrag_question_generation`, `antrag_qa_summary`, `gruenerator_ask`,
-   * `gruenerator_ask_grundsatz`) und `LANE` in
-   * `services/providers/providerSelector.ts` als Durchfall-Default.
+   * `gruenerator_ask`, `gruenerator_ask_grundsatz`).
    *
    * Eine gerissene Sperre liefert `null`, der Turn fällt auf Tier 4 durch und
    * zahlt den 27k-Zeichen-Prompt — die Quote, die die Dispositions-Serie
@@ -293,7 +291,7 @@ export const INTERMEDIATE_LANES = {
    *
    * Dazu kommt, was keine Messung ist, aber zählt: Gemma 4 ist das
    * produktionserprobteste Modell im System — es bedient bereits alle
-   * `TEXT_TYPES` und den Synth-Slot des Chat-Loops. Die Stufe zieht auf
+   * Text-Lanes und den Synth-Slot des Chat-Loops. Die Stufe zieht auf
    * denselben Host, bleibt in derselben Fallback-Kette, und hat als einziger
    * Kandidat einen gemessenen Energie-Koeffizienten (0,722 mWh/Ausgabe-Token),
    * womit `heavy` in der CO₂-Übersicht überhaupt erst auftaucht.
@@ -354,11 +352,9 @@ export const INTERMEDIATE_LANES = {
    * als Ganzes gesund ist. Der Preis der MoE-Ablösung: sie antwortete
    * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
-   * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
-   * weist `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
-   * cortecsRequestPolicy.ts es bewusst nicht führt. Es denkt von sich aus
-   * nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne
-   * jeden Parameter), die Falle unten greift hier also nicht.
+   * KEIN Denk-Pin für dieses Modell: über Cortecs denkt es ohne Vorgabe nicht
+   * (Messreihe in openAiReasoningStream.ts), die Falle unten greift hier also
+   * nicht.
    *
    * MUSS MITKOMMEN, wenn diese Stufe je wieder ein DENKENDES Modell fährt: der
    * Client braucht dann einen erzwungenen `reasoning_effort: 'none'`

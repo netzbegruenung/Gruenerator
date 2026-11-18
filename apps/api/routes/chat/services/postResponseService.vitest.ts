@@ -37,6 +37,11 @@ vi.mock('../../../services/chat/threadRecallEmbeddingService.js', () => ({
   upsertThreadRecallPoint: vi.fn(async () => undefined),
 }));
 
+const notifyTeamChatTurn = vi.fn(async () => undefined);
+vi.mock('../../../services/notifications/groupChatNotifications.js', () => ({
+  notifyTeamChatTurn,
+}));
+
 vi.mock('./attachmentPersistenceService.js', () => ({
   saveThreadAttachment,
   embedThreadAttachmentForRag,
@@ -447,5 +452,41 @@ describe('loop door persists what the single-pass spec would', async () => {
 
     expect(setThreadToolContext).toHaveBeenCalledWith('thread-1', expected);
     expect(finalizeAssistantMessage.mock.calls[0]![2]).toMatchObject(metadata);
+  });
+});
+
+describe('persistAssistantResponse — team chat notification', () => {
+  const turn = (extra: Record<string, unknown>) =>
+    persistAssistantResponse({
+      threadId: 'thread-1',
+      userId: 'user-1',
+      fullText: 'Die Antwort.',
+      finalState,
+      classifiedState: finalState,
+      generatedImage: null,
+      sharepicVariants: [],
+      isNewThread: false,
+      lastUserMessage: { role: 'user', content: 'x' },
+      processedMeta: [],
+      requestId: 'r1',
+      pendingMessageId: 'pending-1',
+      ...extra,
+    });
+
+  beforeEach(() => notifyTeamChatTurn.mockClear());
+
+  it('notifies once a human message was written this turn', async () => {
+    await turn({ userMessageId: 'um-1' });
+    expect(notifyTeamChatTurn).toHaveBeenCalledWith({ threadId: 'thread-1', senderId: 'user-1' });
+  });
+
+  it('stays silent when no user message was written (regenerate)', async () => {
+    await turn({});
+    expect(notifyTeamChatTurn).not.toHaveBeenCalled();
+  });
+
+  it('does not notify from the resume path', async () => {
+    await persistResumedResponse(base);
+    expect(notifyTeamChatTurn).not.toHaveBeenCalled();
   });
 });

@@ -11,9 +11,10 @@ import { eq } from 'drizzle-orm';
 import { type Request, type Response, type NextFunction } from 'express';
 
 import { auth, SESSION_COOKIE_PREFIX, type BetterAuthUser } from '../config/betterAuth.js';
-import { DEV_BYPASS_USER_ID } from '../config/devAuthBypass.js';
+import { DEV_BYPASS_USER_ID, pickDevBypassUserId } from '../config/devAuthBypass.js';
 import { env } from '../config/env.js';
 import { ba_sessions } from '../database/schema/auth.js';
+import { profiles } from '../database/schema/core.js';
 import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { getUserLocale, LOCALE_UNSET } from '../services/localization/localeCache.js';
 import { isAdminByEmail } from '../utils/adminEmails.js';
@@ -271,6 +272,31 @@ function maybeLogResolveNull(
   })();
 }
 
+/** Second dev identity: a real, seeded profile row; null when it is missing. */
+async function loadDevExtraUser(id: string): Promise<Express.User | null> {
+  try {
+    const rows = await getDrizzleInstance()
+      .select({ id: profiles.id, email: profiles.email, display_name: profiles.display_name })
+      .from(profiles)
+      .where(eq(profiles.id, id))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      log.warn('[DevBypass] profile %s not found — run scripts/seed-dev-group-chat.ts', id);
+      return null;
+    }
+    return {
+      ...DEV_BYPASS_USER,
+      id: row.id,
+      email: row.email ?? DEV_BYPASS_USER.email,
+      display_name: row.display_name ?? DEV_BYPASS_USER.display_name,
+    };
+  } catch (err) {
+    log.warn('[DevBypass] profile lookup failed: %s', (err as Error).message);
+    return null;
+  }
+}
+
 /**
  * Returned by `tryResolveUser` (via {@link ResolveResult} kind `'unavailable'`)
  * when the auth backend (Postgres/Redis) failed while resolving the session —
@@ -287,6 +313,11 @@ async function tryResolveUser(req: Request): Promise<ResolveResult> {
   ) {
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
     if (bypassToken && bypassToken === env.DEV_AUTH_BYPASS_TOKEN) {
+      const asUserId = pickDevBypassUserId(req.headers['x-dev-auth-user']);
+      if (asUserId !== DEV_BYPASS_USER_ID) {
+        const extra = await loadDevExtraUser(asUserId);
+        if (extra) return { kind: 'user', user: extra };
+      }
       return { kind: 'user', user: DEV_BYPASS_USER };
     }
   }

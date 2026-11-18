@@ -51,7 +51,8 @@ export const chatThreads = pgTable(
     share_mode: text('share_mode').notNull().default('private'),
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
-    last_mcp_server_id: uuid('last_mcp_server_id'),
+    // TEXT, not uuid: managed connectors are `system-<key>`.
+    last_mcp_server_id: text('last_mcp_server_id'),
     // Generalised tool memory: which tool family the last substantive turn used
     // ({kind, ref?, label?}) — injected into the classifier so vague follow-ups
     // route back to the same tool (mentions are stripped from message text).
@@ -144,6 +145,21 @@ export const chatThreadCanvases = pgTable('chat_thread_canvases', {
 });
 
 /**
+ * Thread-pinned refs of a team-chat member other than the owner (#5675): the
+ * owner keeps the columns on `chat_threads`. Mirrors
+ * `migrations/zz_20261116b_chat_thread_member_refs.sql`.
+ */
+export const chatThreadMemberRefs = pgTable('chat_thread_member_refs', {
+  thread_id: uuid('thread_id').notNull(), // FK → chat_threads.id (ON DELETE CASCADE)
+  user_id: uuid('user_id').notNull(), // FK → profiles.id (ON DELETE CASCADE)
+  cloud_file_refs: jsonb('cloud_file_refs').$type<{ wolke: unknown[]; connect: unknown[] }>(),
+  notebook_source_refs: jsonb('notebook_source_refs').$type<unknown[]>(),
+  mention_refs: jsonb('mention_refs'),
+  last_mcp_server_id: text('last_mcp_server_id'),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Maps chat threads to the subtitler projects ("reels") edited in them.
  * Written by the chat reel-edit branch, which was removed; the table is kept
  * as data (no code reads or writes it). Mirrors
@@ -163,3 +179,4 @@ export type ChatMessage = InferSelectModel<typeof chatMessages>;
 export type ChatThreadAttachment = InferSelectModel<typeof chatThreadAttachments>;
 export type ChatThreadCanvas = InferSelectModel<typeof chatThreadCanvases>;
 export type ChatThreadReel = InferSelectModel<typeof chatThreadReels>;
+export type ChatThreadMemberRefs = InferSelectModel<typeof chatThreadMemberRefs>;

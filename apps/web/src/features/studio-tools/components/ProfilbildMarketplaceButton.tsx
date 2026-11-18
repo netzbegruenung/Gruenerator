@@ -27,6 +27,8 @@ export function ProfilbildMarketplaceButton({
 }) {
   const [open, setOpen] = useState(false);
   const plural = STUDIO_ASSET_PLURAL[kind];
+  // WCAG 2.5.3: the visible label must be part of the accessible name.
+  const buttonLabel = label ? `${label}, ${plural} entdecken` : `${plural} entdecken`;
 
   return (
     <>
@@ -34,8 +36,8 @@ export function ProfilbildMarketplaceButton({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        aria-label={`${plural} entdecken`}
-        title={`${plural} entdecken`}
+        aria-label={buttonLabel}
+        title={buttonLabel}
         className={className}
       >
         <PiStorefront aria-hidden className="size-5 shrink-0" />

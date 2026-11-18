@@ -17,7 +17,11 @@ import { contentSyncSourceSchema } from './contentSync.js';
 export const monitorLocaleSchema = z.enum(['de', 'at']);
 export type MonitorLocale = z.infer<typeof monitorLocaleSchema>;
 
-/** The 13 fixed topic buckets. Matches `TopicCategory` in the API. */
+/**
+ * The fixed topic buckets the NLP service tags with (`TopicCategory` in
+ * services/nlp lexicons.py). F0: values are stored in Qdrant `themes` /
+ * `primary_topic` — add, never rename. The last eight came with #5670.
+ */
 export const topicCategorySchema = z.enum([
   'migration',
   'klima',
@@ -32,6 +36,14 @@ export const topicCategorySchema = z.enum([
   'justiz',
   'arbeit',
   'mobilitaet',
+  'wohnen',
+  'landwirtschaft',
+  'tierschutz',
+  'gleichstellung',
+  'demokratie',
+  'kultur',
+  'kommunales',
+  'partei',
 ]);
 export type TopicCategory = z.infer<typeof topicCategorySchema>;
 

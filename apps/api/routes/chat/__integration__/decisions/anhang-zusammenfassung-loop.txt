@@ -6,7 +6,6 @@
 ## turn 0: "fasse das pdf zusammen"
 router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=agentic isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
 router.intent_override           = (not reached)
-router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = (not reached)
 respond.answer_format            = brief                          complexity=simple intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none

@@ -24,8 +24,12 @@
  * Abarbeitungsplan und Zielstandard: docs/barrierefreiheit-audit-plan.md
  */
 
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, type Page } from '@playwright/test';
+import { type Spec } from 'axe-core';
 
 import { FIXTURE_BOARD_ID, installApiFixtures } from './fixtures/apiFixtures.js';
 
@@ -54,6 +58,26 @@ const BYPASS_AKTIV = process.env.VITE_E2E_AUTH_BYPASS === 'true';
  * „verstößt gegen WCAG" und „könnte schöner sein" unsichtbar.
  */
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+/**
+ * axe nimmt einen nicht-leeren `placeholder` als Namen eines Formularfelds hin
+ * (Prüfung `non-empty-placeholder`, nur von der Regel `label` benutzt). Für
+ * WCAG 2.2 SC 3.3.2/4.1.2 reicht das nicht: der Hinweis verschwindet beim
+ * Tippen und ist mobil oft zu knapp („Schreibe..." im Chat, #5530). Gespiegelt
+ * in den `test-utils` der jsdom-Lanes.
+ *
+ * `AxeBuilder` hat kein `configure()`; der Aufruf hängt deshalb hinter der
+ * axe-Quelle, die der Builder in jede Seite und jeden Frame injiziert.
+ */
+const PLATZHALTER_IST_KEIN_NAME: Spec = {
+  checks: [{ id: 'non-empty-placeholder', enabled: false }],
+};
+const AXE_SOURCE = `${readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')}
+;axe.configure(${JSON.stringify(PLATZHALTER_IST_KEIN_NAME)});`;
+
+function wcagAxe(page: Page): AxeBuilder {
+  return new AxeBuilder({ page, axeSource: AXE_SOURCE }).withTags(WCAG_TAGS);
+}
 
 /**
  * Die geprüften Routen. Bewusst die Einstiegsseiten der Hauptbereiche, nicht
@@ -455,7 +479,7 @@ ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
           // nicht mehr existieren.
           await page.waitForTimeout(500);
 
-          const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).include(overlay.scope);
+          const builder = wcagAxe(page).include(overlay.scope);
           if (overlay.disableRules.length) builder.disableRules(overlay.disableRules);
 
           const { violations } = await builder.analyze();
@@ -530,7 +554,7 @@ test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
         test(`${route} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
           await gotoAuthenticated(page, theme, route);
 
-          const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
+          const builder = wcagAxe(page);
           const known = bekannteAusnahmen(theme, route);
           if (known.length) builder.disableRules(known);
 
@@ -619,10 +643,7 @@ test.describe('Barrierefreiheit: Canvas-Editor', () => {
       await page.waitForTimeout(500);
 
       // `react-scan` ist ein Dev-Werkzeug des Vite-Servers, kein Teil des Produkts.
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(WCAG_TAGS)
-        .exclude('#react-scan-root')
-        .analyze();
+      const { violations } = await wcagAxe(page).exclude('#react-scan-root').analyze();
       expect(
         violations.map((v) => ({
           rule: v.id,

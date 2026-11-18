@@ -1,9 +1,8 @@
 import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
-import { Button, toast } from '@gruenerator/ui';
-import { type QueryClient } from '@tanstack/react-query';
-import { Rocket, RotateCcw, Trash2 } from 'lucide-react';
+import { Button, Switch, toast } from '@gruenerator/ui';
+import { Rocket, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
   PiBriefcase,
@@ -15,33 +14,18 @@ import {
   PiSun,
   PiTextT,
 } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import VoicePicker from '../../voice/components/VoicePicker';
-import { AccountIdentityRow, DeleteAccountSection } from '../components/AccountSection';
+import SegmentedControl from '../components/SegmentedControl';
 import SettingsRow from '../components/SettingsRow';
+import SettingsSection from '../components/SettingsSection';
 import { useSettingsDialogStore } from '../settingsDialogStore';
 import { useOnboarding } from '../useOnboarding';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
-import { QUERY_KEYS } from '@/features/auth/hooks/useProfileData';
-import { profileApiService } from '@/features/auth/services/profileApiService';
 import { resetAllTours } from '@/features/tours/tourState';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
-import { cn } from '@/utils/cn';
-
-// Die Kontozeile ganz oben liest das Profil — vorwärmen, damit sie beim Öffnen
-// schon steht statt kurz zu pulsieren.
-export const prefetch = (queryClient: QueryClient) => {
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) return;
-  void queryClient.prefetchQuery({
-    queryKey: QUERY_KEYS.profile(userId),
-    queryFn: profileApiService.getProfile,
-    staleTime: 15 * 60 * 1000,
-  });
-};
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: IconType }[] = [
   { value: 'light', label: 'Hell', icon: PiSun },
@@ -49,9 +33,9 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: IconType }[]
   { value: 'system', label: 'System', icon: PiDesktop },
 ];
 
-const LOCALE_OPTIONS: { value: SupportedLocale; flag: string; label: string }[] = [
-  { value: 'de-DE', flag: '🇩🇪', label: 'Deutsch (Deutschland)' },
-  { value: 'de-AT', flag: '🇦🇹', label: 'Deutsch (Österreich)' },
+const LOCALE_OPTIONS: { value: SupportedLocale; label: string }[] = [
+  { value: 'de-DE', label: 'Deutsch (Deutschland)' },
+  { value: 'de-AT', label: 'Deutsch (Österreich)' },
 ];
 
 const START_PAGE_OPTIONS: { value: StartPage; label: string; icon: IconType }[] = [
@@ -76,81 +60,52 @@ const GeneralTab = () => {
   const updateTtsVoice = useAuthStore((s) => s.updateTtsVoice);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
   const updateFeedbackButton = useAuthStore((s) => s.updateFeedbackButton);
+  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
+  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
+  const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
   const setTab = useSettingsDialogStore((s) => s.setTab);
   const { isActive: isOnboarding, restart: restartOnboarding } = useOnboarding();
 
   return (
-    <div className="flex flex-col gap-lg">
-      <div className="-mt-4 divide-y divide-grey-200 dark:divide-grey-800">
-        <AccountIdentityRow />
-
+    <div className="flex flex-col gap-8">
+      <SettingsSection title="Darstellung">
         <SettingsRow id="allgemein.aussehen">
-          <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
-            {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setThemePreference(value)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-                  themePreference === value
-                    ? 'bg-background-alt font-medium text-foreground'
-                    : 'text-grey-500 hover:text-foreground'
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Aussehen"
+            value={themePreference}
+            onChange={setThemePreference}
+            options={THEME_OPTIONS.map(({ value, label, icon: Icon }) => ({
+              value,
+              label,
+              icon: <Icon aria-hidden className="size-4" />,
+            }))}
+          />
         </SettingsRow>
 
-        {/* An instance that pins its locale offers no switch: the other
-            country's notebooks, agents and recipes are not deployed there, so
-            switching would empty the app rather than translate it. */}
-        {pinnedLocale === null && (
-          <SettingsRow id="allgemein.sprache">
-            <div className="flex gap-xxs">
-              {LOCALE_OPTIONS.map(({ value, flag, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => void updateLocale(value)}
-                  className={cn(
-                    'flex size-8 items-center justify-center rounded-md text-lg transition-all',
-                    locale === value
-                      ? 'bg-primary-500/10 opacity-100'
-                      : 'opacity-40 hover:opacity-70'
-                  )}
-                  aria-label={label}
-                  title={label}
-                >
-                  {flag}
-                </button>
-              ))}
-            </div>
-          </SettingsRow>
-        )}
-
         <SettingsRow id="allgemein.startseite">
-          <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
-            {START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => void updateStartPage(value)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-                  startPage === value
-                    ? 'bg-background-alt font-medium text-foreground'
-                    : 'text-grey-500 hover:text-foreground'
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Startseite"
+            value={startPage}
+            onChange={(value) => void updateStartPage(value)}
+            options={START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => ({
+              value,
+              label,
+              icon: <Icon aria-hidden className="size-4" />,
+            }))}
+          />
+        </SettingsRow>
+
+        <SettingsRow id="allgemein.feedbackButton">
+          <SegmentedControl
+            aria-label="Feedback-Button"
+            value={feedbackButton}
+            onChange={(value) => void updateFeedbackButton(value)}
+            options={FEEDBACK_BUTTON_OPTIONS.map(({ value, label, icon: Icon }) => ({
+              value,
+              label,
+              icon: <Icon aria-hidden className="size-4" />,
+            }))}
+          />
         </SettingsRow>
 
         <SettingsRow id="allgemein.stimme">
@@ -159,28 +114,43 @@ const GeneralTab = () => {
             onChange={(voice) => void updateTtsVoice(voice === DEFAULT_TTS_VOICE_ID ? null : voice)}
           />
         </SettingsRow>
+      </SettingsSection>
 
-        <SettingsRow id="allgemein.feedbackButton">
-          <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
-            {FEEDBACK_BUTTON_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => void updateFeedbackButton(value)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-                  feedbackButton === value
-                    ? 'bg-background-alt font-medium text-foreground'
-                    : 'text-grey-500 hover:text-foreground'
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
-          </div>
+      {/* An instance that pins its locale offers no switch: the other
+          country's notebooks, agents and recipes are not deployed there, so
+          switching would empty the app rather than translate it. */}
+      {pinnedLocale === null && (
+        <SettingsSection title="Region">
+          <SettingsRow id="allgemein.sprache">
+            <SegmentedControl
+              aria-label="Sprache und Region"
+              value={locale}
+              onChange={(value) => void updateLocale(value)}
+              options={LOCALE_OPTIONS}
+            />
+          </SettingsRow>
+        </SettingsSection>
+      )}
+
+      <SettingsSection title="Bedienungshilfen">
+        <SettingsRow id="barrierefreiheit.animationen">
+          <Switch
+            checked={reduceMotion}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
+            aria-label="Animationen reduzieren"
+          />
         </SettingsRow>
 
+        <SettingsRow id="barrierefreiheit.transparenz">
+          <Switch
+            checked={reduceTransparency}
+            onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
+            aria-label="Transparenz und Unschärfe reduzieren"
+          />
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Einführung">
         {/* Nur, wenn die Einrichtung nicht ohnehin offen ist: eine Zeile, die
             einen Bereich zurückholt, der zwei Zentimeter weiter oben in der
             Seitenleiste steht, ist eine Schaltfläche ohne Wirkung. */}
@@ -213,22 +183,7 @@ const GeneralTab = () => {
             Zurücksetzen
           </Button>
         </SettingsRow>
-
-        <SettingsRow id="allgemein.papierkorb">
-          <Button
-            asChild
-            variant="outline"
-            onClick={() => useSettingsDialogStore.getState().close()}
-          >
-            <Link to="/papierkorb">
-              <Trash2 aria-hidden="true" className="mr-xs h-4 w-4" />
-              Öffnen
-            </Link>
-          </Button>
-        </SettingsRow>
-      </div>
-
-      <DeleteAccountSection />
+      </SettingsSection>
     </div>
   );
 };

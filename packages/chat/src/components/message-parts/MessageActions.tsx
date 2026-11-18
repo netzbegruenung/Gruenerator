@@ -21,6 +21,7 @@ import {
   FileDown,
   FileText,
   Headphones,
+  BookPlus,
   Lightbulb,
   Loader2,
   Mail,
@@ -35,11 +36,13 @@ import { HiOutlineDocumentText } from 'react-icons/hi';
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
+import { useMayReplaceTurn } from '../../hooks/useMayReplaceTurn';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
 import {
   buildDocumentActions,
   canCreateExplainable,
+  canSaveAsRecipe,
   filenameFromDisposition,
   messageTitle,
   type DocumentActionId,
@@ -96,6 +99,7 @@ export const MessageActions = memo(function MessageActions({
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);
+  const mayReplaceTurn = useMayReplaceTurn();
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -105,6 +109,7 @@ export const MessageActions = memo(function MessageActions({
   const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
   const nav = useChatNavigation();
   const offerExplainable = useExplainableActionEnabled();
+  const messageRole = useAuiState((s) => s.message.role);
   const persistedMessageId = useAuiState((s) => {
     const id = (s.message.metadata?.custom as { persistedMessageId?: unknown } | undefined)
       ?.persistedMessageId;
@@ -274,6 +279,11 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /** The answer rides along as navigation state; the creator drafts the recipe from it. */
+  const handleSaveAsRecipe = () => {
+    nav?.navigate('/agentura/rezept/neu', { state: { fromAnswer: { text: content } } });
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
@@ -283,6 +293,12 @@ export const MessageActions = memo(function MessageActions({
       readOnly,
     }),
     canCreatePodcast: Boolean(getPodcastUrl) && !readOnly,
+    canSaveAsRecipe: canSaveAsRecipe({
+      role: messageRole,
+      text: content,
+      hasNavigation: Boolean(nav),
+      readOnly,
+    }),
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -292,6 +308,10 @@ export const MessageActions = memo(function MessageActions({
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
     explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
     podcast: { icon: <Headphones className="h-3.5 w-3.5" />, run: handleCreatePodcast },
+    recipe: {
+      icon: <BookPlus className="h-3.5 w-3.5" />,
+      run: () => Promise.resolve(handleSaveAsRecipe()),
+    },
   };
 
   /**
@@ -371,7 +391,7 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      {!readOnly && canReload && (
+      {!readOnly && canReload && mayReplaceTurn && (
         <button
           onClick={handleRegenerate}
           className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"

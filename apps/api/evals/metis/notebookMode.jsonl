@@ -1,0 +1,50 @@
+{"id": "nb-01", "text": "Was sagt das Wahlprogramm zur Verkehrswende?", "label": "chat"}
+{"id": "nb-02", "text": "Wie viele Dokumente liegen in diesem Notebook?", "label": "praezision"}
+{"id": "nb-03", "text": "Wie oft kommt das Wort Klimaneutralität vor?", "label": "praezision"}
+{"id": "nb-04", "text": "Fass die Beschlüsse zum Wohnungsbau zusammen", "label": "chat"}
+{"id": "nb-05", "text": "Lies mir Seite 12 des Haushaltsplans vor", "label": "praezision"}
+{"id": "nb-06", "text": "Wie viele Mitglieder hat der Kreisvorstand?", "label": "chat"}
+{"id": "nb-07", "text": "In welchen Dokumenten steht die Formulierung 'sozial-ökologische Transformation'?", "label": "praezision"}
+{"id": "nb-08", "text": "Welche Dokumente äußern sich zum Radverkehr?", "label": "chat"}
+{"id": "nb-09", "text": "Steht im Koalitionsvertrag wörtlich 'Tempo 30 innerorts'?", "label": "praezision"}
+{"id": "nb-10", "text": "Wie viel Prozent der Fläche sollen für Windkraft ausgewiesen werden?", "label": "chat"}
+{"id": "nb-11", "text": "Vergleiche die Positionen zu Kitagebühren in beiden Programmen", "label": "chat"}
+{"id": "nb-12", "text": "Zeig mir Kapitel 4 des Antrags", "label": "praezision"}
+{"id": "nb-13", "text": "Sortiere die Quellen nach Datum", "label": "praezision"}
+{"id": "nb-14", "text": "Bis wann soll die Stadt klimaneutral sein?", "label": "chat"}
+{"id": "nb-15", "text": "Welche Argumente gibt es gegen das Parkraumkonzept?", "label": "chat"}
+{"id": "nb-16", "text": "Liste alle Dateien im Notebook auf", "label": "praezision"}
+{"id": "nb-17", "text": "Welches Dokument ist das neueste?", "label": "praezision"}
+{"id": "nb-18", "text": "Erklär mir den Antrag zur Wärmeplanung einfach", "label": "chat"}
+{"id": "nb-19", "text": "und die zweite?", "label": "praezision", "history": [{"role": "user", "content": "Wie oft steht 'Bürgerrat' in den Protokollen von 2025?", "answerMode": null}, {"role": "assistant", "content": "Das Wort 'Bürgerrat' kommt in 4 Protokollen vor: 12× im Protokoll vom März, 3× im Mai …", "answerMode": "praezision"}]}
+{"id": "nb-20", "text": "noch genauer bitte", "label": "chat", "history": [{"role": "user", "content": "Was sagt das Wahlprogramm zur Verkehrswende?", "answerMode": null}, {"role": "assistant", "content": "Das Programm setzt auf den Ausbau des ÖPNV, sichere Radwege und Tempo 30 in Wohngebieten …", "answerMode": "chat"}]}
+{"id": "nb-21", "text": "Wie hoch ist der Etat für Jugendarbeit?", "label": "chat"}
+{"id": "nb-22", "text": "Prüfe, ob das Zitat 'Wir lassen niemanden zurück' so im Programm steht", "label": "praezision"}
+{"id": "nb-23", "text": "Was steht im Abschnitt 3.2 des Positionspapiers?", "label": "praezision"}
+{"id": "nb-24", "text": "Welche Beschlüsse gibt es zum Thema Schulsanierung?", "label": "chat"}
+{"id": "nb-25", "text": "Wie viele Seiten hat das Wahlprogramm?", "label": "praezision"}
+{"id": "nb-26", "text": "Was fordern die Grünen beim Nahverkehr?", "label": "chat"}
+{"id": "nb-27", "text": "Gib mir die ersten drei Absätze des Positionspapiers wörtlich", "label": "praezision"}
+{"id": "nb-28", "text": "Welche Haltung hat der Landesverband zu Atomkraft?", "label": "chat"}
+{"id": "nb-29", "text": "weiter", "label": "praezision", "history": [{"role": "user", "content": "Lies mir Seite 12 des Haushaltsplans vor", "answerMode": null}, {"role": "assistant", "content": "Seite 12, Einzelplan 05 – Kultur: Ansatz 2026 1,2 Mio. € …", "answerMode": "praezision"}]}
+{"id": "nb-30", "text": "Wie viele Ladesäulen will die Stadt bis 2030 bauen?", "label": "chat"}
+{"id": "ho-01", "text": "Wie oft wird 'Ehrenamt' erwähnt?", "label": "praezision"}
+{"id": "ho-02", "text": "Was ist die Kernaussage des Leitantrags?", "label": "chat"}
+{"id": "ho-03", "text": "Welche Quellen habe ich hochgeladen?", "label": "praezision"}
+{"id": "ho-04", "text": "Wie viele Euro sind für Radwege eingeplant?", "label": "chat"}
+{"id": "ho-05", "text": "Lies Seite 3 vom Protokoll aus dem März", "label": "praezision"}
+{"id": "ho-06", "text": "Welche Positionen gibt es zur Grundsteuer?", "label": "chat"}
+{"id": "ho-07", "text": "Kommt der Begriff 'Verkehrswende' im Programm von 2021 überhaupt vor?", "label": "praezision"}
+{"id": "ho-08", "text": "und was sagt das andere Dokument dazu?", "label": "chat", "history": [{"role": "user", "content": "Was sagt das Wahlprogramm zur Verkehrswende?", "answerMode": null}, {"role": "assistant", "content": "Das Programm setzt auf den Ausbau des ÖPNV, sichere Radwege und Tempo 30 in Wohngebieten …", "answerMode": "chat"}]}
+{"id": "ho-09", "text": "Welches Dokument ist das älteste?", "label": "praezision"}
+{"id": "ho-10", "text": "Was bedeutet Konnexität im Haushaltsantrag?", "label": "chat"}
+{"id": "h2-01", "text": "Welche Position hat das Programm zum Ehrenamt?", "label": "chat"}
+{"id": "h2-02", "text": "Wie viele PDFs sind im Notebook?", "label": "praezision"}
+{"id": "h2-03", "text": "Fasse das Positionspapier zur Wärmewende zusammen", "label": "chat"}
+{"id": "h2-04", "text": "Wie oft taucht 'Bürgerbeteiligung' im Leitantrag auf?", "label": "praezision"}
+{"id": "h2-05", "text": "Was kostet laut Haushalt die Sanierung des Hallenbads?", "label": "chat"}
+{"id": "h2-06", "text": "Lies mir Kapitel 2 des Wahlprogramms vor", "label": "praezision"}
+{"id": "h2-07", "text": "und das dritte?", "label": "praezision", "history": [{"role": "user", "content": "Liste alle Protokolle aus 2025 auf", "answerMode": null}, {"role": "assistant", "content": "1. Protokoll Januar 2025\n2. Protokoll März 2025\n3. Protokoll Juni 2025", "answerMode": "praezision"}]}
+{"id": "h2-08", "text": "was heißt das konkret für Eltern?", "label": "chat", "history": [{"role": "user", "content": "Was sagt der Leitantrag zur Kita-Finanzierung?", "answerMode": null}, {"role": "assistant", "content": "Der Leitantrag will die Elternbeiträge schrittweise abschaffen …", "answerMode": "chat"}]}
+{"id": "h2-09", "text": "Steht der Satz 'Klimaschutz ist Menschenschutz' genau so im Programm?", "label": "praezision"}
+{"id": "h2-10", "text": "Welche Argumente nennt der Antrag für mehr Radwege?", "label": "chat"}

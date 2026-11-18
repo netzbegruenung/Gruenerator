@@ -17,6 +17,7 @@
 
 import { userTextFormsContract } from '@gruenerator/contracts';
 import { landesverbandIdsForRoles } from '@gruenerator/shared/agents';
+import { shareLinkKey } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -28,6 +29,7 @@ import {
   deleteTextForm,
   getTextFormSharing,
   listMentionableTextForms,
+  getLinkedTextForm,
   listPublicTextForms,
   listTextForms,
   shareTextFormWithGroup,
@@ -145,6 +147,27 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     }
   },
 
+  resolveLink: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const key = shareLinkKey(args.params.slug);
+      const linked = key ? await getLinkedTextForm(key, userId) : null;
+      if (!linked) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, ...linked } };
+    } catch (error) {
+      log.error('[userTextFormsContract.resolveLink] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: toUserFacingMessage(error as Error) },
+      };
+    }
+  },
+
   save: async (args) => {
     try {
       const user = getAuthedUser(args.req);
@@ -157,6 +180,9 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         mention: args.params.mention,
         requestedKind: body.kind,
         textType: body.textType,
+        existing: (await listTextForms(userId)).some(
+          (f) => !f.sharedFromGroup && f.mention === normalizeTextFormMention(args.params.mention)
+        ),
         lvIds: landesverbandIdsForRoles(
           await loadUserRoles(userId),
           user.locale ?? extractLocaleFromRequest(args.req)
@@ -179,6 +205,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         // damit bei jedem Speichern (#3472). Ein `null` im Body leert weiter.
         description: body.description,
         iconKey: body.iconKey,
+        category: body.category,
       });
       return { status: 200 as const, body: { success: true, form } };
     } catch (error) {
@@ -195,7 +222,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
       if (!deleted) {
         return {
           status: 404 as const,
-          body: { success: false, message: 'Textform nicht gefunden.' },
+          body: { success: false, message: 'Rezept nicht gefunden.' },
         };
       }
       return { status: 200 as const, body: { success: true } };
@@ -286,7 +313,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
           body: {
             success: false,
             message:
-              'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann in Agentura listen.',
+              'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann im Marktplatz listen.',
           },
         };
       }
@@ -320,6 +347,14 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         return {
           status: 404 as const,
           body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      // Ohne Recht im Projekt fügt das Repository still nichts ein und gibt die
+      // alte Liste zurück — derselbe Befund wie in `confirmController`.
+      if (!shares.some((s) => s.groupId === args.body.group_id)) {
+        return {
+          status: 403 as const,
+          body: { success: false, message: 'Mit diesem Projekt darfst du nicht teilen.' },
         };
       }
       return { status: 200 as const, body: { success: true, sharedWithGroups: shares } };

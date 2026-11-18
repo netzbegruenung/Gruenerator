@@ -1,6 +1,6 @@
 /**
  * „Werkzeuge freigeben": zwei Fallen, die das Review gefunden hat — eine
- * `system-…`-ID darf nicht als 500 am uuid-Cast sterben, und das Freigeben
+ * `system-…`-ID ohne Zeile darf nicht als 500 am uuid-Cast sterben, und das Freigeben
  * darf eine gerade gesetzte „Aus"-Stufe nicht wieder löschen.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -13,7 +13,9 @@ vi.mock('../../utils/logger.js', () => ({
 const approveTools = vi.fn();
 vi.mock('../../services/mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
-    isManagedId: (id: string) => id.startsWith('system-'),
+    // A `system-…` alias without a row resolves to nothing (never connected).
+    resolveServerId: (_u: string, id: string) =>
+      Promise.resolve(id.startsWith('system-') ? null : id),
     approveTools: (...a: unknown[]) => approveTools(...a),
   },
 }));
@@ -39,7 +41,7 @@ describe('POST /api/mcp/servers/:id/approve-tools', () => {
     revokeStandingAllow.mockReset().mockResolvedValue(undefined);
   });
 
-  it('answers 404 for a managed connector id without touching the database', async () => {
+  it('answers 404 for a known-connector alias without a row, without approving', async () => {
     const res = await approve('system-wetter');
     expect(res.status).toBe(404);
     expect(approveTools).not.toHaveBeenCalled();

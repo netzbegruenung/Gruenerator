@@ -226,7 +226,7 @@ describe('NotebookOverviewPage', () => {
     );
     const { user } = renderAt('/notebooks/mecklenburg-vorpommern/uebersicht');
 
-    await user.click(await screen.findByRole('button', { name: /^Sicherheit: 8 %, im Aufwind/ }));
+    await user.click(await screen.findByRole('button', { name: /^Sicherheit im Aufwind: 8 %/ }));
 
     expect(screen.getByTestId('chat')).toHaveTextContent('/notebooks/mecklenburg-vorpommern');
     expect(useNotebookStore.getState().activeFilters['mecklenburg-vorpommern-system']).toEqual({

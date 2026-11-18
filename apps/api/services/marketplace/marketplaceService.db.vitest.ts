@@ -383,14 +383,14 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
     expect(await publicRefs('template', 'de-DE', { sort: 'neu' })).toEqual([quiet, liked]);
   });
 
-  it('never lists catalogue recipes, but keeps a saved one under „gespeichert“', async () => {
+  it('lists catalogue recipes everywhere, and keeps a saved one under „gespeichert“', async () => {
     const official = (r: Awaited<ReturnType<typeof list>>) =>
       r.sections.find((s) => s.kind === 'recipe')!.items.filter((i) => i.origin === 'offiziell');
-    expect(official(await list({ kinds: 'agent,recipe' }))).toEqual([]);
-    expect(official(await list({ kinds: 'recipe' }))).toEqual([]);
-    expect(official(await list({ kinds: 'agent,recipe', q: 'presse' }))).toEqual([]);
-
     const mention = (await ctx().officialCatalog()).generalSkills[0]!.mention;
+    expect(official(await list({ kinds: 'agent,recipe' })).length).toBeGreaterThan(0);
+    expect(official(await list({ kinds: 'recipe' })).length).toBeGreaterThan(0);
+    expect(official(await list({ kinds: 'recipe', scope: 'saved' }))).toEqual([]);
+
     expect(await setSaved(ctx(), 'recipe', mention, true)).toEqual({
       ok: true,
       value: { saved: true },

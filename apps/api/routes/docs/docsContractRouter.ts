@@ -38,11 +38,14 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
-import {
-  assertCanShareToGroup,
-  listShareTargetGroups,
-} from '../../services/groups/groupMembership.js';
+import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
+import {
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+  setGroupSharePermissions,
+} from '../../services/groups/groupShareWriter.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
@@ -271,15 +274,12 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
-      const result = (await db.query(
-        `DELETE FROM group_content_shares
-         WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2
-         RETURNING id`,
-        [id, groupId]
-      )) as unknown[];
-      if (result.length === 0)
-        return { status: 404 as const, body: { error: 'Group share not found' } };
-      void closeCollabRooms([id]);
+      const removed = await removeGroupShare({
+        groupId,
+        contentType: 'collaborative_documents',
+        contentId: id,
+      });
+      if (!removed) return { status: 404 as const, body: { error: 'Group share not found' } };
 
       return {
         status: 200 as const,
@@ -481,35 +481,30 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
+      // Own notification below (title + preview), so the writer's stays off.
+      let created: boolean;
       try {
-        await assertCanShareToGroup(group_id, userId);
-      } catch {
+        ({ created } = await addGroupShare({
+          userId,
+          groupId: group_id,
+          contentType: 'collaborative_documents',
+          contentId: id,
+          permissions: { read: true, write: effectiveLevel === 'editor' },
+          notify: false,
+        }));
+      } catch (error) {
+        if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
           body: { error: 'You are not allowed to share with this group' },
         };
       }
-
-      const existing = (await db.query(
-        `SELECT id FROM group_content_shares
-         WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2`,
-        [id, group_id]
-      )) as { id: string }[];
-
-      if (existing.length > 0) {
+      if (!created) {
         return {
           status: 409 as const,
           body: { error: 'Document is already shared with this group' },
         };
       }
-
-      const permissions = { read: true, write: effectiveLevel === 'editor' };
-
-      await db.query(
-        `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-         VALUES ('collaborative_documents', $1, $2, $3, $4)`,
-        [id, group_id, userId, JSON.stringify(permissions)]
-      );
 
       // Fire-and-forget: notify group members
       const sharerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
@@ -570,20 +565,15 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
-      const permissions = { read: true, write: permission_level === 'editor' };
-
-      const result = await db.query(
-        `UPDATE group_content_shares
-         SET permissions = $1
-         WHERE content_type = 'collaborative_documents' AND content_id = $2 AND group_id = $3
-         RETURNING id`,
-        [JSON.stringify(permissions), id, groupId]
-      );
-
-      if (!result || (result as unknown[]).length === 0) {
+      const updated = await setGroupSharePermissions({
+        groupId,
+        contentType: 'collaborative_documents',
+        contentId: id,
+        permissions: { read: true, write: permission_level === 'editor' },
+      });
+      if (!updated) {
         return { status: 404 as const, body: { error: 'Group share not found' } };
       }
-      void closeCollabRooms([id]);
 
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };
     } catch (error) {

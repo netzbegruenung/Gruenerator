@@ -21,14 +21,12 @@ import { type z } from 'zod';
 import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
-  getCollectionDefaultFilter,
-  getFacetCountFilter,
   offersChoice,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import { facetDateRange, facetValueCounts } from '../../services/notebook/collectionFacets.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { getNotebookOverview } from '../../services/notebook/notebookOverviewService.js';
 import {
@@ -131,23 +129,6 @@ export const notebookContractRouter = s.router(notebookContract, {
       const cached = await getCachedJson(cacheKey, notebookFiltersResponseSchema);
       if (cached) return { status: 200 as const, body: cached };
 
-      const qdrant = getQdrantInstance();
-      await qdrant.init();
-
-      const defaultFilter = getCollectionDefaultFilter(collectionId);
-      const baseFilter = defaultFilter
-        ? {
-            must: [
-              {
-                key: defaultFilter.field,
-                match: Array.isArray(defaultFilter.value)
-                  ? { any: defaultFilter.value }
-                  : { value: defaultFilter.value },
-              },
-            ],
-          }
-        : null;
-
       type FilterField = z.infer<typeof notebookFiltersResponseSchema>['filters'][string];
       let complete = true;
       // Independent facet queries — one round trip's worth of wait, not one per field.
@@ -156,11 +137,7 @@ export const notebookContractRouter = s.router(notebookContract, {
           try {
             const fieldType = field.type as string;
             if (fieldType === 'date_range') {
-              const { min, max } = await qdrant.getDateRange(
-                systemConfig.qdrantCollection,
-                field.field,
-                baseFilter
-              );
+              const { min, max } = await facetDateRange(systemConfig, field.field);
               return [
                 field.field,
                 {
@@ -171,12 +148,7 @@ export const notebookContractRouter = s.router(notebookContract, {
                 },
               ];
             }
-            const valuesWithCounts = await qdrant.getFieldValueCounts(
-              systemConfig.qdrantCollection,
-              field.field,
-              50,
-              getFacetCountFilter(collectionId)
-            );
+            const valuesWithCounts = await facetValueCounts(systemConfig, field.field);
             return [
               field.field,
               {

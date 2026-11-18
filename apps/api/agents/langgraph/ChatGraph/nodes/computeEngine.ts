@@ -11,6 +11,8 @@
  * can degrade gracefully rather than surface a wrong number.
  */
 
+import { grepText } from '../../../../services/notebook/sourceGrep.js';
+
 import type { ComputePayload, ComputeEntry } from '@gruenerator/contracts';
 
 export type ComputeResult = ComputePayload;
@@ -270,6 +272,69 @@ export function computeArithmeticBatch(checks: readonly ArithmeticCheck[]): Comp
         : `${wrong} von ${checked} geprüften Angaben ${wrong === 1 ? 'ist' : 'sind'} falsch.`;
 
   return { operation: checks.length > 1 ? 'Angaben prüfen' : 'Berechnung', entries, summary };
+}
+
+// ── Term counts ───────────────────────────────────────────────────────────────
+
+/** One literal term to count. `label` names the group ("Januar"), `phrase` is what stands in the text ("01.2027"). */
+export interface TermCount {
+  label: string | null;
+  phrase: string;
+}
+
+/**
+ * A plan writes the month of "07.01.2027" as ".01.2027" as readily as
+ * "01.2027". `grepText` wants a word boundary before the match, and the "7"
+ * in front of that dot is a digit — the edge separator would turn every hit
+ * into a silent 0. Only date separators go; "·" or a quote is a deliberate
+ * part of the phrase.
+ */
+function trimDateSeparators(phrase: string): string {
+  return phrase.trim().replace(/^[./-]+|[./-]+$/g, '');
+}
+
+/**
+ * "01" for January counted days, times and running numbers too: 31 instead of
+ * 25 in a live run of the plan (09.11.2026). A bare one- or two-digit number
+ * never names one group, so it is dropped — a missing row is visibly
+ * incomplete, a wrong count is not. "2027" or "01.2027" stay.
+ */
+const BARE_SMALL_NUMBER = /^\d{1,2}$/;
+
+/**
+ * How often each term occurs in a text — "Termine pro Monat", "wie oft kommt
+ * X vor". One row per term, so a grouped count is ONE call instead of one
+ * `wortsuche` per group (the per-date pattern that tripped `near_duplicate`,
+ * #5493). Before this the plan had no operation for it, said `unsupported`,
+ * and the loop retried until `failure_cap` (#5499).
+ *
+ * Counted with `grepText`, the matcher of `dokumente_lesen` wortsuche, so both
+ * tools give the same number for the same term: whole words, case and
+ * diacritics ignored. Literal only — "wie viele davon sind Demos" counts the
+ * word, not the meaning; that limit is stated in the tool description.
+ */
+export function computeTermCounts(text: string, terms: readonly TermCount[]): ComputeResult | null {
+  const usable = terms
+    .map((t) => ({ label: t.label, phrase: trimDateSeparators(t.phrase) }))
+    .filter((t) => t.phrase.length >= 2 && !BARE_SMALL_NUMBER.test(t.phrase));
+  if (usable.length === 0) return null;
+
+  const rows = usable.map((t) => {
+    const phrase = t.phrase;
+    const label = t.label?.trim();
+    const quoted = `„${phrase}"`;
+    return {
+      short: label || quoted,
+      label: label && label !== phrase ? `${label} (${quoted})` : quoted,
+      count: grepText(text, phrase, { contexts: 0 }).count,
+    };
+  });
+
+  return {
+    operation: 'Vorkommen zählen',
+    entries: rows.map((r) => ({ label: r.label, value: fmt(r.count) })),
+    summary: `Wörtlich gezählt: ${rows.map((r) => `${r.short} ${fmt(r.count)}`).join(', ')}.`,
+  };
 }
 
 // ── Unit conversion ───────────────────────────────────────────────────────────

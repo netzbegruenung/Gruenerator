@@ -1,8 +1,8 @@
 /**
  * Which model answers which kind of request.
  *
- * One registry, replacing an if/else chain of ~23 `type === '…'` comparisons in
- * `services/providers/providerSelector.ts`. Same decisions, readable as a table:
+ * One registry. It replaced an if/else chain of ~23 `type === '…'` comparisons
+ * (`providerSelector.ts`, deleted). Same decisions, readable as a table:
  * you can see at a glance that every sharepic lane is Mistral Medium and every
  * legislative lane is verdigado, which was the point of the chain and was the
  * one thing it did not show.
@@ -15,12 +15,14 @@
  * problem this file exists to reduce. `generate.ts` composes the two.
  *
  * NOT a `z.enum` in `packages/contracts`: lane ids never cross the wire. Routes
- * derive them from their own configuration, never from a request body. The one
- * neighbour that IS wire-facing — the playground's explicit provider/model — is
- * an override and keeps its existing contract schema.
+ * derive them from their own configuration, never from a request body.
  */
 
-import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_MELIOUS_SPEED,
+  GEMMA_31B_PRIMARY,
+} from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { MELIOUS_WIDE_MODEL } from './meliousThinkingFetch.js';
 
@@ -49,9 +51,26 @@ const MISTRAL_LARGE = 'mistral-large-4';
  *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
  *  überlebt den nächsten Wechsel als 404. */
 const GEMMA_4 = GEMMA_31B_PRIMARY.model;
-/** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
- *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
- *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
+/**
+ * Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
+ * routes/chat/agents/providers.ts). PDF, Präsentation, Sheet und Dokument laufen
+ * darauf statt auf Mistral.
+ *
+ * Gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
+ * (langes PDF, 14-Folien-Deck): Mistral Medium 3.5 rief das Tool in keinem Lauf
+ * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length`; der
+ * Text-Fallback in aiObject rettete 2 von 4 Läufen. Mit größerem Budget wurde es
+ * schlechter: 187 s bei 12.000 Tokens, 248 s bei 16.000, beide Male in
+ * Wiederholung degeneriert. gemma4 auf GreenPT ruft `create_pdf_document` /
+ * `create_presentation` sauber auf und terminiert: 10 von 10 gültig, 17–43 s.
+ *
+ * NICHT verallgemeinert: die anderen Struktur-Lanes sind ungemessen, und die
+ * Sharepics sitzen aus einem eigenen gemessenen Grund auf Mistral.
+ *
+ * Voraussetzung ist das größere Output-Budget in services/ai/config.ts: bei
+ * 4096 Tokens verliert ein abgeschnittener Tool-Call alles. Budget und Modell
+ * gehören hier zusammen.
+ */
 const GEMMA_4_GREENPT = 'gemma4';
 
 /**
@@ -87,7 +106,14 @@ export const AI_LANES = {
   // — Bundestags-Fragen (services/bundestag/qa): Plan der Suche, Lesen eines
   //   Dokumentfensters, Antwort aus den belegten Punkten. Gemma 4 wie die QA-Lanes.
   bundestag_plan: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
-  bundestag_read: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  //   `bundestag_read` auf `:speed` (Entscheidung 09.11.2026, #5581): dieselben Gewichte,
+  //   Median je Fenster 2,9 s statt 10,3 s, Summe über 7 Dokumente 78 s statt 238 s;
+  //   `:balanced` streute von 3 bis 78 s bei gleichen Tokens. Der Chat-Loop bleibt auf `:balanced`.
+  bundestag_read: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
   bundestag_answer: {
     provider: GEMMA_31B_PRIMARY.provider,
     model: GEMMA_4,
@@ -95,8 +121,7 @@ export const AI_LANES = {
   },
 
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
-  //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
-  //   services/providers/providerSelector.ts.
+  //   Grund im Synth-Slot des Chat-Loops.
   //
   //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
   //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Ausführungspfad
@@ -142,9 +167,7 @@ export const AI_LANES = {
   //   `doc_generation` liegt seit dem 03.08.2026 NICHT mehr auf Mistral: dort
   //   ruft Medium 3.5 das Tool gar nicht auf und läuft ins Token-Limit,
   //   während Gemma 4 auf GreenPT beides richtig macht. Messwerte und
-  //   Begründung bei ARTIFACT_MODEL in
-  //   services/providers/providerSelector.ts — der Tabelle, die auf dem
-  //   Artefakt-Pfad tatsächlich greift.
+  //   Begründung bei GEMMA_4_GREENPT oben.
   doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
@@ -173,16 +196,6 @@ export const AI_LANES = {
     structuredMode: 'tool',
   },
   image_picker: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
-  antrag_question_generation: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
-  antrag_qa_summary: {
     provider: LANE.provider,
     model: LANE.model,
     structuredMode: 'tool',

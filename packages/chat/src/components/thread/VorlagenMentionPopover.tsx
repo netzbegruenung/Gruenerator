@@ -65,6 +65,7 @@ export function VorlagenMentionPopover({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Vorlagen filtern…"
+              aria-label="Vorlagen filtern"
               className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
             />
           </div>

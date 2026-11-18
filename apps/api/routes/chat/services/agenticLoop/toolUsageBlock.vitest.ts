@@ -141,13 +141,6 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
     expect(block).toMatch(/KEINE belegte Quelle/);
   });
 
-  it('ties the web_search scope rule to web_search itself', () => {
-    expect(buildToolUsageBlock(6, false, ['gruenerator_search'])).not.toMatch(
-      /SCOPE GEHÖRT IN DIE PARAMETER/
-    );
-    expect(buildToolUsageBlock(6, false, ['web_search'])).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
-  });
-
   it('drops the artifact rules when nothing can create an artifact', () => {
     expect(buildToolUsageBlock(6, false, SEARCHLESS)).not.toMatch(/MEHR ALS EIN Artefakt/);
     expect(buildToolUsageBlock(6, false, [...SEARCHLESS, 'create_board'])).toMatch(
@@ -159,7 +152,6 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
     // Omitting the list must never silently lose guidance.
     const block = buildToolUsageBlock(6, false);
     expect(block).toMatch(/interne Dokumentsuche/);
-    expect(block).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
     expect(block).toMatch(/MEHR ALS EIN Artefakt/);
   });
 

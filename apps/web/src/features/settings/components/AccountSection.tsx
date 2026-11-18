@@ -1,12 +1,10 @@
 /**
- * Das Konto in „Allgemein": eine Zeile zum Ansehen, ein Knopf zum Löschen.
+ * Das Konto: eine Zeile zum Ansehen, ein Knopf zum Löschen — beides im Reiter
+ * „Konto" (tabs/AccountTab.tsx).
  *
- * Beides stand vorher in einem eigenen Tab. Der bestand aber nur aus drei
- * schreibgeschützten Spiegeln des Grünen Logins — ein Reiter, hinter dem sich
- * nichts einstellen ließ. Die Identität ist damit zu einer einzigen Zeile
- * zusammengezogen (Name, Benutzername, E-Mail untereinander im Wertfeld), und
- * das Löschen sitzt am Ende von „Allgemein", getrennt von allem, was man
- * versehentlich anklickt.
+ * Die Identität ist zu einer einzigen Zeile zusammengezogen (Name,
+ * Benutzername, E-Mail untereinander im Wertfeld), und das Löschen sitzt am
+ * Ende, getrennt von allem, was man versehentlich anklickt.
  */
 import { Button, toast } from '@gruenerator/ui';
 import { useState, type ChangeEvent, type FormEvent } from 'react';

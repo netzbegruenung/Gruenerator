@@ -23,7 +23,9 @@ vi.mock('../BundestagMCPClient.js', () => ({ getBundestagMCPClient: () => ({}) }
 import {
   answerBundestagQuestion,
   bundestagFamily,
+  countBundestagDocs,
   planBundestagQuestion,
+  suggestBundestagRelaxations,
   readBundestagRefs,
   resetDipForTests,
 } from './index.js';
@@ -256,5 +258,44 @@ describe('readBundestagRefs: fokus', () => {
     });
     expect(m.readDocuments.mock.calls[0]![0].fokus).toBe('Artikel 3');
     expect(out.documents[0]!.fokusGefunden).toBe(false);
+  });
+});
+
+describe('Abbruchsignal des Aufrufs (#5570)', () => {
+  it('erreicht die DIP-Abfragen von Plan, Suche, Familie, Zählung und Lockerungen', async () => {
+    const ctrl = new AbortController();
+    const list = vi.fn().mockResolvedValue({ numFound: 0, cursor: null, documents: [] });
+    const dip = { list };
+    m.planFilters.mockResolvedValue({
+      filters: {},
+      keywords: [],
+      notes: [],
+      assumedWahlperiode: false,
+    });
+    m.findCandidates.mockResolvedValue({ candidates: [], totals: null, notes: [] });
+
+    await planBundestagQuestion({
+      question: 'q',
+      deps: { dip, mcp: deps.mcp, redis: null },
+      signal: ctrl.signal,
+    });
+    // Plan und Suche bekommen ein Dip, das `list` unter dem Signal ruft.
+    for (const call of [m.planFilters.mock.calls[0]![0], m.findCandidates.mock.calls[0]![0]]) {
+      await (call.dip as typeof dip).list('vorgang', {});
+    }
+    await bundestagFamily('21/9', { dip, mcp: deps.mcp }, ctrl.signal);
+    await (m.findCandidates.mock.calls[1]![0].dip as typeof dip).list('vorgang', {});
+    await countBundestagDocs({
+      filters: { wahlperiode: [21] },
+      deps: { dip },
+      signal: ctrl.signal,
+    });
+    await suggestBundestagRelaxations({
+      filters: { wahlperiode: [21], drucksachetyp: ['Antrag'] },
+      deps: { dip },
+      signal: ctrl.signal,
+    });
+    expect(list.mock.calls.length).toBeGreaterThanOrEqual(4);
+    for (const call of list.mock.calls) expect(call[2]).toBe(ctrl.signal);
   });
 });

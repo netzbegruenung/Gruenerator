@@ -1,6 +1,5 @@
 import {
   type ConnectorTestFile,
-  type ConnectorTestProvider,
   type ConnectorTestReadResponse,
   type ConnectorTestStatusResponse,
 } from '@gruenerator/contracts';
@@ -9,52 +8,15 @@ import { Button, Skeleton } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 
+import { connectInPopup, unwrap } from './connectorTestApi';
 import { pickGoogleFiles } from './googlePicker';
 
 const STATUS_KEY = ['connector-test-status'];
 
 type Provider = ConnectorTestStatusResponse['providers'][number];
 
-/**
- * Alles ausser 200 wird zum Fehler mit der Server-Meldung. Der Cast ist die
- * Grenzstelle: TS verengt einen generischen Union-Parameter nicht über `status`.
- */
-function unwrap<R extends { status: number; body: unknown }>(
-  result: R
-): Extract<R, { status: 200 }>['body'] {
-  if (result.status === 200) return result.body as Extract<R, { status: 200 }>['body'];
-  const body = result.body as { message?: string } | null;
-  throw new Error(body?.message ?? `HTTP ${result.status}`);
-}
-
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * Öffnet das Popup synchron im Klick (sonst blockt der Browser es), holt dann den
- * Connect-Link und wartet, bis das Fenster zu ist.
- */
-async function connectInPopup(provider: ConnectorTestProvider): Promise<void> {
-  const popup = window.open('', '_blank', 'width=600,height=720');
-  if (!popup) throw new Error('Popup wurde blockiert.');
-  try {
-    const { connectLink } = unwrap(
-      await getContractsClient().connectorTest.connect({ params: { provider } })
-    );
-    popup.location.href = connectLink;
-  } catch (err) {
-    popup.close();
-    throw err;
-  }
-  await new Promise<void>((resolve) => {
-    const timer = window.setInterval(() => {
-      if (popup.closed) {
-        window.clearInterval(timer);
-        resolve();
-      }
-    }, 500);
-  });
 }
 
 function Result({ ok, children }: { ok: boolean; children: ReactNode }) {

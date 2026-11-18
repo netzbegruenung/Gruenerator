@@ -2,9 +2,15 @@
 
 import { createContext, useContext } from 'react';
 
+/** `state` is the router's navigation state — read by the target page (`useLocation().state`). */
+export interface ChatNavigateOptions {
+  replace?: boolean;
+  state?: unknown;
+}
+
 export interface ChatNavigationContextValue {
   /** Navigate the host app to an in-app path. */
-  navigate: (path: string, opts?: { replace?: boolean }) => void;
+  navigate: (path: string, opts?: ChatNavigateOptions) => void;
   /** Current in-app pathname (host's `location.pathname`), if the host provides one. */
   activePath?: string;
 }

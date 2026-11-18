@@ -17,8 +17,10 @@ import type { ReferenceData, ReferencesMap } from './types.js';
  * "hochgeladen" — als "Datum" las das Modell sie als Beschluss- oder
  * Erscheinungsdatum des Dokuments.
  */
-export function sourceDatePart(ref: Pick<ReferenceData, 'date' | 'uploaded_at'>): string {
-  const dateLabel = formatDe(ref.date);
+export function sourceDatePart(
+  ref: Pick<ReferenceData, 'date' | 'date_precision' | 'uploaded_at'>
+): string {
+  const dateLabel = formatDe(ref.date, ref.date_precision ?? null);
   if (dateLabel) return `(Datum: ${dateLabel}) `;
   const uploadLabel = formatDe(ref.uploaded_at);
   return uploadLabel ? `(hochgeladen: ${uploadLabel}) ` : '';

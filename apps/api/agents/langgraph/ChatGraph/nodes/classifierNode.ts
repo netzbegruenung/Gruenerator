@@ -24,6 +24,7 @@ import {
   resolveNotebookCollections,
 } from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { ownedDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { recommendedToolsFor } from '../../../../routes/chat/agents/recipeCatalog.js';
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
@@ -42,6 +43,7 @@ import {
   offerTopic,
   QUESTION_EDITABLE_KINDS,
 } from '../../../../routes/chat/services/artifactOffer.js';
+import { presentsPasteOnly } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import {
   namedLoopArtifact,
   namesDocumentTarget,
@@ -347,10 +349,9 @@ function proseGoesToLoop(intent: string): boolean {
 }
 
 /**
- * Das Gegenstück zu `loopDemotedFromRetrieval`: ein Prosa-Verdikt, das nur in
- * den Loop gerutscht ist, behält sein Verdikt für die Modellwahl (Lane und
- * Denkstufe der Prosa-Zeile in `AUTO_POLICY`). Routing, Werkzeuge und
- * `forceFirstToolCall` sehen weiter `agentic`.
+ * Ein Prosa-Verdikt, das nur in den Loop gerutscht ist, behält sein Verdikt
+ * für die Modellwahl (Lane und Denkstufe der Prosa-Zeile in `AUTO_POLICY`).
+ * Routing und Werkzeuge sehen weiter `agentic`.
  */
 function proseOrigin(intent: SearchIntent): Partial<ChatGraphState> {
   return proseGoesToLoop(intent) ? { loopDemotedFromProse: intent } : {};
@@ -1504,18 +1505,26 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const defaultNotebookScopeCount =
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
+      // Auch das vorab geladene Rezept eines Ein-Rezept-Agenten zählt
+      // (Bürger*innenanfragen): es steht nicht in `activeSkillMention`, verlangt
+      // aber die Recherche — „Hier ist die Mail" bleibt dort eine Suche.
+      const turnRecipe =
+        state.activeSkillMention ??
+        (state.agentConfig ? ownedDefaultRecipeMention(state.agentConfig) : null);
       const recipeWantsSearch =
-        state.activeSkillMention != null &&
-        recommendedToolsFor(state.activeSkillMention, () => true).includes('gruenerator_search');
-      if (
-        (defaultNotebookScopeCount > 0 || recipeWantsSearch) &&
-        !reworksSuppliedText(state.lastUserTextNoMentions ?? userContent)
-      ) {
+        turnRecipe != null &&
+        recommendedToolsFor(turnRecipe, () => true).includes('gruenerator_search');
+      //
+      // Und nicht, wenn die Zeile den Paste nur vorstellt („Hier sind die
+      // Termine"): sie fragt nichts und bestellt nichts, die erzwungene Suche
+      // holte Programme zu einer Terminliste (#5484). Gilt nur fürs Notebook;
+      // ein Rezept mit Recherche sucht auch bei „Hier der Katalog:" weiter.
+      const typedForAttachment = state.lastUserTextNoMentions ?? userContent;
+      const notebookSearchWanted =
+        defaultNotebookScopeCount > 0 && !presentsPasteOnly(typedForAttachment);
+      if ((notebookSearchWanted || recipeWantsSearch) && !reworksSuppliedText(typedForAttachment)) {
         return classifyWithForcedSearch({
-          reason:
-            defaultNotebookScopeCount > 0
-              ? 'AttachmentDefaultNotebook'
-              : 'AttachmentResearchRecipe',
+          reason: notebookSearchWanted ? 'AttachmentDefaultNotebook' : 'AttachmentResearchRecipe',
           docCount: defaultNotebookScopeCount,
           userContent,
           conversationContext,
@@ -1641,9 +1650,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // eigene Rubrik) war nie das, wonach das Flag fragte.
         //
         // Die Textsorte trägt jetzt das Rezept: `examples` ist ein
-        // Einzeldurchlauf, und `deriveImplicitRecipeMention` wählt darauf
-        // `instagram`/`facebook`/… aus demselben Nutzertext, aus dem hier
-        // vorher `platform` gelesen wurde.
+        // Einzeldurchlauf, und die Rezeptwahl läuft über `rezept_laden` im
+        // Loop (oder per @-Erwähnung) statt über das Plattformwort, aus dem
+        // hier vorher `platform` gelesen wurde.
         log.info(
           `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → examples (Social-Auftrag)`
         );
@@ -1737,7 +1746,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const scopedServerId = matchMcpServerByName(userContent, servers);
       if (scopedServerId) {
         // `agentic` + Scope statt des stillgelegten `mcp` (#4043): Schleife,
-        // Montage und erzwungener erster Aufruf hängen am Scope.
+        // Montage und Werkzeug-Hinweis hängen am Scope.
         log.info('[Classifier] MCP prose routing → agentic + scope', { scope: scopedServerId });
         return {
           intent: 'agentic',
@@ -1789,9 +1798,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       } else {
         // Das Gitter bleibt, das Verdikt wechselt. Ein Social-Post ist eine
         // TEXTSORTE, keine Artefaktart: `produktion` ist der Einzeldurchlauf,
-        // auf dem `deriveImplicitRecipeMention` das Rezept (`instagram`,
-        // `facebook`, `twitter`, `linkedin`, `reel`) setzt — korpusgestützt,
-        // mit AT-Gabelung, mit angelerntem Stil und mit LV-Vorzug. Die
+        // auf dem das Rezept per @-Erwähnung kommt; im Loop wählt das Modell
+        // es über `rezept_laden` (korpusgestützt, mit AT-Gabelung, mit
+        // angelerntem Stil und mit LV-Vorzug). Die
         // eingebaute Rubrik des alten Zweigs widersprach den Rezepten messbar.
         //
         // Warum der Block überhaupt stehenbleibt, statt die Heuristik machen zu
@@ -2019,7 +2028,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // turn: without this the vague follow-up went to the LLM which picked
       // `direct` — the connector was never called (observed live). Re-scope to the
       // last connector via tc.ref so the explicit-scope mount runs (retry-on-
-      // missing + note + forced first call). Fires on an MCP-action verb, an
+      // missing + note). Fires on an MCP-action verb, an
       // anaphoric marker, OR a short IMPERATIVE continuation (a "do it" message
       // that is NOT a new knowledge question, a first-person comment, or
       // chitchat). Never hijacks a request to create one of our own artifacts.
@@ -2346,8 +2355,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Ein Dauerauftrag geht in die Schleife, nicht auf einen Intent: der Pin
-    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und benennt den
-    // ersten Werkzeugaufruf (`pinnedFirstTool`), so wie `@umfragen` es über die
+    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und kündigt das
+    // Werkzeug an (`buildPinnedToolNote`), so wie `@umfragen` es über die
     // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
     // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
     // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
@@ -2459,13 +2468,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
       const demoted: Partial<ChatGraphState> = {
         intent: 'agentic',
-        // The heuristic named a retrieval intent outright (web/search/examples/
-        // bundestag/…), as opposed to the `direct` + toolable-question case.
-        // Recorded because demotion otherwise DISCARDS that verdict: the turn
-        // goes to a planner that may call no tool at all, and "wer ist aktuell
-        // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
-        // steps=0 and the honesty note itself as the user-facing answer.
-        loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
         ...proseOrigin(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),

@@ -30,8 +30,14 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 vi.mock('../groups/groupMembership.js', () => ({ assertCanShareToGroup: canShare }));
 
-const { listMentionableTextForms, listTextForms, shareTextFormWithGroup } =
-  await import('./textFormRepository.js');
+const {
+  getLinkedTextForm,
+  getTextFormForInjection,
+  getTextFormForInjectionById,
+  listMentionableTextForms,
+  listTextForms,
+  shareTextFormWithGroup,
+} = await import('./textFormRepository.js');
 
 const FORM_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -75,6 +81,40 @@ describe('shareTextFormWithGroup', () => {
   it('changes nothing for a recipe that is not shareable', async () => {
     ownRows.push({ id: FORM_ID, kind: 'preset' });
     expect(await shareTextFormWithGroup('u1', 'mein-eigenes-rezept-3803', 'g1')).toBeNull();
+    expect(rawSql).toEqual([]);
+  });
+});
+
+/**
+ * "Mit Anmeldung" opens a recipe to whoever holds its link — and only that:
+ * by mention the same rule would hand a stranger's recipe to anyone typing the
+ * same `@name` (a mention is unique per owner).
+ */
+describe('link access ("Mit Anmeldung", not listed)', () => {
+  const LINK = "tf.share_mode = 'authenticated' AND tf.kind = 'custom' AND tf.moderation = 'ok'";
+
+  it('opens a recipe by its id', async () => {
+    await getTextFormForInjectionById(FORM_ID, 'u1');
+    expect(rawSql[0]).toContain('tf.id = $3::uuid');
+    expect(rawSql[0]).toContain(LINK);
+  });
+
+  it('never by mention — there only the listed rule applies', async () => {
+    await getTextFormForInjection('u1', 'einladung');
+    expect(rawSql[0]).toContain('tf.mention = $3');
+    expect(rawSql[0]).not.toContain(LINK);
+    expect(rawSql[0]).toContain('tf.is_public = TRUE');
+  });
+
+  it('resolves a share link by suffix, with the same visibility', async () => {
+    expect(await getLinkedTextForm({ slugSuffix: 'Ab3xK9' }, 'u1')).toBeNull();
+    expect(rawSql[0]).toContain('tf.slug_suffix = $3');
+    expect(rawSql[0]).toContain(LINK);
+    expect(rawSql[0]).toContain('tf.deleted_at IS NULL');
+  });
+
+  it('asks nothing for a malformed uuid', async () => {
+    expect(await getLinkedTextForm({ id: 'kein-uuid' }, 'u1')).toBeNull();
     expect(rawSql).toEqual([]);
   });
 });

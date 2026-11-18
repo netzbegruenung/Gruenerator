@@ -19,7 +19,7 @@ vi.mock('./registry.js', () => ({
   }),
 }));
 
-const { listMarketplace } = await import('./marketplaceService.js');
+const { listMarketplace, toSourceQuery } = await import('./marketplaceService.js');
 const { buildMarketplaceContext } = await import('./context.js');
 
 const ctx = buildMarketplaceContext({ userId: 'viewer', locale: 'de-DE', platform: 'mobile' });
@@ -49,5 +49,17 @@ describe('listMarketplace — kinds as the client’s capability declaration', (
     expect(await kindsOf({ kinds: [...SHIPPED_KINDS, 'notebook'].join(',') })).toContain(
       'notebook'
     );
+  });
+});
+
+describe('toSourceQuery — official recipes', () => {
+  it('lists official recipes without a scope', () => {
+    const query = marketplaceListQuerySchema.parse({ kinds: 'agent,recipe' });
+    expect(toSourceQuery(query).systemRecipes).toBe(true);
+  });
+
+  it('lists official recipes under scope saved', () => {
+    const query = marketplaceListQuerySchema.parse({ kinds: 'agent,recipe', scope: 'saved' });
+    expect(toSourceQuery(query).systemRecipes).toBe(true);
   });
 });

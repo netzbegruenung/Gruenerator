@@ -28,24 +28,33 @@
  * `SETTINGS_TAB_MAP` (apps/web … settings/SettingsRedirect.tsx) stehen — hier
  * verschwindet er.
  *
- * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen; die
- * Zeilen-ids `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei
- * davon über `getSettingsEntry`).
+ * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen und steht
+ * seit 17.11.2026 als „Bedienungshilfen" in `allgemein`; die Zeilen-ids
+ * `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei davon über
+ * `getSettingsEntry`). `konto` ist ein eigener Bereich (Grüner Login,
+ * Papierkorb, Konto löschen); die Zeilen-ids `allgemein.konto` und
+ * `allgemein.papierkorb` behalten ihren Namen.
+ *
+ * `baeume` ist in `nutzung` aufgegangen (das Kontingent steht über dem
+ * Verbrauch, der es aufbraucht); `tagesbriefing` ist dafür aus den Erinnerungen
+ * herausgezogen.
  */
 export type SettingsTab =
   | 'onboarding'
   | 'allgemein'
+  | 'konto'
   | 'hintergrund'
   | 'datenschutz'
   | 'friends'
   | 'personalisierung'
   | 'briefe'
   | 'erinnerungen'
+  | 'tagesbriefing'
   | 'benachrichtigungen'
   | 'wolke'
   | 'websites'
+  | 'antragsgruen'
   | 'konnektoren'
-  | 'baeume'
   | 'nutzung'
   | 'support';
 
@@ -78,7 +87,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     // irreversible and takes a typed confirmation, so it stays on the surface
     // the user sits down at; mobile points at it in prose.
     id: 'allgemein.konto',
-    tab: 'allgemein',
+    tab: 'konto',
     title: 'Konto',
     description:
       'Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert',
@@ -158,7 +167,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   },
   {
     id: 'barrierefreiheit.animationen',
-    tab: 'datenschutz',
+    tab: 'allgemein',
     title: 'Animationen reduzieren',
     description:
       'Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -166,7 +175,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   },
   {
     id: 'barrierefreiheit.transparenz',
-    tab: 'datenschutz',
+    tab: 'allgemein',
     title: 'Transparenz reduzieren',
     description:
       'Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -198,7 +207,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     // Web-only, und nur ein Einstieg: der Papierkorb ist eine eigene Seite
     // (/papierkorb), kein Bereich des Dialogs.
     id: 'allgemein.papierkorb',
-    tab: 'allgemein',
+    tab: 'konto',
     title: 'Papierkorb',
     description: 'Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen',
   },
@@ -217,8 +226,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet.',
   },
   {
-    id: 'erinnerungen.tagesbriefing',
-    tab: 'erinnerungen',
+    id: 'tagesbriefing.schalter',
+    tab: 'tagesbriefing',
     title: 'Tagesbriefing im Chat',
     platforms: BOTH,
     description:
@@ -261,8 +270,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   {
     // Web-only: der Fortschrittsbalken und die Newsletter-Karte sind eine
     // eigene Fläche, keine Zeile, wie bei der Nutzungsübersicht.
-    id: 'baeume.stand',
-    tab: 'baeume',
+    id: 'nutzung.baeume',
+    tab: 'nutzung',
     title: 'Bäume',
     description:
       'Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche',
@@ -273,7 +282,8 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     id: 'nutzung.uebersicht',
     tab: 'nutzung',
     title: 'Nutzung',
-    description: 'Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen',
+    description:
+      'Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen',
   },
   {
     // Web-only: die App hat keine Support-Fläche. Der Weg dorthin führt

@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg'
 title: 'PM Hamburg'
-description: 'Pressemitteilung im Stil Grüne Hamburg'
+description: 'Pressemitteilung im Stil der Grünen Hamburg. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Hamburg geschrieben wird.'
 iconKey: 'PiAnchor'
 avatar: '⚓'
 backgroundColor: '#316049'

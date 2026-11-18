@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit'
 title: 'Reel / TikTok'
-description: 'Reel- & TikTok-Skripte'
+description: 'Skripte für Reels und TikToks mit Hook, Szenen und Schlusssatz. Nutzen, wenn ein kurzes Video für Instagram oder TikTok geplant werden soll.'
 iconKey: 'PiTiktokLogo'
 avatar: '🎬'
 backgroundColor: '#316049'

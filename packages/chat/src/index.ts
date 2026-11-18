@@ -157,11 +157,17 @@ export {
   getThreadAgentId,
   getThreadAccessType,
   isThreadReadOnly,
+  isThreadTeamChat,
+  isThreadCollaborative,
+  markThreadTeamShared,
+  setThreadGroupId,
+  subscribeThreadTags,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
   subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { mayReplaceTurn } from './hooks/mayReplaceTurn';
 export { buildThreadPath } from './lib/threadPath';
 export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
@@ -251,6 +257,7 @@ export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
 export { AnswerModeChip } from './components/message-parts/AnswerModeChip';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
+export { RecipeStarters } from './components/thread/RecipeStarters';
 export {
   GrueneratorThreadListItem,
   GrueneratorArchivedThreadListItem,
@@ -397,19 +404,18 @@ export {
   useWolkeBrowseQuery,
   useConnectProvidersQuery,
   useConnectBrowseQuery,
-  useCanvaDesignsQuery,
+  MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,
   type ChatWolkeFile,
   type ChatConnectProvider,
   type ChatConnectFile,
-  type ChatCanvaDesign,
 } from './hooks/useMentionablesQuery';
 
 // Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
 // -Rezepte und -Notebooks eine Person überhaupt angeboten bekommt.
 export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
 
-// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// Typed-mention attachments (Wolke / Connect / web page) and draft
 // insertion. Shared so the recognition triple the backend keys on cannot drift
 // between platforms — see lib/mentionAttachments.ts.
 export {
@@ -417,8 +423,6 @@ export {
   buildConnectAttachment,
   buildWebpageAttachment,
   normalizeWebpageUrl,
-  canvaDesignsMarkdown,
-  appendToDraft,
   type MentionAttachment,
 } from './lib/mentionAttachments';
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
@@ -494,7 +498,6 @@ export {
   type DocMentionable,
   type WolkeFileToken,
   type ConnectFileToken,
-  type CanvaDesignToken,
 } from './lib/mentionables';
 export {
   slugifyMention,

@@ -9,7 +9,7 @@
  *     description and mention string per capability,
  *   - the agent tool picker (packages/shared … userTools.ts) — which capabilities
  *     a custom Grünerator can be given,
- *   - the first-party system MCP sources (apps/api … systemMcpServers.ts) — the
+ *   - the first-party system MCP sources (apps/api … connectorAdapters.ts) — the
  *     env-gated everyday sources (Bahn, Wetter, Nachrichten, Hotel).
  *
  * The docs article embeds this via <ChatCapabilities>, which pairs every intent
@@ -52,7 +52,7 @@ const SRC = {
   // read (see extractMentionables).
   chatIntents: 'packages/shared/src/chat-intents/index.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
-  systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
+  systemMcp: 'apps/api/services/mcp/connectorAdapters.ts',
   // INTENT_HANDLER_PATHS says how each intent is handled and flags the young
   // ones EXPERIMENTAL, which makes it a better source for "is this
   // experimental?" than the enum's free-floating comments.
@@ -362,7 +362,7 @@ function extractIntentMentions() {
  * Every mentionable literal (identifier + title + description). Covers the
  * non-intent mentionables that still live as literals — the artefact creators
  * (`board-erstellen`, `sheet-erstellen`, …) and the picker triggers (`@wolke`,
- * `@connect`, `@canva`, `@web`) — merged with the intent-backed `@tool` mentions
+ * `@connect`, `@web`) — merged with the intent-backed `@tool` mentions
  * from the registry. Agents merged in at runtime are not literals and are out of
  * scope (they have their own generated manifest via AgentTiles).
  */

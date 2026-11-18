@@ -8,9 +8,11 @@ import { aiText } from '../services/ai/generate.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
+import { webSearch, type WebSearchHit } from '../services/search/webSearch.js';
 
 import { getErrorMessage } from './errors/index.js';
 
+import type { RequestWithLocale } from '../services/localization/types.js';
 import type {
   EnrichmentOptions,
   EnrichedState,
@@ -26,7 +28,6 @@ import type {
   DocumentReference,
   WebSearchSource,
 } from './types/requestEnrichment.js';
-import type { RequestWithLocale } from '../services/localization/types.js';
 
 // Lazy import to avoid circular dependency issues
 const getQdrantDocumentService = async () => {
@@ -43,14 +44,34 @@ const getUrlCrawlerService = async () => {
   }
 };
 
-const getSearxngWebSearchService = async () => {
-  try {
-    const mod = await import('../services/search/index.js');
-    return mod.searxngService;
-  } catch (_) {
-    return null;
-  }
-};
+/** Answer the query from the search hits — the background the generator gets. */
+async function summarizeWebHits(hits: WebSearchHit[], query: string): Promise<string> {
+  const sources = hits
+    .slice(0, 8)
+    .map((hit, index) => {
+      const content =
+        hit.content.length > 300 ? hit.content.substring(0, 300) + '...' : hit.content;
+      return `${index + 1}. **${hit.title}** (${getUrlDomain(hit.url)})
+Inhalt: ${content}
+URL: ${hit.url}
+`;
+    })
+    .join('\n');
+
+  return aiText({
+    lane: 'web_search_summary',
+    prompt: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
+
+Frage/Anliegen: "${query}"
+
+Verfügbare Informationen:
+${sources}
+
+Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`,
+    maxOutputTokens: 8000,
+    temperature: 0.3,
+  });
+}
 
 /**
  * Main request enrichment class
@@ -392,7 +413,7 @@ class RequestEnricher {
     // Web search enrichment (if enabled)
     if (enableWebSearch && webSearchQuery) {
       enrichmentTasks.push(
-        this.performWebSearch(webSearchQuery)
+        this.performWebSearch(webSearchQuery, userLocale)
           .then((result) => ({
             type: 'websearch' as const,
             knowledge: result.knowledge,
@@ -703,48 +724,36 @@ class RequestEnricher {
   /**
    * Perform web search and generate summary
    */
-  async performWebSearch(searchQuery: string): Promise<WebSearchResult> {
-    const searxngService = await getSearxngWebSearchService();
-    if (!searxngService) {
-      console.log('🎯 [RequestEnricher] Web search skipped: service not available');
-      return { knowledge: [], sources: null };
-    }
-
+  async performWebSearch(searchQuery: string, locale: string): Promise<WebSearchResult> {
     try {
       console.log(`🎯 [RequestEnricher] Performing web search: "${searchQuery}"`);
 
-      const searchResults = await searxngService.performWebSearch(searchQuery);
-
-      if (!searchResults?.success) {
-        console.log('🎯 [RequestEnricher] Web search failed');
-        return { knowledge: [], sources: null };
-      }
+      const { hits } = await webSearch({
+        query: searchQuery,
+        maxResults: 10,
+        locale: locale === 'de-AT' ? 'de-AT' : 'de-DE',
+      });
 
       const knowledge: string[] = [];
-      let sources: WebSearchSource[] | null = null;
 
-      // Try to generate AI summary
-      try {
-        const summary = await searxngService.generateAISummary(searchResults, searchQuery, {});
-
-        if (summary?.summary?.generated && summary.summary.text) {
-          knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
+      if (hits.length > 0) {
+        try {
+          const summary = await summarizeWebHits(hits, searchQuery);
+          if (summary.trim()) knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.trim()}`);
+        } catch (summaryError) {
+          console.log('🎯 [RequestEnricher] AI summary failed:', getErrorMessage(summaryError));
         }
-      } catch (summaryError) {
-        console.log('🎯 [RequestEnricher] AI summary failed:', getErrorMessage(summaryError));
       }
 
-      // Extract source list for frontend
-      if (Array.isArray(searchResults.results)) {
-        sources = searchResults.results.slice(0, 10).map((r) => ({
-          title: r.title,
-          url: r.url,
-          domain: r.domain,
-        }));
-      }
+      // Source list for the frontend
+      const sources: WebSearchSource[] = hits.map((h) => ({
+        title: h.title,
+        url: h.url,
+        domain: getUrlDomain(h.url),
+      }));
 
       console.log(
-        `🎯 [RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources?.length || 0})`
+        `🎯 [RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources.length})`
       );
 
       return { knowledge, sources };

@@ -16,18 +16,22 @@
  * `last_tool_context` keeps only the newest, so without a list the older
  * artifact has no door at all.
  *
- * Shape follows `docsIntentTiebreak.ts` (and `queryRefineResolver.ts`):
- *   - Closed answer space — an index into a list the caller supplies.
+ * Shape follows `docsIntentTiebreak.ts`:
+ *   - Closed answer space — one decision-model option per artifact in the list
+ *     the caller supplies, plus "keines" (`aiDecide`: Clef Flash, Metis as hedge).
  *   - Hard timeout; this sits on the user's critical request path.
  *   - Fail-safe: any error, timeout or unusable output returns `null`, and the
  *     caller keeps today's behaviour (newest artifact / LLM tier).
- *   - `standard` intermediate stage + the existing generic `chat_intent_classification`
- *     task type, so it inherits the worker pool's provider fallback.
+ *
+ * Measured in `evals/metis` (`editTarget`, 32 cases × 2 runs, final run
+ * 2026-11-09): decision models 62/64, holdout 16/16, p90 197 ms; the former
+ * Mistral Small prompt 23/32 in that run (9 × `null` at the 900 ms budget, p50
+ * 746 ms) but 32/32 in the first run. Both models still send "Mach den Text
+ * größer" to the document when a sharepic is the newest artifact.
  */
 
-import { aiText } from '../../../../services/ai/generate.js';
+import { aiDecide, type ChoiceQuestion } from '../../../../services/ai/decide.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { withTimeout } from '../../../../utils/withTimeout.js';
 
 import { renderArtifactChoices } from './artifactInventory.js';
 
@@ -35,22 +39,56 @@ import type { ThreadToolContext } from '../types.js';
 
 const log = createLogger('ChatGraph:EditTarget');
 
-/** One word plus punctuation. The tiebreak's 800ms is the right order here. */
+/** Kept from the LLM version. `aiDecide` asks Metis after 400 ms, so a slow
+ *  Melious answer still fits. */
 const RESOLVE_TIMEOUT_MS = 900;
 
-// Die Liste und ihre Nomen stehen in `artifactInventory` — dieselbe Ordnung,
-// die das schreibende Modell im ARTEFAKTE-Block sieht. Das ist der Punkt: „2."
-// in der Antwort dieses Auflösers meint denselben Gegenstand, den der Schreiber
-// an zweiter Stelle gelesen hat. Solange beide ihre Liste selbst bauten, war
-// diese Übereinstimmung Zufall.
+// Die Nomen stehen in `artifactInventory` — dieselbe Ordnung, die das
+// schreibende Modell im ARTEFAKTE-Block sieht: Option „2" meint denselben
+// Gegenstand, den der Schreiber an zweiter Stelle gelesen hat.
 
-const RESOLVE_PROMPT = `Ein Gespräch hat mehrere Artefakte erzeugt. Der/die Nutzer*in schreibt jetzt einen kurzen Folgeauftrag. Entscheide, auf WELCHES Artefakt er sich bezieht.
+/**
+ * Woraus eine Artefaktart besteht. Ohne das verbanden beide Entscheidungsmodelle
+ * „die Kachel" oder „das Hintergrundbild" nicht mit dem Sharepic (Eval: 88 % →
+ * 97 %). Beschreibt die Option, entscheidet nichts.
+ */
+const ARTIFACT_PARTS: Record<ThreadToolContext['kind'], string> = {
+  image: 'ein Bild oder Foto ohne Text',
+  sharepic:
+    'eine Social-Media-Grafik: Text, Zitat oder Zahl auf Kacheln über einem Hintergrundbild',
+  document: 'ein Fließtext mit Überschrift, Einleitung, Absätzen und Begründung',
+  presentation: 'Folien',
+  sheet: 'eine Tabelle mit Zeilen, Spalten und Summen',
+  pdf: 'eine fertige Druckdatei, etwa ein Flyer',
+  explainable: 'eine Erklärseite in einfacher Sprache mit Erklärbildern',
+  board: 'ein Aufgaben-Board mit Spalten und Karten',
+  mcp: 'eine Abfrage bei einem Dienst',
+  notebook: 'eine Recherche in Notebooks',
+  bundestag: 'eine Bundestag-Recherche',
+  abgeordnetenwatch: 'eine Abgeordnetenwatch-Recherche',
+};
 
-Antworte NUR mit der Nummer aus der Liste.
+const NONE = 'keines';
 
-Antworte 0, wenn der Auftrag sich auf keines der Artefakte bezieht — eine neue Frage, ein neues Thema, ein eigenständiger Auftrag oder eine Bitte, nichts zu verändern.
-
-Im Zweifel 0.`;
+/** Options "1".."n" carry the same lines as the numbered list in the state. */
+function targetQuestion(artifacts: readonly ThreadToolContext[], list: string): ChoiceQuestion {
+  return {
+    type: 'choice',
+    instructions: 'Auf welches Artefakt bezieht sich der FOLGEAUFTRAG? Im Zweifel: keines.',
+    criteria: {
+      ...Object.fromEntries(
+        list
+          .split('\n')
+          .map((line, i) => [
+            String(i + 1),
+            `${line.replace(/^\d+\.\s*/, '')} – ${ARTIFACT_PARTS[artifacts[i]!.kind]}`,
+          ])
+      ),
+      [NONE]:
+        'keines: eine neue Frage, ein neues Thema, ein eigenständiger neuer Auftrag oder die Bitte, nichts zu ändern',
+    },
+  };
+}
 
 interface ResolveArgs {
   userContent: string;
@@ -73,20 +111,14 @@ export async function resolveEditTarget({
   const list = renderArtifactChoices(artifacts);
 
   try {
-    const response = await withTimeout(
-      aiText({
-        lane: 'chat_intent_classification',
-        pinned: 'standard',
-        system: RESOLVE_PROMPT,
-        prompt: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
-        maxOutputTokens: 8000,
-        temperature: 0,
-      }),
-      RESOLVE_TIMEOUT_MS,
-      'Edit target'
-    );
+    const { target } = await aiDecide({
+      label: 'EditTarget',
+      state: `ARTEFAKTE DIESES GESPRÄCHS (1 = zuletzt erzeugt):\n${list}\n\nFOLGEAUFTRAG:\n${userContent}`,
+      questions: { target: targetQuestion(artifacts, list) },
+      timeoutMs: RESOLVE_TIMEOUT_MS,
+    });
 
-    const index = parseIndex(response, artifacts.length);
+    const index = parseIndex(target.choice, artifacts.length);
     const elapsedMs = Date.now() - startTime;
     // Resolve the artifact before logging it. Reading `artifacts[index].kind`
     // straight out of the log template made the range check unfalsifiable: with
@@ -110,16 +142,13 @@ export async function resolveEditTarget({
 }
 
 /**
- * First integer in the answer, 1-based, converted to a 0-based index. `0` and
- * anything out of range mean "none" — a model that answers "3" for a two-item
- * list has not picked an artifact, and guessing on its behalf is how the wrong
- * one gets edited.
+ * The chosen option key, 1-based, as a 0-based index. "keines" and anything
+ * outside the list mean "none" — guessing on the model's behalf is how the
+ * wrong artifact gets edited.
  */
-function parseIndex(raw: string | undefined | null, count: number): number | null {
-  if (!raw) return null;
-  const match = /\d+/.exec(raw);
-  if (!match) return null;
-  const n = Number.parseInt(match[0], 10);
-  if (!Number.isFinite(n) || n < 1 || n > count) return null;
+function parseIndex(choice: string, count: number): number | null {
+  if (!/^\d+$/.test(choice)) return null;
+  const n = Number.parseInt(choice, 10);
+  if (n < 1 || n > count) return null;
   return n - 1;
 }

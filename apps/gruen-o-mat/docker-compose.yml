@@ -46,9 +46,8 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
-      # Minimal footprint — single worker, few AI threads
+      # Minimal footprint — single worker
       - WORKER_COUNT=1
-      - AI_WORKER_COUNT=2
       - HOCUSPOCUS_ENABLED=false
 
       # Redis (internal, provided by this compose stack)

@@ -170,6 +170,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'groups',
     actions: (ctx) => [openLinkAction('Beitrag öffnen')(ctx)],
   },
+  group_chat_message: {
+    label: 'Team-Chats',
+    description: 'Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist',
+    icon: MessageSquare,
+    group: 'groups',
+    actions: (ctx) => [openLinkAction('Chat öffnen')(ctx)],
+  },
   group_user_mentioned: {
     label: 'Erwähnungen',
     description: 'Wenn dich jemand in einem Projekt mit @Name erwähnt',

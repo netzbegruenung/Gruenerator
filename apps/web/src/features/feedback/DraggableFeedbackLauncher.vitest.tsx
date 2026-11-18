@@ -78,9 +78,8 @@ describe('DraggableFeedbackLauncher', () => {
       </>
     );
     const button = screen.getByRole('button', { name: /Feedback/ });
-    // jsdoms CSS-Parser faltet einheitengleiche Summanden zusammen; 29rem ist
-    // genau `1rem + max(20rem, 28rem)` und belegt damit die Verrechnung.
-    expect(button.style.right).toBe('calc(29rem)');
+    // jsdom 31 faltet die Summanden nicht mehr zusammen und gibt `max()` unverändert aus.
+    expect(button.style.right).toBe('calc(1rem + max(20rem, 28rem))');
   });
 
   it('gibt die Ecke wieder frei, wenn der Nachbar verschwindet', () => {

@@ -1,3 +1,5 @@
+import { RecipeStarters } from '@gruenerator/chat';
+
 import ChatInner from '../workplace/components/ChatInner';
 import WorkplaceGreeting from '../workplace/components/WorkplaceGreeting';
 
@@ -18,6 +20,10 @@ const ChatHero = ({ projectName }: ChatHeroProps = {}) => {
 
       <div className="max-w-3xl mx-auto">
         <ChatInner />
+        {/* Rezepte unter dem Composer; der Composer in ChatInner hört auf requestMention. */}
+        <div className="flex justify-center">
+          <RecipeStarters limit={5} layout="row" />
+        </div>
       </div>
     </div>
   );

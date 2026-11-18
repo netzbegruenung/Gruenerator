@@ -6,9 +6,9 @@
  * Werkzeug (`content`) sollen EINEN Pfad teilen. Der Handler übersetzt nur
  * noch in seinen Contract.
  *
- * `shareContentToGroup`: Besitzprüfung je Typ, Hochstufung eines Notebooks auf
- * share_mode='groups', Doppel-Check, Insert, Benachrichtigung. Die
- * Mitgliedsprüfung wirft (wie `getPostgresAndCheckMembership`), alles andere
+ * `shareContentToGroup`: Besitzprüfung je Typ, dann `addGroupShare`
+ * (Mitgliedsprüfung, Heben auf share_mode='groups', Insert, Benachrichtigung —
+ * `groupShareWriter.ts`). Die Mitgliedsprüfung wirft (wie `getPostgresAndCheckMembership`), alles andere
  * kommt als Statuscode zurück — so verhielt sich der Handler, und die
  * Antworten sollen sich durch den Umzug nicht ändern.
  *
@@ -27,10 +27,11 @@ import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.
 import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { isShareableTextForm } from '../user/textFormVisibility.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
-import { normalizeSharePermissions } from './groupSharePermissions.js';
+import { addGroupShare, type GroupShareWriterDeps } from './groupShareWriter.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 import type {
@@ -38,6 +39,7 @@ import type {
   GroupShareMeta,
   ReactionSummary,
   ShareContentBody,
+  TextFormKind,
 } from '@gruenerator/contracts';
 
 /** Contract-Typ → Tabelle, wo die beiden auseinanderfallen. */
@@ -60,7 +62,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   database: 'einen Datenbank-Eintrag',
   system_notebooks: 'ein Notebook',
   system_agents: 'einen Agenten',
-  user_agents: 'eine*n Agent*in',
+  user_agents: 'einen Agenten',
   canvas_template: 'eine Sharepic-Vorlage',
   chat_threads: 'einen Chat',
   user_text_forms: 'ein Rezept',
@@ -87,7 +89,7 @@ export interface ShareContentOutcome {
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Nextcloud läuft. */
 export interface ShareContentDeps {
-  postgres: Pick<PostgresService, 'queryOne' | 'exec'>;
+  postgres: Pick<PostgresService, 'queryOne' | 'query'>;
   /** Wirft, wenn `userId` nicht Mitglied von `groupId` ist. */
   checkMembership: (groupId: string, userId: string) => Promise<void>;
   getNotebookCollection: NotebookQdrantHelper['getNotebookCollection'];
@@ -112,6 +114,17 @@ function defaultDeps(): ShareContentDeps {
   };
 }
 
+function writerDeps(deps: ShareContentDeps): GroupShareWriterDeps {
+  return {
+    postgres: deps.postgres,
+    assertCanShare: deps.checkMembership,
+    getNotebookCollection: deps.getNotebookCollection,
+    updateNotebookCollection: deps.updateNotebookCollection,
+    notifyShared: (input) => notifyContentShared(input, deps),
+    closeRoom: async () => {},
+  };
+}
+
 const NOT_FOUND: ShareContentOutcome = {
   status: 404,
   success: false,
@@ -131,7 +144,6 @@ export async function shareContentToGroup(
   let { contentId } = input;
   const note = input.note?.trim() || null;
   const { postgres } = deps;
-  await deps.checkMembership(groupId, userId);
 
   if (contentType === 'nextcloud_share_link') {
     try {
@@ -154,18 +166,6 @@ export async function shareContentToGroup(
     const collection = await deps.getNotebookCollection(contentId);
     if (!collection) return NOT_FOUND;
     if (collection.user_id !== userId) return NOT_OWNER;
-    // checkNotebookAccess gates group reads on share_mode='groups' AND a
-    // group_content_shares row. This generic share path only writes the
-    // row, so a private notebook shared here stays unreadable to members
-    // ("Kein Zugriff"). Promote it to 'groups' here, mirroring the notebook
-    // share modal (setShareMode → addGroupShare). Leave 'authenticated'
-    // alone (members already have read access; demoting would narrow the
-    // owner's chosen visibility) and 'groups' alone (already correct).
-    // Runs before the existing-share guard below so it also heals notebooks
-    // that were shared via this path before the fix.
-    if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
-      await deps.updateNotebookCollection(contentId, { share_mode: 'groups' });
-    }
   }
 
   if (
@@ -206,39 +206,45 @@ export async function shareContentToGroup(
     if (contentOwnership[ownerColumn] !== userId) return NOT_OWNER;
   }
 
-  // Same reason as notebooks above: group access to a user agent requires
-  // share_mode <> 'private', and the sharing panel lists group shares only in
-  // 'groups' mode. Without the promotion this share would be dead and
-  // invisible to the owner. After the ownership check, so a non-owner cannot
-  // flip someone else's agent.
-  if (contentType === 'user_agents') {
-    await postgres.exec(
-      `UPDATE user_agents SET share_mode = 'groups', updated_at = NOW()
-        WHERE id = $1 AND share_mode = 'private'`,
-      [contentId]
+  // Dieselbe Regel wie `shareTextFormWithGroup`: nur eigene Rezepte, kein
+  // angepasstes System-Rezept. Das Heben auf 'groups' macht der Schreiber.
+  if (contentType === 'user_text_forms') {
+    const recipe = await postgres.queryOne<{ kind: string; mention: string }>(
+      'SELECT kind, mention FROM user_text_forms WHERE id = $1 AND deleted_at IS NULL',
+      [contentId],
+      { table: 'user_text_forms' }
     );
+    if (!recipe) return NOT_FOUND;
+    if (!isShareableTextForm(recipe.kind as TextFormKind, recipe.mention)) {
+      return {
+        status: 400,
+        success: false,
+        message: 'Angepasste System-Rezepte lassen sich nicht teilen.',
+      };
+    }
   }
 
-  const existingShare = await postgres.queryOne<{ id: string }>(
-    'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
-    [contentType, contentId, groupId],
-    { table: 'group_content_shares' }
+  // Die Mitgliedsprüfung wirft (der Handler macht daraus seine Antwort) —
+  // wie bisher, nur jetzt im Schreiber, der davor nichts ändert.
+  const { created } = await addGroupShare(
+    {
+      userId,
+      groupId,
+      contentType,
+      contentId,
+      permissions,
+      note,
+      sharerName,
+    },
+    writerDeps(deps)
   );
-  if (existingShare) {
+  if (!created) {
     return {
       status: 400,
       success: false,
-      message: 'Inhalt ist bereits mit dieser Gruppe geteilt.',
+      message: 'Inhalt ist bereits mit diesem Projekt geteilt.',
     };
   }
-
-  const sharePermissions = normalizeSharePermissions(permissions ?? undefined);
-  await postgres.exec(
-    'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions, note) VALUES ($1, $2, $3, $4, $5, $6)',
-    [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions), note]
-  );
-
-  notifyContentShared({ groupId, userId, sharerName, contentType, contentId }, deps);
 
   return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
 }
@@ -342,6 +348,7 @@ export interface GroupContentBuckets {
   user_agents: Record<string, unknown>[];
   canvas_templates: Record<string, unknown>[];
   group_posts: Record<string, unknown>[];
+  recipes: Record<string, unknown>[];
 }
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
@@ -403,6 +410,7 @@ export async function hydrateGroupContent(
     user_agents: [],
     canvas_template: [],
     group_post: [],
+    user_text_forms: [],
   };
   sharedContent.forEach((share) => {
     if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
@@ -592,6 +600,27 @@ export async function hydrateGroupContent(
     );
   }
 
+  if (contentByType.user_text_forms.length > 0) {
+    const ids = contentByType.user_text_forms.map((s) => s.content_id);
+    // Dieselben Riegel wie der Leser des Rezepts selbst (`GROUP_SHARE_EXISTS`):
+    // privat oder von der Moderation entfernt heißt für Mitglieder unsichtbar.
+    fetchPromises.push(
+      postgres
+        .query(
+          `SELECT id, title, description, mention, icon_key, user_id, created_at, updated_at
+             FROM user_text_forms
+            WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+              AND share_mode <> 'private' AND moderation <> 'removed'`,
+          [ids],
+          { table: 'user_text_forms' }
+        )
+        .then((data) => ({
+          type: 'user_text_forms',
+          result: { data: data || [] },
+          shares: contentByType.user_text_forms,
+        }))
+    );
+  }
   if (contentByType.group_post.length > 0) {
     const ids = contentByType.group_post.map((s) => s.content_id);
     fetchPromises.push(
@@ -641,6 +670,7 @@ export async function hydrateGroupContent(
     user_agents: [],
     canvas_templates: [],
     group_posts: [],
+    recipes: [],
   };
 
   const keyMap: Record<string, keyof GroupContentBuckets> = {
@@ -655,6 +685,7 @@ export async function hydrateGroupContent(
     user_agents: 'user_agents',
     canvas_template: 'canvas_templates',
     group_post: 'group_posts',
+    user_text_forms: 'recipes',
   };
 
   contentResults.forEach(({ type, result, shares }) => {

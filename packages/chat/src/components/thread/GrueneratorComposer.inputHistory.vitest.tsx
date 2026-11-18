@@ -48,7 +48,8 @@ async function sendTwo(
   user: ReturnType<typeof userEvent.setup>,
   run: ReturnType<typeof mount>['run']
 ) {
-  const input = screen.getByRole('textbox');
+  // By name, not just role: the input must carry a label of its own (#5530).
+  const input = screen.getByRole('textbox', { name: 'Nachricht an den Grünerator' });
   await user.type(input, 'Erste Frage{Enter}');
   await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
   await user.type(input, 'Zweite Frage{Enter}');

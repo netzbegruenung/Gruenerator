@@ -7,7 +7,7 @@
  * behind scope isolation between Landesverbände.
  */
 import { landesverbandAdminContract } from '@gruenerator/contracts';
-import { SKILLS } from '@gruenerator/shared/agents';
+import { SKILLS, isUserFacingSkill } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -177,7 +177,7 @@ export const landesverbandAdminContractRouter = s.router(landesverbandAdminContr
       const globallyHiddenSet = new Set(globallyHidden);
       const lvHiddenSet = new Set(lvHidden);
 
-      const data = SKILLS.map((skill) => ({
+      const data = SKILLS.filter(isUserFacingSkill).map((skill) => ({
         mention: skill.mention,
         title: skill.title,
         skillCategory: skill.skillCategory ?? null,

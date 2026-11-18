@@ -171,6 +171,42 @@ export function getChatNotebookProfile(): ChatNotebookProfile {
 }
 
 /**
+ * Das Profil von `gruenerator_search` im agentischen Loop.
+ *
+ * Der Loop sucht seit 11/2026 über dieselbe Abrufhälfte wie die Notebook-Seite
+ * (`getSearchContext`), nur mit kleinerem Budget: ein Text-Agent schreibt eine
+ * Antwort-Mail, keine belegte Notebook-Antwort mit 100 Quellen, und er sucht
+ * mehrmals pro Turn — jedes Ergebnis landet im Kontext des Modells (Gemma hat
+ * ein enges Lesefenster). Vorher kamen pro Suche fünf Dokumente mit je EINEM
+ * Ausschnitt an; gemessen am 10.11.2026 lagen 62 von 70 Suchen auf dieser
+ * Vorgabe, während die Notebook-Seite bis zu 100 Passagen abwägt.
+ *
+ * `bestPassagePerSource` an: jede Quelle bekommt erst ihre beste Stelle, bevor
+ * eine zweite Passage derselben Quelle Platz nimmt. Ohne Umformulierung und
+ * Fachbegriffe — die kosten im Notebook-Pfad einen Modellaufruf, den der Loop
+ * mit seiner eigenen Suchanfrage ersetzt.
+ */
+const LOOP_TOOL_PROFILE: NotebookDepthProfile = {
+  searchLimit: 40,
+  recallLimitFloor: 50,
+  threshold: 0.35,
+  sortLimit: { single: 16, multi: 16 },
+  rerankInput: 16,
+  rerankOutput: 16,
+  maxOutputTokens: 20000,
+  conciseAnswer: false,
+  queryVariants: 1,
+  history: false,
+  queryRewrite: false,
+  subjectTerms: false,
+  bestPassagePerSource: true,
+};
+
+export function getLoopToolProfile(): NotebookDepthProfile {
+  return LOOP_TOOL_PROFILE;
+}
+
+/**
  * Widen a collection's search parameters to the tier. `recallLimit` takes the
  * larger of the two so a collection tuned for deeper recall keeps it, and
  * `qualityMin` — the per-collection quality floor, a different axis from the

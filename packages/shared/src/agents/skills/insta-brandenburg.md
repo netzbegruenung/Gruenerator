@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg'
 title: 'Insta Brandenburg'
-description: 'Instagram-Post im Stil Brandenburger Bündnisgrüne'
+description: 'Instagram-Post im Stil der Grünen Brandenburg. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Brandenburg geschrieben wird.'
 iconKey: 'PiFlowerLight'
 avatar: '🌻'
 backgroundColor: '#316049'

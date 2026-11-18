@@ -11,6 +11,8 @@
  */
 import { type LandtagFilter } from '@gruenerator/contracts';
 
+import { type Deadline } from '../../../utils/deadline.js';
+import { withTimeout } from '../../../utils/withTimeout.js';
 import { type LandtagFindResult } from '../berlin/find.js';
 import { LANDTAGE, type ResolvedLandtagFilter, resolveFilters } from '../registry.js';
 
@@ -59,7 +61,7 @@ function buildFilter(f: ResolvedLandtagFilter): { filter: NrwFilter; perDocument
 }
 
 export async function findNrw(
-  args: { query: string; filters: LandtagFilter },
+  args: { query: string; filters: LandtagFilter; deadline?: Deadline | null },
   notebook: NrwNotebook
 ): Promise<LandtagFindResult> {
   const meta = LANDTAGE.nrw;
@@ -77,13 +79,17 @@ export async function findNrw(
 
   const query = args.query.trim();
   const { filter, perDocument } = buildFilter(f);
-  const [payloads, gesamt] = await Promise.all([
+  const lookup = Promise.all([
     query
       ? notebook.nearest(query, filter, NEAREST_CHUNKS)
       : notebook.latest(filter, perDocument ? MAX_CANDIDATES : LATEST_CHUNKS),
     // Gezählt werden Dokumente, also nur mit Chunk-0-Bindung.
     perDocument ? notebook.count(filter) : Promise.resolve(null),
   ]);
+  // Das Notebook ist hier die einzige Quelle: es bekommt die ganze Restzeit, keinen Anteil.
+  const [payloads, gesamt] = args.deadline
+    ? await withTimeout(lookup, args.deadline.remainingMs(), 'landtag-nrw')
+    : await lookup;
   const candidates = dedupeNrw(payloads).slice(0, MAX_CANDIDATES);
 
   if (f.mitAnfrage) {
@@ -109,6 +115,9 @@ export async function findNrw(
       `Gezeigt werden die neuesten ${candidates.length} von ${gesamt} Drucksachen; mit Zeitraum, Titel, Art oder einem Thema (query) eingrenzen.`
     );
   }
-  // Mit Thema zählt `gesamt` nur die Filter, nicht das Thema: als Gesamtzahl taugt dann nur die Liste.
-  return { candidates, gesamt: query ? candidates.length : (gesamt ?? candidates.length), notes };
+  // Mit Thema zählt der Filterzähler nicht das Thema, und die Länge der Liste ist eine Kappung der
+  // Nähe-Suche, keine Zahl (live 09.11.2026: „insgesamt 25 Kleine Anfragen“). Also keine Gesamtzahl.
+  // Ein Themenzähler (Qdrant-Count mit Textfilter) ist hier bewusst nicht gebaut: das Feld ist
+  // in der Produktion nicht indiziert, ein exakter Count läse die ganze Sammlung.
+  return { candidates, gesamt: query ? null : (gesamt ?? candidates.length), notes };
 }

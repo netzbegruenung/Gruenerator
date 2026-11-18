@@ -67,7 +67,9 @@ import {
   type SearchTier,
 } from '../../../../services/search/searchDepth.js';
 import { type WebSearchLocale } from '../../../../services/search/webSearch.js';
+import { type Deadline } from '../../../../utils/deadline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 import {
   SOURCE_PREFIX,
   type ChatGraphState,
@@ -554,7 +556,8 @@ function describeCandidates(
 export async function retrieveBundestag(
   query: string,
   locale: string | null | undefined,
-  filters?: BundestagFilter
+  filters?: BundestagFilter,
+  deadline: Deadline | null = null
 ): Promise<BundestagRetrieval> {
   const startTime = Date.now();
   // DE-only source: for AT users return a graceful decline instead of empty
@@ -577,20 +580,33 @@ export async function retrieveBundestag(
   }
   // Die Anreicherung liefert Person und Altpfad, die Planstufe die Liste mit
   // Refs. Beide laufen nebeneinander; wirft die Planstufe, trägt der Altpfad.
+  // Beide Stufen laufen unter der Frist des Aufrufs (`deadline`, Restzeit statt eigener Konstante):
+  // ein hängender Planaufruf (live 09.11.2026, Gemma `unified:stall`) oder eine hängende
+  // Anreicherung nimmt sonst den ganzen Aufruf mit in die Werkzeug-Zeitüberschreitung, obwohl der
+  // Rückfall (`plan === null` → Altpfad bzw. `ausfall`) bereitsteht (#5560, #5570). Der Abbruch
+  // erreicht das Modell und die DIP-Abfragen, damit nichts weiterläuft und bezahlt wird.
+  const planAbort = new AbortController();
+  const bounded = <T>(work: Promise<T>, label: string): Promise<T> =>
+    deadline ? withTimeout(work, deadline.remainingMs(), label) : work;
   const [enriched, plan] = await Promise.all([
-    getBundestagEnrichedService()
-      .search(query)
-      .catch((err: unknown) => {
+    bounded(getBundestagEnrichedService().search(query), 'bundestag-anreicherung').catch(
+      (err: unknown) => {
         log.warn(
           `[Search] Bundestag-Anreicherung fehlgeschlagen, nur Planstufe: ${err instanceof Error ? err.message : String(err)}`
         );
         return null;
+      }
+    ),
+    bounded(
+      planBundestagQuestion({
+        question: query,
+        ...(filters ? { filters } : {}),
+        budget: CHAT_BUDGET,
+        signal: deadline ? AbortSignal.any([planAbort.signal, deadline.signal]) : planAbort.signal,
       }),
-    planBundestagQuestion({
-      question: query,
-      ...(filters ? { filters } : {}),
-      budget: CHAT_BUDGET,
-    }).catch((err: unknown) => {
+      'bundestag-plan'
+    ).catch((err: unknown) => {
+      planAbort.abort();
       log.warn(
         `[Search] Bundestag-Planstufe fehlgeschlagen, alte Ergebnisse: ${err instanceof Error ? err.message : String(err)}`
       );
@@ -648,7 +664,8 @@ export async function retrieveBundestag(
  */
 export async function retrieveBundestagFamily(
   ref: string,
-  locale: string | null | undefined
+  locale: string | null | undefined,
+  signal: AbortSignal | null = null
 ): Promise<BundestagRetrieval & { notes: string[] }> {
   if (!isIntentAllowedForLocale('bundestag', locale)) {
     return {
@@ -664,7 +681,7 @@ export async function retrieveBundestagFamily(
       notes: [],
     };
   }
-  const found = await bundestagFamily(ref);
+  const found = await bundestagFamily(ref, undefined, signal);
   const seenVorgang = new Set<string>();
   const results = found.candidates.map((c, i) => {
     const first = c.vorgangId != null && !seenVorgang.has(c.vorgangId);
@@ -1904,8 +1921,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // Track which collections were searched for observability
         searchedCollections = uniqueCollections;
 
-        // Empty internal search → go to the web, same rule the loop path got
-        // (loopGuards.emptyResultFallback). This path could not follow it:
+        // Empty internal search → go to the web, same rule the loop path once had
+        // (loopGuards.emptyResultFallback, since removed). This path could not follow it:
         // `search` is an exclusive, one-time intent choice, so a turn that
         // found nothing internally answered from the model's memory — ungrounded
         // and, to the reader, indistinguishable from a researched answer.

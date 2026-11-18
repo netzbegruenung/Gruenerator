@@ -1,0 +1,247 @@
+/**
+ * Bekannte Konnektoren (Bahn, Wetter, Rateo, …) sind seit 11/2026 Karten im
+ * Verzeichnis wie jeder andere Dienst: „Verbinden" legt die Zeile an, danach
+ * steht sie unter „Verbunden" mit Schalter und „Entfernen" — aber ohne URL,
+ * Token oder Umbenennen, weil der Endpunkt in der Deploy-Umgebung liegt.
+ */
+import { MCP_SERVER_MENTIONS_QUERY_KEY } from '@gruenerator/chat';
+import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { server } from '../../../test/msw-server';
+
+import McpSection from './McpSection';
+
+import { axe, renderWithProviders, userEvent } from '@/test-utils';
+
+const API = 'http://localhost/api';
+
+const RATEO_ENTRY = {
+  name: 'rateo',
+  title: 'Rateo',
+  description: 'Anträge, Anfragen und Beschlüsse der Berliner Bezirksverordnetenversammlungen.',
+  url: '',
+  websiteUrl: null,
+  authHint: 'none',
+  authOptions: ['none'],
+  recommended: true,
+  category: 'Politik & Verwaltung',
+  registryKey: 'rateo',
+};
+
+const RATEO_ROW = {
+  id: '7a1b0000-0000-0000-0000-000000000000',
+  name: 'Rateo',
+  url: '',
+  authType: 'none',
+  hasToken: false,
+  enabled: true,
+  createdAt: '2026-11-11T00:00:00.000Z',
+  updatedAt: '2026-11-11T00:00:00.000Z',
+  description: RATEO_ENTRY.description,
+  toolNames: null,
+  managed: true,
+  category: 'Politik & Verwaltung',
+  registryKey: 'rateo',
+};
+
+function serve(servers: unknown[]) {
+  const connected: string[] = [];
+  server.use(
+    http.get(`${API}/mcp/servers`, () => HttpResponse.json({ servers })),
+    http.get(`${API}/mcp/servers/registry`, () =>
+      HttpResponse.json({
+        recommended: [RATEO_ENTRY],
+        servers: [],
+        nextCursor: null,
+        oauthRedirectUri: null,
+      })
+    ),
+    http.post(`${API}/mcp/servers/connect/:key`, ({ params }) => {
+      connected.push(String(params.key));
+      return HttpResponse.json({ server: RATEO_ROW });
+    })
+  );
+  return connected;
+}
+
+beforeAll(() => {
+  setGlobalApiClient(createApiClient({ baseURL: API, authMode: 'cookie' }));
+});
+
+describe('McpSection — bekannte Konnektoren', () => {
+  it('bietet Rateo als Karte an und verbindet über den Schlüssel, nicht über eine URL', async () => {
+    const connected = serve([]);
+    const { container } = renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const title = await screen.findByText('Rateo');
+    await userEvent.click(
+      within(title.closest('li') as HTMLElement).getByRole('button', { name: 'Verbinden' })
+    );
+
+    await waitFor(() => expect(connected).toEqual(['rateo']));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('zeigt eine verbundene Rateo-Zeile unter „Verbunden" mit Schalter und Entfernen, ohne Karte', async () => {
+    serve([RATEO_ROW]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText(RATEO_ROW.description);
+    expect(screen.getAllByText('Rateo')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entfernen' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Neu verbinden' })).not.toBeInTheDocument();
+  });
+
+  it('setzt den Slot afterConnected zwischen „Verbunden" und „Dienste verbinden"', async () => {
+    serve([RATEO_ROW]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText(RATEO_ROW.description);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const at = (name: string) => headings.indexOf(name);
+    expect(at('Verbunden')).toBeGreaterThanOrEqual(0);
+    expect(at('Immer erlaubte Werkzeuge')).toBe(at('Verbunden') + 1);
+    expect(at('Dienste verbinden')).toBe(at('Verbunden') + 2);
+  });
+
+  it('setzt den Slot ans Ende, wenn nichts verbunden ist', async () => {
+    serve([]);
+    renderWithProviders(
+      <McpSection
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+        afterConnected={<h2>Immer erlaubte Werkzeuge</h2>}
+      />
+    );
+
+    await screen.findByText('Rateo');
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings[0]).not.toBe('Immer erlaubte Werkzeuge');
+    expect(headings.at(-1)).toBe('Immer erlaubte Werkzeuge');
+  });
+});
+
+/**
+ * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
+ * selben Verzeichnis unter „Sonstige". Seit 16.11.2026 für alle, als experimentell
+ * markiert; Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
+ */
+describe('McpSection — Microsoft 365', () => {
+  const STATUS_URL = `${API}/connections/status`;
+
+  function serveMicrosoft(providers: { provider: string; connected: boolean }[]) {
+    serve([]);
+    server.use(http.get(STATUS_URL, () => HttpResponse.json({ providers })));
+  }
+
+  const cardOf = async () =>
+    (await screen.findByText('Microsoft 365')).closest('li') as HTMLElement;
+
+  it('steht unter „Sonstige" mit „Verbinden" und dem Hinweis „Experimentell"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: false }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    const group = card.closest('ul')?.parentElement as HTMLElement;
+    expect(within(group).getByRole('heading', { name: 'Sonstige' })).toBeInTheDocument();
+    expect(within(card).getByText('Experimentell')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
+  });
+
+  it('zeigt verbunden „Trennen" statt „Verbinden"', async () => {
+    serveMicrosoft([{ provider: 'microsoft', connected: true }]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const card = await cardOf();
+    expect(await within(card).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Verbinden' })).not.toBeInTheDocument();
+  });
+
+  it('fehlt, wenn der Server Microsoft nicht meldet', async () => {
+    serveMicrosoft([]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Rateo');
+    expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Den Werkzeug-Snapshot schreibt erst ein Verbindungsaufbau. Eine eigene Zeile
+ * ohne Anmeldung zeigte deshalb keine Werkzeuge, bis jemand „Testen" klickte,
+ * und die @-Liste im Chat kannte den neuen Server erst nach einem Remount.
+ */
+describe('McpSection — eigener Server ohne Snapshot', () => {
+  const OWN_ROW = {
+    id: '9c2d0000-0000-0000-0000-000000000000',
+    name: 'Tally',
+    url: 'https://mcp.example.org/mcp',
+    authType: 'none',
+    hasToken: false,
+    enabled: true,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:00.000Z',
+    description: null,
+    toolNames: null as string[] | null,
+  };
+
+  function serveOwn(row: typeof OWN_ROW) {
+    const tested: string[] = [];
+    let snapshot: string[] | null = row.toolNames;
+    server.use(
+      http.get(`${API}/mcp/servers`, () =>
+        HttpResponse.json({ servers: [{ ...row, toolNames: snapshot }] })
+      ),
+      http.get(`${API}/mcp/servers/registry`, () =>
+        HttpResponse.json({
+          recommended: [],
+          servers: [],
+          nextCursor: null,
+          oauthRedirectUri: null,
+        })
+      ),
+      http.post(`${API}/mcp/servers/:id/test`, ({ params }) => {
+        tested.push(String(params.id));
+        snapshot = ['list_forms', 'create_form'];
+        return HttpResponse.json({
+          ok: true,
+          toolCount: 2,
+          toolNames: snapshot,
+          error: null,
+        });
+      })
+    );
+    return tested;
+  }
+
+  it('testet sich einmal selbst, zeigt danach die Werkzeuge und frischt die @-Liste auf', async () => {
+    const tested = serveOwn(OWN_ROW);
+    const { queryClient } = renderWithProviders(
+      <McpSection onSuccess={vi.fn()} onError={vi.fn()} />
+    );
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    expect(await screen.findByText('list_forms')).toBeInTheDocument();
+    expect(tested).toEqual([OWN_ROW.id]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: MCP_SERVER_MENTIONS_QUERY_KEY });
+  });
+
+  it('testet nicht, solange die Anmeldung fehlt', async () => {
+    const tested = serveOwn({ ...OWN_ROW, authType: 'oauth' });
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    await screen.findByText('Nicht autorisiert');
+    expect(tested).toEqual([]);
+  });
+});

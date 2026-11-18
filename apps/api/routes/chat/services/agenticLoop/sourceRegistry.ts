@@ -118,10 +118,9 @@ export interface SourceRegistry {
    * Zitierbar und in der Numerierung wie jede andere Quelle dieses Turns — der
    * Schreiber soll sie belegen können. Aber NICHT die Recherche des Planers:
    * die Wächter budgetieren gegen `freshSize`, und beide Stellen, die das tun,
-   * urteilen über SEIN Verhalten. `emptyResultFallback` erzwingt die Websuche
-   * genau dann, wenn die interne Suche gelaufen und leer geblieben ist — mit
-   * den geseedeten Passagen im Zähler bliebe sie aus, obwohl der Planer nichts
-   * gefunden hat. Und `checkSearchBudget` deckelt bei `MAX_SOURCES` (20): zwölf
+   * urteilen über SEIN Verhalten. (Bis 11/2026 erzwang `emptyResultFallback`
+   * die Websuche, wenn die interne Suche leer blieb — mit den geseedeten
+   * Passagen im Zähler wäre sie ausgeblieben.) `checkSearchBudget` deckelt bei `MAX_SOURCES` (20): zwölf
    * geseedete Chunks nähmen 60 % davon weg, bevor der erste Aufruf läuft.
    *
    * Findet der Planer denselben Chunk später selbst, zählt er ab dann als seine

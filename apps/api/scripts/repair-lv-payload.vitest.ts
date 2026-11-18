@@ -13,7 +13,9 @@ import {
   planGone,
   planPointRepair,
   planRepair,
+  planWolkeRepair,
   runGroups,
+  wolkeShareOwner,
 } from './repair-lv-payload.js';
 
 const BERLIN = { baseUrl: 'https://gruene.berlin' };
@@ -29,6 +31,7 @@ describe('parseCliArgs', () => {
         gone: false,
         fulltext: false,
         contentTypes: false,
+        wolke: false,
         refetch: false,
         write: false,
         limit: null,
@@ -59,6 +62,7 @@ describe('parseCliArgs', () => {
         gone: false,
         fulltext: false,
         contentTypes: false,
+        wolke: false,
         refetch: true,
         write: true,
         limit: 5,
@@ -95,6 +99,7 @@ describe('parseCliArgs', () => {
         gone: false,
         fulltext: false,
         contentTypes: false,
+        wolke: false,
         refetch: false,
         write: false,
         limit: null,
@@ -735,5 +740,86 @@ describe('--content-types (#3808)', () => {
     );
     expect(calls).toBe(0);
     expect(result.patch).toMatchObject({ content_type: 'wahlprogramm' });
+  });
+});
+
+describe('--wolke (#5537)', () => {
+  const owner = { id: 'berlin-lv-wahlpruefsteine', name: 'Grüne Berlin Wahlprüfsteine' };
+  const stored = {
+    source_id: 'berlin-lv-beschluesse',
+    source_name: 'Grüne Berlin Beschlüsse',
+    published_at: null,
+    age_exempt: false,
+  };
+
+  it('findet die Quelle, die den Share heute konfiguriert', () => {
+    const sources = [
+      { id: 'a', name: 'A', contentPaths: [{ wolkeShare: undefined }] },
+      { ...owner, contentPaths: [{ wolkeShare: { shareKey: 'berlin-wahlpruefsteine' } }] },
+    ] as unknown as Parameters<typeof wolkeShareOwner>[1];
+    expect(wolkeShareOwner('wolke://berlin-wahlpruefsteine/x.pdf', sources)).toMatchObject(owner);
+    expect(wolkeShareOwner('wolke://anderer-share/x.pdf', sources)).toBeNull();
+    expect(wolkeShareOwner('https://gruene.berlin/x.pdf', sources)).toBeNull();
+  });
+
+  it('datiert beide Namensschemata und setzt age_exempt mit dem Datum', () => {
+    for (const [rel, date] of [
+      [
+        'Wahlprüfsteine aus 2021/20210903_Grüne Antworten_WPS_Dachverband Selbsthilfe-Kontaktstellen.pdf',
+        '2021-09-03',
+      ],
+      ['WPS-Gruene-Berlin-2026-08-24-WEISSER_RING-Antwort.pdf', '2026-08-24'],
+    ]) {
+      const result = planWolkeRepair(
+        { ...stored, source_url: `wolke://berlin-wahlpruefsteine/${rel}` },
+        owner
+      );
+      expect(result).toEqual({
+        patch: {
+          source_id: owner.id,
+          source_name: owner.name,
+          age_exempt: true,
+          published_at: date,
+          date_precision: 'day',
+        },
+        unresolved: false,
+      });
+    }
+  });
+
+  it('rät kein Datum aus dem Ordnerjahr', () => {
+    const result = planWolkeRepair(
+      {
+        ...stored,
+        source_url:
+          'wolke://berlin-wahlpruefsteine/Wahlprüfsteine aus 2023/Grüne Antworten NABU.pdf',
+      },
+      owner
+    );
+    expect(result?.unresolved).toBe(true);
+    expect(result?.patch).not.toHaveProperty('published_at');
+    expect(result?.patch.age_exempt).toBe(true);
+  });
+
+  it('überschreibt kein vorhandenes Datum und ist auf einem geheilten Punkt leer', () => {
+    const healed = {
+      source_url: 'wolke://berlin-wahlpruefsteine/WPS-Gruene-Berlin-2026-08-24-X-Antwort.pdf',
+      source_id: owner.id,
+      source_name: owner.name,
+      published_at: '2026-01-01',
+      age_exempt: true,
+    };
+    expect(planWolkeRepair(healed, owner)).toEqual({ patch: {}, unresolved: false });
+  });
+
+  it('lässt Punkte ohne wolke://-Url unberührt', () => {
+    expect(
+      planWolkeRepair({ ...stored, source_url: 'https://gruene.berlin/a.pdf' }, owner)
+    ).toBeNull();
+  });
+
+  it('nimmt --wolke an, aber nicht neben --gone', () => {
+    expect(parseCliArgs(['--wolke', '--all'])).toMatchObject({ args: { wolke: true, all: true } });
+    expect(parseCliArgs(['--wolke', '--gone', '--source', 'x'])).toHaveProperty('error');
   });
 });

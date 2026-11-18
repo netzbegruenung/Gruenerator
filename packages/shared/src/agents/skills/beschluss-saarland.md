@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-beschluesse-saarland'
 title: 'Beschlussantrag Saarland'
-description: 'Beschlussanträge in der Beschlusssprache der Grünen Saarland, im Anschluss an die bestehende Beschlusslage'
+description: 'Beschlussantrag in der Beschlusssprache der Grünen Saarland. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Saarland geschrieben wird.'
 iconKey: 'PiMountains'
 avatar: '📜'
 backgroundColor: '#316049'

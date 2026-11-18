@@ -82,6 +82,15 @@ export const publicUserAgentsResponseSchema = z.object({
   agents: z.array(userAgentSchema),
 });
 
+/** GET /api/user-agents/link/:slug — the agent a share link names. Only when the
+ * caller may use it (own, Projekt, or opened to every signed-in user). Without
+ * `systemRole`: a link lets someone USE an agent, not read its prompt — the
+ * same rule as a Projekt share (#3781). */
+export const userAgentLinkResponseSchema = z.object({
+  success: z.literal(true),
+  agent: userAgentSchema.omit({ systemRole: true }),
+});
+
 export const userAgentShareSimpleSuccessSchema = z.object({
   success: z.literal(true),
   message: z.string(),

@@ -4,6 +4,8 @@ const aiObject = vi.fn();
 vi.mock('../../ai/generate.js', () => ({ aiObject: (c: unknown) => aiObject(c) }));
 
 import { type FetchedDoc } from './fetchTexts.js';
+import { laneTarget } from '../../ai/lanes.js';
+import { estimateTokens, readWindowTokens } from './budget.js';
 import { focusPattern, focusScore, readDocuments, splitWindows } from './read.js';
 
 const budget = { maxDocuments: 12, maxReadChars: 10_000_000, deadlineMs: 60_000 };
@@ -46,8 +48,36 @@ beforeEach(() => {
 
 describe('splitWindows', () => {
   it('teilt an Absatzgrenzen', () => {
-    const w = splitWindows('aaa\n\nbbb\n\nccc', 8);
+    // 'aaa' = 0,84 Tokens; zwei Absätze plus Trenner 2,08 — drei passen nicht in 3.
+    const w = splitWindows('aaa\n\nbbb\n\nccc', 3);
     expect(w).toEqual(['aaa\n\nbbb', 'ccc']);
+  });
+
+  // 21/7968 (#5581): 589k Zeichen Tabellentext, ~1,5 Zeichen/Token — Zeichenfenster kamen auf 129k–134k Tokens.
+  const tableRow = (i: number) => `${i} | Berlin | 12.345 | 2,3 % | ${i * 7} | 41,5`;
+  const tableText = Array.from({ length: 12_000 }, (_, i) => tableRow(i)).join('\n');
+
+  it('Tabellentext: kein Fenster über dem Token-Budget', () => {
+    expect(tableText.length).toBeGreaterThan(500_000);
+    const max = readWindowTokens(laneTarget('bundestag_read').model ?? '');
+    const w = splitWindows(tableText, max);
+    expect(w.length).toBeGreaterThan(3);
+    for (const x of w) expect(estimateTokens(x)).toBeLessThanOrEqual(max);
+    expect(w.join('').length).toBe(tableText.length);
+  });
+
+  it('Prosa behält große Fenster', () => {
+    const prose = Array.from({ length: 2_500 }, (_, i) => `Absatz ${i} ` + 'wort '.repeat(90)).join(
+      '\n\n'
+    );
+    const w = splitWindows(prose, readWindowTokens(laneTarget('bundestag_read').model ?? ''));
+    expect(w[0]!.length).toBeGreaterThan(150_000);
+  });
+
+  it('ein Riesenabsatz Tabellentext wird nach Tokens geschnitten', () => {
+    const one = tableText.replace(/\n/g, ' ');
+    for (const x of splitWindows(one, 20_000))
+      expect(estimateTokens(x)).toBeLessThanOrEqual(20_000);
   });
 });
 
@@ -249,9 +279,9 @@ describe('Parallelität', () => {
 });
 
 describe('Fenstergröße folgt dem Modell', () => {
-  // Zwei Absätze à 300k: bei 240k wird jeder hart in 240k+60k geschnitten (4 Fenster), bei 800k passt alles in eins.
+  // Zwei Absätze à 300k Zeichen Buchstaben (~84k Tokens je Absatz): bei 60k Tokens wird jeder in 2 Fenster geschnitten.
   const text = ['p'.repeat(300_000), 'q'.repeat(300_000)].join('\n\n');
-  it('Lane-Modell (gemma-4-31b-it): 240k', async () => {
+  it('Lane-Modell (gemma-4-31b:speed): 60k Tokens je Fenster', async () => {
     respond(() => ({ relevant: false, punkte: [] }));
     const [r] = await readDocuments({
       question: 'q',
@@ -262,7 +292,7 @@ describe('Fenstergröße folgt dem Modell', () => {
     });
     expect(r!.windowsTotal).toBe(4);
   });
-  it('target kolibri-1: 800k', async () => {
+  it('target mit unbekanntem Modell: kleineres Fenster, Pin bleibt erhalten', async () => {
     respond(() => ({ relevant: false, punkte: [] }));
     const [r] = await readDocuments({
       question: 'q',
@@ -270,10 +300,13 @@ describe('Fenstergröße folgt dem Modell', () => {
       auftrag: 'frage',
       docs: [doc('21/1', text)],
       budget,
-      target: { provider: 'mistral', model: 'kolibri-1' },
+      target: { provider: 'mistral', model: 'unbekannt-1' },
     });
-    expect(r!.windowsTotal).toBe(1);
-    expect(aiObject.mock.calls[0]![0].pinned).toEqual({ provider: 'mistral', model: 'kolibri-1' });
+    expect(r!.windowsTotal).toBeGreaterThan(4);
+    expect(aiObject.mock.calls[0]![0].pinned).toEqual({
+      provider: 'mistral',
+      model: 'unbekannt-1',
+    });
   });
 });
 

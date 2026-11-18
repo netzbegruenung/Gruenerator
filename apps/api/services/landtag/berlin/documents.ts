@@ -95,6 +95,13 @@ export function dedupeByRef(cands: readonly BundestagCandidate[]): BundestagCand
   return [...byRef.values()];
 }
 
+/** Die Namen der Fragesteller*innen einer Anfrage („Nachname, Vorname“); mehrere bei gemeinsam gestellten. */
+export function personNames(r: PardokRecord): string[] {
+  return all(r, 'urheber')
+    .map((u) => u.name)
+    .filter((n): n is string => !!n);
+}
+
 /** Person und Fraktion der fragenden Person (Anfragen tragen sie statt einer Körperschaft). */
 export function personFraktion(r: PardokRecord): string[] {
   return all(r, 'urheber')

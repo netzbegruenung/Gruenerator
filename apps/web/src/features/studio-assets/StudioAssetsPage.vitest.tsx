@@ -167,15 +167,15 @@ describe('StudioAssetsPage', () => {
     await screen.findByRole('article', { name: 'Sonnenblume' });
     await queriesSettled(4);
 
-    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
+    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 2' }));
 
-    const pressed = within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' });
+    const pressed = within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 3' });
     expect(pressed).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(like).toHaveBeenCalledWith('a-1'));
     release();
     await waitFor(() => expect(listQueries.length).toBeGreaterThan(4));
     expect(
-      within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' })
+      within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 3' })
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -296,17 +296,17 @@ describe('StudioAssetsPage follow-ups', () => {
     await screen.findByRole('article', { name: 'Sonnenblume' });
     await queriesSettled(4);
 
-    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
-    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' }));
+    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 2' }));
+    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 3' }));
 
-    const button = within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' });
+    const button = within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 2' });
     expect(button).toHaveAttribute('aria-pressed', 'false');
     await waitFor(() => expect(calls).toEqual(['like']));
     release();
     await waitFor(() => expect(calls).toEqual(['like', 'unlike']));
     await waitFor(() => expect(listQueries.length).toBeGreaterThan(4));
     expect(
-      within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' })
+      within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir, 2' })
     ).toHaveAttribute('aria-pressed', 'false');
   });
 

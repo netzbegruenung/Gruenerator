@@ -51,11 +51,9 @@ const MISTRAL_LARGE = 'mistral-large-4';
  * fertig war. Am 21.08.2026 nachgemessen und unverändert: mit und ohne
  * `reasoning_effort` identisch leerer Inhalt bei 120 Token Budget.
  *
- * Dass dieses Modell von sich aus nicht denkt, ist gemessen (21.08.2026: 420
- * Zeichen Inhalt, 0 Zeichen Denken, ohne jeden Parameter) — es braucht den
- * Reasoning-Pin also gar nicht, und es bekäme ihn hier auch nicht: infercom
- * weist `reasoning_effort` mit HTTP 400 ab — deshalb führt die Whitelist in
- * cortecsRequestPolicy.ts dieses Modell nicht.
+ * Über Cortecs denkt dieses Modell ohne Vorgabe nicht (Messreihe in
+ * services/ai/openAiReasoningStream.ts) und braucht deshalb keinen
+ * Reasoning-Pin.
  *
  * ── UNGEPRÜFT: die Werkzeug-Treue dieser Rolle ──
  *

@@ -127,7 +127,12 @@ vi.mock('react-konva', () => {
 });
 vi.mock('../utils/composeProfilbild', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  composeProfilbild: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,OUT' })),
+  // A real canvas: jsdom 31 backs it with @napi-rs/canvas, whose drawImage rejects plain objects.
+  composeProfilbild: vi.fn(() =>
+    Object.assign(document.createElement('canvas'), {
+      toDataURL: () => 'data:image/png;base64,OUT',
+    })
+  ),
   renderProfilbildBackground: vi.fn(() => ({ toDataURL: () => 'data:image/jpeg;base64,BG' })),
   trimCutout: vi.fn((image: unknown) => ({ image, dataUrl: 'data:image/png;base64,TRIM' })),
   loadImage: vi.fn((src: string) => Promise.resolve({ src, width: 600, height: 800 })),
@@ -1024,7 +1029,7 @@ describe('ProfilbildPage', () => {
       });
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      fireEvent.click(screen.getByRole('button', { name: 'Sticker entdecken' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Shop, Sticker entdecken' }));
       const popup = await screen.findByRole('dialog', { name: 'Sticker entdecken' });
       await waitFor(() =>
         expect(share.listMarketplace).toHaveBeenCalledWith({

@@ -1,4 +1,4 @@
-import { useAgentStore, setThreadListSlot } from '@gruenerator/chat/stores';
+import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
@@ -31,11 +31,15 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
+import { NavTooltip } from './NavTooltip';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
+import { buildRoleShortcuts } from './roleShortcuts';
+import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -47,24 +51,6 @@ const GlobalSearchDialog = lazy(() => import('../../../features/global-search/Gl
 interface SidebarProps {
   isDesktop?: boolean;
   onNavigate?: (path: string, title: string) => void;
-}
-
-function NavTooltip({
-  label,
-  collapsed,
-  children,
-}: {
-  label: string;
-  collapsed: boolean;
-  children: React.ReactElement;
-}) {
-  if (!collapsed) return children;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
-  );
 }
 
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
@@ -90,7 +76,20 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
+  const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Schnellauswahl je Rolle: Landesverbände (Landesgeschäftsstelle /
+  // Landesorganisation) und Grüne Jugend, abschaltbar je Rolle in den
+  // Einstellungen. Vor der Hydratation bleibt der Eintrag weg statt aufzublitzen.
+  const profileRoles = useUserProfileStore((s) => s.roles);
+  const profileLocale = useUserProfileStore((s) => s.locale);
+  const profileHydrated = useUserProfileStore((s) => s.isHydrated);
+  const roleShortcuts = useMemo(
+    () =>
+      profileHydrated ? buildRoleShortcuts(profileRoles, profileLocale, CURRENT_INSTANCE) : [],
+    [profileHydrated, profileRoles, profileLocale]
+  );
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
@@ -217,7 +216,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
         close();
       }
     },
@@ -424,6 +423,18 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {/* Direct menu items - main navigation */}
         {restItems.length > 0 && (
           <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
+        )}
+
+        {/* Role quick-select (Landesverband, Grüne Jugend) — also in the collapsed rail */}
+        {roleShortcuts.length > 0 && (
+          <RoleShortcutsSidebarSection
+            shortcuts={roleShortcuts}
+            openRef={roleMenuOpenRef}
+            titleClass={titleClass}
+            collapsed={!sidebarExpanded}
+            onNavigate={handleLinkClick}
+            onClose={close}
+          />
         )}
 
         {/* Projekte quick-view popup */}

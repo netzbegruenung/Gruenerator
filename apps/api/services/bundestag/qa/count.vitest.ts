@@ -38,6 +38,55 @@ describe('countBundestag', () => {
     expect(r.notes.join(' ')).toContain('Titelfilter „Radverkehr"');
   });
 
+  it('Fraktion neben Typ Antwort wird nicht gezählt, mit Notiz (#5558)', async () => {
+    const { dip, list } = dipWith(() => 2844);
+    const r = await countBundestag({
+      filters: { drucksachetyp: ['Antwort'], urheber: ['Fraktion der AfD'], wahlperiode: [21] },
+      dip,
+    });
+    expect(list.mock.calls[0]![1]).not.toHaveProperty('f.urheber');
+    expect(r.filters.urheber).toBeUndefined();
+    expect(r.notes.join(' ')).toMatch(/Fraktion/);
+  });
+
+  it('Vorgangspfad: Kleine Anfrage wird als f.vorgangstyp gezählt, nicht ignoriert (#5566)', async () => {
+    const { dip, list } = dipWith(() => 2);
+    const r = await countBundestag({
+      filters: {
+        deskriptor: ['Klimaschutz'],
+        drucksachetyp: ['Kleine Anfrage'],
+        urheber: ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+        wahlperiode: [21],
+      },
+      dip,
+    });
+    expect(list).toHaveBeenCalledWith('vorgang', {
+      'f.zuordnung': 'BT',
+      'f.wahlperiode': [21],
+      'f.initiative': ['Fraktion BÜNDNIS 90/DIE GRÜNEN'],
+      'f.deskriptor': ['Klimaschutz'],
+      'f.vorgangstyp': 'Kleine Anfrage',
+    });
+    expect(r.einheit).toBe('Vorgänge');
+    expect(r.notes.join(' ')).not.toMatch(/ignoriert/);
+    expect(r.notes.join(' ')).toMatch(/Vorgangstyp/);
+  });
+
+  it('Vorgangspfad: Gesetzentwurf heißt Gesetzgebung; Typen ohne Entsprechung fallen mit Namen weg', async () => {
+    const { dip, list } = dipWith(() => 3);
+    const r = await countBundestag({
+      filters: {
+        deskriptor: ['Klimaschutz'],
+        drucksachetyp: ['Gesetzentwurf', 'Beschlussempfehlung und Bericht'],
+        wahlperiode: [21],
+      },
+      dip,
+    });
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(list.mock.calls[0]![1]).toMatchObject({ 'f.vorgangstyp': 'Gesetzgebung' });
+    expect(r.notes.join(' ')).toMatch(/Beschlussempfehlung und Bericht.*ignoriert/);
+  });
+
   it('nimmt ohne Wahlperiode die 21 an und sagt es', async () => {
     const { dip, list } = dipWith(() => 5);
     const r = await countBundestag({ filters: {}, dip });
@@ -140,7 +189,7 @@ describe('countBundestag', () => {
     expect(r.notes.join(' ')).toContain('letzten 24');
   });
 
-  it('zählt Vorgänge, sobald ein Deskriptor gesetzt ist, und ignoriert den Typ', async () => {
+  it('zählt Vorgänge, sobald ein Deskriptor gesetzt ist, und grenzt den Typ als Vorgangstyp ein', async () => {
     const { dip, list } = dipWith(() => 7);
     const r = await countBundestag({
       filters: {
@@ -156,6 +205,7 @@ describe('countBundestag', () => {
       'f.wahlperiode': [21],
       'f.initiative': ['Fraktion der SPD'],
       'f.deskriptor': ['Wärmepumpe'],
+      'f.vorgangstyp': 'Antrag',
     });
     expect(r.notes.join(' ')).toContain('Vorgänge');
   });

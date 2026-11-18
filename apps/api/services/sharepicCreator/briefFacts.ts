@@ -137,6 +137,89 @@ export function briefWordsFor(wert: number, given: string): string | null {
   return match ? match[1]! : null;
 }
 
+/** A word that says a figure went up or down, saved or added. */
+const DIRECTION =
+  /(?<!\p{L})(?:weniger|mehr|minder|gesunken|gestiegen|gesenkt|gesteigert|gespart|eingespart|ersparnis|rückgang|anstieg|zuwachs|plus|minus|sank|sinkt|sinken|stieg|steigt|steigen|reduziert|reduzierung|senkung|steigerung|zusätzlich\w*)(?!\p{L})/iu;
+/** Words on either side of a figure that count as „next to it". */
+const NEAR = 4;
+
+/**
+ * Clause ends: sentence punctuation, or a comma/colon followed by a space —
+ * the decimal comma of „2,4" has none. A direction word only counts for a
+ * figure in its own clause: „Mehr Radwege. 2,4 km Länge" says nothing about
+ * the 2,4 (review #5490).
+ */
+const CLAUSE_END = /[.;!?]+(?:\s+|$)|[,:]\s+|\n+/u;
+
+/**
+ * A directed figure: its digits and what it counts. The counted thing is the
+ * word after the number („17 Unfälle“, `%` for a percent sign), else the last
+ * capitalised word before it in the clause — German nouns are capitalised
+ * („Die Zahl der Unfälle sank um 17“ → `unfälle`).
+ */
+interface DirectedFigure {
+  num: string;
+  noun: string | null;
+}
+
+const wordOf = (token: string | undefined): string | null => {
+  if (token == null) return null;
+  if (token.startsWith('%')) return '%';
+  const w = token.toLowerCase().replace(/[^\p{L}]/gu, '');
+  return w === 'prozent' ? '%' : w || null;
+};
+
+/** Each number of `text` that has a direction word within a few words of its clause (or a +/− sign). */
+function directedNumbers(text: string): DirectedFigure[] {
+  const found: DirectedFigure[] = [];
+  for (const clause of text.split(CLAUSE_END)) {
+    const tokens = clause.split(/\s+/).filter(Boolean);
+    tokens.forEach((token, i) => {
+      const num = token.match(NUMBER)?.[0];
+      if (!num) return;
+      const window = tokens.slice(Math.max(0, i - NEAR), i + NEAR + 1).join(' ');
+      if (!/^[+\-−–]\d/.test(token) && !DIRECTION.test(window)) return;
+      // Skip direction words: in „17 weniger Unfälle" the figure counts Unfälle (review #5490).
+      const after = token.endsWith('%')
+        ? '%'
+        : (tokens
+            .slice(i + 1, i + 3)
+            .filter((t) => !DIRECTION.test(t))
+            .map(wordOf)
+            .find((w) => w != null) ?? null);
+      const before = tokens
+        .slice(0, i)
+        .filter((t) => /^\p{Lu}/u.test(t))
+        .map(wordOf)
+        .filter((w): w is string => w != null)
+        .at(-1);
+      found.push({ num: digits(num), noun: after ?? before ?? null });
+    });
+  }
+  return found;
+}
+
+/**
+ * Numbers of `text` that carry a direction („17 Unfälle weniger“, „−5 %“)
+ * the brief does not give for the same figure. The figure may be in the brief
+ * — a hotspot count — and still not mean a reduction. „Same figure" means
+ * same digits AND same counted thing on both sides (review #5490: „Der
+ * Verkehr sank um 17 %" says nothing about „17 Unfälle"). Only a tile figure
+ * with no word at all („−17") is vague enough to be covered by the digits.
+ */
+export function invertedNumbers(text: string, given: string): string[] {
+  const inGiven = directedNumbers(given);
+  const covered = (f: DirectedFigure) =>
+    inGiven.some((g) => g.num === f.num && (f.noun == null || g.noun === f.noun));
+  return [
+    ...new Set(
+      directedNumbers(text)
+        .filter((f) => !covered(f))
+        .map((f) => f.num)
+    ),
+  ];
+}
+
 /** Digits glued to letters are part of a name (CO2, A7), not a figure. */
 export const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */
@@ -167,6 +250,95 @@ const SPELLED: [RegExp, number][] = (
 export function spelledNumbers(text: string): string[] {
   const lower = text.toLowerCase();
   return SPELLED.filter(([word]) => word.test(lower)).map(([, n]) => String(n));
+}
+
+/**
+ * Words that say which way a figure moved, by direction, as word stems.
+ * „17 Unfälle“ and „17 Unfälle weniger“ carry the same digits — the number
+ * check in `validateDraft` sees no difference (#5480).
+ */
+const DIRECTION_STEMS: Record<'ab' | 'auf' | 'verhindert', readonly string[]> = {
+  ab: [
+    'weniger',
+    'sank',
+    'sink',
+    'gesunk',
+    'senk',
+    'gesenk',
+    'rückgang',
+    'reduz',
+    'minus',
+    'halbiert',
+    'leiser',
+    'billiger',
+    'günstiger',
+    'spar',
+    'gespar',
+    'eingespar',
+  ],
+  auf: [
+    'mehr',
+    'stieg',
+    'steig',
+    'gestieg',
+    'anstieg',
+    'zuwachs',
+    'plus',
+    'verdoppel',
+    'verdreifach',
+    'lauter',
+    'teurer',
+    'rauf',
+  ],
+  verhindert: ['verhinder', 'vermieden'],
+};
+function directionsOf(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const word of wordsOf(text)) {
+    for (const [direction, stems] of Object.entries(DIRECTION_STEMS)) {
+      if (stems.some((stem) => word.startsWith(stem))) found.add(direction);
+    }
+  }
+  return found;
+}
+
+/** How far around a figure the brief may say which way it moved. */
+const DIRECTION_WINDOW = 100;
+/** How close a direction word stands to the figure it moves, in words („17 Unfälle weniger“). */
+const DIRECTION_REACH = 3;
+
+/**
+ * The figures a text gives a direction the brief does not give them: a
+ * direction word next to a number in the text needs a word of the same
+ * direction near the same number in the brief. Numbers missing from the brief
+ * are the number check's. Only words next to the figure count — „Mehr Busse:
+ * 3.300 Fahrgäste betroffen“ says nothing about the 3.300.
+ */
+export function unbackedDirections(text: string, given: string): string[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const briefNumbers = [...given.matchAll(NUMBER)];
+  const unbacked: string[] = [];
+  tokens.forEach((token, i) => {
+    const shown = token.match(NUMBER)?.[0];
+    if (!shown) return;
+    const around = tokens
+      .slice(Math.max(0, i - DIRECTION_REACH), i + DIRECTION_REACH + 1)
+      .join(' ');
+    const directions = directionsOf(around);
+    if (!directions.size) return;
+    const near = briefNumbers
+      .filter((m) => digits(m[0]) === digits(shown))
+      .map((m) =>
+        given.slice(
+          Math.max(0, m.index - DIRECTION_WINDOW),
+          m.index + m[0].length + DIRECTION_WINDOW
+        )
+      );
+    if (!near.length) return;
+    const backed = [...directions].every((d) => near.some((w) => directionsOf(w).has(d)));
+    if (!backed) unbacked.push(shown);
+  });
+  return unbacked;
 }
 
 /**

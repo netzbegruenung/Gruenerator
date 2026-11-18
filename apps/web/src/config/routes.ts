@@ -21,6 +21,7 @@ import { startTabLink } from '../utils/startpage';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
+import { withParteitageAdminGate } from './parteitageAdminGate';
 
 /**
  * Route configuration interface
@@ -272,10 +273,6 @@ const LandesverbandAdminPage = lazy(
 );
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage'));
-// Playground stillgelegt: die Seite war der zweite Ort mit freier Modellwahl und
-// musste deshalb in der Datenschutzerklärung als Empfänger benannt werden. Die
-// Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
-// const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
@@ -324,6 +321,15 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
+// admin only until the system-media volume is live (Salt #5527) — see parteitageAdminGate.
+const ParteitageListPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitageListPage');
+  return { default: withParteitageAdminGate(Page) };
+});
+const ParteitagPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitagPage');
+  return { default: withParteitageAdminGate(Page) };
+});
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -608,7 +614,6 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/admin/konnektoren', component: ConnectorTestPage },
-  // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
@@ -730,6 +735,12 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/gruene-saarland',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/saarland') })),
+  },
+  {
+    path: '/gruene-nrw',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/nordrhein-westfalen') })
+    ),
   },
   {
     path: '/kommunalwiki',
@@ -935,6 +946,18 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/videoeditor',
     component: VideoEditorPage,
     layoutMode: 'immersive',
+  },
+  {
+    accent: 'studio',
+    path: '/parteitage',
+    component: ParteitageListPage,
+    layoutMode: 'default',
+  },
+  {
+    accent: 'studio',
+    path: '/parteitage/:slug',
+    component: ParteitagPage,
+    layoutMode: 'default',
   },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal

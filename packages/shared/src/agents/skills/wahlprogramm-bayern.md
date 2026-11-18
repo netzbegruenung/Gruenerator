@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-wahlprogramm-bayern'
 title: 'Wahlprogramm Bayern'
-description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern'
+description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern. Nutzen, wenn gefragt wird, was das Programm in Bayern zu einem Thema sagt.'
 iconKey: 'PiMountains'
 avatar: '📘'
 backgroundColor: '#316049'

@@ -33,15 +33,16 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { CURRENT_INSTANCE } from '@/config/instance';
 import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '@/features/agents/api';
+import { isAdoptOpenThreadState } from '@/features/chat/adoptOpenThread';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
-import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
+import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
@@ -109,6 +110,9 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
   const { slug, threadSlug } = useParams<{ slug?: string; threadSlug?: string }>();
+  // /start sent into the runtime and hands the running thread over (see
+  // adoptOpenThread.ts). Gone once ChatThreadRouting replaces the URL.
+  const adoptOpenThread = isAdoptOpenThreadState(useLocation().state) && !threadSlug;
   const navigate = useNavigate();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
@@ -258,24 +262,17 @@ function ChatPage() {
   // eine Instanz, die einen Landesverband wirklich sperrt, bekäme seine Landing
   // samt drei funktionsfähiger Agenten trotzdem.
   const hub = slug ? getLandesverbandHubBySlug(slug, CURRENT_INSTANCE) : null;
-  // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
-  // Resolve the mention to its agent identifier so the agent activates and its
-  // own welcome screen (welcomeQuestion + opening-question examples) renders
-  // instead of the generic overview greeting. Lowest priority in the chain so
-  // an explicit ?agent= or path slug still wins.
-  const skillParam = hub ? null : searchParams.get('skill');
-  // Rezept-Deeplink aus der Agentura: `/chat?rezept=<mention>&rezeptId=<id>`.
-  // `?skill=` allein aktiviert das Rezept NICHT — es löst nur den Agenten auf,
-  // der Rumpf des Rezepts blieb dabei ungenutzt. `?rezept=` aktiviert die
-  // Erwähnung selbst (unten); trifft sie zusätzlich ein Systemrezept, läuft
-  // dieselbe Agentenauflösung weiter mit.
-  const rezeptParam = hub ? null : searchParams.get('rezept');
-  const rezeptIdParam = hub ? null : searchParams.get('rezeptId');
-  const resolvedFromSkill = skillParam
-    ? resolveSkillMention(skillParam)
-    : rezeptParam
-      ? resolveSkillMention(rezeptParam)
-      : null;
+  // Rezept-Deeplink: `/chat?rezept=<mention>&rezeptId=<id>`. Der alte Link
+  // `?skill=<mention>` (z. B. presse-bayern) aktiviert jetzt dasselbe — beide
+  // lesen `readRecipeDeepLink`. Die Erwähnung wird unten aktiviert; trifft sie
+  // ein Systemrezept, löst die Agentenauflösung daraus zusätzlich den Agenten
+  // auf, damit sein Willkommensbildschirm statt der Standardbegrüßung rendert.
+  // Niedrigste Priorität in der Kette: ein ausdrückliches ?agent= oder der
+  // Pfad-Slug gewinnt.
+  const recipeLink = hub ? { mention: null, recipeId: null } : readRecipeDeepLink(searchParams);
+  const rezeptParam = recipeLink.mention;
+  const rezeptIdParam = recipeLink.recipeId;
+  const resolvedFromSkill = rezeptParam ? resolveSkillMention(rezeptParam) : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
@@ -294,7 +291,9 @@ function ChatPage() {
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
   const effectiveViewMode =
-    agentParam || threadSlug || modeParam || rezeptParam ? 'thread' : chatViewMode;
+    agentParam || threadSlug || modeParam || rezeptParam || adoptOpenThread
+      ? 'thread'
+      : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -337,7 +336,7 @@ function ChatPage() {
         }
         // else: user agent whose data hasn't loaded yet — wait for the next run.
       }
-    } else if (!threadSlug) {
+    } else if (!threadSlug && !adoptOpenThread) {
       // Not on a thread deep link: /chat without agent context is a blank
       // slate. With a threadSlug the agent is restored from the thread row
       // (ChatThreadRouting) and must not be wiped by a late userAgents re-run.
@@ -350,7 +349,15 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam, threadSlug, userLocale, userAgents, userAgentsSettled]);
+  }, [
+    agentParam,
+    modeParam,
+    threadSlug,
+    adoptOpenThread,
+    userLocale,
+    userAgents,
+    userAgentsSettled,
+  ]);
 
   // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
   // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
@@ -441,6 +448,7 @@ function ChatPage() {
           onThreadGone={handleThreadGone}
           onLeaveThread={handleLeaveThread}
           onOpenNotebookThread={handleNavigate}
+          adoptOpenThread={adoptOpenThread}
         />
       )}
       {/* `min-w-0`: ohne das ist die Mindestbreite dieses Flex-Items die

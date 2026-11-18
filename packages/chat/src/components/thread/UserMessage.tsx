@@ -5,6 +5,7 @@ import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
+import { useMayReplaceTurn } from '../../hooks/useMayReplaceTurn';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { UserMessageAttachments } from '../assistant-ui/attachment';
@@ -54,6 +55,7 @@ function UserMessageEditor({ initialText, onDone }: { initialText: string; onDon
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus
+        aria-label="Nachricht bearbeiten"
         rows={Math.min(8, Math.max(1, text.split('\n').length))}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
@@ -95,7 +97,9 @@ export function UserMessage() {
   const density = useChatDensity();
   const isCompact = density === 'compact';
   const readOnly = useReadonlyMode();
-  const canEdit = useAuiState((s) => s.thread.capabilities.edit);
+  const threadCanEdit = useAuiState((s) => s.thread.capabilities.edit);
+  const mayReplaceTurn = useMayReplaceTurn();
+  const canEdit = threadCanEdit && mayReplaceTurn;
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
     { senderId?: string; senderName?: string; roleName?: string } | undefined;

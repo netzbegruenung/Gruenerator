@@ -190,6 +190,12 @@ export interface RetrievalIntent extends IntentBase, Mentionable {
    * `compare` hat keins von beiden.
    */
   loopTools?: readonly string[];
+  /**
+   * `false`: die `loopTools` gehören NICHT zu `RESEARCH_LOOP_TOOLS`. Für Quellen,
+   * die nur auf Zuruf gelten (Erwähnung, Werkzeuggruppe in `toolScope.ts`) —
+   * ein erzwungener Recherche-Schritt ohne Bezug soll sie nicht angeboten bekommen.
+   */
+  researchFamily?: false;
 }
 
 /** Produces a rendered artefact in the turn (image, sharepic, chart). */
@@ -311,6 +317,9 @@ const DECLINE_ABGEORDNETENWATCH =
 const DECLINE_BUNDESTAG =
   'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. ' +
   'Für den österreichischen Nationalrat liegen hier keine Daten vor.';
+const DECLINE_ANTRAGSGRUEN =
+  'Antragsgrün ist hier nur für die Parteitage der GRÜNEN NRW angebunden; für Österreich liegen keine Daten vor.';
+
 const DECLINE_ABGEORDNETENHAUS =
   'PARDOK erfasst nur das Abgeordnetenhaus von Berlin. ' +
   'Für österreichische Landtage und den Nationalrat liegen hier keine Daten vor.';
@@ -507,11 +516,34 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       pinsTool: 'landtag',
     },
   },
+  // `@antragsgruennrw` heftet die Antragsgrün-Werkzeuge an (`antragsgruen` und
+  // seine Gruppe in `toolScope.ts`): Anträge, Änderungsanträge und Beschlüsse
+  // der Parteitage der GRÜNEN NRW, Index plus Live-Status. Die Intent-Id ist
+  // allgemein; eine weitere Instanz wäre eine eigene Erwähnung.
+  antragsgruen: {
+    id: 'antragsgruen',
+    category: 'retrieval',
+    loopTools: ['antragsgruen'],
+    // Nur NRW-Parteitage: ein erzwungener Recherche-Schritt ohne Bezug (`research_order`
+    // u. a.) soll das Werkzeug nicht angeboten bekommen. Die Erwähnung heftet es an.
+    researchFamily: false,
+    audience: 'de-DE',
+    degradeTo: 'web',
+    declineNote: DECLINE_ANTRAGSGRUEN,
+    mention: {
+      slug: 'antragsgruennrw',
+      title: 'Antragsgrün NRW',
+      description: 'Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW',
+      avatar: '📋',
+      backgroundColor: '#4B5563',
+      pinsTool: 'antragsgruen',
+    },
+  },
   // ── Retired: moved to the managed-connector path ─────────────────────────
   //
   // These five reached the chat as INTENTS: a verdict picked one, and the loop
   // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
-  // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
+  // (`apps/api/services/mcp/connectorAdapters.ts`) — listed in Einstellungen →
   // Verbindungen, on by default, and mounted on an @mention or when pinned.
   // `reise` existed only because an
   // intent is single-valued and "Zug und Hotel" needed two.
@@ -711,8 +743,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
    * `@pressemitteilungen` gibt es kein Werkzeug festzuzurren, und das Rezept
    * hat mit `/instagram` & Co. bereits eigene, genauere Einträge im Composer.
    * Der TOKEN bleibt (F0: er steht in persistierten Threads und in
-   * ausgelieferten Composern) und landet über `forcedIntentStage` auf dem
-   * Einzeldurchlauf, wo `deriveImplicitRecipeMention` das Rezept wählt.
+   * ausgelieferten Composern) und landet über `forcedIntentStage` auf
+   * `produktion` ohne erzwungenes Werkzeug — der Turn geht mit dem
+   * Rezeptkatalog in die Schleife, wo `rezept_laden` das Rezept wählt.
    *
    * `persistTool` bleibt ebenfalls: die Karten ALTER Threads werden weiter
    * gelesen und bearbeitet (`socialPostEditService`), nur neu erzeugt wird
@@ -1017,12 +1050,14 @@ export function loopToolsFor(intent: string): readonly string[] {
 /**
  * Alle Loop-Werkzeuge der Recherche-Familie: die Vereinigung über jeden
  * Abruf-Intent mit `loopTools`, `chat_history` ausgenommen (eigene Inhalte,
- * keine Recherche). Das ist die Menge, die ein Turn sehen darf, dessen Zwang
+ * keine Recherche) und jeder mit `researchFamily: false` (nur auf Zuruf). Das ist die Menge, die ein Turn sehen darf, dessen Zwang
  * nur „hol Information" sagt, ohne den Intent zu nennen.
  */
 export const RESEARCH_LOOP_TOOLS: ReadonlySet<string> = new Set(
   ALL_CHAT_INTENTS.flatMap((i) =>
-    i.category === 'retrieval' && i.id !== 'chat_history' ? [...(i.loopTools ?? [])] : []
+    i.category === 'retrieval' && i.id !== 'chat_history' && i.researchFamily !== false
+      ? [...(i.loopTools ?? [])]
+      : []
   )
 );
 

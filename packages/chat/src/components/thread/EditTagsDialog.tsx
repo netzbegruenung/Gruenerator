@@ -142,6 +142,7 @@ export const EditTagsDialog = memo(function EditTagsDialog({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Tag eingeben, Enter zum Hinzufügen"
+            aria-label="Neuer Tag"
             className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none"
           />
 

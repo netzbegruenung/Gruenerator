@@ -70,20 +70,6 @@ export const DECISION_POINTS = {
     ],
   },
 
-  /** Deterministic recipe pick on the single-pass path (no @mention typed). */
-  'router.implicit_recipe': {
-    branches: [
-      'presse',
-      'instagram',
-      'facebook',
-      'linkedin',
-      'twitter',
-      'reel',
-      'wahlpruefstein',
-      'antrag',
-    ],
-  },
-
   /** "…aber erstelle kein Dokument." — the negative-action gate.
    *  `dropped_secondary` stood here for the secondary-intent half of the gate.
    *  It was removed with its call site: `secondaryIntent` can only be null,

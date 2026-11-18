@@ -4,9 +4,8 @@ import { z } from 'zod';
  * What a sharepic can be. A request that names one gets it; otherwise the
  * creator picks one and offers two others as alternatives.
  *
- * `stichworte` are words that make a chat request name the form — shown to
- * people as hints, and held to the creator's own matcher by
- * `apps/api/services/sharepicCreator/forms.vitest.ts`.
+ * `stichworte` are words people order the form with — shown to them as
+ * hints, and listed to the creator's model, which reads the order.
  */
 export const SHAREPIC_FORMS = [
   { id: 'einzelbild', label: 'Einzelbild', stichworte: ['Einzelbild'] },
@@ -41,4 +40,22 @@ export function sharepicFormLabel(id: SharepicFormId): string {
 
 export function sharepicFormStichworte(id: SharepicFormId): readonly string[] {
   return SHAREPIC_FORMS.find((f) => f.id === id)!.stichworte;
+}
+
+const ALTERNATIVE_PREFIX = 'Andere Variante als ';
+
+/**
+ * What the chat's „Als …" chip sends for a fresh draft in another form. The
+ * API reads it back with `sharepicAlternativeForm` as a pick, like a Studio
+ * chip — the creator's model took „Andere Variante" for a plain new variant
+ * (0 of 8, 09.11.2026).
+ */
+export function sharepicAlternativeRequest(id: SharepicFormId): string {
+  return `${ALTERNATIVE_PREFIX}${sharepicFormLabel(id)}`;
+}
+
+/** The form a chip's request picks, or null for anything a person typed differently. */
+export function sharepicAlternativeForm(text: string): SharepicFormId | null {
+  const t = text.trim();
+  return SHAREPIC_FORMS.find((f) => t === `${ALTERNATIVE_PREFIX}${f.label}`)?.id ?? null;
 }

@@ -25,6 +25,7 @@ import {
   nameInBrief,
   wordInBrief,
   briefWordsFor,
+  invertedNumbers,
   NUMBER,
   digits,
   spelledNumbers,
@@ -33,6 +34,7 @@ import {
   calendarDays,
   POINTS_TO_ACTION,
   addresseeInBrief,
+  unbackedDirections,
 } from './briefFacts.js';
 import { hasStockPhoto } from './catalog.js';
 import { headlineLineTooLong } from './draftFailure.js';
@@ -103,10 +105,14 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
     const texts =
       item.type === 'headline'
         ? item.lines
-        : item.type === 'zitat' || item.type === 'absatz'
+        : item.type === 'zitat' || item.type === 'absatz' || item.type === 'aufruf'
           ? [item.text]
           : null;
     const own = locale === 'de-DE' && !texts ? ownBoxes(item) : null;
+    // The call is drawn as rich text like a headline (#5601); its addressee and hint are not.
+    if (item.type === 'aufruf' && stringsOf([item.adressat, item.hinweis]).some(hasMarker)) {
+      problems.push(`${where}++…++ steht im aufruf nur im text – adressat und hinweis ohne.`);
+    }
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
     else if (own) {
       const part = item.type === 'liste' ? 'Punkt' : 'titel';
@@ -119,12 +125,12 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
       }
     } else if (stringsOf(item).some(hasMarker)) {
       problems.push(
-        `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
+        `${where}++…++ steht nur in zitat, absatz, headline und aufruf – im Element "${item.type}" weglassen.`
       );
     }
   }
   if (stringsOf([slide.stoerer, slide.ort, slide.quelle]).some(hasMarker)) {
-    problems.push(`${where}++…++ steht nur in zitat, absatz und headline.`);
+    problems.push(`${where}++…++ steht nur in zitat, absatz, headline und aufruf.`);
   }
   if (locale === 'de-AT' && passages > 0) {
     problems.push(
@@ -407,6 +413,18 @@ export function validateDraft(
           `${where}wert ${invented.map((p) => `${p.wert} (${p.titel})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag, nichts umrechnen.`
         );
       }
+      // A figure keeps the meaning it has in the brief: „17 Unfälle“ at a hotspot is not „17 Unfälle weniger“.
+      // Title and text are separate clauses, so the title's „Mehr …“ does not reach the text's figure.
+      const turned = item.punkte.flatMap((p) =>
+        invertedNumbers([p.titel, p.text].filter(Boolean).join('. '), given).map(
+          (n) => `${n} (${p.titel})`
+        )
+      );
+      if (turned.length) {
+        errors.push(
+          `${where}${turned.join(', ')}: Die Richtung (weniger, mehr, gespart, gesunken, gestiegen, +/−) steht nicht beim Wert im Auftrag – eine Zahl behält ihre Bedeutung aus dem Auftrag, ohne erfundenes „weniger“ oder „mehr“.`
+        );
+      }
       // The whole of a share: named in the brief, or 100 for a percentage.
       const wholes = item.punkte.filter(
         (p) => p.von !== undefined && !known.has(String(p.von)) && !(p.von === 100 && givenPercent)
@@ -485,6 +503,13 @@ export function validateDraft(
       if (invented.length) {
         errors.push(
           `${where}"${text}" nennt ${invented.join(', ')} – diese Zahl steht nicht im Auftrag. Ohne Zahl formulieren.`
+        );
+      }
+      // The digits are the brief's; what the text says about them must be too (#5480).
+      const turned = unbackedDirections(text, given);
+      if (turned.length) {
+        errors.push(
+          `${where}"${text}" sagt über ${turned.join(', ')} etwas anderes als der Auftrag (mehr/weniger, gestiegen/gesunken) – übernimm die Aussage des Auftrags über diese Zahl.`
         );
       }
     }

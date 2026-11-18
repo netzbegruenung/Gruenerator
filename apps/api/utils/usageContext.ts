@@ -100,7 +100,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
 
     ['/api/sharepic', 'sharepic'],
     ['/api/canvas', 'sharepic'],
-    ['/api/canva', 'sharepic'],
     ['/api/flux', 'sharepic'],
     ['/api/imagine', 'sharepic'],
     ['/api/image-edit', 'sharepic'],
@@ -155,7 +154,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/campaign_generate', 'texte'],
     ['/api/generate-content-title', 'texte'],
     ['/api/text-forms', 'texte'],
-    ['/api/vision', 'texte'],
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],

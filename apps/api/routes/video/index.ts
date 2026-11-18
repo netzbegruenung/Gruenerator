@@ -1,24 +1,18 @@
 /**
  * Video Route Group
  *
- * Aggregates all video editor API routes under /api/video.
+ * Mounted under /api/video. Only transcription is left: the private video
+ * editor uploads through the Mediathek and renders in the browser, so the
+ * former upload and render-queue routes were removed (#5606).
  */
 
 import { Router } from 'express';
 
-import renderController from './renderController.js';
 import transcribeController from './transcribeController.js';
-import uploadController from './uploadController.js';
 
 const router = Router();
 
 // POST /api/video/transcribe
 router.use('/', transcribeController);
-
-// POST/GET /api/video/uploads, /api/video/uploads/from-url, /api/video/uploads/file/:filename
-router.use('/uploads', uploadController);
-
-// POST /api/video/render, GET /api/video/render/:id, DELETE /api/video/render/:id
-router.use('/', renderController);
 
 export default router;

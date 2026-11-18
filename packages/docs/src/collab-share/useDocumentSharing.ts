@@ -65,18 +65,47 @@ export const useDocumentSharing = (
     }
   };
 
+  /**
+   * The share controls are controlled <select>s bound to the cached server
+   * rows. Without writing the cache first, a new choice snaps back to the old
+   * value until the refetch lands — it reads as "the select won't take my
+   * choice". Write optimistically, roll back on error, refetch either way.
+   */
+  const optimistic = <TCache, TVars>(
+    key: QueryKey,
+    patch: (old: TCache, vars: TVars) => TCache
+  ) => ({
+    onMutate: async (vars: TVars) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<TCache>(key);
+      if (previous) queryClient.setQueryData<TCache>(key, patch(previous, vars));
+      return { previous };
+    },
+    onError: (_err: Error, _vars: TVars, ctx?: { previous?: TCache }) => {
+      if (ctx?.previous) queryClient.setQueryData<TCache>(key, ctx.previous);
+    },
+    onSettled: invalidateAll,
+  });
+
   const setShareMode = useMutation({
     mutationFn: async (mode: ShareMode) => {
       await apiClient.put(`/docs/${documentId}/share/mode`, { mode });
     },
-    onSuccess: invalidateAll,
+    ...optimistic<SharingShareSettings, ShareMode>(shareKey, (old, mode) => ({
+      ...old,
+      share_mode: mode,
+      is_public: mode === 'public',
+    })),
   });
 
   const setSharePermission = useMutation({
     mutationFn: async (permission: 'viewer' | 'editor') => {
       await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
     },
-    onSuccess: invalidateAll,
+    ...optimistic<SharingShareSettings, 'viewer' | 'editor'>(shareKey, (old, permission) => ({
+      ...old,
+      share_permission: permission,
+    })),
   });
 
   const grantAccess = useMutation({
@@ -101,13 +130,17 @@ export const useDocumentSharing = (
       permissionLevel,
     }: {
       userId: string;
-      permissionLevel: string;
+      permissionLevel: 'viewer' | 'editor';
     }) => {
       await apiClient.put(`/docs/${documentId}/permissions/${userId}`, {
         permission_level: permissionLevel,
       });
     },
-    onSuccess: invalidateAll,
+    ...optimistic<SharingCollaborator[], { userId: string; permissionLevel: 'viewer' | 'editor' }>(
+      permKey,
+      (old, { userId, permissionLevel }) =>
+        old.map((c) => (c.user_id === userId ? { ...c, permission_level: permissionLevel } : c))
+    ),
   });
 
   const revokeAccess = useMutation({
@@ -139,13 +172,17 @@ export const useDocumentSharing = (
       permissionLevel,
     }: {
       groupId: string;
-      permissionLevel: string;
+      permissionLevel: 'viewer' | 'editor';
     }) => {
       await apiClient.put(`/docs/${documentId}/groups/${groupId}`, {
         permission_level: permissionLevel,
       });
     },
-    onSuccess: invalidateAll,
+    ...optimistic<SharingGroupShare[], { groupId: string; permissionLevel: 'viewer' | 'editor' }>(
+      groupsKey,
+      (old, { groupId, permissionLevel }) =>
+        old.map((g) => (g.group_id === groupId ? { ...g, permission_level: permissionLevel } : g))
+    ),
   });
 
   const unshareFromGroup = useMutation({

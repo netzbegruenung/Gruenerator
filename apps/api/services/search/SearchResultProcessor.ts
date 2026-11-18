@@ -45,6 +45,7 @@ export function expandResultsToChunks(
     const docId = r.document_id || sourceUrl || '';
 
     const publishedAt = r.published_at ?? null;
+    const datePrecision = publishedAt ? (r.date_precision ?? null) : null;
     const createdAt = r.created_at;
 
     if (topChunks.length > 0) {
@@ -65,6 +66,7 @@ export function expandResultsToChunks(
           page_number: chunk.page_number ?? null,
           chunk_type: chunk.chunk_type ?? null,
           published_at: publishedAt,
+          date_precision: datePrecision,
           ...(createdAt && { created_at: createdAt }),
           ...(collectionId && { collection_id: collectionId }),
           ...(collectionName && { collection_name: collectionName }),
@@ -87,6 +89,7 @@ export function expandResultsToChunks(
         page_number: null,
         chunk_type: null,
         published_at: publishedAt,
+        date_precision: datePrecision,
         ...(createdAt && { created_at: createdAt }),
         ...(collectionId && { collection_id: collectionId }),
         ...(collectionName && { collection_name: collectionName }),
@@ -160,6 +163,9 @@ export function buildReferencesMap(
     const r = results[i];
     const id = String(i + 1);
     const date = resolveSourceDate(r);
+    // A precision describes `published_at` only; `resolveSourceDate` may have
+    // picked `date` or a metadata date instead.
+    const datePrecision = date && date === r.published_at ? r.date_precision : null;
     const uploadedAt = !date && options.allowCreatedAt ? r.created_at : undefined;
 
     referencesMap[id] = {
@@ -168,6 +174,7 @@ export function buildReferencesMap(
       ...(r.chunk_text && { chunk_text: r.chunk_text }),
       description: null,
       date,
+      ...(datePrecision && { date_precision: datePrecision }),
       ...(uploadedAt && { uploaded_at: uploadedAt }),
       source: 'qa_documents',
       document_id: r.document_id,

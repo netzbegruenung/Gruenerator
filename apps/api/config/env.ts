@@ -106,6 +106,15 @@ const envSchema = z.object({
    */
   BROWSER_AGENT_URL: z.string().optional(),
   /**
+   * Antragsgrün-Seiten für Personen anlegen (`services/antragsgruen/hosting/`):
+   * das Grünerator-Konto bei antragsgruen.de. Ohne beide Werte wird das Werkzeug
+   * `antragsgruen_seite_anlegen` nicht montiert. `ANTRAGSGRUEN_HOSTING_URL` nur
+   * für Tests gegen eine eigene Instanz (Standard `https://antragsgruen.de`).
+   */
+  ANTRAGSGRUEN_BOT_EMAIL: z.string().optional(),
+  ANTRAGSGRUEN_BOT_PASSWORD: z.string().optional(),
+  ANTRAGSGRUEN_HOSTING_URL: z.string().url().optional(),
+  /**
    * Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default
    * `http://localhost:3001`; im Betrieb `browser-gateway:8898`, das nur den
    * Modell-Pfad durchlässt.
@@ -259,11 +268,14 @@ const envSchema = z.object({
 
   // ── Web Search Providers ───────────────────────────────────────────────
   LINKUP_API_KEY: z.string().optional(),
+  // Base URL of a SearXNG instance (no trailing `/search`). Only read when
+  // WEB_SEARCH_CHAIN lists `searxng`; unset = the engine counts as not configured.
+  SEARXNG_URL: z.string().optional(),
   // Ordered web search engines, comma-separated (`services/search/webSearch.ts`).
   // Each search goes to the first engine that is configured and can honour all
   // its constraints (GreenPT: no dates, domain scope, images or `deep`); a
   // failing engine hands over to the next. Swapping engines = editing this line.
-  // `searxng` (a private instance, no key) is opt-in for key-less dev setups.
+  // `searxng` (SEARXNG_URL, no key) is opt-in for key-less dev setups.
   // Replaces GREENPT_SEARCH_ENABLED (removed 29.09.2026, ignored with a warning).
   WEB_SEARCH_CHAIN: z
     .string()
@@ -346,16 +358,14 @@ const envSchema = z.object({
   GOOGLE_PICKER_API_KEY: z.string().optional(),
   GOOGLE_PICKER_APP_ID: z.string().optional(),
 
-  // ── Canva Connect API (direct OAuth2 + PKCE, no Nango) ──────────────────
-  CANVA_CLIENT_ID: z.string().optional(),
-  CANVA_CLIENT_SECRET: z.string().optional(),
-  CANVA_REDIRECT_URI: z.string().optional(),
-
   // ── MCP ────────────────────────────────────────────────────────────────
-  MCP_URL: z.string().optional(),
   BUNDESTAG_MCP_URL: z.string().optional(),
   // DIP-API des Bundestags — Volltexte für das Bundestag-DIP-Notebook.
   DIP_API_KEY: z.string().optional(),
+  // Notebook-Such-API von Bundestag Wrapped (`services/notebook/remoteSources/`).
+  // Ohne beide Werte meldet die Quelle „nicht erreichbar", der Start bricht nicht ab.
+  BUNDESTAG_NOTEBOOK_API_URL: z.string().trim().optional(),
+  BUNDESTAG_NOTEBOOK_API_KEY: z.string().trim().optional(),
   // PARDOK-API des Abgeordnetenhauses Berlin — Abgeordnetenhaus-Notebook.
   PARDOK_API_KEY: z.string().optional(),
 
@@ -404,7 +414,6 @@ const envSchema = z.object({
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
   HOCUSPOCUS_ENABLED: boolFlag(false),
-  YJS_ENABLED: boolFlag(false),
 
   // ── Scraping / crawling ────────────────────────────────────────────────
   CRAWLER_MODE: z.string().optional(),
@@ -426,12 +435,6 @@ const envSchema = z.object({
 
   // ── Logging ────────────────────────────────────────────────────────────
   LOG_LEVEL: z.string().default('info'),
-  LOG_AI_REQUESTS: boolFlag(true),
-  LOG_PERFORMANCE: boolFlag(true),
-  LOG_FULL_RESPONSES: boolFlag(false),
-  VERBOSE_LOGGING: boolFlag(false),
-  DEBUG_MODE: boolFlag(false),
-  DEBUG_LOGGING: boolFlag(false),
   ENABLE_DEBUG: boolFlag(false),
   ENABLE_VERBOSE: boolFlag(false),
   ENABLE_TELEMETRY: boolFlag(true),
@@ -439,22 +442,10 @@ const envSchema = z.object({
   // ── Rate limiting ──────────────────────────────────────────────────────
   DISABLE_RATE_LIMITS: boolFlag(false),
   ENABLE_RATE_LIMIT_ANALYTICS: boolFlag(false),
-  RATE_LIMIT_MAX_REQUESTS: numStr(250),
-  RATE_LIMIT_TIME_WINDOW: numStr(60000),
-  RATE_LIMIT_MAX_CONCURRENT: numStr(10),
 
-  // ── AI Worker pool ─────────────────────────────────────────────────────
-  AI_WORKER_COUNT: numStr(1),
+  // ── Request budget ─────────────────────────────────────────────────────
   REQUEST_TIMEOUT: numStr(120000),
-  INTERNAL_TIMEOUT: numStr(110000),
   MAX_RETRIES: numStr(3),
-  RETRY_BASE_DELAY: numStr(1000),
-  RETRY_MAX_DELAY: numStr(120000),
-  USE_BACKUP_ON_FAIL: boolFlag(true),
-  BACKUP_RETRY_COUNT: numStr(2),
-  PROGRESS_UPDATES: boolFlag(true),
-  VALIDATE_RESPONSES: boolFlag(true),
-  DELAY_RESPONSE_MS: numStr(0),
 
   // ── Vector / Qdrant ────────────────────────────────────────────────────
   QDRANT_URL: z.string().optional(),

@@ -229,6 +229,7 @@ export const AIPromptInput = React.memo(function AIPromptInput({
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
+              aria-label="Was möchtest du erstellen?"
               disabled={disabled || isLoading}
               rows={1}
               className="max-sm:order-first max-sm:basis-full flex-1 w-full min-w-0 max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] overflow-y-auto field-sizing-content resize-none text-[15px] outline-none placeholder:text-grey-400 bg-transparent border-none px-1.5 py-3"
@@ -287,6 +288,7 @@ export const AIPromptInput = React.memo(function AIPromptInput({
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
+              aria-label="Was möchtest du erstellen?"
               rows={rows}
               disabled={disabled || isLoading}
               // Grows with its content up to 40 % of the visible viewport;

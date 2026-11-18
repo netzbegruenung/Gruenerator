@@ -1,6 +1,7 @@
 import { type ChatBackground } from '@gruenerator/contracts';
 import { Check } from 'lucide-react';
 
+import SettingsSection from '../components/SettingsSection';
 import { getSettingsEntry } from '../settingsCatalog';
 
 import {
@@ -89,12 +90,10 @@ const BackgroundTab = () => {
   const selected = resolveChatBackground(chatBackground);
 
   return (
-    <div className="flex flex-col gap-lg">
-      <p className="m-0 max-w-prose text-sm text-grey-500 dark:text-grey-400">
-        {ENTRY.description} Die Auswahl gilt sofort und auf allen Geräten, an denen du angemeldet
-        bist.
-      </p>
-
+    <SettingsSection
+      title="Startseiten-Hintergrund"
+      description={`${ENTRY.description} Die Auswahl gilt sofort und auf allen Geräten, an denen du angemeldet bist.`}
+    >
       {/* Eine Auswahl, nicht zwei: die Überschriften gliedern die Kacheln, aber
           die Radiogruppe umschließt alle — sonst läse sich „1 von 4" und „1 von
           6" wie zwei getrennte Entscheidungen. */}
@@ -118,7 +117,7 @@ const BackgroundTab = () => {
           </section>
         ))}
       </div>
-    </div>
+    </SettingsSection>
   );
 };
 

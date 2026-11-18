@@ -20,6 +20,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
@@ -33,10 +34,10 @@ import { goBackOr } from '../../../../utils/navigation';
 type ViewMode = 'feed' | 'all';
 
 /**
- * Ein Projekt bzw. eine Gruppe — in der App nur zum Lesen. Feed (neueste
- * Freigaben, Angeheftetes oben) und „Alle" (eine Reihe je Art). Mitglieder,
- * Links und Beschreibung stehen hinter dem Personen-Symbol auf der Info-Seite;
- * Teilen, Anheften und Kommentieren bleiben dem Web.
+ * Ein Projekt bzw. eine Gruppe. Feed (neueste Freigaben, Angeheftetes oben)
+ * und „Alle" (eine Reihe je Art). Mitglieder, Links und Beschreibung stehen
+ * hinter dem Personen-Symbol auf der Info-Seite; über „+“ legt man eigene
+ * Inhalte hinein. Anheften und Verwaltung bleiben dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -50,6 +51,8 @@ export default function ProjektDetailScreen() {
   const token = useBearerToken();
   const group = detailsQuery.data?.group;
   const isPersonal = group?.group_type === 'personal';
+  // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
+  const canAdd = !!group && (!group.is_system || !!detailsQuery.data?.membership.isAdmin);
 
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
@@ -86,17 +89,35 @@ export default function ProjektDetailScreen() {
       title={group?.name ?? 'Projekt'}
       onBack={() => goBackOr('/(focused)/projekte')}
       headerRight={
-        <Pressable
-          onPress={() =>
-            router.push({ pathname: '/(focused)/projekte/[id]/info', params: { id: id ?? '' } })
-          }
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={isPersonal ? 'Projekt-Info anzeigen' : 'Gruppen-Info anzeigen'}
-          style={[styles.headerButton, { backgroundColor: theme.card }]}
-        >
-          <Ionicons name="people-outline" size={20} color={theme.text} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {canAdd ? (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/(focused)/projekte/[id]/hinzufuegen',
+                  params: { id: id ?? '' },
+                })
+              }
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Inhalte hinzufügen"
+              style={[styles.headerButton, { backgroundColor: theme.card }]}
+            >
+              <Ionicons name="add" size={22} color={theme.text} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/(focused)/projekte/[id]/info', params: { id: id ?? '' } })
+            }
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isPersonal ? 'Projekt-Info anzeigen' : 'Gruppen-Info anzeigen'}
+            style={[styles.headerButton, { backgroundColor: theme.card }]}
+          >
+            <Ionicons name="people-outline" size={20} color={theme.text} />
+          </Pressable>
+        </View>
       }
     >
       {children}
@@ -160,6 +181,13 @@ export default function ProjektDetailScreen() {
         }
       >
         <View style={styles.padded}>
+          {id ? (
+            <ProjectChatComposer
+              groupId={id}
+              groupName={group.name}
+              solo={isPersonal || group.is_system === true}
+            />
+          ) : null}
           {!isPersonal && (
             <SegmentedControl
               accessibilityLabel="Ansicht"
@@ -247,6 +275,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: spacing.xxlarge * 2, gap: 14 },
   padded: { paddingHorizontal: spacing.medium, gap: 14 },
   skeletonHead: { paddingHorizontal: spacing.medium, paddingTop: spacing.medium },
+  headerActions: { flexDirection: 'row', gap: spacing.xsmall },
   headerButton: {
     width: 40,
     height: 40,

@@ -8,7 +8,7 @@
  * prefix covers authentication only.
  */
 import { skillVisibilityContract } from '@gruenerator/contracts';
-import { SKILLS, isSkillOfferedIn } from '@gruenerator/shared/agents';
+import { SKILLS, isSkillOfferedIn, isUserFacingSkill } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { CURRENT_INSTANCE } from '../../config/instance.js';
@@ -63,15 +63,15 @@ export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
       // jede Entdeckungsfläche sie ohnehin über `isSkillOfferedIn` fallen
       // lässt. Serverseitig und nicht in der Oberfläche, weil dieselbe
       // Antwort jeden Client bedient.
-      const data = SKILLS.filter((skill) => isSkillOfferedIn(skill, CURRENT_INSTANCE)).map(
-        (skill) => ({
-          mention: skill.mention,
-          identifier: skill.identifier,
-          title: skill.title,
-          skillCategory: skill.skillCategory ?? null,
-          hidden: hiddenMentions.has(skill.mention),
-        })
-      );
+      const data = SKILLS.filter(
+        (skill) => isUserFacingSkill(skill) && isSkillOfferedIn(skill, CURRENT_INSTANCE)
+      ).map((skill) => ({
+        mention: skill.mention,
+        identifier: skill.identifier,
+        title: skill.title,
+        skillCategory: skill.skillCategory ?? null,
+        hidden: hiddenMentions.has(skill.mention),
+      }));
 
       return { status: 200 as const, body: { success: true, data } };
     } catch (error) {

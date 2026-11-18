@@ -28,6 +28,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { SKILLS } from '@gruenerator/shared/agents';
+
 import { env } from '../../config/env.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -62,6 +64,22 @@ type Kind = 'skills' | 'agents' | 'rollen' | 'skills/_base';
 
 const caches = new Map<Kind, Map<string, string>>();
 
+/**
+ * Files are keyed by mention, so a rename on either side silently leaves a
+ * public recipe without a body (#5585: `antrag` vs `kommunalantrag.md`). CI cannot
+ * see the private repo, so the load is the only place to notice.
+ */
+function warnOnRecipesWithoutBody(prompts: Map<string, string>): void {
+  if (prompts.size === 0) return; // directory not rolled out — already warned
+  const missing = SKILLS.filter((s) => !prompts.has(s.mention)).map((s) => s.mention);
+  if (missing.length > 0) {
+    log.warn(
+      `${missing.length} public recipe(s) have no internal body: ${missing.join(', ')} — ` +
+        `check skills/<mention>.md in the intern repo`
+    );
+  }
+}
+
 function load(kind: Kind): Map<string, string> {
   const dir = resolve(internContentRoot(), kind);
   const prompts = new Map<string, string>();
@@ -88,6 +106,7 @@ function load(kind: Kind): Map<string, string> {
   }
 
   log.info(`Loaded ${prompts.size} internal ${kind} prompt(s) from ${dir}`);
+  if (kind === 'skills') warnOnRecipesWithoutBody(prompts);
   return prompts;
 }
 

@@ -12,7 +12,12 @@ import { aiObject } from '../../ai/generate.js';
 import { BARE_DRS_RE, EXPLICIT_DRS_RE } from '../BundestagEnrichedService.js';
 import { type DipClient } from '../dip/dipClient.js';
 
-import { CURRENT_WAHLPERIODE, detectFromWording, dropTitelBesideDeskriptor } from './planDetect.js';
+import {
+  CURRENT_WAHLPERIODE,
+  detectFromWording,
+  dropFraktionBesideAntwort,
+  dropTitelBesideDeskriptor,
+} from './planDetect.js';
 
 const log = createLogger('BundestagQaPlan');
 
@@ -165,7 +170,7 @@ Gib nur Filter an, die die Frage wirklich nennt oder klar nahelegt. Lass alles a
 - datumVon / datumBis im Format JJJJ-MM-TT.
 - keywords: 3 bis 8 Suchwörter aus der Frage.`;
 
-async function modelFilters(question: string) {
+async function modelFilters(question: string, signal: AbortSignal | null) {
   const res = await aiObject({
     lane: 'bundestag_plan',
     // Kein `json: true`: das erzwungene Tool liefert die Struktur, und Mistral (letzter Rückfall) lehnt json_object neben erzwungenem Tool ab.
@@ -185,6 +190,7 @@ async function modelFilters(question: string) {
           };
     },
     label: 'bundestag:plan',
+    ...(signal ? { signal } : {}),
   });
   return res.ok ? res.data : null;
 }
@@ -193,10 +199,13 @@ export async function planFilters({
   question,
   explicit,
   dip,
+  signal = null,
 }: {
   question: string;
   explicit: BundestagFilter;
   dip: PlanDip;
+  /** Bricht den Modellaufruf ab (Frist des Aufrufers), damit er nicht weiterläuft und bezahlt wird. */
+  signal?: AbortSignal | null;
 }): Promise<PlanResult> {
   const notes: string[] = [];
   const detected = detectDeterministic(question);
@@ -204,7 +213,7 @@ export async function planFilters({
   let fromModel: BundestagFilter = {};
 
   try {
-    const out = await modelFilters(question);
+    const out = await modelFilters(question, signal);
     if (out) {
       keywords = out.keywords;
       fromModel = {
@@ -228,6 +237,8 @@ export async function planFilters({
     Object.entries(explicit).filter(([, v]) => v !== undefined)
   ) as BundestagFilter;
   const filters: BundestagFilter = { ...fromModel, ...detected, ...given };
+  const fraktionNote = dropFraktionBesideAntwort(filters);
+  if (fraktionNote) notes.push(fraktionNote);
 
   // Die Vorbelegung gilt schon fürs Zählen, damit es dieselbe Periode nutzt wie die Suche.
   let assumedWahlperiode = false;

@@ -354,6 +354,7 @@ export const FRONTPAGE_VISUAL_KINDS = [
 /** How many items each shelf shows, and below how many it hides. */
 export const FRONTPAGE_SHELVES = {
   landesverband: { show: 3, min: 2 },
+  rezepte: { show: 4, min: 1 },
   neu: { show: 4, min: 1 },
   beliebt: { show: 5, min: 5 },
   gestalten: { show: 8, min: 3 },
@@ -368,6 +369,7 @@ interface ShelfQuery {
 /** What each shelf asks the list for; `sectionLimit` is the shelf's `show`. */
 export const FRONTPAGE_SHELF_QUERIES = {
   landesverband: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'empfohlen', origin: 'landesverband' },
+  rezepte: { kinds: ['recipe'], sort: 'empfohlen', origin: 'offiziell' },
   neu: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'neu', origin: null },
   beliebt: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'beliebt', origin: null },
   gestalten: { kinds: FRONTPAGE_VISUAL_KINDS, sort: 'empfohlen', origin: null },
@@ -393,6 +395,22 @@ export function landesverbandShelf(
 ): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.landesverband;
   return atLeast(itemsOf(sections, exclude).slice(0, show), min);
+}
+
+/**
+ * „Rezepte": official recipes (the server filters out model-only ones), the
+ * viewer's saved ones first, otherwise the server's order. Sits above the
+ * mixed shelves — Rezepte lead Agents everywhere in the Marktplatz.
+ */
+export function recipesShelf(
+  sections: readonly MarketplaceSection[],
+  exclude: string | null = null
+): MarketplaceItem[] {
+  const { show, min } = FRONTPAGE_SHELVES.rezepte;
+  const items = itemsOf(sections, exclude);
+  // Stable partition: saved first, the server's order within each part.
+  const ordered = [...items.filter((i) => i.saved), ...items.filter((i) => !i.saved)];
+  return atLeast(ordered.slice(0, show), min);
 }
 
 /** Newest first across kinds — every section is already newest-first within its kind. */
@@ -478,6 +496,7 @@ export function composeFrontpage(input: {
   const focusKey = featured?.key ?? null;
   const items: Record<MarketplaceFrontpageShelfId, MarketplaceItem[]> = {
     landesverband: landesverbandShelf(sections.landesverband, focusKey),
+    rezepte: recipesShelf(sections.rezepte, focusKey),
     neu: newestShelf(sections.neu, focusKey),
     beliebt: popularShelf(sections.beliebt, focusKey),
     gestalten: visualShelf(sections.gestalten, focusKey),

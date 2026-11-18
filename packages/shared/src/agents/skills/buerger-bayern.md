@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-bayern'
 title: 'Bürger*innen-Mail Bayern'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Bayern'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Bayern. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Bayern geantwortet wird.'
 iconKey: 'PiMountains'
 avatar: '✉️'
 backgroundColor: '#316049'

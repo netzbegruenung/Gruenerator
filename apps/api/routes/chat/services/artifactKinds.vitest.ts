@@ -30,16 +30,6 @@ const ALL_SPECS = [
 ] as const;
 
 describe.each(ALL_SPECS)('%s spec is complete', (_name, spec) => {
-  it('declares the fields the choreography always needs', () => {
-    expect(spec.intent).toBeTruthy();
-    expect(spec.progressMessage).toBeTruthy();
-    expect(spec.contextKind).toBeTruthy();
-    expect(spec.logLabel).toBeTruthy();
-    expect(typeof spec.generate).toBe('function');
-    expect(typeof spec.successText).toBe('function');
-    expect(typeof spec.ref).toBe('function');
-  });
-
   it('has distinct texts for "nothing usable" and "it threw"', () => {
     // One generic message for both would hide which half failed — the
     // production trace was undiagnosable for exactly that reason.

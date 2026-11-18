@@ -96,7 +96,7 @@ describe('search collections', () => {
 
   it('reaches the Landesverbände, which the chat list omits', () => {
     const options = enumOptions(build(['search']), 'gruenerator_search', 'collection');
-    for (const lv of ['hamburg', 'bayern', 'berlin', 'thueringen']) {
+    for (const lv of ['hessen', 'bayern', 'berlin', 'thueringen']) {
       expect(options).toContain(lv);
     }
   });

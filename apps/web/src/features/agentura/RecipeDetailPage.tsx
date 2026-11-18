@@ -16,7 +16,6 @@
 import {
   agentsList,
   useHiddenSkillMentions,
-  useSkillFavoritesStore,
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
@@ -56,6 +55,7 @@ import { AddToLibraryButton } from './components/AddToLibraryButton';
 import { SkillCard, TypeBadge } from './components/cards';
 import { ShareRecipeModal } from './components/ShareRecipeModal';
 import { useSkillPrompt } from './hooks/useSkillPrompt';
+import { useUserLibrary } from './hooks/useUserLibrary';
 import { relatedSkills } from './lib/lookups';
 import { recipeOriginLine } from './recipes/recipeMeta';
 import { useRecipeByMention, type RecipeSource } from './recipes/useRecipeByMention';
@@ -107,8 +107,7 @@ function SystemRecipeView({
 }) {
   const navigate = useNavigate();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
-  const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
+  const library = useUserLibrary();
   // The recipe text is not in the bundle — it is party-internal and comes from
   // the API, for signed-in users only. See hooks/useSkillPrompt.ts.
   const { data: skillPrompt } = useSkillPrompt(skill.mention);
@@ -133,15 +132,15 @@ function SystemRecipeView({
     (classification.kind === 'recipe' && classification.entitled);
 
   const Icon = skill.icon ?? PiSparkle;
-  const isFavorite = favorites.includes(skill.mention.toLowerCase());
+  const isFavorite = library.has('recipe', skill.mention);
+
   const editHref = `/agentura/rezept/${encodeURIComponent(skill.mention)}/bearbeiten`;
-  // Mit einem eigenen Override ist „Im Chat verwenden" nicht mehr dasselbe:
-  // `?skill=` aktiviert nur den Agenten, der Rumpf bliebe der mitgelieferte.
-  // `?rezept=` samt Zeilen-ID nimmt den angepassten Stil mit — genau den, den
-  // die Seite eine Zeile darüber ankündigt.
+  // Mit einem eigenen Override trägt der Link die Zeilen-ID mit — der
+  // angepasste Stil, den die Seite eine Zeile darüber ankündigt, nicht der
+  // mitgelieferte Rumpf.
   const chatHref = ownOverride
     ? `/chat?rezept=${encodeURIComponent(skill.mention)}&rezeptId=${encodeURIComponent(ownOverride.id)}`
-    : `/chat?skill=${encodeURIComponent(skill.mention)}`;
+    : `/chat?rezept=${encodeURIComponent(skill.mention)}`;
 
   return (
     <PageContainer maxWidth="lg">
@@ -171,18 +170,18 @@ function SystemRecipeView({
             <PiPaperPlaneTilt />
             Im Chat verwenden
           </Button>
-          <AddToLibraryButton kind="recipe" itemRef={skill.mention} />
           {canOverride && (
-            <Button variant="outline" onClick={() => navigate(editHref)}>
+            <Button variant="brand-outline" onClick={() => navigate(editHref)}>
               <PiPencilSimple />
-              {ownOverride ? 'Angepassten Stil bearbeiten' : 'Mit eigenen Beispielen anpassen'}
+              {ownOverride ? 'Angepassten Stil bearbeiten' : 'Anpassen'}
             </Button>
           )}
+          <AddToLibraryButton kind="recipe" itemRef={skill.mention} />
           <Button
             variant="outline"
             size="icon"
             aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-            onClick={() => toggleFavorite(skill.mention)}
+            onClick={() => library.toggle('recipe', skill.mention)}
           >
             {isFavorite ? <PiStarFill /> : <PiStar />}
           </Button>
@@ -223,8 +222,8 @@ function SystemRecipeView({
                 <SkillCard
                   key={other.mention}
                   skill={other}
-                  isFavorite={favorites.includes(other.mention.toLowerCase())}
-                  onToggleFavorite={toggleFavorite}
+                  isFavorite={library.has('recipe', other.mention)}
+                  onToggleFavorite={(mention) => library.toggle('recipe', mention)}
                   onSelect={(s) => navigate(`/agentura/rezept/${encodeURIComponent(s.mention)}`)}
                 />
               ))}
@@ -254,8 +253,7 @@ function UserRecipeView({
 }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
+  const library = useUserLibrary();
   const deleteRecipe = useDeleteRecipe();
   const showTrashUndo = useTrashUndoToast();
   const [shareOpen, setShareOpen] = useState(false);
@@ -263,7 +261,7 @@ function UserRecipeView({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const isOwn = source === 'own';
-  const isFavorite = favorites.includes(form.mention.toLowerCase());
+  const isFavorite = library.has('recipe', form.id);
   const origin = recipeOriginLine(form, source);
   const exampleCount = exampleCountOf(form);
 
@@ -335,7 +333,7 @@ function UserRecipeView({
           type="button"
           className={ICON_BTN}
           aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-          onClick={() => toggleFavorite(form.mention)}
+          onClick={() => library.toggle('recipe', form.id)}
         >
           {isFavorite ? (
             <PiStarFill className="h-[18px] w-[18px] text-secondary-600" />

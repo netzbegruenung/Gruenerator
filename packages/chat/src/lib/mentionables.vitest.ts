@@ -9,8 +9,10 @@ import {
   visibleNotebookMentionables,
   filterMentionables,
   getAllMentionables,
+  setMentionInstance,
   setMentionLocale,
   userAgentToMentionable,
+  textformToMentionable,
 } from './mentionables';
 
 // ---------------------------------------------------------------------------
@@ -79,6 +81,12 @@ const BEFORE: Row[] = [
     identifier: 'abgeordnetenhaus',
     mention: 'abgeordnetenhaus',
     title: 'Abgeordnetenhaus Berlin',
+    audience: 'de-DE',
+  },
+  {
+    identifier: 'antragsgruen',
+    mention: 'antragsgruennrw',
+    title: 'Antragsgrün NRW',
     audience: 'de-DE',
   },
   {
@@ -337,6 +345,18 @@ describe('locale-aware picker', () => {
     expect(ids).not.toContain('hamburg-notebook');
   });
 
+  it('offers preview notebooks where the instance serves them, and only there', () => {
+    setMentionLocale('de-DE');
+    setMentionInstance('beta');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).toContain(
+      'landtag-bayern-notebook'
+    );
+    setMentionInstance('production');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).not.toContain(
+      'landtag-bayern-notebook'
+    );
+  });
+
   it('filters the @-typeahead too, not just the plus menu', () => {
     setMentionLocale('de-AT');
     // The exact bug: typing "@bun" offered @bundestag because filterMentionables
@@ -348,7 +368,7 @@ describe('locale-aware picker', () => {
 
 // ---------------------------------------------------------------------------
 // Slug uniqueness ACROSS sources. Each source (agents, notebooks, tools, boards,
-// docs, wolke, connect, canva, …) keeps its own slugs unique on its own; nothing
+// docs, wolke, connect, …) keeps its own slugs unique on its own; nothing
 // checked the union. `rebuildMentionableMap` is first-wins, so a later source
 // that reuses a slug is silently unreachable — the picker offers the entry, the
 // parser resolves it to a different one, and the turn routes somewhere else.
@@ -418,5 +438,21 @@ describe('userAgentToMentionable', () => {
   it('routes an own agent by its identifier', () => {
     const m = userAgentToMentionable({ ...base, sharedFromGroup: null });
     expect(m).toMatchObject({ identifier: 'wahlkampf-xy', mention: 'wahlkampf-xy' });
+  });
+});
+
+describe('textformToMentionable', () => {
+  it('falls back to "Eigenes Rezept" when there is no description', () => {
+    const m = textformToMentionable({
+      id: 'r1',
+      mention: 'ov-einladung',
+      title: 'OV-Einladung',
+      description: null,
+      iconKey: null,
+      sharedFromGroup: null,
+      ownerName: null,
+      isPublic: false,
+    });
+    expect(m.description).toBe('Eigenes Rezept');
   });
 });

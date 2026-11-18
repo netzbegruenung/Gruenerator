@@ -148,7 +148,7 @@ describe('getEuGreens — single-flight', () => {
 // in a second → 429s → the resulting HALF answers were cached as if complete,
 // so Bayern showed 4 parties instead of 8 for the next twelve hours.
 
-const BY_CACHE_KEY = 'monitor:politpro:v2:bayern';
+const BY_CACHE_KEY = 'monitor:politpro:v3:bayern';
 
 /** `/de-by/trend` — the one call that must succeed for a usable answer. */
 function trendFor(code: string): Response {
@@ -164,6 +164,7 @@ function trendFor(code: string): Response {
           parties: [
             { name_short: 'Grüne', name_long: 'Grüne', percent: 14.5, diff: 0.3 },
             { name_short: 'CDU/CSU', name_long: 'Union', percent: 38, diff: -0.2 },
+            { name_short: 'Other', name_long: 'Other', percent: 6.4, diff: 0 },
           ],
         },
       },
@@ -246,6 +247,8 @@ describe('getPolitProPolls — rate limits must not become cached facts', () => 
 
     // Still served — a trend without history beats an empty panel …
     expect(data?.average['GRÜNE']).toBe(14.5);
+    expect(data?.average['Sonstige']).toBe(6.4);
+    expect(data?.average['Other']).toBeUndefined();
     expect(data?.trend).toEqual({});
     // … but it must never become the reference copy, and it must expire soon.
     expect(store.has(`${BY_CACHE_KEY}:last-good`)).toBe(false);
@@ -336,7 +339,7 @@ describe('getPollsOverview', () => {
   });
 
   it('serves the last-good entry when a parliament is rate-limited', async () => {
-    store.set('monitor:politpro:overview-entry:thueringen:last-good', {
+    store.set('monitor:politpro:overview-entry:v2:thueringen:last-good', {
       parliament: 'thueringen',
       gruene: 4.5,
       latestPollDate: null,
@@ -349,7 +352,7 @@ describe('getPollsOverview', () => {
 
     expect(overview.entries.find((e) => e.parliament === 'thueringen')?.gruene).toBe(4.5);
     // A fresh answer becomes the next fallback.
-    expect(store.get('monitor:politpro:overview-entry:bayern:last-good')).toMatchObject({
+    expect(store.get('monitor:politpro:overview-entry:v2:bayern:last-good')).toMatchObject({
       gruene: 14.5,
     });
   });
@@ -362,7 +365,7 @@ describe('getPollsOverview', () => {
   it('returns without any pacing pause when every parliament is cached', async () => {
     const parliaments = POLITPRO_PARLIAMENTS.filter((p) => p.country === 'DE');
     for (const p of parliaments) {
-      store.set(`monitor:politpro:v2:${p.id}`, {
+      store.set(`monitor:politpro:v3:${p.id}`, {
         polls: [
           { institute: 'Forsa', date: '2026-08-15', parties: { GRÜNE: 14.5 } },
           { institute: 'INSA', date: '2026-08-08', parties: { GRÜNE: 15 } },
@@ -389,7 +392,7 @@ describe('getPollsOverview', () => {
   });
 
   it('takes the poll date from a full answer someone already fetched', async () => {
-    store.set('monitor:politpro:v2:bayern', {
+    store.set('monitor:politpro:v3:bayern', {
       polls: [
         { institute: 'Forsa', date: '2026-08-15', parties: { GRÜNE: 14 } },
         { institute: 'INSA', date: '2026-08-08', parties: { GRÜNE: 15 } },

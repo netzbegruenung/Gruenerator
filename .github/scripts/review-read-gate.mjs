@@ -8,8 +8,10 @@
 // vorbeiging. Hier zählt stattdessen, was in den Werkzeugergebnissen steht:
 //
 // - Jede Datei hat Fenster: der neue Bereich jedes Hunks, nach beiden Seiten
-//   um EXTRA Zeilen erweitert, als Text aus dem Head-Commit. Der Diff selbst
-//   zeigt nur drei Kontextzeilen; wer nur ihn las, deckt die Fenster nicht.
+//   um EXTRA Zeilen erweitert, als Text aus dem Head-Commit. Ein Diff mit
+//   den üblichen drei Kontextzeilen deckt die Fenster nicht; einer mit
+//   DIFF_CONTEXT Zeilen deckt sie (#5691). Der Prompt in pr-review.yml
+//   verlangt deshalb `git diff -U<n>`, und der Test hält n >= DIFF_CONTEXT.
 // - Ein Fenster gilt als gesehen, wenn seine nicht-leeren Zeilen in den
 //   Werkzeugergebnissen in dieser Reihenfolge vorkommen — über alle
 //   Ergebnisse in Aufrufreihenfolge hinweg, damit ein in Stücken gelesenes
@@ -25,13 +27,21 @@
 // durchgewunken — die Fehlerrichtung bleibt ein falsches Rot.
 //
 // Aufruf: review-read-gate.mjs <execution.json> <patches.json> <head-sha> [workspace]
-// Ausgabe: die gesehenen Dateien, eine je Zeile.
+// Ausgabe: die gesehenen Dateien, eine je Zeile. Auf stderr steht je nicht
+// gesehener Datei, welches Fenster fehlte — ohne das blieb bei einem roten
+// Gate nur die Zahl (#5691).
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const EXTRA = 5;
+
+/**
+ * So viele Kontextzeilen braucht ein Diff, damit er allein die Fenster deckt:
+ * die Hunks der GitHub-API tragen schon drei, EXTRA kommt obendrauf.
+ */
+export const DIFF_CONTEXT = EXTRA + 3;
 
 const READ_PREFIX = /^\s*\d+(\t|→)/;
 const GREP_PREFIX = /^(?:.*?[:-])?\d+[:-]/;
@@ -105,12 +115,15 @@ export function windows(patch, lineCount) {
 }
 
 /**
+ * Je Datei: gesehen oder nicht, und wenn nicht, woran es lag.
+ *
  * @param {Array} execution   claude-execution-output.json
  * @param {Array<{file: string, patch: string | null, deletions: number}>} patches
  * @param {(file: string) => string | null} headText   Dateiinhalt im Head-Commit
  * @param {string} workspace  Präfix, das von Read-Pfaden abgestreift wird
+ * @returns {Array<{file: string, seen: boolean, reason: string}>}
  */
-export function openedFiles(execution, patches, headText, workspace = '') {
+export function coverage(execution, patches, headText, workspace = '') {
   const lines = resultLines(execution);
   const readPaths = new Set();
   for (const entry of execution) {
@@ -122,31 +135,38 @@ export function openedFiles(execution, patches, headText, workspace = '') {
     }
   }
 
-  const opened = [];
-  for (const { file, patch, deletions } of patches) {
+  return patches.map(({ file, patch, deletions }) => {
     if (patch == null) {
-      if (readPaths.has(file)) opened.push(file);
-      continue;
+      const seen = readPaths.has(file);
+      return { file, seen, reason: seen ? 'Read' : 'kein Patch und kein Read auf die Datei' };
     }
     if (deletions === 0) {
       const added = patch
         .split('\n')
         .filter((l) => l.startsWith('+'))
         .map((l) => l.slice(1));
-      if (shown(added, lines)) {
-        opened.push(file);
-        continue;
-      }
+      if (shown(added, lines)) return { file, seen: true, reason: 'reine Ergänzung im Diff' };
     }
     const text = headText(file);
-    if (text == null) continue;
+    if (text == null) return { file, seen: false, reason: 'im Head-Commit nicht lesbar' };
     const fileLines = text.split('\n');
-    const all = windows(patch, fileLines.length).every(([a, b]) =>
-      shown(fileLines.slice(a - 1, b), lines)
-    );
-    if (all) opened.push(file);
-  }
-  return opened.sort();
+    const all = windows(patch, fileLines.length);
+    const missing = all.filter(([a, b]) => !shown(fileLines.slice(a - 1, b), lines));
+    if (missing.length === 0) return { file, seen: true, reason: 'alle Fenster' };
+    const [a, b] = missing[0];
+    return {
+      file,
+      seen: false,
+      reason: `${all.length - missing.length} von ${all.length} Fenstern gesehen, es fehlt Zeile ${a}–${b}`,
+    };
+  });
+}
+
+export function openedFiles(execution, patches, headText, workspace = '') {
+  return coverage(execution, patches, headText, workspace)
+    .filter((c) => c.seen)
+    .map((c) => c.file)
+    .sort();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -165,5 +185,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       return null;
     }
   };
-  for (const file of openedFiles(execution, patches, headText, workspace)) console.log(file);
+  const report = coverage(execution, patches, headText, workspace);
+  for (const c of report) if (!c.seen) console.error(`nicht gesehen: ${c.file} — ${c.reason}`);
+  for (const file of report
+    .filter((c) => c.seen)
+    .map((c) => c.file)
+    .sort())
+    console.log(file);
 }

@@ -14,6 +14,8 @@ import {
   sharepicCreatorErrorSchema,
   sharepicDraftBodySchema,
   sharepicDraftResponseSchema,
+  sharepicNextSeiteBodySchema,
+  sharepicNextSeiteResponseSchema,
   sharepicPhotoAnalysisSchema,
   sharepicReviewBodySchema,
   sharepicReviewResponseSchema,
@@ -34,6 +36,21 @@ export const sharepicCreatorContract = c.router(
       },
       summary: 'Draft a sharepic spec from free text',
       // Two model calls, and for an infographic a FLUX 3 image on top: past the 60s default.
+      metadata: { serverTask: true },
+    },
+    nextSeite: {
+      method: 'POST',
+      path: '/api/sharepic-creator/next-seite',
+      body: sharepicNextSeiteBodySchema,
+      responses: {
+        200: sharepicNextSeiteResponseSchema,
+        401: sharepicCreatorErrorSchema,
+        /** None of the candidates is a Seite of the format in the viewer's catalogue. */
+        422: sharepicCreatorErrorSchema,
+        502: sharepicCreatorErrorSchema,
+      },
+      summary: 'Pick the fitting Seite for the next page of a design and write its text',
+      // One pick and a whole draft (two model calls): past the 60s default.
       metadata: { serverTask: true },
     },
     review: {

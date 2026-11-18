@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 
 import {
   getMcpExposedCollections,
+  isRemoteCollection,
   type FilterableField,
 } from '../../config/systemCollectionsConfig.js';
 
@@ -16,7 +17,8 @@ export interface SerializedFilterableField {
 
 export interface SerializedCollection {
   key: string;
-  qdrantCollection: string;
+  /** `null` für Remote-Sammlungen (`remote` in der Config) — sie liegen nicht in unserem Qdrant. */
+  qdrantCollection: string | null;
   displayName: string;
   description: string;
   country?: 'DE' | 'AT';
@@ -34,7 +36,7 @@ export interface SerializedCollection {
 export function serializeMcpCatalog(): SerializedCollection[] {
   return getMcpExposedCollections().map((c) => ({
     key: c.key,
-    qdrantCollection: c.qdrantCollection,
+    qdrantCollection: isRemoteCollection(c) ? null : c.qdrantCollection,
     displayName: c.name,
     description: c.description,
     ...(c.country ? { country: c.country } : {}),

@@ -97,7 +97,7 @@ function recipeChatPath(item: MarketplaceItemOf<'recipe'>): string {
   // A user recipe needs its row, or the chat takes the bundled body of a catalogue recipe by the same name.
   return item.recipe.rowId
     ? `/chat?rezept=${mention}&rezeptId=${encodeURIComponent(item.recipe.rowId)}`
-    : `/chat?skill=${mention}`;
+    : `/chat?rezept=${mention}`;
 }
 
 /** Where „Im Chat ausprobieren" leads; only Agents and Rezepte run in the chat. */

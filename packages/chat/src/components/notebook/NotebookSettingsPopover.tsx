@@ -231,13 +231,19 @@ export function NotebookSettingsPopover({
   const hasSourceTier = Boolean(sourceTier && onSourceTierChange);
   if (!(mode && onModeChange) && !hasFilters && !hasSourceTier) return null;
 
+  // WCAG 2.5.3: the visible badge count has to be part of the accessible name.
+  const settingsLabel = hasActiveBadge
+    ? `Einstellungen, ${categoryActiveCount + sourceActiveCount} aktiv`
+    : 'Einstellungen';
+  const buttonLabel = mode ? `${settingsLabel} — Suchtiefe: ${activeDepth.label}` : settingsLabel;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
           className={composerToolbarButtonClass()}
-          aria-label={mode ? `Einstellungen — Suchtiefe: ${activeDepth.label}` : 'Einstellungen'}
+          aria-label={buttonLabel}
           title={mode ? `Einstellungen · Suchtiefe: ${activeDepth.label}` : 'Einstellungen'}
         >
           {/* Always the settings glyph: the tier's own icon (a book for „Mittel“)

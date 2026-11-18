@@ -87,7 +87,7 @@
       {
         "id": "landtag-berlin-system",
         "name": "Abgeordnetenhaus Berlin",
-        "description": "Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin"
+        "description": "Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin. Drucksachen und Anfragen suchst du mit landtag"
       },
       {
         "id": "abgeordnetenwatch-system",
@@ -143,6 +143,11 @@
         "id": "landtag-nrw-system",
         "name": "Landtag NRW",
         "description": "Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen"
+      },
+      {
+        "id": "wahlpruefsteine-system",
+        "name": "Wahlprüfsteine",
+        "description": "Antworten von Bündnis 90/Die Grünen auf Wahlprüfsteine von Verbänden zur Bundestagswahl 2021 und 2025 und zur Europawahl 2024"
       }
     ],
     "landesverbaende": [
@@ -158,7 +163,7 @@
       {
         "id": "berlin-system",
         "name": "Grüne Berlin",
-        "description": "Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion)",
+        "description": "Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion). Keine Anfragen, Senatsantworten oder Drucksachen des Abgeordnetenhauses (dafür landtag)",
         "codes": [
           "BE",
           "BE-F"
@@ -170,14 +175,6 @@
         "description": "Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg",
         "codes": [
           "BB"
-        ]
-      },
-      {
-        "id": "hamburg-system",
-        "name": "Grüne Hamburg",
-        "description": "Beschlüsse und Pressemitteilungen der Grünen Hamburg",
-        "codes": [
-          "HH"
         ]
       },
       {
@@ -199,9 +196,18 @@
         ]
       },
       {
+        "id": "nordrhein-westfalen-system",
+        "name": "Grüne NRW",
+        "description": "Pressemitteilungen, Beschlüsse, Neuigkeiten, Fragen und Antworten und Soundingboard-Berichte der Grünen NRW, Pressemitteilungen, Fachnewsletter und Publikationen der Grünen Landtagsfraktion NRW sowie Anträge, Änderungsanträge und Beschlüsse der Landesparteitage aus Antragsgrün",
+        "codes": [
+          "NRW",
+          "NRW-F"
+        ]
+      },
+      {
         "id": "saarland-system",
         "name": "Grüne Saarland",
-        "description": "Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland",
+        "description": "Pressemitteilungen, Artikel, Parteitagsbeschlüsse und Wahlprogramme der Grünen Saarland",
         "codes": [
           "SL"
         ]
@@ -213,14 +219,6 @@
         "codes": [
           "LSA",
           "LSA-F"
-        ]
-      },
-      {
-        "id": "schleswig-holstein-system",
-        "name": "Grüne Schleswig-Holstein",
-        "description": "Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl",
-        "codes": [
-          "SH"
         ]
       },
       {
@@ -386,6 +384,11 @@
       "title": "Gesetze",
       "description": "Deutsches Bundesrecht durchsuchen, Normen im Volltext lesen und Zitate prüfen.",
       "category": "Recht & Compliance"
+    },
+    {
+      "title": "Rateo",
+      "description": "Anträge, Anfragen und Beschlüsse der Berliner Bezirksverordnetenversammlungen (Rateo).",
+      "category": "Politik & Verwaltung"
     },
     {
       "title": "tagesschau",

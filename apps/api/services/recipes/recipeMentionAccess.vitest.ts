@@ -23,9 +23,27 @@ vi.mock('../user/textFormRepository.js', () => ({
 const { isRecipeUsableForAgent } = await import('./recipeMentionAccess.js');
 
 const CATALOG = [
-  { mention: 'presse', title: 'Pressemitteilung', description: 'PM', source: 'system' },
-  { mention: 'omveinladungen', title: 'Einladungen', description: 'Eigen', source: 'user' },
-  { mention: 'kiez-briefe', title: 'Kiez-Briefe', description: 'Öffentlich', source: 'user' },
+  {
+    key: 'presse',
+    mention: 'presse',
+    title: 'Pressemitteilung',
+    description: 'PM',
+    source: 'system',
+  },
+  {
+    key: 'omveinladungen',
+    mention: 'omveinladungen',
+    title: 'Einladungen',
+    description: 'Eigen',
+    source: 'user',
+  },
+  {
+    key: 'kiez-briefe',
+    mention: 'kiez-briefe',
+    title: 'Kiez-Briefe',
+    description: 'Öffentlich',
+    source: 'user',
+  },
 ];
 
 const BASE = { userId: 'u1', userLocale: 'de-DE', roles: null };
@@ -67,7 +85,13 @@ describe('isRecipeUsableForAgent — Mention', () => {
 
   it('führt eine zurückgezogene Mention auf ihre Nachfolgerin', async () => {
     buildRecipeCatalog.mockResolvedValue([
-      { mention: 'presse-bayern-partei', title: 'PM Bayern', description: '', source: 'system' },
+      {
+        key: 'presse-bayern-partei',
+        mention: 'presse-bayern-partei',
+        title: 'PM Bayern',
+        description: '',
+        source: 'system',
+      },
     ]);
     expect(await isRecipeUsableForAgent({ ...BASE, mention: 'presse-bayern' })).toBe(true);
   });
@@ -111,5 +135,29 @@ describe('isRecipeUsableForAgent — id', () => {
       await isRecipeUsableForAgent({ ...BASE, recipeId: 'r1', mention: 'presse-bayern-partei' })
     ).toBe(true);
     expect(buildRecipeCatalog).not.toHaveBeenCalled();
+  });
+});
+
+describe('isRecipeUsableForAgent — Mention-Kollision', () => {
+  const entry = (key: string, origin: 'own' | 'library') => ({
+    key,
+    mention: 'antrag',
+    title: 'Antrag',
+    description: '',
+    source: 'user',
+    origin,
+  });
+
+  it('bindet die Mention an die eigene Zeile, wenn eine fremde dieselbe Mention trägt', async () => {
+    buildRecipeCatalog.mockResolvedValue([
+      entry('antrag', 'own'),
+      entry('antrag-abc123', 'library'),
+    ]);
+    expect(await isRecipeUsableForAgent({ ...BASE, mention: 'antrag' })).toBe(true);
+  });
+
+  it('weist die Mention ab, wenn nur die fremde Zeile mit Kollisionsschlüssel übrig ist', async () => {
+    buildRecipeCatalog.mockResolvedValue([entry('antrag-abc123', 'library')]);
+    expect(await isRecipeUsableForAgent({ ...BASE, mention: 'antrag' })).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { ThreadPrimitive, SuggestionPrimitive } from '@assistant-ui/react';
 import { cn } from '../../lib/utils';
 
 import { useChatDensity } from './chatDensityContext';
+import { RecipeStarters } from './RecipeStarters';
 
 import type { SkillIcon } from '@gruenerator/shared/agents';
 
@@ -147,6 +148,8 @@ export function WelcomeScreen({
             />
           </div>
         )}
+
+        {!questions && <RecipeStarters />}
       </div>
     </div>
   );

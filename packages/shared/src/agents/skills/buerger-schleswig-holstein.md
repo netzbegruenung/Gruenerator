@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-schleswig-holstein'
 title: 'Bürger*innen-Mail Schleswig-Holstein'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Schleswig-Holstein'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Schleswig-Holstein. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Schleswig-Holstein geantwortet wird.'
 iconKey: 'PiWaves'
 avatar: '✉️'
 backgroundColor: '#316049'

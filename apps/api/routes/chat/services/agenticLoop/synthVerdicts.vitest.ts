@@ -91,3 +91,19 @@ describe('finalizeAnswerText — erfundener Werkzeug-Fehlschlag (06.11.2026)', (
     expect(r.replaced).toBe(false);
   });
 });
+
+describe('finalizeAnswerText — Abwesenheitsbehauptung ohne Suche (#5458)', () => {
+  const live = 'In den vorliegenden Unterlagen kommt Gernot Stöglehner nicht vor.';
+
+  it('meldet sie bei steps=0, ohne den Text zu ändern', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 0 });
+    expect(r.text).toBe(live);
+    expect(r.replaced).toBe(false);
+    expect(r.warnings.join()).toContain('absence claim without searching (#5458)');
+  });
+
+  it('schweigt, wenn ein Werkzeug lief', () => {
+    const r = finalizeAnswerText({ ...base, text: live, stepCount: 2 });
+    expect(r.warnings.join()).not.toContain('absence claim');
+  });
+});

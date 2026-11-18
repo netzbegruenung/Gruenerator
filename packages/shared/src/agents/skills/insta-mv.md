@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern'
 title: 'Insta MV'
-description: 'Instagram-Post im Stil Grüne Mecklenburg-Vorpommern'
+description: 'Instagram-Post im Stil der Grünen Mecklenburg-Vorpommern. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.'
 iconKey: 'PiWaves'
 avatar: '🌊'
 backgroundColor: '#316049'

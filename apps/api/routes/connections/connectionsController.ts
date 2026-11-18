@@ -4,7 +4,10 @@ import { NANGO_PROVIDERS, type NangoProviderKey } from '../../config/nango.js';
 import * as atlassianClient from '../../services/api-clients/atlassianClient.js';
 import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
-import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import {
+  ConnectionNotAllowedError,
+  ConnectionService,
+} from '../../services/connections/ConnectionService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
@@ -114,6 +117,11 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
+      if (error instanceof ConnectionNotAllowedError) {
+        return res
+          .status(403)
+          .json({ error: toUserFacingMessage(error, 'Nur für Admins freigeschaltet.') });
+      }
       log.error('Failed to list files', error);
       if (
         error instanceof Error &&
@@ -160,6 +168,11 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
+      if (error instanceof ConnectionNotAllowedError) {
+        return res
+          .status(403)
+          .json({ error: toUserFacingMessage(error, 'Nur für Admins freigeschaltet.') });
+      }
       log.error('Failed to get file', error);
       res.status(500).json({ error: 'Datei konnte nicht geladen werden' });
     }

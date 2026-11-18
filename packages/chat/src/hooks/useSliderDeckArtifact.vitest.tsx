@@ -72,7 +72,7 @@ describe('carousel preview descriptions', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
-        name: 'Karussell-Folie 1 von 2: Sichere Radwege. Im Editor öffnen',
+        name: 'Karussell-Folie 1 von 2: Sichere Radwege. Im Studio öffnen',
       })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Nächste Folie' }));

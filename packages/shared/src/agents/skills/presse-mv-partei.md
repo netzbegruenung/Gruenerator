@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern'
 title: 'PM MV (Partei)'
-description: 'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern — Wahlkampf, Spitzenkandidatur, Parteitage, Bundespolitik'
+description: 'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.'
 iconKey: 'PiWaves'
 avatar: '🌊'
 backgroundColor: '#316049'

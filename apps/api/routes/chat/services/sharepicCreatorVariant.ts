@@ -13,6 +13,7 @@ import {
   type SharepicBerichtEintrag,
   type SharepicBrandId,
   type SharepicChatProps,
+  type SharepicChatReview,
   type SharepicDraftResponse,
   type SharepicFormId,
   type SharepicSpec,
@@ -82,6 +83,12 @@ export function buildCreatorPrompt(args: {
     : head.slice(0, SHAREPIC_PROMPT_MAX);
 }
 
+/** The `review` field of `sharepic_complete`, clipped to what the review accepts. */
+export function reviewHint(review: SharepicChatReview): { review?: SharepicChatReview } {
+  const brief = review.brief.trim().slice(0, SHAREPIC_PROMPT_MAX);
+  return brief ? { review: { brief, mode: review.mode } } : {};
+}
+
 /** The editor page a creator draft opens in, per design. */
 const CREATOR_CANVAS: Record<SharepicBrandId, SharepicVariant['canvasType']> = {
   'gruene-de': 'freeform',
@@ -147,9 +154,11 @@ export async function createCreatorSharepic(args: {
   /** The design the request names („GJ-Design“); a Vorlage brings its own. */
   brand: SharepicBrand | null;
   userId: string | null;
-  /** Named in the user's own words — never read from the appended conversation. */
+  /** The person's own words: they alone order a form or a slide count, never the appended conversation. */
+  request: string;
+  /** A form picked by the chat's „Als …" chip; otherwise the creator reads `request`. */
   form: SharepicFormId | null;
-  /** The request asks for a single image, not a carousel. */
+  /** A request that leaves the slide count open gets one slide. */
   oneSlide: boolean;
   /** A catalogue Vorlage the person picked: its layout is filled, not redrafted. */
   vorlage?: SharepicVorlage | null;
@@ -183,7 +192,9 @@ export async function createCreatorSharepic(args: {
         null,
         null,
         args.oneSlide,
-        args.brand
+        args.brand,
+        false,
+        args.request
       );
   // A themed Vorlage's theme is part of the look the person picked: the model
   // drops it now and then (a remembrance on plain green), so it is kept here.

@@ -87,10 +87,11 @@ describe('toCreatorVariant', () => {
       avoid: null,
       locale: 'de-DE',
       userId: null,
+      request: 'Mieten',
       form: null,
       oneSlide: false,
     });
-    expect(draftSharepic.mock.calls.at(-1)?.at(-1)).toBe('gruene-jugend');
+    expect(draftSharepic.mock.calls.at(-1)?.[10]).toBe('gruene-jugend');
     expect(v.canvasType).toBe('freeform-gj');
   });
 
@@ -170,22 +171,26 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       avoid: null,
       locale: 'de-AT',
       userId: null,
-      form: 'karussell',
+      request: 'Mach ein Karussell zu den Öffis',
+      form: null,
       oneSlide: false,
     });
     // The brief alone is the order: dates in the conversation material are not required.
+    // The person's own words go last: only they order a form, and only the UI fixes one.
     expect(draftSharepic).toHaveBeenCalledWith(
       expect.stringContaining('Öffis'),
       'de-AT',
       null,
       [],
       {},
-      'karussell',
+      null,
       'Öffis',
       null,
       null,
       false,
-      null
+      null,
+      false,
+      'Mach ein Karussell zu den Öffis'
     );
     expect(v.canvasType).toBe('freeform-at');
   });
@@ -206,6 +211,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       avoid: null,
       locale: 'de-AT',
       userId: null,
+      request: 'Mieten',
       form: null,
       oneSlide: true,
     });
@@ -287,6 +293,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
       avoid: SPEC_DE,
       locale: 'de-DE',
       userId: null,
+      request: 'Mieten',
       form: null,
       oneSlide: true,
       vorlage: { form: 'karussell', spec: SPEC_CAROUSEL } as never,
@@ -314,6 +321,7 @@ describe('createCreatorSharepic with a Vorlage', () => {
       avoid: null,
       locale: drafted.locale,
       userId: null,
+      request: 'Mieten',
       form: null,
       oneSlide: false,
       vorlage: { form: 'einzelbild', spec: vorlage } as never,
@@ -361,6 +369,7 @@ describe('photos', () => {
       locale: 'de-DE',
       brand: null,
       userId: null,
+      request: 'Mieten',
       form: null,
       oneSlide: false,
     });

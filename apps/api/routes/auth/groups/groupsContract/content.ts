@@ -6,7 +6,6 @@
 
 import { groupsContract, type GroupContentResponse } from '@gruenerator/contracts';
 
-import { closeShareRoom } from '../../../../services/collab/collabRooms.js';
 import {
   hydrateGroupContent,
   shareContentToGroup,
@@ -19,6 +18,10 @@ import {
   type FeedOutcome,
 } from '../../../../services/groups/groupFeed.js';
 import { deleteGroupPost, updateGroupPost } from '../../../../services/groups/groupPosts.js';
+import {
+  removeGroupShare,
+  setGroupSharePermissions,
+} from '../../../../services/groups/groupShareWriter.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import { s, getUserId, groupErrorResponse } from './shared.js';
@@ -100,12 +103,8 @@ export const contentRoutes = {
         };
       }
 
-      const result = await postgres.exec(
-        'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
-        [contentType, contentId, groupId]
-      );
-      if (result.changes === 0) throw new Error('Share record not found or already deleted');
-      void closeShareRoom(contentType, contentId);
+      const removed = await removeGroupShare({ groupId, contentType, contentId });
+      if (!removed) throw new Error('Share record not found or already deleted');
 
       return {
         status: 200 as const,
@@ -175,12 +174,13 @@ export const contentRoutes = {
         };
       }
 
-      const result = await postgres.exec(
-        'UPDATE group_content_shares SET permissions = $1 WHERE content_type = $2 AND content_id = $3 AND group_id = $4',
-        [JSON.stringify(permissions), contentType, contentId, groupId]
-      );
-      if (result.changes === 0) throw new Error('Share record not found or no changes made');
-      void closeShareRoom(contentType, contentId);
+      const updated = await setGroupSharePermissions({
+        groupId,
+        contentType,
+        contentId,
+        permissions,
+      });
+      if (!updated) throw new Error('Share record not found or no changes made');
 
       return {
         status: 200 as const,
@@ -224,12 +224,8 @@ export const contentRoutes = {
         };
       }
 
-      const result = await postgres.exec(
-        'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
-        [contentType, contentId, groupId]
-      );
-      if (result.changes === 0) throw new Error('Share record not found or already deleted');
-      void closeShareRoom(contentType, contentId);
+      const removed = await removeGroupShare({ groupId, contentType, contentId });
+      if (!removed) throw new Error('Share record not found or already deleted');
 
       return {
         status: 200 as const,

@@ -28,7 +28,10 @@ import {
   getCanvas,
   markCanvasAsGalleryTemplate,
 } from '../../../services/canvas/canvasRepository.js';
-import { getCanvasSnapshotState } from '../../../services/canvas/canvasStateService.js';
+import {
+  CanvasDocumentNewerReadError,
+  getCanvasSnapshotState,
+} from '../../../services/canvas/canvasStateService.js';
 import {
   urlCrawlerService,
   UrlValidator,
@@ -342,6 +345,19 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         },
       };
     } catch (error) {
+      if (error instanceof CanvasDocumentNewerReadError) {
+        // Freezing what the server can only partly read would store an incomplete Vorlage.
+        log.warn(`[userTemplatesContract.fromCanvas] refused: ${error.message}`);
+        return {
+          status: 409 as const,
+          body: {
+            success: false,
+            message:
+              'Dieser Canvas nutzt ein neueres Format, als der Server derzeit lesen kann. ' +
+              'Er lässt sich vorerst nicht als Vorlage speichern.',
+          },
+        };
+      }
       log.error('[userTemplatesContract.fromCanvas] Error:', error);
       return {
         status: 500 as const,

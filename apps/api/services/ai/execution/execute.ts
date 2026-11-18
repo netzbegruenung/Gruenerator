@@ -206,6 +206,8 @@ export async function execute(
       ...(abortSignal && { abortSignal }),
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
+      // Absent, the provider's off switch applies (meliousFetch, Large 4's middleware).
+      ...(options.reasoning != null && { reasoning: options.reasoning }),
     });
 
     return buildAdapterResult({ provider, model, requestId, type, requestMetadata, result });

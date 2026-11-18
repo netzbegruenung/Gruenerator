@@ -6,7 +6,14 @@ import { cn } from '@ggraphic/editor/internal/utils/cn';
 import { getCanvasFormatOrDefault, isSlideFormat } from '@ggraphic/editor/templates';
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { HiOutlineDuplicate, HiX, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
+import {
+  HiOutlineDuplicate,
+  HiX,
+  HiTemplate,
+  HiBookOpen,
+  HiStop,
+  HiSparkles,
+} from 'react-icons/hi';
 
 import { type BrandLocale } from '../brand/theme';
 import { SlideLayoutPicker } from '../slides/SlideLayoutPicker';
@@ -40,21 +47,34 @@ interface TemplatePickerFlyoutProps {
   mode?: 'add' | 'replace';
   /** Präsentationen: eine Seite mit diesem Folienlayout anhängen. Nur bei Folienformaten gezeigt. */
   onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
+  /** The host's fitting Vorlagen, shown first. */
+  suggestions?: React.ReactNode;
+  /** „Mit KI hinzufügen", beside the duplicate; the picker stays open while it runs. */
+  onAddWithAi?: () => void;
+  /** What the AI page is doing while it is written; null when it is not. */
+  aiStatus?: string | null;
+  /** Something the host runs is not done: nothing else can be picked meanwhile. */
+  busy?: boolean;
 }
 
 interface TemplateCardProps {
   template: TemplateInfo;
   onSelect: (configId: CanvasConfigId) => void;
   isCurrent: boolean;
+  disabled: boolean;
 }
 
-const templateCardBase =
+const footerButton =
+  'flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-editor-border-strong disabled:cursor-wait disabled:opacity-60 [&>svg]:size-[18px] [&>svg]:text-foreground-muted';
+
+export const templateCardBase =
   'flex flex-col items-center p-1.5 bg-background-alt border-2 border-transparent rounded-md cursor-pointer transition-[border-color,transform,box-shadow] duration-150 hover:border-primary-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(70,150,43,0.15)]';
 
 const TemplateCard = memo(function TemplateCard({
   template,
   onSelect,
   isCurrent,
+  disabled,
 }: TemplateCardProps) {
   const handleClick = useCallback(() => {
     onSelect(template.id);
@@ -62,8 +82,13 @@ const TemplateCard = memo(function TemplateCard({
 
   return (
     <button
-      className={cn(templateCardBase, isCurrent && 'border-primary-600 bg-primary-50')}
+      className={cn(
+        templateCardBase,
+        isCurrent && 'border-primary-600 bg-primary-50',
+        'disabled:cursor-wait disabled:opacity-60'
+      )}
       onClick={handleClick}
+      disabled={disabled}
       type="button"
     >
       <div className="w-full aspect-square rounded overflow-hidden mb-1">
@@ -100,6 +125,10 @@ export function TemplatePickerFlyout({
   formatId,
   mode = 'add',
   onAddSlideLayout,
+  suggestions,
+  onAddWithAi,
+  aiStatus = null,
+  busy = false,
 }: TemplatePickerFlyoutProps) {
   const isReplace = mode === 'replace';
   const showSlideLayouts =
@@ -272,6 +301,8 @@ export function TemplatePickerFlyout({
         </button>
       </div>
 
+      {suggestions}
+
       {showSlideLayouts && <SlideLayoutPicker locale={locale} onSelect={handleSlideLayout} />}
 
       {templates.length === 0 && !(onAddSliderVariant && !isReplace) && (
@@ -287,6 +318,7 @@ export function TemplatePickerFlyout({
             template={template}
             onSelect={handleTemplateSelect}
             isCurrent={template.id === currentTemplateId}
+            disabled={busy}
           />
         ))}
 
@@ -326,18 +358,47 @@ export function TemplatePickerFlyout({
         )}
       </div>
 
-      {!isReplace && onDuplicateCurrent && (
+      {!isReplace && (onDuplicateCurrent || onAddWithAi) && (
         <>
           <div className="h-px bg-border my-3" />
 
-          <button
-            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-editor-border-strong [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
-            onClick={handleDuplicate}
-            type="button"
+          <div
+            className={cn(
+              'grid gap-2',
+              onDuplicateCurrent && onAddWithAi && 'grid-cols-2 max-[480px]:grid-cols-1'
+            )}
           >
-            <HiOutlineDuplicate />
-            <span>Aktuelle Seite duplizieren</span>
-          </button>
+            {onDuplicateCurrent && (
+              <button
+                className={footerButton}
+                onClick={handleDuplicate}
+                disabled={busy}
+                type="button"
+              >
+                <HiOutlineDuplicate />
+                <span>Aktuelle Seite duplizieren</span>
+              </button>
+            )}
+            {onAddWithAi && (
+              <button
+                className={footerButton}
+                onClick={onAddWithAi}
+                disabled={busy}
+                aria-busy={aiStatus !== null}
+                type="button"
+              >
+                {aiStatus !== null ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  />
+                ) : (
+                  <HiSparkles />
+                )}
+                <span>{aiStatus ?? 'Mit KI hinzufügen'}</span>
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>,

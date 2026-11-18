@@ -26,7 +26,7 @@ import {
  * The recipes worth showing without a search: every system default, plus the
  * ones the user starred, plus their own saved agents and learned text forms.
  *
- * @param favorites lowercased mentions from `useSkillFavoritesStore`.
+ * @param favorites lowercased refs of the saved library recipes (`useRecipeLibrary`).
  */
 export function quickSkillMentionables(favorites: readonly string[]): Mentionable[] {
   const agents = getAgentMentionables().filter(
@@ -41,6 +41,22 @@ export function quickSkillMentionables(favorites: readonly string[]): Mentionabl
   return [...agents, ...getCustomAgentMentionables(), ...getTextformMentionables()].filter(
     (item) => !seen.has(item.mention) && seen.add(item.mention)
   );
+}
+
+/**
+ * Saved library recipes (`kind: 'recipe'`) as mentionables, in library order.
+ * A ref is a system recipe's mention or a text form's row id (`AddToLibraryButton`);
+ * a ref that resolves to neither (hidden, other locale, deleted) is dropped.
+ */
+export function libraryRecipeMentionables(refs: readonly string[]): Mentionable[] {
+  const agents = getAgentMentionables();
+  const forms = getTextformMentionables();
+  return refs.flatMap((ref) => {
+    const found =
+      agents.find((a) => a.mention.toLowerCase() === ref.toLowerCase()) ??
+      forms.find((f) => f.identifier === ref);
+    return found ? [found] : [];
+  });
 }
 
 /**

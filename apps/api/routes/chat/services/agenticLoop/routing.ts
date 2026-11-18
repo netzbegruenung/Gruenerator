@@ -232,59 +232,16 @@ export function reworksSuppliedText(raw: string): boolean {
 }
 
 /**
- * Die Frage benennt einen mitgebrachten Text als ihren Gegenstand — „Welche vier
- * Maßnahmen stehen im Antrag?", „Wie hoch sind die Kosten laut Antrag?", „Was
- * steht darin zur Finanzierung?". Ob es diesen Text im Thread gibt, weiss der
- * Aufrufer; hier steht nur, ob die Frage auf ihn zeigt (#4789).
- *
- * „Programm" fehlt bewusst: „im Wahlprogramm" meint die Beschlusslage, nach der
- * gesucht werden soll, nicht den eingefügten Text.
- */
-const SUPPLIED_MATERIAL_REF_RE =
-  /(?<!\p{L})(?:(?:im|(?:laut|gem[äa](?:ß|ss))(?:\s+(?:de[rms]|diese[rms]))?|(?:in|aus|nach)\s+(?:de[rm]|diese[rm]))\s+(?:\p{L}+en\s+)?(?:antrag|text|dokument|entwurf|artikel|beitrag|newsletter|brief|schreiben|papier|beschluss|pressemitteilung|anfrage|stellungnahme|vorlage|e-?mail)\p{L}*|darin|drin)(?!\p{L})/iu;
-
-export function asksAboutSuppliedMaterial(raw: string): boolean {
-  return SUPPLIED_MATERIAL_REF_RE.test(orderText((raw ?? '').trim()));
-}
-
-/**
- * Eine Frage über die eigene VERGANGENE Handlung des Assistenten — „hast du
- * vorhin in meinen Dokumenten nachgesehen?", „wo hast du das gefunden?". Sie ist
- * kurz und rückbezüglich, steht hinter einem Abruf-Turn und würde vom siebten
- * Weg in `shouldForceFirstToolCall` als `followup` gezwungen — dabei will sie
- * nichts Neues, die Antwort steht im Thread und in den mitgeführten Quellen (#3916).
- *
- * Bewusst eng: nur „hast du" + höchstens vier Füllwörter + Partizip der
- * Abrufhandlung. Füllwörter, die NEUEN Inhalt einführen (auch, noch, was, etwas,
- * zu/zur/zum, über), lassen den Treffer platzen — „hast du auch was zur FDP?"
- * und „hast du noch etwas zur FDP gefunden?" bitten um Neues und müssen zwingen.
- * „Wo/woher hast du das gefunden?" fragt nach der Quelle des Vorigen und zählt
- * mit: die mitgeführten Quellen beantworten das ohne neuen Abruf.
- */
-const PAST_LOOKUP_PARTICIPLE =
-  '(?:nachgesehen|nachgeschaut|nachgeschlagen|gesucht|recherchiert|geprüft|gefunden|gelesen|durchsucht)';
-const OWN_PAST_LOOKUP_RE = new RegExp(
-  `(?<!\\p{L})hast\\s+du\\s+(?:(?!(?:auch|noch|was|etwas|zu|zur|zum|über)(?!\\p{L}))[\\p{L}-]+\\s+){0,4}${PAST_LOOKUP_PARTICIPLE}(?!\\p{L})`,
-  'iu'
-);
-const WHERE_FOUND_RE =
-  /(?<!\p{L})(?:woher\s+hast\s+du\s+(?:das|die|den)|wo\s+hast\s+du\s+(?:das|die|den)\b[^?]{0,30}?gefunden)(?!\p{L})/iu;
-
-export function asksAboutOwnPastAction(raw: string): boolean {
-  const t = (raw ?? '').trim();
-  return OWN_PAST_LOOKUP_RE.test(t) || WHERE_FOUND_RE.test(t);
-}
-
-/**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
  *
  * Gemessen am Klassifikator (20.08.2026, Zwei-Turn-Sonde auf `classifierNode`):
- * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
- * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
- * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
- * Prüfung nur die eine Hälfte, die andere ist der Abrufkontext des Threads
- * (`shouldForceFirstToolCall`, siebter Weg).
+ * so ein Turn bekommt `direct@0.25` und wird nach `agentic` demotiert —
+ * das Abruf-Verdikt (damals `loopDemotedFromRetrieval: false`) stand im Turn
+ * DAVOR, nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
+ * Prüfung allein nicht, ob der Turn nachschlagen muss — das entscheidet seit
+ * dem 09.11.2026 das Modell mit dem Verlauf. Gelesen wird sie für
+ * die Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
  *
  * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
  * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
@@ -361,9 +318,11 @@ const REGENERATE_RE =
 
 // The bare imperatives („kürz das", „verkürz", „straff das") are the usual chat
 // form and were missing (#5476). Bound by `\b` right after the ASCII stem end,
-// so „kürzlich" stays out.
+// so „kürzlich" stays out. The bare `kürz` needs the umlaut (or „ue"): with a
+// plain `u` it is the adverb „kurz" („Erkläre mir kurz …", „kurz gesagt"),
+// which would skip the forced notebook search for a plain question.
 const REWRITE_TARGET_RE =
-  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(?:verk[üu]rz|k[üu]rz|straff)\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(?:verk[üu]rz|k(?:ü|ue)rz|straff)\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
 
 // The umlaut-initial rewrite verbs, split out of REWRITE_TARGET_RE because they
 // were DEAD there: `\b` before `ü` is no word boundary without the `u` flag (the
@@ -404,47 +363,6 @@ export function looksLikeUnsourcedWritingOrder(
   // skipped by the very phrasing it exists for.
   if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return false;
   return WRITING_ORDER_RE.test(t);
-}
-
-/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
- *  „stimmt"/„stimmen" zählt hier nicht: „die Stimmen und Zahlen der Wahl" ist
- *  das Nomen, und „stimmt, schreib den Post mit den Zahlen" eine Zustimmung.
- *  Das Verb trägt nur im ob-Satz und in der Frage (unten). */
-const CHECK_WORD = String.raw`(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier)\p{L}*`;
-const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen|richtigkeit|korrektheit|wahrheitsgehalt)(?!\p{L})`;
-/** Satzanfang — auch unter dem Stoff, wenn beide Ränder Auftrag sind. */
-const SENTENCE_START = String.raw`(?:^|[.?!:\n]\s*)`;
-const FACT_CHECK_ORDER_RE = new RegExp(
-  [
-    String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}`,
-    String.raw`(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}`,
-    // „…, ob die Zahlen stimmen" — das Verb steht am Ende des ob-Satzes.
-    String.raw`(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm(?:t|en)(?:\s+oder\s+nicht)?\s*(?:[.?!,;:)]|$)`,
-    // „stimmt das so?", „stimmen die Angaben?" — als Frage, nicht als Aussage
-    // („Stimmen der Jugend werden lauter.").
-    String.raw`${SENTENCE_START}stimm(?:t|en)\s+(?:das|dies|diese\p{L}*|die|der)(?!\p{L})[^.?!\n]*(?:\?|$)`,
-    // „Ist das korrekt?", „Sind die Zahlen richtig?"
-    String.raw`${SENTENCE_START}(?:ist|sind)\s+(?:das|dies|die\s+${FACT_NOUN})(?:\s+so)?\s+(?:korrekt|richtig|zutreffend|wahr|belegt)(?!\p{L})`,
-    String.raw`(?<!\p{L})(?:fakten-?check|fact-?check)`,
-  ].join('|'),
-  'iu'
-);
-
-/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt", „Ist das
- *  korrekt formuliert?". Mit Wortende, wo ein Stamm Sachwörter trifft:
- *  „Stilllegung", „Kommando". „Ausdruck" fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
-const LANGUAGE_CHECK_RE =
-  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich|(?:formuliert|geschrieben|ausgedrückt|ausgedrueckt)(?!\p{L}))/iu;
-
-/**
- * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",
- * „stimmen die Angaben?". Enger als `FACT_CHECK_RE` in `routing.ts` — das ist
- * ein Veto gegen die Überarbeitungs-Abkürzung und darf grosszügig sein; hier
- * ERZWINGT der Treffer eine Websuche, und „prüfe, ob die Rechtschreibung
- * korrekt ist" darf das nicht (#3903).
- */
-export function looksLikeFactCheckOrder(order: string): boolean {
-  return FACT_CHECK_ORDER_RE.test(order) && !LANGUAGE_CHECK_RE.test(order);
 }
 
 /**
@@ -548,9 +466,7 @@ const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschla
 /**
  * The user explicitly told the assistant to look something up in THIS turn.
  *
- * Why this exists: `forceFirstToolCall` was scoped to connector turns (then
- * `intent === 'mcp'`, now a set `mcpServerScope`, #4043), while
- * the classifier's loop demotion routes search/web asks into `agentic`, where
+ * Why this exists: the classifier's loop demotion routes search/web asks into `agentic`, where
  * the planner is free to call nothing at all. Live result: "Recherchiere bitte
  * mit Quellen" answered "Ich habe keinen Zugriff auf eine Live-Datenbank …
  * soll ich das für Dich übernehmen?" with steps=0 — after the assistant had

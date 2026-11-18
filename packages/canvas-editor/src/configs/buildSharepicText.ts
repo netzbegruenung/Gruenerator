@@ -47,17 +47,9 @@ function asString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/**
- * Builds a structured text description of the current canvas content.
- * Used by ChatSection to inject the sharepic content into the chat composer.
- */
-export function buildSharepicText(state: Record<string, unknown>): string {
+/** The page's texts as "Label: value" lines; none on a page without text. */
+function contentLines(state: Record<string, unknown>): string[] {
   const lines: string[] = [];
-
-  const canvasType = asString(state.canvasType);
-  if (canvasType) {
-    lines.push(`Sharepic-Typ: ${canvasType}`);
-  }
 
   for (const key of FIELD_KEYS) {
     const label = LABELS[key];
@@ -77,9 +69,44 @@ export function buildSharepicText(state: Record<string, unknown>): string {
     }
   }
 
+  return lines;
+}
+
+/**
+ * Builds a structured text description of the current canvas content.
+ * Used by ChatSection to inject the sharepic content into the chat composer.
+ */
+export function buildSharepicText(state: Record<string, unknown>): string {
+  const canvasType = asString(state.canvasType);
+  const lines = [...(canvasType ? [`Sharepic-Typ: ${canvasType}`] : []), ...contentLines(state)];
+
   if (lines.length === 0) {
     return '(Sharepic ist noch leer)';
   }
 
   return lines.join('\n');
+}
+
+/** One page's own text, `''` on a page without any — what a restyle carries over. */
+export function buildPageText(state: Record<string, unknown>): string {
+  return contentLines(state).join('\n');
+}
+
+/**
+ * The design's text page by page, for a model writing one more page; pages
+ * without text are left out, and at most `max` characters go along — the
+ * latest pages last, so a long design keeps its beginning.
+ */
+export function buildDeckText(
+  pages: readonly { state: Record<string, unknown> }[],
+  max: number
+): string {
+  const text = pages
+    .map((page, i) => {
+      const own = buildPageText(page.state);
+      return own ? `Seite ${i + 1}:\n${own}` : null;
+    })
+    .filter((entry): entry is string => entry !== null)
+    .join('\n\n');
+  return text.slice(0, max);
 }

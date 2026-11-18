@@ -14,6 +14,13 @@
 
 import type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';
 
+/**
+ * Whether a call should reason, as the AI SDK spells it. Not more levels than
+ * this: Gemma on Melious treats every value other than `none` the same
+ * (measured 09.11.2026, ~450 reasoning tokens for low, medium and high alike).
+ */
+export type AiReasoning = 'low' | 'medium' | 'high';
+
 // ========================================
 // AI Request/Response Types
 // ========================================
@@ -62,6 +69,8 @@ export interface AIRequestOptions extends ProviderOptions {
   tools?: Tool[] | undefined;
   tool_choice?: string | { type: string; name?: string };
   response_format?: { type: string };
+  /** See `AiCall.reasoning`. */
+  reasoning?: AiReasoning | undefined;
   anthropic_version?: string | undefined;
   betas?: string[] | undefined;
   useDocumentQnA?: boolean | undefined;

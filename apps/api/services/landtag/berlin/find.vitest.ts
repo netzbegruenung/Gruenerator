@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { findBerlin } from './find.js';
+import { Deadline } from '../../../utils/deadline.js';
+
+import { findBerlin, MIN_VOLLTEXT_MS } from './find.js';
 import { type PardokLister, type PardokPage, type PardokParams } from './pardokLive.js';
 
 import type { PardokRecord } from '../../scrapers/implementations/LandtagBerlinScraper/pardokClient.js';
@@ -106,6 +108,204 @@ describe('findBerlin', () => {
     expect(calls[1]!['f.volltext']).toBe('verkehrswende');
     expect(out.candidates).toHaveLength(1);
     expect(out.notes.join(' ')).toMatch(/Volltext/);
+    expect(out.notes.join(' ')).toMatch(/erwähnen/);
+  });
+
+  // Titelsuche antwortet nach `titelMs`, Volltext hängt bis zum Abbruch.
+  function langsam(titelMs: number) {
+    const state = { abgebrochen: false, volltextGestartet: false };
+    const impl: PardokLister = {
+      list: vi.fn(async (_e, params, signal) => {
+        if (!('f.volltext' in params)) {
+          await new Promise((r) => setTimeout(r, titelMs));
+          return { numFound: 1, cursor: null, documents: [antrag('1', '2026.06.01')] };
+        }
+        state.volltextGestartet = true;
+        return new Promise<PardokPage>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            state.abgebrochen = true;
+            reject(new Error('aborted'));
+          });
+        });
+      }),
+    };
+    return { impl, state };
+  }
+
+  it('langsame Titelsuche, dann hängender Volltext-Rückfall: Titeltreffer kommen vor der Frist (#5565)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const { impl, state } = langsam(15_000);
+      const pending = findBerlin({ query: 'Kapek', filters: {}, deadline }, impl);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(state.volltextGestartet).toBe(true);
+      await vi.advanceTimersByTimeAsync(25_001);
+      const out = await pending;
+      expect(state.abgebrochen).toBe(true);
+      expect(deadline.signal.aborted).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* übersprungen/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('startet keinen Volltext, wenn die Restzeit nicht lohnt (Rückfall)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(MIN_VOLLTEXT_MS + 5_000);
+    try {
+      const { impl, state } = langsam(6_000);
+      const pending = findBerlin({ query: 'Kapek', filters: {}, deadline }, impl);
+      await vi.advanceTimersByTimeAsync(6_000);
+      const out = await pending;
+      expect(state.volltextGestartet).toBe(false);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/übersprungen/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('bricht auch einen ausdrücklichen Volltext an der Frist ab und liefert die Titelsuche (#5565)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(40_000);
+    try {
+      const { impl, state } = langsam(1_000);
+      const pending = findBerlin(
+        { query: 'Kapek', filters: { volltext: 'Kapek', datumVon: '2026-01-01' }, deadline },
+        impl
+      );
+      await vi.advanceTimersByTimeAsync(40_001);
+      const out = await pending;
+      expect(state.abgebrochen).toBe(true);
+      expect(out.candidates).toHaveLength(1);
+      expect(out.notes.join(' ')).toMatch(/Volltextsuche .* dauerte zu lange/);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  describe('Person als Fragesteller (#5573)', () => {
+    // Echte PARDOK-Datensätze (09.11.2026, `f.urheber=Kapek, Antje`): eine Einzel- und eine
+    // gemeinsam gestellte Anfrage; der Fragesteller steht in `urheber` als „Nachname, Vorname".
+    const kapek = (nr: string, titel: string, datum: string, urheber: unknown[]): PardokRecord =>
+      ({
+        dokumentnummer: [{ main: nr }],
+        drucksachentyp: [{ main: 'Schriftliche Anfrage' }],
+        id: [{ main: `D-${nr}` }],
+        titel: [{ main: '', t: titel }],
+        urheber,
+        wahlperiode: [{ main: '19' }],
+        datum,
+        pdf_url: [
+          {
+            main: `https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-${nr}.pdf`,
+          },
+        ],
+      }) as unknown as PardokRecord;
+    const KAPEK = { name: 'Kapek, Antje', fraktion: 'Grüne' };
+    const einzel = kapek('27291', 'Wie lange bleibt Berlin noch analog?', '2026.10.13', [KAPEK]);
+    const gemeinsam = kapek('27257', 'Winterdienst auf Gehwegen', '2026.10.07', [
+      { name: 'Hassepaß, Oda', fraktion: 'Grüne' },
+      KAPEK,
+    ]);
+
+    it('fragt PARDOK mit dem Namen als Urheber, ohne Titel- oder Volltextsuche, und zählt exakt', async () => {
+      const { impl, calls } = lister(() => ({
+        numFound: 59,
+        cursor: null,
+        documents: [einzel, gemeinsam],
+      }));
+      const out = await findBerlin(
+        {
+          query: 'Kapek',
+          filters: { person: 'Antje Kapek', typ: ['Anfrage'], datumVon: '2026-01-01' },
+        },
+        impl
+      );
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        'f.urheber': 'Kapek, Antje',
+        'f.drucksachtyp': 'Schriftliche Anfrage',
+        'f.datum.start': '2026-01-01',
+      });
+      expect(calls[0]).not.toHaveProperty('f.titel');
+      expect(calls[0]).not.toHaveProperty('f.volltext');
+      expect(out.gesamt).toBe(59);
+      expect(out.candidates).toHaveLength(2);
+      expect(out.notes.join(' ')).toMatch(/59 .*Kapek, Antje.*gemeinsam/);
+    });
+
+    it('behält das Thema: Person und Titel in einer Abfrage, Hinweis „zum Thema“ (#5573)', async () => {
+      // Live geprüft (09.11.2026): PARDOK UND-verknüpft f.urheber, f.titel und f.drucksachtyp
+      // (Kapek, Antje + Titel „Parkraum“ = 5 von 268).
+      const { impl, calls } = lister(() => ({ numFound: 5, cursor: null, documents: [einzel] }));
+      const out = await findBerlin(
+        { query: 'Parkraum', filters: { person: 'Antje Kapek', typ: ['Anfrage'] } },
+        impl
+      );
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        'f.urheber': 'Kapek, Antje',
+        'f.drucksachtyp': 'Schriftliche Anfrage',
+        'f.titel': ['parkraum'],
+      });
+      expect(out.gesamt).toBe(5);
+      expect(out.notes.join(' ')).toMatch(/zum Thema „parkraum“/);
+    });
+
+    it('nimmt den Namen selbst nicht als Thema, wenn das Modell ihn als query gibt', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin({ query: 'Kapek Antje', filters: { person: 'Antje Kapek' } }, impl);
+      expect(calls[0]).not.toHaveProperty('f.titel');
+    });
+
+    it('ein ausdrücklicher Titel gilt neben der Person', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin(
+        { query: '', filters: { person: 'Kapek, Antje', titel: 'Winterdienst' } },
+        impl
+      );
+      expect(calls[0]!['f.titel']).toEqual(['Winterdienst']);
+    });
+
+    it('nimmt „Nachname, Vorname" unverändert', async () => {
+      const { impl, calls } = lister(() => [einzel]);
+      await findBerlin({ query: '', filters: { person: 'Kapek, Antje' } }, impl);
+      expect(calls[0]!['f.urheber']).toBe('Kapek, Antje');
+    });
+
+    it('löst einen bloßen Nachnamen an den neuesten Anfragen auf', async () => {
+      const { impl, calls } = lister((p) =>
+        'f.urheber' in p ? [einzel, gemeinsam] : [einzel, gemeinsam, anfrage('1', 'SPD')]
+      );
+      const out = await findBerlin({ query: '', filters: { person: 'Kapek' } }, impl);
+      expect(calls.at(-1)!['f.urheber']).toBe('Kapek, Antje');
+      expect(out.notes.join(' ')).toMatch(/Kapek, Antje/);
+      expect(out.candidates).toHaveLength(2);
+    });
+
+    it('fragt nach dem Vornamen, wenn der Nachname nicht eindeutig ist', async () => {
+      const zweite = kapek('1', 'Anfrage', '2026.10.01', [
+        { name: 'Kapek, Bernd', fraktion: 'CDU' },
+      ]);
+      const { impl } = lister(() => [einzel, zweite]);
+      const out = await findBerlin({ query: '', filters: { person: 'Kapek' } }, impl);
+      expect(out.candidates).toEqual([]);
+      expect(out.notes.join(' ')).toMatch(/Kapek, Antje.*Kapek, Bernd|Kapek, Bernd.*Kapek, Antje/);
+    });
+
+    it('sagt, wenn der Name nicht vorkommt', async () => {
+      const { impl } = lister(() => ({ numFound: 0, cursor: null, documents: [] }));
+      const out = await findBerlin({ query: '', filters: { person: 'Antje Unbekannt' } }, impl);
+      expect(out.candidates).toEqual([]);
+      expect(out.gesamt).toBe(0);
+      expect(out.notes.join(' ')).toMatch(/Nachname, Vorname/);
+    });
   });
 
   it('erklärt Null Treffer mit der Zahl ohne Themenwort', async () => {

@@ -42,7 +42,7 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     // backend treats the two as one capability (see `agentAllowsTool` in
     // apps/api/routes/chat/agents/agentToolWhitelist.ts).
     key: 'web',
-    label: 'Recherche',
+    label: 'Websuche & Recherche',
     description:
       'Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt.',
   },

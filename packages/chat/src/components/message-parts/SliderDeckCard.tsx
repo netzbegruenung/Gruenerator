@@ -75,7 +75,7 @@ export function SliderDeckCard({ variant }: SliderDeckCardProps) {
           type="button"
           onClick={openInStudio}
           className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label={`${imageAltText}. Im Editor öffnen`}
+          aria-label={`${imageAltText}. Im Studio öffnen`}
         >
           {isRendering && !imageBase64 && (
             <div className="flex h-64 items-center justify-center">
@@ -203,7 +203,7 @@ export function SliderDeckCard({ variant }: SliderDeckCardProps) {
                   : 'text-foreground-muted hover:bg-primary/10 hover:text-foreground'
               )}
               aria-pressed={isActiveForChat}
-              aria-label="Dieses Karussell per Chat bearbeiten"
+              aria-label={`${isActiveForChat ? 'Im Chat aktiv' : 'Im Chat bearbeiten'}: dieses Karussell`}
             >
               <SquarePen className="h-3 w-3" />
               <span>{isActiveForChat ? 'Im Chat aktiv' : 'Im Chat bearbeiten'}</span>

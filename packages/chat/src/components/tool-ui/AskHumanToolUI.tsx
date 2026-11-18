@@ -78,6 +78,7 @@ export const AskHumanToolUI = memo(function AskHumanToolUI({
             }
           }}
           placeholder="Oder eigene Antwort eingeben..."
+          aria-label="Eigene Antwort"
           className="flex-1 px-3 py-1.5 text-sm rounded-full border border-border bg-background text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-primary/50"
         />
         <button

@@ -62,6 +62,22 @@ export const mcpServersContract = c.router(
       summary: 'Add an MCP server',
     },
 
+    // "Verbinden" on a known connector's directory card (Bahn, Wetter, Rateo,
+    // …): creates or switches on the caller's row for that key. Takes no URL —
+    // the endpoint lives in deploy env.
+    connectRegistryConnector: {
+      method: 'POST',
+      path: '/api/mcp/servers/connect/:registryKey',
+      pathParams: z.object({ registryKey: z.string().max(64) }),
+      body: c.noBody(),
+      responses: {
+        200: mcpServerResponseSchema,
+        404: mcpServerErrorResponseSchema,
+        500: mcpServerErrorResponseSchema,
+      },
+      summary: 'Connect a known connector from the directory',
+    },
+
     update: {
       method: 'PATCH',
       path: '/api/mcp/servers/:id',

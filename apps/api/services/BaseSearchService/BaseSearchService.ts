@@ -421,6 +421,7 @@ export class BaseSearchService {
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
           published_at: this.extractPublishedAt(chunk),
+          date_precision: this.extractPublishedAt(chunk) ? (chunk.date_precision ?? null) : null,
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           content_type_label: chunk.content_type_label ?? null,
@@ -442,7 +443,11 @@ export class BaseSearchService {
       docData.source_name ??= chunk.source_name ?? null;
       if (!docData.published_at) {
         const pub = this.extractPublishedAt(chunk);
-        if (pub) docData.published_at = pub;
+        if (pub) {
+          docData.published_at = pub;
+          // The precision belongs to this chunk's date, not to the first one's.
+          docData.date_precision = chunk.date_precision ?? null;
+        }
       }
       const chunkData = this.extractChunkData(chunk);
 
@@ -525,6 +530,7 @@ export class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         published_at: doc.published_at ?? null,
+        date_precision: doc.date_precision ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
         content_type_label: doc.content_type_label ?? null,
@@ -697,6 +703,7 @@ export class BaseSearchService {
       token_count: chunk.token_count,
       created_at: chunk.created_at,
       published_at: chunk.published_at ?? null,
+      date_precision: chunk.date_precision ?? null,
       documents: {
         id: chunk.document_id,
         title: chunk.documents?.title || chunk.document_title,
@@ -916,6 +923,7 @@ export class BaseSearchService {
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
           published_at: this.extractPublishedAt(chunk),
+          date_precision: this.extractPublishedAt(chunk) ? (chunk.date_precision ?? null) : null,
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           content_type_label: chunk.content_type_label ?? null,
@@ -1094,6 +1102,7 @@ export class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         published_at: doc.published_at ?? null,
+        date_precision: doc.date_precision ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
         content_type_label: doc.content_type_label ?? null,
@@ -1339,6 +1348,7 @@ export class BaseSearchService {
           filename: chunk.documents?.filename || chunk.document_filename || '',
           created_at: chunk.documents?.created_at || chunk.document_created_at,
           published_at: chunk.published_at ?? null,
+          date_precision: chunk.date_precision ?? null,
           source_url: chunk.url || undefined,
           chunks: [],
           maxSimilarity: 0,
@@ -1388,6 +1398,7 @@ export class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         published_at: doc.published_at ?? null,
+        date_precision: doc.date_precision ?? null,
         source_url: doc.source_url,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore,

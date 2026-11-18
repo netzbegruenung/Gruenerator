@@ -167,9 +167,12 @@ function lastAssistantText(state: ChatGraphState): string | null {
  * das Vokabular (auch das der Rückfrage davor, für ein knappes „ja") oder ein
  * aktives Social-Rezept, nach dessen Post das Modell Vorlagen anbieten darf.
  */
-export function vorlagenForTurn(state: ChatGraphState): SharepicVorlage[] | null {
+export function vorlagenForTurn(
+  state: ChatGraphState,
+  activeRecipeMentions: readonly (string | null | undefined)[] = [state.activeSkillMention]
+): SharepicVorlage[] | null {
   const wanted =
-    isSocialRecipe(state.activeSkillMention) ||
+    activeRecipeMentions.some(isSocialRecipe) ||
     mentionsVorlagen(state.lastUserTextNoMentions ?? lastUserText(state), lastAssistantText(state));
   if (!wanted) return null;
   const vorlagen = turnVorlagen(state);

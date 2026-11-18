@@ -22,7 +22,7 @@ export async function connectRefreshingOnce(
     return client;
   } catch (err) {
     const unauthorized = classifyMcpFailure(err, config).code === 'unauthorized';
-    if (config.authType !== 'oauth' || config.managed || !unauthorized) throw err;
+    if (config.authType !== 'oauth' || config.registryKey != null || !unauthorized) throw err;
     const token = await McpOAuthService.getValidAccessToken(userId, config.id, { force: true });
     if (!token) throw err;
     log.info('MCP server answered 401; retrying with a refreshed token', { server: config.name });

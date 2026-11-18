@@ -180,6 +180,13 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'videoEditor')!,
   },
   {
+    id: 'parteitage',
+    title: 'Parteitage',
+    description: 'Reden als Reels',
+    path: '/parteitage',
+    icon: getIcon('navigation', 'reel')!,
+  },
+  {
     id: 'studio-voice',
     title: 'Voice',
     description: 'Text vertonen',

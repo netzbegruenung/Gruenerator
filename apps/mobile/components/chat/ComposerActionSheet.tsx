@@ -14,7 +14,6 @@ import {
   COMPOSER_TOOLS,
   resolveMentionable,
   // notebookMentionables — Notebook-Modus vorerst nicht weiterverfolgt (08/2026).
-  useSkillFavoritesStore,
   type ComposerIconKey,
   type ComposerToolIconKey,
   type Mentionable,
@@ -34,6 +33,7 @@ import {
 } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
+import { useUserLibrary } from '../../hooks/agents/useUserLibrary';
 import { useEnabledModelIds } from '../../hooks/useEnabledModelIds';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, borderRadius, chatType, colors, HEADING_FONT_BOLD } from '../../theme';
@@ -151,7 +151,9 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   // this sheet. Read during the render that opens the sheet, exactly as web's
   // PlusMenu does, so it is current by the time anyone can see it.
   const connectors = connectorMentionables();
-  const favorites = useSkillFavoritesStore((s) => s.favorites);
+  // Saved library recipes (account-side), as in web's PlusMenu.
+  const { items: libraryItems } = useUserLibrary();
+  const favorites = libraryItems.filter((i) => i.kind === 'recipe').map((i) => i.ref.toLowerCase());
   const skills = quickSkillMentionables(favorites);
   const functions = functionMentionables();
 

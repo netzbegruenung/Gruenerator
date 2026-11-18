@@ -2,6 +2,7 @@ import { useAui } from '@assistant-ui/react';
 import { type ReactNode } from 'react';
 
 import { cn } from '../../lib/utils';
+import { RecipeStarters } from '../thread/RecipeStarters';
 
 export interface CompactWelcomeProps {
   /** Large icon shown above the description. */
@@ -12,6 +13,8 @@ export interface CompactWelcomeProps {
   suggestions?: string[];
   /** Background color class for the icon circle. Defaults to `bg-primary/10`. */
   iconBgClassName?: string;
+  /** One row of recipe starters below the suggestions; needs the Query/auth context of the main chat. */
+  recipeStarters?: boolean;
 }
 
 export function CompactWelcome({
@@ -19,6 +22,7 @@ export function CompactWelcome({
   description,
   suggestions,
   iconBgClassName,
+  recipeStarters = false,
 }: CompactWelcomeProps) {
   const composerRuntime = useAui().composer;
 
@@ -47,6 +51,7 @@ export function CompactWelcome({
           ))}
         </div>
       )}
+      {recipeStarters && <RecipeStarters limit={3} layout="row" />}
     </div>
   );
 }

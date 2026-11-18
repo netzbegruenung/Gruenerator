@@ -5,6 +5,7 @@ import { onGround } from '@gruenerator/contracts/brand';
 import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';
 import { brandFont } from './fontRole';
+import { accentWordWidth } from './headlineFit';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
 
@@ -37,7 +38,7 @@ export function layoutAufruf(
     Math.round(Math.min(item.stil === 'kernsatz' ? 120 : 104, 82 * scale)),
     column.width,
     0,
-    (w, s) => measure(w, s, family, 'bold')
+    accentWordWidth(measure, theme, brand.accent.emphasis, [item.text])
   );
   const lines = lineCount(item.text, column.width, size, family, 'normal');
   if (item.stil === 'ausruf') {

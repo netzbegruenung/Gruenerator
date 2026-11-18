@@ -6,7 +6,7 @@ import { fireEvent, render } from '@testing-library/react';
 import { PiSticker } from 'react-icons/pi';
 import { describe, expect, it } from 'vitest';
 
-import { VisualImage } from './kindViews';
+import { chatPathOf, VisualImage } from './kindViews';
 
 const visual = (src: string | null) =>
   ({ type: 'image', src, cutout: true, icon: <PiSticker /> }) as const;
@@ -36,5 +36,17 @@ describe('VisualImage', () => {
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     rerender(<VisualImage visual={visual('/b.webp')} />);
     expect(container.querySelector('img')).toHaveAttribute('src', '/b.webp');
+  });
+});
+
+describe('chatPathOf', () => {
+  const recipeItem = (rowId: string | null) =>
+    ({ kind: 'recipe', recipe: { mention: 'presse', rowId } }) as unknown as Parameters<
+      typeof chatPathOf
+    >[0];
+
+  it('always links a recipe as /chat?rezept=', () => {
+    expect(chatPathOf(recipeItem(null))).toBe('/chat?rezept=presse');
+    expect(chatPathOf(recipeItem('row-1'))).toBe('/chat?rezept=presse&rezeptId=row-1');
   });
 });

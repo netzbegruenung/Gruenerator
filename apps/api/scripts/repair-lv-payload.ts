@@ -62,6 +62,17 @@
  *     auch mit `--all`. Nötig, weil der Content-Hash-Gatter nur Titel und Datum
  *     nachzieht — eine neu kuratierte Wahlprogramm-PDF bliebe sonst für immer
  *     `beschluss`. URLs außerhalb jeder Liste bleiben unberührt.
+ *   - `--wolke`: für Wolke-Punkte (`wolke://<shareKey>/…`) das nachtragen, was
+ *     der Scraper heute schreibt, das Etag-Gatter bei unveränderten Dateien aber
+ *     nie nachzieht (#5537): `source_id`/`source_name` der Quelle, die den Share
+ *     heute konfiguriert; `age_exempt: true`; und — nur wo `published_at` fehlt
+ *     — das Tagesdatum aus dem Dateinamen samt `date_precision`, über denselben
+ *     Parser wie beim Einlesen (`DateExtractor.extractWolkeFileNameDate`).
+ *     Ein Name ohne Tagesdatum bleibt null (`unresolved`). `age_exempt` ist
+ *     dabei Pflicht, nicht Beiwerk: der Archivlauf leitet das Alter allein aus
+ *     `published_at` ab und überspringt nur `age_exempt: true` — ein Datum ohne
+ *     die Marke schöbe jede Antwort älter als `maxAgeYears` aus der Live-Sammlung.
+ *     Kein Abruf, daher auch mit `--all`.
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben `source_url`.
  * Die Vektoren bleiben unverändert — sie wurden mit dem alten Titel als
@@ -75,6 +86,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   npx tsx scripts/repair-lv-payload.ts --fulltext --source berlin-lv-beschluesse
  *   npx tsx scripts/repair-lv-payload.ts --content-types --all
+ *   npx tsx scripts/repair-lv-payload.ts --wolke --source berlin-lv-beschluesse
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * Bei mehreren `--source`: Quellen laufen mit `--parallel N` (Standard 4)
@@ -108,6 +120,7 @@ import {
 import { type QdrantClient } from '@qdrant/js-client-rest';
 import {
   CONTENT_TYPE_LABELS,
+  LANDESVERBAENDE_CONFIG,
   getCuratedContentTypeForUrl,
   getCuratedListsForUrl,
   type LandesverbandSource,
@@ -121,6 +134,7 @@ interface CliArgs {
   gone: boolean;
   fulltext: boolean;
   contentTypes: boolean;
+  wolke: boolean;
   refetch: boolean;
   write: boolean;
   limit: number | null;
@@ -145,10 +159,14 @@ interface Patch {
   content_type?: string;
   content_type_label?: string;
   curated_lists?: string[];
+  source_id?: string;
+  source_name?: string;
+  age_exempt?: true;
+  date_precision?: string;
 }
 
 const USAGE =
-  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel> | --fulltext | --content-types) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel> | --fulltext | --content-types | --wolke) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
   '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--parallel N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
@@ -173,6 +191,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     gone: false,
     fulltext: false,
     contentTypes: false,
+    wolke: false,
     refetch: false,
     write: false,
     limit: null,
@@ -197,6 +216,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     } else if (arg === '--gone') args.gone = true;
     else if (arg === '--fulltext') args.fulltext = true;
     else if (arg === '--content-types') args.contentTypes = true;
+    else if (arg === '--wolke') args.wolke = true;
     else if (arg === '--refetch') args.refetch = true;
     else if (arg === '--write') args.write = true;
     else if (arg === '--limit') {
@@ -209,13 +229,23 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.parallel = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
-  if (args.gone && (args.titles || args.overwriteDates || args.fulltext || args.contentTypes)) {
+  if (
+    args.gone &&
+    (args.titles || args.overwriteDates || args.fulltext || args.contentTypes || args.wolke)
+  ) {
     return { error: '--gone steht allein: gelöschte Punkte bekommen keinen Patch.' };
   }
   if (args.gone && args.all) {
     return { error: '--gone nur mit --source: --all holt jede Seite aller Quellen.' };
   }
-  if (!args.titles && !args.overwriteDates && !args.gone && !args.fulltext && !args.contentTypes) {
+  if (
+    !args.titles &&
+    !args.overwriteDates &&
+    !args.gone &&
+    !args.fulltext &&
+    !args.contentTypes &&
+    !args.wolke
+  ) {
     return { error: USAGE };
   }
   if (args.all === args.sources.length > 0) return { error: USAGE };
@@ -360,6 +390,49 @@ export function planContentTypeRepair(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
+const WOLKE_URL = /^wolke:\/\/([^/]+)\/(.+)$/;
+
+/** The source that configures the share a `wolke://<shareKey>/…` url belongs to, today. */
+export function wolkeShareOwner(
+  url: string,
+  sources: Pick<LandesverbandSource, 'id' | 'name' | 'contentPaths'>[]
+): Pick<LandesverbandSource, 'id' | 'name'> | null {
+  const key = WOLKE_URL.exec(url)?.[1];
+  if (!key) return null;
+  return sources.find((s) => s.contentPaths.some((cp) => cp.wolkeShare?.shareKey === key)) ?? null;
+}
+
+/**
+ * What the Wolke branch of the scraper writes today and the etag gate never
+ * back-fills on an unchanged file (#5537). `owner` comes from
+ * `wolkeShareOwner`; without one only `age_exempt` and the date are planned.
+ * Null for a point that is no Wolke file.
+ */
+export function planWolkeRepair(
+  point: Pick<
+    StoredPoint,
+    'source_url' | 'source_id' | 'source_name' | 'published_at' | 'age_exempt'
+  >,
+  owner: Pick<LandesverbandSource, 'id' | 'name'> | null
+): { patch: Patch; unresolved: boolean } | null {
+  const match = WOLKE_URL.exec(point.source_url);
+  if (!match) return null;
+  const patch: Patch = {};
+  if (owner && point.source_id !== owner.id) patch.source_id = owner.id;
+  if (owner && point.source_name !== owner.name) patch.source_name = owner.name;
+  if (!point.age_exempt) patch.age_exempt = true;
+  let unresolved = false;
+  if (!point.published_at) {
+    const fileName = match[2].split('/').pop() ?? '';
+    const { dateString, precision } = DateExtractor.extractWolkeFileNameDate(fileName);
+    if (dateString && precision) {
+      patch.published_at = dateString;
+      patch.date_precision = precision;
+    } else unresolved = true;
+  }
+  return { patch, unresolved };
+}
+
 const withoutWhitespace = (text: string): string => text.replace(/\s+/g, '');
 
 /**
@@ -389,6 +462,7 @@ interface RepairContext {
   overwriteDates: string | null;
   fulltext?: boolean;
   contentTypes?: boolean;
+  wolke?: boolean;
 }
 
 interface RepairResult {
@@ -410,7 +484,17 @@ interface RepairResult {
 export async function planPointRepair(
   point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'> & {
     full_text?: string | null;
-  } & Partial<Pick<StoredPoint, 'content_type' | 'content_type_label' | 'curated_lists'>>,
+  } & Partial<
+      Pick<
+        StoredPoint,
+        | 'content_type'
+        | 'content_type_label'
+        | 'curated_lists'
+        | 'source_id'
+        | 'source_name'
+        | 'age_exempt'
+      >
+    >,
   ctx: RepairContext,
   refetchable: boolean,
   fetchExtracted: () => Promise<Extracted & { text: string }>
@@ -462,6 +546,23 @@ export async function planPointRepair(
         curated_lists: point.curated_lists ?? [],
       })
     );
+  }
+
+  if (ctx.wolke) {
+    const wolke = planWolkeRepair(
+      {
+        source_url: point.source_url,
+        source_id: point.source_id ?? '',
+        source_name: point.source_name ?? null,
+        published_at: point.published_at,
+        age_exempt: point.age_exempt ?? false,
+      },
+      wolkeShareOwner(point.source_url, LANDESVERBAENDE_CONFIG.sources)
+    );
+    if (wolke) {
+      Object.assign(patch, wolke.patch);
+      if (wolke.unresolved) unresolved = true;
+    }
   }
 
   return { patch, unresolved, fetchAttempted, fetchError };
@@ -524,8 +625,10 @@ export async function planGone(
 interface StoredPoint {
   source_url: string;
   source_id: string;
+  source_name: string | null;
   title: string;
   published_at: string | null;
+  age_exempt: boolean;
   /** Only loaded for --fulltext — it is the heaviest field on the point. */
   full_text: string | null;
   content_type: string | null;
@@ -550,8 +653,10 @@ async function scrollChunkZero(
       with_payload: [
         'source_url',
         'source_id',
+        'source_name',
         'title',
         'published_at',
+        'age_exempt',
         'content_type',
         'content_type_label',
         'curated_lists',
@@ -566,6 +671,8 @@ async function scrollChunkZero(
       points.push({
         source_url: payload.source_url,
         source_id: payload.source_id,
+        source_name: typeof payload.source_name === 'string' ? payload.source_name : null,
+        age_exempt: payload.age_exempt === true,
         title: typeof payload.title === 'string' ? payload.title : '',
         published_at: typeof payload.published_at === 'string' ? payload.published_at : null,
         full_text: typeof payload.full_text === 'string' ? payload.full_text : null,
@@ -757,6 +864,7 @@ async function main(): Promise<void> {
             overwriteDates: args.overwriteDates,
             fulltext: args.fulltext,
             contentTypes: args.contentTypes,
+            wolke: args.wolke,
           },
           refetchable,
           () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
@@ -786,6 +894,7 @@ async function main(): Promise<void> {
             title: point.title,
             published_at: point.published_at,
             ...(args.contentTypes && { content_type: point.content_type }),
+            ...(args.wolke && { source_id: point.source_id, age_exempt: point.age_exempt }),
           };
           // A full text is too long to print; its shape is what changed.
           const shown = {

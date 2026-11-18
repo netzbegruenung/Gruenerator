@@ -19,16 +19,12 @@
  * wird über die Tabelle in `lanes.ts` (`resolveLane`/`laneTarget`/
  * `laneFallback`).
  *
- * `providers/providerSelector.ts` — die if/else-Kette, die die Tabelle ersetzt
- * hat — läuft noch, aber nur noch als PRÜFMITTEL: der Paritätstest in
- * `__tests__/lanes.vitest.ts` fährt jede geroutete Lane durch beide und
- * verlangt dasselbe Paar. Er ist das Netz unter einem Umbau der Tabelle, und er
- * fährt beide mit LEEREN Optionen — eine Prompt-Config, die ein `model` mit-
- * brächte, sähe er nicht. Genau deshalb bringt keine mehr eines mit:
- * `promptConfigRouting.vitest.ts` verbietet `model` und `provider` in allen
- * Configs.
+ * Die Tabelle ist die einzige Routing-Quelle: die if/else-Kette, die sie
+ * ersetzt hat (`providers/providerSelector.ts`), ist gelöscht. Eine Prompt-Config
+ * bringt kein `model` und keinen `provider` mit; `promptConfigRouting.vitest.ts`
+ * verbietet beides in allen Configs.
  *
- * Was die Parität ebenfalls nicht abdeckt: ein `type` ohne Zeile in `AI_LANES`.
+ * Was kein Test abdeckt: ein `type` ohne Zeile in `AI_LANES`.
  * `resolveLane` schickt ihn auf `default` und protokolliert das — richtig für
  * einen Typ, den niemand geroutet hat, falsch für die Aufrufstellen, die eine
  * Stufe aus `intermediateLanes.ts` oder ein Provider/Modell-Paar hart benennen.
@@ -50,7 +46,7 @@ import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { LaneId } from './lanes.js';
 import type { ProviderName } from './providers.js';
 import type { StructuredValidation } from './structuredParsing.js';
-import type { AIRequestData, AIRequestOptions, AiResult, Tool } from './types.js';
+import type { AIRequestData, AIRequestOptions, AiReasoning, AiResult, Tool } from './types.js';
 
 const log = createLogger('AiObject');
 
@@ -127,6 +123,17 @@ export interface AiCall {
    * caller parses prose-shaped JSON itself.
    */
   json?: boolean;
+  /**
+   * Let the model reason before it answers. Omitted, every lane keeps its
+   * provider's off switch: `meliousFetch` sends `reasoning_effort: 'none'`,
+   * Large 4 is held at `low`. Set, it reaches the wire as `reasoning_effort`
+   * and the off switches leave it alone.
+   *
+   * Reasoning tokens count against `maxOutputTokens` and Melious returns them
+   * in a field the SDK does not read: budget for them, or a long think ends as
+   * a call without an answer.
+   */
+  reasoning?: AiReasoning;
 }
 
 /**
@@ -227,6 +234,7 @@ function toEnvelope(
     ...(call.maxOutputTokens != null && { max_tokens: call.maxOutputTokens }),
     ...(call.topP != null && { top_p: call.topP }),
     ...(call.json === true && { response_format: { type: 'json_object' as const } }),
+    ...(call.reasoning != null && { reasoning: call.reasoning }),
     ...(model != null && { model }),
   };
 
@@ -482,6 +490,14 @@ export interface AiObjectCall<T> extends AiCall {
    * attempt may run it never or once per text candidate.
    */
   validate: (input: unknown, attempt: number, attempts: number) => StructuredValidation<T>;
+  /**
+   * A second gate for checks that need a request of their own (sharepic figure
+   * claims ask a decision model, #5480). Runs only on a value `validate`
+   * accepted; a string is an objection and goes back as a repair turn, exactly
+   * like a validation error. Kept apart from `validate` so that one stays
+   * synchronous and cheap — it runs once per text candidate.
+   */
+  confirm?: (value: T, attempt: number, attempts: number) => Promise<string | null>;
   attempts?: number;
   /** Log prefix, e.g. 'pdf'. Defaults to the tool name. */
   label?: string;
@@ -658,6 +674,19 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
           }
           if (toolInput == null) {
             log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
+          }
+          // A confirm that throws objects to nothing: its own request failing
+          // must not cost the caller a value `validate` already accepted.
+          const objection = call.confirm
+            ? await call.confirm(validated.value, attempt, attempts).catch((e: unknown) => {
+                log.warn(`[${label}] attempt ${attempt}: confirm threw, passing: ${String(e)}`);
+                return null;
+              })
+            : null;
+          if (objection) {
+            rejection = objection;
+            rejected = JSON.stringify(candidate);
+            break;
           }
           return { ok: true, data: validated.value };
         }

@@ -1,7 +1,7 @@
 /**
- * Die beiden Knöpfe unterscheiden sich ausschliesslich im `visibility`-Feld —
- * ein vertauschter Wert wäre unsichtbar (beide Wege legen eine Vorlage an),
- * würde aber ein privates Sharepic in die öffentliche Prüfung schicken.
+ * Gespeichert wird immer privat — die Galerie-Einreichung lebt in Meine
+ * Vorlagen. Direkt nach dem Speichern bietet der Dialog das Teilen der neuen
+ * Vorlage an; dafür muss er sie als eigene erkennen.
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor } from '@testing-library/react';
@@ -19,6 +19,16 @@ const { renderSharepicToImage } = vi.hoisted(() => ({
   renderSharepicToImage: vi.fn(() => Promise.resolve('data:image/png;base64,AAA')),
 }));
 vi.mock('../renderSharepicToImage', () => ({ renderSharepicToImage }));
+
+// The share step recognises the new Vorlage as the viewer's own via this list.
+vi.mock('@/features/auth/hooks/useProfileData', () => ({
+  useUserTemplates: () => ({
+    query: {
+      data: [{ id: 'tpl-9', title: 'Mein Sharepic', content_data: { canvasId: 'snap-9' } }],
+      isFetching: false,
+    },
+  }),
+}));
 
 vi.mock('../services/mediaUploadService', () => ({
   uploadBlobToMediaLibrary: () => Promise.resolve('https://media.example/preview.png'),
@@ -96,15 +106,30 @@ describe('SaveAsTemplateDialog', () => {
     expect(await screen.findByText('Vorlage gespeichert.')).toBeInTheDocument();
   });
 
-  it('reicht auf Wunsch zur Prüfung ein', async () => {
-    const captured = setupHandlers();
+  it('bietet keine Galerie-Einreichung an', () => {
+    setupHandlers();
     renderDialog();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Zur Galerie einreichen' }));
+    expect(screen.queryByRole('button', { name: /Galerie/ })).not.toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(captured.current).not.toBeNull());
-    expect(captured.current).toMatchObject({ visibility: 'submit' });
-    expect(await screen.findByText(/wird geprüft/)).toBeInTheDocument();
+  it('zeigt nach dem Speichern die Teilen-Einstellungen der neuen Vorlage', async () => {
+    setupHandlers();
+    const DOCS = 'http://localhost/api/docs/snap-9';
+    server.use(
+      http.get(`${DOCS}/permissions`, () => HttpResponse.json([])),
+      http.get(`${DOCS}/groups`, () => HttpResponse.json([])),
+      http.get('http://localhost/api/docs/groups/me', () => HttpResponse.json([])),
+      http.get(`${DOCS}/share`, () =>
+        HttpResponse.json({ share_mode: 'private', share_permission: 'viewer', is_public: false })
+      )
+    );
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Für mich speichern' }));
+
+    expect(await screen.findByText('Vorlage gespeichert.')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Zugriffsmodus')).toBeInTheDocument();
   });
 
   it('rendert das Vorschaubild im Format des Canvas', async () => {
@@ -142,7 +167,7 @@ describe('SaveAsTemplateDialog', () => {
     );
     renderDialog();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Zur Galerie einreichen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Für mich speichern' }));
 
     await waitFor(() => expect(captured.current).not.toBeNull());
     expect(renderSharepicToImage).toHaveBeenCalledWith(

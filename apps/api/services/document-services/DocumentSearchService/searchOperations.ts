@@ -9,7 +9,10 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { fieldFiltersFromQdrant } from '../../notebook/remoteSources/filters.js';
+import { type RemoteNotebookSource } from '../../notebook/remoteSources/types.js';
 import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
+import { parseDatePrecision, type SourceDatePrecision } from '../../search/recency.js';
 
 import type {
   DocumentSearchOptions,
@@ -61,6 +64,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   char_end: number | null;
   created_at: string | undefined;
   published_at: string | null;
+  date_precision: SourceDatePrecision | null;
   source_id: string | null;
   content_type_label: string | null;
   source_name: string | null;
@@ -89,6 +93,9 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     char_end: (p.char_end as number) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
+    // Only the scraper's own `published_at` carries a precision; a metadata
+    // date never does, so it stays null there (#5568).
+    date_precision: p.published_at ? parseDatePrecision(p.date_precision) : null,
     source_id: (p.source_id as string) ?? null,
     // Display labels the Landesverband scraper writes (e.g. „Pressemitteilung“,
     // „Grüne Fraktion Berlin“); other collections leave them out.
@@ -339,6 +346,40 @@ export async function findSimilarChunks(
     id: result.id,
     similarity: result.score,
     ...buildChunkPayloadFields(result.payload),
+  }));
+}
+
+/**
+ * Remote-Sammlung (`services/notebook/remoteSources/`): dieselbe Chunk-Form wie
+ * aus Qdrant, damit Gruppierung, MMR und Ranking unverändert greifen. Die
+ * Quelle sucht nur dicht; ihr Kosinus ist `similarity` UND
+ * `denseSimilarityScore`, so liegt der 0,35-Schnitt auf dem Wert, für den er
+ * geschrieben ist. Ausfälle werfen `RemoteSourceUnavailableError` — die Suche
+ * reicht den Code als `SOURCE_UNAVAILABLE` durch, statt „keine Treffer" zu melden.
+ */
+export async function findRemoteChunks(
+  source: RemoteNotebookSource,
+  params: FindSimilarChunksParams | FindHybridChunksParams
+): Promise<DocumentTransformedChunk[]> {
+  const { filters } = params;
+  if (filters.documentIds?.length || filters.sourceType || filters.titleFilter) {
+    throw new Error('Remote-Quelle: documentIds, sourceType und titleFilter gibt es dort nicht');
+  }
+  const hits = await source.search({
+    vector: params.embedding,
+    query: params.query ?? '',
+    filters: fieldFiltersFromQdrant(filters.additionalFilter),
+    limit: params.limit,
+    threshold: params.threshold,
+  });
+  return hits.map((hit) => ({
+    id: hit.id,
+    similarity: hit.score,
+    ...buildChunkPayloadFields(hit.payload as QdrantResultPayload),
+    searchMethod: 'vector',
+    originalVectorScore: hit.score,
+    originalTextScore: null,
+    denseSimilarityScore: hit.score,
   }));
 }
 

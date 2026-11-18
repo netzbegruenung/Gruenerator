@@ -62,6 +62,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
             }
           }}
           placeholder="https://example.org/artikel"
+          aria-label="Webseiten-Adresse"
           className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary/40"
         />
         <p className="text-xs text-foreground-muted">

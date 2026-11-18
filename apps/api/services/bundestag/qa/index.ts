@@ -42,6 +42,11 @@ export interface QaDeps {
 let dipSingleton: DipClient | null = null;
 
 /** Ein Client für alle Anfragen: nur so gilt der Takt (`pacingMs`) prozessweit. */
+/** Die DIP-Abfragen eines Aufrufs unter dessen Abbruchsignal (kein Signal: der Client selbst). */
+function scopedDip(dip: FindDip, signal: AbortSignal | null): FindDip {
+  return signal ? { list: (endpoint, params) => dip.list(endpoint, params, signal) } : dip;
+}
+
 function getDip(): DipClient {
   if (!dipSingleton) {
     if (!env.DIP_API_KEY) throw new Error('DIP_API_KEY is not set');
@@ -112,20 +117,24 @@ export async function planBundestagQuestion({
   filters,
   budget = ENDPOINT_BUDGET,
   deps,
+  signal = null,
 }: {
   question: string;
   filters?: BundestagFilter;
   budget?: Budget;
   deps?: QaDeps;
+  /** Bricht den Planaufruf des Modells ab, wenn der Aufrufer die Frist reißt. */
+  signal?: AbortSignal | null;
 }): Promise<BundestagPlanResponse> {
   const { dip, mcp } = deps ?? (await defaultDeps());
-  const plan = await planFilters({ question, explicit: filters ?? {}, dip });
+  const scoped = scopedDip(dip, signal);
+  const plan = await planFilters({ question, explicit: filters ?? {}, dip: scoped, signal });
   const found = await findCandidates({
     question,
     filters: plan.filters,
     assumedWahlperiode: plan.assumedWahlperiode,
     budget,
-    dip,
+    dip: scoped,
     mcp,
   });
   return {
@@ -280,8 +289,9 @@ export async function countBundestagDocs(args: {
   filters: BundestagFilter;
   gruppieren?: CountGroupBy;
   deps?: Pick<QaDeps, 'dip'>;
+  signal?: AbortSignal | null;
 }): Promise<CountResult> {
-  const dip = args.deps?.dip ?? getDip();
+  const dip = scopedDip(args.deps?.dip ?? getDip(), args.signal ?? null);
   return countBundestag({
     filters: args.filters,
     ...(args.gruppieren ? { gruppieren: args.gruppieren } : {}),
@@ -293,8 +303,12 @@ export async function countBundestagDocs(args: {
 export async function suggestBundestagRelaxations(args: {
   filters: BundestagFilter;
   deps?: Pick<QaDeps, 'dip'>;
+  signal?: AbortSignal | null;
 }): Promise<Relaxation[]> {
-  return suggestRelaxations({ filters: args.filters, dip: args.deps?.dip ?? getDip() });
+  return suggestRelaxations({
+    filters: args.filters,
+    dip: scopedDip(args.deps?.dip ?? getDip(), args.signal ?? null),
+  });
 }
 
 /** Mehr als die 6 der Liste: eine Gesetzgebungs-Familie hat Entwurf, Beschlussempfehlung, Lesungen, Bundesrat. */
@@ -307,9 +321,11 @@ const FAMILY_MAX_DOCUMENTS = 15;
  */
 export async function bundestagFamily(
   ref: string,
-  deps?: Pick<QaDeps, 'dip' | 'mcp'>
+  deps?: Pick<QaDeps, 'dip' | 'mcp'>,
+  signal: AbortSignal | null = null
 ): Promise<FindResult & { filters: BundestagFilter }> {
-  const { dip, mcp } = deps ?? (await defaultDeps());
+  const { dip: rawDip, mcp } = deps ?? (await defaultDeps());
+  const dip = scopedDip(rawDip, signal);
   const wahlperiode = Number(ref.split('/')[0]);
   const filters: BundestagFilter = {
     dokumentnummer: [ref],

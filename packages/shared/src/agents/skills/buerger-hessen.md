@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-buergeranfragen-hessen'
 title: 'Bürger*innen-Mail Hessen'
-description: 'Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hessen'
+description: 'Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Hessen. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Hessen geantwortet wird.'
 iconKey: 'PiTree'
 avatar: '✉️'
 backgroundColor: '#316049'

@@ -10,6 +10,7 @@ import { draftFailedBody } from './draftFailure.js';
 interface DraftCall {
   schema: Record<string, unknown>;
   pinned: { provider: string; model: string };
+  reasoning?: string;
   attempts: number;
   validate: (input: unknown, attempt: number, attempts: number) => { ok: boolean };
 }
@@ -127,8 +128,11 @@ describe('a draft Gemma cannot finish', () => {
     const result = await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE');
     expect(result.spec.slides[0]!.items[0]).toMatchObject({ type: 'headline' });
     const [gemma, rescue] = draftCalls();
-    expect(gemma!.pinned.model).toBe('gemma-4-31b:balanced');
+    expect(gemma!.pinned.model).toBe('gemma-4-31b:speed');
+    expect(gemma!.reasoning).toBe('medium');
     expect(rescue!.pinned).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
+    // The rescue is the fast way out: Large 4 keeps its own low setting.
+    expect(rescue).not.toHaveProperty('reasoning');
     expect(rescue!.attempts).toBe(2);
   });
 
@@ -176,7 +180,7 @@ describe('a draft that repeats its validation error', () => {
   it('skips the rescue model', async () => {
     aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(BROKEN));
     await draftSharepic('Sharepic: Mehr Busse für alle', 'de-DE').catch(() => null);
-    expect(draftCalls().map((c) => c.pinned.model)).toEqual(['gemma-4-31b:balanced']);
+    expect(draftCalls().map((c) => c.pinned.model)).toEqual(['gemma-4-31b:speed']);
   });
 
   it('still rescues a draft without structure', async () => {

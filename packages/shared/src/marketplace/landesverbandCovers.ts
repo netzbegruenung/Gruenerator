@@ -91,6 +91,16 @@ export const LANDESVERBAND_COVERS: Record<LandesverbandId, MarketplaceCollection
         'https://unsplash.com/photos/a-large-building-with-a-fountain-in-front-of-it-Xot1WmWlHo8?utm_source=gruenerator&utm_medium=referral',
     },
   },
+  'nordrhein-westfalen': {
+    file: 'nordrhein-westfalen-v1',
+    alt: 'Der Rheinturm am Düsseldorfer Medienhafen mit Brücke und Uferbebauung',
+    credit: {
+      author: 'Julia Taubitz',
+      profileUrl: 'https://unsplash.com/@justmejuliee?utm_source=gruenerator&utm_medium=referral',
+      photoUrl:
+        'https://unsplash.com/photos/city-skyline-with-a-tall-tower-and-bridge-over-water-f1uteFAquEI?utm_source=gruenerator&utm_medium=referral',
+    },
+  },
   saarland: {
     file: 'saarland-v1',
     alt: 'Die Saarschleife zwischen bewaldeten Hängen',

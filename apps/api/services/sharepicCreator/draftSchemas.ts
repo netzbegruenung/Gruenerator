@@ -28,6 +28,10 @@ export const needsSchema = z.object({
   // A carousel may want a photo per slide.
   fotos_suchen: z.array(z.string().trim().min(2)).max(6),
   form: sharepicFormSchema,
+  /** The person's own words order this form — not just mention its word in the content. */
+  form_bestellt: z.boolean(),
+  /** What the person's own words say about the slide count. */
+  folien: z.enum(['eine', 'mehrere', 'offen']),
   alternativen: z.array(sharepicFormSchema).max(2),
 });
 export type Needs = z.infer<typeof needsSchema>;
@@ -58,13 +62,33 @@ export const NEEDS_SCHEMA = {
       enum: SHAREPIC_FORMS.map((f) => f.id),
       description: 'Welche Form das Sharepic bekommt',
     },
+    form_bestellt: {
+      type: 'boolean',
+      description:
+        'true nur, wenn die Person genau diese Form selbst verlangt; false, wenn du sie gewählt hast oder ihr Wort nur im Inhalt vorkommt',
+    },
+    folien: {
+      type: 'string',
+      enum: ['eine', 'mehrere', 'offen'],
+      description:
+        '"eine": die Person will ausdrücklich ein einzelnes Bild; "mehrere": ausdrücklich ein Karussell, eine Serie oder mehrere Bilder; sonst "offen"',
+    },
     alternativen: {
       type: 'array',
       items: { type: 'string', enum: SHAREPIC_FORMS.map((f) => f.id) },
       description: 'Zwei andere Formen, die zum selben Auftrag auch passen würden',
     },
   },
-  required: ['land', 'anlass', 'kapitel', 'fotos_suchen', 'form', 'alternativen'],
+  required: [
+    'land',
+    'anlass',
+    'kapitel',
+    'fotos_suchen',
+    'form',
+    'form_bestellt',
+    'folien',
+    'alternativen',
+  ],
 };
 
 /** `takeScene` turns it into a painted background before the spec is validated. */
@@ -94,7 +118,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"|"emoji","zeichen"?:[…]} (emoji: vor jedem Punkt ein Emoji als Bild, zeichen = genau ein Emoji je Punkt in derselben Reihenfolge, nur bei stil "emoji"; das Emoji nicht in den Punkt-Text schreiben) | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"bild","quelle","ausschnitt":"streifen-unten"|"streifen-oben"|"karte"|"kreis"|"freigestellt","filter":"gruen"|"grau"|"original"} (ein Foto in der Slide neben dem Text, nur auf einer Farbfläche und nur mit dachzeile, headline, absatz, text, zitat, frage, button oder steckbrief, höchstens eins je Slide; quelle wie filename beim Hintergrund; streifen-unten/-oben = Fotostreifen über das untere bzw. obere Drittel, karte = Foto auf weißer Karte unter dem Text, kreis = rundes Foto, freigestellt = die Person ohne Hintergrund, vom unteren Rand aufsteigend – das Freistellen übernimmt der Grünerator; gruen = grün eingefärbt) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv) | {"type":"steckbrief","gruss","name","merkmale":[…3–10]} (eine Person stellt sich vor: gruss klein über dem Namen, meist „Hallo, ich bin“, bis 24 Zeichen; name bis 24 Zeichen; merkmale kurze Stichworte bis 32 Zeichen, nur was der Auftrag über die Person sagt. Füllt die Slide allein: ein Foto der Person als background {"kind":"foto","textSeite":"oben"} und sonst kein Element (ein eigenes Foto, upload:N, immer so); oder background {"kind":"farbe"} mit genau steckbrief und einem bild mit ausschnitt "freigestellt" – die Person freigestellt unten in der Mitte (nur Stock- oder gemalte Fotos, die stellt der Grünerator frei). Ohne stoerer, datum, ort, nummer, zeilenboxen, blume, quelle). Einzelne Wörter mit ==…== hervorheben; ein, zwei Schlüsselwörter pro Slide in headline, absatz, text oder zitat dürfen von Hand markiert sein: ((Wort)) kreist ein, __Wort__ unterstreicht; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}. zeichen ist eines von: ${SHAREPIC_EMOJI.join(' ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"|"emoji","zeichen"?:[…]} (emoji: vor jedem Punkt ein Emoji als Bild, zeichen = genau ein Emoji je Punkt in derselben Reihenfolge, nur bei stil "emoji"; das Emoji nicht in den Punkt-Text schreiben) | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"bild","quelle","ausschnitt":"streifen-unten"|"streifen-oben"|"karte"|"kreis"|"freigestellt","filter":"gruen"|"grau"|"original"} (ein Foto in der Slide neben dem Text, nur auf einer Farbfläche und nur mit dachzeile, headline, absatz, text, zitat, frage, button oder steckbrief, höchstens eins je Slide; quelle wie filename beim Hintergrund; streifen-unten/-oben = Fotostreifen über das untere bzw. obere Drittel, karte = Foto auf weißer Karte unter dem Text, kreis = rundes Foto, freigestellt = die Person ohne Hintergrund, vom unteren Rand aufsteigend – das Freistellen übernimmt der Grünerator; gruen = grün eingefärbt) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv) | {"type":"steckbrief","gruss","name","merkmale":[…3–10]} (eine Person stellt sich vor: gruss klein über dem Namen, meist „Hallo, ich bin“, bis 24 Zeichen; name bis 24 Zeichen; merkmale kurze Stichworte bis 32 Zeichen, nur was der Auftrag über die Person sagt. Füllt die Slide allein: ein Foto der Person als background {"kind":"foto","textSeite":"oben"} und sonst kein Element (ein eigenes Foto, upload:N, immer so); oder background {"kind":"farbe"} mit genau steckbrief und einem bild mit ausschnitt "freigestellt" – die Person freigestellt unten in der Mitte (nur Stock- oder gemalte Fotos, die stellt der Grünerator frei). Ohne stoerer, datum, ort, nummer, zeilenboxen, blume, quelle). Einzelne Wörter mit ==…== hervorheben; ein, zwei Schlüsselwörter pro Slide in headline, absatz, text oder zitat dürfen von Hand markiert sein: ((Wort)) kreist ein, __Wort__ unterstreicht; nur Deutschland: bis zu 2 Passagen in zitat, absatz, headline oder im text eines aufruf mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}. zeichen ist eines von: ${SHAREPIC_EMOJI.join(' ')}.`,
       items: structureOf(sharepicItemSchema),
     },
     stoerer: {

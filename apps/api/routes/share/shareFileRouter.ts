@@ -21,7 +21,6 @@
  * the write routes in shareContractRouter.ts.
  */
 
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -35,7 +34,9 @@ import { isRemovedStudioAssetShare } from '../../services/studioAssets/studioAss
 import { transferService } from '../../services/transferService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
+import { streamFile } from '../../utils/http/streamFile.js';
 import { createLogger } from '../../utils/logger.js';
+import { verifyPassword } from '../../utils/passwordHash.js';
 
 import { getSharedMediaService, type SharedMediaService } from './shareServices.js';
 
@@ -441,57 +442,20 @@ async function resolveShareMedia(
   return { share, mediaPath, fileSize: stat.size, moderator: access === 'moderator' };
 }
 
-/** Byte-range streaming for video and audio — what `<video>`/`<audio>` need to seek. */
-function streamMedia(
+function streamShareFile(
   req: Request,
   res: Response,
   mediaPath: string,
   fileSize: number,
   contentType: string
 ): void {
-  const range = req.headers.range;
-
-  if (range) {
-    // `bytes=a-b`, `bytes=a-` and the suffix form `bytes=-n` (RFC 7233), which
-    // some players send for the trailer. Anything else, or a start past the
-    // file, is a 416 — before this the NaN reached `createReadStream` after
-    // the 206 header was already out.
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-    const suffix = match && match[1] === '' ? Number(match[2]) : null;
-    const start = match
-      ? suffix !== null
-        ? Math.max(0, fileSize - suffix)
-        : Number(match[1])
-      : NaN;
-    const end =
-      match && match[2] !== '' && suffix === null
-        ? Math.min(Number(match[2]), fileSize - 1)
-        : fileSize - 1;
-
-    if (
-      !match ||
-      !Number.isFinite(start) ||
-      (suffix !== null && !suffix) ||
-      start >= fileSize ||
-      start > end
-    ) {
-      res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
-      res.end();
-      return;
-    }
-
-    res.writeHead(206, {
-      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': end - start + 1,
-      'Content-Type': contentType,
-    });
-    fs.createReadStream(mediaPath, { start, end }).pipe(res);
-    return;
-  }
-
-  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': contentType });
-  fs.createReadStream(mediaPath).pipe(res);
+  streamFile(req, res, {
+    size: fileSize,
+    contentType,
+    downloadName: null,
+    open: (range) =>
+      range ? fs.createReadStream(mediaPath, range) : fs.createReadStream(mediaPath),
+  });
 }
 
 /**
@@ -530,7 +494,13 @@ router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Re
       res.status(404).json({ error: 'Kein Video oder Audio' });
       return;
     }
-    streamMedia(req, res, resolved.mediaPath, resolved.fileSize, streamContentType(resolved.share));
+    streamShareFile(
+      req,
+      res,
+      resolved.mediaPath,
+      resolved.fileSize,
+      streamContentType(resolved.share)
+    );
   } catch (error) {
     log.error('Failed to stream media:', error);
     res.status(500).json({ error: 'Fehler beim Laden des Videos' });
@@ -582,7 +552,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
         ? (await getSharedMediaService()).getThumbnailFilePath(share.thumbnail_path)
         : null;
     if ((share.media_type === 'video' && !posterPath) || share.media_type === 'audio') {
-      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
+      streamShareFile(req, res, mediaPath, fileSize, streamContentType(share));
       return;
     }
     const sourcePath = posterPath ?? mediaPath;
@@ -670,11 +640,7 @@ router.get(
             res.status(500).json({ success: false, error: 'Ungültiger Passwort-Hash.' });
             return;
           }
-          const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
-          const passwordValid = crypto.timingSafeEqual(
-            Buffer.from(derivedKey, 'hex'),
-            Buffer.from(storedHash, 'hex')
-          );
+          const passwordValid = verifyPassword(password, share.password_hash);
           if (!passwordValid) {
             res.status(403).json({ success: false, error: 'Falsches Passwort.' });
             return;

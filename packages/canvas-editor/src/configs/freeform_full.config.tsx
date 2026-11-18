@@ -472,7 +472,14 @@ const withFreeformAi = (
     isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
   }),
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory) => {
+  createActions: (
+    getState,
+    setState,
+    saveToHistory,
+    debouncedSaveToHistory,
+    _callbacks,
+    history
+  ) => {
     const actionsInInk = (ink: string) =>
       createBaseActions(
         getState,
@@ -483,7 +490,8 @@ const withFreeformAi = (
         height,
         ink,
         brand,
-        insertScale
+        insertScale,
+        history
       );
     const baseActions = actionsInInk(fontColor ?? '#FFFFFF');
     // The ink is read when the element is added: one fixed colour vanished as

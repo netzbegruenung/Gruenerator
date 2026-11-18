@@ -32,6 +32,7 @@ import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
+import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -385,6 +386,26 @@ async function startWorker(): Promise<void> {
     }
   );
 
+  // Admin-only TUS uploads for the Parteitage import. No creation limiter: the import
+  // creates ~180 uploads in one run and every request is already admin-gated.
+  const parteitageUploadPath = '/api/admin/parteitage/upload';
+  app.all(
+    parteitageUploadPath,
+    requireAuth,
+    requireInstanceAdminMiddleware,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+  app.all(
+    parteitageUploadPath + '/*splat',
+    requireAuth,
+    requireInstanceAdminMiddleware,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
   // Compression middleware
   app.use(compression({ filter: shouldCompress, level: 6 }));
 
@@ -565,15 +586,21 @@ async function startWorker(): Promise<void> {
 
   // Health check endpoint
   app.get('/health', async (req: Request, res: Response) => {
-    const redisHealth = await checkRedisHealth();
+    const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+    const [redisHealth, postgresHealth] = await Promise.all([
+      checkRedisHealth(),
+      getPostgresInstance().checkHealth(),
+    ]);
+    const healthy = redisHealth.connected && postgresHealth.connected;
 
-    res.status(redisHealth.connected ? 200 : 503).json({
-      status: redisHealth.connected ? 'healthy' : 'degraded',
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       worker: process.pid,
       uptime: process.uptime(),
       services: {
         redis: redisHealth,
+        postgres: postgresHealth,
       },
     });
   });

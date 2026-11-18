@@ -4,6 +4,7 @@ import { isApiErrorWithStatus, isUnauthorizedError } from '@gruenerator/shared/a
 import { type TextModelId } from '@gruenerator/shared/models';
 import { type ReactNode, lazy, Suspense, useEffect, useRef } from 'react';
 
+import { type ChatNavigateOptions } from '../context/ChatNavigationContext';
 import { ModelPreferencesProvider } from '../context/ModelPreferencesContext';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 
@@ -69,7 +70,7 @@ interface GrueneratorChatProviderProps {
    */
   threadListPortalSlotId?: string;
   /** Host router. Lets the thread list open a thread by navigating to its URL. */
-  onNavigate?: (path: string, opts?: { replace?: boolean }) => void;
+  onNavigate?: (path: string, opts?: ChatNavigateOptions) => void;
 }
 
 /**

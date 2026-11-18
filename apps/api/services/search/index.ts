@@ -88,8 +88,6 @@ export type {
   SearchResult,
   ContentStats,
   FormattedSearchResults,
-  FormattedSearchResultsWithSummary,
-  SearxngSummary,
   ServiceStatus,
 
   // SearchResultProcessor types

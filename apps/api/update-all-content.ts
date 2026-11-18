@@ -7,7 +7,8 @@
  * Flags:
  *   --source <id>            Run only one source group (landesverbaende, gruenblog,
  *                             gruene-at, kommunalwiki, boell-stiftung, bundestag,
- *                             landtag-nrw, landtag-berlin, landtag-bayern)
+ *                             landtag-nrw, landtag-berlin, landtag-bayern,
+ *                             parteitage)
  *   --landesverband <code>   Run only one Landesverband by shortName prefix
  *                             (e.g. BE = Berlin, BB = Brandenburg, HH = Hamburg,
  *                             LSA = Sachsen-Anhalt, MV = Mecklenburg-Vorpommern,
@@ -58,7 +59,6 @@ import { sendContentSyncEmail } from './services/email/emailService.js';
 import { drainExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
-import { getBundestagDipScraperService } from './services/scrapers/implementations/BundestagDipScraper/index.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
@@ -69,6 +69,7 @@ import { getLandtagBayernScraper } from './services/scrapers/implementations/Lan
 import { getLandtagBerlinScraper } from './services/scrapers/implementations/LandtagBerlinScraper/index.js';
 import { getLandtagNrwScraper } from './services/scrapers/implementations/LandtagNrwScraper/index.js';
 import { scrapeLvInstagram } from './services/scrapers/implementations/LvInstagramScraper.js';
+import { getParteitageScraper } from './services/scrapers/implementations/ParteitageScraper/index.js';
 import {
   grundsatzPdfScraperService,
   oesterreichPdfScraperService,
@@ -321,29 +322,6 @@ const SOURCE_GROUPS: SourceGroup[] = [
     },
   },
   {
-    id: 'bundestag-dip',
-    name: 'Bundestag DIP (Reden + Drucksachen)',
-    // Inkrementell dauert Minuten. --force lädt alle Volltexte dreier Wahlperioden
-    // und schafft das in diesem Rahmen nicht — der Grundbestand kommt aus
-    // scripts/import-bundestag-wrapped.ts.
-    timeoutMs: 110 * 60 * 1000,
-    async run(args) {
-      const service = getBundestagDipScraperService();
-      await service.init();
-      const result = await service.scrapeAllSources({
-        forceUpdate: args.force,
-        dryRun: args.dryRun,
-      });
-      return {
-        stored: result.stored,
-        updated: result.updated,
-        skipped: result.skipped,
-        fetchErrors: result.fetchErrors,
-        errors: result.errors,
-      };
-    },
-  },
-  {
     id: 'kommunalwiki',
     name: 'KommunalWiki',
     async run(args) {
@@ -447,6 +425,30 @@ const SOURCE_GROUPS: SourceGroup[] = [
       return {
         stored: result.stored,
         updated: 0,
+        skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.failed,
+        errorSamples: result.errors.slice(0, 20),
+      };
+    },
+  },
+  {
+    id: 'parteitage',
+    name: 'Parteitage (Antragsgrün)',
+    // Die Erstbefüllung braucht mehr als einen Lauf: `stopAt` beendet ihn vor
+    // dem Timeout, der nächste macht bei den noch fehlenden Dokumenten weiter.
+    timeoutMs: 50 * 60 * 1000,
+    async run(args) {
+      const service = getParteitageScraper();
+      await service.init();
+      const result = await service.run({
+        force: args.force,
+        dryRun: args.dryRun,
+        stopAt: Date.now() + 40 * 60 * 1000,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
         skipped: result.skipped,
         fetchErrors: 0,
         errors: result.failed,

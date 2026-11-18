@@ -87,6 +87,7 @@ export const UI_TOOL_NAMES = z.enum([
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
   'rezept_laden',
+  'methode_laden',
   'sharepic',
   // Persisted by the deterministic edit lane (sharepicEditService), not the loop.
   'sharepic_edit',
@@ -120,6 +121,14 @@ export const UI_TOOL_NAMES = z.enum([
   'website_werkzeug_laden',
   // Lader der Parlamentsgruppe (parlament_lesen, bundestag_reden, …).
   'parlament_werkzeuge_laden',
+  // `@antragsgruennrw` und der Lader seiner Gruppe.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
+  'antragsgruen_werkzeuge_laden',
+  'antragsgruen_seite_anlegen',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_tagesordnung',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1321,6 +1330,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
+  methode_laden: entry('methode_laden', 'text-note', parseRecipeVM),
   sharepic: entry('sharepic', 'text-note', parseSharepicVM),
   sharepic_edit: entry('sharepic_edit', 'text-note', parseSharepicEditVM),
   create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),
@@ -1366,6 +1376,38 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   parlament_werkzeuge_laden: entry('parlament_werkzeuge_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Parlamentswerkzeuge freigeschaltet',
+  })),
+  // Loop-Ergebnisse sind schlank ({ resultCount, sources }); die Zitate stehen unter der Antwort.
+  antragsgruen: entry('antragsgruen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_lesen: entry('antragsgruen_lesen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_auswerten: entry('antragsgruen_auswerten', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  // Nur Prüfung und Karte; angelegt wird erst nach der Bestätigung.
+  antragsgruen_seite_anlegen: entry('antragsgruen_seite_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_tagesordnung: entry('antragsgruen_tagesordnung', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'note') ? 'Bestätigung angefordert' : 'Tagesordnung gelesen'),
+  })),
+  antragsgruen_antrag_stellen: entry('antragsgruen_antrag_stellen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_werkzeuge_laden: entry('antragsgruen_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Antragsgrün-Werkzeuge freigeschaltet',
   })),
 };
 

@@ -24,17 +24,26 @@ interface FakeDbOptions {
   /** Antwort auf die Besitzabfrage (Tabelle → Zeile). */
   owner?: Record<string, string> | null;
   existingShare?: boolean;
+  /** Antwort auf die Rezept-Probe (`kind`, `mention`). */
+  recipe?: { kind: string; mention: string } | null;
 }
 
 function fakeDeps(opts: FakeDbOptions = {}, over: Partial<ShareContentDeps> = {}) {
-  const exec = vi.fn(async () => ({ changes: 1 }));
+  // Alle Schreibzugriffe (über `addGroupShare`): der Insert meldet eine neue
+  // Zeile, ausser die Freigabe besteht schon (ON CONFLICT DO NOTHING → leer).
+  const exec = vi.fn(async (sql: string, _params?: unknown[]) =>
+    sql.includes('INSERT INTO group_content_shares') && !opts.existingShare
+      ? [{ inserted: true }]
+      : []
+  );
   const queryOne = vi.fn(async (sql: string) => {
     if (sql.includes('FROM group_content_shares')) return opts.existingShare ? { id: 's1' } : null;
     if (sql.includes('FROM groups')) return { name: 'Kreisverband', share_id: 's-new' };
+    if (sql.includes('SELECT kind, mention FROM user_text_forms')) return opts.recipe ?? null;
     return opts.owner ?? null;
   });
   const deps: ShareContentDeps = {
-    postgres: { exec, queryOne } as unknown as ShareContentDeps['postgres'],
+    postgres: { query: exec, queryOne } as unknown as ShareContentDeps['postgres'],
     checkMembership: vi.fn(async () => {}),
     getNotebookCollection: vi.fn(async () => null),
     updateNotebookCollection: vi.fn(async () => ({ success: true })),
@@ -76,7 +85,7 @@ describe('shareContentToGroup', () => {
     expect(exec).not.toHaveBeenCalled();
   });
 
-  it('reports a duplicate share as 400 without a second insert', async () => {
+  it('reports a duplicate share as 400 — the unique index decides, not a SELECT before', async () => {
     const { deps, exec } = fakeDeps({ owner: { created_by: 'u1' }, existingShare: true });
     const out = await shareContentToGroup(
       { ...base, contentType: 'collaborative_documents', contentId: 'd1' },
@@ -84,7 +93,10 @@ describe('shareContentToGroup', () => {
     );
     expect(out.status).toBe(400);
     expect(out.message).toContain('bereits');
-    expect(exec).not.toHaveBeenCalled();
+    const [sql] = exec.mock.calls[0] as unknown as [string];
+    expect(sql).toContain('ON CONFLICT (group_id, content_type, content_id) DO NOTHING');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(deps.notify).not.toHaveBeenCalled();
   });
 
   /**
@@ -149,6 +161,56 @@ describe('shareContentToGroup', () => {
     expect(insertSql).toContain('INSERT INTO group_content_shares');
   });
 
+  /**
+   * Rezepte über die Projekt-Tür: dieselben Regeln wie `shareTextFormWithGroup`
+   * — sonst entstünde hier eine Freigabe, die kein Mitglied sieht (privat) oder
+   * ein angepasstes System-Rezept, das sich nicht teilen lässt.
+   */
+  it('promotes a private own recipe to share_mode=groups before inserting', async () => {
+    const { deps, exec } = fakeDeps({
+      owner: { user_id: 'u1' },
+      recipe: { kind: 'custom', mention: 'ov-einladung' },
+    });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_text_forms', contentId: 'r1' },
+      deps
+    );
+    expect(out.status).toBe(200);
+    const [promoteSql, promoteParams] = exec.mock.calls[0] as unknown as [string, unknown[]];
+    expect(promoteSql).toMatch(/UPDATE user_text_forms SET share_mode = 'groups'/);
+    expect(promoteSql).toContain("share_mode = 'private'");
+    expect(promoteParams).toEqual(['r1']);
+    const [insertSql, insertParams] = exec.mock.calls[1] as unknown as [string, unknown[]];
+    expect(insertSql).toContain('INSERT INTO group_content_shares');
+    expect(insertParams.slice(0, 2)).toEqual(['user_text_forms', 'r1']);
+  });
+
+  it('refuses an adjusted system recipe with a sentence, without writing', async () => {
+    const { deps, exec } = fakeDeps({
+      owner: { user_id: 'u1' },
+      recipe: { kind: 'preset', mention: 'presse' },
+    });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_text_forms', contentId: 'r1' },
+      deps
+    );
+    expect(out).toMatchObject({ status: 400, message: expect.stringContaining('System-Rezepte') });
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("does not touch someone else's recipe", async () => {
+    const { deps, exec } = fakeDeps({
+      owner: { user_id: 'other' },
+      recipe: { kind: 'custom', mention: 'ov-einladung' },
+    });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_text_forms', contentId: 'r1' },
+      deps
+    );
+    expect(out.status).toBe(403);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it("does not touch someone else's user agent", async () => {
     const { deps, exec } = fakeDeps({ owner: { user_id: 'other' } });
     const out = await shareContentToGroup(
@@ -179,8 +241,8 @@ describe('shareContentToGroup', () => {
   });
 
   it('lets a missing membership propagate as thrown (the handler maps it)', async () => {
-    const { deps } = fakeDeps(
-      {},
+    const { deps, exec } = fakeDeps(
+      { owner: { created_by: 'u1' } },
       {
         checkMembership: vi.fn(async () => {
           throw new Error('Du bist nicht Mitglied dieser Gruppe.');
@@ -193,6 +255,27 @@ describe('shareContentToGroup', () => {
         deps
       )
     ).rejects.toThrow('nicht Mitglied');
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('does not promote a private notebook for a project the caller may not share to', async () => {
+    const { deps } = fakeDeps(
+      {},
+      {
+        getNotebookCollection: vi.fn(async () => ({
+          id: 'n1',
+          user_id: 'u1',
+          share_mode: 'private',
+        })) as never,
+        checkMembership: vi.fn(async () => {
+          throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+        }),
+      }
+    );
+    await expect(
+      shareContentToGroup({ ...base, contentType: 'notebook_collections', contentId: 'n1' }, deps)
+    ).rejects.toThrow('nicht Mitglied');
+    expect(deps.updateNotebookCollection).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -206,14 +289,12 @@ describe('shareContentToGroup', () => {
   });
 
   it('stores a legacy system agent alias under its canonical id', async () => {
-    const { deps, exec, queryOne } = fakeDeps();
+    const { deps, exec } = fakeDeps();
     const out = await shareContentToGroup(
       { ...base, contentType: 'system_agents', contentId: 'gruenerator-kommunal' },
       deps
     );
     expect(out.status).toBe(200);
-    const [, dupParams] = queryOne.mock.calls[0] as unknown as [string, unknown[]];
-    expect(dupParams[1]).toBe('gruenerator-antrag');
     const [, params] = exec.mock.calls[0] as unknown as [string, unknown[]];
     expect(params[1]).toBe('gruenerator-antrag');
   });
@@ -376,12 +457,53 @@ describe('hydrateGroupContent', () => {
       'generators',
       'group_posts',
       'notebooks',
+      'recipes',
       'system_agents',
       'system_notebooks',
       'templates',
       'texts',
       'user_agents',
     ]);
+  });
+
+  it('puts a shared recipe in the recipes bucket, behind the same visibility gate', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM group_content_shares')) {
+        return [
+          {
+            content_type: 'user_text_forms',
+            content_id: 'r1',
+            shared_at: '2026-11-11T10:00:00Z',
+            permissions: {},
+            shared_by_user_id: 'u2',
+            first_name: 'Jana',
+            display_name: null,
+            share_id: 'share-r1',
+          },
+        ];
+      }
+      if (sql.includes('FROM user_text_forms')) {
+        return [{ id: 'r1', title: 'OV-Einladung', mention: 'ov-einladung', user_id: 'u2' }];
+      }
+      return [];
+    });
+    const { deps } = fakeHydrateDeps();
+    deps.postgres = { query } as unknown as HydrateGroupContentDeps['postgres'];
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
+    expect(out.recipes).toEqual([
+      expect.objectContaining({
+        id: 'r1',
+        mention: 'ov-einladung',
+        contentType: 'user_text_forms',
+        shared_by_name: 'Jana',
+      }),
+    ]);
+    const recipeSql = query.mock.calls
+      .map(([sql]) => sql as string)
+      .find((sql) => sql.includes('FROM user_text_forms'));
+    expect(recipeSql).toContain('deleted_at IS NULL');
+    expect(recipeSql).toContain("share_mode <> 'private'");
+    expect(recipeSql).toContain("moderation <> 'removed'");
   });
 
   it('resolves a feed post with its files, scoped to the group', async () => {

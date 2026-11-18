@@ -397,63 +397,67 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
     // ═══════════════════════════════════════════════════════════════════
     // HAMBURG
     // ═══════════════════════════════════════════════════════════════════
-    {
-      id: 'hamburg-lv-beschluesse',
-      name: 'Grüne Hamburg Beschlüsse',
-      shortName: 'HH',
-      type: 'landesverband',
-      baseUrl: 'https://beschluss.gruene-hamburg.de',
-      cms: 'wordpress',
-      contentPaths: [
-        {
-          // WP REST API, category 31 = Beschluss (279 posts). The API returns the
-          // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
-          // switch keeps source_urls — and thus the Qdrant dedup keys — stable
-          // (no re-index churn) while replacing the fragile ?paged HTML pagination.
-          type: 'beschluss',
-          path: '/',
-          listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          wpApi: { categoryId: 31 },
-        },
-      ],
-      contentSelectors: {
-        title: ['h1.entry-title', 'h1', '.post-title', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', '.post-date'],
-        content: ['.entry-content', '.post-content', 'article .content'],
-        categories: ['a[rel="category tag"]', '.cat-links a'],
-        author: ['.author-name', '.byline'],
-      },
-      excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:', '.pdf'],
-    },
-    {
-      id: 'hamburg-lv-presse',
-      name: 'Grüne Hamburg Presse',
-      shortName: 'HH',
-      type: 'landesverband',
-      baseUrl: 'https://www.gruene-hamburg.de',
-      cms: 'wordpress',
-      maxAgeYears: 5,
-      contentPaths: [
-        {
-          type: 'presse',
-          path: '/presse/',
-          listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          sitemapUrls: [
-            'https://www.gruene-hamburg.de/wp-sitemap-posts-post-1.xml',
-            'https://www.gruene-hamburg.de/wp-sitemap-posts-post-2.xml',
-          ],
-          sitemapFilter: '/presse/',
-        },
-      ],
-      contentSelectors: {
-        title: ['h1', '.entry-title', '.post-title', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', '.published'],
-        content: ['.entry-content', '.post-content', 'article'],
-        categories: ['.category', 'a[rel="category tag"]'],
-        author: ['.author', '.byline'],
-      },
-      excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
-    },
+    // Hamburg ist bis auf Weiteres ausgeblendet (Notebook `enabled: false`,
+    // Sammlung `mcpExposed: false`, #3831). Die Quellen bleiben als Vorlage
+    // stehen; zum Wiedereinschalten entkommentieren und HH in `ALL_LVS`
+    // (`.github/workflows/content-sync.yml`) eintragen.
+    // {
+    //   id: 'hamburg-lv-beschluesse',
+    //   name: 'Grüne Hamburg Beschlüsse',
+    //   shortName: 'HH',
+    //   type: 'landesverband',
+    //   baseUrl: 'https://beschluss.gruene-hamburg.de',
+    //   cms: 'wordpress',
+    //   contentPaths: [
+    //     {
+    //       // WP REST API, category 31 = Beschluss (279 posts). The API returns the
+    //       // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
+    //       // switch keeps source_urls — and thus the Qdrant dedup keys — stable
+    //       // (no re-index churn) while replacing the fragile ?paged HTML pagination.
+    //       type: 'beschluss',
+    //       path: '/',
+    //       listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+    //       wpApi: { categoryId: 31 },
+    //     },
+    //   ],
+    //   contentSelectors: {
+    //     title: ['h1.entry-title', 'h1', '.post-title', 'meta[property="og:title"]'],
+    //     date: ['time[datetime]', '.entry-date', '.post-date'],
+    //     content: ['.entry-content', '.post-content', 'article .content'],
+    //     categories: ['a[rel="category tag"]', '.cat-links a'],
+    //     author: ['.author-name', '.byline'],
+    //   },
+    //   excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:', '.pdf'],
+    // },
+    // {
+    //   id: 'hamburg-lv-presse',
+    //   name: 'Grüne Hamburg Presse',
+    //   shortName: 'HH',
+    //   type: 'landesverband',
+    //   baseUrl: 'https://www.gruene-hamburg.de',
+    //   cms: 'wordpress',
+    //   maxAgeYears: 5,
+    //   contentPaths: [
+    //     {
+    //       type: 'presse',
+    //       path: '/presse/',
+    //       listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+    //       sitemapUrls: [
+    //         'https://www.gruene-hamburg.de/wp-sitemap-posts-post-1.xml',
+    //         'https://www.gruene-hamburg.de/wp-sitemap-posts-post-2.xml',
+    //       ],
+    //       sitemapFilter: '/presse/',
+    //     },
+    //   ],
+    //   contentSelectors: {
+    //     title: ['h1', '.entry-title', '.post-title', 'meta[property="og:title"]'],
+    //     date: ['time[datetime]', '.entry-date', '.published'],
+    //     content: ['.entry-content', '.post-content', 'article'],
+    //     categories: ['.category', 'a[rel="category tag"]'],
+    //     author: ['.author', '.byline'],
+    //   },
+    //   excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
+    // },
 
     // ═══════════════════════════════════════════════════════════════════
     // BAYERN
@@ -701,27 +705,6 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
           sitemapFilter: '/beschluesse/',
         },
-        {
-          // Wahlprüfsteine: die Antworten des LV auf Verbände-Fragebögen liegen
-          // nicht auf gruene.berlin, sondern in einem öffentlichen Wolke-Share
-          // (WPS-Gruene-Berlin-<datum>-<verband>-Antwort.pdf, plus die Unterordner
-          // „Wahlprüfsteine aus 2021/2023" — recursive ist der Default).
-          // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
-          // stehen und nicht unter Beschlüsse verschwinden.
-          //
-          // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
-          // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
-          // bleibt weiterhin null statt geraten. Der Share ist ein kuratierter
-          // Ordner — ein Datum darf eine Datei nie aus dem Alterfilter fallen
-          // lassen, deshalb ruft LandesverbandScraper processAndStoreDocument
-          // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
-          // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
-          type: 'wahlpruefstein',
-          path: '/wolke/berlin-wahlpruefsteine/',
-          listSelector: '',
-          wolkeShare: { shareKey: 'berlin-wahlpruefsteine' },
-          recentSkip: true,
-        },
       ],
       contentSelectors: {
         // Titel: siehe berlin-lv-presse (#3560).
@@ -759,6 +742,42 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         '.jpg',
         '.png',
       ],
+    },
+    {
+      // Wahlprüfsteine: die Antworten des LV auf Verbände-Fragebögen liegen
+      // nicht auf gruene.berlin, sondern in einem öffentlichen Wolke-Share
+      // (WPS-Gruene-Berlin-<datum>-<verband>-Antwort.pdf, plus die Unterordner
+      // „Wahlprüfsteine aus 2021/2023" — recursive ist der Default).
+      // Eigene Quelle statt Pfad unter berlin-lv-beschluesse: `source_name`
+      // kommt aus der Quelle, und alle 271 Antworten standen dort als
+      // „Grüne Berlin Beschlüsse" (#5537). Eigener content_type, damit sie im
+      // „Typ"-Filter als eigene Kategorie stehen.
+      //
+      // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
+      // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Tagesdatum
+      // bleibt null statt geraten. Bewusst ohne `maxAgeYears`: der Share ist
+      // ein kuratierter Ordner, also kein Archivlauf (der braucht eine Grenze)
+      // und beim Einlesen `ignoreMaxAge`. Punkte von vor #3564 heilt das
+      // Etag-Gatter nicht — dafür `scripts/repair-lv-payload.ts --wolke`.
+      // `path`/`listSelector`/`contentSelectors` sind bei wolkeShare
+      // ungenutzte Pflichtfelder.
+      id: 'berlin-lv-wahlpruefsteine',
+      name: 'Grüne Berlin Wahlprüfsteine',
+      shortName: 'BE',
+      type: 'landesverband',
+      baseUrl: 'https://gruene.berlin',
+      cms: 'typo3',
+      contentPaths: [
+        {
+          type: 'wahlpruefstein',
+          path: '/wolke/berlin-wahlpruefsteine/',
+          listSelector: '',
+          wolkeShare: { shareKey: 'berlin-wahlpruefsteine' },
+          recentSkip: true,
+        },
+      ],
+      contentSelectors: { title: [], date: [], content: [], categories: [], author: [] },
+      excludePatterns: [],
     },
     {
       id: 'berlin-fraktion-presse',
@@ -1329,6 +1348,31 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           ],
           disableOffPathFilter: true,
         },
+        {
+          // Landtagswahlprogramm 2027 (LTW 18.04.2027), online seit 16.11.2026 als
+          // Landingpage + Präambel + neun Kapitel-Seiten an Root-Permalinks. Keine
+          // Archivseite verlinkt sie, deshalb staticUrls. Das Gesamt-PDF
+          // (/uploads/sites/2/2026/11/Unser-Wahlprogramm-Landtagswahl-2027.pdf)
+          // bleibt bewusst draußen: es ist derselbe Text und würde jede Passage
+          // doppelt einspeisen.
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: [
+            'https://gruene-saar.de/unser-wahlprogramm/',
+            'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
+          ],
+          disableOffPathFilter: true,
+        },
         // Die zwei Wolke-Freigaben (Wahlprüfsteine-Arbeitsordner, Protokolle) sind
         // bewusst nicht mehr konfiguriert: beide enthielten personenbezogene und
         // interne Dateien. Die öffentlichen Antworten bleiben als gespeicherte
@@ -1338,6 +1382,123 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
         content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // NORDRHEIN-WESTFALEN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      // gruene-nrw.de: WordPress (Sunflower) with an open REST API. Posts publish
+      // at /YYYY/MM/<slug>/, so /kategorie/X/ is a virtual index — discover via
+      // wpApi (auto-disables the off-path filter). Category ids verified live via
+      // /wp-json/wp/v2/categories on 10.11.2026: 29 = presse (110 posts in the
+      // 5y window), 5 = beschluesse (77, full text inline, no PDFs).
+      // Re-checked 12.11.2026: 1 = aktuelles (Landesregierungs-Erfolge,
+      // Positionen), 431 = faq („Fragen und Antworten zu …"), 558 = soundingboard
+      // (event reports). Posts often carry several of these, so each path
+      // excludes the categories the paths before it already cover — one post,
+      // one content_type.
+      id: 'nordrhein-westfalen-lv',
+      name: 'Grüne NRW',
+      shortName: 'NRW',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-nrw.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/kategorie/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 29, boundByAge: true },
+        },
+        {
+          type: 'beschluss',
+          path: '/kategorie/beschluesse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 5, excludeCategoryIds: [29], boundByAge: true },
+        },
+        {
+          type: 'faq',
+          path: '/kategorie/faq/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 431, excludeCategoryIds: [5, 29], boundByAge: true },
+        },
+        {
+          type: 'veranstaltung',
+          path: '/kategorie/soundingboard/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 558, excludeCategoryIds: [5, 29, 431], boundByAge: true },
+        },
+        {
+          type: 'blog',
+          path: '/kategorie/aktuelles/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 1, excludeCategoryIds: [5, 29, 431, 558], boundByAge: true },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      // gruene-fraktion-nrw.de: same Sunflower/WordPress setup, permalinks
+      // /YYYY/MM/DD/<slug>/. 135 = pressemitteilung (595 in the 5y window),
+      // 137 = publikationen (the /publikationen/ page lists exactly this
+      // category; 5 in the window). 144 = fachnewsletter is a child of 137, but
+      // WP's `categories=` filter does not include children, so it needs its own
+      // path (209 posts in the window, checked 12.11.2026). Newer newsletters
+      // carry 137 as well — the publikationen path excludes 144 so each post
+      // lands under one content_type. 138 = GRÜN.KOMMT always carries 135 and is
+      // covered by presse. The remaining posts carry only topic categories
+      // (Anträge, Kleine Anfragen) and are deliberately not scraped yet.
+      // The article page appends related posts with
+      // `.entry-content.has-small-font-size` excerpts — excluded from the content
+      // selector, otherwise every article would carry its neighbours' teasers.
+      id: 'nordrhein-westfalen-fraktion',
+      name: 'Grüne Landtagsfraktion NRW',
+      shortName: 'NRW-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion-nrw.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 135, boundByAge: true },
+        },
+        {
+          type: 'blog',
+          path: '/publikationen/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 137, excludeCategoryIds: [135, 144], boundByAge: true },
+        },
+        {
+          type: 'newsletter',
+          path: '/category/publikationen/fachnewsletter/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 144, excludeCategoryIds: [135], boundByAge: true },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time.entry-date.published[datetime]',
+          'meta[property="article:published_time"]',
+          'time[datetime]',
+        ],
+        content: ['.entry-content:not(.has-small-font-size)', 'main article'],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1394,10 +1555,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       label: 'Wahlprogramm',
       shortName: 'SL',
       // Landtagswahlprogramm 2022, found by the /dokumente-2/ PDF archive whose
-      // path type is 'beschluss' (#3808).
+      // path type is 'beschluss' (#3808), plus the Landtagswahlprogramm 2027 pages.
       contentType: 'wahlprogramm',
       urls: [
         'https://gruene-saar.de/wp-content/uploads/sites/2/2022/02/22-02-17-wahlprogramm-ltw-2022.pdf',
+        'https://gruene-saar.de/unser-wahlprogramm/',
+        'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
       ],
     },
   ],
@@ -1407,10 +1579,14 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   presse: 'Pressemitteilung',
   beschluss: 'Beschluss/Resolution',
   antrag: 'Antrag/Motion',
+  aenderungsantrag: 'Änderungsantrag',
   blog: 'Blog/News',
   wahlprogramm: 'Wahlprogramm',
   wahlpruefstein: 'Wahlprüfstein',
   instagram: 'Instagram-Post',
+  newsletter: 'Newsletter',
+  faq: 'Fragen und Antworten',
+  veranstaltung: 'Veranstaltungsbericht',
 };
 
 export const CMS_TYPES: Record<CMSType, CMSType> = {

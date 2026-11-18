@@ -25,19 +25,19 @@ on:
           - hourly
         default: full
       source:
-        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, bundestag-dip, abgeordnetenwatch, grundsatz, gruene-de, oesterreich, landtag-nrw, landtag-berlin, landtag-bayern). Mutually exclusive with landesverband.'
+        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch, grundsatz, gruene-de, oesterreich, landtag-nrw, landtag-berlin, landtag-bayern, parteitage). Mutually exclusive with landesverband.'
         required: false
         type: string
       landesverband:
-        description: 'Single Landesverband shortName prefix (BB, BE, BY, HE, HH, LSA, MV, SL, TH). Mutually exclusive with source.'
+        description: 'Single Landesverband shortName prefix (BB, BE, BY, HE, LSA, MV, NRW, SL, TH). Mutually exclusive with source.'
         required: false
         type: string
       dry_run:
-        # Only 'landesverbaende', 'abgeordnetenwatch', 'landtag-nrw', 'landtag-berlin', 'landtag-bayern' and 'bundestag-dip' have a dry-run branch.
+        # Only 'landesverbaende', 'abgeordnetenwatch', 'landtag-nrw', 'landtag-berlin', 'landtag-bayern' and 'parteitage' have a dry-run branch.
         # Every other source answers HTTP 400 rather than storing for real under
         # a report headed "Dry Run" (#2970) — so a dry run over the full matrix
         # is expected to fail those jobs.
-        description: 'Preview without storing (landesverbaende, abgeordnetenwatch, landtag-nrw, landtag-berlin, landtag-bayern, bundestag-dip only)'
+        description: 'Preview without storing (landesverbaende, abgeordnetenwatch, landtag-nrw, landtag-berlin, landtag-bayern, parteitage only)'
         type: boolean
         default: false
       force:
@@ -134,10 +134,8 @@ jobs:
           fi
           echo "is_full_run=$IS_FULL_RUN" >> "$GITHUB_OUTPUT"
 
-          ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
-          # bundestag-dip stays manual-only: its import is shelved so the Qdrant
-          # disk keeps room for the nightly full snapshot (2026-10-06).
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich","lv-instagram","landtag-nrw","landtag-berlin","landtag-bayern"]'
+          ALL_LVS='["BB","BE","BY","HE","LSA","MV","NRW","SL","TH"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich","lv-instagram","landtag-nrw","landtag-berlin","landtag-bayern","parteitage"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then

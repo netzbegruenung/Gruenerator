@@ -23,8 +23,6 @@ const CONTENT_COLLECTIONS = [
   { name: 'landtag_bayern_documents', label: 'Bayerischer Landtag' },
   { name: 'satzungen_documents', label: 'Satzungen' },
   { name: 'abgeordnetenwatch_documents', label: 'Abgeordnetenwatch' },
-  { name: 'bundestag_dip_documents', label: 'Bundestag (DIP)' },
-  { name: 'bundesrat_documents', label: 'Bundesrat (DIP)' },
   { name: 'social_media_examples', label: 'Social-Media-Beispiele' },
   { name: 'hamburg_documents', label: 'Hamburg (alt)' },
 ];
@@ -42,6 +40,8 @@ const LV_SHORT_NAMES: { code: string; label: string }[] = [
   { code: 'LSA-F', label: 'Sachsen-Anhalt Fraktion' },
   { code: 'MV', label: 'Mecklenburg-Vorpommern' },
   { code: 'MV-F', label: 'Mecklenburg-Vorpommern Fraktion' },
+  { code: 'NRW', label: 'Nordrhein-Westfalen' },
+  { code: 'NRW-F', label: 'Nordrhein-Westfalen Fraktion' },
   { code: 'SH', label: 'Schleswig-Holstein' },
   { code: 'SL', label: 'Saarland' },
   { code: 'TH', label: 'Thüringen' },

@@ -12,6 +12,15 @@ import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders, screen, waitFor } from '@/test-utils';
 
 const draft = vi.hoisted(() => vi.fn());
+const locationState = vi.hoisted(() => ({ value: null as unknown }));
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    useLocation: () => ({ ...(actual.useLocation as () => object)(), state: locationState.value }),
+  };
+});
 const list = vi.hoisted(() => vi.fn());
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
@@ -24,6 +33,7 @@ function emptyRecipesList() {
 }
 
 beforeEach(() => {
+  locationState.value = null;
   draft.mockReset();
   list.mockReset();
   emptyRecipesList();
@@ -62,6 +72,43 @@ describe('RecipeCreatorPage', () => {
       'Einladung zur Mitgliederversammlung'
     );
     expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
+  });
+
+  it('prefills the draft from an answer', async () => {
+    draft.mockResolvedValueOnce({
+      status: 200,
+      body: {
+        success: true,
+        spec: {
+          title: 'Vereinseinladung',
+          mention: 'vereinseinladung',
+          description: 'Einladung zur Mitgliederversammlung',
+          iconKey: 'PiEnvelope',
+          styleBlock: 'Förmlicher Ton, mit Tagesordnung.',
+        },
+      },
+    });
+    locationState.value = { fromAnswer: { text: 'Liebe Mitglieder, wir laden herzlich ein.' } };
+    renderWithProviders(<RecipeCreatorPage />);
+
+    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
+    const sent = (draft.mock.calls[0]?.[0] as { body: { description: string } }).body.description;
+    expect(sent).toContain('Ein Rezept, das Texte wie dieses Beispiel erzeugt.');
+    expect(sent).toContain('Liebe Mitglieder, wir laden herzlich ein.');
+    expect(sent.length).toBeLessThanOrEqual(4000);
+    expect(await screen.findByLabelText('Name')).toHaveValue('Vereinseinladung');
+    expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
+    // Die Antwort steht als erstes Beispiel im (zugeklappten) Beispiel-Feld.
+    expect(screen.getByText(/^Aus Beispielen lernen · 1/)).toBeInTheDocument();
+  });
+
+  it('opens the editor with the answer as example when the draft fails', async () => {
+    draft.mockRejectedValueOnce(new Error('offline'));
+    locationState.value = { fromAnswer: { text: 'Liebe Mitglieder, wir laden herzlich ein.' } };
+    renderWithProviders(<RecipeCreatorPage />);
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('');
+    expect(screen.getByText(/^Aus Beispielen lernen · 1/)).toBeInTheDocument();
   });
 
   it('„Lieber manuell anlegen?" öffnet den Editor leer', async () => {

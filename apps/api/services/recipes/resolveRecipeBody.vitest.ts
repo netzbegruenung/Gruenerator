@@ -244,3 +244,24 @@ describe('resolveRecipeBody — id-Pfad', () => {
     expect(r?.replacesSystem).toBe(true);
   });
 });
+
+describe('resolveRecipeBody — Code-Rezept', () => {
+  it('serves a code recipe body without INTERN_CONTENT_DIR', async () => {
+    getInternalSkillPrompt.mockReturnValue(null);
+    const r = await resolveRecipeBody({
+      mention: 'visuelle-bausteine',
+      userId: null,
+      visualBlocks: ['bars', 'timeline'],
+    });
+    expect(r?.source).toBe('system');
+    expect(r?.body).toContain('## VISUELLE BAUSTEINE');
+    expect(r?.body).toContain('- bars');
+    expect(r?.body).not.toContain('- chart');
+    expect(getInternalSkillPrompt).not.toHaveBeenCalled();
+  });
+
+  it('is unavailable when the client draws no blocks', async () => {
+    getInternalSkillPrompt.mockReturnValue(null);
+    expect(await resolveRecipeBody({ mention: 'visuelle-bausteine', userId: null })).toBeNull();
+  });
+});

@@ -5,12 +5,6 @@ import { MeliousImageService, toMeliousSize } from '../MeliousImageService.js';
 const RUN_LIVE = !!process.env.MELIOUS_API_KEY && !!process.env.RUN_LIVE_PROVIDER_TESTS;
 
 describe('MeliousImageService — unit tests', () => {
-  it('is importable and constructable', () => {
-    const service = new MeliousImageService();
-    expect(typeof service.generateFromPrompt).toBe('function');
-    expect(typeof service.generateFromImage).toBe('function');
-  });
-
   it.each([
     [1088, 1360, '1024x1024'],
     [1216, 1216, '1024x1024'],

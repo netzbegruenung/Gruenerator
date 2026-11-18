@@ -18,6 +18,7 @@ import {
   isFrontpageView,
   type MarketplaceCollection,
   landesverbandShelf,
+  recipesShelf,
   newestShelf,
   popularShelf,
   relatedFromCollections,
@@ -28,7 +29,12 @@ import {
 function it_(
   kind: MarketplaceItem['kind'],
   ref: string,
-  over: Partial<{ createdAt: string; likesCount: number; origin: MarketplaceItem['origin'] }> = {}
+  over: Partial<{
+    createdAt: string;
+    likesCount: number;
+    origin: MarketplaceItem['origin'];
+    saved: boolean;
+  }> = {}
 ): MarketplaceItem {
   return {
     kind,
@@ -38,6 +44,7 @@ function it_(
     title: ref,
     createdAt: over.createdAt ?? '2026-10-01T00:00:00.000Z',
     likesCount: over.likesCount ?? 0,
+    saved: over.saved ?? false,
     thumbnailUrl: `/${ref}.webp`,
     ...((kind === 'sticker' || kind === 'background') && {
       asset: { thumbUrl: `/${ref}.webp`, src: `/${ref}.png` },
@@ -167,12 +174,26 @@ describe('shelves', () => {
   });
 });
 
+describe('recipesShelf', () => {
+  it('puts saved recipes first, keeps the server order otherwise and caps at four', () => {
+    const recipes = ['r1', 'r2', 'r3', 'r4', 'r5'].map((r) =>
+      it_('recipe', r, r === 'r4' ? { saved: true } : {})
+    );
+    expect(refs(recipesShelf([section('recipe', recipes)]))).toEqual(['r4', 'r1', 'r2', 'r3']);
+  });
+
+  it('is empty without recipes', () => {
+    expect(recipesShelf([section('recipe', [])])).toEqual([]);
+  });
+});
+
 describe('composeFrontpage', () => {
   const official = it_('agent', 'official', { createdAt: '2026-09-01' });
   const liked = [1, 2, 3, 4, 5].map((n) => it_('recipe', `r${n}`, { likesCount: n }));
   const visuals = [it_('template', 't1'), it_('sticker', 's1'), it_('background', 'b1')];
   const sections = {
     landesverband: [section('agent', [it_('agent', 'lv1')])],
+    rezepte: [section('recipe', [it_('recipe', 'rz1')])],
     neu: [section('agent', [official, it_('agent', 'other', { createdAt: '2026-08-01' })])],
     beliebt: [section('recipe', liked)],
     gestalten: [
@@ -185,7 +206,7 @@ describe('composeFrontpage', () => {
 
   it('orders the shelves top to bottom and leaves out the ones below their minimum', () => {
     const page = composeFrontpage({ sections, curated: null, collections: [] });
-    expect(page.shelves.map((s) => s.shelfId)).toEqual(['neu', 'beliebt', 'gestalten']);
+    expect(page.shelves.map((s) => s.shelfId)).toEqual(['rezepte', 'neu', 'beliebt', 'gestalten']);
     expect(page.shelves.find((s) => s.shelfId === 'gestalten')?.hasMore).toBe(true);
     expect(page.shelves.find((s) => s.shelfId === 'beliebt')?.hasMore).toBe(false);
   });
@@ -210,7 +231,7 @@ describe('composeFrontpage', () => {
   });
 
   it('is empty, not broken, for an empty catalogue', () => {
-    const empty = { landesverband: [], neu: [], beliebt: [], gestalten: [] };
+    const empty = { landesverband: [], rezepte: [], neu: [], beliebt: [], gestalten: [] };
     expect(composeFrontpage({ sections: empty, curated: null, collections: [] })).toEqual({
       featured: null,
       featureId: null,

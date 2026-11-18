@@ -67,6 +67,14 @@ import { z } from 'zod';
 import type { ToolSet } from 'ai';
 
 /**
+ * Das frühere engere Rezept-Werkzeug (Enum nur über Methoden-Rezepte), bis
+ * 11/2026 nur im erzwungenen Recherche-Schritt montiert. Heute nicht mehr
+ * montiert; der Name bleibt, weil gespeicherte Schritte ihn tragen (F0) und
+ * beim Fortsetzen und im Verlauf als Rezept-Aufruf gelesen werden.
+ */
+export const METHOD_RECIPE_TOOL = 'methode_laden';
+
+/**
  * Wann die eigenen Inhalte gemeint sind.
  *
  * Live gemessen am 25.08.2026 gegen den damaligen Loop-Planer (GreenPT)
@@ -162,8 +170,15 @@ interface DeferrableGroup {
    */
   readonly opensOn?: readonly string[];
   readonly loaderDescription: string;
-  /** Was der Lader zurückgibt, wenn er die Gruppe geöffnet hat. */
-  readonly opened: string;
+}
+
+/**
+ * Was der Lader zurückgibt, wenn er die Gruppe geöffnet hat. Aus `tools`
+ * abgeleitet, nie von Hand geschrieben: ein handgeschriebener Text driftete
+ * (bei `parlament` fehlte `landtag`, #5567), und das Modell liest nur ihn.
+ */
+function openedText(tools: readonly string[]): string {
+  return `Jetzt verfügbar: ${tools.join(', ')}. Rufe im nächsten Schritt das passende auf.`;
 }
 
 export const DEFERRABLE_GROUPS = [
@@ -184,8 +199,6 @@ export const DEFERRABLE_GROUPS = [
     hint: MEINE_INHALTE_RE,
     loaderDescription:
       'Schaltet die Werkzeuge für die EIGENEN Inhalte der Person frei: Dokumente, Boards/Aufgaben, Notebooks samt Quellen, Projekte, Medien und frühere Unterhaltungen.\n\nNUTZE WENN die Frage sich auf Inhalte der Person selbst bezieht ("meine Aufgaben", "welches Dokument habe ich zu X", "leg das in mein Notebook"). Sie stehen dann im nächsten Schritt bereit. NICHT für Partei-Recherche oder Websuche.',
-    opened:
-      'Werkzeuge für die eigenen Inhalte sind jetzt verfügbar: find_content, search_threads, documents, read_artifact, boards_tasks, groups, media, notebooks, notebook_quellen. Rufe im nächsten Schritt das passende auf.',
   },
   {
     // Der Browser-Agent wird selten gebraucht; seine Beschreibung soll nicht
@@ -196,14 +209,14 @@ export const DEFERRABLE_GROUPS = [
     hint: /erkunde|klick|screenshot|bildschirmfoto|durchsuch.*(seite|website)/i,
     loaderDescription:
       'Schaltet website_erkunden frei: ein echter Browser, der eine Website bedient (klicken, Suchfeld nutzen, Cookie-Banner ablehnen, Screenshots speichern).\n\nNUTZE WENN eine Seite bedient oder abfotografiert werden muss. NICHT zum bloßen Lesen einer URL — dafür scrape_url.',
-    opened:
-      'website_erkunden ist jetzt verfügbar. Rufe es im nächsten Schritt mit url und auftrag auf.',
   },
   {
     // Parlamentsdaten: `bundestag` (Liste, Zählung) bleibt als Einstieg immer
     // sichtbar, seine Leser und die Reden stehen erst, wenn der Turn davon
-    // handelt. Ein weiteres Parlament (Landtag) ist EIN Name in `tools` und
-    // einer in `opensOn`. `abgeordnetenwatch` gehört dazu, obwohl es ein
+    // handelt. Ein weiteres Parlament (`landtag`, nur Deutschland — der Katalog
+    // montiert es wie `bundestag`) ist ebenfalls ein Einstieg: immer sichtbar,
+    // nur in `opensOn`. Hinter dem Lader fand eine Berliner Frage ohne Stichwort
+    // („was liegt im AGH vor") ihn nicht (#5567). `abgeordnetenwatch` gehört dazu, obwohl es ein
     // eigener Einstieg ist (Abstimmungen, Nebentätigkeiten, auch Landtagsabgeordnete):
     // seine Fragen tragen fast immer eines der Wörter im `hint`, und ein
     // Fehlschluss kostet nur den Lader-Schritt. `umfragen` (Sonntagsfrage, auch
@@ -211,14 +224,32 @@ export const DEFERRABLE_GROUPS = [
     // Bundestagswerkzeuge fehlen.
     id: 'parlament',
     loaderTool: 'parlament_werkzeuge_laden',
-    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'],
+    tools: ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen'],
     // `nationalrat` ist für Österreich, was `bundestag` für Deutschland ist: der immer sichtbare Einstieg.
     opensOn: ['bundestag', 'landtag', 'nationalrat'],
     hint: /bundestag|drucksache|plenar|parlament|landtag|abgeordnet|ab(ge)?stimm|gestimmt|stimmverhalten|prognose|wahltrend|hochrechnung|nebent[aä]tig|nebenjob|nebeneink|mandat|umfrage|sonntagsfrage|nationalrat|(?<![\w/])(?:BE|NW)\s?\d{1,2}\/S?\d{1,6}(?![\d/])|(?<![\w/])NR\s?\d{1,2}\/[A-Z]{1,6}\d{1,5}(?![\d/])|(?<![\d/])2[01]\/\d{1,5}(?![\d/])/i,
     loaderDescription:
-      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), landtag (Drucksachen des Berliner Abgeordnetenhauses und des Landtags NRW suchen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefert bundestag (Österreich: nationalrat), immer bereit.',
-    opened:
-      'Die Parlaments-Werkzeuge (parlament_lesen, bundestag_reden, abgeordnetenwatch, umfragen) sind jetzt verfügbar. Rufe das passende auf.',
+      'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
+  },
+  {
+    // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): nur NRW-Parteitage, für die
+    // meisten Turns ohne Belang — deshalb die ganze Familie hinter dem Lader,
+    // auch der Einstieg. Die Erwähnung heftet `antragsgruen` an und öffnet damit.
+    id: 'antragsgruen',
+    loaderTool: 'antragsgruen_werkzeuge_laden',
+    // `antragsgruen_seite_anlegen` gilt nicht nur für NRW; es steht hier, weil
+    // dieselben Wörter es aufrufen und es sonst in jedem Turn ein Platz wäre.
+    tools: [
+      'antragsgruen',
+      'antragsgruen_lesen',
+      'antragsgruen_auswerten',
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+    ],
+    hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
+    loaderDescription:
+      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen) sowie antragsgruen_seite_anlegen (eine eigene Antragsgrün-Seite auf antragsgruen.de anlegen), antragsgruen_antrag_stellen (einen Antrag auf dieser eigenen Seite einreichen) und antragsgruen_tagesordnung (ihre Tagesordnung lesen oder setzen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder wenn jemand eine eigene Antragsgrün-Seite für eine Versammlung haben will.',
   },
 ] as const satisfies readonly DeferrableGroup[];
 
@@ -260,11 +291,17 @@ export interface ToolScope {
  * @param pinnedTool  Ein von einer @-Erwähnung festgezurrtes Werkzeug
  *   (`mentionPinnedTool`). MUSS die Gruppe öffnen, in der es liegt: das Label
  *   der Erwähnung ist aus `userText` entfernt, das Tor sieht die Absicht also
- *   gar nicht — und `pinnedFirstTool` erzwingt dieses Werkzeug auf Schritt 0.
+ *   gar nicht — und `buildPinnedToolNote` kündigt dieses Werkzeug dem Modell an.
  * @param priorToolNames  Die Werkzeuge, die frühere Turns dieses Threads
  *   gerufen haben. Hat einer davon in einer Gruppe gelegen, bleibt sie offen:
  *   nach "Zeig meine Aufgaben" trägt "und die vom Radentscheid?" kein einziges
  *   Wort mehr, an dem das Tor die Absicht erkennen könnte.
+ * @param previousUserText  Die Nachricht der Person im Turn davor. Passte der
+ *   `hint` dort, bleibt die Gruppe einen Turn länger offen: die Antwort auf eine
+ *   Rückfrage („KMV Köln März 2027, die Adresse schlag du vor") trägt kein
+ *   Stichwort mehr, und ohne Werkzeugaufruf im Turn davor greift auch
+ *   `priorToolNames` nicht. Gemessen 16.11.2026: die Gruppe war zu, Gemma rief
+ *   den Lader nicht und kündigte das Anlegen nur an.
  * @param enforce  `false` = Schattenbetrieb: das Tor entscheidet und wird
  *   protokolliert, schneidet aber nichts ab. Siehe `isToolScopeEnforced`.
  */
@@ -273,9 +310,18 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  previousUserText?: string | null;
+  /**
+   * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
+   * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
+   * einen Agenten mit eigenem Notebook, ohne dass damit Dokumente, Boards und
+   * Medien der Person mit aufgehen.
+   */
+  keepVisible?: readonly string[];
   enforce: boolean;
 }): ToolScope {
   const mounted = new Set(params.toolNames);
+  const keepVisible = new Set(params.keepVisible ?? []);
   const text = params.userText ?? '';
   const pinned = params.pinnedTool ?? null;
   const prior = new Set(params.priorToolNames ?? []);
@@ -286,9 +332,10 @@ export function createToolScope(params: {
     // `tools` ist ein Literal-Tupel, die Namen kommen als beliebige Strings aus
     // dem Zustand — die Verbreiterung ist die Grenze, nicht ein Typloch.
     const groupTools = group.tools as readonly string[];
-    const present = groupTools.filter((t) => mounted.has(t));
+    const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
+    if (params.previousUserText && group.hint.test(params.previousUserText)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];
     if (pinned && opening.includes(pinned)) continue;
     if (opening.some((t) => prior.has(t))) continue;
@@ -325,13 +372,14 @@ export function createToolScope(params: {
       const tools: ToolSet = {};
       if (!params.enforce) return tools;
       for (const group of DEFERRABLE_GROUPS) {
-        if (!closed.has(group.id)) continue;
+        const open = closed.get(group.id);
+        if (!open) continue;
         tools[group.loaderTool] = tool({
           description: group.loaderDescription,
           inputSchema: z.object({}),
           execute: async () => {
             closed.delete(group.id);
-            return { geoeffnet: true, hinweis: group.opened };
+            return { geoeffnet: true, hinweis: openedText(open.tools) };
           },
         });
       }

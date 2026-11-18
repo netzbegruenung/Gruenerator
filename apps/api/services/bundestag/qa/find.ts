@@ -53,7 +53,11 @@ const DECISION_RANK: Record<string, number> = {
 const NUMMER_RE = /^\d{1,2}\/\d{1,6}$/;
 
 export interface FindDip {
-  list<T>(endpoint: DipEndpoint, params: DipParams): Promise<DipListPage<T>>;
+  list<T>(
+    endpoint: DipEndpoint,
+    params: DipParams,
+    signal?: AbortSignal | null
+  ): Promise<DipListPage<T>>;
 }
 
 export interface FindMcp {

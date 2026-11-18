@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { detectLandtagFromWording, topicOf } from './wording.js';
 
 describe('detectLandtagFromWording', () => {
+  it('liest „dieses Jahr“ als das laufende Kalenderjahr (#5573)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-09T12:00:00Z'));
+    try {
+      expect(
+        detectLandtagFromWording(
+          'wie viele Schriftliche Anfragen hat Frau Kapek dieses Jahr gestellt'
+        )
+      ).toMatchObject({ typ: ['Anfrage'], datumVon: '2026-01-01', datumBis: '2026-12-31' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('erkennt Art, Fraktion und ein bloßes Jahr', () => {
     expect(
       detectLandtagFromWording(

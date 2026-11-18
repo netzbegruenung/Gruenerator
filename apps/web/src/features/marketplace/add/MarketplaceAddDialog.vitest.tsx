@@ -298,7 +298,7 @@ describe('MarketplaceAddDialog', () => {
     const project = screen.getByRole('radio', { name: /Projekt/ });
     expect(project).toBeDisabled();
     expect(project).toHaveAccessibleDescription(
-      'Sticker und Hintergründe lassen sich noch nicht in Projekte teilen.'
+      'Sticker und Hintergründe lassen sich noch nicht in Projekte und Gruppen teilen.'
     );
 
     await user.click(screen.getByRole('radio', { name: /Öffentlich im Marktplatz/ }));

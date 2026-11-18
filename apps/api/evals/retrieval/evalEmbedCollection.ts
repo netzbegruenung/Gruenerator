@@ -16,6 +16,7 @@ import {
 import {
   getSystemCollectionConfig,
   getSystemQdrantCollections,
+  isRemoteCollection,
 } from '../../config/systemCollectionsConfig.js';
 
 import { evalCandidatePrefix, isEvalEmbedCollection } from './embedCandidates.js';
@@ -178,7 +179,11 @@ export function resolveSourceCollections(names: readonly string[]): string[] {
   const allowed = [...new Set(getSystemQdrantCollections())];
   const allowedSet = new Set(allowed);
   return names.map((name) => {
-    const physical = getSystemCollectionConfig(name)?.qdrantCollection ?? name;
+    const config = getSystemCollectionConfig(name);
+    if (config && isRemoteCollection(config)) {
+      throw new Error(`"${name}" is served by a remote API and has no Qdrant collection to copy.`);
+    }
+    const physical = config?.qdrantCollection ?? name;
     if (!allowedSet.has(physical)) {
       throw new Error(
         `"${name}" is not an allowed source collection. ` +

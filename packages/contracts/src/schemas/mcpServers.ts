@@ -24,13 +24,20 @@ export const mcpServerSummarySchema = z.object({
   // Cached tool names from the last successful connect (tools_snapshot); powers
   // the composer mention hint and the classifier's server context.
   toolNames: z.array(z.string()).nullish(),
-  // A first-party MANAGED connector: offered to every user, on by default, no
-  // per-user record. Only `enabled` is changeable — no rename, no URL, no
-  // token, no delete; `url` comes back EMPTY because the endpoint is
+  // A known connector (row with `registryKey`), sent alongside it for clients
+  // shipped before that field. Only `enabled` changes on such a row — no
+  // rename, no URL, no token; `url` comes back EMPTY because the endpoint is
   // deploy-env-only. Optional rather than defaulted so a client shipped before
   // this field simply ignores it (see `sse-gate-drops-whole-event`: wire schemas
   // are parsed by binaries we can no longer update).
   managed: z.boolean().optional(),
+  // Directory category of a known connector. Absent for a user's own servers.
+  category: z.string().nullish(),
+  // Key of a known connector (Bahn, Wetter, Rateo, …) since 11/2026: the row was
+  // created from the directory entry with the same `registryKey`, and only
+  // `enabled` can change on it (plus disconnecting). Null/absent = a server the
+  // person added themselves.
+  registryKey: z.string().nullish(),
   // Tool definitions that drifted since the user approved the server, waiting
   // for "Werkzeuge freigeben". `changed` blocks the whole server, `added` only
   // withholds the new tools. Null/absent = nothing pending.
@@ -173,6 +180,9 @@ export const mcpRegistryEntrySchema = z.object({
   // paste Client-ID/Secret (with our redirect URI). `setupUrl` links that console.
   requiresManualRegistration: z.boolean().optional(),
   setupUrl: z.string().nullish(),
+  // A known connector whose server we operate or know (URL/token from deploy
+  // env, so `url` is ''): "Verbinden" posts this key instead of a URL.
+  registryKey: z.string().nullish(),
 });
 export type McpRegistryEntry = z.infer<typeof mcpRegistryEntrySchema>;
 

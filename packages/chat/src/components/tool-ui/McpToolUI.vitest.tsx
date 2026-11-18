@@ -53,6 +53,8 @@ describe('McpToolUI', () => {
 
   it('shows an error icon when result.ok is false', () => {
     render(<McpToolUI args={{ server: 'notion' }} result={{ ok: false }} />);
-    expect(screen.getByRole('button')).toBeEnabled();
+    const button = screen.getByRole('button');
+    expect(button.querySelector('svg.lucide-x')).not.toBeNull();
+    expect(button.querySelector('svg.lucide-check')).toBeNull();
   });
 });

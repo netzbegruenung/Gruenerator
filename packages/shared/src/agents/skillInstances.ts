@@ -34,6 +34,16 @@ export interface SkillInstanceView {
   identifier: string;
   skillCategory?: string;
   instances?: readonly string[];
+  modelOnly?: boolean;
+}
+
+/**
+ * Gehört das Rezept in Listen für Menschen (Marktplatz, @-Menü, Bibliothek,
+ * Sichtbarkeits-Schalter)? Ein `modelOnly`-Rezept lädt nur das Modell über
+ * `rezept_laden`; der Modell-Katalog (`buildRecipeCatalog`) fragt das NICHT.
+ */
+export function isUserFacingSkill(skill: { mention: string; modelOnly?: boolean }): boolean {
+  return skill.modelOnly !== true;
 }
 
 /**

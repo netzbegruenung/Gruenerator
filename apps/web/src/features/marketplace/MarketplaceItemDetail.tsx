@@ -119,7 +119,7 @@ export function MarketplaceItemDetail({
           </div>
           <span className="ml-auto flex gap-xs lg:order-last">
             <RoundButton
-              label={`Gefällt mir (${item.likesCount})`}
+              label={`Gefällt mir, ${item.likesCount}`}
               pressed={item.liked}
               onClick={() => actions.toggleLike(item)}
             >

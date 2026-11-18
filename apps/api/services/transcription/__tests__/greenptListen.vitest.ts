@@ -67,6 +67,8 @@ describe('listenWithGreenpt', () => {
     expect(url.searchParams.get('punctuate')).toBe('true');
     // English-only per the docs, and it corrupts German numerals and casing.
     expect(url.searchParams.get('smart_format')).toBe('false');
+    // Off, GreenPT strips the German preposition "um" as an English filler.
+    expect(url.searchParams.get('filler_words')).toBe('true');
     expect(url.searchParams.get('diarize_model')).toBeNull();
   });
 

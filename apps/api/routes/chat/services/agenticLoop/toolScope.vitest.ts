@@ -211,14 +211,17 @@ describe('createToolScope — Schattenbetrieb', () => {
 
 describe('createToolScope — Parlaments-Gruppe', () => {
   const PARLAMENT = DEFERRABLE_GROUPS.find((g) => g.id === 'parlament')!;
-  const FOLGE = ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen', 'landtag'];
-  const mounted = ['bundestag', 'gruenerator_search', 'web_search', ...FOLGE];
+  const FOLGE = ['parlament_lesen', 'bundestag_reden', 'abgeordnetenwatch', 'umfragen'];
+  // `landtag` ist wie `bundestag` ein Einstieg: immer sichtbar, in keiner Gruppe (#5567).
+  const mounted = ['bundestag', 'landtag', 'gruenerator_search', 'web_search', ...FOLGE];
   const scope = (opts: { userText: string; pinnedTool?: string; priorToolNames?: string[] }) =>
     createToolScope({ toolNames: mounted, enforce: true, ...opts });
 
   it('hält Leser und Reden auf einer allgemeinen Frage zurück, den Einstieg nie', () => {
     const active = scope({ userText: 'Was steht im Wahlprogramm zu Windkraft?' }).activeTools();
     expect(active).toContain('bundestag');
+    expect(active).toContain('landtag');
+    expect(PARLAMENT.tools as readonly string[]).not.toContain('landtag');
     for (const t of FOLGE) expect(active).not.toContain(t);
     expect(active).toContain(PARLAMENT.loaderTool);
   });
@@ -234,7 +237,7 @@ describe('createToolScope — Parlaments-Gruppe', () => {
     }
   });
 
-  it('öffnet die Gruppe samt landtag bei einer Berlin-Frage', () => {
+  it('öffnet die Gruppe bei einer Berlin-Frage', () => {
     for (const userText of [
       'Was steht in den Drucksachen des Abgeordnetenhauses zu Mietendeckel?',
       'Gibt es im Landtag Berlin eine Anfrage zur Radwegen?',
@@ -255,6 +258,7 @@ describe('createToolScope — Parlaments-Gruppe', () => {
     const zu = atScope({ userText: 'Schreib einen Instagram-Post zum Klimaschutz' }).activeTools();
     expect(zu).toBeDefined();
     expect(zu).toContain('nationalrat');
+    expect(zu).not.toContain('landtag');
     expect(zu).not.toContain('parlament_lesen');
     expect(
       opens(
@@ -325,5 +329,78 @@ describe('createToolScope — enforced', () => {
     expect(createToolScope({ toolNames: MOUNTED, userText: text, enforce: false }).enforced).toBe(
       false
     );
+  });
+});
+
+describe('createToolScope — das Ergebnis des Laders', () => {
+  // Der Lader-Text stand von Hand neben `tools` und driftete: bei `parlament`
+  // fehlte `landtag` — genau das Werkzeug, das eine Berliner Anfrage braucht (#5567).
+  it.each(DEFERRABLE_GROUPS.map((g) => [g.id, g] as const))(
+    'nennt für %s jedes Werkzeug der Gruppe',
+    async (_id, group) => {
+      const scope = createToolScope({
+        toolNames: [...group.tools],
+        userText: 'xyz',
+        enforce: true,
+      });
+      const loader = scope.loaderTools()[group.loaderTool] as {
+        execute: (i: unknown, o: unknown) => Promise<{ hinweis: string }>;
+      };
+      const out = await loader.execute({}, { toolCallId: 'c1' });
+      for (const name of group.tools) expect(out.hinweis).toContain(name);
+    }
+  );
+
+  it('nennt nur montierte Werkzeuge', async () => {
+    const scope = createToolScope({ toolNames: ['umfragen'], userText: 'xyz', enforce: true });
+    const loader = scope.loaderTools()['parlament_werkzeuge_laden'] as {
+      execute: (i: unknown, o: unknown) => Promise<{ hinweis: string }>;
+    };
+    const out = await loader.execute({}, { toolCallId: 'c1' });
+    expect(out.hinweis).toContain('umfragen');
+    expect(out.hinweis).not.toContain('landtag');
+  });
+});
+
+describe('createToolScope — keepVisible', () => {
+  // Ein Agent mit eigenem Notebook: notebook_quellen steht von Anfang an,
+  // die übrigen eigenen Inhalte der Person bleiben hinter dem Lader.
+  it('hält das eine Werkzeug sichtbar und die Gruppe trotzdem zu', () => {
+    const scope = createToolScope({
+      enforce: true,
+      toolNames: MOUNTED,
+      userText: 'Antworte auf diese E-Mail zur Windkraft',
+      keepVisible: ['notebook_quellen'],
+    });
+    const active = scope.activeTools();
+    expect(active).toContain('notebook_quellen');
+    expect(active).not.toContain('documents');
+    expect(active).toContain(LOADER);
+    expect(scope.deferredToolNames()).not.toContain('notebook_quellen');
+  });
+});
+
+describe('createToolScope — die Antwort auf eine Rückfrage', () => {
+  // Live 16.11.2026: „Wir brauchen ein Antragsgrün …" → Rückfrage → „KMV Köln
+  // März 2027, die Adresse schlag du vor." Die Gruppe war zu, das Anlegen wurde
+  // nur angekündigt.
+  it('keeps a group open for the turn right after its hint matched', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Welche Aufgaben stehen auf meinem Board?',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).toBeUndefined();
+  });
+
+  it('does not open a group because of an unrelated earlier message', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Schreib eine Pressemitteilung zum Radentscheid',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).not.toContain(PERSONAL[0]);
   });
 });

@@ -376,6 +376,11 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
   abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
   bundestag: ['Durchsuche das DIP...', 'Blättere Drucksachen...', 'Höre Reden nach...'],
+  antragsgruen: [
+    'Durchsuche Antragsgrün...',
+    'Blättere Änderungsanträge...',
+    'Prüfe Verfahrensvorschläge...',
+  ],
   abgeordnetenhaus: [
     'Durchsuche PARDOK...',
     'Blättere Berliner Drucksachen...',
@@ -463,6 +468,12 @@ export const PROGRESS_MESSAGES = {
   aiUnavailable:
     'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es in einem Moment erneut.',
   messagesRequired: 'Die Anfrage enthielt keine Nachrichten.',
+  // Covers both ways `canWriteThread` says no: the thread is gone (trashed,
+  // expired share) or it is shared with you read-only (review #5492).
+  threadGone:
+    'In dieser Unterhaltung kannst du nicht weiterschreiben: Sie wurde gelöscht oder ist nur zum Lesen mit dir geteilt. Starte eine neue Unterhaltung – gelöschte findest du 30 Tage im Papierkorb.',
+  threadBusy: 'Gerade entsteht schon eine Antwort in diesem Chat. Warte kurz, bis sie fertig ist.',
+  notYourMessage: 'Du kannst nur deine eigenen Nachrichten bearbeiten oder neu beantworten lassen.',
   internalError: 'Es ist ein interner Fehler aufgetreten. Bitte versuche es erneut.',
 };
 

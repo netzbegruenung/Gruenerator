@@ -11,6 +11,11 @@
  * Die Punkt-IDs sind aus der Paar-ID abgeleitet, ein zweiter Lauf überschreibt
  * also statt zu verdoppeln.
  *
+ * Die Sammlung ist zugleich das System-Notebook `wahlpruefsteine-system`: jedes
+ * Paar ein eigenes Dokument (`document_id`, `chunk_index` 0, `chunk_text`,
+ * `title`). Ein Lauf ersetzt die ganze Payload und damit auch die Themen der
+ * NLP-Anreicherung; der nächtliche Lauf vergibt sie neu.
+ *
  * Voraussetzung: das Backend ist einmal hochgefahren, damit `QdrantService.init()`
  * die Sammlung aus qdrantCollectionsSchema.ts angelegt hat.
  */
@@ -24,6 +29,7 @@ dotenv.config();
 
 const { getQdrantInstance } = await import('../database/services/QdrantService/index.js');
 const { mistralEmbeddingService } = await import('../services/mistral/index.js');
+const { WAHLPRUEFSTEIN_WAHL_LABELS } = await import('../config/systemCollectionsConfig.js');
 
 const COLLECTION = 'wahlpruefstein_examples';
 const BATCH = 16;
@@ -118,6 +124,10 @@ async function main(): Promise<void> {
           position: p.position,
           antwort: p.antwort,
           titel: p.titel,
+          document_id: p.id,
+          chunk_index: 0,
+          title: `${p.verband} (${WAHLPRUEFSTEIN_WAHL_LABELS[p.wahl] ?? p.wahl}), Frage ${p.n}`,
+          chunk_text: `Frage: ${p.frage}\n\nAntwort: ${p.position ? `${p.position}. ` : ''}${p.antwort}`,
         },
       })),
     });

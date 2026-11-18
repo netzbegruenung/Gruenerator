@@ -21,7 +21,6 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
-import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -32,7 +31,6 @@ import { prefillAllowanceForModel } from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
-import { CAPABILITY_NOTE_TEXT } from './artifactNotes.js';
 import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
@@ -136,7 +134,7 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 const FIRST_RESPONSE_DEADLINE_MS = 8_000;
 
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
-/** finishReason, wenn das Modell einen erzwungenen Werkzeugschritt ignorierte. */
+/** finishReason, wenn das Modell auf dem werkzeuglosen Schlussschritt doch ein Werkzeug rief. */
 const TOOL_CHOICE_VIOLATION_FINISH = 'tool_choice_violation';
 
 const SDK_PREAMBLE_PARTS = new Set(['start', 'start-step']);
@@ -240,25 +238,35 @@ export const ARTIFACT_FINISH_SYSTEM_SUFFIX =
 export const TOOL_USE_RULES: string = [
   '',
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
-  '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
+  '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools.',
   // Live am 02.08.2026: eine Rückfrage zu einer eingefügten Fallstudie löste
   // `web_search "Projekt GrünMobil Mobilitätsprojekt Pilotgebiet Budget"` aus —
   // ein Name, den es nur in dieser Unterhaltung gab. Das Web kann dazu per
   // Konstruktion nur Fremdes liefern, und genau das landete in der Antwort.
-  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
+  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die gefragte Angabe dort wirklich (nicht nur ihr Thema), antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument, ein Explainable oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_explainable / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
 ].join('\n');
 
-/** What the loop model is told about writing the answer (the repair writer gets
- *  the same through `buildRepairSystem`). */
+/**
+ * Die eine Fähigkeitsregel des Loops (ersetzt LOOP_CAPABILITY_RULE,
+ * NO_GRAPHICS_DENIAL_RULE und CAPABILITY_NOTE_TEXT, die hier dreifach
+ * dasselbe sagten). Der Loop HAT Werkzeuge: nachschlagen statt anbieten —
+ * „Und was kostet das?" nach einer Wärmepumpen-Frage endete 3/3 mit „Soll ich
+ * im Web recherchieren …?" (09.11.2026). Die werkzeuglosen Schreiber
+ * (Split, Reparatur, Einzeldurchlauf) behalten `NO_CAPABILITY_DENIAL_RULE`.
+ */
+export const CAPABILITY_RULE =
+  'Du hast Werkzeuge; der Grünerator erstellt Sharepics, KI-Bilder, Präsentationen, Dokumente, Tabellen und Boards. Behaupte NIE, du hättest keine Werkzeuge oder Zugriffe, seist „nur ein Textmodell“ oder könntest keine Grafiken erstellen; biete NIE ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation, Tabelle oder ein Dokument an. Fehlt dir eine Angabe, schlage sie jetzt mit dem passenden Werkzeug nach, statt anzubieten, es zu tun. Suchen unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH hast du ausgeführt — leugne sie nie. Wurde eine Grafik gewünscht und ist keine entstanden, stelle EINE Schlussfrage mit „?“ („Soll ich daraus ein Sharepic machen?“, nie „Gib Bescheid“), nur für Sharepic, Präsentation, Dokument oder Tabelle; Druckprodukte (Flyer, Postkarte) baust du nicht und bietest sie nie an.';
+
+/** What the loop model is told about writing the answer. The tool-less repair
+ *  writer has its own prompt (`buildRepairSystem`). */
 export const UNIFIED_WRITER_RULES: string = [
   '',
   '',
   'ANTWORTPHASE (brauchst du keine Tools mehr, schreibst du selbst die Antwort):',
   ANSWER_CONCRETELY_RULE,
-  NO_CAPABILITY_DENIAL_RULE,
-  CAPABILITY_NOTE_TEXT.trim(),
+  CAPABILITY_RULE,
   'Steht in einem Werkzeugergebnis ein Feld `fuerSchreiber` oder `antwortregel`, ist das eine verbindliche Anweisung an deine Antwort — beachte sie vor allem anderen.',
 ].join('\n');
 
@@ -369,34 +377,32 @@ function withTurnContextOnSteps<
 }
 
 /** On the last step (or when forceFinish trips) strip tools AND explain why
- *  via a per-step system override. */
+ *  via a per-step system override.
+ *
+ *  Kein Schritt verlangt einen Werkzeugaufruf: ob und welches Werkzeug, entscheidet
+ *  das Modell (`toolChoice` bleibt `auto`). Bis 11/2026 erzwang Schritt 0 aus elf
+ *  Gründen einen Aufruf (`required` oder benannt) — ein Drittel dieser Schritte
+ *  brach den Zwang, und Mistral Large 4 sowie Melious-Gemma kamen danach nicht
+ *  mehr zum Ende-Token (Schleifen bis 77.707 Zeichen, #5686). LobeHub und Open
+ *  WebUI setzen `tool_choice` im Chat nie. */
 export function buildPrepareStep(
   baseSystem: string,
   /** A getter: the wording depends on WHY the step finishes (artefact vs. limit). */
   finishSuffix: string | (() => string),
   maxSteps: number,
   forceFinish: () => boolean,
-  forceFirstToolCall: boolean,
-  /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
-   *  null to leave the choice to the model. Consulted on every step but the
-   *  first — step 0 has no tool result to react to yet. */
-  forcedTool: () => string | null = () => null,
   /**
    * Text appended to the system on EVERY step once it is non-empty — a GETTER,
    * not a captured string, because it fills up mid-loop (`rezept_laden`
    * registers during the run).
    *
-   * The loop model's only channel for the recipe body. Note the branch above:
+   * The loop model's only channel for the recipe body. Note the branch below:
    * force-finish is the step where the model writes the answer WITHOUT tools,
    * so a recipe missing there is lost exactly where it matters. It has to land
    * in both branches, and in the plain `{}` one — hence the `system` override
    * appearing where previously nothing was returned.
    */
   extraSystem: () => string = () => '',
-  /** Names the tool the FIRST step must call, when an @-mention pinned one
-   *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
-   *  holds — the research ban vetoes both, and it vetoes first. */
-  firstToolName: string | null = null,
   /**
    * Welche Werkzeuge dieser Schritt MITSCHICKT, oder `undefined` für alle
    * montierten (siehe toolScope.ts). Ein GETTER, aus demselben Grund wie
@@ -404,15 +410,9 @@ export function buildPrepareStep(
    * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
    */
   activeTools: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined = () =>
-    undefined,
-  /**
-   * Welche Werkzeuge der ERZWUNGENE erste Schritt sieht (`forcedFirstStepTools`),
-   * oder `null` für den vollen Umfang. Nur auf Schritt 0 gelesen, und nur
-   * wenn kein Werkzeug benannt ist — ein benanntes trägt sich selbst.
-   */
-  firstStepTools: readonly string[] | null = null
+    undefined
 ): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
-  toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
+  toolChoice?: 'none';
   system?: string;
   activeTools?: readonly string[];
 } {
@@ -424,36 +424,6 @@ export function buildPrepareStep(
     // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
     // Schlussschritt mitgeschickt und bezahlt.
     const scope = active ? { activeTools: active } : {};
-    /**
-     * Ein BENANNTER Schritt schickt NUR das benannte Werkzeug mit. Das deckt
-     * zweierlei: die Definition geht mit, auch wenn der Umfang sie
-     * zurückgestellt hat (sonst verlangt der Schritt einen Aufruf ohne
-     * Definition), und kein anderes Werkzeug steht daneben.
-     *
-     * Das Zweite ist der Stillstand vom 28.10.2026: `tool_choice` mit Namen über
-     * den vollen Katalog (25 Werkzeuge, ~44k Zeichen Schemata) liess Gemma 4 bei
-     * Cortecs 26 214 unsichtbare Tokens bis `finish_reason: length` erzeugen
-     * (60 s, kein Delta) und bei Melious nach ~30 s mit „malformed" scheitern —
-     * jedes Mal, sobald der Prompt das Modell zu einem anderen ersten Werkzeug
-     * zog (Bürger*innen-Mail: „Schritt 1: gruenerator_search"). GreenPT setzt
-     * den Namen gar nicht durch und rief `web_search`. Mit nur dem benannten
-     * Werkzeug antworteten alle drei in 2–5 s. Mehr als dieses eine kann der
-     * Schritt ohnehin nicht rufen; die anderen Definitionen sind nur Ablenkung.
-     * Die Absicherung sitzt hier, weil jeder Zwang durch diesen Trichter läuft:
-     * `forcedTool`, `firstToolName`, was danach kommt.
-     */
-    const onlyTool = (name: string) => ({ activeTools: [name] as readonly string[] });
-    /**
-     * Der Systemprompt zieht das Modell sonst zu einem Werkzeug, das dieser
-     * Schritt nicht mehr führt: „Fragen nach Reden gehen immer an
-     * `bundestag_reden`, nicht an `bundestag`" bei erzwungenem `bundestag` —
-     * Stillstand vom 28.10.2026 („Wann hat Katrin Uhlig … gesprochen?"):
-     * Cortecs und Melious schwiegen je 15 s, GreenPT rief nichts. Gleiche Frage
-     * mit gestrichener Zeile oder mit diesem Hinweis: Aufruf nach 2–3 s. Der
-     * Hinweis steht am Ende, wo er die Zuordnung weiter oben überstimmt.
-     */
-    const namedStepNote = (name: string) =>
-      `\n\n## DIESER SCHRITT\nDein einziger Aufruf in diesem Schritt ist \`${name}\`. Andere Werkzeuge aus der Zuordnung oben gelten erst für die folgenden Schritte; sie stehen diesem Schritt nicht zur Wahl.`;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
@@ -467,40 +437,6 @@ export function buildPrepareStep(
       if (nudge) retryNudged = true;
     }
     const extra = `${extraSystem()}${nudge}`;
-    // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
-    // prose without ever calling the connector (observed: intent=mcp steps=0,
-    // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on
-    // the first step so it actually hits the server. Gated off for the first
-    // scope turn (clarification allowed) and meta questions by the caller.
-    if (forceFirstToolCall && stepNumber === 0) {
-      // Eine @-Erwähnung hat ein Werkzeug benannt: `required` liesse das Modell
-      // stattdessen die generische Suche rufen — den Erwähnungstext sieht es
-      // gar nicht mehr.
-      const choice = firstToolName
-        ? ({ type: 'tool' as const, toolName: firstToolName } as const)
-        : ('required' as const);
-      const system = `${baseSystem}${extra}${firstToolName ? namedStepNote(firstToolName) : ''}`;
-      return {
-        toolChoice: choice,
-        ...(system !== baseSystem && { system }),
-        ...(firstToolName
-          ? onlyTool(firstToolName)
-          : firstStepTools
-            ? { activeTools: firstStepTools }
-            : scope),
-      };
-    }
-    if (stepNumber > 0) {
-      const toolName = forcedTool();
-      // `required` would only guarantee SOME call — the model would happily
-      // re-run the internal search that just came back empty. Name the tool.
-      if (toolName)
-        return {
-          toolChoice: { type: 'tool' as const, toolName },
-          system: `${baseSystem}${extra}${namedStepNote(toolName)}`,
-          ...onlyTool(toolName),
-        };
-    }
     return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };
   };
 }
@@ -589,22 +525,12 @@ export interface LoopEngineParams {
   abortSignal: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
-  /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
-  forceFirstToolCall?: boolean;
   /**
    * Welche der montierten Werkzeuge mitgeschickt werden — `undefined` heisst
    * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
    * Gruppe kann sich mitten im Lauf öffnen.
    */
   activeTools?: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined;
-  /** Names the tool that first step must call, when an @-mention pinned one. */
-  firstToolName?: string | null;
-  /** Tool set the forced first step sees (`forcedFirstStepTools`); null = full scope. */
-  firstStepTools?: readonly string[] | null;
-  /** Names a specific tool the next step must call — used to turn the "web is
-   *  now allowed" permission after an empty internal search into an actual
-   *  fallback. Evaluated per step; null leaves the choice to the model. */
-  forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
   /** The repair writer's sibling took over because the writer stalled or came
@@ -627,9 +553,8 @@ export interface LoopEngineParams {
    * arrived, only the stream stayed open — see the end of `streamWithTools`).
    */
   onLaneUnhealthy?: (laneIndex: number, grund: LaneUnhealthyReason) => void;
-  /** Runs AFTER the stream: the net for an owed artifact or edit the model did
-   *  not call even under the named step (`owedToolName`), e.g. on a host that
-   *  ignores `tool_choice`. Idempotent — no-op when the tool already ran. */
+  /** Runs AFTER the stream: the net for an ordered artifact or edit the model
+   *  did not call. Idempotent — no-op when the tool already ran. */
   ensureOwedTools?: () => Promise<boolean | void>;
   /**
    * Output-integrity check on the answer (after the refusal/tool-plan
@@ -833,6 +758,14 @@ async function streamWithTools(
   let firstResponse: IdleDeadline | null = hasNextLane
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
+  const prepareStep = buildPrepareStep(
+    unifiedSystem,
+    () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
+    p.maxSteps,
+    p.forceFinish,
+    p.getRecipeBlock,
+    p.activeTools
+  );
   const result = deps.streamText({
     model,
     system: withTurnContext(unifiedSystem, p.turnContext),
@@ -849,21 +782,7 @@ async function streamWithTools(
       idle.signal,
       ...(firstResponse ? [firstResponse.signal] : []),
     ]),
-    prepareStep: withTurnContextOnSteps(
-      buildPrepareStep(
-        unifiedSystem,
-        () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
-        p.maxSteps,
-        p.forceFinish,
-        p.forceFirstToolCall ?? false,
-        p.forcedToolForStep,
-        p.getRecipeBlock,
-        p.firstToolName ?? null,
-        p.activeTools,
-        p.firstStepTools ?? null
-      ),
-      p.turnContext
-    ),
+    prepareStep: withTurnContextOnSteps(prepareStep, p.turnContext),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
     onError: logStreamError('unified'),
@@ -901,13 +820,14 @@ async function streamWithTools(
       'stop'
     );
   } catch (error) {
-    // Ein Modell, das den erzwungenen Schritt ignoriert (benannter
-    // `toolChoice` für ein geschuldetes Artefakt), beendet nur den Strom, nicht
-    // den Zug: danach legt `ensureOwedTools` das Artefakt an, und die
-    // Reparatur schreibt die Antwort (`abnormal_finish`). Live 07.11.2026:
-    // Mistral Large 4 ohne `create_sheet` → Fehlermeldung statt Tabelle.
+    // Der einzige Zwang ist der Schlussschritt (`toolChoice: 'none'`). Ein
+    // Modell, das dort trotzdem ruft, beendet nur den Strom, nicht den Zug:
+    // danach legt `ensureOwedTools` ein geschuldetes Artefakt an, und die
+    // Reparatur schreibt die Antwort (`abnormal_finish`).
     if (!ToolChoiceViolationError.isInstance(error)) throw error;
-    log.warn(`[Engine] ${modelLabel(model)} ignored the forced tool step — ${error.message}`);
+    log.warn(
+      `[Engine] ${modelLabel(model)} called a tool on the tool-less final step — ${error.message}`
+    );
     firstResponse?.clear();
     return { text: streamed, finishReason: TOOL_CHOICE_VIOLATION_FINISH };
   }

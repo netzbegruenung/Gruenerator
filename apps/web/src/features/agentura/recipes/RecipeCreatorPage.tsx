@@ -3,10 +3,14 @@ import {
   useDraftRecipe,
   draftToRecipeForm,
   EMPTY_RECIPE_FORM,
+  readFromAnswer,
+  recipeFormFromAnswer,
+  recipeDraftBrief,
   type RecipeFormState,
 } from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import RecipeEditor from './RecipeEditor';
 import RecipeStartScreen from './RecipeStartScreen';
@@ -20,6 +24,12 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
  * the create/edit route uses — pre-filled, never persisted until the user
  * saves. "Lieber manuell anlegen?" skips the draft and opens the same editor
  * with an empty form instead. Mirrors `agents/AgentCreatorPage.tsx`.
+ *
+ * „Als Rezept speichern“ unter einer Chat-Antwort kommt mit
+ * `location.state.fromAnswer`: dann entfällt die Beschreibung, der Entwurf
+ * entsteht aus festem Auftrag, und die Antwort steht als erstes Beispiel im
+ * Editor. Misslingt der Entwurf, öffnet der Editor trotzdem mit dem Beispiel —
+ * die Antwort darf nicht verloren gehen.
  */
 function RecipeCreatorPage() {
   const draftMut = useDraftRecipe();
@@ -29,6 +39,21 @@ function RecipeCreatorPage() {
   const [error, setError] = useState<string | null>(null);
 
   useDocumentTitle('Neues Rezept');
+
+  const fromAnswer = readFromAnswer(useLocation().state);
+  const answerStarted = useRef(false);
+  useEffect(() => {
+    if (!fromAnswer || answerStarted.current) return;
+    answerStarted.current = true;
+    void draftMut
+      .mutateAsync({ description: recipeDraftBrief(fromAnswer.text) })
+      .then((spec) => recipeFormFromAnswer(fromAnswer.text, spec))
+      .catch(() => recipeFormFromAnswer(fromAnswer.text, null))
+      .then((form) => {
+        setInitialState(form);
+        setPhase('build');
+      });
+  }, [fromAnswer, draftMut]);
 
   const handleGenerate = useCallback(async () => {
     const brief = description.trim();
@@ -70,6 +95,14 @@ function RecipeCreatorPage() {
           onCancel={handleBack}
         />
       </ConfirmDialogProvider>
+    );
+  }
+
+  if (fromAnswer && initialState === null) {
+    return (
+      <p role="status" className="p-lg text-center text-sm text-foreground-muted">
+        Aus der Antwort wird ein Rezeptentwurf gemacht …
+      </p>
     );
   }
 

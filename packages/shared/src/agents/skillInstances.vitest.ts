@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { type InstancePolicyView } from '../instances/index.js';
 
 import { SKILLS } from './skills/index.generated.js';
-import { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
+import {
+  isSkillOfferedIn,
+  isUserFacingSkill,
+  skillPolicyOffers,
+  type SkillInstanceView,
+} from './skillInstances.js';
 
 const generic = (over: Partial<SkillInstanceView> = {}): SkillInstanceView => ({
   mention: 'presse',
@@ -139,5 +144,19 @@ describe('die BGSt-Rezepte in der Registry', () => {
     const reel = SKILLS.find((s) => s.mention === 'reel')!;
     expect(isSkillOfferedIn(reel, 'bgst')).toBe(false);
     expect(isSkillOfferedIn(reel, 'production')).toBe(true);
+  });
+});
+
+describe('isUserFacingSkill', () => {
+  it('hides model-only recipes from human lists', () => {
+    expect(isUserFacingSkill({ mention: 'x', modelOnly: true })).toBe(false);
+    expect(isUserFacingSkill({ mention: 'x', modelOnly: false })).toBe(true);
+    expect(isUserFacingSkill({ mention: 'x' })).toBe(true);
+  });
+
+  it('marks visuelle-bausteine model-only in the generated registry', () => {
+    const skill = SKILLS.find((s) => s.mention === 'visuelle-bausteine');
+    expect(skill).toBeDefined();
+    expect(isUserFacingSkill(skill!)).toBe(false);
   });
 });

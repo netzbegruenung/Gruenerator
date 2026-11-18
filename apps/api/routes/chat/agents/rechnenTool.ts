@@ -27,12 +27,26 @@ export interface RechnenToolCtx {
   sse: SSEWriter;
 }
 
+/**
+ * Texts of the conversation's material the tool can read by name: earlier
+ * attachments (`chat_thread_attachments.extracted_text`, kept for vectorized
+ * rows too) and this turn's whole document. Latest last — every paste is named
+ * „Eingefügter Text.txt", and the newest one is meant.
+ */
+function materialTexts(state: ChatGraphState): { name: string; text: string }[] {
+  const earlier = (state.threadAttachments ?? [])
+    .filter((a) => !a.isImage && a.extractedText)
+    .map((a) => ({ name: a.name, text: a.extractedText ?? '' }));
+  const whole = (state.wholeDocument?.docs ?? []).map((d) => ({ name: d.name, text: d.text }));
+  return [...earlier, ...whole];
+}
+
 export function makeRechnenTool(ctx: RechnenToolCtx): Tool {
   return tool({
-    description: `Rechnet und zählt EXAKT per Programm: Prozent, Summen, Differenzen, Dreisatz, Zeichen-/Wörterzahl eines Textes, Einheiten umrechnen, Tage zwischen Daten, Datum plus Zeitspanne, und das Nachrechnen von Zahlenangaben in einem Text.
+    description: `Rechnet und zählt EXAKT per Programm: Prozent, Summen, Dreisatz, Zeichen-/Wörterzahl, Vorkommen von Wörtern oder Daten (auch je Gruppe, z. B. pro Monat), Einheiten, Tage zwischen Daten, Datum plus Zeitspanne, Nachrechnen von Zahlenangaben.
 
 NUTZE WENN eine Antwort eine ausgerechnete oder gezählte Zahl braucht — rechne und zähle NIE selbst, auch nicht „im Kopf“. Zahlen aus einer Recherche erst holen, dann hier rechnen.
-NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), nicht für Schätzungen oder Prognosen.`,
+NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.`,
     inputSchema: z.object({
       auftrag: z
         .string()
@@ -46,10 +60,29 @@ NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), 
         .max(60_000)
         .optional()
         .describe(
-          'Nur zum Zählen oder Nachrechnen: der vollständige, unveränderte Text, um den es geht.'
+          'Nur zum Zählen oder Nachrechnen: ein Text aus der Nachricht, unverändert. Für Anhänge `anhang`.'
+        ),
+      anhang: z
+        .string()
+        .optional()
+        .describe(
+          'Name eines Anhangs, z.B. "Eingefügter Text.txt" — wird selbst gelesen, nicht abschreiben.'
         ),
     }),
-    execute: async ({ auftrag, text }) => {
+    execute: async ({ auftrag, text: typed, anhang }) => {
+      // A 16k paste copied into `text` cost ~70 s of argument generation on
+      // Mistral Large 4 before the tool even ran (#5493); by name it costs nothing.
+      let text = typed;
+      if (anhang) {
+        const material = materialTexts(ctx.state);
+        const hit = material.filter((m) => m.name.toLowerCase() === anhang.toLowerCase()).at(-1);
+        if (!hit) {
+          return {
+            error: `Kein Anhang namens "${anhang}". Verfügbar: ${material.map((m) => m.name).join(', ') || 'keiner'}.`,
+          };
+        }
+        text = hit.text;
+      }
       const request = text ? `Anfrage: "${auftrag}"\n\nText:\n${text}` : `Anfrage: "${auftrag}"`;
       let outcome;
       try {
@@ -60,9 +93,11 @@ NICHT für angehängte Tabellen (dafür gibt es ein eigenes Tabellen-Werkzeug), 
       }
       const result = outcome.result;
       if (!result) {
+        // Not "frag nach dem genauen Ausdruck": the loop read that as "try
+        // again" and re-sent the same order until failure_cap (#5499).
         return {
           error:
-            'Keine sichere Berechnung möglich. Nenne keine eigene Zahl; frag nach dem genauen Ausdruck oder Text.',
+            'Keine sichere Berechnung möglich — nicht mit anderem Wortlaut wiederholen. Nenne keine eigene Zahl; antworte ohne sie.',
         };
       }
 

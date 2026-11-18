@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom';
 import { renderSharepicToImage } from '../renderSharepicToImage';
 import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
 
+import { ShareVorlageBody } from '@/features/vorlagen/components/ShareVorlageDialog';
+
 interface SaveAsTemplateDialogProps {
   canvasId: string;
   open: boolean;
@@ -38,9 +40,10 @@ const parseTags = (raw: string): string[] => [
 /**
  * "Als Vorlage speichern" for a collaborative canvas.
  *
- * Both actions go through the same endpoint — the server snapshots the canvas
- * either way — and differ only in `visibility`: a private save lands in Meine
- * Vorlagen as a draft, a submission enters the public gallery's review queue.
+ * Saves privately first (the server snapshots the canvas into Meine Vorlagen),
+ * then offers the Vorlage's share controls in place — sharing needs the saved
+ * snapshot, so it can only come second. Submitting to the public gallery is a
+ * separate, reviewed act that lives in Meine Vorlagen, not here.
  * Deliberately separate from ShareCanvasDialog: that one is about giving other
  * people access to *this* document, this one mints a new, frozen artefact.
  */
@@ -55,12 +58,12 @@ export function SaveAsTemplateDialog({
 }: SaveAsTemplateDialogProps) {
   const [title, setTitle] = useState(defaultTitle ?? '');
   const [tagsRaw, setTagsRaw] = useState('');
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'submitted' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   // Reopening after a save must offer a fresh form, not the previous success
-  // message — a canvas can yield more than one template (privat, dann
-  // eingereicht). Adjusted during render rather than in an effect so the reset
+  // message — a canvas can yield more than one template. Adjusted during render rather than in an effect so the reset
   // is visible on the first paint of the reopened dialog.
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
@@ -68,94 +71,94 @@ export function SaveAsTemplateDialog({
     if (open) {
       setStatus('idle');
       setError(null);
+      setSavedId(null);
     }
   }
 
-  const save = useCallback(
-    async (visibility: 'private' | 'submit') => {
-      setStatus('saving');
-      setError(null);
+  const save = useCallback(async () => {
+    setStatus('saving');
+    setError(null);
+    try {
+      // Prefer the freshest live state for the thumbnail; fall back to the
+      // state passed in if the live read fails.
+      let stateForThumb: Record<string, unknown> = initialState;
+      let pageStates: Array<Record<string, unknown>> = [];
       try {
-        // Prefer the freshest live state for the thumbnail; fall back to the
-        // state passed in if the live read fails.
-        let stateForThumb: Record<string, unknown> = initialState;
-        let pageStates: Array<Record<string, unknown>> = [];
-        try {
-          const st = await getContractsClient().canvas.getState({ params: { id: canvasId } });
-          if (st.status === 200) {
-            stateForThumb = st.body.state;
-            pageStates = st.body.pages ?? [];
-          }
-        } catch {
-          /* fall back to initialState */
+        const st = await getContractsClient().canvas.getState({ params: { id: canvasId } });
+        if (st.status === 200) {
+          stateForThumb = st.body.state;
+          pageStates = st.body.pages ?? [];
         }
-
-        // A deck exposes every slide as `pages`; each needs its own preview, or
-        // reviewers only ever see the cover of a carousel.
-        const states = pageStates.length > 1 ? pageStates : [stateForThumb];
-
-        const previewUrls: string[] = [];
-        for (const state of states) {
-          const dataUrl = await renderSharepicToImage(canvasType, state, {
-            ...(formatId ? { formatId } : {}),
-          });
-          if (!dataUrl) throw new Error('Vorschaubild konnte nicht erstellt werden.');
-          const blob = await (await fetch(dataUrl)).blob();
-          const url = await uploadBlobToMediaLibrary(blob, { uploadSource: 'gruenerator-vorlage' });
-          if (!url) throw new Error('Vorschaubild konnte nicht hochgeladen werden.');
-          previewUrls.push(url);
-        }
-
-        const res = await getContractsClient().userTemplates.fromCanvas({
-          body: {
-            canvasId,
-            title: title.trim() || undefined,
-            tags: parseTags(tagsRaw),
-            preview_image_url: previewUrls[0]!,
-            images: previewUrls.map((url, i) => ({ url, display_order: i })),
-            visibility,
-          },
-        });
-        if (res.status !== 201) throw new ApiError(res.status, 'Speichern fehlgeschlagen.');
-        setStatus(visibility === 'private' ? 'saved' : 'submitted');
-      } catch (err) {
-        setStatus('error');
-        setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
+      } catch {
+        /* fall back to initialState */
       }
-    },
-    [canvasId, canvasType, initialState, formatId, title, tagsRaw]
-  );
 
-  const isDone = status === 'saved' || status === 'submitted';
+      // A deck exposes every slide as `pages`; each needs its own preview, or
+      // reviewers only ever see the cover of a carousel.
+      const states = pageStates.length > 1 ? pageStates : [stateForThumb];
+
+      const previewUrls: string[] = [];
+      for (const state of states) {
+        const dataUrl = await renderSharepicToImage(canvasType, state, {
+          ...(formatId ? { formatId } : {}),
+        });
+        if (!dataUrl) throw new Error('Vorschaubild konnte nicht erstellt werden.');
+        const blob = await (await fetch(dataUrl)).blob();
+        const url = await uploadBlobToMediaLibrary(blob, { uploadSource: 'gruenerator-vorlage' });
+        if (!url) throw new Error('Vorschaubild konnte nicht hochgeladen werden.');
+        previewUrls.push(url);
+      }
+
+      const res = await getContractsClient().userTemplates.fromCanvas({
+        body: {
+          canvasId,
+          title: title.trim() || undefined,
+          tags: parseTags(tagsRaw),
+          preview_image_url: previewUrls[0]!,
+          images: previewUrls.map((url, i) => ({ url, display_order: i })),
+          visibility: 'private',
+        },
+      });
+      if (res.status !== 201) throw new ApiError(res.status, 'Speichern fehlgeschlagen.');
+      setSavedId(res.body.data.id);
+      setStatus('saved');
+    } catch (err) {
+      setStatus('error');
+      setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
+    }
+  }, [canvasId, canvasType, initialState, formatId, title, tagsRaw]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[28rem]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Als Vorlage speichern</DialogTitle>
+          <DialogTitle>{savedId ? 'Vorlage teilen' : 'Als Vorlage speichern'}</DialogTitle>
           <DialogDescription>
-            Speichere dieses Sharepic als Vorlage für dich – oder reiche es für die öffentliche
-            Vorlagen-Galerie ein.
+            {savedId
+              ? 'Teile deine neue Vorlage. Wer sie öffnet, kann sich eine eigene Kopie erstellen.'
+              : 'Speichere dieses Sharepic als Vorlage für dich. Danach kannst du sie teilen.'}
           </DialogDescription>
         </DialogHeader>
 
-        {isDone ? (
-          <div className="space-y-2 py-sm">
-            <div className="flex items-center gap-1.5 text-sm text-primary-600">
-              <FiCheckCircle size={14} />
-              <span>
-                {status === 'saved'
-                  ? 'Vorlage gespeichert.'
-                  : 'Eingereicht — deine Vorlage wird geprüft.'}
-              </span>
+        {savedId ? (
+          <div className="flex flex-col gap-md">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-sm text-primary-600">
+                <FiCheckCircle size={14} aria-hidden />
+                <span>Vorlage gespeichert.</span>
+              </div>
+              <p className="m-0 text-xs text-grey-500">
+                Du findest sie unter{' '}
+                <Link to="/vorlagen?cat=meine" className="text-primary-600 hover:underline">
+                  Meine Vorlagen
+                </Link>
+                .
+              </p>
             </div>
-            <p className="m-0 text-[11px] text-grey-500">
-              Du findest sie unter{' '}
-              <Link to="/vorlagen?cat=meine" className="text-primary-600 hover:underline">
-                Meine Vorlagen
-              </Link>
-              .
-            </p>
+            <ShareVorlageBody
+              title={title.trim() || defaultTitle || 'Vorlage'}
+              templateId={savedId}
+            />
           </div>
         ) : (
           <div className="space-y-2">
@@ -176,24 +179,11 @@ export function SaveAsTemplateDialog({
               className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
             />
 
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button size="sm" onClick={() => void save('private')} disabled={status === 'saving'}>
+            <div className="pt-1">
+              <Button size="sm" onClick={() => void save()} disabled={status === 'saving'}>
                 {status === 'saving' ? 'Wird gespeichert...' : 'Für mich speichern'}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void save('submit')}
-                disabled={status === 'saving'}
-              >
-                Zur Galerie einreichen
-              </Button>
             </div>
-
-            <p className="m-0 text-[11px] text-grey-500">
-              Nur für dich sichtbar, bis du sie einreichst. Um sie mit einer Gruppe zu teilen, nutze
-              den Teilen-Dialog.
-            </p>
 
             {status === 'error' && error && <p className="text-xs text-red-600">{error}</p>}
           </div>

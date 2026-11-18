@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-  asksAboutOwnPastAction,
   looksLikeChitchatTurn,
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
@@ -23,7 +22,6 @@ import {
   needsThreadGrounding,
   rewritesSuppliedText,
   reworksSuppliedText,
-  asksAboutSuppliedMaterial,
   looksLikeUnsourcedWritingOrder,
   looksLikeImageOnlyAsk,
 } from './routing.js';
@@ -1520,15 +1518,19 @@ describe('reworksSuppliedText', () => {
     'kürz mal',
     'verkürz das auf zwei Absätze',
     'straff das etwas',
+    'kuerz das auf die Hälfte',
   ])('reads "%s" as text work on the supplied material', (text) => {
     expect(reworksSuppliedText(text)).toBe(true);
   });
 
-  // The bare stem must not swallow „kürzlich" (#5476).
-  it('does not read "kürzlich" as a shortening order', () => {
-    expect(reworksSuppliedText('Was hat der Stadtrat kürzlich zum Radweg beschlossen?')).toBe(
-      false
-    );
+  // The bare stem must not swallow „kürzlich" or the adverb „kurz" (#5476).
+  it.each([
+    'Was hat der Stadtrat kürzlich zum Radweg beschlossen?',
+    'Erkläre mir kurz die Windkraft-Debatte',
+    'Was fordert die Partei, kurz gesagt?',
+    'Kurz gesagt: Was steht im Wahlprogramm zur Mobilität?',
+  ])('does not read "%s" as a shortening order', (text) => {
+    expect(reworksSuppliedText(text)).toBe(false);
   });
 
   // Each of these carries a rewrite word — `k[üu]rze…` also matches the
@@ -1572,29 +1574,6 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
     ],
   ])('bleibt bei Schreib-, Recherche- oder ungetrenntem Auftrag aus: %s', (text) => {
     expect(reworksSuppliedText(text)).toBe(false);
-  });
-});
-
-describe('asksAboutSuppliedMaterial (#4789)', () => {
-  it.each([
-    'Welche vier Maßnahmen stehen im Antrag genau?',
-    'Wie hoch waren nochmal die Kosten laut Antrag?',
-    'Was steht im eingefügten Text zur Finanzierung?',
-    'Wer hat laut dem Schreiben unterschrieben?',
-    'Was fordert der Brief? Was steht darin zum Termin?',
-    'Welche Zahl nennt die Pressemitteilung? Steht das in der Pressemitteilung?',
-    'Gibt es in diesem Dokument eine Frist?',
-  ])('reads "%s" as a question about the supplied text', (text) => {
-    expect(asksAboutSuppliedMaterial(text)).toBe(true);
-  });
-
-  it.each([
-    'Wer ist aktuell Bundeskanzler in Österreich?',
-    'Was steht im Wahlprogramm zur Windkraft?',
-    'Was sagen die Grünen zum Heizungsgesetz?',
-    'Welche Anträge gab es im Bundestag zum Tempolimit?',
-  ])('does not read "%s" as one', (text) => {
-    expect(asksAboutSuppliedMaterial(text)).toBe(false);
   });
 });
 
@@ -1675,39 +1654,6 @@ describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze',
 
   it('kein Match mitten im Wort', () => {
     expect(rewritesSuppliedText('Die Grenzüberarbeitung der Behörde war Thema')).toBe(false);
-  });
-});
-
-describe('asksAboutOwnPastAction', () => {
-  it.each([
-    'hast du vorhin in meinen Dokumenten nachgesehen?',
-    'Hast du eben nachgeschaut?',
-    'hast du das wirklich gesucht?',
-    'wo hast du das gefunden?',
-    'woher hast du das?',
-  ])('„%s" fragt nach der eigenen vorigen Handlung', (t) => {
-    expect(asksAboutOwnPastAction(t)).toBe(true);
-  });
-
-  it.each([
-    'Und die FDP?',
-    'hast du auch was zur FDP?',
-    'hast du noch etwas zur FDP gefunden?',
-    'hast du über die FDP recherchiert?',
-    'hast du zur FDP schon nachgesehen?',
-  ])('„%s" bittet um Neues und trifft nicht', (t) => {
-    expect(asksAboutOwnPastAction(t)).toBe(false);
-  });
-
-  // Die Füllwortgrenze: über/zu/zur/zum führen ein Thema ein und sprengen den Treffer.
-  it.each(['über', 'zu', 'zur', 'zum'])('„%s" zwischen „hast du" und Partizip verneint', (w) => {
-    expect(asksAboutOwnPastAction(`hast du ${w} Wahlen nachgesehen?`)).toBe(false);
-  });
-
-  // Bekannter Rest: „bei" ist kein Ausschlusswort, also trifft das, obwohl es ein
-  // Thema nennt. Das irrt zur Seite des Nicht-Zwingens.
-  it('„bei" ist kein Ausschlusswort (bekannter Rest, irrt Richtung Nicht-Zwingen)', () => {
-    expect(asksAboutOwnPastAction('hast du bei der FDP nachgeschaut?')).toBe(true);
   });
 });
 

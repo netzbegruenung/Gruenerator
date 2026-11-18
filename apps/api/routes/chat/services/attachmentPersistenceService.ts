@@ -414,24 +414,24 @@ export async function embedThreadAttachmentForRag(params: {
 /**
  * Load the raw bytes of a thread's tabular attachments (CSV/Excel/ODS) so the
  * frontend can rehydrate the in-browser pandas interpreter after a reload.
- * Ownership is enforced by user_id.
+ * Returns every member's files of the thread (team chats); the caller checks
+ * thread access.
  *
  * `file_data` is NOT tabular-only any more — fillable PDFs are stored in the
  * same column for fill_pdf_form. Without the mimeType filter below they would
  * be staged into the Pyodide FS and fed to pandas.
  */
 export async function getThreadTabularFiles(
-  threadId: string,
-  userId: string
+  threadId: string
 ): Promise<Array<{ name: string; mimeType: string; data: string }>> {
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
     `SELECT name, mime_type, file_data
      FROM chat_thread_attachments
-     WHERE thread_id = $1 AND user_id = $2 AND file_data IS NOT NULL
+     WHERE thread_id = $1 AND file_data IS NOT NULL
      ORDER BY created_at ASC`,
-    [threadId, userId]
+    [threadId]
   );
 
   return result

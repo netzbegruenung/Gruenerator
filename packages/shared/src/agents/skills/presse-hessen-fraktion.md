@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen'
 title: 'PM Hessen (Fraktion)'
-description: 'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen — Plenum, Ausschuss, Kleine Anfragen, Landesregierung'
+description: 'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.'
 iconKey: 'PiTree'
 avatar: '🌳'
 backgroundColor: '#316049'

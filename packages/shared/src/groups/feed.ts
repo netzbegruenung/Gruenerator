@@ -23,6 +23,7 @@ export const GROUP_FEED_KINDS = [
   { id: 'board', label: 'Board', plural: 'Boards' },
   { id: 'generator', label: 'Grünerator', plural: 'Grüneratoren' },
   { id: 'agent', label: 'Grünerator-Agent', plural: 'Grünerator-Agenten' },
+  { id: 'recipe', label: 'Rezept', plural: 'Rezepte' },
   { id: 'notebook', label: 'Notebook', plural: 'Notebooks' },
   { id: 'text', label: 'Text', plural: 'Texte' },
   { id: 'template', label: 'Vorlage', plural: 'Vorlagen' },
@@ -67,7 +68,7 @@ export interface GroupFeedItem {
   title: string;
   excerpt: string | null;
   thumbnailUrl: string | null;
-  /** Generator-Slug, Notebook-Slug-Suffix bzw. Agent-Identifier. */
+  /** Generator-Slug, Notebook-Slug-Suffix, Agent-Identifier bzw. Rezept-Mention. */
   slug: string | null;
   sharedByName: string | null;
   /** Profil-ID der teilenden Person — für „eigene Freigabe?“ statt Namensvergleich. */
@@ -185,6 +186,13 @@ export function toGroupFeedItems(
       // The row uuid, not the identifier: that is unique only per owner, and a
       // colleague's agent may share it with the viewer's own.
       slug: String(r.id),
+    });
+  }
+  for (const r of rows('recipes')) {
+    items.push({
+      ...base(r, 'user_text_forms', 'recipe', str(r.title) ?? 'Rezept'),
+      excerpt: str(r.description),
+      slug: str(r.mention),
     });
   }
   for (const r of rows('system_agents')) {

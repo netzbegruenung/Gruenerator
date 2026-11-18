@@ -118,7 +118,16 @@ export function useMarketplaceSections(params: MarketplaceSectionsParams) {
     placeholderData: keepPreviousData,
   });
 
-  const sections = useMemo<MarketplaceSection[]>(() => query.data?.sections ?? [], [query.data]);
+  // Der Server antwortet in der Reihenfolge der Kind-Enum (F0) und verwirft die
+  // des Aufrufers; die Anzeigereihenfolge — `kindsOfMarketplaceTab` — setzt hier
+  // der Client wieder ein, ohne ein zweites Sortier-Array.
+  const kindsKey = params.kinds.join(',');
+  const sections = useMemo<MarketplaceSection[]>(() => {
+    const order = kindsKey.split(',');
+    return [...(query.data?.sections ?? [])].sort(
+      (a, b) => order.indexOf(a.kind) - order.indexOf(b.kind)
+    );
+  }, [query.data, kindsKey]);
   return { ...query, sections };
 }
 

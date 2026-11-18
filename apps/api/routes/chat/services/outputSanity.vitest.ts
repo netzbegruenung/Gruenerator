@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   announcesPendingWork,
+  claimsAbsenceWithoutSearching,
   asksUserToWait,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
@@ -294,6 +295,38 @@ describe('deniesSearchAbilityDespiteSearching', () => {
     const recommendation = 'Dazu empfehle ich dir eine kurze Websuche.';
     expect(defersToSearchDespiteSources(recommendation, SEARCHED)).toBe(true);
     expect(deniesSearchAbilityDespiteSearching(recommendation, SEARCHED)).toBe(false);
+  });
+});
+
+describe('claimsAbsenceWithoutSearching (#5458)', () => {
+  const LIVE =
+    'In den vorliegenden Unterlagen – den Lobau-Dokumenten und der früheren Recherche zu Regenwürmern – kommt Gernot Stöglehner nicht vor.';
+
+  it('catches the 05.11. sentence when no tool ran', () => {
+    expect(claimsAbsenceWithoutSearching(LIVE, { toolCalls: 0 })).toBe(true);
+  });
+
+  it.each([
+    'In den Unterlagen finde ich keine Aussagen zu Stöglehner.',
+    'Er wird in den Texten nicht erwähnt.',
+    'Es gibt keine Aussagen von ihm.',
+    'Stöglehner taucht in den Unterlagen nicht auf.',
+    'Dazu liegen mir keine Informationen vor.',
+    'Dazu liegen keine Angaben vor.',
+  ])('catches the phrasing: %s', (text) => {
+    expect(claimsAbsenceWithoutSearching(text, { toolCalls: 0 })).toBe(true);
+  });
+
+  it('stays silent when a tool ran', () => {
+    expect(claimsAbsenceWithoutSearching(LIVE, { toolCalls: 1 })).toBe(false);
+  });
+
+  it.each([
+    'Gernot Stöglehner ist Professor an der BOKU und forscht zu Raumplanung.',
+    'Die Frist kommt im Text vor und endet am 1. März.',
+    'Das Wort erscheint zweimal im Dokument.',
+  ])('leaves a normal answer alone: %s', (text) => {
+    expect(claimsAbsenceWithoutSearching(text, { toolCalls: 0 })).toBe(false);
   });
 });
 
@@ -764,9 +797,24 @@ describe('stripPhantomArtifactCreation', () => {
     expect(stripPhantomArtifactCreation(text, { createdArtifact: true }).removed).toEqual([]);
   });
 
+  it('streicht die Erfolgsmeldung im Perfekt auch ohne „dir" (Alfter 09.11.2026, #5513)', () => {
+    const text =
+      'Ich habe das Karussell für mehr Klimaschutz in Alfter mit vier Folien erstellt.\n\nSoll ich noch etwas anpassen?';
+    const out = stripPhantomArtifactCreation(text, { createdArtifact: false });
+    expect(out.removed).toHaveLength(1);
+    expect(out.text).toBe('Soll ich noch etwas anpassen?');
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: true }).removed).toEqual([]);
+  });
+
   it('lässt ein Perfekt über fremde Arbeit stehen', () => {
     const text = 'Den Antrag hat der Kreisverband erstellt, ich habe ihn nur gelesen.';
     expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).removed).toEqual([]);
+    // Partizip im Nebensatz eines anderen Subjekts (Review #5594).
+    const relative = 'Ich habe die Grafik gelesen, die der Kreisverband erstellt hat.';
+    expect(stripPhantomArtifactCreation(relative, { createdArtifact: false })).toEqual({
+      text: relative,
+      removed: [],
+    });
   });
 
   it.each([

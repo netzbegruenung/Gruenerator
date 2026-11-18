@@ -8,6 +8,7 @@ import {
   computeUnitConvert,
   computeDateDiff,
   computeDateAdd,
+  computeTermCounts,
 } from './computeEngine.js';
 
 const entry = (r: { entries: { label: string; value: string }[] }, label: string) =>
@@ -177,5 +178,58 @@ describe('computeArithmeticBatch', () => {
   it('returns null when nothing could be computed', () => {
     expect(computeArithmeticBatch([])).toBeNull();
     expect(computeArithmeticBatch([{ label: null, expression: 'x + y', claimed: 1 }])).toBeNull();
+  });
+});
+
+// #5499: „Termine pro Monat" in a 150-event paste had no operation at all —
+// the plan said `unsupported` and the loop retried until failure_cap.
+describe('computeTermCounts', () => {
+  const termine = [
+    'Kreisversammlung · 07.01.2027 · 19:00 · Grünes Büro',
+    'Infostand · 17.01.2027 · 10:00 · Marktplatz',
+    'Infostand · 02.02.2027 · 10:00 · Marktplatz',
+    'Demo Klimaschutz · 20.03.2027 · 14:00 · Rathaus',
+  ].join('\n');
+
+  it('counts every literal occurrence per term, one row each', () => {
+    const r = computeTermCounts(termine, [
+      { label: 'Januar', phrase: '01.2027' },
+      { label: 'Februar', phrase: '02.2027' },
+      { label: 'April', phrase: '04.2027' },
+      { label: null, phrase: 'infostand' },
+    ]);
+    expect(r?.entries).toEqual([
+      { label: 'Januar („01.2027")', value: '2' },
+      { label: 'Februar („02.2027")', value: '1' },
+      { label: 'April („04.2027")', value: '0' },
+      { label: '„infostand"', value: '2' },
+    ]);
+    expect(r?.summary).toBe('Wörtlich gezählt: Januar 2, Februar 1, April 0, „infostand" 2.');
+  });
+
+  // Same rules as `dokumente_lesen` wortsuche (grepText): whole words only.
+  it('does not count a term inside a longer word', () => {
+    const r = computeTermCounts('Rad, Radweg, Fahrrad, rad', [{ label: null, phrase: 'Rad' }]);
+    expect(r?.entries[0]?.value).toBe('2');
+  });
+
+  // The matcher needs a boundary before the dot; "7." in "07.01.2027" has none.
+  it('counts a month written with its edge separator like the bare month', () => {
+    const r = computeTermCounts(termine, [{ label: 'Januar', phrase: '.01.2027' }]);
+    expect(r?.entries).toEqual([{ label: 'Januar („01.2027")', value: '2' }]);
+  });
+
+  // Live 09.11.2026: the plan picked "01" for January and got 31 instead of 25.
+  it('drops a bare small number, which also hits days and times', () => {
+    const r = computeTermCounts(termine, [
+      { label: 'Januar', phrase: '01' },
+      { label: 'Jahr', phrase: '2027' },
+    ]);
+    expect(r?.entries).toEqual([{ label: 'Jahr („2027")', value: '4' }]);
+  });
+
+  it('returns null when no usable term is left', () => {
+    expect(computeTermCounts(termine, [])).toBeNull();
+    expect(computeTermCounts(termine, [{ label: 'x', phrase: ' a ' }])).toBeNull();
   });
 });

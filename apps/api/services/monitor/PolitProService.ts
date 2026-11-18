@@ -57,6 +57,9 @@ const PARTY_NAME_MAP: Record<string, string> = {
   BSW: 'BSW',
   FDP: 'FDP',
   Others: 'Sonstige',
+  // Newer PolitPro payloads send the singular (#5446). Cache keys carry a version
+  // so entries written before this mapping existed are not served.
+  Other: 'Sonstige',
 };
 
 export interface PolitProPollData extends PollData {
@@ -377,7 +380,7 @@ export async function getPolitProPolls(
     return null;
   }
 
-  const cacheKey = `monitor:politpro:v2:${parliament}`;
+  const cacheKey = `monitor:politpro:v3:${parliament}`;
   const cached = await getCachedJson(cacheKey, politProPollDataSchema);
   if (cached) return cached;
 
@@ -918,11 +921,11 @@ async function lookupOverviewEntry(parliament: string): Promise<OverviewLookup> 
 
   if (!env.POLITPRO_API_KEY) return cached(empty);
 
-  const fullKey = `monitor:politpro:v2:${parliament}`;
+  const fullKey = `monitor:politpro:v3:${parliament}`;
   const full = await getCachedJson(fullKey, politProPollDataSchema);
   if (full) return cached(overviewEntryFrom(parliament, full));
 
-  const entryKey = `monitor:politpro:overview-entry:${parliament}`;
+  const entryKey = `monitor:politpro:overview-entry:v2:${parliament}`;
   const entry = await getCachedJson(entryKey, pollsOverviewEntrySchema);
   if (entry) return cached(entry);
 

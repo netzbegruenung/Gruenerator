@@ -74,6 +74,29 @@ export function usePublicRecipes(enabled = true) {
 }
 
 /**
+ * The recipe a share link names (`<titel>-<suffix>` or a uuid), when none of
+ * the caller's lists holds it — "Mit Anmeldung" without a Marktplatz listing.
+ * The server checks access; 404 resolves to `null`, anything else throws.
+ */
+export function useRecipeLink(slug: string | null) {
+  return useQuery({
+    queryKey: ['recipe-link', slug],
+    enabled: slug !== null,
+    retry: false,
+    queryFn: async (): Promise<{
+      form: PublicTextForm;
+      source: 'own' | 'shared' | 'public';
+    } | null> => {
+      if (slug === null) return null;
+      const res = await getContractsClient().userTextForms.resolveLink({ params: { slug } });
+      if (res.status === 200) return { form: res.body.form, source: res.body.source };
+      if (res.status === 404) return null;
+      throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
+    },
+  });
+}
+
+/**
  * Distill a style block from examples (not persisted). `title` is required by
  * the contract and carried through as-is — the previous `input.title ? … : {}`
  * spread dropped an empty title from the body entirely, so the request arrived

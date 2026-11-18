@@ -84,14 +84,32 @@ export async function searchOfficeContent(
   options: OfficeContentSearchOptions = {}
 ): Promise<OfficeContentHit[]> {
   const { subtypes = OFFICE_SUBTYPES, limit = 5 } = options;
-  const pattern = likeContainsPattern(query);
+  // Jedes Wort muss vorkommen, nicht die ganze Eingabe als Phrase: das Modell
+  // sucht mit Stichwortketten („Klärwerk Ost Abwärme"), und die trafen als
+  // ein Muster praktisch nie.
+  const patterns = officeSearchTerms(query).map(likeContainsPattern);
+  if (patterns.length === 0) return [];
+  const termWhere = patterns
+    .map((_, i) => `(cd.title ILIKE $${i + 4} OR cd.content ILIKE $${i + 4})`)
+    .join(' AND ');
   return (await db.query(
     `SELECT cd.id, cd.title, cd.document_subtype, cd.updated_at, cd.content
      FROM collaborative_documents cd
      WHERE ${docsAccessWhere('$2', '$1')}
-       AND (cd.title ILIKE $3 OR cd.content ILIKE $3)
+       AND ${termWhere}
      ORDER BY cd.updated_at DESC
-     LIMIT $4`,
-    [userId, subtypes, pattern, limit]
+     LIMIT $3`,
+    [userId, subtypes, limit, ...patterns]
   )) as OfficeContentHit[];
+}
+
+const MAX_OFFICE_SEARCH_TERMS = 6;
+
+/** Die Wörter einer Suche, ohne Ein-Zeichen-Rauschen und Dubletten. */
+export function officeSearchTerms(query: string): string[] {
+  const words = query
+    .split(/\s+/)
+    .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter((w) => w.length >= 2);
+  return [...new Set(words.map((w) => w.toLowerCase()))].slice(0, MAX_OFFICE_SEARCH_TERMS);
 }

@@ -94,7 +94,7 @@ export const StudioAssetCard = memo(function StudioAssetCard({
             type="button"
             onClick={() => onToggleLike(item)}
             className={cn(overlayAction, 'w-auto gap-1 px-2.5 hover:bg-[#0f1210]/85')}
-            aria-label={`Gefällt mir (${item.likesCount})`}
+            aria-label={`Gefällt mir, ${item.likesCount}`}
             aria-pressed={item.liked}
             title="Gefällt mir"
           >

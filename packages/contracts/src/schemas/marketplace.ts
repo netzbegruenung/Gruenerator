@@ -234,9 +234,14 @@ export type MarketplaceLikeResponse = z.infer<typeof marketplaceLikeResponseSche
 export const marketplaceSaveResponseSchema = z.object({ saved: z.boolean() });
 export type MarketplaceSaveResponse = z.infer<typeof marketplaceSaveResponseSchema>;
 
-/** F0 — the shelves of the front page („Start"), in the order the server returns them. */
+/**
+ * F0 — the shelves of the front page („Start"), in the order the server returns them.
+ * `rezepte` was added later: the server sends it to web only, so shipped mobile
+ * binaries never meet an id their enum does not know.
+ */
 export const marketplaceFrontpageShelfIdSchema = z.enum([
   'landesverband',
+  'rezepte',
   'neu',
   'beliebt',
   'gestalten',

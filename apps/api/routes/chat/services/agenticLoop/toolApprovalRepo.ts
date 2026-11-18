@@ -124,8 +124,13 @@ export async function revokeStandingAllow(userId: string, scopeKey: string): Pro
 }
 
 /** Beim Trennen eines Servers: seine Freigaben verlieren ihren Gegenstand. */
-export async function revokeApprovalsForServer(userId: string, serverId: string): Promise<void> {
-  const prefix = `mcp:${serverId}/`;
+export async function revokeApprovalsForServer(
+  userId: string,
+  serverId: string,
+  /** `managed`: a known connector's tools are keyed by its registry key (`managed:<key>/<tool>`). */
+  kind: 'mcp' | 'managed' = 'mcp'
+): Promise<void> {
+  const prefix = `${kind}:${serverId}/`;
   try {
     const rows = await listApprovals(userId);
     const stale = rows.filter((r) => r.scopeKey.startsWith(prefix));

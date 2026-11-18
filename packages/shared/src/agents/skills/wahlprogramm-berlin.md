@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-wahlprogramm-berlin'
 title: 'Wahlprogramm Berlin'
-description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin'
+description: 'Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin. Nutzen, wenn gefragt wird, was das Programm in Berlin zu einem Thema sagt.'
 iconKey: 'PiBuildings'
 avatar: '📘'
 backgroundColor: '#316049'

@@ -6,3 +6,4 @@ export * from './rolesConfig.js';
 export * from './instanceRoleOffer.js';
 export * from './grueneMdBs.js';
 export * from './rolePromptGeneration.js';
+export * from './roleFromEmail.js';

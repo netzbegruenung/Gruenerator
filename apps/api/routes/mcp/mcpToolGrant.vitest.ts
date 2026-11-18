@@ -13,7 +13,9 @@ const getPendingDrift = vi.fn();
 const approveTools = vi.fn();
 vi.mock('../../services/mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
-    isManagedId: (id: string) => id.startsWith('system-'),
+    // A `system-…` alias without a row resolves to nothing (never connected).
+    resolveServerId: (_u: string, id: string) =>
+      Promise.resolve(id.startsWith('system-') ? null : id),
     getPendingDrift: (...a: unknown[]) => getPendingDrift(...a),
     approveTools: (...a: unknown[]) => approveTools(...a),
   },
@@ -87,7 +89,7 @@ describe('POST /api/mcp/servers/:id/tool-grant', () => {
     expect(approveTools).toHaveBeenCalledWith('u1', 's1');
   });
 
-  it('answers 404 for a managed connector id without querying', async () => {
+  it('answers 404 for a known-connector alias without a row, without querying', async () => {
     const res = await call('always', ['search'], 'system-wetter');
     expect(res.status).toBe(404);
     expect(getPendingDrift).not.toHaveBeenCalled();

@@ -15,6 +15,9 @@ vi.mock('../../../../services/bundestag/qa/index.js', () => ({
 }));
 
 const { retrieveBundestag } = await import('./searchNode.js');
+const { Deadline } = await import('../../../../utils/deadline.js');
+const { TOOL_TIMEOUT_OVERRIDES_MS } =
+  await import('../../../../routes/chat/services/agenticLoop/types.js');
 
 const candidate = (over: Record<string, unknown>) => ({
   ref: '21/1928',
@@ -138,6 +141,66 @@ describe('retrieveBundestag: Zusammenführung', () => {
     const r = await retrieveBundestag('x', 'de-DE');
     expect(r.ausfall).toBe(true);
     expect(r.results).toEqual([]);
+  });
+
+  const LEER = {
+    kind: 'topic',
+    topic: { hits: [], speeches: [], documents: [], vorgaenge: [] },
+    notes: [],
+  };
+
+  it('eine hängende Planstufe läuft in die Frist des Aufrufs und fällt auf den Altpfad zurück (#5560, #5570)', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(36_000);
+    try {
+      btSearch.mockResolvedValue(DOKUMENT);
+      plan.mockReturnValue(new Promise(() => {}));
+      const pending = retrieveBundestag('x', 'de-DE', undefined, deadline);
+      await vi.advanceTimersByTimeAsync(36_001);
+      const r = await pending;
+      expect(r.ausfall).toBeUndefined();
+      // Die Frist erreicht den Planaufruf, er läuft nicht weiter (und wechselt nicht den Anbieter).
+      expect((plan.mock.calls[0]![0] as { signal: AbortSignal }).signal.aborted).toBe(true);
+      expect(r.results.length).toBeGreaterThan(0);
+      // Die Frist liegt unter der Werkzeugfrist des Loops.
+      expect(36_000).toBeLessThan(TOOL_TIMEOUT_OVERRIDES_MS['bundestag']!);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('ohne tragenden Altpfad ergibt die abgelaufene Frist den Ausfall, nicht eine Zeitüberschreitung', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(36_000);
+    try {
+      btSearch.mockResolvedValue(LEER);
+      plan.mockReturnValue(new Promise(() => {}));
+      const pending = retrieveBundestag('x', 'de-DE', undefined, deadline);
+      await vi.advanceTimersByTimeAsync(36_001);
+      const r = await pending;
+      expect(r.ausfall).toBe(true);
+      expect(r.results).toEqual([]);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it('eine hängende Anreicherung hält die fertige Planliste nur bis zur Frist auf', async () => {
+    vi.useFakeTimers();
+    const deadline = new Deadline(36_000);
+    try {
+      btSearch.mockReturnValue(new Promise(() => {}));
+      plan.mockResolvedValue(planWith([candidate({})]));
+      const pending = retrieveBundestag('x', 'de-DE', undefined, deadline);
+      await vi.advanceTimersByTimeAsync(36_001);
+      const r = await pending;
+      expect(r.results).toHaveLength(1);
+    } finally {
+      deadline.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it('beide Stufen werfen: Ausfall, nicht leer', async () => {

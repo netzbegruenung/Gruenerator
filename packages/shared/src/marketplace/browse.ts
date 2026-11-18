@@ -30,12 +30,24 @@ export function shownMarketplaceTab(
   return tabs.some((t) => t.slug === tab) ? tab : (tabs[0]?.slug ?? 'alle');
 }
 
+/**
+ * „Alle" shows Rezepte before Agents. The order is display only — the
+ * `MARKETPLACE_KINDS` enum is F0 and keeps its sequence.
+ */
+const ALL_TAB_ORDER: readonly MarketplaceKind[] = ['recipe', 'agent'];
+
+function inAllTabOrder(kinds: readonly MarketplaceKind[]): readonly MarketplaceKind[] {
+  const lead = ALL_TAB_ORDER.filter((k) => kinds.includes(k));
+  const rest = kinds.filter((k) => !ALL_TAB_ORDER.includes(k));
+  return [...lead, ...rest];
+}
+
 /** The kinds a tab shows within what the view allows. */
 export function kindsOfMarketplaceTab(
   tab: MarketplaceTabSlug,
   kinds: readonly MarketplaceKind[]
 ): readonly MarketplaceKind[] {
-  if (tab === 'alle') return kinds;
+  if (tab === 'alle') return inAllTabOrder(kinds);
   return MARKETPLACE_TABS.find((t) => t.slug === tab)?.kinds ?? kinds;
 }
 
