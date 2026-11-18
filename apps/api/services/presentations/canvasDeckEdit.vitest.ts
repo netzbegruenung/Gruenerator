@@ -19,8 +19,12 @@ vi.mock('../canvas/canvasStateService.js', () => ({
   applyDeckChanges: (...a: unknown[]) => mocks.applyDeckChanges(...a),
 }));
 
-const { CanvasDocumentNewerError, CanvasDocumentNewerReadError, CanvasStateUnwritableError } =
-  await import('../canvas/canvasWriteErrors.js');
+const {
+  CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
+  CanvasStateUnwritableError,
+} = await import('../canvas/canvasWriteErrors.js');
 const {
   describeDeckForEditing,
   planAndApplyCanvasDeckEdit,
@@ -259,6 +263,38 @@ describe('a deck newer than the server', () => {
       basePageIds: pages.map((p) => p.id),
     });
     expect(out).toMatchObject({ status: 'failed', reason: 'document_newer' });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('a deck whose live state is unavailable (#5775)', () => {
+  it('is not planned on the stale mirror: the edit fails with the retry sentence', async () => {
+    const error = new CanvasLiveStateUnavailableError('c1');
+    mocks.getCurrentDeckState.mockRejectedValue(error);
+    const out = await planAndApplyCanvasDeckEdit({
+      canvasId: 'c1',
+      userId: 'u1',
+      instruction: 'x',
+      destructiveAllowed: true,
+    });
+    expect(out).toMatchObject({
+      status: 'failed',
+      reason: 'live_unavailable',
+      message: error.message,
+    });
+    expect(mocks.aiObject).not.toHaveBeenCalled();
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+
+  it('a confirmed edit is not applied on the stale mirror either', async () => {
+    mocks.getCurrentDeckState.mockRejectedValue(new CanvasLiveStateUnavailableError('c1'));
+    const out = await applyPlannedCanvasDeckOperations({
+      canvasId: 'c1',
+      userId: 'u1',
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+      basePageIds: pages.map((p) => p.id),
+    });
+    expect(out).toMatchObject({ status: 'failed', reason: 'live_unavailable' });
     expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
   });
 });
