@@ -6,7 +6,7 @@
  * Measured 2026-11-10 on an M5, 100 s of 1080×1920 (spike, section 2):
  * scene pass 1 s, sharpness at 2 fps 6 s.
  */
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 
 import { ffmpegPool } from '../subtitler/ffmpegPool.js';
 import { ffmpegPath } from '../subtitler/ffmpegWrapper.js';
@@ -107,23 +107,67 @@ export function qualityRanges(samples: readonly FrameSample[]): QualityRange[] {
     .sort((a, b) => a.start - b.start);
 }
 
-export function runCapture(args: string[], label: string): Promise<string> {
-  return ffmpegPool.run(
-    () =>
-      new Promise<string>((resolve, reject) => {
-        const proc = spawn(ffmpegPath, ['-hide_banner', '-nostats', ...args]);
-        let stderr = '';
-        proc.stderr.on('data', (chunk: Buffer) => {
-          stderr += chunk.toString();
-        });
-        proc.on('error', reject);
-        proc.on('close', (code) => {
-          if (code === 0) resolve(stderr);
-          else reject(new Error(`ffmpeg ${label} exited with ${code}: ${stderr.slice(-500)}`));
-        });
-      }),
-    label
-  );
+/** Per-call limits: a hung ffmpeg must not hold a job (videoAiWorker JOB_BUDGET_MS). */
+export const FFMPEG_LIMITS_MS = {
+  /** Proxy transcode and the video analysis pass: about ten times realtime. */
+  pass: 20 * 60 * 1000,
+  speechAudio: 5 * 60 * 1000,
+  frame: 60 * 1000,
+} as const;
+
+/**
+ * The one kill timeout of the ffmpeg spawns: `settle` wires the caller's own
+ * stdout/stderr handling; if neither callback ran within `limitMs`, the
+ * process gets SIGKILL and the promise rejects. Late callbacks are ignored.
+ */
+export function settleWithin<T>(
+  proc: Pick<ChildProcess, 'kill'>,
+  limitMs: number,
+  label: string,
+  settle: (resolve: (value: T) => void, reject: (error: Error) => void) => void
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      proc.kill('SIGKILL');
+      reject(
+        new Error(`ffmpeg ${label} took longer than ${Math.round(limitMs / 1000)} s and was killed`)
+      );
+    }, limitMs);
+    const finish = (): boolean => {
+      if (done) return false;
+      done = true;
+      clearTimeout(timer);
+      return true;
+    };
+    settle(
+      (value) => {
+        if (finish()) resolve(value);
+      },
+      (error) => {
+        if (finish()) reject(error);
+      }
+    );
+  });
+}
+
+export function runCapture(args: string[], label: string, limitMs: number): Promise<string> {
+  return ffmpegPool.run(() => {
+    const proc = spawn(ffmpegPath, ['-hide_banner', '-nostats', ...args]);
+    return settleWithin<string>(proc, limitMs, label, (resolve, reject) => {
+      let stderr = '';
+      proc.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      proc.on('error', reject);
+      proc.on('close', (code) => {
+        if (code === 0) resolve(stderr);
+        else reject(new Error(`ffmpeg ${label} exited with ${code}: ${stderr.slice(-500)}`));
+      });
+    });
+  }, label);
 }
 
 /** Runs the video pass on one clip (ideally the proxy). */
@@ -142,7 +186,8 @@ export async function analyzeClip(path: string): Promise<ClipAnalysis> {
       'null',
       '-',
     ],
-    'video-ai-video'
+    'video-ai-video',
+    FFMPEG_LIMITS_MS.pass
   );
   return {
     sceneCuts: parseSceneCuts(video),

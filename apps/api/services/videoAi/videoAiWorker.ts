@@ -49,6 +49,12 @@ export const MAX_ATTEMPTS = 3;
 /** The claim is renewed every minute while a job runs; a crash frees it after this. */
 export const STALE_CLAIM_MS = 5 * 60 * 1000;
 export const HEARTBEAT_MS = 60_000;
+/**
+ * Longest a run keeps its claim alive. A hung ffmpeg or network call would
+ * otherwise renew it forever; after this the heartbeat stops and the
+ * stale-claim path (retry, then give-up with refund) takes over.
+ */
+export const JOB_BUDGET_MS = 30 * 60 * 1000;
 /** A failed attempt becomes claimable again after this, not on the next tick. */
 export const RETRY_DELAY_MS = 60_000;
 const TICK_INTERVAL_MS = 10_000;
@@ -316,7 +322,13 @@ export async function drainVideoAiProjects(
   ]);
   const row = rows[0];
   if (!row) return false;
+  const startedAt = Date.now();
   const heartbeat = setInterval(() => {
+    if (Date.now() - startedAt >= JOB_BUDGET_MS) {
+      log.warn(`KI-Schnitt ${row.id}: over its budget, claim no longer renewed`);
+      clearInterval(heartbeat);
+      return;
+    }
     deps.db.query(HEARTBEAT_SQL, [row.id]).catch((error: unknown) => {
       log.warn(`KI-Schnitt ${row.id}: heartbeat failed: ${(error as Error).message}`);
     });

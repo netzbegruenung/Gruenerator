@@ -8,7 +8,9 @@ import {
   GENERIC_FAILURE,
   GIVE_UP_SQL,
   handleFailure,
+  HEARTBEAT_MS,
   HEARTBEAT_SQL,
+  JOB_BUDGET_MS,
   processClaimed,
   RETRY_DELAY_MS,
   STALE_CLAIM_MS,
@@ -228,6 +230,20 @@ describe('claim', () => {
     expect(queries.find((q) => q.sql === HEARTBEAT_SQL)?.params).toEqual([ROW.id]);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(beats()).toBe(2);
+  });
+
+  it('stops renewing a hung job at the budget, so the stale-claim path takes over', async () => {
+    vi.useFakeTimers();
+    const { deps, queries } = recording({
+      analyzeClip: vi.fn(() => new Promise<StoredClipAnalysis>(() => {})),
+    });
+    void drainVideoAiProjects(deps);
+    const beats = () => queries.filter((q) => q.sql === HEARTBEAT_SQL).length;
+    await vi.advanceTimersByTimeAsync(JOB_BUDGET_MS - 1);
+    // Every full minute before the budget, none at or after it.
+    expect(beats()).toBe(JOB_BUDGET_MS / HEARTBEAT_MS - 1);
+    await vi.advanceTimersByTimeAsync(JOB_BUDGET_MS);
+    expect(beats()).toBe(JOB_BUDGET_MS / HEARTBEAT_MS - 1);
   });
 
   it('makes a failed attempt claimable again only after the retry delay', async () => {

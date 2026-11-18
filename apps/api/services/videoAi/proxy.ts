@@ -13,7 +13,7 @@ import { spawn } from 'child_process';
 import { ffmpegPool } from '../subtitler/ffmpegPool.js';
 import { ffmpegPath } from '../subtitler/ffmpegWrapper.js';
 
-import { runCapture } from './ffmpegAnalysis.js';
+import { FFMPEG_LIMITS_MS, runCapture, settleWithin } from './ffmpegAnalysis.js';
 
 export const PROXY_MAX_SIDE = 1920;
 export const PROXY_FPS = 30;
@@ -53,33 +53,36 @@ export function proxyArgs(input: string, output: string): string[] {
 }
 
 export async function transcodeProxy(input: string, output: string): Promise<void> {
-  await runCapture(proxyArgs(input, output), 'video-ai-proxy');
+  await runCapture(proxyArgs(input, output), 'video-ai-proxy', FFMPEG_LIMITS_MS.pass);
 }
 
 /** Mono MP3 for the transcription: small enough for one upload of fifteen minutes. */
 export function speechAudio(input: string): Promise<Buffer> {
-  return ffmpegPool.run(
-    () =>
-      new Promise<Buffer>((resolve, reject) => {
-        const proc = spawn(ffmpegPath, [
-          '-hide_banner',
-          '-loglevel',
-          'error',
-          '-i',
-          input,
-          '-vn',
-          '-ac',
-          '1',
-          '-ar',
-          '16000',
-          '-c:a',
-          'libmp3lame',
-          '-b:a',
-          '64k',
-          '-f',
-          'mp3',
-          '-',
-        ]);
+  return ffmpegPool.run(() => {
+    const proc = spawn(ffmpegPath, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      input,
+      '-vn',
+      '-ac',
+      '1',
+      '-ar',
+      '16000',
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      '64k',
+      '-f',
+      'mp3',
+      '-',
+    ]);
+    return settleWithin<Buffer>(
+      proc,
+      FFMPEG_LIMITS_MS.speechAudio,
+      'video-ai-speech',
+      (resolve, reject) => {
         const chunks: Buffer[] = [];
         let stderr = '';
         proc.stdout.on('data', (c: Buffer) => chunks.push(c));
@@ -92,7 +95,7 @@ export function speechAudio(input: string): Promise<Buffer> {
           if (code === 0 && audio.length > 0) resolve(audio);
           else reject(new Error(`speech audio failed (${code}): ${stderr.slice(-300)}`));
         });
-      }),
-    'video-ai-speech'
-  );
+      }
+    );
+  }, 'video-ai-speech');
 }

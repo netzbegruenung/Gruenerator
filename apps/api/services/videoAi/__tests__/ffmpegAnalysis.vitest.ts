@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BLUR_THRESHOLD,
   parseFrameSamples,
   parseSceneCuts,
   qualityRanges,
+  settleWithin,
 } from '../ffmpegAnalysis.js';
 
 import { fixture } from './fixtures.js';
@@ -42,5 +43,37 @@ describe('qualityRanges', () => {
       sample(t, t === 0.5 ? 12 : 5, t >= 1 ? 20 : 80)
     );
     expect(qualityRanges(samples)).toEqual([{ start: 1, end: 3, flag: 'dunkel' }]);
+  });
+});
+
+describe('settleWithin', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('kills a run that outlives its limit and rejects with the label', async () => {
+    vi.useFakeTimers();
+    const proc = { kill: vi.fn(() => true) };
+    const run = settleWithin<string>(proc, 60_000, 'video-ai-frame', () => {});
+    const outcome = run.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(proc.kill).toHaveBeenCalledWith('SIGKILL');
+    expect(await outcome).toEqual(
+      new Error('ffmpeg video-ai-frame took longer than 60 s and was killed')
+    );
+  });
+
+  it('leaves a run that finishes in time alone', async () => {
+    vi.useFakeTimers();
+    const proc = { kill: vi.fn(() => true) };
+    const ctl: { finish: ((v: string) => void) | null } = { finish: null };
+    const run = settleWithin<string>(proc, 60_000, 'video-ai-frame', (resolve) => {
+      ctl.finish = resolve;
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+    ctl.finish?.('ok');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await run).toBe('ok');
+    expect(proc.kill).not.toHaveBeenCalled();
   });
 });

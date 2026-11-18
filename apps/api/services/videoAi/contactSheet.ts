@@ -12,6 +12,8 @@ import sharp from 'sharp';
 import { ffmpegPool } from '../subtitler/ffmpegPool.js';
 import { ffmpegPath } from '../subtitler/ffmpegWrapper.js';
 
+import { FFMPEG_LIMITS_MS, settleWithin } from './ffmpegAnalysis.js';
+
 export const CELLS_PER_SHEET = 9;
 const GRID = 3;
 const CELL_WIDTH = 512;
@@ -47,27 +49,30 @@ export function sampleTimes(duration: number, sceneCuts: readonly number[]): num
 }
 
 function grabFrame(path: string, t: number): Promise<Buffer> {
-  return ffmpegPool.run(
-    () =>
-      new Promise<Buffer>((resolve, reject) => {
-        const proc = spawn(ffmpegPath, [
-          '-hide_banner',
-          '-loglevel',
-          'error',
-          '-ss',
-          String(t),
-          '-i',
-          path,
-          '-frames:v',
-          '1',
-          '-vf',
-          `scale=${CELL_WIDTH}:-2`,
-          '-f',
-          'image2pipe',
-          '-vcodec',
-          'mjpeg',
-          '-',
-        ]);
+  return ffmpegPool.run(() => {
+    const proc = spawn(ffmpegPath, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-ss',
+      String(t),
+      '-i',
+      path,
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${CELL_WIDTH}:-2`,
+      '-f',
+      'image2pipe',
+      '-vcodec',
+      'mjpeg',
+      '-',
+    ]);
+    return settleWithin<Buffer>(
+      proc,
+      FFMPEG_LIMITS_MS.frame,
+      'video-ai-frame',
+      (resolve, reject) => {
         const chunks: Buffer[] = [];
         let stderr = '';
         proc.stdout.on('data', (c: Buffer) => chunks.push(c));
@@ -80,9 +85,9 @@ function grabFrame(path: string, t: number): Promise<Buffer> {
           if (code === 0 && frame.length > 0) resolve(frame);
           else reject(new Error(`frame at ${t}s failed (${code}): ${stderr.slice(-300)}`));
         });
-      }),
-    'video-ai-frame'
-  );
+      }
+    );
+  }, 'video-ai-frame');
 }
 
 export async function buildContactSheets(
