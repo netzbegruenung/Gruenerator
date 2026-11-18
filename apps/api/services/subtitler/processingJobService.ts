@@ -192,7 +192,9 @@ export async function startSubtitledVideoExport(body: ExportRequest): Promise<St
         await ps.ensureInitialized();
         const proj = await ps.getProject(userId, projectId);
         if (proj?.video_path) {
-          inputPath = ps.getVideoPath(proj.video_path);
+          // System-storage sources (parteitag) resolve via the owner-scoped lookup.
+          const source = await ps.getVideoSource(userId, projectId);
+          inputPath = source?.path ?? null;
           originalFilename = proj.video_filename || 'video.mp4';
         }
       } catch {

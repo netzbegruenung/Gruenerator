@@ -11,6 +11,7 @@ import { createCutOutPainter } from '../../services/sharepicCreator/cutOut.js';
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
 import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
 import { createIllustrationPainter } from '../../services/sharepicCreator/illustrations.js';
+import { draftNextSeite, NoFittingSeiteError } from '../../services/sharepicCreator/nextSeite.js';
 import { analyzePhoto, loadOwnPhoto } from '../../services/sharepicCreator/photoAnalysis.js';
 import { reviewSharepic } from '../../services/sharepicCreator/review.js';
 import { createScenePainter } from '../../services/sharepicCreator/sceneBackground.js';
@@ -23,6 +24,13 @@ import type { Application } from 'express';
 const log = createLogger('sharepicCreatorContractRouter');
 
 const s = initServer();
+
+/** The painters a draft may call, on the user's own quota. */
+const paintersFor = (userId: string) => ({
+  scene: createScenePainter(userId),
+  illustrations: createIllustrationPainter(userId),
+  cutOut: createCutOutPainter(userId),
+});
 
 export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
   draft: async ({ req, body }) => {
@@ -38,11 +46,7 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
           locale,
           body.current ?? null,
           body.photos ?? [],
-          {
-            scene: createScenePainter(user.id),
-            illustrations: createIllustrationPainter(user.id),
-            cutOut: createCutOutPainter(user.id),
-          },
+          paintersFor(user.id),
           // Only a picked chip fixes the form; the request's words are read by the model.
           body.form ?? null,
           body.prompt,
@@ -55,6 +59,33 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
     } catch (err) {
       if (!(err instanceof DraftFailedError)) throw err;
       log.warn(`draft failed: ${err.message}`);
+      return { status: 502 as const, body: draftFailedBody(err) };
+    }
+  },
+  nextSeite: async ({ req, body }) => {
+    const user: UserProfile = getAuthedUser(req);
+    const locale = body.locale ?? (user.locale === 'de-AT' ? 'de-AT' : 'de-DE');
+    try {
+      return {
+        status: 200 as const,
+        body: await draftNextSeite({
+          candidates: body.candidates,
+          deck: body.deck,
+          format: body.format,
+          locale,
+          brand: body.brand ?? 'gruene',
+          painters: paintersFor(user.id),
+        }),
+      };
+    } catch (err) {
+      if (err instanceof NoFittingSeiteError) {
+        return {
+          status: 422 as const,
+          body: { error: 'Keine der Vorlagen passt zu diesem Format.' },
+        };
+      }
+      if (!(err instanceof DraftFailedError)) throw err;
+      log.warn(`next Seite failed: ${err.message}`);
       return { status: 502 as const, body: draftFailedBody(err) };
     }
   },

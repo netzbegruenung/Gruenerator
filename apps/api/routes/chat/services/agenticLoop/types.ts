@@ -271,6 +271,16 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // Aufruf hat seine eigene Frist (`landtagTool.ts`, dieser Wert minus Rand) und bricht
   // alles ab, was hängt — die Schleife wartet also höchstens so lange.
   landtag: 45_000,
+  // Index plus ein Live-Abruf je Parteitag (Frist 6 s, `services/antragsgruen/live.ts`).
+  antragsgruen: 30_000,
+  antragsgruen_lesen: 30_000,
+  antragsgruen_auswerten: 30_000,
+  // Nur die Adressprüfung bei antragsgruen.de (Frist 20 s, `hosting/formClient.ts`).
+  antragsgruen_seite_anlegen: 25_000,
+  // Nur die Liste der eigenen Seiten; eingereicht wird erst nach der Bestätigung.
+  antragsgruen_antrag_stellen: 10_000,
+  // Lesen meldet sich bei Antragsgrün an (Login, Admin-Prüfung, Tagesordnung).
+  antragsgruen_tagesordnung: 30_000,
 };
 
 /**
@@ -304,14 +314,6 @@ export function editToolNameFor(
  * MCP/connector tools already skip this heuristic via `serverNameFor`
  * (`wrapTools.ts`); these are its internal-tool equivalent.
  */
-/**
- * Werkzeuge, die nur eine ENTSCHEIDUNG des Planers tragen und nichts tun:
- * keine Karte, kein gespeicherter Schritt, keine Wächter. `direkt_antworten`
- * ist die Gegenwahl zu `tabelle_auswerten` auf dem erzwungenen ersten Schritt
- * eines Tabellen-Turns (`tabular_decision`, #5042).
- */
-export const UNRECORDED_TOOLS: ReadonlySet<string> = new Set(['direkt_antworten']);
-
 export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf
@@ -346,4 +348,14 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // Wie `bundestag`: die Verfeinerung (Fraktion, Art, Zeitraum) teilt die Wörter der ersten Suche.
   'landtag',
   'nationalrat',
+  // Filterverfeinerung (Parteitag, Antrag, Antragsteller*in) teilt die Wörter der ersten Suche.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
+  // Lesen und dann Setzen der Tagesordnung tragen fast dieselben Argumente
+  // ({seite} gegen {seite, punkte}); als Duplikat blockiert, kündigte das Modell
+  // die Änderung nur an (dev bypass 16.11.2026).
+  'antragsgruen_tagesordnung',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_seite_anlegen',
 ]);

@@ -19,7 +19,10 @@ import { chunkInspectorContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { eq } from 'drizzle-orm';
 
-import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import {
+  getSystemCollectionConfig,
+  isRemoteCollection,
+} from '../../config/systemCollectionsConfig.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { documents } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -27,6 +30,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { buildEmbeddingText } from '../../services/document-services/embeddingText.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -98,6 +102,12 @@ export const chunkInspectorContractRouter = s.router(chunkInspectorContract, {
       // Der kanonische Auflöser. SYSTEM_COLLECTION_MAP (DocumentSearchService.ts:65)
       // ist eine unvollständige Zweitkopie und wird hier nicht angefasst.
       const systemConfig = getSystemCollectionConfig(collection);
+      if (systemConfig && isRemoteCollection(systemConfig)) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: notAvailableForRemote(systemConfig.name) },
+        };
+      }
       const qdrantCollection = systemConfig ? systemConfig.qdrantCollection : 'documents';
 
       const result = await documentSearchService.inspectDocumentChunks(

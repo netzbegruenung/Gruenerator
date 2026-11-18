@@ -35,7 +35,7 @@ const FORCED_LOOP_ADDED = ['bundestag', 'abgeordnetenwatch'] as const;
  * Seit 11/2026, gleich in der Schleife geboren: `abgeordnetenhaus` hatte nie
  * einen Einzeldurchlauf, seine Erwähnung zurrt das Werkzeug `landtag` fest.
  */
-const FORCED_LOOP_BORN = ['abgeordnetenhaus'] as const;
+const FORCED_LOOP_BORN = ['abgeordnetenhaus', 'antragsgruen'] as const;
 
 /**
  * `umfragen` stand als dritter in `IS_MCP_TURN_BEFORE` und ist der erste

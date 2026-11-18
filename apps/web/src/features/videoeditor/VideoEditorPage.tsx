@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { editorAppSrc, VIDEO_EDITOR_APP_PATH } from './editorAppSrc';
 import VideoEditorBetaDialog from './VideoEditorBetaDialog';
 
 /**
@@ -11,7 +12,7 @@ import VideoEditorBetaDialog from './VideoEditorBetaDialog';
  * same-origin under VIDEO_EDITOR_APP_PATH — by nginx in production, by the Vite
  * dev proxy locally — so it shares the session cookie and calls /api directly.
  */
-export const VIDEO_EDITOR_APP_PATH = '/videoeditor/app/';
+export { VIDEO_EDITOR_APP_PATH };
 
 /**
  * The editor app's URL. Only the KI-Schnitt parameters go through (`ki` =
@@ -41,6 +42,7 @@ function betaNoticeSeen(): boolean {
 }
 
 export default function VideoEditorPage() {
+  const [src] = useState(() => editorAppSrc(window.location.search));
   const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
   // Read once: the frame keeps its document; changing src later would reload the editor.
   const [src] = useState(() => editorAppSrc(window.location.search));

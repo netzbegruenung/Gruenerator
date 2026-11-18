@@ -3,6 +3,7 @@
     "abgeordnetenhaus",
     "abgeordnetenwatch",
     "agentic",
+    "antragsgruen",
     "artifact",
     "bundestag",
     "chart",
@@ -51,6 +52,12 @@
       "mention": "@abgeordnetenwatch",
       "audience": "de-DE"
     },
+    "antragsgruen": {
+      "title": "Antragsgrün NRW",
+      "description": "Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW",
+      "mention": "@antragsgruennrw",
+      "audience": "de-DE"
+    },
     "board-erstellen": {
       "title": "Board erstellen",
       "description": "Erstellt ein Board aus dem Chatverlauf",
@@ -61,11 +68,6 @@
       "description": "Drucksachen, Beschlüsse und Debatten finden und belegt auswerten",
       "mention": "@bundestag",
       "audience": "de-DE"
-    },
-    "canva-trigger": {
-      "title": "Canva",
-      "description": "Eigene Canva-Designs einfügen",
-      "mention": "@canva"
     },
     "chart": {
       "title": "Diagramm",
@@ -256,7 +258,7 @@
       "description": "Schlägt zu einem Beitrag passende Sharepic-Vorlagen vor; per Klick wird daraus ein Sharepic mit dem Text."
     },
     "web": {
-      "label": "Recherche",
+      "label": "Websuche & Recherche",
       "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
     }
   },
@@ -620,6 +622,14 @@
       "audience": "de-DE"
     },
     {
+      "command": "@buerger-nrw",
+      "title": "Bürger*innen-Mail NRW",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen NRW. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für die Grünen NRW geantwortet wird.",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
       "command": "@buerger-saarland",
       "title": "Bürger*innen-Mail Saarland",
       "description": "Antwort-E-Mail auf eine Bürger*innenanfrage im Namen der Grünen Saarland. Nutzen statt der allgemeinen Bürger*innen-Mail, wenn für den Landesverband Saarland geantwortet wird.",
@@ -708,6 +718,14 @@
       "audience": "de-DE"
     },
     {
+      "command": "@beschluss-nrw",
+      "title": "Beschlussantrag NRW",
+      "description": "Beschlussantrag in der Beschlusssprache der Grünen NRW. Nutzen statt des Leitantrags, wenn ein Antrag für die Grünen NRW geschrieben wird.",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
       "command": "@beschluss-saarland",
       "title": "Beschlussantrag Saarland",
       "description": "Beschlussantrag in der Beschlusssprache der Grünen Saarland. Nutzen statt des Leitantrags, wenn ein Antrag für den Landesverband Saarland geschrieben wird.",
@@ -784,6 +802,14 @@
       "title": "Reise vorbereiten NRW (Beta)",
       "description": "Checkliste, was vor einer Reise im Auftrag des Landesverbands NRW zu klären ist (Beta). Nutzen, wenn eine Reise geplant wird, die der LV NRW erstattet.",
       "avatar": "🧳",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@antragsgruen-seite",
+      "title": "Antragsgrün-Seite anlegen (Experimentell)",
+      "description": "Legt für eine Versammlung eine eigene Antragsgrün-Seite auf antragsgruen.de an und trägt dich als Seiten-Admin ein. Nutzen, wenn für einen Parteitag, eine KMV oder MV ein Antragstool gebraucht wird (experimentell).",
+      "avatar": "🗳️",
       "category": "dokumente",
       "audience": "de-DE"
     }
@@ -945,6 +971,15 @@
       "title": "Grüne Saarland",
       "description": "Presse, Artikel und Parteitagsbeschlüsse Saarland",
       "avatar": "🏭",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "nordrhein-westfalen-notebook",
+      "mention": "@nrw",
+      "title": "Grüne NRW",
+      "description": "Presse und Beschlüsse NRW (Landesverband & Fraktion)",
+      "avatar": "🌻",
       "category": "landesebene",
       "audience": "de-DE"
     },

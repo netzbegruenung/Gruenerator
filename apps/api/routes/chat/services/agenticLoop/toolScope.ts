@@ -67,9 +67,10 @@ import { z } from 'zod';
 import type { ToolSet } from 'ai';
 
 /**
- * Das engere Rezept-Werkzeug für den erzwungenen Recherche-Schritt (Enum nur über
- * Methoden-Rezepte, `recipeTools.ts`). Hier definiert, weil der Umfang es aus
- * jedem anderen Schritt heraushält.
+ * Das frühere engere Rezept-Werkzeug (Enum nur über Methoden-Rezepte), bis
+ * 11/2026 nur im erzwungenen Recherche-Schritt montiert. Heute nicht mehr
+ * montiert; der Name bleibt, weil gespeicherte Schritte ihn tragen (F0) und
+ * beim Fortsetzen und im Verlauf als Rezept-Aufruf gelesen werden.
  */
 export const METHOD_RECIPE_TOOL = 'methode_laden';
 
@@ -230,6 +231,26 @@ export const DEFERRABLE_GROUPS = [
     loaderDescription:
       'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
   },
+  {
+    // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): nur NRW-Parteitage, für die
+    // meisten Turns ohne Belang — deshalb die ganze Familie hinter dem Lader,
+    // auch der Einstieg. Die Erwähnung heftet `antragsgruen` an und öffnet damit.
+    id: 'antragsgruen',
+    loaderTool: 'antragsgruen_werkzeuge_laden',
+    // `antragsgruen_seite_anlegen` gilt nicht nur für NRW; es steht hier, weil
+    // dieselben Wörter es aufrufen und es sonst in jedem Turn ein Platz wäre.
+    tools: [
+      'antragsgruen',
+      'antragsgruen_lesen',
+      'antragsgruen_auswerten',
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+    ],
+    hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
+    loaderDescription:
+      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen) sowie antragsgruen_seite_anlegen (eine eigene Antragsgrün-Seite auf antragsgruen.de anlegen), antragsgruen_antrag_stellen (einen Antrag auf dieser eigenen Seite einreichen) und antragsgruen_tagesordnung (ihre Tagesordnung lesen oder setzen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder wenn jemand eine eigene Antragsgrün-Seite für eine Versammlung haben will.',
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];
@@ -270,11 +291,17 @@ export interface ToolScope {
  * @param pinnedTool  Ein von einer @-Erwähnung festgezurrtes Werkzeug
  *   (`mentionPinnedTool`). MUSS die Gruppe öffnen, in der es liegt: das Label
  *   der Erwähnung ist aus `userText` entfernt, das Tor sieht die Absicht also
- *   gar nicht — und `pinnedFirstTool` erzwingt dieses Werkzeug auf Schritt 0.
+ *   gar nicht — und `buildPinnedToolNote` kündigt dieses Werkzeug dem Modell an.
  * @param priorToolNames  Die Werkzeuge, die frühere Turns dieses Threads
  *   gerufen haben. Hat einer davon in einer Gruppe gelegen, bleibt sie offen:
  *   nach "Zeig meine Aufgaben" trägt "und die vom Radentscheid?" kein einziges
  *   Wort mehr, an dem das Tor die Absicht erkennen könnte.
+ * @param previousUserText  Die Nachricht der Person im Turn davor. Passte der
+ *   `hint` dort, bleibt die Gruppe einen Turn länger offen: die Antwort auf eine
+ *   Rückfrage („KMV Köln März 2027, die Adresse schlag du vor") trägt kein
+ *   Stichwort mehr, und ohne Werkzeugaufruf im Turn davor greift auch
+ *   `priorToolNames` nicht. Gemessen 16.11.2026: die Gruppe war zu, Gemma rief
+ *   den Lader nicht und kündigte das Anlegen nur an.
  * @param enforce  `false` = Schattenbetrieb: das Tor entscheidet und wird
  *   protokolliert, schneidet aber nichts ab. Siehe `isToolScopeEnforced`.
  */
@@ -283,9 +310,18 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  previousUserText?: string | null;
+  /**
+   * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
+   * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
+   * einen Agenten mit eigenem Notebook, ohne dass damit Dokumente, Boards und
+   * Medien der Person mit aufgehen.
+   */
+  keepVisible?: readonly string[];
   enforce: boolean;
 }): ToolScope {
   const mounted = new Set(params.toolNames);
+  const keepVisible = new Set(params.keepVisible ?? []);
   const text = params.userText ?? '';
   const pinned = params.pinnedTool ?? null;
   const prior = new Set(params.priorToolNames ?? []);
@@ -296,9 +332,10 @@ export function createToolScope(params: {
     // `tools` ist ein Literal-Tupel, die Namen kommen als beliebige Strings aus
     // dem Zustand — die Verbreiterung ist die Grenze, nicht ein Typloch.
     const groupTools = group.tools as readonly string[];
-    const present = groupTools.filter((t) => mounted.has(t));
+    const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
+    if (params.previousUserText && group.hint.test(params.previousUserText)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];
     if (pinned && opening.includes(pinned)) continue;
     if (opening.some((t) => prior.has(t))) continue;
@@ -322,16 +359,8 @@ export function createToolScope(params: {
           if (group.opensOn?.some((t) => called.has(t))) closed.delete(group.id);
         }
       }
-      // `methode_laden` gehört allein dem erzwungenen ersten Schritt (er schneidet
-      // seine `activeTools` selbst zu); in jedem anderen Schritt bleibt es aus,
-      // dort gilt `rezept_laden` mit dem ganzen Katalog. Unabhängig von `enforce`.
-      const methodOnly = mounted.has(METHOD_RECIPE_TOOL) ? [METHOD_RECIPE_TOOL] : [];
-      if (!params.enforce || closed.size === 0) {
-        return methodOnly.length > 0
-          ? params.toolNames.filter((t) => t !== METHOD_RECIPE_TOOL)
-          : undefined;
-      }
-      const hidden = new Set<string>(methodOnly);
+      if (!params.enforce || closed.size === 0) return undefined;
+      const hidden = new Set<string>();
       for (const group of closed.values()) for (const t of group.tools) hidden.add(t);
       // Die Lader stehen nicht in `toolNames` — sie werden erst nach diesem
       // Aufruf montiert. Deshalb ausdrücklich anhängen, sonst schneidet

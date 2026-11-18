@@ -12,19 +12,12 @@
 export type { ProviderName } from '../ai/providers.js';
 import type { ProviderName } from '../ai/providers.js';
 
-export type ModelName = string;
-
 export interface ProviderOptions {
   provider?: ProviderName | undefined;
-  model?: ModelName | undefined;
+  model?: string | undefined;
   explicitProvider?: ProviderName | undefined;
 }
 
 export interface RequestMetadata {
   [key: string]: unknown;
-}
-
-export interface ProviderResult {
-  provider: ProviderName;
-  model: ModelName;
 }

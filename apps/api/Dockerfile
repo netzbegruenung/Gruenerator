@@ -24,7 +24,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # before it installs anything, so the patch files have to be in the image
 # even when the patched package is outside this filter's closure.
 COPY patches ./patches
-COPY tsconfig.base.json tsconfig.strict-migration.json ./
+COPY tsconfig.base.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
@@ -180,8 +180,10 @@ WORKDIR /app/apps/api
 RUN ln -s dist/config config && \
     ln -s dist/public public
 
-# Create runtime directories owned by app user
-RUN mkdir -p uploads logs
+# Create runtime directories owned by app user. uploads/system-media must exist in the image:
+# a separate volume mounted there only inherits the app user's ownership from an existing path
+# (otherwise it is created root-owned and the Parteitage import dies with EACCES).
+RUN mkdir -p uploads logs uploads/system-media
 
 # Symlink uploads/logs inside dist/ for code using __dirname-relative paths
 # (compiled JS runs from dist/, so __dirname resolves inside dist/)

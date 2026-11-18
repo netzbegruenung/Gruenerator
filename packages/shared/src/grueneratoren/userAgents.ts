@@ -222,6 +222,27 @@ export function usePublicUserAgents(enabled = true) {
   });
 }
 
+/**
+ * The agent a share link names (`<name>-<suffix>` or a uuid), when none of the
+ * caller's lists holds it — "Mit Anmeldung" without a Marktplatz listing. The
+ * server checks access; 404 resolves to `null` ("nicht gefunden"), anything
+ * else throws so the page can tell a failure from a missing agent.
+ */
+export function useAgentLink(slug: string | null) {
+  return useQuery({
+    queryKey: ['user-agent-link', slug],
+    enabled: slug !== null,
+    retry: false,
+    queryFn: async (): Promise<ForeignAgent | null> => {
+      if (slug === null) return null;
+      const res = await getContractsClient().userAgentsSharing.resolveLink({ params: { slug } });
+      if (res.status === 200) return res.body.agent;
+      if (res.status === 404) return null;
+      throw apiErrorFromResponse(res, 'Der Agent konnte nicht geladen werden.');
+    },
+  });
+}
+
 export function useDeleteUserAgent() {
   const qc = useQueryClient();
   return useMutation({

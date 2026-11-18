@@ -26,6 +26,7 @@ import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { sessionDebug } from '../../lib/sessionDebug';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
+import { getDevBypassUserId } from '../../utils/devBypassUser';
 import { isDesktopApp, isEmbedded } from '../../utils/platform';
 
 // Module-level flag to suppress 401 redirects during logout.
@@ -638,6 +639,8 @@ const sharedApiClient = createApiClient({
 });
 sharedApiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   widenTimeoutForBulkTransfer(config);
+  const devUser = getDevBypassUserId();
+  if (devUser) config.headers['x-dev-auth-user'] = devUser;
   return config;
 });
 setGlobalApiClient(sharedApiClient);
@@ -676,6 +679,8 @@ apiClient.interceptors.request.use(
     config.headers['X-User-Locale'] = getApiLocale();
     sendFormDataAsMultipart(config);
     widenTimeoutForBulkTransfer(config);
+    const devUser = getDevBypassUserId();
+    if (devUser) config.headers['x-dev-auth-user'] = devUser;
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
       const token = await getDesktopToken();

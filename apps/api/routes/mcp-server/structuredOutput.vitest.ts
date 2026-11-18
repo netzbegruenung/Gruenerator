@@ -50,11 +50,9 @@ vi.mock('./chatToolBridge.js', async (importOriginal) => ({
   registerAiTool: vi.fn(),
 }));
 
-const computeMergedFilters = vi.fn();
+const getMergedFilters = vi.fn();
 vi.mock('../research/researchController.js', () => ({
-  computeMergedFilters: (...a: unknown[]) => computeMergedFilters(...a),
-  getCachedFilters: () => null,
-  setCachedFilters: vi.fn(),
+  getMergedFilters: (...a: unknown[]) => getMergedFilters(...a),
 }));
 
 const { buildAuthenticatedMcpServer, renderNotebookAnswer } = await import('./serverFactory.js');
@@ -110,7 +108,7 @@ beforeEach(() => {
   executeDirectSearch.mockReset();
   executeDirectExamplesSearch.mockReset();
   executeDirectPressemitteilungExamples.mockReset();
-  computeMergedFilters.mockReset();
+  getMergedFilters.mockReset();
 });
 
 describe('gruenerator_search', () => {
@@ -229,7 +227,7 @@ describe('gruenerator_examples_search', () => {
 describe('gruenerator_get_filters', () => {
   it('erfüllt das Schema und trägt die volle Werteliste, nicht die gekürzte Prosa', async () => {
     const values = Array.from({ length: 30 }, (_, i) => ({ value: `v${i}`, count: 30 - i }));
-    computeMergedFilters.mockResolvedValue({
+    getMergedFilters.mockResolvedValue({
       filters: {
         content_type: { label: 'Inhaltstyp', type: 'keyword', values },
         published: { label: 'Datum', type: 'date_range', min: '2020-01-01', max: '2026-01-01' },
@@ -243,7 +241,7 @@ describe('gruenerator_get_filters', () => {
   });
 
   it('liefert auch ohne Filterfelder structuredContent — sonst kippt die Antwort in -32602', async () => {
-    computeMergedFilters.mockResolvedValue({ filters: {} });
+    getMergedFilters.mockResolvedValue({ filters: {} });
     const result = await callAndValidate('gruenerator_get_filters', { collection: 'deutschland' });
     expect(result.structuredContent).toMatchObject({ fields: [] });
     expect(result.isError).toBeUndefined();

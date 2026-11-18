@@ -505,7 +505,11 @@ describe('dokumente_lesen — aus dem Notebook-Reader übergebene Dokumente', ()
 
     expect(out.totalHits).toBe(1);
     expect(system.getSystemDocumentFullTextByUrl.mock.calls[0]![2]).toEqual({
-      must: [{ key: 'landesverband', match: { value: 'HH' } }],
+      must: [
+        { key: 'landesverband', match: { value: 'HH' } },
+        // Website-Abschriften von Antragsgrün-Beschlüssen (`applyDefaultFilter`).
+        { is_empty: { key: 'superseded_by' } },
+      ],
     });
     const [r] = sourceRegistry.getResults();
     expect(r?.url).toBe(URL);

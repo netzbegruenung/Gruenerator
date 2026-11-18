@@ -25,7 +25,7 @@ import { ChevronLeft, XIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { FiGrid, FiMonitor } from 'react-icons/fi';
 import { HiDocumentText, HiLink } from 'react-icons/hi';
-import { PiSquaresFour } from 'react-icons/pi';
+import { PiNotebook, PiRobot, PiSquaresFour } from 'react-icons/pi';
 
 import { ICONS } from '../../../config/icons';
 import { profileApiService } from '../../auth/services/profileApiService';
@@ -64,10 +64,20 @@ interface ContentCategory {
   contentType: string;
 }
 
-type CategoryId =
-  'collabDocs' | 'sheets' | 'presentations' | 'boards' | 'documents' | 'notebooks' | 'links';
+export type CategoryId =
+  | 'agents'
+  | 'recipes'
+  | 'collabDocs'
+  | 'sheets'
+  | 'presentations'
+  | 'boards'
+  | 'documents'
+  | 'notebooks'
+  | 'links';
 
 interface ContentState {
+  agents: ContentItem[];
+  recipes: ContentItem[];
   collabDocs: ContentItem[];
   sheets: ContentItem[];
   presentations: ContentItem[];
@@ -110,9 +120,23 @@ interface AddContentToGroupModalProps {
   isAddingLink?: boolean;
   /** Vorbelegung der Notiz, z. B. der Text aus dem Feed-Composer. */
   initialNote?: string;
+  /** Opens straight in this category (the „Hinzufügen" menu). */
+  initialCategory?: CategoryId;
 }
 
 const CONTENT_CATEGORIES: ContentCategory[] = [
+  {
+    id: 'agents',
+    label: 'Agents',
+    icon: PiRobot as IconType,
+    contentType: 'user_agents',
+  },
+  {
+    id: 'recipes',
+    label: 'Rezepte',
+    icon: PiNotebook as IconType,
+    contentType: 'user_text_forms',
+  },
   { id: 'collabDocs', label: 'Docs', icon: HiDocumentText, contentType: 'collaborative_documents' },
   {
     id: 'sheets',
@@ -154,6 +178,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   onAddLink,
   isAddingLink,
   initialNote,
+  initialCategory,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [selectedItems, setSelectedItems] = useState<SelectedItemsState>({});
@@ -179,6 +204,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     setWasOpen(isOpen);
     if (isOpen) {
       setNote((initialNote ?? '').slice(0, GROUP_SHARE_NOTE_MAX));
+      setActiveCategory(initialCategory ?? null);
     } else {
       setSelectedItems({});
       setActiveCategory(null);
@@ -197,6 +223,28 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
 
   const contentQueries = useQueries({
     queries: [
+      {
+        // Nur eigene Agents: `list` liefert keine fremden, und `id` ist der Teilen-Schlüssel.
+        queryKey: ['add-to-group', 'agents'],
+        queryFn: async (): Promise<ContentItem[]> => {
+          const result = await getContractsClient().userAgents.list();
+          if (result.status !== 200) return [];
+          return result.body.agents.flatMap((a) => (a.id ? [{ id: a.id, title: a.title }] : []));
+        },
+        enabled: isOpen,
+      },
+      {
+        // Ohne Projekt-Geteiltes und ohne angepasste System-Rezepte — die darf man nicht teilen.
+        queryKey: ['add-to-group', 'recipes'],
+        queryFn: async (): Promise<ContentItem[]> => {
+          const result = await getContractsClient().userTextForms.list();
+          if (result.status !== 200) return [];
+          return result.body.forms
+            .filter((f) => f.kind === 'custom' && f.sharedFromGroup === null)
+            .map((f) => ({ id: f.id, title: f.title }));
+        },
+        enabled: isOpen,
+      },
       {
         queryKey: ['add-to-group', 'collabDocs'],
         queryFn: async (): Promise<ContentItem[]> => {
@@ -230,7 +278,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const isLoading = contentQueries.some((q) => q.isLoading);
 
   const content = useMemo<ContentState>(() => {
-    const [allCollabDocs, boards, docs, notebooks] = contentQueries.map(
+    const [agents, recipes, allCollabDocs, boards, docs, notebooks] = contentQueries.map(
       (q) => (q.data as ContentItem[] | undefined) ?? []
     );
     const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
@@ -241,6 +289,8 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     // office items read as Sheets/Präsentationen instead of being lumped into Docs.
     const kindOf = (item: ContentItem) => subtypeToKind(item.document_subtype);
     return {
+      agents,
+      recipes,
       collabDocs: allCollabDocs.filter((d) => kindOf(d) === 'doc'),
       sheets: allCollabDocs.filter((d) => kindOf(d) === 'sheet'),
       presentations: allCollabDocs.filter((d) => kindOf(d) === 'pres'),
@@ -581,6 +631,11 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         ) : (
           /* ── Item grid ── */
           <div className="grid grid-cols-4 gap-xs px-lg py-sm">
+            {paginatedItems.length === 0 && (
+              <p className="col-span-4 m-0 text-sm text-muted-foreground">
+                Hier gibt es noch nichts, was du hinzufügen kannst.
+              </p>
+            )}
             {paginatedItems.map((item: ContentItem) => {
               const isSelected = currentSelections.some((sel) => String(sel) === String(item.id));
               const title = item.title || item.name || 'Ohne Titel';

@@ -16,6 +16,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notTrashed } from '../../database/trash.js';
 import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
+import { removeAllGroupShares } from '../groups/groupShareWriter.js';
 import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import { isUserAgentId } from './userAgentHandle.js';
@@ -82,6 +83,7 @@ function rowToAgent(row: UserAgentRow): UserAgentRecord {
     ...(row.inline_source_links != null ? { inlineSourceLinks: row.inline_source_links } : {}),
     ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
     ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
+    ...(row.slug_suffix ? { slugSuffix: row.slug_suffix } : {}),
   };
 }
 
@@ -252,12 +254,14 @@ export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<b
 // table keyed by the agent's UUID `id` (content_id), not the per-user
 // `identifier`. See migrations/user_agents_sharing_columns.sql.
 //
-// A share row alone grants nothing: every group-share reader also requires
-// `share_mode <> 'private'`, so setting an agent back to private revokes group
-// access without deleting the rows — switching back to 'groups' restores them,
-// and the sharing panel (which lists shares only in 'groups' mode) never hides
-// a share that still works. The share paths promote 'private' to 'groups'
-// before they insert (`shareContentToGroup`, `addGroupShare`).
+// Every group-share reader also requires `share_mode <> 'private'`, and
+// setting an agent to private deletes its share rows (`updateAgentSharing`):
+// a private agent has no Projekte, so the always-visible project list of the
+// sharing panel never shows a share that does not work, and adding a project
+// later does not silently bring back the old ones. The share paths promote
+// 'private' to 'groups' before they insert (`shareContentToGroup`,
+// `addGroupShare`). Rows from before this rule were cleared by
+// migrations/zz_20261111c_private_drops_group_shares.sql.
 
 export type UserAgentAudience = 'de-DE' | 'de-AT';
 export type UserAgentShareMode = 'private' | 'groups' | 'authenticated';
@@ -331,6 +335,10 @@ export async function updateAgentSharing(
     .set(values)
     .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .returning({ id: userAgents.id });
+  const row = rows[0];
+  if (row && patch.share_mode === 'private') {
+    await removeAllGroupShares({ contentType: 'user_agents', contentId: row.id });
+  }
   return rows.length > 0;
 }
 
@@ -462,11 +470,30 @@ export async function getAccessibleUserAgentById(
   id: string,
   requestingUserId: string
 ): Promise<UserAgentRecord | undefined> {
+  return getAccessibleUserAgentWhere('ua.id = $1::uuid', id, requestingUserId);
+}
+
+/**
+ * The same, by the share-link suffix (`<name>-<suffix>`): the key a link sent
+ * to someone else carries. A suffix is globally unique, like the uuid.
+ */
+export async function getAccessibleUserAgentBySlugSuffix(
+  suffix: string,
+  requestingUserId: string
+): Promise<UserAgentRecord | undefined> {
+  return getAccessibleUserAgentWhere('ua.slug_suffix = $1', suffix, requestingUserId);
+}
+
+async function getAccessibleUserAgentWhere(
+  selector: 'ua.id = $1::uuid' | 'ua.slug_suffix = $1',
+  value: string,
+  requestingUserId: string
+): Promise<UserAgentRecord | undefined> {
   const postgres = getPostgresInstance();
   const row = await postgres.queryOne<UserAgentRow>(
     `SELECT ua.*
        FROM user_agents ua
-      WHERE ua.id = $1::uuid
+      WHERE ${selector}
         AND ua.deleted_at IS NULL
         AND (
           ua.user_id = $2::uuid
@@ -486,7 +513,7 @@ export async function getAccessibleUserAgentById(
             )
           )
         )`,
-    [id, requestingUserId],
+    [value, requestingUserId],
     { table: 'user_agents' }
   );
   return row ? rowToAgent(row) : undefined;

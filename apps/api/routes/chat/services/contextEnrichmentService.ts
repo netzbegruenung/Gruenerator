@@ -10,6 +10,7 @@ import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifi
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
+import { CanvasDocumentNewerReadError } from '../../../services/canvas/canvasWriteErrors.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
@@ -22,13 +23,13 @@ import { appendTurnMaterial, replaceFileItems, setTurnMaterial } from './materia
 import { sendChatWarning } from './sseHelpers.js';
 import { resolveWholeDocumentTurn } from './wholeDocument.js';
 
-import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
-import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   ProcessedAttachment,
   TurnMaterialItem,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
+import type { SSEWriter } from './sseHelpers.js';
 
 const log = createLogger('ChatGraphController');
 
@@ -247,7 +248,18 @@ export async function enrichContext(opts: {
                 return `### ${d.title}\n\n${truncated}`;
               }
               if (d.document_subtype === 'canvas') {
-                const canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+                let canvasText: string;
+                try {
+                  canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+                } catch (err) {
+                  // Without this the whole context build fails. The model gets the reason as the
+                  // content instead of a silent gap, so it does not answer about a partial canvas.
+                  if (err instanceof CanvasDocumentNewerReadError) {
+                    log.warn(`[ChatGraph] Canvas ${d.id} not readable: ${err.message}`);
+                    return `### ${d.title}\n\n(${err.message})`;
+                  }
+                  throw err;
+                }
                 if (!canvasText) return null;
                 const truncated = truncateDocument(canvasText, perDocBudget, mentionQuery);
                 log.info(

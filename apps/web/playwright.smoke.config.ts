@@ -9,7 +9,10 @@ import { defineConfig, devices } from '@playwright/test';
  * not surface these — they only appear in the bundled production output.
  *
  *   pnpm --filter @gruenerator/web build
- *   pnpm --filter @gruenerator/web exec playwright test -c playwright.smoke.config.ts
+ *   pnpm --filter @gruenerator/web test:smoke
+ *
+ * CI: build-images.yml (job build-web) starts the built image and sets
+ * SMOKE_BASE_URL + SMOKE_SKIP_SERVER.
  */
 export default defineConfig({
   testDir: './tests/smoke',

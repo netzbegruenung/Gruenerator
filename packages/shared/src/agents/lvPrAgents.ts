@@ -41,6 +41,17 @@ export const LV_PR_SPECS = [
     themes:
       'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
   },
+  {
+    // Kein korpus-basierter Agent: NRW wird mit diesem PR erst indexiert, also
+    // greift die Template-Variante. Beim Wechsel auf eine hand-getunte
+    // definitions/*.md muss dieser Eintrag weichen.
+    lv: 'nordrhein-westfalen',
+    title: 'Nordrhein-Westfalen',
+    codes: ['NRW', 'NRW-F'],
+    notebook: 'nordrhein-westfalen-notebook',
+    themes:
+      'Strukturwandel im Rheinischen Revier und Kohleausstieg 2030, Industrie und klimaneutrale Wirtschaft, Verkehrswende (Radverkehr, ÖPNV, Sanierung von Brücken und Schiene), Klimaanpassung und Hitzeschutz, Bildung und Kita, Kommunalfinanzen und Altschulden',
+  },
   // Sachsen vorerst auskommentiert (#3713), siehe `landesverbaende.ts`.
   // {
   //   // Kein korpus-basierter Agent: Sachsen hat noch keine indexierten PMs, also

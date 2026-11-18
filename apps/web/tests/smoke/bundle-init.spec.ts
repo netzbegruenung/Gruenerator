@@ -13,9 +13,9 @@ import { test, expect } from '@playwright/test';
  * `apps/web/vite.config.ts` advancedChunks.groups:
  *   - /imagine        → vendor-konva, pkg-canvas-editor
  *   - /boards         → vendor-collab, vendor-mermaid
- *   - /themen         → vendor-recharts
+ *   - /briefing       → vendor-recharts
  *   - /docs/<id>      → vendor-blocknote-export (lazy on Export click — not asserted here)
- *   - /chat, /start, /workplace, /dashboard, /settings → entry chunk only
+ *   - /chat, /start, /workplace, /settings → entry chunk only
  *
  * The test fails on ANY pageerror or console-error matching the chunk-init
  * fingerprints. Other unrelated errors (network failures from missing API
@@ -31,10 +31,9 @@ const CHUNK_INIT_PATTERNS = [
 
 const ROUTES = [
   '/login',
-  '/dashboard',
   '/imagine',
   '/boards',
-  '/themen',
+  '/briefing',
   '/chat',
   '/start',
   '/start/chat',
@@ -48,6 +47,22 @@ const ROUTES = [
 for (const route of ROUTES) {
   test(`bundle-init: ${route}`, async ({ page }) => {
     const errors: string[] = [];
+
+    // No backend runs next to the bundle. nginx answers `/api/...` with
+    // index.html (try_files), and code that reads fields off that HTML
+    // throws "Cannot read properties of undefined", which looks exactly
+    // like a chunk-init failure. A 404 with the API's error shape is
+    // handled cleanly. A predicate, not a glob: `**/api/**` also matches
+    // bundle asset paths.
+    await page.route(
+      (url) => url.pathname.startsWith('/api/'),
+      (route) =>
+        route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: false, error: 'no backend in smoke test' }),
+        })
+    );
 
     page.on('pageerror', (err) => {
       const msg = `${err.name}: ${err.message}`;

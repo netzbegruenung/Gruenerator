@@ -24,6 +24,7 @@ export const ERROR_TYPES: Record<ErrorCode, string> = {
   CACHE_ERROR: 'Cache-Fehler',
   RESOURCE_ERROR: 'Ressourcen erschöpft',
   NOT_IMPLEMENTED: 'Funktion nicht implementiert',
+  SOURCE_UNAVAILABLE: 'Quelle gerade nicht erreichbar',
   UNKNOWN_ERROR: 'Unbekannter Fehler',
 };
 

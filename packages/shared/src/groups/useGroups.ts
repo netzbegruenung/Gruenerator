@@ -7,6 +7,7 @@ import {
   GROUPS_QUERY_KEY,
   groupContentKey,
   groupDetailsKey,
+  groupInstructionsKey,
   groupMembersKey,
   groupShareCommentsKey,
   type GroupDetail,
@@ -72,6 +73,41 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
     enabled: !!groupId,
     staleTime: 2 * 60 * 1000,
   });
+
+/** Anweisungen des Projekts, für alle Mitglieder lesbar. */
+export const useGroupInstructions = (groupId: string | null | undefined) =>
+  useQuery({
+    queryKey: groupInstructionsKey(groupId ?? ''),
+    queryFn: async (): Promise<string> => {
+      const res = await getContractsClient().groups.getGroupInstructions({
+        params: { groupId: groupId ?? '' },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Anweisungen konnten nicht geladen werden.');
+      return res.body.instructions;
+    },
+    enabled: !!groupId,
+    staleTime: 60 * 1000,
+    meta: { silent: true },
+  });
+
+/** Nur Projekt-Admins; ein leerer Text entfernt die Anweisungen. */
+export const useSetGroupInstructions = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (instructions: string): Promise<string> => {
+      const res = await getContractsClient().groups.setGroupInstructions({
+        params: { groupId },
+        body: { instructions },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      return res.body.instructions;
+    },
+    onSuccess: (instructions) => {
+      qc.setQueryData(groupInstructionsKey(groupId), instructions);
+    },
+  });
+};
 
 export const useCreateGroup = () => {
   const qc = useQueryClient();

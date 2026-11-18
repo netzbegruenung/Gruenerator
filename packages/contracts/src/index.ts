@@ -61,6 +61,7 @@ export {
   wolkePendingContract,
   notebookWordpressContract,
   userWebsitesContract,
+  antragsgruenSitesContract,
   letterheadsContract,
   notebookSharingContract,
   docsContract,
@@ -70,7 +71,6 @@ export {
   voiceContract,
   speechContract,
   imagePickerContract,
-  videoContract,
   sharepicContract,
   sharepicTextContract,
   unsplashContract,
@@ -93,6 +93,8 @@ export {
   sharedTemplateContract,
   templateInteractionsContract,
   studioAssetsContract,
+  parteitageContract,
+  parteitageAdminContract,
   marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
@@ -129,6 +131,7 @@ export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
 export * from './schemas/videoAi.js';
 export * from './schemas/studioAssets.js';
+export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
@@ -181,6 +184,7 @@ export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
 export * from './schemas/userWebsite.js';
+export * from './schemas/antragsgruenSites.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
@@ -191,7 +195,6 @@ export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
 export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
-export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
 export * from './schemas/unsplash.js';
@@ -244,6 +247,7 @@ export * from './sheetsYdoc.js';
 // Presentations (reveal.js) collab schema + pure formatting helpers —
 // reveal-free, shared by the editor package and the API.
 export * from './presentationsYdoc.js';
+export * from './canvasHostKeys.js';
 export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';

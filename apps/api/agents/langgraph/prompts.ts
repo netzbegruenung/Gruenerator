@@ -128,6 +128,23 @@ const ANSWER_BY_QUESTION_TYPE = [
 ];
 
 /**
+ * Parteitagsmaterial (Antragsgrün, `ParteitageScraper`) steht im LV-Notebook
+ * neben Beschlüssen: eingereichte Anträge, Änderungsanträge und Beschlüsse mit
+ * demselben Titel. Live 16.11.2026 im NRW-Notebook: die Antwort auf „Was haben
+ * die Grünen NRW beschlossen?" gab einen Satz aus einem Änderungsantrag als
+ * Position des Landesverbands aus — obwohl die Quelle „Änderungsantrag V-02-005"
+ * hieß und der Satz im Beschluss nicht steht. Die Regel hängt am Titel der
+ * Quelle, nicht an Wörtern der Frage.
+ */
+const DOCUMENT_STATUS_RULES = [
+  '## ANTRAG, ÄNDERUNGSANTRAG, BESCHLUSS:',
+  '- Eine Quelle, deren Titel mit „Änderungsantrag" beginnt, ist ein Vorschlag einzelner Antragsteller*innen. Gib ihren Inhalt nie als Position oder Beschluss des Verbands wieder, sondern ausdrücklich als Vorschlag: wer ihn gestellt hat und was er ändern wollte. Ob er übernommen wurde, zeigt nur der Text des Beschlusses.',
+  '- Eine Quelle, deren Titel mit „Antrag" beginnt, ist die eingereichte Fassung. Beschlossen ist, was in der Quelle „Beschluss …" steht. Liegen beide vor, stütze jede Aussage darüber, was beschlossen wurde, auf den Beschluss.',
+  '- Ein „Verfahrensvorschlag der Antragskommission" ist eine Empfehlung, kein Abstimmungsergebnis.',
+  '',
+];
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
@@ -144,6 +161,7 @@ function buildDraftPrompt(
     '',
     ...ANSWER_FORM_PRECEDENCE,
     ...ANSWER_BY_QUESTION_TYPE,
+    ...(isPolitical ? DOCUMENT_STATUS_RULES : []),
     '## ANTWORT-STRUKTUR:',
     '- Gilt für Überblicks- und Erklärfragen; die anderen Fragetypen haben ihre Form oben.',
     '',
@@ -231,6 +249,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     `Sammlung: ${collectionName}.`,
     '',
     ...ANSWER_FORM_PRECEDENCE,
+    ...(isPolitical ? DOCUMENT_STATUS_RULES : []),
     '## ANTWORT-STRUKTUR:',
     '- Maximal 3-4 Absätze',
     '- Beantworte die Frage VOLLSTÄNDIG: keine Ein-Satz- oder Ein-Absatz-Antworten, wenn die Quellen mehr hergeben',

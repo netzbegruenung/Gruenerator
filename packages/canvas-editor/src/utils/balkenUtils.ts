@@ -5,6 +5,8 @@
  * presets in `brand/balkenPresets.ts`.
  */
 
+import { type CANVAS_HOST_STATE_KEYS } from '@gruenerator/contracts';
+
 import type { ElementPlacement } from '@ggraphic/editor/elements';
 
 export type BalkenMode = 'single' | 'triple';
@@ -32,7 +34,11 @@ declare module '@ggraphic/editor/host' {
 // templates) holds the instances; a tile adds one by its `mode`.
 declare module '@ggraphic/editor/host' {
   interface HostElementKinds {
-    balken: { stateKey: 'balkenInstances'; data: BalkenInstance; payload: { mode: BalkenMode } };
+    balken: {
+      stateKey: (typeof CANVAS_HOST_STATE_KEYS)['balken'];
+      data: BalkenInstance;
+      payload: { mode: BalkenMode };
+    };
   }
 }
 

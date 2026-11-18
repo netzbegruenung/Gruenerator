@@ -1,6 +1,5 @@
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { takeVorlageBeitrag } from '@gruenerator/chat';
-import { type SharepicVorlage, vorlageFillPrompt } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,6 +11,8 @@ import { hasNativeEditorBar } from '../../hooks/useNativeEditorBar';
 import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { composeCreatorSharepic, creatorPhotoSrc } from '../image-studio/freitext/composeForRender';
 import { mintCreatorCanvas } from '../image-studio/freitext/useSharepicCreator';
+
+import { fillSpecWithText } from './fillSpecWithText';
 
 /**
  * `/studio/vorlage/:id` — copies a Grünerator-Vorlage into a new canvas of the
@@ -52,7 +53,7 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
         }
         const vorlage = res.body;
         const beitrag = withBeitrag ? takeVorlageBeitrag(id) : null;
-        const filled = beitrag ? await fillWithBeitrag(vorlage, beitrag) : null;
+        const filled = beitrag ? await fillSpecWithText(vorlage.spec, beitrag) : null;
         const { spec, attributions } = filled ?? {
           spec: vorlage.spec,
           attributions: vorlage.attributions,
@@ -88,22 +89,4 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
       </Button>
     </div>
   );
-}
-
-/** The Vorlage's spec with the post's content, or null when the draft fails. */
-async function fillWithBeitrag(
-  vorlage: SharepicVorlage,
-  beitrag: string
-): Promise<Pick<SharepicVorlage, 'spec' | 'attributions'> | null> {
-  const draft = await getContractsClient()
-    .sharepicCreator.draft({
-      body: {
-        current: vorlage.spec,
-        prompt: vorlageFillPrompt(beitrag),
-      },
-    })
-    .catch(() => null);
-  return draft?.status === 200
-    ? { spec: draft.body.spec, attributions: draft.body.attributions }
-    : null;
 }

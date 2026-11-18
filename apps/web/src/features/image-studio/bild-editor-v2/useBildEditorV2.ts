@@ -58,6 +58,12 @@ function errorText(e: unknown): string {
   return e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.';
 }
 
+/** The server's answer to an edit request that came without a photo (`/imagine/pure`). */
+function asksForPhoto(e: unknown): boolean {
+  const cause = (e as { cause?: { response?: { data?: { type?: unknown } } } } | null)?.cause;
+  return cause?.response?.data?.type === 'needs_image';
+}
+
 function readEntry(state: unknown): BevEntryState | null {
   const e = state as BevEntryState | null;
   if (!e || (!e.prompt && !e.image)) return null;
@@ -78,6 +84,9 @@ export function useBildEditorV2() {
   const [mode, setMode] = useState<BevMode>(handoff?.mode ?? 'erstellen');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The request was to edit a photo that never came along: the chat offers to attach one, and
+  // the next message with it edits that photo.
+  const [needsPhoto, setNeedsPhoto] = useState(false);
   // The request on its way, as the chat shows it (at first the one the Studio handed over). It
   // becomes a version, or stays with the error below it.
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(handoff?.prompt || null);
@@ -215,9 +224,16 @@ export function useBildEditorV2() {
   }, []);
 
   const commitImage = useCallback(
-    (image: string, forPrompt: string, kind: BevVersion['kind'], parentId: string | null) => {
+    (
+      image: string,
+      forPrompt: string,
+      kind: BevVersion['kind'],
+      parentId: string | null
+    ): string => {
+      // Not the clock alone: an attached photo and its edit can land in the same millisecond.
+      const id = 'v' + crypto.randomUUID();
       addVersion({
-        id: 'v' + Date.now(),
+        id,
         parentId,
         prompt: forPrompt,
         image,
@@ -241,6 +257,7 @@ export function useBildEditorV2() {
           .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
           .catch(() => {});
       }
+      return id;
     },
     [addVersion, createImageShare, queryClient]
   );
@@ -254,14 +271,17 @@ export function useBildEditorV2() {
   );
 
   const runEdit = useCallback(
-    async (text: string, references: readonly File[]) => {
-      if (!active) throw new Error('Kein Bild ausgewählt');
-      const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+    async (
+      text: string,
+      references: readonly File[],
+      on: Pick<BevVersion, 'id' | 'image' | 'num'>
+    ) => {
+      const base = await dataUrlToFile(on.image, `v${on.num}.jpg`);
       const files = [base, ...references].slice(0, MAX_EDIT_IMAGES);
       const res = await editAiImage(files, text, 'universal', undefined, { kiLabel: KI_LABEL });
-      commitImage(res.base64, text, 'edit', active.id);
+      commitImage(res.base64, text, 'edit', on.id);
     },
-    [active, commitImage]
+    [commitImage]
   );
 
   // The changed boxes go to FLUX 3 as rows; the chat text, if any, rides along in the instruction.
@@ -292,7 +312,9 @@ export function useBildEditorV2() {
       // The composer enables at >=3 chars; generate/edit enforce their real minimums and
       // surface a friendly "zu kurz" error we catch below.
       if (!boxEdit && text.length < 3) return false;
-      if (mode === 'bearbeiten' && !active) return false;
+      // Without an image on the stage, an attached photo is the one to edit.
+      const [photo, ...photoReferences] = active ? [] : references;
+      if (mode === 'bearbeiten' && !active && !photo) return false;
 
       const summary = boxEdit && boxes ? boxSummary(boxes) : '';
       const prompt = [text, summary].filter(Boolean).join(' · ');
@@ -301,19 +323,37 @@ export function useBildEditorV2() {
       setError(null);
       setPendingPrompt(prompt);
       try {
-        if (mode === 'erstellen') await runCreate(text);
+        if (photo) {
+          const image = await fileToDownscaledDataUrl(photo);
+          const id = commitImage(image, photo.name, 'upload', null);
+          await runEdit(text, photoReferences, { id, image, num: versions.length + 1 });
+        } else if (mode === 'erstellen') await runCreate(text);
         else if (boxEdit) await runBoxEdit(prompt, boxEdit);
-        else await runEdit(text, references);
+        else if (active) await runEdit(text, references, active);
         setPendingPrompt(null);
+        setNeedsPhoto(false);
         return true;
       } catch (e) {
         setError(errorText(e));
+        setNeedsPhoto(asksForPhoto(e));
         return false;
       } finally {
         setGenerating(false);
       }
     },
-    [generating, mode, active, expert, boxes, boxesLoading, runCreate, runEdit, runBoxEdit]
+    [
+      generating,
+      mode,
+      active,
+      versions.length,
+      expert,
+      boxes,
+      boxesLoading,
+      commitImage,
+      runCreate,
+      runEdit,
+      runBoxEdit,
+    ]
   );
 
   const addUpload = useCallback(
@@ -398,6 +438,7 @@ export function useBildEditorV2() {
     generating: busy,
     statusText,
     error,
+    needsPhoto,
     expert,
     boxes,
     boxesLoading,

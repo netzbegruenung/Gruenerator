@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  appendToDraft,
   buildConnectAttachment,
   buildWebpageAttachment,
   buildWolkeAttachment,
-  canvaDesignsMarkdown,
   normalizeWebpageUrl,
 } from './mentionAttachments';
 
@@ -86,39 +84,6 @@ describe('buildWebpageAttachment', () => {
 
     expect(attachment.name).toBe('kein-url');
     expect(attachment.content[0].data.kind).toBe('webpage');
-  });
-});
-
-describe('canvaDesignsMarkdown', () => {
-  it('renders one link per design', () => {
-    const markdown = canvaDesignsMarkdown([
-      { id: '1', title: 'Plakat', viewUrl: 'https://canva.com/1' },
-      { id: '2', title: 'Story', viewUrl: 'https://canva.com/2' },
-    ]);
-
-    expect(markdown).toBe('[🎨 Plakat](https://canva.com/1) [🎨 Story](https://canva.com/2)');
-  });
-
-  it('is empty for an empty pick, so nothing is appended', () => {
-    expect(canvaDesignsMarkdown([])).toBe('');
-  });
-});
-
-describe('appendToDraft', () => {
-  it('separates from existing text with one space', () => {
-    expect(appendToDraft('Schreib mir', '[x](y)')).toBe('Schreib mir [x](y) ');
-  });
-
-  it('does not double the space when the draft already ends in one', () => {
-    expect(appendToDraft('Schreib mir ', '[x](y)')).toBe('Schreib mir [x](y) ');
-  });
-
-  it('adds no leading space to an empty draft', () => {
-    expect(appendToDraft('', '[x](y)')).toBe('[x](y) ');
-  });
-
-  it('leaves the draft untouched when there is nothing to add', () => {
-    expect(appendToDraft('Schreib mir', '')).toBe('Schreib mir');
   });
 });
 

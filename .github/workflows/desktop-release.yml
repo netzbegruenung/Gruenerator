@@ -141,8 +141,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Grünerator Desktop ${{ github.ref_name }}'
           releaseBody: |
-            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/desktop/CHANGELOG.md) for details.
-
             ## Downloads
             - **Windows**: `.msi` or `.exe` (NSIS installer)
             - **macOS Intel**: `_x64.dmg`

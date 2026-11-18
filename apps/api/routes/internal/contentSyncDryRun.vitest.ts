@@ -17,10 +17,10 @@ describe('dry-run capability', () => {
     expect(dryRunCapableSources()).toEqual([
       'landesverbaende',
       'abgeordnetenwatch',
-      'bundestag-dip',
       'landtag-nrw',
       'landtag-berlin',
       'landtag-bayern',
+      'parteitage',
     ]);
   });
 

@@ -10,6 +10,7 @@ export const FEED_KIND_ICONS: Record<GroupFeedKind, IoniconsIconName> = {
   board: 'grid-outline',
   generator: 'sparkles-outline',
   agent: 'chatbubbles-outline',
+  recipe: 'document-text-outline',
   notebook: 'book-outline',
   text: 'reader-outline',
   template: 'albums-outline',

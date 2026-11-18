@@ -30,6 +30,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { readSourceText, resolveReaderSource } from '../../services/notebook/notebookSources.js';
+import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
 import { buildReaderDocument } from '../../services/research/documentReader.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -137,6 +138,12 @@ export const documentsContractRouter = s.router(documentsContract, {
         return {
           status: 400 as const,
           body: { success: false, message: `Unknown collection: ${collection}` },
+        };
+      }
+      if (!('qdrantCollection' in mapping)) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: notAvailableForRemote(collection) },
         };
       }
 

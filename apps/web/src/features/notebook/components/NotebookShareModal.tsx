@@ -57,14 +57,14 @@ interface NotebookShareModalProps {
 
 const SHARE_MODE_LABELS: Record<NotebookShareMode, string> = {
   private: 'Privat — nur ich',
-  groups: 'Mit Gruppen geteilt',
+  groups: 'Mit Projekten und Gruppen geteilt',
   authenticated: 'Mit Anmeldung — alle eingeloggten Nutzer*innen',
 };
 
 const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   owner_only: 'Nur ich',
-  group_admins: 'Gruppen-Admins der geteilten Gruppen',
-  all_members: 'Alle Mitglieder der geteilten Gruppen',
+  group_admins: 'Admins der geteilten Projekte und Gruppen',
+  all_members: 'Alle Mitglieder der geteilten Projekte und Gruppen',
 };
 
 export function NotebookShareModal({
@@ -172,7 +172,7 @@ export function NotebookShareModal({
                   <p className="mt-xs text-xs text-grey-500">
                     {shareMode === 'authenticated'
                       ? 'Eingeloggte Nutzer*innen mit diesem Link können das Notebook öffnen.'
-                      : 'Mitglieder der geteilten Gruppen können das Notebook über diesen Link öffnen.'}
+                      : 'Mitglieder der geteilten Projekte und Gruppen können das Notebook über diesen Link öffnen.'}
                   </p>
                 </>
               )}
@@ -180,7 +180,7 @@ export function NotebookShareModal({
 
             {shareMode === 'groups' ? (
               <div>
-                <p className="mb-xs text-sm font-semibold">Gruppen</p>
+                <p className="mb-xs text-sm font-semibold">Projekte und Gruppen</p>
                 {groupSharesQuery.data && groupSharesQuery.data.length > 0 ? (
                   <ul className="mb-xs flex flex-col gap-xs">
                     {groupSharesQuery.data.map((share) => (
@@ -202,7 +202,9 @@ export function NotebookShareModal({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mb-xs text-xs text-grey-500">Noch keine Gruppen hinzugefügt.</p>
+                  <p className="mb-xs text-xs text-grey-500">
+                    Noch keine Projekte oder Gruppen hinzugefügt.
+                  </p>
                 )}
                 {availableGroups.length > 0 ? (
                   <Select
@@ -213,7 +215,7 @@ export function NotebookShareModal({
                     disabled={addGroupShare.isPending}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Gruppe hinzufügen…" />
+                      <SelectValue placeholder="Projekt oder Gruppe hinzufügen…" />
                     </SelectTrigger>
                     <SelectContent>
                       {availableGroups.map((g) => (
@@ -225,7 +227,8 @@ export function NotebookShareModal({
                   </Select>
                 ) : myGroupsQuery.data && myGroupsQuery.data.length === 0 ? (
                   <p className="text-xs text-grey-500">
-                    Du bist noch in keiner Gruppe. Tritt einer Gruppe bei, um Notebooks zu teilen.
+                    Du bist noch in keinem Projekt und keiner Gruppe. Tritt einem Projekt oder einer
+                    Gruppe bei, um Notebooks zu teilen.
                   </p>
                 ) : null}
               </div>
@@ -234,8 +237,8 @@ export function NotebookShareModal({
             {shareMode === 'authenticated' ? (
               <>
                 <p className="text-xs text-grey-500">
-                  Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land. Gruppen-Mitglieder und
-                  Eigentümer*in sind nicht betroffen.
+                  Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land. Mitglieder der Projekte
+                  und Gruppen und Eigentümer*in sind nicht betroffen.
                 </p>
 
                 <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
@@ -330,12 +333,13 @@ export function NotebookShareModal({
               ) : null}
               {shareMode === 'authenticated' && editPolicy !== 'owner_only' ? (
                 <p className="mt-xs text-xs text-grey-500">
-                  Diese Option wirkt nur, wenn das Notebook zusätzlich mit Gruppen geteilt wird.
+                  Diese Option wirkt nur, wenn das Notebook zusätzlich mit Projekten oder Gruppen
+                  geteilt wird.
                 </p>
               ) : null}
               {editPolicyMeaningful && (groupSharesQuery.data?.length ?? 0) === 0 ? (
                 <p className="mt-xs text-xs text-grey-500">
-                  Füge oben Gruppen hinzu, damit Mitglieder bearbeiten können.
+                  Füge oben Projekte oder Gruppen hinzu, damit Mitglieder bearbeiten können.
                 </p>
               ) : null}
             </div>

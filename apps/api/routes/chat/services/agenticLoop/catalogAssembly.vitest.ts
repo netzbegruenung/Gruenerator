@@ -33,14 +33,15 @@ import { type PersistedStep } from './types.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { McpCatalog } from '../../agents/mcpCatalog.js';
 import type { SSEWriter } from '../sseHelpers.js';
+import type { ThreadToolHistory } from '../threadPersistenceService.js';
 import type { ToolSet } from 'ai';
 
 const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null>>();
 const setThreadLastMcpServer = vi.fn<(threadId: string, serverId: string) => Promise<void>>();
 
 vi.mock('../threadPersistenceService.js', () => ({
-  getThreadLastMcpServer: (threadId: string) => getThreadLastMcpServer(threadId),
-  setThreadLastMcpServer: (threadId: string, serverId: string) =>
+  getThreadLastMcpServer: (threadId: string, _userId: string) => getThreadLastMcpServer(threadId),
+  setThreadLastMcpServer: (threadId: string, _userId: string, serverId: string) =>
     setThreadLastMcpServer(threadId, serverId),
   getRecentThreadSources: async () => [],
   getRecentToolSteps: async () => [],
@@ -92,6 +93,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
     loadMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
     resolveRecipe: async () => null,
+    isForeignMcpServer: async () => false,
     ...over,
   } as unknown as CatalogDeps;
 }
@@ -99,7 +101,12 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
 function assemble(
   state: ChatGraphState,
   d: CatalogDeps,
-  opts: { threadId?: string | null; sse?: SSEWriter; resumedSteps?: PersistedStep[] } = {}
+  opts: {
+    threadId?: string | null;
+    sse?: SSEWriter;
+    resumedSteps?: PersistedStep[];
+    lastTurnToolSteps?: PersistedStep[];
+  } = {}
 ) {
   return assembleToolCatalog(
     {
@@ -108,9 +115,23 @@ function assemble(
       sse: opts.sse ?? fakeSse().sse,
       threadId: opts.threadId ?? null,
       ...(opts.resumedSteps && { resumedSteps: opts.resumedSteps }),
+      ...(opts.lastTurnToolSteps && { toolHistory: historyWithLastTurn(opts.lastTurnToolSteps) }),
     },
     d
   );
+}
+
+function historyWithLastTurn(steps: PersistedStep[]): ThreadToolHistory {
+  return {
+    artifacts: () => [],
+    toolSteps: () => steps,
+    lastTurnToolSteps: () => steps,
+    lastTurnArtifacts: () => [],
+    lastTurnIntent: () => null,
+    lastTurnOffer: () => null,
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  };
 }
 
 beforeEach(() => {
@@ -134,7 +155,93 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
       expect.objectContaining({ userId: 'u1', scope: 'server-weg', threadId: 't1' })
     );
     expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  // #5602: hat der vorige Zug den Dienst benutzt, muss der Prompt erfahren,
+  // dass er fehlt — sonst setzt das Modell die Antworten aus dem Verlauf fort.
+  it('meldet den verworfenen Dienst, wenn der vorige Zug ihn benutzt hat', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-weg');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+      lastTurnToolSteps: [
+        { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+      ],
+    });
+
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBe('Rateo');
+  });
+
+  it('schweigt, wenn der vorige Zug keinen Dienst benutzt hat', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-weg');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+      lastTurnToolSteps: [{ toolCallId: 'c0', toolName: 'web_search', args: {}, result: {} }],
+    });
+
+    expect(assembled.staleConnectorName).toBeNull();
+  });
+
+  // Team chats: the sticky server was written by whoever used a connector last.
+  // Another member's turn must never mount it, and must not be told it is gone.
+  it('mounts a sticky server that belongs to another member for nobody', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+    const isForeignMcpServer = vi.fn(async () => true);
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      {
+        threadId: 't1',
+        lastTurnToolSteps: [
+          { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+        ],
+      }
+    );
+
+    expect(isForeignMcpServer).toHaveBeenCalledWith('u1', 'server-von-a');
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('skips the sticky server when the owner check fails, and still assembles', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+    const isForeignMcpServer = vi.fn(async () => {
+      throw new Error('db down');
+    });
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      { threadId: 't1' }
+    );
+
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('still mounts the sender’s own sticky server', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-u1');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+
+    await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+    });
+
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'server-von-u1' })
+    );
   });
 
   it('montiert ohne Scope nichts', async () => {
@@ -314,21 +421,16 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeCatalog).toHaveLength(1);
   });
 
-  // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
-  // bleibt offen, und das Modell muss sie selbst laden können.
-  it('montiert methode_laden nur, wenn der Katalog eine Methode trägt, und scoped es aus späteren Schritten', async () => {
-    const without = await assemble(fakeState(), withRecipes());
-    expect(without.tools.methode_laden).toBeUndefined();
-
+  // `methode_laden` wird nicht mehr montiert — auch nicht, wenn der Katalog
+  // eine Methode trägt; `rezept_laden` bleibt montiert.
+  it('montiert methode_laden nie, auch nicht bei einem Methoden-Rezept im Katalog', async () => {
     const rechtsstand = { ...catalog[0]!, key: 'rechtsstand', mention: 'rechtsstand' };
     const assembled = await assemble(
       fakeState(),
       withRecipes({ buildRecipeCatalog: async () => [...catalog, rechtsstand] })
     );
-    expect(assembled.tools.methode_laden).toBeDefined();
-    // Nur der erzwungene erste Schritt wählt es selbst; sonst fehlt es im Umfang.
-    expect(assembled.toolScope.activeTools([])).not.toContain('methode_laden');
-    expect(assembled.toolScope.activeTools([])).toContain('rezept_laden');
+    expect(assembled.tools.methode_laden).toBeUndefined();
+    expect(assembled.tools.rezept_laden).toBeDefined();
   });
 
   it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {
@@ -565,6 +667,8 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
         tools: { gruenerator_search: { execute: async () => ({}) } },
       }),
       resolveRecipe: async ({ mention }) => ({
+        id: null,
+        mention,
         title: `Titel ${mention}`,
         body: 'Rumpf',
         source: 'system',
@@ -646,6 +750,108 @@ describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
       withSearch()
     );
     expect(assembled.recipeRegistry.size).toBe(0);
+  });
+});
+
+// Auf einem Prosa-Turn im Loop trägt die Registry den Default JEDES Agenten —
+// dieselben Turns, auf denen `respondNode` ihn bis 11/2026 als Fragment in den
+// Systemprompt schrieb. Live gemessen: ein eigener Agent mit eigenem Rezept als
+// Default lud es über `rezept_laden` ein zweites Mal (ein Aufruf, ~4 s).
+describe('assembleToolCatalog — Agent-Default auf Prosa-Turns im Loop', () => {
+  const ownAgent = {
+    identifier: 'mein-agent',
+    defaultRecipeMention: 'mein-rezept',
+    isUserAgent: true,
+    userId: 'u1',
+  };
+  const prose = { intent: 'agentic', loopDemotedFromProse: 'produktion' };
+  const resolving = () =>
+    vi.fn(async ({ mention, recipeId }: { mention: string | null; recipeId?: string | null }) => ({
+      id: recipeId ?? null,
+      mention: mention ?? 'aus-der-zeile',
+      title: `Titel ${mention ?? recipeId}`,
+      body: 'Rumpf',
+      source: 'user' as const,
+    }));
+
+  it('lädt den Default eines eigenen Agenten vor', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['mein-rezept']);
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: 'mein-rezept', recipeId: null })
+    );
+  });
+
+  it('nimmt die gepinnte Zeile (`defaultRecipeId`) vor der Mention', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: { ...ownAgent, defaultRecipeId: 'row-1' },
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: null, recipeId: 'row-1' })
+    );
+    expect(assembled.recipeRegistry.has('row-1')).toBe(true);
+  });
+
+  it('lässt den Default auf einem Recherche-Turn beim Selbstladen', async () => {
+    const resolveRecipe = resolving();
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Was sagt das Programm zu Radwegen?',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('lässt den Default weichen, wenn das Modell eine andere Textsorte lädt', async () => {
+    const assembled = await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        lastUserTextNoMentions: 'Schreib einen Insta-Post',
+      }),
+      deps({ resolveRecipe: resolving() } as Partial<CatalogDeps>)
+    );
+    expect(
+      assembled.recipeRegistry.register({
+        mention: 'instagram',
+        id: null,
+        title: 'Instagram',
+        body: 'Insta-Rumpf',
+        source: 'system',
+      })
+    ).toBe('registered');
+    expect(assembled.recipeRegistry.mentions).toEqual(['instagram']);
+  });
+
+  it('lädt nichts unter einer Persona', async () => {
+    const resolveRecipe = resolving();
+    await assemble(
+      fakeState({
+        ...prose,
+        agentConfig: ownAgent,
+        customSystemPrompt: 'Du bist eine Rolle.',
+        lastUserTextNoMentions: 'Schreib was zu Radwegen',
+      }),
+      deps({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
   });
 });
 

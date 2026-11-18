@@ -42,7 +42,7 @@ describe('BackgroundTab', () => {
 
     for (const { label, presets } of CHAT_BACKGROUND_GROUPS) {
       const heading = screen.getByRole('heading', { name: label });
-      const section = heading.closest('section');
+      const section = heading.parentElement?.parentElement ?? null;
       expect(section).not.toBeNull();
       expect(within(section as HTMLElement).getAllByRole('radio')).toHaveLength(presets.length);
     }

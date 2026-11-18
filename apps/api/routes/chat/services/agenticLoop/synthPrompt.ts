@@ -55,11 +55,14 @@ export function buildConnectorNotes(params: {
   /** The connector the turn is scoped to — the person's own server or a
    *  managed one — or null. */
   mcpCatalog: McpCatalog | null;
-  /** Read by the caller (it gates the forced first tool call too) and passed in
-   *  so prompt and forcing can never disagree about the same turn. */
+  /** Read by the caller and passed in so prompt and loop can never disagree
+   *  about the same turn. */
   mcpCapabilityQuestion: boolean;
+  /** The connector the previous turn used whose sticky scope was dropped
+   *  (`AssembledCatalog.staleConnectorName`), or null. */
+  staleConnectorName: string | null;
 }): ConnectorNotes {
-  const { state, mcpCatalog, mcpCapabilityQuestion } = params;
+  const { state, mcpCatalog, mcpCapabilityQuestion, staleConnectorName } = params;
   const mcpServerNames = [
     ...new Set([...(mcpCatalog?.labels.values() ?? [])].map((l) => l.serverName)),
   ];
@@ -93,7 +96,9 @@ export function buildConnectorNotes(params: {
             // ungescopete Konnektor-Bitte läuft als `agentic` wie jede andere
             // (das tat sie ohne klebrigen Server schon vorher), und ein
             // genannter, aber fehlender Dienst sagt `scopedServerMissing` oben.
-            '') + mcpCapabilityNote;
+            staleConnectorName
+            ? `\n\nHINWEIS: Der Dienst ${staleConnectorName}, mit dem zuletzt gearbeitet wurde, ist nicht mehr verfügbar. Nenne keine Daten aus ihm, die nicht in einem Werkzeugergebnis dieses Zugs stehen — auch keine Quellenangabe. Braucht die Frage seine Daten, sag ehrlich und knapp, dass er gerade nicht verfügbar ist.`
+            : '') + mcpCapabilityNote;
   // Usage + answer-format instructions of a managed connector that actually
   // MOUNTED ({{TODAY_*}}/{{COUNTRY}} resolved here so the model gets real dates
   // and a real country code for timetable/forecast/accommodation params). One
@@ -276,4 +281,27 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   return withInstructionHierarchy(
     `${ctx.systemMessage}${ctx.mcpNote}${cite}${uncoveredTerm}${artifacts}${mcpOutcome}${toolPayload}${writerNotes}${ctx.materialNote}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${honestyNote}${tabularNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
+}
+// A "what can this connector do?" question. When the turn is scoped to one MCP
+// server, the answer must be grounded in that server's ACTUAL tools (WS-5).
+// Broader than productKnowledge.isMcpMetaQuestion (which needs the literal
+// word "mcp"): "was kann @sally" arrives with the mention stripped.
+export const MCP_CAPABILITY_QUESTION =
+  /\b(was\s+kann\w*|was\s+kannst|welche\s+(?:tools?|funktion\w*|f(?:ä|ae)higkeit\w*|m(?:ö|oe)glichkeit\w*)|wie\s?viele?\s+tools?|wozu|wof(?:ü|ue)r)\b/iu;
+
+/** A "what can this connector do?" question — see {@link MCP_CAPABILITY_QUESTION}. */
+export function isMcpCapabilityQuestion(text: string): boolean {
+  return MCP_CAPABILITY_QUESTION.test(text);
+}
+
+/**
+ * Welches Werkzeug die Person per @-Erwähnung angesprochen hat — als Auskunft,
+ * nicht als Zwang. Die Erwähnung wird vor dem Modell aus der Nachricht entfernt
+ * (`sanitizeMessageMentions`); ohne diese Zeile wüsste es nicht, dass „@umfragen"
+ * dastand. Ob es das Werkzeug ruft, entscheidet es selbst (`toolChoice: auto`).
+ * Leer, wenn nichts erwähnt ist oder das Werkzeug in diesem Turn nicht hängt.
+ */
+export function buildPinnedToolNote(pinnedTool: string | null, tools: ToolSet): string {
+  if (pinnedTool == null || !(pinnedTool in tools)) return '';
+  return `\n\n## ANGESPROCHENES WERKZEUG\nDie Person hat in dieser Nachricht das Werkzeug \`${pinnedTool}\` per @-Erwähnung ausgewählt. Nutze es für diesen Auftrag, wenn es dazu passt.`;
 }

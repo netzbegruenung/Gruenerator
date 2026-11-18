@@ -64,6 +64,7 @@ const NOTEBOOK_IONICONS = {
   'sachsen-notebook': 'leaf',
   'hessen-notebook': 'ribbon',
   'saarland-notebook': 'location',
+  'nordrhein-westfalen-notebook': 'location',
   'oesterreich-notebook': 'globe',
   'kommunalwiki-notebook': 'scale',
   'gruenblog-notebook': 'newspaper',
@@ -74,6 +75,7 @@ const NOTEBOOK_IONICONS = {
   'landtag-nrw-notebook': 'business',
   'landtag-berlin-notebook': 'business',
   'landtag-bayern-notebook': 'business',
+  'parteitage-notebook': 'clipboard',
   'wahlpruefsteine-notebook': 'checkbox',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
@@ -150,6 +152,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'sachsen-notebook': ['sachsen-system'],
   'hessen-notebook': ['hessen-system'],
   'saarland-notebook': ['saarland-system'],
+  'nordrhein-westfalen-notebook': ['nordrhein-westfalen-system'],
   'oesterreich-notebook': ['oesterreich-gruene-system'],
   'kommunalwiki-notebook': ['kommunalwiki-system'],
   'gruenblog-notebook': ['gruenblog-system'],
@@ -160,6 +163,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'landtag-nrw-notebook': ['landtag-nrw-system'],
   'landtag-berlin-notebook': ['landtag-berlin-system'],
   'landtag-bayern-notebook': ['landtag-bayern-system'],
+  'parteitage-notebook': ['parteitage-system'],
   'wahlpruefsteine-notebook': ['wahlpruefsteine-system'],
 } satisfies Record<NotebookId, string[]>;
 

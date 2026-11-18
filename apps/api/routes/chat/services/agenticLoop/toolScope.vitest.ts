@@ -361,3 +361,46 @@ describe('createToolScope — das Ergebnis des Laders', () => {
     expect(out.hinweis).not.toContain('landtag');
   });
 });
+
+describe('createToolScope — keepVisible', () => {
+  // Ein Agent mit eigenem Notebook: notebook_quellen steht von Anfang an,
+  // die übrigen eigenen Inhalte der Person bleiben hinter dem Lader.
+  it('hält das eine Werkzeug sichtbar und die Gruppe trotzdem zu', () => {
+    const scope = createToolScope({
+      enforce: true,
+      toolNames: MOUNTED,
+      userText: 'Antworte auf diese E-Mail zur Windkraft',
+      keepVisible: ['notebook_quellen'],
+    });
+    const active = scope.activeTools();
+    expect(active).toContain('notebook_quellen');
+    expect(active).not.toContain('documents');
+    expect(active).toContain(LOADER);
+    expect(scope.deferredToolNames()).not.toContain('notebook_quellen');
+  });
+});
+
+describe('createToolScope — die Antwort auf eine Rückfrage', () => {
+  // Live 16.11.2026: „Wir brauchen ein Antragsgrün …" → Rückfrage → „KMV Köln
+  // März 2027, die Adresse schlag du vor." Die Gruppe war zu, das Anlegen wurde
+  // nur angekündigt.
+  it('keeps a group open for the turn right after its hint matched', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Welche Aufgaben stehen auf meinem Board?',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).toBeUndefined();
+  });
+
+  it('does not open a group because of an unrelated earlier message', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Schreib eine Pressemitteilung zum Radentscheid',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).not.toContain(PERSONAL[0]);
+  });
+});

@@ -209,6 +209,10 @@ const STOPWORDS = new Set(
     'vom',
     'von',
     'vor',
+    // Präteritum von „sein" wie ist/sind oben. Fehlte es, gewann „was war neu
+    // im Juli 2026" einen Einstellungs-Absatz mit „bis 2026 war das …".
+    'war',
+    'waren',
     'was',
     'wenn',
     'wer',

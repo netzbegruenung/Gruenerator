@@ -33,9 +33,14 @@
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
     <title>Grünerator - Grüne KI</title>
 
-    <!-- Open Graph / Facebook -->
+    <!-- Open Graph / Facebook. Generic fallback for every route without its own
+         crawler rewrite. One image serves every instance, so the tags stay
+         host-neutral here and the nginx in apps/web/Dockerfile makes og:url,
+         twitter:url and the images absolute for the requesting host — Open
+         Graph requires absolute URLs, and WhatsApp/Signal drop relative ones
+         (#5629). Pinned by src/services/ogFallbackTags.vitest.ts. -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.gruenerator.de/" />
+    <meta property="og:url" content="/" />
     <meta property="og:title" content="Grünerator" />
     <meta
       property="og:description"
@@ -45,7 +50,7 @@
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://www.gruenerator.de/" />
+    <meta property="twitter:url" content="/" />
     <meta property="twitter:title" content="Grünerator - KI-Assistent für grüne Politik" />
     <meta
       property="twitter:description"

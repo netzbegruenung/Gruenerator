@@ -103,6 +103,10 @@ export interface Agent {
    */
   id?: string;
   identifier: string;
+  /** Share-link key of a user agent (`<name>-<slugSuffix>`, see
+   * `agentSharePath`). Absent on registry agents and on rows from before
+   * the column existed. */
+  slugSuffix?: string;
   /**
    * Optional URL slug override. When set, `/agents/<slug>` resolves here and
    * link-builders emit this instead of the `gruenerator-`-stripped identifier.

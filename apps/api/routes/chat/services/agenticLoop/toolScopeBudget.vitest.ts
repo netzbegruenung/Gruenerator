@@ -43,13 +43,20 @@ const RECHERCHE_TURN = 'Was steht im Wahlprogramm zu Windkraft?';
 // gesetzt, damit die `website`-Gruppe mitgemessen wird wie in Produktion.
 const browserAgentUrl = env.BROWSER_AGENT_URL;
 const browserAgentTokenSecret = env.BROWSER_AGENT_TOKEN_SECRET;
+// Ebenso `antragsgruen_seite_anlegen`: nur mit Zugangsdaten des Grünerator-Kontos.
+const agBotEmail = env.ANTRAGSGRUEN_BOT_EMAIL;
+const agBotPassword = env.ANTRAGSGRUEN_BOT_PASSWORD;
 beforeAll(() => {
   env.BROWSER_AGENT_URL = 'http://browser-agent.test';
   env.BROWSER_AGENT_TOKEN_SECRET = 'token-secret-for-the-budget-test';
+  env.ANTRAGSGRUEN_BOT_EMAIL = 'bot@antragsgruen.test';
+  env.ANTRAGSGRUEN_BOT_PASSWORD = 'password-for-the-budget-test';
 });
 afterAll(() => {
   env.BROWSER_AGENT_URL = browserAgentUrl;
   env.BROWSER_AGENT_TOKEN_SECRET = browserAgentTokenSecret;
+  env.ANTRAGSGRUEN_BOT_EMAIL = agBotEmail;
+  env.ANTRAGSGRUEN_BOT_PASSWORD = agBotPassword;
 });
 
 function buildFor(userText: string): ToolSet {

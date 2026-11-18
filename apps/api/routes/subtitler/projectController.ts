@@ -11,6 +11,7 @@ import fs from 'fs';
 import express, { type Response, type Router } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { streamFile } from '../../utils/http/streamFile.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -41,44 +42,46 @@ router.get(
       const { projectId } = req.params;
 
       const service = await getProjectService();
-      const videoPathRelative = await service.getVideoPathOnly(userId, projectId);
+      const source = await service.getVideoSource(userId, projectId);
 
-      if (!videoPathRelative) {
+      if (!source) {
         res.status(404).json({ success: false, error: 'Video nicht gefunden' });
         return;
       }
 
-      const videoPath = service.getVideoPath(videoPathRelative);
-
-      try {
-        await fsPromises.access(videoPath);
-      } catch {
-        res.status(404).json({ success: false, error: 'Videodatei nicht gefunden' });
+      // Owner-scoped lookup only: a parteitag project belongs to the user, so it is served
+      // from system storage as long as the media row exists (no convention access re-check;
+      // a deleted speech nulls source_system_media_id and the file is gone -> 410).
+      // Deliberate: projects made before a password rotation or audience change keep streaming
+      // their original. That equals what "Herunterladen" already handed out.
+      const videoPath = source.path;
+      let exists = false;
+      if (videoPath) {
+        try {
+          await fsPromises.access(videoPath);
+          exists = true;
+        } catch {
+          exists = false;
+        }
+      }
+      if (!videoPath || !exists) {
+        // A system-storage source that is missing was removed with its speech.
+        if (source.system) {
+          res.status(410).json({ code: 'SOURCE_GONE', error: 'Quelle nicht mehr verfügbar' });
+        } else {
+          res.status(404).json({ success: false, error: 'Videodatei nicht gefunden' });
+        }
         return;
       }
 
       const stat = await fsPromises.stat(videoPath);
-      const fileSize = stat.size;
-      const range = req.headers.range;
-
-      if (range) {
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunkSize = end - start + 1;
-
-        res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunkSize,
-          'Content-Type': 'video/mp4',
-        });
-
-        fs.createReadStream(videoPath, { start, end }).pipe(res);
-      } else {
-        res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
-        fs.createReadStream(videoPath).pipe(res);
-      }
+      streamFile(req, res, {
+        size: stat.size,
+        contentType: 'video/mp4',
+        open: (range) =>
+          range ? fs.createReadStream(videoPath, range) : fs.createReadStream(videoPath),
+        downloadName: null,
+      });
     } catch (error: unknown) {
       log.error('Failed to stream video:', error);
       if (!res.headersSent) {

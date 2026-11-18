@@ -395,8 +395,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Ein Anlegeauftrag für die Agentura beantwortet nur die ERSTE Frage wie ein
   // Pin: `recipes`/`user_agents` gibt es nur in der Schleife, also muss er
   // hinein, auch an der Notebook-Sperre vorbei. Die zweite Hälfte des Pins —
-  // der erzwungene erste Aufruf — fehlt mit Absicht: das gewählte Notebook
-  // soll gelesen sein, bevor das Rezept entsteht.
+  // die Ankündigung des Werkzeugs an das Modell — fehlt mit Absicht: das
+  // gewählte Notebook soll gelesen sein, bevor das Rezept entsteht.
   //
   // Ein Konnektor-Scope beantwortet BEIDE Fragen wie ein Pin. Hier stand
   // `proposedIntent === 'mcp'` und über die Achse `forcedLane: 'loop'`; seit

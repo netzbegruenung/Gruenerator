@@ -39,8 +39,12 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notTrashed } from '../../database/trash.js';
 import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
-import { notifyContentShared } from '../groups/groupContent.js';
-import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import {
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeAllGroupShares,
+  removeGroupShare,
+} from '../groups/groupShareWriter.js';
 import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
@@ -186,6 +190,8 @@ function rowToTextForm(
     shareMode: row.share_mode as TextFormShareMode,
     isPublic: row.is_public,
     publicOwnership: (row.public_ownership as PublicOwnership | null) ?? null,
+    // Raw-SQL readers that list their columns may leave it out.
+    slugSuffix: row.slug_suffix ?? null,
   };
 }
 
@@ -347,9 +353,8 @@ function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
  * every query that has to answer "may this user see this row". A share row of a
- * private recipe grants nothing: setting a recipe back to private revokes group
- * access without deleting the rows (#3803), and the sharing panel lists group
- * shares only in 'groups' mode. A removed recipe grants nothing either: the
+ * private recipe grants nothing (#3803) — and setting a recipe to private
+ * deletes its rows (`updateTextFormSharing`), so none should remain. A removed recipe grants nothing either: the
  * moderation outcome reaches the Projekte too (#4700); a hidden one stays. */
 const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 'removed' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
@@ -365,6 +370,14 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 're
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom'
           AND tf.moderation = 'ok')`;
 
+/** The link disjunct: the owner opened the recipe to every signed-in user
+ * ("Mit Anmeldung"), listed or not — whoever holds the link may open and use
+ * it, as with agents (`getAccessibleUserAgentById`). Only ever combined with a
+ * row-naming selector (uuid, slug suffix): a mention is unique per owner, and
+ * by mention this would hand a stranger's recipe to anyone typing the same
+ * `@name`. Custom only, unmoderated — the same bar as {@link PUBLIC_VISIBLE}. */
+const LINK_VISIBLE = `(tf.share_mode = 'authenticated' AND tf.kind = 'custom' AND tf.moderation = 'ok')`;
+
 /** Was der Aufrufer OHNE den offenen Katalog sieht: seine eigenen Zeilen und
  * die, die in eines seiner Projekte geteilt sind. */
 const VISIBLE_TO_CALLER_NO_PUBLIC = `(
@@ -376,6 +389,13 @@ const VISIBLE_TO_CALLER = `(
           tf.user_id = $1::uuid
           OR ${GROUP_SHARE_EXISTS}
           OR ${PUBLIC_VISIBLE}
+        )`;
+
+/** What a row-naming lookup (uuid, slug suffix) may see: {@link
+ * VISIBLE_TO_CALLER} plus {@link LINK_VISIBLE}, which subsumes the listed case. */
+const VISIBLE_BY_ROW = `(
+          ${VISIBLE_TO_CALLER_NO_PUBLIC}
+          OR ${LINK_VISIBLE}
         )`;
 
 /** {@link VISIBLE_TO_CALLER} with the public disjunct limited to the viewer's
@@ -400,19 +420,19 @@ function accessFromRank(rank: number | string): TextFormAccess {
 }
 
 /** Selector is the row-identifying predicate on `$3`; everything else is shared. */
-function injectionSql(selector: string): string {
+function injectionSql(selector: string, visible: string): string {
   return `SELECT tf.id, tf.mention, tf.kind, tf.text_type, tf.title, tf.style_block,
             ${ACCESS_RANK_SQL} AS access_rank
        FROM user_text_forms tf
       WHERE ${selector}
-        AND ${VISIBLE_TO_CALLER}
+        AND ${visible}
         AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT 1`;
 }
 
-const INJECTION_BY_MENTION_SQL = injectionSql('tf.mention = $3');
-const INJECTION_BY_ID_SQL = injectionSql('tf.id = $3::uuid');
+const INJECTION_BY_MENTION_SQL = injectionSql('tf.mention = $3', VISIBLE_TO_CALLER);
+const INJECTION_BY_ID_SQL = injectionSql('tf.id = $3::uuid', VISIBLE_BY_ROW);
 
 interface InjectionRow {
   id: string;
@@ -488,16 +508,79 @@ export async function getTextFormForInjectionById(
   return loadInjection(INJECTION_BY_ID_SQL, userId, id);
 }
 
-/** May the caller see this recipe row — own, shared into one of their projects, or public? */
+/** May the caller see this recipe row — own, shared into one of their projects, or open by link? */
 export async function isTextFormVisibleTo(id: string, userId: string): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
   const rows = await getPostgresInstance().query(
     `SELECT 1 AS ok FROM user_text_forms tf
-      WHERE tf.id = $3::uuid AND ${VISIBLE_TO_CALLER} AND tf.deleted_at IS NULL
+      WHERE tf.id = $3::uuid AND ${VISIBLE_BY_ROW} AND tf.deleted_at IS NULL
       LIMIT 1`,
     [userId, TEXT_FORM_CONTENT_TYPE, id]
   );
   return rows.length > 0;
+}
+
+/** A recipe opened through a link, as the detail page shows it. `source` is
+ * how the caller reaches it: their own, via one of their Projekte, or open to
+ * every signed-in user (listed or not — both are `public` here). */
+export interface LinkedTextForm {
+  form: PublicTextForm;
+  source: 'own' | 'shared' | 'public';
+}
+
+/**
+ * The recipe a share link names — by slug suffix, or by uuid for links from
+ * before the suffix. Same visibility as every row-naming lookup
+ * ({@link VISIBLE_BY_ROW}), so the page opens exactly what the chat would load
+ * (`getTextFormForInjectionById`).
+ */
+export async function getLinkedTextForm(
+  key: { slugSuffix: string } | { id: string },
+  userId: string
+): Promise<LinkedTextForm | null> {
+  const byId = 'id' in key;
+  if (byId && !UUID_RE.test(key.id)) return null;
+  const rows = (await getPostgresInstance().query(
+    `SELECT tf.*, ${ACCESS_RANK_SQL} AS access_rank,
+            (SELECT g.name
+               FROM group_content_shares gcs
+               INNER JOIN groups g ON g.id = gcs.group_id
+               INNER JOIN group_memberships gm
+                       ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+                      AND gm.is_active = TRUE
+              WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
+                AND g.deleted_at IS NULL
+              ORDER BY g.name
+              LIMIT 1) AS group_name,
+            COALESCE(p.first_name, p.display_name) AS owner_name
+       FROM user_text_forms tf
+       LEFT JOIN profiles p ON p.id = tf.user_id
+      WHERE ${byId ? 'tf.id = $3::uuid' : 'tf.slug_suffix = $3'}
+        AND ${VISIBLE_BY_ROW}
+        AND tf.deleted_at IS NULL
+      LIMIT 1`,
+    [userId, TEXT_FORM_CONTENT_TYPE, byId ? key.id : key.slugSuffix]
+  )) as unknown as Array<
+    UserTextFormRow & {
+      access_rank: number | string;
+      group_name: string | null;
+      owner_name: string | null;
+    }
+  >;
+  const row = rows[0];
+  if (!row) return null;
+  const access = accessFromRank(row.access_rank);
+  if (access === 'public' && !isShareableTextForm(row.kind as TextFormKind, row.mention)) {
+    return null;
+  }
+  const form = rowToTextForm(row, {
+    sharedFromGroup: access === 'group' ? (row.group_name ?? null) : null,
+    ownerName: access === 'own' ? null : (row.owner_name ?? null),
+  });
+  return {
+    form: toPublicTextForm(form),
+    source: access === 'own' ? 'own' : access === 'group' ? 'shared' : 'public',
+  };
 }
 
 /** Owner-scoped lookup of a recipe's sharing state (and its UUID). */
@@ -596,6 +679,12 @@ export async function updateTextFormSharing(
     })
     .where(eq(userTextForms.id, row.id))
     .returning({ id: userTextForms.id });
+  // Privat heisst: in keinem Projekt. Die Zeilen blieben sonst als tote
+  // Freigaben stehen, die die immer sichtbare Projektliste anzeigen oder ein
+  // späteres Teilen still wiederbeleben würde.
+  if (updated.length > 0 && verdict.next.share_mode === 'private') {
+    await removeAllGroupShares({ contentType: TEXT_FORM_CONTENT_TYPE, contentId: String(row.id) });
+  }
 
   return { ok: true, updated: updated.length > 0 };
 }
@@ -634,45 +723,20 @@ export async function shareTextFormWithGroup(
   const form = await findOwnRow(userId, mention);
   if (!form || !isShareableTextForm(form.kind as TextFormKind, mention)) return null;
 
-  const allowed = await assertCanShareToGroup(groupId, userId).then(
-    () => true,
-    () => false
-  );
-  if (!allowed) return (await loadSharesFor([form.id])).get(form.id) ?? [];
-
-  const pg = getPostgresInstance();
-  // Group access needs share_mode <> 'private' (see GROUP_SHARE_EXISTS), so a
-  // private recipe moves to 'groups' first — otherwise the share would be dead
-  // and missing from the owner's sharing panel. 'authenticated' already reaches
-  // further and stays. Leaving is_public alone is safe: a private row is never
-  // listed.
-  await pg.query(
-    `UPDATE user_text_forms SET share_mode = 'groups', updated_at = NOW()
-      WHERE id = $1::uuid AND share_mode = 'private'`,
-    [form.id]
-  );
-  // Membership is checked in SQL: the insert only happens for a group the user
-  // is actually an active member of, so a forged group id cannot leak a recipe.
-  const inserted = (await pg.query(
-    `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
-     SELECT gm.group_id, $1::uuid, $2, $3
-       FROM group_memberships gm
-       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
-      WHERE gm.group_id = $4::uuid AND gm.user_id = $1::uuid AND gm.is_active = TRUE
-        AND NOT EXISTS (
-          SELECT 1 FROM group_content_shares x
-           WHERE x.group_id = gm.group_id AND x.content_type = $2 AND x.content_id = $3
-        )
-     RETURNING id`,
-    [userId, TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  )) as Array<{ id: string }>;
-  if (inserted.length > 0) {
-    notifyContentShared({
-      groupId,
+  // The writer gates on the project (a forged group id cannot leak a recipe),
+  // lifts a private recipe to 'groups' — otherwise the share would be dead and
+  // missing from the owner's sharing panel — and notifies. Not allowed or
+  // already shared: the panel just gets the current list back, as before.
+  try {
+    await addGroupShare({
       userId,
+      groupId,
       contentType: TEXT_FORM_CONTENT_TYPE,
       contentId: form.id,
+      permissions: { read: true, write: false },
     });
+  } catch (error) {
+    if (!(error instanceof GroupShareForbiddenError)) throw error;
   }
 
   const shares = await loadSharesFor([form.id]);
@@ -694,12 +758,7 @@ export async function unshareTextFormFromGroup(
   const form = await findOwnRow(userId, mention);
   if (!form) return null;
 
-  const pg = getPostgresInstance();
-  await pg.query(
-    `DELETE FROM group_content_shares
-      WHERE content_type = $1 AND content_id = $2 AND group_id = $3::uuid`,
-    [TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  );
+  await removeGroupShare({ groupId, contentType: TEXT_FORM_CONTENT_TYPE, contentId: form.id });
 
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];
@@ -939,7 +998,7 @@ export async function listMentionableTextForms(
 /**
  * Die Zeilen zu einer Liste von ids, soweit die Person sie sehen darf — für die
  * gespeicherten Rezepte (`user_library_items`), die in den Katalog des Modells
- * kommen. Dieselbe Sichtbarkeit wie die Injektion (`VISIBLE_TO_CALLER`): ein
+ * kommen. Dieselbe Sichtbarkeit wie die Injektion per id (`VISIBLE_BY_ROW`): ein
  * gemeldetes (`hidden`), zurückgezogenes oder zurück auf privat gestelltes
  * Rezept fällt hier heraus, ebenso ein getrashtes. Die Reihenfolge der ids
  * bleibt NICHT erhalten — der Aufrufer ordnet nach seiner Liste.
@@ -971,7 +1030,7 @@ export async function listVisibleTextFormsByIds(
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.id = ANY($3::uuid[])
-        AND ${VISIBLE_TO_CALLER}
+        AND ${VISIBLE_BY_ROW}
         AND tf.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id`,
     [userId, TEXT_FORM_CONTENT_TYPE, valid]

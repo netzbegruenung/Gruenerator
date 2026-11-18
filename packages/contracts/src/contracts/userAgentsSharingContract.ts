@@ -16,6 +16,7 @@ import {
   userAgentAudienceBodySchema,
   userAgentGroupSharesResponseSchema,
   userAgentIsPublicBodySchema,
+  userAgentLinkResponseSchema,
   userAgentShareErrorResponseSchema,
   userAgentShareModeBodySchema,
   userAgentShareSettingsSchema,
@@ -41,6 +42,24 @@ export const userAgentsSharingContract = c.router(
         500: userAgentShareErrorResponseSchema,
       },
       summary: 'List publicly-listed agents for the Agentura directory',
+    },
+
+    /**
+     * GET /api/user-agents/link/:slug — resolve a share link (`<name>-<suffix>`,
+     * or a bare uuid from older links) to the agent, if the caller may use it.
+     * 404 otherwise — the same answer for "gone" and "not for you".
+     */
+    resolveLink: {
+      method: 'GET',
+      path: '/api/user-agents/link/:slug',
+      pathParams: z.object({ slug: z.string() }),
+      responses: {
+        200: userAgentLinkResponseSchema,
+        401: userAgentShareErrorResponseSchema,
+        404: userAgentShareErrorResponseSchema,
+        500: userAgentShareErrorResponseSchema,
+      },
+      summary: 'Resolve an agent share link',
     },
 
     /** GET /api/user-agents/:identifier/share — current share settings. Owner only. */

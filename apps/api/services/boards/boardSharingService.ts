@@ -54,19 +54,13 @@ export async function inheritBoardSharingToDocument(
     }
 
     // 2) Group shares: copy each of the board's group_content_shares rows to the
-    //    document. No unique constraint on the table → guard with NOT EXISTS for
-    //    idempotency.
+    //    document; the unique (group, type, content) key keeps it idempotent.
     await db.query(
       `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
        SELECT 'collaborative_documents', $1, gcs.group_id, gcs.shared_by_user_id, gcs.permissions
        FROM group_content_shares gcs
        WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
-         AND NOT EXISTS (
-           SELECT 1 FROM group_content_shares existing
-           WHERE existing.content_type = 'collaborative_documents'
-             AND existing.content_id = $1
-             AND existing.group_id = gcs.group_id
-         )`,
+       ON CONFLICT (group_id, content_type, content_id) DO NOTHING`,
       [documentId, boardId]
     );
 

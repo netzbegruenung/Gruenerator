@@ -58,7 +58,7 @@ describe('landesverbandIdsForRoles', () => {
   it('gibt bei Bundesländern ohne Landesverband nichts zurück', () => {
     expect(
       landesverbandIdsForRoles(
-        [{ ebene: 'land', rolle: LGS, bundesland: 'Nordrhein-Westfalen' }],
+        [{ ebene: 'land', rolle: LGS, bundesland: 'Niedersachsen' }],
         'de-DE'
       )
     ).toEqual([]);
@@ -169,12 +169,13 @@ describe('DE_BUNDESLAENDER', () => {
     expect(byLabel.get('Hessen')).toBe('hessen-notebook');
     expect(byLabel.get('Saarland')).toBe('saarland-notebook');
     expect(byLabel.get('Sachsen-Anhalt')).toBe('sachsen-anhalt-notebook');
+    expect(byLabel.get('Nordrhein-Westfalen')).toBe('nordrhein-westfalen-notebook');
     // Abgeschaltete Notebooks dürfen nicht als vorhanden angepriesen werden.
     expect(byLabel.get('Schleswig-Holstein')).toBeUndefined();
     expect(byLabel.get('Hamburg')).toBeUndefined();
     expect(byLabel.get('Sachsen')).toBeUndefined();
     // Länder ohne Landesverband.
-    expect(byLabel.get('Nordrhein-Westfalen')).toBeUndefined();
+    expect(byLabel.get('Niedersachsen')).toBeUndefined();
   });
 
   it('deckt jedes Bundesland-Label die Registry-Titel ab', () => {

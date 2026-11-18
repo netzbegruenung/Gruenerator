@@ -13,6 +13,7 @@ import {
   batchDelete,
   batchUpsert,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
+import { type FilterCondition } from '../../../database/services/QdrantService/types.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
@@ -66,10 +67,16 @@ type SyncSource = Parameters<typeof recordSyncEvent>[0]['sourceGroupId'];
 export class ParliamentStore {
   #qdrant: QdrantService | null = null;
 
+  /**
+   * `scope` grenzt „schon da" auf die eigenen Dokumente ein — nötig in einer
+   * Sammlung, die sich der Store mit anderen Schreibern teilt
+   * (`landesverbaende_documents`), sonst liefe jeder Lauf durch deren Köpfe.
+   */
   constructor(
     private readonly collection: string,
     private readonly source: SyncSource,
-    private readonly sourceName: string
+    private readonly sourceName: string,
+    private readonly scope: readonly FilterCondition[] = []
   ) {}
 
   /**
@@ -97,7 +104,7 @@ export class ParliamentStore {
     let offset: string | number | null | undefined = undefined;
     do {
       const page = await client.scroll(this.collection, {
-        filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] },
+        filter: { must: [{ key: 'chunk_index', match: { value: 0 } }, ...this.scope] },
         with_payload: ['document_id', ...fields],
         with_vector: false,
         limit: 1000,
@@ -124,6 +131,14 @@ export class ParliamentStore {
    * blieben bei einer kürzeren Neufassung Chunks der alten stehen.
    * Liefert die Zahl der geschriebenen Chunks (0 = nichts zu schreiben).
    */
+  /** Löscht alle Chunks eines Dokuments — nur innerhalb von `scope`. */
+  async remove(documentId: string): Promise<void> {
+    const client = (await this.qdrant()).writeClient(this.collection);
+    await batchDelete(client, this.collection, {
+      must: [{ key: 'document_id', match: { value: documentId } }, ...this.scope],
+    });
+  }
+
   async store(doc: ParliamentDocument, replace: boolean): Promise<number> {
     const chunks = await this.chunk(doc);
     if (chunks.length === 0) return 0;
@@ -134,7 +149,7 @@ export class ParliamentStore {
     const client = (await this.qdrant()).writeClient(this.collection);
     if (replace) {
       await batchDelete(client, this.collection, {
-        must: [{ key: 'document_id', match: { value: doc.documentId } }],
+        must: [{ key: 'document_id', match: { value: doc.documentId } }, ...this.scope],
       });
     }
 

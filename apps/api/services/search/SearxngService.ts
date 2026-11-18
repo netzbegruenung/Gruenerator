@@ -6,14 +6,14 @@
 import crypto from 'crypto';
 
 import { env } from '../../config/env.js';
-import { aiText } from '../ai/generate.js';
+
+import { searxngCircuit } from './searchRetryStrategy.js';
 
 import type {
   SearxngSearchOptions,
   SearchResult,
   ContentStats,
   FormattedSearchResults,
-  FormattedSearchResultsWithSummary,
   CacheEntry,
   ServiceStatus,
 } from './types.js';
@@ -49,7 +49,7 @@ interface RedisClientLike {
 }
 
 class SearxngService {
-  private baseUrl: string;
+  private baseUrl: string | null;
   private defaultOptions: Required<SearxngSearchOptions>;
   private redisClient: RedisClientLike | null;
   private cache: Map<string, CacheEntry<FormattedSearchResults>>;
@@ -57,7 +57,7 @@ class SearxngService {
   private newsCache: number;
 
   constructor() {
-    this.baseUrl = 'https://searxng-b4o4swssok8scoos488c4wgk.services.moritz-waechter.de';
+    this.baseUrl = env.SEARXNG_URL?.replace(/\/+$/, '') || null;
     this.defaultOptions = {
       timeout: 15000,
       maxResults: 10,
@@ -109,6 +109,7 @@ class SearxngService {
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       throw new Error('Valid search query is required');
     }
+    if (!this.baseUrl) throw new Error('SearXNG not configured (SEARXNG_URL)');
 
     const searchOptions = {
       ...this.defaultOptions,
@@ -131,8 +132,14 @@ class SearxngService {
       console.log(`🔍 [SearXNG] Searching: "${displayQuery}"`);
     }
 
+    // A down instance fails fast instead of costing every query its timeout.
+    if (searxngCircuit.isOpen()) {
+      throw new Error('SearXNG circuit open — provider considered unavailable');
+    }
+
     try {
-      const searchResults = await this.querySearXNG(query, searchOptions);
+      const searchResults = await this.querySearXNG(this.baseUrl, query, searchOptions);
+      searxngCircuit.recordSuccess();
 
       const formattedResults = this.formatSearchResults(searchResults, query, searchOptions);
 
@@ -144,6 +151,7 @@ class SearxngService {
 
       return formattedResults;
     } catch (error: unknown) {
+      searxngCircuit.recordFailure();
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[SearXNG] Search failed:`, errMsg);
       throw new Error(`Web search failed: ${errMsg}`);
@@ -154,6 +162,7 @@ class SearxngService {
    * Query SearXNG API directly
    */
   private async querySearXNG(
+    baseUrl: string,
     query: string,
     options: Required<SearxngSearchOptions>
   ): Promise<RawSearxngResponse> {
@@ -170,9 +179,9 @@ class SearxngService {
       searchParams.append('time_range', options.time_range);
     }
 
-    const searchUrl = `${this.baseUrl}/search?${searchParams.toString()}`;
+    const searchUrl = `${baseUrl}/search?${searchParams.toString()}`;
 
-    if (isDebug) console.log(`[SearXNG] Querying: ${this.baseUrl}/search`);
+    if (isDebug) console.log(`[SearXNG] Querying: ${baseUrl}/search`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -272,91 +281,6 @@ class SearxngService {
       infoboxes: rawResults.infoboxes || [],
       answers: rawResults.answers || [],
     };
-  }
-
-  /**
-   * Generate AI summary of search results using privacy mode providers
-   */
-  async generateAISummary(
-    searchResults: FormattedSearchResults,
-    originalQuery: string,
-    _summaryOptions: Record<string, unknown> = {}
-  ): Promise<FormattedSearchResultsWithSummary> {
-    if (!searchResults.results || searchResults.results.length === 0) {
-      return {
-        ...searchResults,
-        summary: {
-          text: 'Keine Suchergebnisse zum Zusammenfassen verfügbar.',
-          generated: false,
-          error: 'No results to summarize',
-        },
-      };
-    }
-
-    try {
-      const contentForSummary = this.prepareContentForSummary(searchResults.results, originalQuery);
-
-      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
-
-      // Zwei Fehlerzweige sind einer geworden: `aiText` wirft, wo der Umschlag
-      // `{success:false}` zurückgab. Der Aufrufer sah beide ohnehin als
-      // `generated: false` — nur der Text lautet jetzt in beiden Fällen
-      // „Fehler beim Generieren der Zusammenfassung."
-      const summary = await aiText({
-        lane: 'web_search_summary',
-        prompt: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
-
-Frage/Anliegen: "${originalQuery}"
-
-Verfügbare Informationen:
-${contentForSummary}
-
-Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`,
-        maxOutputTokens: 8000,
-        temperature: 0.3,
-      });
-
-      return {
-        ...searchResults,
-        summary: {
-          text: summary,
-          generated: true,
-          timestamp: new Date().toISOString(),
-          wordCount: summary.split(/\s+/).length,
-          basedOnResults: searchResults.results.length,
-        },
-      };
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      console.error('[SearXNG] Error generating summary:', errMsg);
-      return {
-        ...searchResults,
-        summary: {
-          text: 'Fehler beim Generieren der Zusammenfassung.',
-          generated: false,
-          error: errMsg,
-        },
-      };
-    }
-  }
-
-  /**
-   * Prepare search results content for AI summarization
-   */
-  private prepareContentForSummary(results: SearchResult[], _query: string): string {
-    const relevantResults = results.slice(0, 8);
-
-    return relevantResults
-      .map((result, index) => {
-        const content = result.content || result.snippet || '';
-        const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
-
-        return `${index + 1}. **${result.title}** (${result.domain})
-Inhalt: ${truncatedContent}
-URL: ${result.url}
-`;
-      })
-      .join('\n');
   }
 
   /**

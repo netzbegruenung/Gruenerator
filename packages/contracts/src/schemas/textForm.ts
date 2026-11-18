@@ -187,6 +187,9 @@ export const textFormSchema = z.object({
   /** Listed in the public Agentura directory, atop shareMode='authenticated'. */
   isPublic: z.boolean().default(false),
   publicOwnership: publicOwnershipSchema.nullable().default(null),
+  /** Share-link key: the link is `<titel>-<slugSuffix>` (`recipeSharePath`).
+   * `mention` is unique only per owner and cannot name one recipe. */
+  slugSuffix: z.string().nullable().default(null),
 });
 export type TextForm = z.infer<typeof textFormSchema>;
 
@@ -372,6 +375,14 @@ export const publicTextFormSchema = textFormSchema
   .omit({ examples: true, sharedWithGroups: true })
   .extend({ exampleCount: z.number().int().nonnegative() });
 export type PublicTextForm = z.infer<typeof publicTextFormSchema>;
+
+/** GET /api/text-forms/link/:slug — the recipe a share link names, and how the
+ * caller reaches it. `public` covers both listed and link-only ("Mit Anmeldung"). */
+export const textFormLinkResponseSchema = z.object({
+  success: z.literal(true),
+  form: publicTextFormSchema,
+  source: z.enum(['own', 'shared', 'public']),
+});
 
 /** Public Agentura discovery feed. */
 export const publicTextFormsResponseSchema = z.object({

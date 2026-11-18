@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COLLECTION_MAP } from './collectionMap.js';
 import { LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
 import {
+  applyDefaultFilter,
   SYSTEM_COLLECTIONS,
   contentTypeLabel,
   getSystemCollectionConfig,
@@ -11,8 +12,10 @@ import {
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
   getFacetCountFilter,
+  getQdrantSystemCollections,
   offersChoice,
   readerCollectionIdFor,
+  systemSearchTarget,
 } from './systemCollectionsConfig.js';
 
 describe('canonical registry invariants', () => {
@@ -26,7 +29,7 @@ describe('canonical registry invariants', () => {
   it('creates examples-system so getSystemCollectionConfig no longer silently falls back', () => {
     const examples = getSystemCollectionConfig('examples-system');
     expect(examples).toBeDefined();
-    expect(examples?.qdrantCollection).toBe('social_media_examples');
+    expect(systemSearchTarget(examples!)).toEqual({ searchCollection: 'social_media_examples' });
     expect(examples?.key).toBe('examples');
   });
 
@@ -56,9 +59,9 @@ describe('NLP facet injection', () => {
     (getSystemCollectionConfig(id)?.filterableFields ?? []).map((f) => f.field);
 
   it('offers Wahl, Ebene and Thema on the Wahlprüfsteine notebook', () => {
-    expect(getSystemCollectionConfig('wahlpruefsteine-system')?.qdrantCollection).toBe(
-      'wahlpruefstein_examples'
-    );
+    expect(systemSearchTarget(getSystemCollectionConfig('wahlpruefsteine-system')!)).toEqual({
+      searchCollection: 'wahlpruefstein_examples',
+    });
     expect(fieldNames('wahlpruefsteine-system')).toEqual(
       expect.arrayContaining(['wahl', 'ebene', 'themes'])
     );
@@ -129,7 +132,7 @@ describe('derived COLLECTION_MAP', () => {
 describe('Landesverband notebook filters', () => {
   it('cover every landesverband code a scraper source writes', () => {
     const covered = new Set<string>();
-    for (const c of Object.values(SYSTEM_COLLECTIONS)) {
+    for (const c of getQdrantSystemCollections()) {
       if (c.qdrantCollection !== 'landesverbaende_documents') continue;
       if (c.defaultFilter?.field !== 'landesverband') continue;
       const v = c.defaultFilter.value;
@@ -194,5 +197,30 @@ describe('contentTypeLabel', () => {
     expect(contentTypeLabel('landtag-nrw-system', 'unbekannt')).toBeNull();
     expect(contentTypeLabel('bundestag-dip-system', null)).toBeNull();
     expect(contentTypeLabel('gruene-de-system', 'artikel')).toBeNull();
+  });
+});
+
+describe('applyDefaultFilter — Website-Abschriften von Parteitagsbeschlüssen', () => {
+  const DUPLICATE = { is_empty: { key: 'superseded_by' } };
+
+  it('blendet in der LV-Sammlung markierte Abschriften aus', () => {
+    expect(applyDefaultFilter('nordrhein-westfalen-system')).toEqual({
+      must: [{ key: 'landesverband', match: { any: ['NRW', 'NRW-F'] } }, DUPLICATE],
+    });
+  });
+
+  it('grenzt die Parteitage-Sicht auf die Antragsgrün-Quellen ein', () => {
+    expect(applyDefaultFilter('parteitage-system')).toEqual({
+      must: [{ key: 'source_id', match: { any: ['nrw-antragsgruen'] } }, DUPLICATE],
+    });
+  });
+
+  it('lässt Sammlungen ohne Abschriften unberührt', () => {
+    expect(applyDefaultFilter('landtag-nrw-system')).toBeUndefined();
+    expect(
+      applyDefaultFilter('gruene-de-system', { must: [{ key: 'a', match: { value: 'b' } }] })
+    ).toEqual({
+      must: [{ key: 'a', match: { value: 'b' } }],
+    });
   });
 });

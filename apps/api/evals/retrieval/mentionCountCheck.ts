@@ -21,7 +21,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const { env } = await import('../../config/env.js');
-const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
+const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter, isRemoteCollection } =
   await import('../../config/systemCollectionsConfig.js');
 const { createQdrantClient } = await import('../../database/services/QdrantService/connection.js');
 const { DocumentSearchService } =
@@ -99,7 +99,8 @@ async function main(): Promise<void> {
 
   for (const evalCase of manualCases) {
     const config = getSystemCollectionConfig(evalCase.collection);
-    if (!config) continue;
+    // Zählt Erwähnungen per Scroll über unser Qdrant — Remote-Sammlungen fallen heraus.
+    if (!config || isRemoteCollection(config)) continue;
     const params = getSearchParams(evalCase.collection);
 
     const resp = await service.search({

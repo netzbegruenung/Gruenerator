@@ -33,10 +33,12 @@ export {
   useDeleteGroupAvatar,
   useDeleteGroupLink,
   useGroupDetails,
+  useGroupInstructions,
   useGroupMembers,
   useJoinGroup,
   useLeaveGroup,
   useSetGroupMute,
+  useSetGroupInstructions,
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
@@ -67,6 +69,13 @@ export {
   type ToGroupFeedItemsOptions,
 } from './feed.js';
 
+export {
+  addItemsToGroup,
+  addableKey,
+  sharedContentKeys,
+  type AddToGroupResult,
+  type AddableItem,
+} from './addContent.js';
 export { replyMention, threadComments, type GroupCommentThread } from './comments.js';
 
 export {

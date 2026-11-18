@@ -15,6 +15,7 @@ import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
 import { CURRENT_INSTANCE } from '../../config/instance';
+import { isParteitagePath } from '../../config/parteitageAdminGate';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
 
 import { getToolCatalog } from './toolCatalog';
@@ -50,6 +51,8 @@ export interface BuildFeatureIndexArgs {
   userAgents: Agent[];
   /** Vom Admin ausgeblendete System-Agenten. Weglassen = nichts ausgeblendet. */
   hiddenAgentIdentifiers?: readonly string[];
+  /** Parteitage are instance-admin only for now; omitted = hidden. */
+  canSeeParteitage?: boolean;
 }
 
 interface FeatureSource {
@@ -66,11 +69,13 @@ export function buildFeatureIndex({
   locale,
   userAgents,
   hiddenAgentIdentifiers = [],
+  canSeeParteitage = false,
 }: BuildFeatureIndexArgs): FeatureHit[] {
   const hits: FeatureHit[] = [];
   const seen = new Set<string>();
 
   const push = (source: FeatureSource) => {
+    if (!canSeeParteitage && isParteitagePath(source.path)) return;
     const key = `${source.id}:${source.path}`;
     if (seen.has(key)) return;
     seen.add(key);

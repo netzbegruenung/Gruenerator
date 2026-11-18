@@ -89,6 +89,12 @@
           "path": "/studio/videoeditor"
         },
         {
+          "id": "parteitage",
+          "title": "Parteitage",
+          "description": "Reden als Reels",
+          "path": "/parteitage"
+        },
+        {
           "id": "studio-voice",
           "title": "Voice",
           "description": "Text vertonen",
@@ -249,6 +255,11 @@
       "title": "Notebooks",
       "path": "/notebooks",
       "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-parteitage": {
+      "title": "Parteitage",
+      "path": "/parteitage",
+      "subtitle": "Reden vom Parteitag untertiteln und schneiden"
     },
     "tool-profilbild": {
       "title": "Profilbild",

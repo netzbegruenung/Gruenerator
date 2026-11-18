@@ -75,6 +75,17 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 import { turnImagesOf } from '../services/turnImages.js';
 
+import {
+  makeAntragsgruenAgendaTool,
+  makeAntragsgruenMotionTool,
+  makeAntragsgruenSiteTool,
+  siteCreationConfigured,
+} from './antragsgruenSiteTools.js';
+import {
+  makeAntragsgruenAuswertenTool,
+  makeAntragsgruenLesenTool,
+  makeAntragsgruenTool,
+} from './antragsgruenTools.js';
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
@@ -101,7 +112,7 @@ import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
-import { makeNotebookSourcesTool } from './notebookSourceTools.js';
+import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -122,11 +133,7 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
-import {
-  isTabelleAuswertenMountable,
-  makeDirektAntwortenTool,
-  makeTabelleAuswertenTool,
-} from './tabelleAuswertenTool.js';
+import { isTabelleAuswertenMountable, makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { werkzeugFehler } from './toolFailure.js';
@@ -425,6 +432,14 @@ export function buildChatToolCatalog(params: {
     // search now hangs on the locale, so "no loop state" has to resolve to an
     // explicit `null` (→ the German default) rather than to an absent property.
     userLocale: loop?.state.userLocale ?? null,
+    // The notebook the turn is scoped to becomes the search default — an
+    // @mention first, else the agent's bound notebooks (same priority as
+    // `resolveExamplesLvScope`). Without it an LV agent searched `deutschland`.
+    ...(loop != null && {
+      scopedCollections: loop.state.notebookCollectionIds?.length
+        ? loop.state.notebookCollectionIds
+        : (loop.state.defaultNotebookCollectionIds ?? []),
+    }),
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
@@ -954,6 +969,14 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.nationalrat = makeNationalratTool({ state, sourceRegistry });
       tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
+    // Antragsgrün (GRÜNE NRW): montiert wie die Parlamente, aber hinter der Gruppe
+    // `antragsgruen` (`toolScope.ts`) — sichtbar erst auf @antragsgruennrw, ein
+    // Stichwort oder eine frühere Nutzung im Thread.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale)) {
+      tools.antragsgruen = makeAntragsgruenTool({ state, sourceRegistry });
+      tools.antragsgruen_lesen = makeAntragsgruenLesenTool({ state, sourceRegistry });
+      tools.antragsgruen_auswerten = makeAntragsgruenAuswertenTool({ state, sourceRegistry });
+    }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
@@ -1066,6 +1089,14 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       if (state.clientCanRenderSharepic && state.enabledTools?.['check_sharepic'] !== false) {
         tools.check_sharepic = makeCheckSharepicTool();
       }
+      // Neben dem Überarbeiten auch das Neuerstellen, ohne Zwang: ob „dann
+      // erstelle ein neues" ein neues meint, liest der Planer aus dem Gespräch.
+      // Ohne das Werkzeug blieb ihm nur edit_sharepic (Alfter, 09.11.2026, #5511).
+      // Ein bestellter Verbund unten überschreibt den Eintrag mit demselben Werkzeug.
+      tools.sharepic = makeCreateSharepicTool({
+        ...sharepicCtx,
+        researchBanned,
+      });
     }
 
     // Chat-Tabelle: lesen und ändern statt eine Änderung zu behaupten (#4457).
@@ -1167,14 +1198,29 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     if (state.enabledTools?.['groups'] !== false) {
       tools.groups = makeGroupsTool(personalCtx);
     }
+    // Hinter der Gruppe `antragsgruen` (`toolScope.ts`); ohne Zugangsdaten des
+    // Grünerator-Kontos bei antragsgruen.de gibt es nichts anzulegen.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale) && siteCreationConfigured()) {
+      tools.antragsgruen_seite_anlegen = makeAntragsgruenSiteTool(personalCtx);
+      tools.antragsgruen_antrag_stellen = makeAntragsgruenMotionTool(personalCtx);
+      tools.antragsgruen_tagesordnung = makeAntragsgruenAgendaTool(personalCtx);
+    }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
-    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
-      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
+    // Ein Agent mit eigenem System-Notebook liest es auch ohne `user_content`:
+    // die Freigabe hängt am Eigentümer des Notebooks (öffentliche
+    // Parteiinhalte), nicht am Werkzeug. Dann nur System-Notebooks, nur lesen.
+    if (
+      (userContentAllowed || boundSystemNotebook(state) != null) &&
+      state.enabledTools?.['notebook_quellen'] !== false
+    ) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx, {
+        systemOnly: !userContentAllowed,
+      });
     }
     // DeepL translation. Mounted broadly like the domain tools — the model
     // decides — but only when a key is configured: a tool that always answers
@@ -1193,8 +1239,8 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     //
     // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
     //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
-    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
-    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Pin zwingt den Turn in die Schleife und kündigt dem Modell das
+    //    Werkzeug an (`buildPinnedToolNote`) — ein Pin auf ein nicht montiertes
     //    Werkzeug wäre still wirkungslos.
     // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
     //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
@@ -1283,7 +1329,6 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
     if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
       tools.tabelle_auswerten = makeTabelleAuswertenTool();
-      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

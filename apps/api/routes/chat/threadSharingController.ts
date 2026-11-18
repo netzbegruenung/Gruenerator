@@ -3,12 +3,12 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { closeShareRoom } from '../../services/collab/collabRooms.js';
-import { notifyContentShared } from '../../services/groups/groupContent.js';
+import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import {
-  assertCanShareToGroup,
-  listShareTargetGroups,
-} from '../../services/groups/groupMembership.js';
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+} from '../../services/groups/groupShareWriter.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
 
@@ -73,31 +73,23 @@ router.post(
         return res.status(403).json({ error: 'Only thread owner can share' });
       }
 
+      // Old app path: shares with write access, as it always did.
+      let created: boolean;
       try {
-        await assertCanShareToGroup(group_id, userId);
-      } catch {
+        ({ created } = await addGroupShare({
+          userId,
+          groupId: group_id,
+          contentType: 'chat_threads',
+          contentId: id,
+          permissions: { read: true, write: true },
+        }));
+      } catch (error) {
+        if (!(error instanceof GroupShareForbiddenError)) throw error;
         return res.status(403).json({ error: 'You may not share with this group' });
       }
-
-      const existing = await db.query(
-        `SELECT 1 FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
-        [id, group_id]
-      );
-      if ((existing as unknown[]).length > 0) {
+      if (!created) {
         return res.status(409).json({ error: 'Already shared with this group' });
       }
-
-      await db.query(
-        `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-         VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
-        [id, group_id, userId]
-      );
-      notifyContentShared({
-        groupId: group_id,
-        userId,
-        contentType: 'chat_threads',
-        contentId: id,
-      });
 
       return res.status(201).json({ message: 'Thread shared' });
     } catch (error: unknown) {
@@ -128,11 +120,7 @@ router.delete(
         return res.status(403).json({ error: 'Only thread owner can manage sharing' });
       }
 
-      await db.query(
-        `DELETE FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
-        [id, groupId]
-      );
-      void closeShareRoom('chat_threads', id);
+      await removeGroupShare({ groupId, contentType: 'chat_threads', contentId: id });
 
       return res.json({ message: 'Share removed' });
     } catch (error: unknown) {

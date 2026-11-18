@@ -162,6 +162,16 @@ describe('applySharepicOpsToCanvas — failed background lookup (#3290)', () => 
     expect(outcome.newState.currentImageSrc).toBe('/api/share/tok123/download');
   });
 
+  it('sends the state it read as the base of the patch (#5765)', async () => {
+    await applySharepicOpsToCanvas({ ...base, operations: [setText] });
+
+    expect(mockApplyPatch).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ line1: 'Neu' }),
+      expect.objectContaining({ base: { line1: 'Alt' } })
+    );
+  });
+
   it('saves the picked background to the Mediathek', async () => {
     mockSelectBestImage.mockResolvedValue({
       selectedImage: { filename: 'wind.jpg', alt_text: 'Windräder' },

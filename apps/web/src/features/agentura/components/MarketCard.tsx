@@ -6,7 +6,14 @@ import {
   interactiveCardControl,
 } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { PiCopySimple, PiMinusCircle, PiPencilSimple, PiStar, PiStarFill } from 'react-icons/pi';
+import {
+  PiCopySimple,
+  PiMinusCircle,
+  PiPencilSimple,
+  PiShareNetwork,
+  PiStar,
+  PiStarFill,
+} from 'react-icons/pi';
 
 /**
  * Die Marktkachel — eine Form für Grüneratoren, Rezepte und wiederkehrende
@@ -37,6 +44,8 @@ interface MarketCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onEdit?: () => void;
+  /** Öffnet den Teilen-Dialog — nur bei eigenen Agents und Rezepten. */
+  onShare?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
   /** Nimmt eine aus der Agentura geholte Kachel wieder von der Übersicht. */
@@ -64,6 +73,7 @@ export function MarketCard({
   isFavorite,
   onToggleFavorite,
   onEdit,
+  onShare,
   onDuplicate,
   onDelete,
   onRemoveFromLibrary,
@@ -118,6 +128,12 @@ export function MarketCard({
             <DropdownMenuItem onClick={onEdit}>
               <PiPencilSimple />
               Bearbeiten
+            </DropdownMenuItem>
+          )}
+          {onShare && (
+            <DropdownMenuItem onClick={onShare}>
+              <PiShareNetwork />
+              Teilen
             </DropdownMenuItem>
           )}
           {onDuplicate && (

@@ -23,13 +23,14 @@ export function captionFor(v: BevVersion, versions: readonly BevVersion[]): stri
   return `V${v.num} · Bearbeitung von ${parent}`;
 }
 
-function AddReferenceButton() {
+/** With an image on the stage an attachment is a reference; without one it is the photo to edit. */
+function AddReferenceButton({ label }: { label: string }) {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <button
         type="button"
-        aria-label="Referenzbild anhängen"
-        title="Referenzbild anhängen"
+        aria-label={label}
+        title={label}
         className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <ImagePlus className="size-4" aria-hidden="true" />
@@ -77,7 +78,8 @@ const entry = (id: string, role: ChatEntry['role'], text: string): ChatEntry => 
  * without one it makes a new image. Which version is shown is picked under the preview.
  */
 export function BevChat({ bev }: { bev: BildEditorV2 }) {
-  const { versions, active, generating, statusText, error, pendingPrompt, submit } = bev;
+  const { versions, active, generating, statusText, error, needsPhoto, pendingPrompt, submit } =
+    bev;
 
   const entries = useMemo(() => {
     const list: ChatEntry[] = [];
@@ -124,7 +126,13 @@ export function BevChat({ bev }: { bev: BildEditorV2 }) {
         showModelPicker={false}
         showMessageActions={false}
         showRoleBadge={false}
-        {...(active && { composerSlots: { sendAdornment: <AddReferenceButton /> } })}
+        {...((active || needsPhoto) && {
+          composerSlots: {
+            sendAdornment: (
+              <AddReferenceButton label={active ? 'Referenzbild anhängen' : 'Foto anhängen'} />
+            ),
+          },
+        })}
       />
       <p role="status" className="sr-only">
         {generating ? (statusText ?? '') : ''}

@@ -10,11 +10,13 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { canvasAccessible, loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
+import { CanvasDocumentNewerReadError } from '../../../services/canvas/canvasWriteErrors.js';
 import { planAndApplyCanvasDeckEdit } from '../../../services/presentations/canvasDeckEdit.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
 } from '../../../services/presentations/PresentationGenerationService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { planAndApplyPresentationEdit } from '../services/presentationEditCore.js';
 
@@ -49,7 +51,15 @@ NUTZE bei Fragen zur Präsentation ("was steht auf Folie 3", "wie viele Folien")
       const userId = ctx.state.agentConfig?.userId ?? null;
       const loaded = userId ? await loadPresentationState(id, userId) : null;
       if (!loaded && userId) {
-        const canvasText = await loadCanvasAsContext(id, userId);
+        let canvasText: string | null;
+        try {
+          canvasText = await loadCanvasAsContext(id, userId);
+        } catch (error) {
+          // A canvas newer than the server: say so rather than "not found" or half the slides.
+          if (error instanceof CanvasDocumentNewerReadError)
+            return { error: toUserFacingMessage(error) };
+          throw error;
+        }
         if (canvasText) {
           return {
             presentationId: id,

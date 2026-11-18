@@ -17,15 +17,13 @@ import { skillRole } from '@gruenerator/shared/agents';
 
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
-import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
+import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
-import {
-  ownedDefaultRecipeMention,
-  preferredLvRecipeMention,
-} from '../../agents/lvRecipePreference.js';
+import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
+import { boundSystemNotebook } from '../../agents/notebookSourceTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   catalogDescription,
@@ -33,9 +31,10 @@ import {
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
+import { extractTextContent } from '../messageHelpers.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
@@ -46,6 +45,7 @@ import {
 } from '../threadPersistenceService.js';
 import { isWolkePhoto } from '../wolkePhoto.js';
 
+import { loopAgentDefaultRecipe } from './agentDefaultRecipe.js';
 import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
@@ -59,7 +59,6 @@ import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from '
 import { createToolLoopGuards } from './loopGuards.js';
 import { ACTION_DIGEST_TOOLS, buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, recipeKey, type RecipeRegistry } from './recipeRegistry.js';
-import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { toolResultBudget } from './toolResultBudgets.js';
@@ -77,8 +76,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -153,6 +152,8 @@ export interface CatalogDeps {
   loadMcpCatalog: typeof loadMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
+  /** True when the sticky server id is another person's row. */
+  isForeignMcpServer: (userId: string, ref: string) => Promise<boolean>;
 }
 
 const defaultDeps: CatalogDeps = {
@@ -160,6 +161,7 @@ const defaultDeps: CatalogDeps = {
   loadMcpCatalog: loadMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
+  isForeignMcpServer: (userId, ref) => McpServerRegistry.isForeignServer(userId, ref),
 };
 
 export interface AssembledCatalog {
@@ -168,6 +170,11 @@ export interface AssembledCatalog {
   /** The connector the turn is scoped to (the person's own server or a managed
    *  one), or null when none was mounted. The caller owns closing it. */
   mcpCatalog: McpCatalog | null;
+  /** The connector the PREVIOUS turn used whose sticky scope this turn had to
+   *  drop (server removed, disabled or switched off) — null otherwise. The
+   *  history still shows its tool-backed answers; without a note the model
+   *  continues that pattern with no tool and invents the data (#5602). */
+  staleConnectorName: string | null;
   recipeCatalog: RecipeCatalogEntry[];
   recipeRegistry: RecipeRegistry;
   /** Tool-card labels of the mounted connector. */
@@ -256,19 +263,40 @@ export async function assembleToolCatalog(
   const userId = agentConfig.userId;
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
+  let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId, userId) : null);
+    // The sticky slot is per person (#5675), so it normally holds the sender's
+    // own server. A slot written before that — one per thread, by whoever used
+    // a connector last — may still name another member's: it is neither
+    // mounted nor reported as "gone" on this sender's turn.
+    if (!explicitScope && scope) {
+      try {
+        if (await deps.isForeignMcpServer(userId, scope)) {
+          log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
+          scope = null;
+        }
+      } catch (err) {
+        // An unverifiable owner is not a verified one: skip the sticky server.
+        log.warn(`[catalogAssembly] sticky MCP owner check failed; skipping: ${err}`);
+        scope = null;
+      }
+    }
     if (scope) {
       // One loader for every connector — a known one (Bahn, Wetter, …) is a
       // row like any other, and a legacy `system-<key>` scope resolves to it.
       mcpCatalog = await deps.loadMcpCatalog({ userId, scope, threadId, sse, sourceRegistry });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
-      // only for an EXPLICIT mention.
+      // only for an EXPLICIT mention; a thread that used a connector long ago
+      // would otherwise announce a disconnect on an unrelated question. Only
+      // when the turn right before this one used it does the prompt learn it
+      // is gone (`staleConnectorName`).
       if (!explicitScope && mcpCatalog.scopedServerMissing) {
         await mcpCatalog.close();
         mcpCatalog = null;
+        staleConnectorName = lastTurnConnectorName(toolHistory);
       }
     }
     if (mcpCatalog) {
@@ -283,7 +311,7 @@ export async function assembleToolCatalog(
         // The resolved row id, not the scope: a pinned connector still sends
         // the legacy alias, and the thread should not keep carrying it.
         const sticky = mcpCatalog.resolvedServerId ?? scope;
-        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
+        void setThreadLastMcpServer(threadId, userId, sticky).catch((err: unknown) => {
           log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
         });
       }
@@ -301,12 +329,8 @@ export async function assembleToolCatalog(
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
-  // Ein-Rezept-Agenten (Bürger*innenanfragen, Wahlprüfsteine) bekommen ihr Rezept vorab:
-  // nur ohne eigene Wahl und ohne Persona (wie `resolveEffectiveRecipeMention`)
-  // und nicht auf Plauder- oder Produktfragen. Anders als im Single-Pass-Pfad
-  // auch auf Recherchefragen („Wie positioniert sich der LV zu …?") — genau
-  // die laufen über den Loop; den Fall ohne Mail-Auftrag regelt der
-  // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
+  // Das Standard-Rezept des Agenten kommt vorab in die Registry (unten,
+  // `loopAgentDefaultRecipe`). Wählt das Modell über `rezept_laden` ein anderes
   // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
   const isMounted = (tool: string): boolean => tool in tools;
 
@@ -344,34 +368,32 @@ export async function assembleToolCatalog(
     }
   }
 
-  const ownedDefault = ownedDefaultRecipeMention(agentConfig);
-  if (
-    ownedDefault &&
-    !state.activeSkillMention &&
-    !state.activeRecipeId &&
-    !state.customSystemPrompt
-  ) {
-    const text = state.lastUserTextNoMentions ?? lastUserText(state);
-    if (!looksLikeChitchatTurn(text) && !isProductMetaQuestion(text)) {
-      const resolved = await deps.resolveRecipe({
-        mention: ownedDefault,
-        userId: userId ?? null,
-        visualBlocks: state.visualBlocks ?? [],
+  // Das Standard-Rezept des Agenten trägt im Loop allein die Registry;
+  // `respondNode` lässt es aus dem Systemprompt weg. Wann es gilt, entscheidet
+  // für beide `loopAgentDefaultRecipe`.
+  const agentDefault = loopAgentDefaultRecipe(state);
+  if (agentDefault) {
+    const resolved = await deps.resolveRecipe({
+      mention: agentDefault.mention,
+      recipeId: agentDefault.recipeId,
+      userId: userId ?? null,
+      visualBlocks: state.visualBlocks ?? [],
+    });
+    if (resolved) {
+      recipeRegistry.register({
+        id: resolved.id,
+        mention: resolved.mention,
+        title: resolved.title,
+        body: resolved.body,
+        source: resolved.source,
+        recommendedTools: recommendedToolsFor(resolved.mention, isMounted),
+        preloaded: true,
       });
-      if (resolved) {
-        recipeRegistry.register({
-          id: resolved.id,
-          mention: ownedDefault,
-          title: resolved.title,
-          body: resolved.body,
-          source: resolved.source,
-          recommendedTools: recommendedToolsFor(ownedDefault, isMounted),
-          preloaded: true,
-        });
-        log.info(`[Rezept] vorab geladen=${ownedDefault} (Agent-Default)`);
-      } else {
-        log.warn(`[Rezept] Agent-Default nicht verfügbar: ${ownedDefault}`);
-      }
+      log.info(`[Rezept] vorab geladen=${resolved.mention} (Agent-Default)`);
+    } else {
+      log.warn(
+        `[Rezept] Agent-Default nicht verfügbar: ${agentDefault.mention ?? agentDefault.recipeId}`
+      );
     }
   }
 
@@ -500,20 +522,6 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
-      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
-      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
-      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
-      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
-      if (methodEntries(recipeCatalog).length > 0) {
-        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
-          isMounted,
-          catalog: recipeCatalog,
-          registry: recipeRegistry,
-          userId: userId ?? null,
-          visualBlocks: state.visualBlocks ?? [],
-          only: 'methode',
-        });
-      }
     }
   }
 
@@ -543,6 +551,11 @@ export async function assembleToolCatalog(
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
+    previousUserText: previousUserText(state.messages ?? []),
+    // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
+    // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
+    // hinter „meine Inhalte" warten.
+    ...(boundSystemNotebook(state) != null && { keepVisible: ['notebook_quellen'] }),
     enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());
@@ -552,12 +565,32 @@ export async function assembleToolCatalog(
   return {
     tools,
     mcpCatalog,
+    staleConnectorName,
     recipeCatalog,
     recipeRegistry,
     toolLabels,
     mcpMountMs,
     toolScope,
   };
+}
+
+/** Der Dienst, den der Zug direkt davor benutzt hat — nie werfen. */
+function lastTurnConnectorName(toolHistory: ThreadToolHistory | null | undefined): string | null {
+  try {
+    return toolHistory?.lastTurnToolSteps().find((s) => s.serverName)?.serverName ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Die Nachricht der Person im Turn vor dem aktuellen (für `createToolScope`). */
+function previousUserText(messages: readonly ModelMessage[]): string | null {
+  let seen = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== 'user') continue;
+    if (++seen === 2) return extractTextContent(messages[i].content);
+  }
+  return null;
 }
 
 /** Die vorhandene Projektion lesen, nie werfen. */
@@ -587,15 +620,6 @@ export function createLoopGuards(
     // thread with prior research would have been told it had "already found
     // enough" before running a single search.
     getSourceCount: () => sourceRegistry.freshSize,
-    // The web is NOT gated behind the internal document search — no exemption
-    // list either, because there is nothing left to be exempt from. Which
-    // retrieval a question needs is the classifier's call, made with the whole
-    // message and the thread in hand. All the loop still does is refuse to let
-    // an internal search that found NOTHING end in an answer from model memory.
-    internalFallback: {
-      requiredTool: 'gruenerator_search',
-      fallbackTool: 'web_search',
-    },
   });
 }
 
@@ -653,8 +677,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
 
 /**
  * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen
- * oben zusammenkommen — `priorTurnRetrievalFailed` und der Zuschnitt des
- * erzwungenen ersten Schritts (`forcedFirstStepTools`) stellen dieselbe Frage.
+ * oben zusammenkommen — `priorTurnRetrievalFailed` stellt dieselbe Frage.
  * Verbindungs-Werkzeuge (`serverName`) entscheidet der Aufrufer, weil der
  * Name allein sie nicht verrät.
  */
@@ -910,7 +933,7 @@ export async function seedAttachedDocuments(params: {
  * Eine gewählte Cloud-Datei ist Material des Loop-Turns. `retrievableAttachedSources` lässt `wolke`/`connect` aber
  * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
  * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
- * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
+ * deshalb nie; der Planer griff zu `gruenerator_search`, und
  * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
  * hier über denselben Fan-out wie im Einzeldurchlauf.
  *

@@ -52,6 +52,7 @@ export type NotebookId =
   | 'sachsen-notebook'
   | 'hessen-notebook'
   | 'saarland-notebook'
+  | 'nordrhein-westfalen-notebook'
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
@@ -62,6 +63,7 @@ export type NotebookId =
   | 'landtag-nrw-notebook'
   | 'landtag-berlin-notebook'
   | 'landtag-bayern-notebook'
+  | 'parteitage-notebook'
   | 'wahlpruefsteine-notebook';
 
 export interface NotebookDefinition {
@@ -426,6 +428,25 @@ export const NOTEBOOK_REGISTRY = [
     },
   },
   {
+    id: 'nordrhein-westfalen-notebook',
+    title: 'Nordrhein-Westfalen',
+    description:
+      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen NRW sowie Pressemitteilungen und Publikationen der Grünen Landtagsfraktion NRW.',
+    meta: 'Archiv',
+    tags: ['Nordrhein-Westfalen', 'NRW', 'Presse', 'Beschlüsse'],
+    order: 14,
+    category: 'landesebene',
+    audience: 'de-DE',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',
+    mention: {
+      alias: 'nrw',
+      title: 'Grüne NRW',
+      description: 'Presse und Beschlüsse NRW (Landesverband & Fraktion)',
+      avatar: '🌻',
+      backgroundColor: '#316049',
+    },
+  },
+  {
     id: 'kommunalwiki-notebook',
     title: 'KommunalWiki',
     description:
@@ -600,6 +621,26 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Bayerischer Landtag',
       description: 'Drucksachen und Protokolle des Bayerischen Landtags',
       avatar: '🏛️',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'parteitage-notebook',
+    title: 'Parteitage',
+    queryAliases: ['parteitag', 'ldk', 'landesdelegiertenkonferenz', 'antragsgrün', 'antragsgruen'],
+    description:
+      'Durchsuchbar sind Anträge, Änderungsanträge und Beschlüsse grüner Parteitage aus Antragsgrün – mit Status, Antragsteller*innen und dem Votum der Antragskommission, filterbar nach Parteitag. Bisher die Landesdelegiertenkonferenzen und Landesparteiräte der GRÜNEN NRW.',
+    meta: 'Antragsgrün',
+    tags: ['Parteitage', 'Anträge', 'Änderungsanträge', 'Beschlüsse', 'LDK'],
+    order: 4,
+    category: 'bundesebene',
+    audience: 'de-DE',
+    channel: 'preview',
+    mention: {
+      alias: 'parteitage',
+      title: 'Parteitage',
+      description: 'Anträge, Änderungsanträge und Beschlüsse von Parteitagen',
+      avatar: '📋',
       backgroundColor: '#316049',
     },
   },

@@ -1,7 +1,7 @@
 /**
  * Auth boundary regression tests.
  *
- * Exercises the Zod schema that gates every Better Auth session user before
+ * Exercises `toBetterAuthUser` and the Zod schema that gate every Better Auth session user before
  * it lands in `req.user`. These tests lock in three invariants:
  *
  *   1. Happy path — a complete Better-Auth-shaped user parses cleanly and
@@ -18,22 +18,24 @@
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
-import { userProfileSchema } from '@gruenerator/contracts';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 
-/** Mirror of authMiddleware.toBetterAuthUser's null-stripping + rename logic. */
-function buildParseInput(user: Record<string, unknown>) {
-  const stripped = Object.fromEntries(
-    Object.entries(user).map(([k, v]) => [k, v === null ? undefined : v])
-  );
-  return {
-    ...stripped,
-    display_name: user.name,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt,
-  };
-}
+import type { BetterAuthUser } from '../config/betterAuth.js';
+
+// authMiddleware drags in the Better Auth instance, Drizzle and the locale cache
+// at import time. None of it is touched by toBetterAuthUser — stub only that.
+vi.mock('../config/betterAuth.js', () => ({ auth: {}, SESSION_COOKIE_PREFIX: 'ba' }));
+vi.mock('../database/services/DrizzleService.js', () => ({ getDrizzleInstance: vi.fn() }));
+vi.mock('../services/localization/localeCache.js', () => ({
+  getUserLocale: vi.fn(),
+  LOCALE_UNSET: Symbol('unset'),
+}));
+
+const { toBetterAuthUser } = await import('./authMiddleware.js');
+
+const parseUser = (user: Record<string, unknown>) =>
+  toBetterAuthUser(user as unknown as BetterAuthUser);
 
 const now = new Date();
 
@@ -71,7 +73,7 @@ describe('userProfileSchema — happy path', () => {
     video_editor: true,
   };
 
-  const parsed = userProfileSchema.parse(buildParseInput(completeUser));
+  const parsed = parseUser(completeUser);
 
   it('passes id and email through unchanged', () => {
     expect(parsed.id).toBe('user-1');
@@ -130,7 +132,7 @@ describe('userProfileSchema — SQL NULL coercion', () => {
     video_editor: null,
   };
 
-  const parsed = userProfileSchema.parse(buildParseInput(bareNewUser));
+  const parsed = parseUser(bareNewUser);
 
   it('applies `.default(1)` to missing avatar_robot_id', () => {
     expect(parsed.avatar_robot_id).toBe(1);
@@ -171,26 +173,23 @@ describe('userProfileSchema — ai_consent_at (Date vs. ISO-String)', () => {
 
   it('normalisiert ein Date aus der Better-Auth-Session zum ISO-String', () => {
     const consentedAt = new Date('2026-01-01T00:00:00.000Z');
-    const parsed = userProfileSchema.parse(
-      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: consentedAt })
-    );
+    const parsed = parseUser({ ...baseBetterAuthFields, ai_consent_at: consentedAt });
     expect(parsed.ai_consent_at).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('reicht einen ISO-String aus profileMapper unverändert durch', () => {
-    const parsed = userProfileSchema.parse(
-      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: '2026-01-01T00:00:00.000Z' })
-    );
+    const parsed = parseUser({
+      ...baseBetterAuthFields,
+      ai_consent_at: '2026-01-01T00:00:00.000Z',
+    });
     expect(parsed.ai_consent_at).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('lässt fehlende Einwilligung als null/undefined stehen', () => {
-    const fromNull = userProfileSchema.parse(
-      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: null })
-    );
+    const fromNull = parseUser({ ...baseBetterAuthFields, ai_consent_at: null });
     expect(fromNull.ai_consent_at).toBeUndefined();
 
-    const absent = userProfileSchema.parse(buildParseInput(baseBetterAuthFields));
+    const absent = parseUser(baseBetterAuthFields);
     expect(absent.ai_consent_at).toBeUndefined();
   });
 });
@@ -232,7 +231,7 @@ describe('userProfileSchema — missing email (prod login-loop regression)', () 
       video_editor: false,
     };
 
-    const parsed = userProfileSchema.parse(buildParseInput(noEmailUser));
+    const parsed = parseUser(noEmailUser);
 
     expect(parsed.email).toBeUndefined();
     expect(parsed.id).toBe('user-keycloak-no-email');
@@ -269,7 +268,7 @@ describe('userProfileSchema — missing email (prod login-loop regression)', () 
       video_editor: false,
     };
 
-    const parsed = userProfileSchema.parse(buildParseInput(nullEmailUser));
+    const parsed = parseUser(nullEmailUser);
 
     expect(parsed.email).toBeUndefined();
     expect(parsed.avatar_robot_id).toBe(2);
@@ -287,7 +286,7 @@ describe('userProfileSchema — drift detection', () => {
 
     let caught: z.ZodError | undefined;
     try {
-      userProfileSchema.parse(buildParseInput(drifted));
+      parseUser(drifted);
     } catch (e) {
       if (e instanceof z.ZodError) caught = e;
     }
@@ -329,7 +328,7 @@ describe('userProfileSchema — drift detection', () => {
 
     let caught: z.ZodError | undefined;
     try {
-      userProfileSchema.parse(buildParseInput(incomplete));
+      parseUser(incomplete);
     } catch (e) {
       if (e instanceof z.ZodError) caught = e;
     }

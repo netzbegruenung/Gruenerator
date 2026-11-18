@@ -157,7 +157,7 @@ function SystemRecipe({
               <HeaderIconButton
                 icon="share-outline"
                 label="Link teilen"
-                onPress={() => shareLink(recipeShareUrl(skill.mention), skill.title)}
+                onPress={() => shareLink(recipeShareUrl({ mention: skill.mention }), skill.title)}
               />
             </HeaderButtons>
           ),
@@ -267,7 +267,7 @@ function UserRecipe({ form, source }: { form: TextForm | PublicTextForm; source:
                         pathname: '/(focused)/grueneratoren/rezept/[mention]/teilen',
                         params: { mention: form.mention },
                       })
-                    : shareLink(recipeShareUrl(form.mention), form.title)
+                    : shareLink(recipeShareUrl(form), form.title)
                 }
               />
             </HeaderButtons>

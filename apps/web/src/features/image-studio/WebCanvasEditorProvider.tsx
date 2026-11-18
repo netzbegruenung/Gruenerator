@@ -1,10 +1,12 @@
 import { CanvasEditorProvider } from '@gruenerator/canvas-editor';
-import { sharepicBlockSpec } from '@gruenerator/contracts';
+import { sharepicBlockSpec, sharepicSeiteSpec } from '@gruenerator/contracts';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { canRequestFeedback, requestFeedback } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, type ReactNode } from 'react';
 
 import { useAuthStore } from '../../stores/authStore';
+import { fillSpecWithText } from '../vorlagen/fillSpecWithText';
 import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
 import {
   canvasVorlagenQuery,
@@ -20,6 +22,7 @@ import { webCanvasEditorServices } from './webCanvasEditorServices';
 import type { CanvasEditorServices, VorlagePage } from '@gruenerator/canvas-editor';
 import type {
   SharepicBlock,
+  SharepicBrand,
   SharepicColor,
   SharepicFormat,
   SharepicPhotoAttribution,
@@ -34,28 +37,51 @@ import type {
  */
 async function composeSpec(
   spec: SharepicSpec,
-  attributions: (SharepicPhotoAttribution | null)[]
+  attributions: (SharepicPhotoAttribution | null)[],
+  aiWritten = false
 ): Promise<VorlagePage[]> {
   const { canvasSeed, composeCreatorSharepic, creatorPhotoSrc } =
     await import('./freitext/composeForRender');
-  // A plain copy is hand-made from stock photos, so it carries no AI label.
-  const composed = await composeCreatorSharepic(spec, attributions, creatorPhotoSrc, false);
+  // A plain copy is hand-made from stock photos; only AI-written text carries the AI label.
+  const composed = await composeCreatorSharepic(spec, attributions, creatorPhotoSrc, aiWritten);
   const { pages } = canvasSeed(composed, { base: spec, tweaks: {}, attributions });
   return pages.map(({ configId, state }) => ({ configId, state }));
 }
 
 /** A single Seite, composed in the design's format. */
 const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
-  composeSpec(
-    {
-      locale: seite.locale,
-      ...(seite.brand ? { brand: seite.brand } : {}),
-      format,
-      ...(seite.thema ? { thema: seite.thema } : {}),
-      slides: [seite.slide],
-    },
-    [seite.attribution]
-  );
+  composeSpec(sharepicSeiteSpec(seite, format), [seite.attribution]);
+
+/** „Mit KI hinzufügen": the server picks one of the candidates and writes it as the next page. */
+async function draftNextSeite({
+  candidates,
+  deck,
+  format,
+  brand,
+}: {
+  candidates: readonly SharepicSeite[];
+  deck: string;
+  format: SharepicFormat;
+  brand: SharepicBrand;
+}) {
+  const res = await getContractsClient().sharepicCreator.nextSeite({
+    body: { candidates: candidates.map((s) => s.id), deck, format, brand },
+  });
+  if (res.status !== 200) {
+    throw new ApiError(res.status, `Die Seite ließ sich nicht schreiben (HTTP ${res.status}).`);
+  }
+  const seite = candidates.find((s) => s.id === res.body.seiteId);
+  if (!seite) throw new Error(`the server picked an unknown Seite: ${res.body.seiteId}`);
+  return { seite, pages: await composeSpec(res.body.spec, res.body.attributions, true) };
+}
+
+/** „Vorlage ändern" with the page's own text written into the Seite. */
+async function fillSeite(seite: SharepicSeite, format: SharepicFormat, text: string) {
+  const filled = await fillSpecWithText(sharepicSeiteSpec(seite, format), text);
+  // No silent fallback to the sample copy: the person asked to keep their text.
+  if (!filled) throw new Error('the draft did not fill the Seite');
+  return composeSpec(filled.spec, filled.attributions, true);
+}
 
 /** A block alone on `color`, composed like a Seite; the editor cuts its elements out. */
 async function composeBlock(
@@ -94,6 +120,8 @@ export function WebCanvasEditorProvider({
             vorlagen: {
               listSeiten: (brand) => queryClient.fetchQuery(sharepicSeitenQuery(brand)),
               composeSeite,
+              draftNextSeite,
+              fillSeite,
               listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
               loadDeckVorlagen: () => queryClient.fetchQuery(folienVorlagenQuery()),
               listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),

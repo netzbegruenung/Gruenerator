@@ -249,6 +249,75 @@ describe('requireAuth', () => {
     expect(req.user?.ai_consent_at).toBeTruthy();
   });
 
+  describe('x-dev-auth-user (second dev identity)', () => {
+    const LENA = '00000000-0000-4000-a000-0000000000b2';
+    const bypassHeaders = (extra: Record<string, string> = {}) => ({
+      'x-dev-auth-bypass': 'secret-dev-token',
+      ...extra,
+    });
+
+    beforeEach(() => {
+      envMock.NODE_ENV = 'development';
+      envMock.ALLOW_DEV_AUTH_BYPASS = true;
+      envMock.DEV_AUTH_BYPASS_TOKEN = 'secret-dev-token';
+      getSessionMock.mockResolvedValue(null);
+      sessionRowsMock.mockResolvedValue([
+        { id: LENA, email: 'lena@localhost', display_name: 'Lena Hoffmann' },
+      ] as never);
+    });
+
+    it('switches to an allowlisted dev user via x-dev-auth-user', async () => {
+      const req = mockReq({ headers: bypassHeaders({ 'x-dev-auth-user': LENA }) });
+      const { res } = mockRes();
+      const next = vi.fn() as NextFunction;
+
+      await requireAuth(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.user?.id).toBe(LENA);
+      expect(req.user?.display_name).toBe('Lena Hoffmann');
+      expect(req.user?.ai_consent_at).toBeTruthy();
+    });
+
+    it('ignores x-dev-auth-user outside the allowlist', async () => {
+      const req = mockReq({
+        headers: bypassHeaders({ 'x-dev-auth-user': '00000000-0000-4000-a000-0000000000ee' }),
+      });
+      const { res } = mockRes();
+      const next = vi.fn() as NextFunction;
+
+      await requireAuth(req, res, next);
+
+      expect(req.user?.id).toBe('00000000-0000-4000-a000-000000000001');
+    });
+
+    it('ignores x-dev-auth-user without a valid bypass token', async () => {
+      const req = mockReq({
+        headers: { 'x-dev-auth-bypass': 'WRONG', 'x-dev-auth-user': LENA },
+      });
+      const { res, state } = mockRes();
+      const next = vi.fn() as NextFunction;
+
+      await requireAuth(req, res, next);
+
+      expect(state.statusCode).toBe(401);
+      expect(req.user).toBeUndefined();
+    });
+
+    it('ignores x-dev-auth-user when NODE_ENV is production', async () => {
+      envMock.NODE_ENV = 'production';
+      envMock.ALLOW_DEV_AUTH_BYPASS = false;
+      const req = mockReq({ headers: bypassHeaders({ 'x-dev-auth-user': LENA }) });
+      const { res, state } = mockRes();
+      const next = vi.fn() as NextFunction;
+
+      await requireAuth(req, res, next);
+
+      expect(state.statusCode).toBe(401);
+      expect(req.user).toBeUndefined();
+    });
+  });
+
   it('rejects dev bypass with wrong token even in development', async () => {
     envMock.NODE_ENV = 'development';
     envMock.ALLOW_DEV_AUTH_BYPASS = true;

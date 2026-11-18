@@ -83,6 +83,10 @@ vi.mock('../agents/directSearch.js', async (orig) => {
     executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
   };
 });
+vi.mock('../agents/notebookCollectionSearch.js', async () => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return { searchCollectionAsNotebook: stub.fakeExecuteDirectSearch };
+});
 // Der Bundestag-/Abgeordnetenwatch-Abruf, aus demselben Grund wie
 // `directSearch` oben: nur das BACKEND wird ersetzt. Die Werkzeugdefinition, das
 // Locale-Gitter am Katalog und der `searchNode`-Zweig bleiben echt — sonst

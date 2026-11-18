@@ -349,6 +349,7 @@ export const groupContentTypeSchema = z.enum([
   'user_agents',
   'canvas_template',
   'nextcloud_share_link',
+  'user_text_forms',
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 
@@ -547,6 +548,8 @@ export const groupContentResponseSchema = z.object({
     canvas_templates: groupContentBucketSchema,
     /** Optional: ältere Server liefern den Bucket nicht. */
     group_posts: z.array(groupPostItemSchema).optional(),
+    /** Rezepte (`user_text_forms`). Optional: ältere Server liefern den Bucket nicht. */
+    recipes: groupContentBucketSchema.optional(),
   }),
 });
 export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;
@@ -556,3 +559,19 @@ export const groupVorlagenResponseSchema = z.object({
   vorlagen: z.array(z.record(z.string(), z.unknown())),
   tags: z.array(z.string()),
 });
+
+// Projekt-Anweisungen: ein Text, der für jeden Chat im Projekt gilt.
+export const GROUP_INSTRUCTIONS_MAX = 2000;
+
+export const groupInstructionsBodySchema = z.object({
+  // Leer = Anweisungen entfernen.
+  instructions: z.string().trim().max(GROUP_INSTRUCTIONS_MAX),
+});
+export type GroupInstructionsBody = z.infer<typeof groupInstructionsBodySchema>;
+
+export const groupInstructionsResponseSchema = z.object({
+  success: z.literal(true),
+  instructions: z.string(),
+  updatedAt: z.string().nullable(),
+});
+export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;

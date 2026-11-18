@@ -7,6 +7,8 @@
  * - First chunk extraction for previews
  */
 
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
+import { type RemoteNotebookSource } from '../../notebook/remoteSources/types.js';
 import { withoutTrashedDocuments } from '../trashedDocuments.js';
 
 import type {
@@ -782,6 +784,44 @@ export async function getDocumentFirstChunks(
       chunks: {},
       foundCount: 0,
       error: errorMessage,
+    };
+  }
+}
+
+/**
+ * `getSystemChunkWithContext` für eine Remote-Sammlung: die Nachbarn holt die
+ * Quelle selbst (`chunks`). Ein Ausfall kommt als `success: false` mit dem Satz
+ * der Quelle zurück („Bundestag-Quelle gerade nicht erreichbar").
+ */
+export async function getRemoteChunkWithContext(
+  source: RemoteNotebookSource,
+  documentId: string,
+  chunkIndex: number,
+  options: { window?: number } = {}
+): Promise<ChunkWithContextResult> {
+  const windowSize = options.window ?? 2;
+  const indexes: number[] = [];
+  for (let i = Math.max(0, chunkIndex - windowSize); i <= chunkIndex + windowSize; i++) {
+    indexes.push(i);
+  }
+  try {
+    const chunks = await source.chunks(documentId, indexes);
+    const center = chunks.find((c) => c.payload.chunk_index === chunkIndex);
+    if (!center) return { success: false, error: 'Chunk not found in collection' };
+    return {
+      success: true,
+      centerChunk: { text: (center.payload.chunk_text as string) || '', chunkIndex },
+      contextChunks: chunks.map((chunk) => ({
+        text: (chunk.payload.chunk_text as string) || '',
+        chunkIndex: chunk.payload.chunk_index as number,
+        isCenter: chunk.id === center.id,
+      })),
+    };
+  } catch (error) {
+    console.error(`[DocumentRetrieval] getRemoteChunkWithContext error:`, error);
+    return {
+      success: false,
+      error: toUserFacingMessage(error, 'Der Kontext konnte nicht geladen werden.'),
     };
   }
 }

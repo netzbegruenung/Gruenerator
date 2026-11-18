@@ -18,14 +18,17 @@ import {
   CANVAS_TEMPLATE_FIELDS,
   getSharepicTemplateDescriptor,
   getSharepicVariantLabel,
+  parseSharepicChatProps,
   sharepicOpsToStatePatch,
   type CanvasAiOperation,
+  type SharepicSpec,
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
+import { baseForPatch } from '../../../services/canvas/canvasPatchBase.js';
 import { checkCanvasWriteAccess, createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
@@ -36,6 +39,10 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
+import {
+  CanvasDocumentNewerReadError,
+  CanvasWriteRefusedError,
+} from '../../../services/canvas/canvasWriteErrors.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
 import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
@@ -45,6 +52,7 @@ import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js
 
 import { finishEditTurn } from './editTurnCompletion.js';
 import { toJsonbParam } from './jsonbParam.js';
+import { firstSlideText } from './sharepicCreatorVariant.js';
 import { isSharepicVariantTool, sharepicVariantCall } from './sharepicToolCalls.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
@@ -147,6 +155,60 @@ async function attachCanvasIdToMessage(
       toJsonbParam(meta),
     ]);
   }
+}
+
+export type ReviewedSpecOutcome = 'saved' | 'not_found' | 'minted' | 'design_changed';
+
+/**
+ * The vision review's correction of a chat creator sharepic, made in the
+ * browser after the turn (the server cannot render). It replaces the spec of
+ * the persisted variant, so reloads, the studio and the next chat edit see the
+ * corrected sharepic. Once the variant is a canvas, the canvas is the truth
+ * and the correction is refused. The design (locale, brand) decides the
+ * variant's canvas type and stays.
+ */
+export async function saveReviewedCreatorSpec(
+  threadId: string,
+  variantId: string,
+  spec: SharepicSpec
+): Promise<ReviewedSpecOutcome> {
+  const hit = (await findVariants(threadId, variantId)).hits[0];
+  if (!hit) return 'not_found';
+  if (hit.variant.canvasId) return 'minted';
+  const prior = parseSharepicChatProps(hit.variant.initialProps)?.creatorSpec;
+  if (!prior) return 'not_found';
+  if (prior.locale !== spec.locale || prior.brand !== spec.brand) return 'design_changed';
+
+  const pg = getPostgresInstance();
+  const rows = (await pg.query(`SELECT tool_results FROM chat_messages WHERE id = $1`, [
+    hit.messageId,
+  ])) as Array<{ tool_results: unknown }>;
+  const raw = rows[0]?.tool_results;
+  if (!raw) return 'not_found';
+  const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+    toolCalls?: Array<{ toolName?: string; result?: { variants?: SharepicVariant[] } }>;
+  };
+  let changed = false;
+  for (const tc of meta.toolCalls ?? []) {
+    if (!isSharepicVariantTool(tc?.toolName)) continue;
+    for (const v of tc.result?.variants ?? []) {
+      if (v?.id !== variantId) continue;
+      const next = { ...v.initialProps, creatorSpec: spec };
+      v.initialProps = next;
+      // Same page split as `toCreatorVariant`.
+      if (spec.slides.length > 1) v.pages = spec.slides.map((_, slide) => ({ ...next, slide }));
+      else delete v.pages;
+      const altText = firstSlideText(spec);
+      if (altText) v.altText = altText;
+      changed = true;
+    }
+  }
+  if (!changed) return 'not_found';
+  await pg.query(`UPDATE chat_messages SET tool_results = $2 WHERE id = $1`, [
+    hit.messageId,
+    toJsonbParam(meta),
+  ]);
+  return 'saved';
 }
 
 async function setActiveThreadCanvas(threadId: string, variantId: string): Promise<void> {
@@ -683,7 +745,12 @@ export async function applySharepicOpsToCanvas(args: {
   }
 
   const newState = { ...state, ...opsResult.patch };
-  await applyCanvasStatePatch(canvasId, opsResult.patch, { seedState: newState });
+  await applyCanvasStatePatch(canvasId, opsResult.patch, {
+    seedState: newState,
+    // The patch was computed from `state`, read seconds ago: let the server keep what a studio
+    // tab changed since.
+    base: baseForPatch(state, opsResult.patch),
+  });
   const version = await insertCanvasVersion({
     canvasId,
     state: newState,
@@ -880,9 +947,12 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       sse.send('sharepic_edit_error', {
         error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
+      // A refused read or write (newer document, value that cannot be stored) is no use retrying.
       await finishWithText(
         args,
-        'Bei der Bearbeitung ist etwas schiefgelaufen. Versuch es bitte noch einmal.'
+        error instanceof CanvasWriteRefusedError || error instanceof CanvasDocumentNewerReadError
+          ? error.message
+          : 'Bei der Bearbeitung ist etwas schiefgelaufen. Versuch es bitte noch einmal.'
       );
     }
     return true;

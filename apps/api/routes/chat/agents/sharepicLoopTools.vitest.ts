@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DraftFailedError } from '../../../services/sharepicCreator/draftAgent.js';
+import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -9,12 +10,12 @@ const reviseCreatorSharepic = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock('../services/sharepicLoopTarget.js', () => ({
   resolveLoopSharepicTarget: (...a: unknown[]) => resolveTarget(...a),
 }));
-vi.mock('../services/sharepicCreatorVariant.js', () => ({
+vi.mock('../services/sharepicCreatorVariant.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/sharepicCreatorVariant.js')>()),
   reviseCreatorSharepic: (...a: unknown[]) => reviseCreatorSharepic(...a),
 }));
 
-const { makeEditSharepicTool, makeReadSharepicTool, quotesSharepicText } =
-  await import('./sharepicLoopTools.js');
+const { makeEditSharepicTool, makeReadSharepicTool } = await import('./sharepicLoopTools.js');
 
 const slide = (headline: string) => ({
   background: { kind: 'farbe', color: 'tanne' },
@@ -92,6 +93,7 @@ describe('edit_sharepic', () => {
     expect(out).toMatchObject({ variantId: 'v2', unchanged: false, variants: [variant] });
     expect(events.find((e) => e.type === 'sharepic_complete')?.payload).toMatchObject({
       variants: [variant],
+      review: { brief: 'Headline: Neu', mode: 'edit' },
     });
     expect(reviseCreatorSharepic.mock.calls[0]?.[0]).toMatchObject({
       instruction: 'Headline: Neu',
@@ -125,7 +127,8 @@ describe('edit_sharepic', () => {
     const { ctx, events, run } = setup();
     const out = await run(makeEditSharepicTool(ctx), { anweisung: 'mach es besser' });
     expect(out).toMatchObject({ unchanged: true });
-    expect(out.error).toBeTruthy();
+    // The tool card shows `error` verbatim — no instruction to the model in it (#5512).
+    expect(out.error).toBe(ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged);
     expect(out.variants).toBeUndefined();
     expect(events.some((e) => e.type === 'sharepic_complete')).toBe(false);
   });
@@ -183,17 +186,5 @@ describe('edit_sharepic', () => {
     const out = await run(makeEditSharepicTool(ctx), { anweisung: 'x' });
     expect(String(out.error)).toContain('Überarbeitung ist nicht gelungen');
     expect(events.some((e) => e.type === 'sharepic_complete')).toBe(false);
-  });
-});
-
-describe('quotesSharepicText', () => {
-  it('erkennt einen zitierten Text, der auf dem Sharepic steht', () => {
-    expect(quotesSharepicText('Ersetze „Busse" durch „Bahnen"', SPEC as never)).toBe(true);
-    expect(quotesSharepicText('Ersetze "statt Stau" bitte', SPEC as never)).toBe(true);
-  });
-
-  it('ignoriert Zitate, die nicht auf dem Sharepic stehen', () => {
-    expect(quotesSharepicText('Ersetze „Radwege" durch „Bahnen"', SPEC as never)).toBe(false);
-    expect(quotesSharepicText('Mach die Busse größer', SPEC as never)).toBe(false);
   });
 });

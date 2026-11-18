@@ -17,6 +17,9 @@ import {
 } from '@gruenerator/shared/search';
 
 import { TOPIC_NAMES } from '../services/monitor/types.js';
+import { type RemoteSourceId } from '../services/notebook/remoteSources/ids.js';
+
+import { ANTRAGSGRUEN_SOURCE_IDS } from './antragsgruenInstances.js';
 
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
@@ -61,12 +64,11 @@ export interface DefaultFilter {
   value: string | string[];
 }
 
-export interface SystemCollectionConfig {
+interface SystemCollectionBase {
   id: string;
   // Chat-facing key (e.g. `bayern`) COLLECTION_MAP derives from; distinct from
   // the `-system` id, which is the wire contract for notebook filters + embed.
   key: string;
-  qdrantCollection: string;
   name: string;
   description: string;
   minQuality: number;
@@ -86,6 +88,39 @@ export interface SystemCollectionConfig {
   // `content_type`s, die bei `sourceTier: 'documents-first'` einen kleinen
   // Abschlag bekommen (#4307). Siehe `services/search/sourceTier.ts`.
   demotedContentTypes?: readonly string[];
+}
+
+export interface QdrantSystemCollectionConfig extends SystemCollectionBase {
+  qdrantCollection: string;
+}
+
+/**
+ * Served by another service's HTTP API instead of our Qdrant
+ * (`services/notebook/remoteSources/`). Deliberately WITHOUT `qdrantCollection`:
+ * every reader of that field fails to compile on the union and has to decide
+ * what a remote collection means for it. An optional field would let
+ * `searchCollection: config.qdrantCollection` compile as `undefined` and
+ * silently search the `documents` collection.
+ */
+export interface RemoteSystemCollectionConfig extends SystemCollectionBase {
+  remote: RemoteSourceId;
+}
+
+export type SystemCollectionConfig = QdrantSystemCollectionConfig | RemoteSystemCollectionConfig;
+
+export function isRemoteCollection(
+  config: SystemCollectionConfig
+): config is RemoteSystemCollectionConfig {
+  return 'remote' in config;
+}
+
+/** Wohin eine Suche über diese Sammlung geht — in die Such-Options gespreizt. */
+export function systemSearchTarget(
+  config: SystemCollectionConfig
+): { searchCollection: string } | { remoteSource: RemoteSourceId } {
+  return isRemoteCollection(config)
+    ? { remoteSource: config.remote }
+    : { searchCollection: config.qdrantCollection };
 }
 
 export interface SearchParams {
@@ -217,6 +252,24 @@ const LV_CONTENT_TYPE_FIELD: FilterableField<'content_type'> = {
   valueLabels: LV_CONTENT_TYPE_LABELS,
 };
 
+/**
+ * Filter für Parteitagsdokumente aus Antragsgrün (`ParteitageScraper`). Im
+ * LV-Notebook belegen nur diese Dokumente die Felder; wer danach filtert, sieht
+ * also nur Parteitagsmaterial — gewollt. Der Verfahrensvorschlag heißt auch
+ * hier so: er ist eine Empfehlung der Antragskommission, kein Abstimmungsergebnis.
+ */
+const PARTEITAG_FIELDS: FilterableField[] = [
+  { field: 'parteitag', label: 'Parteitag', type: 'keyword' },
+  { field: 'tagesordnungspunkt', label: 'Tagesordnungspunkt', type: 'keyword', collapsed: true },
+  { field: 'antragsteller', label: 'Antragsteller*in', type: 'keyword', collapsed: true },
+  {
+    field: 'votum',
+    label: 'Verfahrensvorschlag der Antragskommission',
+    type: 'keyword',
+    collapsed: true,
+  },
+];
+
 /** Shared "Organ" filter declaration — only used by LVs that have both Landesverband and Fraktion. */
 const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
   field: 'source_type',
@@ -227,7 +280,7 @@ const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
 
 /**
  * NLP-enriched per-document facets, appended to every in-scope collection below.
- * `themes` maps the 13 topic categories to German labels; `persons` are raw
+ * `themes` maps the topic categories (`topicCategorySchema`) to German labels; `persons` are raw
  * spaCy NER names (no label vocabulary). Populated by the nightly enrichment job.
  */
 const THEMES_FIELD: FilterableField<'themes'> = {
@@ -492,7 +545,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     country: 'DE',
     includeInDefaultSearch: false,
     mcpExposed: true,
-    qdrantCollection: 'bundestag_dip_documents',
+    remote: 'bundestag-wrapped',
     name: 'Bundestag: Reden & Drucksachen',
     description:
       'Plenarreden und Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus dem DIP des Bundestags',
@@ -539,7 +592,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     country: 'DE',
     includeInDefaultSearch: false,
     mcpExposed: false,
-    qdrantCollection: 'bundesrat_documents',
+    remote: 'bundesrat-wrapped',
     name: 'Bundesrat: Drucksachen',
     description:
       'Volltext von Bundesrats-Drucksachen aus dem DIP: Gesetzentwürfe, Anträge der Länder und Beschlüsse',
@@ -810,6 +863,29 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
+  'parteitage-system': {
+    id: 'parteitage-system',
+    key: 'parteitage',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Erst mit dem Notebook freischalten (siehe landtag-bayern-system). Die
+    // Dokumente sind über das Notebook ihres Landesverbands ohnehin erreichbar.
+    mcpExposed: false,
+    // Dieselben Punkte wie im LV-Notebook, eingegrenzt auf Antragsgrün.
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Parteitage',
+    description:
+      'Anträge, Änderungsanträge und Beschlüsse grüner Parteitage aus Antragsgrün (bisher GRÜNE NRW: LDKs und Landesparteiräte), mit Status, Beschlussdatum und Verfahrensvorschlag der Antragskommission. Ohne Bewerbungen.',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      ...PARTEITAG_FIELDS,
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'landesverband', label: 'Landesverband', type: 'keyword', collapsed: true },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'source_id', value: ANTRAGSGRUEN_SOURCE_IDS },
+  },
   'satzungen-system': {
     id: 'satzungen-system',
     key: 'satzungen',
@@ -831,7 +907,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'hamburg',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
@@ -848,7 +927,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'schleswig-holstein',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Bis auf Weiteres ausgeblendet wie Sachsen (Notebook `enabled: false`, kein
+    // Korpus, #3831/#4266). Sonst böte `gruenerator_search` die leere Sammlung
+    // jedem Agenten an. Auf true stellen, sobald das Notebook eingeblendet wird.
+    mcpExposed: false,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
@@ -1016,7 +1098,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Saarland',
-    description: 'Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland',
+    description:
+      'Pressemitteilungen, Artikel, Parteitagsbeschlüsse und Wahlprogramme der Grünen Saarland',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -1024,6 +1107,26 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'SL' },
+  },
+  'nordrhein-westfalen-system': {
+    id: 'nordrhein-westfalen-system',
+    key: 'nordrhein-westfalen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne NRW',
+    description:
+      'Pressemitteilungen, Beschlüsse, Neuigkeiten, Fragen und Antworten und Soundingboard-Berichte der Grünen NRW, Pressemitteilungen, Fachnewsletter und Publikationen der Grünen Landtagsfraktion NRW sowie Anträge, Änderungsanträge und Beschlüsse der Landesparteitage aus Antragsgrün',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
+      ...PARTEITAG_FIELDS,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: ['NRW', 'NRW-F'] },
   },
   // Antworten der Bundespartei auf Wahlprüfsteine, ein Punkt je Frage/Antwort-
   // Paar (scripts/ingest-wahlpruefstein-examples.ts). Dieselbe Sammlung speist
@@ -1098,7 +1201,8 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'landtag-berlin-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
-  if (NLP_INJECTION_EXCLUDED.has(id)) continue;
+  // Remote: die Anreicherung schreibt in unser Qdrant, nicht in fremde Indizes.
+  if (NLP_INJECTION_EXCLUDED.has(id) || isRemoteCollection(config)) continue;
   config.filterableFields = [...config.filterableFields, THEMES_FIELD, PERSONS_FIELD];
 }
 
@@ -1117,13 +1221,20 @@ export function isSystemCollectionId(id: string): boolean {
  * Check if a Qdrant collection name is a system collection
  */
 export function isSystemQdrantCollection(name: string): boolean {
-  return Object.values(SYSTEM_COLLECTIONS).some((c) => c.qdrantCollection === name);
+  return getSystemConfigByQdrantCollection(name) !== undefined;
 }
 
 export function getSystemConfigByQdrantCollection(
   name: string
-): SystemCollectionConfig | undefined {
-  return Object.values(SYSTEM_COLLECTIONS).find((c) => c.qdrantCollection === name);
+): QdrantSystemCollectionConfig | undefined {
+  return getQdrantSystemCollections().find((c) => c.qdrantCollection === name);
+}
+
+/** Alle Sammlungen, die in unserem Qdrant liegen — Remote-Sammlungen fehlen. */
+export function getQdrantSystemCollections(): QdrantSystemCollectionConfig[] {
+  return Object.values(SYSTEM_COLLECTIONS).filter(
+    (c): c is QdrantSystemCollectionConfig => !isRemoteCollection(c)
+  );
 }
 
 /**
@@ -1137,7 +1248,7 @@ export function getSystemCollectionConfig(id: string): SystemCollectionConfig | 
  * Get all system Qdrant collection names
  */
 export function getSystemQdrantCollections(): string[] {
-  return Object.values(SYSTEM_COLLECTIONS).map((c) => c.qdrantCollection);
+  return getQdrantSystemCollections().map((c) => c.qdrantCollection);
 }
 
 /** All system collection IDs, incl. agent-only + examples. */
@@ -1148,7 +1259,7 @@ export function getAllSystemCollectionIds(): string[] {
 /** General document corpus — excludes agent-only + the social-media examples. */
 export function getSearchableSystemCollectionIds(): string[] {
   return Object.values(SYSTEM_COLLECTIONS)
-    .filter((c) => !c.agentOnly && c.qdrantCollection !== 'social_media_examples')
+    .filter((c) => !c.agentOnly && c.id !== 'examples-system')
     .map((c) => c.id);
 }
 
@@ -1292,6 +1403,32 @@ export function buildSubcategoryFilter(
  * Merges the default filter with any user-specified filters
  */
 export function applyDefaultFilter(
+  collectionId: string,
+  existingFilter?: QdrantFilter
+): QdrantFilter | undefined {
+  const scoped = applyCollectionDefault(collectionId, existingFilter);
+  if (!SUPERSEDABLE_COLLECTIONS.has(qdrantCollectionOf(collectionId) ?? '')) return scoped;
+  return {
+    ...scoped,
+    must: [...(scoped?.must ?? []), { is_empty: { key: 'superseded_by' } }],
+  };
+}
+
+/**
+ * Sammlungen, in denen ein Punkt als Abschrift eines anderen markiert sein kann
+ * (`superseded_by`). Heute nur die LV-Sammlung: Website-Beiträge, die einen
+ * Antragsgrün-Beschluss wiederholen (`ParteitageScraper/websiteDuplicates.ts`).
+ * Jeder Leser einer System-Sammlung kommt über `applyDefaultFilter`, also
+ * blenden Suche, Facetten, Übersicht und Chat die Abschrift gleich aus.
+ */
+const SUPERSEDABLE_COLLECTIONS: ReadonlySet<string> = new Set(['landesverbaende_documents']);
+
+function qdrantCollectionOf(collectionId: string): string | null {
+  const config = SYSTEM_COLLECTIONS[collectionId];
+  return config && !isRemoteCollection(config) ? config.qdrantCollection : null;
+}
+
+function applyCollectionDefault(
   collectionId: string,
   existingFilter?: QdrantFilter
 ): QdrantFilter | undefined {

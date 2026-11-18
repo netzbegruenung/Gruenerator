@@ -2,8 +2,7 @@
 
 Gefunden beim Auswerten von Backend-Logs eines Multi-Artefakt-Chat-Tests am 2026-08-06
 (Grundlage: `af51bb9b5`, aktueller master). Alle 4 sind in dieser PR behoben — Diagnose
-und Root Cause bleiben hier als Referenz stehen. Strukturierte Version:
-[`knownBugs.ts`](./knownBugs.ts).
+und Root Cause bleiben hier als Referenz stehen.
 
 ## 1. Dedup-Guard blockiert `create_board`/`boards_tasks` fälschlich als Duplikat — BEHOBEN
 

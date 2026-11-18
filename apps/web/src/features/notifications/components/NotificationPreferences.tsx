@@ -1,5 +1,6 @@
-import { SelectCard, Switch } from '@gruenerator/ui';
-import { Bell, Mail, Settings2, Smartphone } from 'lucide-react';
+import { type NotificationLevel, type NotificationType } from '@gruenerator/contracts';
+import { Switch } from '@gruenerator/ui';
+import { Bell, Mail, Smartphone } from 'lucide-react';
 import React from 'react';
 
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
@@ -7,12 +8,13 @@ import { LEVEL_OPTIONS, RAW_TYPE_META, getRawTypesByGroup } from '../notificatio
 import { CHANNEL_ORDER } from '../types/preferences';
 
 import type { NotificationChannel } from '../types/preferences';
-import type { NotificationType } from '@gruenerator/contracts';
 
-import { cn } from '@/utils/cn';
+import SegmentedControl from '@/features/settings/components/SegmentedControl';
+import SettingsRow from '@/features/settings/components/SettingsRow';
+import SettingsSection from '@/features/settings/components/SettingsSection';
 
 interface NotificationPreferencesProps {
-  onSuccessMessage: (message: string) => void;
+  // Saving is silent: only a failure is reported.
   onErrorMessage: (message: string) => void;
   /** Nur im Experten-Modus angezeigt (z. B. Test-E-Mail). */
   expertExtras?: React.ReactNode;
@@ -33,7 +35,6 @@ const CHANNEL_LABELS: Record<NotificationChannel, string> = {
 const RAW_GROUPS = getRawTypesByGroup();
 
 const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
-  onSuccessMessage,
   onErrorMessage,
   expertExtras,
 }) => {
@@ -48,8 +49,6 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
     if (level === value) return;
     try {
       await applyLevel(value);
-      const label = LEVEL_OPTIONS.find((o) => o.value === value)?.label ?? value;
-      onSuccessMessage(`Benachrichtigungen auf „${label}" gesetzt.`);
     } catch {
       onErrorMessage('Einstellung konnte nicht gespeichert werden.');
     }
@@ -62,9 +61,6 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
   ) => {
     try {
       await toggleChannel(type, channel, value);
-      onSuccessMessage(
-        `${RAW_TYPE_META[type].label} ${CHANNEL_LABELS[channel]} ${value ? 'aktiviert' : 'deaktiviert'}.`
-      );
     } catch {
       onErrorMessage('Einstellung konnte nicht gespeichert werden.');
     }
@@ -84,123 +80,104 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
   }
 
   return (
-    <div className="space-y-lg">
-      <div className="flex items-start justify-between gap-md">
-        <div>
-          <div className="text-sm font-medium text-foreground mb-xs">Benachrichtigungen</div>
-          <p className="text-xs text-grey-500 dark:text-grey-400">
-            {expertMode
-              ? 'Stelle einzelne Benachrichtigungen pro Kanal ein.'
-              : 'Wähle, wie viele Benachrichtigungen du erhalten möchtest.'}
-          </p>
-        </div>
-        <label className="flex items-center gap-xs shrink-0 cursor-pointer select-none">
-          <span className="flex items-center gap-xs text-xs text-grey-500 dark:text-grey-400">
-            <Settings2 className="w-3.5 h-3.5" />
-            Experten
-          </span>
+    <div className="flex flex-col gap-8">
+      {!expertMode && (
+        <SettingsSection title="Benachrichtigungen">
+          <SettingsRow id="benachrichtigungen.stufe">
+            <SegmentedControl<NotificationLevel>
+              aria-label="Wie viel wir melden"
+              value={level}
+              onChange={(value) => {
+                if (!isApplyingLevel && value !== 'custom') void handleSelectLevel(value);
+              }}
+              options={LEVEL_OPTIONS.map(({ value, label }) => ({ value, label }))}
+            />
+          </SettingsRow>
+        </SettingsSection>
+      )}
+
+      <SettingsSection title="Feinsteuerung">
+        <div className="flex min-h-14 items-center justify-between gap-6 py-3.5">
+          <label htmlFor="notification-expert" className="min-w-0 cursor-pointer">
+            <span className="m-0 block text-sm font-medium text-foreground">Experten</span>
+            <span className="m-0 mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
+              {expertMode
+                ? 'Stelle einzelne Benachrichtigungen pro Kanal ein.'
+                : 'Wähle, wie viele Benachrichtigungen du erhalten möchtest.'}
+            </span>
+          </label>
           <Switch
-            className="h-[20px] w-[40px] data-[state=checked]:bg-secondary-600 data-[state=unchecked]:bg-grey-200 dark:data-[state=unchecked]:bg-grey-700"
+            id="notification-expert"
             checked={expertMode}
             onCheckedChange={setExpertMode}
             aria-label="Experteneinstellungen"
           />
-        </label>
-      </div>
-
-      {!expertMode ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-          {LEVEL_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
-            return (
-              <SelectCard
-                key={opt.value}
-                label={opt.label}
-                description={opt.description}
-                icon={<Icon className="w-5 h-5" />}
-                selected={level === opt.value}
-                onClick={() => {
-                  if (!isApplyingLevel) void handleSelectLevel(opt.value);
-                }}
-              />
-            );
-          })}
         </div>
-      ) : (
-        <div className="space-y-lg">
+      </SettingsSection>
+
+      {expertMode && (
+        <>
           {RAW_GROUPS.map(({ group, label, types }) => (
-            <div
+            <SettingsSection
               key={group}
-              className="rounded-lg border border-grey-200 dark:border-grey-700 overflow-hidden"
-            >
-              <div className="px-md py-sm bg-grey-50 dark:bg-grey-800/50 border-b border-grey-200 dark:border-grey-700">
-                <div className="flex items-center">
-                  <h4 className="text-sm font-semibold text-foreground grow">{label}</h4>
-                  <div className="flex items-center gap-lg pr-xs">
-                    {CHANNEL_ORDER.map((ch) => {
-                      const Icon = CHANNEL_ICONS[ch];
-                      return (
-                        <div
-                          key={ch}
-                          className="flex items-center gap-xs w-14 justify-center"
-                          title={CHANNEL_LABELS[ch]}
-                        >
-                          <Icon className="w-3.5 h-3.5 text-grey-400 dark:text-grey-500" />
-                          <span className="text-xs text-grey-500 dark:text-grey-400 hidden sm:inline">
-                            {CHANNEL_LABELS[ch]}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-grey-100 dark:divide-grey-800">
-                {types.map((type) => {
-                  const meta = RAW_TYPE_META[type];
-                  const channelState = preferences[type];
-                  const Icon = meta.icon;
-
-                  return (
-                    <div
-                      key={type}
-                      className="flex items-center px-md py-sm hover:bg-grey-50 dark:hover:bg-grey-800/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-sm grow min-w-0">
-                        <Icon className={cn('w-4 h-4 shrink-0 text-grey-400 dark:text-grey-500')} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {meta.label}
-                          </p>
-                          <p className="text-xs text-grey-500 dark:text-grey-400 truncate">
-                            {meta.description}
-                          </p>
-                        </div>
+              title={label}
+              aside={
+                <div className="flex items-center gap-md">
+                  {CHANNEL_ORDER.map((ch) => {
+                    const Icon = CHANNEL_ICONS[ch];
+                    return (
+                      <div
+                        key={ch}
+                        className="flex w-12 items-center justify-center gap-xs sm:w-14"
+                        title={CHANNEL_LABELS[ch]}
+                      >
+                        <Icon className="h-3.5 w-3.5 text-grey-400 dark:text-grey-500" />
+                        <span className="hidden whitespace-nowrap text-xs text-grey-500 sm:inline dark:text-grey-400">
+                          {CHANNEL_LABELS[ch]}
+                        </span>
                       </div>
+                    );
+                  })}
+                </div>
+              }
+            >
+              {types.map((type) => {
+                const meta = RAW_TYPE_META[type];
+                const channelState = preferences[type];
+                const Icon = meta.icon;
 
-                      <div className="flex items-center gap-lg pr-xs shrink-0">
-                        {CHANNEL_ORDER.map((ch) => (
-                          <div key={ch} className="w-14 flex justify-center">
-                            <Switch
-                              className="h-[20px] w-[40px] data-[state=checked]:bg-secondary-600 data-[state=unchecked]:bg-grey-200 dark:data-[state=unchecked]:bg-grey-700"
-                              checked={channelState?.[ch] ?? false}
-                              onCheckedChange={(checked: boolean) =>
-                                handleToggleChannel(type, ch, checked)
-                              }
-                              aria-label={`${meta.label} ${CHANNEL_LABELS[ch]}`}
-                            />
-                          </div>
-                        ))}
+                return (
+                  <div key={type} className="flex items-center justify-between gap-md py-3">
+                    <div className="flex min-w-0 grow items-center gap-sm">
+                      <Icon className="h-4 w-4 shrink-0 text-grey-400 dark:text-grey-500" />
+                      <div className="min-w-0">
+                        <p className="m-0 text-sm font-medium text-foreground">{meta.label}</p>
+                        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
+                          {meta.description}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+
+                    <div className="flex shrink-0 items-center gap-md">
+                      {CHANNEL_ORDER.map((ch) => (
+                        <div key={ch} className="flex w-12 justify-center sm:w-14">
+                          <Switch
+                            checked={channelState?.[ch] ?? false}
+                            onCheckedChange={(checked: boolean) =>
+                              handleToggleChannel(type, ch, checked)
+                            }
+                            aria-label={`${meta.label} ${CHANNEL_LABELS[ch]}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </SettingsSection>
           ))}
-          {expertExtras}
-        </div>
+          {expertExtras && <SettingsSection title="E-Mail">{expertExtras}</SettingsSection>}
+        </>
       )}
     </div>
   );

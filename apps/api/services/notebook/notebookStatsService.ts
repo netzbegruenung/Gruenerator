@@ -1,10 +1,15 @@
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
-import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import {
+  getSystemCollectionConfig,
+  isRemoteCollection,
+  type SystemCollectionConfig,
+} from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
+import { facetValueCounts } from './collectionFacets.js';
 import { getNotebookOverview, headFilter } from './notebookOverviewService.js';
 
 import type { ScrollPoint } from '../../database/services/QdrantService/operations/types.js';
@@ -44,6 +49,28 @@ export interface NotebookStats {
   topicDistribution: TopicCount[];
   topicSampleSize: number;
   topPersons: Array<{ person: string; count: number }>;
+}
+
+/**
+ * Eine Remote-Quelle liefert nur Facetten: Dokumentzahl und Verteilung nach
+ * `content_type`. Monatsverlauf, Wörter, Themen und Personen brauchen einen
+ * Scroll über die ganze Sammlung und bleiben leer. `null` bei Ausfall — wie
+ * beim nicht erreichbaren Qdrant darf das Ergebnis nicht in den Cache.
+ */
+async function remoteStats(config: SystemCollectionConfig): Promise<NotebookStats | null> {
+  try {
+    const byType = await facetValueCounts(config, 'content_type', CATEGORY_TOP_N);
+    return {
+      ...emptyStats(),
+      totalDocuments: byType.reduce((sum, b) => sum + b.count, 0),
+      categoryDistribution: byType,
+    };
+  } catch (error) {
+    log.warn(
+      `remote stats failed for ${config.id}: ${error instanceof Error ? error.message : error}`
+    );
+    return null;
+  }
 }
 
 function emptyStats(): NotebookStats {
@@ -214,6 +241,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     log.debug(`Unknown system collection: ${collectionId}`);
     return emptyStats();
   }
+  if (isRemoteCollection(config)) return await remoteStats(config);
 
   const qdrant = getQdrantInstance();
   await qdrant.init();

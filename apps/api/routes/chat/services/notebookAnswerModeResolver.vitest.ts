@@ -262,7 +262,7 @@ describe('formatGuardPrompt', () => {
 describe('isPraezisionEligible', () => {
   it('accepts user notebooks and single system collections of the locale', () => {
     expect(isPraezisionEligible([USER_NB], 'de-DE')).toBe(true);
-    expect(isPraezisionEligible(['hamburg-notebook'], 'de-DE')).toBe(true);
+    expect(isPraezisionEligible(['saarland-notebook'], 'de-DE')).toBe(true);
     expect(isPraezisionEligible(['oesterreich-notebook'], 'de-AT')).toBe(true);
   });
 
@@ -275,7 +275,7 @@ describe('isPraezisionEligible', () => {
   it('accepts the system ids and collection keys the notebook page sends', () => {
     expect(isPraezisionEligible(['berlin-system'], 'de-DE')).toBe(true);
     expect(isPraezisionEligible(['berlin'], 'de-DE')).toBe(true);
-    expect(isPraezisionEligible(['hamburg-system'], 'de-DE')).toBe(true);
+    expect(isPraezisionEligible(['saarland-system'], 'de-DE')).toBe(true);
   });
 
   it('is enough when one notebook of the page is readable', () => {

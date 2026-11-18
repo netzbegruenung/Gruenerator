@@ -7,6 +7,7 @@ import * as Y from 'yjs';
 import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { isUuid } from '../../utils/params.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -15,6 +16,15 @@ const db = getPostgresInstance();
 
 const ogCache = new Map<string, { data: Record<string, unknown>; expires: number }>();
 const OG_CACHE_TTL = 5 * 60 * 1000;
+
+// A malformed id cannot name a document: answer 404 instead of letting the uuid cast fail as a 500.
+router.param('id', (_req, res, next, id: string) => {
+  if (!isUuid(id)) {
+    res.status(404).json({ error: 'Document not found or not publicly accessible' });
+    return;
+  }
+  next();
+});
 
 /**
  * @route   GET /api/docs/public/:id

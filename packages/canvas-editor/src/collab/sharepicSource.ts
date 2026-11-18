@@ -11,7 +11,8 @@ interface SourcePage {
   state: Record<string, unknown>;
 }
 
-const CREATOR_CONFIGS: readonly string[] = [
+/** The freeform configs a composed sharepic lives on, in every design. */
+export const CREATOR_CONFIGS: readonly string[] = [
   'freeform',
   'freeform-at',
   'freeform-gj',

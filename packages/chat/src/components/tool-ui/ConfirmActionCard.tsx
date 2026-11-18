@@ -13,6 +13,7 @@ import {
   Repeat,
   Bot,
   Check,
+  ClipboardList,
   X,
   ArrowRight,
   Loader2,
@@ -42,6 +43,9 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   share_user_agent: Share2,
   share_text_form: Share2,
   apply_canvas_deck_edit: LayoutGrid,
+  create_antragsgruen_site: ClipboardList,
+  create_antragsgruen_motion: ClipboardList,
+  set_antragsgruen_agenda: ClipboardList,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
@@ -118,19 +122,28 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
               <span className="text-foreground-muted">&middot;</span>
               <a
                 href={resultUrl}
+                {...(/^https?:\/\//.test(resultUrl)
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : {})}
                 className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
               >
                 {action.type === 'modify_board'
                   ? 'Board öffnen'
-                  : action.type === 'create_recurring_task'
-                    ? 'Aufgaben öffnen'
-                    : action.type === 'create_user_agent'
-                      ? 'Grünerator-Agent öffnen'
-                      : GROUP_ACTION_TYPES.has(action.type)
-                        ? 'Gruppe öffnen'
-                        : NOTEBOOK_ACTION_TYPES.has(action.type)
-                          ? 'Notebook öffnen'
-                          : 'Dokument öffnen'}
+                  : action.type === 'create_antragsgruen_site'
+                    ? 'Seite öffnen'
+                    : action.type === 'create_antragsgruen_motion'
+                      ? 'Antrag öffnen'
+                      : action.type === 'set_antragsgruen_agenda'
+                        ? 'Tagesordnung öffnen'
+                        : action.type === 'create_recurring_task'
+                          ? 'Aufgaben öffnen'
+                          : action.type === 'create_user_agent'
+                            ? 'Grünerator-Agent öffnen'
+                            : GROUP_ACTION_TYPES.has(action.type)
+                              ? 'Gruppe öffnen'
+                              : NOTEBOOK_ACTION_TYPES.has(action.type)
+                                ? 'Notebook öffnen'
+                                : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

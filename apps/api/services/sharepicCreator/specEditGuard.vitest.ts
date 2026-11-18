@@ -86,6 +86,22 @@ describe('specEditDrift', () => {
     expect(specEditDrift(deck(one), deck(one, one), 'Füg eine Fazit-Folie hinzu')).toEqual([]);
   });
 
+  it('lets a single image become the carousel the request asks for (Alfter, #5511)', () => {
+    const one: SharepicSlide = { ...base, items: [{ type: 'headline', lines: ['A', 'B'] }] };
+    expect(
+      specEditDrift(deck(one), deck(one, one), 'Wandle das Sharepic in ein Karussell um.')
+    ).toEqual([]);
+    // Only from one slide: an existing carousel keeps its count unless the request adds or removes.
+    expect(
+      specEditDrift(deck(one, one), deck(one, one, one), 'Mach das Karussell frecher').map(
+        (d) => d.kind
+      )
+    ).toEqual(['slides']);
+    expect(specEditDrift(deck(one), deck(one, one), 'kürzer').map((d) => d.kind)).toEqual([
+      'slides',
+    ]);
+  });
+
   it('does not read an add/remove request inside unrelated words', () => {
     const one: SharepicSlide = { ...base, items: [{ type: 'headline', lines: ['A', 'B'] }] };
     const two: SharepicSlide = {

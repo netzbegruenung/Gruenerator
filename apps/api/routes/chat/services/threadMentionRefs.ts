@@ -7,7 +7,8 @@
  * query, links through the crawler's URL validation — so a stored ref never
  * grants anything by itself.
  *
- * Stored in `chat_threads.mention_refs`, scoped to the thread owner.
+ * Stored per person: the owner's in `chat_threads.mention_refs`, a team-chat
+ * member's in `chat_thread_member_refs` (#5675, see readThreadRef).
  * Deliberately NOT in `chat_thread_attachments`: that table holds the thread's
  * own uploads, and trashing or purging the thread deletes what it points at.
  */

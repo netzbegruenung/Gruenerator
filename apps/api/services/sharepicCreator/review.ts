@@ -252,7 +252,7 @@ export function validateReview(
       };
     }
     // Same marker rules as a draft: at most two passages, and only where a
-    // marker may stand (quote, paragraph, headline). Austria is checked by the composer.
+    // marker may stand (quote, paragraph, headline, call). Austria is checked by the composer.
     const passages = texts.reduce((n, t) => n + countMarkerPassages(t), 0);
     const target = op.op === 'set_text' ? slides[op.slide ?? 0]?.items[op.item ?? -1] : null;
     if (
@@ -261,11 +261,12 @@ export function validateReview(
         target &&
         target.type !== 'zitat' &&
         target.type !== 'absatz' &&
-        target.type !== 'headline')
+        target.type !== 'headline' &&
+        target.type !== 'aufruf')
     ) {
       return {
         ok: false,
-        error: `++Passage++ steht nur in zitat, absatz und headline, höchstens ${SHAREPIC_MARKER_PASSAGES} pro Slide.`,
+        error: `++Passage++ steht nur in zitat, absatz, headline und aufruf, höchstens ${SHAREPIC_MARKER_PASSAGES} pro Slide.`,
       };
     }
     const slide = op.slide ?? 0;

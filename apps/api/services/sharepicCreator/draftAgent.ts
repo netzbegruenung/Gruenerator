@@ -101,7 +101,7 @@ const log = createLogger('sharepicCreator:draft');
  * `:speed` writes ~180–270 tok/s. Without reasoning Gemma needed twice the repair
  * rounds and gave up on „Grün.“. Same price per token on both flavors.
  */
-const PINNED = GEMMA_31B_ON_MELIOUS_SPEED;
+export const PINNED = GEMMA_31B_ON_MELIOUS_SPEED;
 /** Gemma on Melious knows on and off only; any level is the same think (09.11.2026). */
 const REASONING = 'medium' as const;
 /** Another model for a draft Gemma could not finish — not just its other host. Keeps

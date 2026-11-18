@@ -45,6 +45,9 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   group_content_shared: 2,
   group_comment_added: 2,
   group_post_created: 2,
+  // Tier 2: someone wrote in a team chat you take part in (in-app only by default,
+  // see EMAIL_OFF_BY_DEFAULT).
+  group_chat_message: 2,
   // Tier 1: someone addressed this user (or everyone) directly.
   group_user_mentioned: 1,
   group_mention_all: 1,
@@ -81,6 +84,15 @@ const LEVEL_THRESHOLD: Record<NotificationLevel, 1 | 2 | 3> = {
   high: 3,
 };
 
+/**
+ * Types that are on in-app at their tier but never mail by default: a team chat
+ * turn is frequent, one email each would be spam. The user can still switch the
+ * email channel on per type (the level presets stay consistent with this).
+ */
+const EMAIL_OFF_BY_DEFAULT: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'group_chat_message',
+]);
+
 const ALL_ON: ChannelPreferences = { email: true, push: true, in_app: true };
 const ALL_OFF: ChannelPreferences = { email: false, push: false, in_app: false };
 
@@ -94,7 +106,10 @@ export function getPresetPreferences(
   const threshold = LEVEL_THRESHOLD[level];
   const result = {} as Record<NotificationType, ChannelPreferences>;
   for (const type of ALL_NOTIFICATION_TYPES) {
-    result[type] = TYPE_IMPORTANCE[type] <= threshold ? { ...ALL_ON } : { ...ALL_OFF };
+    result[type] =
+      TYPE_IMPORTANCE[type] <= threshold
+        ? { ...ALL_ON, ...(EMAIL_OFF_BY_DEFAULT.has(type) && { email: false }) }
+        : { ...ALL_OFF };
   }
   return result;
 }

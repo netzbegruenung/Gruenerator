@@ -83,6 +83,7 @@ Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Lan
 | Hessen                 | `@buerger-hessen`         |
 | Sachsen-Anhalt         | `@buerger-sachsen-anhalt` |
 | Saarland               | `@buerger-saarland`       |
+| Nordrhein-Westfalen    | `@buerger-nrw`            |
 | Österreich             | `@buerger-at`             |
 
 Fügst du eine Anfrage ganz ohne Abkürzung ein und hast die Rolle genau eines Landesverbands hinterlegt, nimmt der Chat von sich aus die Variante deines Verbands. Eine ausdrücklich getippte Abkürzung wie `@buergermail` gilt dagegen immer so, wie du sie gewählt hast.
@@ -109,6 +110,7 @@ Der **Wahlprogramm**-Agent sucht ausschließlich im Wahlprogramm und nennt zu je
 | Hessen                 | `@beschluss-hessen`         | —                              |
 | Sachsen-Anhalt         | `@beschluss-sachsen-anhalt` | `@wahlprogramm-sachsen-anhalt` |
 | Saarland               | `@beschluss-saarland`       | —                              |
+| Nordrhein-Westfalen    | `@beschluss-nrw`            | —                              |
 
 Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er schreibt den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands.
 

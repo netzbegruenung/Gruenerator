@@ -182,6 +182,9 @@ export const INTENT_KEYWORDS: Record<
     // ohnehin (de-DE montiert, `LANDTAG_RE` in domainTools weist hin), und das Wort
     // ist zugleich `queryAliases` des Abgeordnetenhaus-Notebooks.
     | 'abgeordnetenhaus'
+    // Nur per @-Erwähnung bzw. über die Werkzeuggruppe (`toolScope.ts`, Stichwörter
+    // wie „LDK" oder „Änderungsantrag"): ein eigenes Verdikt bräuchte es nicht.
+    | 'antragsgruen'
     // Decided by the creative-task branches, not by keyword scoring.
     | 'produktion'
     | 'image_edit'
@@ -255,9 +258,8 @@ export const INTENT_KEYWORDS: Record<
   abgeordnetenwatch: [
     // Die Verbform steht neben den Substantiven, weil die natürliche Frageform
     // sie benutzt: "Wie hat die SPD zum Heizungsgesetz abgestimmt?" traf keines
-    // der Substantive, fiel auf `direct@0.50` und wurde deshalb OHNE
-    // `loopDemotedFromRetrieval` demotiert — der Planer rief kein Werkzeug und
-    // antwortete mit dem Ehrlichkeitshinweis (Nightly-Eval 18.08.2026,
+    // der Substantive, fiel auf `direct@0.50` und wurde deshalb nicht
+    // demotiert — der Planer rief kein Werkzeug und antwortete mit dem Ehrlichkeitshinweis (Nightly-Eval 18.08.2026,
     // `followup-bundestag-scope` t0). Der Fuzzy-Abgleich deckt darüber auch
     // "gestimmt" ab. "Wie stimmte die FDP…" bleibt bewusst ungedeckt: mit
     // 'stimmte' in der Liste kippten vier harmlose Sätze mit ("Stimmt die
@@ -1659,11 +1661,9 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // sie nur, wenn das Wort „aktuell" fällt; eine Geltungsfrage kommt ohne aus.
   //
   // `web` und nicht `agentic`: das Verdikt steht in `DEMOTABLE_HEURISTIC_INTENTS`,
-  // Tier 3.5 setzt daraufhin `loopDemotedFromRetrieval`, und erst DAS lässt
-  // `shouldForceFirstToolCall` (Weg 4) einen Abruf abverlangen. Ohne den Umweg
+  // Tier 3.5 demotiert ihn daraufhin in die Schleife. Ohne den Umweg
   // bliebe das Verdikt `direct`, der Turn liefe als gewöhnlicher agentischer
-  // Turn, und der Planer dürfte weiterhin gar nichts rufen — genau der Zustand
-  // aus #2949: zwei Läufe, `tools=[]`, sechs Sekunden, Antwort aus dem
+  // Turn, ohne Werkzeug-Anstoss — der Zustand aus #2949: zwei Läufe, `tools=[]`, sechs Sekunden, Antwort aus dem
   // Modellwissen.
   //
   // Liest `stripped`: eine zitierte Passage ist fremde Rede. „Er schrieb: ‚Gilt
@@ -1722,8 +1722,8 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   },
   // Vorlagen/Beispiele ANSEHEN — Plattform-Stichwort plus irgendein Aktionsverb.
   // Oder eine Designfrage („hast du Designideen?", „welche Vorlage passt?"):
-  // sie braucht kein Verb, und erst über diese Regel bekommt der Loop den
-  // erzwungenen ersten Schritt, der `vorlagen_vorschlagen` auch wirklich ruft.
+  // sie braucht kein Verb, und erst über diese Regel kommt der Loop dazu,
+  // `vorlagen_vorschlagen` auch wirklich zu rufen.
   {
     id: 'examples',
     longPaste: 'skip',

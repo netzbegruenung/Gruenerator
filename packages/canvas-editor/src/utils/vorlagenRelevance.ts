@@ -12,7 +12,12 @@ import { SHAREPIC_SOURCE_KEY, sharepicThemaSchema } from '@gruenerator/contracts
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 import { SHAREPIC_THEMES } from '../composer/sharepicThemes';
 
-import type { SharepicBackground, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
+import type {
+  SharepicBackground,
+  SharepicFormat,
+  SharepicSeite,
+  SharepicThema,
+} from '@gruenerator/contracts';
 
 export interface VorlageLike {
   spec: {
@@ -169,4 +174,89 @@ export function rankVorlagen<T extends VorlageLike>(
     .map((vorlage, index) => ({ vorlage, index, score: score(design, vorlageProfile(vorlage)) }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((entry) => entry.vorlage);
+}
+
+/** A Seite in a grid, with its place among the slides of its Vorlage. */
+export interface SeiteTile {
+  seite: SharepicSeite;
+  n: number;
+  of: number;
+}
+
+/**
+ * The Seiten of the format, as the „Vorlagen" tab lists them. The slides of
+ * one Vorlage stay together in their order and are ranked as one, the ones
+ * most like the design first; groups of closing slides only go last.
+ */
+export function seitenFor(
+  seiten: readonly SharepicSeite[],
+  format: SharepicFormat,
+  pages: readonly PageLike[],
+  empty: boolean
+): SeiteTile[] {
+  const groups = new Map<string, SharepicSeite[]>();
+  for (const seite of seiten) {
+    if (!seite.formats.includes(format)) continue;
+    const key = seite.quelle ? `vorlage:${seite.quelle.vorlage}` : `seite:${seite.id}`;
+    const group = groups.get(key);
+    if (group) group.push(seite);
+    else groups.set(key, [seite]);
+  }
+  const entries = [...groups.values()].map((group) => {
+    group.sort((a, b) => (a.quelle?.seite ?? 0) - (b.quelle?.seite ?? 0));
+    return { group, spec: { format, thema: group[0]!.thema, slides: group.map((s) => s.slide) } };
+  });
+  const ranked = empty ? entries : rankVorlagen(entries, pages);
+  const closing = ({ group }: (typeof entries)[number]) =>
+    group.every((s) => s.rolle === 'schluss');
+  return [...ranked.filter((e) => !closing(e)), ...ranked.filter(closing)].flatMap(({ group }) =>
+    group.map((seite, i) => ({ seite, n: i + 1, of: group.length }))
+  );
+}
+
+/** A slide's words, markup and case aside — two slides that say the same. */
+const wordsOf = (items: unknown): string =>
+  JSON.stringify(items ?? null)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+/** The slides the design shows as composed: a copy of a Vorlage carries its slides on its pages. */
+function shownSlides(pages: readonly PageLike[]): Set<string> {
+  const shown = new Set<string>();
+  for (const { state } of pages) {
+    const source = state[SHAREPIC_SOURCE_KEY] as { slide?: { slides?: unknown } } | undefined;
+    const slides = source?.slide?.slides;
+    if (!Array.isArray(slides)) continue;
+    for (const slide of slides) shown.add(wordsOf((slide as { items?: unknown }).items));
+  }
+  return shown;
+}
+
+/**
+ * The Seiten the page picker offers for one page: the format's, each judged
+ * on its own against the design (theme, ground colour, photo) — one page has
+ * to fit, not a whole Vorlage. Without `titles` the title slides stay out:
+ * a design that has its beginning needs a middle or an end. A Seite the
+ * design already shows stays out too: a copy of a Vorlage would otherwise be
+ * offered its own slides first, they look most like it.
+ */
+export function suggestSeiten(
+  seiten: readonly SharepicSeite[],
+  format: SharepicFormat,
+  pages: readonly PageLike[],
+  { count, titles }: { count: number; titles: boolean }
+): SharepicSeite[] {
+  const shown = shownSlides(pages);
+  const fitting = seiten
+    .filter(
+      (seite) =>
+        seite.formats.includes(format) &&
+        (titles || seite.rolle !== 'titel') &&
+        !shown.has(wordsOf(seite.slide.items))
+    )
+    .map((seite) => ({ seite, spec: { format, thema: seite.thema, slides: [seite.slide] } }));
+  return rankVorlagen(fitting, pages)
+    .slice(0, count)
+    .map((entry) => entry.seite);
 }

@@ -1,11 +1,13 @@
 import { agentKey, agentRef, agenturaMetaLine, getAgentSlug } from '@gruenerator/shared/agents';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useDeleteUserAgent, type ForeignAgent } from '../../agents/api';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { MarketCard } from '../components/MarketCard';
 import { RecurringTaskCard } from '../components/RecurringTaskCard';
+import { ShareAgentModal } from '../components/ShareAgentModal';
+import { ShareRecipeModal } from '../components/ShareRecipeModal';
 import { hasKnowledge, toolCount } from '../lib/capabilities';
 import { SKILL_CATEGORY_LABELS } from '../lib/categories';
 import { isLandesverbandIdentifier, landesverbandLabel } from '../lib/lookups';
@@ -56,6 +58,10 @@ export function useMarketCards() {
   const showTrashUndo = useTrashUndoToast();
   const { duplicate: duplicateAgent } = useDuplicateAgent();
   const library = useUserLibrary();
+  // Ein Dialog für die ganze Seite, nicht einer pro Kachel.
+  const [shareTarget, setShareTarget] = useState<
+    { kind: 'agent'; agent: Agent } | { kind: 'recipe'; mention: string } | null
+  >(null);
 
   const toAgentItems = (entries: AgentEntry[]): MarketItem[] =>
     entries.map((entry) => ({
@@ -113,6 +119,9 @@ export function useMarketCards() {
           toggleAgentFavorite(agentRef(entry.agent, entry.isUser), entry.agent.title)
         }
         onEdit={entry.editable ? () => handleEditAgent(entry.agent) : undefined}
+        onShare={
+          entry.editable ? () => setShareTarget({ kind: 'agent', agent: entry.agent }) : undefined
+        }
         onDuplicate={
           entry.editable
             ? () => {
@@ -146,6 +155,11 @@ export function useMarketCards() {
             ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
             : undefined
         }
+        onShare={
+          entry.editable
+            ? () => setShareTarget({ kind: 'recipe', mention: entry.mention })
+            : undefined
+        }
         onDelete={entry.onDelete}
         onRemoveFromLibrary={removeFromLibrary(item)}
       />
@@ -163,5 +177,15 @@ export function useMarketCards() {
   const asLibrary = (items: MarketItem[]): MarketItem[] =>
     items.map((item) => (item.kind === 'task' ? item : { ...item, fromLibrary: true }));
 
-  return { toAgentItems, toRecipeItems, renderItem, asLibrary };
+  const closeShare = (open: boolean) => {
+    if (!open) setShareTarget(null);
+  };
+  const shareDialog =
+    shareTarget?.kind === 'agent' ? (
+      <ShareAgentModal agent={shareTarget.agent} open onOpenChange={closeShare} />
+    ) : shareTarget?.kind === 'recipe' ? (
+      <ShareRecipeModal mention={shareTarget.mention} open onOpenChange={closeShare} />
+    ) : null;
+
+  return { toAgentItems, toRecipeItems, renderItem, asLibrary, shareDialog };
 }

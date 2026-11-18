@@ -6,6 +6,7 @@ import {
   useRemoveAgentGroupShare,
   useSetAgentIsPublic,
   useSetAgentShareMode,
+  shareErrorText,
 } from '@gruenerator/shared/grueneratoren';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
@@ -14,10 +15,6 @@ import { DetailState } from '../../../../../components/agentura/detail/DetailPar
 import { SharingControls } from '../../../../../components/agentura/share/SharingControls';
 import { useAgentBySlug } from '../../../../../hooks/agents/useAgentBySlug';
 import { goBackOr } from '../../../../../utils/navigation';
-
-// Die Agent-Freigabe-Hooks werfen technische Sätze („Failed to … (HTTP 409)");
-// davon ist keiner für Nutzer*innen gedacht.
-const agentShareError = () => 'Die Freigabe konnte nicht geändert werden.';
 
 /** Freigabe eines eigenen Agents — wie `ShareAgentModal` im Web. */
 export default function AgentShareScreen() {
@@ -79,7 +76,6 @@ function AgentSharing({
       settingsError={settings.isError}
       groupShares={(groupShares.data ?? []).map((g) => ({ id: g.group_id, name: g.group_name }))}
       myGroups={myGroups.data ?? null}
-      authenticatedHint="Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land."
       shareUrl={shareUrl}
       shareTitle={title}
       setMode={(mode) => setMode.mutateAsync(mode)}
@@ -91,7 +87,7 @@ function AgentSharing({
         listing: setListing.isPending,
         groups: addGroup.isPending || removeGroup.isPending,
       }}
-      describeError={agentShareError}
+      describeError={shareErrorText}
     />
   );
 }

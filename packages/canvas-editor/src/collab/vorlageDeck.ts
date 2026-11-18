@@ -128,10 +128,25 @@ const deckOf = (state: Record<string, unknown>): string | null => {
 };
 
 /**
+ * A Seite placed next to — or in place of — a page of a composed carousel
+ * joins that carousel, so the chat edits them as one. Anything else stays as
+ * it is.
+ */
+export function joinDeck<P extends DeckPage>(
+  anchor: { state: Record<string, unknown> } | null,
+  seite: P
+): P {
+  const deck = anchor ? deckOf(anchor.state) : null;
+  const own = seite.state[SHAREPIC_SOURCE_KEY];
+  if (!deck || !own || typeof own !== 'object') return seite;
+  return { ...seite, state: { ...seite.state, [SHAREPIC_SOURCE_KEY]: { ...own, deck } } };
+}
+
+/**
  * The deck change that adds one Seite: after the anchor page (or at the end),
  * in one undo step. An empty design is filled instead, so the blank page does
  * not stay in front. Following a page of a composed carousel, the Seite joins
- * that carousel, so the chat edits them as one.
+ * that carousel (`joinDeck`).
  */
 export function seiteDeckOps(
   current: readonly { id: string; configId: string; state: Record<string, unknown> }[],
@@ -141,12 +156,7 @@ export function seiteDeckOps(
 ): ReplaceDeckOps {
   if (isDeckEmpty(current)) return vorlageDeckOps(current, [seite], newPageId);
   const anchor = current.find((p) => p.id === afterPageId) ?? current[current.length - 1] ?? null;
-  const deck = anchor ? deckOf(anchor.state) : null;
-  const own = seite.state[SHAREPIC_SOURCE_KEY];
-  const state =
-    deck && own && typeof own === 'object'
-      ? { ...seite.state, [SHAREPIC_SOURCE_KEY]: { ...own, deck } }
-      : seite.state;
+  const { state } = joinDeck(anchor, seite);
   return {
     updates: [],
     inserts: [

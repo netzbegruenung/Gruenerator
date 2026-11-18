@@ -1,4 +1,4 @@
-import { toast } from '@gruenerator/ui';
+import { Button, toast } from '@gruenerator/ui';
 import {
   fetchShareLinks,
   useShareLinks,
@@ -8,9 +8,10 @@ import {
 import { type QueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
+import { SettingsList } from '../components/SettingsListRow';
+import SettingsSection from '../components/SettingsSection';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-import CloudButton from '@/features/wolke/components/CloudButton';
 import SharedWolkeConnectionCard from '@/features/wolke/components/SharedWolkeConnectionCard';
 import WolkeAddForm from '@/features/wolke/components/WolkeAddForm';
 import WolkeConnectionCard from '@/features/wolke/components/WolkeConnectionCard';
@@ -44,56 +45,103 @@ const WolkeTab = () => {
     onSuccess(message);
   }, []);
 
+  const showEmpty = !isLoading && shareLinks.length === 0;
+
   return (
-    <div className="flex flex-col gap-xl">
-      {(hasLinks || showManualForm) && <WolkeAddForm onSuccess={onSuccess} onError={onError} />}
+    <div className="flex flex-col gap-8">
+      <SettingsSection
+        title="Grüne Wolke"
+        description={
+          showEmpty
+            ? 'Verbinde deine Wolke. Dann findet der Grünerator deine Dateien und legt Ergebnisse dort ab.'
+            : undefined
+        }
+        aside={
+          hasLinks ? (
+            <>
+              <span className="text-sm tabular-nums text-grey-600 dark:text-grey-400">
+                {shareLinks.length}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-expanded={showManualForm}
+                onClick={() => setShowManualForm((v) => !v)}
+              >
+                Hinzufügen
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {isLoading && <SettingsCardsSkeleton cards={2} />}
 
-      {isLoading && <SettingsCardsSkeleton cards={2} />}
+        {hasLinks && showManualForm && (
+          <div className="py-3">
+            <WolkeAddForm onSuccess={handleWizardSuccess} onError={onError} />
+          </div>
+        )}
 
-      {hasLinks && (
-        <div className="flex flex-col gap-sm">
-          <h3 className="m-0 text-sm font-medium uppercase tracking-wide text-grey-600 dark:text-grey-300">
-            Verbindungen ({shareLinks.length})
-          </h3>
-          {shareLinks.map((link) => (
-            <WolkeConnectionCard
-              key={link.id}
-              shareLink={link}
-              onSuccess={onSuccess}
+        {hasLinks && (
+          <SettingsList>
+            {shareLinks.map((link) => (
+              <WolkeConnectionCard
+                key={link.id}
+                shareLink={link}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ))}
+          </SettingsList>
+        )}
+
+        {showEmpty && !showManualForm && !showWizard && (
+          <div className="flex flex-col items-start gap-sm py-4 text-sm text-grey-600 dark:text-grey-400">
+            <span>Noch keine Wolke verbunden.</span>
+            <div className="flex flex-wrap gap-xs">
+              <Button type="button" size="sm" onClick={() => setShowWizard(true)}>
+                Einrichtung starten
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowManualForm(true)}
+              >
+                oder manuell einrichten
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {showEmpty && showManualForm && (
+          <div className="py-3">
+            <WolkeAddForm onSuccess={handleWizardSuccess} onError={onError} />
+          </div>
+        )}
+
+        {showEmpty && showWizard && (
+          <div className="py-3">
+            <WolkeSetupWizard
+              onSuccess={handleWizardSuccess}
               onError={onError}
+              onCancel={() => setShowWizard(false)}
             />
-          ))}
-        </div>
-      )}
-
-      {!isLoading && shareLinks.length === 0 && !showManualForm && !showWizard && (
-        <div className="flex flex-col items-center gap-sm py-lg">
-          <CloudButton onClick={() => setShowWizard(true)} />
-          <button
-            type="button"
-            onClick={() => setShowManualForm(true)}
-            className="mt-sm text-xs text-grey-400 transition-colors hover:text-foreground hover:underline"
-          >
-            oder manuell einrichten
-          </button>
-        </div>
-      )}
-
-      {!isLoading && shareLinks.length === 0 && showWizard && (
-        <WolkeSetupWizard
-          onSuccess={handleWizardSuccess}
-          onError={onError}
-          onCancel={() => setShowWizard(false)}
-        />
-      )}
+          </div>
+        )}
+      </SettingsSection>
 
       {hasSharedWithMe && (
-        <>
-          <hr className="border-grey-200 dark:border-grey-700" />
-          <div className="flex flex-col gap-sm">
-            <h3 className="m-0 text-sm font-medium uppercase tracking-wide text-grey-600 dark:text-grey-300">
-              Mit mir geteilte Wolke-Links ({sharedWithMe.length})
-            </h3>
+        <SettingsSection
+          title="Mit mir geteilt"
+          aside={
+            <span className="text-sm tabular-nums text-grey-600 dark:text-grey-400">
+              {sharedWithMe.length}
+            </span>
+          }
+        >
+          <SettingsList>
             {sharedWithMe.map((entry) => (
               <SharedWolkeConnectionCard
                 key={`${entry.groupId}:${entry.link.id}`}
@@ -102,8 +150,8 @@ const WolkeTab = () => {
                 onError={onError}
               />
             ))}
-          </div>
-        </>
+          </SettingsList>
+        </SettingsSection>
       )}
     </div>
   );

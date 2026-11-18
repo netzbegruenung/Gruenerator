@@ -150,10 +150,18 @@ export function useUserNotebooksQuery() {
  * @brevo, …). Only enabled servers become mentions; anonymous users / no
  * servers resolve to an empty list.
  */
+/**
+ * Query key of the @mention server list. Exported so the connector settings can
+ * invalidate it after adding, removing or switching a server: the settings are a
+ * dialog over the chat, so the composer stays mounted and would otherwise keep
+ * the old list until it remounts after `STALE_TIME`.
+ */
+export const MCP_SERVER_MENTIONS_QUERY_KEY = ['mention-mcp-servers'] as const;
+
 export function useMcpServersQuery() {
   const get = useMentionableFetch();
   return useQuery<McpServerListItem[]>({
-    queryKey: ['mention-mcp-servers'],
+    queryKey: MCP_SERVER_MENTIONS_QUERY_KEY,
     queryFn: () => syncMcpServers(get),
     staleTime: STALE_TIME,
     retry: 1,
@@ -317,51 +325,6 @@ export function useConnectBrowseQuery(
     enabled: !!provider && isDriveProvider(provider) && enabled,
     staleTime: 15_000,
     retry: (count, error) => !(error instanceof ApiError && error.status === 403) && count < 1,
-  });
-}
-
-// ── @canva (direct Canva Connect API designs) ────────────────────────────────
-//
-// Unlike @connect/@wolke (Nango / Nextcloud), Canva is a direct OAuth
-// integration. The picker lists the user's designs live; selecting designs
-// inserts a markdown link per design into the composer.
-
-export interface ChatCanvaDesign {
-  id: string;
-  title: string;
-  viewUrl: string;
-  editUrl: string;
-  thumbnailUrl: string | null;
-  updatedAt: number | null;
-}
-
-/**
- * The user's Canva designs. Disabled until the picker opens (`enabled`), and
- * re-fetched on open so newly created designs show up. Returns an empty list
- * (not an error) when the user hasn't connected Canva yet — the picker renders
- * an empty-state in that case.
- */
-export function useCanvaDesignsQuery(query: string, enabled = true) {
-  const apiClient = useApiClient();
-  return useQuery<{ designs: ChatCanvaDesign[]; connected: boolean }>({
-    queryKey: ['mention-canva-designs', query],
-    queryFn: async () => {
-      try {
-        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
-        const res = await apiClient.get<{ designs?: ChatCanvaDesign[]; error?: string }>(
-          `/api/canva/designs${qs}`
-        );
-        return { designs: Array.isArray(res?.designs) ? res.designs : [], connected: true };
-      } catch {
-        // 404 (not connected) or any failure → treat as "not connected" so the
-        // picker shows the connect-first empty-state instead of an error.
-        return { designs: [], connected: false };
-      }
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    enabled,
-    retry: 1,
   });
 }
 

@@ -59,6 +59,7 @@ function form(over: Partial<TextForm> = {}): TextForm {
     shareMode: 'private',
     isPublic: false,
     publicOwnership: null,
+    slugSuffix: null,
     ...over,
   };
 }

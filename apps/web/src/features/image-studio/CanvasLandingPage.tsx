@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import { PARTEITAGE_TOOL_ID, useCanSeeParteitage } from '../../config/parteitageAdminGate';
 import { getToolGradient } from '../../config/toolTheme';
 import {
   CANVAS_TOOLS,
@@ -121,12 +122,15 @@ const CanvasLandingContent = () => {
     []
   );
 
+  const canSeeParteitage = useCanSeeParteitage();
   const studioWerkzeuge = useMemo(
     () =>
       filterWorkplaceTools(STUDIO_WERKZEUGE).filter(
-        (t) => !t.audience || t.audience === 'all' || t.audience === locale
+        (t) =>
+          (!t.audience || t.audience === 'all' || t.audience === locale) &&
+          (canSeeParteitage || t.id !== PARTEITAGE_TOOL_ID)
       ),
-    [locale]
+    [locale, canSeeParteitage]
   );
 
   // The guided tour types its example prompts into the field.

@@ -4,9 +4,14 @@ import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
 import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 
-import { colorSimilarity, rankVorlagen } from './vorlagenRelevance';
+import { colorSimilarity, rankVorlagen, suggestSeiten } from './vorlagenRelevance';
 
-import type { SharepicColor, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
+import type {
+  SharepicColor,
+  SharepicFormat,
+  SharepicSeite,
+  SharepicThema,
+} from '@gruenerator/contracts';
 
 type Background =
   | { kind: 'farbe'; color: SharepicColor }
@@ -182,5 +187,84 @@ describe('rankVorlagen by theme', () => {
 
   it('keeps themed Vorlagen behind plain ones on a plain design of their colour', () => {
     expect(ids(rankVorlagen(list, [colorPage('lila')]))[0]).toBe('tanne');
+  });
+});
+
+describe('suggestSeiten', () => {
+  const seite = (
+    id: string,
+    background: Background,
+    over: Partial<Pick<SharepicSeite, 'rolle' | 'formats'>> = {}
+  ) =>
+    ({
+      id,
+      titel: id,
+      rolle: 'inhalt',
+      typ: 'text',
+      formats: ['post-portrait'],
+      locale: 'de-DE',
+      slide: { background, items: [{ type: 'absatz' }] },
+      ...over,
+    }) as unknown as SharepicSeite;
+
+  const seiten = [
+    seite('mint', farbe('mint')),
+    seite('titel-tanne', farbe('tanne'), { rolle: 'titel' }),
+    seite('foto', foto),
+    seite('tanne', farbe('tanne')),
+    seite('hoch', farbe('tanne'), { formats: ['post-portrait-tall'] }),
+  ];
+  const suggest = (pages: { state: Record<string, unknown> }[], titles = false, count = 8) =>
+    ids(suggestSeiten(seiten, 'post-portrait', pages, { count, titles }));
+
+  it('puts the Seiten of the design’s ground colour first', () => {
+    expect(suggest([colorPage('tanne')])[0]).toBe('tanne');
+    expect(suggest([colorPage('mint')])[0]).toBe('mint');
+  });
+
+  it('puts photo Seiten first on a photo design', () => {
+    expect(suggest([photoPage])[0]).toBe('foto');
+  });
+
+  it('offers only the format’s Seiten', () => {
+    expect(suggest([colorPage('tanne')], true)).not.toContain('hoch');
+  });
+
+  it('leaves the title Seiten out unless asked for', () => {
+    expect(suggest([colorPage('tanne')])).not.toContain('titel-tanne');
+    expect(suggest([colorPage('tanne')], true)).toContain('titel-tanne');
+  });
+
+  it('offers at most `count`', () => {
+    expect(suggest([colorPage('tanne')], true, 2)).toHaveLength(2);
+  });
+
+  it('leaves out a Seite the design already shows, markup aside', () => {
+    const shown = {
+      configId: 'freeform',
+      state: {
+        ...colorPage('tanne').state,
+        [SHAREPIC_SOURCE_KEY]: {
+          v: 1,
+          deck: 'd',
+          slide: {
+            slides: [
+              { background: farbe('tanne'), items: [{ type: 'absatz', text: '==Tanne==' }] },
+            ],
+          },
+        },
+      },
+    };
+    const withText = [
+      ...seiten,
+      {
+        ...seiten[3]!,
+        id: 'tanne-mit-text',
+        slide: { ...seiten[3]!.slide, items: [{ type: 'absatz', text: '++Tanne++' }] },
+      } as unknown as SharepicSeite,
+    ];
+    const ids_ = ids(suggestSeiten(withText, 'post-portrait', [shown], { count: 8, titles: true }));
+    expect(ids_).not.toContain('tanne-mit-text');
+    expect(ids_).toContain('tanne');
   });
 });

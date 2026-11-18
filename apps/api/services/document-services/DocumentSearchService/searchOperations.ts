@@ -9,6 +9,8 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { fieldFiltersFromQdrant } from '../../notebook/remoteSources/filters.js';
+import { type RemoteNotebookSource } from '../../notebook/remoteSources/types.js';
 import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 import { parseDatePrecision, type SourceDatePrecision } from '../../search/recency.js';
 
@@ -344,6 +346,40 @@ export async function findSimilarChunks(
     id: result.id,
     similarity: result.score,
     ...buildChunkPayloadFields(result.payload),
+  }));
+}
+
+/**
+ * Remote-Sammlung (`services/notebook/remoteSources/`): dieselbe Chunk-Form wie
+ * aus Qdrant, damit Gruppierung, MMR und Ranking unverändert greifen. Die
+ * Quelle sucht nur dicht; ihr Kosinus ist `similarity` UND
+ * `denseSimilarityScore`, so liegt der 0,35-Schnitt auf dem Wert, für den er
+ * geschrieben ist. Ausfälle werfen `RemoteSourceUnavailableError` — die Suche
+ * reicht den Code als `SOURCE_UNAVAILABLE` durch, statt „keine Treffer" zu melden.
+ */
+export async function findRemoteChunks(
+  source: RemoteNotebookSource,
+  params: FindSimilarChunksParams | FindHybridChunksParams
+): Promise<DocumentTransformedChunk[]> {
+  const { filters } = params;
+  if (filters.documentIds?.length || filters.sourceType || filters.titleFilter) {
+    throw new Error('Remote-Quelle: documentIds, sourceType und titleFilter gibt es dort nicht');
+  }
+  const hits = await source.search({
+    vector: params.embedding,
+    query: params.query ?? '',
+    filters: fieldFiltersFromQdrant(filters.additionalFilter),
+    limit: params.limit,
+    threshold: params.threshold,
+  });
+  return hits.map((hit) => ({
+    id: hit.id,
+    similarity: hit.score,
+    ...buildChunkPayloadFields(hit.payload as QdrantResultPayload),
+    searchMethod: 'vector',
+    originalVectorScore: hit.score,
+    originalTextScore: null,
+    denseSimilarityScore: hit.score,
   }));
 }
 

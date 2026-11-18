@@ -24,6 +24,7 @@ export type ErrorCode =
   | 'CACHE_ERROR'
   | 'RESOURCE_ERROR'
   | 'NOT_IMPLEMENTED'
+  | 'SOURCE_UNAVAILABLE'
   | 'UNKNOWN_ERROR';
 
 /**
@@ -127,13 +128,4 @@ export type ExpressErrorHandler = (
  */
 export interface RequestWithCorrelation extends Request {
   correlationId?: string | undefined;
-}
-
-/**
- * AI worker error result
- */
-export interface AiClientErrorResult {
-  success: false;
-  error: string;
-  [key: string]: unknown;
 }

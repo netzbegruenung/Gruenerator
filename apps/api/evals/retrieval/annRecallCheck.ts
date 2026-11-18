@@ -45,7 +45,8 @@ import { type RecallStats } from './documentsArms.js';
 dotenv.config();
 
 const { env } = await import('../../config/env.js');
-const { getSystemCollectionConfig } = await import('../../config/systemCollectionsConfig.js');
+const { getSystemCollectionConfig, isRemoteCollection } =
+  await import('../../config/systemCollectionsConfig.js');
 const { createQdrantClient } = await import('../../database/services/QdrantService/connection.js');
 const { mistralEmbeddingService } = await import('../../services/mistral/index.js');
 const { RETRIEVAL_CASES } = await import('./cases.js');
@@ -127,7 +128,8 @@ async function main() {
 
   for (const evalCase of RETRIEVAL_CASES) {
     const config = getSystemCollectionConfig(evalCase.collection);
-    if (!config) continue;
+    // Misst den HNSW-Index unseres Qdrant — Remote-Sammlungen haben hier keinen.
+    if (!config || isRemoteCollection(config)) continue;
 
     const target = resolveEvalTarget(process.env, config.qdrantCollection);
     // Vor dem Einbetten prüfen: eine fehlende Sammlung soll nicht 52-mal
