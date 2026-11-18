@@ -110,6 +110,7 @@ import {
   publicExplainablesContract,
   podcastsContract,
   briefingContract,
+  pushContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -388,6 +389,7 @@ const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
 const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
 const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
 const _briefingClient = () => initClient(briefingContract, CLIENT_OPTS);
+const _pushClient = () => initClient(pushContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -483,6 +485,7 @@ export interface ContractsClient {
   publicExplainables: ReturnType<typeof _publicExplainablesClient>;
   podcasts: ReturnType<typeof _podcastsClient>;
   briefing: ReturnType<typeof _briefingClient>;
+  push: ReturnType<typeof _pushClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -594,6 +597,7 @@ export function getContractsClient(): ContractsClient {
     publicExplainables: _publicExplainablesClient(),
     podcasts: _podcastsClient(),
     briefing: _briefingClient(),
+    push: _pushClient(),
     speech: _speechClient(),
   };
 

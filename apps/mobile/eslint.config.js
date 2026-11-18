@@ -37,6 +37,7 @@ export default [
       'app.config.js',
       'shims/**',
       'plugins/**',
+      'targets/**/*.js',
     ],
   },
 ];

@@ -14,6 +14,7 @@ export type SettingsDetail =
   | 'locale'
   | 'accessibility'
   | 'privacy'
+  | 'notifications'
   | 'hiddenMembers'
   | 'deleteAccount';
 

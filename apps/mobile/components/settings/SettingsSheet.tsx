@@ -42,6 +42,7 @@ import { MeshGradient } from '../common/MeshGradient';
 import { AppUpdateRow } from './AppUpdateRow';
 import { DeleteAccountDetail } from './DeleteAccountDetail';
 import { HiddenMembersDetail } from './HiddenMembersDetail';
+import { NotificationsDetail } from './NotificationsDetail';
 
 /**
  * The settings surface, whole.
@@ -83,6 +84,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
   privacy: 'Datenschutz',
+  notifications: 'Benachrichtigungen',
   hiddenMembers: 'Ausgeblendete Personen',
   deleteAccount: 'Konto löschen',
 };
@@ -363,6 +365,10 @@ export function SettingsSheet() {
       );
     }
 
+    if (detail === 'notifications') {
+      return <NotificationsDetail />;
+    }
+
     if (detail === 'hiddenMembers') {
       return <HiddenMembersDetail />;
     }
@@ -559,6 +565,12 @@ export function SettingsSheet() {
                 title="Barrierefreiheit"
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}
                 onPress={() => setDetail('accessibility')}
+              />
+              <ListRow
+                icon="notifications-outline"
+                title="Benachrichtigungen"
+                value="Push auf diesem Gerät"
+                onPress={() => setDetail('notifications')}
               />
               <ListRow
                 icon="shield-checkmark-outline"

@@ -21,6 +21,7 @@ import { AppUpdateBanner } from '../components/common/AppUpdateBanner';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
+import { PushBridge } from '../components/push/PushBridge';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { useReduceMotion } from '../hooks/useAccessibilityPreferences';
@@ -74,6 +75,13 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// Builds before 08/2026 called `getExpoPushTokenAsync`, which persists an
+// "auto server registration" flag natively. expo-notifications reads it on
+// every start and uploads the device token to exp.host (USA) whenever it
+// changed — even though no code calls Expo any more. Clearing the flag ends
+// that for upgraded installs; it is a local write and a no-op elsewhere.
+Notifications.setAutoServerRegistrationEnabledAsync(false).catch(() => {});
 
 /**
  * Stop re-rendering screens nobody is looking at.
@@ -285,6 +293,8 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
+                {/* App-Push: Registrierung pflegen und getippte Meldungen öffnen. */}
+                {user ? <PushBridge userId={user.id} /> : null}
                 {/* Zeichnet Sharepics für den Chat in einer versteckten WebView
                     — die App kann Konva nicht selbst rendern. Mountet sich nur,
                     solange es etwas zu zeichnen gibt (`useRenderHostDemand`),

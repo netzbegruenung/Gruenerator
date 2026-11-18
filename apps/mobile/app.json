@@ -14,6 +14,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.gruenerator.app",
+      "appleTeamId": "P74W7SGX8R",
+      "entitlements": {
+        "keychain-access-groups": [
+          "$(AppIdentifierPrefix)de.gruenerator.app",
+          "$(AppIdentifierPrefix)de.gruenerator.app.push"
+        ]
+      },
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
@@ -92,6 +99,8 @@
         }
       ],
       "expo-notifications",
+      "@bacons/apple-targets",
+      "./plugins/withFcmNoAutoInit.js",
       "expo-speech-recognition",
       "./plugins/withMediaCapabilities.js",
       "./plugins/withLargeHeap.js",
