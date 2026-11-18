@@ -12,7 +12,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
-import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
+import React, { memo, useCallback, useId, useState, lazy, Suspense } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -517,7 +517,9 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
 
   const [expanded, setExpanded] = useState(false);
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
-  // Phone layout until the grid is measured (it renders after loading).
+  const gridId = useId();
+  // Phone layout until the grid is measured (it renders after loading). The
+  // skeleton and the real grid are never mounted together, so one ref serves both.
   const columns = useGridColumns(grid) || 2;
   const visibleCount = columns * (expanded ? EXPANDED_ROWS : COLLAPSED_ROWS);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
@@ -606,8 +608,8 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
       <SectionHeader title="Zuletzt" actions={headerAction} />
 
       {isLoading ? (
-        <div className={ARBEITEN_GRID}>
-          {Array.from({ length: 5 }, (_, i) => (
+        <div ref={setGrid} className={ARBEITEN_GRID}>
+          {Array.from({ length: columns }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
@@ -640,7 +642,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
         </p>
       ) : (
         <>
-          <div ref={setGrid} className={ARBEITEN_GRID}>
+          <div ref={setGrid} id={gridId} className={ARBEITEN_GRID}>
             {items.slice(0, visibleCount).map(renderCard)}
           </div>
           {items.length > columns * COLLAPSED_ROWS && (
@@ -648,6 +650,8 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
               variant="outline"
               size="sm"
               onClick={() => setExpanded((prev) => !prev)}
+              aria-expanded={expanded}
+              aria-controls={gridId}
               className="mt-md self-center rounded-full px-5"
             >
               {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}

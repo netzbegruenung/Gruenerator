@@ -81,20 +81,20 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         },
       },
       {
-        element: SEL.arbeitenTools,
-        popover: {
-          title: 'Deine Werkzeuge',
-          description:
-            'Unter „Bild & Video“ liegen Profilbild, Video, Voice, Transkription und die Mediathek, darunter weitere Werkzeuge wie Übersetzer und Scanner.',
-          side: 'top',
-        },
-      },
-      {
         element: SEL.arbeitenRecents,
         popover: {
           title: 'Zuletzt',
           description:
             'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Videos.',
+          side: 'top',
+        },
+      },
+      {
+        element: SEL.arbeitenTools,
+        popover: {
+          title: 'Deine Werkzeuge',
+          description:
+            'Unter „Bild & Video“ liegen Profilbild, Video, Voice, Transkription und die Mediathek, darunter weitere Werkzeuge wie Übersetzer und Scanner.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());
