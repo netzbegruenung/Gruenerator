@@ -177,8 +177,11 @@ function ScrollRow({ children }: { children: ReactNode }) {
   };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'mouse' || e.button !== 0 || !row.current) return;
-    drag.current = { id: e.pointerId, x: e.clientX, left: row.current.scrollLeft, moved: false };
+    const el = row.current;
+    if (e.pointerType !== 'mouse' || e.button !== 0 || !el) return;
+    // A press on the row's own scrollbar belongs to the scrollbar.
+    if (e.clientY > el.getBoundingClientRect().top + el.clientTop + el.clientHeight) return;
+    drag.current = { id: e.pointerId, x: e.clientX, left: el.scrollLeft, moved: false };
     swallowClick.current = false;
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
