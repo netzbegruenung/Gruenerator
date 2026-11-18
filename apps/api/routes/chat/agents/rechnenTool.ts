@@ -49,7 +49,7 @@ export function makeRechnenTool(ctx: RechnenToolCtx): Tool {
 
 NUTZE WENN eine Antwort eine ausgerechnete oder gezählte Zahl braucht — rechne und zähle NIE selbst, auch nicht „im Kopf“. Zahlen aus einer Recherche erst holen, dann hier rechnen.
 NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.
-NICHT, um die Länge eines Textes zu prüfen, den du gerade selbst schreibst: eine Längenvorgabe hältst du beim Schreiben ein und gibst den Text direkt als Antwort aus.`,
+Für die Länge eines Textes — auch deines eigenen Entwurfs bei einer Längenvorgabe — gib ihn in \`text\` und setze \`textlaenge: true\`.`,
     inputSchema: z.object({
       auftrag: z
         .string()
