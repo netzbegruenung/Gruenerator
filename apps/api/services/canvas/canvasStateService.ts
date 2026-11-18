@@ -15,6 +15,7 @@ import { createLogger } from '../../utils/logger.js';
 import {
   CanvasDocumentNewerError,
   CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
   CanvasStateUnwritableError,
   CanvasWriteRefusedError,
 } from './canvasWriteErrors.js';
@@ -22,6 +23,7 @@ import {
 export {
   CanvasDocumentNewerError,
   CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
   CanvasStateUnwritableError,
   CanvasWriteRefusedError,
 };
@@ -124,9 +126,12 @@ export interface CurrentCanvasState {
 }
 
 /**
- * The live state, or null when Hocuspocus cannot answer (callers fall back to the mirror).
+ * The live state, or null when Hocuspocus cannot answer and the canvas has no Yjs document
+ * (callers fall back to the mirror, which is the state there).
  * Throws `CanvasDocumentNewerReadError` when it refuses on purpose: a document newer than the
- * server is not answered from the mirror either.
+ * server is not answered from the mirror either. Throws `CanvasLiveStateUnavailableError` when it
+ * cannot answer for a canvas that has Yjs rows: the mirror may be far behind the editor, the same
+ * probe the write path uses in `applyCanvasStatePatch` (#5775).
  */
 async function fetchInternalState(canvasId: string): Promise<InternalStateResponse | null> {
   try {
@@ -141,6 +146,7 @@ async function fetchInternalState(canvasId: string): Promise<InternalStateRespon
     if (err instanceof CanvasDocumentNewerReadError) throw err;
     log.warn(`internal GET state for ${canvasId} failed: ${err}`);
   }
+  if (await hasYjsRows(canvasId)) throw new CanvasLiveStateUnavailableError(canvasId);
   return null;
 }
 

@@ -246,10 +246,11 @@ export const DEFERRABLE_GROUPS = [
       'antragsgruen_seite_anlegen',
       'antragsgruen_antrag_stellen',
       'antragsgruen_tagesordnung',
+      'antragsgruen_seite_lesen',
     ],
     hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
     loaderDescription:
-      'Schaltet die Antragsgrün-Werkzeuge der GRÜNEN NRW frei: antragsgruen (Anträge, Änderungsanträge, Beschlüsse der Parteitage finden), antragsgruen_lesen und antragsgruen_auswerten (exakte Zahlen) sowie antragsgruen_seite_anlegen (eine eigene Antragsgrün-Seite auf antragsgruen.de anlegen), antragsgruen_antrag_stellen (einen Antrag auf dieser eigenen Seite einreichen) und antragsgruen_tagesordnung (ihre Tagesordnung lesen oder setzen).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder wenn jemand eine eigene Antragsgrün-Seite für eine Versammlung haben will.',
+      'Schaltet die Antragsgrün-Werkzeuge frei. Parteitage der GRÜNEN NRW: antragsgruen (finden), antragsgruen_lesen, antragsgruen_auswerten (exakte Zahlen). Eigene Seite auf antragsgruen.de: antragsgruen_seite_anlegen, antragsgruen_antrag_stellen, antragsgruen_tagesordnung (lesen/setzen), antragsgruen_seite_lesen (Anträge mit Zeilennummern, für Änderungsanträge).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder um eine eigene Antragsgrün-Seite für eine Versammlung.',
   },
 ] as const satisfies readonly DeferrableGroup[];
 

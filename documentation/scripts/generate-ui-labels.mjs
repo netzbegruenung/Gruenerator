@@ -145,9 +145,10 @@ function generate() {
   // button fails here instead of leaving a label for nothing. The icon is not
   // checked: it is the editor's choice and changes with it.
   const downloads = [];
-  // The dist is compiled JSX: `_jsx(IconButton, { label: t.shell.downloadTab, … })`.
+  // The dist is compiled JSX: `_jsx(ShareTile, { label: t.shell.downloadTab, … })`
+  // (an `IconButton` before @ggraphic/editor 0.1.0-alpha.14).
   walk(parse(editorFile('components/TopBar/ShareDropdown')), (node) => {
-    if (!ts.isCallExpression(node) || node.arguments[0]?.getText() !== 'IconButton') return;
+    if (!ts.isCallExpression(node) || node.arguments[0]?.getText() !== 'ShareTile') return;
     const props = node.arguments[1];
     if (!props || !ts.isObjectLiteralExpression(props)) return;
     const label = props.properties.find(
@@ -162,7 +163,7 @@ function generate() {
   });
   if (downloads.length !== 1) {
     throw new Error(
-      'Expected one Download IconButton labelled t.shell.downloadTab in ShareDropdown'
+      'Expected one Download ShareTile labelled t.shell.downloadTab in ShareDropdown'
     );
   }
   const downloadTitle = shell && stringProp(shell, 'downloadTab');

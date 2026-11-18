@@ -194,6 +194,15 @@ describe('pagesById container', () => {
     expect(readMergedState(doc).state.headline).toBe('Cover');
   });
 
+  it('a flat patch on a pagesById doc leaves the root formState alone (#5767)', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyPatchToDoc(doc, { headline: 'Neu' }, null);
+
+    expect(doc.getMap<unknown>('formState').size).toBe(0);
+    for (const p of readMergedState(doc).pages) expect(p.state.headline).toBe('Neu');
+  });
+
   it('legacy-array docs keep being patched in place', () => {
     const doc = new Y.Doc();
     const legacy = doc.getArray<Y.Map<unknown>>('pages');

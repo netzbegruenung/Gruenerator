@@ -129,6 +129,7 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
         avatar_robot_id: profile.avatar_robot_id,
         permission_level: permissions[odId].level,
         granted_at: permissions[odId].granted_at,
+        granted_by: permissions[odId].granted_by ?? null,
       };
     });
 

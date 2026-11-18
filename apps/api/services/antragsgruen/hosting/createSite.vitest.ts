@@ -4,11 +4,14 @@
  * Antragsgrün-Views (siehe Kopf von `createSite.ts`). Ein Lauf gegen das echte
  * antragsgruen.de steht aus.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Nie die echte Redis: ein gescheiterter Login setzte dort die Pause für alle lokalen Stacks.
+vi.mock('../../../utils/redis/client.js', () => ({ redisClient: { isReady: false } }));
 
 import { createAntragsgruenSite, type SiteRequest } from './createSite.js';
 import { FormClient, type FetchLike } from './formClient.js';
-import { type HostingConfig } from './session.js';
+import { resetBotSessionForTests, type HostingConfig } from './session.js';
 
 const CONFIG: HostingConfig = {
   baseUrl: 'https://antragsgruen.de',
@@ -70,11 +73,11 @@ function fakeSite(opts: FakeOptions = {}) {
     const key = `${method} ${u.host}${u.pathname}`;
 
     switch (key) {
-      case 'GET antragsgruen.de/user/login':
+      case 'GET antragsgruen.de/login':
         return html('<form><input name="_csrf" value="c-login"></form>', [
           '_csrf=main; path=/; HttpOnly',
         ]);
-      case 'POST antragsgruen.de/user/login':
+      case 'POST antragsgruen.de/login':
         if (!loginOk || form?.get('password') !== 'geheim') {
           return html('<div class="alert alert-danger">Falsches Passwort</div>');
         }
@@ -93,7 +96,7 @@ function fakeSite(opts: FakeOptions = {}) {
         );
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/users':
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/users/index': {
-        if (!loggedIn) return redirect('https://antragsgruen.de/user/login');
+        if (!loggedIn) return redirect('https://antragsgruen.de/login');
         const users = [{ email: 'bot@gruenerator.eu' }, ...(invited ? [{ email: invited }] : [])];
         return html(
           `<meta name="csrf-token" content="c-users">` +
@@ -106,7 +109,7 @@ function fakeSite(opts: FakeOptions = {}) {
         );
       }
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/consultation':
-        if (!loggedIn) return redirect('https://antragsgruen.de/user/login');
+        if (!loggedIn) return redirect('https://antragsgruen.de/login');
         return html(
           `<form method="post"><input type="hidden" name="_csrf" value="c-con">` +
             `<input type="text" name="consultation[title]" value="KMV Köln 2027">` +
@@ -149,6 +152,9 @@ function fakeSite(opts: FakeOptions = {}) {
   };
   return { fetchImpl, calls, settingsPosts, agendaPosts };
 }
+
+// Ein gescheiterter Login pausiert alle weiteren (`session.ts`); jeder Test beginnt frisch.
+beforeEach(resetBotSessionForTests);
 
 describe('createAntragsgruenSite', () => {
   it('logs in, creates the site and adds the person to the site-admin group', async () => {

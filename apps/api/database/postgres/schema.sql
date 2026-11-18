@@ -1691,6 +1691,7 @@ CREATE TABLE IF NOT EXISTS antragsgruen_hosted_sites (
     subdomain TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
     url TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'created' CHECK (kind IN ('created', 'connected')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

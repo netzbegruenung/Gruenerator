@@ -28,7 +28,19 @@ async function load() {
   return import('./canvasStateService.js');
 }
 
-beforeEach(() => query.mockReset());
+/** Answers the mirror read with `initialState` and the Yjs-rows probe with `yjsRows` rows. */
+function database(initialState: Record<string, unknown>, yjsRows: number) {
+  query.mockImplementation(async (sql: string) =>
+    sql.includes('yjs_document_updates')
+      ? Array.from({ length: yjsRows }, () => ({ '?column?': 1 }))
+      : [{ initial_state: initialState }]
+  );
+}
+
+// A block body: a returned function would run as a teardown hook (here: `query()` with no SQL).
+beforeEach(() => {
+  query.mockReset();
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -52,7 +64,7 @@ describe('a refused canvas read', () => {
 
   it('a plain 426 without the code is an ordinary failure and falls back', async () => {
     hocuspocusAnswers(() => new Response('upgrade', { status: 426 }));
-    query.mockResolvedValue([{ initial_state: { headline: 'Alt' } }]);
+    database({ headline: 'Alt' }, 0);
     const { getCurrentCanvasState } = await load();
 
     await expect(getCurrentCanvasState('c1')).resolves.toEqual({
@@ -61,11 +73,45 @@ describe('a refused canvas read', () => {
     });
   });
 
-  it('a 500 still falls back to the mirror', async () => {
+  it('a 500 still falls back to the mirror for a canvas without a Yjs document', async () => {
     hocuspocusAnswers(() => new Response('boom', { status: 500 }));
-    query.mockResolvedValue([{ initial_state: { headline: 'Alt' } }]);
+    database({ headline: 'Alt' }, 0);
     const { getCurrentCanvasState } = await load();
 
     await expect(getCurrentCanvasState('c1')).resolves.toMatchObject({ source: 'initial_state' });
+  });
+});
+
+/** Hocuspocus cannot answer for a canvas the editor has written: the mirror may be stale (#5775). */
+describe('an unanswered canvas read with a Yjs document', () => {
+  it.each(['getCurrentCanvasState', 'getCurrentDeckState', 'getCanvasSnapshotState'] as const)(
+    '%s throws CanvasLiveStateUnavailableError instead of reading the mirror',
+    async (reader) => {
+      hocuspocusAnswers(() => new Response('boom', { status: 502 }));
+      database({ headline: 'Alt' }, 1);
+      const service = await load();
+
+      await expect(service[reader]('c1')).rejects.toBeInstanceOf(
+        service.CanvasLiveStateUnavailableError
+      );
+      expect(query.mock.calls.map(([sql]) => sql as string)).not.toContainEqual(
+        expect.stringContaining('initial_state')
+      );
+    }
+  );
+
+  it('a network failure counts the same as an error status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('fetch failed');
+      })
+    );
+    database({ headline: 'Alt' }, 1);
+    const service = await load();
+
+    await expect(service.getCurrentCanvasState('c1')).rejects.toBeInstanceOf(
+      service.CanvasLiveStateUnavailableError
+    );
   });
 });

@@ -13,17 +13,18 @@
  * 3. `GET /rest/<konsultation>/motion-types` für die Abschnitte,
  * 4. `POST /rest/<konsultation>/motion` (snake_case), Antwort 201.
  *
- * Vorher prüft der Ablauf, dass das Grünerator-Konto noch Admin der Seite ist.
- * Die Person kann es austragen; dann darf es dort nichts mehr anlegen — auch
- * wenn die Seite eingeloggten Personen Anträge erlaubt.
+ * Vorher prüft der Ablauf, dass das Grünerator-Konto und die Person noch Admin
+ * der Seite sind (`requireAdmins`). Ist eines von beiden ausgetragen, legt der
+ * Grünerator dort nichts mehr an — auch wenn die Seite eingeloggten Personen
+ * Anträge erlaubt.
  */
 import * as cheerio from 'cheerio';
 
 import { markdownToHtml } from '../../markdown/MarkdownService.js';
 
 import { agendaOf, findAgendaItem } from './agenda.js';
-import { AntragsgruenFormError, FormClient } from './formClient.js';
-import { isSiteAdmin, login, type HostingConfig } from './session.js';
+import { AntragsgruenFormError, type FormClient } from './formClient.js';
+import { botClient, login, requireAdmins, type HostingConfig } from './session.js';
 
 export interface MotionRequest {
   /** Startseite der Konsultation, wie in `antragsgruen_hosted_sites.url`. */
@@ -118,11 +119,12 @@ export function motionSections(
  * JWT aus der Session des Grünerator-Kontos und der Antragstyp der Seite.
  * Der REST-Login ginge im Wartungsmodus nicht (siehe Kopf).
  */
-export async function motionTypeOf(
+/** JWT aus der Session des Grünerator-Kontos (10 Minuten gültig, an die Seite gebunden). */
+export async function tokenOf(
   client: FormClient,
   origin: string,
   consultation: string
-): Promise<{ token: string; type: MotionType }> {
+): Promise<string> {
   const tokenPage = await client.request(`${origin}/${consultation}/token`);
   let token: string | undefined;
   try {
@@ -131,6 +133,15 @@ export async function motionTypeOf(
     token = undefined;
   }
   if (!token) throw new AntragsgruenFormError('Kein Token für die Seite', 'token');
+  return token;
+}
+
+export async function motionTypeOf(
+  client: FormClient,
+  origin: string,
+  consultation: string
+): Promise<{ token: string; type: MotionType }> {
+  const token = await tokenOf(client, origin, consultation);
 
   const types = await restJson<{ items?: MotionType[] }>(
     client,
@@ -147,17 +158,13 @@ export async function motionTypeOf(
 export async function createMotionOnHostedSite(
   req: MotionRequest,
   config: HostingConfig,
-  client: FormClient = new FormClient()
+  client: FormClient = botClient()
 ): Promise<CreatedMotion> {
   const { origin, consultation } = splitSiteUrl(req.siteUrl);
   await login(client, config);
 
-  if (!(await isSiteAdmin(client, origin, consultation))) {
-    throw new AntragsgruenFormError(
-      'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
-      'revoked'
-    );
-  }
+  // Die Kontaktadresse ist die des Grünerator-Kontos der Person (`orderAntragsgruenMotion`).
+  await requireAdmins(client, origin, consultation, req.initiator.email);
 
   const { token, type } = await motionTypeOf(client, origin, consultation);
 

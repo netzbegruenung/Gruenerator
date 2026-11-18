@@ -23,9 +23,13 @@ const metaOf = (doc: Y.Doc) => doc.getMap<unknown>('meta');
 /** `internalApi.ts` before it used the codec: whole values straight into the Y.Map. */
 function legacyApplyPatch(doc: Y.Doc, patch: Record<string, unknown>): void {
   doc.transact(() => {
-    const formState = doc.getMap<unknown>('formState');
-    for (const [k, v] of Object.entries(patch)) formState.set(k, v);
-    doc.getMap<Y.Map<unknown>>('pagesById').forEach((page) => {
+    const pages = doc.getMap<Y.Map<unknown>>('pagesById');
+    // The root formState is not written next to `pagesById` pages (#5767).
+    if (pages.size === 0) {
+      const formState = doc.getMap<unknown>('formState');
+      for (const [k, v] of Object.entries(patch)) formState.set(k, v);
+    }
+    pages.forEach((page) => {
       const pageState = page.get('state') as Y.Map<unknown>;
       for (const [k, v] of Object.entries(patch)) pageState.set(k, v);
     });

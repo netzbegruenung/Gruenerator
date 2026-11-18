@@ -286,6 +286,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   antragsgruen_antrag_stellen: 10_000,
   // Lesen meldet sich bei Antragsgrün an (Login, Admin-Prüfung, Tagesordnung).
   antragsgruen_tagesordnung: 30_000,
+  // Login, Admin-Prüfung, Antragsliste; beim Lesen eines Antrags dazu Token, JSON und Seite.
+  antragsgruen_seite_lesen: 30_000,
 };
 
 /**
@@ -361,6 +363,8 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // ({seite} gegen {seite, punkte}); als Duplikat blockiert, kündigte das Modell
   // die Änderung nur an (dev bypass 16.11.2026).
   'antragsgruen_tagesordnung',
+  // Erst die Liste, dann ein Antrag: dieselbe Seite, ein Argument mehr.
+  'antragsgruen_seite_lesen',
   'antragsgruen_antrag_stellen',
   'antragsgruen_seite_anlegen',
 ]);
