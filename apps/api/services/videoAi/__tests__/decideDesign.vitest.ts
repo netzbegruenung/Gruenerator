@@ -135,7 +135,7 @@ describe('decideDesign', () => {
     expect(edl.overlays).toContainEqual({ kind: 'bauchbinde', atSegment: 1, durationSeconds: 4 });
     expect(edl.overlays).toContainEqual({ kind: 'logo', placement: 'ecke' });
     const call = aiObject.mock.calls[0][0] as Call;
-    expect(call.lane).toBe('video_ai_design');
+    expect(call.lane).toBe('video_ai');
     expect(call.system).toContain('Stil: Talking Head dynamisch');
   });
 

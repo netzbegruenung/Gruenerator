@@ -57,7 +57,7 @@ function prompt(times: readonly number[]): string {
 
 async function describeSheet(sheet: ContactSheet): Promise<FrameCell[]> {
   const result = await aiObject<z.infer<typeof answerSchema>>({
-    lane: 'video_ai_frames',
+    lane: 'video_ai',
     messages: [
       {
         role: 'user',
@@ -113,7 +113,7 @@ const assetAnswerSchema = z.object({ beschreibung: z.string().min(1) });
  */
 export async function describeAsset(jpeg: Buffer, isLogo: boolean): Promise<string> {
   const result = await aiObject<z.infer<typeof assetAnswerSchema>>({
-    lane: 'video_ai_frames',
+    lane: 'video_ai',
     messages: [
       {
         role: 'user',

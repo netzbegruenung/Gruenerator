@@ -139,7 +139,7 @@ describe('reviseEdl', () => {
     ]);
     expect(revision.omitted).toEqual({ 'c1.s9': 'Abgebrochener Satz', 'c1.s7': REVISED_REASON });
     expect(revision.summary).toBe('Satz raus, Hook-Titel');
-    expect((aiObject.mock.calls[0][0] as Call).lane).toBe('video_ai_revise');
+    expect((aiObject.mock.calls[0][0] as Call).lane).toBe('video_ai');
   });
 
   it('shows the plan, the omitted sentences and where the person pointed', () => {

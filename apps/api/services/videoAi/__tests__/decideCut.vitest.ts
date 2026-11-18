@@ -58,7 +58,7 @@ describe('decideCut', () => {
     expect(decision.unitIds).toEqual(GOOD);
     expect(decision.omitted).toEqual({ 'c1.s13': 'zurückgenommen' });
     expect(decision.validation.timeline.duration).toBeGreaterThan(25);
-    expect(aiObject.mock.calls[0][0]).toMatchObject({ lane: 'video_ai_cut', reasoning: 'medium' });
+    expect(aiObject.mock.calls[0][0]).toMatchObject({ lane: 'video_ai', reasoning: 'medium' });
   });
 
   it('throws when the model never produces a valid cut', async () => {

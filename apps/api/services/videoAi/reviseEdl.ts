@@ -247,7 +247,7 @@ export function checkRevision(answer: Answer, input: ReviseInput): Checked {
 
 export async function reviseEdl(input: ReviseInput): Promise<Revision> {
   const result = await aiObject<Revision>({
-    lane: 'video_ai_revise',
+    lane: 'video_ai',
     system: systemPrompt(input.locale),
     prompt: buildRevisePrompt(input),
     toolName: 'schnitt_aendern',

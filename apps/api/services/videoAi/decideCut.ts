@@ -143,7 +143,7 @@ export async function decideCut(
     briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
   const result = await aiObject<CutDecision>({
-    lane: 'video_ai_cut',
+    lane: 'video_ai',
     system: systemPrompt(input.brief.locale),
     prompt: buildCutPrompt(input),
     toolName: 'schnitt_festlegen',

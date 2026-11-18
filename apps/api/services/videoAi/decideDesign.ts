@@ -367,7 +367,7 @@ export async function decideDesign(
     briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
   const result = await aiObject<DesignDecision>({
-    lane: 'video_ai_design',
+    lane: 'video_ai',
     system: `${promptFile('gestaltung.md')}\n\n${promptFile(`stile/${input.brief.style}.md`)}`,
     prompt: buildDesignPrompt(input),
     toolName: 'gestaltung_festlegen',
