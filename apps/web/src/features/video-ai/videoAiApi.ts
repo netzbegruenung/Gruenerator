@@ -36,6 +36,17 @@ export const STATUS_LABEL: Record<VideoAiStatus, string> = {
   cancelled: 'Abgebrochen',
 };
 
+/** For the project list, where the long label would push the title out. */
+export const STATUS_SHORT: Record<VideoAiStatus, string> = {
+  queued: 'Wartet',
+  analyzing: 'Läuft',
+  cutting: 'Läuft',
+  designing: 'Läuft',
+  ready: 'Fertig',
+  failed: 'Fehlgeschlagen',
+  cancelled: 'Abgebrochen',
+};
+
 function fail(body: unknown, fallback: string): never {
   const message =
     typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'

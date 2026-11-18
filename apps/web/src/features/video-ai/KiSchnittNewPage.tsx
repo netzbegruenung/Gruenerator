@@ -5,7 +5,7 @@
  * Below, the person's earlier KI-Schnitte.
  */
 import { VIDEO_AI_LIMITS, videoAiTreeUnits } from '@gruenerator/contracts';
-import { Button, UploadZone } from '@gruenerator/ui';
+import { Badge, Button, UploadZone } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Film, Image, Loader2, Music, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -17,7 +17,7 @@ import {
   defaultRole,
   listProjects,
   projectsQueryKey,
-  STATUS_LABEL,
+  STATUS_SHORT,
   uploadMaterial,
   type UploadedMaterial,
 } from './videoAiApi';
@@ -60,13 +60,23 @@ function EarlierProjects() {
       <ul className="divide-y divide-grey-200 rounded-xl bg-white/70 px-md dark:divide-grey-700 dark:bg-grey-900/70">
         {data.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-md py-xs">
-            <Link
-              to={`/studio/ki-schnitt/${p.slugSuffix}`}
-              className="truncate font-medium underline-offset-2 hover:underline"
-            >
-              {p.title}
-            </Link>
-            <span className="shrink-0 text-sm text-grey-500">{STATUS_LABEL[p.status]}</span>
+            <div className="min-w-0 flex-1">
+              <Link
+                to={`/studio/ki-schnitt/${p.slugSuffix}`}
+                className="block truncate font-medium underline-offset-2 hover:underline"
+              >
+                {p.title}
+              </Link>
+              <p className="text-xs text-grey-500">
+                {new Date(p.createdAt).toLocaleDateString('de-DE', {
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </p>
+            </div>
+            <Badge variant={p.status === 'failed' ? 'destructive' : 'secondary'}>
+              {STATUS_SHORT[p.status]}
+            </Badge>
           </li>
         ))}
       </ul>
@@ -180,16 +190,24 @@ function KiSchnittNew() {
             );
           })}
           {pending.map((p) => (
-            <li key={p.key} className="rounded-lg bg-white/70 px-md py-xs dark:bg-grey-900/70">
-              <div className="flex justify-between text-sm">
-                <span className="truncate">{p.name}</span>
-                <span className="tabular-nums text-grey-500">{p.progress} %</span>
-              </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-grey-200 dark:bg-grey-700">
-                <div
-                  className="h-full rounded-full bg-primary-500 transition-all duration-300"
-                  style={{ width: `${p.progress}%` }}
-                />
+            <li
+              key={p.key}
+              className="flex items-center gap-sm rounded-lg bg-white/70 px-md py-xs dark:bg-grey-900/70"
+            >
+              <Loader2 className="size-4 shrink-0 animate-spin text-grey-500" aria-hidden />
+              <div className="flex min-h-9 min-w-0 flex-1 flex-col justify-center">
+                <div className="flex justify-between gap-sm">
+                  <span className="truncate">{p.name}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-grey-500">
+                    {p.progress} %
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-grey-200 dark:bg-grey-700">
+                  <div
+                    className="h-full rounded-full bg-primary-500 transition-all duration-300"
+                    style={{ width: `${p.progress}%` }}
+                  />
+                </div>
               </div>
             </li>
           ))}
@@ -206,7 +224,7 @@ function KiSchnittNew() {
             {start.isPending && <Loader2 className="mr-xs size-4 animate-spin" aria-hidden />}
             Schnitt starten
           </Button>
-          <p className="text-sm text-grey-500">
+          <p className="text-center text-sm text-grey-500">
             Kostet {trees.toLocaleString('de-DE')} {trees === 1 ? 'Baum' : 'Bäume'} · Du bekommst
             eine Benachrichtigung, wenn er fertig ist.
           </p>
