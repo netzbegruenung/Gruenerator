@@ -23,11 +23,11 @@ import {
 } from '../trash/ownedRowTrash.js';
 
 import {
+  clipUnits,
   type StoredVideoAiAnalysis,
   type StoredVideoAiInput,
   type StoredVideoAiVersion,
 } from './projectTypes.js';
-import { buildTranscriptUnits } from './transcriptUnits.js';
 
 /** Statuses the worker still has to move. */
 export const ACTIVE_STATUSES = ['queued', 'analyzing', 'cutting', 'designing'] as const;
@@ -224,7 +224,7 @@ function unitTexts(analysis: StoredVideoAiAnalysis | null): Map<string, string> 
   const texts = new Map<string, string>();
   for (const clip of analysis?.clips ?? []) {
     if (clip.role !== 'footage') continue;
-    for (const unit of buildTranscriptUnits(clip.clipId, clip.words)) texts.set(unit.id, unit.text);
+    for (const unit of clipUnits(clip)) texts.set(unit.id, unit.text);
   }
   return texts;
 }

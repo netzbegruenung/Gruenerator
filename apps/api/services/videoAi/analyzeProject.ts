@@ -31,7 +31,7 @@ import {
   type StoredVideoAiInput,
 } from './projectTypes.js';
 import { speechAudio, transcodeProxy } from './proxy.js';
-import { type TranscriptWord } from './transcriptUnits.js';
+import { findUnitBreaks, type TranscriptWord } from './transcriptUnits.js';
 
 const log = createLogger('videoAiAnalysis');
 
@@ -129,6 +129,7 @@ export async function analyzeOneClip(
         width: meta.width > 0 ? meta.width : null,
         height: meta.height > 0 ? meta.height : null,
         words,
+        unitBreaks: findUnitBreaks(words),
         detectors,
         cells,
       };

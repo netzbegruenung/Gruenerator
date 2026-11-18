@@ -32,26 +32,36 @@ export const UNIT_BREAK_PAUSE_SECONDS = 0.7;
 
 const SENTENCE_END = /[.?!…]["“”»«']?$/;
 
-export function buildTranscriptUnits(
-  clipId: string,
-  words: readonly TranscriptWord[]
-): TranscriptUnit[] {
-  const groups: TranscriptWord[][] = [];
-  let current: TranscriptWord[] = [];
+/**
+ * Index of the first word of every unit under the current split rules,
+ * starting with 0 (empty for no words). Stored with the analysis so a later
+ * change of the rules cannot re-address the units of a saved cut.
+ */
+export function findUnitBreaks(words: readonly TranscriptWord[]): number[] {
+  const breaks: number[] = [];
+  let open = false;
 
   words.forEach((word, i) => {
     const previous = words[i - 1];
-    if (current.length > 0 && previous && word.start - previous.end >= UNIT_BREAK_PAUSE_SECONDS) {
-      groups.push(current);
-      current = [];
+    if (open && previous && word.start - previous.end >= UNIT_BREAK_PAUSE_SECONDS) open = false;
+    if (!open) {
+      breaks.push(i);
+      open = true;
     }
-    current.push(word);
-    if (SENTENCE_END.test(word.word)) {
-      groups.push(current);
-      current = [];
-    }
+    if (SENTENCE_END.test(word.word)) open = false;
   });
-  if (current.length > 0) groups.push(current);
+  return breaks;
+}
+
+/** The units that start at the given word indexes. */
+export function unitsFromBreaks(
+  clipId: string,
+  words: readonly TranscriptWord[],
+  breaks: readonly number[]
+): TranscriptUnit[] {
+  const groups = breaks
+    .map((from, i) => words.slice(from, breaks[i + 1] ?? words.length))
+    .filter((group) => group.length > 0);
 
   return groups.map((group, i) => {
     const first = group[0];
@@ -67,6 +77,13 @@ export function buildTranscriptUnits(
       pauseAfter: next ? Math.max(0, next[0].start - last.end) : null,
     };
   });
+}
+
+export function buildTranscriptUnits(
+  clipId: string,
+  words: readonly TranscriptWord[]
+): TranscriptUnit[] {
+  return unitsFromBreaks(clipId, words, findUnitBreaks(words));
 }
 
 /** `c2.s14` → [2, 14], comparable in spoken order across clips. */

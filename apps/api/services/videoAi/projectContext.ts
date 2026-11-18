@@ -9,9 +9,9 @@ import { type VideoAiBrief } from '@gruenerator/contracts';
 import { type CutInput } from './decideCut.js';
 import { type DesignInput } from './decideDesign.js';
 import { clipSummary, framingFor, hasBurnedInCaptions } from './framing.js';
-import { type StoredVideoAiAnalysis, type StoredVideoAiInput } from './projectTypes.js';
+import { clipUnits, type StoredVideoAiAnalysis, type StoredVideoAiInput } from './projectTypes.js';
 import { findTakeGroups } from './takeGroups.js';
-import { buildTranscriptUnits, type TranscriptUnit } from './transcriptUnits.js';
+import { type TranscriptUnit } from './transcriptUnits.js';
 import { type ValidationContext } from './validateEdl.js';
 import { MIN_FOOTAGE_WORDS } from './warnings.js';
 
@@ -31,7 +31,7 @@ export interface PlanContext {
 export function planContext(row: ProjectBasics, analysis: StoredVideoAiAnalysis): PlanContext {
   const titles = new Map(row.inputs.map((i) => [i.id, i.title]));
   const footage = analysis.clips.filter((c) => c.role === 'footage');
-  const ordered = footage.flatMap((c) => buildTranscriptUnits(c.clipId, c.words));
+  const ordered = footage.flatMap((c) => clipUnits(c));
   const units = new Map(ordered.map((u) => [u.id, u]));
   const cellsByClip = new Map(analysis.clips.map((c) => [c.clipId, c.cells]));
   const assets = analysis.assets.map((a) => ({ id: a.id, kind: a.kind }));

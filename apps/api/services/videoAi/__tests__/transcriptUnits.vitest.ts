@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTranscriptUnits } from '../transcriptUnits.js';
+import { clipUnits } from '../projectTypes.js';
+import { buildTranscriptUnits, findUnitBreaks, unitsFromBreaks } from '../transcriptUnits.js';
 
-import { radwegUnits } from './fixtures.js';
+import { radwegUnits, radwegWords } from './fixtures.js';
 
 const w = (word: string, start: number, end: number) => ({ word, start, end });
 
@@ -39,5 +40,28 @@ describe('buildTranscriptUnits', () => {
     expect(units.get('c1.s16')?.text).toBe('Die CSU hat den Antrag leider abgelehnt.');
     // Number words arrive as digits, as listenWithGreenpt delivers them.
     expect(units.get('c1.s8')?.text).toContain('über 400 Kinder');
+  });
+});
+
+describe('stored unit breaks', () => {
+  it('splits at stored breaks even when the current rules would split elsewhere', () => {
+    const words = radwegWords().slice(0, 12);
+    const units = unitsFromBreaks('c1', words, [0, 5]);
+    expect(units.map((u) => [u.id, u.words.length])).toEqual([
+      ['c1.s1', 5],
+      ['c1.s2', 7],
+    ]);
+  });
+
+  it('round-trips: breaks of the current rules rebuild the same units', () => {
+    const words = radwegWords();
+    expect(unitsFromBreaks('c1', words, findUnitBreaks(words))).toEqual(
+      buildTranscriptUnits('c1', words)
+    );
+  });
+
+  it('falls back to the current rules for a clip stored without breaks', () => {
+    const words = radwegWords();
+    expect(clipUnits({ clipId: 'c1', words })).toEqual(buildTranscriptUnits('c1', words));
   });
 });
