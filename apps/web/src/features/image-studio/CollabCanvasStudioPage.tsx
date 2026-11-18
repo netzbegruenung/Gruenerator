@@ -53,11 +53,15 @@ const SLOW_SYNC_MS = 8000;
 /** How long closing the embedded editor waits for unacked collab updates. */
 const CLOSE_FLUSH_MS = 1000;
 
+// Loaded once the editor is up (see the preload effect): fetched on first open,
+// the access section popped into an already open panel and shifted the tiles.
+const loadCanvasShareAccess = () => import('./components/CanvasShareAccess');
+const loadCanvasShareToProject = () => import('./components/CanvasShareToProject');
 const CanvasShareAccess = lazy(() =>
-  import('./components/CanvasShareAccess').then((m) => ({ default: m.CanvasShareAccess }))
+  loadCanvasShareAccess().then((m) => ({ default: m.CanvasShareAccess }))
 );
 const CanvasShareToProject = lazy(() =>
-  import('./components/CanvasShareToProject').then((m) => ({ default: m.CanvasShareToProject }))
+  loadCanvasShareToProject().then((m) => ({ default: m.CanvasShareToProject }))
 );
 const SaveAsTemplateDialog = lazy(() =>
   import('./components/SaveAsTemplateDialog').then((m) => ({ default: m.SaveAsTemplateDialog }))
@@ -362,6 +366,11 @@ function CollabCanvasStudioContent() {
     [isSlides]
   );
   const canvasId = canvas?.id ?? null;
+  useEffect(() => {
+    if (!canvasId) return;
+    void loadCanvasShareAccess();
+    void loadCanvasShareToProject();
+  }, [canvasId]);
   const accessSection = useCallback(
     (nav: ShareNav) =>
       canvasId ? (

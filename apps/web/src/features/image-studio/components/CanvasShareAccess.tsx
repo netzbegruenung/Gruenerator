@@ -198,12 +198,7 @@ function OwnerAccess({ canvasId, nav }: { canvasId: string; nav: ShareNav }) {
         </Row>
       ))}
 
-      <Row
-        icon={<PiLink size={15} />}
-        label={
-          linkOn ? 'Alle Grünen mit dem Link' : 'Link aus · nur Projekte und Personen mit Zugriff'
-        }
-      >
+      <Row icon={<PiLink size={15} />} label={linkOn ? 'Alle Grünen mit dem Link' : 'Link aus'}>
         <select
           aria-label="Zugriff über den Link"
           value={linkChoice}
