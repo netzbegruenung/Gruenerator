@@ -579,6 +579,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
     next()
   );
+  // A correction round can call Gemma (free-text request), so the same gate as create.
+  app.post(
+    '/api/video-ai/projects/:id/revise',
+    aiGenerationLimiter,
+    requireAiConsent,
+    (_req, _res, next) => next()
+  );
   mountVideoAiContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.

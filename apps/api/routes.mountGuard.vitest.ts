@@ -259,6 +259,29 @@ describe('routes.ts mount order', () => {
   });
 
   /**
+   * KI-Schnitt: creating a project and every correction round call a model,
+   * so both POSTs carry the generation limiter and the consent gate, after the
+   * prefix auth and before the contract mount.
+   */
+  it('gates the KI-Schnitt model calls before the contract mount', () => {
+    const auth = firstIndexOf("app.use('/api/video-ai', requireAuth");
+    const mountCall = firstIndexOf('mountVideoAiContractRouter(app)');
+    expect(auth).toBeGreaterThan(-1);
+    expect(mountCall).toBeGreaterThan(-1);
+
+    for (const aiPath of ['/api/video-ai/projects', '/api/video-ai/projects/:id/revise']) {
+      const gate = routesSource.search(
+        new RegExp(
+          `app\\.post\\(\\s*'${escapeRegExp(aiPath)}',\\s*aiGenerationLimiter,\\s*requireAiConsent`
+        )
+      );
+      expect(gate, `${aiPath} needs aiGenerationLimiter and requireAiConsent`).toBeGreaterThan(-1);
+      expect(gate, `${aiPath} gate must follow its auth`).toBeGreaterThan(auth);
+      expect(gate, `${aiPath} gate must precede the mount`).toBeLessThan(mountCall);
+    }
+  });
+
+  /**
    * Bundestag-Q&A: auth and consent sit on the prefix (every route calls a
    * model), consent after auth in the same call, and each endpoint carries its
    * own daily limit — `/plan` a separate, higher one so planning does not eat
