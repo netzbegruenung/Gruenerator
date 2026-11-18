@@ -26,10 +26,17 @@ vi.mock('../services/imageEditingService', () => ({
   detectImageElements: vi.fn(),
 }));
 vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
+vi.mock('../utils/downscaleImage', () => ({
+  fileToDownscaledDataUrl: () => Promise.resolve(PHOTO),
+}));
 
 // The real thread is a large UI; under test is what the page does with a sent message.
 vi.mock('@gruenerator/chat', () => {
-  function Thread({ composerSlots }: { composerSlots?: { aboveInput?: ReactNode } }) {
+  function Thread({
+    composerSlots,
+  }: {
+    composerSlots?: { aboveInput?: ReactNode; sendAdornment?: ReactNode };
+  }) {
     const aui = useAui();
     const send = (text: string, file?: File) =>
       aui.thread().append({
@@ -52,6 +59,7 @@ vi.mock('@gruenerator/chat', () => {
     return (
       <>
         {composerSlots?.aboveInput}
+        {composerSlots?.sendAdornment}
         <button onClick={() => send('Mach den Himmel blau', REFERENCE)}>senden</button>
       </>
     );
@@ -67,6 +75,7 @@ const REFERENCE = new File(['r'], 'referenz.jpg', { type: 'image/jpeg' });
 const V1 = 'data:image/jpeg;base64,VjE=';
 const V2 = 'data:image/png;base64,VjI=';
 const EDITED = 'data:image/jpeg;base64,RURJVA==';
+const PHOTO = 'data:image/jpeg;base64,UEhPVE8=';
 
 const version = (
   id: string,
@@ -156,6 +165,37 @@ describe('BildEditorV2Page', () => {
     const [files, text] = editImage.mock.calls[0]!;
     expect(text).toBe('Mach den Himmel blau');
     expect((files as File[]).map((f) => f.name)).toEqual(['v1.jpg', 'referenz.jpg']);
+  });
+
+  it('asks for the photo of an edit request without one, then edits the attached photo', async () => {
+    generatePureCreate.mockRejectedValue(
+      new Error('Dafür brauche ich dein Foto.', {
+        cause: { response: { status: 422, data: { type: 'needs_image' } } },
+      })
+    );
+    editImage.mockResolvedValue({ base64: EDITED } as Awaited<ReturnType<typeof editAiImage>>);
+    renderAt({ mode: 'erstellen', prompt: 'ich möchte, dass du ein Bild von mir bearbeitest' });
+
+    expect(await screen.findByRole('button', { name: 'Foto anhängen' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('senden'));
+    await waitFor(() =>
+      expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', EDITED)
+    );
+    expect(generatePureCreate).toHaveBeenCalledTimes(1);
+    const [files, text] = editImage.mock.calls[0]!;
+    expect(text).toBe('Mach den Himmel blau');
+    // The attached photo became V1 and is what was edited, not a reference beside nothing.
+    expect((files as File[]).map((f) => f.name)).toEqual(['v1.jpg']);
+    expect(screen.getByRole('button', { name: 'V1 · Hochgeladen' })).toBeInTheDocument();
+  });
+
+  it('offers no photo slot when an ordinary request fails', async () => {
+    generatePureCreate.mockRejectedValue(new Error('Etwas ist schiefgelaufen.'));
+    renderAt({ mode: 'erstellen', prompt: 'Ein Wald am Morgen' });
+
+    await waitFor(() => expect(generatePureCreate).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Foto anhängen' })).not.toBeInTheDocument();
   });
 
   it('switches the shown version from the strip and downloads it', async () => {
