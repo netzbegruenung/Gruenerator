@@ -10,10 +10,11 @@
 import * as cheerio from 'cheerio';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { deliverableContactOf } from '../../user/accountContact.js';
+import { FormStepError, OrderRefused, type FormClient } from '../../webForms/formClient.js';
 
 import { agendaOf, setAgenda, type AgendaEntry, type AgendaItemRef } from './agenda.js';
 import { createAntragsgruenSite, type CreatedSite, type SiteRequest } from './createSite.js';
-import { AntragsgruenFormError, type FormClient } from './formClient.js';
 import { createMotionOnHostedSite, type CreatedMotion } from './motions.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
 import {
@@ -38,41 +39,6 @@ export interface SiteOrder {
   agenda?: AgendaEntry[] | null;
 }
 
-const DELIVERABLE_EMAIL_RE = /^[^@\s]+@[^@\s:]+\.[a-z]{2,}$/i;
-
-export class SiteOrderRefused extends Error {
-  /** Für die Person geschrieben; eigenes Feld, damit `no-raw-error-to-client` greift. */
-  readonly userText: string;
-
-  constructor(userText: string) {
-    super(userText);
-    this.name = 'SiteOrderRefused';
-    this.userText = userText;
-  }
-}
-
-export async function inviteeOf(userId: string): Promise<SiteRequest['invitee'] | null> {
-  const rows = (await getPostgresInstance().query(
-    `SELECT email, first_name, last_name, display_name FROM profiles WHERE id = $1`,
-    [userId]
-  )) as {
-    email: string | null;
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string | null;
-  }[];
-  const p = rows[0];
-  // Eine Adresse, an die nichts zugestellt werden kann (z. B. `dev@localhost:3001`),
-  // legte bei Antragsgrün ein Konto an, dessen Zugangsdaten nie ankommen.
-  if (!p?.email || !DELIVERABLE_EMAIL_RE.test(p.email)) return null;
-  const [given, ...family] = (p.display_name ?? '').trim().split(/\s+/);
-  return {
-    email: p.email,
-    nameGiven: p.first_name?.trim() || given || '',
-    nameFamily: p.last_name?.trim() || family.join(' '),
-  };
-}
-
 export async function sitesOrderedBy(userId: string): Promise<number> {
   const rows = (await getPostgresInstance().query(
     `SELECT COUNT(*)::int AS n FROM antragsgruen_hosted_sites WHERE user_id = $1 AND kind = 'created'`,
@@ -88,15 +54,15 @@ export async function orderAntragsgruenSite(
 ): Promise<CreatedSite> {
   const config = hostingConfigFromEnv();
   if (!config)
-    throw new SiteOrderRefused('Das Anlegen von Antragsgrün-Seiten ist hier nicht eingerichtet.');
+    throw new OrderRefused('Das Anlegen von Antragsgrün-Seiten ist hier nicht eingerichtet.');
   if ((await sitesOrderedBy(userId)) >= MAX_SITES_PER_USER) {
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       `Du hast schon ${MAX_SITES_PER_USER} Antragsgrün-Seiten über den Grünerator angelegt.`
     );
   }
-  const invitee = await inviteeOf(userId);
+  const invitee = await deliverableContactOf(userId);
   if (!invitee)
-    throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse für die Einladung.');
+    throw new OrderRefused('Dein Konto hat keine gültige E-Mail-Adresse für die Einladung.');
 
   try {
     const site = await createAntragsgruenSite({ ...order, invitee }, config);
@@ -105,8 +71,8 @@ export async function orderAntragsgruenSite(
   } catch (err) {
     // Halb angelegt: die Seite steht, die Einladung fehlt. Die Zeile hält fest,
     // dass es sie gibt und wem sie gehört, damit jemand die Einladung nachholt.
-    if (err instanceof AntragsgruenFormError && err.siteUrl) {
-      await record(userId, order, err.siteUrl);
+    if (err instanceof FormStepError && err.createdUrl) {
+      await record(userId, order, err.createdUrl);
     }
     throw err;
   }
@@ -195,16 +161,16 @@ export async function orderAntragsgruenMotion(
   order: MotionOrder
 ): Promise<CreatedMotion> {
   const config = hostingConfigFromEnv();
-  if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
+  if (!config) throw new OrderRefused('Antragsgrün ist hier nicht eingerichtet.');
   // Erneut gegen die Datenbank, nicht gegen die Karte: zwischen Karte und Klick
   // kann die Seite den Besitz gewechselt haben.
   const site = (await hostedSitesOf(userId)).find((s) => s.subdomain === order.subdomain);
   if (!site)
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       'Diese Antragsgrün-Seite ist nicht mit deinem Grünerator-Konto verbunden.'
     );
-  const person = await inviteeOf(userId);
-  if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
+  const person = await deliverableContactOf(userId);
+  if (!person) throw new OrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
   return createMotionOnHostedSite(
     {
       siteUrl: site.url,
@@ -225,14 +191,14 @@ export async function orderAntragsgruenMotion(
 /** Eine eigene Seite der Person, mit eingeloggtem Grünerator-Konto; beide sind dort noch Admin. */
 async function adminSessionOn(userId: string, subdomain: string) {
   const config = hostingConfigFromEnv();
-  if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
+  if (!config) throw new OrderRefused('Antragsgrün ist hier nicht eingerichtet.');
   const site = (await hostedSitesOf(userId)).find((s) => s.subdomain === subdomain);
   if (!site)
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       'Diese Antragsgrün-Seite ist nicht mit deinem Grünerator-Konto verbunden.'
     );
-  const person = await inviteeOf(userId);
-  if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
+  const person = await deliverableContactOf(userId);
+  if (!person) throw new OrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
   const client = botClient();
   await login(client, config);
   const { origin, consultation } = splitSiteUrl(site.url);
@@ -332,11 +298,11 @@ export async function connectAntragsgruenSite(
   client: FormClient = botClient()
 ): Promise<HostedSite> {
   const config = hostingConfigFromEnv();
-  if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
+  if (!config) throw new OrderRefused('Antragsgrün ist hier nicht eingerichtet.');
   const host = new URL(config.baseUrl).hostname;
   const parsed = parseSiteAddress(address, config.baseUrl);
   if (!parsed)
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       `Das ist keine Adresse einer Seite auf ${host}, z. B. https://kv-beispiel.${host}/kmv.`
     );
   const db = getPostgresInstance();
@@ -345,7 +311,7 @@ export async function connectAntragsgruenSite(
     [parsed.subdomain]
   )) as { user_id: string | null }[];
   if (taken[0]) {
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       taken[0].user_id === userId
         ? 'Diese Seite ist schon mit deinem Konto verbunden.'
         : 'Diese Seite ist schon mit einem anderen Grünerator-Konto verbunden.'
@@ -356,12 +322,12 @@ export async function connectAntragsgruenSite(
     [userId]
   )) as { n: number }[];
   if ((connected[0]?.n ?? 0) >= MAX_CONNECTED_SITES_PER_USER) {
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       `Du hast schon ${MAX_CONNECTED_SITES_PER_USER} Antragsgrün-Seiten verbunden.`
     );
   }
-  const person = await inviteeOf(userId);
-  if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
+  const person = await deliverableContactOf(userId);
+  if (!person) throw new OrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
 
   await login(client, config);
   // Ohne Pfad zeigt die Subdomain die Standard-Veranstaltung direkt an (gemessen,
@@ -371,20 +337,20 @@ export async function connectAntragsgruenSite(
   const start = await client.request(url);
   const title = cheerio.load(start.html)('h1').first().text().replace(/\s+/g, ' ').trim();
   if (start.status !== 200 || !title) {
-    throw new SiteOrderRefused(
+    throw new OrderRefused(
       `Unter ${url} gibt es keine Veranstaltung. Füge die Adresse ein, unter der deine Veranstaltung erscheint, z. B. https://${parsed.subdomain}.${host}/kmv.`
     );
   }
   try {
     await requireAdmins(client, parsed.origin, consultation, person.email);
   } catch (err) {
-    if (!(err instanceof AntragsgruenFormError)) throw err;
+    if (!(err instanceof FormStepError)) throw err;
     if (err.step === 'revoked')
-      throw new SiteOrderRefused(
+      throw new OrderRefused(
         `Das Grünerator-Konto ${config.botEmail} ist auf dieser Seite nicht Admin. Trag es unter „Einstellungen → Registrierte Benutzer*innen" in die Gruppe „Seiten-Admin" ein.`
       );
     if (err.step === 'not-admin')
-      throw new SiteOrderRefused(
+      throw new OrderRefused(
         `Dein Grünerator-Konto (${person.email}) ist auf dieser Seite nicht Admin. Verbinden kann nur, wer dort mit derselben Adresse Admin ist.`
       );
     throw err;
@@ -397,6 +363,6 @@ export async function connectAntragsgruenSite(
      RETURNING id, subdomain, title, url, kind, created_at`,
     [userId, parsed.subdomain, title, url]
   )) as HostedSite[];
-  if (!rows[0]) throw new SiteOrderRefused('Diese Seite wurde gerade schon verbunden.');
+  if (!rows[0]) throw new OrderRefused('Diese Seite wurde gerade schon verbunden.');
   return rows[0];
 }

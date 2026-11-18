@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../../utils/redis/client.js', () => ({ redisClient: { isReady: false } }));
 
 import { createAntragsgruenSite, type SiteRequest } from './createSite.js';
-import { FormClient, type FetchLike } from './formClient.js';
+import { FormClient, type FetchLike } from '../../webForms/formClient.js';
 import { resetBotSessionForTests, type HostingConfig } from './session.js';
 
 const CONFIG: HostingConfig = {
@@ -264,7 +264,7 @@ describe('createAntragsgruenSite', () => {
       createAntragsgruenSite(REQ, CONFIG, new FormClient(site.fetchImpl))
     ).rejects.toMatchObject({
       step: 'invite',
-      siteUrl: 'https://kv-koeln.antragsgruen.de/kv-koeln',
+      createdUrl: 'https://kv-koeln.antragsgruen.de/kv-koeln',
     });
     expect(site.calls.some((c) => c.url.endsWith('/add-single'))).toBe(false);
   });

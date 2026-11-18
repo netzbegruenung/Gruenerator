@@ -7,8 +7,7 @@ import * as cheerio from 'cheerio';
 import { env } from '../../../config/env.js';
 import { createLogger } from '../../../utils/logger.js';
 import { redisClient } from '../../../utils/redis/client.js';
-
-import { AntragsgruenFormError, FormClient, alertsOf, csrfOf } from './formClient.js';
+import { FormStepError, FormClient, alertsOf, csrfOf } from '../../webForms/formClient.js';
 
 export interface HostingConfig {
   /** z. B. `https://antragsgruen.de` — Seiten liegen unter `https://<sub>.<host>/`. */
@@ -47,7 +46,7 @@ const LOGIN_PAUSED_TEXT =
 
 /** Der Satz für die Person, wenn der Login selbst das Problem ist; sonst `null`. */
 export function loginRefusalText(err: unknown): string | null {
-  if (!(err instanceof AntragsgruenFormError)) return null;
+  if (!(err instanceof FormStepError)) return null;
   if (err.step === 'captcha') return LOGIN_BLOCKED_TEXT;
   if (err.step === 'login' || err.step === 'login-paused') return LOGIN_PAUSED_TEXT;
   return null;
@@ -110,10 +109,7 @@ export function resetBotSessionForTests(): void {
 
 function fail(step: string, message: string, html?: string): never {
   const alerts = html ? alertsOf(html) : [];
-  throw new AntragsgruenFormError(
-    alerts.length ? `${message}: ${alerts.join(' · ')}` : message,
-    step
-  );
+  throw new FormStepError(alerts.length ? `${message}: ${alerts.join(' · ')}` : message, step);
 }
 
 /**
@@ -126,7 +122,7 @@ export async function login(client: FormClient, config: HostingConfig): Promise<
   const at = loggedInAt.get(client);
   if (at !== undefined && Date.now() - at < SESSION_TTL_MS) return;
   if (await loginPaused()) {
-    throw new AntragsgruenFormError('Login des Grünerator-Kontos pausiert', 'login-paused');
+    throw new FormStepError('Login des Grünerator-Kontos pausiert', 'login-paused');
   }
   const page = await client.request(`${config.baseUrl}/login`);
   const csrf = csrfOf(page.html);
@@ -210,13 +206,13 @@ export async function requireAdmins(
 ): Promise<void> {
   const page = await siteAdminPage(client, origin, consultation);
   if (!page) {
-    throw new AntragsgruenFormError(
+    throw new FormStepError(
       'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
       'revoked'
     );
   }
   if (!adminEmailsOf(page).includes(personEmail.trim().toLowerCase())) {
-    throw new AntragsgruenFormError(`${personEmail} ist auf dieser Seite nicht Admin`, 'not-admin');
+    throw new FormStepError(`${personEmail} ist auf dieser Seite nicht Admin`, 'not-admin');
   }
 }
 
