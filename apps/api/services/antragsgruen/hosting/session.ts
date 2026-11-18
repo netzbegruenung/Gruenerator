@@ -5,6 +5,7 @@
 import * as cheerio from 'cheerio';
 
 import { env } from '../../../config/env.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import { AntragsgruenFormError, alertsOf, csrfOf, type FormClient } from './formClient.js';
 
@@ -29,6 +30,16 @@ export function hostingConfigFromEnv(): HostingConfig | null {
     botPassword,
   };
 }
+
+const log = createLogger('antragsgruenSession');
+
+/**
+ * Antragsgrün verlangt nach drei Fehlversuchen für einen Benutzernamen (egal
+ * von wo) eine Stunde lang ein Captcha (`FailedLoginAttempt`, gemessen am
+ * 18.11.2026). Das Grünerator-Konto kann keins lösen — so lange ruht alles.
+ */
+export const LOGIN_BLOCKED_TEXT =
+  'Antragsgrün verlangt beim Login des Grünerator-Kontos gerade ein Captcha (zu viele Fehlversuche). Das hebt sich nach spätestens einer Stunde auf; versuch es dann noch einmal.';
 
 function fail(step: string, message: string, html?: string): never {
   const alerts = html ? alertsOf(html) : [];
@@ -56,7 +67,12 @@ export async function login(client: FormClient, config: HostingConfig): Promise<
   });
   const res = await client.request(`${config.baseUrl}/login`, { method: 'POST', form });
   // Erfolg ist eine Weiterleitung; ein Fehler zeigt das Formular erneut.
-  if (!res.redirected) fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
+  if (res.redirected) return;
+  if (res.html.includes('name="captcha"')) {
+    log.error(`Antragsgrün verlangt ein Captcha für ${config.botEmail} — Login gesperrt`);
+    fail('captcha', 'Login des Grünerator-Kontos verlangt ein Captcha', res.html);
+  }
+  fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
 }
 
 /**

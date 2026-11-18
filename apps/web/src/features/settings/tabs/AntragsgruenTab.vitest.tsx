@@ -109,16 +109,17 @@ describe('AntragsgruenTab', () => {
     await user.click(await screen.findByRole('button', { name: 'Bestehende Seite verbinden' }));
     await user.type(
       screen.getByLabelText('Adresse der Antragsgrün-Seite'),
-      'https://kv-koeln.antragsgruen.de/kv-koeln'
+      'kv-koeln.antragsgruen.de/kv-koeln'
     );
+    // Ohne https:// darf der Browser das Absenden nicht blockieren.
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/nicht Admin/);
 
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
     expect(await screen.findByText(/verbunden am/)).toBeInTheDocument();
     expect(posted).toEqual([
-      { url: 'https://kv-koeln.antragsgruen.de/kv-koeln' },
-      { url: 'https://kv-koeln.antragsgruen.de/kv-koeln' },
+      { url: 'kv-koeln.antragsgruen.de/kv-koeln' },
+      { url: 'kv-koeln.antragsgruen.de/kv-koeln' },
     ]);
     // A connected site does not count against the limit for created sites.
     expect(screen.queryByText(/von 3 Seiten/)).not.toBeInTheDocument();

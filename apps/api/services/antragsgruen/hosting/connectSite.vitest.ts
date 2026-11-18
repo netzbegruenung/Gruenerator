@@ -59,9 +59,14 @@ function usersPage(users: { email: string; groups: number[] }[]) {
   return `<div class="userAdmin" data-users="${attr(users)}" data-groups="${attr(GROUPS)}"></div>`;
 }
 
-function fakeSite(opts: { botAdmin?: boolean; users?: { email: string; groups: number[] }[] }) {
+function fakeSite(opts: {
+  botAdmin?: boolean;
+  captcha?: boolean;
+  users?: { email: string; groups: number[] }[];
+}) {
   const {
     botAdmin = true,
+    captcha = false,
     users = [
       { email: 'bot@gruenerator.eu', groups: [11] },
       { email: 'anna@example.org', groups: [11] },
@@ -84,6 +89,11 @@ function fakeSite(opts: { botAdmin?: boolean; users?: { email: string; groups: n
       case 'GET antragsgruen.de/login':
         return html('<form><input name="_csrf" value="c-login"></form>');
       case 'POST antragsgruen.de/login':
+        // Nach drei Fehlversuchen zeigt Antragsgrün das Formular mit Captcha-Feld wieder.
+        if (captcha)
+          return html(
+            '<div class="alert alert-danger">Bitte gib den angezeigten Code ein.</div><input name="captcha">'
+          );
         return redirect('/', ['PHPSESSID=s1; path=/; domain=.antragsgruen.de; HttpOnly']);
       case 'GET antragsgruen.de/':
         return html('<h1>Antragsgrün</h1>');
@@ -210,6 +220,12 @@ describe('connectAntragsgruenSite', () => {
     await expect(
       connectAntragsgruenSite('u1', 'https://kv-bonn.antragsgruen.de/kmv27', fakeSite({}))
     ).rejects.toThrow(/anderen Grünerator-Konto/);
+  });
+
+  it('reports a captcha-blocked login as its own step, not as a wrong password', async () => {
+    await expect(
+      connectAntragsgruenSite('u1', 'kv-bonn.antragsgruen.de', fakeSite({ captcha: true }))
+    ).rejects.toMatchObject({ step: 'captcha' });
   });
 
   it('refuses addresses off the Antragsgrün host', async () => {

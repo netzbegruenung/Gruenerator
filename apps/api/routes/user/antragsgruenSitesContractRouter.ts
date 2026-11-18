@@ -10,7 +10,10 @@ import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { AntragsgruenFormError } from '../../services/antragsgruen/hosting/formClient.js';
-import { hostingConfigFromEnv } from '../../services/antragsgruen/hosting/session.js';
+import {
+  LOGIN_BLOCKED_TEXT,
+  hostingConfigFromEnv,
+} from '../../services/antragsgruen/hosting/session.js';
 import {
   SiteOrderRefused,
   connectAntragsgruenSite,
@@ -94,12 +97,14 @@ export const antragsgruenSitesContractRouter = s.router(antragsgruenSitesContrac
         error instanceof AntragsgruenFormError ||
         (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'TypeError'))
       ) {
-        log.warn('[connectSite] antragsgruen.de failed:', error.message);
+        log.warn(`[connectSite] antragsgruen.de failed: ${error.message}`);
+        const captcha = error instanceof AntragsgruenFormError && error.step === 'captcha';
         return {
           status: 502 as const,
           body: {
-            error:
-              'antragsgruen.de hat nicht wie erwartet geantwortet. Versuch es später noch einmal.',
+            error: captcha
+              ? LOGIN_BLOCKED_TEXT
+              : 'antragsgruen.de hat nicht wie erwartet geantwortet. Versuch es später noch einmal.',
           },
         };
       }

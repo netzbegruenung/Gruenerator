@@ -8,17 +8,17 @@
  *   kommt deshalb aus der Antragsliste der Admins (`<kons>/admin/list`, Zeilen
  *   `tr.motion`).
  * - `GET /rest/<kons>/motion/<slug>` liefert mit dem Token auch ungeprüfte Anträge.
- * - Die Zeilennummern stehen nur auf der HTML-Seite (`numberedSectionsOf`).
+ * - Die Zeilennummern stehen nur auf der HTML-Seite: jede Zeile beginnt mit
+ *   `span.lineNumber[data-line-number]`. Gelesen wird Zeile für Zeile, nicht je
+ *   Absatz wie im NRW-Index (`numberedSectionsOf`) — ein Änderungsantrag nennt
+ *   die genaue Zeile, und mit „[Z. 1–4]" für einen Absatz riet das Modell im
+ *   Test „Zeile 1" für eine Stelle in Zeile 2.
  * - Änderungsanträge stellt man unter `<antrag>/amendment/create`. Eine API dafür
  *   hat Antragsgrün nicht; der Grünerator kann sie nur entwerfen.
  */
 import * as cheerio from 'cheerio';
 
 import { motionSchema } from '../../scrapers/implementations/ParteitageScraper/antragsgruenClient.js';
-import {
-  numberedSectionsOf,
-  withLineNumbers,
-} from '../../scrapers/implementations/ParteitageScraper/lineNumbers.js';
 import { htmlToStructuredText } from '../../scrapers/utils/htmlCleaner.js';
 import { matchValues, sameKuerzel } from '../resolve.js';
 
@@ -35,7 +35,7 @@ export interface OwnMotionRef {
 }
 
 export interface OwnMotion extends OwnMotionRef {
-  /** Abschnitte als Text, Absätze mit Marken wie „[Z. 3–7]", wenn die Seite Zeilen zeigt. */
+  /** Abschnitte als Text; zeigt die Seite Zeilennummern, beginnt jede Zeile mit „[Z. n]". */
   sections: { title: string; text: string }[];
   lineNumbers: boolean;
   /** Formular für einen Änderungsantrag zu diesem Antrag. */
@@ -96,6 +96,51 @@ export function findOwnMotion(
   return byTitle.length === 1 ? byTitle[0] : null;
 }
 
+// Eine sichtbare Marke: `htmlToStructuredText` streicht Steuerzeichen wie \u0000.
+const MARK = (n: number) => `⟦Z:${n}⟧`;
+
+/**
+ * Die Abschnitte der Seite, Zeile für Zeile mit „[Z. n]". Absätze bleiben durch
+ * eine Leerzeile getrennt, Listenpunkte behalten ihr „- ".
+ */
+export function numberedLinesOf(pageHtml: string): { title: string; text: string }[] {
+  const $ = cheerio.load(pageHtml);
+  const sections: { title: string; text: string }[] = [];
+  $('section.motionTextHolder').each((_, sec) => {
+    const paragraphs: string[] = [];
+    $(sec)
+      .find('div.paragraph.lineNumbers')
+      .each((__, p) => {
+        const text = $(p).find('div.text').first().clone();
+        // Bedienelemente der Seite, kein Antragstext.
+        text.find('section.privateParagraphNoteHolder, ul.bookmarks, button').remove();
+        text.find('span.lineNumber').each((___, span) => {
+          const n = Number($(span).attr('data-line-number'));
+          // Der Umbruch vor einer Zeilenmarke ist der weiche Umbruch der Anzeige.
+          $(span).prev('br').remove();
+          $(span).replaceWith(Number.isFinite(n) ? MARK(n) : '');
+        });
+        const parts = htmlToStructuredText(text.html() ?? '').split(/⟦Z:(\d+)⟧/);
+        // parts = [vor der ersten Marke, n1, Zeile 1, n2, Zeile 2, …]
+        const lines: string[] = [];
+        for (let i = 1; i < parts.length; i += 2) {
+          const line = `${i === 1 ? parts[0] : ''}${parts[i + 1] ?? ''}`
+            .replace(/\s+/g, ' ')
+            .trim();
+          lines.push(`[Z. ${parts[i]}] ${line}`);
+        }
+        if (lines.length) paragraphs.push(lines.join('\n'));
+      });
+    if (paragraphs.length) {
+      sections.push({
+        title: $(sec).find('h2').first().text().trim(),
+        text: paragraphs.join('\n\n'),
+      });
+    }
+  });
+  return sections;
+}
+
 export async function readOwnMotion(
   client: FormClient,
   origin: string,
@@ -117,14 +162,14 @@ export async function readOwnMotion(
     throw new AntragsgruenFormError(`Antrag nicht lesbar (HTTP ${json.status})`, 'read');
   }
   const page = await client.request(ref.url);
-  const numbered = page.status === 200 ? numberedSectionsOf(page.html) : [];
+  const numbered = page.status === 200 ? numberedLinesOf(page.html) : [];
   let lineNumbers = false;
   const sections = parsed.data.sections
     .filter((s) => s.html && s.type !== 'Title')
     .map((s) => {
-      const marked = withLineNumbers(s.html ?? '', numbered);
+      const marked = numbered.find((n) => n.title === s.title.trim());
       if (marked) lineNumbers = true;
-      return { title: s.title, text: marked ?? htmlToStructuredText(s.html ?? '') };
+      return { title: s.title, text: marked?.text ?? htmlToStructuredText(s.html ?? '') };
     });
   return {
     ...ref,

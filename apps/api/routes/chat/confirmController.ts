@@ -460,6 +460,7 @@ export async function executeAction(
         await import('../../services/antragsgruen/hosting/sites.js');
       const { AntragsgruenFormError } =
         await import('../../services/antragsgruen/hosting/formClient.js');
+      const { LOGIN_BLOCKED_TEXT } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const site = await orderAntragsgruenSite(action.userId, action.payload);
         const agendaNote =
@@ -475,6 +476,9 @@ export async function executeAction(
         };
       } catch (err) {
         if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof AntragsgruenFormError && err.step === 'captcha') {
+          throw new ConfirmActionRefusal(LOGIN_BLOCKED_TEXT);
+        }
         if (err instanceof AntragsgruenFormError) {
           log.warn(
             `[antragsgruen-site] step=${err.step} site=${err.siteUrl ?? '-'}: ${err.message}`
@@ -496,6 +500,7 @@ export async function executeAction(
         await import('../../services/antragsgruen/hosting/sites.js');
       const { AntragsgruenFormError } =
         await import('../../services/antragsgruen/hosting/formClient.js');
+      const { LOGIN_BLOCKED_TEXT } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const items = await orderAntragsgruenAgenda(
           action.userId,
@@ -505,6 +510,9 @@ export async function executeAction(
         return { message: `Die Tagesordnung steht: ${items.length} Punkte.` };
       } catch (err) {
         if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof AntragsgruenFormError && err.step === 'captcha') {
+          throw new ConfirmActionRefusal(LOGIN_BLOCKED_TEXT);
+        }
         if (err instanceof AntragsgruenFormError) {
           log.warn(`[antragsgruen-agenda] step=${err.step}: ${err.message}`);
           throw new ConfirmActionRefusal(
@@ -524,6 +532,7 @@ export async function executeAction(
         await import('../../services/antragsgruen/hosting/sites.js');
       const { AntragsgruenFormError } =
         await import('../../services/antragsgruen/hosting/formClient.js');
+      const { LOGIN_BLOCKED_TEXT } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const motion = await orderAntragsgruenMotion(action.userId, action.payload);
         return {
@@ -532,6 +541,9 @@ export async function executeAction(
         };
       } catch (err) {
         if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof AntragsgruenFormError && err.step === 'captcha') {
+          throw new ConfirmActionRefusal(LOGIN_BLOCKED_TEXT);
+        }
         if (err instanceof AntragsgruenFormError) {
           log.warn(`[antragsgruen-motion] step=${err.step}: ${err.message}`);
           throw new ConfirmActionRefusal(

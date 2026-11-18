@@ -266,8 +266,12 @@ function ConnectSite({ botAccount }: { botAccount: string | null }) {
       <div className="flex flex-wrap items-center gap-xs">
         <Input
           id={inputId}
-          type="url"
+          // Kein type="url": der verlangt ein Schema und blockierte „kv-x.antragsgruen.de/kmv"
+          // ohne https:// schon im Browser. Die Adresse prüft der Server.
+          type="text"
           inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
           placeholder="https://kv-beispiel.antragsgruen.de/kmv"
           value={url}
           onChange={(e) => setUrl(e.target.value)}

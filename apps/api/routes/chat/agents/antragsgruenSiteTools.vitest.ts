@@ -293,13 +293,13 @@ describe('antragsgruen_seite_lesen', () => {
       kind: 'motion',
       motion: {
         ...REF,
-        sections: [{ title: 'Antragstext', text: '[Z. 1–2] Mehr Busse.' }],
+        sections: [{ title: 'Antragstext', text: '[Z. 1] Mehr Busse.' }],
         lineNumbers: true,
         amendmentFormUrl: `${REF.url}/amendment/create`,
       },
     }));
     const out = await run({ antrag: 'A1' });
-    expect(out.text).toBe('## Antragstext\n\n[Z. 1–2] Mehr Busse.');
+    expect(out.text).toBe('## Antragstext\n\n[Z. 1] Mehr Busse.');
     expect(out.zeilennummern).toBe(true);
     expect(out.hinweis).toBeUndefined();
     expect(out.aenderungsantrag_formular).toBe(`${REF.url}/amendment/create`);

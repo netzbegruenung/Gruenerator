@@ -418,7 +418,7 @@ export function makeAntragsgruenReadTool(
   return tool({
     description: `Liest die Anträge einer eigenen Antragsgrün-Seite der Person (über den Grünerator angelegt oder in den Einstellungen verbunden), auch noch nicht freigeschaltete.
 
-Ohne „antrag": die Liste der Anträge mit Nummer, Titel und Status. Mit „antrag" (Nummer wie „A1" oder Titel): der Antragstext mit Zeilennummern („[Z. 3–7]"), wie die Versammlung ihn sieht.
+Ohne „antrag": die Liste der Anträge mit Nummer, Titel und Status. Mit „antrag" (Nummer wie „A1" oder Titel): der Antragstext Zeile für Zeile, jede Zeile mit ihrer Nummer („[Z. 3] …"), genau wie die Versammlung ihn sieht. Nenne in einem Änderungsantrag die Zeile, in der die Stelle tatsächlich steht.
 
 Für Änderungsanträge: lies den Antrag, schreib den Änderungsantrag mit den richtigen Zeilen („In Zeile 5 ersetze …", „Nach Zeile 9 einfügen: …") und gib der Person den Link zum Formular (aenderungsantrag_formular). Einreichen kann der Grünerator Änderungsanträge nicht — Antragsgrün bietet dafür keine Schnittstelle. Für Parteitage der GRÜNEN NRW ist 'antragsgruen_lesen' da, nicht dieses Werkzeug.`,
     inputSchema: z.object({
