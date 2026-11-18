@@ -6,11 +6,14 @@ import { axe, renderWithProviders } from '../../../test-utils';
 
 import { NotebooksSidebarSection } from './NotebooksSidebarSection';
 
-const mocks = vi.hoisted(() => ({ shelves: [] as unknown[], isMobile: false }));
+const mocks = vi.hoisted(() => ({ shelves: [] as unknown[], isMobile: false, shelfCalls: 0 }));
 
 vi.mock('../../../features/notebook/wissen/useNotebookShelves', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  useNotebookShelves: () => ({ shelves: mocks.shelves, vectorStoreDown: false }),
+  useNotebookShelves: () => {
+    mocks.shelfCalls += 1;
+    return { shelves: mocks.shelves, vectorStoreDown: false };
+  },
 }));
 vi.mock('@gruenerator/ui', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -42,9 +45,18 @@ const openMenu = () => userEvent.setup().click(screen.getByRole('button', { name
 beforeEach(() => {
   mocks.isMobile = false;
   mocks.shelves = [];
+  mocks.shelfCalls = 0;
 });
 
 describe('NotebooksSidebarSection', () => {
+  // The shelf queries poll and, for guests, fail with 401: they must not run on every page.
+  it('loads the shelves only once the menu is open', async () => {
+    renderSection();
+    expect(mocks.shelfCalls).toBe(0);
+    await openMenu();
+    expect(mocks.shelfCalls).toBeGreaterThan(0);
+  });
+
   it('renders a single-notebook shelf as a real link', async () => {
     mocks.shelves = [
       {

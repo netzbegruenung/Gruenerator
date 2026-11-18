@@ -22,7 +22,7 @@ import {
 import { PiBooks, PiNotebook, PiPlus } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
-import { OPEN_STATE, shelfEntryLink } from '../../../features/notebook/wissen/NotebookShelf';
+import { OPEN_STATE, shelfEntryLink } from '../../../features/notebook/wissen/shelfLinks';
 import { useNotebookShelves } from '../../../features/notebook/wissen/useNotebookShelves';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
@@ -71,6 +71,75 @@ function LinkItem({
 }
 
 /**
+ * The notebook groups of the menu. Its own component inside the menu content, which
+ * Radix mounts only while the menu is open: the three shelf queries (one polls while
+ * a notebook indexes, one answers guests with 401) must not run on every page.
+ */
+function NotebookShelfItems({
+  isMobile,
+  onOpen,
+}: {
+  isMobile: boolean;
+  onOpen: (path: string, title: string, state: typeof OPEN_STATE | null) => void;
+}) {
+  // Own notebooks: the shelf has no flag, but `meta` stays null while they load.
+  const { shelves } = useNotebookShelves();
+  return shelves.map((shelf) => {
+    if (shelf.kind === 'notebook')
+      return (
+        <LinkItem
+          key={shelf.id}
+          to={shelf.notebook.path}
+          title={shelf.title}
+          state={OPEN_STATE}
+          onOpen={onOpen}
+        >
+          <PiNotebook className="size-4" />
+          <span className="truncate">{shelf.title}</span>
+        </LinkItem>
+      );
+    // No own notebook yet: "Neues Notebook" below covers it, a labelled entry would mislead.
+    if (shelf.kind === 'create') return null;
+    if (shelf.entries.length === 0)
+      return shelf.meta === null ? (
+        <div key={shelf.id} className="px-2 py-1.5 text-xs text-grey-500">
+          {shelf.title} werden geladen…
+        </div>
+      ) : null;
+    const items = shelf.entries.map((entry) => {
+      const { title, to, state } = shelfEntryLink(entry);
+      return (
+        <LinkItem key={entry.key} to={to} title={title} state={state} onOpen={onOpen}>
+          <span className="truncate">{title}</span>
+        </LinkItem>
+      );
+    });
+    // On a phone a side flyout would open past the screen edge: the group's
+    // notebooks follow inline under their name instead.
+    if (isMobile)
+      return (
+        <DropdownMenuGroup key={shelf.id}>
+          <DropdownMenuLabel className="pt-3 text-xs font-semibold text-grey-500">
+            {shelf.title}
+          </DropdownMenuLabel>
+          {items}
+        </DropdownMenuGroup>
+      );
+    return (
+      <DropdownMenuSub key={shelf.id}>
+        <DropdownMenuSubTrigger>
+          <PiNotebook className="size-4" />
+          <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="max-h-[60vh] w-64 overflow-y-auto">
+          {items}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  });
+}
+
+/**
  * "Notebooks" entry in the sidebar nav rail: a popup with the same groups as on
  * /wissen (own notebooks, Landesverbände, Parlamente …). A group opens its
  * notebooks as a submenu, a single notebook opens directly.
@@ -82,8 +151,6 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
   onNavigate,
 }: NotebooksSidebarSectionProps) {
   const isMobile = useIsMobile();
-  const { shelves } = useNotebookShelves();
-  // Own notebooks: the shelf has no flag, but `meta` stays null while they load.
   const [open, setOpen] = useState(false);
 
   const handleOpenChange = useCallback(
@@ -121,59 +188,7 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
           className="max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
         >
           <DropdownMenuLabel>Notebooks</DropdownMenuLabel>
-          {shelves.map((shelf) => {
-            if (shelf.kind === 'notebook')
-              return (
-                <LinkItem
-                  key={shelf.id}
-                  to={shelf.notebook.path}
-                  title={shelf.title}
-                  state={OPEN_STATE}
-                  onOpen={openEntry}
-                >
-                  <PiNotebook className="size-4" />
-                  <span className="truncate">{shelf.title}</span>
-                </LinkItem>
-              );
-            // No own notebook yet: "Neues Notebook" below covers it, a labelled entry would mislead.
-            if (shelf.kind === 'create') return null;
-            if (shelf.entries.length === 0)
-              return shelf.meta === null ? (
-                <div key={shelf.id} className="px-2 py-1.5 text-xs text-grey-500">
-                  {shelf.title} werden geladen…
-                </div>
-              ) : null;
-            const items = shelf.entries.map((entry) => {
-              const { title, to, state } = shelfEntryLink(entry);
-              return (
-                <LinkItem key={entry.key} to={to} title={title} state={state} onOpen={openEntry}>
-                  <span className="truncate">{title}</span>
-                </LinkItem>
-              );
-            });
-            // On a phone a side flyout would open past the screen edge: the group's
-            // notebooks follow inline under their name instead.
-            if (isMobile)
-              return (
-                <DropdownMenuGroup key={shelf.id}>
-                  <DropdownMenuLabel className="pt-3 text-xs font-semibold text-grey-500">
-                    {shelf.title}
-                  </DropdownMenuLabel>
-                  {items}
-                </DropdownMenuGroup>
-              );
-            return (
-              <DropdownMenuSub key={shelf.id}>
-                <DropdownMenuSubTrigger>
-                  <PiNotebook className="size-4" />
-                  <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-[60vh] w-64 overflow-y-auto">
-                  {items}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            );
-          })}
+          <NotebookShelfItems isMobile={isMobile} onOpen={openEntry} />
           <DropdownMenuSeparator />
           <LinkItem to={CREATE_PATH} title="Neues Notebook" onOpen={openEntry}>
             <PiPlus className="size-4" />

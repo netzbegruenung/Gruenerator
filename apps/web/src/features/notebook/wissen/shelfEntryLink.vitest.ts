@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { item } from '../../../test/marketplaceFixtures';
 
-import { shelfEntryLink } from './NotebookShelf';
+import { shelfEntryLink } from './shelfLinks';
 
 import type { ShelfEntry } from './useNotebookShelves';
 
