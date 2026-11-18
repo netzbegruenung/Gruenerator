@@ -393,6 +393,19 @@ auditConfig:
     # patched release). Via @expo/config, @svgr/plugin-svgo and jest-config;
     # they merge their own config objects, no code of ours imports deepmerge. Re-check 2026-12-01.
     - GHSA-gcqx-w48m-w2h4
+    # picomatch <=4.0.7 ReDoS through single-branch repeated extglobs
+    # (GHSA-fc5q-39xc-vjpf / CVE-2026-112366, high, no patched release: 4.0.7
+    # is the latest 4.x and 2.3.2 the latest 2.x; the advisory range was
+    # published 2026-10-19 and widened 2026-11-17, which turned the Guards job
+    # red). Reachable only with an attacker-chosen glob such as `+(*)`. We
+    # import none of picomatch/micromatch/minimatch ourselves; the copies come
+    # from build and dev tooling fed with config globs (metro, expo, eslint,
+    # vite/tinyglobby, jest) and, in apps/api, solely via @sentry/node →
+    # @sentry/bundler-plugins → webpack → webpack-dev-server, which the
+    # runtime never loads. `pnpm why picomatch --prod` finds no copy under
+    # apps/web or services/hocuspocus. A floor is impossible (no fix). Re-check
+    # 2026-12-02; drop once picomatch ships a fix.
+    - GHSA-fc5q-39xc-vjpf
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
