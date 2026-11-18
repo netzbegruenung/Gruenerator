@@ -18,8 +18,13 @@ export const SLIDE_INTERVAL_MS = 6000;
 interface HeadlineSliderProps {
   items: WissenArticle[];
   loading: boolean;
-  /** Überschrift der Karte; auf /wissen „Briefing", eingebettet auf Arbeiten „Nachrichten". */
+  /** Überschrift der Karte und Name der Region; auf /wissen „Briefing", auf Arbeiten „Nachrichten". */
   title?: string;
+  /**
+   * `false`: keine sichtbare Überschrift, wenn der Abschnitt darüber sie schon trägt.
+   * Die Quellenzeile rückt dann auf die Höhe der Überschriften der Nachbarkarten.
+   */
+  showTitle?: boolean;
   /** Ziel der Überschrift: die Seite mit allen Meldungen (/briefing). */
   to: string;
 }
@@ -37,6 +42,18 @@ const SliderTitle = memo(function SliderTitle({ to, title }: { to: string; title
     </h2>
   );
 });
+
+// Ohne Überschrift: der Abstand, um den der Kopf (SLIDER_HEAD) über dem der Folie liegt.
+// Folie, Skelett und Leerzustand beginnen so auf der Zeile der Nachbar-Überschriften.
+const HEADLESS_SPACER = 'h-2 shrink-0 md:h-2.5';
+
+function SliderHead({ to, title, show }: { to: string; title: string; show: boolean }) {
+  return show ? (
+    <SliderTitle to={to} title={title} />
+  ) : (
+    <div aria-hidden className={HEADLESS_SPACER} />
+  );
+}
 
 /**
  * Eine Folie. `memo`: beim Wechsel ändern sich nur `active` der alten und der
@@ -121,7 +138,7 @@ function SliderBody({ items }: { items: WissenArticle[] }) {
     SLIDE_INTERVAL_MS
   );
   return (
-    <div {...containerProps} className="flex flex-col">
+    <div {...containerProps} className="flex flex-1 flex-col">
       <div
         className="flex transition-transform duration-[900ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none"
         style={{ transform: `translateX(-${active * 100}%)` }}
@@ -135,7 +152,7 @@ function SliderBody({ items }: { items: WissenArticle[] }) {
           />
         ))}
       </div>
-      <div className="flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px]">
+      <div className="mt-auto flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px] xl:pb-5">
         <SlideDots
           labels={items.map((_, i) => `Meldung ${i + 1} von ${items.length}`)}
           active={active}
@@ -148,11 +165,17 @@ function SliderBody({ items }: { items: WissenArticle[] }) {
   );
 }
 
-export function HeadlineSlider({ items, loading, to, title = SLIDER_TITLE }: HeadlineSliderProps) {
+export function HeadlineSlider({
+  items,
+  loading,
+  to,
+  title = SLIDER_TITLE,
+  showTitle = true,
+}: HeadlineSliderProps) {
   if (items.length === 0) {
     return (
       <SliderCard aria-label={title} aria-busy={loading}>
-        <SliderTitle to={to} title={title} />
+        <SliderHead to={to} title={title} show={showTitle} />
         {loading ? (
           <SliderSkeleton />
         ) : (
@@ -166,7 +189,7 @@ export function HeadlineSlider({ items, loading, to, title = SLIDER_TITLE }: Hea
 
   return (
     <SliderCard aria-roledescription="Karussell" aria-label={title}>
-      <SliderTitle to={to} title={title} />
+      <SliderHead to={to} title={title} show={showTitle} />
       <SliderBody items={items} />
     </SliderCard>
   );

@@ -10,15 +10,15 @@ import { useMemo } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import { getIcon } from '../../config/icons';
-import { getToolTheme } from '../../config/toolTheme';
-import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
-import { SECTION_LINK } from '../workplace/components/arbeitenGrid';
+import { getIcon } from '../../../config/icons';
+import { getToolTheme } from '../../../config/toolTheme';
+import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../../config/workplaceToolsConfig';
+import { webAppDocsAdapter } from '../../docs/docsAdapter';
+import { useOfficeCreate } from '../../docs/useOfficeCreate';
 
-import { webAppDocsAdapter } from './docsAdapter';
-import { useOfficeCreate } from './useOfficeCreate';
+import { SECTION_LINK } from './arbeitenGrid';
 
-import type { IconType } from '../../config/icons';
+import type { IconType } from '../../../config/icons';
 
 interface Entry {
   id: string;

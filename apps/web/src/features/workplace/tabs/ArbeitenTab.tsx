@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { DocsHome } from '../../docs/DocsPage';
-import { NewContentMenu } from '../../docs/NewContentMenu';
 import {
   BriefingSection,
   MEDIA_GRID,
@@ -12,6 +11,7 @@ import {
   MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
+import { NewContentMenu } from '../components/NewContentMenu';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
 // Reaktivieren `FavoritesSection` aus `../components/ToolsSection` importieren
 // und als eigenen Abschnitt einblenden.

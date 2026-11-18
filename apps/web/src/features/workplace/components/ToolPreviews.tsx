@@ -1,24 +1,21 @@
 import { type ReactNode } from 'react';
 
 /**
- * TEST: small illustrations on the Bild & Video cards instead of the tool icon.
- * Switch off with `SHOW_TOOL_PREVIEWS = false` (cards fall back to the icon and
- * their pastel tile), or delete this file, `public/arbeiten-previews/` and the
- * two uses in ArbeitenSections.
+ * Small illustrations on the Bild & Video cards, shown instead of the tool icon.
  *
  * The pictures were generated with FLUX.2 [klein] (Melious, `flux-2-klein-9b`),
  * flat pastel style without text, 384 px. The avatar is cut out (rembg,
  * `isnet-general-use`) so the sheet behind it carries our own colour.
  */
-export const SHOW_TOOL_PREVIEWS = true;
 
 const preview = (name: string): ReactNode => (
   <img
     src={`/arbeiten-previews/${name}.jpg`}
     alt=""
     loading="lazy"
+    // Dimmed in dark mode so the light picture doesn't glare on the card.
     // The motif fills the middle of the square; zoom past the empty margin.
-    className="size-full scale-125 object-cover"
+    className="size-full scale-125 object-cover dark:brightness-[.8]"
   />
 );
 
@@ -31,7 +28,8 @@ export const TOOL_PREVIEWS: Partial<Record<string, ReactNode>> = {
       alt=""
       loading="lazy"
       // Transparent cutout: the tint is ours, the head sits at the sheet's bottom edge.
-      className="size-full bg-[#cfe6da] object-cover object-top pt-2 dark:bg-[#2c4a3c]"
+      // The dark tint is already dark; only the (light) figure is dimmed, like the JPGs.
+      className="size-full bg-[#cfe6da] object-cover object-top pt-2 dark:bg-[#2c4a3c] dark:brightness-[.8]"
     />
   ),
   'reels-untertitel': preview('video'),

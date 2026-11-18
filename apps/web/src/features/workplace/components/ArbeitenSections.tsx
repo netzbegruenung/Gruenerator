@@ -1,4 +1,8 @@
-import { marketplaceHref, useMarketplaceFrontpage } from '@gruenerator/shared/marketplace';
+import {
+  collectionCardsFor,
+  marketplaceHref,
+  useMarketplaceFrontpage,
+} from '@gruenerator/shared/marketplace';
 import { SectionHeader, cn } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -16,9 +20,10 @@ import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
 import { PollCard } from '../../notebook/wissen/PollCard';
 import { TrendsCard } from '../../notebook/wissen/TrendsCard';
 import { useWissenNews } from '../../notebook/wissen/useWissenNews';
+import { ASIDE_SLOT } from '../../notebook/wissen/WissenLayout';
 
 import { ARBEITEN_GRID, SECTION_LINK } from './arbeitenGrid';
-import { SHOW_TOOL_PREVIEWS, TOOL_PREVIEWS } from './ToolPreviews';
+import { TOOL_PREVIEWS } from './ToolPreviews';
 
 import type { IconType } from '../../../config/icons';
 
@@ -30,9 +35,10 @@ import { getToolTheme } from '@/config/toolTheme';
  * list, so the news card takes its own row and the two others share the next.
  */
 const WIDGET_GRID = 'grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-5';
-const WIDE_SLOT = 'col-span-2 flex min-w-0 flex-col xl:col-span-3';
-// The narrow cards take the row height but don't set it — the wide card does.
-const NARROW_SLOT = 'flex min-w-0 flex-col xl:h-0 xl:min-h-full';
+// In einer Zeile (xl) gibt die breite Karte die Höhe vor. Die Mindesthöhe hält sie auch
+// im Ladezustand und ohne Meldungen, sonst schneidet die Zeile Trends und Umfragen ab.
+const WIDE_SLOT =
+  'col-span-2 flex min-w-0 flex-col xl:col-span-3 xl:min-h-[20rem] xl:[&>section]:flex-1';
 
 /** The neutral dashboard palette (see dashboardTokens.css) for embedded widgets. */
 const NEUTRAL_SURFACE = 'dashboard-surface dashboard-neutral';
@@ -74,15 +80,16 @@ export function BriefingSection() {
         <div className={WIDE_SLOT}>
           <HeadlineSlider
             title="Nachrichten"
+            showTitle={false}
             items={news.headlines}
             loading={news.headlinesPending}
             to={briefingPath}
           />
         </div>
-        <div className={NARROW_SLOT}>
+        <div className={ASIDE_SLOT}>
           <TrendsCard locale={locale} to={withLocale('/briefing?karte=keywords')} />
         </div>
-        <div className={NARROW_SLOT}>
+        <div className={ASIDE_SLOT}>
           <PollCard locale={locale} to={withLocale('/umfragen')} />
         </div>
       </div>
@@ -93,6 +100,11 @@ export function BriefingSection() {
 export function MarketplaceSection() {
   const page = useMarketplaceFrontpage();
   const navigate = useNavigate();
+
+  // Without cards `CollectionCards` renders nothing; don't leave the heading standing alone.
+  if (!page.isPending && collectionCardsFor(page.data?.collections ?? []).length === 0) {
+    return null;
+  }
 
   return (
     <ArbeitenSection
@@ -148,8 +160,10 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
   );
 }
 
-// Bild & Video reads as one family: every card in the Studio lavender.
-/** Bild & Video: six cards in a 3 × 2 grid (two columns on phones). */
+/**
+ * Bild & Video: six cards in a 3 × 2 grid (two columns on phones). The cards sit on
+ * changing pastels (`PREVIEW_GROUNDS`); `theme: 'canvas-ki'` only colours the icon fallback.
+ */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
 // Most cards say what the tool does; the Mediathek keeps its name.
@@ -190,7 +204,7 @@ const PREVIEW_GROUNDS = [
 function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
-  const preview = SHOW_TOOL_PREVIEWS ? TOOL_PREVIEWS[tool.id] : undefined;
+  const preview = TOOL_PREVIEWS[tool.id];
   const body = (
     <>
       <span
