@@ -3,11 +3,21 @@
  * then the preview (the editor app in player-only mode), correction rounds,
  * the versions, what was cut out, and the hand-off to the editor.
  */
-import { type VideoAiProjectDto } from '@gruenerator/contracts';
+import { type VideoAiProjectDto, type VideoAiStatus } from '@gruenerator/contracts';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { Button, Textarea } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Loader2, Scissors, Undo2, X } from 'lucide-react';
+import {
+  Check,
+  Circle,
+  CircleAlert,
+  Clock,
+  Loader2,
+  Scissors,
+  TriangleAlert,
+  Undo2,
+  X,
+} from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -32,6 +42,39 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 const formatTime = (s: number) =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+const isPortrait = (project: VideoAiProjectDto) =>
+  project.brief.format === '9:16' || project.brief.format === '4:5';
+
+/** The worker's three phases; `queued` has none running yet. */
+const STEPS = [
+  { status: 'analyzing', label: 'Sichten' },
+  { status: 'cutting', label: 'Schneiden' },
+  { status: 'designing', label: 'Gestalten' },
+] as const satisfies readonly { status: VideoAiStatus; label: string }[];
+
+function Steps({ status }: { status: VideoAiStatus }) {
+  const current = STEPS.findIndex((s) => s.status === status);
+  return (
+    <ol className="mx-auto mt-md flex flex-wrap justify-center gap-x-md gap-y-xs text-sm">
+      {STEPS.map((step, i) => {
+        const done = current > i;
+        const running = current === i;
+        const Icon = done ? Check : running ? Loader2 : Circle;
+        return (
+          <li
+            key={step.status}
+            {...(running ? { 'aria-current': 'step' as const } : {})}
+            className={`flex items-center gap-1 ${running ? 'font-semibold text-foreground-heading' : done ? '' : 'text-grey-500'}`}
+          >
+            <Icon className={`size-4 ${running ? 'animate-spin' : ''}`} aria-hidden />
+            {step.label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function isTimeMessage(data: unknown): data is { type: 'videoai:time'; seconds: number } {
   if (typeof data !== 'object' || data === null) return false;
   const d = data as { type?: unknown; seconds?: unknown };
@@ -49,14 +92,13 @@ function Preview({ project, onTime }: { project: VideoAiProjectDto; onTime: (s: 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [onTime]);
-  const portrait = project.brief.format === '9:16' || project.brief.format === '4:5';
   return (
     <iframe
       ref={frame}
       key={project.version}
       title={`Vorschau von „${project.title}“, Version ${project.version ?? ''}`}
       src={`/videoeditor/app/?ki=${project.id}&v=${project.version ?? 1}&ansicht=vorschau`}
-      className={`block w-full rounded-xl border-0 bg-black ${portrait ? 'mx-auto aspect-[9/16] max-h-[70dvh] max-w-sm' : 'aspect-video'}`}
+      className={`block w-full rounded-xl border-0 bg-black ${isPortrait(project) ? 'aspect-[9/16] max-h-[70dvh]' : 'aspect-video'}`}
       allow="autoplay; fullscreen"
     />
   );
@@ -120,6 +162,12 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
     onError,
   });
 
+  const trash = (
+    <Button variant="outline" size="sm" onClick={() => remove.mutate()} disabled={remove.isPending}>
+      In den Papierkorb
+    </Button>
+  );
+
   if (isActive(project.status)) {
     return (
       <div
@@ -128,6 +176,7 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
       >
         <Loader2 className="mx-auto h-8 w-8 animate-spin text-grey-500" aria-hidden />
         <p className="mt-sm font-medium">{STATUS_LABEL[project.status]} …</p>
+        <Steps status={project.status} />
         <p className="mt-xs text-sm text-grey-500">
           Das dauert ein paar Minuten. Du kannst die Seite schließen; du bekommst eine
           Benachrichtigung.
@@ -148,20 +197,26 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
     return (
       <div
         role="alert"
-        className="mt-lg rounded-xl border border-dashed border-grey-200 p-lg text-center dark:border-grey-700"
+        className="mt-lg rounded-xl border border-grey-200 p-lg text-center dark:border-grey-700"
       >
-        <p className="font-medium">{STATUS_LABEL[project.status]}</p>
+        <CircleAlert className="mx-auto size-8 text-red-600 dark:text-red-400" aria-hidden />
+        <h2 className="mt-sm text-lg font-semibold text-red-600 dark:text-red-400">
+          {STATUS_LABEL[project.status]}
+        </h2>
         {project.error && <p className="mt-xs text-sm text-grey-500">{project.error}</p>}
-        <Button asChild className="mt-md">
-          <Link to="/studio/ki-schnitt">Neuen KI-Schnitt anlegen</Link>
-        </Button>
+        <div className="mt-md flex flex-wrap items-center justify-center gap-sm">
+          <Button asChild>
+            <Link to="/studio/ki-schnitt">Neuen KI-Schnitt anlegen</Link>
+          </Button>
+          {trash}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="mt-lg grid gap-lg lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="space-y-sm">
+      <div className={`space-y-sm ${isPortrait(project) ? 'mx-auto w-full max-w-sm' : ''}`}>
         <Preview project={project} onTime={setTime} />
         <Button className="w-full" onClick={() => toEditor.mutate()} disabled={toEditor.isPending}>
           Im Editor weiterbearbeiten
@@ -175,17 +230,30 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
 
       <div className="space-y-lg">
         {project.warnings.length > 0 && (
-          <ul className="space-y-1 rounded-lg bg-warning-50 p-sm text-sm dark:bg-warning-950">
-            {project.warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
+          <section aria-labelledby={`${id}-warn`}>
+            <h2 id={`${id}-warn`} className="sr-only">
+              Hinweise zum Material
+            </h2>
+            <div className="flex gap-xs rounded-lg bg-amber-50 p-sm text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <ul className="space-y-1">
+                {project.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
         )}
-        {project.rationale && <p className="text-sm text-grey-500">{project.rationale}</p>}
+        {project.rationale && (
+          <div className="space-y-1 text-sm">
+            <p className="font-medium text-foreground-heading">So hat die KI geschnitten</p>
+            <p className="text-grey-500">{project.rationale}</p>
+          </div>
+        )}
 
         {!project.handedOff && (
           <section aria-labelledby={`${id}-fix`} className="space-y-xs">
-            <h2 id={`${id}-fix`} className="font-semibold text-foreground-heading">
+            <h2 id={`${id}-fix`} className="text-lg font-semibold text-foreground-heading">
               Was soll anders werden?
             </h2>
             <Textarea
@@ -210,7 +278,7 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
                   key={t}
                   type="button"
                   onClick={() => setTimes((list) => list.filter((x) => x !== t))}
-                  className="inline-flex items-center gap-1 rounded-full bg-grey-100 px-xs py-0.5 text-xs dark:bg-grey-800"
+                  className="inline-flex min-h-6 items-center gap-1 rounded-full bg-grey-100 px-xs py-0.5 text-xs dark:bg-grey-800"
                   aria-label={`Stelle ${formatTime(t)} entfernen`}
                 >
                   @{formatTime(t)} <X className="h-3 w-3" aria-hidden />
@@ -231,13 +299,16 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
           <section aria-labelledby={`${id}-cut`} className="space-y-xs">
             <h2
               id={`${id}-cut`}
-              className="flex items-center gap-xs font-semibold text-foreground-heading"
+              className="flex items-center gap-xs text-lg font-semibold text-foreground-heading"
             >
               <Scissors className="h-4 w-4" aria-hidden /> Rausgeschnitten
             </h2>
             <ul className="space-y-xs">
               {project.omitted.map((o) => (
-                <li key={o.unitId} className="flex items-start gap-sm text-sm">
+                <li
+                  key={o.unitId}
+                  className="flex flex-col items-start gap-xs text-sm sm:flex-row sm:gap-sm"
+                >
                   <span className="flex-1">
                     „{o.text}“ <span className="text-grey-500">– {o.reason}</span>
                   </span>
@@ -259,12 +330,12 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
 
         {project.versions.length > 1 && (
           <section aria-labelledby={`${id}-versions`} className="space-y-xs">
-            <h2 id={`${id}-versions`} className="font-semibold text-foreground-heading">
+            <h2 id={`${id}-versions`} className="text-lg font-semibold text-foreground-heading">
               Versionen
             </h2>
             <ol className="space-y-1 text-sm">
               {[...project.versions].reverse().map((v) => (
-                <li key={v.version}>
+                <li key={v.version} className="flex min-h-6 items-center">
                   {v.version === project.version ? (
                     <span className="font-medium">
                       {v.version}. {v.summary} (angezeigt)
@@ -272,7 +343,7 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
                   ) : (
                     <button
                       type="button"
-                      className="underline-offset-2 hover:underline disabled:opacity-60"
+                      className="min-h-6 text-left underline underline-offset-2 disabled:opacity-60"
                       onClick={() => choose.mutate(v.version)}
                       disabled={project.handedOff || choose.isPending}
                     >
@@ -285,14 +356,7 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
           </section>
         )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => remove.mutate()}
-          disabled={remove.isPending}
-        >
-          In den Papierkorb
-        </Button>
+        {trash}
       </div>
     </div>
   );
