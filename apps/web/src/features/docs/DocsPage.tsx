@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
   Button,
   CardGrid,
-  DismissableBanner,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
@@ -657,15 +656,6 @@ export function DocumentsContent({
           </div>
         </section>
       )}
-
-      <DismissableBanner
-        storageKey="gruenerator_docs_experimental_warning_dismissed"
-        variant="warning"
-        className="mb-md mt-lg"
-      >
-        <strong>Experimentelles Feature</strong> — Diese Funktion befindet sich noch in der
-        Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
-      </DismissableBanner>
 
       {/* Without `showRecents` this is the Arbeiten tab, where the workplace
           "Zuletzt" feed is THE recents section — the personal grid and the group
