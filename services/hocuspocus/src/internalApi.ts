@@ -575,7 +575,7 @@ export function applyPatchToDoc(
   // Nothing to write: do not stamp or seed a document for it.
   if (Object.keys(patch).length === 0) return;
 
-  // Checked before the transaction (and before the root mirror is written): see applyDeckChanges.
+  // Checked before the transaction (and before any root mirror write): see applyDeckChanges.
   // With a base each page gets the patch merged into its own current state (see canvasMerge.ts).
   const pageWrites = new Map<Y.Map<unknown>, Record<string, unknown>>();
   for (const yMap of readPageYMaps(doc)) {
@@ -606,15 +606,26 @@ export function applyPatchToDoc(
       formState.set(KEY_SEEDED, true);
     }
 
-    // The root mirror is merged only where it is authoritative (a document without pages), and
-    // only for keys it holds; a partial mirror next to pages could be folded over a page.
-    const rootPatch =
-      base && pageYMaps.length === 0
-        ? mergeStalePatch(Object.fromEntries(formState.entries()), patch, base, CANVAS_KEY_CLASSES)
-        : patch;
-    for (const [k, v] of Object.entries(rootPatch)) formState.set(k, v);
+    // The root formState is written only where something reads it: a document without pages
+    // (it is the state there) and a legacy `pages`-array document (readMergedState lets it win
+    // over page 1). A `pagesById` document never reads it, and the client's one-time fold
+    // (foldLegacyFormStateIntoFirstPage, before `formStateFolded` is set) would copy a stale or
+    // unmerged root value over page 1, so it stays untouched there (#5767).
+    if (getPagesMap(doc).size === 0) {
+      // Merged only where it is authoritative (no pages), and only for keys it holds.
+      const rootPatch =
+        base && pageYMaps.length === 0
+          ? mergeStalePatch(
+              Object.fromEntries(formState.entries()),
+              patch,
+              base,
+              CANVAS_KEY_CLASSES
+            )
+          : patch;
+      for (const [k, v] of Object.entries(rootPatch)) formState.set(k, v);
+    }
 
-    // Mirror into every page's state map (pagesById or legacy array) —
+    // Write into every page's state map (pagesById or legacy array) —
     // page state is what a mounted studio page reads for template fields. Through the codec;
     // the root formState above is the legacy mirror and stays plain JSON.
     for (const yMap of pageYMaps) {
