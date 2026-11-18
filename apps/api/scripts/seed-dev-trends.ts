@@ -19,13 +19,13 @@ import {
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../database/services/PostgresService.js';
-import { getLatestSnapshot } from '../services/monitor/MonitorService.js';
-import { MONITOR_LOCALES } from '../services/monitor/types.js';
+import { getLatestSnapshot, snapshotCacheKey } from '../services/monitor/MonitorService.js';
+import { MONITOR_LOCALES, type MonitorLocale } from '../services/monitor/types.js';
 import { setCachedJson } from '../utils/redis/jsonCache.js';
 
 const TTL_SECONDS = 7 * 24 * 60 * 60;
 
-const KEYWORDS: Record<string, Array<[string, number]>> = {
+const KEYWORDS: Record<MonitorLocale, Array<[string, number]>> = {
   de: [
     ['Klimageld', 48],
     ['Deutschlandticket', 37],
@@ -42,7 +42,7 @@ const KEYWORDS: Record<string, Array<[string, number]>> = {
   ],
 };
 
-const SOCIAL_TRENDS: Record<string, string[]> = {
+const SOCIAL_TRENDS: Record<MonitorLocale, string[]> = {
   de: [
     '#Bundestag',
     'Haushalt 2027',
@@ -54,12 +54,20 @@ const SOCIAL_TRENDS: Record<string, string[]> = {
   at: ['#Nationalrat', 'Klimaticket', '#ORF', 'Teuerung', '#Bildung', 'Hitzeschutz'],
 };
 
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1', 'postgres', 'redis'];
+
 function guard(): void {
   if (process.env.NODE_ENV === 'production')
     throw new Error('Refusing to seed: NODE_ENV=production');
   const host = process.env.POSTGRES_HOST ?? 'localhost';
-  if (!['localhost', '127.0.0.1', '::1', 'postgres'].includes(host))
+  if (!LOCAL_HOSTS.includes(host))
     throw new Error(`Refusing to seed: POSTGRES_HOST=${host} is not local`);
+  // The only write goes to Redis, so its host must be local too.
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) throw new Error('Refusing to seed: REDIS_URL is not set');
+  const redisHost = new URL(redisUrl).hostname.replace(/^\[|\]$/g, '');
+  if (!LOCAL_HOSTS.includes(redisHost))
+    throw new Error(`Refusing to seed: REDIS_URL host ${redisHost} is not local`);
 }
 
 async function main(): Promise<void> {
@@ -81,17 +89,17 @@ async function main(): Promise<void> {
     const keywords: MonitorKeywordEntry[] =
       snapshot.keywords.length > 0
         ? snapshot.keywords
-        : (KEYWORDS[locale] ?? []).map(([keyword, count]) => ({ keyword, count, topic: null }));
+        : KEYWORDS[locale].map(([keyword, count]) => ({ keyword, count, topic: null }));
     const socialTrends: SocialTrend[] =
       snapshot.socialTrends.length > 0
         ? snapshot.socialTrends
-        : (SOCIAL_TRENDS[locale] ?? []).map((name, i) => ({
+        : SOCIAL_TRENDS[locale].map((name, i) => ({
             rank: i + 1,
             name,
             url: `https://x.com/search?q=${encodeURIComponent(name)}`,
           }));
     await setCachedJson(
-      `monitor:latest:${locale}`,
+      snapshotCacheKey(locale),
       { ...snapshot, keywords, socialTrends },
       TTL_SECONDS
     );
