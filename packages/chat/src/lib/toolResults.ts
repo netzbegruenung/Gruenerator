@@ -291,6 +291,13 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'personal',
   },
+  antragsgruen_seite_lesen: {
+    label: 'Anträge der eigenen Seite',
+    activeLabel: 'Lese die Anträge deiner Seite …',
+    iconKey: 'book',
+    accent: 'personal',
+    queryKeys: ['antrag'],
+  },
   antragsgruen_antrag_stellen: {
     label: 'Antrag bei Antragsgrün',
     activeLabel: 'Bereite den Antrag vor …',

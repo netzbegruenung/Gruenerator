@@ -77,6 +77,7 @@ import { turnImagesOf } from '../services/turnImages.js';
 
 import {
   makeAntragsgruenAgendaTool,
+  makeAntragsgruenReadTool,
   makeAntragsgruenMotionTool,
   makeAntragsgruenSiteTool,
   siteCreationConfigured,
@@ -142,11 +143,11 @@ import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
 import { makeSuggestVorlagenTool, vorlagenForTurn } from './vorlagenTools.js';
 
-import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
+import type { AgentConfig } from './types.js';
 import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
@@ -1204,6 +1205,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       tools.antragsgruen_seite_anlegen = makeAntragsgruenSiteTool(personalCtx);
       tools.antragsgruen_antrag_stellen = makeAntragsgruenMotionTool(personalCtx);
       tools.antragsgruen_tagesordnung = makeAntragsgruenAgendaTool(personalCtx);
+      tools.antragsgruen_seite_lesen = makeAntragsgruenReadTool(personalCtx);
     }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);
