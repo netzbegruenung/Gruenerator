@@ -15,7 +15,7 @@ interface Call {
 const aiObject = vi.fn();
 vi.mock('../../ai/generate.js', () => ({ aiObject }));
 
-const { buildDesignPrompt, checkDesign, decideDesign, lowerThirdSegment, segmentsFor } =
+const { buildDesignPrompt, checkDesign, decideDesign, lowerThirdUnit, segmentsFor } =
   await import('../decideDesign.js');
 
 const units = radwegUnits();
@@ -106,11 +106,12 @@ describe('segmentsFor', () => {
   });
 });
 
-describe('lowerThirdSegment', () => {
+describe('lowerThirdUnit', () => {
   it('lands where the surname is said, else right after the hook', () => {
-    expect(lowerThirdSegment(unitIds, units, 'Annika Wolfsteiner')).toBe(1);
-    expect(lowerThirdSegment(unitIds, units, 'Jemand Anderes')).toBe(1);
-    expect(lowerThirdSegment(['c1.s5', 'c1.s8'], units, 'Annika Wolfsteiner')).toBe(0);
+    expect(lowerThirdUnit(unitIds, units, 'Annika Wolfsteiner')).toBe('c1.s5');
+    expect(lowerThirdUnit(unitIds, units, 'Jemand Anderes')).toBe('c1.s5');
+    expect(lowerThirdUnit(['c1.s5', 'c1.s8'], units, 'Annika Wolfsteiner')).toBe('c1.s5');
+    expect(lowerThirdUnit(['c1.s8', 'c1.s6'], units, 'Jemand Anderes')).toBe('c1.s6');
   });
 });
 
@@ -129,10 +130,14 @@ describe('decideDesign', () => {
       kind: 'broll',
       clipId: 'c2',
       sourceStart: 0,
-      atSegment: 2,
+      atUnit: 'c1.s6',
       durationSeconds: 2.5,
     });
-    expect(edl.overlays).toContainEqual({ kind: 'bauchbinde', atSegment: 1, durationSeconds: 4 });
+    expect(edl.overlays).toContainEqual({
+      kind: 'bauchbinde',
+      atUnit: 'c1.s5',
+      durationSeconds: 4,
+    });
     expect(edl.overlays).toContainEqual({ kind: 'logo', placement: 'ecke' });
     const call = aiObject.mock.calls[0][0] as Call;
     expect(call.lane).toBe('video_ai');
@@ -158,6 +163,24 @@ describe('decideDesign', () => {
     expect(first).toEqual({ ok: false, error: expect.stringContaining('Hook') });
     expect(first).toEqual({ ok: false, error: expect.stringContaining('Die Zahl 500') });
   });
+
+  it('names a piece that does not exist in the repair turn', async () => {
+    let first: StructuredValidation<unknown> | null = null;
+    aiObject.mockImplementation(async (call: Call) => {
+      first = call.validate(
+        { ...ANSWER, titel: [{ art: 'statement', text: 'Radweg', stueck: 40, sekunden: 3 }] },
+        1,
+        2
+      );
+      return { ok: false, error: 'gave up' };
+    });
+
+    await expect(decideDesign(input)).rejects.toThrow('gave up');
+    expect(first).toEqual({
+      ok: false,
+      error: expect.stringContaining('Dieses Stück gibt es nicht (nur #0–#7).'),
+    });
+  });
 });
 
 describe('checkDesign', () => {
@@ -171,7 +194,7 @@ describe('checkDesign', () => {
         kind: 'titel' as const,
         preset: 'statement' as const,
         text: 'Radweg',
-        atSegment: i,
+        atUnit: unitIds[i],
         durationSeconds: 2,
       })),
     };

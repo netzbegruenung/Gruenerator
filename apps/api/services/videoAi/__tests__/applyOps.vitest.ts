@@ -16,9 +16,21 @@ const BASE: VideoAiEdl = {
   })),
   captions: { enabled: true, template: 'tanne' },
   overlays: [
-    { kind: 'titel', preset: 'hook', text: 'Sicherer Schulweg', atSegment: 0, durationSeconds: 3 },
-    { kind: 'bauchbinde', atSegment: 1, durationSeconds: 4 },
-    { kind: 'titel', preset: 'statement', text: 'Jetzt bauen', atSegment: 3, durationSeconds: 3 },
+    {
+      kind: 'titel',
+      preset: 'hook',
+      text: 'Sicherer Schulweg',
+      atUnit: 'c1.s8',
+      durationSeconds: 3,
+    },
+    { kind: 'bauchbinde', atUnit: 'c1.s5', durationSeconds: 4 },
+    {
+      kind: 'titel',
+      preset: 'statement',
+      text: 'Jetzt bauen',
+      atUnit: 'c1.s7',
+      durationSeconds: 3,
+    },
   ],
   music: null,
 };
@@ -76,11 +88,11 @@ describe('applyOps', () => {
     );
     if (!result.ok) throw new Error(result.error);
     expect(result.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s5', 'c1.s8', 'c1.s11']);
-    const at = result.edl.overlays.map((o) => ('atSegment' in o ? o.atSegment : null));
+    const at = result.edl.overlays.map((o) => ('atUnit' in o ? o.atUnit : null));
     // The hook title stays on the opening (now c1.s6), the lower third stays
     // on c1.s5, the statement on the removed c1.s7 hands over to the next
     // survivor c1.s11.
-    expect(at).toEqual([0, 1, 3]);
+    expect(at).toEqual(['c1.s6', 'c1.s5', 'c1.s11']);
     expect(result.omitted['c1.s7']).toBe('Entfernt');
   });
 
@@ -97,7 +109,7 @@ describe('applyOps', () => {
             kind: 'titel',
             preset: 'hook',
             text: 'Radweg jetzt',
-            atSegment: 0,
+            atUnit: 'c1.s8',
             durationSeconds: 2,
           },
         },
@@ -152,9 +164,30 @@ describe('update_overlay', () => {
       kind: 'titel',
       preset: 'statement',
       text: 'Radweg jetzt bauen',
-      atSegment: 3,
+      atUnit: 'c1.s11',
       durationSeconds: 3,
     });
+  });
+
+  it('leaves an overlay the round moves where it was put', () => {
+    const result = applyOps(
+      BASE,
+      [
+        { kind: 'remove_segment', unitId: 'c1.s7' },
+        { kind: 'update_overlay', index: 1, overlay: { atUnit: 'c1.s6' } },
+      ],
+      ctx
+    );
+    expect(result.ok && result.edl.overlays[1]).toMatchObject({ atUnit: 'c1.s6' });
+  });
+
+  it('moves an overlay to the take swapped in for its sentence', () => {
+    const result = applyOps(
+      BASE,
+      [{ kind: 'swap_take', unitId: 'c1.s7', withUnitId: 'c1.s9' }],
+      ctx
+    );
+    expect(result.ok && result.edl.overlays[2]).toMatchObject({ atUnit: 'c1.s9' });
   });
 
   it('refuses a patch that breaks the overlay', () => {
@@ -266,9 +299,15 @@ describe('set_hook', () => {
       {
         ...plain(['c1.s5', 'c1.s1', 'c1.s6']),
         overlays: [
-          { kind: 'titel', preset: 'hook', text: 'Radweg', atSegment: 0, durationSeconds: 3 },
-          { kind: 'titel', preset: 'statement', text: 'Jetzt', atSegment: 0, durationSeconds: 3 },
-          { kind: 'bauchbinde', atSegment: 1, durationSeconds: 4 },
+          { kind: 'titel', preset: 'hook', text: 'Radweg', atUnit: 'c1.s5', durationSeconds: 3 },
+          {
+            kind: 'titel',
+            preset: 'statement',
+            text: 'Jetzt',
+            atUnit: 'c1.s5',
+            durationSeconds: 3,
+          },
+          { kind: 'bauchbinde', atUnit: 'c1.s1', durationSeconds: 4 },
         ],
       },
       [{ kind: 'set_hook', unitId: 'c1.s6' }],
@@ -276,7 +315,11 @@ describe('set_hook', () => {
     );
     if (!r.ok) throw new Error(r.error);
     expect(r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s1', 'c1.s5']);
-    expect(r.edl.overlays.map((o) => ('atSegment' in o ? o.atSegment : null))).toEqual([0, 2, 1]);
+    expect(r.edl.overlays.map((o) => ('atUnit' in o ? o.atUnit : null))).toEqual([
+      'c1.s6',
+      'c1.s5',
+      'c1.s1',
+    ]);
   });
 
   it('pulls a sentence to the front as the hook and keeps the rest in spoken order', () => {

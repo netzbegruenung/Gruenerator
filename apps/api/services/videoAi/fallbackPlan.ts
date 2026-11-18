@@ -8,7 +8,7 @@
  */
 import { type VideoAiEdl, type VideoAiFraming, type VideoAiStyle } from '@gruenerator/contracts';
 
-import { DEFAULT_SECONDS, lowerThirdSegment, segmentsFor } from './decideDesign.js';
+import { DEFAULT_SECONDS, lowerThirdUnit, segmentsFor } from './decideDesign.js';
 import { type TakeGroup } from './takeGroups.js';
 import { pulledHook, type TranscriptUnit } from './transcriptUnits.js';
 
@@ -57,7 +57,7 @@ export function fallbackDesign(input: FallbackDesignInput): VideoAiEdl {
   if (input.person) {
     overlays.push({
       kind: 'bauchbinde',
-      atSegment: lowerThirdSegment(input.unitIds, input.units, input.person.name),
+      atUnit: lowerThirdUnit(input.unitIds, input.units, input.person.name),
       durationSeconds: DEFAULT_SECONDS.bauchbinde,
     });
   }

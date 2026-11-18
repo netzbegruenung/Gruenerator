@@ -144,10 +144,8 @@ function checkOverlays(
 
   edl.overlays.forEach((o: VideoAiOverlay, i) => {
     const label = `Overlay ${i + 1} (${o.kind})`;
-    if ('atSegment' in o && o.atSegment >= edl.segments.length) {
-      errors.push(
-        `${label}: Stück ${o.atSegment} gibt es nicht (nur 0–${edl.segments.length - 1}).`
-      );
+    if ('atUnit' in o && !edl.segments.some((s) => s.unitId === o.atUnit)) {
+      errors.push(`${label}: ${o.atUnit} ist nicht im Schnitt.`);
     }
     if (o.kind === 'titel') {
       for (const n of numbersIn(o.text)) {

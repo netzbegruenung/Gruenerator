@@ -74,7 +74,7 @@ const TOOL_SCHEMA = {
               kind: { type: 'string', enum: ['titel', 'bauchbinde', 'asset', 'broll', 'logo'] },
               preset: { type: 'string', enum: ['hook', 'statement'] },
               text: { type: 'string' },
-              atSegment: { type: 'integer' },
+              atUnit: { type: 'string', description: 'Satz-ID, bei der die Einblendung beginnt' },
               durationSeconds: { type: 'number' },
               assetId: { type: 'string' },
               layout: { type: 'string', enum: ['vollbild', 'bild-im-bild', 'sticker'] },

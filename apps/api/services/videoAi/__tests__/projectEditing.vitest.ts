@@ -102,15 +102,19 @@ describe('reviseProject', () => {
 describe('applyDirectOps', () => {
   it('holds direct changes to the design rules of the first cut', async () => {
     appendVersion.mockClear();
-    const title = (text: string, atSegment: number) =>
+    const title = (text: string, atUnit: string) =>
       ({
         kind: 'add_overlay',
-        overlay: { kind: 'titel', preset: 'statement', text, atSegment, durationSeconds: 3 },
+        overlay: { kind: 'titel', preset: 'statement', text, atUnit, durationSeconds: 3 },
       }) as const;
 
     const result = await applyDirectOps(ROW.id, 'user-1', {
       baseVersion: 1,
-      ops: [title('Sicherer Schulweg', 0), title('Jetzt bauen', 1), title('Für alle Kinder', 1)],
+      ops: [
+        title('Sicherer Schulweg', 'c1.s5'),
+        title('Jetzt bauen', 'c1.s6'),
+        title('Für alle Kinder', 'c1.s6'),
+      ],
     });
 
     expect(result).toEqual({ ok: false, status: 400, error: 'Höchstens 2 Titel, nicht 3.' });

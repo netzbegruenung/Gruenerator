@@ -83,7 +83,7 @@ export function segmentsFor(
 /**
  * One list per kind, every field of a kind required. The first version had a
  * single overlay object with all fields optional, and Gemma left out
- * `atSegment`, `durationSeconds` and `assetId` on every overlay, twice in a
+ * the anchor piece, `durationSeconds` and `assetId` on every overlay, twice in a
  * row (10.11.2026). Missing seconds fall back to DEFAULT_SECONDS.
  */
 const stueck = z.number().int();
@@ -176,46 +176,50 @@ const TOOL_SCHEMA = {
 };
 
 /**
- * Where the lower third goes: the segment in which the person says their
- * surname, else the second segment (right after the hook). Gemma left it out
+ * Where the lower third goes: the sentence in which the person says their
+ * surname, else the second one (right after the hook). Gemma left it out
  * in three of three runs although the briefing named the person (10.11.2026);
  * it is a rule, not a matter of taste.
  */
-export function lowerThirdSegment(
+export function lowerThirdUnit(
   unitIds: readonly string[],
   units: ReadonlyMap<string, TranscriptUnit>,
   name: string
-): number {
+): string {
   const surname = normalizeToken(name.trim().split(/\s+/).at(-1) ?? '');
-  const said = unitIds.findIndex((id) =>
+  const said = unitIds.find((id) =>
     (units.get(id)?.words ?? []).some((w) => surname !== '' && normalizeToken(w.word) === surname)
   );
-  if (said >= 0) return said;
-  return Math.min(1, unitIds.length - 1);
+  return said ?? unitIds[Math.min(1, unitIds.length - 1)];
 }
 
-/** The model's lists, in the EDL's overlay shape. */
-export function overlaysFrom(answer: Answer): unknown[] {
+/**
+ * The model's lists, in the EDL's overlay shape. The model counts pieces of
+ * the timeline (`#3`); the plan names the sentence. A piece that does not
+ * exist becomes `atUnit: null`, which the schema rejects with the others.
+ */
+export function overlaysFrom(answer: Answer, unitIds: readonly string[]): unknown[] {
+  const at = (stueck: number) => unitIds[stueck] ?? null;
   return [
     ...(answer.titel ?? []).map((t) => ({
       kind: 'titel',
       preset: t.art,
       text: t.text,
-      atSegment: t.stueck,
+      atUnit: at(t.stueck),
       durationSeconds: t.sekunden ?? DEFAULT_SECONDS.titel,
     })),
     ...(answer.bilder ?? []).map((b) => ({
       kind: 'asset',
       assetId: b.id,
       layout: b.darstellung,
-      atSegment: b.stueck,
+      atUnit: at(b.stueck),
       durationSeconds: b.sekunden ?? DEFAULT_SECONDS.bild,
     })),
     ...(answer.broll ?? []).map((b) => ({
       kind: 'broll',
       clipId: b.clip,
       sourceStart: b.ab_sekunde,
-      atSegment: b.stueck,
+      atUnit: at(b.stueck),
       durationSeconds: b.sekunden ?? DEFAULT_SECONDS.broll,
     })),
     ...(answer.logo && answer.logo !== 'keins' ? [{ kind: 'logo', placement: answer.logo }] : []),
@@ -275,8 +279,8 @@ export function checkDesign(
   if (titles > MAX_TITLES) errors.push(`Höchstens ${MAX_TITLES} Titel, nicht ${titles}.`);
   for (const o of edl.overlays) {
     const coversHook =
-      'atSegment' in o &&
-      o.atSegment === 0 &&
+      'atUnit' in o &&
+      o.atUnit === edl.segments[0].unitId &&
       (o.kind === 'broll' || (o.kind === 'asset' && o.layout === 'vollbild'));
     if (coversHook) errors.push('Im Stück #0 (Hook) kein Vollbild und keine B-Roll.');
   }
@@ -298,9 +302,12 @@ function toEdl(
     else errors.push(`Untertitel "${answer.untertitel}" gibt es nicht.`);
   }
   const overlays: VideoAiOverlay[] = [];
-  overlaysFrom(answer).forEach((raw, i) => {
+  const last = input.cut.unitIds.length - 1;
+  overlaysFrom(answer, input.cut.unitIds).forEach((raw, i) => {
     const parsed = videoAiOverlaySchema.safeParse(raw);
     if (parsed.success) overlays.push(parsed.data);
+    else if ((raw as { atUnit?: unknown }).atUnit === null)
+      errors.push(`Overlay ${i + 1}: Dieses Stück gibt es nicht (nur #0–#${last}).`);
     else
       errors.push(
         `Overlay ${i + 1}: ${parsed.error.issues.map((x) => `${x.path.join('.')} ${x.message}`).join('; ')}`
@@ -320,7 +327,7 @@ function toEdl(
             ...overlays,
             {
               kind: 'bauchbinde',
-              atSegment: lowerThirdSegment(input.cut.unitIds, input.units, input.brief.person.name),
+              atUnit: lowerThirdUnit(input.cut.unitIds, input.units, input.brief.person.name),
               durationSeconds: DEFAULT_SECONDS.bauchbinde,
             },
           ]

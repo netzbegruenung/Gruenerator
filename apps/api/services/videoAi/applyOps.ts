@@ -3,9 +3,9 @@
  * contracts/videoAi.ts in a fixed order. Sentence changes first (addressed by
  * unit id, so their order within the round does not matter; `set_hook` last
  * of them; the cut is then `edl.hook` first and the rest in spoken order),
- * then overlay changes (addressed by index in the plan before the round). Existing
- * overlays keep their sentence: removing the segment under an overlay moves
- * it to the next surviving segment.
+ * then overlay changes (addressed by index in the plan before the round).
+ * Overlays are anchored by unit id and keep their sentence: removing the
+ * sentence under an overlay moves it to the next surviving one.
  *
  * The result is NOT validated here — the caller runs validateEdl, exactly as
  * for the first cut, so a round can never produce what the first cut may not.
@@ -91,25 +91,25 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
   segments.sort(bySpokenOrder);
   if (hook !== null) segments.unshift(...segments.splice(find(hook), 1));
 
-  // Existing overlays follow their sentence; a removed one hands over to the
-  // next surviving sentence of the old order, or the last segment.
+  // Existing overlays follow their sentence (or the take swapped in for it);
+  // a removed one hands over to the next surviving sentence of the old order,
+  // or the last segment.
   const swapped = new Map<string, string>();
   for (const op of ops) if (op.kind === 'swap_take') swapped.set(op.unitId, op.withUnitId);
-  const newIndex = (oldSegment: number): number => {
-    for (let i = oldSegment; i < originalOrder.length; i++) {
+  const surviving = (unitId: string): string => {
+    for (let i = Math.max(0, originalOrder.indexOf(unitId)); i < originalOrder.length; i++) {
       const id = swapped.get(originalOrder[i]) ?? originalOrder[i];
-      const at = find(id);
-      if (at >= 0) return at;
+      if (find(id) >= 0) return id;
     }
-    return segments.length - 1;
+    return segments[segments.length - 1].unitId;
   };
   // The opening title belongs to the opening, not to its sentence: when
-  // set_hook puts another unit first, it stays on #0.
+  // set_hook puts another unit first, it moves to the new first one.
   const openingChanged = setHook !== null && segments[0].unitId !== originalOrder[0];
-  const follow = (o: VideoAiEdl['overlays'][number], oldSegment: number): number =>
-    openingChanged && o.kind === 'titel' && o.preset === 'hook' && oldSegment === 0
-      ? 0
-      : newIndex(oldSegment);
+  const follow = (o: VideoAiEdl['overlays'][number], unitId: string): string =>
+    openingChanged && o.kind === 'titel' && o.preset === 'hook' && unitId === originalOrder[0]
+      ? segments[0].unitId
+      : surviving(unitId);
 
   const removed = new Set<number>();
   const updated = new Map<number, VideoAiEdl['overlays'][number]>();
@@ -129,26 +129,18 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
         error: `Einblendung ${op.index}: ${merged.error.issues.map((x) => `${x.path.join('.')} ${x.message}`).join('; ')}`,
       };
     }
+    // Moved by the round: it stays where it was put.
     updated.set(op.index, merged.data);
+    if ('atUnit' in op.overlay) continue;
+    const o = merged.data;
+    if ('atUnit' in o) updated.set(op.index, { ...o, atUnit: follow(o, o.atUnit) });
   }
   const overlays: VideoAiEdl['overlays'] = [];
   edl.overlays.forEach((o, i) => {
     if (removed.has(i)) return;
     const replacement = updated.get(i);
-    const patch = ops.find(
-      (op): op is Extract<VideoAiOp, { kind: 'update_overlay' }> =>
-        op.kind === 'update_overlay' && op.index === i
-    );
-    if (
-      replacement &&
-      'atSegment' in replacement &&
-      'atSegment' in o &&
-      !('atSegment' in (patch?.overlay ?? {}))
-    ) {
-      // Not moved by the round: it follows its sentence like the others.
-      overlays.push({ ...replacement, atSegment: follow(o, o.atSegment) });
-    } else if (replacement) overlays.push(replacement);
-    else overlays.push('atSegment' in o ? { ...o, atSegment: follow(o, o.atSegment) } : o);
+    if (replacement) overlays.push(replacement);
+    else overlays.push('atUnit' in o ? { ...o, atUnit: follow(o, o.atUnit) } : o);
   });
   for (const op of ops) if (op.kind === 'add_overlay') overlays.push(op.overlay);
 

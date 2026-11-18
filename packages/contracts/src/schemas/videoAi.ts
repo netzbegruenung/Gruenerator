@@ -82,32 +82,33 @@ export const videoAiSegmentSchema = z.object({
 export type VideoAiSegment = z.infer<typeof videoAiSegmentSchema>;
 
 const overlayText = z.string().trim().min(1).max(VIDEO_AI_LIMITS.maxOverlayTextChars);
-const segmentIndex = z.number().int().min(0);
 const overlaySeconds = z.number().min(0.5).max(15);
 
 /**
  * On-screen elements. Text is always rendered by the editor from a preset in
  * brand type — the model only picks the preset and writes the words. Name and
  * role in the lower third come from the briefing, never from the model.
+ * `atUnit` is the sentence the element starts on, so it moves with that
+ * sentence when a round removes or pulls others.
  */
 export const videoAiOverlaySchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('titel'),
     preset: z.enum(['hook', 'statement']),
     text: overlayText,
-    atSegment: segmentIndex,
+    atUnit: videoAiUnitIdSchema,
     durationSeconds: overlaySeconds,
   }),
   z.object({
     kind: z.literal('bauchbinde'),
-    atSegment: segmentIndex,
+    atUnit: videoAiUnitIdSchema,
     durationSeconds: overlaySeconds,
   }),
   z.object({
     kind: z.literal('asset'),
     assetId: z.string().min(1),
     layout: z.enum(['vollbild', 'bild-im-bild', 'sticker']),
-    atSegment: segmentIndex,
+    atUnit: videoAiUnitIdSchema,
     durationSeconds: overlaySeconds,
   }),
   z.object({
@@ -115,7 +116,7 @@ export const videoAiOverlaySchema = z.discriminatedUnion('kind', [
     kind: z.literal('broll'),
     clipId: videoAiClipIdSchema,
     sourceStart: z.number().min(0),
-    atSegment: segmentIndex,
+    atUnit: videoAiUnitIdSchema,
     durationSeconds: overlaySeconds,
   }),
   z.object({
@@ -307,8 +308,8 @@ export const videoAiErrorSchema = z.object({ error: z.string() });
 // Correction rounds: a fixed vocabulary of changes, applied to the current
 // plan. Sentences are addressed by unit id, never by position, so several
 // changes in one round cannot shift each other. Overlays are addressed by
-// their index in the plan BEFORE the round; `atSegment` in an added or
-// updated overlay refers to the plan AFTER the sentence changes.
+// their index in the plan BEFORE the round and anchored by `atUnit`, which
+// must be in the cut AFTER the round.
 // ---------------------------------------------------------------------------
 
 const overlayIndex = z.number().int().min(0);
