@@ -60,3 +60,21 @@ export class CanvasDocumentNewerReadError extends Error {
     this.name = 'CanvasDocumentNewerReadError';
   }
 }
+
+/**
+ * Hocuspocus could not answer a read (down, timeout, unexpected status) for a canvas that has a
+ * Yjs document. The Y.Doc is the authority there and `canvas_documents.initial_state` is only as
+ * fresh as the last server-side write, so the mirror must not answer: a chat edit planned on it,
+ * a Vorlage frozen from it or a copy made of it would silently drop every editor change since.
+ * A canvas without Yjs rows still reads the mirror (it is the state there). Transient: retrying
+ * later helps. The message is a sentence a user may read.
+ */
+export class CanvasLiveStateUnavailableError extends Error {
+  constructor(readonly canvasId: string) {
+    super(
+      'Der aktuelle Stand dieses Canvas lässt sich gerade nicht abrufen. ' +
+        'Bitte versuch es gleich noch einmal.'
+    );
+    this.name = 'CanvasLiveStateUnavailableError';
+  }
+}

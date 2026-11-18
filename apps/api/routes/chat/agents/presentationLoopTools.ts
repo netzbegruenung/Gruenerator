@@ -10,7 +10,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { canvasAccessible, loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
-import { CanvasDocumentNewerReadError } from '../../../services/canvas/canvasWriteErrors.js';
+import {
+  CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
+} from '../../../services/canvas/canvasWriteErrors.js';
 import { planAndApplyCanvasDeckEdit } from '../../../services/presentations/canvasDeckEdit.js';
 import {
   formatPresentationAsContext,
@@ -55,8 +58,12 @@ NUTZE bei Fragen zur Präsentation ("was steht auf Folie 3", "wie viele Folien")
         try {
           canvasText = await loadCanvasAsContext(id, userId);
         } catch (error) {
-          // A canvas newer than the server: say so rather than "not found" or half the slides.
-          if (error instanceof CanvasDocumentNewerReadError)
+          // A canvas newer than the server, or a live state the collab service cannot hand over:
+          // say so rather than "not found", half the slides or an outdated copy.
+          if (
+            error instanceof CanvasDocumentNewerReadError ||
+            error instanceof CanvasLiveStateUnavailableError
+          )
             return { error: toUserFacingMessage(error) };
           throw error;
         }

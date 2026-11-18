@@ -10,7 +10,10 @@ import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifi
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
-import { CanvasDocumentNewerReadError } from '../../../services/canvas/canvasWriteErrors.js';
+import {
+  CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
+} from '../../../services/canvas/canvasWriteErrors.js';
 import {
   formatPresentationAsContext,
   loadPresentationState,
@@ -254,7 +257,10 @@ export async function enrichContext(opts: {
                 } catch (err) {
                   // Without this the whole context build fails. The model gets the reason as the
                   // content instead of a silent gap, so it does not answer about a partial canvas.
-                  if (err instanceof CanvasDocumentNewerReadError) {
+                  if (
+                    err instanceof CanvasDocumentNewerReadError ||
+                    err instanceof CanvasLiveStateUnavailableError
+                  ) {
                     log.warn(`[ChatGraph] Canvas ${d.id} not readable: ${err.message}`);
                     return `### ${d.title}\n\n(${err.message})`;
                   }
