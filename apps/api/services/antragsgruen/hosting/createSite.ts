@@ -20,9 +20,15 @@
 import * as cheerio from 'cheerio';
 
 import { setAgenda, type AgendaEntry } from './agenda.js';
-import { AntragsgruenFormError, FormClient, alertsOf, csrfOf, formValuesOf } from './formClient.js';
+import {
+  AntragsgruenFormError,
+  type FormClient,
+  alertsOf,
+  csrfOf,
+  formValuesOf,
+} from './formClient.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
-import { login, type HostingConfig } from './session.js';
+import { botClient, login, type HostingConfig } from './session.js';
 
 export interface SiteRequest {
   title: string;
@@ -220,7 +226,7 @@ async function handOverAdminEmail(
 export async function createAntragsgruenSite(
   req: SiteRequest,
   config: HostingConfig,
-  client: FormClient = new FormClient()
+  client: FormClient = botClient()
 ): Promise<CreatedSite> {
   if (!SUBDOMAIN_RE.test(req.subdomain)) {
     throw new AntragsgruenFormError(`Ungültige Subdomain „${req.subdomain}"`, 'validate');

@@ -4,11 +4,14 @@
  * Antragsgrün-Views (siehe Kopf von `createSite.ts`). Ein Lauf gegen das echte
  * antragsgruen.de steht aus.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Nie die echte Redis: ein gescheiterter Login setzte dort die Pause für alle lokalen Stacks.
+vi.mock('../../../utils/redis/client.js', () => ({ redisClient: { isReady: false } }));
 
 import { createAntragsgruenSite, type SiteRequest } from './createSite.js';
 import { FormClient, type FetchLike } from './formClient.js';
-import { type HostingConfig } from './session.js';
+import { resetBotSessionForTests, type HostingConfig } from './session.js';
 
 const CONFIG: HostingConfig = {
   baseUrl: 'https://antragsgruen.de',
@@ -149,6 +152,9 @@ function fakeSite(opts: FakeOptions = {}) {
   };
   return { fetchImpl, calls, settingsPosts, agendaPosts };
 }
+
+// Ein gescheiterter Login pausiert alle weiteren (`session.ts`); jeder Test beginnt frisch.
+beforeEach(resetBotSessionForTests);
 
 describe('createAntragsgruenSite', () => {
   it('logs in, creates the site and adds the person to the site-admin group', async () => {

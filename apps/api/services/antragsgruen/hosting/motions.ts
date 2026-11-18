@@ -23,8 +23,8 @@ import * as cheerio from 'cheerio';
 import { markdownToHtml } from '../../markdown/MarkdownService.js';
 
 import { agendaOf, findAgendaItem } from './agenda.js';
-import { AntragsgruenFormError, FormClient } from './formClient.js';
-import { login, requireAdmins, type HostingConfig } from './session.js';
+import { AntragsgruenFormError, type FormClient } from './formClient.js';
+import { botClient, login, requireAdmins, type HostingConfig } from './session.js';
 
 export interface MotionRequest {
   /** Startseite der Konsultation, wie in `antragsgruen_hosted_sites.url`. */
@@ -158,7 +158,7 @@ export async function motionTypeOf(
 export async function createMotionOnHostedSite(
   req: MotionRequest,
   config: HostingConfig,
-  client: FormClient = new FormClient()
+  client: FormClient = botClient()
 ): Promise<CreatedMotion> {
   const { origin, consultation } = splitSiteUrl(req.siteUrl);
   await login(client, config);

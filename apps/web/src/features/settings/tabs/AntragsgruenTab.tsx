@@ -255,7 +255,8 @@ function ConnectSite({ botAccount }: { botAccount: string | null }) {
           ) : (
             'des Grünerators'
           )}{' '}
-          in die Gruppe „Seiten-Admin“ ein.
+          in die Gruppe „Seiten-Admin“ ein. Nur eintragen, nicht damit einloggen: Fehlversuche
+          sperren das Konto bei Antragsgrün für alle.
         </li>
         <li>Du selbst musst dort Admin sein – mit der E-Mail-Adresse deines Grünerator-Kontos.</li>
         <li>Füge die Adresse deiner Seite hier ein.</li>

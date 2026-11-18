@@ -13,6 +13,9 @@ const db = vi.hoisted(() => ({
   inserted: [] as unknown[][],
 }));
 
+// Nie die echte Redis: ein gescheiterter Login setzte dort die Pause für alle lokalen Stacks.
+vi.mock('../../../utils/redis/client.js', () => ({ redisClient: { isReady: false } }));
+
 vi.mock('../../../config/env.js', () => ({
   env: { ANTRAGSGRUEN_BOT_EMAIL: 'bot@gruenerator.eu', ANTRAGSGRUEN_BOT_PASSWORD: 'geheim' },
 }));
@@ -44,7 +47,7 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 
 import { FormClient, type FetchLike } from './formClient.js';
 import { createMotionOnHostedSite } from './motions.js';
-import { adminEmailsOf, login, requireAdmins } from './session.js';
+import { adminEmailsOf, login, requireAdmins, resetBotSessionForTests } from './session.js';
 import { SiteOrderRefused, connectAntragsgruenSite, parseSiteAddress } from './sites.js';
 
 const attr = (value: unknown) => JSON.stringify(value).replace(/"/g, '&quot;');
@@ -116,6 +119,7 @@ function fakeSite(opts: {
 }
 
 beforeEach(() => {
+  resetBotSessionForTests();
   db.taken = null;
   db.connected = 0;
   db.email = 'Anna@Example.org';

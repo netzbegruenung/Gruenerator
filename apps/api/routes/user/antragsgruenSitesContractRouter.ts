@@ -11,8 +11,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { AntragsgruenFormError } from '../../services/antragsgruen/hosting/formClient.js';
 import {
-  LOGIN_BLOCKED_TEXT,
   hostingConfigFromEnv,
+  loginRefusalText,
 } from '../../services/antragsgruen/hosting/session.js';
 import {
   SiteOrderRefused,
@@ -98,13 +98,12 @@ export const antragsgruenSitesContractRouter = s.router(antragsgruenSitesContrac
         (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'TypeError'))
       ) {
         log.warn(`[connectSite] antragsgruen.de failed: ${error.message}`);
-        const captcha = error instanceof AntragsgruenFormError && error.step === 'captcha';
         return {
           status: 502 as const,
           body: {
-            error: captcha
-              ? LOGIN_BLOCKED_TEXT
-              : 'antragsgruen.de hat nicht wie erwartet geantwortet. Versuch es später noch einmal.',
+            error:
+              loginRefusalText(error) ??
+              'antragsgruen.de hat nicht wie erwartet geantwortet. Versuch es später noch einmal.',
           },
         };
       }

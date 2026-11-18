@@ -107,6 +107,8 @@ describe('AntragsgruenTab', () => {
     );
     const { user } = renderWithProviders(<AntragsgruenTab />);
     await user.click(await screen.findByRole('button', { name: 'Bestehende Seite verbinden' }));
+    // Die Adresse des Kontos steht hier für alle; ein Login damit sperrt es (#5785).
+    expect(screen.getByText(/nicht damit einloggen/)).toBeInTheDocument();
     await user.type(
       screen.getByLabelText('Adresse der Antragsgrün-Seite'),
       'kv-koeln.antragsgruen.de/kv-koeln'

@@ -13,7 +13,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 
 import { agendaOf, setAgenda, type AgendaEntry, type AgendaItemRef } from './agenda.js';
 import { createAntragsgruenSite, type CreatedSite, type SiteRequest } from './createSite.js';
-import { AntragsgruenFormError, FormClient } from './formClient.js';
+import { AntragsgruenFormError, type FormClient } from './formClient.js';
 import { createMotionOnHostedSite, type CreatedMotion } from './motions.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
 import {
@@ -23,7 +23,7 @@ import {
   type OwnMotion,
   type OwnMotionRef,
 } from './read.js';
-import { hostingConfigFromEnv, isSiteAdmin, login, requireAdmins } from './session.js';
+import { botClient, hostingConfigFromEnv, isSiteAdmin, login, requireAdmins } from './session.js';
 
 /** Jede Seite ist echt und bleibt bei Antragsgrün stehen; die Grenze hält Versehen klein. */
 export const MAX_SITES_PER_USER = 3;
@@ -147,7 +147,7 @@ export async function grueneratorAccessOn(userId: string): Promise<Record<string
   const unknown = () => Object.fromEntries(sites.map((s) => [s.id, 'unknown' as const]));
   const config = hostingConfigFromEnv();
   if (!config || sites.length === 0) return unknown();
-  const client = new FormClient();
+  const client = botClient();
   try {
     await login(client, config);
   } catch {
@@ -233,7 +233,7 @@ async function adminSessionOn(userId: string, subdomain: string) {
     );
   const person = await inviteeOf(userId);
   if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
-  const client = new FormClient();
+  const client = botClient();
   await login(client, config);
   const { origin, consultation } = splitSiteUrl(site.url);
   await requireAdmins(client, origin, consultation, person.email);
@@ -329,7 +329,7 @@ export function parseSiteAddress(
 export async function connectAntragsgruenSite(
   userId: string,
   address: string,
-  client: FormClient = new FormClient()
+  client: FormClient = botClient()
 ): Promise<HostedSite> {
   const config = hostingConfigFromEnv();
   if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');

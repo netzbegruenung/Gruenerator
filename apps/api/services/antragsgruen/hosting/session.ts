@@ -6,8 +6,9 @@ import * as cheerio from 'cheerio';
 
 import { env } from '../../../config/env.js';
 import { createLogger } from '../../../utils/logger.js';
+import { redisClient } from '../../../utils/redis/client.js';
 
-import { AntragsgruenFormError, alertsOf, csrfOf, type FormClient } from './formClient.js';
+import { AntragsgruenFormError, FormClient, alertsOf, csrfOf } from './formClient.js';
 
 export interface HostingConfig {
   /** z. B. `https://antragsgruen.de` — Seiten liegen unter `https://<sub>.<host>/`. */
@@ -38,8 +39,74 @@ const log = createLogger('antragsgruenSession');
  * von wo) eine Stunde lang ein Captcha (`FailedLoginAttempt`, gemessen am
  * 18.11.2026). Das Grünerator-Konto kann keins lösen — so lange ruht alles.
  */
-export const LOGIN_BLOCKED_TEXT =
+const LOGIN_BLOCKED_TEXT =
   'Antragsgrün verlangt beim Login des Grünerator-Kontos gerade ein Captcha (zu viele Fehlversuche). Das hebt sich nach spätestens einer Stunde auf; versuch es dann noch einmal.';
+
+const LOGIN_PAUSED_TEXT =
+  'Das Grünerator-Konto kann sich gerade nicht bei Antragsgrün anmelden. Das Team ist informiert; versuch es später noch einmal.';
+
+/** Der Satz für die Person, wenn der Login selbst das Problem ist; sonst `null`. */
+export function loginRefusalText(err: unknown): string | null {
+  if (!(err instanceof AntragsgruenFormError)) return null;
+  if (err.step === 'captcha') return LOGIN_BLOCKED_TEXT;
+  if (err.step === 'login' || err.step === 'login-paused') return LOGIN_PAUSED_TEXT;
+  return null;
+}
+
+/**
+ * Eine Sitzung gilt so lange als angemeldet. PHP räumt Sitzungen ohne eigene
+ * Einstellung nach 24 Minuten ab; wie lange antragsgruen.de sie hält, ist nicht
+ * gemessen — deshalb deutlich darunter.
+ */
+const SESSION_TTL_MS = 5 * 60_000;
+
+/**
+ * Nach einem gescheiterten Login ruht jeder weitere so lange. Antragsgrün sperrt
+ * ab drei Fehlversuchen in 60 Minuten; mit 35 Minuten Pause passen höchstens
+ * zwei hinein — ein falsches Passwort in der Konfiguration sperrt das Konto
+ * dann nicht mehr selbst. Die Pause liegt in Redis, damit sie für alle Worker
+ * gilt; fällt Redis aus, hält sie wenigstens der eigene Prozess.
+ */
+const LOGIN_PAUSE_SECONDS = 35 * 60;
+const LOGIN_PAUSE_KEY = 'antragsgruen:bot-login-paused';
+let pausedUntil = 0;
+
+async function loginPaused(): Promise<boolean> {
+  if (Date.now() < pausedUntil) return true;
+  if (!redisClient.isReady) return false;
+  try {
+    return (await redisClient.exists(LOGIN_PAUSE_KEY)) === 1;
+  } catch {
+    return false;
+  }
+}
+
+async function pauseLogins(): Promise<void> {
+  pausedUntil = Date.now() + LOGIN_PAUSE_SECONDS * 1000;
+  if (!redisClient.isReady) return;
+  try {
+    await redisClient.set(LOGIN_PAUSE_KEY, '1', { EX: LOGIN_PAUSE_SECONDS });
+  } catch {
+    // Die Pause im Prozess bleibt.
+  }
+}
+
+const loggedInAt = new WeakMap<FormClient, number>();
+let shared: FormClient | null = null;
+
+/**
+ * Die gemeinsame Sitzung des Grünerator-Kontos. Wer sie nimmt, statt je Aufruf
+ * eine neue anzulegen, meldet sich höchstens alle {@link SESSION_TTL_MS} an.
+ */
+export function botClient(): FormClient {
+  return (shared ??= new FormClient());
+}
+
+/** Nur für Tests: Sitzung und Pause zurücksetzen. */
+export function resetBotSessionForTests(): void {
+  shared = null;
+  pausedUntil = 0;
+}
 
 function fail(step: string, message: string, html?: string): never {
   const alerts = html ? alertsOf(html) : [];
@@ -56,6 +123,11 @@ function fail(step: string, message: string, html?: string): never {
  * gefunden", gemessen am 18.11.2026).
  */
 export async function login(client: FormClient, config: HostingConfig): Promise<void> {
+  const at = loggedInAt.get(client);
+  if (at !== undefined && Date.now() - at < SESSION_TTL_MS) return;
+  if (await loginPaused()) {
+    throw new AntragsgruenFormError('Login des Grünerator-Kontos pausiert', 'login-paused');
+  }
   const page = await client.request(`${config.baseUrl}/login`);
   const csrf = csrfOf(page.html);
   if (!csrf) fail('login', 'Kein CSRF-Token auf der Login-Seite');
@@ -67,11 +139,20 @@ export async function login(client: FormClient, config: HostingConfig): Promise<
   });
   const res = await client.request(`${config.baseUrl}/login`, { method: 'POST', form });
   // Erfolg ist eine Weiterleitung; ein Fehler zeigt das Formular erneut.
-  if (res.redirected) return;
+  if (res.redirected) {
+    loggedInAt.set(client, Date.now());
+    return;
+  }
+  await pauseLogins();
   if (res.html.includes('name="captcha"')) {
-    log.error(`Antragsgrün verlangt ein Captcha für ${config.botEmail} — Login gesperrt`);
+    log.error(
+      `Antragsgrün verlangt ein Captcha für ${config.botEmail}; Logins ruhen ${LOGIN_PAUSE_SECONDS / 60} min`
+    );
     fail('captcha', 'Login des Grünerator-Kontos verlangt ein Captcha', res.html);
   }
+  log.error(
+    `Login von ${config.botEmail} bei Antragsgrün fehlgeschlagen (${alertsOf(res.html).join(' · ') || 'ohne Meldung'}); Logins ruhen ${LOGIN_PAUSE_SECONDS / 60} min. Zugangsdaten prüfen.`
+  );
   fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
 }
 
