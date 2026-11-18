@@ -32,7 +32,9 @@ minimumReleaseAgeExclude:
   # remove then.
   - '@ggraphic/schema@0.1.0-alpha.5'
   - '@ggraphic/core@0.1.0-alpha.6'
-  - '@ggraphic/editor@0.1.0-alpha.13'
+  # ggraphic share panel (Movm/ggraphic#218, #220, #222): editor alpha.16 published 2026-11-18.
+  # Inert from 2026-11-21 13:00 UTC, remove then.
+  - '@ggraphic/editor@0.1.0-alpha.16'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date

@@ -123,6 +123,8 @@ export const userPermissionEntrySchema = z.object({
   avatar_robot_id: z.string().nullable(),
   permission_level: z.enum(['owner', 'editor', 'viewer']),
   granted_at: z.string(),
+  /** Who granted it; `auto:share_link` marks people who joined via the share link. */
+  granted_by: z.string().nullish(),
 });
 
 export const groupPermissionEntrySchema = z.object({

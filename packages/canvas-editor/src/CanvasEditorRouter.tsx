@@ -6,6 +6,7 @@ import { CanvasEditor } from './components/CanvasEditor';
 import {
   CanvasEditorSkeleton,
   type CanvasEditorHostChrome,
+  type CanvasEditorProps,
   type InitialPageDef,
 } from '@ggraphic/editor/shell';
 import { loadCanvasConfig, type FullCanvasConfig } from '@ggraphic/editor/config';
@@ -96,6 +97,10 @@ export interface ControllableCanvasWrapperProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /** Access section of the share panel (see CanvasEditorProps.accessSection). */
+  accessSection?: CanvasEditorProps['accessSection'];
+  /** Host tiles in the share panel (see CanvasEditorProps.shareActions). */
+  shareActions?: CanvasEditorProps['shareActions'];
   /** Opens the host's "als Vorlage speichern" flow (see CanvasEditorProps). */
   onSaveAsTemplate?: () => void;
   /** Collab mode: fresh stage render after local edits settle (see CanvasEditorProps). */
@@ -162,6 +167,8 @@ function ControllableCanvasEditor({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  accessSection,
+  shareActions,
   onSaveAsTemplate,
   onCollabSnapshot,
   initialShareToken,
@@ -306,6 +313,8 @@ function ControllableCanvasEditor({
         chromeCenter={chromeCenter}
         chromeRight={chromeRight}
         onInvitePeople={onInvitePeople}
+        accessSection={accessSection}
+        shareActions={shareActions}
         onSaveAsTemplate={onSaveAsTemplate}
         onCollabSnapshot={onCollabSnapshot}
         initialShareToken={initialShareToken}

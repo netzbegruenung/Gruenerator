@@ -103,10 +103,11 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
-          <DialogTitle>Canvas teilen</DialogTitle>
+          <DialogTitle>Design teilen</DialogTitle>
           <DialogDescription>
-            Teile diesen Canvas per Link mit einzelnen Personen oder mit deinen Projekten, um
-            gemeinsam zu bearbeiten.
+            {shareSettings.share_mode === 'private'
+              ? 'Nur Projekte und Personen mit Zugriff können dieses Design öffnen. Schalte den Link ein, um weitere Personen einzuladen.'
+              : 'Teile dieses Design per Link mit einzelnen Personen oder mit deinen Projekten, um gemeinsam zu bearbeiten.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -149,7 +150,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
             <p className="text-[11px] text-grey-500 mb-1.5">
               Mitglieder des Projekts oder der Gruppe können dieses Sharepic als Vorlage nutzen.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <select
                 id="share-canvas-vorlage-group"
                 value={vorlageGroupId}
@@ -160,7 +161,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
                     setVorlageError(null);
                   }
                 }}
-                className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
+                className="min-w-[10rem] flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
               >
                 <option value="">Projekt oder Gruppe auswählen...</option>
                 {userGroups.map((g) => (

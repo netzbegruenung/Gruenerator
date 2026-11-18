@@ -22,6 +22,8 @@ const collab = vi.hoisted(() => ({
   editorProps: [] as Array<{
     collaborative?: { previewBeforeSync?: boolean };
     onInvitePeople?: () => void;
+    accessSection?: (nav: unknown) => React.ReactNode;
+    shareActions?: Array<{ id: string }>;
   }>,
   listeners: new Set<() => void>(),
 }));
@@ -98,7 +100,10 @@ vi.mock('../tours/useTourAutostart', () => ({
 vi.mock('./WebCanvasEditorProvider', () => ({
   WebCanvasEditorProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('./components/ShareCanvasDialog', () => ({ ShareCanvasDialog: () => null }));
+vi.mock('./components/CanvasShareAccess', () => ({
+  CanvasShareAccess: ({ isOwner }: { isOwner: boolean }) => <div>access:{String(isOwner)}</div>,
+}));
+vi.mock('./components/CanvasShareToProject', () => ({ CanvasShareToProject: () => null }));
 vi.mock('./components/SaveAsTemplateDialog', () => ({ SaveAsTemplateDialog: () => null }));
 
 import CollabCanvasStudioPage from './CollabCanvasStudioPage';
@@ -147,18 +152,29 @@ afterEach(() => {
 });
 
 describe('CollabCanvasStudioPage', () => {
-  it('offers the people share dialog to the owner', async () => {
+  it('no longer opens the old people dialog, and offers the Ins-Projekt action', async () => {
     useAuthStore.setState({ user: { id: 'u1' } as never });
     renderPage('/studio/canvas/c1');
     await screen.findByText('Radwege');
-    expect(collab.editorProps.at(-1)?.onInvitePeople).toBeTypeOf('function');
+    const props = collab.editorProps.at(-1);
+    expect(props?.onInvitePeople).toBeUndefined();
+    expect(props?.shareActions?.map((a) => a.id)).toEqual(['to-project']);
   });
 
-  it('hides it from someone the canvas was shared with', async () => {
+  it('tells the access section whether the viewer owns the canvas', async () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    const owner = renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+    const section = collab.editorProps.at(-1)?.accessSection;
+    owner.unmount();
+    expect(section).toBeTypeOf('function');
+
     useAuthStore.setState({ user: { id: 'u2' } as never });
     renderPage('/studio/canvas/c1');
     await screen.findByText('Radwege');
-    expect(collab.editorProps.at(-1)?.onInvitePeople).toBeUndefined();
+    const { render } = await import('@testing-library/react');
+    const view = render(<>{collab.editorProps.at(-1)?.accessSection?.({})}</>);
+    expect(await view.findByText('access:false')).toBeInTheDocument();
   });
 
   it('previews a fresh canvas and drops the flag from the URL once synced', async () => {
