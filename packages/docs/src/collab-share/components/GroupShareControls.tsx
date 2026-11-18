@@ -43,11 +43,11 @@ export const GroupShareControls = ({
           <label className="mb-1 block text-xs font-medium text-grey-500">
             Mit Projekt oder Gruppe teilen
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
               value={selectedGroupId}
               onChange={(e) => setSelectedGroupId(e.target.value)}
-              className="flex-1 rounded-md border border-grey-200 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
+              className="min-w-[10rem] flex-1 rounded-md border border-grey-200 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
             >
               <option value="">Projekt oder Gruppe auswählen...</option>
               {availableGroups.map((g) => (

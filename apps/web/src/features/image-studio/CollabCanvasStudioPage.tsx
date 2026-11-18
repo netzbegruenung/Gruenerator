@@ -1,3 +1,4 @@
+import { type ShareAction, type ShareNav } from '@ggraphic/editor/shell';
 import {
   commitOpenTextEdit,
   getCanvasFormatOrDefault,
@@ -21,7 +22,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PiArrowLeft, PiCheck, PiPresentationChart } from 'react-icons/pi';
+import { PiArrowLeft, PiCheck, PiPresentationChart, PiUsersThree } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -52,8 +53,11 @@ const SLOW_SYNC_MS = 8000;
 /** How long closing the embedded editor waits for unacked collab updates. */
 const CLOSE_FLUSH_MS = 1000;
 
-const ShareCanvasDialog = lazy(() =>
-  import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
+const CanvasShareAccess = lazy(() =>
+  import('./components/CanvasShareAccess').then((m) => ({ default: m.CanvasShareAccess }))
+);
+const CanvasShareToProject = lazy(() =>
+  import('./components/CanvasShareToProject').then((m) => ({ default: m.CanvasShareToProject }))
 );
 const SaveAsTemplateDialog = lazy(() =>
   import('./components/SaveAsTemplateDialog').then((m) => ({ default: m.SaveAsTemplateDialog }))
@@ -68,12 +72,10 @@ function CollabCanvasStudioContent() {
   const fresh = searchParams.get('fresh') === '1';
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
-  const [shareOpen, setShareOpen] = useState(false);
   const exportApi = useRef<CanvasEditorExportApi>(null);
   const [presenting, setPresenting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
-  // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
-  const [shareMounted, setShareMounted] = useState(false);
+  // Einmal geöffnet bleibt der Dialog gemountet, damit seine Schließ-Animation läuft.
   const [saveTemplateMounted, setSaveTemplateMounted] = useState(false);
   // Read once per canvas: the editor only seeds its tab from it on mount.
   const initialTab = useMemo(
@@ -323,18 +325,56 @@ function CollabCanvasStudioContent() {
       {canvas && canEdit && !sharepicFormatSchema.safeParse(canvas.format).success ? (
         <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
       ) : null}
-      {canvas && isSlideFormat(getCanvasFormatOrDefault(canvas.format)) ? (
-        <button
-          type="button"
-          onClick={() => setPresenting(true)}
-          className="flex items-center gap-1.5 rounded-[10px] border-none bg-white/15 px-3 h-[34px] text-sm font-medium text-white cursor-pointer hover:bg-white/25"
-        >
-          <PiPresentationChart size={16} aria-hidden="true" />
-          Präsentieren
-        </button>
-      ) : null}
       <PresenceAvatars collaborators={collaborators} compact />
     </div>
+  );
+
+  const isSlides = !!canvas && isSlideFormat(getCanvasFormatOrDefault(canvas.format));
+  const shareActions = useMemo<ShareAction[]>(
+    () => [
+      {
+        id: 'to-project',
+        label: 'Ins Projekt',
+        icon: <PiUsersThree size={18} aria-hidden="true" />,
+        page: {
+          title: 'Ins Projekt',
+          render: (nav) => (
+            <Suspense fallback={null}>
+              <CanvasShareToProject nav={nav} />
+            </Suspense>
+          ),
+        },
+      },
+      ...(isSlides
+        ? [
+            {
+              id: 'present',
+              label: 'Präsentieren',
+              icon: <PiPresentationChart size={18} aria-hidden="true" />,
+              onSelect: (nav: ShareNav) => {
+                nav.close();
+                setPresenting(true);
+              },
+            },
+          ]
+        : []),
+    ],
+    [isSlides]
+  );
+  const canvasId = canvas?.id ?? null;
+  const accessSection = useCallback(
+    (nav: ShareNav) =>
+      canvasId ? (
+        <Suspense fallback={null}>
+          <CanvasShareAccess
+            canvasId={canvasId}
+            isOwner={isOwner}
+            canEdit={!collab.isReadOnly}
+            nav={nav}
+          />
+        </Suspense>
+      ) : null,
+    [canvasId, isOwner, collab.isReadOnly]
   );
 
   // Immersive layout hides the global app sidebar, so this back button is the
@@ -418,14 +458,8 @@ function CollabCanvasStudioContent() {
               }
               {...(hostChrome ? { hostChrome } : { chromeLeft, chromeCenter, chromeRight })}
               exportApiRef={exportApi}
-              {...(isOwner
-                ? {
-                    onInvitePeople: () => {
-                      setShareMounted(true);
-                      setShareOpen(true);
-                    },
-                  }
-                : {})}
+              accessSection={accessSection}
+              shareActions={shareActions}
               onSaveAsTemplate={() => {
                 setSaveTemplateMounted(true);
                 setSaveTemplateOpen(true);
@@ -442,13 +476,6 @@ function CollabCanvasStudioContent() {
             <CanvasPresentMode exportApi={exportApi} onClose={() => setPresenting(false)} />
           )}
           <Suspense fallback={null}>
-            {shareMounted && (
-              <ShareCanvasDialog
-                canvasId={canvas.id}
-                open={shareOpen}
-                onOpenChange={setShareOpen}
-              />
-            )}
             {saveTemplateMounted && (
               <SaveAsTemplateDialog
                 canvasId={canvas.id}
