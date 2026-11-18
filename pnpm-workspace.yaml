@@ -27,12 +27,12 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Canvas document version 4 (Movm/ggraphic#211). schema alpha.4 and core alpha.5 published
-  # 2026-11-17 09:01 UTC, editor alpha.12 at 09:04 UTC. Inert from 2026-11-20 09:05 UTC,
+  # ggraphic release of 2026-11-18 (Movm/ggraphic#215, #216): schema alpha.5, core alpha.6 and
+  # editor alpha.13 published 2026-11-18 ~09:39 UTC. Inert from 2026-11-21 09:40 UTC,
   # remove then.
-  - '@ggraphic/schema@0.1.0-alpha.4'
-  - '@ggraphic/core@0.1.0-alpha.5'
-  - '@ggraphic/editor@0.1.0-alpha.12'
+  - '@ggraphic/schema@0.1.0-alpha.5'
+  - '@ggraphic/core@0.1.0-alpha.6'
+  - '@ggraphic/editor@0.1.0-alpha.13'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
