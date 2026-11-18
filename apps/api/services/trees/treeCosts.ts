@@ -14,8 +14,6 @@
  * so nobody's allowance changes on the day this replaces them.
  */
 
-import { videoAiTreeUnits } from '@gruenerator/contracts';
-
 export const UNITS_PER_TREE = 100;
 /** The product decision behind everything else: what one account gets per day. */
 export const BASE_DAILY_TREES = 10;
@@ -50,11 +48,6 @@ const treeFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
 export function formatTrees(units: number): string {
   return treeFormat.format(unitsToTrees(units));
-}
-
-/** KI-Schnitt: the formula lives in contracts so the page shows the same price. */
-export function treeCostForVideoAiSeconds(seconds: number): number {
-  return videoAiTreeUnits(seconds);
 }
 
 /** One correction round with Gemma: a tenth of a Baum. Direct changes are free. */

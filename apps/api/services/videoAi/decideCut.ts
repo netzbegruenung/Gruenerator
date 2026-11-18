@@ -10,16 +10,13 @@
  * The model's answer passes through validateEdl before anyone sees it; a
  * violation goes back verbatim as the repair turn.
  */
-import { readFileSync } from 'node:fs';
-import path, { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { type VideoAiEdl, type VideoAiFormat } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { aiObject } from '../ai/generate.js';
 
 import { renderFootageBrief, type BriefClip } from './footageBrief.js';
+import { videoAiPrompt } from './prompts.js';
 import { type TakeGroup } from './takeGroups.js';
 import { type TranscriptUnit } from './transcriptUnits.js';
 import { validateEdl, type ValidationAsset, type ValidationResult } from './validateEdl.js';
@@ -54,17 +51,11 @@ export interface CutDecision {
   validation: Extract<ValidationResult, { ok: true }>;
 }
 
-const PROMPT_FILE = path.join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../prompts/video-ai/schnitt.md'
-);
-let cachedPrompt: string | null = null;
-
 function systemPrompt(locale: CutBrief['locale']): string {
-  cachedPrompt ??= readFileSync(PROMPT_FILE, 'utf8');
-  if (locale !== 'de-AT') return cachedPrompt;
+  const prompt = videoAiPrompt('schnitt.md');
+  if (locale !== 'de-AT') return prompt;
   return (
-    `${cachedPrompt}\n## LÄNDERKONTEXT: ÖSTERREICH\n\n` +
+    `${prompt}\n## LÄNDERKONTEXT: ÖSTERREICH\n\n` +
     'Die Person spricht österreichisches Deutsch. Neuansätze klingen oft wie „na, anders“ oder ' +
     '„passt, nochmal“; behandle sie wie jede andere Selbstanweisung.\n'
   );

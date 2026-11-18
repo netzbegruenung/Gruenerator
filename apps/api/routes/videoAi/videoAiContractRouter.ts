@@ -3,17 +3,14 @@
  * prefix in routes.ts; `create` additionally behind aiGenerationLimiter +
  * requireAiConsent. The work happens in services/videoAi/videoAiWorker.ts.
  */
-import { videoAiContract, type VideoAiBrief, type VideoAiBriefInput } from '@gruenerator/contracts';
+import { videoAiContract, videoAiTreeUnits } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import { probeVideoMetadata } from '../../services/subtitler/videoMetadata.js';
-import {
-  getTreeBudget,
-  treeBudgetSpentMessage,
-  treeCostForVideoAiSeconds,
-} from '../../services/trees/index.js';
+import { getTreeBudget } from '../../services/trees/index.js';
+import { completeBrief, reserveVideoAiTrees } from '../../services/videoAi/defaults.js';
 import { checkMaterial } from '../../services/videoAi/material.js';
 import { applyDirectOps, reviseProject } from '../../services/videoAi/projectEditing.js';
 import {
@@ -26,13 +23,11 @@ import {
   loadOwnProjectRow,
   markHandedOff,
   selectVersion,
-  shareTokensFor,
   toProjectDto,
   trashVideoAiProject,
   type MediaForInput,
 } from '../../services/videoAi/projectRepository.js';
 import { compileTimeline } from '../../services/videoAi/projectTimeline.js';
-import { type StoredVideoAiInput } from '../../services/videoAi/projectTypes.js';
 import { importUpload } from '../../services/videoAi/uploadImport.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -72,27 +67,6 @@ async function probeMissingDurations(
   return durations;
 }
 
-/**
- * The page sends only files (like the reel Grünerator). Defaults: vertical
- * reel, the dynamic talking-head look, the first video's name as title.
- */
-export function completeBrief(
-  input: VideoAiBriefInput | null,
-  inputs: readonly StoredVideoAiInput[]
-): VideoAiBrief {
-  const firstClip = inputs.find((i) => i.role === 'footage')?.title ?? '';
-  const fromFile = firstClip
-    .replace(/\.[a-z0-9]{2,4}$/i, '')
-    .trim()
-    .slice(0, 120);
-  return {
-    ...input,
-    title: input?.title?.trim() || fromFile || 'KI-Schnitt',
-    format: input?.format ?? '9:16',
-    style: input?.style ?? 'talking-head-dynamisch',
-  };
-}
-
 export const videoAiContractRouter = s.router(videoAiContract, {
   create: async ({ req, body }) => {
     const user = getUser(req);
@@ -110,21 +84,9 @@ export const videoAiContractRouter = s.router(videoAiContract, {
     const material = checkMaterial(body.inputs, media, await probeMissingDurations(media));
     if (!material.ok) return { status: 400 as const, body: { error: material.error } };
 
-    const units = treeCostForVideoAiSeconds(material.clipSeconds);
-    const reservation = await getTreeBudget().reserve(user.id, units);
-    if (!reservation.ok) {
-      return reservation.reason === 'exceeded'
-        ? {
-            status: 429 as const,
-            body: { error: treeBudgetSpentMessage(reservation.status, units) },
-          }
-        : {
-            status: 503 as const,
-            body: {
-              error: 'Das Kontingent ist gerade nicht lesbar. Bitte versuch es gleich noch einmal.',
-            },
-          };
-    }
+    const units = videoAiTreeUnits(material.clipSeconds);
+    const reservation = await reserveVideoAiTrees(user.id, units);
+    if (!reservation.ok) return { status: reservation.status, body: { error: reservation.error } };
 
     let created: { id: string; slugSuffix: string };
     try {
@@ -134,10 +96,10 @@ export const videoAiContractRouter = s.router(videoAiContract, {
         inputs: material.inputs,
         locale: extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE',
         treeUnits: units,
-        treeDay: reservation.status.day,
+        treeDay: reservation.day,
       });
     } catch (error) {
-      await getTreeBudget().release(user.id, units, reservation.status.day);
+      await getTreeBudget().release(user.id, units, reservation.day);
       throw error;
     }
     log.info(
@@ -225,10 +187,11 @@ export const videoAiContractRouter = s.router(videoAiContract, {
     if (!row.analysis || !version) {
       return { status: 409 as const, body: { error: 'Diese Version gibt es (noch) nicht.' } };
     }
-    const tokens = await shareTokensFor(
+    const media = await loadOwnMedia(
       userId,
       row.inputs.map((i) => i.mediaId)
     );
+    const tokens = new Map(media.map((m) => [m.id, m.share_token]));
     return { status: 200 as const, body: compileTimeline(row, row.analysis, version, tokens) };
   },
 

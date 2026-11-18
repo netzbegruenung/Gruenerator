@@ -38,6 +38,7 @@ export interface MediaForInput {
   duration: number | null;
   status: string | null;
   file_path: string | null;
+  share_token: string;
 }
 
 /** The person's own live Mediathek rows among `ids`; missing ones are not returned. */
@@ -50,7 +51,7 @@ export async function loadOwnMedia(
   const rows = await getPostgresInstance().query<
     Omit<MediaForInput, 'duration'> & { duration: string | number | null }
   >(
-    `SELECT id, media_type, title, original_filename, duration, status, file_path
+    `SELECT id, media_type, title, original_filename, duration, status, file_path, share_token
        FROM shared_media
       WHERE id = ANY($1::uuid[]) AND user_id = $2 AND deleted_at IS NULL`,
     [valid, userId]
@@ -336,19 +337,4 @@ export async function purgeVideoAiProject(id: string, cutoff: Date | null): Prom
       .catch(() => false);
   }
   return true;
-}
-
-/** Share tokens of the person's live Mediathek rows, by media id. */
-export async function shareTokensFor(
-  userId: string,
-  mediaIds: readonly string[]
-): Promise<Map<string, string>> {
-  const valid = mediaIds.filter(isRowId);
-  if (valid.length === 0) return new Map();
-  const rows = await getPostgresInstance().query<{ id: string; share_token: string }>(
-    `SELECT id, share_token FROM shared_media
-      WHERE id = ANY($1::uuid[]) AND user_id = $2 AND deleted_at IS NULL`,
-    [valid, userId]
-  );
-  return new Map(rows.map((r) => [r.id, r.share_token]));
 }

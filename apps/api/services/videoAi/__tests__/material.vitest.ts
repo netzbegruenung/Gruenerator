@@ -14,6 +14,7 @@ function row(n: number, media_type: string, extra: Partial<MediaForInput> = {}):
     duration: media_type === 'video' ? 60 : null,
     status: 'ready',
     file_path: `tok${n}/media`,
+    share_token: `tok${n}`,
     ...extra,
   };
 }

@@ -5,10 +5,6 @@
  * the same validation as the first cut; a violation goes back as the repair
  * turn. Length is not enforced here — in a correction the person decides.
  */
-import { readFileSync } from 'node:fs';
-import path, { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { videoAiOpSchema, type VideoAiEdl, type VideoAiOp } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -18,14 +14,9 @@ import { applyOps } from './applyOps.js';
 import { checkDesign } from './decideDesign.js';
 import { type PlanContext } from './projectContext.js';
 import { type StoredVideoAiVersion } from './projectTypes.js';
-import { outputToSource, type Timeline } from './timeline.js';
+import { videoAiPrompt } from './prompts.js';
+import { outputToSource, segmentText, type Timeline } from './timeline.js';
 import { validateEdl, type ValidationContext } from './validateEdl.js';
-
-const PROMPT_FILE = path.join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../prompts/video-ai/korrektur.md'
-);
-let cachedPrompt: string | null = null;
 
 export const REVISED_REASON = 'In der Korrektur entfernt';
 
@@ -109,13 +100,6 @@ const TOOL_SCHEMA = {
   required: ['ops', 'zusammenfassung', 'antwort'],
 };
 
-function segmentText(timeline: Timeline, index: number): string {
-  return timeline.words
-    .filter((w) => w.segmentIndex === index)
-    .map((w) => w.word)
-    .join(' ');
-}
-
 export function buildRevisePrompt(input: ReviseInput): string {
   const { current, timeline, ctx } = input;
   const edl = current.edl;
@@ -180,9 +164,9 @@ export function buildRevisePrompt(input: ReviseInput): string {
 }
 
 function systemPrompt(locale: ReviseInput['locale']): string {
-  cachedPrompt ??= readFileSync(PROMPT_FILE, 'utf8');
-  if (locale !== 'de-AT') return cachedPrompt;
-  return `${cachedPrompt}\n## LÄNDERKONTEXT: ÖSTERREICH\n\nDie Person schreibt österreichisches Deutsch; antworte ebenso.\n`;
+  const prompt = videoAiPrompt('korrektur.md');
+  if (locale !== 'de-AT') return prompt;
+  return `${prompt}\n## LÄNDERKONTEXT: ÖSTERREICH\n\nDie Person schreibt österreichisches Deutsch; antworte ebenso.\n`;
 }
 
 /**

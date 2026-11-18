@@ -13,13 +13,10 @@ import {
 } from '@gruenerator/contracts';
 
 import { createLogger } from '../../utils/logger.js';
-import {
-  getTreeBudget,
-  treeBudgetSpentMessage,
-  TREE_COST_VIDEO_AI_REVISION,
-} from '../trees/index.js';
+import { getTreeBudget, TREE_COST_VIDEO_AI_REVISION } from '../trees/index.js';
 
 import { applyOps } from './applyOps.js';
+import { reserveVideoAiTrees } from './defaults.js';
 import { planContext, validationContext, type PlanContext } from './projectContext.js';
 import { appendVersion, loadOwnProjectRow, type ProjectRow } from './projectRepository.js';
 import { type StoredVideoAiAnalysis, type StoredVideoAiVersion } from './projectTypes.js';
@@ -139,14 +136,10 @@ export async function reviseProject(
   if (!loaded.ok) return loaded;
   const { value } = loaded;
 
-  const budget = getTreeBudget();
-  const reservation = await budget.reserve(userId, TREE_COST_VIDEO_AI_REVISION);
-  if (!reservation.ok) {
-    return reservation.reason === 'exceeded'
-      ? fail(429, treeBudgetSpentMessage(reservation.status, TREE_COST_VIDEO_AI_REVISION))
-      : fail(503, 'Das Kontingent ist gerade nicht lesbar. Bitte versuch es gleich noch einmal.');
-  }
-  const refund = () => budget.release(userId, TREE_COST_VIDEO_AI_REVISION, reservation.status.day);
+  const reservation = await reserveVideoAiTrees(userId, TREE_COST_VIDEO_AI_REVISION);
+  if (!reservation.ok) return fail(reservation.status, reservation.error);
+  const refund = () =>
+    getTreeBudget().release(userId, TREE_COST_VIDEO_AI_REVISION, reservation.day);
 
   let revision: Revision;
   try {

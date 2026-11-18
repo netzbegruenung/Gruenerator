@@ -10,10 +10,6 @@
  * Both gates run on the answer: the design rules from the prompt (checkDesign)
  * and the meaning rules of validateEdl. A violation is the repair turn.
  */
-import { readFileSync } from 'node:fs';
-import path, { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import {
   videoAiCaptionTemplateSchema,
   videoAiOverlaySchema,
@@ -28,7 +24,8 @@ import { z } from 'zod';
 import { aiObject } from '../ai/generate.js';
 
 import { type CutBrief, type CutDecision } from './decideCut.js';
-import { type Timeline } from './timeline.js';
+import { videoAiPrompt } from './prompts.js';
+import { segmentText } from './timeline.js';
 import { normalizeToken, type TranscriptUnit } from './transcriptUnits.js';
 import {
   validateEdl,
@@ -66,17 +63,6 @@ export interface DesignInput {
 }
 
 export const MAX_TITLES = 2;
-
-const PROMPT_DIR = path.join(dirname(fileURLToPath(import.meta.url)), '../../prompts/video-ai');
-const prompts = new Map<string, string>();
-function promptFile(file: string): string {
-  let text = prompts.get(file);
-  if (text === undefined) {
-    text = readFileSync(path.join(PROMPT_DIR, file), 'utf8');
-    prompts.set(file, text);
-  }
-  return text;
-}
 
 /** Punch-in on every second jump cut (same clip back to back), dynamic style only. */
 export function segmentsFor(
@@ -236,13 +222,6 @@ export function overlaysFrom(answer: Answer): unknown[] {
   ];
 }
 
-function segmentText(timeline: Timeline, index: number): string {
-  return timeline.words
-    .filter((w) => w.segmentIndex === index)
-    .map((w) => w.word)
-    .join(' ');
-}
-
 export function buildDesignPrompt(input: DesignInput): string {
   const { brief, cut } = input;
   const timeline = cut.validation.timeline;
@@ -368,7 +347,7 @@ export async function decideDesign(
   };
   const result = await aiObject<DesignDecision>({
     lane: 'video_ai',
-    system: `${promptFile('gestaltung.md')}\n\n${promptFile(`stile/${input.brief.style}.md`)}`,
+    system: `${videoAiPrompt('gestaltung.md')}\n\n${videoAiPrompt(`stile/${input.brief.style}.md`)}`,
     prompt: buildDesignPrompt(input),
     toolName: 'gestaltung_festlegen',
     toolDescription:

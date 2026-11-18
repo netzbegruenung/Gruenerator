@@ -1,10 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { completeBrief } from '../defaults.js';
 import { withAutoRoles } from '../projectContext.js';
 import { type StoredClipAnalysis } from '../projectTypes.js';
-
-vi.mock('../../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
-const { completeBrief } = await import('../../../routes/videoAi/videoAiContractRouter.js');
 
 function clip(clipId: string, words: number): StoredClipAnalysis {
   return {

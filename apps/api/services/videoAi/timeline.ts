@@ -159,3 +159,11 @@ export function outputToSource(
   if (!piece) return null;
   return { piece, sourceTime: piece.sourceStart + (t - piece.outStart) };
 }
+
+/** The words of one segment of the cut, as spoken. */
+export function segmentText(timeline: Timeline, index: number): string {
+  return timeline.words
+    .filter((w) => w.segmentIndex === index)
+    .map((w) => w.word)
+    .join(' ');
+}
