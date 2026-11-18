@@ -296,6 +296,52 @@ describe('tool phase stall guard (unified)', () => {
 
     expect(out.text).toBe('Ich erstelle das PDF. Fertig.');
   });
+
+  /** Text, dann `gapMs` Stille ohne laufenden Aufruf (Mistral schreibt ein
+   *  Werkzeugargument), dann der Rest. */
+  const silentArgumentStream = (gapMs: number) => () =>
+    ({
+      stream: (async function* () {
+        yield { type: 'text-delta', text: 'Entwurf. ' };
+        await sleep(gapMs);
+        yield { type: 'text-delta', text: 'Fertig.' };
+        yield { type: 'finish', finishReason: 'stop' };
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  it('lässt Mistral ein stumm geschriebenes Werkzeugargument zu Ende schreiben', async () => {
+    const mistral = {
+      id: 'synth',
+      provider: 'mistral.chat',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: mistral, toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(61_000);
+    const out = await running;
+
+    expect(out.text).toBe('Entwurf. Fertig.');
+  });
+
+  it('reisst andere Anbieter weiter nach 45 s Stille ab', async () => {
+    const melious = {
+      id: 'synth',
+      provider: 'melious.chat',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: melious, toolActivity: { inFlight: () => 0 } }),
+      deps
+    ).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(61_000);
+    const err = await running;
+
+    expect((err as Error).name).toBe('TimeoutError');
+  });
 });
 
 /**

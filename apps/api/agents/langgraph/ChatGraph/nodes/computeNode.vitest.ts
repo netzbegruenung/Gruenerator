@@ -58,4 +58,17 @@ describe('planAndCompute', () => {
 
     expect((await planAndCompute('Anfrage: "zähl"', TERMINE)).result).toBeNull();
   });
+
+  // The loop tool hands the target over; an echoed (here: shortened) copy in
+  // the plan must not replace it.
+  it('counts the whole source text when the caller says it is the target', async () => {
+    planJson = JSON.stringify({ operation: 'text_metrics', text: 'Infostand' });
+
+    const { result } = await planAndCompute('Anfrage: "Zeichen"', TERMINE, { wholeText: true });
+
+    expect(result?.entries[0]).toEqual({
+      label: 'Zeichen (inkl. Leerzeichen)',
+      value: String([...TERMINE].length),
+    });
+  });
 });

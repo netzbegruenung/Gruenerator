@@ -102,6 +102,9 @@ Antworte NUR mit JSON:
 {"operation":"...","label":"...","text":null,"expression":null,"checks":null,"terms":null,"value":null,"fromUnit":null,"toUnit":null,"dateFrom":null,"dateTo":null,"dateAmount":null,"dateUnit":null}`;
 }
 
+const WHOLE_TEXT_RULE =
+  'WICHTIG: Der Zieltext steht vollständig unter "Text:" und liegt dem Programm bereits vor. Kopiere ihn NICHT: setze "text" immer auf null.';
+
 /** Parse the LLM plan JSON tolerantly (direct parse, then first JSON object). */
 function parsePlan(content: string): ComputePlan | null {
   const tryParse = (s: string): ComputePlan | null => {
@@ -149,10 +152,15 @@ function planTerms(terms: unknown): TermCount[] {
   });
 }
 
-function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | null {
+function executePlan(
+  plan: ComputePlan,
+  rawUserText: string,
+  wholeText: boolean
+): ComputeResult | null {
   switch (plan.operation) {
     case 'text_metrics': {
-      const target = plan.text ? relocateOriginal(plan.text, rawUserText) : rawUserText;
+      const target =
+        plan.text && !wholeText ? relocateOriginal(plan.text, rawUserText) : rawUserText;
       const result = computeTextMetrics(target);
       return plan.label ? { ...result, operation: plan.label } : result;
     }
@@ -196,11 +204,15 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
  * `request` is what the plan model reads; `sourceText` is the text the counts
  * and the echoed target are measured against (the turn's raw text on the
  * single-pass path, the text the loop model handed over in the tool).
+ * `wholeText` says that `sourceText` IS the target: the plan then names only
+ * the operation, because echoing a 3,900-character text into the plan cost
+ * 20–23 s (measured 18.11.2026) and ran the tool into its timeout.
  * Throws when the model call fails; returns null when nothing is computable.
  */
 export async function planAndCompute(
   request: string,
-  sourceText: string
+  sourceText: string,
+  { wholeText = false }: { wholeText?: boolean } = {}
 ): Promise<{ result: ComputeResult | null; operation: ComputeOperation | null }> {
   const todayISO = new Date().toISOString().slice(0, 10);
   // Kein `maxOutputTokens`: seit der Plan eine Konsistenzprüfung tragen kann,
@@ -212,7 +224,9 @@ export async function planAndCompute(
   const content = await aiText({
     lane: 'chat_intent_classification',
     pinned: 'compute',
-    system: buildExtractionPrompt(todayISO),
+    system: wholeText
+      ? `${buildExtractionPrompt(todayISO)}\n\n${WHOLE_TEXT_RULE}`
+      : buildExtractionPrompt(todayISO),
     prompt: request,
     temperature: 0,
     json: true,
@@ -223,7 +237,7 @@ export async function planAndCompute(
     log.warn('[Compute] Could not parse plan — returning null result');
     return { result: null, operation: null };
   }
-  return { result: executePlan(plan, sourceText), operation: plan.operation };
+  return { result: executePlan(plan, sourceText, wholeText), operation: plan.operation };
 }
 
 export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
