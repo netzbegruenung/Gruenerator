@@ -27,7 +27,7 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
-import { prefillAllowanceForModel } from '../prefillAllowance.js';
+import { prefillAllowanceForModel, providerOfModel } from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
@@ -116,6 +116,22 @@ function mountedToolCeilingMs(tools: ToolSet): number {
 const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 
 /**
+ * Zuschlag auf das Fenster oben für Anbieter, die einen Werkzeugaufruf erst
+ * senden, wenn sein Argument fertig ist.
+ *
+ * Mistral streamt Werkzeugargumente nicht: Rohaufruf am 18.11.2026 (Large 4,
+ * ein Gastbeitrag als Argument), 70 Text-Chunks bis ~15 s, dann 44 s gar nichts,
+ * auch kein Keep-alive, dann der ganze Aufruf (6 kB) in einem Chunk. Auf der
+ * Leitung ist „schreibt ein langes Argument" von „ist tot" nicht zu
+ * unterscheiden, und die 45 s rissen genau so einen Ultra-Zug ab („silent for
+ * 45000ms after 245 chars"). 45 s Zuschlag decken bei ~33 Token/s rund 3.000
+ * Token Argument. Andere Anbieter bleiben ohne Messung bei 0.
+ */
+const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
+  mistral: 45_000,
+};
+
+/**
  * Frist bis zum ERSTEN Lebenszeichen eines Planer-Versuchs, solange danach
  * noch eine Ausweich-Lane wartet.
  *
@@ -153,10 +169,14 @@ export class ToolPhaseStallError extends Error {
  *  (prefillAllowance.ts). */
 function createToolPhaseIdle(
   p: LoopEngineParams,
+  model: LanguageModel,
   prefillMs: number
 ): { idle: IdleDeadline; idleMs: number } {
   const idleMs =
-    (p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools)) + prefillMs;
+    (p.toolActivity
+      ? TOOL_PHASE_IDLE_DEADLINE_MS +
+        (SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[providerOfModel(model)] ?? 0)
+      : mountedToolCeilingMs(p.tools)) + prefillMs;
   return {
     idle: createIdleDeadline(
       idleMs,
@@ -753,7 +773,7 @@ async function streamWithTools(
     `${unifiedSystem}${p.turnContext ?? ''}`,
     p.messages
   );
-  const { idle, idleMs } = createToolPhaseIdle(p, prefillMs);
+  const { idle, idleMs } = createToolPhaseIdle(p, model, prefillMs);
   const firstResponseMs = FIRST_RESPONSE_DEADLINE_MS + prefillMs;
   let firstResponse: IdleDeadline | null = hasNextLane
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
