@@ -63,8 +63,8 @@ import {
   redactDocumentForReader,
 } from './documentAccess.js';
 
-import type { CollaborativeDocument } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
+import type { CollaborativeDocument } from './types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('docsContractRouter');
@@ -307,7 +307,7 @@ export const docsContractRouter = s.router(docsContract, {
         // satisfies the strict enum in permissionListEntrySchema.
         permissions: Record<
           string,
-          { level: 'owner' | 'editor' | 'viewer'; granted_at: string }
+          { level: 'owner' | 'editor' | 'viewer'; granted_at: string; granted_by?: string | null }
         > | null;
         [key: string]: unknown;
       }
@@ -358,6 +358,7 @@ export const docsContractRouter = s.router(docsContract, {
         avatar_robot_id: profile.avatar_robot_id,
         permission_level: permissions[profile.id].level,
         granted_at: permissions[profile.id].granted_at,
+        granted_by: permissions[profile.id].granted_by ?? null,
       }));
 
       const groupShares = (await db.query(

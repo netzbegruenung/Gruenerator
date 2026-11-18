@@ -18,6 +18,8 @@ export interface SharingCollaborator {
   avatar_robot_id?: number;
   permission_level: SharePermissionLevel;
   granted_at: string;
+  /** `auto:share_link` for people who joined through the share link. */
+  granted_by?: string | null;
 }
 
 export interface SharingShareSettings {

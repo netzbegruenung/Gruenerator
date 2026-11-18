@@ -17,8 +17,9 @@ const share = vi.fn().mockResolvedValue(undefined);
 beforeEach(() => {
   share.mockClear();
   Object.assign(navigator, { share, clipboard: { writeText: vi.fn() } });
+  // Mobile: the native share tile ("Senden …") is offered there only.
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: false,
+    matches: true,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -49,6 +50,11 @@ async function openMenu() {
   await userEvent.click(screen.getByRole('button', { name: 'Teilen' }));
 }
 
+// The alt text lives on the "Beschreibung" page; its back button carries the page title.
+const openDescription = () => userEvent.click(screen.getByRole('button', { name: 'Beschreibung' }));
+const backToMain = () => userEvent.click(screen.getByRole('button', { name: 'Beschreibung' }));
+const send = () => fireEvent.click(screen.getByRole('button', { name: 'Senden …' }));
+
 const field = () => screen.getByRole('textbox', { name: 'Bildbeschreibung (Alt-Text)' });
 const sharedText = () => (share.mock.calls[0]?.[0] as { text: string }).text;
 
@@ -58,28 +64,34 @@ const inCaption = () =>
 describe('Alt-Text im Teilen-Menü der Leiste', () => {
   it('schickt den Alt-Text ohne Häkchen nicht mit', async () => {
     await openMenu();
+    await openDescription();
     expect(inCaption()).not.toBeChecked();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Teilen' }).at(-1)!);
+    await backToMain();
+    send();
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(sharedText()).toBe('Klimaschutz jetzt');
   });
 
   it('hängt den Alt-Text mit Häkchen als Zeile an den geteilten Text', async () => {
     await openMenu();
+    await openDescription();
     expect(field()).toHaveValue('Sharepic mit dem Text: Klimaschutz jetzt.');
     await userEvent.click(inCaption());
     await userEvent.clear(field());
     await userEvent.type(field(), 'Zwei Bäume');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Teilen' }).at(-1)!);
+    await backToMain();
+    send();
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(sharedText()).toBe('Klimaschutz jetzt\nBildbeschreibung: Zwei Bäume');
   });
 
   it('lässt die Zeile weg, wenn das Feld geleert wurde', async () => {
     await openMenu();
+    await openDescription();
     await userEvent.click(inCaption());
     await userEvent.clear(field());
-    fireEvent.click(screen.getAllByRole('button', { name: 'Teilen' }).at(-1)!);
+    await backToMain();
+    send();
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(sharedText()).toBe('Klimaschutz jetzt');
   });
