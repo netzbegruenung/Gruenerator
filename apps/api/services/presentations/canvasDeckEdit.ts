@@ -31,6 +31,7 @@ import { applyDeckChanges, getCurrentDeckState } from '../canvas/canvasStateServ
 import {
   CanvasDocumentNewerError,
   CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
   CanvasStateUnwritableError,
 } from '../canvas/canvasWriteErrors.js';
 
@@ -41,7 +42,8 @@ const log = createLogger('CanvasDeckEdit');
 /**
  * The deck's current pages, or a refusal when the server cannot read the document completely
  * (newer than the server): an edit planned on the partial pages would be written back as if
- * the rest did not exist.
+ * the rest did not exist. Also a refusal when the live state is unavailable (#5775): an edit
+ * planned on the stale mirror would drop every editor change since.
  */
 async function readDeckPages(
   canvasId: string
@@ -62,6 +64,10 @@ async function readDeckPages(
         reason: 'document_newer',
       };
     }
+    if (err instanceof CanvasLiveStateUnavailableError) {
+      log.warn(`reading ${canvasId} failed: ${err.message}`);
+      return { status: 'failed', message: toUserFacingMessage(err), reason: 'live_unavailable' };
+    }
     throw err;
   }
 }
@@ -78,7 +84,8 @@ export type CanvasDeckEditOutcome =
   | { status: 'failed'; message: string; reason?: CanvasWriteFailure };
 
 /** Why writing a planned edit failed; `document_newer` and `unwritable` are not worth a retry. */
-export type CanvasWriteFailure = 'document_newer' | 'unwritable' | 'write_failed';
+export type CanvasWriteFailure =
+  'document_newer' | 'unwritable' | 'write_failed' | 'live_unavailable';
 
 export type CanvasDeckPlan =
   | {
