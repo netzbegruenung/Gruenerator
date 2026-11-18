@@ -8,7 +8,7 @@ import { type CollaborationUser } from '@gruenerator/collab';
 interface SearchUser {
   id: string;
   display_name: string | null;
-  email: string;
+  email: string | null;
   avatar_url: string | null;
 }
 
@@ -68,6 +68,7 @@ export function useMentionUsers(provider: HocuspocusProvider | null) {
               seen.add(user.id);
 
               const displayName = user.display_name || user.email;
+              if (!displayName) continue;
               items.push({
                 title: displayName,
                 onItemClick: () => {
