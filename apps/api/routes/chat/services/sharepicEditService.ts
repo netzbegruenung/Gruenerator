@@ -41,6 +41,7 @@ import {
 } from '../../../services/canvas/canvasVersionRepository.js';
 import {
   CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
   CanvasWriteRefusedError,
 } from '../../../services/canvas/canvasWriteErrors.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
@@ -947,10 +948,13 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       sse.send('sharepic_edit_error', {
         error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
-      // A refused read or write (newer document, value that cannot be stored) is no use retrying.
+      // A refused read or write (newer document, value that cannot be stored) is no use retrying;
+      // an unreachable live state says so in its own words instead of the generic sentence.
       await finishWithText(
         args,
-        error instanceof CanvasWriteRefusedError || error instanceof CanvasDocumentNewerReadError
+        error instanceof CanvasWriteRefusedError ||
+          error instanceof CanvasDocumentNewerReadError ||
+          error instanceof CanvasLiveStateUnavailableError
           ? error.message
           : 'Bei der Bearbeitung ist etwas schiefgelaufen. Versuch es bitte noch einmal.'
       );
