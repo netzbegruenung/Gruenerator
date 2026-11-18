@@ -168,12 +168,19 @@ export async function reviseProject(
   // The model was asked and answered; the tenth of a Baum stays booked.
   if (!revision.changed) return { ok: true, row: value.row, reply: revision.reply };
 
-  const stored = await store(value, userId, {
-    edl: revision.edl,
-    omitted: revision.omitted,
-    summary: revision.summary,
-    rationale: value.current.rationale,
-  });
+  let stored: Awaited<ReturnType<typeof store>>;
+  try {
+    stored = await store(value, userId, {
+      edl: revision.edl,
+      omitted: revision.omitted,
+      summary: revision.summary,
+      rationale: value.current.rationale,
+    });
+  } catch (error) {
+    // A DB error, not a lost race: nothing was stored, so nothing is charged.
+    await refund();
+    throw error;
+  }
   if (!stored.ok) {
     await refund();
     return stored;
