@@ -1,11 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { FALLBACK_CUT_RATIONALE } from '../fallbackPlan.js';
 import { type StoredClipAnalysis, type StoredVideoAiVersion } from '../projectTypes.js';
 import {
+  CLAIM_SQL,
+  drainVideoAiProjects,
   GENERIC_FAILURE,
+  GIVE_UP_SQL,
   handleFailure,
+  HEARTBEAT_SQL,
   processClaimed,
+  RETRY_DELAY_MS,
+  STALE_CLAIM_MS,
   type ClaimedProject,
   type VideoAiWorkerDeps,
 } from '../videoAiWorker.js';
@@ -167,7 +173,7 @@ describe('handleFailure', () => {
   it('retries a passing error and gives up after the last attempt', async () => {
     const first = harness();
     await handleFailure(ROW, new Error('GreenPT 502'), first.deps);
-    expect(first.sql.at(-1)).toContain('SET claim_at = NULL');
+    expect(first.sql.at(-1)).toContain('SET claim_at = now() - ');
     expect(first.deps.releaseTrees).not.toHaveBeenCalled();
 
     const last = harness();
@@ -175,5 +181,60 @@ describe('handleFailure', () => {
     expect(last.sql.at(-1)).toContain("SET status = 'failed'");
     expect(last.deps.releaseTrees).toHaveBeenCalledTimes(1);
     expect(GENERIC_FAILURE).toContain('zurückgebucht');
+  });
+});
+
+describe('claim', () => {
+  interface Query {
+    sql: string;
+    params: unknown[];
+  }
+
+  function recording(overrides: Partial<VideoAiWorkerDeps> = {}) {
+    const queries: Query[] = [];
+    const deps: VideoAiWorkerDeps = {
+      ...harness(overrides).deps,
+      db: {
+        query: async <T>(sql: string, params: unknown[] = []): Promise<T[]> => {
+          queries.push({ sql, params });
+          if (sql === GIVE_UP_SQL) return [];
+          if (sql === CLAIM_SQL) return [ROW] as T[];
+          return [{ id: ROW.id }] as T[];
+        },
+      },
+    };
+    return { deps, queries };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renews the claim while a clip is being analysed and stops afterwards', async () => {
+    vi.useFakeTimers();
+    const { deps, queries } = recording({
+      analyzeClip: vi.fn((_job, input) =>
+        // Only the footage clip is slow; 150 s covers two heartbeats.
+        input.role === 'footage'
+          ? new Promise<StoredClipAnalysis>((resolve) => {
+              setTimeout(() => resolve(clip(input.id, input.role)), 150_000);
+            })
+          : Promise.resolve(clip(input.id, input.role))
+      ),
+    });
+    const run = drainVideoAiProjects(deps);
+    await vi.advanceTimersByTimeAsync(150_000);
+    await run;
+    const beats = () => queries.filter((q) => q.sql === HEARTBEAT_SQL).length;
+    expect(beats()).toBe(2);
+    expect(queries.find((q) => q.sql === HEARTBEAT_SQL)?.params).toEqual([ROW.id]);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(beats()).toBe(2);
+  });
+
+  it('makes a failed attempt claimable again only after the retry delay', async () => {
+    const { deps, queries } = recording();
+    await handleFailure({ ...ROW, attempts: 1 }, new Error('provider down'), deps);
+    expect(queries.at(-1)?.params).toEqual([ROW.id, String(STALE_CLAIM_MS - RETRY_DELAY_MS)]);
   });
 });

@@ -46,8 +46,11 @@ import { materialWarnings } from './warnings.js';
 const log = createLogger('VideoAiWorker');
 
 export const MAX_ATTEMPTS = 3;
-/** The claim is renewed after every clip, so this only has to cover one clip. */
-const STALE_CLAIM_MS = 15 * 60 * 1000;
+/** The claim is renewed every minute while a job runs; a crash frees it after this. */
+export const STALE_CLAIM_MS = 5 * 60 * 1000;
+export const HEARTBEAT_MS = 60_000;
+/** A failed attempt becomes claimable again after this, not on the next tick. */
+export const RETRY_DELAY_MS = 60_000;
 const TICK_INTERVAL_MS = 10_000;
 
 export const GENERIC_FAILURE =
@@ -104,14 +107,28 @@ export const CLAIM_SQL = `UPDATE video_ai_projects p
   RETURNING p.id, p.user_id, p.slug_suffix, p.title, p.locale, p.brief, p.inputs, p.analysis,
             p.attempts, p.tree_units, p.tree_day`;
 
-/** Out of attempts after a crash (the claim went stale without an outcome). */
-export const GIVE_UP_SQL = `UPDATE video_ai_projects
-    SET status = 'failed', error = $3, claim_at = NULL, updated_at = now()
-  WHERE status IN (${ACTIVE_LIST})
-    AND deleted_at IS NULL
-    AND attempts >= $1
-    AND (claim_at IS NULL OR claim_at < now() - ($2::text || ' milliseconds')::interval)
-  RETURNING id, user_id, slug_suffix, title, tree_units, tree_day`;
+/**
+ * Out of attempts after a crash (the claim went stale without an outcome).
+ * Zeroes `tree_units` like FAIL_SQL, so nothing hands the trees back twice;
+ * RETURNING reads the booked amount from `before`, not the zeroed column.
+ */
+export const GIVE_UP_SQL = `WITH before AS (
+    SELECT id, tree_units FROM video_ai_projects
+     WHERE status IN (${ACTIVE_LIST})
+       AND deleted_at IS NULL
+       AND attempts >= $1
+       AND (claim_at IS NULL OR claim_at < now() - ($2::text || ' milliseconds')::interval)
+       FOR UPDATE SKIP LOCKED
+  )
+  UPDATE video_ai_projects p
+    SET status = 'failed', error = $3, tree_units = 0, claim_at = NULL, updated_at = now()
+   FROM before
+  WHERE p.id = before.id
+  RETURNING p.id, p.user_id, p.slug_suffix, p.title, before.tree_units, p.tree_day`;
+
+/** Keeps a running job's claim fresh; a cancel or trash in between is not revived. */
+export const HEARTBEAT_SQL = `UPDATE video_ai_projects SET claim_at = now()
+  WHERE id = $1 AND claim_at IS NOT NULL AND status IN (${ACTIVE_LIST}) AND deleted_at IS NULL`;
 
 /** Only while still wanted: a cancel or a trash in between wins. */
 const SET_STATUS_SQL = `UPDATE video_ai_projects
@@ -135,7 +152,10 @@ const FAIL_SQL = `UPDATE video_ai_projects
   WHERE id = $1 AND status IN (${ACTIVE_LIST})
   RETURNING id`;
 
-const RELEASE_SQL = `UPDATE video_ai_projects SET claim_at = NULL, updated_at = now() WHERE id = $1`;
+/** Claimable again after RETRY_DELAY_MS, not at once: $2 = STALE_CLAIM_MS - RETRY_DELAY_MS. */
+const RELEASE_SQL = `UPDATE video_ai_projects
+    SET claim_at = now() - ($2::text || ' milliseconds')::interval, updated_at = now()
+  WHERE id = $1`;
 
 /** The person cancelled or trashed the project; nothing more to do. */
 export class NoLongerWantedError extends Error {
@@ -273,7 +293,7 @@ export async function handleFailure(
     await fail(row, GENERIC_FAILURE, deps);
     return;
   }
-  await deps.db.query(RELEASE_SQL, [row.id]);
+  await deps.db.query(RELEASE_SQL, [row.id, String(STALE_CLAIM_MS - RETRY_DELAY_MS)]);
 }
 
 export async function drainVideoAiProjects(
@@ -295,6 +315,11 @@ export async function drainVideoAiProjects(
   ]);
   const row = rows[0];
   if (!row) return false;
+  const heartbeat = setInterval(() => {
+    deps.db.query(HEARTBEAT_SQL, [row.id]).catch((error: unknown) => {
+      log.warn(`KI-Schnitt ${row.id}: heartbeat failed: ${(error as Error).message}`);
+    });
+  }, HEARTBEAT_MS);
   try {
     await runWithUsageContext({ req: { user: { id: row.user_id } }, feature: 'video_ai' }, () =>
       processClaimed(row, deps)
@@ -302,6 +327,8 @@ export async function drainVideoAiProjects(
   } catch (error) {
     log.warn(`KI-Schnitt ${row.id} attempt ${row.attempts} failed: ${(error as Error).message}`);
     await handleFailure(row, error, deps);
+  } finally {
+    clearInterval(heartbeat);
   }
   return true;
 }
