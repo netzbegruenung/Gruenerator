@@ -69,6 +69,19 @@ export function buildTranscriptUnits(
   });
 }
 
+/** `c2.s14` → [2, 14], comparable in spoken order across clips. */
+function position(unitId: string): [number, number] {
+  const m = /^c(\d+)\.s(\d+)$/.exec(unitId);
+  return m ? [Number(m[1]), Number(m[2])] : [0, 0];
+}
+
+/** Whether unit `a` was said before unit `b` (clip order, then sentence order). */
+export function spokenBefore(a: string, b: string): boolean {
+  const [ac, as] = position(a);
+  const [bc, bs] = position(b);
+  return ac < bc || (ac === bc && as < bs);
+}
+
 /** Lowercase, letters and digits only — for comparing what was said, not how. */
 export function normalizeToken(token: string): string {
   return token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');

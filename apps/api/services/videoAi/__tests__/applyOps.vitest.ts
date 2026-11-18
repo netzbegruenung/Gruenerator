@@ -24,6 +24,33 @@ const BASE: VideoAiEdl = {
 };
 const ctx = { units, omitted: { 'c1.s9': 'Abgebrochen' }, removedReason: 'Entfernt' };
 
+const plain = (ids: string[]): VideoAiEdl => ({
+  ...BASE,
+  overlays: [],
+  segments: ids.map((unitId) => ({ unitId, framing: null, zoom: 'normal' as const })),
+});
+
+describe('restore_unit without a pulled hook', () => {
+  it('restores a sentence spoken before the first one to the front when no hook is pulled', () => {
+    const r = applyOps(
+      plain(['c1.s5', 'c1.s6', 'c1.s7']),
+      [{ kind: 'restore_unit', unitId: 'c1.s3' }],
+      ctx
+    );
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual([
+      'c1.s3',
+      'c1.s5',
+      'c1.s6',
+      'c1.s7',
+    ]);
+  });
+
+  it('restores around a single remaining sentence in spoken order', () => {
+    const r = applyOps(plain(['c1.s5']), [{ kind: 'restore_unit', unitId: 'c1.s3' }], ctx);
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s3', 'c1.s5']);
+  });
+});
+
 describe('applyOps', () => {
   it('restores a sentence at its spoken place and drops it from the omitted list', () => {
     const result = applyOps(BASE, [{ kind: 'restore_unit', unitId: 'c1.s9' }], ctx);

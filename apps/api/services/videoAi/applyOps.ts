@@ -16,7 +16,7 @@ import {
   type VideoAiSegment,
 } from '@gruenerator/contracts';
 
-import { type TranscriptUnit } from './transcriptUnits.js';
+import { spokenBefore, type TranscriptUnit } from './transcriptUnits.js';
 
 export type OpsResult =
   { ok: true; edl: VideoAiEdl; omitted: Record<string, string> } | { ok: false; error: string };
@@ -29,21 +29,15 @@ export interface OpsContext {
   removedReason: string;
 }
 
-/** `c2.s14` → [2, 14], comparable in spoken order across clips. */
-function position(unitId: string): [number, number] {
-  const m = /^c(\d+)\.s(\d+)$/.exec(unitId);
-  return m ? [Number(m[1]), Number(m[2])] : [0, 0];
-}
-
-function spokenBefore(a: string, b: string): boolean {
-  const [ac, as] = position(a);
-  const [bc, bs] = position(b);
-  return ac < bc || (ac === bc && as < bs);
-}
-
-/** Insert after the hook, at the unit's place in spoken order. */
+/**
+ * Insert at the unit's place in spoken order. A hook is pulled exactly when
+ * the second segment was said before the first; only then is index 0 kept out
+ * of the search, so a restored sentence never lands in front of the hook.
+ */
 function insertSpoken(segments: VideoAiSegment[], segment: VideoAiSegment): VideoAiSegment[] {
-  const at = segments.findIndex((s, i) => i > 0 && spokenBefore(segment.unitId, s.unitId));
+  const hookPulled = segments.length > 1 && spokenBefore(segments[1].unitId, segments[0].unitId);
+  const from = hookPulled ? 1 : 0;
+  const at = segments.findIndex((s, i) => i >= from && spokenBefore(segment.unitId, s.unitId));
   if (at < 0) return [...segments, segment];
   return [...segments.slice(0, at), segment, ...segments.slice(at)];
 }

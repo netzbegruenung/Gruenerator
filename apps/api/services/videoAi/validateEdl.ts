@@ -17,7 +17,7 @@
 import { type VideoAiEdl, type VideoAiOverlay } from '@gruenerator/contracts';
 
 import { buildTimeline, type Timeline } from './timeline.js';
-import { normalizeToken, type TranscriptUnit } from './transcriptUnits.js';
+import { normalizeToken, spokenBefore, type TranscriptUnit } from './transcriptUnits.js';
 
 export interface ValidationClip {
   id: string;
@@ -93,18 +93,10 @@ function checkUnits(
   return errors;
 }
 
-/** `c2.s14` → [2, 14], comparable in spoken order across clips. */
-function position(unitId: string): [number, number] {
-  const m = /^c(\d+)\.s(\d+)$/.exec(unitId);
-  return m ? [Number(m[1]), Number(m[2])] : [0, 0];
-}
-
 function checkOrder(edl: VideoAiEdl): string[] {
   const rest = edl.segments.slice(1).map((s) => s.unitId);
   for (let i = 1; i < rest.length; i++) {
-    const [ac, as] = position(rest[i - 1]);
-    const [bc, bs] = position(rest[i]);
-    if (bc < ac || (bc === ac && bs < as)) {
+    if (spokenBefore(rest[i], rest[i - 1])) {
       return [
         `Reihenfolge: ${rest[i]} steht hinter ${rest[i - 1]}, wurde aber früher gesagt. ` +
           'Nur der erste Satz (Hook) darf vorgezogen werden, alle anderen bleiben in gesprochener Reihenfolge.',
