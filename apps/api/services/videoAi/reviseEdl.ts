@@ -250,7 +250,7 @@ export function checkRevision(answer: Answer, input: ReviseInput): Checked {
 }
 
 export async function reviseEdl(input: ReviseInput): Promise<Revision> {
-  const result = await aiObject<Answer>({
+  const result = await aiObject<Revision>({
     lane: 'video_ai_revise',
     system: systemPrompt(input.locale),
     prompt: buildRevisePrompt(input),
@@ -266,11 +266,9 @@ export async function reviseEdl(input: ReviseInput): Promise<Revision> {
       const parsed = answerSchema.safeParse(raw);
       if (!parsed.success) return { ok: false, error: parsed.error.message };
       const checked = checkRevision(parsed.data, input);
-      return checked.ok ? { ok: true, value: parsed.data } : checked;
+      return checked.ok ? { ok: true, value: checked.revision } : checked;
     },
   });
   if (!result.ok) throw result.cause ?? new Error(result.error);
-  const final = checkRevision(result.data, input);
-  if (!final.ok) throw new Error(`video_ai_revise: ${final.error}`);
-  return final.revision;
+  return result.data;
 }

@@ -142,7 +142,7 @@ export async function decideCut(
     target: input.brief.target ?? { minSeconds: 5, maxSeconds: DEFAULT_MAX_SECONDS },
     briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
-  const result = await aiObject<z.infer<typeof answerSchema>>({
+  const result = await aiObject<CutDecision>({
     lane: 'video_ai_cut',
     system: systemPrompt(input.brief.locale),
     prompt: buildCutPrompt(input),
@@ -159,20 +159,20 @@ export async function decideCut(
     validate: (raw) => {
       const parsed = answerSchema.safeParse(raw);
       if (!parsed.success) return { ok: false, error: parsed.error.message };
-      const checked = validateEdl(cutOnlyEdl(parsed.data.segmente, input.brief.format), ctx);
-      if (!checked.ok) return { ok: false, error: checked.errors.join('\n') };
-      return { ok: true, value: parsed.data };
+      const validation = validateEdl(cutOnlyEdl(parsed.data.segmente, input.brief.format), ctx);
+      if (!validation.ok) return { ok: false, error: validation.errors.join('\n') };
+      return {
+        ok: true,
+        value: {
+          unitIds: parsed.data.segmente,
+          omitted: Object.fromEntries(parsed.data.ausgelassen.map((o) => [o.id, o.grund])),
+          rationale: parsed.data.begruendung ?? '',
+          validation,
+        },
+      };
     },
   });
 
   if (!result.ok) throw result.cause ?? new Error(result.error);
-  // Deterministic and cheap: recomputed rather than smuggled out of `validate`.
-  const validation = validateEdl(cutOnlyEdl(result.data.segmente, input.brief.format), ctx);
-  if (!validation.ok) throw new Error(`video_ai_cut: ${validation.errors.join('; ')}`);
-  return {
-    unitIds: result.data.segmente,
-    omitted: Object.fromEntries(result.data.ausgelassen.map((o) => [o.id, o.grund])),
-    rationale: result.data.begruendung ?? '',
-    validation,
-  };
+  return result.data;
 }

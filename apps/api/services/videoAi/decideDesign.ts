@@ -366,18 +366,7 @@ export async function decideDesign(
     target: input.brief.target ?? null,
     briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
   };
-  const check = (answer: Answer) => {
-    const built = toEdl(answer, input);
-    if (!built.ok) return built;
-    const errors = [...checkDesign(built.edl, input)];
-    const validation = validateEdl(built.edl, ctx);
-    if (!validation.ok) errors.push(...validation.errors);
-    return errors.length > 0
-      ? ({ ok: false, error: errors.join('\n') } as const)
-      : ({ ok: true, edl: built.edl, validation } as const);
-  };
-
-  const result = await aiObject<Answer>({
+  const result = await aiObject<DesignDecision>({
     lane: 'video_ai_design',
     system: `${promptFile('gestaltung.md')}\n\n${promptFile(`stile/${input.brief.style}.md`)}`,
     prompt: buildDesignPrompt(input),
@@ -394,14 +383,15 @@ export async function decideDesign(
     validate: (raw) => {
       const parsed = answerSchema.safeParse(raw);
       if (!parsed.success) return { ok: false, error: parsed.error.message };
-      const checked = check(parsed.data);
-      return checked.ok ? { ok: true, value: parsed.data } : checked;
+      const built = toEdl(parsed.data, input);
+      if (!built.ok) return built;
+      const errors = [...checkDesign(built.edl, input)];
+      const validation = validateEdl(built.edl, ctx);
+      if (!validation.ok) errors.push(...validation.errors);
+      if (errors.length > 0 || !validation.ok) return { ok: false, error: errors.join('\n') };
+      return { ok: true, value: { edl: built.edl, validation } };
     },
   });
   if (!result.ok) throw result.cause ?? new Error(result.error);
-
-  const final = check(result.data);
-  if (!final.ok) throw new Error(`video_ai_design: ${final.error}`);
-  if (!final.validation.ok) throw new Error('video_ai_design: unreachable');
-  return { edl: final.edl, validation: final.validation };
+  return result.data;
 }
