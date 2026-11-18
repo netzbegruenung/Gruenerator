@@ -137,6 +137,12 @@ export const videoAiEdlSchema = z.object({
   version: z.literal(1),
   format: videoAiFormatSchema,
   segments: z.array(videoAiSegmentSchema).min(1),
+  /**
+   * The unit pulled to the front as the hook; it is then `segments[0]`.
+   * Null = no hook. Absent on plans stored before 18.11.2026 — readers infer
+   * it from the order there (first segment spoken after the second).
+   */
+  hook: videoAiUnitIdSchema.nullish(),
   captions: z.object({
     enabled: z.boolean(),
     template: videoAiCaptionTemplateSchema.nullish(),

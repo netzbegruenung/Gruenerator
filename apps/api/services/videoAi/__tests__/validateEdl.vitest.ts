@@ -47,6 +47,15 @@ describe('validateEdl', () => {
     expect(result).toEqual({ ok: false, errors: [expect.stringContaining('Reihenfolge: c1.s5')] });
   });
 
+  it('requires a named hook to be the first segment', () => {
+    expect(validateEdl(edl(GOOD, { hook: 'c1.s8' }), ctx).ok).toBe(true);
+    expect(validateEdl(edl(GOOD, { hook: null }), ctx).ok).toBe(true);
+    expect(validateEdl(edl(GOOD, { hook: 'c1.s6' }), ctx)).toEqual({
+      ok: false,
+      errors: [expect.stringContaining('Hook: c1.s6')],
+    });
+  });
+
   it('rejects unknown and duplicate units', () => {
     const result = validateEdl(edl(['c1.s5', 'c1.s99', 'c1.s5']), ctx);
     expect(result.ok).toBe(false);

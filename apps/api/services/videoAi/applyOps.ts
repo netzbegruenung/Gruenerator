@@ -2,8 +2,8 @@
  * One correction round on a plan, without a model: the ops of
  * contracts/videoAi.ts in a fixed order. Sentence changes first (addressed by
  * unit id, so their order within the round does not matter; `set_hook` last
- * of them), then overlay
- * changes (addressed by index in the plan before the round). Existing
+ * of them; the cut is then `edl.hook` first and the rest in spoken order),
+ * then overlay changes (addressed by index in the plan before the round). Existing
  * overlays keep their sentence: removing the segment under an overlay moves
  * it to the next surviving segment.
  *
@@ -17,7 +17,7 @@ import {
   type VideoAiSegment,
 } from '@gruenerator/contracts';
 
-import { spokenBefore, type TranscriptUnit } from './transcriptUnits.js';
+import { pulledHook, spokenBefore, type TranscriptUnit } from './transcriptUnits.js';
 
 export type OpsResult =
   { ok: true; edl: VideoAiEdl; omitted: Record<string, string> } | { ok: false; error: string };
@@ -30,18 +30,8 @@ export interface OpsContext {
   removedReason: string;
 }
 
-/**
- * Insert at the unit's place in spoken order. A hook is pulled exactly when
- * the second segment was said before the first; only then is index 0 kept out
- * of the search, so a restored sentence never lands in front of the hook.
- */
-function insertSpoken(segments: VideoAiSegment[], segment: VideoAiSegment): VideoAiSegment[] {
-  const hookPulled = segments.length > 1 && spokenBefore(segments[1].unitId, segments[0].unitId);
-  const from = hookPulled ? 1 : 0;
-  const at = segments.findIndex((s, i) => i >= from && spokenBefore(segment.unitId, s.unitId));
-  if (at < 0) return [...segments, segment];
-  return [...segments.slice(0, at), segment, ...segments.slice(at)];
-}
+const bySpokenOrder = (a: VideoAiSegment, b: VideoAiSegment): number =>
+  spokenBefore(a.unitId, b.unitId) ? -1 : spokenBefore(b.unitId, a.unitId) ? 1 : 0;
 
 export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsContext): OpsResult {
   const omitted: Record<string, string> = { ...ctx.omitted };
@@ -49,15 +39,20 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
   let segments = edl.segments.map((s) => ({ ...s }));
   const find = (unitId: string) => segments.findIndex((s) => s.unitId === unitId);
 
+  // The hook is state of the plan, not something read off the list order:
+  // plans stored before `hook` existed get it inferred once, here.
+  let hook: string | null = edl.hook === null ? null : (edl.hook ?? pulledHook(originalOrder));
+
   for (const op of ops) {
     if (op.kind === 'remove_segment') {
       if (find(op.unitId) < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
       segments = segments.filter((s) => s.unitId !== op.unitId);
       omitted[op.unitId] = ctx.removedReason;
+      if (hook === op.unitId) hook = null;
     } else if (op.kind === 'restore_unit') {
       if (!ctx.units.has(op.unitId)) return { ok: false, error: `${op.unitId} gibt es nicht.` };
       if (find(op.unitId) >= 0) continue;
-      segments = insertSpoken(segments, { unitId: op.unitId, framing: null, zoom: 'normal' });
+      segments.push({ unitId: op.unitId, framing: null, zoom: 'normal' });
       delete omitted[op.unitId];
     } else if (op.kind === 'swap_take') {
       const i = find(op.unitId);
@@ -68,6 +63,7 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
       segments[i] = { ...segments[i], unitId: op.withUnitId };
       omitted[op.unitId] = ctx.removedReason;
       delete omitted[op.withUnitId];
+      if (hook === op.unitId) hook = op.withUnitId;
     } else if (op.kind === 'set_framing' || op.kind === 'set_zoom') {
       const i = find(op.unitId);
       if (i < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
@@ -80,19 +76,20 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
   if (segments.length === 0) return { ok: false, error: 'Mindestens ein Satz muss bleiben.' };
 
   // After the other sentence ops, so a sentence restored in the same round
-  // can be the hook and lands in spoken order either way. The last one wins.
-  let hook: Extract<VideoAiOp, { kind: 'set_hook' }> | null = null;
-  for (const op of ops) if (op.kind === 'set_hook') hook = op;
-  if (hook) {
-    segments.sort((a, b) =>
-      spokenBefore(a.unitId, b.unitId) ? -1 : spokenBefore(b.unitId, a.unitId) ? 1 : 0
-    );
-    if (hook.unitId !== null) {
-      const i = find(hook.unitId);
-      if (i < 0) return { ok: false, error: `${hook.unitId} ist nicht im Schnitt.` };
-      segments.unshift(...segments.splice(i, 1));
+  // can be the hook. The last one wins.
+  let setHook: Extract<VideoAiOp, { kind: 'set_hook' }> | null = null;
+  for (const op of ops) if (op.kind === 'set_hook') setHook = op;
+  if (setHook) {
+    if (setHook.unitId !== null && find(setHook.unitId) < 0) {
+      return { ok: false, error: `${setHook.unitId} ist nicht im Schnitt.` };
     }
+    hook = setHook.unitId;
   }
+  if (hook !== null && find(hook) < 0) hook = null;
+
+  // Hook first, the rest in spoken order — whatever order the ops came in.
+  segments.sort(bySpokenOrder);
+  if (hook !== null) segments.unshift(...segments.splice(find(hook), 1));
 
   // Existing overlays follow their sentence; a removed one hands over to the
   // next surviving sentence of the old order, or the last segment.
@@ -173,7 +170,7 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
 
   return {
     ok: true,
-    edl: { ...edl, segments, overlays, captions, music, captionFixes },
+    edl: { ...edl, segments, hook, overlays, captions, music, captionFixes },
     omitted,
   };
 }

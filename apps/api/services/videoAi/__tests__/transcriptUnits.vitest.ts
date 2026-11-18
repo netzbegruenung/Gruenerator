@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { clipUnits } from '../projectTypes.js';
-import { buildTranscriptUnits, findUnitBreaks, unitsFromBreaks } from '../transcriptUnits.js';
+import {
+  buildTranscriptUnits,
+  findUnitBreaks,
+  pulledHook,
+  unitsFromBreaks,
+} from '../transcriptUnits.js';
 
 import { radwegUnits, radwegWords } from './fixtures.js';
 
@@ -63,5 +68,14 @@ describe('stored unit breaks', () => {
   it('falls back to the current rules for a clip stored without breaks', () => {
     const words = radwegWords();
     expect(clipUnits({ clipId: 'c1', words })).toEqual(buildTranscriptUnits('c1', words));
+  });
+});
+
+describe('pulledHook', () => {
+  it('names the first unit only when it was said after the second', () => {
+    expect(pulledHook(['c1.s8', 'c1.s5', 'c1.s6'])).toBe('c1.s8');
+    expect(pulledHook(['c2.s1', 'c1.s5'])).toBe('c2.s1');
+    expect(pulledHook(['c1.s5', 'c1.s6'])).toBeNull();
+    expect(pulledHook(['c1.s5'])).toBeNull();
   });
 });

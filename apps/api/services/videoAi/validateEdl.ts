@@ -94,6 +94,12 @@ function checkUnits(
 }
 
 function checkOrder(edl: VideoAiEdl): string[] {
+  if (edl.hook && edl.hook !== edl.segments[0].unitId) {
+    return [
+      `Hook: ${edl.hook} ist als Hook genannt, steht aber nicht an erster Stelle. ` +
+        'Der Hook muss das erste Stück sein.',
+    ];
+  }
   const rest = edl.segments.slice(1).map((s) => s.unitId);
   for (let i = 1; i < rest.length; i++) {
     if (spokenBefore(rest[i], rest[i - 1])) {

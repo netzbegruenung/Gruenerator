@@ -99,6 +99,15 @@ export function spokenBefore(a: string, b: string): boolean {
   return ac < bc || (ac === bc && as < bs);
 }
 
+/**
+ * The hook of a cut in segment order: the first unit when it was pulled
+ * forward (spoken after the second), else null. The one rule for writing
+ * `edl.hook` on a first cut and for reading plans stored without it.
+ */
+export function pulledHook(unitIds: readonly string[]): string | null {
+  return unitIds.length > 1 && spokenBefore(unitIds[1], unitIds[0]) ? unitIds[0] : null;
+}
+
 /** Lowercase, letters and digits only — for comparing what was said, not how. */
 export function normalizeToken(token: string): string {
   return token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');

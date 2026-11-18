@@ -167,6 +167,99 @@ describe('update_overlay', () => {
   });
 });
 
+describe('the hook across rounds', () => {
+  const ids = (r: ReturnType<typeof applyOps>) => (r.ok ? r.edl.segments.map((s) => s.unitId) : r);
+  const hooked = (unitIds: string[], hook: string | null): VideoAiEdl => ({
+    ...plain(unitIds),
+    hook,
+  });
+
+  it('keeps a pulled hook first when a later round restores an earlier sentence', () => {
+    const first = applyOps(
+      plain(['c1.s5', 'c1.s1', 'c1.s6']),
+      [{ kind: 'remove_segment', unitId: 'c1.s1' }],
+      ctx
+    );
+    if (!first.ok) throw new Error(first.error);
+    expect(first.edl.hook).toBe('c1.s5');
+    const second = applyOps(first.edl, [{ kind: 'restore_unit', unitId: 'c1.s2' }], ctx);
+    expect(ids(second)).toEqual(['c1.s5', 'c1.s2', 'c1.s6']);
+  });
+
+  it('gives the same cut whatever the order of the sentence ops in a round', () => {
+    const edl = plain(['c1.s5', 'c1.s1', 'c1.s6']);
+    const a = applyOps(
+      edl,
+      [
+        { kind: 'remove_segment', unitId: 'c1.s1' },
+        { kind: 'restore_unit', unitId: 'c1.s2' },
+      ],
+      ctx
+    );
+    const b = applyOps(
+      edl,
+      [
+        { kind: 'restore_unit', unitId: 'c1.s2' },
+        { kind: 'remove_segment', unitId: 'c1.s1' },
+      ],
+      ctx
+    );
+    expect(ids(a)).toEqual(['c1.s5', 'c1.s2', 'c1.s6']);
+    expect(ids(b)).toEqual(ids(a));
+  });
+
+  it('clears the hook when it is removed and keeps the rest in spoken order', () => {
+    const r = applyOps(
+      hooked(['c1.s5', 'c1.s1', 'c1.s6'], 'c1.s5'),
+      [
+        { kind: 'remove_segment', unitId: 'c1.s5' },
+        { kind: 'restore_unit', unitId: 'c1.s3' },
+      ],
+      ctx
+    );
+    expect(ids(r)).toEqual(['c1.s1', 'c1.s3', 'c1.s6']);
+    expect(r.ok && r.edl.hook).toBeNull();
+  });
+
+  it('moves the hook to the new take of a swap', () => {
+    const r = applyOps(
+      hooked(['c1.s5', 'c1.s1', 'c1.s6'], 'c1.s5'),
+      [
+        { kind: 'swap_take', unitId: 'c1.s5', withUnitId: 'c1.s4' },
+        { kind: 'restore_unit', unitId: 'c1.s2' },
+      ],
+      ctx
+    );
+    expect(ids(r)).toEqual(['c1.s4', 'c1.s1', 'c1.s2', 'c1.s6']);
+    expect(r.ok && r.edl.hook).toBe('c1.s4');
+  });
+
+  it('trusts an explicit null over the list order', () => {
+    const r = applyOps(
+      hooked(['c1.s5', 'c1.s1', 'c1.s6'], null),
+      [{ kind: 'restore_unit', unitId: 'c1.s2' }],
+      ctx
+    );
+    expect(ids(r)).toEqual(['c1.s1', 'c1.s2', 'c1.s5', 'c1.s6']);
+  });
+
+  it('infers the hook from the order when the plan has no hook field', () => {
+    const r = applyOps(
+      plain(['c1.s8', 'c1.s5', 'c1.s6']),
+      [{ kind: 'restore_unit', unitId: 'c1.s7' }],
+      ctx
+    );
+    expect(ids(r)).toEqual(['c1.s8', 'c1.s5', 'c1.s6', 'c1.s7']);
+    expect(r.ok && r.edl.hook).toBe('c1.s8');
+    const flat = applyOps(
+      plain(['c1.s5', 'c1.s6']),
+      [{ kind: 'remove_segment', unitId: 'c1.s6' }],
+      ctx
+    );
+    expect(flat.ok && flat.edl.hook).toBeNull();
+  });
+});
+
 describe('set_hook', () => {
   it('pulls a sentence to the front as the hook and keeps the rest in spoken order', () => {
     const r = applyOps(

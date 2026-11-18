@@ -10,7 +10,7 @@ import { type VideoAiEdl, type VideoAiFraming, type VideoAiStyle } from '@gruene
 
 import { DEFAULT_SECONDS, lowerThirdSegment, segmentsFor } from './decideDesign.js';
 import { type TakeGroup } from './takeGroups.js';
-import { type TranscriptUnit } from './transcriptUnits.js';
+import { pulledHook, type TranscriptUnit } from './transcriptUnits.js';
 
 export const FALLBACK_CUT_RATIONALE =
   'Die KI konnte diesmal keinen Schnitt festlegen. Das ist ein vorsichtiger Entwurf: alle ' +
@@ -67,6 +67,7 @@ export function fallbackDesign(input: FallbackDesignInput): VideoAiEdl {
     version: 1,
     format: input.format,
     segments: segmentsFor(input.unitIds, input.units, input.framing, input.style),
+    hook: pulledHook(input.unitIds),
     captions: input.burnedInCaptions
       ? { enabled: false, template: null }
       : { enabled: true, template: 'tanne' },

@@ -26,7 +26,7 @@ import { aiObject } from '../ai/generate.js';
 import { type CutBrief, type CutDecision } from './decideCut.js';
 import { videoAiPrompt } from './prompts.js';
 import { segmentText } from './timeline.js';
-import { normalizeToken, type TranscriptUnit } from './transcriptUnits.js';
+import { normalizeToken, pulledHook, type TranscriptUnit } from './transcriptUnits.js';
 import {
   validateEdl,
   type ValidationAsset,
@@ -313,6 +313,7 @@ function toEdl(
       version: 1,
       format: input.brief.format,
       segments: segmentsFor(input.cut.unitIds, input.units, input.framing, input.brief.style),
+      hook: pulledHook(input.cut.unitIds),
       captions: { enabled: answer.untertitel !== 'aus', template },
       overlays: input.brief.person
         ? [
