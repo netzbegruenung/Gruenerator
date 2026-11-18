@@ -1,6 +1,6 @@
 /**
- * Zod schemas for the Antragsgrün sites the Grünerator created for a person
- * on antragsgruen.de (settings → Konnektoren).
+ * Zod schemas for a person's Antragsgrün sites on antragsgruen.de: created by
+ * the Grünerator or connected by the person (settings → Antragsgrün).
  *
  * The list is read from our own table; whether the Grünerator account is still
  * a site admin there is a live check against antragsgruen.de and therefore a
@@ -15,6 +15,8 @@ export const antragsgruenSiteSchema = z.object({
   url: z.string(),
   /** Where the person removes the Grünerator account (`<url>/admin/users`). */
   usersUrl: z.string(),
+  /** `created`: the Grünerator created it; `connected`: the person connected their own site. */
+  kind: z.enum(['created', 'connected']),
   createdAt: z.string(),
 });
 export type AntragsgruenSite = z.infer<typeof antragsgruenSiteSchema>;
@@ -24,7 +26,7 @@ export const antragsgruenSiteListResponseSchema = z.object({
   enabled: z.boolean(),
   /** Login of the Grünerator account on antragsgruen.de — what the person removes there. */
   botAccount: z.string().nullable(),
-  /** How many sites a person may have at once. */
+  /** How many sites a person may have the Grünerator create. */
   limit: z.number(),
   sites: z.array(antragsgruenSiteSchema),
 });
@@ -36,6 +38,11 @@ export type AntragsgruenSiteAccess = z.infer<typeof antragsgruenSiteAccessSchema
 
 export const antragsgruenSiteAccessResponseSchema = z.object({
   access: z.record(z.string(), antragsgruenSiteAccessSchema),
+});
+
+export const antragsgruenSiteConnectBodySchema = z.object({
+  /** Address of the site, e.g. `https://kv-x.antragsgruen.de/kmv`. */
+  url: z.string().trim().min(1).max(500),
 });
 
 export const antragsgruenSiteErrorSchema = z.object({ error: z.string() });

@@ -538,7 +538,10 @@ const Datenschutz = () => {
         Antragsgrün schickt Dir dorthin Deine Zugangsdaten. Reichst Du über den GRÜNERATOR einen
         Antrag ein, werden dessen Titel, Text und Begründung, Dein Name, gegebenenfalls Deine
         Organisation und Deine E-Mail-Adresse als Kontakt (nur für Admins der Seite sichtbar)
-        übermittelt. Für die Verarbeitung bei antragsgruen.de gilt dessen Datenschutzerklärung.
+        übermittelt. Verbindest Du eine Seite, die Du selbst angelegt hast, liest das
+        GRÜNERATOR-Konto dort die Personenverwaltung, um zu prüfen, dass es selbst und Du mit der
+        E-Mail-Adresse Deines GRÜNERATOR-Kontos Admins sind; die Liste der Personen wird dabei nicht
+        gespeichert. Für die Verarbeitung bei antragsgruen.de gilt dessen Datenschutzerklärung.
       </p>
       <p>
         Der GRÜNERATOR speichert nur Titel und Adresse der Seite mit der Zuordnung zu Deinem Konto.

@@ -18,6 +18,7 @@
  * `toolResultBudgets.vitest.ts` liest die Quelltexte und wird sonst rot.
  */
 import { MAX_TOOL_RESULT_CHARS as USER_MCP_RESULT_CHARS } from '../../../../services/mcp/UserMCPClient.js';
+import { ANTRAGSGRUEN_READ_CHARS } from '../../agents/antragsgruenSiteTools.js';
 import { READ_CAP } from '../../agents/documentLoopTools.js';
 import { MODEL_RESULT_MAX_CHARS } from '../../agents/managedMcpCatalog.js';
 import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
@@ -54,6 +55,7 @@ export const UNCAPPED_READ_BUDGET = 20_000;
 export const OWN_CAP_TOOLS: Readonly<Record<string, number>> = {
   read_document: READ_CAP,
   read_artifact: ARTIFACT_READ_CHARS,
+  antragsgruen_seite_lesen: ANTRAGSGRUEN_READ_CHARS,
 };
 
 /** Lesewerkzeuge ohne Zeichenkappe, siehe {@link UNCAPPED_READ_BUDGET}. */

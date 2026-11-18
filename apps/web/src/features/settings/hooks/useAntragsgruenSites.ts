@@ -1,10 +1,11 @@
 /**
- * Antragsgrün sites the Grünerator created for the account (settings →
- * Antragsgrün). The list comes from our table; the admin status is a live
+ * The account's Antragsgrün sites, created by the Grünerator or connected by
+ * the person (settings → Antragsgrün). The list comes from our table; the admin status is a live
  * check against antragsgruen.de and loads separately so it never holds the
  * list back.
  */
 import {
+  type AntragsgruenSite,
   type AntragsgruenSiteAccess,
   type AntragsgruenSiteListResponse,
 } from '@gruenerator/contracts';
@@ -54,5 +55,25 @@ export function useForgetAntragsgruenSite() {
         throw new ApiError(result.status, 'Seite konnte nicht entfernt werden.');
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+}
+
+/** Connects a site the person created themselves; the error carries the server's reason. */
+export function useConnectAntragsgruenSite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (url: string): Promise<AntragsgruenSite> => {
+      const result = await getContractsClient().antragsgruenSites.connectSite({ body: { url } });
+      if (result.status === 201) return result.body;
+      throw new ApiError(
+        result.status,
+        result.status === 400 || result.status === 502
+          ? result.body.error
+          : 'Seite konnte nicht verbunden werden.'
+      );
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // The form shows the reason inline (bot not admin, person not admin, …).
+    meta: { silent: true },
   });
 }
