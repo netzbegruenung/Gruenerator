@@ -1,14 +1,16 @@
 /**
- * ts-rest contract for the Antragsgrün sites the Grünerator created for the
- * person. Auth via `requireAuth` at the /api/auth/antragsgruen-sites prefix.
+ * ts-rest contract for the person's Antragsgrün sites (created by the
+ * Grünerator or connected by the person). Auth via `requireAuth` at the /api/auth/antragsgruen-sites prefix.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
   antragsgruenSiteAccessResponseSchema,
+  antragsgruenSiteConnectBodySchema,
   antragsgruenSiteErrorSchema,
   antragsgruenSiteListResponseSchema,
+  antragsgruenSiteSchema,
 } from '../schemas/antragsgruenSites.js';
 
 const c = initContract();
@@ -24,6 +26,25 @@ export const antragsgruenSitesContract = c.router({
       500: antragsgruenSiteErrorSchema,
     },
     summary: 'List the Antragsgrün sites the Grünerator created for the account',
+  },
+
+  /**
+   * POST /api/auth/antragsgruen-sites — connect a site the person created
+   * themselves. Requires the Grünerator account and the person to be admins
+   * there. 400 carries the reason in German, 502 means antragsgruen.de failed.
+   */
+  connectSite: {
+    method: 'POST',
+    path: '/api/auth/antragsgruen-sites',
+    body: antragsgruenSiteConnectBodySchema,
+    responses: {
+      201: antragsgruenSiteSchema,
+      400: antragsgruenSiteErrorSchema,
+      401: antragsgruenSiteErrorSchema,
+      500: antragsgruenSiteErrorSchema,
+      502: antragsgruenSiteErrorSchema,
+    },
+    summary: 'Connect an existing Antragsgrün site to the account',
   },
 
   /** GET /api/auth/antragsgruen-sites/access — live: is the Grünerator still admin on each site? */

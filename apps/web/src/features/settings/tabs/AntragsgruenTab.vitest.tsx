@@ -1,7 +1,8 @@
 /**
  * The Antragsgrün section: hidden where nothing can be created and nothing
  * exists, honest about what "entfernen" does while the Grünerator is still a
- * site admin, and only then forgetting the site.
+ * site admin, and only then forgetting the site. Connecting an existing site
+ * shows the server's reason when it refuses.
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
@@ -21,6 +22,7 @@ const SITE = {
   title: 'KMV Köln 2027',
   url: 'https://kv-koeln.antragsgruen.de/kv-koeln',
   usersUrl: 'https://kv-koeln.antragsgruen.de/kv-koeln/admin/users',
+  kind: 'created',
   createdAt: '2026-11-16T10:00:00.000Z',
 };
 
@@ -80,5 +82,59 @@ describe('AntragsgruenTab', () => {
     expect(screen.queryByText(/bleibt dort Admin/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Entfernen' }));
     await waitFor(() => expect(deleted).toBe(SITE_ID));
+  });
+
+  it('connects an existing site and shows why antragsgruen.de refused', async () => {
+    const posted: unknown[] = [];
+    let sites: object[] = [];
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({ enabled: true, botAccount: 'bot@gruenerator.de', limit: 3, sites })
+      ),
+      http.get(ACCESS, () => HttpResponse.json({ access: { [SITE_ID]: 'admin' } })),
+      http.post(LIST, async ({ request }) => {
+        posted.push(await request.json());
+        if (posted.length === 1) {
+          return HttpResponse.json(
+            { error: 'Dein Grünerator-Konto (a@b.de) ist auf dieser Seite nicht Admin.' },
+            { status: 400 }
+          );
+        }
+        const site = { ...SITE, kind: 'connected' };
+        sites = [site];
+        return HttpResponse.json(site, { status: 201 });
+      })
+    );
+    const { user } = renderWithProviders(<AntragsgruenTab />);
+    await user.click(await screen.findByRole('button', { name: 'Bestehende Seite verbinden' }));
+    await user.type(
+      screen.getByLabelText('Adresse der Antragsgrün-Seite'),
+      'https://kv-koeln.antragsgruen.de/kv-koeln'
+    );
+    await user.click(screen.getByRole('button', { name: 'Verbinden' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/nicht Admin/);
+
+    await user.click(screen.getByRole('button', { name: 'Verbinden' }));
+    expect(await screen.findByText(/verbunden am/)).toBeInTheDocument();
+    expect(posted).toEqual([
+      { url: 'https://kv-koeln.antragsgruen.de/kv-koeln' },
+      { url: 'https://kv-koeln.antragsgruen.de/kv-koeln' },
+    ]);
+    // A connected site does not count against the limit for created sites.
+    expect(screen.queryByText(/von 3 Seiten/)).not.toBeInTheDocument();
+  });
+
+  it('offers no connecting where the feature is off', async () => {
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({ enabled: false, botAccount: null, limit: 3, sites: [SITE] })
+      ),
+      http.get(ACCESS, () => HttpResponse.json({ access: { [SITE_ID]: 'admin' } }))
+    );
+    renderWithProviders(<AntragsgruenTab />);
+    expect(await screen.findByText('KMV Köln 2027')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Bestehende Seite verbinden' })
+    ).not.toBeInTheDocument();
   });
 });

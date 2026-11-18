@@ -95,6 +95,7 @@ describe('antragsgruen_seite_anlegen', () => {
 describe('antragsgruen_antrag_stellen', () => {
   const SITE = {
     id: '00000000-0000-4000-8000-000000000001',
+    kind: 'created' as const,
     created_at: new Date('2026-11-16'),
     subdomain: 'kv-koeln-kmv27',
     title: 'KMV Köln 2027',
@@ -102,6 +103,7 @@ describe('antragsgruen_antrag_stellen', () => {
   };
   const OTHER = {
     id: '00000000-0000-4000-8000-000000000002',
+    kind: 'created' as const,
     created_at: new Date('2026-11-16'),
     subdomain: 'kv-koeln-klausur27',
     title: 'Klausur 2027',
@@ -161,6 +163,7 @@ describe('antragsgruen_antrag_stellen', () => {
 describe('antragsgruen_tagesordnung', () => {
   const SITE = {
     id: '00000000-0000-4000-8000-000000000001',
+    kind: 'created' as const,
     created_at: new Date('2026-11-16'),
     subdomain: 'kv-koeln-kmv27',
     title: 'KMV Köln 2027',

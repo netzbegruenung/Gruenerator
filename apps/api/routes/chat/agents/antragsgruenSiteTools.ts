@@ -209,7 +209,7 @@ export function makeAntragsgruenMotionTool(
 ): Tool {
   const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
-    description: `Reicht einen Antrag auf einer Antragsgrün-Seite ein, die die Person über den Grünerator angelegt hat (antragsgruen_seite_anlegen). Die Person steht als Antragsteller*in drin; der Antrag ist danach „Eingereicht (ungeprüft)" und wird erst nach Freischaltung durch die Admins öffentlich.
+    description: `Reicht einen Antrag auf einer eigenen Antragsgrün-Seite der Person ein — angelegt über den Grünerator (antragsgruen_seite_anlegen) oder in den Einstellungen unter „Antragsgrün" verbunden. Die Person steht als Antragsteller*in drin; der Antrag ist danach „Eingereicht (ungeprüft)" und wird erst nach Freischaltung durch die Admins öffentlich.
 
 NUTZE NUR, wenn die Person ausdrücklich will, dass ein Antrag bei Antragsgrün eingereicht wird — nicht, um einen Antrag nur zu schreiben. Schreib den Antrag vorher fertig und lass ihn bestätigen; übergib Titel, Antragstext (Markdown) und optional die Begründung. Auf fremden Antragsgrün-Seiten (z. B. der LDK) kann der Grünerator nichts einreichen.
 
@@ -246,7 +246,7 @@ Das Werkzeug zeigt eine Karte zur Bestätigung; kündige nichts als eingereicht 
       if (sites.length === 0) {
         return {
           error:
-            'Die Person hat noch keine Antragsgrün-Seite über den Grünerator angelegt. Auf anderen Seiten kann der Grünerator nichts einreichen.',
+            'Die Person hat noch keine Antragsgrün-Seite über den Grünerator angelegt oder verbunden. Eine eigene bestehende Seite verbindet sie in den Einstellungen unter „Antragsgrün"; auf anderen Seiten kann der Grünerator nichts einreichen.',
         };
       }
       const wanted = args.seite?.trim().toLowerCase();
@@ -315,7 +315,7 @@ export function makeAntragsgruenAgendaTool(
 ): Tool {
   const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
-    description: `Liest oder setzt die Tagesordnung einer Antragsgrün-Seite, die die Person über den Grünerator angelegt hat.
+    description: `Liest oder setzt die Tagesordnung einer eigenen Antragsgrün-Seite der Person (über den Grünerator angelegt oder in den Einstellungen verbunden).
 
 Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die GANZE Tagesordnung durch diese Liste (Karte zur Bestätigung) — wer nur einen Punkt ergänzen oder ändern will, liest zuerst und übergibt dann die vollständige neue Liste. Punkte mit gleichem Code oder Titel behalten ihre Anträge; fehlende Punkte werden gelöscht. Markiere mit „antraege: true" die Punkte, unter denen Anträge eingereicht werden.`,
     inputSchema: z.object({
@@ -330,7 +330,10 @@ Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die 
       if (!userId) return { error: NO_SESSION };
       const sites = await deps.sitesOf(userId);
       if (sites.length === 0) {
-        return { error: 'Die Person hat keine Antragsgrün-Seite über den Grünerator angelegt.' };
+        return {
+          error:
+            'Die Person hat keine Antragsgrün-Seite über den Grünerator angelegt oder verbunden.',
+        };
       }
       const wanted = args.seite?.trim().toLowerCase();
       const site = wanted

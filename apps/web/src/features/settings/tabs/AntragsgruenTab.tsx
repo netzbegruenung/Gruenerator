@@ -1,6 +1,7 @@
 /**
- * Settings tab „Antragsgrün" (experimental) — the sites the Grünerator created for the
- * person on antragsgruen.de, and the way to take its access away again.
+ * Settings tab „Antragsgrün" (experimental) — the person's sites on
+ * antragsgruen.de (created by the Grünerator or connected by the person), the
+ * way to connect an existing one, and the way to take its access away again.
  *
  * Antragsgrün does not let a site admin remove itself, so the Grünerator
  * cannot leave a site on its own. The person removes its account on their
@@ -9,9 +10,9 @@
  * stores nothing about the site and never acts on it again.
  */
 import { type AntragsgruenSite, type AntragsgruenSiteAccess } from '@gruenerator/contracts';
-import { Button } from '@gruenerator/ui';
+import { Button, Input } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { HiClipboardList, HiExternalLink } from 'react-icons/hi';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
@@ -19,6 +20,7 @@ import {
   antragsgruenSitesQuery,
   useAntragsgruenSiteAccess,
   useAntragsgruenSites,
+  useConnectAntragsgruenSite,
   useForgetAntragsgruenSite,
 } from '../hooks/useAntragsgruenSites';
 
@@ -32,9 +34,10 @@ function hostOf(url: string): string {
   }
 }
 
-function formatCreated(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : `angelegt am ${d.toLocaleDateString('de-DE')}`;
+function formatCreated(site: AntragsgruenSite): string {
+  const d = new Date(site.createdAt);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${site.kind === 'connected' ? 'verbunden' : 'angelegt'} am ${d.toLocaleDateString('de-DE')}`;
 }
 
 const ACCESS_LABEL: Record<AntragsgruenSiteAccess, string> = {
@@ -94,7 +97,7 @@ function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps)
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-sm gap-y-0.5 text-xs text-grey-500">
             <span>
-              {hostOf(site.url)} · {formatCreated(site.createdAt)}
+              {hostOf(site.url)} · {formatCreated(site)}
             </span>
             <AccessLine access={access} />
           </div>
@@ -204,6 +207,89 @@ function SiteRow({ site, access, botAccount, onCheck, checking }: SiteCardProps)
   );
 }
 
+/**
+ * Connect a site the person created themselves. The Grünerator account must be
+ * a site admin there first, and the person too, under the email address of
+ * their Grünerator account — the server checks both.
+ */
+function ConnectSite({ botAccount }: { botAccount: string | null }) {
+  const connect = useConnectAntragsgruenSite();
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const inputId = useId();
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+    connect.mutate(url.trim(), {
+      onSuccess: () => {
+        setUrl('');
+        setOpen(false);
+      },
+    });
+  };
+
+  if (!open) {
+    return (
+      <div className="border-t border-grey-200 pt-sm dark:border-grey-800">
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Bestehende Seite verbinden
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      aria-label="Bestehende Antragsgrün-Seite verbinden"
+      className="flex flex-col gap-sm border-t border-grey-200 pt-sm text-sm dark:border-grey-800"
+    >
+      <h3 className="m-0 text-sm font-semibold text-foreground">Bestehende Seite verbinden</h3>
+      <ol className="m-0 flex max-w-[64ch] list-decimal flex-col gap-1 pl-md text-xs text-grey-600 dark:text-grey-300">
+        <li>
+          Öffne auf deiner Seite <em>Einstellungen → Registrierte Benutzer*innen</em> und trage das
+          Konto{' '}
+          {botAccount ? (
+            <strong className="font-medium text-foreground">{botAccount}</strong>
+          ) : (
+            'des Grünerators'
+          )}{' '}
+          in die Gruppe „Seiten-Admin“ ein.
+        </li>
+        <li>Du selbst musst dort Admin sein – mit der E-Mail-Adresse deines Grünerator-Kontos.</li>
+        <li>Füge die Adresse deiner Seite hier ein.</li>
+      </ol>
+      <label htmlFor={inputId} className="sr-only">
+        Adresse der Antragsgrün-Seite
+      </label>
+      <div className="flex flex-wrap items-center gap-xs">
+        <Input
+          id={inputId}
+          type="url"
+          inputMode="url"
+          placeholder="https://kv-beispiel.antragsgruen.de/kmv"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          aria-invalid={connect.isError}
+          className="min-w-0 flex-1 basis-64"
+        />
+        <Button type="submit" size="sm" disabled={connect.isPending || !url.trim()}>
+          {connect.isPending ? 'Wird geprüft …' : 'Verbinden'}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          Abbrechen
+        </Button>
+      </div>
+      {connect.isError && (
+        <p role="alert" className="m-0 text-xs text-red-700 dark:text-red-300">
+          {connect.error.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
 export const prefetch = (queryClient: QueryClient) => {
   void queryClient.prefetchQuery(antragsgruenSitesQuery);
 };
@@ -211,6 +297,7 @@ export const prefetch = (queryClient: QueryClient) => {
 export default function AntragsgruenTab() {
   const { data, isPending, isError } = useAntragsgruenSites();
   const hasSites = (data?.sites.length ?? 0) > 0;
+  const createdCount = data?.sites.filter((s) => s.kind === 'created').length ?? 0;
   const access = useAntragsgruenSiteAccess(hasSites);
 
   if (isPending) return <SettingsCardsSkeleton cards={2} />;
@@ -225,18 +312,18 @@ export default function AntragsgruenTab() {
         <span className="self-center rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-200">
           Experimentell
         </span>
-        {data && hasSites && (
+        {data && createdCount > 0 && (
           <span className="text-sm tabular-nums text-grey-500">
-            {data.sites.length} von {data.limit} Seiten
+            {createdCount} von {data.limit} Seiten
           </span>
         )}
       </div>
 
       <div className="flex max-w-[64ch] flex-col gap-xs pb-sm text-sm text-grey-500">
         <p className="m-0">
-          Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat. Solange
-          er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen –
-          jeweils erst, wenn du bestätigst.
+          Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat oder die
+          du mit ihm verbunden hast. Solange er dort Admin ist, kann er im Chat Anträge einreichen
+          und die Tagesordnung pflegen – jeweils erst, wenn du bestätigst.
         </p>
         <p className="m-0 text-xs">
           Beim Anlegen gehen dein Name und deine E-Mail-Adresse an antragsgruen.de, dort bekommst du
@@ -268,6 +355,8 @@ export default function AntragsgruenTab() {
           ))}
         </ul>
       )}
+
+      {data?.enabled && <ConnectSite botAccount={data.botAccount} />}
     </div>
   );
 }
