@@ -108,7 +108,11 @@ export async function importUpload(
   try {
     const meta = await ffprobe(sourcePath);
     kind = classifyUpload(meta.streams, meta.format.duration, filename);
-  } catch {
+  } catch (error) {
+    // ffprobe that cannot start (missing or not executable) is our fault, not
+    // the file's: answering "not a video" would delete a good upload. Seen
+    // locally on 18.11.2026 with a binary that had lost its executable bit.
+    if (typeof (error as NodeJS.ErrnoException).code === 'string') throw error;
     kind = null;
   }
   if (!kind) {

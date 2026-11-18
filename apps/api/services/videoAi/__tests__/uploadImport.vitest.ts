@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { classifyUpload } from '../uploadImport.js';
 
@@ -34,5 +34,28 @@ describe('classifyUpload', () => {
       classifyUpload([{ codec_type: 'video', codec_name: 'png' }], '1', 'bild.png')
     ).toBeNull();
     expect(classifyUpload(video, undefined, 'clip.mp4')).toBeNull();
+  });
+});
+
+describe('importUpload', () => {
+  it('keeps the upload and fails loudly when ffprobe itself cannot run', async () => {
+    const cleanupUploadFiles = vi.fn(async () => undefined);
+    vi.doMock('../../subtitler/tusService.js', () => ({
+      getUploadStatus: async () => ({ exists: true, metadata: { size: 1 } }),
+      getFilePathFromUploadId: () => import.meta.filename,
+      getOriginalFilename: async () => 'take.mp4',
+      cleanupUploadFiles,
+      markUploadAsPromoted: vi.fn(),
+    }));
+    vi.doMock('../../subtitler/ffmpegWrapper.js', () => ({
+      ffprobe: async () => {
+        throw Object.assign(new Error('spawn /opt/ffprobe EACCES'), { code: 'EACCES' });
+      },
+    }));
+    vi.doMock('../../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
+    const { importUpload } = await import('../uploadImport.js');
+
+    await expect(importUpload('user-1', 'abcdef0123456789', null)).rejects.toThrow('EACCES');
+    expect(cleanupUploadFiles).not.toHaveBeenCalled();
   });
 });
