@@ -70,16 +70,17 @@ describe('applyOps', () => {
       BASE,
       [
         { kind: 'remove_segment', unitId: 'c1.s7' },
-        { kind: 'move_segment', unitId: 'c1.s5', before: null },
+        { kind: 'set_hook', unitId: 'c1.s6' },
       ],
       ctx
     );
     if (!result.ok) throw new Error(result.error);
-    expect(result.edl.segments.map((s) => s.unitId)).toEqual(['c1.s8', 'c1.s6', 'c1.s11', 'c1.s5']);
+    expect(result.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s5', 'c1.s8', 'c1.s11']);
     const at = result.edl.overlays.map((o) => ('atSegment' in o ? o.atSegment : null));
-    // Hook stays on c1.s8, the lower third follows c1.s5 to the end, the
-    // statement on the removed c1.s7 hands over to the next survivor c1.s11.
-    expect(at).toEqual([0, 3, 2]);
+    // The old hook title follows c1.s8 to its spoken place, the lower third
+    // stays on c1.s5, the statement on the removed c1.s7 hands over to the
+    // next survivor c1.s11.
+    expect(at).toEqual([2, 1, 3]);
     expect(result.omitted['c1.s7']).toBe('Entfernt');
   });
 
@@ -163,5 +164,61 @@ describe('update_overlay', () => {
       ctx
     );
     expect(result).toEqual({ ok: false, error: expect.stringContaining('Einblendung 0') });
+  });
+});
+
+describe('set_hook', () => {
+  it('pulls a sentence to the front as the hook and keeps the rest in spoken order', () => {
+    const r = applyOps(
+      plain(['c1.s5', 'c1.s6', 'c1.s7']),
+      [{ kind: 'set_hook', unitId: 'c1.s7' }],
+      ctx
+    );
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s7', 'c1.s5', 'c1.s6']);
+  });
+
+  it('replaces an existing hook, the old one returns to its spoken place', () => {
+    const r = applyOps(
+      plain(['c1.s8', 'c1.s5', 'c1.s6']),
+      [{ kind: 'set_hook', unitId: 'c1.s6' }],
+      ctx
+    );
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s5', 'c1.s8']);
+  });
+
+  it('removes the hook with null and leaves an unhooked cut untouched', () => {
+    const hooked = applyOps(plain(['c1.s8', 'c1.s5']), [{ kind: 'set_hook', unitId: null }], ctx);
+    expect(hooked.ok && hooked.edl.segments.map((s) => s.unitId)).toEqual(['c1.s5', 'c1.s8']);
+    const flat = applyOps(plain(['c1.s5', 'c1.s6']), [{ kind: 'set_hook', unitId: null }], ctx);
+    expect(flat.ok && flat.edl.segments.map((s) => s.unitId)).toEqual(['c1.s5', 'c1.s6']);
+  });
+
+  it('refuses a hook that is not in the cut', () => {
+    const r = applyOps(plain(['c1.s5']), [{ kind: 'set_hook', unitId: 'c1.s9' }], ctx);
+    expect(r).toEqual({ ok: false, error: 'c1.s9 ist nicht im Schnitt.' });
+  });
+
+  it('runs after the sentence ops, so a restore in the same round lands in spoken order', () => {
+    const r = applyOps(
+      plain(['c1.s5', 'c1.s7']),
+      [
+        { kind: 'set_hook', unitId: 'c1.s7' },
+        { kind: 'restore_unit', unitId: 'c1.s6' },
+      ],
+      ctx
+    );
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s7', 'c1.s5', 'c1.s6']);
+  });
+
+  it('can make a sentence restored in the same round the hook', () => {
+    const r = applyOps(
+      plain(['c1.s5', 'c1.s7']),
+      [
+        { kind: 'set_hook', unitId: 'c1.s6' },
+        { kind: 'restore_unit', unitId: 'c1.s6' },
+      ],
+      ctx
+    );
+    expect(r.ok && r.edl.segments.map((s) => s.unitId)).toEqual(['c1.s6', 'c1.s5', 'c1.s7']);
   });
 });

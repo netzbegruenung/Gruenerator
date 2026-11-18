@@ -304,12 +304,12 @@ export const videoAiOpSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('remove_segment'), unitId: videoAiUnitIdSchema }),
   /** Back in, at its place in spoken order (after the hook). */
   z.object({ kind: z.literal('restore_unit'), unitId: videoAiUnitIdSchema }),
-  /** `before: null` moves it to the end; moving to the front makes it the hook. */
-  z.object({
-    kind: z.literal('move_segment'),
-    unitId: videoAiUnitIdSchema,
-    before: videoAiUnitIdSchema.nullable(),
-  }),
+  /**
+   * The only move validation allows: one sentence pulled to the front, the
+   * rest in spoken order. `null` = no hook. Applied after the other sentence
+   * ops of the round.
+   */
+  z.object({ kind: z.literal('set_hook'), unitId: videoAiUnitIdSchema.nullable() }),
   /** Another take of the same statement in its place. */
   z.object({
     kind: z.literal('swap_take'),

@@ -1,7 +1,8 @@
 /**
  * One correction round on a plan, without a model: the ops of
  * contracts/videoAi.ts in a fixed order. Sentence changes first (addressed by
- * unit id, so their order within the round does not matter), then overlay
+ * unit id, so their order within the round does not matter; `set_hook` last
+ * of them), then overlay
  * changes (addressed by index in the plan before the round). Existing
  * overlays keep their sentence: removing the segment under an overlay moves
  * it to the next surviving segment.
@@ -58,13 +59,6 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
       if (find(op.unitId) >= 0) continue;
       segments = insertSpoken(segments, { unitId: op.unitId, framing: null, zoom: 'normal' });
       delete omitted[op.unitId];
-    } else if (op.kind === 'move_segment') {
-      const i = find(op.unitId);
-      if (i < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
-      const [moved] = segments.splice(i, 1);
-      const at = op.before === null ? segments.length : find(op.before);
-      if (at < 0) return { ok: false, error: `${op.before ?? ''} ist nicht im Schnitt.` };
-      segments.splice(at, 0, moved);
     } else if (op.kind === 'swap_take') {
       const i = find(op.unitId);
       if (i < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
@@ -84,6 +78,21 @@ export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsCon
     }
   }
   if (segments.length === 0) return { ok: false, error: 'Mindestens ein Satz muss bleiben.' };
+
+  // After the other sentence ops, so a sentence restored in the same round
+  // can be the hook and lands in spoken order either way. The last one wins.
+  let hook: Extract<VideoAiOp, { kind: 'set_hook' }> | null = null;
+  for (const op of ops) if (op.kind === 'set_hook') hook = op;
+  if (hook) {
+    segments.sort((a, b) =>
+      spokenBefore(a.unitId, b.unitId) ? -1 : spokenBefore(b.unitId, a.unitId) ? 1 : 0
+    );
+    if (hook.unitId !== null) {
+      const i = find(hook.unitId);
+      if (i < 0) return { ok: false, error: `${hook.unitId} ist nicht im Schnitt.` };
+      segments.unshift(...segments.splice(i, 1));
+    }
+  }
 
   // Existing overlays follow their sentence; a removed one hands over to the
   // next surviving sentence of the old order, or the last segment.

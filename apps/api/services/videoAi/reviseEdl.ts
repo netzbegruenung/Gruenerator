@@ -70,10 +70,6 @@ const TOOL_SCHEMA = {
             enum: videoAiOpSchema.options.map((o) => o.shape.kind.value),
           },
           unitId: { type: 'string', description: 'Satz-ID wie c1.s12' },
-          before: {
-            type: 'string',
-            description: 'move_segment: Satz-ID, vor die der Satz kommt; weglassen für ans Ende',
-          },
           withUnitId: { type: 'string', description: 'swap_take: der andere Anlauf' },
           framing: { type: 'string', enum: ['links', 'mitte', 'rechts'] },
           zoom: { type: 'string', enum: ['normal', 'nah'] },
@@ -191,14 +187,14 @@ function systemPrompt(locale: ReviseInput['locale']): string {
 
 /**
  * The tool schema offers no `null` type (Melious refused `type: [..., 'null']`
- * as malformed, 10.11.2026), so "to the end" and "no music" arrive as a
+ * as malformed, 10.11.2026), so "no hook" and "no music" arrive as a
  * missing field.
  */
 function withNullDefaults(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null) return raw;
   const op = raw as Record<string, unknown>;
-  if (op.kind === 'move_segment' && (op.before === undefined || op.before === '')) {
-    return { ...op, before: null };
+  if (op.kind === 'set_hook' && (op.unitId === undefined || op.unitId === '')) {
+    return { ...op, unitId: null };
   }
   if (op.kind === 'set_music' && op.music === undefined) return { ...op, music: null };
   return op;

@@ -85,7 +85,7 @@ beforeEach(() => {
 });
 
 describe('reviseEdl', () => {
-  it('sends broken ops and reordered sentences back, then applies a clean answer', async () => {
+  it('sends broken ops and a hook outside the cut back, then applies a clean answer', async () => {
     const turns: StructuredValidation<unknown>[] = [];
     aiObject.mockImplementation(async (call: Call) => {
       turns.push(
@@ -98,7 +98,7 @@ describe('reviseEdl', () => {
       turns.push(
         call.validate(
           {
-            ops: [{ kind: 'move_segment', unitId: 'c1.s11', before: 'c1.s5' }],
+            ops: [{ kind: 'set_hook', unitId: 'c1.s9' }],
             zusammenfassung: 'x',
             antwort: 'x',
           },
@@ -130,7 +130,7 @@ describe('reviseEdl', () => {
     const revision = await reviseEdl(input);
 
     expect(turns[0]).toEqual({ ok: false, error: expect.stringContaining('unitId') });
-    expect(turns[1]).toEqual({ ok: false, error: expect.stringContaining('Reihenfolge') });
+    expect(turns[1]).toEqual({ ok: false, error: 'c1.s9 ist nicht im Schnitt.' });
     expect(revision.edl.segments.map((s) => s.unitId)).toEqual([
       'c1.s8',
       'c1.s5',
