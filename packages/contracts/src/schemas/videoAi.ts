@@ -234,12 +234,11 @@ export const VIDEO_AI_ACTIVE_STATUSES = [
   'designing',
 ] as const satisfies readonly VideoAiStatus[];
 
-/** What a client may send; the API fills title, format and style. */
-export const videoAiBriefInputSchema = videoAiBriefSchema.partial();
-export type VideoAiBriefInput = z.infer<typeof videoAiBriefInputSchema>;
-
+/**
+ * Only the files: the API fills the brief (`completeBrief`). Name, target
+ * length and keyterms come back as body fields once a page asks for them.
+ */
 export const createVideoAiProjectBodySchema = z.object({
-  brief: videoAiBriefInputSchema.nullish(),
   inputs: z
     .array(videoAiInputSchema)
     .min(1)

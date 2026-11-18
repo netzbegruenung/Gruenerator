@@ -36,7 +36,7 @@ describe('withAutoRoles', () => {
 
 describe('completeBrief', () => {
   it('needs nothing but the files', () => {
-    const brief = completeBrief(null, [
+    const brief = completeBrief([
       { id: 'c1', mediaId: 'm', role: 'footage', title: 'IMG_0042.MOV' },
     ]);
     expect(brief).toEqual({ title: 'IMG_0042', format: '9:16', style: 'talking-head-dynamisch' });

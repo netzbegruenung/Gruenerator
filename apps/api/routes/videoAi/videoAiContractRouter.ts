@@ -92,7 +92,7 @@ export const videoAiContractRouter = s.router(videoAiContract, {
     try {
       created = await insertVideoAiProject({
         userId: user.id,
-        brief: completeBrief(body.brief ?? null, material.inputs),
+        brief: completeBrief(material.inputs),
         inputs: material.inputs,
         locale: extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE',
         treeUnits: units,
