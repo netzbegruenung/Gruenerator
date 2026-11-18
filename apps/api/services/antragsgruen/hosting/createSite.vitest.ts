@@ -70,11 +70,11 @@ function fakeSite(opts: FakeOptions = {}) {
     const key = `${method} ${u.host}${u.pathname}`;
 
     switch (key) {
-      case 'GET antragsgruen.de/user/login':
+      case 'GET antragsgruen.de/login':
         return html('<form><input name="_csrf" value="c-login"></form>', [
           '_csrf=main; path=/; HttpOnly',
         ]);
-      case 'POST antragsgruen.de/user/login':
+      case 'POST antragsgruen.de/login':
         if (!loginOk || form?.get('password') !== 'geheim') {
           return html('<div class="alert alert-danger">Falsches Passwort</div>');
         }
@@ -93,7 +93,7 @@ function fakeSite(opts: FakeOptions = {}) {
         );
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/users':
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/users/index': {
-        if (!loggedIn) return redirect('https://antragsgruen.de/user/login');
+        if (!loggedIn) return redirect('https://antragsgruen.de/login');
         const users = [{ email: 'bot@gruenerator.eu' }, ...(invited ? [{ email: invited }] : [])];
         return html(
           `<meta name="csrf-token" content="c-users">` +
@@ -106,7 +106,7 @@ function fakeSite(opts: FakeOptions = {}) {
         );
       }
       case 'GET kv-koeln.antragsgruen.de/kv-koeln/admin/consultation':
-        if (!loggedIn) return redirect('https://antragsgruen.de/user/login');
+        if (!loggedIn) return redirect('https://antragsgruen.de/login');
         return html(
           `<form method="post"><input type="hidden" name="_csrf" value="c-con">` +
             `<input type="text" name="consultation[title]" value="KMV Köln 2027">` +

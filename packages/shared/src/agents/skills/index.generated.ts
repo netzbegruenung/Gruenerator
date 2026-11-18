@@ -1015,6 +1015,7 @@ export const SKILLS = [
       'antragsgruen_seite_anlegen',
       'antragsgruen_antrag_stellen',
       'antragsgruen_tagesordnung',
+      'antragsgruen_seite_lesen',
     ],
   },
 ] as const satisfies readonly SystemSkill[];

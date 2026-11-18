@@ -17,12 +17,13 @@ import { AntragsgruenFormError, FormClient } from './formClient.js';
 import { createMotionOnHostedSite, type CreatedMotion } from './motions.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
 import {
-  adminEmailsOf,
-  hostingConfigFromEnv,
-  isSiteAdmin,
-  login,
-  siteAdminPage,
-} from './session.js';
+  findOwnMotion,
+  listOwnMotions,
+  readOwnMotion,
+  type OwnMotion,
+  type OwnMotionRef,
+} from './read.js';
+import { hostingConfigFromEnv, isSiteAdmin, login, requireAdmins } from './session.js';
 
 /** Jede Seite ist echt und bleibt bei Antragsgrün stehen; die Grenze hält Versehen klein. */
 export const MAX_SITES_PER_USER = 3;
@@ -221,7 +222,7 @@ export async function orderAntragsgruenMotion(
   );
 }
 
-/** Eine eigene Seite der Person, mit eingeloggtem Grünerator-Konto, das dort noch Admin ist. */
+/** Eine eigene Seite der Person, mit eingeloggtem Grünerator-Konto; beide sind dort noch Admin. */
 async function adminSessionOn(userId: string, subdomain: string) {
   const config = hostingConfigFromEnv();
   if (!config) throw new SiteOrderRefused('Antragsgrün ist hier nicht eingerichtet.');
@@ -230,16 +231,36 @@ async function adminSessionOn(userId: string, subdomain: string) {
     throw new SiteOrderRefused(
       'Diese Antragsgrün-Seite ist nicht mit deinem Grünerator-Konto verbunden.'
     );
+  const person = await inviteeOf(userId);
+  if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
   const client = new FormClient();
   await login(client, config);
   const { origin, consultation } = splitSiteUrl(site.url);
-  if (!(await isSiteAdmin(client, origin, consultation))) {
-    throw new AntragsgruenFormError(
-      'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
-      'revoked'
-    );
-  }
+  await requireAdmins(client, origin, consultation, person.email);
   return { client, origin, consultation, site };
+}
+
+export type OwnSiteReading =
+  | { kind: 'list'; motions: OwnMotionRef[] }
+  | { kind: 'motion'; motion: OwnMotion }
+  | { kind: 'not-found'; motions: OwnMotionRef[] };
+
+/**
+ * Ohne `antrag` die Anträge der Seite (auch ungeprüfte), sonst einen davon mit
+ * Zeilennummern. Wie jedes Handeln auf der Seite nur, solange Grünerator-Konto
+ * und Person dort Admin sind.
+ */
+export async function readOwnSite(
+  userId: string,
+  subdomain: string,
+  antrag: string | null
+): Promise<OwnSiteReading> {
+  const { client, origin, consultation } = await adminSessionOn(userId, subdomain);
+  const motions = await listOwnMotions(client, origin, consultation);
+  if (!antrag) return { kind: 'list', motions };
+  const ref = findOwnMotion(motions, antrag);
+  if (!ref) return { kind: 'not-found', motions };
+  return { kind: 'motion', motion: await readOwnMotion(client, origin, consultation, ref) };
 }
 
 export async function readAntragsgruenAgenda(
@@ -343,27 +364,32 @@ export async function connectAntragsgruenSite(
   if (!person) throw new SiteOrderRefused('Dein Konto hat keine gültige E-Mail-Adresse.');
 
   await login(client, config);
-  // Ohne Pfad leitet die Startseite auf die Standard-Veranstaltung weiter.
-  const consultation =
-    parsed.consultation ??
-    parseSiteAddress((await client.request(`${parsed.origin}/`)).url, config.baseUrl)
-      ?.consultation ??
-    null;
-  if (!consultation) throw new SiteOrderRefused('Auf dieser Seite gibt es keine Veranstaltung.');
-  const page = await siteAdminPage(client, parsed.origin, consultation);
-  if (!page)
-    throw new SiteOrderRefused(
-      `Das Grünerator-Konto ${config.botEmail} ist auf dieser Seite nicht Admin. Trag es unter „Einstellungen → Registrierte Benutzer*innen" in die Gruppe „Seiten-Admin" ein.`
-    );
-  if (!adminEmailsOf(page).includes(person.email.toLowerCase()))
-    throw new SiteOrderRefused(
-      `Dein Grünerator-Konto (${person.email}) ist auf dieser Seite nicht Admin. Verbinden kann nur, wer dort mit derselben Adresse Admin ist.`
-    );
-
+  // Ohne Pfad zeigt die Subdomain die Standard-Veranstaltung direkt an (gemessen,
+  // keine Weiterleitung). Der Assistent legt sie unter dem Namen der Subdomain an.
+  const consultation = parsed.consultation ?? parsed.subdomain;
   const url = `${parsed.origin}/${consultation}`;
   const start = await client.request(url);
-  const title =
-    cheerio.load(start.html)('h1').first().text().replace(/\s+/g, ' ').trim() || parsed.subdomain;
+  const title = cheerio.load(start.html)('h1').first().text().replace(/\s+/g, ' ').trim();
+  if (start.status !== 200 || !title) {
+    throw new SiteOrderRefused(
+      `Unter ${url} gibt es keine Veranstaltung. Füge die Adresse ein, unter der deine Veranstaltung erscheint, z. B. https://${parsed.subdomain}.${host}/kmv.`
+    );
+  }
+  try {
+    await requireAdmins(client, parsed.origin, consultation, person.email);
+  } catch (err) {
+    if (!(err instanceof AntragsgruenFormError)) throw err;
+    if (err.step === 'revoked')
+      throw new SiteOrderRefused(
+        `Das Grünerator-Konto ${config.botEmail} ist auf dieser Seite nicht Admin. Trag es unter „Einstellungen → Registrierte Benutzer*innen" in die Gruppe „Seiten-Admin" ein.`
+      );
+    if (err.step === 'not-admin')
+      throw new SiteOrderRefused(
+        `Dein Grünerator-Konto (${person.email}) ist auf dieser Seite nicht Admin. Verbinden kann nur, wer dort mit derselben Adresse Admin ist.`
+      );
+    throw err;
+  }
+
   const rows = (await db.query(
     `INSERT INTO antragsgruen_hosted_sites (user_id, subdomain, title, url, kind)
      VALUES ($1, $2, $3, $4, 'connected')

@@ -10,7 +10,12 @@ skillCategory: dokumente
 rolle: methode
 audience: 'de-DE'
 recommendedTools:
-  ['antragsgruen_seite_anlegen', 'antragsgruen_antrag_stellen', 'antragsgruen_tagesordnung']
+  [
+    'antragsgruen_seite_anlegen',
+    'antragsgruen_antrag_stellen',
+    'antragsgruen_tagesordnung',
+    'antragsgruen_seite_lesen',
+  ]
 promptTemplate: 'Lege eine Antragsgrün-Seite an für: '
 order: 92
 ---

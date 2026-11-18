@@ -510,7 +510,9 @@ export async function executeAction(
           throw new ConfirmActionRefusal(
             err.step === 'revoked'
               ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin — jemand hat ihn ausgetragen.'
-              : 'Antragsgrün hat die Tagesordnung nicht übernommen. Es wurde nichts geändert.'
+              : err.step === 'not-admin'
+                ? 'Du bist auf dieser Seite nicht mehr Admin (mit der E-Mail-Adresse deines Grünerator-Kontos). Darum handelt der Grünerator dort nicht mehr für dich.'
+                : 'Antragsgrün hat die Tagesordnung nicht übernommen. Es wurde nichts geändert.'
           );
         }
         throw err;
@@ -535,9 +537,11 @@ export async function executeAction(
           throw new ConfirmActionRefusal(
             err.step === 'revoked'
               ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin — jemand hat ihn ausgetragen. Darum reicht er dort nichts mehr ein.'
-              : err.step === 'create' || err.step === 'motion-type' || err.step === 'agenda-item'
-                ? `Antragsgrün hat den Antrag nicht angenommen: ${err.message}`
-                : 'Antragsgrün war nicht erreichbar oder hat unerwartet geantwortet. Es wurde nichts eingereicht.'
+              : err.step === 'not-admin'
+                ? 'Du bist auf dieser Seite nicht mehr Admin (mit der E-Mail-Adresse deines Grünerator-Kontos). Darum handelt der Grünerator dort nicht mehr für dich.'
+                : err.step === 'create' || err.step === 'motion-type' || err.step === 'agenda-item'
+                  ? `Antragsgrün hat den Antrag nicht angenommen: ${err.message}`
+                  : 'Antragsgrün war nicht erreichbar oder hat unerwartet geantwortet. Es wurde nichts eingereicht.'
           );
         }
         throw err;

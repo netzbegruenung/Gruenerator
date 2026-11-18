@@ -38,8 +38,14 @@ function fail(step: string, message: string, html?: string): never {
   );
 }
 
+/**
+ * `/login` ist die Route, die Antragsgrün selbst verlinkt (`$userPaths` in
+ * `config/urls.php`). `/user/login` geht auf antragsgruen.de auch, auf einer
+ * frischen Multisite-Installation 4.18.1 aber nicht (404 „Veranstaltung nicht
+ * gefunden", gemessen am 18.11.2026).
+ */
 export async function login(client: FormClient, config: HostingConfig): Promise<void> {
-  const page = await client.request(`${config.baseUrl}/user/login`);
+  const page = await client.request(`${config.baseUrl}/login`);
   const csrf = csrfOf(page.html);
   if (!csrf) fail('login', 'Kein CSRF-Token auf der Login-Seite');
   const form = new URLSearchParams({
@@ -48,7 +54,7 @@ export async function login(client: FormClient, config: HostingConfig): Promise<
     password: config.botPassword,
     loginusernamepassword: '',
   });
-  const res = await client.request(`${config.baseUrl}/user/login`, { method: 'POST', form });
+  const res = await client.request(`${config.baseUrl}/login`, { method: 'POST', form });
   // Erfolg ist eine Weiterleitung; ein Fehler zeigt das Formular erneut.
   if (!res.redirected) fail('login', 'Login des Grünerator-Kontos fehlgeschlagen', res.html);
 }
@@ -91,6 +97,30 @@ export async function siteAdminPage(
 ): Promise<string | null> {
   const res = await client.request(`${origin}/${consultation}/admin/users`);
   return !res.redirected && res.status === 200 && res.html.includes('data-users') ? res.html : null;
+}
+
+/**
+ * Vor jedem Schreiben: das Grünerator-Konto UND die Person (mit der Adresse
+ * ihres Grünerator-Kontos) sind Admin der Seite. Das Konto ist geteilt — ohne
+ * die zweite Prüfung handelte es für jemanden, der auf der Seite nichts mehr
+ * zu sagen hat. `revoked`: das Konto wurde ausgetragen; `not-admin`: die Person.
+ */
+export async function requireAdmins(
+  client: FormClient,
+  origin: string,
+  consultation: string,
+  personEmail: string
+): Promise<void> {
+  const page = await siteAdminPage(client, origin, consultation);
+  if (!page) {
+    throw new AntragsgruenFormError(
+      'Das Grünerator-Konto ist auf dieser Seite nicht mehr Admin',
+      'revoked'
+    );
+  }
+  if (!adminEmailsOf(page).includes(personEmail.trim().toLowerCase())) {
+    throw new AntragsgruenFormError(`${personEmail} ist auf dieser Seite nicht Admin`, 'not-admin');
+  }
 }
 
 /**

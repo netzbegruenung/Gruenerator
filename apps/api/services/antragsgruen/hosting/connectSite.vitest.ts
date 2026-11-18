@@ -43,7 +43,8 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 }));
 
 import { FormClient, type FetchLike } from './formClient.js';
-import { adminEmailsOf } from './session.js';
+import { createMotionOnHostedSite } from './motions.js';
+import { adminEmailsOf, login, requireAdmins } from './session.js';
 import { SiteOrderRefused, connectAntragsgruenSite, parseSiteAddress } from './sites.js';
 
 const attr = (value: unknown) => JSON.stringify(value).replace(/"/g, '&quot;');
@@ -66,10 +67,10 @@ function fakeSite(opts: { botAdmin?: boolean; users?: { email: string; groups: n
       { email: 'anna@example.org', groups: [11] },
     ],
   } = opts;
-  const html = (body: string, cookies: string[] = []) => {
+  const html = (body: string, cookies: string[] = [], status = 200) => {
     const headers = new Headers({ 'content-type': 'text/html' });
     for (const c of cookies) headers.append('set-cookie', c);
-    return new Response(body, { status: 200, headers });
+    return new Response(body, { status, headers });
   };
   const redirect = (location: string, cookies: string[] = []) => {
     const headers = new Headers({ location });
@@ -80,19 +81,24 @@ function fakeSite(opts: { botAdmin?: boolean; users?: { email: string; groups: n
     const u = new URL(url);
     const key = `${init.method ?? 'GET'} ${u.host}${u.pathname}`;
     switch (key) {
-      case 'GET antragsgruen.de/user/login':
+      case 'GET antragsgruen.de/login':
         return html('<form><input name="_csrf" value="c-login"></form>');
-      case 'POST antragsgruen.de/user/login':
+      case 'POST antragsgruen.de/login':
         return redirect('/', ['PHPSESSID=s1; path=/; domain=.antragsgruen.de; HttpOnly']);
       case 'GET antragsgruen.de/':
         return html('<h1>Antragsgrün</h1>');
-      case 'GET kv-bonn.antragsgruen.de/':
-        return redirect('/kmv27');
-      case 'GET kv-bonn.antragsgruen.de/kmv27':
+      // Wie Antragsgrün 4.18.1 (gemessen 18.11.2026): die Veranstaltung des
+      // Assistenten heisst wie die Subdomain, eine zweite liegt unter eigenem Pfad,
+      // ein unbekannter Pfad gibt 404 „Veranstaltung nicht gefunden".
+      case 'GET kv-bonn.antragsgruen.de/kv-bonn':
         return html('<h1>  KMV Bonn\n 2027 </h1>');
+      case 'GET kv-bonn.antragsgruen.de/kmv27':
+        return html('<h1>Klausur 2027</h1>');
+      case 'GET kv-bonn.antragsgruen.de/kv-bonn/admin/users':
       case 'GET kv-bonn.antragsgruen.de/kmv27/admin/users':
-        return botAdmin ? html(usersPage(users)) : redirect('/kmv27');
+        return botAdmin ? html(usersPage(users)) : html('<h1>Error</h1>', [], 404);
       default:
+        if (key.startsWith('GET kv-bonn.antragsgruen.de/')) return html('<h1></h1>', [], 404);
         throw new Error(`unexpected request: ${key}`);
     }
   };
@@ -149,12 +155,28 @@ describe('adminEmailsOf', () => {
 });
 
 describe('connectAntragsgruenSite', () => {
-  it('connects when both the Grünerator and the person are admins, following the start redirect', async () => {
+  it('connects a bare host as the consultation named like the subdomain', async () => {
     const site = await connectAntragsgruenSite('u1', 'kv-bonn.antragsgruen.de', fakeSite({}));
     expect(site.title).toBe('KMV Bonn 2027');
     expect(db.inserted).toEqual([
-      ['u1', 'kv-bonn', 'KMV Bonn 2027', 'https://kv-bonn.antragsgruen.de/kmv27'],
+      ['u1', 'kv-bonn', 'KMV Bonn 2027', 'https://kv-bonn.antragsgruen.de/kv-bonn'],
     ]);
+  });
+
+  it('keeps the consultation from the pasted path', async () => {
+    await connectAntragsgruenSite(
+      'u1',
+      'https://kv-bonn.antragsgruen.de/kmv27/motion/3',
+      fakeSite({})
+    );
+    expect(db.inserted[0]?.[3]).toBe('https://kv-bonn.antragsgruen.de/kmv27');
+  });
+
+  it('refuses a path that is no consultation, with a hint', async () => {
+    await expect(
+      connectAntragsgruenSite('u1', 'https://kv-bonn.antragsgruen.de/falsch', fakeSite({}))
+    ).rejects.toThrow(/gibt es keine Veranstaltung/);
+    expect(db.inserted).toEqual([]);
   });
 
   it('refuses when the Grünerator account is not admin, naming the account', async () => {
@@ -194,5 +216,44 @@ describe('connectAntragsgruenSite', () => {
     await expect(
       connectAntragsgruenSite('u1', 'https://example.org/kmv', fakeSite({}))
     ).rejects.toBeInstanceOf(SiteOrderRefused);
+  });
+});
+
+describe('requireAdmins before every write', () => {
+  const MOTION = {
+    siteUrl: 'https://kv-bonn.antragsgruen.de/kv-bonn',
+    title: 'Radwege',
+    text: 'Mehr Radwege.',
+    reason: null,
+    initiator: { name: 'Anna Muster', email: 'Anna@Example.org', organization: null },
+    agendaItem: null,
+  };
+  const CONFIG = { baseUrl: 'https://antragsgruen.de', botEmail: 'b', botPassword: 'p' };
+
+  it('refuses to file a motion once the person is no admin, before asking for a token', async () => {
+    const client = fakeSite({
+      users: [
+        { email: 'bot@gruenerator.eu', groups: [11] },
+        { email: 'anna@example.org', groups: [14] },
+      ],
+    });
+    // Der Fake kennt `/token` nicht: käme der Ablauf so weit, schlüge der Test anders fehl.
+    await expect(createMotionOnHostedSite(MOTION, CONFIG, client)).rejects.toMatchObject({
+      step: 'not-admin',
+    });
+  });
+
+  it('refuses with `revoked` once the Grünerator account was removed', async () => {
+    await expect(
+      createMotionOnHostedSite(MOTION, CONFIG, fakeSite({ botAdmin: false }))
+    ).rejects.toMatchObject({ step: 'revoked' });
+  });
+
+  it('passes when both are admins', async () => {
+    const client = fakeSite({});
+    await login(client, CONFIG);
+    await expect(
+      requireAdmins(client, 'https://kv-bonn.antragsgruen.de', 'kv-bonn', ' anna@EXAMPLE.org ')
+    ).resolves.toBeUndefined();
   });
 });

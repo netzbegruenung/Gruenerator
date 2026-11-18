@@ -8,9 +8,14 @@ vi.mock('../services/pendingActionStore.js', () => ({
   pendingActionStore: { store: async () => {} },
 }));
 
+import { AntragsgruenFormError } from '../../../services/antragsgruen/hosting/formClient.js';
+import { type OwnSiteReading } from '../../../services/antragsgruen/hosting/sites.js';
+
 import {
   makeAntragsgruenAgendaTool,
   makeAntragsgruenMotionTool,
+  makeAntragsgruenReadTool,
+  pickSite,
   makeAntragsgruenSiteTool,
   type SiteToolDeps,
 } from './antragsgruenSiteTools.js';
@@ -210,5 +215,115 @@ describe('antragsgruen_tagesordnung', () => {
     expect(payload.type).toBe('set_antragsgruen_agenda');
     // Ohne Codes nummeriert der Grünerator selbst.
     expect(JSON.stringify(payload)).toContain('1. Begrüßung');
+  });
+});
+
+describe('pickSite', () => {
+  const site = (subdomain: string) => ({
+    id: subdomain,
+    kind: 'connected' as const,
+    created_at: new Date(0),
+    subdomain,
+    title: subdomain.toUpperCase(),
+    url: `https://${subdomain}.antragsgruen.de/${subdomain}`,
+  });
+
+  it('points to the settings when there is no site', () => {
+    expect(pickSite([], undefined)).toEqual({ error: expect.stringMatching(/Einstellungen/) });
+  });
+
+  it('takes the only site, or the named one, and asks when several fit', () => {
+    expect(pickSite([site('a')], undefined)).toEqual({ site: site('a') });
+    expect(pickSite([site('a'), site('b')], ' B ')).toEqual({ site: site('b') });
+    expect(pickSite([site('a'), site('b')], undefined)).toEqual({
+      error: expect.stringMatching(/mehrere Seiten/),
+    });
+    expect(pickSite([site('a')], 'c')).toEqual({ error: expect.stringMatching(/keine Seite/) });
+  });
+});
+
+describe('antragsgruen_seite_lesen', () => {
+  const SITE = {
+    id: '00000000-0000-4000-8000-000000000003',
+    kind: 'connected' as const,
+    created_at: new Date('2026-11-18'),
+    subdomain: 'kv-anna',
+    title: 'KMV Anna 2027',
+    url: 'https://kv-anna.antragsgruen.de/kv-anna',
+  };
+  const REF = {
+    id: 4,
+    prefix: 'A1',
+    title: 'Busse',
+    status: 'Eingereicht (ungeprüft)',
+    url: 'https://kv-anna.antragsgruen.de/kv-anna/Busse-44156',
+  };
+
+  function readCtx(read: (u: string, s: string, a: string | null) => Promise<OwnSiteReading>) {
+    const notes: string[] = [];
+    const state = { agentConfig: { userId: 'user-1' }, messages: [] } as unknown as ChatGraphState;
+    const tool = makeAntragsgruenReadTool(
+      {
+        state,
+        sse: { send: () => {} } as unknown as SSEWriter,
+        threadId: 'thread-1',
+        sourceRegistry: {
+          note: (n: { content?: string }) => notes.push(String(n.content ?? '')),
+        } as unknown as SourceRegistry,
+      },
+      { sitesOf: async () => [SITE], read: vi.fn(read) }
+    );
+    const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
+      (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(args, {})) ?? {};
+    return { run, notes };
+  }
+
+  it('lists the motions without an antrag', async () => {
+    const { run } = readCtx(async (_u, _s, antrag) => {
+      expect(antrag).toBeNull();
+      return { kind: 'list', motions: [REF] };
+    });
+    expect((await run({})).antraege).toEqual([
+      { nummer: 'A1', titel: 'Busse', status: 'Eingereicht (ungeprüft)' },
+    ]);
+  });
+
+  it('returns the text with line marks and the amendment form', async () => {
+    const { run } = readCtx(async () => ({
+      kind: 'motion',
+      motion: {
+        ...REF,
+        sections: [{ title: 'Antragstext', text: '[Z. 1–2] Mehr Busse.' }],
+        lineNumbers: true,
+        amendmentFormUrl: `${REF.url}/amendment/create`,
+      },
+    }));
+    const out = await run({ antrag: 'A1' });
+    expect(out.text).toBe('## Antragstext\n\n[Z. 1–2] Mehr Busse.');
+    expect(out.zeilennummern).toBe(true);
+    expect(out.hinweis).toBeUndefined();
+    expect(out.aenderungsantrag_formular).toBe(`${REF.url}/amendment/create`);
+  });
+
+  it('says when the page shows no line numbers', async () => {
+    const { run } = readCtx(async () => ({
+      kind: 'motion',
+      motion: { ...REF, sections: [], lineNumbers: false, amendmentFormUrl: 'x' },
+    }));
+    expect((await run({ antrag: 'A1' })).hinweis).toMatch(/keine Zeilennummern/);
+  });
+
+  it('names what exists when the antrag is not found', async () => {
+    const { run } = readCtx(async () => ({ kind: 'not-found', motions: [REF] }));
+    expect((await run({ antrag: 'Radwege' })).error).toMatch(/Vorhanden: A1 Busse/);
+  });
+
+  it('refuses once the person is no admin', async () => {
+    const { run } = readCtx(async () => {
+      throw new AntragsgruenFormError('x', 'not-admin');
+    });
+    expect((await run({})).error).toMatch(
+      /nicht mehr Admin; der Grünerator handelt dort nicht mehr/
+    );
   });
 });

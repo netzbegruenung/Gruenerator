@@ -27,8 +27,8 @@ import {
   type ToolMeta,
 } from './toolResults';
 
-import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels';
 import type { SerializableCitation } from '../components/tool-ui/citation/schema';
+import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels';
 
 export const UI_TOOL_NAMES = z.enum([
   'gruenerator_search',
@@ -129,6 +129,7 @@ export const UI_TOOL_NAMES = z.enum([
   'antragsgruen_seite_anlegen',
   'antragsgruen_antrag_stellen',
   'antragsgruen_tagesordnung',
+  'antragsgruen_seite_lesen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1404,6 +1405,12 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   antragsgruen_antrag_stellen: entry('antragsgruen_antrag_stellen', 'text-note', (_a, r) => ({
     kind: 'text-note',
     text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_seite_lesen: entry('antragsgruen_seite_lesen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Antrag „${getString(r, 'titel')}" gelesen` : 'Anträge gelesen'),
   })),
   antragsgruen_werkzeuge_laden: entry('antragsgruen_werkzeuge_laden', 'text-note', () => ({
     kind: 'text-note',

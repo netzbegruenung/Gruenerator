@@ -25,8 +25,10 @@ import {
   hostedSitesOf,
   inviteeOf,
   readAntragsgruenAgenda,
+  readOwnSite,
   sitesOrderedBy,
   type HostedSite,
+  type OwnSiteReading,
 } from '../../../services/antragsgruen/hosting/sites.js';
 import { createLogger } from '../../../utils/logger.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -194,6 +196,35 @@ Ablauf, Fehlerfälle und die nächsten Schritte danach: Rezept „antragsgruen-s
   });
 }
 
+/**
+ * Die Seite, auf der ein Werkzeug handeln soll: die genannte, sonst die einzige.
+ * Sonst ein Fehler, der dem Modell sagt, was es fragen oder sagen soll.
+ */
+export function pickSite(
+  sites: readonly HostedSite[],
+  seite: string | undefined
+): { site: HostedSite } | { error: string } {
+  if (sites.length === 0) {
+    return {
+      error:
+        'Die Person hat noch keine Antragsgrün-Seite über den Grünerator angelegt oder verbunden. Eine eigene bestehende Seite verbindet sie in den Einstellungen unter „Antragsgrün"; auf anderen Seiten kann der Grünerator nichts tun.',
+    };
+  }
+  const wanted = seite?.trim().toLowerCase();
+  const site = wanted
+    ? sites.find((s) => s.subdomain === wanted)
+    : sites.length === 1
+      ? sites[0]
+      : undefined;
+  if (site) return { site };
+  const list = sites.map((s) => `${s.subdomain} („${s.title}")`).join(', ');
+  return {
+    error: wanted
+      ? `„${wanted}" ist keine Seite der Person. Ihre Seiten: ${list}.`
+      : `Die Person hat mehrere Seiten — frag, auf welche: ${list}.`,
+  };
+}
+
 export const ANTRAGSGRUEN_MOTION_TOOL = 'antragsgruen_antrag_stellen';
 
 /** Antrags- und Begründungstext zusammen; darüber wird es kein Antrag mehr, sondern ein Programm. */
@@ -242,27 +273,9 @@ Das Werkzeug zeigt eine Karte zur Bestätigung; kündige nichts als eingereicht 
       if (forbidden) return forbidden;
       if (!threadId) return { error: 'Einreichen ist in diesem Kontext nicht möglich.' };
 
-      const sites = await deps.sitesOf(userId);
-      if (sites.length === 0) {
-        return {
-          error:
-            'Die Person hat noch keine Antragsgrün-Seite über den Grünerator angelegt oder verbunden. Eine eigene bestehende Seite verbindet sie in den Einstellungen unter „Antragsgrün"; auf anderen Seiten kann der Grünerator nichts einreichen.',
-        };
-      }
-      const wanted = args.seite?.trim().toLowerCase();
-      const site = wanted
-        ? sites.find((s) => s.subdomain === wanted)
-        : sites.length === 1
-          ? sites[0]
-          : undefined;
-      if (!site) {
-        const list = sites.map((s) => `${s.subdomain} („${s.title}")`).join(', ');
-        return {
-          error: wanted
-            ? `„${wanted}" ist keine Seite der Person. Ihre Seiten: ${list}.`
-            : `Die Person hat mehrere Seiten — frag, auf welche: ${list}.`,
-        };
-      }
+      const picked = pickSite(await deps.sitesOf(userId), args.seite);
+      if ('error' in picked) return picked;
+      const { site } = picked;
       const text = args.antragstext.trim();
       const reason = args.begruendung?.trim() || null;
       if (text.length + (reason?.length ?? 0) > MAX_MOTION_CHARS) {
@@ -328,27 +341,9 @@ Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die 
     execute: async (args) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
-      const sites = await deps.sitesOf(userId);
-      if (sites.length === 0) {
-        return {
-          error:
-            'Die Person hat keine Antragsgrün-Seite über den Grünerator angelegt oder verbunden.',
-        };
-      }
-      const wanted = args.seite?.trim().toLowerCase();
-      const site = wanted
-        ? sites.find((s) => s.subdomain === wanted)
-        : sites.length === 1
-          ? sites[0]
-          : undefined;
-      if (!site) {
-        const list = sites.map((s) => `${s.subdomain} („${s.title}")`).join(', ');
-        return {
-          error: wanted
-            ? `„${wanted}" ist keine Seite der Person. Ihre Seiten: ${list}.`
-            : `Die Person hat mehrere Seiten — frag, auf welche: ${list}.`,
-        };
-      }
+      const picked = pickSite(await deps.sitesOf(userId), args.seite);
+      if ('error' in picked) return picked;
+      const { site } = picked;
 
       if (!args.punkte) {
         try {
@@ -367,7 +362,9 @@ Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die 
             error:
               err instanceof AntragsgruenFormError && err.step === 'revoked'
                 ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin.'
-                : 'Die Tagesordnung ist gerade nicht abrufbar.',
+                : err instanceof AntragsgruenFormError && err.step === 'not-admin'
+                  ? 'Die Person ist auf dieser Seite nicht mehr Admin; der Grünerator handelt dort nicht mehr für sie.'
+                  : 'Die Tagesordnung ist gerade nicht abrufbar.',
           };
         }
       }
@@ -393,6 +390,104 @@ Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die 
       const note = `Bestätigung zum Setzen der Tagesordnung (${entries.length} Punkte) auf „${site.title}" angefordert.`;
       groundNote(sourceRegistry, 'Tagesordnung setzen', note);
       return { ok: true, note };
+    },
+  });
+}
+
+export const ANTRAGSGRUEN_READ_TOOL = 'antragsgruen_seite_lesen';
+
+/**
+ * Darüber kürzt das Werkzeug selbst; ein Parteitagsantrag hat selten mehr. Die
+ * Schleife gibt ihm dafür das Budget (`OWN_CAP_TOOLS` in `toolResultBudgets.ts`).
+ */
+export const ANTRAGSGRUEN_READ_CHARS = 20_000;
+
+export interface ReadToolDeps {
+  sitesOf: (userId: string) => Promise<HostedSite[]>;
+  read: (userId: string, subdomain: string, antrag: string | null) => Promise<OwnSiteReading>;
+}
+
+const motionLabel = (m: { prefix: string | null; title: string }) =>
+  m.prefix ? `${m.prefix} ${m.title}` : m.title;
+
+export function makeAntragsgruenReadTool(
+  ctx: PersonalToolCtx,
+  deps: ReadToolDeps = { sitesOf: hostedSitesOf, read: readOwnSite }
+): Tool {
+  const { state, sourceRegistry } = ctx;
+  return tool({
+    description: `Liest die Anträge einer eigenen Antragsgrün-Seite der Person (über den Grünerator angelegt oder in den Einstellungen verbunden), auch noch nicht freigeschaltete.
+
+Ohne „antrag": die Liste der Anträge mit Nummer, Titel und Status. Mit „antrag" (Nummer wie „A1" oder Titel): der Antragstext mit Zeilennummern („[Z. 3–7]"), wie die Versammlung ihn sieht.
+
+Für Änderungsanträge: lies den Antrag, schreib den Änderungsantrag mit den richtigen Zeilen („In Zeile 5 ersetze …", „Nach Zeile 9 einfügen: …") und gib der Person den Link zum Formular (aenderungsantrag_formular). Einreichen kann der Grünerator Änderungsanträge nicht — Antragsgrün bietet dafür keine Schnittstelle. Für Parteitage der GRÜNEN NRW ist 'antragsgruen_lesen' da, nicht dieses Werkzeug.`,
+    inputSchema: z.object({
+      seite: z
+        .string()
+        .optional()
+        .describe('Adresse (Subdomain); weglassen, wenn die Person nur eine Seite hat'),
+      antrag: z
+        .string()
+        .optional()
+        .describe('Antragsnummer („A1") oder Titel; weglassen für die Liste'),
+    }),
+    execute: async (args) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+      const picked = pickSite(await deps.sitesOf(userId), args.seite);
+      if ('error' in picked) return picked;
+      const { site } = picked;
+      let reading: OwnSiteReading;
+      try {
+        reading = await deps.read(userId, site.subdomain, args.antrag?.trim() || null);
+      } catch (err) {
+        log.warn(`site read failed: ${err instanceof Error ? err.message : String(err)}`);
+        const step = err instanceof AntragsgruenFormError ? err.step : null;
+        return {
+          error:
+            step === 'revoked'
+              ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin.'
+              : step === 'not-admin'
+                ? 'Die Person ist auf dieser Seite nicht mehr Admin; der Grünerator handelt dort nicht mehr für sie.'
+                : 'Die Anträge der Seite sind gerade nicht abrufbar.',
+        };
+      }
+      if (reading.kind === 'list') {
+        return {
+          seite: site.subdomain,
+          antraege: reading.motions.map((m) => ({
+            nummer: m.prefix,
+            titel: m.title,
+            status: m.status,
+          })),
+        };
+      }
+      if (reading.kind === 'not-found') {
+        const list = reading.motions.map(motionLabel).join('; ');
+        return {
+          error: `Kein eindeutiger Antrag „${args.antrag}" auf ${site.subdomain}. ${list ? `Vorhanden: ${list}.` : 'Die Seite hat noch keine Anträge.'}`,
+        };
+      }
+      const { motion } = reading;
+      const full = motion.sections.map((sec) => `## ${sec.title}\n\n${sec.text}`).join('\n\n');
+      const text =
+        full.length > ANTRAGSGRUEN_READ_CHARS
+          ? `${full.slice(0, ANTRAGSGRUEN_READ_CHARS)}\n\n[… gekürzt]`
+          : full;
+      groundNote(sourceRegistry, `Antrag „${motionLabel(motion)}" (${site.title})`, text);
+      return {
+        seite: site.subdomain,
+        nummer: motion.prefix,
+        titel: motion.title,
+        status: motion.status,
+        url: motion.url,
+        zeilennummern: motion.lineNumbers,
+        ...(!motion.lineNumbers && {
+          hinweis: 'Die Seite zeigt keine Zeilennummern; nenne Stellen über den Wortlaut.',
+        }),
+        text,
+        aenderungsantrag_formular: motion.amendmentFormUrl,
+      };
     },
   });
 }
