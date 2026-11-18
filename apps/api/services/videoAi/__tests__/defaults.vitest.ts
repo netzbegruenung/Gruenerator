@@ -17,10 +17,8 @@ function clip(clipId: string, words: number): StoredClipAnalysis {
     height: null,
     words: Array.from({ length: words }, (_, i) => ({ word: 'wort', start: i, end: i + 0.5 })),
     detectors: {
-      silences: [],
       sceneCuts: [],
       quality: [],
-      loudness: { integratedLufs: null, lra: null },
     },
     cells: [],
   };

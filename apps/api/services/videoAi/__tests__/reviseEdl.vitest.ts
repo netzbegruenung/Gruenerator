@@ -42,10 +42,8 @@ const analysis: StoredVideoAiAnalysis = {
       height: 1920,
       words: radwegWords(),
       detectors: {
-        silences: [],
         sceneCuts: [],
         quality: [],
-        loudness: { integratedLufs: null, lra: null },
       },
       cells: [],
     },

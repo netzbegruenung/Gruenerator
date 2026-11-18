@@ -11,11 +11,7 @@ function cell(
 ): FrameCell {
   return {
     t,
-    einstellung: 'nah',
-    personen: position === 'keine' ? 0 : 1,
     position,
-    angeschnitten: false,
-    qualitaet: 'ok',
     text_im_bild: '',
     beschreibung: `Bild bei ${t}`,
     ...extra,

@@ -1,10 +1,10 @@
 /**
- * Deterministic footage analysis with the bundled ffmpeg 6.0: pauses, scene
- * cuts, sharpness, brightness, loudness. The parsers are pure and tested
- * against real ffmpeg output; `analyzeClip` runs the two passes.
+ * Deterministic footage analysis with the bundled ffmpeg 6.0: scene cuts,
+ * sharpness, brightness. The parsers are pure and tested against real ffmpeg
+ * output; `analyzeClip` runs the video pass.
  *
  * Measured 2026-11-10 on an M5, 100 s of 1080×1920 (spike, section 2):
- * audio pass 0.2 s, scene pass 1 s, sharpness at 2 fps 6 s.
+ * scene pass 1 s, sharpness at 2 fps 6 s.
  */
 import { spawn } from 'child_process';
 
@@ -31,10 +31,8 @@ export interface QualityRange extends TimeRange {
 }
 
 export interface ClipAnalysis {
-  silences: TimeRange[];
   sceneCuts: number[];
   quality: QualityRange[];
-  loudness: { integratedLufs: number | null; lra: number | null };
 }
 
 /**
@@ -49,29 +47,6 @@ export const DARK_YAVG_THRESHOLD = 40;
 export const SCENE_CUT_MIN_GAP = 0.5;
 /** A flagged stretch shorter than this is a single bad frame, not a problem. */
 const MIN_QUALITY_RANGE = 1;
-
-export const SILENCE_NOISE_DB = -35;
-export const SILENCE_MIN_SECONDS = 0.35;
-
-/** `silence_start` without a matching end runs to `duration`. */
-export function parseSilences(stderr: string, duration: number): TimeRange[] {
-  const ranges: TimeRange[] = [];
-  let open: number | null = null;
-  for (const line of stderr.split('\n')) {
-    const start = /silence_start: (-?[\d.]+)/.exec(line);
-    if (start) {
-      open = Math.max(0, Number(start[1]));
-      continue;
-    }
-    const end = /silence_end: ([\d.]+)/.exec(line);
-    if (end && open !== null) {
-      ranges.push({ start: open, end: Number(end[1]) });
-      open = null;
-    }
-  }
-  if (open !== null && duration > open) ranges.push({ start: open, end: duration });
-  return ranges;
-}
 
 export function parseSceneCuts(stderr: string, minGap = SCENE_CUT_MIN_GAP): number[] {
   const cuts: number[] = [];
@@ -101,16 +76,6 @@ export function parseFrameSamples(text: string): FrameSample[] {
     if (yavg) current.yavg = Number(yavg[1]);
   }
   return samples;
-}
-
-/** The `Summary:` block of ebur128. */
-export function parseLoudness(stderr: string): ClipAnalysis['loudness'] {
-  const summary = stderr.slice(stderr.lastIndexOf('Summary:'));
-  const value = (re: RegExp) => {
-    const m = re.exec(summary);
-    return m ? Number(m[1]) : null;
-  };
-  return { integratedLufs: value(/I:\s+(-?[\d.]+) LUFS/), lra: value(/LRA:\s+([\d.]+) LU/) };
 }
 
 /**
@@ -161,21 +126,8 @@ export function runCapture(args: string[], label: string): Promise<string> {
   );
 }
 
-/** Runs the audio and video passes on one clip (ideally the proxy). */
-export async function analyzeClip(path: string, duration: number): Promise<ClipAnalysis> {
-  const audio = await runCapture(
-    [
-      '-i',
-      path,
-      '-vn',
-      '-af',
-      `silencedetect=noise=${SILENCE_NOISE_DB}dB:d=${SILENCE_MIN_SECONDS},ebur128=framelog=quiet`,
-      '-f',
-      'null',
-      '-',
-    ],
-    'video-ai-audio'
-  );
+/** Runs the video pass on one clip (ideally the proxy). */
+export async function analyzeClip(path: string): Promise<ClipAnalysis> {
   const video = await runCapture(
     [
       '-i',
@@ -193,8 +145,6 @@ export async function analyzeClip(path: string, duration: number): Promise<ClipA
     'video-ai-video'
   );
   return {
-    silences: parseSilences(audio, duration),
-    loudness: parseLoudness(audio),
     sceneCuts: parseSceneCuts(video),
     quality: qualityRanges(parseFrameSamples(video)),
   };

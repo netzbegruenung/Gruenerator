@@ -114,7 +114,7 @@ export async function analyzeOneClip(
         ...(job.brief.person ? [job.brief.person.name] : []),
       ];
       const words = input.role === 'footage' ? await transcribe(proxyPath, keyterms) : [];
-      const detectors = await analyzeClip(proxyPath, duration);
+      const detectors = await analyzeClip(proxyPath);
       const sheets = await buildContactSheets(
         proxyPath,
         sampleTimes(duration, detectors.sceneCuts)

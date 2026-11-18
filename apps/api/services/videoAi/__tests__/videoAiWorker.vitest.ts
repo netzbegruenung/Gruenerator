@@ -56,10 +56,8 @@ function clip(clipId: string, role: 'footage' | 'broll'): StoredClipAnalysis {
     height: 1920,
     words: role === 'footage' ? radwegWords() : [],
     detectors: {
-      silences: [],
       sceneCuts: [],
       quality: [],
-      loudness: { integratedLufs: null, lra: null },
     },
     cells: [],
   };

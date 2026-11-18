@@ -50,10 +50,8 @@ describe('materialWarnings', () => {
     height: null,
     words: [],
     detectors: {
-      silences: [],
       sceneCuts: [],
       quality: [{ start: 0, end: 6, flag: 'unscharf' }],
-      loudness: { integratedLufs: null, lra: null },
     },
     cells: [],
   };

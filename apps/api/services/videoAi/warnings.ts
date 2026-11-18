@@ -1,8 +1,7 @@
 /**
  * Hints about the material, shown with the first plan: what no cut can fix
- * ("Unschärfe rettet kein Schnitt"). Loudness is not among them on purpose —
- * the detectors read the levelled working copy, where every clip is at
- * -14 LUFS by construction.
+ * ("Unschärfe rettet kein Schnitt"). Volume is not among them on purpose —
+ * the working copy levels every clip to -14 LUFS by construction.
  */
 import { type StoredClipAnalysis } from './projectTypes.js';
 
