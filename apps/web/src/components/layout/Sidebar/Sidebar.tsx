@@ -51,7 +51,8 @@ const GlobalSearchDialog = lazy(() => import('../../../features/global-search/Gl
 
 interface SidebarProps {
   isDesktop?: boolean;
-  onNavigate?: (path: string, title: string) => void;
+  /** `state`: router state for the target, e.g. a notebook's fresh conversation. */
+  onNavigate?: (path: string, title: string, state?: unknown) => void;
 }
 
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
@@ -180,11 +181,11 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
 
   const handleLinkClick = useCallback(
-    (path: string, title: string = '') => {
+    (path: string, title: string = '', state: unknown = null) => {
       if (onNavigate) {
-        onNavigate(path, title);
+        onNavigate(path, title, state);
       } else {
-        void navigate(path);
+        void navigate(path, { state });
       }
       close();
     },
@@ -451,7 +452,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             titleClass={titleClass}
             collapsed={!sidebarExpanded}
             onNavigate={handleLinkClick}
-            onClose={close}
           />
         )}
 

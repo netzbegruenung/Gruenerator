@@ -11,10 +11,18 @@ import {
   DropdownMenuTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { type MutableRefObject, memo, useCallback, useState } from 'react';
+import {
+  type MouseEvent,
+  type MutableRefObject,
+  type ReactNode,
+  memo,
+  useCallback,
+  useState,
+} from 'react';
 import { PiBooks, PiNotebook, PiPlus } from 'react-icons/pi';
+import { Link } from 'react-router-dom';
 
-import { shelfEntryLink } from '../../../features/notebook/wissen/NotebookShelf';
+import { OPEN_STATE, shelfEntryLink } from '../../../features/notebook/wissen/NotebookShelf';
 import { useNotebookShelves } from '../../../features/notebook/wissen/useNotebookShelves';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
@@ -25,8 +33,41 @@ interface NotebooksSidebarSectionProps {
   openRef: MutableRefObject<boolean>;
   titleClass: string;
   collapsed: boolean;
-  onNavigate: (path: string, title: string) => void;
-  onClose: () => void;
+  /** The sidebar's navigation: on the desktop app it also keeps the active tab's route and title. */
+  onNavigate: (path: string, title: string, state: typeof OPEN_STATE | null) => void;
+}
+
+/**
+ * Menu entry as a real link, so cmd/middle-click opens a new tab. A plain click
+ * or Enter goes through the sidebar's navigation instead of the link's own.
+ */
+function LinkItem({
+  to,
+  title,
+  state = null,
+  onOpen,
+  children,
+}: {
+  to: string;
+  /** Tab title on the desktop app. */
+  title: string;
+  state?: typeof OPEN_STATE | null;
+  onOpen: (path: string, title: string, state: typeof OPEN_STATE | null) => void;
+  children: ReactNode;
+}) {
+  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    onOpen(to, title, state);
+  };
+  return (
+    <DropdownMenuItem asChild>
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; Enter löst über das Menü denselben Klick aus */}
+      <Link to={to} state={state} onClick={handleClick}>
+        {children}
+      </Link>
+    </DropdownMenuItem>
+  );
 }
 
 /**
@@ -39,10 +80,10 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
   titleClass,
   collapsed,
   onNavigate,
-  onClose,
 }: NotebooksSidebarSectionProps) {
   const isMobile = useIsMobile();
   const { shelves } = useNotebookShelves();
+  // Own notebooks: the shelf has no flag, but `meta` stays null while they load.
   const [open, setOpen] = useState(false);
 
   const handleOpenChange = useCallback(
@@ -54,13 +95,13 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
     [openRef]
   );
 
-  const go = useCallback(
-    (path: string, title: string) => {
-      setOpen(false);
-      onNavigate(path, title);
-      onClose();
+  const openEntry = useCallback(
+    (path: string, title: string, state: typeof OPEN_STATE | null) => {
+      // The prevented click keeps Radix from closing the menu itself.
+      handleOpenChange(false);
+      onNavigate(path, title, state);
     },
-    [onNavigate, onClose]
+    [handleOpenChange, onNavigate]
   );
 
   return (
@@ -83,25 +124,33 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
           {shelves.map((shelf) => {
             if (shelf.kind === 'notebook')
               return (
-                <DropdownMenuItem
+                <LinkItem
                   key={shelf.id}
-                  onSelect={() => go(shelf.notebook.path, shelf.title)}
+                  to={shelf.notebook.path}
+                  title={shelf.title}
+                  state={OPEN_STATE}
+                  onOpen={openEntry}
                 >
                   <PiNotebook className="size-4" />
                   <span className="truncate">{shelf.title}</span>
-                </DropdownMenuItem>
+                </LinkItem>
               );
-            // „Meine Notebooks" without any notebook yet: a create entry, like the tile on /wissen.
-            if (shelf.kind === 'create' || shelf.entries.length === 0)
+            // No own notebook yet: "Neues Notebook" below covers it, a labelled entry would mislead.
+            if (shelf.kind === 'create') return null;
+            if (shelf.entries.length === 0)
+              return shelf.meta === null ? (
+                <div key={shelf.id} className="px-2 py-1.5 text-xs text-grey-500">
+                  {shelf.title} werden geladen…
+                </div>
+              ) : null;
+            const items = shelf.entries.map((entry) => {
+              const { title, to, state } = shelfEntryLink(entry);
               return (
-                <DropdownMenuItem key={shelf.id} onSelect={() => go(CREATE_PATH, 'Neues Notebook')}>
-                  <PiNotebook className="size-4" />
-                  <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
-                  {shelf.meta && (
-                    <span className="text-xs text-grey-500 max-md:hidden">{shelf.meta}</span>
-                  )}
-                </DropdownMenuItem>
+                <LinkItem key={entry.key} to={to} title={title} state={state} onOpen={openEntry}>
+                  <span className="truncate">{title}</span>
+                </LinkItem>
               );
+            });
             // On a phone a side flyout would open past the screen edge: the group's
             // notebooks follow inline under their name instead.
             if (isMobile)
@@ -110,14 +159,7 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
                   <DropdownMenuLabel className="pt-3 text-xs font-semibold text-grey-500">
                     {shelf.title}
                   </DropdownMenuLabel>
-                  {shelf.entries.map((entry) => {
-                    const { title, to } = shelfEntryLink(entry);
-                    return (
-                      <DropdownMenuItem key={entry.key} onSelect={() => go(to, title)}>
-                        <span className="truncate">{title}</span>
-                      </DropdownMenuItem>
-                    );
-                  })}
+                  {items}
                 </DropdownMenuGroup>
               );
             return (
@@ -127,27 +169,20 @@ export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
                   <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="max-h-[60vh] w-64 overflow-y-auto">
-                  {shelf.entries.map((entry) => {
-                    const { title, to } = shelfEntryLink(entry);
-                    return (
-                      <DropdownMenuItem key={entry.key} onSelect={() => go(to, title)}>
-                        <span className="truncate">{title}</span>
-                      </DropdownMenuItem>
-                    );
-                  })}
+                  {items}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             );
           })}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => go(CREATE_PATH, 'Neues Notebook')}>
+          <LinkItem to={CREATE_PATH} title="Neues Notebook" onOpen={openEntry}>
             <PiPlus className="size-4" />
             <span>Neues Notebook</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => go('/wissen', 'Wissen')}>
+          </LinkItem>
+          <LinkItem to="/wissen" title="Wissen" onOpen={openEntry}>
             <PiBooks className="size-4" />
             <span>Alle Notebooks</span>
-          </DropdownMenuItem>
+          </LinkItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
