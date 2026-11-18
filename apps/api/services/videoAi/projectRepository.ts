@@ -3,8 +3,8 @@
  * The worker has its own statements (videoAiWorker.ts).
  */
 import {
+  VIDEO_AI_ACTIVE_STATUSES,
   videoAiBriefSchema,
-  videoAiStatusSchema,
   type VideoAiBrief,
   type VideoAiInputRole,
   type VideoAiProjectDto,
@@ -12,6 +12,7 @@ import {
 } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
+import { type VideoAiProjectRow } from '../../database/schema/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 import {
@@ -28,9 +29,6 @@ import {
   type StoredVideoAiInput,
   type StoredVideoAiVersion,
 } from './projectTypes.js';
-
-/** Statuses the worker still has to move. */
-export const ACTIVE_STATUSES = ['queued', 'analyzing', 'cutting', 'designing'] as const;
 
 export interface MediaForInput {
   id: string;
@@ -81,7 +79,7 @@ export async function hasActiveProject(userId: string): Promise<boolean> {
     `SELECT id FROM video_ai_projects
       WHERE user_id = $1 AND status = ANY($2::text[]) AND deleted_at IS NULL
       LIMIT 1`,
-    [userId, [...ACTIVE_STATUSES]]
+    [userId, [...VIDEO_AI_ACTIVE_STATUSES]]
   );
   return rows.length > 0;
 }
@@ -127,23 +125,24 @@ export async function insertVideoAiProject(
   }
 }
 
-export interface ProjectRow {
-  id: string;
-  user_id: string;
-  slug_suffix: string;
-  title: string;
-  locale: 'de-DE' | 'de-AT';
-  status: string;
-  error: string | null;
-  brief: VideoAiBrief;
-  inputs: StoredVideoAiInput[];
-  warnings: string[];
-  analysis: StoredVideoAiAnalysis | null;
-  versions: StoredVideoAiVersion[];
-  current_version: number | null;
-  handed_off_at: Date | null;
-  created_at: Date;
-}
+export type ProjectRow = Pick<
+  VideoAiProjectRow,
+  | 'id'
+  | 'user_id'
+  | 'slug_suffix'
+  | 'title'
+  | 'locale'
+  | 'status'
+  | 'error'
+  | 'brief'
+  | 'inputs'
+  | 'warnings'
+  | 'analysis'
+  | 'versions'
+  | 'current_version'
+  | 'handed_off_at'
+  | 'created_at'
+>;
 
 const PROJECT_COLUMNS = `id, user_id, slug_suffix, title, locale, status, error, brief, inputs,
   warnings, analysis, versions, current_version, handed_off_at, created_at`;
@@ -230,14 +229,13 @@ function unitTexts(analysis: StoredVideoAiAnalysis | null): Map<string, string> 
 }
 
 export function toProjectDto(row: ProjectRow): VideoAiProjectDto {
-  const status = videoAiStatusSchema.safeParse(row.status);
   const version = row.versions.find((v) => v.version === row.current_version) ?? null;
   const texts = unitTexts(row.analysis);
   return {
     id: row.id,
     slugSuffix: row.slug_suffix,
     title: row.title,
-    status: status.success ? status.data : 'failed',
+    status: row.status,
     error: row.error,
     // Written through the same schema on create; a row that no longer parses
     // is a bug worth a loud 500, not a silently emptied brief.
@@ -263,13 +261,9 @@ export function toProjectDto(row: ProjectRow): VideoAiProjectDto {
 }
 
 export async function listOwnVideoAiProjects(userId: string): Promise<VideoAiProjectListItem[]> {
-  const rows = await getPostgresInstance().query<{
-    id: string;
-    slug_suffix: string;
-    title: string;
-    status: string;
-    created_at: Date;
-  }>(
+  const rows = await getPostgresInstance().query<
+    Pick<VideoAiProjectRow, 'id' | 'slug_suffix' | 'title' | 'status' | 'created_at'>
+  >(
     `SELECT id, slug_suffix, title, status, created_at
        FROM video_ai_projects
       WHERE user_id = $1 AND deleted_at IS NULL
@@ -277,16 +271,13 @@ export async function listOwnVideoAiProjects(userId: string): Promise<VideoAiPro
       LIMIT 100`,
     [userId]
   );
-  return rows.map((row) => {
-    const status = videoAiStatusSchema.safeParse(row.status);
-    return {
-      id: row.id,
-      slugSuffix: row.slug_suffix,
-      title: row.title,
-      status: status.success ? status.data : 'failed',
-      createdAt: new Date(row.created_at).toISOString(),
-    };
-  });
+  return rows.map((row) => ({
+    id: row.id,
+    slugSuffix: row.slug_suffix,
+    title: row.title,
+    status: row.status,
+    createdAt: new Date(row.created_at).toISOString(),
+  }));
 }
 
 /**
@@ -312,7 +303,7 @@ export async function cancelVideoAiProject(
       WHERE p.id = before.id
       RETURNING CASE WHEN before.status = 'queued' THEN before.tree_units ELSE 0 END AS refund_units,
                 p.tree_day`,
-    [id, userId, [...ACTIVE_STATUSES]]
+    [id, userId, [...VIDEO_AI_ACTIVE_STATUSES]]
   );
   const row = rows[0];
   return row ? { refundUnits: row.refund_units, treeDay: row.tree_day } : null;

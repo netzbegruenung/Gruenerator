@@ -1,4 +1,4 @@
-import { type VideoAiBrief } from '@gruenerator/contracts';
+import { type VideoAiBrief, type VideoAiStatus } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   index,
@@ -27,11 +27,11 @@ export const videoAiProjects = pgTable(
     slug_suffix: varchar('slug_suffix', { length: 12 }).notNull(),
     title: text('title').notNull(),
     /** 'de-DE' | 'de-AT' — CHECK in the migration. */
-    locale: varchar('locale', { length: 5 }).notNull().default('de-DE'),
+    locale: varchar('locale', { length: 5 }).$type<'de-DE' | 'de-AT'>().notNull().default('de-DE'),
     brief: jsonb('brief').$type<VideoAiBrief>().notNull(),
     inputs: jsonb('inputs').$type<StoredVideoAiInput[]>().notNull(),
     /** videoAiStatusSchema — CHECK in the migration. */
-    status: text('status').notNull().default('queued'),
+    status: text('status').$type<VideoAiStatus>().notNull().default('queued'),
     error: text('error'),
     warnings: jsonb('warnings').$type<string[]>().notNull().default([]),
     analysis: jsonb('analysis').$type<StoredVideoAiAnalysis>(),

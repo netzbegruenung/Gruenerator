@@ -4,6 +4,7 @@
  * of videoAiContract is `{ error }`).
  */
 import {
+  VIDEO_AI_ACTIVE_STATUSES,
   type ApplyVideoAiOpsBody,
   type CreateVideoAiProjectBody,
   type ReviseVideoAiBody,
@@ -21,7 +22,7 @@ import { getTusAuthOptions } from '@/utils/tusAuth';
 export const projectsQueryKey = ['video-ai-projects'] as const;
 export const projectQueryKey = (ref: string) => ['video-ai-projects', ref] as const;
 
-const ACTIVE: readonly VideoAiStatus[] = ['queued', 'analyzing', 'cutting', 'designing'];
+const ACTIVE: readonly VideoAiStatus[] = VIDEO_AI_ACTIVE_STATUSES;
 export const isActive = (status: VideoAiStatus | null | undefined): boolean =>
   status !== null && status !== undefined && ACTIVE.includes(status);
 

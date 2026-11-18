@@ -13,8 +13,9 @@
  * cannot be analysed. A failed job gives its trees back; a cancelled one
  * stops at the next step.
  */
-import { type VideoAiBrief, type VideoAiEdl } from '@gruenerator/contracts';
+import { VIDEO_AI_ACTIVE_STATUSES, type VideoAiEdl } from '@gruenerator/contracts';
 
+import { type VideoAiProjectRow } from '../../database/schema/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createIntervalWorker } from '../../utils/intervalWorker.js';
 import { createLogger } from '../../utils/logger.js';
@@ -33,7 +34,6 @@ import { decideCut, type CutDecision, type CutInput } from './decideCut.js';
 import { decideDesign, type DesignDecision, type DesignInput } from './decideDesign.js';
 import { fallbackCut, fallbackDesign } from './fallbackPlan.js';
 import { planContext, withAutoRoles } from './projectContext.js';
-import { ACTIVE_STATUSES } from './projectRepository.js';
 import {
   type StoredAssetAnalysis,
   type StoredClipAnalysis,
@@ -57,19 +57,20 @@ export const GENERIC_FAILURE =
   'Der KI-Schnitt konnte nicht erstellt werden. Deine Bäume sind zurückgebucht. ' +
   'Bitte versuch es noch einmal.';
 
-export interface ClaimedProject {
-  id: string;
-  user_id: string;
-  slug_suffix: string;
-  title: string;
-  locale: 'de-DE' | 'de-AT';
-  brief: VideoAiBrief;
-  inputs: StoredVideoAiInput[];
-  analysis: StoredVideoAiAnalysis | null;
-  attempts: number;
-  tree_units: number;
-  tree_day: string | null;
-}
+export type ClaimedProject = Pick<
+  VideoAiProjectRow,
+  | 'id'
+  | 'user_id'
+  | 'slug_suffix'
+  | 'title'
+  | 'locale'
+  | 'brief'
+  | 'inputs'
+  | 'analysis'
+  | 'attempts'
+  | 'tree_units'
+  | 'tree_day'
+>;
 
 type NotifiedProject = Pick<ClaimedProject, 'id' | 'user_id' | 'slug_suffix' | 'title'>;
 
@@ -90,7 +91,7 @@ export interface VideoAiWorkerDeps {
   releaseTrees: (userId: string, units: number, day: string) => Promise<void>;
 }
 
-const ACTIVE_LIST = `'${ACTIVE_STATUSES.join("', '")}'`;
+const ACTIVE_LIST = `'${VIDEO_AI_ACTIVE_STATUSES.join("', '")}'`;
 
 export const CLAIM_SQL = `UPDATE video_ai_projects p
     SET claim_at = now(), attempts = p.attempts + 1

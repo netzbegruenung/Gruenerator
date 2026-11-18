@@ -220,6 +220,14 @@ export const videoAiStatusSchema = z.enum([
 ]);
 export type VideoAiStatus = z.infer<typeof videoAiStatusSchema>;
 
+/** Statuses the worker still has to move. */
+export const VIDEO_AI_ACTIVE_STATUSES = [
+  'queued',
+  'analyzing',
+  'cutting',
+  'designing',
+] as const satisfies readonly VideoAiStatus[];
+
 /** What a client may send; the API fills title, format and style. */
 export const videoAiBriefInputSchema = videoAiBriefSchema.partial();
 export type VideoAiBriefInput = z.infer<typeof videoAiBriefInputSchema>;
