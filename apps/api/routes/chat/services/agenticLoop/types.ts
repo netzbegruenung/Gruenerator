@@ -215,6 +215,11 @@ export const TURN_ABORTABLE_TOOLS: ReadonlySet<string> = new Set(['website_erkun
 
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein Planer-Aufruf auf Mistral Large 4 vor der Rechnung. Live 18.11.2026 kam
+  // das Ergebnis mehrfach 5–11 s NACH der 20-s-Frist an und wurde
+  // verworfen. Die Längenzählung braucht den Planer nicht mehr (`textlaenge`);
+  // die Frist gilt den Plänen, die lang werden dürfen (Angaben nachrechnen).
+  rechnen: 45_000,
   // Ein echter Browser-Lauf: der Dienst deckelt ihn bei 170 s und schickt dann
   // ein Teilergebnis; 10 s Luft für Bilder speichern und den Rückweg.
   website_erkunden: 180_000,

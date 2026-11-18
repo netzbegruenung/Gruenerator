@@ -210,6 +210,21 @@ interface ModelResolution {
 const EXPLICIT_SELECTION_REASONING: ReasoningSetting = 'high';
 
 /**
+ * Explicit selections whose reasoning is graded by the auto policy (intent +
+ * complexity) instead of the blanket `high` above.
+ *
+ * Ultra is Mistral Large 4, and at `high` it drafts the whole answer inside its
+ * reasoning before writing it. Measured 18.11.2026 on a guest article with a
+ * length target: 17,000–37,000 characters of reasoning for a 4,000-character
+ * answer and turns of 131–290 s; in 4 of 8 runs the turn budget ran out first,
+ * the answer was a one-line announcement and the article never arrived.
+ * Without `high`: 1,300–2,200 characters of reasoning, 97–159 s, the article in
+ * 3 of 3 runs. On this lane `off` and `low` are the model's lowest step, not
+ * silence (`MISTRAL_LOWEST_REASONING`).
+ */
+const POLICY_GRADED_SELECTIONS: ReadonlySet<string> = new Set(['gruenerator-ultra']);
+
+/**
  * Mistral's dial is BINARY: `@ai-sdk/mistral` validates reasoningEffort against
  * `'high' | 'none'` and throws a ZodError on 'low'/'medium' (verified live
  * against the API). Our 4-step scale therefore collapses here — anything below
@@ -289,6 +304,18 @@ export async function resolveModel(
   let contextWindow: number | undefined;
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
+  // What the auto policy would decide for this turn — the lane on `auto`, the
+  // reasoning strength also for `POLICY_GRADED_SELECTIONS`.
+  const policySelection = () =>
+    resolveAutoSelection({
+      ...(options?.intent != null && { intent: options.intent }),
+      ...(options?.demotedFromProse != null && { demotedFromProse: options.demotedFromProse }),
+      ...(options?.complexity != null && { complexity: options.complexity }),
+      ...(options?.taskShape != null && { taskShape: options.taskShape }),
+      ...(options?.materialChars != null && { materialChars: options.materialChars }),
+      ...(options?.agentId != null && { agentId: options.agentId }),
+      ...(options?.surface != null && { surface: options.surface }),
+    });
 
   const requested = isAuto ? null : await resolveModelTuple(modelId, requestId);
   if (!isAuto && !requested) {
@@ -302,19 +329,16 @@ export async function resolveModel(
     resolvedId = modelId;
     contextWindow = requested.contextWindow;
     if (requested.sibling) sibling = requested.sibling;
-    log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
+    if (modelId && POLICY_GRADED_SELECTIONS.has(modelId)) {
+      reasoningEffort = policySelection().reasoning;
+    }
+    log.info(
+      `[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName} reasoning=${reasoningEffort}`
+    );
   } else {
     // Auto: the classifier has already run, so the intent is known here. This
     // is the whole point of resolving auto on the server instead of the client.
-    const selection = resolveAutoSelection({
-      ...(options?.intent != null && { intent: options.intent }),
-      ...(options?.demotedFromProse != null && { demotedFromProse: options.demotedFromProse }),
-      ...(options?.complexity != null && { complexity: options.complexity }),
-      ...(options?.taskShape != null && { taskShape: options.taskShape }),
-      ...(options?.materialChars != null && { materialChars: options.materialChars }),
-      ...(options?.agentId != null && { agentId: options.agentId }),
-      ...(options?.surface != null && { surface: options.surface }),
-    });
+    const selection = policySelection();
     reasoningEffort = selection.reasoning;
     const tuple = await resolveModelTuple(selection.modelId, requestId);
     if (tuple) {

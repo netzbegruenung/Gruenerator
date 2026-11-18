@@ -297,6 +297,34 @@ describe('resolveModel', () => {
     expect(resolution.provider).toBe('melious');
     expect(resolution.modelName).toBe('gemma-4-31b:balanced');
   });
+
+  // 18.11.2026: Ultra at a blanket `high` reasoned 17–37k characters per turn
+  // and ran writing turns out of their budget.
+  it('grades the reasoning of an Ultra selection like auto does', async () => {
+    mockResolveModelTuple.mockResolvedValue({ provider: 'mistral', model: 'mistral-large-4' });
+    const writing = await resolveModel(agentConfig, 'gruenerator-ultra', 'req_test', {
+      intent: 'agentic',
+      demotedFromProse: 'produktion',
+      complexity: 'moderate',
+    });
+    expect(writing.modelName).toBe('mistral-large-4');
+    expect(writing.fromAutoPolicy).toBe(false);
+    expect(writing.reasoningEffort).toBe('off');
+
+    const editing = await resolveModel(agentConfig, 'gruenerator-ultra', 'req_test', {
+      intent: 'edit_current_doc',
+      complexity: 'complex',
+    });
+    expect(editing.reasoningEffort).toBe('high');
+  });
+
+  it('keeps high for the other explicit selections', async () => {
+    mockResolveModelTuple.mockResolvedValue({ provider: 'melious', model: 'gemma-4-31b:balanced' });
+    const resolution = await resolveModel(agentConfig, 'gemma-4', 'req_test', {
+      intent: 'produktion',
+    });
+    expect(resolution.reasoningEffort).toBe('high');
+  });
 });
 
 // ─── Fallback lane with a smaller window (#4198) ─────────────────────────────

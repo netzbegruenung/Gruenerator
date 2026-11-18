@@ -79,16 +79,22 @@ export function promptChars(
   return total;
 }
 
+/** Anbieter eines Modell-Objekts der agentischen Schleife, normalisiert wie
+ *  oben (`mistral.chat` → `mistral`). */
+export function providerOfModel(model: LanguageModel): string {
+  // `provider` fehlt bei Modell-Attrappen — wie in `modelLabel` (loopEngine.ts).
+  const provider =
+    typeof model === 'string'
+      ? (model.split('/')[0] ?? '')
+      : ((model.provider as string | undefined) ?? '');
+  return providerKey(provider);
+}
+
 /** Derselbe Zuschlag für ein Modell-Objekt der agentischen Schleife. */
 export function prefillAllowanceForModel(
   model: LanguageModel,
   system: string | null | undefined,
   messages: readonly ModelMessage[]
 ): number {
-  // `provider` fehlt bei Modell-Attrappen — wie in `modelLabel` (loopEngine.ts).
-  const provider =
-    typeof model === 'string'
-      ? (model.split('/')[0] ?? '')
-      : ((model.provider as string | undefined) ?? '');
-  return prefillAllowanceMs(provider, promptChars(system, messages));
+  return prefillAllowanceMs(providerOfModel(model), promptChars(system, messages));
 }
