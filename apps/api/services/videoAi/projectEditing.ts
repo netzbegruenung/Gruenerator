@@ -16,6 +16,7 @@ import { createLogger } from '../../utils/logger.js';
 import { getTreeBudget, TREE_COST_VIDEO_AI_REVISION } from '../trees/index.js';
 
 import { applyOps } from './applyOps.js';
+import { checkDesign } from './decideDesign.js';
 import { reserveVideoAiTrees } from './defaults.js';
 import { planContext, validationContext, type PlanContext } from './projectContext.js';
 import { appendVersion, loadOwnProjectRow, type ProjectRow } from './projectRepository.js';
@@ -115,9 +116,14 @@ export async function applyDirectOps(
     removedReason: DIRECT_REMOVED_REASON,
   });
   if (!applied.ok) return fail(400, applied.error);
-  // The same rules as the first cut, except length: here the person decides.
+  // The same rules as the first cut and a correction round, except length:
+  // here the person decides.
   const valid = validateEdl(applied.edl, validationContext(value.row, value.ctx, null));
-  if (!valid.ok) return fail(400, valid.errors.join(' '));
+  const problems = [
+    ...checkDesign(applied.edl, value.ctx.designBase),
+    ...(valid.ok ? [] : valid.errors),
+  ];
+  if (problems.length > 0) return fail(400, problems.join(' '));
   return store(value, userId, {
     edl: applied.edl,
     omitted: applied.omitted,

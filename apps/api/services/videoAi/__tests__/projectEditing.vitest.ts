@@ -23,7 +23,7 @@ vi.mock('../projectRepository.js', async (original) => ({
   appendVersion,
 }));
 
-const { reviseProject } = await import('../projectEditing.js');
+const { applyDirectOps, reviseProject } = await import('../projectEditing.js');
 const { TREE_COST_VIDEO_AI_REVISION } = await import('../../trees/index.js');
 
 const current: StoredVideoAiVersion = {
@@ -96,5 +96,24 @@ describe('reviseProject', () => {
       reviseProject(ROW.id, 'user-1', { baseVersion: 1, feedback: 'Kürzer' }, revise)
     ).rejects.toThrow('connection reset');
     expect(release).toHaveBeenCalledWith('user-1', TREE_COST_VIDEO_AI_REVISION, '2026-11-18');
+  });
+});
+
+describe('applyDirectOps', () => {
+  it('holds direct changes to the design rules of the first cut', async () => {
+    appendVersion.mockClear();
+    const title = (text: string, atSegment: number) =>
+      ({
+        kind: 'add_overlay',
+        overlay: { kind: 'titel', preset: 'statement', text, atSegment, durationSeconds: 3 },
+      }) as const;
+
+    const result = await applyDirectOps(ROW.id, 'user-1', {
+      baseVersion: 1,
+      ops: [title('Sicherer Schulweg', 0), title('Jetzt bauen', 1), title('Für alle Kinder', 1)],
+    });
+
+    expect(result).toEqual({ ok: false, status: 400, error: 'Höchstens 2 Titel, nicht 3.' });
+    expect(appendVersion).not.toHaveBeenCalled();
   });
 });
