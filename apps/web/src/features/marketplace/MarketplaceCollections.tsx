@@ -125,63 +125,98 @@ function Emphasized({ text }: { text: string }) {
 /**
  * A sideways row: 82 % of a phone, about two cards on a tablet, three and a
  * peek on a desktop. The thin scrollbar stays so a mouse can reach the rest.
+ * The 4 px of padding on top and (from md) at the sides keep a focused card's
+ * ring inside the scroll box, which clips everything outside its padding.
  */
 const COLLECTION_SCROLL_ROW =
-  'm-0 flex list-none snap-x snap-mandatory gap-md overflow-x-auto p-0 pb-3 [scrollbar-width:thin] max-md:-mx-4 max-md:scroll-px-4 max-md:px-4 [&>*]:shrink-0 [&>*]:snap-start [&>*]:w-[82%] sm:[&>*]:w-[46%] lg:[&>*]:w-[31%]';
+  'm-0 flex list-none snap-x snap-mandatory gap-md overflow-x-auto p-0 -mt-1 pt-1 pb-3 [scrollbar-width:thin] max-md:-mx-4 max-md:scroll-px-4 max-md:px-4 md:-mx-1 md:scroll-px-1 md:px-1 [&>*]:shrink-0 [&>*]:snap-start [&>*]:w-[82%] sm:[&>*]:w-[46%] lg:[&>*]:w-[31%]';
+
+/**
+ * Where the row comes to rest after a drag: the card start nearest to the
+ * release point, as `snap-start` with the row's scroll padding would pick it.
+ */
+function nearestCardStart(el: HTMLElement): number {
+  const start =
+    el.getBoundingClientRect().left +
+    el.clientLeft +
+    (parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0);
+  const max = el.scrollWidth - el.clientWidth;
+  return Array.from(el.children, (card) =>
+    Math.min(max, Math.max(0, el.scrollLeft + card.getBoundingClientRect().left - start))
+  ).reduce((a, b) => (Math.abs(b - el.scrollLeft) < Math.abs(a - el.scrollLeft) ? b : a));
+}
 
 /**
  * The sideways row. A finger swipes natively; a mouse drags it: held down and
- * pulled, the row follows, and on release it snaps to the nearest card. A click
- * that ends a drag does not open the card under the pointer.
+ * pulled, the row follows, and on release it glides to the nearest card. A
+ * click that ends a drag does not open the card under the pointer.
  */
 function ScrollRow({ children }: { children: ReactNode }) {
   const row = useRef<HTMLUListElement>(null);
-  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
-  const dragged = useRef(false);
+  const drag = useRef<{ id: number; x: number; left: number; moved: boolean } | null>(null);
+  const swallowClick = useRef(false);
+
+  const endDrag = (released: boolean, wrapper: HTMLDivElement) => {
+    const state = drag.current;
+    const el = row.current;
+    drag.current = null;
+    if (!state?.moved || !el) return;
+    delete wrapper.dataset.dragging;
+    // Restoring the snap alone jumps to the nearest card in one frame; gliding
+    // there first, still unsnapped, means the restored snap finds the row at rest.
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({ left: nearestCardStart(el), behavior: reduce ? 'auto' : 'smooth' });
+    el.style.scrollSnapType = '';
+    if (!released) return;
+    // A click can only follow in the same task as this pointerup; a later one
+    // (Enter on a focused card) is a real activation and must get through.
+    swallowClick.current = true;
+    setTimeout(() => {
+      swallowClick.current = false;
+    });
+  };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'mouse' || e.button !== 0 || !row.current) return;
-    drag.current = { x: e.clientX, left: row.current.scrollLeft, moved: false };
-    dragged.current = false;
+    drag.current = { id: e.pointerId, x: e.clientX, left: row.current.scrollLeft, moved: false };
+    swallowClick.current = false;
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const state = drag.current;
     const el = row.current;
-    if (!state || !el) return;
+    if (!state || !el || e.pointerId !== state.id) return;
+    // Released outside the row before the drag began: no pointerup reached us.
+    if ((e.buttons & 1) === 0) {
+      endDrag(false, e.currentTarget);
+      return;
+    }
     const dx = e.clientX - state.x;
     if (!state.moved && Math.abs(dx) < 5) return;
     if (!state.moved) {
       state.moved = true;
       e.currentTarget.setPointerCapture(e.pointerId);
+      e.currentTarget.dataset.dragging = '';
       // Snapping fights every pixel of the drag; it comes back on release.
       el.style.scrollSnapType = 'none';
     }
     el.scrollLeft = state.left - dx;
-  };
-  const endDrag = () => {
-    const el = row.current;
-    if (drag.current?.moved && el) {
-      dragged.current = true;
-      // Keep the release position, then let the row settle onto the nearest card.
-      const left = el.scrollLeft;
-      el.style.scrollSnapType = '';
-      el.scrollLeft = left;
-    }
-    drag.current = null;
   };
 
   return (
     // Mouse dragging only adds to what fingers and keyboard already do natively.
     <div
       role="presentation"
-      className="md:cursor-grab md:active:cursor-grabbing"
+      // The cards' own pointer cursor would win over the wrapper's while dragging.
+      className="cursor-grab select-none data-dragging:cursor-grabbing data-dragging:**:cursor-grabbing"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      onPointerUp={(e) => endDrag(true, e.currentTarget)}
+      // No click follows a cancel; a capture lost any other way ends the drag too.
+      onPointerCancel={(e) => endDrag(false, e.currentTarget)}
+      onLostPointerCapture={(e) => endDrag(false, e.currentTarget)}
       onClickCapture={(e) => {
-        if (!dragged.current) return;
-        dragged.current = false;
+        if (!swallowClick.current) return;
+        swallowClick.current = false;
         e.preventDefault();
         e.stopPropagation();
       }}
@@ -236,30 +271,29 @@ export function CollectionCards({
       />
     </li>
   ));
-  return (
-    <section
-      {...(title === null ? { 'aria-label': 'Kollektionen' } : { 'aria-labelledby': headingId })}
-      className="flex flex-col gap-md"
+  const content = scroll ? (
+    <ScrollRow>{list}</ScrollRow>
+  ) : (
+    <ul
+      className={cn(
+        'm-0 grid list-none grid-cols-1 gap-md p-0',
+        // Two or four cards stand in pairs; three columns would leave one or two alone.
+        cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
+        SWIPE_BELOW_MD
+      )}
     >
-      {title !== null && (
-        <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
-          {title}
-        </h2>
-      )}
-      {scroll ? (
-        <ScrollRow>{list}</ScrollRow>
-      ) : (
-        <ul
-          className={cn(
-            'm-0 grid list-none grid-cols-1 gap-md p-0',
-            // Two or four cards stand in pairs; three columns would leave one or two alone.
-            cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
-            SWIPE_BELOW_MD
-          )}
-        >
-          {list}
-        </ul>
-      )}
+      {list}
+    </ul>
+  );
+  // Without a title the surrounding section is the landmark; a second one
+  // inside it would only announce the same content twice.
+  if (title === null) return content;
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-md">
+      <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
+        {title}
+      </h2>
+      {content}
     </section>
   );
 }
