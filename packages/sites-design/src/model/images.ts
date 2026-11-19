@@ -54,7 +54,7 @@ const SLOTS: Record<SiteImageSlot, SlotSpec> = {
   card: {
     widths: [400, 800],
     src: 800,
-    sizes: '(min-width: 64rem) 22rem, (min-width: 48rem) 46vw, 85vw',
+    sizes: '(min-width: 64rem) 22rem, (min-width: 48rem) 42vw, 85vw',
     width: 800,
     height: 500,
     loading: 'lazy',
