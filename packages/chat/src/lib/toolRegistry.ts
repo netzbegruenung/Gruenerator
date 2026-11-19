@@ -79,6 +79,7 @@ export const UI_TOOL_NAMES = z.enum([
   'fill_pdf_form',
   'reisekosten_abrechnung',
   'cloud_files',
+  'atlassian',
   'text_uebersetzen',
   'recurring_tasks',
   'user_agents',
@@ -1003,6 +1004,46 @@ function parseCloudFilesVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// atlassian: Listen (`issues`, `pages`, `projects`, `spaces`, `sites`) werden zu
+// Zeilen, ein gelesener Vorgang/eine Seite zu einer Notiz; Fehler stehen in `error`.
+function parseAtlassianVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const rows: KeyValueEntry[] = [];
+  for (const raw of getArray(result, 'issues') ?? []) {
+    rows.push({
+      label: getString(raw, 'key') ?? '—',
+      value: [getString(raw, 'summary'), getString(raw, 'status')].filter(Boolean).join(' · '),
+    });
+  }
+  for (const raw of getArray(result, 'pages') ?? []) {
+    rows.push({ label: getString(raw, 'title') ?? '—', value: getString(raw, 'excerpt') ?? '' });
+  }
+  for (const key of ['projects', 'spaces'] as const) {
+    for (const raw of getArray(result, key) ?? []) {
+      rows.push({ label: getString(raw, 'key') ?? '—', value: getString(raw, 'name') ?? '' });
+    }
+  }
+  for (const raw of getArray(result, 'sites') ?? []) {
+    rows.push({ label: getString(raw, 'name') ?? '—', value: getString(raw, 'url') ?? '' });
+  }
+  const note = getString(result, 'note');
+  if (rows.length > 0) {
+    if (note) rows.push({ label: 'Hinweis', value: note });
+    return { kind: 'key-value', entries: rows, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const title = getString(result, 'summary') ?? getString(result, 'title');
+  if (title) {
+    const head = getString(result, 'key') ? `${getString(result, 'key')}: ${title}` : title;
+    return { kind: 'text-note', text: note ? `${head} · ${note}` : head };
+  }
+  const hinweis = getString(result, 'hinweis') ?? note;
+  if (hinweis) return { kind: 'text-note', text: hinweis };
+  return parseGenericFallback(args, result);
+}
+
 const DIP_SEARCH_URL = 'https://dip.bundestag.de/suche?term=';
 
 function isoToDe(iso: string): string {
@@ -1328,6 +1369,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     text: getString(r, 'error') ?? getString(r, 'zusammenfassung') ?? '',
   })),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  atlassian: entry('atlassian', 'key-value', parseAtlassianVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
