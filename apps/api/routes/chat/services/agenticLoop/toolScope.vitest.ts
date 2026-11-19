@@ -362,6 +362,36 @@ describe('createToolScope — das Ergebnis des Laders', () => {
   });
 });
 
+describe('createToolScope — die Beschreibung des Laders', () => {
+  const describeLoader = (toolNames: readonly string[]) => {
+    const scope = createToolScope({ toolNames, userText: 'xyz', enforce: true });
+    return (scope.loaderTools()['antragsgruen_werkzeuge_laden'] as { description: string })
+      .description;
+  };
+  const NRW = ['antragsgruen', 'antragsgruen_lesen', 'antragsgruen_auswerten'];
+  const SITE = [
+    'antragsgruen_seite_anlegen',
+    'antragsgruen_antrag_stellen',
+    'antragsgruen_tagesordnung',
+    'antragsgruen_seite_lesen',
+  ];
+
+  // #5804: ohne Zugangsdaten fehlen die Seiten-Werkzeuge; ein Lader, der sie
+  // ankündigt, liess das Modell „Seite angelegt" melden.
+  it('kündigt keine Seiten-Werkzeuge an, die nicht montiert sind', () => {
+    const text = describeLoader(NRW);
+    for (const name of SITE) expect(text).not.toContain(name);
+    expect(text).toContain('antragsgruen_lesen');
+    expect(text).toContain('nicht');
+  });
+
+  it('nennt beide Teile, wenn alles montiert ist', () => {
+    const text = describeLoader([...NRW, ...SITE]);
+    for (const name of [...NRW, ...SITE]) expect(text).toContain(name);
+    expect(text).not.toContain('kann der Grünerator hier nicht');
+  });
+});
+
 describe('createToolScope — keepVisible', () => {
   // Ein Agent mit eigenem Notebook: notebook_quellen steht von Anfang an,
   // die übrigen eigenen Inhalte der Person bleiben hinter dem Lader.

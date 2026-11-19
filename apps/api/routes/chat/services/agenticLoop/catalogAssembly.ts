@@ -497,11 +497,16 @@ export async function assembleToolCatalog(
     });
     recipeCatalog = recipeCatalog
       .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
-      .map((entry) =>
-        entry.recommendedTools
-          ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
-          : entry
-      );
+      .flatMap((entry) => {
+        if (!entry.recommendedTools) return [entry];
+        const recommendedTools = entry.recommendedTools.filter(isMounted);
+        // Ein Methoden-Rezept, das nur über seine Werkzeuge wirkt (Antragsgrün-
+        // Seite, nuudel-Umfrage), ist ohne eines davon ein Versprechen ohne
+        // Mittel: das Modell lud `antragsgruen-seite` und meldete „Seite
+        // angelegt", ohne dass `antragsgruen_seite_anlegen` montiert war (#5804).
+        if (recommendedTools.length === 0 && skillRole(entry.mention) === 'methode') return [];
+        return [{ ...entry, recommendedTools }];
+      });
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
         isMounted,
