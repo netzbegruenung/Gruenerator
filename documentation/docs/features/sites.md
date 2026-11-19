@@ -37,7 +37,7 @@ Deine Änderungen sind zunächst nur ein **Entwurf**. Die veröffentlichte Websi
 
 ## Adresse
 
-Deine Website erscheint unter `grsites.de/<name>`. Den Namen wählst du beim ersten Veröffentlichen, danach lässt er sich nicht mehr ändern. **In der Testphase lautet die Adresse `beta.grsites.de/<name>`.**
+Deine Website erscheint unter `grsites.de/<name>`. Den Namen wählst du beim Erstellen; in den Einstellungen kannst du ihn bis zum ersten Veröffentlichen noch ändern, danach nicht mehr. **In der Testphase lautet die Adresse `beta.grsites.de/<name>`.**
 
 ## Impressum und Datenschutz
 
