@@ -5,11 +5,15 @@ import {
   type Site,
 } from '@gruenerator/contracts';
 
-import { type UserSiteRow } from '../../database/schema/sites.js';
+import { type UserSiteRawRow } from '../../database/schema/sites.js';
+
+function toIso(value: string | Date | null): string | null {
+  return value === null ? null : new Date(value).toISOString();
+}
 
 type SiteDraft = Omit<Site, 'has_unpublished_changes' | 'published_snapshot'>;
 
-function toDraft(row: UserSiteRow): SiteDraft {
+function toDraft(row: UserSiteRawRow): SiteDraft {
   return {
     id: row.id,
     user_id: row.user_id,
@@ -24,9 +28,9 @@ function toDraft(row: UserSiteRow): SiteDraft {
     accent_color: row.accent_color,
     profile_image: row.profile_image,
     background_image: row.background_image,
-    created_at: row.created_at?.toISOString() ?? null,
-    updated_at: row.updated_at?.toISOString() ?? null,
-    last_published: row.last_published?.toISOString() ?? null,
+    created_at: toIso(row.created_at),
+    updated_at: toIso(row.updated_at),
+    last_published: toIso(row.last_published),
     visit_count: row.visit_count,
     meta_description: row.meta_description,
     meta_keywords: row.meta_keywords,
@@ -39,7 +43,7 @@ function toDraft(row: UserSiteRow): SiteDraft {
   };
 }
 
-export function toSite(row: UserSiteRow): Site {
+export function toSite(row: UserSiteRawRow): Site {
   const snapshot = previewSiteSnapshotSchema.safeParse(row.published_snapshot);
   return {
     ...toDraft(row),
@@ -48,7 +52,7 @@ export function toSite(row: UserSiteRow): Site {
   };
 }
 
-export function hasUnpublishedChanges(row: UserSiteRow): boolean {
+export function hasUnpublishedChanges(row: UserSiteRawRow): boolean {
   if (!row.published_snapshot) return false;
   const stored = publishedSiteSnapshotSchema.safeParse(row.published_snapshot);
   if (!stored.success) return true;

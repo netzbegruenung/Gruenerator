@@ -55,3 +55,16 @@ export const userSites = pgTable(
 );
 
 export type UserSiteRow = InferSelectModel<typeof userSites>;
+
+type TimestampColumns = 'created_at' | 'updated_at' | 'deleted_at' | 'last_published';
+
+/**
+ * A `user_sites` row as raw SQL returns it. drizzle's node-postgres driver overrides pg's type
+ * parsers, so `db.execute(sql\`... RETURNING *\`)` yields timestamptz as strings; only the query
+ * builder and `PostgresService.query` map them to `Date`. Read raw rows through this type.
+ */
+export type UserSiteRawRow = Omit<UserSiteRow, TimestampColumns> & {
+  [K in TimestampColumns]: UserSiteRow[K] extends Date | null
+    ? string | Date | null
+    : string | Date;
+};
