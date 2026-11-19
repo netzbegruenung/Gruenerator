@@ -12,7 +12,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
@@ -26,9 +27,15 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "^19.3.0",
-    "typescript": "^6.0.3"
+    "axe-core": "^4.14.0",
+    "jsdom": "31.0.1",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
