@@ -205,10 +205,10 @@ const snapshotMarkSchema = z.object({ type: z.enum(['bold', 'italic', 'underline
 
 type SnapshotNode = {
   type: string;
-  attrs?: Record<string, unknown>;
-  marks?: { type: string }[];
-  text?: string;
-  content?: SnapshotNode[];
+  attrs?: Record<string, unknown> | undefined;
+  marks?: { type: string }[] | undefined;
+  text?: string | undefined;
+  content?: SnapshotNode[] | undefined;
 };
 
 /**
@@ -303,7 +303,7 @@ const isHttpUrl = (value: string): boolean => {
 const isMailtoLink = (value: string): boolean => {
   if (!/^mailto:/i.test(value)) return false;
   const address = value.slice('mailto:'.length);
-  return !/[?\s\u0000-\u001f\u007f]/.test(address) && z.string().email().safeParse(address).success;
+  return !/[?\s]/.test(address) && z.string().email().safeParse(address).success;
 };
 
 const isActionLink = (value: string): boolean =>
@@ -320,7 +320,7 @@ const snapshotSocialUrl = urlField.refine(isHttpUrl, { message: LINK_MESSAGE });
 const snapshotPhone = z
   .string()
   .max(SITE_PHONE_MAX)
-  .regex(/^[0-9 +()\/.-]{0,40}$/, PHONE_MESSAGE);
+  .regex(/^[0-9 +()/.-]{0,40}$/, PHONE_MESSAGE);
 
 const snapshotSectionsSchema = z.object({
   heroImage: z
