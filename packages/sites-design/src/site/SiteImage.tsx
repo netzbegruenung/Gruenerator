@@ -15,8 +15,8 @@ export function SiteImage({
   if (!attrs) return null;
   return (
     <div data-field={field} className={`site:overflow-hidden ${className}`}>
-      {/* <picture className="site:contents"> keeps React from hoisting its own preload <link> into the body markup. */}
-      <picture>
+      {/* The <picture> wrapper keeps React from hoisting its own preload <link> into the body. */}
+      <picture className="site:contents">
         <img
           src={attrs.src}
           {...(attrs.srcSet ? { srcSet: attrs.srcSet, sizes: attrs.sizes } : {})}
