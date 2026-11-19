@@ -61,8 +61,21 @@ Die Texte sollen motivierend und aktivierend sein und konkrete Beispiele aus der
   return localizePlaceholders(prompt, locale);
 }
 
+export function stripFenceMarkers(text: string): string {
+  const marker = /<\/?\s*eingabe\s*>/gi;
+  let current = text;
+  for (
+    let next = current.replace(marker, '');
+    next !== current;
+    next = current.replace(marker, '')
+  ) {
+    current = next;
+  }
+  return current;
+}
+
 function fence(text: string): string {
-  return text.slice(0, WEBSITE_DESCRIPTION_MAX).replace(/<\/?\s*eingabe\s*>/gi, '');
+  return stripFenceMarkers(text.slice(0, WEBSITE_DESCRIPTION_MAX));
 }
 
 export function buildWebsiteUserPrompt(description: string, hints: FlyerHints | null): string {
