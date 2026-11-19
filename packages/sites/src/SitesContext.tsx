@@ -1,7 +1,6 @@
+import { type CollaborationConfig } from '@gruenerator/collab';
 import { type SupportedLocale } from '@gruenerator/contracts';
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
-
-import { setSitesUnauthorizedHandler } from './lib/apiClient';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 /**
  * Minimal user shape Sites consumes. Satisfied by each host's own user object
@@ -29,6 +28,7 @@ export interface SitesContextValue {
   login: (redirectTo?: string) => void;
   logout: () => void | Promise<void>;
   reportError: (error: unknown, context?: Record<string, unknown>) => void;
+  collaboration: CollaborationConfig;
 }
 
 const SitesContext = createContext<SitesContextValue | null>(null);
@@ -43,24 +43,12 @@ export function SitesProvider({
   login,
   logout,
   reportError,
+  collaboration,
   children,
 }: SitesProviderProps) {
-  useEffect(() => {
-    setSitesUnauthorizedHandler(() => {
-      const here =
-        typeof window !== 'undefined'
-          ? window.location.pathname + window.location.search
-          : undefined;
-      login(here);
-    });
-    return () => {
-      setSitesUnauthorizedHandler(null);
-    };
-  }, [login]);
-
   const value = useMemo<SitesContextValue>(
-    () => ({ basePath, auth, login, logout, reportError }),
-    [basePath, auth, login, logout, reportError]
+    () => ({ basePath, auth, login, logout, reportError, collaboration }),
+    [basePath, auth, login, logout, reportError, collaboration]
   );
 
   return <SitesContext.Provider value={value}>{children}</SitesContext.Provider>;
@@ -76,6 +64,10 @@ function useSitesContext(): SitesContextValue {
 
 export function useSitesBasePath(): string {
   return useSitesContext().basePath;
+}
+
+export function useSitesCollaboration(): CollaborationConfig {
+  return useSitesContext().collaboration;
 }
 
 export function useSitesActions(): Pick<SitesContextValue, 'login' | 'logout' | 'reportError'> {

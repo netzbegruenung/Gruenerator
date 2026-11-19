@@ -1,81 +1,48 @@
-import { SITE_ABOUT_MAX_LENGTH } from '@gruenerator/contracts';
-import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect } from 'react';
+import { SITE_ABOUT_MAX_LENGTH, SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
+import { getAboutFragment } from '@gruenerator/contracts/site-ydoc';
+import { Input } from '@gruenerator/ui';
+import { useMemo } from 'react';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { useDraft, useDraftActions, useSiteYdoc } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
+import { Field, SectionHeading } from '../common/Field';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
-import type { AboutSection } from '../../../types/editorDraft';
-
-interface AboutSectionEditorProps {
-  data: AboutSection;
-  onChange: (data: AboutSection) => void;
-}
-
-export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
-
-  const titleRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    registerField('about', 'title', titleRef.current);
-  }, [registerField]);
-
-  const updateField = <K extends keyof AboutSection>(field: K, value: AboutSection[K]) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'about' && highlightedElement?.field === field;
-  };
+export function AboutSectionEditor() {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const ydoc = useSiteYdoc();
+  const { setField } = useDraftActions();
+  const title = useDraft((d) => d.about.title);
+  const fragment = useMemo(() => getAboutFragment(ydoc), [ydoc]);
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Über mich
-      </h3>
+      <SectionHeading>Über mich</SectionHeading>
 
-      <div
-        className={cn('mb-md', isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]')}
-      >
-        <label htmlFor="about-title" className="block text-sm font-medium text-foreground mb-1.5">
-          Titel
-        </label>
-        <input
-          ref={titleRef}
+      <Field panel="about" path="sections.about.title" htmlFor="about-title" label="Titel">
+        <Input
+          ref={(el) => registerField('sections.about.title', el)}
           id="about-title"
-          type="text"
-          value={data.title}
-          onChange={(e) => updateField('title', e.target.value)}
-          onFocus={() => handleFieldFocus('about', 'title')}
+          value={title}
+          onChange={(e) => setField('about.title', e.target.value)}
+          onFocus={() => handleFieldFocus('about', 'sections.about.title')}
           onBlur={handleFieldBlur}
           placeholder="Wer ich bin"
-          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          maxLength={SITE_SECTION_TITLE_MAX}
         />
-      </div>
+      </Field>
 
-      <div
-        className={cn(
-          'mb-md',
-          isFieldHighlighted('content') && 'animate-[field-highlight_1s_ease]'
-        )}
-      >
-        <label htmlFor="about-content" className="block text-sm font-medium text-foreground mb-1.5">
-          Inhalt
-        </label>
+      <Field panel="about" path="sections.about.content" htmlFor="about-content" label="Inhalt">
         <RichTextEditor
           id="about-content"
-          value={data.content}
-          onChange={(doc) => updateField('content', doc)}
-          onFocus={() => handleFieldFocus('about', 'content')}
+          fragment={fragment}
+          onFocus={() => handleFieldFocus('about', 'sections.about.content')}
           onBlur={handleFieldBlur}
           placeholder="Erzähle etwas über dich, deinen Werdegang und deine Motivation..."
           maxLength={SITE_ABOUT_MAX_LENGTH}
           minHeight="200px"
         />
-      </div>
+      </Field>
     </div>
   );
 }

@@ -24,14 +24,35 @@ const isBrandFont = (file: SiteFontFile): file is BrandFontFile => !file.startsW
 const previewFontUrl = (file: SiteFontFile): string =>
   isBrandFont(file) ? brandFontUrl(API_BASE, file) : `/fonts/${file}`;
 
+const EDITOR_FRAME_CSS = `
+[data-field] { cursor: pointer; }
+[data-field]:hover { outline: 2px dashed #46962b; outline-offset: 2px; }
+[data-editor-active] { outline: 2px solid #46962b; outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-field] { transition: outline-color 0.15s ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-field] { transition: none; }
+}
+`;
+
 interface SitePreviewFrameProps {
   snapshot: PublishedSiteSnapshot;
   handle: string;
   title: string;
   className?: string;
+  editable?: boolean;
+  onFrameDocument?: (doc: Document | null) => void;
 }
 
-export function SitePreviewFrame({ snapshot, handle, title, className }: SitePreviewFrameProps) {
+export function SitePreviewFrame({
+  snapshot,
+  handle,
+  title,
+  className,
+  editable = false,
+  onFrameDocument,
+}: SitePreviewFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [frameDoc, setFrameDoc] = useState<Document | null>(null);
 
@@ -42,6 +63,12 @@ export function SitePreviewFrame({ snapshot, handle, title, className }: SitePre
     frame.addEventListener('load', onLoad);
     return () => frame.removeEventListener('load', onLoad);
   }, []);
+
+  useEffect(() => {
+    if (!onFrameDocument) return;
+    onFrameDocument(frameDoc);
+    return () => onFrameDocument(null);
+  }, [frameDoc, onFrameDocument]);
 
   useEffect(() => {
     if (!frameDoc) return;
@@ -74,6 +101,7 @@ export function SitePreviewFrame({ snapshot, handle, title, className }: SitePre
           <>
             <style>{siteCss}</style>
             <style>{fontCss}</style>
+            {editable && <style>{EDITOR_FRAME_CSS}</style>}
           </>,
           frameDoc.head
         )}
