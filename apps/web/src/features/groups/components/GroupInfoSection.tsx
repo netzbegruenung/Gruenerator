@@ -16,6 +16,10 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  useIsMobile,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -258,7 +262,9 @@ const GroupInfoSection = memo(
     );
     // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert, aus dem Feed-Composer
     // (der seine Notiz mitbringt) als Dialog.
+    // Auf dem Handy kommen beide als Sheet von unten.
     const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
+    const isMobile = useIsMobile();
     const [composerNote, setComposerNote] = useState('');
     const [linkOpen, setLinkOpen] = useState(false);
     // Die gerade hinzugefügte Freigabe, zu der „Notiz schreiben“ eine Notiz setzt.
@@ -529,7 +535,10 @@ const GroupInfoSection = memo(
               </span>
             )}
             {canShare && (
-              <Popover open={picker === 'menu'} onOpenChange={(open) => !open && setPicker(null)}>
+              <Popover
+                open={picker === 'menu' && !isMobile}
+                onOpenChange={(open) => !open && setPicker(null)}
+              >
                 <PopoverAnchor asChild>
                   <div className="flex">
                     {isSystem ? (
@@ -773,7 +782,10 @@ const GroupInfoSection = memo(
           )}
         />
 
-        <Dialog open={picker === 'composer'} onOpenChange={(open) => !open && setPicker(null)}>
+        <Dialog
+          open={picker === 'composer' && !isMobile}
+          onOpenChange={(open) => !open && setPicker(null)}
+        >
           <DialogContent
             showCloseButton={false}
             className="gap-0 overflow-hidden p-0 sm:max-w-[500px]"
@@ -782,6 +794,19 @@ const GroupInfoSection = memo(
             {pickerContent}
           </DialogContent>
         </Dialog>
+        <Sheet open={picker !== null && isMobile} onOpenChange={(open) => !open && setPicker(null)}>
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            // Kein Autofokus: sonst schiebt die Tastatur die Liste weg, bevor man sie sieht.
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="gap-0 overflow-hidden rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)] outline-none"
+          >
+            <SheetTitle className="sr-only">Vorhandenes hinzufügen</SheetTitle>
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-grey-300 dark:bg-grey-600" />
+            {pickerContent}
+          </SheetContent>
+        </Sheet>
         {linkOpen && onAddLink && (
           <AddLinkDialog
             onClose={() => setLinkOpen(false)}

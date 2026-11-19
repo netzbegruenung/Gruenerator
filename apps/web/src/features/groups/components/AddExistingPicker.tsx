@@ -62,11 +62,27 @@ const longDate = new Intl.DateTimeFormat('de-DE', {
   year: 'numeric',
 });
 
-function formatChanged(value: string | null): string | null {
+const withTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+function formatChanged(value: string | null, showTime = false): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return (date.getFullYear() === thisYear ? shortDate : longDate).format(date);
+  const day = (date.getFullYear() === thisYear ? shortDate : longDate).format(date);
+  return showTime ? `${day}, ${withTime.format(date)}` : day;
+}
+
+/**
+ * Das Datum je Zeile. Tragen zwei sichtbare Zeilen denselben Titel und dasselbe Datum,
+ * bekommen beide die Uhrzeit dazu — sonst wären sie nicht zu unterscheiden.
+ */
+function changedLabels(items: readonly PickerItem[]): Map<string, string | null> {
+  const dayKey = (i: PickerItem) => `${i.title}\u0000${formatChanged(i.changedAt) ?? ''}`;
+  const count = new Map<string, number>();
+  for (const i of items) if (i.changedAt) count.set(dayKey(i), (count.get(dayKey(i)) ?? 0) + 1);
+  return new Map(
+    items.map((i) => [addableKey(i), formatChanged(i.changedAt, (count.get(dayKey(i)) ?? 0) > 1)])
+  );
 }
 
 const item = (
@@ -206,6 +222,7 @@ export function AddExistingPicker({
       (i) => i.title.toLowerCase().includes(q) || KIND[i.kind].label.toLowerCase().includes(q)
     );
   }, [all, query]);
+  const labels = useMemo(() => changedLabels(visible), [visible]);
 
   const markedItems = all.filter((i) => marked.has(addableKey(i)));
 
@@ -263,7 +280,7 @@ export function AddExistingPicker({
         className="rounded-none **:data-[slot=command-input-wrapper]:h-12 **:data-[slot=command-input-wrapper]:gap-3 **:data-[slot=command-input-wrapper]:px-3.5"
       >
         <CommandInput value={query} onValueChange={setQuery} placeholder="Inhalte suchen…" />
-        <CommandList className="max-h-[304px] p-1.5" aria-busy={busy}>
+        <CommandList className="max-h-[304px] p-1.5 max-md:max-h-[60dvh]" aria-busy={busy}>
           {isLoading ? (
             <p className="m-0 p-2 text-sm text-muted-foreground">Lädt …</p>
           ) : (
@@ -285,7 +302,7 @@ export function AddExistingPicker({
                   value={key}
                   disabled={shared || busy}
                   onSelect={() => pick(i)}
-                  className="min-h-9 gap-3 rounded-md p-2 data-[disabled=true]:opacity-100"
+                  className="min-h-9 gap-3 rounded-md p-2 data-[disabled=true]:opacity-100 max-md:min-h-11"
                 >
                   {isMarked ? (
                     <span className="grid size-4 shrink-0 place-items-center rounded-[4px] bg-primary-600 text-white">
@@ -304,7 +321,7 @@ export function AddExistingPicker({
                     )}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {shared ? 'Im Projekt' : formatChanged(i.changedAt)}
+                    {shared ? 'Im Projekt' : labels.get(key)}
                   </span>
                 </CommandItem>
               );

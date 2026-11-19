@@ -71,6 +71,25 @@ describe('AddExistingPicker', () => {
     expect(screen.queryByRole('option', { name: /Von Lena/ })).not.toBeInTheDocument();
   });
 
+  it('adds the time when two rows share title and day', async () => {
+    server.use(
+      http.get('*/api/docs', () =>
+        HttpResponse.json([
+          doc('d-a', 'Gastbeitrag', '2026-11-19T09:00:00.000Z'),
+          doc('d-b', 'Gastbeitrag', '2026-11-19T13:30:00.000Z'),
+          doc('d-c', 'Anderes', '2026-11-19T12:00:00.000Z'),
+        ])
+      )
+    );
+    setup();
+    const options = await screen.findAllByRole('option');
+    const texts = options.map((o) => o.textContent ?? '');
+    expect(texts.filter((t) => t.startsWith('Doc: Gastbeitrag'))).toHaveLength(2);
+    for (const t of texts.filter((x) => x.startsWith('Doc: Gastbeitrag')))
+      expect(t).toMatch(/19\. Nov\., \d{2}:\d{2}$/);
+    expect(texts).toContain('Doc: Anderes19. Nov.');
+  });
+
   it('adds one item with a single click', async () => {
     let body: unknown = null;
     server.use(
