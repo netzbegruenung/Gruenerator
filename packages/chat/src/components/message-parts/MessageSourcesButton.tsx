@@ -56,7 +56,7 @@ export const MessageSourcesButton = memo(function MessageSourcesButton({
         open && 'text-foreground'
       )}
       aria-expanded={open}
-      aria-label={`${citations.length} Quellen ${open ? 'ausblenden' : 'anzeigen'}`}
+      aria-label={`${citations.length} ${citations.length === 1 ? 'Quelle' : 'Quellen'} ${open ? 'ausblenden' : 'anzeigen'}`}
     >
       <span className="flex items-center">
         {glyphs.map((glyph, i) => (

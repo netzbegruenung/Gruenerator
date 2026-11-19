@@ -1,4 +1,8 @@
-import { NOTEBOOK_MAX_DOCUMENTS, type NotebookDocumentRecord } from '@gruenerator/contracts';
+import {
+  DOCUMENT_UPLOAD_FORMAT_HINT,
+  NOTEBOOK_MAX_DOCUMENTS,
+  type NotebookDocumentRecord,
+} from '@gruenerator/contracts';
 import { toast } from '@gruenerator/ui';
 import { useRef, useState, type DragEvent } from 'react';
 import { HiUpload } from 'react-icons/hi';
@@ -176,7 +180,7 @@ export function UploadPanel({
         <EmptySources
           icon={<HiUpload aria-hidden className="size-5" />}
           title="Noch keine Dateien"
-          text={`PDF, DOCX, TXT oder MD hochladen oder hierher ziehen – bis ${NOTEBOOK_MAX_DOCUMENTS} Quellen pro Notebook.`}
+          text={`${DOCUMENT_UPLOAD_FORMAT_HINT} hochladen oder hierher ziehen – bis ${NOTEBOOK_MAX_DOCUMENTS} Quellen pro Notebook.`}
           cta="Dateien auswählen"
           onCta={pick}
         />

@@ -1,4 +1,8 @@
-import { type NotebookDocumentRecord, type TransformedCollection } from '@gruenerator/contracts';
+import {
+  DOCUMENT_UPLOAD_FORMAT_HINT,
+  type NotebookDocumentRecord,
+  type TransformedCollection,
+} from '@gruenerator/contracts';
 import { DocsProvider } from '@gruenerator/docs';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
@@ -16,7 +20,8 @@ import {
   EmptyTitle,
   toast,
 } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import {
   HiArrowRight,
   HiCloud,
@@ -27,13 +32,15 @@ import {
   HiShare,
   HiUpload,
 } from 'react-icons/hi';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { PageShell, PageHeroSearch } from '../../../../components/common/PageHero';
 import { PillTabs, type PillTab } from '../../../../components/common/PillTabs';
 import ErrorBoundary from '../../../../components/ErrorBoundary';
+import { useDocumentTitle } from '../../../../components/hooks/useDocumentTitle';
 import { useAuthStore } from '../../../../stores/authStore';
 import { webAppDocsAdapter } from '../../../docs/docsAdapter';
+import { notebookCollectionKey } from '../../hooks/useNotebookCollection';
 import { ResearchDocumentReader } from '../../manual-search/ResearchDocumentReader';
 import { NotebookFullSyncModal } from '../NotebookFullSyncModal';
 import { NotebookShareModal } from '../NotebookShareModal';
@@ -62,7 +69,7 @@ const TAB_META: Record<HubTab, Omit<PillTab<HubTab>, 'key'>> = {
 };
 
 const SOURCE_KIND_TEXT: Record<HubTab, { label: string; description: string }> = {
-  upload: { label: 'Dateien', description: 'PDF, DOCX, TXT, MD hochladen' },
+  upload: { label: 'Dateien', description: `${DOCUMENT_UPLOAD_FORMAT_HINT} hochladen` },
   wolke: { label: 'Wolke', description: 'Nextcloud-Ordner per Freigabelink' },
   docs: { label: 'Docs', description: 'Grünerator-Dokumente verknüpfen' },
   wordpress: { label: 'WordPress', description: 'Beiträge einer Website importieren · Beta' },
@@ -100,6 +107,22 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
   const collection = hub.collection;
   const sources = useMemo(() => (collection ? partitionSources(collection) : null), [collection]);
   const upload = useHubUpload(hub, sources?.total ?? 0);
+
+  // Umbenennen ändert den Namensteil des Slugs. Die offene URL zieht nach,
+  // sonst kopiert man noch Wochen später „unbenanntes-notebook-…“ als Link.
+  // Die Daten liegen vorher unter dem neuen Schlüssel, damit nichts neu lädt.
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const canonicalSlug = collection?.slug_suffix
+    ? buildNotebookSlug(collection.name, collection.slug_suffix)
+    : null;
+  const hubData = hub.query.data;
+  useEffect(() => {
+    if (!canonicalSlug || canonicalSlug === slugOrId || !hubData?.collection) return;
+    queryClient.setQueryData(notebookCollectionKey(canonicalSlug), hubData);
+    void navigate(`/notebooks/${canonicalSlug}/bearbeiten${location.search}`, { replace: true });
+  }, [canonicalSlug, slugOrId, hubData, queryClient, navigate, location.search]);
+  useDocumentTitle(collection ? `${collection.name} – Quellen` : null);
 
   if (hub.query.isPending) {
     return (

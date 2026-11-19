@@ -145,6 +145,15 @@ const DOCUMENT_STATUS_RULES = [
 ];
 
 /**
+ * Eine Lücke ist kein Ende des Gesprächs: ohne diese Regel antwortete der Chat-Modus
+ * auf „Wer ist Kassenwart und was kostet die Wärmeplanung?" nur mit „Die Quellen
+ * enthalten keine Informationen …" — obwohl der Abschlusstermin der Wärmeplanung
+ * in einer Quelle stand.
+ */
+const PARTIAL_ANSWER_RULE =
+  '- Fehlt etwas: Nenne trotzdem, was die Quellen zum selben Thema sagen (mit [n]), und sage in einem Satz, welche Art Unterlage die Lücke schließen würde (z.B. „Ein Kassenbericht würde das klären."). Erfinde dabei nichts.';
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
@@ -203,6 +212,7 @@ function buildDraftPrompt(
     '- Beziehe JEDE Quelle ein, die zur gestellten Frage etwas beiträgt — aber keine, die nur das Thema streift.',
     '- Sätze OHNE Quellenangabe sind NUR für Einleitungen, Übergänge und Zusammenfassungen erlaubt.',
     '- Falls die Quellen zu einem Aspekt der Frage KEINE Informationen enthalten: Sage dies offen, statt Informationen zu ergänzen.',
+    PARTIAL_ANSWER_RULE,
     '- Erfinde KEINE Fakten, Zahlen oder Zusammenhänge, die nicht in den Quellen stehen.',
     '',
     '## ZITATIONS-PROTOKOLL:',
@@ -262,6 +272,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     '- JEDE Faktenaussage MUSS quellenbelegt sein [n]. Sätze ohne Quellenangabe NUR für Einleitungen und Übergänge.',
     '- Nutze möglichst viele relevante Quellen — nicht nur die offensichtlichsten.',
     '- Falls Quellen nicht ausreichen: Sage dies offen, statt Informationen zu ergänzen.',
+    PARTIAL_ANSWER_RULE,
     '',
     '## ZITATIONS-PROTOKOLL:',
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',

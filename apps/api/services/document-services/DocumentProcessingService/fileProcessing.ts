@@ -9,6 +9,7 @@ import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
+import { DocumentReadError, NO_TEXT_MESSAGE, processingErrorMessage } from './processingError.js';
 import { fetchOriginal, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
 import {
   capStoredText,
@@ -192,7 +193,9 @@ export async function processUploadedDocument(
     // Notebook-Speichern, Wolke). OCR und Einbettung sind KI-Verarbeitung; der
     // catch unten verbucht das Dokument mit diesem Grund als gescheitert.
     if (!(await hasAiConsent(userId))) {
-      throw new Error('Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.');
+      throw new DocumentReadError(
+        'Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.'
+      );
     }
 
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
@@ -241,7 +244,11 @@ export async function processUploadedDocument(
               typeof document.wolke_file_path === 'string' ? document.wolke_file_path : null,
           })
         : null;
-      if (!reindex) throw new Error('Uploaded file not found on disk');
+      if (!reindex) {
+        throw new DocumentReadError(
+          'Die Originaldatei liegt nicht mehr vor. Lade sie erneut hoch.'
+        );
+      }
       prevSearchable = metadata?.reindex_prev_searchable === true;
       file = await fetchOriginal(reindex, document, userId);
     }
@@ -249,9 +256,7 @@ export async function processUploadedDocument(
     const extraction = await extractDocumentFromFile(file, { pageMarkers: true });
     const extractedText = extraction.text;
     if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error(
-        'Aus diesem Dokument konnte kein Text gelesen werden. Prüfe, ob die Datei Text enthält.'
-      );
+      throw new DocumentReadError(NO_TEXT_MESSAGE);
     }
 
     await markStage('chunking');
@@ -370,7 +375,7 @@ export async function processUploadedDocument(
           additionalMetadata: {
             retry_after: new Date(Date.now() + retryInMs).toISOString(),
             ingest_retries: (opts.ingestRetries ?? 0) + 1,
-            processing_error: error instanceof Error ? error.message : 'unbekannter Fehler',
+            processing_error: processingErrorMessage(error),
             processing_stage: null,
             processing_progress: null,
           },
@@ -383,9 +388,9 @@ export async function processUploadedDocument(
           additionalMetadata: {
             ...REINDEX_DONE,
             ...RETRY_DONE,
-            processing_error: `Neu indexieren fehlgeschlagen: ${
-              error instanceof Error ? error.message : 'unbekannter Fehler'
-            } Die bisherige Fassung bleibt durchsuchbar.`,
+            processing_error: `Neu indexieren fehlgeschlagen: ${processingErrorMessage(
+              error
+            )} Die bisherige Fassung bleibt durchsuchbar.`,
             processing_stage: null,
             processing_progress: null,
           },
@@ -402,10 +407,8 @@ export async function processUploadedDocument(
             ...REINDEX_DONE,
             ...RETRY_DONE,
             processing_error: reindex
-              ? `Neu indexieren fehlgeschlagen: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`
-              : error instanceof Error
-                ? error.message
-                : 'Verarbeitung fehlgeschlagen',
+              ? `Neu indexieren fehlgeschlagen: ${processingErrorMessage(error)}`
+              : processingErrorMessage(error),
             processing_stage: null,
             processing_progress: null,
           },
