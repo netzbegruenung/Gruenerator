@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useCanSeeSites } from '../../../config/sitesGate';
 import { useAuthStore } from '../../../stores/authStore';
 import { getDirectMenuItems, type MenuItemType } from '../../layout/Header/menuData';
 
@@ -32,11 +33,12 @@ const DesktopHome = () => {
   const displayName = useAuthStore((state) => state.user?.display_name);
   const firstName = displayName?.split(' ')[0];
   const navigate = useNavigate();
+  const canSeeSites = useCanSeeSites();
   const menuItems = useMemo(() => {
-    const items = getDirectMenuItems();
+    const items = getDirectMenuItems({ canSeeSites });
 
     return Object.values(items).filter((item) => item.id !== 'home' && item.path);
-  }, []);
+  }, [canSeeSites]);
 
   return (
     <div className="min-h-full flex items-center justify-center p-xl bg-background">

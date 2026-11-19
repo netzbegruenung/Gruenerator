@@ -16,6 +16,7 @@ import { foldUmlauts } from '@gruenerator/shared/utils';
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
 import { CURRENT_INSTANCE } from '../../config/instance';
 import { isParteitagePath } from '../../config/parteitageAdminGate';
+import { isSitesPath } from '../../config/sitesGate';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
 
 import { getToolCatalog } from './toolCatalog';
@@ -53,6 +54,7 @@ export interface BuildFeatureIndexArgs {
   hiddenAgentIdentifiers?: readonly string[];
   /** Parteitage are instance-admin only for now; omitted = hidden. */
   canSeeParteitage?: boolean;
+  canSeeSites?: boolean;
 }
 
 interface FeatureSource {
@@ -70,12 +72,14 @@ export function buildFeatureIndex({
   userAgents,
   hiddenAgentIdentifiers = [],
   canSeeParteitage = false,
+  canSeeSites = false,
 }: BuildFeatureIndexArgs): FeatureHit[] {
   const hits: FeatureHit[] = [];
   const seen = new Set<string>();
 
   const push = (source: FeatureSource) => {
     if (!canSeeParteitage && isParteitagePath(source.path)) return;
+    if (!canSeeSites && isSitesPath(source.path)) return;
     const key = `${source.id}:${source.path}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -95,7 +99,7 @@ export function buildFeatureIndex({
     push(tool);
   }
 
-  for (const item of Object.values(getDirectMenuItems({ isAustrian }))) {
+  for (const item of Object.values(getDirectMenuItems({ isAustrian, canSeeSites }))) {
     if (!item.path) continue;
     push({
       id: item.id,

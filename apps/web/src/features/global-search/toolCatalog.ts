@@ -16,6 +16,8 @@ import {
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
 
+import { PiGlobe } from 'react-icons/pi';
+
 import { getIcon } from '../../config/icons';
 import { CURRENT_INSTANCE } from '../../config/instance';
 
@@ -313,6 +315,14 @@ export const CATALOG: ToolCatalogEntry[] = [
       'organisation',
       'zusammenarbeit',
     ],
+  },
+  {
+    id: 'tool-sites',
+    title: 'Sites',
+    subtitle: 'Eigene Website für Kandidat*innen erstellen',
+    path: '/sites',
+    icon: PiGlobe,
+    keywords: ['sites', 'website', 'webseite', 'homepage', 'kandidatur', 'kandidat', 'seite'],
   },
 ] satisfies RegisteredEntry[];
 
