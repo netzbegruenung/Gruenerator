@@ -7,11 +7,9 @@
  * Deliberately NOT contracted (still on the legacy axios paths):
  * - POST /api/sites/generate-from-flyer (multipart upload)
  * - POST /api/texte/website (AI generation)
- * - GET  /api/sites/public/:subdomain (no typed UI consumer)
- * - GET  /api/sites/themes
  *
  * Authentication: all routes here require auth. routes.ts applies requireAuth
- * for /api/sites (excluding /public/*) before this router is mounted.
+ * for /api/sites before this router is mounted.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
