@@ -1,9 +1,13 @@
 const inflight = new Set<Promise<boolean>>();
+let lastFailed = false;
 let flusher: (() => void) | null = null;
 
 export function trackLegalSave(save: Promise<boolean>): Promise<boolean> {
   inflight.add(save);
-  void save.finally(() => inflight.delete(save));
+  void save.then((ok) => {
+    lastFailed = !ok;
+    inflight.delete(save);
+  });
   return save;
 }
 
@@ -18,6 +22,6 @@ export function registerLegalFlusher(flush: () => void): () => void {
 export async function settleLegalSave(): Promise<{ pending: boolean; ok: boolean }> {
   flusher?.();
   const saves = [...inflight];
-  const results = await Promise.all(saves);
-  return { pending: saves.length > 0, ok: results.every(Boolean) };
+  await Promise.all(saves);
+  return { pending: saves.length > 0, ok: !lastFailed };
 }

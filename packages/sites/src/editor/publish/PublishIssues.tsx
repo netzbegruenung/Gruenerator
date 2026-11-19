@@ -9,8 +9,10 @@ interface PublishIssuesProps {
 
 export function PublishIssues({ issues, onPick }: PublishIssuesProps) {
   return (
-    <div className="flex flex-col gap-xs">
-      <p className="m-0 text-sm font-medium">Das fehlt noch, bevor du veröffentlichen kannst:</p>
+    <div className="flex flex-col gap-xs" role="group" aria-labelledby="publish-issues-title">
+      <p id="publish-issues-title" className="m-0 text-sm font-medium">
+        Das fehlt noch, bevor du veröffentlichen kannst:
+      </p>
       <ul className="m-0 flex list-none flex-col gap-xs p-0">
         {issues.map((issue) => (
           <li key={`${issue.path}:${issue.message}`}>
@@ -19,7 +21,7 @@ export function PublishIssues({ issues, onPick }: PublishIssuesProps) {
               onClick={() => onPick(issue.path)}
               className="w-full rounded-md px-sm py-xs text-left text-sm text-foreground hover:bg-grey-100 dark:hover:bg-grey-700"
             >
-              {fieldLabel(issue.path)}: {issue.message}
+              {issue.path === 'legal' ? 'Impressum' : fieldLabel(issue.path)}: {issue.message}
             </button>
           </li>
         ))}

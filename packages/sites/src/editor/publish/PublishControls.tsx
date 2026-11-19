@@ -12,7 +12,7 @@ import {
   PopoverContent,
 } from '@gruenerator/ui';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { FiMoreVertical } from 'react-icons/fi';
 
 import { useDraft } from '../../draft/SiteDraftContext';
@@ -54,6 +54,8 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   const { status, issues } = publishState({ draft, site, locale: user?.locale ?? 'de-DE' });
 
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [serverIssues, setServerIssues] = useState<SitePublishIssue[] | null>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
@@ -62,7 +64,8 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   const shownIssues = serverIssues ?? issues;
 
   const publish = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setServerIssues(null);
     try {
@@ -94,24 +97,37 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
         toast.error('Veröffentlichen fehlgeschlagen');
       }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
   const unpublish = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     try {
       await togglePublish({ id: site.id, publish: false });
       toast.success('Veröffentlichung zurückgezogen');
     } catch {
       toast.error('Zurückziehen fehlgeschlagen');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
   const remove = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     try {
       await deleteSite(site.id);
     } catch {
       toast.error('Löschen fehlgeschlagen');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
@@ -127,7 +143,11 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
       <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
         <PopoverAnchor asChild>
-          <Button onClick={() => void publish()} disabled={status === 'live' || busy}>
+          <Button
+            ref={triggerRef}
+            onClick={() => void publish()}
+            disabled={status === 'live' || busy}
+          >
             {status === 'live'
               ? 'Veröffentlicht'
               : status === 'changed'
@@ -135,7 +155,15 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
                 : 'Veröffentlichen'}
           </Button>
         </PopoverAnchor>
-        <PopoverContent align="end" className="w-80">
+        <PopoverContent
+          align="end"
+          className="w-80"
+          aria-labelledby="publish-issues-title"
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
+        >
           <PublishIssues issues={shownIssues} onPick={pickIssue} />
         </PopoverContent>
       </Popover>

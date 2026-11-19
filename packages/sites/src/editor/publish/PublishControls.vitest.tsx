@@ -89,7 +89,10 @@ describe('PublishControls', () => {
     hoisted.publicOrigin.current = 'https://grsites.de';
     useEditorStore.setState({ focusedField: null, activeSection: 'hero' });
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(async () => {
+    vi.useRealTimers();
+    await trackLegalSave(Promise.resolve(true));
+  });
 
   it('shows the badge and button for each state', () => {
     const a = setup(site());
@@ -252,5 +255,36 @@ describe('PublishControls', () => {
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Löschen' })
     );
     expect(hoisted.deleteSite).toHaveBeenCalledWith('s1');
+  });
+
+  it('double click publishes once and blocks unpublish while publishing', async () => {
+    let finish: () => void = () => {};
+    hoisted.togglePublish.mockReturnValue(new Promise<void>((r) => (finish = r)));
+    const { user, ydoc } = setup(site({ is_published: true, published_snapshot: snapshot() }));
+    act(() => setSiteField(ydoc, 'site_title', 'Neuer Titel'));
+    // Same tick, before React re-renders: only the ref guard can stop the second click.
+    const button = screen.getByRole('button', { name: 'Änderungen veröffentlichen' });
+    act(() => {
+      button.click();
+      button.click();
+    });
+    await waitFor(() => expect(hoisted.togglePublish).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Veröffentlichung zurückziehen' })
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Zurückziehen' })
+    );
+    expect(hoisted.togglePublish).toHaveBeenCalledTimes(1);
+    finish();
+  });
+
+  it('labels the whole-Impressum issue in German', async () => {
+    const { user } = setup(site({ legal: null }));
+    await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
+    expect(await screen.findByRole('button', { name: /^Impressum: / })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /Das fehlt noch/ })).toBeInTheDocument();
   });
 });
