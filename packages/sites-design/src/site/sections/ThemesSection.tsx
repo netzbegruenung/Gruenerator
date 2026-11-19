@@ -33,7 +33,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
         >
           <ul
             data-field="sections.themes"
-            className="site:grid site:w-max site:auto-cols-[85vw] site:grid-flow-col site:gap-6 site:px-gutter site:md:auto-cols-[46vw] site:lg:w-auto site:lg:grid-flow-row site:lg:grid-cols-3 site:lg:gap-8 site:lg:px-0"
+            className="site:grid site:w-max site:auto-cols-[85vw] site:grid-flow-col site:gap-6 site:px-gutter site:md:auto-cols-[42vw] site:lg:w-auto site:lg:grid-flow-row site:lg:grid-cols-3 site:lg:gap-8 site:lg:px-0"
           >
             {themes.map((theme, i) => {
               const titleId = `thema-${i + 1}-titel`;
