@@ -526,6 +526,19 @@ export type SiteSnapshotSource = Pick<
 const toPreviewUrl = (url: string | null | undefined): string =>
   (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
 
+const GREETING_PREFIX =
+  /^\s*(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]*)?(?:ich bin|ich heiße|mein name ist|ich heisse)\s+/i;
+
+/** The name field holds only the name: a greeting the model put there is cut off. */
+export function stripGreeting(heading: string): string {
+  const stripped = heading
+    .replace(GREETING_PREFIX, '')
+    .replace(/^(?:hallo|hi|hey|servus|moin|grüß gott)[\s,!.:–-]+/i, '')
+    .replace(/[\s!.,:;–-]+$/, '')
+    .trim();
+  return stripped === '' ? heading : stripped;
+}
+
 // TODO(#5789): unverified — confirm the Austrian membership URL
 export const SITE_MEMBER_LINKS: Record<SupportedLocale, string> = {
   'de-DE': 'https://www.gruene.de/mitglied-werden',

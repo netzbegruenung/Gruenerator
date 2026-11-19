@@ -1,7 +1,7 @@
-import { SITE_ACTION_TEXT_MAX, type WebsiteContent } from '@gruenerator/contracts';
+import { SITE_ACTION_TEXT_MAX, stripGreeting, type WebsiteContent } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { attachImages, clampSections, stripGreeting, validateWebsiteContent } from './content.js';
+import { attachImages, clampSections, validateWebsiteContent } from './content.js';
 import { actionLinksFor } from './prompt.js';
 
 function content(themes: number, actions: number): WebsiteContent {

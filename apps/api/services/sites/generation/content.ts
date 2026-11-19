@@ -1,4 +1,4 @@
-import { type WebsiteContent, websiteContentSchema } from '@gruenerator/contracts';
+import { stripGreeting, type WebsiteContent, websiteContentSchema } from '@gruenerator/contracts';
 
 import { type StructuredValidation } from '../../ai/structuredParsing.js';
 import { type Locale } from '../../localization/index.js';
@@ -6,19 +6,6 @@ import { type Locale } from '../../localization/index.js';
 import { actionLinksFor } from './prompt.js';
 
 export const MAX_SECTION_ITEMS = 3;
-
-const GREETING_PREFIX =
-  /^\s*(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]*)?(?:ich bin|ich heiße|mein name ist|ich heisse)\s+/i;
-
-/** The name field holds only the name: a greeting the model put there is cut off. */
-export function stripGreeting(heading: string): string {
-  const stripped = heading
-    .replace(GREETING_PREFIX, '')
-    .replace(/^(?:hallo|hi|hey|servus|moin|grüß gott)[\s,!.:–-]+/i, '')
-    .replace(/[\s!.,:;–-]+$/, '')
-    .trim();
-  return stripped === '' ? heading : stripped;
-}
 
 export function clampSections(content: WebsiteContent): WebsiteContent {
   return {

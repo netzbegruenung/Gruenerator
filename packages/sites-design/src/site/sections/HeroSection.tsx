@@ -1,3 +1,5 @@
+import { stripGreeting } from '@gruenerator/contracts';
+
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
 import { CONTAINER, Section, type SectionContext } from '../layout.js';
@@ -8,7 +10,8 @@ import { SocialLinks } from '../SocialLinks.js';
 export function HeroSection({ ctx }: { ctx: SectionContext }) {
   const { snapshot, mode, copy, visible } = ctx;
   const anchor = SECTION_ANCHORS.hero;
-  const name = snapshot.site_title.trim();
+  // Legacy rows may already store the greeting in the title: never greet twice.
+  const name = stripGreeting(snapshot.site_title.trim());
   const tagline = snapshot.tagline.trim();
   const headingId = `${anchor}-titel`;
 
@@ -38,10 +41,10 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
           ) : (
             <h1
               id={headingId}
-              data-field="site_title"
               className="site:text-display site:text-heading site:hyphens-auto site:wrap-anywhere"
             >
-              {name}
+              {copy.heroGreeting}
+              <span data-field="site_title">{name}</span>!
             </h1>
           )}
           {tagline !== '' && (
