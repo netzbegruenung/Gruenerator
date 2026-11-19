@@ -106,7 +106,7 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
 
   const collection = hub.collection;
   const sources = useMemo(() => (collection ? partitionSources(collection) : null), [collection]);
-  const upload = useHubUpload(hub, sources?.total ?? 0);
+  const upload = useHubUpload(hub, sources?.total ?? 0, sources?.upload ?? []);
 
   // Umbenennen ändert den Namensteil des Slugs. Die offene URL zieht nach,
   // sonst kopiert man noch Wochen später „unbenanntes-notebook-…“ als Link.

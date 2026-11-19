@@ -12,6 +12,7 @@ import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
 import { maybeLoadKatexCss } from '../../lib/katexCss';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
 import { remarkCitationMarkers } from '../../lib/remarkCitationMarkers';
+import { remarkDateLists } from '../../lib/remarkDateLists';
 import { remarkSourceLinks } from '../../lib/remarkSourceLinks';
 import { shikiCodePlugin } from '../../lib/shikiHighlight';
 import { streamdownComponents } from '../../lib/streamdownComponents';
@@ -34,6 +35,7 @@ const remarkPlugins: NonNullable<StreamdownTextPrimitiveProps['remarkPlugins']> 
   ...Object.values(defaultRemarkPlugins),
   remarkCitationMarkers,
   remarkSourceLinks,
+  remarkDateLists,
 ];
 
 // Code controls (copy/download) are read by StreamdownCodeBlock exactly as
