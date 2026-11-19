@@ -107,7 +107,7 @@ describe('site selection', () => {
   });
   it('returns the list when several exist and none is named', () => {
     const r = chooseSite([SITE, SITE2], undefined);
-    expect('result' in r && r.result.needsSite).toBe(true);
+    expect(r).toMatchObject({ result: { needsSite: true } });
   });
   it('matches by id, name and url', () => {
     expect(chooseSite([SITE, SITE2], 'c2')).toEqual({ site: SITE2 });
@@ -116,8 +116,9 @@ describe('site selection', () => {
   });
   it('reports an unknown site together with the options', () => {
     const r = chooseSite([SITE, SITE2], 'nope');
-    expect('result' in r && r.result.fehlerArt).toBe('ungueltige_eingabe');
-    expect('result' in r && (r.result.sites as unknown[]).length).toBe(2);
+    expect(r).toMatchObject({
+      result: { fehlerArt: 'ungueltige_eingabe', sites: [{ cloudId: 'c1' }, { cloudId: 'c2' }] },
+    });
   });
 });
 

@@ -29,7 +29,12 @@ import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { type AtlassianConnections } from '../services/atlassianConnectionContext.js';
 
-import { klassifiziereWurf, leeresErgebnis, werkzeugFehler } from './toolFailure.js';
+import {
+  klassifiziereWurf,
+  leeresErgebnis,
+  werkzeugFehler,
+  type WerkzeugFehler,
+} from './toolFailure.js';
 
 import type { AtlassianResource } from '../../../services/api-clients/atlassianClient.js';
 
@@ -161,7 +166,8 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
-type SiteChoice = { site: AtlassianResource } | { result: Record<string, unknown> };
+type SiteChoice =
+  { site: AtlassianResource } | { result: Record<string, unknown> | WerkzeugFehler };
 
 function siteList(sites: AtlassianResource[]) {
   return sites.map((s) => ({ cloudId: s.id, name: s.name, url: s.url }));
