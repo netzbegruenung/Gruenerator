@@ -14,7 +14,7 @@ import { hocuspocusInternal, hocuspocusInternalOrNull } from '../collab/hocuspoc
 
 const log = createLogger('siteDraftDoc');
 
-export const siteRoom = (siteId: string): string => `site-${siteId}`;
+export const siteRoom = (siteId: string): string => `site-${siteId.toLowerCase()}`;
 
 /** State exists but carries no seed: a client wrote before the API seeded. Never publishable. */
 export class UnseededSiteDraftError extends Error {
