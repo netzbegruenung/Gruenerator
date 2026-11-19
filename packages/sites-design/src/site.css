@@ -2,3 +2,4 @@
 @import "./styles/tokens.css";
 @import "./styles/base.css";
 @source "./site/**/*.tsx";
+@source "./client/**/*.ts";
