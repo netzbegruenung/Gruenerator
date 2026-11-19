@@ -1,5 +1,5 @@
 import { Button } from '@gruenerator/ui';
-import { type ReactNode } from 'react';
+import { type ReactNode, type Ref } from 'react';
 import { FiEye } from 'react-icons/fi';
 
 import { BackButton } from '../components/common/BackButton';
@@ -11,10 +11,17 @@ interface EditorHeaderProps {
   save: SaveStatus;
   onPreview: () => void;
   onBack?: () => void;
+  previewButtonRef?: Ref<HTMLButtonElement>;
   children?: ReactNode;
 }
 
-export function EditorHeader({ save, onPreview, onBack, children }: EditorHeaderProps) {
+export function EditorHeader({
+  save,
+  onPreview,
+  onBack,
+  previewButtonRef,
+  children,
+}: EditorHeaderProps) {
   return (
     <header className="flex flex-row items-center gap-sm py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
       {onBack && <BackButton onBack={onBack} />}
@@ -24,7 +31,7 @@ export function EditorHeader({ save, onPreview, onBack, children }: EditorHeader
       </div>
       <div className="flex items-center gap-xs shrink-0 ml-auto">
         <SaveStatusChip status={save} />
-        <Button onClick={onPreview} title="Vorschau">
+        <Button ref={previewButtonRef} onClick={onPreview} title="Vorschau">
           <FiEye />
           <span className="hidden md:inline">Vorschau</span>
         </Button>

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { PreviewDialog } from './PreviewDialog';
@@ -42,5 +42,31 @@ describe('PreviewDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Vorschau öffnen' }));
     await user.click(await screen.findByRole('button', { name: 'Schließen' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('PreviewDialog focus return', () => {
+  it('returns focus to the opener after Escape', async () => {
+    const user = userEvent.setup();
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      const ref = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <button ref={ref} onClick={() => setOpen(true)}>
+            Vorschau öffnen
+          </button>
+          <PreviewDialog open={open} onOpenChange={setOpen} returnFocusRef={ref}>
+            <p>Inhalt</p>
+          </PreviewDialog>
+        </>
+      );
+    }
+    render(<Opener />);
+    const opener = screen.getByRole('button', { name: 'Vorschau öffnen' });
+    await user.click(opener);
+    await screen.findByRole('dialog');
+    await user.keyboard('{Escape}');
+    expect(document.activeElement).toBe(opener);
   });
 });
