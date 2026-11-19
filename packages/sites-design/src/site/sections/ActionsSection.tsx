@@ -48,7 +48,7 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
                     url={action.imageUrl}
                     slot="tile"
                     field={`sections.actions.${i}.imageUrl`}
-                    className="site:aspect-[4/5]"
+                    className="site:aspect-[3/2] site:sm:aspect-[4/5]"
                   />
                   <div
                     data-ground="deep"
