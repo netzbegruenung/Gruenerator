@@ -176,6 +176,10 @@ export const AI_LANES = {
   //   selecting a matching model.
   website: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
+  // — Flyer text → structured analysis. Was on `default` without a row, same model,
+  //   now said out loud.
+  'flyer-analysis': { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+
   // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
   //   answers a forced tool call with prose. That killed a PDF generation in

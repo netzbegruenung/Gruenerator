@@ -4,7 +4,14 @@
 import { describe, it, expect } from 'vitest';
 
 import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
-import { AI_LANES, laneFallback, laneTarget, providerForModel, resolveLane } from '../lanes.js';
+import {
+  AI_LANES,
+  isLaneId,
+  laneFallback,
+  laneTarget,
+  providerForModel,
+  resolveLane,
+} from '../lanes.js';
 import { getDefaultModel } from '../providers.js';
 
 import type { LaneId } from '../lanes.js';
@@ -25,6 +32,7 @@ describe('the lane table', () => {
       'board_generation',
       'canvas_ai_suggest',
       'website',
+      'flyer-analysis',
       'sharepic_dreizeilen',
       'sharepic_zitat',
       'sharepic_zitat_pure',
@@ -36,6 +44,10 @@ describe('the lane table', () => {
     ]) {
       expect(route(type), type).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
     }
+  });
+
+  it('has a row for the flyer analysis', () => {
+    expect(isLaneId('flyer-analysis')).toBe(true);
   });
 
   // GreenPT's own default writes forced tool calls as prose; the artefact lane
