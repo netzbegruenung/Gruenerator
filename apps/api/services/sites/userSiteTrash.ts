@@ -39,7 +39,14 @@ export async function restoreUserSite(userId: string, id: string): Promise<Owned
   return restoreOwnedRow(USER_SITE_TRASH, userId, id);
 }
 
-/** Hard-delete a trashed Website. The old delete had no side stores either. */
+/**
+ * Hard-delete a trashed Website and its draft (the Yjs rows of room `site-<id>`, keyed by
+ * the bare id). Trash and restore leave those rows alone, so a restored site keeps its draft.
+ */
 export async function purgeUserSite(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(USER_SITE_TRASH, id, cutoff)) !== null;
+  if ((await deleteTrashedRow(USER_SITE_TRASH, id, cutoff)) === null) return false;
+  const db = getPostgresInstance();
+  await db.query('DELETE FROM yjs_document_updates WHERE document_id = $1', [id]);
+  await db.query('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id]);
+  return true;
 }

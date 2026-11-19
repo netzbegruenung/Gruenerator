@@ -1,14 +1,36 @@
+import { siteDraftFromSite, type Site } from '@gruenerator/contracts';
+import { encodeSiteSeed } from '@gruenerator/contracts/site-ydoc';
+import { type SQL } from 'drizzle-orm';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
 
 const queryMock = vi.fn();
 const executeMock = vi.fn();
+const trashOwnedRowMock = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<string>>());
+const hocuspocusInternal = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+const hocuspocusInternalOrNull = vi.hoisted(() =>
+  vi.fn<(...a: unknown[]) => Promise<unknown | null>>()
+);
+const closeCollabRooms = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<void>>());
+const envMock = vi.hoisted(() => ({ SITES_HOST: 'grsites.de' as string | undefined, PORT: 3001 }));
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
 }));
 vi.mock('../../database/services/DrizzleService.js', () => ({
   getDrizzleInstance: () => ({ execute: executeMock }),
+}));
+vi.mock('../../services/collab/hocuspocusInternal.js', () => ({
+  hocuspocusInternal,
+  hocuspocusInternalOrNull,
+  closeCollabRooms,
+}));
+vi.mock('../../config/env.js', () => ({ env: envMock }));
+vi.mock('../../services/trash/ownedRowTrash.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/trash/ownedRowTrash.js')>()),
+  trashOwnedRow: trashOwnedRowMock,
 }));
 vi.mock('../auth/groups/groupsContract/shared.js', () => ({
   getUserLocale: (req: { locale?: string }) => req.locale ?? 'de-DE',
@@ -78,9 +100,24 @@ const pgUnique = (constraint: string) =>
     Object.assign(new Error('duplicate key'), { code: '23505', constraint })
   );
 
+/** The Y.Doc Hocuspocus holds for the site, seeded from `row` with `patch` on top. */
+function yjsState(patch: Record<string, unknown> = {}, source = row()) {
+  const draft = { ...siteDraftFromSite(source as unknown as Site), ...patch };
+  const update = encodeSiteSeed(draft, '2026-11-19T10:00:00Z');
+  return { update: Buffer.from(update).toString('base64'), live: true };
+}
+
+const executedSql = (i = 0) =>
+  new PgDialect().sqlToQuery(executeMock.mock.calls[i][0] as SQL).sql.replace(/\s+/g, ' ');
+
 beforeEach(() => {
   queryMock.mockReset();
   executeMock.mockReset();
+  hocuspocusInternal.mockReset();
+  hocuspocusInternalOrNull.mockReset().mockResolvedValue(null);
+  closeCollabRooms.mockReset().mockResolvedValue(undefined);
+  trashOwnedRowMock.mockReset();
+  envMock.SITES_HOST = 'grsites.de';
 });
 
 describe('sitesContract', () => {
@@ -96,8 +133,8 @@ describe('sitesContract', () => {
     queryMock.mockResolvedValueOnce([validRow()]).mockResolvedValueOnce([validRow()]);
     await publish(true, { locale: 'de-AT' });
     const [sql, params] = queryMock.mock.calls[1];
-    expect(sql).toMatch(/published_snapshot = \$1/);
-    expect(JSON.parse(params[0])).toMatchObject({ version: 1, locale: 'de-AT' });
+    expect(sql).toMatch(/published_snapshot = \$9/);
+    expect(JSON.parse(params[8])).toMatchObject({ version: 1, locale: 'de-AT' });
   });
 
   it('unpublish clears the snapshot', async () => {
@@ -165,5 +202,185 @@ describe('sitesContract', () => {
     expect((await check('a--b')).body).toEqual({ available: false, reason: 'invalid' });
     expect((await check('api')).body).toEqual({ available: false, reason: 'reserved' });
     expect(queryMock).not.toHaveBeenCalled();
+  });
+  it('publish reads the Y.Doc, not the row', async () => {
+    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState({ site_title: 'Neu' }));
+    queryMock
+      .mockResolvedValueOnce([row({ site_title: 'Alt' })])
+      .mockResolvedValueOnce([row({ site_title: 'Neu' })]);
+
+    expect((await publish(true)).status).toBe(200);
+
+    expect(hocuspocusInternalOrNull).toHaveBeenCalledWith(
+      'GET',
+      `/internal/doc/site-${SITE_ID}/yjs`
+    );
+    const [sql, params] = queryMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toMatch(/site_title = \$1/);
+    expect(params).toContain('Neu');
+    expect(params).not.toContain('Alt');
+    const snapshot = JSON.parse(params[8] as string) as { site_title: string };
+    expect(snapshot.site_title).toBe('Neu');
+  });
+
+  it('publish keeps hidden sections from the draft (#5801)', async () => {
+    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState({ hidden: ['actions', 'socialFeed'] }));
+    queryMock.mockResolvedValueOnce([row()]).mockResolvedValueOnce([row()]);
+
+    await publish(true);
+
+    const params = queryMock.mock.calls[1][1] as unknown[];
+    const sections = JSON.parse(params[7] as string) as { hidden: string[] };
+    expect(sections.hidden).toEqual(['actions', 'socialFeed']);
+    const snapshot = JSON.parse(params[8] as string) as { hidden_sections: string[] };
+    expect(snapshot.hidden_sections).toEqual(expect.arrayContaining(['actions', 'socialFeed']));
+  });
+
+  it('publish answers 503 when Hocuspocus fails and writes nothing', async () => {
+    hocuspocusInternalOrNull.mockRejectedValueOnce(new Error('internal GET returned 500'));
+    queryMock.mockResolvedValueOnce([row()]);
+
+    const res = await publish(true);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('Der Entwurf konnte nicht gelesen werden');
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('publish answers 503 for a Y.Doc with state but no seed, and writes nothing', async () => {
+    const stray = new Y.Doc();
+    stray.getMap('siteFields').set('site_title', 'Leer');
+    hocuspocusInternalOrNull.mockResolvedValueOnce({
+      update: Buffer.from(Y.encodeStateAsUpdate(stray)).toString('base64'),
+    });
+    queryMock.mockResolvedValueOnce([row()]);
+
+    expect((await publish(true)).status).toBe(503);
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('publish falls back to the row when no Yjs state exists', async () => {
+    queryMock
+      .mockResolvedValueOnce([row({ site_title: 'Aus der Zeile', contact_phone: '+49 30 1' })])
+      .mockResolvedValueOnce([row()]);
+
+    expect((await publish(true)).status).toBe(200);
+
+    const params = queryMock.mock.calls[1][1] as unknown[];
+    expect(params[0]).toBe('Aus der Zeile');
+    expect(params[5]).toBe('+49 30 1');
+    expect(JSON.parse(params[8] as string)).toMatchObject({ site_title: 'Aus der Zeile' });
+  });
+
+  it('publish answers 422 with issues when legal is missing', async () => {
+    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState());
+    queryMock.mockResolvedValueOnce([row({ legal: null })]);
+
+    const res = await publish(true);
+
+    expect(res.status).toBe(422);
+    expect(res.body.issues.map((i: { path: string }) => i.path)).toContain('legal');
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('prepareSiteDraft seeds the room before it answers', async () => {
+    queryMock.mockResolvedValueOnce([row()]);
+    hocuspocusInternal.mockResolvedValueOnce({ seeded: true });
+
+    const res = await call('prepareSiteDraft', { params: { id: SITE_ID }, body: {} });
+
+    expect(res).toEqual({ status: 200, body: { seeded: true } });
+    expect(hocuspocusInternal.mock.calls[0][1]).toBe(`/internal/site/${SITE_ID}/seed`);
+    const [sql, params] = queryMock.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/id = \$1 AND user_id = \$2 AND deleted_at IS NULL/);
+    expect(params).toEqual([SITE_ID, USER_ID]);
+  });
+
+  it("prepareSiteDraft 404 for someone else's site", async () => {
+    queryMock.mockResolvedValueOnce([]);
+
+    const res = await call('prepareSiteDraft', { params: { id: SITE_ID }, body: {} });
+
+    expect(res.status).toBe(404);
+    expect(hocuspocusInternalOrNull).not.toHaveBeenCalled();
+    expect(hocuspocusInternal).not.toHaveBeenCalled();
+  });
+
+  it('prepareSiteDraft answers 503 when the seed fails', async () => {
+    queryMock.mockResolvedValueOnce([row()]);
+    hocuspocusInternal.mockRejectedValueOnce(new Error('internal POST returned 413'));
+
+    const res = await call('prepareSiteDraft', { params: { id: SITE_ID }, body: {} });
+
+    expect(res).toEqual({
+      status: 503,
+      body: { error: 'Der Entwurf ist gerade nicht erreichbar' },
+    });
+  });
+
+  it('subdomain change lands only before the first publish', async () => {
+    executeMock.mockResolvedValueOnce({ rows: [row({ subdomain: 'anna-neu' })] });
+
+    const res = await update({ subdomain: 'Anna-Neu', site_title: 'x' });
+
+    expect(res.status).toBe(200);
+    expect(executedSql()).toMatch(/WHERE id = \$\d+ AND user_id = \$\d+ AND deleted_at IS NULL/);
+    expect(executedSql()).toMatch(/AND last_published IS NULL/);
+    const { params } = new PgDialect().sqlToQuery(executeMock.mock.calls[0][0] as SQL);
+    expect(params).toEqual(expect.arrayContaining(['anna-neu', 'x', SITE_ID, USER_ID]));
+  });
+
+  it('subdomain change rejected after the first publish', async () => {
+    executeMock.mockResolvedValueOnce({ rows: [] });
+    queryMock.mockResolvedValueOnce([{ id: SITE_ID }]);
+
+    const res = await update({ subdomain: 'anna-neu' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(
+      'Die Adresse kann nach dem ersten Veröffentlichen nicht mehr geändert werden'
+    );
+  });
+
+  it('subdomain change answers 404 for a site of another account', async () => {
+    executeMock.mockResolvedValueOnce({ rows: [] });
+    queryMock.mockResolvedValueOnce([]);
+
+    expect((await update({ subdomain: 'anna-neu' })).status).toBe(404);
+  });
+
+  it('subdomain change rejected when taken', async () => {
+    executeMock.mockRejectedValueOnce(pgUnique('user_sites_subdomain_unique'));
+
+    const res = await update({ subdomain: 'anna-neu' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Diese Adresse ist bereits vergeben');
+  });
+
+  it('subdomain change rejects a reserved address without a query', async () => {
+    const res = await update({ subdomain: 'impressum' });
+
+    expect(res.status).toBe(400);
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it('getMySite returns public_origin', async () => {
+    queryMock.mockResolvedValue([row()]);
+    expect((await call('getMySite', {})).body.public_origin).toBe('https://grsites.de');
+
+    envMock.SITES_HOST = undefined;
+    expect((await call('getMySite', {})).body.public_origin).toBeNull();
+  });
+
+  it('deleteSite closes the site room after the trash', async () => {
+    trashOwnedRowMock.mockResolvedValueOnce('ok');
+    expect((await call('deleteSite', { params: { id: SITE_ID } })).status).toBe(200);
+    expect(closeCollabRooms).toHaveBeenCalledWith([`site-${SITE_ID}`]);
+
+    trashOwnedRowMock.mockResolvedValueOnce('not_found');
+    closeCollabRooms.mockClear();
+    expect((await call('deleteSite', { params: { id: SITE_ID } })).status).toBe(404);
+    expect(closeCollabRooms).not.toHaveBeenCalled();
   });
 });
