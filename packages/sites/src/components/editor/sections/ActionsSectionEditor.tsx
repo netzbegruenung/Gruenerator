@@ -112,11 +112,11 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
       <Field
         panel="actions"
         path={`${base}.imageUrl`}
-        htmlFor={`action-${id}-image`}
+        labelId={`action-${id}-image-label`}
         label="Hintergrundbild"
       >
         <ImageUpload
-          id={`action-${id}-image`}
+          labelledBy={`action-${id}-image-label`}
           value={imageUrl}
           onChange={(url) => updateAction(id, { imageUrl: url })}
           aspectRatio="16/9"

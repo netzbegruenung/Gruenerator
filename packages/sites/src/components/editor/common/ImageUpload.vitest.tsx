@@ -53,6 +53,20 @@ describe('ImageUpload', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');
   });
 
+  it('names the group by the field label and keeps the visible button names', async () => {
+    const { container } = render(
+      <>
+        <span id="lbl">Hintergrundbild</span>
+        <ImageUpload value="/a.png" onChange={vi.fn()} labelledBy="lbl" />
+      </>
+    );
+    expect(screen.getByRole('group', { name: 'Hintergrundbild' })).toBeInTheDocument();
+    for (const name of ['Hochladen', 'Aus Mediathek', 'Entfernen']) {
+      expect(screen.getByRole('button', { name })).toHaveTextContent(name);
+    }
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<ImageUpload value="/a.png" onChange={vi.fn()} />);
     expect(await axe(container)).toHaveNoViolations();
