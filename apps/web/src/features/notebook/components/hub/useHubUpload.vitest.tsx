@@ -1,3 +1,4 @@
+import { NOTEBOOK_MAX_DOCUMENTS } from '@gruenerator/contracts';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -28,17 +29,17 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
 );
 
-function setup() {
+function setup(total = existing.length) {
   useDocumentsStore.setState({ uploadFileOnly } as never);
-  return renderHook(() => useHubUpload(hub, existing.length, existing), { wrapper });
+  return renderHook(() => useHubUpload(hub, total, existing), { wrapper });
 }
 
 /** Wählt die Datei über das versteckte Feld aus, so wie der Knopf es tut. */
-async function pick(result: ReturnType<typeof setup>['result'], file: File) {
+async function pick(result: ReturnType<typeof setup>['result'], ...files: File[]) {
   const { container } = render(<>{result.current.input}</>);
   const input = container.querySelector('input[type=file]') as HTMLInputElement;
   await act(async () => {
-    await userEvent.upload(input, file);
+    await userEvent.upload(input, files);
   });
 }
 
@@ -87,5 +88,15 @@ describe('useHubUpload — gleicher Name, anderer Inhalt', () => {
 
     await waitFor(() => expect(addDocuments).toHaveBeenCalledWith(['neu-Protokoll.pdf']));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('rechnet die ersetzte Fassung nicht als frei: angehängt wird, solange sie noch dranhängt', async () => {
+    const { result } = setup(NOTEBOOK_MAX_DOCUMENTS - 1);
+    await pick(result, neueFassung(), new File(['x'], 'Protokoll.pdf'));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ersetzen' }));
+
+    await waitFor(() => expect(addDocuments).toHaveBeenCalledWith(['neu-Haushaltsantrag.docx']));
+    expect(uploadFileOnly).toHaveBeenCalledTimes(1);
   });
 });

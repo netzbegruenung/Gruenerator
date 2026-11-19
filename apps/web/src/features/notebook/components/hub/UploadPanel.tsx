@@ -66,8 +66,9 @@ export function useHubUpload(
     const choice = clashes.size > 0 ? await askAboutClashes([...clashes.keys()]) : 'keep';
     if (choice === 'cancel') return;
     const replacing = choice === 'replace' ? clashes : new Map<File, NotebookDocumentRecord[]>();
-    const freed = [...replacing.values()].reduce((n, docs) => n + docs.length, 0);
-    const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total + freed);
+    // Ersetzen zählt wie Hinzufügen: die neue Fassung wird angehängt, solange die
+    // alte noch dranhängt, und genau dort prüft der Server das Limit.
+    const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total);
     const batch = accepted.slice(0, room);
     if (rejected.length > 0) toast.error(describeRejectedFiles(rejected));
     if (accepted.length > batch.length) {
