@@ -1,4 +1,4 @@
-import { setSiteField } from '@gruenerator/contracts/site-ydoc';
+import { addSiteThemeCard, setSiteField } from '@gruenerator/contracts/site-ydoc';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
@@ -34,5 +34,18 @@ describe('createSiteDraftStore', () => {
     store.destroy();
     setSiteField(ydoc, 'site_title', 'Nach destroy');
     expect(store.getState().draft.site_title).not.toBe('Nach destroy');
+  });
+});
+
+describe('structural sharing', () => {
+  it('keeps the theme slice reference when only site_title changes', () => {
+    const ydoc = seededDoc();
+    const store = createSiteDraftStore(ydoc);
+    addSiteThemeCard(ydoc);
+    const before = store.getState().draft.themes;
+    expect(before).toHaveLength(1);
+    setSiteField(ydoc, 'site_title', 'Anders');
+    expect(store.getState().draft.themes).toBe(before);
+    store.destroy();
   });
 });

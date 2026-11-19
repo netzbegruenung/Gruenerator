@@ -1,10 +1,14 @@
 import { setSiteField } from '@gruenerator/contracts/site-ydoc';
 import { act, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { describe, expect, it } from 'vitest';
+
+import { render } from '@testing-library/react';
 
 import { renderWithDraft } from '../test/renderWithDraft';
 
-import { useDraft, useDraftActions } from './SiteDraftContext';
+import { seededDoc } from './testDoc';
+import { SiteDraftProvider, useDraft, useDraftActions } from './SiteDraftContext';
 
 function Title() {
   const title = useDraft((draft) => draft.site_title);
@@ -31,5 +35,37 @@ describe('SiteDraftProvider', () => {
       setSiteField(ydoc, 'site_title', 'Remote');
     });
     expect(screen.getByRole('button')).toHaveTextContent('Remote');
+  });
+
+  it('leaves no update listener behind under StrictMode, and none after unmount', () => {
+    const ydoc = seededDoc();
+    const observers = () =>
+      (ydoc as unknown as { _observers: Map<string, Set<unknown>> })._observers.get('update')
+        ?.size ?? 0;
+    const view = render(
+      <StrictMode>
+        <SiteDraftProvider ydoc={ydoc}>
+          <Title />
+        </SiteDraftProvider>
+      </StrictMode>
+    );
+    expect(observers()).toBe(1);
+    view.unmount();
+    expect(observers()).toBe(0);
+  });
+
+  it('does not re-render a themes slice when only site_title changes', () => {
+    let renders = 0;
+    function Themes() {
+      useDraft((draft) => draft.themes);
+      renders += 1;
+      return null;
+    }
+    const { ydoc } = renderWithDraft(<Themes />);
+    const before = renders;
+    act(() => {
+      setSiteField(ydoc, 'site_title', 'Anders');
+    });
+    expect(renders).toBe(before);
   });
 });

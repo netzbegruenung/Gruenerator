@@ -54,21 +54,22 @@ function bindActions(ydoc: Y.Doc): SiteDraftActions {
 }
 
 export function SiteDraftProvider({ ydoc, children }: { ydoc: Y.Doc; children: ReactNode }) {
-  const [store, setStore] = useState(() => createSiteDraftStore(ydoc));
-  // StrictMode runs effect cleanups once before the real mount, which would leave a destroyed
-  // store behind; every effect run therefore builds its own and retires the previous one.
+  const [owned, setOwned] = useState<{ ydoc: Y.Doc; store: SiteDraftStore } | null>(null);
+  // The store subscribes to the doc, so it is created and destroyed in one effect: nothing in
+  // render can leak a listener when StrictMode discards a render or re-runs the effect.
   useEffect(() => {
-    const next = createSiteDraftStore(ydoc);
-    setStore((prev) => {
-      prev.destroy();
-      return next;
-    });
-    return () => next.destroy();
+    const store = createSiteDraftStore(ydoc);
+    setOwned({ ydoc, store });
+    return () => store.destroy();
   }, [ydoc]);
-  const value = useMemo<SiteDraftContextValue>(
-    () => ({ ydoc, store, actions: bindActions(ydoc) }),
-    [ydoc, store]
+  const value = useMemo<SiteDraftContextValue | null>(
+    () =>
+      owned && owned.ydoc === ydoc
+        ? { ydoc, store: owned.store, actions: bindActions(ydoc) }
+        : null,
+    [ydoc, owned]
   );
+  if (!value) return null;
   return <SiteDraftContext.Provider value={value}>{children}</SiteDraftContext.Provider>;
 }
 

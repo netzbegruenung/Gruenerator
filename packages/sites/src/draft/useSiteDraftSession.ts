@@ -1,7 +1,7 @@
 import { type SyncGate, useCollaboration, useSyncGate } from '@gruenerator/collab';
 import { isSiteDocSeeded } from '@gruenerator/contracts/site-ydoc';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 
 import { useAuth, useSitesCollaboration } from '../SitesContext';
@@ -45,25 +45,24 @@ export function useSiteDraftSession(siteId: string): DraftSession {
   const prepareDraft = usePrepareSiteDraft();
 
   const [attempt, setAttempt] = useState(0);
-  const [prepare, setPrepare] = useState<{ attempt: number; status: 'pending' | 'error' | 'done' }>(
-    {
-      attempt: 0,
-      status: 'pending',
-    }
-  );
+  const [prepare, setPrepare] = useState<{
+    siteId: string;
+    attempt: number;
+    status: 'pending' | 'error' | 'done';
+  }>({ siteId, attempt: 0, status: 'pending' });
   const [tooLarge, setTooLarge] = useState(false);
   const [authExhausted, setAuthExhausted] = useState(false);
   const connectAttempts = useRef(0);
 
   useEffect(() => {
     let ignore = false;
-    setPrepare({ attempt, status: 'pending' });
+    setPrepare({ siteId, attempt, status: 'pending' });
     prepareDraft(siteId).then(
       () => {
-        if (!ignore) setPrepare({ attempt, status: 'done' });
+        if (!ignore) setPrepare({ siteId, attempt, status: 'done' });
       },
       () => {
-        if (!ignore) setPrepare({ attempt, status: 'error' });
+        if (!ignore) setPrepare({ siteId, attempt, status: 'error' });
       }
     );
     return () => {
@@ -71,12 +70,21 @@ export function useSiteDraftSession(siteId: string): DraftSession {
     };
   }, [siteId, attempt, prepareDraft]);
 
-  const prepared = prepare.attempt === attempt && prepare.status === 'done';
-  const { ydoc, provider, isConnected, isSynced, isLocalLoaded } = useCollaboration({
-    documentId: prepared ? `site-${siteId}` : '',
+  const current = prepare.siteId === siteId && prepare.attempt === attempt;
+  const prepared = current && prepare.status === 'done';
+  const documentId = prepared ? `site-${siteId}` : '';
+  const collab = useCollaboration({
+    documentId,
     user: user ? { id: user.id, display_name: user.display_name, email: user.email } : null,
     config,
   });
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded } = collab;
+
+  // The shared hook keeps the previous attempt's doc and provider until its connection effect
+  // runs for the new room. Whatever it holds at the moment the room changes is stale.
+  const [stale, setStale] = useState({ documentId, ydoc });
+  if (stale.documentId !== documentId) setStale({ documentId, ydoc });
+  const fresh = provider !== null && stale.documentId === documentId && ydoc !== stale.ydoc;
 
   const [unsynced, setUnsynced] = useState(0);
   useEffect(() => {
@@ -89,7 +97,7 @@ export function useSiteDraftSession(siteId: string): DraftSession {
     };
   }, [provider]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!provider) return;
     const onClose = ({ event }: { event: { code: number } }) => {
       if (event.code !== DRAFT_TOO_LARGE_CLOSE_CODE) return;
@@ -104,7 +112,7 @@ export function useSiteDraftSession(siteId: string): DraftSession {
 
   // A refusal carries no reason. The room refuses an unseeded draft, so prepare again and
   // reconnect, a bounded number of times.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!provider) return;
     const onFailed = () => {
       if (connectAttempts.current >= MAX_CONNECT_ATTEMPTS) {
@@ -125,7 +133,7 @@ export function useSiteDraftSession(siteId: string): DraftSession {
     };
   }, [provider]);
 
-  const gate = useSyncGate(provider, isSynced, ydoc, isLocalLoaded);
+  const gate = useSyncGate(fresh ? provider : null, isSynced, ydoc, isLocalLoaded);
   const retry = useCallback(() => {
     connectAttempts.current = 0;
     setTooLarge(false);
@@ -138,10 +146,10 @@ export function useSiteDraftSession(siteId: string): DraftSession {
       ? 'error'
       : prepared
         ? 'done'
-        : prepare.status === 'error' && prepare.attempt === attempt
+        : prepare.status === 'error' && current
           ? 'error'
           : 'pending',
-    gate: provider && prepared ? gate : 'waiting',
+    gate: fresh && prepared ? gate : 'waiting',
     seeded: isSiteDocSeeded(ydoc),
     tooLarge,
   });
@@ -154,8 +162,6 @@ export function useSiteDraftSession(siteId: string): DraftSession {
     case 'error':
     case 'unavailable':
       return { state, retry };
-    case 'tooLarge':
-      return { state };
     default:
       return { state };
   }

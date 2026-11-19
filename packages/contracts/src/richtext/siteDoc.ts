@@ -38,6 +38,8 @@ import {
 
 import { siteRichTextExtensions } from './index.js';
 
+export type { SiteFieldKey, SiteFieldValues } from '../siteYdoc.js';
+
 export const SITE_LOCAL_ORIGIN = 'site-local';
 export const SITE_SEED_ORIGIN = 'site-seed';
 
