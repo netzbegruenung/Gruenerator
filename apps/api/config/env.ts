@@ -170,6 +170,15 @@ const envSchema = z.object({
   BASE_URL: z.string().optional(),
   AUTH_BASE_URL: z.string().optional(),
   WEB_BASE_URL: z.string().optional(),
+  SITES_HOST: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*)?$/, {
+      message: 'SITES_HOST must be a bare hostname without scheme, port, path or trailing dot',
+    })
+    .optional(),
+  SITES_REPORT_EMAIL: z.string().trim().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
   /**
    * Which instance this deployment serves — see `@gruenerator/shared/instances`.

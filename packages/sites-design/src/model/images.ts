@@ -2,10 +2,11 @@ export const SITE_IMAGE_WIDTHS = [400, 800, 1200, 2160] as const;
 export type SiteImageWidth = (typeof SITE_IMAGE_WIDTHS)[number];
 export type SiteImageSlot = 'portrait' | 'banner' | 'card' | 'tile' | 'backdrop';
 
-const MEDIA_PREVIEW = /^(\/api\/share\/[A-Za-z0-9_-]{6,128}\/preview)$/;
+const SIZEABLE_PATH =
+  /^(\/api\/share\/[A-Za-z0-9_-]{6,128}\/preview|\/api\/image-picker\/stock-image\/[A-Za-z0-9._-]+)$/;
 
 export function sizedSrc(url: string, width: SiteImageWidth, format: 'webp' | 'avif'): string {
-  const match = MEDIA_PREVIEW.exec(url);
+  const match = SIZEABLE_PATH.exec(url);
   return match ? `${match[1]}?w=${width}&fmt=${format}` : url;
 }
 
@@ -80,7 +81,7 @@ const SLOTS: Record<SiteImageSlot, SlotSpec> = {
 export function siteImageAttrs(url: string, slot: SiteImageSlot): SiteImageAttrs | null {
   if (url === '') return null;
   const spec = SLOTS[slot];
-  const sized = MEDIA_PREVIEW.test(url);
+  const sized = SIZEABLE_PATH.test(url);
   return {
     src: sizedSrc(url, spec.src, 'webp'),
     srcSet: sized ? spec.widths.map((w) => `${sizedSrc(url, w, 'webp')} ${w}w`).join(', ') : null,

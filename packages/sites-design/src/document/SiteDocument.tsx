@@ -1,7 +1,7 @@
 import { type PublishedSiteSnapshot } from '@gruenerator/contracts';
 
 import { siteFontFaceCss, siteFontPreloads, type SiteFontFile } from '../model/fonts.js';
-import { siteImageAttrs } from '../model/images.js';
+import { siteImageAttrs, sizedSrc } from '../model/images.js';
 import { type SiteDocumentKind, siteMeta } from '../model/meta.js';
 import { type SiteLinks } from '../model/paths.js';
 import { siteRootAttributes } from '../model/root.js';
@@ -33,7 +33,10 @@ export function SiteDocument({
 }: SiteDocumentProps) {
   const meta = siteMeta(snapshot, document);
   const portrait = siteImageAttrs(snapshot.profile_image, 'portrait');
-  const image = snapshot.profile_image === '' ? null : `${origin}${snapshot.profile_image}`;
+  const image =
+    snapshot.profile_image === ''
+      ? null
+      : `${origin}${sizedSrc(snapshot.profile_image, 1200, 'webp')}`;
 
   return (
     <html {...siteRootAttributes(snapshot)}>

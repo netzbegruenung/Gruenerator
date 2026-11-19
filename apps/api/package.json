@@ -80,6 +80,7 @@
     "@gruenerator/core": "workspace:*",
     "@gruenerator/hocuspocus": "workspace:*",
     "@gruenerator/shared": "workspace:*",
+    "@gruenerator/sites-design": "workspace:*",
     "@langfuse/otel": "^6.1.1",
     "@langfuse/tracing": "^6.1.1",
     "@langfuse/vercel-ai-sdk": "^6.1.1",
