@@ -64,6 +64,12 @@ describe('toSite', () => {
     expect(toSite({ ...publishedRow(), site_title: 'Neu' }).has_unpublished_changes).toBe(true));
   it('reads a published row whose draft no longer validates as changed', () =>
     expect(toSite({ ...publishedRow(), legal: null }).has_unpublished_changes).toBe(true));
-  it('does not expose the snapshot', () =>
-    expect(toSite(publishedRow())).not.toHaveProperty('published_snapshot'));
+  it('exposes the parsed published snapshot', () => {
+    const published = publishedRow();
+    expect(toSite(published).published_snapshot).toEqual(published.published_snapshot);
+  });
+  it('exposes null for no snapshot and for a stored value that is not one', () => {
+    expect(toSite(row()).published_snapshot).toBeNull();
+    expect(toSite(row({ published_snapshot: { foo: 1 } })).published_snapshot).toBeNull();
+  });
 });
