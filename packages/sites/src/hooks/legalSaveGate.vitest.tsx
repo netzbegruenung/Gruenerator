@@ -67,7 +67,9 @@ describe('Impressum save ordering', () => {
       await Promise.resolve();
     });
     expect(hoisted.updateSite).toHaveBeenCalledTimes(2);
-    expect(hoisted.updateSite.mock.calls[1]![0].data.legal.name).toBe('B');
+    expect(
+      (hoisted.updateSite.mock.calls[1]![0] as { data: { legal: SiteLegalDraft } }).data.legal.name
+    ).toBe('B');
     expect(result.current.status).toBe('saving');
 
     await act(async () => {

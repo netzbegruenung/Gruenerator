@@ -61,6 +61,7 @@ export function FocalPointPicker({
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/interactive-supports-focus -- keydown bubbles from the focused radio (roving tabindex); the group itself is not a tab stop
     <div
       role="radiogroup"
       aria-label="Bildausschnitt"

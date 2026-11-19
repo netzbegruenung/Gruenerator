@@ -97,6 +97,7 @@ export function ImageUpload({
         tabIndex={-1}
         aria-hidden="true"
       />
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- dropping a file is a shortcut; the Hochladen button is the keyboard path */}
       <div
         className={cn(
           'relative border-2 border-dashed border-grey-300 dark:border-grey-700 rounded-lg overflow-hidden flex items-center justify-center bg-grey-50 dark:bg-grey-900',

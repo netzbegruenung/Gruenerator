@@ -15,7 +15,7 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 vi.mock('../../hooks/useSite', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../hooks/useSite')>()),
+  ...(await importOriginal<Record<string, unknown>>()),
   useSite: () => ({
     togglePublish: hoisted.togglePublish,
     deleteSite: hoisted.deleteSite,
