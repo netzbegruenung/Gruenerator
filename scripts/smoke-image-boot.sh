@@ -18,7 +18,7 @@ docker rm -f "$cid" >/dev/null
 
 echo "$logs" | tail -n 40
 
-if grep -qE 'ERR_MODULE_NOT_FOUND|ERR_PACKAGE_PATH_NOT_EXPORTED|does not provide an export named|Cannot find (module|package)' <<<"$logs"; then
+if grep -qE 'ERR_MODULE_NOT_FOUND|ERR_PACKAGE_PATH_NOT_EXPORTED|does not provide an export named|Cannot find (module|package)|site assets missing' <<<"$logs"; then
   echo "::error::$image kann ein Modul nicht laden (siehe Log oben)"
   exit 1
 fi
