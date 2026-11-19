@@ -32,9 +32,6 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
-    "@tiptap/core": "^3.34.0",
-    "@tiptap/pm": "^3.34.0",
-    "@tiptap/static-renderer": "^3.34.0",
     "react-icons": "^5.7.0"
   },
   "devDependencies": {
