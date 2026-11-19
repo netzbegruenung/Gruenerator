@@ -13,6 +13,7 @@ import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
 import { AddItemButton } from '../common/AddItemButton';
 import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 import { ItemControls } from '../common/ItemControls';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
@@ -29,6 +30,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
   const { updateTheme, removeTheme, moveTheme } = useDraftActions();
   const title = useDraft((d) => d.themes.find((theme) => theme.id === id)?.title ?? '');
   const imageUrl = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageUrl ?? '');
+  const imageFocus = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageFocus ?? null);
   const highlighted = useEditorStore(
     (s) =>
       s.highlightedElement?.panel === 'themes' &&
@@ -99,6 +101,13 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
           aspectRatio="4/3"
           placeholder="Themenbild"
         />
+        {imageUrl && (
+          <FocalPointPicker
+            src={imageUrl}
+            value={imageFocus}
+            onChange={(focus) => updateTheme(id, { imageFocus: focus })}
+          />
+        )}
       </Field>
     </div>
   );

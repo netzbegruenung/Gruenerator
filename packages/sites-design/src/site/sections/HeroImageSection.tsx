@@ -25,6 +25,7 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
             url={imageUrl}
             slot="banner"
             field="sections.heroImage.imageUrl"
+            focus={band?.imageFocus}
             className="site:absolute site:inset-0 site:-z-20"
           />
           <div

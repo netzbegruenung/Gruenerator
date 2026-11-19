@@ -6,6 +6,7 @@ import { FiX } from 'react-icons/fi';
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 
 const DEFAULT_PLATFORMS = ['instagram', 'facebook'] as const;
@@ -25,6 +26,7 @@ export function HeroSectionEditor() {
   const name = useDraft((d) => d.site_title);
   const tagline = useDraft((d) => d.tagline);
   const profileImage = useDraft((d) => d.profile_image);
+  const profileFocus = useDraft((d) => d.profileImageFocus ?? null);
   const socialLinks = useDraft((d) => d.social_links);
 
   const [visiblePlatforms, setVisiblePlatforms] = useState<string[]>(() => {
@@ -51,13 +53,20 @@ export function HeroSectionEditor() {
       <SectionHeading>Profil</SectionHeading>
 
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
-        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
+        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex flex-col max-[600px]:w-[100px]">
           <ImageUpload
             value={profileImage}
             onChange={(url) => setField('profile_image', url)}
             placeholder="Bild"
             size="fill"
           />
+          {profileImage && (
+            <FocalPointPicker
+              src={profileImage}
+              value={profileFocus}
+              onChange={(focus) => setField('profileImageFocus', focus)}
+            />
+          )}
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col">

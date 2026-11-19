@@ -48,6 +48,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                       url={theme.imageUrl}
                       slot="card"
                       field={`sections.themes.${i}.imageUrl`}
+                      focus={theme.imageFocus}
                       className="site:aspect-[16/10]"
                     />
                     <div className="site:flex site:grow site:flex-col site:p-6 site:lg:p-8">

@@ -7,6 +7,7 @@ import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
 import { AddItemButton } from '../common/AddItemButton';
 import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 import { ItemControls } from '../common/ItemControls';
 
@@ -29,6 +30,9 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
   const text = useDraft((d) => d.actions.find((action) => action.id === id)?.text ?? '');
   const link = useDraft((d) => d.actions.find((action) => action.id === id)?.link ?? '');
   const imageUrl = useDraft((d) => d.actions.find((action) => action.id === id)?.imageUrl ?? '');
+  const imageFocus = useDraft(
+    (d) => d.actions.find((action) => action.id === id)?.imageFocus ?? null
+  );
   const base = `sections.actions.${index}`;
   const highlighted = useEditorStore(
     (s) =>
@@ -118,6 +122,13 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
           aspectRatio="16/9"
           placeholder="Aktionsbild"
         />
+        {imageUrl && (
+          <FocalPointPicker
+            src={imageUrl}
+            value={imageFocus}
+            onChange={(focus) => updateAction(id, { imageFocus: focus })}
+          />
+        )}
       </Field>
     </div>
   );

@@ -174,4 +174,17 @@ describe('renderSitePage', () => {
       expect(out).toContain('Kontakt aufnehmen');
     });
   });
+
+  it('renders a focal point as a class and never as a style attribute', () => {
+    const snapshot = fullSnapshot();
+    snapshot.sections.profileImageFocus = { x: 25, y: 75 };
+    snapshot.sections.heroImage!.imageFocus = { x: 100, y: 0 };
+    snapshot.sections.themes![0]!.imageFocus = { x: 0, y: 50 };
+    const out = page({ snapshot });
+    expect(out).toMatch(/<img[^>]+class="[^"]*site-focus-25-75/);
+    expect(out).toMatch(/<img[^>]+class="[^"]*site-focus-100-0/);
+    expect(out).toMatch(/<img[^>]+class="[^"]*site-focus-0-50/);
+    expect(out).not.toMatch(/<[a-z][^>]*\sstyle=/i);
+    expect(page()).not.toContain('site-focus-');
+  });
 });

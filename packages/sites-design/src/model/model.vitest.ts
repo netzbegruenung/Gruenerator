@@ -5,7 +5,7 @@ import { fullSnapshot, maxSnapshot, minimalSnapshot } from '../testing/fixtures.
 
 import { siteCopy } from './copy.js';
 import { sectionGround } from './grounds.js';
-import { siteImageAttrs, sizedSrc } from './images.js';
+import { focusClass, siteImageAttrs, sizedSrc } from './images.js';
 import { reportHref, safeHref, telHref } from './links.js';
 import { siteMeta } from './meta.js';
 import { sitePaths } from './paths.js';
@@ -152,4 +152,12 @@ describe('copy, meta, grounds', () => {
     expect(s.site_title).toHaveLength(120);
     expect(s.contact_email).toHaveLength(254);
   });
+});
+
+describe('focusClass', () => {
+  it('names the step pair', () => expect(focusClass({ x: 25, y: 75 })).toBe('site-focus-25-75'));
+  it.each([null, undefined, { x: 50 as const, y: 50 as const }])(
+    'is empty for the centre or none (%j)',
+    (focus) => expect(focusClass(focus)).toBe('')
+  );
 });

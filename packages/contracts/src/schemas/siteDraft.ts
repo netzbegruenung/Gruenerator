@@ -4,6 +4,7 @@ import {
   readSiteVariant,
   type PublishedSiteSnapshot,
   type SiteActionTile,
+  type SiteImageFocus,
   type SiteLegalDraft,
   type SiteOptionalSection,
   type SiteSnapshotSource,
@@ -24,16 +25,17 @@ export interface SiteDraft {
   site_title: string;
   tagline: string;
   profile_image: string;
+  profileImageFocus?: SiteImageFocus;
   variant: SiteVariant;
   contact_email: string;
   contact_phone: string;
   social_links: Record<string, string>;
   hidden: SiteOptionalSection[];
   about: { title: string; content: RichTextDoc };
-  heroImage: { imageUrl: string; title: string; subtitle: string };
+  heroImage: { imageUrl: string; imageFocus?: SiteImageFocus; title: string; subtitle: string };
   themes: SiteDraftThemeCard[];
   actions: SiteDraftActionTile[];
-  contact: { title: string; backgroundImageUrl: string };
+  contact: { title: string; backgroundImageUrl: string; backgroundFocus?: SiteImageFocus };
   socialFeed: { title: string; instagramUsername: string; showFeed: boolean };
 }
 
@@ -46,6 +48,7 @@ export function siteDraftFromSite(
     site_title: site.site_title,
     tagline: site.tagline ?? '',
     profile_image: site.profile_image ?? '',
+    ...(sections?.profileImageFocus ? { profileImageFocus: sections.profileImageFocus } : {}),
     variant: readSiteVariant(site.theme),
     contact_email: site.contact_email ?? '',
     contact_phone: site.contact_phone ?? '',
@@ -80,6 +83,16 @@ type SiteDraftColumn =
   | 'social_links'
   | 'sections';
 
+/** A centred point is the default, so it is left out and an untouched site never reads as changed. */
+export function offCentre(focus: SiteImageFocus | undefined): SiteImageFocus | null {
+  return focus && !(focus.x === 50 && focus.y === 50) ? focus : null;
+}
+
+function withFocus<K extends string>(key: K, focus: SiteImageFocus | undefined) {
+  const kept = offCentre(focus);
+  return kept ? ({ [key]: kept } as Record<K, SiteImageFocus>) : {};
+}
+
 export function siteDraftToRowColumns(draft: SiteDraft): {
   [K in SiteDraftColumn]-?: Exclude<UpdateSiteBody[K], undefined>;
 } {
@@ -93,11 +106,27 @@ export function siteDraftToRowColumns(draft: SiteDraft): {
     social_links: { ...draft.social_links },
     sections: {
       hidden: [...draft.hidden],
+      ...withFocus('profileImageFocus', draft.profileImageFocus),
       about: { ...draft.about },
-      heroImage: { ...draft.heroImage },
-      themes: draft.themes.map(({ id: _id, ...theme }) => theme),
-      actions: draft.actions.map(({ id: _id, ...action }) => action),
-      contact: { ...draft.contact },
+      heroImage: {
+        imageUrl: draft.heroImage.imageUrl,
+        ...withFocus('imageFocus', draft.heroImage.imageFocus),
+        title: draft.heroImage.title,
+        subtitle: draft.heroImage.subtitle,
+      },
+      themes: draft.themes.map(({ id: _id, imageFocus, ...theme }) => ({
+        ...theme,
+        ...withFocus('imageFocus', imageFocus),
+      })),
+      actions: draft.actions.map(({ id: _id, imageFocus, ...action }) => ({
+        ...action,
+        ...withFocus('imageFocus', imageFocus),
+      })),
+      contact: {
+        title: draft.contact.title,
+        backgroundImageUrl: draft.contact.backgroundImageUrl,
+        ...withFocus('backgroundFocus', draft.contact.backgroundFocus),
+      },
       socialFeed: { ...draft.socialFeed },
     },
   };

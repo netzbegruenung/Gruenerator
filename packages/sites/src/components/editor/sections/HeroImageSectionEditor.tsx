@@ -4,6 +4,7 @@ import { Input, Textarea } from '@gruenerator/ui';
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 
 const MAX_TITLE_LENGTH = 60;
@@ -26,6 +27,7 @@ export function HeroImageSectionEditor() {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { setField } = useDraftActions();
   const imageUrl = useDraft((d) => d.heroImage.imageUrl);
+  const imageFocus = useDraft((d) => d.heroImage.imageFocus ?? null);
   const title = useDraft((d) => d.heroImage.title);
   const subtitle = useDraft((d) => d.heroImage.subtitle);
 
@@ -34,13 +36,20 @@ export function HeroImageSectionEditor() {
       <SectionHeading>Hero-Bild</SectionHeading>
 
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
-        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
+        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex flex-col max-[600px]:w-[100px]">
           <ImageUpload
             value={imageUrl}
             onChange={(url) => setField('heroImage.imageUrl', url)}
             placeholder="Bild"
             size="fill"
           />
+          {imageUrl && (
+            <FocalPointPicker
+              src={imageUrl}
+              value={imageFocus}
+              onChange={(focus) => setField('heroImage.imageFocus', focus)}
+            />
+          )}
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col">

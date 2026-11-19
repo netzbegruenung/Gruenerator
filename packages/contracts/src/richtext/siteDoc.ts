@@ -19,9 +19,11 @@ import {
 } from '../schemas/siteDraft.js';
 import {
   readSiteVariant,
+  siteImageFocusSchema,
   SITE_ACTIONS_MAX,
   SITE_THEMES_MAX,
   type SiteActionTile,
+  type SiteImageFocus,
   type SiteOptionalSection,
   type SiteThemeCard,
 } from '../schemas/sites.js';
@@ -61,6 +63,7 @@ const defaultFieldValues: SiteFieldValues = {
   site_title: defaults.site_title,
   tagline: defaults.tagline,
   profile_image: defaults.profile_image,
+  profileImageFocus: null,
   variant: defaults.variant,
   contact_email: defaults.contact_email,
   contact_phone: defaults.contact_phone,
@@ -68,10 +71,12 @@ const defaultFieldValues: SiteFieldValues = {
   hidden: defaults.hidden,
   'about.title': defaults.about.title,
   'heroImage.imageUrl': defaults.heroImage.imageUrl,
+  'heroImage.imageFocus': null,
   'heroImage.title': defaults.heroImage.title,
   'heroImage.subtitle': defaults.heroImage.subtitle,
   'contact.title': defaults.contact.title,
   'contact.backgroundImageUrl': defaults.contact.backgroundImageUrl,
+  'contact.backgroundFocus': null,
   'socialFeed.title': defaults.socialFeed.title,
   'socialFeed.instagramUsername': defaults.socialFeed.instagramUsername,
   'socialFeed.showFeed': defaults.socialFeed.showFeed,
@@ -136,9 +141,21 @@ function str(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function readFocus(value: unknown): SiteImageFocus | null {
+  const parsed = siteImageFocusSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+const FOCUS_KEYS: readonly SiteFieldKey[] = [
+  'profileImageFocus',
+  'heroImage.imageFocus',
+  'contact.backgroundFocus',
+];
+
 function readField<K extends SiteFieldKey>(fields: Y.Map<unknown>, key: K): SiteFieldValues[K];
 function readField(fields: Y.Map<unknown>, key: SiteFieldKey): SiteFieldValues[SiteFieldKey] {
   const value = fields.get(key);
+  if (FOCUS_KEYS.includes(key)) return readFocus(value);
   switch (key) {
     case 'variant':
       return readSiteVariant(typeof value === 'string' ? value : null);
@@ -170,6 +187,7 @@ function writeSeedFields(ydoc: Y.Doc, draft: SiteDraft): void {
     site_title: draft.site_title,
     tagline: draft.tagline,
     profile_image: draft.profile_image,
+    profileImageFocus: draft.profileImageFocus ?? null,
     variant: draft.variant,
     contact_email: draft.contact_email,
     contact_phone: draft.contact_phone,
@@ -177,10 +195,12 @@ function writeSeedFields(ydoc: Y.Doc, draft: SiteDraft): void {
     hidden: draft.hidden,
     'about.title': draft.about.title,
     'heroImage.imageUrl': draft.heroImage.imageUrl,
+    'heroImage.imageFocus': draft.heroImage.imageFocus ?? null,
     'heroImage.title': draft.heroImage.title,
     'heroImage.subtitle': draft.heroImage.subtitle,
     'contact.title': draft.contact.title,
     'contact.backgroundImageUrl': draft.contact.backgroundImageUrl,
+    'contact.backgroundFocus': draft.contact.backgroundFocus ?? null,
     'socialFeed.title': draft.socialFeed.title,
     'socialFeed.instagramUsername': draft.socialFeed.instagramUsername,
     'socialFeed.showFeed': draft.socialFeed.showFeed,
@@ -199,6 +219,7 @@ export function seedSiteDoc(ydoc: Y.Doc, draft: SiteDraft, seededAt: string): vo
       const card = new Y.Map<unknown>();
       card.set('title', theme.title);
       card.set('imageUrl', theme.imageUrl);
+      if (theme.imageFocus) card.set('imageFocus', theme.imageFocus);
       themes.set(theme.id, card);
       seedFragment(getThemeFragment(ydoc, theme.id), theme.content);
     }
@@ -211,6 +232,7 @@ export function seedSiteDoc(ydoc: Y.Doc, draft: SiteDraft, seededAt: string): vo
       tile.set('text', action.text);
       tile.set('link', action.link);
       tile.set('imageUrl', action.imageUrl);
+      if (action.imageFocus) tile.set('imageFocus', action.imageFocus);
       actions.set(action.id, tile);
     }
     actionIds.push(draft.actions.map((action) => action.id));
@@ -248,10 +270,12 @@ export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
   for (const id of uniqueIds(themeOrder(ydoc))) {
     const card = themes.get(id);
     if (!(card instanceof Y.Map)) continue;
+    const imageFocus = readFocus(card.get('imageFocus'));
     themeCards.push({
       id,
       title: str(card.get('title'), ''),
       imageUrl: str(card.get('imageUrl'), ''),
+      ...(imageFocus ? { imageFocus } : {}),
       content: fragmentToRichText(getThemeFragment(ydoc, id)),
     });
     if (themeCards.length >= SITE_THEMES_MAX) break;
@@ -262,19 +286,26 @@ export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
   for (const id of uniqueIds(actionOrder(ydoc))) {
     const tile = actions.get(id);
     if (!(tile instanceof Y.Map)) continue;
+    const imageFocus = readFocus(tile.get('imageFocus'));
     actionTiles.push({
       id,
       text: str(tile.get('text'), ''),
       link: str(tile.get('link'), ''),
       imageUrl: str(tile.get('imageUrl'), ''),
+      ...(imageFocus ? { imageFocus } : {}),
     });
     if (actionTiles.length >= SITE_ACTIONS_MAX) break;
   }
+
+  const profileImageFocus = readField(fields, 'profileImageFocus');
+  const heroFocus = readField(fields, 'heroImage.imageFocus');
+  const backgroundFocus = readField(fields, 'contact.backgroundFocus');
 
   return {
     site_title: readField(fields, 'site_title'),
     tagline: readField(fields, 'tagline'),
     profile_image: readField(fields, 'profile_image'),
+    ...(profileImageFocus ? { profileImageFocus } : {}),
     variant: readField(fields, 'variant'),
     contact_email: readField(fields, 'contact_email'),
     contact_phone: readField(fields, 'contact_phone'),
@@ -286,6 +317,7 @@ export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
     },
     heroImage: {
       imageUrl: readField(fields, 'heroImage.imageUrl'),
+      ...(heroFocus ? { imageFocus: heroFocus } : {}),
       title: readField(fields, 'heroImage.title'),
       subtitle: readField(fields, 'heroImage.subtitle'),
     },
@@ -294,6 +326,7 @@ export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
     contact: {
       title: readField(fields, 'contact.title'),
       backgroundImageUrl: readField(fields, 'contact.backgroundImageUrl'),
+      ...(backgroundFocus ? { backgroundFocus } : {}),
     },
     socialFeed: {
       title: readField(fields, 'socialFeed.title'),
@@ -335,7 +368,7 @@ function patchItem(
   ydoc: Y.Doc,
   items: Y.Map<Y.Map<unknown>>,
   id: string,
-  patch: Record<string, string | undefined>
+  patch: Record<string, string | SiteImageFocus | null | undefined>
 ): void {
   const item = items.get(id);
   if (!item) return;
@@ -389,7 +422,7 @@ export function removeSiteThemeCard(ydoc: Y.Doc, id: string): void {
 export function updateSiteThemeCard(
   ydoc: Y.Doc,
   id: string,
-  patch: Partial<Pick<SiteThemeCard, 'title' | 'imageUrl'>>
+  patch: Partial<Pick<SiteThemeCard, 'title' | 'imageUrl'>> & { imageFocus?: SiteImageFocus | null }
 ): void {
   patchItem(ydoc, themesMap(ydoc), id, patch);
 }
@@ -409,7 +442,9 @@ export function addSiteActionTile(ydoc: Y.Doc): string | null {
 export function updateSiteActionTile(
   ydoc: Y.Doc,
   id: string,
-  patch: Partial<Pick<SiteActionTile, 'text' | 'link' | 'imageUrl'>>
+  patch: Partial<Pick<SiteActionTile, 'text' | 'link' | 'imageUrl'>> & {
+    imageFocus?: SiteImageFocus | null;
+  }
 ): void {
   patchItem(ydoc, actionsMap(ydoc), id, patch);
 }
