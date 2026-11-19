@@ -21,6 +21,7 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
+import { PANDA_LANE_MODEL } from '../../../../services/ai/textModelPolicy.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -127,10 +128,31 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
  * unterscheiden, und die 45 s rissen genau so einen Ultra-Zug ab („silent for
  * 45000ms after 245 chars"). 45 s Zuschlag decken bei ~33 Token/s rund 3.000
  * Token Argument. Andere Anbieter bleiben ohne Messung bei 0.
+ *
+ * Schlüssel ist der Anbieter oder `anbieter/modell`; das Modell gewinnt.
+ *
+ * Panda (DeepSeek v4.1 Flash auf Melious) tut dasselbe, gemessen 19.11.2026 in
+ * 16 Rohläufen und über das SDK: ein Argument von 3.500–5.100 Zeichen kam nach
+ * 13–18 s Stille, eines von 9.400–14.400 Zeichen nach 31–42 s (~88 Token/s),
+ * jeweils in einem Chunk — auch mit `parallel_tool_calls: false` oder
+ * `tool_choice: 'required'`. Panda hat im Loop keine Ausweich-Lane
+ * (`resolveLoopLaneChain`), ein Abriss kostet also den ganzen Zug. Nur dieses
+ * Modell, nicht ganz Melious: Gemma dort ist nicht gemessen.
  */
 const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
   mistral: 45_000,
+  [`melious/${PANDA_LANE_MODEL}`]: 45_000,
 };
+
+function silentToolArgumentAllowanceMs(model: LanguageModel): number {
+  const provider = providerOfModel(model);
+  const modelId = typeof model === 'string' ? model.slice(model.indexOf('/') + 1) : model.modelId;
+  return (
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelId}`] ??
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[provider] ??
+    0
+  );
+}
 
 /**
  * Wie lange ununterbrochenes Denken als Lebenszeichen zählt.
@@ -201,8 +223,7 @@ function createToolPhaseIdle(
 ): { idle: IdleDeadline; idleMs: number } {
   const idleMs =
     (p.toolActivity
-      ? TOOL_PHASE_IDLE_DEADLINE_MS +
-        (SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[providerOfModel(model)] ?? 0)
+      ? TOOL_PHASE_IDLE_DEADLINE_MS + silentToolArgumentAllowanceMs(model)
       : mountedToolCeilingMs(p.tools)) + prefillMs;
   return {
     idle: createIdleDeadline(

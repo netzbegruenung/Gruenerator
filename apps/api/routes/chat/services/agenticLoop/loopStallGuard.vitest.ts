@@ -328,6 +328,24 @@ describe('tool phase stall guard (unified)', () => {
     expect(out.text).toBe('Entwurf. Fertig.');
   });
 
+  it('lässt Panda ein stumm geschriebenes Werkzeugargument zu Ende schreiben', async () => {
+    const panda = {
+      id: 'synth',
+      provider: 'melious.chat',
+      modelId: 'deepseek-v4.1-flash',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: panda, toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(61_000);
+    const out = await running;
+
+    expect(out.text).toBe('Entwurf. Fertig.');
+  });
+
   it('reisst andere Anbieter weiter nach 45 s Stille ab', async () => {
     const melious = {
       id: 'synth',
