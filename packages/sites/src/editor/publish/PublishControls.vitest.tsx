@@ -107,7 +107,7 @@ describe('PublishControls', () => {
 
     const c = setup(site({ is_published: true, published_snapshot: snapshot() }));
     act(() => setSiteField(c.ydoc, 'site_title', 'Neuer Titel'));
-    expect(screen.getByText('Änderungen nicht veröffentlicht')).toBeInTheDocument();
+    expect(screen.queryByText('Änderungen nicht veröffentlicht')).toBeNull();
     expect(screen.getByRole('button', { name: 'Änderungen veröffentlichen' })).toBeEnabled();
   });
 

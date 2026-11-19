@@ -31,10 +31,10 @@ import { waitForSynced } from './waitForSynced';
 
 export const PUBLISH_SYNC_TIMEOUT_MS = 5000;
 
-const BADGE_LABELS: Record<PublishStatus, string> = {
+// 'changed' has no badge: the "Änderungen veröffentlichen" button already says so.
+const BADGE_LABELS: Record<Exclude<PublishStatus, 'changed'>, string> = {
   unpublished: 'Nicht veröffentlicht',
   live: 'Live',
-  changed: 'Änderungen nicht veröffentlicht',
 };
 
 const NOT_SAVED_MESSAGE =
@@ -142,7 +142,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   return (
     <>
-      <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      {status !== 'changed' && (
+        <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      )}
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
         <PopoverAnchor asChild>
           <Button
