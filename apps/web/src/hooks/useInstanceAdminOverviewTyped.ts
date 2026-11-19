@@ -34,6 +34,18 @@ export async function setInstanceAdminUserPanda(userId: string, enabled: boolean
   return result.body.data;
 }
 
+export async function setInstanceAdminUserSites(userId: string, enabled: boolean) {
+  const client = getContractsClient();
+  const result = await client.instanceAdminOverview.setUserSites({
+    params: { userId },
+    body: { enabled },
+  });
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Failed to set Sites unlock (HTTP ${result.status})`);
+  }
+  return result.body.data;
+}
+
 export async function setInstanceAdminUserAdmin(userId: string, isAdmin: boolean) {
   const client = getContractsClient();
   const result = await client.instanceAdminOverview.setUserAdmin({

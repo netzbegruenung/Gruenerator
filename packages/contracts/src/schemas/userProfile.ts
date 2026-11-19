@@ -246,6 +246,11 @@ export const userProfileSchema = z.object({
    * default. Deliberately absent from `profileUpdateBodySchema`.
    */
   panda_enabled: z.boolean().nullish(),
+  /**
+   * Sites unlock, written only by an instance admin; null = not unlocked.
+   * Deliberately absent from `profileUpdateBodySchema`.
+   */
+  sites_unlocked: z.boolean().nullish(),
   custom_prompt: z.string().optional(),
   created_at: z.union([z.string(), z.date()]),
   updated_at: z.union([z.string(), z.date()]),

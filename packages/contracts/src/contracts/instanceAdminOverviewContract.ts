@@ -12,6 +12,7 @@ import {
   instanceAdminAppBundlesResponseSchema,
   instanceAdminSetAdminBodySchema,
   instanceAdminSetPandaBodySchema,
+  instanceAdminSetSitesBodySchema,
   instanceAdminUserResponseSchema,
   instanceAdminUsersQuerySchema,
   instanceAdminUsersResponseSchema,
@@ -57,6 +58,25 @@ export const instanceAdminOverviewContract = c.router(
         500: instanceAdminOverviewErrorResponseSchema,
       },
       summary: 'Unlock or lock the Panda model lane for one account (admin)',
+    },
+
+    /**
+     * PATCH /api/auth/admin/bgst/users/:userId/sites
+     * Unlock or lock Sites for one account.
+     */
+    setUserSites: {
+      method: 'PATCH',
+      path: '/api/auth/admin/bgst/users/:userId/sites',
+      pathParams: z.object({ userId: z.string().guid() }),
+      body: instanceAdminSetSitesBodySchema,
+      responses: {
+        200: instanceAdminUserResponseSchema,
+        401: instanceAdminOverviewErrorResponseSchema,
+        403: instanceAdminOverviewErrorResponseSchema,
+        404: instanceAdminOverviewErrorResponseSchema,
+        500: instanceAdminOverviewErrorResponseSchema,
+      },
+      summary: 'Unlock or lock Sites for one account (admin)',
     },
 
     /**
