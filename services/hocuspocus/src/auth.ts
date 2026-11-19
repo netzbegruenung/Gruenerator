@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { createLogger } from './logger.js';
-import { SITE_ROOM_PREFIX, isSiteId, siteIdFromRoom } from './siteRooms.js';
+import { SITE_ROOM_PREFIX, siteIdFromRoom } from './siteRooms.js';
 
 import type {
   DbQueryFn,
@@ -45,6 +45,8 @@ function devBypassUserId(headers: Headers, params?: URLSearchParams): string | n
 function isDocumentRoom(documentName: string): boolean {
   return !documentName.startsWith('chat-') && !documentName.startsWith('group-presence-');
 }
+
+const DOCUMENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class AuthService {
   private readonly db: DbQueryFn;
@@ -360,6 +362,12 @@ export class AuthService {
     userId: string
   ): Promise<AuthenticationResult> {
     log.debug(`[Auth] Checking document permissions for: ${documentName}`);
+    // collaborative_documents.id is a uuid: Postgres would reject anything else
+    // and the client would retry forever, so deny before querying.
+    if (!DOCUMENT_ID_RE.test(documentName)) {
+      log.warn(`[Auth] FAILED: ${documentName} is not a document id (user ${userId})`);
+      return { authenticated: false, reason: 'Access denied' };
+    }
     // The display name is needed on every granted path, so fetch it alongside;
     // a failed lookup must not turn a definite denial into a retryable error.
     const [docResult, userResult] = await Promise.all([
@@ -378,22 +386,11 @@ export class AuthService {
     log.debug(`[Auth] Document query returned ${docResult.length} results`);
 
     if (docResult.length === 0) {
-      // A site's Yjs rows are keyed by its bare uuid, so that id must never reach
-      // the create-on-first-open grant below. No trash filter on purpose: a
-      // trashed site keeps its rows closed as well (#5805).
-      if (await isSiteId(this.db, documentName)) {
-        log.warn(`[Auth] FAILED: ${documentName} is a site id, not a document room`);
-        return { authenticated: false, reason: 'Access denied' };
-      }
-
-      log.debug(`[Auth] Document ${documentName} not found, allowing user ${userId} to create it`);
-
-      return {
-        authenticated: true,
-        userId,
-        userName: (userResult[0]?.display_name as string) || 'Unknown User',
-        readOnly: false,
-      };
+      // Every editor inserts its row server-side before returning the id, so a
+      // room without one is never legitimate; granting it let any id be opened,
+      // including a site's bare uuid, which keys that site's Yjs rows (#5805).
+      log.warn(`[Auth] FAILED: no document row for room ${documentName} (user ${userId})`);
+      return { authenticated: false, reason: 'Access denied' };
     }
 
     const document = docResult[0];

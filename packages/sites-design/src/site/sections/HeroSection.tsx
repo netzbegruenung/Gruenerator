@@ -16,7 +16,7 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
     <Section
       section="hero"
       anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'hero')}
+      ground={sectionGround(snapshot.variant, 'hero', snapshot.locale)}
       className="site:pt-hero site:pb-section"
     >
       <div

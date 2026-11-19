@@ -41,6 +41,7 @@
   :root {
     --site-palette-paper: #ffffff;
     --site-palette-surface: #f5f1e9;
+    --site-palette-tint: #ffffff;
     --site-palette-deep: #005538;
     --site-palette-deeper: #00261a;
     --site-palette-vivid: #00cc4f;
@@ -59,6 +60,7 @@
   :root[data-site-locale='de-AT'] {
     --site-palette-paper: #ffffff;
     --site-palette-surface: #ffffff;
+    --site-palette-tint: color-mix(in srgb, #56af31 15%, #ffffff);
     --site-palette-deep: #257639;
     --site-palette-deeper: #1b6630;
     --site-palette-vivid: #56af31;
@@ -88,6 +90,18 @@
   }
   [data-ground='surface'] {
     --site-color-ground: var(--site-palette-surface);
+    --site-color-ink: var(--site-palette-ink);
+    --site-color-heading: var(--site-palette-heading);
+    --site-color-accent: var(--site-palette-accent-light);
+    --site-color-link: var(--site-palette-heading);
+    --site-color-focus: var(--site-palette-heading);
+    --site-color-action: var(--site-palette-deep);
+    --site-color-action-ink: var(--site-palette-paper);
+    --site-color-signal: var(--site-palette-signal);
+    --site-color-signal-ink: var(--site-palette-signal-ink);
+  }
+  [data-ground='tint'] {
+    --site-color-ground: var(--site-palette-tint);
     --site-color-ink: var(--site-palette-ink);
     --site-color-heading: var(--site-palette-heading);
     --site-color-accent: var(--site-palette-accent-light);

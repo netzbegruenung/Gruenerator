@@ -10,7 +10,7 @@ import { SiteRichText } from '../SiteRichText.js';
 export function ThemesSection({ ctx }: { ctx: SectionContext }) {
   const { snapshot, copy } = ctx;
   const anchor = SECTION_ANCHORS.themes;
-  const ground = sectionGround(snapshot.variant, 'themes');
+  const ground = sectionGround(snapshot.variant, 'themes', snapshot.locale);
   const cardGround = ground === 'paper' ? 'surface' : 'paper';
   const themes = snapshot.sections.themes ?? [];
 
