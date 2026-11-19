@@ -1,7 +1,6 @@
-import { useRef } from 'react';
-
 import { type SiteGenerationStep } from '@gruenerator/contracts';
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@gruenerator/ui';
+import { useRef } from 'react';
 
 import { SITE_GENERATION_STEP_LABELS } from '../../generation/stepLabels';
 
@@ -22,8 +21,9 @@ function OverlayDialog({
   const returnFocusTo = useRef<Element | null>(document.activeElement);
 
   const currentIndex = current ? steps.indexOf(current) : -1;
-  const finished = Math.max(currentIndex, 0);
-  const percent = steps.length > 0 ? Math.round((100 * finished) / steps.length) : 0;
+  // The running step counts as half done, so the bar is never empty while work is under way.
+  const progress = currentIndex >= 0 ? currentIndex + 0.5 : 0;
+  const percent = steps.length > 0 ? Math.round((100 * progress) / steps.length) : 0;
   const currentLabel = current ? SITE_GENERATION_STEP_LABELS[current] : '';
 
   return (
