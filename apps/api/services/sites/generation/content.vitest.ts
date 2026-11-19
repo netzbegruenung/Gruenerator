@@ -1,7 +1,7 @@
 import { SITE_ACTION_TEXT_MAX, type WebsiteContent } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { attachImages, clampSections, validateWebsiteContent } from './content.js';
+import { attachImages, clampSections, stripGreeting, validateWebsiteContent } from './content.js';
 import { actionLinksFor } from './prompt.js';
 
 function content(themes: number, actions: number): WebsiteContent {
@@ -110,5 +110,25 @@ describe('validateWebsiteContent', () => {
     const input = content(3, 1);
     input.contact.email = 'a'.repeat(400) + '@x.de';
     expect(validateWebsiteContent('de-DE')(input).ok).toBe(true);
+  });
+});
+
+describe('stripGreeting', () => {
+  it.each([
+    ['Hallo, ich bin Lena Hoffmann!', 'Lena Hoffmann'],
+    ['Hi, ich bin Lena Hoffmann!', 'Lena Hoffmann'],
+    ['Servus, ich bin Lena Hoffmann', 'Lena Hoffmann'],
+    ['Grüß Gott, ich bin Lena Hoffmann!', 'Lena Hoffmann'],
+    ['Ich heiße Lena Hoffmann.', 'Lena Hoffmann'],
+    ['Hallo! Lena Hoffmann', 'Lena Hoffmann'],
+    ['Lena Hoffmann', 'Lena Hoffmann'],
+    ['Hallo Welt Initiative', 'Welt Initiative'],
+  ])('%s -> %s', (input, expected) => expect(stripGreeting(input)).toBe(expected));
+
+  it('is applied by the validator', () => {
+    const input = content(1, 1);
+    input.hero.heading = 'Hallo, ich bin Lena Hoffmann!';
+    const result = validateWebsiteContent('de-DE')(input);
+    expect(result.ok && result.value.hero.heading).toBe('Lena Hoffmann');
   });
 });

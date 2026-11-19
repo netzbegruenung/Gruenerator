@@ -7,6 +7,19 @@ import { actionLinksFor } from './prompt.js';
 
 export const MAX_SECTION_ITEMS = 3;
 
+const GREETING_PREFIX =
+  /^\s*(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]*)?(?:ich bin|ich heiße|mein name ist|ich heisse)\s+/i;
+
+/** The name field holds only the name: a greeting the model put there is cut off. */
+export function stripGreeting(heading: string): string {
+  const stripped = heading
+    .replace(GREETING_PREFIX, '')
+    .replace(/^(?:hallo|hi|hey|servus|moin|grüß gott)[\s,!.:–-]+/i, '')
+    .replace(/[\s!.,:;–-]+$/, '')
+    .trim();
+  return stripped === '' ? heading : stripped;
+}
+
 export function clampSections(content: WebsiteContent): WebsiteContent {
   return {
     ...content,
@@ -79,7 +92,13 @@ export function validateWebsiteContent(
         }
       });
     }
-    if (parsed.success && issues.length === 0) return { ok: true, value: parsed.data };
+    if (parsed.success && issues.length === 0) {
+      const { hero } = parsed.data;
+      return {
+        ok: true,
+        value: { ...parsed.data, hero: { ...hero, heading: stripGreeting(hero.heading) } },
+      };
+    }
     return { ok: false, error: `Ungültige Seiteninhalte: ${issues.join('; ')}` };
   };
 }
