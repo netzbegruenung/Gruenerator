@@ -1303,7 +1303,11 @@ export async function streamForResolution(params: {
   // Jede Uhr unten misst Arbeit des Modells — und das Einlesen eines langen
   // Prompts ist Arbeit, die schweigt. Ohne den Zuschlag riss die Frist bei Ultra
   // ab ~100k Tokens, siehe prefillAllowance.ts.
-  const prefillMs = prefillAllowanceMs(resolution.provider, promptChars(null, messages));
+  const prefillMs = prefillAllowanceMs(
+    resolution.provider,
+    promptChars(null, messages),
+    resolution.modelName
+  );
   const firstTokenDeadlineMs =
     getFirstTokenDeadlineMs(resolution.provider, resolution.modelName, thinking) + prefillMs;
 

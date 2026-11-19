@@ -21,13 +21,18 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
+import { PANDA_LANE_MODEL } from '../../../../services/ai/textModelPolicy.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
-import { prefillAllowanceForModel, providerOfModel } from '../prefillAllowance.js';
+import {
+  modelNameOfModel,
+  prefillAllowanceForModel,
+  providerOfModel,
+} from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
@@ -127,10 +132,30 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
  * unterscheiden, und die 45 s rissen genau so einen Ultra-Zug ab („silent for
  * 45000ms after 245 chars"). 45 s Zuschlag decken bei ~33 Token/s rund 3.000
  * Token Argument. Andere Anbieter bleiben ohne Messung bei 0.
+ *
+ * Schlüssel ist der Anbieter oder `anbieter/modell`; das Modell gewinnt.
+ *
+ * Panda (DeepSeek v4.1 Flash auf Melious) tut dasselbe, gemessen 19.11.2026 in
+ * 16 Rohläufen und über das SDK: ein Argument von 3.500–5.100 Zeichen kam nach
+ * 13–18 s Stille, eines von 9.400–14.400 Zeichen nach 31–42 s (~88 Token/s),
+ * jeweils in einem Chunk — auch mit `parallel_tool_calls: false` oder
+ * `tool_choice: 'required'`. Panda hat im Loop keine Ausweich-Lane
+ * (`resolveLoopLaneChain`), ein Abriss kostet also den ganzen Zug. Nur dieses
+ * Modell, nicht ganz Melious: Gemma dort ist nicht gemessen.
  */
 const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
   mistral: 45_000,
+  [`melious/${PANDA_LANE_MODEL}`]: 45_000,
 };
+
+function silentToolArgumentAllowanceMs(model: LanguageModel): number {
+  const provider = providerOfModel(model);
+  return (
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelNameOfModel(model)}`] ??
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[provider] ??
+    0
+  );
+}
 
 /**
  * Wie lange ununterbrochenes Denken als Lebenszeichen zählt.
@@ -176,6 +201,24 @@ class StreamAbortedError extends Error {
  */
 const FIRST_RESPONSE_DEADLINE_MS = 8_000;
 
+/**
+ * Lanes, deren erste Antwort ein stumm geschriebenes Werkzeugargument sein kann
+ * und die deshalb die kurze Frist oben NICHT bekommen; für sie gilt nur das
+ * Fenster der Werkzeugphase samt Zuschlag (`SILENT_TOOL_ARGUMENT_ALLOWANCE_MS`).
+ *
+ * Panda schreibt vor einem Werkzeugaufruf oft gar keinen Text: gemessen am
+ * 19.11.2026 in 2 von 16 Rohläufen, über das SDK mit „ohne Vorrede" in 3 von 3 —
+ * dann liefert das SDK 14–48 s lang keinen einzigen Stream-Teil, nicht einmal
+ * `start-step` oder mit `includeRawChunks` einen `raw`-Teil. Die 8 s rissen
+ * genau diese Züge ab, gaben sie an die nächste Stufe und vermerkten Panda als
+ * zäh. Der Preis: ein wirklich stummes Panda geht erst nach dem vollen Fenster
+ * an seinen Ausweich; Ablehnungen (5xx, 429) wechseln weiter sofort.
+ *
+ * Mistral steht trotz desselben Pufferns NICHT hier: Ultra schrieb in jedem
+ * gemessenen Lauf zuerst Text, und ein Zug ohne Vorrede ist dort nicht gemessen.
+ */
+const NO_FIRST_RESPONSE_DEADLINE: ReadonlySet<string> = new Set([`melious/${PANDA_LANE_MODEL}`]);
+
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
 /** finishReason, wenn das Modell auf dem werkzeuglosen Schlussschritt doch ein Werkzeug rief. */
 const TOOL_CHOICE_VIOLATION_FINISH = 'tool_choice_violation';
@@ -201,8 +244,7 @@ function createToolPhaseIdle(
 ): { idle: IdleDeadline; idleMs: number } {
   const idleMs =
     (p.toolActivity
-      ? TOOL_PHASE_IDLE_DEADLINE_MS +
-        (SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[providerOfModel(model)] ?? 0)
+      ? TOOL_PHASE_IDLE_DEADLINE_MS + silentToolArgumentAllowanceMs(model)
       : mountedToolCeilingMs(p.tools)) + prefillMs;
   return {
     idle: createIdleDeadline(
@@ -802,7 +844,10 @@ async function streamWithTools(
   );
   const { idle, idleMs } = createToolPhaseIdle(p, model, prefillMs);
   const firstResponseMs = FIRST_RESPONSE_DEADLINE_MS + prefillMs;
-  let firstResponse: IdleDeadline | null = hasNextLane
+  const shortFirstResponse =
+    hasNextLane &&
+    !NO_FIRST_RESPONSE_DEADLINE.has(`${providerOfModel(model)}/${modelNameOfModel(model)}`);
+  let firstResponse: IdleDeadline | null = shortFirstResponse
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   const prepareStep = buildPrepareStep(
