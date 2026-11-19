@@ -526,7 +526,26 @@ export type SiteSnapshotSource = Pick<
 const toPreviewUrl = (url: string | null | undefined): string =>
   (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
 
-function normaliseSections(sections: SiteSections | null): SiteSections {
+// TODO(#5789): unverified — confirm the Austrian membership URL
+export const SITE_MEMBER_LINKS: Record<SupportedLocale, string> = {
+  'de-DE': 'https://www.gruene.de/mitglied-werden',
+  'de-AT': 'https://www.gruene.at/mitmachen',
+};
+
+const sameMemberUrl = (url: string): string =>
+  url
+    .trim()
+    .replace(/^(https?:\/\/)www\./i, '$1')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+const KNOWN_MEMBER_URLS = new Set(Object.values(SITE_MEMBER_LINKS).map(sameMemberUrl));
+
+/** Swaps only the party's own member URLs to the locale's one; every other link stays as typed. */
+function localizeActionLink(link: string, locale: SupportedLocale): string {
+  return KNOWN_MEMBER_URLS.has(sameMemberUrl(link)) ? SITE_MEMBER_LINKS[locale] : link;
+}
+
+function normaliseSections(sections: SiteSections | null, locale: SupportedLocale): SiteSections {
   if (!sections) return {};
   const { hidden: _hidden, ...rest } = sections;
   const out: SiteSections = { ...rest };
@@ -537,7 +556,11 @@ function normaliseSections(sections: SiteSections | null): SiteSections {
     out.themes = sections.themes.map((t) => ({ ...t, imageUrl: toPreviewUrl(t.imageUrl) }));
   }
   if (sections.actions) {
-    out.actions = sections.actions.map((a) => ({ ...a, imageUrl: toPreviewUrl(a.imageUrl) }));
+    out.actions = sections.actions.map((a) => ({
+      ...a,
+      link: localizeActionLink(a.link, locale),
+      imageUrl: toPreviewUrl(a.imageUrl),
+    }));
   }
   if (sections.contact) {
     out.contact = {
@@ -563,7 +586,7 @@ function snapshotCandidate(source: SiteSnapshotSource, locale: SupportedLocale) 
     contact_email: source.contact_email ?? '',
     contact_phone: source.contact_phone ?? '',
     social_links: socialLinks,
-    sections: normaliseSections(source.sections),
+    sections: normaliseSections(source.sections, locale),
     legal: {
       name: legal.name ?? '',
       street: legal.street ?? '',
