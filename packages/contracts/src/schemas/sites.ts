@@ -527,15 +527,24 @@ const toPreviewUrl = (url: string | null | undefined): string =>
   (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
 
 const GREETING_PREFIX =
-  /^\s*(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]*)?(?:ich bin|ich heiße|mein name ist|ich heisse)\s+/i;
+  /^\s{0,8}(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]{0,8})?(?:ich bin|ich heiße|mein name ist|ich heisse)\s{1,8}/i;
+
+const TRAILING_PUNCTUATION = new Set([...' \t\n\r!.,:;–-']);
+
+function trimEndChars(value: string, chars: ReadonlySet<string>): string {
+  let end = value.length;
+  while (end > 0 && chars.has(value[end - 1] ?? '')) end -= 1;
+  return value.slice(0, end);
+}
 
 /** The name field holds only the name: a greeting the model put there is cut off. */
 export function stripGreeting(heading: string): string {
-  const stripped = heading
-    .replace(GREETING_PREFIX, '')
-    .replace(/^(?:hallo|hi|hey|servus|moin|grüß gott)[\s,!.:–-]+/i, '')
-    .replace(/[\s!.,:;–-]+$/, '')
-    .trim();
+  const stripped = trimEndChars(
+    heading
+      .replace(GREETING_PREFIX, '')
+      .replace(/^(?:hallo|hi|hey|servus|moin|grüß gott)[\s,!.:–-]{1,8}/i, ''),
+    TRAILING_PUNCTUATION
+  ).trim();
   return stripped === '' ? heading : stripped;
 }
 
@@ -545,12 +554,10 @@ export const SITE_MEMBER_LINKS: Record<SupportedLocale, string> = {
   'de-AT': 'https://www.gruene.at/mitmachen',
 };
 
+const SLASH = new Set(['/']);
+
 const sameMemberUrl = (url: string): string =>
-  url
-    .trim()
-    .replace(/^(https?:\/\/)www\./i, '$1')
-    .replace(/\/+$/, '')
-    .toLowerCase();
+  trimEndChars(url.trim().replace(/^(https?:\/\/)www\./i, '$1'), SLASH).toLowerCase();
 const KNOWN_MEMBER_URLS = new Set(Object.values(SITE_MEMBER_LINKS).map(sameMemberUrl));
 
 /** Swaps only the party's own member URLs to the locale's one; every other link stays as typed. */
