@@ -133,6 +133,7 @@ import {
 import { mountSharepicTextContractRouter } from './routes/sharepic/sharepic_text/sharepicTextContractRouter.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
+import { requireSitesAccess } from './services/user/sitesEntitlement.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
@@ -1180,8 +1181,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSharedTemplateContractRouter(app);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
+  app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
-  app.use('/api/sites', standardMutationLimiter, requireAuth);
   mountSitesContractRouter(app);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   // ts-rest contract router for image editing (multi-reference). requireAuth +
