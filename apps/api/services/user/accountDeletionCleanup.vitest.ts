@@ -30,8 +30,12 @@ const deleteFavoritesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`favorites of ${userId}`);
 });
 const trashAllOwnedRowsOfDeletedUser = vi.fn(async (t: { table: string }) =>
-  t.table === 'user_agents' ? ['a-1', 'a-2'] : ['r-1']
+  t.table === 'user_agents' ? ['a-1', 'a-2'] : t.table === 'user_sites' ? ['s-1'] : ['r-1']
 );
+const purgeUserSite = vi.fn(async (id: string, cutoff: Date | null) => {
+  effects.push(`purge site ${id} ${String(cutoff)}`);
+  return true;
+});
 const purgeUserAgent = vi.fn(async (id: string, cutoff: Date | null) => {
   effects.push(`purge agent ${id} ${String(cutoff)}`);
   return true;
@@ -83,6 +87,10 @@ vi.mock('./textFormRepository.js', () => ({
   purgeTextForm,
   TEXT_FORM_TRASH: { table: 'user_text_forms', columns: 'id, title, mention' },
 }));
+vi.mock('../sites/userSiteTrash.js', () => ({
+  purgeUserSite,
+  USER_SITE_TRASH: { table: 'user_sites', columns: 'id, site_title AS title' },
+}));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('../../config/env.js', () => ({ env }));
 vi.mock('../../config/nango.js', () => ({
@@ -113,6 +121,7 @@ describe('cleanUpBeforeProfileDelete', () => {
       'purge agent a-1 null',
       'purge agent a-2 null',
       'purge recipe r-1 null',
+      'purge site s-1 null',
       'likes of user-1',
       'comments on items of user-1',
       'favorites of user-1',
@@ -133,6 +142,16 @@ describe('cleanUpBeforeProfileDelete', () => {
       expect.objectContaining({ table: 'user_text_forms' }),
       'user-1'
     );
+  });
+
+  it('purges every Website of the user with its Yjs draft, trashed ones included', async () => {
+    await cleanUpBeforeProfileDelete('user-1');
+
+    expect(trashAllOwnedRowsOfDeletedUser).toHaveBeenCalledWith(
+      expect.objectContaining({ table: 'user_sites' }),
+      'user-1'
+    );
+    expect(purgeUserSite).toHaveBeenCalledWith('s-1', null);
   });
 
   it('purges the other agents and the recipes when one agent purge fails, and reports it', async () => {

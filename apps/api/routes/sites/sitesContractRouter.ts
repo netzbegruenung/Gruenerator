@@ -25,6 +25,7 @@ import {
   siteDraftToRowColumns,
   siteDraftToSnapshotSource,
   sitesContract,
+  updateUserSiteBodySchema,
   type SiteDraft,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
@@ -131,6 +132,19 @@ async function updateSiteWithAddress(
   }
   return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
 }
+
+const PUBLISH_ROW_COLUMNS = updateUserSiteBodySchema
+  .pick({
+    site_title: true,
+    tagline: true,
+    profile_image: true,
+    theme: true,
+    contact_email: true,
+    contact_phone: true,
+    social_links: true,
+    sections: true,
+  })
+  .required();
 
 const s = initServer();
 
@@ -324,7 +338,22 @@ export const sitesContractRouter = s.router(sitesContract, {
             },
           };
         }
-        const columns = siteDraftToRowColumns(draft);
+        // The row gets only the fixed shape and bounds a PUT would accept: no extra keys a
+        // client wrote into the Y.Doc, no unbounded values.
+        const parsedColumns = PUBLISH_ROW_COLUMNS.safeParse(siteDraftToRowColumns(draft));
+        if (!parsedColumns.success) {
+          return {
+            status: 422 as const,
+            body: {
+              error: 'Die Website kann noch nicht veröffentlicht werden',
+              issues: parsedColumns.error.issues.map((issue) => ({
+                path: issue.path.join('.'),
+                message: issue.message,
+              })),
+            },
+          };
+        }
+        const columns = parsedColumns.data;
         result = await db.query<UserSiteRow>(
           `UPDATE user_sites
            SET site_title = $1, tagline = $2, profile_image = $3, theme = $4,

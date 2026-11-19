@@ -1,4 +1,9 @@
-import { siteDraftFromSite, type Site } from '@gruenerator/contracts';
+import {
+  richTextDocFromPlainText,
+  SITE_SOCIAL_LINKS_MAX,
+  siteDraftFromSite,
+  type Site,
+} from '@gruenerator/contracts';
 import { encodeSiteSeed } from '@gruenerator/contracts/site-ydoc';
 import { type SQL } from 'drizzle-orm';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
@@ -234,6 +239,51 @@ describe('sitesContract', () => {
     expect(sections.hidden).toEqual(['actions', 'socialFeed']);
     const snapshot = JSON.parse(params[8] as string) as { hidden_sections: string[] };
     expect(snapshot.hidden_sections).toEqual(expect.arrayContaining(['actions', 'socialFeed']));
+  });
+
+  it('publish writes no keys a client added to the Y.Doc', async () => {
+    const seeded = yjsState({
+      themes: [{ id: 't1', title: 'Klima', imageUrl: '', content: richTextDocFromPlainText('A') }],
+    });
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, new Uint8Array(Buffer.from(seeded.update, 'base64')));
+    doc.getMap('siteFields').set('evil', 'x');
+    doc.getMap('siteFields').set('sections', { injected: true });
+    (doc.getMap('siteThemes').get('t1') as Y.Map<unknown>).set('onclick', 'x');
+    hocuspocusInternalOrNull.mockResolvedValueOnce({
+      update: Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64'),
+    });
+    queryMock.mockResolvedValueOnce([row()]).mockResolvedValueOnce([row()]);
+
+    expect((await publish(true)).status).toBe(200);
+
+    const params = queryMock.mock.calls[1][1] as unknown[];
+    const written = JSON.stringify(params.slice(0, 8));
+    expect(written).not.toMatch(/evil|injected|onclick/);
+    const sections = JSON.parse(params[7] as string) as Record<string, unknown>;
+    expect(Object.keys(sections).sort()).toEqual(
+      ['about', 'actions', 'contact', 'heroImage', 'hidden', 'socialFeed', 'themes'].sort()
+    );
+    expect((sections.themes as Record<string, unknown>[])[0]).toEqual({
+      title: 'Klima',
+      imageUrl: '',
+      content: richTextDocFromPlainText('A'),
+    });
+  });
+
+  it('publish answers 422 for social links the snapshot skips but the row would take', async () => {
+    // Empty links never reach the snapshot, so only the row bounds see their keys.
+    const links = Object.fromEntries(
+      Array.from({ length: SITE_SOCIAL_LINKS_MAX + 1 }, (_, i) => [`k${i}`, ''])
+    );
+    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState({ social_links: links }));
+    queryMock.mockResolvedValueOnce([row()]);
+
+    const res = await publish(true);
+
+    expect(res.status).toBe(422);
+    expect(res.body.issues.map((i: { path: string }) => i.path)).toContain('social_links');
+    expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
   it('publish answers 503 when Hocuspocus fails and writes nothing', async () => {
