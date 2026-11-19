@@ -56,6 +56,8 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const publishErrorId = useRef<string | number | null>(null);
   const pickedIssue = useRef(false);
   const [serverIssues, setServerIssues] = useState<SitePublishIssue[] | null>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
@@ -87,13 +89,15 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
         return;
       }
       await togglePublish({ id: site.id, publish: true });
+      if (publishErrorId.current !== null) toast.remove(publishErrorId.current);
+      publishErrorId.current = null;
       toast.success('Website veröffentlicht');
     } catch (error) {
       if (error instanceof SitePublishError) {
         setServerIssues(error.issues);
         setIssuesOpen(true);
       } else if (error instanceof SitesApiError && error.status === 503) {
-        toast.error('Veröffentlichen gerade nicht möglich', error.message);
+        publishErrorId.current = toast.error('Veröffentlichen gerade nicht möglich', error.message);
       } else {
         toast.error('Veröffentlichen fehlgeschlagen');
       }
@@ -124,6 +128,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
     setBusy(true);
     try {
       await deleteSite(site.id);
+      toast.success('Website gelöscht', 'Sie liegt 30 Tage im Papierkorb.');
     } catch {
       toast.error('Löschen fehlgeschlagen');
     } finally {
@@ -175,7 +180,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
       </Popover>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" aria-label="Weitere Aktionen">
+          <Button ref={menuRef} variant="outline" aria-label="Weitere Aktionen">
             <FiMoreVertical />
           </Button>
         </DropdownMenuTrigger>
@@ -203,12 +208,14 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
         description="Die Website ist dann nicht mehr öffentlich erreichbar. Dein Entwurf bleibt erhalten."
         confirmLabel="Zurückziehen"
         variant="default"
+        returnFocusRef={menuRef}
         onConfirm={() => void unpublish()}
       />
       <DeleteSiteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         onConfirm={() => void remove()}
+        returnFocusRef={menuRef}
       />
     </>
   );
