@@ -149,12 +149,39 @@ export function siteDraftToSnapshotSource(
   return { ...columns, legal };
 }
 
+function isBlankParagraph(node: unknown): boolean {
+  if (!node || typeof node !== 'object') return false;
+  const { type, content } = node as { type?: unknown; content?: unknown };
+  return type === 'paragraph' && (!Array.isArray(content) || content.length === 0);
+}
+
+/**
+ * An empty rich text has several spellings (bare doc, no/empty content, blank paragraphs; the
+ * Yjs codec yields one blank paragraph). Fold them into one form; non-empty nodes pass through.
+ */
+function canonicalEmptyNode(entry: unknown): unknown {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+  const node = entry as { type?: unknown; content?: unknown };
+  if (node.type === 'doc') {
+    const content = node.content;
+    if (!Array.isArray(content) || content.every(isBlankParagraph)) {
+      return { type: 'doc', content: [{ type: 'paragraph' }] };
+    }
+  } else if (isBlankParagraph(node) && 'content' in node) {
+    const { content: _content, ...rest } = node;
+    return rest;
+  }
+  return entry;
+}
+
 /**
  * The editor schema re-adds node defaults a stored row may lack (`start: 1`, `type: null` on an
  * ordered list), so equal documents can differ in form. Compare both sides in one canonical form.
  */
 function canonicalSnapshotJson(value: unknown): string {
   return JSON.stringify(value, (key, entry: unknown) => {
+    const node = canonicalEmptyNode(entry);
+    if (node !== entry) return node;
     if (key !== 'attrs' || !entry || typeof entry !== 'object') return entry;
     const attrs = Object.fromEntries(
       Object.entries(entry).filter(

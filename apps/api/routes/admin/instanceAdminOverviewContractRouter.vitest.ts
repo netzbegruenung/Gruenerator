@@ -10,7 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const requireInstanceAdmin = vi.fn();
 const query = vi.fn();
 const refreshSessionUserSnapshot = vi.fn();
+const closeCollabRooms = vi.fn();
 
+vi.mock('../../services/collab/hocuspocusInternal.js', () => ({
+  closeCollabRooms,
+  hocuspocusInternal: vi.fn(),
+  hocuspocusInternalOrNull: vi.fn(),
+}));
 vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
 vi.mock('../../utils/betterAuthSessionUser.js', () => ({ refreshSessionUserSnapshot }));
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -42,6 +48,7 @@ beforeEach(() => {
   requireInstanceAdmin.mockReset().mockResolvedValue(true);
   query.mockReset();
   refreshSessionUserSnapshot.mockReset().mockResolvedValue(undefined);
+  closeCollabRooms.mockReset().mockResolvedValue(undefined);
 });
 
 describe('instanceAdminOverviewContract.setUserPanda', () => {
@@ -121,6 +128,33 @@ describe('instanceAdminOverviewContract.setUserSites', () => {
       status: 200,
       body: { data: { id: USER_ID, sitesUnlocked: true } },
     });
+    expect(closeCollabRooms).not.toHaveBeenCalled();
+  });
+
+  it('closes the rooms of all live sites on revoke', async () => {
+    query.mockImplementation(async (sql: string) =>
+      sql.startsWith('SELECT id FROM user_sites')
+        ? [
+            { id: 'ABCDEF12-0000-4000-8000-000000000001' },
+            { id: 'ABCDEF12-0000-4000-8000-000000000002' },
+          ]
+        : [row(null, false)]
+    );
+    const router = await loadRouter();
+    await router.setUserSites({
+      req,
+      params: { userId: USER_ID },
+      body: { enabled: false },
+    } as never);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/user_id = \$1 AND deleted_at IS NULL/),
+      [USER_ID]
+    );
+    expect(closeCollabRooms).toHaveBeenCalledWith([
+      'site-abcdef12-0000-4000-8000-000000000001',
+      'site-abcdef12-0000-4000-8000-000000000002',
+    ]);
   });
 });
 

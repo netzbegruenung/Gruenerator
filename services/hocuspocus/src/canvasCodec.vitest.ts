@@ -247,6 +247,7 @@ describe('POST /internal/canvas/:id/state', () => {
     vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
     const app = express();
     registerInternalApi(app, {
+      db: async () => [],
       server: {
         hocuspocus: {
           documents: new Map(),

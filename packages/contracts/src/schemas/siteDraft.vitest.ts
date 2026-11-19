@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { richTextDocFromPlainText } from './richtext.js';
+import { emptyRichTextDoc, richTextDocFromPlainText } from './richtext.js';
 import {
   siteDraftFromSite,
   siteDraftToRowColumns,
   siteDraftToSnapshotSource,
   snapshotDiffers,
 } from './siteDraft.js';
-import { buildSiteSnapshot, buildSitePreviewSnapshot, type SiteSnapshotSource } from './sites.js';
+import {
+  buildSiteSnapshot,
+  buildSitePreviewSnapshot,
+  type PublishedSiteSnapshot,
+  type SiteSnapshotSource,
+} from './sites.js';
 
 const legal = {
   name: 'Anna Beispiel',
@@ -82,6 +87,43 @@ describe('site draft', () => {
     expect(snapshotDiffers(source, built.snapshot)).toBe(false);
     expect(snapshotDiffers({ ...source, site_title: 'Neu' }, built.snapshot)).toBe(true);
     expect(snapshotDiffers({ ...source, legal: null }, built.snapshot)).toBe(true);
+  });
+
+  it('treats every spelling of an empty rich text as unchanged', () => {
+    const source = row();
+    source.sections = {
+      ...source.sections,
+      about: { title: 'Wer ich bin', content: emptyRichTextDoc() },
+    };
+    const built = buildSiteSnapshot(source, 'de-DE');
+    if (!built.ok) throw new Error('fixture must be valid');
+    const withAbout = (content: unknown): PublishedSiteSnapshot =>
+      JSON.parse(
+        JSON.stringify({
+          ...built.snapshot,
+          sections: {
+            ...built.snapshot.sections,
+            about: { title: 'Wer ich bin', content },
+          },
+        })
+      );
+    for (const content of [
+      { type: 'doc' },
+      { type: 'doc', content: [] },
+      { type: 'doc', content: [{ type: 'paragraph' }] },
+      { type: 'doc', content: [{ type: 'paragraph', content: [] }] },
+    ]) {
+      expect(snapshotDiffers(source, withAbout(content))).toBe(false);
+    }
+    expect(
+      snapshotDiffers(
+        source,
+        withAbout({
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }],
+        })
+      )
+    ).toBe(true);
   });
 
   it('previews a half-finished draft without throwing', () => {

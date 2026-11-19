@@ -33,4 +33,5 @@ export interface HocuspocusConfig {
   host: string;
   persistence: PostgresPersistence;
   auth: AuthService;
+  db: DbQueryFn;
 }
