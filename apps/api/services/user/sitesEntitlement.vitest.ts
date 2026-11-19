@@ -53,6 +53,22 @@ describe('requireSitesAccess', () => {
     expect(res.next).not.toHaveBeenCalled();
   });
 
+  it('lets an instance admin (is_admin) without the unlock through', async () => {
+    getProfileById.mockResolvedValueOnce({ sites_unlocked: null, is_admin: true });
+    expect((await run(requireSitesAccess, { user: { id: USER_ID } })).next).toHaveBeenCalledOnce();
+    expect(getProfileById).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat an ADMIN_EMAILS-only account (is_admin false) as entitled', async () => {
+    getProfileById.mockResolvedValueOnce({
+      sites_unlocked: null,
+      is_admin: false,
+      email: 'env-admin@example.org',
+    });
+    const res = await run(requireSitesAccess, { user: { id: USER_ID } });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('lets an unlocked account through', async () => {
     getProfileById.mockResolvedValueOnce({ sites_unlocked: true });
     expect((await run(requireSitesAccess, { user: { id: USER_ID } })).next).toHaveBeenCalledOnce();

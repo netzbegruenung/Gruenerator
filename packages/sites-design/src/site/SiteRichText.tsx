@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { createElement, type ReactNode } from 'react';
 
 import { type RichTextDoc, type RichTextNode } from '@gruenerator/contracts';

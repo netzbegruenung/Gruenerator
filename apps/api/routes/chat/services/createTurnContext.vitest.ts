@@ -54,15 +54,28 @@ describe('buildCreateTurnContext', () => {
     expect(context).toContain('Die entscheidende Passage');
   });
 
-  it('caps a single huge message so it cannot eat the whole budget', () => {
+  it('carries a long answer whole — it is what "mach daraus ein Dokument" means (#5843)', () => {
+    // Live 19.11.2026: a 4,000-char cap per message handed the generator half
+    // of an 8,541-char guest article, and the document came out at half length.
+    const article = `Anfang. ${'Radverkehr wächst. '.repeat(450)}SCHLUSSABSATZ.`;
+    const context = buildCreateTurnContext([
+      msg('user', 'Schreib einen Gastbeitrag'),
+      msg('assistant', article),
+      msg('user', 'mach daraus ein Dokument'),
+    ]);
+    expect(article.length).toBeGreaterThan(8_000);
+    expect(context).toContain('SCHLUSSABSATZ.');
+  });
+
+  it('stays within the total budget; a huge message crowds out only OLDER ones', () => {
     const wall = 'x'.repeat(50_000);
     const context = buildCreateTurnContext([
-      msg('assistant', 'Kurzer wichtiger Satz.'),
+      msg('assistant', 'Älterer Satz.'),
       msg('assistant', wall),
       msg('user', 'mach ein PDF draus'),
     ]);
     expect(context.length).toBeLessThan(30_000);
-    expect(context).toContain('Kurzer wichtiger Satz');
+    expect(context).not.toContain('Älterer Satz.');
   });
 
   it('keeps roles so the model can tell instruction from answer', () => {

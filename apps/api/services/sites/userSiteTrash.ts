@@ -6,18 +6,34 @@
  * whose subdomain was taken meanwhile fails with 23505 and answers `conflict`.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { closeCollabRooms } from '../collab/hocuspocusInternal.js';
 import {
   deleteTrashedRow,
   getTrashedOwnedRow,
+  trashOwnedRow,
   restoreOwnedRow,
   type OwnedRestoreResult,
   type OwnedTrashTable,
 } from '../trash/ownedRowTrash.js';
 
+import { siteRoom } from './siteDraftDoc.js';
+
 export const USER_SITE_TRASH: OwnedTrashTable = {
   table: 'user_sites',
   columns: 'id, site_title AS title',
 };
+
+/** Drop every open editor connection to these Websites' draft rooms (never throws). */
+export async function closeSiteRooms(siteIds: string[]): Promise<void> {
+  await closeCollabRooms(siteIds.map(siteRoom));
+}
+
+/** Trash a live Website and cut its open editors off. */
+export async function trashUserSite(userId: string, id: string) {
+  const result = await trashOwnedRow(USER_SITE_TRASH, userId, id);
+  if (result === 'ok') void closeSiteRooms([id]);
+  return result;
+}
 
 /**
  * Undo a trash. One Website per user is enforced in code, not by an index:
@@ -45,6 +61,7 @@ export async function restoreUserSite(userId: string, id: string): Promise<Owned
  */
 export async function purgeUserSite(id: string, cutoff: Date | null): Promise<boolean> {
   if ((await deleteTrashedRow(USER_SITE_TRASH, id, cutoff)) === null) return false;
+  await closeSiteRooms([id]);
   const db = getPostgresInstance();
   await db.query('DELETE FROM yjs_document_updates WHERE document_id = $1', [id]);
   await db.query('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id]);

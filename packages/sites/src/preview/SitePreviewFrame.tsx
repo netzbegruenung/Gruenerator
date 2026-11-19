@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { EditorInstagram } from './EditorInstagram';
+import { keepLinksInFrame } from './keepLinksInFrame';
 
 const FRAME_DOC = '<!doctype html><html><head></head><body></body></html>';
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -79,10 +80,7 @@ export function SitePreviewFrame({
 
   useEffect(() => {
     if (!frameDoc) return;
-    const stopNavigation = (event: Event) => {
-      const anchor = (event.target as Element | null)?.closest?.('a[href]');
-      if (anchor && !anchor.getAttribute('href')?.startsWith('#')) event.preventDefault();
-    };
+    const stopNavigation = (event: Event) => keepLinksInFrame(frameDoc, event);
     frameDoc.addEventListener('click', stopNavigation);
     return () => frameDoc.removeEventListener('click', stopNavigation);
   }, [frameDoc]);

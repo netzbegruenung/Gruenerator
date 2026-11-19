@@ -17,6 +17,9 @@ describe('sites gate', () => {
     ['true', { id: 'u', sites_unlocked: true }, true],
     ['false', { id: 'u', sites_unlocked: false }, false],
     ['null', { id: 'u', sites_unlocked: null }, false],
+    ['admin without unlock', { id: 'u', sites_unlocked: false, is_admin: true }, true],
+    ['admin, field missing', { id: 'u', is_admin: true }, true],
+    ['non-admin without unlock', { id: 'u', sites_unlocked: false, is_admin: false }, false],
     ['missing field', { id: 'u' }, false],
     ['no user', null, false],
   ])('useCanSeeSites with %s', (_label, user, expected) => {

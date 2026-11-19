@@ -25,7 +25,13 @@ interface Rows {
   displayName?: string;
   profilesFail?: boolean;
   /** The `user_sites` row behind a `site-` room, as the access query would see it. */
-  site?: { user_id: string; moderation: string; trashed?: boolean; locked?: boolean } | null;
+  site?: {
+    user_id: string;
+    moderation: string;
+    trashed?: boolean;
+    locked?: boolean;
+    admin?: boolean;
+  } | null;
   /** A `user_sites` row with the bare room's id exists (trashed or not). */
   siteExists?: boolean;
 }
@@ -43,7 +49,8 @@ function makeDb(rows: Rows) {
       if (!site) return [];
       if (site.trashed && !/s\.deleted_at IS NULL/.test(sql)) return [site];
       if (site.locked && !/sites_unlocked = true/.test(sql)) return [site];
-      if (site.trashed || site.locked) return [];
+      if (site.trashed) return [];
+      if (site.locked && !(site.admin && /is_admin = true/.test(sql))) return [];
       return [site];
     }
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
@@ -71,6 +78,8 @@ function makeDb(rows: Rows) {
   return { db, captured };
 }
 
+const DOC = '11111111-1111-4111-8111-111111111111';
+
 const redis: RedisLike = { isReady: true, get: async () => null };
 
 const guest = (documentName: string, params: Record<string, string> = {}) => ({
@@ -88,7 +97,7 @@ const withToken = (documentName: string, token = 'better-auth-token') => ({
 });
 
 const publicDoc = (overrides: Record<string, unknown> = {}) => ({
-  id: 'doc-1',
+  id: DOC,
   created_by: 'owner-1',
   permissions: {},
   is_public: true,
@@ -101,14 +110,14 @@ const publicDoc = (overrides: Record<string, unknown> = {}) => ({
 describe('AuthService — guest access', () => {
   it('grants anonymous read-WRITE on a public + editor document', async () => {
     const { db } = makeDb({ doc: publicDoc({ share_permission: 'editor' }) });
-    const res = await new AuthService({ db, redis }).authenticateConnection(guest('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(false);
   });
 
   it('grants anonymous read-only on a public + viewer document', async () => {
     const { db } = makeDb({ doc: publicDoc({ share_permission: 'viewer' }) });
-    const res = await new AuthService({ db, redis }).authenticateConnection(guest('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(true);
   });
@@ -117,7 +126,7 @@ describe('AuthService — guest access', () => {
     const { db } = makeDb({
       doc: publicDoc({ is_public: false, share_mode: 'private' }),
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(guest('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(DOC));
     expect(res.authenticated).toBe(false);
   });
 
@@ -125,13 +134,13 @@ describe('AuthService — guest access', () => {
     const { db } = makeDb({
       doc: publicDoc({ is_public: false, share_mode: 'authenticated' }),
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(guest('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(DOC));
     expect(res.authenticated).toBe(false);
   });
 
   it('denies guests on a deleted document', async () => {
     const { db } = makeDb({ doc: publicDoc({ is_deleted: true }) });
-    const res = await new AuthService({ db, redis }).authenticateConnection(guest('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(DOC));
     expect(res.authenticated).toBe(false);
   });
 
@@ -148,7 +157,7 @@ describe('AuthService — guest access', () => {
   it('honours a client-supplied guestId/guestName', async () => {
     const { db } = makeDb({ doc: publicDoc({ share_permission: 'viewer' }) });
     const res = await new AuthService({ db, redis }).authenticateConnection(
-      guest('doc-1', { guestId: 'guest-abc', guestName: 'Anon' })
+      guest(DOC, { guestId: 'guest-abc', guestName: 'Anon' })
     );
     expect(res.userId).toBe('guest-abc');
     expect(res.userName).toBe('Anon');
@@ -170,7 +179,7 @@ describe('AuthService — removed HS256 token branch', () => {
       // A token that would have passed the old HS256 verifier if the fallback
       // secret were used. It must now be treated as an opaque bearer token and
       // handed to the session API, which rejects it.
-      withToken('doc-1', 'forged.jwt.token')
+      withToken(DOC, 'forged.jwt.token')
     );
 
     // The bearer path was taken (session API consulted), not a local JWT verify.
@@ -195,7 +204,7 @@ describe('AuthService — authenticated session (bearer)', () => {
     const { db } = makeDb({
       doc: publicDoc({ created_by: 'user-9', is_public: false, share_mode: 'private' }),
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.userId).toBe('user-9');
     expect(res.readOnly).toBe(false);
@@ -210,7 +219,7 @@ describe('AuthService — authenticated session (bearer)', () => {
         permissions: { 'user-9': { level: 'viewer' } },
       }),
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(true);
   });
@@ -225,12 +234,12 @@ describe('AuthService — authenticated session (bearer)', () => {
         permissions: {},
       }),
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(false);
     const update = captured.find((c) => /UPDATE collaborative_documents/i.test(c.sql));
     expect(update, 'an auto-grant UPDATE should be issued').toBeDefined();
-    expect(update?.params).toContain('doc-1');
+    expect(update?.params).toContain(DOC);
   });
 });
 
@@ -285,7 +294,7 @@ describe('AuthService — write rule shared with the REST layer', () => {
 
   it.each(cases)('%s', async (_name, rows, readOnly) => {
     const { db } = makeDb(rows);
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(readOnly);
   });
@@ -312,7 +321,7 @@ describe('AuthService — group membership requires is_active (finding #5)', () 
       }),
       group: { read: true, write: true },
     });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(true);
     expect(res.readOnly).toBe(false); // group write === true
     const groupQuery = captured.find((c) => /FROM group_content_shares/i.test(c.sql));
@@ -348,13 +357,13 @@ describe('AuthService — a trashed Projekt grants nothing', () => {
     const shared = { doc: privateDoc, group: { read: true, write: true } };
     const live = makeDb(shared);
     expect(
-      (await new AuthService({ db: live.db, redis }).authenticateConnection(withToken('doc-1')))
+      (await new AuthService({ db: live.db, redis }).authenticateConnection(withToken(DOC)))
         .authenticated
     ).toBe(true);
 
     const trashed = makeDb({ ...shared, groupTrashed: true });
     const res = await new AuthService({ db: trashed.db, redis }).authenticateConnection(
-      withToken('doc-1')
+      withToken(DOC)
     );
     expect(res.authenticated).toBe(false);
   });
@@ -416,7 +425,7 @@ describe('AuthService — local dev bypass', () => {
   it("opens the bypass user's own private document", async () => {
     const { db } = makeDb({ doc: ownDoc() });
     const res = await new AuthService({ db, redis }).authenticateConnection(
-      viaProxy('doc-1', 'dev-token')
+      viaProxy(DOC, 'dev-token')
     );
     expect(res.authenticated).toBe(true);
     expect(res.userId).toBe('00000000-0000-4000-a000-000000000001');
@@ -428,7 +437,7 @@ describe('AuthService — local dev bypass', () => {
       doc: publicDoc({ created_by: 'owner-1', is_public: false, share_mode: 'private' }),
     });
     const res = await new AuthService({ db, redis }).authenticateConnection(
-      viaProxy('doc-1', 'dev-token')
+      viaProxy(DOC, 'dev-token')
     );
     expect(res.authenticated).toBe(false);
   });
@@ -439,7 +448,7 @@ describe('AuthService — local dev bypass', () => {
       doc: publicDoc({ created_by: LENA, is_public: false, share_mode: 'private' }),
     });
     const res = await new AuthService({ db, redis }).authenticateConnection({
-      ...viaProxy('doc-1', 'dev-token'),
+      ...viaProxy(DOC, 'dev-token'),
       requestParameters: new URLSearchParams({ dev_auth_user: LENA }),
     });
     expect(res.authenticated).toBe(true);
@@ -449,7 +458,7 @@ describe('AuthService — local dev bypass', () => {
   it('ignores dev_auth_user outside the allowlist', async () => {
     const { db } = makeDb({ doc: ownDoc() });
     const res = await new AuthService({ db, redis }).authenticateConnection({
-      ...viaProxy('doc-1', 'dev-token'),
+      ...viaProxy(DOC, 'dev-token'),
       requestParameters: new URLSearchParams({
         dev_auth_user: '00000000-0000-4000-a000-0000000000ee',
       }),
@@ -459,9 +468,7 @@ describe('AuthService — local dev bypass', () => {
 
   it('ignores a wrong token', async () => {
     const { db } = makeDb({ doc: ownDoc() });
-    const res = await new AuthService({ db, redis }).authenticateConnection(
-      viaProxy('doc-1', 'guess')
-    );
+    const res = await new AuthService({ db, redis }).authenticateConnection(viaProxy(DOC, 'guess'));
     expect(res.authenticated).toBe(false);
   });
 
@@ -469,7 +476,7 @@ describe('AuthService — local dev bypass', () => {
     process.env.NODE_ENV = 'production';
     const { db } = makeDb({ doc: ownDoc() });
     const res = await new AuthService({ db, redis }).authenticateConnection(
-      viaProxy('doc-1', 'dev-token')
+      viaProxy(DOC, 'dev-token')
     );
     expect(res.authenticated).toBe(false);
   });
@@ -495,7 +502,7 @@ describe('AuthService — profiles lookup failure does not mask a denial', () =>
     const res = await new AuthService({
       db: makeDb({ doc, profilesFail: true }).db,
       redis,
-    }).authenticateConnection(withToken('doc-1'));
+    }).authenticateConnection(withToken(DOC));
     expect(res.authenticated).toBe(false);
     expect(res.reason).not.toBe('Internal authentication error');
   });
@@ -504,7 +511,7 @@ describe('AuthService — profiles lookup failure does not mask a denial', () =>
     const res = await new AuthService({
       db: makeDb({ doc: publicDoc(), profilesFail: true }).db,
       redis,
-    }).authenticateConnection(withToken('doc-1'));
+    }).authenticateConnection(withToken(DOC));
     expect(res).toMatchObject({ authenticated: true, userName: 'Unknown User' });
   });
 });
@@ -618,6 +625,24 @@ describe('AuthService — site rooms', () => {
     expect(sql).toContain('sites_unlocked = true');
   });
 
+  it('site room: an admin owner without the unlock connects', async () => {
+    const { db, captured } = makeDb({
+      site: { user_id: 'user-9', moderation: 'ok', locked: true, admin: true },
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
+    const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
+    expect(sql).toContain('s.deleted_at IS NULL');
+  });
+
+  it('site room: a trashed site of an admin owner is still denied', async () => {
+    const { db } = makeDb({
+      site: { user_id: 'user-9', moderation: 'ok', trashed: true, admin: true },
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res.authenticated).toBe(false);
+  });
+
   it('site room: a room without a uuid is denied without a query', async () => {
     const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken('site-x'));
@@ -651,19 +676,88 @@ describe('AuthService — site rooms', () => {
     expect(captured.some((c) => /FROM collaborative_documents/.test(c.sql))).toBe(false);
   });
 
-  it('bare site id: the no-row fallback denies an id that exists in user_sites', async () => {
-    const { db, captured } = makeDb({ doc: null, siteExists: true });
+  it('bare site id: has no document row, so it is denied', async () => {
+    const { db } = makeDb({ doc: null, siteExists: true });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken(SITE_ID));
     expect(res.authenticated).toBe(false);
     expect(await roomReason(db, SITE_ID)).toBe('Access denied');
-    const guard = captured.find((c) => /SELECT 1 FROM user_sites/.test(c.sql));
-    expect(guard?.params).toEqual([SITE_ID]);
-    expect(guard?.sql).not.toMatch(/deleted_at/);
+  });
+});
+
+describe('AuthService — rooms without a collaborative_documents row (#5805)', () => {
+  const realFetch = global.fetch;
+  const env = { ...process.env };
+  const sessionOk = () =>
+    vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+
+  beforeEach(() => {
+    global.fetch = sessionOk();
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+    process.env = { ...env };
   });
 
-  it('bare unknown id: the no-row fallback still allows creation', async () => {
-    const { db } = makeDb({ doc: null, siteExists: false });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(SITE_ID));
-    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
+  it('denies a bearer-token user', async () => {
+    const { db } = makeDb({ doc: null });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
+    expect(res).toMatchObject({ authenticated: false });
   });
+
+  it('denies a cookie-session user', async () => {
+    const { db } = makeDb({ doc: null });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      documentName: DOC,
+      requestHeaders: new Headers({ cookie: 'session=abc' }),
+      requestParameters: new URLSearchParams(),
+      token: undefined,
+    });
+    expect(res).toMatchObject({ authenticated: false });
+  });
+
+  it('denies the dev-bypass user', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.ALLOW_DEV_AUTH_BYPASS = 'true';
+    process.env.DEV_AUTH_BYPASS_TOKEN = 'dev-token';
+    const { db } = makeDb({ doc: null });
+    const res = await new AuthService({ db, redis }).authenticateConnection({
+      documentName: DOC,
+      requestHeaders: new Headers({ 'x-dev-auth-bypass': 'dev-token' }),
+      requestParameters: new URLSearchParams(),
+      token: undefined,
+    });
+    expect(res).toMatchObject({ authenticated: false });
+  });
+
+  it('denies a doc-bound chat thread whose document is gone', async () => {
+    const { db } = makeDb({
+      doc: null,
+      thread: { user_id: 'user-9', permissions: null, is_public: false, doc_id: DOC },
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(
+      withToken('chat-thread-1')
+    );
+    expect(res).toMatchObject({ authenticated: false });
+  });
+
+  it('denies a non-uuid room name without querying collaborative_documents', async () => {
+    const { db, captured } = makeDb({ doc: publicDoc() });
+    expect(await roomReasonOf(db, 'doc-1')).toBe('Access denied');
+    expect(captured.some((c) => /FROM collaborative_documents/i.test(c.sql))).toBe(false);
+  });
+
+  it('keeps granting an existing document row', async () => {
+    const { db } = makeDb({ doc: publicDoc({ is_public: false, created_by: 'user-9' }) });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(DOC));
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9' });
+  });
+
+  async function roomReasonOf(db: DbQueryFn, room: string) {
+    const service = new AuthService({ db, redis }) as unknown as {
+      checkRoomAccess(room: string, userId: string): Promise<{ reason?: string }>;
+    };
+    return (await service.checkRoomAccess(room, 'user-9')).reason;
+  }
 });

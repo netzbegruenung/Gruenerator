@@ -11,14 +11,14 @@ Mit Sites baust du dir eine eigene **Website** für deine Kandidatur, dein Manda
 
 ## Wer Sites nutzen kann
 
-Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support.
+Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat, sowie für Instanz-Admins selbst. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support.
 
 ## Website erstellen
 
 Beim ersten Öffnen von Sites wählst du, wie du startest:
 
 - **Aus einer kurzen Beschreibung:** Du schreibst, wer du bist und wofür du antrittst; die KI erstellt daraus die Website.
-- **Aus einem Flyer:** Du lädst deinen Flyer als PDF hoch; die KI liest ihn aus und übernimmt Inhalte und Themen.
+- **Aus einem Flyer:** Du lädst deinen Flyer als PDF hoch (höchstens 20 MB und 100 Seiten); die KI liest ihn aus und übernimmt Inhalte und Themen.
 
 Beides setzt die **Einwilligung zur KI-Nutzung** voraus, weil dein Text oder Flyer an einen KI-Anbieter geht. Prüfe den Entwurf anschließend, KI-Texte können Fehler enthalten.
 

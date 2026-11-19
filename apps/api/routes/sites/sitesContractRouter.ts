@@ -11,9 +11,6 @@
  *   DELETE /api/sites/:id
  *   POST   /api/sites/generate (SSE, see siteGenerationRoute.ts)
  *
- * The legacy flyer upload (POST /api/sites/generate-from-flyer) has its own router,
- * mounted ahead of this one in routes.ts.
- *
  * Authentication: routes.ts applies requireAuth for /api/sites before this
  * router is mounted, so req.user is populated here. getUserId() still guards
  * against a missing user.
@@ -35,13 +32,12 @@ import { sql } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { getServerConfig } from '../../config/serverConfig.js';
 import { siteOrigin } from '../../config/sitesOrigin.js';
-import { type UserSiteRow } from '../../database/schema/sites.js';
+import { type UserSiteRawRow, type UserSiteRow } from '../../database/schema/sites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
-import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
+import { closeSiteRooms, USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
 import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -103,9 +99,9 @@ async function updateSiteWithAddress(
     }
   }
 
-  let row: UserSiteRow | undefined;
+  let row: UserSiteRawRow | undefined;
   try {
-    const result = await getDrizzleInstance().execute<UserSiteRow>(
+    const result = await getDrizzleInstance().execute<UserSiteRawRow>(
       sql`UPDATE user_sites
           SET ${sql.join(assignments, sql`, `)}
           WHERE id = ${id} AND user_id = ${userId} AND deleted_at IS NULL
@@ -216,7 +212,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
 
       // Drizzle, not `db.query`: PostgresService strips the pg code and constraint.
-      const result = await getDrizzleInstance().execute<UserSiteRow>(
+      const result = await getDrizzleInstance().execute<UserSiteRawRow>(
         sql`INSERT INTO user_sites (
               user_id, subdomain, site_title, tagline, theme, is_published,
               contact_email, contact_phone, social_links, profile_image, background_image,
@@ -463,7 +459,7 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
 
-      void closeCollabRooms([siteRoom(params.id)]);
+      void closeSiteRooms([params.id]);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
       log.error('Error deleting site:', error);

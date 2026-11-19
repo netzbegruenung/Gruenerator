@@ -126,10 +126,41 @@ describe('copy, meta, grounds', () => {
       `Datenschutzerklärung – ${fullSnapshot().site_title}`
     ));
   it('maps the variant to grounds', () => {
-    expect(sectionGround('dunkel', 'hero')).toBe('deep');
-    expect(sectionGround('hell', 'hero')).toBe('surface');
-    expect(sectionGround('leuchtend', 'themes')).toBe('deep');
-    expect(sectionGround('hell', 'footer')).toBe('deep');
+    expect(sectionGround('dunkel', 'hero', 'de-DE')).toBe('deep');
+    expect(sectionGround('hell', 'hero', 'de-DE')).toBe('surface');
+    expect(sectionGround('leuchtend', 'themes', 'de-DE')).toBe('deep');
+    expect(sectionGround('hell', 'footer', 'de-DE')).toBe('deep');
+  });
+  it('tints only the austrian light about section, every other combination is unchanged', () => {
+    const parts = [
+      'header',
+      'hero',
+      'about',
+      'heroImage',
+      'themes',
+      'actions',
+      'socialFeed',
+      'contact',
+      'footer',
+    ] as const;
+    const expected = {
+      header: ['deep', 'surface', 'vivid'],
+      hero: ['deep', 'surface', 'vivid'],
+      about: ['paper', 'paper', 'paper'],
+      heroImage: ['photo', 'photo', 'photo'],
+      themes: ['surface', 'paper', 'deep'],
+      actions: ['paper', 'surface', 'paper'],
+      socialFeed: ['surface', 'paper', 'surface'],
+      contact: ['deep', 'surface', 'vivid'],
+      footer: ['deeper', 'deep', 'deeper'],
+    } as const;
+    const variants = ['dunkel', 'hell', 'leuchtend'] as const;
+    for (const locale of ['de-DE', 'de-AT'] as const)
+      for (const part of parts)
+        variants.forEach((variant, i) => {
+          const tinted = locale === 'de-AT' && variant === 'hell' && part === 'about';
+          expect(sectionGround(variant, part, locale)).toBe(tinted ? 'tint' : expected[part][i]);
+        });
   });
   it('sets lang and data attributes on the root', () =>
     expect(siteRootAttributes(fullSnapshot({ locale: 'de-AT', variant: 'hell' }))).toEqual({

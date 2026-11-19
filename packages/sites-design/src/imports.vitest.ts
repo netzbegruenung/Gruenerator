@@ -39,4 +39,18 @@ describe('sites-design sources', () => {
     );
     expect(hits).toEqual([]);
   });
+
+  // The API loads src through the `development` condition, and tsx applies only apps/api's
+  // tsconfig — files outside it fall back to the classic JSX transform ("React is not defined").
+  it('every component file pins the automatic JSX runtime', () => {
+    const offenders = files.filter(
+      (file) =>
+        file.endsWith('.tsx') &&
+        !file.endsWith('.vitest.tsx') &&
+        !readFileSync(file, 'utf8').startsWith(
+          '/** @jsxRuntime automatic @jsxImportSource react */'
+        )
+    );
+    expect(offenders).toEqual([]);
+  });
 });

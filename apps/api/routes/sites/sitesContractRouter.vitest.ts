@@ -95,6 +95,13 @@ function row(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+// drizzle's raw `execute` returns timestamptz as strings, unlike `db.query`.
+const rawRow = (overrides: Record<string, unknown> = {}) =>
+  row({
+    created_at: '2026-11-19 10:20:36.123+00',
+    updated_at: '2026-11-19 10:20:36.123+00',
+    ...overrides,
+  });
 const validRow = () => row();
 
 const validCreate = () => ({ subdomain: 'anna-berlin', site_title: 'Anna' });
@@ -195,7 +202,7 @@ describe('sitesContract', () => {
 
   it('create starts a site on the dark variant', async () => {
     queryMock.mockResolvedValueOnce([]);
-    executeMock.mockResolvedValueOnce({ rows: [row()] });
+    executeMock.mockResolvedValueOnce({ rows: [rawRow()] });
     await create(validCreate());
     const chunks = executeMock.mock.calls[0][0].queryChunks as unknown[];
     expect(
@@ -369,7 +376,7 @@ describe('sitesContract', () => {
   });
 
   it('subdomain change lands only before the first publish', async () => {
-    executeMock.mockResolvedValueOnce({ rows: [row({ subdomain: 'anna-neu' })] });
+    executeMock.mockResolvedValueOnce({ rows: [rawRow({ subdomain: 'anna-neu' })] });
 
     const res = await update({ subdomain: 'Anna-Neu', site_title: 'x' });
 

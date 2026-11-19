@@ -9,7 +9,10 @@ const multerUpload = vi.hoisted(() =>
   vi.fn<(req: unknown, res: unknown, cb: (err?: unknown) => void) => void>()
 );
 
+const countPdfPages = vi.hoisted(() => vi.fn<(pdf: Buffer) => Promise<number | null>>());
+
 vi.mock('../../services/sites/generation/runSiteGeneration.js', () => ({ runSiteGeneration }));
+vi.mock('../../services/sites/generation/flyer/countPdfPages.js', () => ({ countPdfPages }));
 
 vi.mock('multer', () => {
   class MulterError extends Error {
@@ -73,10 +76,41 @@ const writes = (res: ReturnType<typeof fakeRes>) => res.write.mock.calls.map((c)
 
 beforeEach(() => {
   runSiteGeneration.mockReset();
+  countPdfPages.mockReset();
+  countPdfPages.mockResolvedValue(3);
   multerUpload.mockReset();
 });
 
 describe('generateSiteContentRoute', () => {
+  it('rejects a flyer over 100 pages before the stream opens', async () => {
+    countPdfPages.mockResolvedValue(101);
+    const { res, result } = call({ file: { buffer: PDF } });
+    const out = await result;
+    expect(out.status).toBe(400);
+    expect(out.body).toEqual({ error: 'Der Flyer hat 101 Seiten. Erlaubt sind höchstens 100.' });
+    expect(runSiteGeneration).not.toHaveBeenCalled();
+    expect(res.write).not.toHaveBeenCalled();
+  });
+
+  it('rejects a flyer pdf-lib cannot read', async () => {
+    countPdfPages.mockResolvedValue(null);
+    const { res, result } = call({ file: { buffer: PDF } });
+    const out = await result;
+    expect(out.status).toBe(400);
+    expect(out.body).toEqual({ error: 'Die PDF-Datei konnte nicht gelesen werden.' });
+    expect(runSiteGeneration).not.toHaveBeenCalled();
+    expect(res.write).not.toHaveBeenCalled();
+  });
+
+  it('lets a flyer with exactly 100 pages through', async () => {
+    countPdfPages.mockResolvedValue(100);
+    runSiteGeneration.mockResolvedValue(undefined);
+    const { result } = call({ file: { buffer: PDF } });
+    const out = await result;
+    expect(out.status).toBe(200);
+    expect(runSiteGeneration).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects a request with both a description and a file', async () => {
     const { res, result } = call({ body: { description: DESCRIPTION }, file: { buffer: PDF } });
     const out = await result;

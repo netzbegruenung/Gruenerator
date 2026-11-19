@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { wrapPoolAsQueryFn } from './db.js';
 import { registerInternalApi } from './internalApi.js';
 import { createLogger } from './logger.js';
 
@@ -23,7 +24,11 @@ export function startHealthServer(port: number, deps: HealthDeps): void {
   const app = express();
 
   if (deps.hocuspocus && deps.persistence) {
-    registerInternalApi(app, { server: deps.hocuspocus, persistence: deps.persistence });
+    registerInternalApi(app, {
+      server: deps.hocuspocus,
+      persistence: deps.persistence,
+      db: wrapPoolAsQueryFn(pool),
+    });
   }
 
   // Cache the result to avoid running a DB query on every /health hit.

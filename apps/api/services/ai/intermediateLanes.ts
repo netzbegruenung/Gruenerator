@@ -111,7 +111,12 @@
  * umbenannt.
  */
 
-import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_MELIOUS_ECO,
+  GEMMA_31B_ON_MELIOUS_SPEED,
+  GEMMA_31B_PRIMARY,
+} from './gemmaHosts.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -161,49 +166,44 @@ export interface IntermediateLaneConfig extends LaneTarget {
   readonly fallback: readonly LaneTarget[];
 }
 
-/** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
-const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:balanced' } as const;
+/**
+ * Der Primär der kleinen Stufen: Gemma 4 31B auf Melious `:speed` (infercom/DE),
+ * ohne Denken (`meliousFetch` setzt `reasoning_effort: 'none'`).
+ *
+ * Bis 19.11.2026 stand hier `greenpt/mistral-small-3.2-24b`. Gemessen an dem
+ * Tag, kurzer Auswahl-Prompt (Ziel-Erkennung, `max_tokens: 20`), je 8 Läufe,
+ * alle mit richtiger Antwort:
+ *
+ *   greenpt/mistral-small-3.2-24b   Median 8.415 ms, max 9.425
+ *   melious/gemma-4-31b:balanced    Median 2.987 ms, max 8.087
+ *   melious/gemma-4-31b:speed       Median 1.222 ms, max 3.992
+ *
+ * Mit GreenPT riss also praktisch jede Sperre der Stufe `standard` (900–2.500 ms,
+ * Liste dort). `:speed` statt `:balanced`, weil `:balanced` stark streut (wie
+ * schon bei `bundestag_read`, #5582). Die Sperren selbst sind damit nicht neu
+ * vermessen; die 900 ms von `editTargetResolver` liegen unter dem Median.
+ */
+const MELIOUS_GEMMA_4_SPEED = {
+  provider: 'melious',
+  model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+} as const;
 
 /**
- * Die vier Glieder der kleinen Stufen: DREIMAL dasselbe Modell auf drei Hosts,
- * dann ein viertes als Rest.
- *
- * `mistral-small-3.2-24b-instruct-2506` liegt bei GreenPT, bei Cortecs (über
- * `ovh`/`scaleway`/`berget`) und in verwandter Form bei Mistral selbst. Dass
- * die ersten drei Glieder dieselben Gewichte tragen, ist die Absicht: ein
- * Hostwechsel darf die Antwortqualität nicht mit umschalten, sonst ist der
- * Fallback ein stiller Modellwechsel. Erst das vierte Glied wechselt das
- * Modell.
- *
- * `greenpt/mistral-small-3.2-24b` ist NICHT neu im System: es bedient seit dem
- * 13.08.2026 den damaligen Planer des agentischen Loops und seit
- * dem 19.08.2026 den Monitor. Es denkt nicht (verbrennt das kleine
- * Ausgabebudget also nicht im `reasoning`-Feld), ruft nachweislich Werkzeuge
- * auf (genau das ist die Planer-Rolle) und meldet als einziges Glied seinen
- * Energieverbrauch selbst zurück — womit die grösste Lane im System zum ersten
- * Mal beziffert in der CO₂-Übersicht auftaucht statt als „nicht abgedeckt".
- *
- * `cortecs/mistral-small-3.2-24b-instruct-2506` ist das zweite Glied und
- * bewusst DASSELBE Modell: gemessen am 29.08.2026 gegen den lebenden Endpunkt,
- * 3 Läufe, `max_tokens: 16` — HTTP 200, `content: 'ja'`, `finish_reason: stop`,
- * 338/404/463 ms, Upstream `ovh`. Der Katalog ist hier nicht die Quelle (er
- * hat bei `gemma-4-31b-it` schon Bildfähigkeit versprochen, die mit HTTP 500
- * antwortete); geprüft wurde der Endpunkt.
- *
- * `mistral/mistral-small-latest` ist das dritte Glied — dritter
- * Vertragspartner, kein Reasoning-Modell, gemessener Energie-Koeffizient
- * (services/usage/energyFootprint.ts), im Repo bereits in Gebrauch
- * (promptAssemblyGraph, argumentsSummarizer).
- *
- * `melious/gemma-4-31b` steht als LETZTES: ein vierter Vertragspartner ist
- * mehr wert als eine kurze Kette — aber nicht vorn, weil es ein anderes Modell
- * ist. Der frühere Primär dieser Stufen (`mistral-small-4-119b`) ist am
- * 29.08.2026 mit HTTP 402 ausgefallen und seit dem 30.09.2026 ganz weg.
+ * Der Primär von `trivial`: dieselben Gewichte über Melious `:eco` — die Stufe
+ * hat kein Latenzbudget (Hintergrundarbeit mit Ersatzwert), also zählt dort
+ * der sparsamere Upstream, nicht der schnellste. Am 19.11.2026 mit demselben
+ * Prompt wie oben gemessen: 8 von 8 richtig, Median 514 ms, max 994 ms.
  */
-const GREENPT_SMALL_32 = {
-  provider: 'greenpt',
-  model: 'mistral-small-3.2-24b-instruct-2506',
-} as const;
+const MELIOUS_GEMMA_4_ECO = { provider: 'melious', model: GEMMA_31B_ON_MELIOUS_ECO } as const;
+
+/**
+ * Hinter dem Primär: dasselbe kleine Mistral-Modell bei zwei weiteren
+ * Vertragspartnern. `cortecs/mistral-small-3.2-24b-instruct-2506`, gemessen am
+ * 29.08.2026 gegen den lebenden Endpunkt, 3 Läufe, `max_tokens: 16`: HTTP 200,
+ * `content: 'ja'`, 338/404/463 ms, Upstream `ovh`. `mistral/mistral-small-latest`
+ * ist der dritte Vertragspartner, kein Reasoning-Modell. Melious steht nicht
+ * mehr in der Kette: es ist der Primär (Regel 1 oben).
+ */
 /** Exportiert, weil `litellmRetired.ts` dasselbe Ziel braucht: der stillgelegte
  *  Verdigado-Alias `verdigado-pro` landet genau hier. Ein zweiter, handnotierter
  *  Modellname dort wäre die Art Doppelung, die diese Datei einsammelt. */
@@ -216,7 +216,7 @@ const MISTRAL_SMALL = { provider: 'mistral', model: 'mistral-small-latest' } as 
 /** Die eine Kette der beiden kleinen Stufen. Sie teilen sie, weil sie dieselbe
  *  Arbeit in verschiedenem Tempo tun — die Stufen unterscheiden sich im
  *  Zeitbudget des Aufrufers, nicht in der Frage, wer einspringt. */
-const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, MELIOUS_GEMMA_4] as const;
+const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL] as const;
 
 /**
  * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
@@ -245,7 +245,7 @@ export const INTERMEDIATE_LANES = {
    * wird). Die Stufe mit der grössten Stückzahl und den kleinsten Antworten —
    * also die, bei der ein Wechsel am meisten brächte und am wenigsten riskiert.
    */
-  trivial: { ...GREENPT_SMALL_32, fallback: SMALL_CHAIN },
+  trivial: { ...MELIOUS_GEMMA_4_ECO, fallback: SMALL_CHAIN },
 
   /**
    * Der Hot Path: kurze Ausgabe, harte Zeitsperren, Routing-Wirkung.
@@ -277,7 +277,7 @@ export const INTERMEDIATE_LANES = {
    * (#2272–#2279) von 18,1 % auf 3,0 % gedrückt hat. Das ist der Preis, den
    * eine zu langsame Wahl hier kostet, und er steht nicht in den Latenzzahlen.
    */
-  standard: { ...GREENPT_SMALL_32, fallback: SMALL_CHAIN },
+  standard: { ...MELIOUS_GEMMA_4_SPEED, fallback: SMALL_CHAIN },
 
   /**
    * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent,

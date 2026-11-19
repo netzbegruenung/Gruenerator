@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type MouseEvent } from 'react';
 import { FaInstagram } from 'react-icons/fa6';
 

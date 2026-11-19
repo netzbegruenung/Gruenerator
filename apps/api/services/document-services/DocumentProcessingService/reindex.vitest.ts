@@ -409,7 +409,7 @@ describe('processUploadedDocument — neu indexieren', () => {
         'doc-1',
         OWNER
       )
-    ).rejects.toThrow('Uploaded file not found on disk');
+    ).rejects.toThrow('Die Originaldatei liegt nicht mehr vor');
     expect(fetchOriginal).not.toHaveBeenCalled();
     expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
       'doc-1',
@@ -460,7 +460,8 @@ describe('gescheiterter Upload — das Original bleibt, „Neu indexieren" geht'
         status: 'failed',
         // Die Markierungen eines Neu-Indexierens gehen auch beim Upload weg.
         additionalMetadata: expect.objectContaining({
-          processing_error: 'OCR 503',
+          // Die Rohmeldung bleibt im Log, an der Zeile steht ein Satz für Menschen.
+          processing_error: expect.stringContaining('konnte nicht gelesen werden'),
           reindex_origin: undefined,
           queued_at: undefined,
         }),

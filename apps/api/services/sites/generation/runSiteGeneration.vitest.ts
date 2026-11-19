@@ -78,6 +78,14 @@ describe('runSiteGeneration', () => {
     expect(events[2]).toEqual({ type: 'step', step: 'images' });
   });
 
+  it('excludes alcohol imagery from every site image pick', async () => {
+    const { done } = run(text);
+    await done;
+    for (const call of mocks.selectBestImage.mock.calls) {
+      expect(call[1]).toMatchObject({ excludeTags: expect.arrayContaining(['beer']) });
+    }
+  });
+
   it('runs the flyer path through all four steps', async () => {
     const { events, done } = run(flyer);
     await done;

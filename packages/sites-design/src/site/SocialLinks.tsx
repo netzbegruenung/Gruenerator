@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type ComponentType } from 'react';
 import {
   FaFacebook,

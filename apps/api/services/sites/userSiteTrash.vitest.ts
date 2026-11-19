@@ -40,6 +40,13 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
   }),
 }));
 
+const closeCollabRooms = vi.fn();
+vi.mock('../collab/hocuspocusInternal.js', () => ({
+  closeCollabRooms,
+  hocuspocusInternal: vi.fn(),
+  hocuspocusInternalOrNull: vi.fn(),
+}));
+
 const USER = '11111111-1111-4111-8111-111111111111';
 const ID = '33333333-3333-4333-8333-333333333333';
 
@@ -51,12 +58,18 @@ beforeEach(() => {
   purgeHit = true;
   statements.length = 0;
   statementParams.length = 0;
+  closeCollabRooms.mockReset().mockResolvedValue(undefined);
 });
 
 describe('Website restore', () => {
   it('clears deleted_at when the user has no live Website', async () => {
     expect(await restoreUserSite(USER, ID)).toBe('ok');
     expect(statements.at(-1)).toMatch(/^UPDATE user_sites SET deleted_at = NULL/);
+  });
+
+  it('restore does not close any room', async () => {
+    await restoreUserSite(USER, ID);
+    expect(closeCollabRooms).not.toHaveBeenCalled();
   });
 
   it('brings the Website back as a draft, before the restore itself', async () => {
@@ -91,6 +104,15 @@ describe('Website purge', () => {
       'DELETE FROM yjs_document_snapshots WHERE document_id = $1',
     ]);
     expect(statementParams.slice(rowDelete + 1)).toEqual([[ID], [ID]]);
+  });
+
+  it('closes the open site room of a purged Website, not of a missed one', async () => {
+    await purgeUserSite(ID, null);
+    expect(closeCollabRooms).toHaveBeenCalledWith([`site-${ID}`]);
+    closeCollabRooms.mockClear();
+    purgeHit = false;
+    await purgeUserSite(ID, null);
+    expect(closeCollabRooms).not.toHaveBeenCalled();
   });
 
   it('leaves the Yjs rows alone when the row was not purged', async () => {

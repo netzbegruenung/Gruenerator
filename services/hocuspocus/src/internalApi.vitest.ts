@@ -464,6 +464,7 @@ describe('closing rooms after an access change', () => {
       vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
       const app = express();
       registerInternalApi(app, {
+        db: async () => [],
         server: { hocuspocus: { documents } } as unknown as Parameters<
           typeof registerInternalApi
         >[1]['server'],
@@ -548,6 +549,7 @@ describe('POST /internal/site/:siteId/seed', () => {
       },
     };
     registerInternalApi(app, {
+      db: async () => [],
       server: { hocuspocus } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
       persistence: {} as Parameters<typeof registerInternalApi>[1]['persistence'],
     });
@@ -630,5 +632,65 @@ describe('POST /internal/site/:siteId/seed', () => {
     const res = await post(`${base}/${id}/seed`, body);
     expect(res.status).toBe(400);
     expect(opened).toEqual([]);
+  });
+});
+
+describe('internal document routes and bare site ids', () => {
+  const SITE_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+  const OTHER_ID = '9a8b7c6d-1111-4222-8333-444455556666';
+  let close: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await close?.();
+    close = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function start(): Promise<string> {
+    vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+    const app = express();
+    registerInternalApi(app, {
+      db: async (_sql: string, params?: unknown[]) =>
+        params?.[0] === SITE_ID ? [{ '?column?': 1 }] : [],
+      server: {
+        hocuspocus: { documents: new Map(), openDirectConnection: async () => ({}) },
+      } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
+      persistence: {
+        loadDocument: async () => null,
+      } as unknown as Parameters<typeof registerInternalApi>[1]['persistence'],
+    });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
+    return `http://127.0.0.1:${address.port}/internal`;
+  }
+
+  const call = (url: string, method: 'GET' | 'POST') =>
+    fetch(url, {
+      method,
+      headers: { 'content-type': 'application/json', 'x-internal-token': 'secret' },
+      ...(method === 'POST' ? { body: '{}' } : {}),
+    });
+
+  it.each([
+    ['GET', 'doc', 'yjs'],
+    ['POST', 'doc', 'yjs'],
+    ['GET', 'doc', 'html'],
+    ['POST', 'doc', 'html'],
+    ['GET', 'canvas', 'state'],
+    ['POST', 'canvas', 'state'],
+  ] as const)('refuses a bare site id on %s /%s/:id/%s', async (method, kind, leaf) => {
+    const base = await start();
+    const res = await call(`${base}/${kind}/${SITE_ID}/${leaf}`, method);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'use site-<uuid>' });
+  });
+
+  it('lets site-<uuid> and a normal document id through', async () => {
+    const base = await start();
+    expect((await call(`${base}/doc/site-${SITE_ID}/yjs`, 'GET')).status).toBe(404);
+    expect((await call(`${base}/doc/${OTHER_ID}/yjs`, 'GET')).status).toBe(404);
   });
 });

@@ -50,12 +50,16 @@ describe('the lane table', () => {
     expect(isLaneId('flyer-analysis')).toBe(true);
   });
 
-  // GreenPT's own default writes forced tool calls as prose; the artefact lane
-  // names Gemma 4 there. `documentation/scripts/generate-models.mjs` reads this row.
-  it('routes artifact generation to Gemma 4 on GreenPT, never to the GreenPT default', () => {
-    expect(route('doc_generation')).toEqual({ provider: 'greenpt', model: 'gemma4' });
-    expect(AI_LANES.doc_generation.model).not.toBeNull();
-    expect(route('doc_generation').model).not.toBe(getDefaultModel('greenpt'));
+  // Gemma 4 calls the artefact tools reliably (Mistral Medium wrote them as
+  // prose); since 19.11.2026 on the Gemma primary instead of GreenPT, which ran
+  // out the 60 s budget 3 of 3 times (#5842).
+  // `documentation/scripts/generate-models.mjs` reads this row.
+  it('routes artifact generation to Gemma 4 on its primary host, not GreenPT', () => {
+    expect(route('doc_generation')).toEqual({
+      provider: GEMMA_31B_PRIMARY.provider,
+      model: GEMMA_31B_PRIMARY.model,
+    });
+    expect(route('doc_generation').provider).not.toBe('greenpt');
   });
 
   it('routes finished texts to Gemma 4 on its primary host, with the model named', () => {
@@ -154,7 +158,9 @@ describe('laneFallback', () => {
     const gemma = GEMMA_31B_PRIMARY.provider;
     expect(laneFallback('sharepic_zitat')[0]).toBe(gemma); // mistral is primary, so dropped
     expect(laneFallback('default')[0]).toBe(gemma); // mistral is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe(gemma);
+    // image_picker runs on the `standard` stage, itself on Melious since
+    // 19.11.2026 — so its chain starts on the second Gemma host.
+    expect(laneFallback('image_picker')[0]).toBe(GEMMA_31B_ALTERNATE.provider);
   });
 
   it('leaves the creation families the second Gemma host, then Mistral', () => {
@@ -168,16 +174,9 @@ describe('laneFallback', () => {
     expect(laneFallback('social')).toEqual([second, 'mistral']);
   });
 
-  it('gives the GreenPT artefact lane a host of its own model family', () => {
-    // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
-    // steht — also bleiben alle übrig. Die beiden Gemma-Hosts vorn sind hier
-    // der Punkt: bis zum 28.08.2026 enthielt die Ausweichkette dieser Lane
-    // keinen einzigen Host desselben Gemma 4, auf dem ihr Primär läuft.
-    expect(laneFallback('doc_generation')).toEqual([
-      GEMMA_31B_PRIMARY.provider,
-      GEMMA_31B_ALTERNATE.provider,
-      'mistral',
-    ]);
+  it('gives the artefact lane the second Gemma host, then Mistral', () => {
+    // `doc_generation` liegt auf dem Gemma-Primär; der fällt aus der Kette.
+    expect(laneFallback('doc_generation')).toEqual([GEMMA_31B_ALTERNATE.provider, 'mistral']);
     // Die beiden Hosts sind zwei Vertragspartner, nicht einer zweimal.
     expect(GEMMA_31B_PRIMARY.provider).not.toBe(GEMMA_31B_ALTERNATE.provider);
   });

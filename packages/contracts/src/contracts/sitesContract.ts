@@ -4,9 +4,6 @@
  * Phase 1 covers the JSON CRUD surface consumed by packages/sites (useSite):
  * my-site, create, update, publish, check-subdomain, delete.
  *
- * Deliberately NOT contracted (still on the legacy axios paths):
- * - POST /api/sites/generate-from-flyer (multipart upload)
- * - POST /api/texte/website (AI generation)
  * POST /api/sites/generate (streamed generation) is contracted below; its 200 is SSE.
  *
  * Authentication: all routes here require auth. routes.ts applies requireAuth
@@ -15,6 +12,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
+import { siteGenerateBodySchema } from '../schemas/siteGeneration.js';
 import {
   mySiteResponseSchema,
   siteResponseSchema,
@@ -26,7 +24,6 @@ import {
   sitesErrorSchema,
   sitePublishErrorSchema,
 } from '../schemas/sites.js';
-import { siteGenerateBodySchema } from '../schemas/siteGeneration.js';
 
 const c = initContract();
 

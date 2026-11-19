@@ -31,10 +31,10 @@ import { waitForSynced } from './waitForSynced';
 
 export const PUBLISH_SYNC_TIMEOUT_MS = 5000;
 
-const BADGE_LABELS: Record<PublishStatus, string> = {
+// 'changed' has no badge: the "Änderungen veröffentlichen" button already says so.
+const BADGE_LABELS: Record<Exclude<PublishStatus, 'changed'>, string> = {
   unpublished: 'Nicht veröffentlicht',
   live: 'Live',
-  changed: 'Änderungen nicht veröffentlicht',
 };
 
 const NOT_SAVED_MESSAGE =
@@ -56,6 +56,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const publishErrorId = useRef<string | number | null>(null);
+  const pickedIssue = useRef(false);
   const [serverIssues, setServerIssues] = useState<SitePublishIssue[] | null>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
@@ -86,13 +89,15 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
         return;
       }
       await togglePublish({ id: site.id, publish: true });
+      if (publishErrorId.current !== null) toast.remove(publishErrorId.current);
+      publishErrorId.current = null;
       toast.success('Website veröffentlicht');
     } catch (error) {
       if (error instanceof SitePublishError) {
         setServerIssues(error.issues);
         setIssuesOpen(true);
       } else if (error instanceof SitesApiError && error.status === 503) {
-        toast.error('Veröffentlichen gerade nicht möglich', error.message);
+        publishErrorId.current = toast.error('Veröffentlichen gerade nicht möglich', error.message);
       } else {
         toast.error('Veröffentlichen fehlgeschlagen');
       }
@@ -123,6 +128,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
     setBusy(true);
     try {
       await deleteSite(site.id);
+      toast.success('Website gelöscht', 'Sie liegt 30 Tage im Papierkorb.');
     } catch {
       toast.error('Löschen fehlgeschlagen');
     } finally {
@@ -132,6 +138,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   };
 
   const pickIssue = (path: string) => {
+    pickedIssue.current = true;
     focusPath(panelForPath(path) ?? 'legal', path);
     setIssuesOpen(false);
   };
@@ -140,7 +147,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   return (
     <>
-      <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      {status !== 'changed' && (
+        <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      )}
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
         <PopoverAnchor asChild>
           <Button
@@ -161,7 +170,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
           aria-labelledby="publish-issues-title"
           onCloseAutoFocus={(e) => {
             e.preventDefault();
-            triggerRef.current?.focus();
+            // After picking an issue the target field owns the focus, not the trigger.
+            if (pickedIssue.current) pickedIssue.current = false;
+            else triggerRef.current?.focus();
           }}
         >
           <PublishIssues issues={shownIssues} onPick={pickIssue} />
@@ -169,7 +180,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
       </Popover>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" aria-label="Weitere Aktionen">
+          <Button ref={menuRef} variant="outline" aria-label="Weitere Aktionen">
             <FiMoreVertical />
           </Button>
         </DropdownMenuTrigger>
@@ -197,12 +208,14 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
         description="Die Website ist dann nicht mehr öffentlich erreichbar. Dein Entwurf bleibt erhalten."
         confirmLabel="Zurückziehen"
         variant="default"
+        returnFocusRef={menuRef}
         onConfirm={() => void unpublish()}
       />
       <DeleteSiteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         onConfirm={() => void remove()}
+        returnFocusRef={menuRef}
       />
     </>
   );

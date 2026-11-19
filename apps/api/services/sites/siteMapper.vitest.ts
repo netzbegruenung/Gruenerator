@@ -1,7 +1,7 @@
 import { buildSiteSnapshot } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { type UserSiteRow } from '../../database/schema/sites.js';
+import { type UserSiteRawRow, type UserSiteRow } from '../../database/schema/sites.js';
 
 import { toSite } from './siteMapper.js';
 
@@ -50,6 +50,18 @@ function publishedRow(): UserSiteRow {
 }
 
 describe('toSite', () => {
+  it('maps timestamps as drizzle raw execute returns them (strings)', () => {
+    const raw: UserSiteRawRow = {
+      ...row(),
+      created_at: '2026-11-19 10:20:36.123+00',
+      updated_at: '2026-11-19 11:20:36.123+00',
+      last_published: '2026-11-19 12:20:36+00',
+    };
+    const site = toSite(raw);
+    expect(site.created_at).toBe('2026-11-19T10:20:36.123Z');
+    expect(site.updated_at).toBe('2026-11-19T11:20:36.123Z');
+    expect(site.last_published).toBe('2026-11-19T12:20:36.000Z');
+  });
   it('serialises timestamps as ISO strings', () =>
     expect(toSite(row({ created_at: new Date('2026-11-19T10:00:00Z') })).created_at).toBe(
       '2026-11-19T10:00:00.000Z'

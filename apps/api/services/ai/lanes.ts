@@ -51,27 +51,6 @@ const MISTRAL_LARGE = 'mistral-large-4';
  *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
  *  überlebt den nächsten Wechsel als 404. */
 const GEMMA_4 = GEMMA_31B_PRIMARY.model;
-/**
- * Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
- * routes/chat/agents/providers.ts). PDF, Präsentation, Sheet und Dokument laufen
- * darauf statt auf Mistral.
- *
- * Gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
- * (langes PDF, 14-Folien-Deck): Mistral Medium 3.5 rief das Tool in keinem Lauf
- * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length`; der
- * Text-Fallback in aiObject rettete 2 von 4 Läufen. Mit größerem Budget wurde es
- * schlechter: 187 s bei 12.000 Tokens, 248 s bei 16.000, beide Male in
- * Wiederholung degeneriert. gemma4 auf GreenPT ruft `create_pdf_document` /
- * `create_presentation` sauber auf und terminiert: 10 von 10 gültig, 17–43 s.
- *
- * NICHT verallgemeinert: die anderen Struktur-Lanes sind ungemessen, und die
- * Sharepics sitzen aus einem eigenen gemessenen Grund auf Mistral.
- *
- * Voraussetzung ist das größere Output-Budget in services/ai/config.ts: bei
- * 4096 Tokens verliert ein abgeschnittener Tool-Call alles. Budget und Modell
- * gehören hier zusammen.
- */
-const GEMMA_4_GREENPT = 'gemma4';
 
 /**
  * Every routed lane. A `type` that is not here answers on `default`, and
@@ -185,11 +164,14 @@ export const AI_LANES = {
   //   answers a forced tool call with prose. That killed a PDF generation in
   //   production: two attempts, both stop_reason=stop, no tool call.
   //
-  //   `doc_generation` liegt seit dem 03.08.2026 NICHT mehr auf Mistral: dort
-  //   ruft Medium 3.5 das Tool gar nicht auf und läuft ins Token-Limit,
-  //   während Gemma 4 auf GreenPT beides richtig macht. Messwerte und
-  //   Begründung bei GEMMA_4_GREENPT oben.
-  doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
+  //   `doc_generation` liegt seit dem 03.08.2026 NICHT auf Mistral: Medium 3.5
+  //   rief das Tool in keinem Lauf auf und lief ins Token-Limit, Gemma 4 rief
+  //   `create_pdf_document` / `create_presentation` in 10 von 10 Läufen sauber
+  //   auf (gemessen auf GreenPT). Seit 19.11.2026 auf dem Gemma-Primär statt
+  //   GreenPT: dort riss der erste Versuch lokal 3 von 3 Mal das 60-s-Budget
+  //   (#5842), Melious lieferte danach in 10–14 s. Das grössere Output-Budget in
+  //   services/ai/config.ts gehört weiter dazu.
+  doc_generation: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
@@ -351,9 +333,7 @@ export function providerForModel(modelName = ''): ProviderName {
  * stand hier `'cortecs'` fest an erster Stelle, und der Wechsel auf Melious
  * hätte jede Mistral- und GreenPT-Lane weiter zuerst an Cortecs geschickt. Für
  * die Gemma-Lanes selbst ändert die Reihenfolge nichts: `laneFallback` filtert
- * den eigenen Primär heraus. Sie wirkt für die anderen — allen voran
- * `doc_generation` auf GreenPT, dessen Ausweichkette bis zum 28.08.2026 keinen
- * einzigen Host derselben Modellfamilie enthielt.
+ * den eigenen Primär heraus. Sie wirkt für die anderen, die Mistral-Lanes.
  *
  * Der Preis steht in `gemmaHosts.ts`: beide Hosts sind VORAUSBEZAHLT, ein
  * leeres Guthaben ist ein schneller Fehlschlag, und die verbleibenden Anbieter

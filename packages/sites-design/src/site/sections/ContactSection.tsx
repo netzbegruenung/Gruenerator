@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { FaEnvelope, FaPhone } from 'react-icons/fa6';
 
 import { sectionGround } from '../../model/grounds.js';
@@ -30,7 +31,9 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
     <Section
       section="contact"
       anchor={anchor}
-      ground={backdrop !== '' ? 'photo' : sectionGround(snapshot.variant, 'contact')}
+      ground={
+        backdrop !== '' ? 'photo' : sectionGround(snapshot.variant, 'contact', snapshot.locale)
+      }
       className="site:relative site:isolate site:overflow-hidden site:py-section"
     >
       {backdrop !== '' && (

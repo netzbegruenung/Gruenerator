@@ -69,7 +69,12 @@ import {
   trashAbrechnung,
 } from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
-import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
+import {
+  purgeUserSite,
+  restoreUserSite,
+  trashUserSite,
+  USER_SITE_TRASH,
+} from '../sites/userSiteTrash.js';
 import {
   STUDIO_ASSET_TRASH,
   purgeStudioAsset,
@@ -450,7 +455,7 @@ const userSiteHandler = ownedRowHandler<Titled>({
   kind: 'user_site',
   table: USER_SITE_TRASH,
   title: (row) => titled(row.title, 'Unbenannte Website'),
-  trash: (userId, id) => trashOwnedRow(USER_SITE_TRASH, userId, id),
+  trash: trashUserSite,
   restore: restoreUserSite,
   purge: purgeUserSite,
 });

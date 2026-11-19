@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { sectionGround } from '../../model/grounds.js';
 import { safeHref } from '../../model/links.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
@@ -18,7 +19,7 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
     <Section
       section="actions"
       anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'actions')}
+      ground={sectionGround(snapshot.variant, 'actions', snapshot.locale)}
       className="site:py-section"
     >
       <div className={CONTAINER}>

@@ -70,15 +70,15 @@ describe('modelSiblings', () => {
 
   /**
    * „Panda" weicht nie auf ein beliebiges Kettenmodell aus: solange GreenPTs
-   * DeepSeek-Standort ungeklärt ist (`GREENPT_DEEPSEEK_CLEARED`), ist Ultra
-   * das Geschwister.
+   * DeepSeek-Standort ungeklärt ist (`GREENPT_DEEPSEEK_CLEARED`), ist sein
+   * eigener Ausweich GLM-5.3 das Geschwister.
    */
-  it('ein zäher DeepSeek-Primär geht an Ultra, nicht an GreenPT', () => {
+  it('ein zäher DeepSeek-Primär geht an GLM-5.3, nicht an GreenPT', () => {
     configured.add('greenpt');
     markSlow('melious', 'deepseek-v4.1-flash');
     expect(pickHealthyTarget('melious', 'deepseek-v4.1-flash')).toEqual({
-      provider: 'mistral',
-      model: 'mistral-large-4',
+      provider: 'melious',
+      model: 'glm-5.3',
     });
   });
 

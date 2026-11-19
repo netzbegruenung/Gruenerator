@@ -19,6 +19,11 @@ function Fields() {
   );
 }
 
+function LateField() {
+  const { registerField } = useFieldRegistry();
+  return <input aria-label="Name" ref={(el) => registerField('legal.name', el)} />;
+}
+
 describe('useFieldRegistry', () => {
   it('focusing sections.themes.1 focuses the registered sections.themes.1.title', () => {
     render(<Fields />);
@@ -30,5 +35,11 @@ describe('useFieldRegistry', () => {
     render(<Fields />);
     act(() => useEditorStore.getState().focusPath('themes', 'sections.themes.1.content'));
     expect(screen.getByLabelText('Inhalt 2')).toHaveFocus();
+  });
+
+  it('focuses a field that registers after the request was made', () => {
+    act(() => useEditorStore.getState().focusPath('legal', 'legal.name'));
+    render(<LateField />);
+    expect(screen.getByLabelText('Name')).toHaveFocus();
   });
 });

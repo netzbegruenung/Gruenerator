@@ -26,7 +26,12 @@ import {
   statusOf,
 } from '../../../services/api-clients/nextcloudApiClient.js';
 import { extractTextFromFile } from '../../../services/document-services/DocumentProcessingService/textExtraction.js';
-import { listAllCloudRoots, nextcloudShareProvider } from '../../../services/files/index.js';
+import {
+  CloudAccessError,
+  getCloudProvider,
+  listAllCloudRoots,
+  nextcloudShareProvider,
+} from '../../../services/files/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { attachedCloudShareLinks, findCloudShareUrls } from '../services/cloudConnectionContext.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -40,6 +45,7 @@ import type {
   CloudConnectionErrorCode,
   CloudEntry,
   CloudFileProvider,
+  CloudProviderId,
   CloudRoot,
 } from '../../../services/files/index.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -109,8 +115,10 @@ export interface CloudToolCtx {
   sse: SSEWriter;
   threadId: string | null;
   sourceRegistry: SourceRegistry;
-  /** Der Anbieter, über den gelesen wird. Injiziert, damit der Test ihn fälscht. */
+  /** Ein Anbieter für ALLE Wurzeln. Injiziert, damit der Test ihn fälscht. */
   provider?: CloudFileProvider;
+  /** Anbieter je `providerId` — der Test fälscht damit mehrere. */
+  providers?: Partial<Record<CloudProviderId, CloudFileProvider>>;
   /** Alle Wurzeln der Person. Injiziert aus demselben Grund. */
   listRoots?: (userId: string) => Promise<CloudRoot[]>;
   /** Die an Notebooks gehängten Ordner. Injiziert, damit der Test ohne Qdrant
@@ -120,7 +128,7 @@ export interface CloudToolCtx {
 
 const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 const NO_CONNECTION =
-  'Für dieses Konto ist keine Wolke verbunden. Eine Verbindung entsteht über einen öffentlichen Freigabe-Link aus der Wolke — entweder unter Einstellungen → Wolke, oder hier im Chat mit action="add_connection".';
+  'Für dieses Konto ist keine Wolke verbunden (und auch kein OneDrive oder Google Drive). Eine Wolke-Verbindung entsteht über einen öffentlichen Freigabe-Link aus der Wolke — entweder unter Einstellungen → Wolke, oder hier im Chat mit action="add_connection". OneDrive (Microsoft 365) und Google Drive verbindet die Person in den Einstellungen unter Konnektoren.';
 
 /**
  * Die eine errorCode→Prosa-Stelle im Backend, ans MODELL gerichtet: sie muss
@@ -147,6 +155,24 @@ const CLOUD_ERROR_REASONS: Record<CloudConnectionErrorCode, string> = {
 
 function requireUserId(state: ChatGraphState): string | null {
   return state.agentConfig?.userId ?? null;
+}
+
+/** Wie der Anbieter in Titeln und Meldungen heißt. */
+const SERVICE_NAME: Record<CloudProviderId, string> = {
+  'nextcloud-share': 'Wolke',
+  onedrive: 'OneDrive',
+  'google-drive': 'Google Drive',
+};
+
+/**
+ * Nextcloud-Wolke: `CLOUD_ERROR_REASONS` benennt Freigabe-Links. Für die
+ * Drive-Anbieter gibt es keinen Link, nur das verbundene Konto.
+ */
+function reasonFor(root: CloudRoot, code: CloudConnectionErrorCode): string {
+  if (root.providerId === 'nextcloud-share') return CLOUD_ERROR_REASONS[code];
+  return code === 'forbidden'
+    ? 'Der Zugriff wurde abgelehnt oder ist abgelaufen. Die Person muss die Verbindung in den Einstellungen unter Konnektoren neu verbinden — sag ihr das.'
+    : 'Der Zugriff ließ sich gerade nicht prüfen.';
 }
 
 /** Anzeigename einer Wurzel — nie der Link, der ist das Zugangsmittel. */
@@ -178,7 +204,13 @@ function entryLine(entry: CloudEntry): string {
 function renderListing(
   root: CloudRoot,
   path: string,
-  listing: { entries: CloudEntry[]; folderCount: number; depthLimited: boolean; truncated: boolean }
+  listing: {
+    entries: CloudEntry[];
+    folderCount: number;
+    depthLimited: boolean;
+    truncated: boolean;
+    note?: string;
+  }
 ): Record<string, unknown> {
   const shown = listing.entries.slice(0, MAX_ENTRIES_IN_ANSWER);
   const notes: string[] = [];
@@ -195,6 +227,7 @@ function renderListing(
   if (listing.depthLimited) {
     notes.push('Tiefer liegende Unterordner wurden nicht mehr geöffnet.');
   }
+  if (listing.note) notes.push(listing.note);
   return {
     connectionId: root.connectionId,
     connection: rootLabel(root),
@@ -312,7 +345,10 @@ function chunkText(text: string): string[] {
 
 export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
   const { state, sse, threadId, sourceRegistry } = ctx;
-  const provider = ctx.provider ?? nextcloudShareProvider;
+  const providerFor = (id: CloudProviderId): CloudFileProvider =>
+    ctx.provider ?? ctx.providers?.[id] ?? getCloudProvider(id);
+  // Verbinden und Link-Prüfung gibt es nur für die Wolke (Freigabe-Links).
+  const provider = ctx.provider ?? ctx.providers?.['nextcloud-share'] ?? nextcloudShareProvider;
   const rootsOf = ctx.listRoots ?? listAllCloudRoots;
   const foldersOf = ctx.listNotebookFolders ?? listAttachedNotebookFolders;
 
@@ -334,13 +370,13 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
       : '';
 
   return tool({
-    description: `Zugriff auf die verbundene WOLKE der Person (Nextcloud-Freigaben) — Ordner durchsehen, Dateien finden und lesen.
+    description: `Zugriff auf die verbundenen Dateiablagen der Person — die WOLKE (Nextcloud-Freigaben), OneDrive (Microsoft 365) und Google Drive: Ordner durchsehen, Dateien finden und lesen.
 
-NUTZE FÜR: welche Wolke-Ordner/-Links die Person verbunden hat und an welchen Notebooks sie hängen (list_connections — beantwortet „welche Ordner sind verbunden?" vollständig, ein zweiter Aufruf ist dafür nicht nötig), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
+NUTZE FÜR: welche Ablagen (Wolke-Links, OneDrive, Google Drive) die Person verbunden hat und an welchen Notebooks sie hängen (list_connections — beantwortet „welche Ordner sind verbunden?" vollständig, ein zweiter Aufruf ist dafür nicht nötig), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
 
 NICHT für: Dateien, die in DIESER Nachricht angehängt sind (dafür 'dokumente_lesen'), eigene Grünerator-Dokumente und Tabellen (dafür 'documents'), Notebooks (dafür 'notebooks') oder das Web (dafür 'web_search').
 
-Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in der Wolke gibt es nicht. Pfade sind immer relativ zur Verbindung; nimm sie aus einer vorherigen Antwort, rate sie nie.${attachedNote}`,
+Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen gibt es nicht. Pfade sind immer relativ zur Verbindung; nimm sie aus einer vorherigen Antwort, rate sie nie. add_connection gilt nur für Wolke-Freigabe-Links. GOOGLE DRIVE ist flach und zeigt NUR Dateien, die die Person im Google-Dateiwähler ausgewählt hat — eine leere oder dünne Liste heißt „nicht ausgewählt", nie „leeres Drive"; die Antwort trägt dazu einen Hinweis, den du weitergibst. OneDrive hat echte Ordner und Pfade.${attachedNote}`,
     inputSchema: z.object({
       action: z.enum([
         'list_connections',
@@ -442,6 +478,7 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         }
         const connections = active.map((r) => ({
           connectionId: r.connectionId,
+          provider: r.providerId,
           label: rootLabel(r),
           host: r.host,
           origin: r.origin,
@@ -456,9 +493,13 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         }));
         groundText(
           sourceRegistry,
-          'Verbundene Wolke-Ordner',
+          'Verbundene Dateiablagen',
           connections
             .map((c) => {
+              if (c.provider === 'google-drive') {
+                return `${c.label} (${c.host}) — flach, nur im Google-Dateiwähler ausgewählte Dateien sichtbar`;
+              }
+              if (c.provider === 'onedrive') return `${c.label} (${c.host}) — Ordner und Dateien`;
               const attached = c.folders.length
                 ? c.folders
                     .map((f) => `${f.folderName} (${f.folderPath}) → Notebook „${f.notebook}"`)
@@ -495,22 +536,22 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
 
       try {
         if (action === 'test_connection') {
-          const result = await provider.test(root);
+          const result = await providerFor(root.providerId).test(root);
           const note = result.ok
             ? `„${rootLabel(root)}" ist erreichbar${result.entryCount != null ? ` (${result.entryCount} Einträge)` : ''}.`
-            : `„${rootLabel(root)}" antwortet nicht. ${CLOUD_ERROR_REASONS[result.errorCode ?? 'unknown']}`;
-          groundNote(sourceRegistry, 'Wolke-Verbindung geprüft', note);
+            : `„${rootLabel(root)}" antwortet nicht. ${reasonFor(root, result.errorCode ?? 'unknown')}`;
+          groundNote(sourceRegistry, `${SERVICE_NAME[root.providerId]}-Verbindung geprüft`, note);
           return { ...result, note };
         }
 
         if (action === 'list') {
-          const listing = await provider.list(root, path ?? '', { recursive });
+          const listing = await providerFor(root.providerId).list(root, path ?? '', { recursive });
           const rendered = renderListing(root, path ?? '', listing);
           groundListing(
             sourceRegistry,
-            `Wolke: ${rootLabel(root)}${path ? ` / ${path}` : ''}`,
+            `${SERVICE_NAME[root.providerId]}: ${rootLabel(root)}${path ? ` / ${path}` : ''}`,
             rendered,
-            'Der Ordner ist leer.'
+            listing.note ?? 'Der Ordner ist leer.'
           );
           return rendered;
         }
@@ -519,24 +560,24 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
           if (!name?.trim() && !extensions?.length) {
             return { error: 'find braucht einen name oder extensions.' };
           }
-          const listing = await provider.find(root, {
+          const listing = await providerFor(root.providerId).find(root, {
             ...(name?.trim() ? { name: name.trim() } : {}),
             ...(extensions?.length ? { extensions } : {}),
           });
           const rendered = renderListing(root, '', listing);
           groundListing(
             sourceRegistry,
-            `Wolke-Suche: ${name ?? extensions?.join(', ')}`,
+            `${SERVICE_NAME[root.providerId]}-Suche: ${name ?? extensions?.join(', ')}`,
             rendered,
-            'kein Treffer'
+            listing.note ? `kein Treffer. ${listing.note}` : 'kein Treffer'
           );
           return rendered;
         }
 
         // read
         if (!path?.trim()) return { error: 'read braucht einen path.' };
-        const download = await provider.read(root, path);
-        const fileName = path.split('/').filter(Boolean).pop() ?? path;
+        const download = await providerFor(root.providerId).read(root, path);
+        const fileName = download.name ?? path.split('/').filter(Boolean).pop() ?? path;
         const text = await extractTextFromFile({
           buffer: download.buffer,
           mimetype: download.mimeType ?? 'application/octet-stream',
@@ -545,7 +586,7 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         });
         if (!text.trim()) {
           const message = `Aus „${fileName}" ließ sich kein Text gewinnen — das Format wird nicht unterstützt oder die Datei ist leer.`;
-          groundNote(sourceRegistry, 'Wolke', message);
+          groundNote(sourceRegistry, SERVICE_NAME[root.providerId], message);
           return { error: message };
         }
         const chunks = chunkText(text);
@@ -574,6 +615,17 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         // Vorgangsnotiz sieht der Schreiber im split-Modus vom Fehlschlag
         // NICHTS und erfindet eine Begründung („ich kann keine externen Links
         // lesen" — live am 06.09.2026).
+        if (err instanceof CloudAccessError) {
+          const message = `${SERVICE_NAME[root.providerId]}-Zugriff auf „${rootLabel(root)}" fehlgeschlagen: ${err.message}`;
+          groundNote(
+            sourceRegistry,
+            `${SERVICE_NAME[root.providerId]}-Zugriff fehlgeschlagen`,
+            message
+          );
+          const errorCode =
+            err.kind === 'reauth' ? 'forbidden' : err.kind === 'not_found' ? 'not_found' : null;
+          return { error: message, ...(errorCode ? { errorCode } : {}) };
+        }
         const code = classifyWebdavStatus(statusOf(err));
         const detail =
           code === 'not_found'
@@ -581,8 +633,12 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
             : code === 'unknown'
               ? errMessage(err)
               : CLOUD_ERROR_REASONS[code];
-        const message = `Wolke-Zugriff auf „${rootLabel(root)}" fehlgeschlagen: ${detail}`;
-        groundNote(sourceRegistry, 'Wolke-Zugriff fehlgeschlagen', message);
+        const message = `${SERVICE_NAME[root.providerId]}-Zugriff auf „${rootLabel(root)}" fehlgeschlagen: ${detail}`;
+        groundNote(
+          sourceRegistry,
+          `${SERVICE_NAME[root.providerId]}-Zugriff fehlgeschlagen`,
+          message
+        );
         return { error: message, ...(code !== 'unknown' ? { errorCode: code } : {}) };
       }
     },

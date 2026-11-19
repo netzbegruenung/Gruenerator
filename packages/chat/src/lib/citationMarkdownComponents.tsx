@@ -43,8 +43,11 @@ export function makeCitationComponents(citationMap: Map<number, Citation>) {
     ul: ({ children }: { children?: ReactNode }) => (
       <ul className="my-2 list-disc space-y-1 pl-4">{children}</ul>
     ),
-    ol: ({ children }: { children?: ReactNode }) => (
-      <ol className="my-2 list-decimal space-y-1 pl-4">{children}</ol>
+    // `start` durchreichen: ohne ihn begann jede Liste bei 1, auch „3. Schritt …".
+    ol: ({ children, start }: { children?: ReactNode; start?: number }) => (
+      <ol start={start} className="my-2 list-decimal space-y-1 pl-4">
+        {children}
+      </ol>
     ),
     li: ({ children }: { children?: ReactNode }) => (
       <li className="leading-relaxed">{withCitations(children)}</li>

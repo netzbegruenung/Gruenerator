@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type ReactNode } from 'react';
 
 import { type PublishedSiteSnapshot, type SiteSectionId } from '@gruenerator/contracts';
@@ -48,7 +49,7 @@ export function SectionHeading({
       <h2
         id={id}
         data-field={field}
-        className={`site:text-h2 site:text-heading site:hyphens-auto site:break-words ${className}`}
+        className={`site:text-h2 site:text-heading site:hyphens-manual site:break-words ${className}`}
       >
         {children}
       </h2>

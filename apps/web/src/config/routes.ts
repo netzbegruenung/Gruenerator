@@ -1018,7 +1018,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
-  { path: '/sites', component: SitesEditPage, layoutMode: 'sidebarOnly' },
+  { path: '/sites', component: SitesEditPage, layoutMode: 'immersive' },
   { path: '/sites/login', component: SitesLegacyRedirect, layoutMode: 'immersive', public: true },
   { path: '/sites/demo', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
   { path: '/sites/edit', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },

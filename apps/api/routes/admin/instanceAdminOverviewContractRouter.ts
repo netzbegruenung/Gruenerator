@@ -12,6 +12,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getAppBundleUsage } from '../../services/appBundles/appBundleUsage.js';
+import { closeSiteRooms } from '../../services/sites/userSiteTrash.js';
 import { isPandaEntitled } from '../../services/user/pandaEntitlement.js';
 import { isSitesEntitled } from '../../services/user/sitesEntitlement.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
@@ -161,6 +162,14 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
           status: 404 as const,
           body: { success: false, message: 'Nutzer:in nicht gefunden.' },
         };
+      }
+
+      if (!enabled) {
+        const live = await postgres.query<{ id: string }>(
+          'SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
+          [userId]
+        );
+        void closeSiteRooms(live.map((r) => r.id));
       }
 
       log.info(

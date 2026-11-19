@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@gruenerator/ui';
+import { type RefObject } from 'react';
 
 interface ConfirmAlertProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface ConfirmAlertProps {
   confirmLabel: string;
   variant?: 'default' | 'destructive';
   onConfirm: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export function ConfirmAlert({
@@ -27,10 +29,20 @@ export function ConfirmAlert({
   confirmLabel,
   variant = 'destructive',
   onConfirm,
+  returnFocusRef,
 }: ConfirmAlertProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent
+        onCloseAutoFocus={(e) => {
+          // The menu item that opened this is unmounted; Radix would drop focus on <body>.
+          const target = returnFocusRef?.current;
+          if (target?.isConnected) {
+            e.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -50,9 +62,15 @@ interface DeleteSiteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
-export function DeleteSiteDialog({ open, onOpenChange, onConfirm }: DeleteSiteDialogProps) {
+export function DeleteSiteDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  returnFocusRef,
+}: DeleteSiteDialogProps) {
   return (
     <ConfirmAlert
       open={open}
@@ -61,6 +79,7 @@ export function DeleteSiteDialog({ open, onOpenChange, onConfirm }: DeleteSiteDi
       description="Die Website ist sofort offline und liegt 30 Tage im Papierkorb."
       confirmLabel="Löschen"
       onConfirm={onConfirm}
+      returnFocusRef={returnFocusRef}
     />
   );
 }

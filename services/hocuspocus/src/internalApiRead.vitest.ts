@@ -20,6 +20,7 @@ describe('GET /internal/canvas/:id/state', () => {
     vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
     const app = express();
     registerInternalApi(app, {
+      db: async () => [],
       server: {
         hocuspocus: { documents: new Map(doc && live ? [['doc-1', doc]] : []) },
       } as unknown as Parameters<typeof registerInternalApi>[1]['server'],

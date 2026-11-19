@@ -28,6 +28,7 @@ export function siteCopy(locale: SupportedLocale) {
     poweredBy: 'Erstellt mit dem Grünerator',
     backHome: 'Zur Startseite',
     themesScroller: 'Themen, seitlich scrollbar',
+    heroGreeting: 'Hallo, ich bin ',
     emptyName: 'Dein Name',
     emptyAbout: 'Erzähl hier, wer du bist.',
     emptyThemes: 'Noch keine Themen',

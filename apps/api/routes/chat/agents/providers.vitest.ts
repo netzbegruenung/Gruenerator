@@ -10,6 +10,7 @@ import {
   isUnifiedGemma,
   resolveModelTuple,
   unifiedFallbackStages,
+  loopLaneTargets,
   resolveLoopLaneChain,
 } from './providers.js';
 import {
@@ -19,7 +20,11 @@ import {
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
 import { _resetModelHealthForTests, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
-import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
+import {
+  PANDA_FALLBACK_MODEL,
+  PANDA_LANE_MODEL,
+  isExcludedTextModel,
+} from '../../../services/ai/textModelPolicy.js';
 
 import {
   LOOP_SYNTH_FALLBACK,
@@ -461,6 +466,33 @@ describe('resolveLoopLaneChain', () => {
     ]);
   });
 
+  it('Panda: DeepSeek, dahinter sein eigener Ausweich GLM-5.3, dann Gemma :speed', () => {
+    _resetModelHealthForTests();
+    expect(ids(resolveLoopLaneChain('melious', PANDA_LANE_MODEL))).toEqual([
+      `melious/${PANDA_LANE_MODEL}`,
+      `melious/${PANDA_FALLBACK_MODEL}`,
+      'melious/gemma-4-31b:speed',
+    ]);
+  });
+
+  /**
+   * Die China-Sperre in den Loop-Ketten: GLM-5.3 ist der Ausweich von Panda
+   * und von niemandem sonst. Jede wählbare Lane wird durchgegangen, damit ein
+   * neuer Zweig in `resolveLoopLaneChain` das Modell nicht still weiterreicht.
+   */
+  it('kein gesperrtes Modell in der Loop-Kette einer anderen Lane als Panda', () => {
+    _resetModelHealthForTests();
+    const leaks = Object.entries(AVAILABLE_MODELS)
+      .filter(([id, config]) => id !== 'gruenerator-panda' && config.kind === 'single')
+      .flatMap(([id, config]) =>
+        loopLaneTargets(config.provider, config.model)
+          .map((t) => `${t.provider}/${t.model}`)
+          .filter((stage) => isExcludedTextModel(stage))
+          .map((stage) => `${id} → ${stage}`)
+      );
+    expect(leaks).toEqual([]);
+  });
+
   it('ein zäher Mistral bleibt vorn — die Wahl Ultra wechselt nur, wenn er schweigt', () => {
     _resetModelHealthForTests();
     recordSlowVerdict('mistral', 'mistral-large-4', 'test');
@@ -484,6 +516,13 @@ describe("getRepairWriterFallback (sibling = next stage of the writer's lane cha
     const s = sibling(provider, name);
     expect(s?.name).toBe(expected);
     expect(s?.contextWindow).toBe(GEMMA_31B_ON_MELIOUS.contextWindow);
+  });
+
+  it("Panda's writer falls back to GLM-5.3 with its measured window", () => {
+    _resetModelHealthForTests();
+    const s = sibling('melious', PANDA_LANE_MODEL);
+    expect(s?.name).toBe(PANDA_FALLBACK_MODEL);
+    expect(s?.contextWindow).toBe(513_000);
   });
 
   it('a slow :balanced writer still gets :speed, not itself', () => {

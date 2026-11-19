@@ -26,6 +26,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useDocumentTitle } from '../../../components/hooks/useDocumentTitle';
 import { useAuthStore } from '../../../stores/authStore';
 import { whenIdle } from '../../../utils/whenIdle';
 import { useModelPreferences } from '../../models/hooks/useModelPreferences';
@@ -139,6 +140,7 @@ export const NotebookPageContent = ({
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
   const systemCollectionId = isSingleSystem ? config.collections[0].id : null;
   const locale = useAuthStore((state) => state.locale);
+  useDocumentTitle(config.title);
   // Die Reihe, die sich Unterhaltung und Quellenleser teilen — das Panel misst
   // sie, um zwischen Spalte und Sheet zu entscheiden.
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -450,6 +452,9 @@ export const NotebookPageContent = ({
             </AuiIf>
             <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
+                {/* Die Startseite trägt den Namen als h1; im Gespräch fehlte jede
+                    Überschrift, Screenreader fanden keinen Einstieg. */}
+                <h1 className="sr-only">{config.title}</h1>
                 <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
                     <ThreadPrimitive.Messages
@@ -590,7 +595,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     collectionType: 'single',
     collections: [{ id: collection.id, name: collection.name }],
     startPageTitle: collection.name || 'Notebook',
-    placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
+    placeholder: 'Stell eine Frage zu den Dokumenten …',
     headerIcon: () => null,
     exampleQuestions: [],
     persistMessages: true,
