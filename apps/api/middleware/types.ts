@@ -42,13 +42,6 @@ export interface RateLimitRequest extends AuthenticatedRequest {
   rateLimitError?: Error | undefined;
 }
 
-/**
- * Request with subdomain information
- */
-export interface SubdomainRequest extends AuthenticatedRequest {
-  subdomain?: string | undefined;
-}
-
 // ============================================================================
 // Middleware-specific Types
 // ============================================================================
@@ -69,37 +62,6 @@ export interface RateLimitStatus {
   userType?: string | undefined;
   identifier?: string | undefined;
   development?: boolean | undefined;
-}
-
-/**
- * User site data for subdomain handler
- * Matches the UserSite type from routes/sites/types.ts
- */
-export interface UserSiteData {
-  id: string;
-  user_id: string;
-  subdomain: string;
-  site_title: string;
-  tagline?: string | undefined;
-  bio?: string | undefined;
-  contact_email?: string | undefined;
-  social_links?: Record<string, string> | undefined;
-  accent_color?: string | undefined;
-  theme?: string | undefined;
-  profile_image?: string | undefined;
-  background_image?: string | undefined;
-  sections?: Array<{
-    type: 'text' | 'contact' | string;
-    title?: string | undefined;
-    content?: string | undefined;
-  }>;
-  meta_description?: string | undefined;
-  meta_keywords?: string[] | undefined;
-  is_published: boolean;
-  last_published?: string | undefined;
-  visit_count?: number | undefined;
-  created_at: string;
-  updated_at: string;
 }
 
 /**
