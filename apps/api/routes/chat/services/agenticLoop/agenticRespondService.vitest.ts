@@ -517,6 +517,24 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     }
   });
 
+  it('hängt an einen abgebrochenen Halbtext den Abbruch-Hinweis (#5365)', async () => {
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ provider: 'mistral' });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Frage 3: Wir wollen die Konzentration');
+      const err = new Error('stream aborted');
+      err.name = 'AbortError';
+      throw err;
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+    expect(outcome.degraded).toBe('aborted');
+    expect(outcome.fullText).toMatch(/^Frage 3: Wir wollen die Konzentration/);
+    expect(outcome.fullText).toContain('die Antwort ist unvollständig');
+  });
+
   it('fehlt bei einer echten Antwort', async () => {
     const { sse } = fakeSse();
     const outcome = await streamAgenticResponse(
