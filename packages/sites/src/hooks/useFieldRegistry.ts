@@ -25,26 +25,34 @@ function resolveField(path: string): FieldElement | null {
   return null;
 }
 
+function focusRequested(request: FocusedField): void {
+  if (handled === request) return;
+  const element = resolveField(request.path);
+  if (!element) return;
+  handled = request;
+  element.focus({ preventScroll: true });
+  element.scrollIntoView?.({
+    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    block: 'center',
+  });
+}
+
 export function useFieldRegistry() {
   const focusedField = useEditorStore((s) => s.focusedField);
   const clearFocus = useEditorStore((s) => s.clearFocus);
   const setHighlightedElement = useEditorStore((s) => s.setHighlightedElement);
 
   const registerField = useCallback((path: string, element: FieldElement | null) => {
-    if (element) fields.set(path, element);
-    else fields.delete(path);
+    if (element) {
+      fields.set(path, element);
+      // The panel behind a request may mount after the request was made.
+      const request = useEditorStore.getState().focusedField;
+      if (request) focusRequested(request);
+    } else fields.delete(path);
   }, []);
 
   useEffect(() => {
-    if (!focusedField || handled === focusedField) return;
-    const element = resolveField(focusedField.path);
-    if (!element) return;
-    handled = focusedField;
-    element.focus({ preventScroll: true });
-    element.scrollIntoView?.({
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-      block: 'center',
-    });
+    if (focusedField) focusRequested(focusedField);
   }, [focusedField]);
 
   const handleFieldFocus = useCallback(

@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type PublishedSiteSnapshot } from '@gruenerator/contracts';
 
 import { siteFontFaceCss, siteFontPreloads, type SiteFontFile } from '../model/fonts.js';

@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { sectionGround } from '../../model/grounds.js';
 import { safeHref } from '../../model/links.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';

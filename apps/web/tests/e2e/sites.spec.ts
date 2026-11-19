@@ -184,7 +184,7 @@ test.describe('Sites: Editor', () => {
       await input.press('End');
       await input.pressSequentially(' Neu');
 
-      await expect(page.getByText('Änderungen nicht veröffentlicht')).toBeVisible();
+      await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
       await expect(page.getByText('Live', { exact: true })).toBeVisible();
       expect(state.snapshot?.site_title).toBe(`${GENERATED.hero.heading} Neu`);

@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { FaEnvelope, FaPhone } from 'react-icons/fa6';
 
 import { sectionGround } from '../../model/grounds.js';

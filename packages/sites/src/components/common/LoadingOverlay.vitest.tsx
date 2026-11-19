@@ -22,11 +22,13 @@ describe('LoadingOverlay', () => {
     expect(items[2]).not.toHaveTextContent('erledigt');
   });
 
-  it('shows the share of finished steps', () => {
+  it('counts the running step as half done', () => {
     const { rerender } = render(
-      <LoadingOverlay isLoading message="m" steps={['write', 'images']} current="images" />
+      <LoadingOverlay isLoading message="m" steps={['write', 'images']} current="write" />
     );
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25');
+    rerender(<LoadingOverlay isLoading message="m" steps={['write', 'images']} current="images" />);
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
     rerender(<LoadingOverlay isLoading message="m" steps={['write', 'images']} current={null} />);
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
   });
