@@ -1,0 +1,175 @@
+/**
+ * One correction round on a plan, without a model: the ops of
+ * contracts/videoAi.ts in a fixed order. Sentence changes first (addressed by
+ * unit id, so their order within the round does not matter; `set_hook` last
+ * of them; the cut is then `edl.hook` first and the rest in spoken order),
+ * then overlay changes (addressed by index in the plan before the round).
+ * Overlays are anchored by unit id and keep their sentence: removing the
+ * sentence under an overlay moves it to the next surviving one.
+ *
+ * The result is NOT validated here — the caller runs validateEdl, exactly as
+ * for the first cut, so a round can never produce what the first cut may not.
+ */
+import {
+  videoAiOverlaySchema,
+  type VideoAiEdl,
+  type VideoAiOp,
+  type VideoAiSegment,
+} from '@gruenerator/contracts';
+
+import { pulledHook, spokenBefore, type TranscriptUnit } from './transcriptUnits.js';
+
+export type OpsResult =
+  { ok: true; edl: VideoAiEdl; omitted: Record<string, string> } | { ok: false; error: string };
+
+export interface OpsContext {
+  units: ReadonlyMap<string, TranscriptUnit>;
+  /** The "Rausgeschnitten" list of the plan before the round. */
+  omitted: Readonly<Record<string, string>>;
+  /** Reason the round gives for a sentence it takes out. */
+  removedReason: string;
+}
+
+const bySpokenOrder = (a: VideoAiSegment, b: VideoAiSegment): number =>
+  spokenBefore(a.unitId, b.unitId) ? -1 : spokenBefore(b.unitId, a.unitId) ? 1 : 0;
+
+export function applyOps(edl: VideoAiEdl, ops: readonly VideoAiOp[], ctx: OpsContext): OpsResult {
+  const omitted: Record<string, string> = { ...ctx.omitted };
+  const originalOrder = edl.segments.map((s) => s.unitId);
+  let segments = edl.segments.map((s) => ({ ...s }));
+  const find = (unitId: string) => segments.findIndex((s) => s.unitId === unitId);
+
+  // The hook is state of the plan, not something read off the list order:
+  // plans stored before `hook` existed get it inferred once, here.
+  let hook: string | null = edl.hook === null ? null : (edl.hook ?? pulledHook(originalOrder));
+
+  for (const op of ops) {
+    if (op.kind === 'remove_segment') {
+      if (find(op.unitId) < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
+      segments = segments.filter((s) => s.unitId !== op.unitId);
+      omitted[op.unitId] = ctx.removedReason;
+      if (hook === op.unitId) hook = null;
+    } else if (op.kind === 'restore_unit') {
+      if (!ctx.units.has(op.unitId)) return { ok: false, error: `${op.unitId} gibt es nicht.` };
+      if (find(op.unitId) >= 0) continue;
+      segments.push({ unitId: op.unitId, framing: null, zoom: 'normal' });
+      delete omitted[op.unitId];
+    } else if (op.kind === 'swap_take') {
+      const i = find(op.unitId);
+      if (i < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
+      if (!ctx.units.has(op.withUnitId)) {
+        return { ok: false, error: `${op.withUnitId} gibt es nicht.` };
+      }
+      segments[i] = { ...segments[i], unitId: op.withUnitId };
+      omitted[op.unitId] = ctx.removedReason;
+      delete omitted[op.withUnitId];
+      if (hook === op.unitId) hook = op.withUnitId;
+    } else if (op.kind === 'set_framing' || op.kind === 'set_zoom') {
+      const i = find(op.unitId);
+      if (i < 0) return { ok: false, error: `${op.unitId} ist nicht im Schnitt.` };
+      segments[i] =
+        op.kind === 'set_framing'
+          ? { ...segments[i], framing: op.framing }
+          : { ...segments[i], zoom: op.zoom };
+    }
+  }
+  if (segments.length === 0) return { ok: false, error: 'Mindestens ein Satz muss bleiben.' };
+
+  // After the other sentence ops, so a sentence restored in the same round
+  // can be the hook. The last one wins.
+  let setHook: Extract<VideoAiOp, { kind: 'set_hook' }> | null = null;
+  for (const op of ops) if (op.kind === 'set_hook') setHook = op;
+  if (setHook) {
+    if (setHook.unitId !== null && find(setHook.unitId) < 0) {
+      return { ok: false, error: `${setHook.unitId} ist nicht im Schnitt.` };
+    }
+    hook = setHook.unitId;
+  }
+  if (hook !== null && find(hook) < 0) hook = null;
+
+  // Hook first, the rest in spoken order — whatever order the ops came in.
+  segments.sort(bySpokenOrder);
+  if (hook !== null) segments.unshift(...segments.splice(find(hook), 1));
+
+  // Existing overlays follow their sentence (or the take swapped in for it);
+  // a removed one hands over to the next surviving sentence of the old order,
+  // or the last segment.
+  const swapped = new Map<string, string>();
+  for (const op of ops) if (op.kind === 'swap_take') swapped.set(op.unitId, op.withUnitId);
+  const surviving = (unitId: string): string => {
+    for (let i = Math.max(0, originalOrder.indexOf(unitId)); i < originalOrder.length; i++) {
+      const id = swapped.get(originalOrder[i]) ?? originalOrder[i];
+      if (find(id) >= 0) return id;
+    }
+    return segments[segments.length - 1].unitId;
+  };
+  // The opening title belongs to the opening, not to its sentence: when
+  // set_hook puts another unit first, it moves to the new first one.
+  const openingChanged = setHook !== null && segments[0].unitId !== originalOrder[0];
+  const follow = (o: VideoAiEdl['overlays'][number], unitId: string): string =>
+    openingChanged && o.kind === 'titel' && o.preset === 'hook' && unitId === originalOrder[0]
+      ? segments[0].unitId
+      : surviving(unitId);
+
+  const removed = new Set<number>();
+  const updated = new Map<number, VideoAiEdl['overlays'][number]>();
+  for (const op of ops) {
+    if (op.kind !== 'remove_overlay' && op.kind !== 'update_overlay') continue;
+    if (op.index >= edl.overlays.length) {
+      return { ok: false, error: `Einblendung ${op.index} gibt es nicht.` };
+    }
+    if (op.kind === 'remove_overlay') {
+      removed.add(op.index);
+      continue;
+    }
+    const merged = videoAiOverlaySchema.safeParse({ ...edl.overlays[op.index], ...op.overlay });
+    if (!merged.success) {
+      return {
+        ok: false,
+        error: `Einblendung ${op.index}: ${merged.error.issues.map((x) => `${x.path.join('.')} ${x.message}`).join('; ')}`,
+      };
+    }
+    // Moved by the round: it stays where it was put.
+    updated.set(op.index, merged.data);
+    if ('atUnit' in op.overlay) continue;
+    const o = merged.data;
+    if ('atUnit' in o) updated.set(op.index, { ...o, atUnit: follow(o, o.atUnit) });
+  }
+  const overlays: VideoAiEdl['overlays'] = [];
+  edl.overlays.forEach((o, i) => {
+    if (removed.has(i)) return;
+    const replacement = updated.get(i);
+    if (replacement) overlays.push(replacement);
+    else overlays.push('atUnit' in o ? { ...o, atUnit: follow(o, o.atUnit) } : o);
+  });
+  for (const op of ops) if (op.kind === 'add_overlay') overlays.push(op.overlay);
+
+  let captions = edl.captions;
+  let music = edl.music ?? null;
+  let captionFixes = [...(edl.captionFixes ?? [])];
+  for (const op of ops) {
+    if (op.kind === 'set_captions') {
+      captions = { enabled: op.enabled, template: op.template ?? captions.template ?? null };
+    } else if (op.kind === 'set_music') {
+      music = op.music;
+    } else if (op.kind === 'set_caption_text') {
+      const unit = ctx.units.get(op.unitId);
+      if (!unit?.words.some((w) => Math.abs(w.start - op.start) < 0.01)) {
+        return {
+          ok: false,
+          error: `Bei ${op.start.toFixed(2)} s in ${op.unitId} steht kein Wort.`,
+        };
+      }
+      captionFixes = captionFixes.filter(
+        (f) => !(f.unitId === op.unitId && Math.abs(f.start - op.start) < 0.01)
+      );
+      captionFixes.push({ unitId: op.unitId, start: op.start, text: op.text });
+    }
+  }
+
+  return {
+    ok: true,
+    edl: { ...edl, segments, hook, overlays, captions, music, captionFixes },
+    omitted,
+  };
+}
