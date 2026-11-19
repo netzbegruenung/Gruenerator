@@ -590,7 +590,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     collectionType: 'single',
     collections: [{ id: collection.id, name: collection.name }],
     startPageTitle: collection.name || 'Notebook',
-    placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
+    placeholder: 'Stell eine Frage zu den Dokumenten …',
     headerIcon: () => null,
     exampleQuestions: [],
     persistMessages: true,
