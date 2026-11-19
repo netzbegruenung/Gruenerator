@@ -621,6 +621,7 @@ export const checkSubdomainResponseSchema = z.object({
   available: z.boolean(),
   reason: z.enum(['invalid', 'reserved']).optional(),
 });
+export type CheckSubdomainResponse = z.infer<typeof checkSubdomainResponseSchema>;
 
 export const deleteSiteResponseSchema = z.object({ success: z.boolean() });
 

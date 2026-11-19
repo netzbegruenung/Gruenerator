@@ -16,7 +16,8 @@ import { useToast } from '../hooks/useToast';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import { useAuth } from '../SitesContext';
 import { handleApiError } from '../utils/errorHandler';
-import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
+import { nameToSubdomain } from '../utils/sanitization';
+import { formatAddress } from '../utils/siteAddress';
 import { validators } from '../utils/validation';
 
 function generatedToSource(data: GeneratedSiteData, contactEmail: string): SiteSnapshotSource {
@@ -182,7 +183,8 @@ export function CreateFlow() {
       <>
         <CreateSiteScreen
           subdomain={subdomain}
-          onSubdomainChange={(v) => setSubdomainInput(sanitizeSubdomain(v))}
+          publicOrigin={publicOrigin}
+          onSubdomainChange={setSubdomainInput}
           description={description}
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
@@ -196,9 +198,7 @@ export function CreateFlow() {
     );
   }
 
-  const address = publicOrigin
-    ? `${publicOrigin.replace(/^https?:\/\//, '')}/${subdomain}`
-    : subdomain;
+  const address = formatAddress(publicOrigin, subdomain);
 
   return (
     <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
