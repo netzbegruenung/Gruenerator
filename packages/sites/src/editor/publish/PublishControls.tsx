@@ -69,7 +69,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
     setBusy(true);
     setServerIssues(null);
     try {
-      const legal = await settleLegalSave();
+      const legal = await settleLegalSave(site.id);
       if (!legal.ok) {
         toast.error('Impressum nicht gespeichert', NOT_SAVED_MESSAGE);
         return;

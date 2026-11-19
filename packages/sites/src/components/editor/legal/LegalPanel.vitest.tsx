@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -5,10 +6,15 @@ const hoisted = vi.hoisted(() => ({
   site: { current: {} as Record<string, unknown> },
   updateSite: vi.fn(),
   locale: { current: 'de-DE' },
+  toastError: vi.fn(),
 }));
 
 vi.mock('../../../hooks/useSite', () => ({
   useSite: () => ({ site: hoisted.site.current, updateSite: hoisted.updateSite }),
+}));
+vi.mock('@gruenerator/ui', async (orig) => ({
+  ...(await orig<typeof import('@gruenerator/ui')>()),
+  toast: { error: hoisted.toastError },
 }));
 vi.mock('../../../SitesContext', () => ({
   useAuth: () => ({ user: { id: 'u1', locale: hoisted.locale.current } }),
@@ -16,8 +22,14 @@ vi.mock('../../../SitesContext', () => ({
 
 import { LegalPanel } from './LegalPanel';
 
+const client = new QueryClient();
+
 function setup() {
-  return render(<LegalPanel />);
+  return render(
+    <QueryClientProvider client={client}>
+      <LegalPanel />
+    </QueryClientProvider>
+  );
 }
 
 const blur = (label: string) => fireEvent.blur(screen.getByLabelText(label));
@@ -29,6 +41,7 @@ describe('LegalPanel', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     hoisted.updateSite.mockReset().mockResolvedValue({});
+    hoisted.toastError.mockReset();
     hoisted.locale.current = 'de-DE';
     hoisted.site.current = { id: 's1', legal: null };
   });
@@ -139,5 +152,62 @@ describe('LegalPanel', () => {
     expect(hoisted.updateSite).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText('Gespeichert')).toBeInTheDocument();
+  });
+
+  it('reopening before the refetch keeps the newest value and sends the merged object', async () => {
+    hoisted.site.current = { id: 's-reopen', legal: null };
+    let release: () => void = () => {};
+    hoisted.updateSite.mockImplementationOnce(
+      () => new Promise<object>((res) => (release = () => res({})))
+    );
+    const first = setup();
+    type('Name', 'Anna');
+    first.unmount();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(hoisted.updateSite).toHaveBeenCalledTimes(1);
+
+    setup();
+    expect(screen.getByLabelText('Name')).toHaveValue('Anna');
+    type('Ort', 'Wien');
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    expect(hoisted.updateSite).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(hoisted.updateSite).toHaveBeenCalledTimes(2);
+    expect(hoisted.updateSite).toHaveBeenLastCalledWith({
+      id: 's-reopen',
+      data: { legal: { name: 'Anna', city: 'Wien' } },
+    });
+  });
+
+  it('a failed unmount save is surfaced, keeps the value and is retried from the reopened panel', async () => {
+    hoisted.site.current = { id: 's-fail', legal: null };
+    hoisted.updateSite.mockRejectedValueOnce(new Error('offline'));
+    const first = setup();
+    type('Name', 'Anna');
+    first.unmount();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(hoisted.toastError).toHaveBeenCalledWith(
+      'Impressum nicht gespeichert',
+      expect.stringContaining('Impressum')
+    );
+
+    setup();
+    expect(screen.getByLabelText('Name')).toHaveValue('Anna');
+    expect(screen.getByRole('alert')).toHaveTextContent('Speichern fehlgeschlagen');
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(hoisted.updateSite).toHaveBeenLastCalledWith({
+      id: 's-fail',
+      data: { legal: { name: 'Anna' } },
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not carry a failed save over to another site', async () => {
+    hoisted.site.current = { id: 's-other', legal: null };
+    setup();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText('Name')).toHaveValue('');
   });
 });

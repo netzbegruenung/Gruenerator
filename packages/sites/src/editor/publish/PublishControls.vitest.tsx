@@ -28,7 +28,7 @@ vi.mock('../../SitesContext', () => ({
 }));
 
 import { BASE_DRAFT } from '../../draft/testDoc';
-import { registerLegalFlusher, trackLegalSave } from '../../hooks/legalSaveGate';
+import { enqueueLegalSave, registerLegalFlusher } from '../../hooks/legalSaveGate';
 import { SitePublishError, type SiteData } from '../../hooks/useSite';
 import { useEditorStore } from '../../stores/editorStore';
 import { renderWithDraft } from '../../test/renderWithDraft';
@@ -91,7 +91,7 @@ describe('PublishControls', () => {
   });
   afterEach(async () => {
     vi.useRealTimers();
-    await trackLegalSave(Promise.resolve(true));
+    await enqueueLegalSave('s1', () => Promise.resolve(true));
   });
 
   it('shows the badge and button for each state', () => {
@@ -157,7 +157,7 @@ describe('PublishControls', () => {
   it('waits for a pending Impressum save before publishing', async () => {
     let finish: (ok: boolean) => void = () => {};
     const unregister = registerLegalFlusher(() => {
-      void trackLegalSave(new Promise<boolean>((resolve) => (finish = resolve)));
+      void enqueueLegalSave('s1', () => new Promise<boolean>((resolve) => (finish = resolve)));
     });
     const { user } = setup(site());
     await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
@@ -170,7 +170,7 @@ describe('PublishControls', () => {
 
   it('does not publish when the Impressum save failed', async () => {
     const unregister = registerLegalFlusher(() => {
-      void trackLegalSave(Promise.resolve(false));
+      void enqueueLegalSave('s1', () => Promise.resolve(false));
     });
     const { user } = setup(site());
     await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
