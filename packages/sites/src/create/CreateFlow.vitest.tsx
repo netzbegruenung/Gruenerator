@@ -1,13 +1,15 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SitesApiError } from '../utils/errorHandler';
 import { SiteGenerationError } from '../generation/siteGenerationStream';
 
 const m = vi.hoisted(() => ({
   createSite: vi.fn(),
   generate: vi.fn(),
   cancel: vi.fn(),
+  toastError: vi.fn(),
   gen: {
     steps: [] as string[],
     current: null as string | null,
@@ -30,7 +32,7 @@ vi.mock('../hooks/useSiteGeneration', () => ({
   useSiteGeneration: () => ({ generate: m.generate, cancel: m.cancel, ...m.gen }),
 }));
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn() }),
+  useToast: () => ({ success: vi.fn(), error: m.toastError }),
 }));
 vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> }));
 vi.mock('../components/CreateSiteScreen', () => ({
@@ -73,6 +75,7 @@ describe('CreateFlow', () => {
   beforeEach(() => {
     m.createSite.mockReset().mockResolvedValue({});
     m.generate.mockReset();
+    m.toastError.mockReset();
     m.gen.steps = [];
     m.gen.current = null;
     m.gen.isGenerating = false;
@@ -128,5 +131,20 @@ describe('CreateFlow', () => {
     await fillAndGenerate();
     expect(await screen.findByRole('alert')).toHaveTextContent('Nicht lesbar.');
     expect(screen.queryByRole('button', { name: 'Noch einmal versuchen' })).toBeNull();
+  });
+
+  it('shows no error toast for a consent 403', async () => {
+    m.generate.mockRejectedValue(new SitesApiError(403, 'E', true));
+    await fillAndGenerate();
+    await waitFor(() => expect(m.generate).toHaveBeenCalled());
+    expect(m.toastError).not.toHaveBeenCalled();
+  });
+
+  it('still toasts a plain 403', async () => {
+    m.generate.mockRejectedValue(new SitesApiError(403, 'E'));
+    await fillAndGenerate();
+    await waitFor(() =>
+      expect(m.toastError).toHaveBeenCalledWith('Keine Berechtigung', expect.any(String))
+    );
   });
 });

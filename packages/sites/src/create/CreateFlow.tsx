@@ -16,7 +16,7 @@ import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import { useAuth } from '../SitesContext';
-import { handleApiError } from '../utils/errorHandler';
+import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { formatAddress } from '../utils/siteAddress';
 import { validators } from '../utils/validation';
@@ -98,7 +98,7 @@ export function CreateFlow() {
       console.error('Generate failed:', err);
       if (err instanceof SiteGenerationError) {
         setFailure({ message: err.message, retryable: err.retryable, input });
-      } else {
+      } else if (!(err instanceof SitesApiError && err.consentRequired)) {
         handleApiError(err, toast);
       }
     }

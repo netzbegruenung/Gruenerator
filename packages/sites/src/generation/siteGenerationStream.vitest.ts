@@ -139,6 +139,7 @@ describe('streamSiteGeneration', () => {
     const err = await run().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(SitesApiError);
     expect((err as SitesApiError).status).toBe(403);
+    expect((err as SitesApiError).consentRequired).toBe(true);
     expect(notifyAiConsentRequired).toHaveBeenCalledTimes(1);
   });
 

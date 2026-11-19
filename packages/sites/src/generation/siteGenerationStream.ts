@@ -68,11 +68,13 @@ function interrupted(err: unknown): unknown {
 
 async function failureFromResponse(response: Response): Promise<SitesApiError> {
   const body = (await response.json().catch(() => null)) as unknown;
-  if (response.status === 403 && isAiConsentRequiredBody(body)) notifyAiConsentRequired();
+  const consentRequired = response.status === 403 && isAiConsentRequiredBody(body);
+  if (consentRequired) notifyAiConsentRequired();
   const message = (body as { error?: unknown } | null)?.error;
   return new SitesApiError(
     response.status,
-    typeof message === 'string' && message ? message : FALLBACK_MESSAGE
+    typeof message === 'string' && message ? message : FALLBACK_MESSAGE,
+    consentRequired
   );
 }
 
