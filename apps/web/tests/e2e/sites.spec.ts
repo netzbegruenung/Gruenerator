@@ -63,6 +63,8 @@ test.describe('Sites: Zugang und Anlegen', () => {
 
     await page.goto('/start/arbeiten');
     const tools = page.locator('[data-tour="arbeiten-tools"]');
+    // Cold first navigation can take longer than the default 5 s expect timeout.
+    await expect(tools).toBeVisible({ timeout: 15_000 });
     await expect(tools.getByRole('link', { name: /Projekte/ })).toBeVisible();
     await expect(tools.getByRole('link', { name: /Sites/ })).toHaveCount(0);
 

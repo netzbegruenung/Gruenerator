@@ -146,6 +146,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
     cloudConnectionCount: input.cloudConnectionCount ?? 0,
+    atlassianConnections: input.atlassianConnections ?? { jira: false, confluence: false },
     pdfFormAttachments: input.pdfFormAttachments || [],
     turnTabularTexts: input.turnTabularTexts ?? [],
     clientCanRunPython: input.clientCanRunPython ?? false,
