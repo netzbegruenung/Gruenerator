@@ -36,6 +36,9 @@ const ownerAuth = {
   }),
 } as unknown as AuthService;
 
+/** `user_sites` lookup double: the site is live. */
+const liveSiteDb = async () => [{ '?column?': 1 }];
+
 function seedUpdate(title: string): Uint8Array {
   const doc = new Y.Doc();
   doc.getMap('siteMeta').set('title', title);
@@ -50,6 +53,7 @@ describe('site rooms: a client never edits an unseeded draft', () => {
       host: '127.0.0.1',
       persistence,
       auth: ownerAuth,
+      db: liveSiteDb,
     });
     const authenticate = () => {
       const connectionConfig = { readOnly: true, isAuthenticated: false };
@@ -115,5 +119,54 @@ describe('site rooms: a client never edits an unseeded draft', () => {
       expect(doc.getMap('siteMeta').get('title')).toBe('Erste');
     });
     await connection.disconnect();
+  });
+});
+
+describe('site rooms: a store never resurrects a trashed or purged site', () => {
+  const SQL_LIVE = 'SELECT 1 FROM user_sites WHERE id = $1 AND deleted_at IS NULL LIMIT 1';
+
+  function setup(live: boolean) {
+    const { rows, persistence } = memoryPersistence();
+    const queries: { sql: string; params: unknown[] | undefined }[] = [];
+    const server = createHocuspocusServer({
+      port: 0,
+      host: '127.0.0.1',
+      persistence,
+      auth: ownerAuth,
+      db: async (sql, params) => {
+        queries.push({ sql, params });
+        return live ? [{ '?column?': 1 }] : [];
+      },
+    });
+    const closes: { code: number; reason: string }[] = [];
+    const connection = () => ({
+      close: (event: { code: number; reason: string }) => void closes.push(event),
+      webSocket: { close: () => {} },
+      context: {},
+    });
+    const document = new Y.Doc() as Y.Doc & { getConnections: () => unknown[] };
+    document.getMap('siteMeta').set('title', 'Entwurf');
+    document.getConnections = () => [connection(), connection()];
+    server.hocuspocus.documents.set(ROOM, document as never);
+    const store = () =>
+      server.hocuspocus.hooks('onStoreDocument', { documentName: ROOM, document } as never);
+    return { rows, queries, closes, store };
+  }
+
+  it('drops the store and closes every connection when the row is missing or trashed', async () => {
+    const { rows, queries, closes, store } = setup(false);
+    await store();
+    await store();
+    expect(rows.has(ROOM)).toBe(false);
+    expect(queries[0]).toEqual({ sql: SQL_LIVE, params: [SITE_ID] });
+    expect(closes).toHaveLength(4);
+    expect(closes.every((c) => c.code === 4205)).toBe(true);
+  });
+
+  it('stores as before when the site is live', async () => {
+    const { rows, closes, store } = setup(true);
+    await store();
+    expect(rows.has(ROOM)).toBe(true);
+    expect(closes).toHaveLength(0);
   });
 });

@@ -38,10 +38,9 @@ import { siteOrigin } from '../../config/sitesOrigin.js';
 import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
-import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
+import { closeSiteRooms, USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
 import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -463,7 +462,7 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
 
-      void closeCollabRooms([siteRoom(params.id)]);
+      void closeSiteRooms([params.id]);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
       log.error('Error deleting site:', error);

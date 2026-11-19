@@ -79,10 +79,10 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ['services/hocuspocus/src/auth.ts', 'collaborative_documents', HOCUSPOCUS],
   ['services/hocuspocus/src/persistence.ts', 'collaborative_documents', HOCUSPOCUS],
   [
-    'services/hocuspocus/src/auth.ts',
+    'services/hocuspocus/src/siteRooms.ts',
     'user_sites',
     'bare-room guard: a trashed site keeps its Yjs rows closed to the no-row fallback',
-    'SELECT 1 FROM user_sites',
+    'SELECT 1 FROM user_sites WHERE id = $1 LIMIT 1',
   ],
   [
     'apps/api/services/docs/CollaborativeDocumentService.ts',

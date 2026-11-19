@@ -142,5 +142,8 @@ describe('siteDraftDoc', () => {
 
   it('names the room site-<id>', () => {
     expect(siteRoom(SITE_ID)).toBe(`site-${SITE_ID}`);
+    expect(siteRoom('ABCDEF12-0000-4000-8000-000000000001')).toBe(
+      'site-abcdef12-0000-4000-8000-000000000001'
+    );
   });
 });
