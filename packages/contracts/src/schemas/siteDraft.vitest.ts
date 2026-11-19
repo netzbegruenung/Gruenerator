@@ -58,8 +58,8 @@ describe('site draft', () => {
     const draft = siteDraftFromSite(row());
     const ids = [...draft.themes, ...draft.actions].map((item) => item.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(siteDraftToRowColumns(draft).sections.themes[0]).not.toHaveProperty('id');
-    expect(siteDraftToRowColumns(draft).sections.actions[0]).not.toHaveProperty('id');
+    expect(siteDraftToRowColumns(draft).sections.themes?.[0]).not.toHaveProperty('id');
+    expect(siteDraftToRowColumns(draft).sections.actions?.[0]).not.toHaveProperty('id');
   });
 
   it('fills the defaults of a row without sections', () => {

@@ -70,21 +70,19 @@ export function siteDraftFromSite(
   };
 }
 
-export function siteDraftToRowColumns(
-  draft: SiteDraft
-): Required<
-  Pick<
-    UpdateSiteBody,
-    | 'site_title'
-    | 'tagline'
-    | 'profile_image'
-    | 'theme'
-    | 'contact_email'
-    | 'contact_phone'
-    | 'social_links'
-    | 'sections'
-  >
-> {
+type SiteDraftColumn =
+  | 'site_title'
+  | 'tagline'
+  | 'profile_image'
+  | 'theme'
+  | 'contact_email'
+  | 'contact_phone'
+  | 'social_links'
+  | 'sections';
+
+export function siteDraftToRowColumns(draft: SiteDraft): {
+  [K in SiteDraftColumn]-?: Exclude<UpdateSiteBody[K], undefined>;
+} {
   return {
     site_title: draft.site_title,
     tagline: draft.tagline,
