@@ -5,7 +5,7 @@
  * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
  */
 import { connectorBrandIcon } from '@gruenerator/chat/connectors';
-import { type DriveProvider } from '@gruenerator/contracts';
+import { type ConnectorProvider } from '@gruenerator/contracts';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
   Button,
@@ -915,7 +915,7 @@ const BearerConnectDialog = ({
 type AvailableItem =
   | { kind: 'mcp'; key: string; category: string; title: string; entry: McpRegistryEntry }
   /** A Nango connection (not MCP) that lives in the same directory. */
-  | { kind: 'nango'; key: string; category: string; title: string; provider: DriveProvider };
+  | { kind: 'nango'; key: string; category: string; title: string; provider: ConnectorProvider };
 
 /** The Nango cards and what the directory search matches for each (they aren't in the registry). */
 const NANGO_CARDS = [
@@ -925,7 +925,13 @@ const NANGO_CARDS = [
     title: 'Google Workspace',
     searchText: 'google workspace drive docs sheets slides tabellen',
   },
-] as const satisfies readonly { provider: DriveProvider; title: string; searchText: string }[];
+  {
+    provider: 'microsoft-teams',
+    title: 'Microsoft Teams',
+    searchText: 'microsoft teams kanal dateien',
+  },
+  { provider: 'slack', title: 'Slack', searchText: 'slack kanal nachricht' },
+] as const satisfies readonly { provider: ConnectorProvider; title: string; searchText: string }[];
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -992,6 +998,18 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
   const queryClient = useQueryClient();
   const microsoft = useNangoConnector('microsoft');
   const google = useNangoConnector('google');
+  const teams = useNangoConnector('microsoft-teams');
+  const slack = useNangoConnector('slack');
+  const microsoftAvailable = microsoft.available;
+  const googleAvailable = google.available;
+  const teamsAvailable = teams.available;
+  const slackAvailable = slack.available;
+  const nangoConnectors = {
+    microsoft,
+    google,
+    'microsoft-teams': teams,
+    slack,
+  } satisfies Record<ConnectorProvider, ReturnType<typeof useNangoConnector>>;
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
 
@@ -1036,9 +1054,14 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
     const query = debouncedSearch.toLowerCase();
-    const isAvailable = { microsoft: microsoft.available, google: google.available };
+    const nangoAvailable = {
+      microsoft: microsoftAvailable,
+      google: googleAvailable,
+      'microsoft-teams': teamsAvailable,
+      slack: slackAvailable,
+    } satisfies Record<ConnectorProvider, boolean>;
     for (const card of NANGO_CARDS) {
-      if (!isAvailable[card.provider] || !card.searchText.includes(query)) continue;
+      if (!nangoAvailable[card.provider] || !card.searchText.includes(query)) continue;
       items.push({
         kind: 'nango',
         key: `nango:${card.provider}`,
@@ -1052,8 +1075,10 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
     registry,
     connectedHosts,
     connectedKeys,
-    microsoft.available,
-    google.available,
+    microsoftAvailable,
+    googleAvailable,
+    teamsAvailable,
+    slackAvailable,
     debouncedSearch,
   ]);
 
@@ -1231,7 +1256,7 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
         />
       );
     }
-    const conn = it.provider === 'google' ? google : microsoft;
+    const conn = nangoConnectors[it.provider];
     return (
       <CardShell
         key={it.key}

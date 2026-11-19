@@ -83,7 +83,7 @@ export const connectionsContract = c.router(
         404: driveBrowseErrorSchema,
         500: driveBrowseErrorSchema,
       },
-      summary: 'Eine Ebene der Zielwahl (Teams-Kanäle, Slack-Kanäle, Trello-Listen)',
+      summary: 'Eine Ebene der Zielwahl (Teams- oder Slack-Kanäle)',
     },
     send: {
       method: 'POST',

@@ -25,6 +25,23 @@ describe('buildDocumentActions', () => {
     ]);
   });
 
+  it('offers each connected send target after the cloud entries', () => {
+    const actions = buildDocumentActions({
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: false,
+      canCreatePodcast: false,
+      cloudTargets: ['google'],
+      sendTargets: ['microsoft-teams', 'slack'],
+    });
+
+    expect(actions.slice(2, 5)).toEqual([
+      { id: 'cloud-google', label: 'In Google Drive speichern' },
+      { id: 'send-microsoft-teams', label: 'In Teams ablegen …' },
+      { id: 'send-slack', label: 'In Slack posten …' },
+    ]);
+  });
+
   it('offers the editor and both plain downloads by default', () => {
     const ids = buildDocumentActions({
       hasLinkedDoc: false,

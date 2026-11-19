@@ -20,20 +20,15 @@ export const cloudExportProviderSchema = z.enum(['google', 'microsoft']);
 export type CloudExportProvider = z.infer<typeof cloudExportProviderSchema>;
 
 /**
- * Anbieter, bei denen ein Export ein Ziel braucht: ein Teams-Kanal, ein
- * Slack-Kanal, eine Trello-Liste. Gewählt wird über `targets`, geschickt über `send`.
+ * Anbieter, bei denen ein Export ein Ziel braucht: ein Teams-Kanal oder ein
+ * Slack-Kanal. Gewählt wird über `targets`, geschickt über `send`. Trello läuft
+ * nicht hierüber, sondern als MCP-Server (`mcp.trello.com`) im Chat.
  */
-export const connectorTargetProviderSchema = z.enum(['microsoft-teams', 'slack', 'trello']);
+export const connectorTargetProviderSchema = z.enum(['microsoft-teams', 'slack']);
 export type ConnectorTargetProvider = z.infer<typeof connectorTargetProviderSchema>;
 
 /** Jeder Nango-Konnektor mit Karte im Verzeichnis. */
-export const connectorProviderSchema = z.enum([
-  'google',
-  'microsoft',
-  'microsoft-teams',
-  'slack',
-  'trello',
-]);
+export const connectorProviderSchema = z.enum(['google', 'microsoft', 'microsoft-teams', 'slack']);
 export type ConnectorProvider = z.infer<typeof connectorProviderSchema>;
 
 export const driveBrowseParamsSchema = z.object({
@@ -124,8 +119,8 @@ export const driveUploadResponseSchema = z.object({
 export type DriveUploadResponse = z.infer<typeof driveUploadResponseSchema>;
 
 /**
- * Eine Ebene der Zielwahl: Teams → Kanäle, Slack → Kanäle, Trello → Boards →
- * Listen. `selectable` heisst: hier kann der Export landen.
+ * Eine Ebene der Zielwahl: Teams → Kanäle, Slack → Kanäle. `selectable`
+ * heisst: hier kann der Export landen.
  */
 export const connectorTargetSchema = z.object({
   id: z.string(),
@@ -136,7 +131,7 @@ export const connectorTargetSchema = z.object({
 export type ConnectorTarget = z.infer<typeof connectorTargetSchema>;
 
 export const connectorTargetsQuerySchema = z.object({
-  /** Ohne Angabe: die oberste Ebene (Teams, Slack-Kanäle, Trello-Boards). */
+  /** Ohne Angabe: die oberste Ebene (Teams bzw. Slack-Kanäle). */
   parent: z.string().min(1).optional(),
 });
 
@@ -147,7 +142,7 @@ export const connectorTargetsResponseSchema = z.object({
 
 /**
  * Export an ein gewähltes Ziel, als Multipart: Teams bekommt die Word-Datei im
- * Teil `CLOUD_UPLOAD_FIELD`, Slack und Trello den Text als Markdown.
+ * Teil `CLOUD_UPLOAD_FIELD`, Slack den Text als Markdown.
  */
 export const CONNECTOR_SEND_TEXT_MAX = 40_000;
 

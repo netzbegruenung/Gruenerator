@@ -80,6 +80,11 @@ const SEEDS: Seed[] = [
   ['Typeform (EU – .com)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.eu.typeform.com) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Typeform (EU – .eu)', 'https://api.typeform.eu/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.typeform.eu) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität', { alt: ['bearer'], keyUrl: 'https://app.todoist.com/app/settings/integrations/developer' }],
+  // Atlassian-AS with DCR + PKCE (registration_endpoint checked live
+  // 2026-11-19). Trello enables it by default on Premium/Enterprise; whether
+  // free workspaces get it and whether the AS accepts our redirect domain is
+  // only seen on a first connect. Replaces a Nango/Trello-app integration.
+  ['Trello', 'https://mcp.trello.com/v1', 'oauth', 'Boards, Listen und Karten lesen und anlegen.', 'https://trello.com', 'Produktivität'],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
   // Goodnotes serves MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],

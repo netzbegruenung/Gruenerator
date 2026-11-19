@@ -287,6 +287,13 @@ export {
   notifyCloudExportResult,
   uploadToCloud,
 } from './lib/cloudExport';
+export {
+  CONNECTOR_SEND_LABELS,
+  fetchConnectorTargets,
+  notifyConnectorSendResult,
+  sendToConnector,
+} from './lib/connectorSend';
+export { ConnectorTargetDialog } from './components/ConnectorTargetDialog';
 
 // Citation Context
 export {
@@ -410,6 +417,7 @@ export {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   useConnectProvidersQuery,
+  useConnectedProvidersQuery,
   useConnectBrowseQuery,
   MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,

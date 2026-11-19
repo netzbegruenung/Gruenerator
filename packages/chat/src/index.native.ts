@@ -262,6 +262,7 @@ export {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   useConnectProvidersQuery,
+  useConnectedProvidersQuery,
   useConnectBrowseQuery,
   MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,

@@ -2,6 +2,14 @@
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
 import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
+import {
+  cloudExportProviderSchema,
+  connectorTargetProviderSchema,
+  type CloudExportProvider,
+  type ConnectorTargetProvider,
+  type ExportToDocsBody,
+  type ExportToDocsResponse,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   slugifyName,
@@ -27,6 +35,7 @@ import {
   Loader2,
   Mail,
   RefreshCw,
+  Send,
   SquarePen,
   ThumbsUp,
   ThumbsDown,
@@ -38,9 +47,10 @@ import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useMayReplaceTurn } from '../../hooks/useMayReplaceTurn';
-import { isDriveProvider, useConnectProvidersQuery } from '../../hooks/useMentionablesQuery';
+import { useConnectedProvidersQuery } from '../../hooks/useMentionablesQuery';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { notifyCloudExportResult, uploadToCloud } from '../../lib/cloudExport';
+import { notifyConnectorSendResult, sendToConnector } from '../../lib/connectorSend';
 import { downloadBlob } from '../../lib/downloadBlob';
 import {
   buildDocumentActions,
@@ -52,6 +62,7 @@ import {
 } from '../../lib/messageDocumentActions';
 import { notifyError } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { ConnectorTargetDialog } from '../ConnectorTargetDialog';
 import { useChatDensity } from '../thread/chatDensityContext';
 
 import { MessageBranchPicker } from './MessageBranchPicker';
@@ -60,7 +71,6 @@ import { MessageTime } from './MessageTimestamp';
 import { MessageTTSButton } from './MessageTTSButton';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
-import type { DriveProvider, ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import type { ReactNode } from 'react';
 
 /** Icon and handler per menu entry; the entries themselves come from the model. */
@@ -110,8 +120,14 @@ export const MessageActions = memo(function MessageActions({
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
   // Fetched when the menu opens: people connect a drive in the settings
   // between two answers, and a stale list would hide the new target.
-  const connectedDrives = useConnectProvidersQuery(menuOpen && !readOnly);
-  const cloudTargets = (connectedDrives.data ?? []).map((p) => p.provider).filter(isDriveProvider);
+  const connected = useConnectedProvidersQuery(menuOpen && !readOnly);
+  const cloudTargets = (connected.data ?? []).filter(
+    (p): p is CloudExportProvider => cloudExportProviderSchema.safeParse(p).success
+  );
+  const sendTargets = (connected.data ?? []).filter(
+    (p): p is ConnectorTargetProvider => connectorTargetProviderSchema.safeParse(p).success
+  );
+  const [sendProvider, setSendProvider] = useState<ConnectorTargetProvider | null>(null);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
   const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
   const nav = useChatNavigation();
@@ -159,7 +175,7 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
-  const handleExportToCloud = async (provider: DriveProvider) => {
+  const handleExportToCloud = async (provider: CloudExportProvider) => {
     try {
       const { blob, filename } = await fetchDocx();
       const result = await uploadToCloud(
@@ -171,6 +187,24 @@ export const MessageActions = memo(function MessageActions({
       notifyCloudExportResult(provider, { ok: true, result });
     } catch (error) {
       notifyCloudExportResult(provider, { ok: false, error });
+    }
+  };
+
+  /** Teams takes the Word file, Slack the markdown text. */
+  const handleSendToConnector = async (
+    provider: ConnectorTargetProvider,
+    target: { id: string; name: string }
+  ) => {
+    try {
+      const title = messageTitle(content);
+      const result = await sendToConnector(useChatConfigStore.getState().fetch, provider, {
+        targetId: target.id,
+        title,
+        ...(provider === 'microsoft-teams' ? { docx: await fetchDocx() } : { text: exportContent }),
+      });
+      notifyConnectorSendResult(provider, { ok: true, result });
+    } catch (error) {
+      notifyConnectorSendResult(provider, { ok: false, error });
     }
   };
 
@@ -327,6 +361,7 @@ export const MessageActions = memo(function MessageActions({
       readOnly,
     }),
     cloudTargets,
+    sendTargets,
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -347,6 +382,15 @@ export const MessageActions = memo(function MessageActions({
     'cloud-microsoft': {
       icon: <CloudUpload className="h-3.5 w-3.5" />,
       run: () => handleExportToCloud('microsoft'),
+    },
+    // The target is chosen in the dialog; the send itself runs from its `onPick`.
+    'send-microsoft-teams': {
+      icon: <Send className="h-3.5 w-3.5" />,
+      run: () => Promise.resolve(setSendProvider('microsoft-teams')),
+    },
+    'send-slack': {
+      icon: <Send className="h-3.5 w-3.5" />,
+      run: () => Promise.resolve(setSendProvider('slack')),
     },
   };
 
@@ -436,6 +480,20 @@ export const MessageActions = memo(function MessageActions({
         >
           <RefreshCw className="h-4 w-4" />
         </button>
+      )}
+      {sendProvider && (
+        <ConnectorTargetDialog
+          provider={sendProvider}
+          open
+          onOpenChange={(next) => {
+            if (!next) setSendProvider(null);
+          }}
+          onPick={(target) => {
+            if (busy) return;
+            setBusy(`send-${sendProvider}`);
+            void handleSendToConnector(sendProvider, target).finally(() => setBusy(null));
+          }}
+        />
       )}
       <MessageBranchPicker />
       {showFeedback && !readOnly && (

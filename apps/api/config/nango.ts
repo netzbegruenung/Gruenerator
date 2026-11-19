@@ -32,6 +32,24 @@ export const NANGO_PROVIDERS = {
     label: 'Microsoft 365',
     services: ['OneDrive'],
   },
+  // Eigene Integration neben `microsoft`, dieselbe Azure-App: Teams gibt es nur
+  // für Dienst- und Schulkonten, und mit den Teams-Scopes im Satz scheitert der
+  // Zustimmungsdialog privater Konten. Scopes: User.Read Team.ReadBasic.All
+  // Channel.ReadBasic.All Files.ReadWrite.All offline_access.
+  'microsoft-teams': {
+    key: 'microsoft-teams',
+    label: 'Microsoft Teams',
+    services: ['Kanal-Dateien', 'Ablage in Kanälen'],
+  },
+  // Bot-Token (channels:read groups:read chat:write): gepostet wird nur in
+  // Kanäle, in die jemand den Grünerator eingeladen hat. Gelesen wird nichts —
+  // `conversations.history` ist für Apps außerhalb des Marketplace auf eine
+  // Anfrage pro Minute gedrosselt.
+  slack: {
+    key: 'slack',
+    label: 'Slack',
+    services: ['Nachrichten posten'],
+  },
   jira: {
     key: 'jira',
     label: 'Jira',
@@ -61,4 +79,8 @@ export const HIDDEN_NANGO_PROVIDERS = new Set<NangoProviderKey>();
  * Empty since 16.11.2026: Microsoft 365 is open to everyone, labelled
  * experimental in the connector directory.
  */
-export const ADMIN_ONLY_NANGO_PROVIDERS = new Set<NangoProviderKey>();
+export const ADMIN_ONLY_NANGO_PROVIDERS = new Set<NangoProviderKey>([
+  // Bis die Integrationen in Nango stehen und einmal echt durchlaufen sind.
+  'microsoft-teams',
+  'slack',
+]);
