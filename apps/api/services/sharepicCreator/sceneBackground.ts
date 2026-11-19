@@ -54,26 +54,12 @@ function mimeOf(bytes: Buffer): string {
 }
 
 /**
- * The calm area on the 0–1000 grid, `[top, left, bottom, right]`. Mirrors the
- * composer: a side column is 52 % wide plus the 6.5 % margin, a text block at
- * the top or bottom with its scrim takes up to 62 % (the share `photoTone`
- * measures).
+ * Where the subject goes on the 0–1000 grid, `[top, left, bottom, right]`: the
+ * frame minus the text side. Mirrors the composer: a side column is 52 % wide
+ * plus the 6.5 % margin, a text block at the top or bottom with its scrim takes
+ * up to 62 % (the share `photoTone` measures).
  */
-export function calmBox(textSeite: SharepicTextSide): Flux3Bbox {
-  switch (textSeite) {
-    case 'unten':
-      return [380, 0, 1000, 1000];
-    case 'oben':
-      return [0, 0, 620, 1000];
-    case 'links':
-      return [0, 0, 1000, 590];
-    case 'rechts':
-      return [0, 410, 1000, 1000];
-  }
-}
-
-/** The rest of the frame, where the subject goes. */
-function subjectBox(textSeite: SharepicTextSide): Flux3Bbox {
+export function subjectBox(textSeite: SharepicTextSide): Flux3Bbox {
   switch (textSeite) {
     case 'unten':
       return [0, 0, 380, 1000];
@@ -86,19 +72,28 @@ function subjectBox(textSeite: SharepicTextSide): Flux3Bbox {
   }
 }
 
+const TOWARDS_TEXT: Record<SharepicTextSide, string> = {
+  unten: 'towards the bottom',
+  oben: 'towards the top',
+  links: 'to the left',
+  rechts: 'to the right',
+};
+
+/**
+ * One box only, and the calm side asked for as copy space in the caption. A
+ * second box for the text side made FLUX paint two regions with a hard seam at
+ * the box edge (#5653); so did asking for that side to be blurred. "Copy space"
+ * lets FLUX find something quiet in the same scene (sky, a wall), so the photo
+ * stays one shot.
+ */
 export function sceneLayout(motiv: string, textSeite: SharepicTextSide): Flux3Layout {
   return {
     caption:
-      `${motiv.trim()} The subject <motiv> fills its area; <ruhe> continues the same scene calm, softly out of focus and evenly lit, without people or objects. ` +
+      `${motiv.trim()} The subject <motiv> sits in its area. ` +
+      `One continuous photo, composed with generous empty copy space ${TOWARDS_TEXT[textSeite]}: ` +
+      'a plain, quiet part of the same scene there, such as sky, a wall or softly blurred background, without people or objects. ' +
       'Photorealistic editorial photo, natural light. No text, letters, numbers, signs, labels or arrows anywhere.',
-    rows: [
-      { id: 'motiv', bbox: subjectBox(textSeite), desc: motiv.trim() },
-      {
-        id: 'ruhe',
-        bbox: calmBox(textSeite),
-        desc: 'calm, out of focus continuation of the scene, no people, no objects, no text',
-      },
-    ],
+    rows: [{ id: 'motiv', bbox: subjectBox(textSeite), desc: motiv.trim() }],
   };
 }
 
