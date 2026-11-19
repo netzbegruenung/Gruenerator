@@ -31,10 +31,10 @@ import { waitForSynced } from './waitForSynced';
 
 export const PUBLISH_SYNC_TIMEOUT_MS = 5000;
 
-const BADGE_LABELS: Record<PublishStatus, string> = {
+// 'changed' has no badge: the "Änderungen veröffentlichen" button already says so.
+const BADGE_LABELS: Record<Exclude<PublishStatus, 'changed'>, string> = {
   unpublished: 'Nicht veröffentlicht',
   live: 'Live',
-  changed: 'Änderungen nicht veröffentlicht',
 };
 
 const NOT_SAVED_MESSAGE =
@@ -56,6 +56,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const pickedIssue = useRef(false);
   const [serverIssues, setServerIssues] = useState<SitePublishIssue[] | null>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
@@ -132,6 +133,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   };
 
   const pickIssue = (path: string) => {
+    pickedIssue.current = true;
     focusPath(panelForPath(path) ?? 'legal', path);
     setIssuesOpen(false);
   };
@@ -140,7 +142,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   return (
     <>
-      <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      {status !== 'changed' && (
+        <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+      )}
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
         <PopoverAnchor asChild>
           <Button
@@ -161,7 +165,9 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
           aria-labelledby="publish-issues-title"
           onCloseAutoFocus={(e) => {
             e.preventDefault();
-            triggerRef.current?.focus();
+            // After picking an issue the target field owns the focus, not the trigger.
+            if (pickedIssue.current) pickedIssue.current = false;
+            else triggerRef.current?.focus();
           }}
         >
           <PublishIssues issues={shownIssues} onPick={pickIssue} />

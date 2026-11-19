@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 const PETALS = Array.from({ length: 12 }, (_, i) => i * 30);
 
 export function PortraitPlaceholder({ className = '' }: { className?: string }) {

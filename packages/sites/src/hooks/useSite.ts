@@ -1,3 +1,4 @@
+import { removeDocCache } from '@gruenerator/collab';
 import {
   type CreateSiteBody,
   type Site,
@@ -5,7 +6,6 @@ import {
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
-import { removeDocCache } from '@gruenerator/collab';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -72,6 +72,8 @@ export function useSite() {
   const prepareDraft = usePrepareSiteDraft();
 
   const createMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async (data: CreateSiteBody) => {
       const res = await getContractsClient().sites.createSite({ body: data });
       if (res.status !== 200) throw toApiError(res);
@@ -83,6 +85,8 @@ export function useSite() {
   });
 
   const updateMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async ({ id, data }: { id: string; data: UpdateSiteBody }) => {
       const res = await getContractsClient().sites.updateSite({ params: { id }, body: data });
       if (res.status !== 200) throw toApiError(res);
@@ -94,6 +98,8 @@ export function useSite() {
   });
 
   const publishMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async ({ id, publish }: { id: string; publish: boolean }) => {
       const res = await getContractsClient().sites.publishSite({
         params: { id },
@@ -109,6 +115,8 @@ export function useSite() {
   });
 
   const deleteMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async (id: string) => {
       const res = await getContractsClient().sites.deleteSite({ params: { id }, body: {} });
       if (res.status !== 200) throw toApiError(res);

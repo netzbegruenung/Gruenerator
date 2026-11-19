@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { SECTION_ANCHORS } from '../../model/visibility.js';
 import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
 import { Placeholder } from '../Placeholder.js';

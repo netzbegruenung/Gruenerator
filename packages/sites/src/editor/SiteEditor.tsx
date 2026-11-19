@@ -95,7 +95,7 @@ function PreviewInteractions({ doc }: { doc: Document | null }) {
   return null;
 }
 
-export function SiteEditor({ site }: { site: SiteData }) {
+export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => void }) {
   const session = useSiteDraftSession(site.id);
   const [previewOpen, setPreviewOpen] = useState(false);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
@@ -126,7 +126,11 @@ export function SiteEditor({ site }: { site: SiteData }) {
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
           <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
-            <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)}>
+            <EditorHeader
+              save={session.save}
+              onPreview={() => setPreviewOpen(true)}
+              onBack={onBack}
+            >
               <PublishControls site={site} provider={session.provider} />
             </EditorHeader>
             <EditorLayout sidebar={<EditorSidebar />} preview={<PreviewPane site={site} />} />

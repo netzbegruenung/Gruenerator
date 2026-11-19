@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type PublishedSiteSnapshot } from '@gruenerator/contracts';
 
 import { legalTemplate } from '../legal/index.js';
@@ -88,7 +89,7 @@ export function SiteLegalBody({
               aria-hidden="true"
               className="site:mb-5 site:block site:h-1.5 site:w-16 site:bg-accent"
             />
-            <h1 className="site:text-h2 site:text-heading site:hyphens-auto">{template.title}</h1>
+            <h1 className="site:text-h2 site:text-heading site:hyphens-manual">{template.title}</h1>
             {template.status === 'draft' && (
               <p
                 role="note"
@@ -100,7 +101,7 @@ export function SiteLegalBody({
             )}
             {template.sections.map((section) => (
               <section key={section.heading} className="site:mt-12">
-                <h2 className="site:mb-4 site:text-[1.75rem] site:leading-[1.1] site:text-heading site:hyphens-auto">
+                <h2 className="site:mb-4 site:text-[1.75rem] site:leading-[1.1] site:text-heading site:hyphens-manual">
                   {section.heading}
                 </h2>
                 <div className="site:flex site:flex-col site:gap-4">

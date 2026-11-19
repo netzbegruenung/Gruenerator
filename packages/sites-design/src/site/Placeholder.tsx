@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type SiteRenderMode } from '../model/visibility.js';
 
 export function Placeholder({

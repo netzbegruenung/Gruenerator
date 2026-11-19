@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { stripGreeting } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';
@@ -41,7 +42,7 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
           ) : (
             <h1
               id={headingId}
-              className="site:text-display site:text-heading site:hyphens-auto site:wrap-anywhere"
+              className="site:text-display site:text-heading site:hyphens-manual site:wrap-anywhere"
             >
               {copy.heroGreeting}
               <span data-field="site_title">{name}</span>!

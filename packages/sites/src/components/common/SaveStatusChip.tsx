@@ -2,13 +2,14 @@ import { cn } from '@gruenerator/shared/utils';
 
 import { type SaveStatus } from '../../draft/useSiteDraftSession';
 
-const LABELS: Record<SaveStatus, string> = {
-  saved: 'Gespeichert',
+// Nothing to say once saved; the region stays mounted so a later status is announced.
+const LABELS: Record<Exclude<SaveStatus, 'saved'>, string> = {
   saving: 'Wird gespeichert …',
   offline: 'Offline – Änderungen bleiben auf diesem Gerät',
 };
 
 export function SaveStatusChip({ status }: { status: SaveStatus }) {
+  if (status === 'saved') return <span role="status" />;
   return (
     <span
       role="status"
