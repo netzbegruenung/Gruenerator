@@ -1,3 +1,4 @@
+import { pickGoogleFiles } from '@gruenerator/chat';
 import {
   type ConnectorTestFile,
   type ConnectorTestReadResponse,
@@ -9,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 
 import { connectInPopup, unwrap } from './connectorTestApi';
-import { pickGoogleFiles } from './googlePicker';
 
 const STATUS_KEY = ['connector-test-status'];
 

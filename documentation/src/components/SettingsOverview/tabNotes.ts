@@ -151,6 +151,7 @@ export const TAB_NOTES: TabNote[] = [
       'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
     extras: [
       '**Microsoft 365** (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus.',
+      '**Google Workspace** (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst.',
       '**Immer erlaubte Werkzeuge** listet, was du im Chat mit „Immer erlauben" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt.',
     ],
   },
