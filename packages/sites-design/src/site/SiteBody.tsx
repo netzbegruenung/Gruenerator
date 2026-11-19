@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { Fragment, type ReactNode } from 'react';
 
 import { type PublishedSiteSnapshot, type SiteSectionId } from '@gruenerator/contracts';

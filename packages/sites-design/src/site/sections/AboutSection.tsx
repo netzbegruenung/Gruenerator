@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { isRichTextDocEmpty } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';

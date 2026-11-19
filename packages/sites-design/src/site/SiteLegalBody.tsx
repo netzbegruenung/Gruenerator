@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type PublishedSiteSnapshot } from '@gruenerator/contracts';
 
 import { legalTemplate } from '../legal/index.js';

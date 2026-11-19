@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type SiteImageFocus } from '@gruenerator/contracts';
 
 import { focusClass, type SiteImageSlot, siteImageAttrs } from '../model/images.js';

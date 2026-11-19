@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
 import { CONTAINER, Section, type SectionContext } from '../layout.js';
