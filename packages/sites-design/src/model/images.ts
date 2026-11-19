@@ -83,9 +83,7 @@ export function siteImageAttrs(url: string, slot: SiteImageSlot): SiteImageAttrs
   const sized = MEDIA_PREVIEW.test(url);
   return {
     src: sizedSrc(url, spec.src, 'webp'),
-    srcSet: sized
-      ? spec.widths.map((w) => `${sizedSrc(url, w, 'webp')} ${w}w`).join(', ')
-      : null,
+    srcSet: sized ? spec.widths.map((w) => `${sizedSrc(url, w, 'webp')} ${w}w`).join(', ') : null,
     sizes: spec.sizes,
     width: spec.width,
     height: spec.height,

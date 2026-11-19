@@ -38,7 +38,10 @@ export const datenschutzDe: LegalTemplate = {
     {
       heading: 'Hosting und Server-Protokolle',
       blocks: [
-        { kind: 'pending', note: 'Betreiber, Speicherort und Speicherdauer der Server-Protokolle.' },
+        {
+          kind: 'pending',
+          note: 'Betreiber, Speicherort und Speicherdauer der Server-Protokolle.',
+        },
       ],
     },
     {

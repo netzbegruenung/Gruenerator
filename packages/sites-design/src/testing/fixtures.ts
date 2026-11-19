@@ -27,7 +27,9 @@ function parse(input: unknown): PublishedSiteSnapshot {
   return publishedSiteSnapshotSchema.parse(input);
 }
 
-export function fullSnapshot(overrides: Partial<PublishedSiteSnapshot> = {}): PublishedSiteSnapshot {
+export function fullSnapshot(
+  overrides: Partial<PublishedSiteSnapshot> = {}
+): PublishedSiteSnapshot {
   return parse({
     version: 1,
     locale: 'de-DE',

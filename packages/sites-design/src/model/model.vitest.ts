@@ -101,7 +101,9 @@ describe('copy, meta, grounds', () => {
     expect(siteCopy('de-AT').partyName).toBe('Die Grünen – Die Grüne Alternative');
   });
   it('derives the description from the tagline', () => {
-    expect(siteMeta(fullSnapshot({ tagline: 'Für Berlin' }), 'home').description).toBe('Für Berlin');
+    expect(siteMeta(fullSnapshot({ tagline: 'Für Berlin' }), 'home').description).toBe(
+      'Für Berlin'
+    );
     const long = siteMeta(fullSnapshot({ tagline: 'wort '.repeat(40) }), 'home').description;
     expect(long.length).toBeLessThanOrEqual(158);
     expect(long.endsWith('…')).toBe(true);
