@@ -82,7 +82,7 @@ function keycloakProvider(id: string, idpHint: string): GenericOAuthConfig {
 /**
  * Session-cookie scope for this deployment, derived from its own base URL:
  * `https://beta.gruenerator.eu` → `.beta.gruenerator.eu`. The leading dot keeps
- * subdomains (`doku.`, `sites.`) inside the same session, which is why prod —
+ * subdomains (`doku.`) inside the same session, which is why prod —
  * whose base URL is the bare `gruenerator.eu` — behaves exactly as it did when
  * the domain was hardcoded. Falls back to that literal when the URL is unset or
  * unparseable, because a missing cookie domain would make Better Auth issue a

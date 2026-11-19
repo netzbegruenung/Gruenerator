@@ -26,6 +26,7 @@ import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
 import { CURRENT_INSTANCE } from './config/instance.js';
 import { getServerConfig } from './config/serverConfig.js';
+import { siteOrigin } from './config/sitesOrigin.js';
 import { Sentry } from './lib/sentry.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
@@ -33,6 +34,18 @@ import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
 import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
+import {
+  createSiteAssets,
+  defaultSiteAssetPaths,
+  type SiteAssets,
+} from './routes/sites/public/siteAssets.js';
+import { createSitePagesRouter } from './routes/sites/public/sitePages.js';
+import { SITE_ROBOTS } from './routes/sites/public/siteSecurity.js';
+import {
+  createSitesHostGate,
+  createSitesUnavailableGate,
+  sitesReadLimiter,
+} from './routes/sites/public/sitesHostGate.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -56,6 +69,7 @@ import {
   LV_SOCIAL_IMAGE_DIR,
   LV_SOCIAL_IMAGE_PATH,
 } from './services/scrapers/utils/lvSocialImages.js';
+import { loadPublishedSite } from './services/sites/publishedSite.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -223,6 +237,38 @@ async function startWorker(): Promise<void> {
 
   // Trust proxy for secure cookies behind nginx/load balancer
   app.set('trust proxy', 1);
+
+  // Must stay before CORS, the upload routes, the session and the Redis cache: each of them
+  // would answer, or set a cookie, on the sites host before the gate could.
+  if (env.SITES_HOST) {
+    let assets: SiteAssets | null = null;
+    try {
+      assets = createSiteAssets(defaultSiteAssetPaths());
+    } catch (error) {
+      log.error(
+        '[sites] site assets missing, the sites host answers 404 — run pnpm --filter @gruenerator/sites-design build:',
+        error
+      );
+    }
+    const origin = siteOrigin(env.SITES_HOST, config.port);
+    app.use(
+      assets
+        ? createSitesHostGate({
+            host: env.SITES_HOST,
+            origin,
+            pages: createSitePagesRouter({
+              assets,
+              origin,
+              reportEmail: env.SITES_REPORT_EMAIL ?? '',
+              robots: SITE_ROBOTS,
+              loadSnapshot: loadPublishedSite,
+            }),
+            limiter: sitesReadLimiter,
+            robots: SITE_ROBOTS,
+          })
+        : createSitesUnavailableGate(env.SITES_HOST)
+    );
+  }
 
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);

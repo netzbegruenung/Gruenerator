@@ -42,11 +42,17 @@ describe('images', () => {
     expect(sizedSrc('/api/share/abcdef123/preview', 800, 'webp')).toBe(
       '/api/share/abcdef123/preview?w=800&fmt=webp'
     ));
-  it.each([
-    '/api/image-picker/stock-image/wald-01.jpg',
-    '/api/share/abcdef123/download',
-    'https://x.de/a.png',
-  ])('leaves %s alone', (url) => expect(sizedSrc(url, 400, 'webp')).toBe(url));
+  it.each(['/api/share/abcdef123/download', 'https://x.de/a.png'])('leaves %s alone', (url) =>
+    expect(sizedSrc(url, 400, 'webp')).toBe(url)
+  );
+  it('sizes a stock image', () =>
+    expect(sizedSrc('/api/image-picker/stock-image/wald-01.jpg', 1200, 'webp')).toBe(
+      '/api/image-picker/stock-image/wald-01.jpg?w=1200&fmt=webp'
+    ));
+  it('leaves a stock path with a query alone', () =>
+    expect(sizedSrc('/api/image-picker/stock-image/wald-01.jpg?size=thumb', 400, 'webp')).toBe(
+      '/api/image-picker/stock-image/wald-01.jpg?size=thumb'
+    ));
   it('gives the portrait a srcset and high priority', () =>
     expect(siteImageAttrs('/api/share/abcdef123/preview', 'portrait')).toEqual({
       src: '/api/share/abcdef123/preview?w=800&fmt=webp',
@@ -58,8 +64,12 @@ describe('images', () => {
       loading: 'eager',
       fetchPriority: 'high',
     }));
-  it('gives a stock image no srcset', () =>
-    expect(siteImageAttrs('/api/image-picker/stock-image/wald-01.jpg', 'card')?.srcSet).toBeNull());
+  it('gives a stock image a srcset of allowed widths', () =>
+    expect(siteImageAttrs('/api/image-picker/stock-image/wald-01.jpg', 'card')).toMatchObject({
+      src: '/api/image-picker/stock-image/wald-01.jpg?w=800&fmt=webp',
+      srcSet:
+        '/api/image-picker/stock-image/wald-01.jpg?w=400&fmt=webp 400w, /api/image-picker/stock-image/wald-01.jpg?w=800&fmt=webp 800w',
+    }));
   it('has no attributes for an empty image', () => expect(siteImageAttrs('', 'tile')).toBeNull());
 });
 

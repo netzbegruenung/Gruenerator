@@ -29,6 +29,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/sites-design/package.json ./packages/sites-design/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
 
@@ -49,6 +50,7 @@ COPY packages/shared ./packages/shared
 COPY packages/query ./packages/query
 COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
+COPY packages/sites-design ./packages/sites-design
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
 
@@ -67,6 +69,10 @@ RUN pnpm exec tsc --project tsconfig.server.json
 # Compile contracts package (API imports @gruenerator/contracts at runtime)
 WORKDIR /app/packages/contracts
 RUN pnpm exec tsc --project tsconfig.build.json
+
+# Build sites-design (API renders public candidate sites from its dist + fonts; needs contracts built)
+WORKDIR /app/packages/sites-design
+RUN pnpm run build
 
 # Compile hocuspocus (API imports @gruenerator/hocuspocus at runtime)
 WORKDIR /app/services/hocuspocus
@@ -130,6 +136,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/package.json ./packages/query/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/sites-design/package.json ./packages/sites-design/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
 
@@ -168,6 +175,8 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/dist ./packages/query/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/sites-design/dist ./packages/sites-design/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/sites-design/assets ./packages/sites-design/assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
 
 # Copy compiled API with bundled assets
