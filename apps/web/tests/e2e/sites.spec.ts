@@ -7,17 +7,16 @@
  * Unlike the other specs here, a missing bypass is NOT a skip when `CI` is set:
  * a green check that ran nothing is worse than a red one.
  *
- * Not covered: the editor itself. It needs a collaborative draft over
- * Hocuspocus, which this lane has no server for. Edit and publish therefore go
- * through the stubbed API (`PUT`, `POST …/publish`), not through the editor UI;
- * what the lane checks is that the page rendered from the published snapshot
- * carries the edit.
+ * The create flow edits and publishes through the stubbed API. The editor
+ * itself is covered by its own describe block: it runs against a bare in-memory
+ * Hocuspocus started from the fixture (`startDraftServer`), reached through the
+ * Vite `/ws` proxy on port 1240.
  */
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import AxeBuilder from '@axe-core/playwright';
-import { type SupportedLocale } from '@gruenerator/contracts';
+import { siteDraftToSnapshotSource, type SupportedLocale } from '@gruenerator/contracts';
 import { test, expect, type Page } from '@playwright/test';
 import { type Spec } from 'axe-core';
 
@@ -31,6 +30,7 @@ import {
   installSitesApi,
   makeSite,
   publishFromDraft,
+  startDraftServer,
 } from './fixtures/sitesFixtures.js';
 
 const BYPASS_AKTIV = process.env.VITE_E2E_AUTH_BYPASS === 'true';
@@ -148,4 +148,46 @@ test.describe('Sites: öffentliche Seite, axe', () => {
       ).toEqual([]);
     });
   }
+});
+
+test.describe('Sites: Editor', () => {
+  test.beforeEach(() => {
+    if (BYPASS_AKTIV) return;
+    const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
+    if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
+    test.skip(true, reason);
+  });
+
+  test('edit in the preview, publish', async ({ page }) => {
+    await installApiFixtures(page);
+    const site = makeSite();
+    const room = await startDraftServer(site);
+    try {
+      // Publish reads the live draft from the room, as the API does.
+      const { state } = installSitesApi(page, { unlocked: true, readDraft: room.readDraft });
+      state.site = site;
+      expect(
+        publishFromDraft(state, 'de-DE', siteDraftToSnapshotSource(room.seeded, site.legal)).ok
+      ).toBe(true);
+
+      await page.goto('/sites');
+      await expect(page.getByText('Nicht veröffentlicht', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Live', { exact: true })).toBeVisible();
+
+      const preview = page.frameLocator('iframe').first();
+      await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
+      await preview.locator('[data-field="site_title"]').click();
+      const input = page.locator('input:focus');
+      await expect(input).toHaveValue(GENERATED.hero.heading);
+      await input.press('End');
+      await input.pressSequentially(' Neu');
+
+      await expect(page.getByText('Änderungen nicht veröffentlicht')).toBeVisible();
+      await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
+      await expect(page.getByText('Live', { exact: true })).toBeVisible();
+      expect(state.snapshot?.site_title).toBe(`${GENERATED.hero.heading} Neu`);
+    } finally {
+      await room.close();
+    }
+  });
 });

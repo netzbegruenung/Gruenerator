@@ -7,23 +7,29 @@
  * `/api/sites`, never a glob over all API paths (see the header of
  * `recipes.spec.ts`). Everything else stays with `installApiFixtures`.
  *
- * Not stubbed, and therefore not covered: the collaborative draft. The editor
- * opens a Hocuspocus connection after `prepareSiteDraft`; there is no server
- * for it here, so the editor shell cannot reach its `ready` state.
+ * The collaborative draft is not stubbed but served: `startDraftServer` runs a
+ * bare in-memory Hocuspocus on the port the Vite `/ws` proxy forwards to.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
   buildSiteSnapshot,
+  siteDraftFromSite,
+  siteDraftToSnapshotSource,
   type PublishedSiteSnapshot,
+  type SiteDraft,
+  type SiteSnapshotSource,
   type Site,
   type SiteLegalDraft,
   type SupportedLocale,
   type WebsiteContent,
 } from '@gruenerator/contracts';
+import { decodeSiteDraft, encodeSiteSeed } from '@gruenerator/contracts/site-ydoc';
 import { renderSitePage } from '@gruenerator/sites-design/server';
+import { Server } from '@hocuspocus/server';
 import { type BrowserContext, type Page, type Route } from '@playwright/test';
+import * as Y from 'yjs';
 
 export const PUBLIC_ORIGIN = 'https://sites.test';
 export const HANDLE = 'e2e-kandidatin';
@@ -111,10 +117,11 @@ export function makeSite(over: Partial<Site> = {}): Site {
 /** What the server does on publish: build the snapshot from the draft row. */
 export function publishFromDraft(
   state: SitesStubState,
-  locale: SupportedLocale
+  locale: SupportedLocale,
+  source?: SiteSnapshotSource
 ): ReturnType<typeof buildSiteSnapshot> {
   if (!state.site) throw new Error('no site to publish');
-  const built = buildSiteSnapshot(state.site, locale);
+  const built = buildSiteSnapshot(source ?? state.site, locale);
   if (built.ok) {
     state.snapshot = built.snapshot;
     state.published = true;
@@ -130,7 +137,12 @@ export function publishFromDraft(
 
 export function installSitesApi(
   page: Page,
-  options: { unlocked: boolean; locale?: SupportedLocale }
+  options: {
+    unlocked: boolean;
+    locale?: SupportedLocale;
+    /** The live draft, when a room serves one: publish builds the snapshot from it, as the API does. */
+    readDraft?: () => SiteDraft | null;
+  }
 ): { state: SitesStubState } {
   const locale = options.locale ?? 'de-DE';
   const state: SitesStubState = { site: null, snapshot: null, published: false, createBodies: [] };
@@ -223,7 +235,12 @@ export function installSitesApi(
         state.site = { ...state.site, is_published: false, published_snapshot: null };
         return json(route, { site: state.site });
       }
-      const built = publishFromDraft(state, locale);
+      const draft = options.readDraft?.() ?? null;
+      const built = publishFromDraft(
+        state,
+        locale,
+        draft ? siteDraftToSnapshotSource(draft, state.site.legal) : undefined
+      );
       if (!built.ok)
         return json(route, { error: 'Veröffentlichen nicht möglich', issues: built.issues }, 422);
       return json(route, { site: state.site });
@@ -232,6 +249,43 @@ export function installSitesApi(
   });
 
   return { state };
+}
+
+/** The room the editor opens for a site (`site-<lowercase uuid>`, see `useSiteDraftSession`). */
+export const SITE_ROOM = `site-${SITE_ID.toLowerCase()}`;
+/** Where the Vite proxy forwards `/ws`; a bare server here needs no URL wiring. */
+const HOCUSPOCUS_PORT = 1240;
+
+/**
+ * A bare in-memory Hocuspocus (no auth, no persistence) holding the site's
+ * draft room, seeded from the same codec the API uses. Stands in for
+ * `services/hocuspocus`, which is exercised by its own tests.
+ */
+export async function startDraftServer(site: Site): Promise<{
+  /** The draft the room was seeded with. */
+  seeded: SiteDraft;
+  readDraft: () => SiteDraft | null;
+  close: () => Promise<void>;
+}> {
+  const seeded = siteDraftFromSite(site);
+  const seed = encodeSiteSeed(seeded, ZEITPUNKT);
+  const server = new Server({
+    port: HOCUSPOCUS_PORT,
+    quiet: true,
+    stopOnSignals: false,
+    async onLoadDocument({ document }) {
+      Y.applyUpdate(document, seed);
+    },
+  });
+  await server.listen();
+  return {
+    seeded,
+    readDraft: () => {
+      const doc = server.hocuspocus.documents.get(SITE_ROOM);
+      return doc ? decodeSiteDraft(doc) : null;
+    },
+    close: () => server.destroy(),
+  };
 }
 
 const SITE_DESIGN = new URL('../../../../../packages/sites-design/', import.meta.url);
