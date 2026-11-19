@@ -38,7 +38,7 @@ function fakeRes() {
   const res = {
     setHeader: vi.fn(),
     flushHeaders: vi.fn(),
-    write: vi.fn(() => true),
+    write: vi.fn((_chunk: unknown) => true),
     end: vi.fn(),
     json: vi.fn(),
     send: vi.fn(),

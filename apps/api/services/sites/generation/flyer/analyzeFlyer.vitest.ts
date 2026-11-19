@@ -58,7 +58,7 @@ describe('analyzeFlyer', () => {
   });
 
   it('rethrows when no provider answered', async () => {
-    const cause = new AiProviderError('down', { code: 'internal', retryable: true });
+    const cause = new AiProviderError('down', { code: 'provider_unavailable', retryable: true });
     mocks.aiObject.mockResolvedValue({ ok: false, error: 'x', cause });
     await expect(analyzeFlyer('t', 'de-DE', new AbortController().signal)).rejects.toBe(cause);
   });
