@@ -24,6 +24,10 @@ interface Rows {
   groupTrashed?: boolean;
   displayName?: string;
   profilesFail?: boolean;
+  /** The `user_sites` row behind a `site-` room, as the access query would see it. */
+  site?: { user_id: string; moderation: string; trashed?: boolean; locked?: boolean } | null;
+  /** A `user_sites` row with the bare room's id exists (trashed or not). */
+  siteExists?: boolean;
 }
 
 /** A group lookup only sees a trashed group when its SQL forgets the live-group clause. */
@@ -33,6 +37,15 @@ function makeDb(rows: Rows) {
   const captured: { sql: string; params?: unknown[] }[] = [];
   const db: DbQueryFn = vi.fn(async (sql: string, params?: unknown[]) => {
     captured.push({ sql, params });
+    if (/SELECT 1 FROM user_sites/i.test(sql)) return rows.siteExists ? [{ '?column?': 1 }] : [];
+    if (/FROM user_sites/i.test(sql)) {
+      const site = rows.site;
+      if (!site) return [];
+      if (site.trashed && !/s\.deleted_at IS NULL/.test(sql)) return [site];
+      if (site.locked && !/sites_unlocked = true/.test(sql)) return [site];
+      if (site.trashed || site.locked) return [];
+      return [site];
+    }
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
     if (/FROM collaborative_documents/i.test(sql)) return rows.doc ? [rows.doc] : [];
     if (/FROM chat_threads/i.test(sql)) return rows.thread ? [rows.thread] : [];
@@ -549,5 +562,108 @@ describe('AuthService — team chat rooms (final review)', () => {
     await new AuthService({ db, redis }).authenticateConnection(withToken('chat-thread-1'));
     const q = captured.find((c) => /FROM group_content_shares/i.test(c.sql));
     expect(q?.sql).toMatch(/'read'/);
+  });
+});
+
+describe('AuthService — site rooms', () => {
+  const SITE_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+  const ROOM = `site-${SITE_ID}`;
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  /**
+   * A denial on the session path falls through to cookie and guest, whose reason
+   * wins; the room check's own reason is read straight from `checkRoomAccess`.
+   */
+  const roomReason = async (db: DbQueryFn, room: string, userId = 'user-9') => {
+    const service = new AuthService({ db, redis }) as unknown as {
+      checkRoomAccess(room: string, userId: string): Promise<{ reason?: string }>;
+    };
+    return (await service.checkRoomAccess(room, userId)).reason;
+  };
+
+  it('site room: owner gets read-write', async () => {
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
+    const query = captured.find((c) => /FROM user_sites s/.test(c.sql));
+    expect(query?.params).toEqual([SITE_ID]);
+    expect(captured.some((c) => /FROM collaborative_documents/.test(c.sql))).toBe(false);
+  });
+
+  it('site room: another user is denied', async () => {
+    const { db } = makeDb({ site: { user_id: 'owner-1', moderation: 'ok' } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, ROOM)).toBe('Access denied');
+  });
+
+  it.each([
+    ['trashed', { trashed: true }],
+    ['not unlocked', { locked: true }],
+  ])('site room: a trashed or not-unlocked site is denied (%s)', async (_label, flags) => {
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok', ...flags } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, ROOM)).toBe('Site not found');
+    const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
+    expect(sql).toContain('s.deleted_at IS NULL');
+    expect(sql).toContain('sites_unlocked = true');
+  });
+
+  it('site room: a room without a uuid is denied without a query', async () => {
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('site-x'));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, 'site-x')).toBe('Site not found');
+    expect(captured.some((c) => /user_sites/.test(c.sql))).toBe(false);
+  });
+
+  it('site room: an upper-case uuid is denied without a query', async () => {
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const room = `site-${SITE_ID.toUpperCase()}`;
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(room));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, room)).toBe('Site not found');
+    expect(captured.some((c) => /user_sites/.test(c.sql))).toBe(false);
+  });
+
+  it('site room: removed by moderation is read-only', async () => {
+    const { db } = makeDb({ site: { user_id: 'user-9', moderation: 'removed' } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res).toMatchObject({ authenticated: true, readOnly: true });
+  });
+
+  it('site room: a guest is denied', async () => {
+    global.fetch = vi.fn(
+      async () => new Response('{}', { status: 401 })
+    ) as unknown as typeof fetch;
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const res = await new AuthService({ db, redis }).authenticateConnection(guest(ROOM));
+    expect(res.authenticated).toBe(false);
+    expect(captured.some((c) => /FROM collaborative_documents/.test(c.sql))).toBe(false);
+  });
+
+  it('bare site id: the no-row fallback denies an id that exists in user_sites', async () => {
+    const { db, captured } = makeDb({ doc: null, siteExists: true });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(SITE_ID));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, SITE_ID)).toBe('Access denied');
+    const guard = captured.find((c) => /SELECT 1 FROM user_sites/.test(c.sql));
+    expect(guard?.params).toEqual([SITE_ID]);
+    expect(guard?.sql).not.toMatch(/deleted_at/);
+  });
+
+  it('bare unknown id: the no-row fallback still allows creation', async () => {
+    const { db } = makeDb({ doc: null, siteExists: false });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(SITE_ID));
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
   });
 });

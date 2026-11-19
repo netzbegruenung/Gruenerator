@@ -184,35 +184,6 @@ export const siteSectionsSchema = z.object({
 });
 export type SiteSections = z.infer<typeof siteSectionsSchema>;
 
-/** Mirrors the user_sites row (apps/api/database/schema/sites.ts) as serialized to JSON. */
-export const siteSchema = z.object({
-  id: z.string(),
-  user_id: z.string().nullable(),
-  subdomain: z.string(),
-  is_published: z.boolean().nullable(),
-  site_title: z.string(),
-  tagline: z.string().nullable(),
-  contact_email: z.string().nullable(),
-  contact_phone: z.string().nullable(),
-  contact_website: z.string().nullable(),
-  social_links: z.record(z.string(), z.string()).nullable(),
-  theme: z.string().nullable(),
-  accent_color: z.string().nullable(),
-  profile_image: z.string().nullable(),
-  background_image: z.string().nullable(),
-  sections: siteSectionsSchema.nullable(),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable(),
-  last_published: z.string().nullable(),
-  visit_count: z.number().nullable(),
-  meta_description: z.string().nullable(),
-  meta_keywords: z.array(z.string()).nullable(),
-  legal: siteLegalDraftSchema.nullable(),
-  moderation: moderationStateSchema,
-  has_unpublished_changes: z.boolean(),
-});
-export type Site = z.infer<typeof siteSchema>;
-
 const LINK_MESSAGE = 'Link muss mit https:// beginnen';
 const IMAGE_MESSAGE = 'Bild muss aus der Mediathek stammen';
 const RICH_TEXT_FORMAT_MESSAGE = 'Text enthält nicht erlaubte Formatierung';
@@ -471,6 +442,36 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
 
 export const publishedSiteSnapshotSchema = snapshotSchemaFor('publish');
 export const previewSiteSnapshotSchema = snapshotSchemaFor('preview');
+
+/** Mirrors the user_sites row (apps/api/database/schema/sites.ts) as serialized to JSON. */
+export const siteSchema = z.object({
+  id: z.string(),
+  user_id: z.string().nullable(),
+  subdomain: z.string(),
+  is_published: z.boolean().nullable(),
+  site_title: z.string(),
+  tagline: z.string().nullable(),
+  contact_email: z.string().nullable(),
+  contact_phone: z.string().nullable(),
+  contact_website: z.string().nullable(),
+  social_links: z.record(z.string(), z.string()).nullable(),
+  theme: z.string().nullable(),
+  accent_color: z.string().nullable(),
+  profile_image: z.string().nullable(),
+  background_image: z.string().nullable(),
+  sections: siteSectionsSchema.nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+  last_published: z.string().nullable(),
+  visit_count: z.number().nullable(),
+  meta_description: z.string().nullable(),
+  meta_keywords: z.array(z.string()).nullable(),
+  legal: siteLegalDraftSchema.nullable(),
+  moderation: moderationStateSchema,
+  has_unpublished_changes: z.boolean(),
+  published_snapshot: previewSiteSnapshotSchema.nullable(),
+});
+export type Site = z.infer<typeof siteSchema>;
 export type PublishedSiteSnapshot = z.infer<typeof publishedSiteSnapshotSchema>;
 
 export const sitePublishIssueSchema = z.object({ path: z.string(), message: z.string() });
@@ -576,7 +577,10 @@ export function buildSitePreviewSnapshot(
 }
 
 export const siteResponseSchema = z.object({ site: siteSchema });
-export const mySiteResponseSchema = z.object({ site: siteSchema.nullable() });
+export const mySiteResponseSchema = z.object({
+  site: siteSchema.nullable(),
+  public_origin: z.string().nullable(),
+});
 
 export const createSiteBodySchema = z.object({
   subdomain: z.string().min(1).max(SITE_HANDLE_MAX),
@@ -594,6 +598,7 @@ export const createSiteBodySchema = z.object({
 export type CreateSiteBody = z.infer<typeof createSiteBodySchema>;
 
 export const updateUserSiteBodySchema = z.object({
+  subdomain: z.string().min(1).max(SITE_HANDLE_MAX).optional(),
   site_title: z.string().max(SITE_TITLE_MAX).optional(),
   theme: siteVariantSchema.optional(),
   tagline: z.string().max(SITE_TAGLINE_MAX).optional(),

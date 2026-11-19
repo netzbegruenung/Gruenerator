@@ -6,6 +6,7 @@
  *   POST   /api/sites/create
  *   PUT    /api/sites/:id
  *   POST   /api/sites/:id/publish
+ *   POST   /api/sites/:id/draft
  *   GET    /api/sites/check-subdomain
  *   DELETE /api/sites/:id
  *
@@ -20,14 +21,24 @@ import {
   buildSiteSnapshot,
   checkSiteHandle,
   DEFAULT_SITE_VARIANT,
+  siteDraftFromSite,
+  siteDraftToRowColumns,
+  siteDraftToSnapshotSource,
   sitesContract,
+  updateUserSiteBodySchema,
+  type SiteDraft,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { sql } from 'drizzle-orm';
 
+import { env } from '../../config/env.js';
+import { getServerConfig } from '../../config/serverConfig.js';
+import { siteOrigin } from '../../config/sitesOrigin.js';
 import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
+import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
 import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
 import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
@@ -67,6 +78,74 @@ const ALLOWED_UPDATE_FIELDS = [
   'meta_keywords',
 ] as const;
 
+/**
+ * An address change runs through Drizzle, because PostgresService strips the pg code. It lands
+ * only while the site was never published (`last_published IS NULL`), in the same statement.
+ */
+async function updateSiteWithAddress(
+  userId: string,
+  id: string,
+  subdomain: string,
+  body: Partial<Record<(typeof ALLOWED_UPDATE_FIELDS)[number], unknown>>
+) {
+  const handle = checkSiteHandle(subdomain);
+  if (!handle.ok) {
+    return { status: 400 as const, body: { error: HANDLE_MESSAGES[handle.reason] } };
+  }
+
+  const assignments = [sql`subdomain = ${handle.handle}`];
+  for (const field of ALLOWED_UPDATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, field)) {
+      assignments.push(sql`${sql.identifier(field)} = ${sql.param(body[field])}`);
+    }
+  }
+
+  let row: UserSiteRow | undefined;
+  try {
+    const result = await getDrizzleInstance().execute<UserSiteRow>(
+      sql`UPDATE user_sites
+          SET ${sql.join(assignments, sql`, `)}
+          WHERE id = ${id} AND user_id = ${userId} AND deleted_at IS NULL
+            AND last_published IS NULL
+          RETURNING *`
+    );
+    row = result.rows[0];
+  } catch (error: unknown) {
+    if (isUniqueViolation(error)) {
+      return { status: 400 as const, body: { error: 'Diese Adresse ist bereits vergeben' } };
+    }
+    throw error;
+  }
+  if (row) return { status: 200 as const, body: { site: toSite(row) } };
+
+  const existing = await db.query<Pick<UserSiteRow, 'id'>>(
+    'SELECT id FROM user_sites WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+    [id, userId]
+  );
+  if (existing && existing.length > 0) {
+    return {
+      status: 400 as const,
+      body: {
+        error: 'Die Adresse kann nach dem ersten Veröffentlichen nicht mehr geändert werden',
+      },
+    };
+  }
+  return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
+}
+
+const PUBLISH_ROW_COLUMNS = updateUserSiteBodySchema
+  .pick({
+    site_title: true,
+    tagline: true,
+    profile_image: true,
+    theme: true,
+    contact_email: true,
+    contact_phone: true,
+    social_links: true,
+    sections: true,
+  })
+  .required();
+
 const s = initServer();
 
 export const sitesContractRouter = s.router(sitesContract, {
@@ -83,7 +162,13 @@ export const sitesContractRouter = s.router(sitesContract, {
       );
 
       const row = result?.[0];
-      return { status: 200 as const, body: { site: row ? toSite(row) : null } };
+      const publicOrigin = env.SITES_HOST
+        ? siteOrigin(env.SITES_HOST, getServerConfig().port)
+        : null;
+      return {
+        status: 200 as const,
+        body: { site: row ? toSite(row) : null, public_origin: publicOrigin },
+      };
     } catch (error) {
       log.error('Error fetching user site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Laden der Website' } };
@@ -168,6 +253,12 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
       }
 
+      // The content fields stay accepted (F0). Once the draft is seeded, the next publish
+      // overwrites them from the Y.Doc.
+      if (body.subdomain !== undefined) {
+        return await updateSiteWithAddress(userId, params.id, body.subdomain, body);
+      }
+
       const updateFields: string[] = [];
       const values: unknown[] = [];
       let paramCounter = 1;
@@ -218,11 +309,26 @@ export const sitesContractRouter = s.router(sitesContract, {
           'SELECT * FROM user_sites WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
           [params.id, userId]
         );
-        const draft = current?.[0];
-        if (!draft) {
+        const owned = current?.[0];
+        if (!owned) {
           return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
         }
-        const built = buildSiteSnapshot(toSite(draft), getUserLocale(req));
+        let yjsDraft: SiteDraft | null;
+        try {
+          yjsDraft = await readSiteDraft(owned.id);
+        } catch (error) {
+          log.error(`Reading the draft of ${siteRoom(owned.id)} for publish failed:`, error);
+          return {
+            status: 503 as const,
+            body: { error: 'Der Entwurf konnte nicht gelesen werden' },
+          };
+        }
+        const site = toSite(owned);
+        const draft = yjsDraft ?? siteDraftFromSite(site);
+        const built = buildSiteSnapshot(
+          siteDraftToSnapshotSource(draft, site.legal),
+          getUserLocale(req)
+        );
         if (!built.ok) {
           return {
             status: 422 as const,
@@ -232,12 +338,42 @@ export const sitesContractRouter = s.router(sitesContract, {
             },
           };
         }
+        // The row gets only the fixed shape and bounds a PUT would accept: no extra keys a
+        // client wrote into the Y.Doc, no unbounded values.
+        const parsedColumns = PUBLISH_ROW_COLUMNS.safeParse(siteDraftToRowColumns(draft));
+        if (!parsedColumns.success) {
+          return {
+            status: 422 as const,
+            body: {
+              error: 'Die Website kann noch nicht veröffentlicht werden',
+              issues: parsedColumns.error.issues.map((issue) => ({
+                path: issue.path.join('.'),
+                message: issue.message,
+              })),
+            },
+          };
+        }
+        const columns = parsedColumns.data;
         result = await db.query<UserSiteRow>(
           `UPDATE user_sites
-           SET published_snapshot = $1, is_published = true, last_published = CURRENT_TIMESTAMP
-           WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
+           SET site_title = $1, tagline = $2, profile_image = $3, theme = $4,
+               contact_email = $5, contact_phone = $6, social_links = $7, sections = $8,
+               published_snapshot = $9, is_published = true, last_published = CURRENT_TIMESTAMP
+           WHERE id = $10 AND user_id = $11 AND deleted_at IS NULL
            RETURNING *`,
-          [JSON.stringify(built.snapshot), params.id, userId]
+          [
+            columns.site_title,
+            columns.tagline,
+            columns.profile_image,
+            columns.theme,
+            columns.contact_email,
+            columns.contact_phone,
+            JSON.stringify(columns.social_links),
+            JSON.stringify(columns.sections),
+            JSON.stringify(built.snapshot),
+            params.id,
+            userId,
+          ]
         );
       } else {
         result = await db.query<UserSiteRow>(
@@ -257,6 +393,35 @@ export const sitesContractRouter = s.router(sitesContract, {
     } catch (error) {
       log.error('Error publishing site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Veröffentlichen der Website' } };
+    }
+  },
+
+  prepareSiteDraft: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+      }
+
+      const result = await db.query<UserSiteRow>(
+        'SELECT * FROM user_sites WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+        [params.id, userId]
+      );
+      const row = result?.[0];
+      if (!row) {
+        return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
+      }
+
+      // Seeded before the answer, so no editor ever connects to an empty room.
+      try {
+        return { status: 200 as const, body: await ensureSiteDraft(toSite(row)) };
+      } catch (error) {
+        log.error(`Preparing the draft of ${siteRoom(row.id)} failed:`, error);
+        return { status: 503 as const, body: { error: 'Der Entwurf ist gerade nicht erreichbar' } };
+      }
+    } catch (error) {
+      log.error('Error preparing site draft:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Website' } };
     }
   },
 
@@ -293,6 +458,7 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
 
+      void closeCollabRooms([siteRoom(params.id)]);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
       log.error('Error deleting site:', error);

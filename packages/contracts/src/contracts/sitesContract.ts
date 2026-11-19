@@ -99,9 +99,30 @@ export const sitesContract = c.router({
       403: sitesErrorSchema,
       404: sitesErrorSchema,
       422: sitePublishErrorSchema,
+      503: sitesErrorSchema,
       500: sitesErrorSchema,
     },
     summary: 'Publish or unpublish a site',
+  },
+
+  /**
+   * POST /api/sites/:id/draft
+   * Seeds the collaborative draft of a site from its row, if there is none yet.
+   */
+  prepareSiteDraft: {
+    method: 'POST',
+    path: '/api/sites/:id/draft',
+    pathParams: z.object({ id: z.string().guid() }),
+    body: z.object({}),
+    responses: {
+      200: z.object({ seeded: z.boolean() }),
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      503: sitesErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Prepare the collaborative draft of a site',
   },
 
   /**
