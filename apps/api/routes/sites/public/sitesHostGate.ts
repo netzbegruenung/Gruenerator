@@ -36,6 +36,7 @@ export const sitesReadLimiter: RequestHandler =
 
 export interface SitesHostGateOptions {
   host: string;
+  origin: string;
   pages: Router;
   limiter: RequestHandler;
   robots: 'index' | 'noindex';
@@ -52,8 +53,24 @@ function sendSiteError(res: Response): void {
     .send('Die Website ist gerade nicht erreichbar.');
 }
 
+function requestHostname(req: Request): string {
+  return typeof req.hostname === 'string' ? req.hostname.toLowerCase() : '';
+}
+
+export function createSitesUnavailableGate(host: string): RequestHandler {
+  const wwwHost = `www.${host}`;
+  return (req: Request, res: Response, next: NextFunction) => {
+    const hostname = requestHostname(req);
+    if (hostname !== host && hostname !== wwwHost) {
+      next();
+      return;
+    }
+    sendSiteNotFound(res);
+  };
+}
+
 export function createSitesHostGate(options: SitesHostGateOptions): RequestHandler {
-  const { host, pages, limiter, robots } = options;
+  const { host, origin, pages, limiter, robots } = options;
   const wwwHost = `www.${host}`;
 
   const inner = Router();
@@ -66,9 +83,9 @@ export function createSitesHostGate(options: SitesHostGateOptions): RequestHandl
   inner.use(onError);
 
   return (req: Request, res: Response, next: NextFunction) => {
-    const hostname = typeof req.hostname === 'string' ? req.hostname.toLowerCase() : '';
+    const hostname = requestHostname(req);
     if (hostname === wwwHost) {
-      res.redirect(301, `${req.protocol}://${host}${req.originalUrl}`);
+      res.redirect(301, `${origin}${req.originalUrl}`);
       return;
     }
     if (hostname !== host) {

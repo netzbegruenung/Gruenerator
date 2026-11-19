@@ -9,8 +9,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../config/env.js', () => ({ env: { THUMBNAIL_CACHE_DIR: '/nonexistent' } }));
 
-const { createSitesHostGate, isSitesPassthrough } = await import('./sitesHostGate.js');
+const { createSitesHostGate, createSitesUnavailableGate, isSitesPassthrough } =
+  await import('./sitesHostGate.js');
 const { siteOrigin } = await import('../../../config/sitesOrigin.js');
+const { SITE_BARE_CSP } = await import('./siteSecurity.js');
 
 const apiRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -24,10 +26,15 @@ let server: Server;
 let port = 0;
 let limited = 0;
 
-const get = (path: string, host: string, init: { method?: string } = {}): Promise<Reply> =>
+const get = (
+  path: string,
+  host: string,
+  init: { method?: string } = {},
+  to: number = port
+): Promise<Reply> =>
   new Promise((resolve, reject) => {
     const req = request(
-      { host: '127.0.0.1', port, path, method: init.method ?? 'GET', headers: { host } },
+      { host: '127.0.0.1', port: to, path, method: init.method ?? 'GET', headers: { host } },
       (res) => {
         let text = '';
         res.setEncoding('utf8');
@@ -56,7 +63,15 @@ beforeAll(async () => {
 
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createSitesHostGate({ host: 'sites.localhost', pages, limiter, robots: 'noindex' }));
+  app.use(
+    createSitesHostGate({
+      host: 'sites.localhost',
+      origin: 'https://sites.localhost',
+      pages,
+      limiter,
+      robots: 'noindex',
+    })
+  );
   app.get('/x', (_req, res) => {
     res.send('app');
   });
@@ -83,10 +98,10 @@ describe('createSitesHostGate', () => {
   it('requests on other hosts reach the app unchanged', async () =>
     expect(await body(get('/x', 'app.localhost'))).toBe('app'));
 
-  it('www redirects to the bare host keeping path and query', async () => {
+  it('www redirects to the configured origin keeping path and query', async () => {
     const res = await get('/anna?x=1', 'www.sites.localhost');
     expect(res.status).toBe(301);
-    expect(res.headers.location).toBe('http://sites.localhost/anna?x=1');
+    expect(res.headers.location).toBe('https://sites.localhost/anna?x=1');
   });
 
   it('serves the site on the sites host, ignoring port and case', async () =>
@@ -137,6 +152,46 @@ describe('createSitesHostGate', () => {
     expect(res.status).toBe(500);
     expect(res.headers['cache-control']).toBe('no-store');
   });
+});
+
+describe('createSitesUnavailableGate', () => {
+  let fallback: Server;
+  let fallbackPort = 0;
+
+  beforeAll(async () => {
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(createSitesUnavailableGate('sites.localhost'));
+    app.use((_req, res) => {
+      res.cookie('session', 'secret').send('app');
+    });
+    fallback = createServer(app);
+    await new Promise<void>((resolve) => fallback.listen(0, '127.0.0.1', resolve));
+    fallbackPort = (fallback.address() as AddressInfo).port;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => fallback.close(() => resolve()));
+  });
+
+  it('answers every sites-host request with the bare 404 and never reaches the app', async () => {
+    for (const [p, h, m] of [
+      ['/anna', 'sites.localhost', 'GET'],
+      ['/anna?x=1', 'www.sites.localhost', 'GET'],
+      ['/api/share/abcdef123/preview', 'sites.localhost', 'GET'],
+      ['/api/auth/get-session', 'SITES.localhost:3001', 'POST'],
+    ] as const) {
+      const res = await get(p, h, { method: m }, fallbackPort);
+      expect(res.status).toBe(404);
+      expect(res.headers['content-security-policy']).toBe(SITE_BARE_CSP);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['set-cookie']).toBeUndefined();
+      expect(res.text).not.toBe('app');
+    }
+  });
+
+  it('leaves other hosts to the app', async () =>
+    expect(await body(get('/x', 'app.localhost', {}, fallbackPort))).toBe('app'));
 });
 
 describe('isSitesPassthrough', () => {
