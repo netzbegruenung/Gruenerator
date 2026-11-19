@@ -14,7 +14,6 @@ interface LoadingOverlayProps {
 }
 
 function OverlayDialog({
-  isLoading,
   message,
   steps,
   current,
