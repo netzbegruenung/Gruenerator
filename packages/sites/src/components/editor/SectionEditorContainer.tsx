@@ -25,6 +25,8 @@ function ActiveEditor() {
       return <SocialFeedSectionEditor />;
     case 'contact':
       return <ContactSectionEditor />;
+    case 'settings':
+    case 'legal':
     case null:
       return null;
   }

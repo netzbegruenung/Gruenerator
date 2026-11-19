@@ -39,8 +39,8 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
         <div className="flex items-center justify-between py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700">
           <h3 className="m-0 text-base font-medium text-foreground">Vorschau</h3>
         </div>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth" ref={ref}>
-          <div className="min-h-full bg-background-pure shadow-[0_0_40px_rgba(0,0,0,0.08)] m-md rounded-lg overflow-hidden max-lg:m-sm">
+        <div className="flex-1 min-h-0 p-md max-lg:p-sm" ref={ref}>
+          <div className="h-full bg-background-pure shadow-[0_0_40px_rgba(0,0,0,0.08)] rounded-lg overflow-hidden">
             {preview}
           </div>
         </div>

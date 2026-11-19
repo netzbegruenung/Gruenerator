@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
 
@@ -20,7 +20,7 @@ const ALL_PLATFORMS = [
 ] as const;
 
 export function HeroSectionEditor() {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { setField } = useDraftActions();
   const name = useDraft((d) => d.site_title);
   const tagline = useDraft((d) => d.tagline);
@@ -63,7 +63,7 @@ export function HeroSectionEditor() {
         <div className="flex-1 min-w-0 flex flex-col">
           <Field panel="hero" path="site_title" htmlFor="hero-name" label="Name">
             <Input
-              ref={(el) => registerField('hero', 'site_title', el)}
+              ref={(el) => registerField('site_title', el)}
               id="hero-name"
               value={name}
               onChange={(e) => setField('site_title', e.target.value)}
@@ -76,7 +76,7 @@ export function HeroSectionEditor() {
 
           <Field panel="hero" path="tagline" htmlFor="hero-tagline" label="Tagline / Slogan">
             <Textarea
-              ref={(el) => registerField('hero', 'tagline', el)}
+              ref={(el) => registerField('tagline', el)}
               id="hero-tagline"
               value={tagline}
               onChange={(e) => setField('tagline', e.target.value)}
@@ -115,7 +115,7 @@ export function HeroSectionEditor() {
                   )}
                 </div>
                 <Input
-                  ref={(el) => registerField('hero', `social_links.${key}`, el)}
+                  ref={(el) => registerField(`social_links.${key}`, el)}
                   id={`social-${key}`}
                   type="url"
                   value={socialLinks[key] ?? ''}

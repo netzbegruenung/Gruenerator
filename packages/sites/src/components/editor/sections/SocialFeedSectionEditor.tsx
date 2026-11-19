@@ -3,13 +3,13 @@ import { Input, Label, Switch } from '@gruenerator/ui';
 import { FaInstagram } from 'react-icons/fa';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 
 const cleanUsername = (value: string) => value.replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
 
 export function SocialFeedSectionEditor() {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { setField } = useDraftActions();
   const showFeed = useDraft((d) => d.socialFeed.showFeed);
   const title = useDraft((d) => d.socialFeed.title);
@@ -42,7 +42,7 @@ export function SocialFeedSectionEditor() {
             label="Abschnittstitel"
           >
             <Input
-              ref={(el) => registerField('socialFeed', 'sections.socialFeed.title', el)}
+              ref={(el) => registerField('sections.socialFeed.title', el)}
               id="socialfeed-title"
               value={title}
               onChange={(e) => setField('socialFeed.title', e.target.value)}
@@ -65,9 +65,7 @@ export function SocialFeedSectionEditor() {
                 @
               </span>
               <Input
-                ref={(el) =>
-                  registerField('socialFeed', 'sections.socialFeed.instagramUsername', el)
-                }
+                ref={(el) => registerField('sections.socialFeed.instagramUsername', el)}
                 id="socialfeed-username"
                 value={username}
                 onChange={(e) =>

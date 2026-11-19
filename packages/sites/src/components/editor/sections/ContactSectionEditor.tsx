@@ -2,12 +2,12 @@ import { SITE_PHONE_MAX, SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
 import { Input, Label } from '@gruenerator/ui';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
 
 export function ContactSectionEditor() {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { setField } = useDraftActions();
   const title = useDraft((d) => d.contact.title);
   const email = useDraft((d) => d.contact_email);
@@ -20,7 +20,7 @@ export function ContactSectionEditor() {
 
       <Field panel="contact" path="sections.contact.title" htmlFor="contact-title" label="Titel">
         <Input
-          ref={(el) => registerField('contact', 'sections.contact.title', el)}
+          ref={(el) => registerField('sections.contact.title', el)}
           id="contact-title"
           value={title}
           onChange={(e) => setField('contact.title', e.target.value)}
@@ -33,7 +33,7 @@ export function ContactSectionEditor() {
 
       <Field panel="contact" path="contact_email" htmlFor="contact-email" label="E-Mail">
         <Input
-          ref={(el) => registerField('contact', 'contact_email', el)}
+          ref={(el) => registerField('contact_email', el)}
           id="contact-email"
           type="email"
           value={email}
@@ -46,7 +46,7 @@ export function ContactSectionEditor() {
 
       <Field panel="contact" path="contact_phone" htmlFor="contact-phone" label="Telefon">
         <Input
-          ref={(el) => registerField('contact', 'contact_phone', el)}
+          ref={(el) => registerField('contact_phone', el)}
           id="contact-phone"
           type="tel"
           value={phone}

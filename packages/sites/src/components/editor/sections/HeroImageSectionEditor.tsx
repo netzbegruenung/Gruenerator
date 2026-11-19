@@ -2,7 +2,7 @@ import { cn } from '@gruenerator/shared/utils';
 import { Input, Textarea } from '@gruenerator/ui';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
 
@@ -23,7 +23,7 @@ function Counter({ length, max }: { length: number; max: number }) {
 }
 
 export function HeroImageSectionEditor() {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { setField } = useDraftActions();
   const imageUrl = useDraft((d) => d.heroImage.imageUrl);
   const title = useDraft((d) => d.heroImage.title);
@@ -51,7 +51,7 @@ export function HeroImageSectionEditor() {
             label="Hauptbotschaft"
           >
             <Input
-              ref={(el) => registerField('heroImage', 'sections.heroImage.title', el)}
+              ref={(el) => registerField('sections.heroImage.title', el)}
               id="heroimage-title"
               value={title}
               onChange={(e) => setField('heroImage.title', e.target.value)}
@@ -70,7 +70,7 @@ export function HeroImageSectionEditor() {
             label="Untertitel"
           >
             <Textarea
-              ref={(el) => registerField('heroImage', 'sections.heroImage.subtitle', el)}
+              ref={(el) => registerField('sections.heroImage.subtitle', el)}
               id="heroimage-subtitle"
               value={subtitle}
               onChange={(e) => setField('heroImage.subtitle', e.target.value)}

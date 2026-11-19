@@ -3,8 +3,6 @@ import {
   siteDraftToSnapshotSource,
   type SupportedLocale,
 } from '@gruenerator/contracts';
-import { cn } from '@gruenerator/shared/utils';
-import { Button } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
@@ -14,73 +12,45 @@ import { useSiteDraftSession } from '../draft/useSiteDraftSession';
 import { useLeaveWarning } from '../hooks/useLeaveWarning';
 import { type SiteData } from '../hooks/useSite';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
+import {
+  usePreviewClickToEdit,
+  usePreviewHighlight,
+  usePreviewScrollSync,
+} from '../preview/usePreviewInteractions';
 import { useAuth } from '../SitesContext';
 
 import { EditorHeader } from './EditorHeader';
+import { PreviewDialog } from './PreviewDialog';
 
-type PreviewDevice = 'desktop' | 'tablet' | 'phone';
-
-function DraftPreview({ site }: { site: SiteData }) {
+function DraftPreview({ site, editable }: { site: SiteData; editable: boolean }) {
   const { user } = useAuth();
   const locale: SupportedLocale = user?.locale ?? 'de-DE';
   const draft = useDraft((d) => d);
+  const [frameDoc, setFrameDoc] = useState<Document | null>(null);
   const snapshot = useMemo(
     () => buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, site.legal), locale),
     [draft, site.legal, locale]
   );
   return (
-    <SitePreviewFrame
-      snapshot={snapshot}
-      handle={site.subdomain}
-      title="Vorschau der Website"
-      className="block h-full w-full border-0"
-    />
+    <>
+      {editable && <PreviewInteractions doc={frameDoc} />}
+      <SitePreviewFrame
+        snapshot={snapshot}
+        handle={site.subdomain}
+        title="Vorschau der Website"
+        className="block h-full w-full border-0"
+        editable={editable}
+        onFrameDocument={setFrameDoc}
+      />
+    </>
   );
 }
 
-function FullscreenPreview({ site, onClose }: { site: SiteData; onClose: () => void }) {
-  const [device, setDevice] = useState<PreviewDevice>('desktop');
-  return (
-    <div className="fixed inset-y-0 right-0 left-[var(--sidebar-collapsed-width)] z-[1000] bg-background-pure flex flex-col">
-      <div className="flex flex-wrap justify-between items-center py-sm px-md bg-primary-600 text-white shadow-md shrink-0 gap-sm md:px-lg">
-        <span className="font-semibold text-sm md:text-base">Vorschau</span>
-        <div className="flex gap-xs">
-          {(
-            [
-              ['desktop', 'Desktop'],
-              ['tablet', 'Tablet'],
-              ['phone', 'Handy'],
-            ] as const
-          ).map(([value, label]) => (
-            <Button
-              key={value}
-              variant={device === value ? 'secondary' : 'outline'}
-              aria-pressed={device === value}
-              onClick={() => setDevice(value)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-        <Button variant="secondary" onClick={onClose}>
-          Schließen
-        </Button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-hidden bg-grey-200 dark:bg-grey-700 flex justify-center">
-        <div
-          className={cn(
-            'bg-background-pure h-full min-h-0 overflow-hidden transition-[width] duration-300',
-            device === 'desktop' && 'w-full',
-            device === 'tablet' && 'w-[768px] max-w-full shadow-lg',
-            device === 'phone' && 'w-[375px] max-w-full shadow-lg'
-          )}
-          style={{ containerType: 'inline-size', containerName: 'preview' }}
-        >
-          <DraftPreview site={site} />
-        </div>
-      </div>
-    </div>
-  );
+function PreviewInteractions({ doc }: { doc: Document | null }) {
+  usePreviewClickToEdit(doc);
+  usePreviewScrollSync(doc);
+  usePreviewHighlight(doc);
+  return null;
 }
 
 export function SiteEditor({ site }: { site: SiteData }) {
@@ -115,8 +85,13 @@ export function SiteEditor({ site }: { site: SiteData }) {
         <SiteDraftProvider ydoc={session.ydoc}>
           <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
             <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)} />
-            <EditorLayout sidebar={<EditorSidebar />} preview={<DraftPreview site={site} />} />
-            {previewOpen && <FullscreenPreview site={site} onClose={() => setPreviewOpen(false)} />}
+            <EditorLayout
+              sidebar={<EditorSidebar />}
+              preview={<DraftPreview site={site} editable />}
+            />
+            <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DraftPreview site={site} editable={false} />
+            </PreviewDialog>
           </div>
         </SiteDraftProvider>
       );

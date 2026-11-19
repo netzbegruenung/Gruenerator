@@ -3,7 +3,7 @@ import { cn } from '@gruenerator/shared/utils';
 import { Button, Input } from '@gruenerator/ui';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
 import { AddItemButton } from '../common/AddItemButton';
 import { Field, SectionHeading } from '../common/Field';
@@ -24,7 +24,7 @@ interface ActionTileEditorProps {
 }
 
 function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const { updateAction, removeAction, moveAction } = useDraftActions();
   const text = useDraft((d) => d.actions.find((action) => action.id === id)?.text ?? '');
   const link = useDraft((d) => d.actions.find((action) => action.id === id)?.link ?? '');
@@ -32,8 +32,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
   const base = `sections.actions.${index}`;
   const highlighted = useEditorStore(
     (s) =>
-      s.highlightedElement?.section === 'actions' &&
-      (s.highlightedElement.field ?? '').startsWith(`${base}.`)
+      s.highlightedElement?.panel === 'actions' && s.highlightedElement.path.startsWith(`${base}.`)
   );
   const name = text || `Aktion ${index + 1}`;
 
@@ -67,7 +66,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
         label="Button-Text"
       >
         <Input
-          ref={(el) => registerField('actions', `${base}.text`, el)}
+          ref={(el) => registerField(`${base}.text`, el)}
           id={`action-${id}-text`}
           value={text}
           onChange={(e) => updateAction(id, { text: e.target.value })}
@@ -80,7 +79,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
 
       <Field panel="actions" path={`${base}.link`} htmlFor={`action-${id}-link`} label="Link">
         <Input
-          ref={(el) => registerField('actions', `${base}.link`, el)}
+          ref={(el) => registerField(`${base}.link`, el)}
           id={`action-${id}-link`}
           type="url"
           value={link}

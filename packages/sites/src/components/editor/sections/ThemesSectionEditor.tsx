@@ -9,7 +9,7 @@ import { Input } from '@gruenerator/ui';
 import { useMemo } from 'react';
 
 import { useDraft, useDraftActions, useSiteYdoc } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
 import { AddItemButton } from '../common/AddItemButton';
 import { Field, SectionHeading } from '../common/Field';
@@ -24,15 +24,15 @@ interface ThemeCardEditorProps {
 }
 
 function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const ydoc = useSiteYdoc();
   const { updateTheme, removeTheme, moveTheme } = useDraftActions();
   const title = useDraft((d) => d.themes.find((theme) => theme.id === id)?.title ?? '');
   const imageUrl = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageUrl ?? '');
   const highlighted = useEditorStore(
     (s) =>
-      s.highlightedElement?.section === 'themes' &&
-      (s.highlightedElement.field ?? '').startsWith(`sections.themes.${index}.`)
+      s.highlightedElement?.panel === 'themes' &&
+      s.highlightedElement.path.startsWith(`sections.themes.${index}.`)
   );
   const fragment = useMemo(() => getThemeFragment(ydoc, id), [ydoc, id]);
   const base = `sections.themes.${index}`;
@@ -63,7 +63,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
 
       <Field panel="themes" path={`${base}.title`} htmlFor={`theme-${id}-title`} label="Titel">
         <Input
-          ref={(el) => registerField('themes', `${base}.title`, el)}
+          ref={(el) => registerField(`${base}.title`, el)}
           id={`theme-${id}-title`}
           value={title}
           onChange={(e) => updateTheme(id, { title: e.target.value })}

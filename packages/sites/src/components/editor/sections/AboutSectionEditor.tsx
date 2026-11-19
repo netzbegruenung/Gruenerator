@@ -4,12 +4,12 @@ import { Input } from '@gruenerator/ui';
 import { useMemo } from 'react';
 
 import { useDraft, useDraftActions, useSiteYdoc } from '../../../draft/SiteDraftContext';
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
 export function AboutSectionEditor() {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const ydoc = useSiteYdoc();
   const { setField } = useDraftActions();
   const title = useDraft((d) => d.about.title);
@@ -21,7 +21,7 @@ export function AboutSectionEditor() {
 
       <Field panel="about" path="sections.about.title" htmlFor="about-title" label="Titel">
         <Input
-          ref={(el) => registerField('about', 'sections.about.title', el)}
+          ref={(el) => registerField('sections.about.title', el)}
           id="about-title"
           value={title}
           onChange={(e) => setField('about.title', e.target.value)}
