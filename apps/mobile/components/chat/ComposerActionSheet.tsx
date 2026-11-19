@@ -21,7 +21,7 @@ import {
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { memo, useCallback, useState, type ReactNode } from 'react';
+import { memo, useCallback, useRef, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -179,13 +179,24 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     onClose();
   }, [onClose]);
 
+  // The action runs once the sheet has left the screen, not in the tap: iOS
+  // will not present a picker (or the next sheet) over a Modal that is still
+  // sliding out, and expo-document-picker keeps that lost call pending — the
+  // second "Dateien" tap then failed with "Different document picking in
+  // progress".
+  const pendingAction = useRef<(() => void) | null>(null);
   const runAction = useCallback(
     (action: () => void) => {
+      pendingAction.current = action;
       close();
-      action();
     },
     [close]
   );
+  const runPendingAction = useCallback(() => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    action?.();
+  }, []);
 
   const { card: cardStyle, badge: badgeStyle } = useSurfaceStyles();
 
@@ -337,6 +348,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     <BottomSheet
       visible={visible}
       onClose={close}
+      onDismissed={runPendingAction}
       backgroundColor={isDark ? theme.background : theme.surface}
     >
       <View style={styles.header}>
