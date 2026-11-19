@@ -2,9 +2,7 @@
  * Zod schemas for the candidate-site builder (/api/sites).
  *
  * `siteSectionsSchema` is the canonical shape of the `sections` jsonb column:
- * an OBJECT keyed by section name. The legacy backend type
- * (apps/api/routes/sites/types.ts) declared `SiteSection[]`, but every site
- * written by the editor stores this object form.
+ * an OBJECT keyed by section name.
  */
 import { z } from 'zod';
 

@@ -6,7 +6,7 @@
  */
 
 // Note: Request, Response types are augmented in types/express.d.ts
-// - Request has user, session, subdomain, siteData, mobileAuth
+// - Request has user, session, mobileAuth
 // These augmentations are automatically available when importing from 'express'
 
 // ============================================================================

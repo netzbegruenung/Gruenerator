@@ -9,13 +9,12 @@
  *   GET    /api/sites/check-subdomain
  *   DELETE /api/sites/:id
  *
- * Mount BEFORE the legacy sitesController in routes.ts so ts-rest matches its
- * own routes first; /public/:subdomain, /themes and the flyer/AI generation
- * endpoints fall through to the legacy routers.
+ * The flyer upload (POST /api/sites/generate-from-flyer) has its own router,
+ * mounted ahead of this one in routes.ts.
  *
- * Authentication: routes.ts applies requireAuth for /api/sites (path-filtered
- * to keep /public/* anonymous) before this router is mounted, so req.user is
- * populated here. getUserId() still guards against a missing user.
+ * Authentication: routes.ts applies requireAuth for /api/sites before this
+ * router is mounted, so req.user is populated here. getUserId() still guards
+ * against a missing user.
  */
 import { sitesContract, type Site } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
