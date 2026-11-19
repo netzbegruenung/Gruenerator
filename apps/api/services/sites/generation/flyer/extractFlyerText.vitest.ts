@@ -1,17 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  docling: vi.fn(),
-  doclingUp: vi.fn(),
   ocr: vi.fn(),
   writeFile: vi.fn().mockResolvedValue(undefined),
   unlink: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../../OcrService/doclingIntegration.js', () => ({
-  extractTextWithDocling: (...args: unknown[]) => mocks.docling(...args),
-  isDoclingAvailable: () => mocks.doclingUp(),
-}));
 vi.mock('../../../OcrService/index.js', () => ({
   OCRService: class {
     extractTextFromDocument = mocks.ocr;
@@ -36,42 +30,28 @@ beforeEach(() => {
 });
 
 describe('extractFlyerText', () => {
-  it('uses Docling when available', async () => {
-    mocks.doclingUp.mockResolvedValue(true);
-    mocks.docling.mockResolvedValue({ text: ' Docling text \n' });
-    await expect(extractFlyerText(pdf)).resolves.toBe('Docling text');
-    expect(mocks.ocr).not.toHaveBeenCalled();
-  });
-
-  it('falls back to OCRService when Docling is unavailable', async () => {
-    mocks.doclingUp.mockResolvedValue(false);
-    mocks.ocr.mockResolvedValue({ text: 'OCR text' });
-    await expect(extractFlyerText(pdf)).resolves.toBe('OCR text');
-    expect(mocks.docling).not.toHaveBeenCalled();
-  });
-
-  it('falls back to OCRService when Docling fails', async () => {
-    mocks.doclingUp.mockResolvedValue(true);
-    mocks.docling.mockRejectedValue(new Error('timeout'));
-    mocks.ocr.mockResolvedValue({ text: 'Fallback' });
-    await expect(extractFlyerText(pdf)).resolves.toBe('Fallback');
+  it('reads through OCRService with page markers and strips them', async () => {
+    mocks.ocr.mockResolvedValue({
+      text: '## Seite 1\n\n Kandidatin Anna \n\n## Seite 2\n\nTermine',
+    });
+    await expect(extractFlyerText(pdf)).resolves.toBe('Kandidatin Anna \n\nTermine');
+    expect(mocks.ocr).toHaveBeenCalledWith(expect.stringMatching(/\.pdf$/), undefined, {
+      pageMarkers: true,
+    });
   });
 
   it('returns an empty string when nothing is readable', async () => {
-    mocks.doclingUp.mockResolvedValue(false);
     mocks.ocr.mockResolvedValue({ text: '   ' });
     await expect(extractFlyerText(pdf)).resolves.toBe('');
   });
 
-  it('throws when every extractor fails', async () => {
-    mocks.doclingUp.mockResolvedValue(false);
+  it('throws when extraction fails', async () => {
     mocks.ocr.mockRejectedValue(new Error('OCR failed'));
     await expect(extractFlyerText(pdf)).rejects.toThrow('flyer extraction failed');
   });
 
   it('writes the temp file with a fixed .pdf extension', async () => {
-    mocks.doclingUp.mockResolvedValue(true);
-    mocks.docling.mockResolvedValue({ text: 'x' });
+    mocks.ocr.mockResolvedValue({ text: 'x' });
     await extractFlyerText(pdf);
     const target = mocks.writeFile.mock.calls[0]?.[0] as string;
     expect(target.endsWith('.pdf')).toBe(true);
@@ -79,7 +59,6 @@ describe('extractFlyerText', () => {
   });
 
   it('cleans up the temp file on error', async () => {
-    mocks.doclingUp.mockResolvedValue(false);
     mocks.ocr.mockRejectedValue(new Error('fail'));
     await extractFlyerText(pdf).catch(() => {});
     expect(mocks.unlink).toHaveBeenCalledTimes(1);

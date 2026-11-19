@@ -3,26 +3,20 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-import {
-  extractTextWithDocling,
-  isDoclingAvailable,
-} from '../../../OcrService/doclingIntegration.js';
-import { OCRService } from '../../../OcrService/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { OCRService } from '../../../OcrService/index.js';
+import { stripPageMarkers } from '../../../OcrService/pageMarkers.js';
 
 const log = createLogger('Sites:flyerText');
 
 export { FLYER_TEXT_MAX_CHARS } from './flyerTextLimit.js';
 
+// Same route as chat attachments: text-native pages via pdfjs, only table pages and scans to OCR.
 async function readPdf(tempPath: string): Promise<string> {
-  if (await isDoclingAvailable()) {
-    try {
-      return (await extractTextWithDocling(tempPath)).text ?? '';
-    } catch (err) {
-      log.warn('Docling failed, falling back to Mistral OCR', { error: (err as Error).message });
-    }
-  }
-  return (await new OCRService().extractTextFromDocument(tempPath)).text ?? '';
+  const { text } = await new OCRService().extractTextFromDocument(tempPath, undefined, {
+    pageMarkers: true,
+  });
+  return stripPageMarkers(text ?? '');
 }
 
 export async function extractFlyerText(pdf: Buffer): Promise<string> {
