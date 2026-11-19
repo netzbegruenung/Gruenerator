@@ -21,9 +21,10 @@ import {
 import { mergeStalePatch } from './canvasMerge.js';
 import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
-import { SITE_DOC_MAX_BYTES, applySiteSeed, siteRoomOf } from './siteRooms.js';
+import { SITE_DOC_MAX_BYTES, applySiteSeed, isSiteId, siteRoomOf } from './siteRooms.js';
 
 import type { PostgresPersistence } from './persistence.js';
+import type { DbQueryFn } from './types.js';
 import type { Connection, Hocuspocus, Server } from '@hocuspocus/server';
 
 const log = createLogger('InternalApi');
@@ -192,6 +193,7 @@ export function claimSheetOps(doc: Y.Doc): PendingSheetOps[] {
 interface InternalApiDeps {
   server: Server;
   persistence: PostgresPersistence;
+  db: DbQueryFn;
 }
 
 // ---------------------------------------------------------------------------
@@ -690,6 +692,21 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
       return;
     }
     next();
+  });
+
+  // A site's Yjs rows are keyed by its bare uuid: through these routes that id would
+  // load and write the site draft as a second live document, past the site gate.
+  router.use(['/doc/:documentId', '/canvas/:documentId'], async (req, res, next) => {
+    try {
+      if (await isSiteId(deps.db, req.params.documentId)) {
+        res.status(400).json({ error: 'use site-<uuid>' });
+        return;
+      }
+      next();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
   });
 
   router.get('/canvas/:documentId/state', async (req, res) => {

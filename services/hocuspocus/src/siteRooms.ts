@@ -57,6 +57,16 @@ export async function siteRoomGate(
   return (await hasStoredState()) ? null : SITE_NOT_SEEDED;
 }
 
+/**
+ * Whether a bare id belongs to any `user_sites` row, trashed or not: such an id
+ * must never open a document, because a site's Yjs rows are keyed by it (#5805).
+ */
+export async function isSiteId(db: DbQueryFn, id: string): Promise<boolean> {
+  if (!UUID_RE.test(id.toLowerCase())) return false;
+  const rows = await db('SELECT 1 FROM user_sites WHERE id = $1 LIMIT 1', [id.toLowerCase()]);
+  return rows.length > 0;
+}
+
 /** Whether the site still exists and is not in the trash. */
 export async function siteIsLive(db: DbQueryFn, siteId: string): Promise<boolean> {
   const rows = await db('SELECT 1 FROM user_sites WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [

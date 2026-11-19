@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { createLogger } from './logger.js';
-import { SITE_ROOM_PREFIX, siteIdFromRoom } from './siteRooms.js';
+import { SITE_ROOM_PREFIX, isSiteId, siteIdFromRoom } from './siteRooms.js';
 
 import type {
   DbQueryFn,
@@ -381,8 +381,7 @@ export class AuthService {
       // A site's Yjs rows are keyed by its bare uuid, so that id must never reach
       // the create-on-first-open grant below. No trash filter on purpose: a
       // trashed site keeps its rows closed as well (#5805).
-      const siteRows = await this.db('SELECT 1 FROM user_sites WHERE id = $1', [documentName]);
-      if (siteRows.length > 0) {
+      if (await isSiteId(this.db, documentName)) {
         log.warn(`[Auth] FAILED: ${documentName} is a site id, not a document room`);
         return { authenticated: false, reason: 'Access denied' };
       }
