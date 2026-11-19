@@ -4,8 +4,8 @@ import {
   type SiteGenerationStep,
 } from '@gruenerator/contracts';
 
-import { createLogger } from '../../../utils/logger.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
+import { createLogger } from '../../../utils/logger.js';
 import imagePickerService from '../../image/ImageSelectionService.js';
 import { type Locale } from '../../localization/index.js';
 import { AiProviderError } from '../../providers/providerErrors.js';
@@ -47,10 +47,15 @@ function failureMessage(err: unknown, fallback: string): string {
   return err instanceof AiProviderError ? toUserFacingMessage(err, fallback) : fallback;
 }
 
-async function pickImage(text: string): Promise<string> {
+const STOCK_IMAGE_PREFIX = '/api/image-picker/stock-image/';
+
+async function pickImage(text: string, exclude: readonly string[]): Promise<string> {
   try {
-    const picked = await imagePickerService.selectBestImage(text, { maxCandidates: 5 });
-    return `/api/image-picker/stock-image/${picked.selectedImage.filename}`;
+    const picked = await imagePickerService.selectBestImage(text, {
+      maxCandidates: 5,
+      excludeFilenames: exclude.map((url) => url.slice(STOCK_IMAGE_PREFIX.length)),
+    });
+    return `${STOCK_IMAGE_PREFIX}${picked.selectedImage.filename}`;
   } catch (err) {
     log.warn('image pick failed: %s', err instanceof Error ? err.message : String(err));
     return '';

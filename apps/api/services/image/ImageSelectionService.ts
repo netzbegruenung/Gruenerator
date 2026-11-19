@@ -44,7 +44,10 @@ class ImageSelectionService {
     await this.initialize();
 
     const sharepicType = options.sharepicType || 'general';
-    const images = this.imageCatalog!.images;
+    const excluded = new Set(options.excludeFilenames ?? []);
+    const remaining = this.imageCatalog!.images.filter((img) => !excluded.has(img.filename));
+    // Excluding is a preference: with nothing left, the full catalog is better than no image.
+    const images = remaining.length > 0 ? remaining : this.imageCatalog!.images;
 
     try {
       const result = await selectCatalogImage(text, sharepicType, images);

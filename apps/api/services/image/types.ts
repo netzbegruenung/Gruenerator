@@ -22,6 +22,7 @@ export interface ImageCatalog {
 export interface ImageSelectionOptions {
   sharepicType?: string | undefined;
   maxCandidates?: number | undefined;
+  excludeFilenames?: readonly string[] | undefined;
 }
 
 export interface ImageSelectionResult {

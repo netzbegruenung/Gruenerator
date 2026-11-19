@@ -64,6 +64,27 @@ describe('attachImages', () => {
     expect(result.contact.backgroundImageUrl).toBe('img:Kontakt Kontakt Politik Grüne');
   });
 
+  it('verwendet kein Bild zweimal, wenn Alternativen da sind', async () => {
+    const catalog = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg', 'f.jpg', 'g.jpg', 'h.jpg'];
+    // Der Wähler liefert zuerst immer dasselbe Bild, danach das erste nicht ausgeschlossene.
+    const pick = (_text: string, exclude: readonly string[]): Promise<string> =>
+      Promise.resolve(catalog.find((name) => !exclude.includes(name)) ?? '');
+    const result = await attachImages(content(3, 2), pick);
+    const urls = [
+      result.hero_image.imageUrl,
+      ...result.themes.map((t) => t.imageUrl),
+      ...result.actions.map((a) => a.imageUrl),
+      result.contact.backgroundImageUrl,
+    ];
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(urls[0]).toBe('a.jpg');
+  });
+
+  it('lässt ein Duplikat stehen, wenn es keine Alternative gibt', async () => {
+    const result = await attachImages(content(1, 1), () => Promise.resolve('only.jpg'));
+    expect(result.actions[0]?.imageUrl).toBe('only.jpg');
+  });
+
   it('trägt einen leeren String ein, wenn der Bildwähler nichts findet', async () => {
     const result = await attachImages(content(1, 1), () => Promise.resolve(''));
     expect(result.themes[0]?.imageUrl).toBe('');
