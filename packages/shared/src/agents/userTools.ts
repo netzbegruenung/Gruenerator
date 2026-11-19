@@ -105,6 +105,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
       'Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend.',
   },
   {
+    key: 'atlassian',
+    label: 'Jira & Confluence',
+    description:
+      'Sucht und liest Jira-Issues und Confluence-Seiten aus den verbundenen Atlassian-Konten — ausschließlich lesend.',
+  },
+  {
     key: 'vertonen',
     label: 'Vertonen',
     description:

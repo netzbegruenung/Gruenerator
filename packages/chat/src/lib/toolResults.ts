@@ -564,6 +564,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'cloud',
     accent: 'personal',
   },
+  atlassian: {
+    label: 'Jira & Confluence',
+    activeLabel: 'Sehe in Jira/Confluence nach',
+    iconKey: 'file',
+    accent: 'personal',
+  },
   text_uebersetzen: {
     label: 'Übersetzung',
     activeLabel: 'Übersetze',
