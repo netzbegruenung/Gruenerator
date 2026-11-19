@@ -83,6 +83,7 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'profilbild-background',
   'studio-asset',
   'sharepic-illustration',
+  'video-ai-proxy',
 ] as const;
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {

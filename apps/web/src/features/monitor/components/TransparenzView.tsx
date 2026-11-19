@@ -1152,6 +1152,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   sheets: 'Präsentationen & Tabellen',
   presentations: 'Präsentationen & Tabellen',
   subtitler: 'Reels',
+  video_ai: 'Reels',
   transkription: 'Transkription',
   voice: 'Sprachausgabe',
   search: 'Websuche',

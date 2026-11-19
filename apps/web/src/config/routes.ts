@@ -321,6 +321,8 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
+const KiSchnittNewPage = lazy(() => import('../features/video-ai/KiSchnittNewPage'));
+const KiSchnittProjectPage = lazy(() => import('../features/video-ai/KiSchnittProjectPage'));
 // admin only until the system-media volume is live (Salt #5527) — see parteitageAdminGate.
 const ParteitageListPage = lazy(async () => {
   const { default: Page } = await import('../features/parteitage/ParteitageListPage');
@@ -947,6 +949,9 @@ const standardRoutes: RouteConfig[] = [
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
+  // KI-Schnitt: before /studio/:category, like every literal studio path.
+  { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
+  { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
   {
     accent: 'studio',
     path: '/parteitage',

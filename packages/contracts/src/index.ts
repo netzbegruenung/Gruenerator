@@ -52,6 +52,7 @@ export {
   explainablesContract,
   publicExplainablesContract,
   podcastsContract,
+  videoAiContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,
@@ -129,6 +130,7 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/videoAi.js';
 export * from './schemas/studioAssets.js';
 export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';

@@ -36,6 +36,7 @@ import {
   DEGENERATE_FINISH_REASON,
   trimDegenerate,
 } from './degeneration.js';
+import { reportMidWordEnd } from './midWordEnd.js';
 import { toolsForProvider } from './providerTools.js';
 import { findSourceEchoCut } from './sourceRegistry.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
@@ -883,6 +884,7 @@ async function streamWithTools(
     // The start of the copied register is already on the wire.
     return { text, finishReason, replacement: 'unified_source_echo' };
   }
+  reportMidWordEnd(text, finishReason, modelLabel(model), 'unified');
   return { text, finishReason };
 }
 
@@ -1157,7 +1159,9 @@ async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string>
     });
     const { text, finishReason } = await drain(result, () => {}, p.onReasoning, idle);
     // What gets persisted and what every validator downstream reads.
-    return { text: stripToolControlTokens(text), finishReason };
+    const clean = stripToolControlTokens(text);
+    reportMidWordEnd(clean, finishReason, modelLabel(model), 'synth');
+    return { text: clean, finishReason };
   };
 
   /** A stalled or empty pass costs the user the whole turn, so try the sibling

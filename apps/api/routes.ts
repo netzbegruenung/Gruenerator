@@ -167,6 +167,7 @@ import v1ChatCompletionsRouter, {
 } from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -588,6 +589,19 @@ export async function setupRoutes(app: Application): Promise<void> {
     next()
   );
   mountPodcastsContractRouter(app);
+  // KI-Schnitt: queued here, analysed and cut by services/videoAi/videoAiWorker.ts.
+  app.use('/api/video-ai', requireAuth, authenticatedReadLimiter);
+  app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  // A correction round can call Gemma (free-text request), so the same gate as create.
+  app.post(
+    '/api/video-ai/projects/:id/revise',
+    aiGenerationLimiter,
+    requireAiConsent,
+    (_req, _res, next) => next()
+  );
+  mountVideoAiContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);

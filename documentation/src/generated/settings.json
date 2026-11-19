@@ -466,6 +466,18 @@
         "group": "system"
       },
       {
+        "key": "video_ai_ready",
+        "label": "KI-Schnitt fertig",
+        "description": "Wenn dein KI-Schnitt zur Vorschau bereitsteht",
+        "group": "system"
+      },
+      {
+        "key": "video_ai_failed",
+        "label": "KI-Schnitt fehlgeschlagen",
+        "description": "Wenn ein KI-Schnitt nicht erstellt werden konnte",
+        "group": "system"
+      },
+      {
         "key": "new_avatars",
         "label": "Neue Avatare",
         "description": "Wenn neue Profil-Avatare verfügbar sind",
