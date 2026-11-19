@@ -25,7 +25,13 @@ interface Rows {
   displayName?: string;
   profilesFail?: boolean;
   /** The `user_sites` row behind a `site-` room, as the access query would see it. */
-  site?: { user_id: string; moderation: string; trashed?: boolean; locked?: boolean } | null;
+  site?: {
+    user_id: string;
+    moderation: string;
+    trashed?: boolean;
+    locked?: boolean;
+    admin?: boolean;
+  } | null;
   /** A `user_sites` row with the bare room's id exists (trashed or not). */
   siteExists?: boolean;
 }
@@ -43,7 +49,8 @@ function makeDb(rows: Rows) {
       if (!site) return [];
       if (site.trashed && !/s\.deleted_at IS NULL/.test(sql)) return [site];
       if (site.locked && !/sites_unlocked = true/.test(sql)) return [site];
-      if (site.trashed || site.locked) return [];
+      if (site.trashed) return [];
+      if (site.locked && !(site.admin && /is_admin = true/.test(sql))) return [];
       return [site];
     }
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
@@ -616,6 +623,24 @@ describe('AuthService — site rooms', () => {
     const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
     expect(sql).toContain('s.deleted_at IS NULL');
     expect(sql).toContain('sites_unlocked = true');
+  });
+
+  it('site room: an admin owner without the unlock connects', async () => {
+    const { db, captured } = makeDb({
+      site: { user_id: 'user-9', moderation: 'ok', locked: true, admin: true },
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
+    const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
+    expect(sql).toContain('s.deleted_at IS NULL');
+  });
+
+  it('site room: a trashed site of an admin owner is still denied', async () => {
+    const { db } = makeDb({
+      site: { user_id: 'user-9', moderation: 'ok', trashed: true, admin: true },
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
+    expect(res.authenticated).toBe(false);
   });
 
   it('site room: a room without a uuid is denied without a query', async () => {

@@ -190,7 +190,7 @@ export class AuthService {
     const rows = await this.db(
       `SELECT s.user_id, s.moderation FROM user_sites s
        JOIN profiles p ON p.id = s.user_id
-       WHERE s.id = $1 AND s.deleted_at IS NULL AND p.sites_unlocked = true LIMIT 1`,
+       WHERE s.id = $1 AND s.deleted_at IS NULL AND (p.sites_unlocked = true OR p.is_admin = true) LIMIT 1`,
       [siteId]
     );
     const site = rows[0] as { user_id: string; moderation: string | null } | undefined;
