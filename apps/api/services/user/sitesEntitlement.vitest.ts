@@ -1,12 +1,7 @@
 import { profileUpdateBodySchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getProfileById, isInstanceAdmin } = vi.hoisted(() => ({
-  getProfileById: vi.fn(),
-  isInstanceAdmin: vi.fn(),
-}));
-
-vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin }));
+const getProfileById = vi.fn();
 
 vi.mock('./ProfileService.js', () => ({
   getProfileService: () => ({ getProfileById }),
@@ -36,8 +31,6 @@ async function run(handler: typeof requireSitesAccess, req: Record<string, unkno
 
 beforeEach(() => {
   getProfileById.mockReset();
-  isInstanceAdmin.mockReset();
-  isInstanceAdmin.mockResolvedValue(false);
 });
 
 describe('isSitesEntitled', () => {
@@ -60,11 +53,20 @@ describe('requireSitesAccess', () => {
     expect(res.next).not.toHaveBeenCalled();
   });
 
-  it('lets an instance admin without the unlock through', async () => {
-    getProfileById.mockResolvedValueOnce({ sites_unlocked: null, email: 'a@example.org' });
-    isInstanceAdmin.mockResolvedValueOnce(true);
+  it('lets an instance admin (is_admin) without the unlock through', async () => {
+    getProfileById.mockResolvedValueOnce({ sites_unlocked: null, is_admin: true });
     expect((await run(requireSitesAccess, { user: { id: USER_ID } })).next).toHaveBeenCalledOnce();
-    expect(isInstanceAdmin).toHaveBeenCalledWith(USER_ID, 'a@example.org');
+    expect(getProfileById).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat an ADMIN_EMAILS-only account (is_admin false) as entitled', async () => {
+    getProfileById.mockResolvedValueOnce({
+      sites_unlocked: null,
+      is_admin: false,
+      email: 'env-admin@example.org',
+    });
+    const res = await run(requireSitesAccess, { user: { id: USER_ID } });
+    expect(res.statusCode).toBe(403);
   });
 
   it('lets an unlocked account through', async () => {
