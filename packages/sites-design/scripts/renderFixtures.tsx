@@ -1,19 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 import { type PublishedSiteSnapshot, type SupportedLocale } from '@gruenerator/contracts';
-import { renderToStaticMarkup } from 'react-dom/server';
 
-import { type LegalDocumentKind } from '../src/legal/types.js';
-import { SITE_BUNDLED_FONT_FILES, siteFontFaceCss, type SiteFontFile } from '../src/model/fonts.js';
-import { type SiteLinks, sitePaths } from '../src/model/paths.js';
-import { siteRootAttributes } from '../src/model/root.js';
-import { SiteBody } from '../src/site/SiteBody.js';
-import { SiteLegalBody } from '../src/site/SiteLegalBody.js';
+import { SITE_BUNDLED_FONT_FILES, type SiteFontFile } from '../src/model/fonts.js';
+import { type SiteDocumentKind } from '../src/model/meta.js';
+import { renderSitePage } from '../src/server.js';
 import { fullSnapshot, maxSnapshot, minimalSnapshot } from '../src/testing/fixtures.js';
 
 const OUT = new URL('../dist/fixtures/', import.meta.url);
 const IMAGE = process.env['SITE_FIXTURE_IMAGE'] ?? '';
-const links: SiteLinks = { ...sitePaths('anna'), report: 'mailto:melden@example.org' };
 
 const bundled = new Set<string>(SITE_BUNDLED_FONT_FILES);
 const fontUrl = (file: SiteFontFile) =>
@@ -49,43 +44,35 @@ function withImage(s: PublishedSiteSnapshot): PublishedSiteSnapshot {
   };
 }
 
-function page(s: PublishedSiteSnapshot, document: LegalDocumentKind | null): string {
-  const snapshot = withImage(s);
-  const body =
-    document === null ? (
-      <SiteBody snapshot={snapshot} links={links} mode="public" />
-    ) : (
-      <SiteLegalBody snapshot={snapshot} links={links} document={document} />
-    );
-  return `<!doctype html>${renderToStaticMarkup(
-    <html {...siteRootAttributes(snapshot)}>
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{snapshot.site_title}</title>
-        <link rel="stylesheet" href="/dist/site.css" />
-        <style>{siteFontFaceCss(snapshot.locale, fontUrl)}</style>
-      </head>
-      <body>{body}</body>
-    </html>
-  )}`;
+function page(s: PublishedSiteSnapshot, document: SiteDocumentKind): string {
+  return renderSitePage({
+    snapshot: withImage(s),
+    handle: 'anna',
+    document,
+    origin: 'http://localhost:4310',
+    stylesheetHref: '/dist/site.css',
+    fontUrl,
+    consentScriptSrc: '/dist/client/siteConsent.js',
+    reportEmail: 'melden@example.org',
+    robots: 'noindex',
+  }).html;
 }
 
 const files: [string, string][] = [];
 for (const variant of ['dunkel', 'hell', 'leuchtend'] as const)
   for (const locale of ['de-DE', 'de-AT'] as const satisfies readonly SupportedLocale[])
-    files.push([`${variant}-${locale}.html`, page(fullSnapshot({ variant, locale }), null)]);
-files.push(['max-de-DE.html', page(maxSnapshot(), null)]);
-files.push(['minimal-de-AT.html', page(minimalSnapshot('de-AT'), null)]);
+    files.push([`${variant}-${locale}.html`, page(fullSnapshot({ variant, locale }), 'home')]);
+files.push(['max-de-DE.html', page(maxSnapshot(), 'home')]);
+files.push(['minimal-de-AT.html', page(minimalSnapshot('de-AT'), 'home')]);
 for (const variant of ['dunkel', 'hell', 'leuchtend'] as const)
   for (const locale of ['de-DE', 'de-AT'] as const) {
     files.push([
       `max-${variant}-${locale}.html`,
-      page({ ...maxSnapshot(), variant, locale }, null),
+      page({ ...maxSnapshot(), variant, locale }, 'home'),
     ]);
     files.push([
       `minimal-${variant}-${locale}.html`,
-      page({ ...minimalSnapshot(locale), variant }, null),
+      page({ ...minimalSnapshot(locale), variant }, 'home'),
     ]);
   }
 files.push(['impressum-de-DE.html', page(fullSnapshot(), 'impressum')]);
