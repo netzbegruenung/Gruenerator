@@ -131,7 +131,7 @@ export default function NuudelTab() {
         <p className="m-0">
           Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de
           angelegt hat. Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten
-          passt.
+          passt, und sie nach deiner Freigabe ändern oder löschen.
         </p>
         <p className="m-0 text-xs">
           Beim Anlegen gehen dein Name und deine E-Mail-Adresse an nuudel (Digitalcourage e.V.);

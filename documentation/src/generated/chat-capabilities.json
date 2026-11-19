@@ -816,7 +816,7 @@
     {
       "command": "@nuudel",
       "title": "Terminumfrage mit nuudel (Experimentell)",
-      "description": "Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen und auswerten. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.",
+      "description": "Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen, auswerten, ändern und löschen. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.",
       "avatar": "📅",
       "category": "sonstiges"
     }

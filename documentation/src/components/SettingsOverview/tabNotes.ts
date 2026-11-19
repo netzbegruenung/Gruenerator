@@ -148,7 +148,7 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'nuudel',
     intro:
-      'Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt.',
+      'Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen.',
     extras: [
       '**Öffnen** führt zur Umfrage, wie die Teilnehmenden sie sehen; **Verwalten** zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst.',
       '**Aus der Liste entfernen** löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft.',
