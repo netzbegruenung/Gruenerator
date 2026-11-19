@@ -41,11 +41,11 @@ describe('Impressum save ordering', () => {
     hoisted.updateSite
       .mockImplementationOnce(async (a: { data: { legal: SiteLegalDraft } }) => {
         await first.promise;
-        server.push(a.data.legal.name);
+        server.push(a.data.legal.name ?? '');
       })
       .mockImplementationOnce(async (a: { data: { legal: SiteLegalDraft } }) => {
         await second.promise;
-        server.push(a.data.legal.name);
+        server.push(a.data.legal.name ?? '');
       });
     const { result, rerender } = renderHook(({ l }) => useLegalAutosave('s1', l), {
       initialProps: { l: legal('Alt') },

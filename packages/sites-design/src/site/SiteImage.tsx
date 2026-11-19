@@ -12,7 +12,7 @@ export function SiteImage({
   url: string;
   slot: SiteImageSlot;
   field: string;
-  focus?: SiteImageFocus | null;
+  focus?: SiteImageFocus | null | undefined;
   className?: string;
 }) {
   const attrs = siteImageAttrs(url, slot);

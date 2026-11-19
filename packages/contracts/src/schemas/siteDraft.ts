@@ -25,17 +25,26 @@ export interface SiteDraft {
   site_title: string;
   tagline: string;
   profile_image: string;
-  profileImageFocus?: SiteImageFocus;
+  profileImageFocus?: SiteImageFocus | undefined;
   variant: SiteVariant;
   contact_email: string;
   contact_phone: string;
   social_links: Record<string, string>;
   hidden: SiteOptionalSection[];
   about: { title: string; content: RichTextDoc };
-  heroImage: { imageUrl: string; imageFocus?: SiteImageFocus; title: string; subtitle: string };
+  heroImage: {
+    imageUrl: string;
+    imageFocus?: SiteImageFocus | undefined;
+    title: string;
+    subtitle: string;
+  };
   themes: SiteDraftThemeCard[];
   actions: SiteDraftActionTile[];
-  contact: { title: string; backgroundImageUrl: string; backgroundFocus?: SiteImageFocus };
+  contact: {
+    title: string;
+    backgroundImageUrl: string;
+    backgroundFocus?: SiteImageFocus | undefined;
+  };
   socialFeed: { title: string; instagramUsername: string; showFeed: boolean };
 }
 
