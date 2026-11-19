@@ -1,17 +1,18 @@
 import {
-  richTextDocFromPlainText,
   type CreateSiteBody,
-  type RichTextDoc,
   type Site,
   type SitePublishIssue,
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
 import { removeDocCache } from '@gruenerator/collab';
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { type GeneratedSiteData } from '../generation/transform';
 import { SitesApiError } from '../utils/errorHandler';
+
+export type { GeneratedSiteData };
 
 export type SiteData = Site;
 
@@ -21,45 +22,6 @@ export type SiteData = Site;
  * frühere Handkopie war eine zweite Wahrheit über dieselbe Antwort.
  */
 export type AiGeneratedContent = WebsiteContent;
-
-export interface GeneratedSiteData {
-  site_title: string;
-  tagline: string;
-  contact_email: string;
-  sections: {
-    about: { title: string; content: RichTextDoc };
-    heroImage: { imageUrl: string; title: string; subtitle: string };
-    themes: Array<{ imageUrl: string; title: string; content: RichTextDoc }>;
-    actions: Array<{ imageUrl: string; text: string; link: string }>;
-    contact: { title: string; backgroundImageUrl: string };
-  };
-}
-
-function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
-  return {
-    site_title: ai.hero.heading,
-    tagline: ai.hero.text,
-    contact_email: ai.contact.email,
-    sections: {
-      about: {
-        title: ai.about.title || 'Wer ich bin',
-        content: richTextDocFromPlainText(ai.about.content),
-      },
-      heroImage: {
-        imageUrl: ai.hero_image.imageUrl || '',
-        title: ai.hero_image.title,
-        subtitle: ai.hero_image.subtitle,
-      },
-      themes: ai.themes.map((t) => ({
-        imageUrl: t.imageUrl || '',
-        title: t.title,
-        content: richTextDocFromPlainText(t.content),
-      })),
-      actions: ai.actions.map((a) => ({ imageUrl: a.imageUrl || '', text: a.text, link: a.link })),
-      contact: { title: ai.contact.title, backgroundImageUrl: ai.contact.backgroundImageUrl || '' },
-    },
-  };
-}
 
 function toApiError(res: { status: number; body: unknown }): SitesApiError {
   const message =
@@ -157,40 +119,6 @@ export function useSite() {
     },
   });
 
-  const generateMutation = useMutation({
-    mutationFn: async (data: {
-      description: string;
-      email?: string;
-    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const res = await getContractsClient().texte.generateWebsiteContent({ body: data });
-      if (res.status !== 200) throw toApiError(res);
-      const raw = res.body.json;
-      return { transformed: transformAiResponse(raw), raw };
-    },
-  });
-
-  const flyerMutation = useMutation({
-    mutationFn: async (data: {
-      file: File;
-      email?: string;
-    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const formData = new FormData();
-      formData.append('flyer', data.file);
-      if (data.email) formData.append('email', data.email);
-
-      const response = await getGlobalApiClient().post<{ json: AiGeneratedContent }>(
-        '/sites/generate-from-flyer',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 120000,
-        }
-      );
-      const raw: AiGeneratedContent = response.data.json;
-      return { transformed: transformAiResponse(raw), raw };
-    },
-  });
-
   return {
     site,
     publicOrigin,
@@ -202,13 +130,9 @@ export function useSite() {
     updateSite: updateMutation.mutateAsync,
     togglePublish: publishMutation.mutateAsync,
     deleteSite: deleteMutation.mutateAsync,
-    generateSite: generateMutation.mutateAsync,
-    generateFromFlyer: flyerMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isPublishing: publishMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    isGenerating: generateMutation.isPending,
-    isGeneratingFromFlyer: flyerMutation.isPending,
   };
 }
