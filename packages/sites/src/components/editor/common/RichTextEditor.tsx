@@ -6,6 +6,7 @@ import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdFormatListNumbered } from 'react-icons/md';
+
 import type * as Y from 'yjs';
 
 import '../../../styles/components/rich-text-editor.css';

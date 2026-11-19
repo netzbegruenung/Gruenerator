@@ -1,6 +1,7 @@
 import { type SiteDraft } from '@gruenerator/contracts';
 import { decodeSiteDraft } from '@gruenerator/contracts/site-ydoc';
 import { createStore, type StoreApi } from 'zustand/vanilla';
+
 import type * as Y from 'yjs';
 
 export type SiteDraftStore = StoreApi<{ draft: SiteDraft }> & { destroy(): void };
@@ -14,7 +15,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function share<T>(prev: unknown, next: T): T {
   if (Object.is(prev, next)) return next;
   if (Array.isArray(next) && Array.isArray(prev)) {
-    const merged = next.map((item, index) => share(prev[index], item));
+    const previous: readonly unknown[] = prev;
+    const merged = next.map((item: unknown, index) => share(previous[index], item));
     const same = merged.length === prev.length && merged.every((item, i) => item === prev[i]);
     return (same ? prev : merged) as T;
   }

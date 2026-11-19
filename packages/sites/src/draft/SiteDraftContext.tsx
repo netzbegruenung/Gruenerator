@@ -15,9 +15,10 @@ import {
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import type * as Y from 'yjs';
 
 import { createSiteDraftStore, type SiteDraftStore } from './draftStore';
+
+import type * as Y from 'yjs';
 
 export interface SiteDraftActions {
   setField: <K extends SiteFieldKey>(key: K, value: SiteFieldValues[K]) => void;

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as Y from 'yjs';
+
+import type * as Y from 'yjs';
 
 import { seededDoc } from './testDoc';
 

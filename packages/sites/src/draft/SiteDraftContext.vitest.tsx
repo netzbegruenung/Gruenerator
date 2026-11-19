@@ -1,14 +1,12 @@
 import { setSiteField } from '@gruenerator/contracts/site-ydoc';
-import { act, screen } from '@testing-library/react';
+import { act, screen, render } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { render } from '@testing-library/react';
-
 import { renderWithDraft } from '../test/renderWithDraft';
 
-import { seededDoc } from './testDoc';
 import { SiteDraftProvider, useDraft, useDraftActions } from './SiteDraftContext';
+import { seededDoc } from './testDoc';
 
 function Title() {
   const title = useDraft((draft) => draft.site_title);

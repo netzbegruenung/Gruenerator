@@ -2,10 +2,11 @@ import { type SiteDraft } from '@gruenerator/contracts';
 import { render, type RenderResult } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { type ReactElement } from 'react';
-import type * as Y from 'yjs';
 
 import { SiteDraftProvider } from '../draft/SiteDraftContext';
 import { seededDoc } from '../draft/testDoc';
+
+import type * as Y from 'yjs';
 
 export function renderWithDraft(
   ui: ReactElement,

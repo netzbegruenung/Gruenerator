@@ -2,10 +2,11 @@ import { type SyncGate, useCollaboration, useSyncGate } from '@gruenerator/colla
 import { isSiteDocSeeded } from '@gruenerator/contracts/site-ydoc';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type * as Y from 'yjs';
 
-import { useAuth, useSitesCollaboration } from '../SitesContext';
 import { usePrepareSiteDraft } from '../hooks/useSite';
+import { useAuth, useSitesCollaboration } from '../SitesContext';
+
+import type * as Y from 'yjs';
 
 export type SaveStatus = 'saved' | 'saving' | 'offline';
 
