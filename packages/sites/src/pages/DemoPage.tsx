@@ -42,16 +42,14 @@ Mein Antrieb: Eine Welt hinterlassen, in der auch unsere Enkel noch gut leben k√
     title: 'Meine Themen',
     themes: [
       {
-        imageUrl:
-          '/api/image-picker/stock-image/alexander-bagno-wVfoqadZDRo-unsplash.jpg',
+        imageUrl: '/api/image-picker/stock-image/alexander-bagno-wVfoqadZDRo-unsplash.jpg',
         title: 'Klimaschutz & Energie',
         content: richTextDocFromPlainText(
           'Bis 2035 klimaneutral: Mit Solaroffensive, Windkraftausbau und energetischer Geb√§udesanierung schaffen wir die Energiewende vor Ort.'
         ),
       },
       {
-        imageUrl:
-          '/api/image-picker/stock-image/andre-taissin-5OUMf1Mr5pU-unsplash.jpg',
+        imageUrl: '/api/image-picker/stock-image/andre-taissin-5OUMf1Mr5pU-unsplash.jpg',
         title: 'Bildung & Chancen',
         content: richTextDocFromPlainText(
           'Beste Bildung f√ºr alle: Kleinere Klassen, digitale Ausstattung und Chancengleichheit von der Kita bis zur Berufsausbildung.'
@@ -69,20 +67,17 @@ Mein Antrieb: Eine Welt hinterlassen, in der auch unsere Enkel noch gut leben k√
   actions: {
     actions: [
       {
-        imageUrl:
-          '/api/image-picker/stock-image/antoine-schibler-GimanuXzJBk-unsplash.jpg',
+        imageUrl: '/api/image-picker/stock-image/antoine-schibler-GimanuXzJBk-unsplash.jpg',
         text: 'Unterst√ºtze uns',
         link: '#spenden',
       },
       {
-        imageUrl:
-          '/api/image-picker/stock-image/benjamin-jopen-2SfssudtyIA-unsplash.jpg',
+        imageUrl: '/api/image-picker/stock-image/benjamin-jopen-2SfssudtyIA-unsplash.jpg',
         text: 'Werde Mitglied',
         link: 'https://www.gruene.de/mitglied-werden',
       },
       {
-        imageUrl:
-          '/api/image-picker/stock-image/benjamin-jopen-To-B9ICXPnc-unsplash.jpg',
+        imageUrl: '/api/image-picker/stock-image/benjamin-jopen-To-B9ICXPnc-unsplash.jpg',
         text: 'Mach mit!',
         link: '#kontakt',
       },
@@ -90,8 +85,7 @@ Mein Antrieb: Eine Welt hinterlassen, in der auch unsere Enkel noch gut leben k√
   },
   contact: {
     title: 'Sprich mich an!',
-    backgroundImageUrl:
-      '/api/image-picker/stock-image/christian-lue-DOjfdyt2UCo-unsplash.jpg',
+    backgroundImageUrl: '/api/image-picker/stock-image/christian-lue-DOjfdyt2UCo-unsplash.jpg',
     email: 'maria.mustermann@gruene-musterstadt.de',
     phone: '+49 123 456789',
     socialMedia: [
