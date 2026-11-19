@@ -265,9 +265,9 @@ export type SiteSnapshotSource = Pick<
 const toPreviewUrl = (url: string | null | undefined): string =>
   (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
 
-function normaliseSections(sections: SiteSections | null): Record<string, unknown> {
+function normaliseSections(sections: SiteSections | null): SiteSections {
   if (!sections) return {};
-  const out: Record<string, unknown> = { ...sections };
+  const out: SiteSections = { ...sections };
   if (sections.heroImage) {
     out.heroImage = { ...sections.heroImage, imageUrl: toPreviewUrl(sections.heroImage.imageUrl) };
   }

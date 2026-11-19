@@ -26,7 +26,6 @@ import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
 import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
-
 import { getUserLocale } from '../auth/groups/groupsContract/shared.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -79,7 +78,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       return { status: 200 as const, body: { site: row ? toSite(row) : null } };
     } catch (error) {
       log.error('Error fetching user site:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Laden der Site' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Website' } };
     }
   },
 
@@ -144,7 +143,7 @@ export const sitesContractRouter = s.router(sitesContract, {
 
       const row = result?.[0];
       if (!row) {
-        return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Site' } };
+        return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Website' } };
       }
       return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error: unknown) {
@@ -162,7 +161,7 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 400 as const, body: { error: message } };
       }
       log.error('Error creating site:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Site' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Website' } };
     }
   },
 
@@ -201,12 +200,12 @@ export const sitesContractRouter = s.router(sitesContract, {
 
       const row = result?.[0];
       if (!row) {
-        return { status: 404 as const, body: { error: 'Site nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
       return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error) {
       log.error('Error updating site:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Aktualisieren der Site' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Aktualisieren der Website' } };
     }
   },
 
@@ -261,7 +260,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error) {
       log.error('Error publishing site:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Veröffentlichen der Site' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Veröffentlichen der Website' } };
     }
   },
 
@@ -280,7 +279,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       return { status: 200 as const, body: { available: !result || result.length === 0 } };
     } catch (error) {
       log.error('Error checking subdomain:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Prüfen der Subdomain' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Prüfen der Adresse' } };
     }
   },
 
@@ -295,13 +294,13 @@ export const sitesContractRouter = s.router(sitesContract, {
       const result = await trashOwnedRow(USER_SITE_TRASH, userId, params.id);
 
       if (result !== 'ok') {
-        return { status: 404 as const, body: { error: 'Site nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
 
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
       log.error('Error deleting site:', error);
-      return { status: 500 as const, body: { error: 'Fehler beim Löschen der Site' } };
+      return { status: 500 as const, body: { error: 'Fehler beim Löschen der Website' } };
     }
   },
 });

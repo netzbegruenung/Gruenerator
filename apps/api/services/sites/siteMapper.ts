@@ -25,7 +25,7 @@ function toDraft(row: UserSiteRow): SiteDraft {
     visit_count: row.visit_count,
     meta_description: row.meta_description,
     meta_keywords: row.meta_keywords,
-    moderation: row.moderation as Site['moderation'],
+    moderation: row.moderation,
     // Boundary cast: a stored draft is not parsed on read, because a row written
     // before the limits existed must still load.
     social_links: row.social_links as SiteDraft['social_links'],

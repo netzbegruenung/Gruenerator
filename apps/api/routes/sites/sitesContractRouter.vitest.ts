@@ -112,10 +112,12 @@ describe('sitesContract', () => {
   });
 
   it.each([
-    ['ab', 'invalid'],
-    ['impressum', 'reserved'],
-  ])('create rejects the address %s (%s)', async (handle) => {
-    expect((await create({ subdomain: handle, site_title: 'x' })).status).toBe(400);
+    ['ab', 'Die Adresse darf nur Kleinbuchstaben'],
+    ['impressum', 'Diese Adresse ist reserviert'],
+  ])('create rejects the address %s', async (handle, message) => {
+    const res = await create({ subdomain: handle, site_title: 'x' });
+    expect(res.status).toBe(400);
+    expect((res.body as { error: string }).error).toContain(message);
     expect(queryMock).not.toHaveBeenCalled();
   });
 
