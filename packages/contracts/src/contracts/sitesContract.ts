@@ -7,6 +7,7 @@
  * Deliberately NOT contracted (still on the legacy axios paths):
  * - POST /api/sites/generate-from-flyer (multipart upload)
  * - POST /api/texte/website (AI generation)
+ * POST /api/sites/generate (streamed generation) is contracted below; its 200 is SSE.
  *
  * Authentication: all routes here require auth. routes.ts applies requireAuth
  * for /api/sites before this router is mounted.
@@ -25,10 +26,35 @@ import {
   sitesErrorSchema,
   sitePublishErrorSchema,
 } from '../schemas/sites.js';
+import { siteGenerateBodySchema } from '../schemas/siteGeneration.js';
 
 const c = initContract();
 
 export const sitesContract = c.router({
+  /**
+   * POST /api/sites/generate
+   * The 200 body is an SSE stream of `siteGenerationEventSchema` frames
+   * (`event: <type>`), written by the handler (same convention as
+   * `chatGraphContract`). The file part is `SITE_FLYER_FIELD` and lives in
+   * `req.file`, not in the body schema; exactly one of `description` and the
+   * file part must be sent.
+   */
+  generateSiteContent: {
+    method: 'POST',
+    path: '/api/sites/generate',
+    contentType: 'multipart/form-data',
+    body: siteGenerateBodySchema,
+    responses: {
+      200: c.noBody(),
+      400: sitesErrorSchema,
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      413: sitesErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Generate site content from a description or flyer (SSE)',
+  },
+
   /**
    * GET /api/sites/my-site
    * The current user's site, or { site: null } if none exists yet.

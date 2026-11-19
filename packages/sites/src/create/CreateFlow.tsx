@@ -10,12 +10,13 @@ import { useMemo, useState } from 'react';
 
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
-import { useLoadingProgress } from '../hooks/useLoadingProgress';
+import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
+import { useSiteGeneration } from '../hooks/useSiteGeneration';
 import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import { useAuth } from '../SitesContext';
-import { handleApiError } from '../utils/errorHandler';
+import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { formatAddress } from '../utils/siteAddress';
 import { validators } from '../utils/validation';
@@ -63,32 +64,16 @@ function GeneratedPreview({
   );
 }
 
-function generationSubmessage(isFlyer: boolean, progress: number): string {
-  if (isFlyer) {
-    if (progress < 20) return 'Text wird aus dem Flyer extrahiert...';
-    if (progress < 45) return 'Inhalte werden analysiert...';
-    if (progress < 70) return 'Website wird generiert...';
-    return 'Bilder werden ausgewählt...';
-  }
-  if (progress < 30) return 'Analysiere deine Beschreibung...';
-  if (progress < 60) return 'Erstelle Inhalte...';
-  return 'Fast fertig...';
-}
-
 export function CreateFlow() {
   const { user } = useAuth();
-  const {
-    publicOrigin,
-    createSite,
-    generateSite,
-    generateFromFlyer,
-    isCreating,
-    isGenerating,
-    isGeneratingFromFlyer,
-  } = useSite();
+  const { publicOrigin, createSite, isCreating } = useSite();
+  const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
   const toast = useToast();
-  const isAnyGenerating = isGenerating || isGeneratingFromFlyer;
-  const generationProgress = useLoadingProgress(isAnyGenerating, 45000);
+  const [failure, setFailure] = useState<{
+    message: string;
+    retryable: boolean;
+    input: SiteGenerationInput;
+  } | null>(null);
 
   const [subdomainInput, setSubdomainInput] = useState<string | null>(null);
   const subdomain =
@@ -96,6 +81,28 @@ export function CreateFlow() {
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
+
+  const runGeneration = async (input: SiteGenerationInput) => {
+    setFailure(null);
+    try {
+      const result = await generate(input, contactEmail);
+      setPreviewData(result);
+      toast.success(
+        'Seite generiert',
+        'file' in input
+          ? 'Deine Seite wurde aus dem Flyer generiert'
+          : 'Deine Seite wurde erfolgreich generiert'
+      );
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      console.error('Generate failed:', err);
+      if (err instanceof SiteGenerationError) {
+        setFailure({ message: err.message, retryable: err.retryable, input });
+      } else if (!(err instanceof SitesApiError && err.consentRequired)) {
+        handleApiError(err, toast);
+      }
+    }
+  };
 
   const handleGenerate = async () => {
     const subdomainError = validators.subdomain(subdomain);
@@ -116,17 +123,7 @@ export function CreateFlow() {
       return;
     }
 
-    try {
-      const result = await generateSite({
-        description,
-        email: contactEmail || undefined,
-      });
-      setPreviewData(result.transformed);
-      toast.success('Seite generiert', 'Deine Seite wurde erfolgreich generiert');
-    } catch (err) {
-      console.error('Generate failed:', err);
-      handleApiError(err, toast);
-    }
+    await runGeneration({ description });
   };
 
   const handleFlyerUpload = async (file: File) => {
@@ -136,17 +133,7 @@ export function CreateFlow() {
       return;
     }
 
-    try {
-      const result = await generateFromFlyer({
-        file,
-        email: contactEmail || undefined,
-      });
-      setPreviewData(result.transformed);
-      toast.success('Seite generiert', 'Deine Seite wurde aus dem Flyer generiert');
-    } catch (err) {
-      console.error('Flyer generation failed:', err);
-      handleApiError(err, toast);
-    }
+    await runGeneration({ file });
   };
 
   const handleConfirmCreate = async () => {
@@ -171,10 +158,11 @@ export function CreateFlow() {
 
   const overlay = (
     <LoadingOverlay
-      isLoading={isAnyGenerating}
-      message={isGeneratingFromFlyer ? 'Flyer wird analysiert...' : 'KI generiert deine Seite...'}
-      progress={generationProgress}
-      submessage={generationSubmessage(isGeneratingFromFlyer, generationProgress)}
+      isLoading={isGenerating}
+      message={isFlyer ? 'Flyer wird analysiert...' : 'KI generiert deine Seite...'}
+      steps={steps}
+      current={current}
+      onCancel={cancel}
     />
   );
 
@@ -189,10 +177,20 @@ export function CreateFlow() {
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
           onFlyerUpload={handleFlyerUpload}
-          isProcessing={isGenerating || isGeneratingFromFlyer || isCreating}
+          isProcessing={isGenerating || isCreating}
           isGenerating={isGenerating}
-          isGeneratingFromFlyer={isGeneratingFromFlyer}
+          isGeneratingFromFlyer={isGenerating && isFlyer}
         />
+        {failure && (
+          <div role="alert" className="mx-auto max-w-xl p-md text-center">
+            <p className="text-foreground mb-sm">{failure.message}</p>
+            {failure.retryable && (
+              <Button onClick={() => void runGeneration(failure.input)}>
+                Noch einmal versuchen
+              </Button>
+            )}
+          </div>
+        )}
         {overlay}
       </>
     );
