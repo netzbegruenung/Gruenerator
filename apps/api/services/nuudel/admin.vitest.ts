@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../config/env.js', () => ({ env: {} }));
 
-import { FormClient, FormStepError, type FetchLike } from '../webForms/formClient.js';
+import { FormClient, FormStepError, OrderRefused, type FetchLike } from '../webForms/formClient.js';
 
 import {
   adminStateOf,
@@ -19,7 +19,7 @@ import {
   type PollResults,
   type PollSlot,
 } from './client.js';
-import { votesOnSlots } from './polls.js';
+import { assertSlotEdit, votesOnSlots } from './polls.js';
 
 const BASE = 'https://nuudel.example';
 const ADMIN = 'DDhkf3tLgrGJw61zEygfXFYk';
@@ -202,5 +202,25 @@ describe('votesOnSlots', () => {
   it('zählt jede Antwort, wenn Seite und CSV nicht zusammenpassen', () => {
     const odd = { ...results, options: results.options.slice(0, 1) };
     expect(votesOnSlots(state, odd, [{ day: '2026-12-03', time: '19:00' }])[0].votes).toBe(1);
+  });
+});
+
+describe('assertSlotEdit', () => {
+  const a = { day: '2026-12-01', time: '19:00' };
+  const b = { day: '2026-12-03', time: '19:00' };
+
+  it('lehnt einen Termin ab, der zugleich hinzukommen und wegfallen soll', () => {
+    expect(() => assertSlotEdit([a], [a], [a])).toThrow(OrderRefused);
+    expect(() => assertSlotEdit([a], [a], [a])).toThrow(/zugleich/);
+  });
+
+  it('zählt einen schon vorhandenen Termin nicht als neu', () => {
+    expect(() => assertSlotEdit([a, b], [a, b], [b])).toThrow(/zugleich/);
+    expect(() => assertSlotEdit([a, b], [a], [b, b])).not.toThrow();
+  });
+
+  it('verlangt danach mindestens einen Termin', () => {
+    expect(() => assertSlotEdit([a], [a], [])).toThrow(/mindestens einen Termin/);
+    expect(() => assertSlotEdit([a], [a], [b])).not.toThrow();
   });
 });

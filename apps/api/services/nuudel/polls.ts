@@ -176,6 +176,39 @@ export function votesOnSlots(
 }
 
 /**
+ * Prüft Entfernen und Hinzufügen gegen die Termine der Seite, bevor nuudel
+ * etwas löscht. Gezählt wird, was danach wirklich dasteht: `editNuudelPoll`
+ * überspringt einen schon vorhandenen Termin beim Hinzufügen, entfernt ihn aber,
+ * wenn er auch in `removeSlots` steht — ohne diese Prüfung ging so der letzte
+ * Termin verloren.
+ */
+export function assertSlotEdit(
+  slots: PollSlot[],
+  removeSlots: PollSlot[],
+  addSlots: PollSlot[]
+): void {
+  const unknown = removeSlots.filter((r) => !slots.some((s) => sameSlot(s, r)));
+  if (unknown.length > 0) {
+    throw new OrderRefused(
+      `Diese Termine gibt es in der Umfrage nicht: ${unknown.map(slotLabel).join(', ')}. Vorhanden: ${slots.map(slotLabel).join(', ')}.`
+    );
+  }
+  const both = addSlots.filter((a) => removeSlots.some((r) => sameSlot(a, r)));
+  if (both.length > 0) {
+    throw new OrderRefused(
+      `Diese Termine sollen zugleich hinzukommen und wegfallen: ${both.map(slotLabel).join(', ')}. Nichts wurde geändert.`
+    );
+  }
+  const kept = slots.filter((s) => !removeSlots.some((r) => sameSlot(s, r)));
+  const added = addSlots.filter(
+    (a, i) => !slots.some((s) => sameSlot(s, a)) && addSlots.findIndex((b) => sameSlot(a, b)) === i
+  );
+  if (kept.length + added.length < 1) {
+    throw new OrderRefused('Eine Umfrage braucht mindestens einen Termin.');
+  }
+}
+
+/**
  * Ändert eine eigene Umfrage. Termine gibt es nur bei Terminumfragen (die
  * Spalten einer Auswahl sind nicht gemessen). Einen Termin, auf den schon
  * jemand geantwortet hat, entfernt der Weg nur mit `discardVotes`: nuudel
@@ -197,15 +230,7 @@ export async function editOwnPoll(
   }
   if (edit.removeSlots?.length) {
     const state = await readNuudelAdmin(adminId, base);
-    const unknown = edit.removeSlots.filter((r) => !state.slots.some((s) => sameSlot(s, r)));
-    if (unknown.length > 0) {
-      throw new OrderRefused(
-        `Diese Termine gibt es in der Umfrage nicht: ${unknown.map(slotLabel).join(', ')}. Vorhanden: ${state.slots.map(slotLabel).join(', ')}.`
-      );
-    }
-    if (state.slots.length - edit.removeSlots.length + (edit.addSlots?.length ?? 0) < 1) {
-      throw new OrderRefused('Eine Umfrage braucht mindestens einen Termin.');
-    }
+    assertSlotEdit(state.slots, edit.removeSlots, edit.addSlots ?? []);
     if (!opts.discardVotes) {
       const results = await readNuudelResults(adminId, base);
       const atStake = votesOnSlots(state, results, edit.removeSlots).filter((v) => v.votes > 0);
