@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type PublishedSiteSnapshot, type SiteSectionId } from '@gruenerator/contracts';
 
 import { siteCopy } from '../model/copy.js';

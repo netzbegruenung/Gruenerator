@@ -2,11 +2,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SitesApiError } from '../utils/errorHandler';
 import { SiteGenerationError } from '../generation/siteGenerationStream';
+import { SitesApiError } from '../utils/errorHandler';
 
 const m = vi.hoisted(() => ({
   createSite: vi.fn(),
+  refetch: vi.fn(),
   generate: vi.fn(),
   cancel: vi.fn(),
   toastError: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('../hooks/useSite', () => ({
     publicOrigin: 'https://grsites.de',
     createSite: m.createSite,
     isCreating: false,
+    refetch: m.refetch,
   }),
 }));
 vi.mock('../hooks/useSiteGeneration', () => ({
@@ -75,6 +77,7 @@ describe('CreateFlow', () => {
   beforeEach(() => {
     m.createSite.mockReset().mockResolvedValue({});
     m.generate.mockReset();
+    m.refetch.mockReset();
     m.toastError.mockReset();
     m.gen.steps = [];
     m.gen.current = null;
@@ -146,5 +149,19 @@ describe('CreateFlow', () => {
     await waitFor(() =>
       expect(m.toastError).toHaveBeenCalledWith('Keine Berechtigung', expect.any(String))
     );
+  });
+
+  it('shows the server message and reloads the site when it already exists', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite.mockRejectedValue(new SitesApiError(400, 'Du hast bereits eine Website erstellt'));
+    const user = await fillAndGenerate();
+    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    await waitFor(() =>
+      expect(m.toastError).toHaveBeenCalledWith(
+        'Eingabefehler',
+        'Du hast bereits eine Website erstellt'
+      )
+    );
+    expect(m.refetch).toHaveBeenCalledTimes(1);
   });
 });
