@@ -21,6 +21,7 @@ import {
 import { mergeStalePatch } from './canvasMerge.js';
 import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
+import { SITE_ROOM_PREFIX, applySiteSeed, siteIdFromRoom } from './siteRooms.js';
 
 import type { PostgresPersistence } from './persistence.js';
 import type { Connection, Hocuspocus, Server } from '@hocuspocus/server';
@@ -49,6 +50,21 @@ export const CANVAS_DOCUMENT_NEWER_STATUS = 426;
 export const CANVAS_STATE_UNWRITABLE_STATUS = 400;
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
+
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+/** A seed update that decodes and carries state, or null. */
+export function parseSiteSeedUpdate(v: unknown): Uint8Array | null {
+  if (typeof v !== 'string' || !v || !BASE64_RE.test(v)) return null;
+  const update = new Uint8Array(Buffer.from(v, 'base64'));
+  const probe = new Y.Doc();
+  try {
+    Y.applyUpdate(probe, update);
+  } catch {
+    return null;
+  }
+  return probe.store.clients.size > 0 ? update : null;
+}
 
 // Well-known board field IDs — duplicated from apps/api BoardService.FIELD_IDS
 // on purpose: unlike canvas state, which goes through @ggraphic/core/ydoc (canvasCodec.ts), the
@@ -1059,6 +1075,40 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // First state of a site draft. The check and the write run in one transaction on the
+  // live doc, so of two concurrent seeds exactly one lands; the second answers seeded:false.
+  router.post('/site/:siteId/seed', async (req, res) => {
+    const room = `${SITE_ROOM_PREFIX}${req.params.siteId}`;
+    if (!siteIdFromRoom(room)) {
+      res.status(400).json({ error: 'siteId must be a uuid' });
+      return;
+    }
+    const update = parseSiteSeedUpdate((req.body as { update?: unknown } | null)?.update);
+    if (!update) {
+      res.status(400).json({ error: 'update must be a base64 Yjs update that carries state' });
+      return;
+    }
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(room);
+      try {
+        let seeded = false;
+        await connection.transact((doc) => {
+          seeded = applySiteSeed(doc, update);
+        });
+        log.info(
+          `Site seed for ${room}: ${seeded ? `applied ${update.byteLength} bytes` : 'skipped, doc has state'}`
+        );
+        res.json({ seeded });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST site seed failed for ${room}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Called by the API after an access change (permission removed or changed,
   // share settings changed, document trashed, project left or trashed).
   router.post('/rooms/close', (req, res) => {
@@ -1078,6 +1128,6 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops and /internal/rooms/close'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops, /internal/site/*/seed and /internal/rooms/close'
   );
 }

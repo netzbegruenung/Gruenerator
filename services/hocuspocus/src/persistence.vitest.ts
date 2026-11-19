@@ -188,3 +188,36 @@ describe('PostgresPersistence.updateCanvasPageCount', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('PostgresPersistence — site rooms use the bare uuid as key', () => {
+  const ROOM = `site-${DOC_ID}`;
+
+  function recordingDb(): { db: DbQueryFn; calls: { sql: string; params?: unknown[] }[] } {
+    const calls: { sql: string; params?: unknown[] }[] = [];
+    return {
+      calls,
+      db: async (sql, params) => {
+        calls.push({ sql, params });
+        return [];
+      },
+    };
+  }
+
+  it(`loadDocument('site-<uuid>') queries document_id = <uuid>`, async () => {
+    const { db, calls } = recordingDb();
+    await expect(new PostgresPersistence(db).loadDocument(ROOM)).resolves.toBeNull();
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call.params?.[0]).toBe(DOC_ID);
+    }
+  });
+
+  it(`storeDocument('site-<uuid>') writes document_id = <uuid>`, async () => {
+    const { db, calls } = recordingDb();
+    await new PostgresPersistence(db).storeDocument(ROOM, encodeState('x'));
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call.params?.[0]).toBe(DOC_ID);
+    }
+  });
+});

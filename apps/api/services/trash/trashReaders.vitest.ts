@@ -79,6 +79,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ['services/hocuspocus/src/auth.ts', 'collaborative_documents', HOCUSPOCUS],
   ['services/hocuspocus/src/persistence.ts', 'collaborative_documents', HOCUSPOCUS],
   [
+    'services/hocuspocus/src/auth.ts',
+    'user_sites',
+    'bare-room guard: a trashed site keeps its Yjs rows closed to the no-row fallback',
+    'SELECT 1 FROM user_sites',
+  ],
+  [
     'apps/api/services/docs/CollaborativeDocumentService.ts',
     'chat_threads',
     'purge: a purged document takes its chat thread along, trashed or not',

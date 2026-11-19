@@ -15,6 +15,7 @@ import {
   type BoardPreview,
 } from './contentPreviews.js';
 import { createLogger } from './logger.js';
+import { persistenceKey } from './siteRooms.js';
 import { TEMPLATE_CONTENT } from './templateContent.js';
 
 import type { DbQueryFn } from './types.js';
@@ -101,7 +102,8 @@ export class PostgresPersistence {
    * the template and the next store would overwrite the (still recoverable)
    * real bytes in Postgres. Returns null only for genuinely new documents.
    */
-  async loadDocument(documentId: string): Promise<Uint8Array | null> {
+  async loadDocument(room: string): Promise<Uint8Array | null> {
+    const documentId = persistenceKey(room);
     const ydoc = new Y.Doc();
 
     // Walk snapshots newest-first until one decompresses and applies cleanly.
@@ -257,7 +259,8 @@ export class PostgresPersistence {
     }
   }
 
-  async storeDocument(documentId: string, state: Uint8Array): Promise<void> {
+  async storeDocument(room: string, state: Uint8Array): Promise<void> {
+    const documentId = persistenceKey(room);
     try {
       const compressed = await gzipAsync(state);
 
@@ -399,6 +402,7 @@ export class PostgresPersistence {
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const kind = detectPreviewKind(ydoc);
+      if (kind === 'site') return;
 
       if (kind !== 'blocknote') {
         await this.storeTypedPreview(documentId, ydoc, kind);
@@ -519,6 +523,7 @@ export class PostgresPersistence {
       Y.applyUpdate(ydoc, state);
 
       const kind = detectPreviewKind(ydoc);
+      if (kind === 'site') return null;
       if (kind !== 'blocknote') {
         return await this.storeTypedPreview(documentId, ydoc, kind);
       }
