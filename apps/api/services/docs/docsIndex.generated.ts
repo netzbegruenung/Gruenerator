@@ -2495,7 +2495,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wer Sites nutzen kann",
     "anchor": "#wer-sites-nutzen-kann",
     "category": "Features",
-    "text": "Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support."
+    "text": "Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat, sowie für Instanz-Admins selbst. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support."
   },
   {
     "url": "/docs/features/tabellen",
