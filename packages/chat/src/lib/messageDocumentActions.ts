@@ -121,10 +121,6 @@ export function buildDocumentActions({
       id: `send-${provider}` as const,
       label: CONNECTOR_SEND_LABELS[provider],
     })),
-    ...sendTargets.map((provider) => ({
-      id: `send-${provider}` as const,
-      label: CONNECTOR_SEND_LABELS[provider],
-    })),
     { id: 'pdf', label: 'Als PDF' },
     ...(canExportPdfLetterhead
       ? [{ id: 'pdf-letterhead' as const, label: 'Als PDF mit Briefkopf …' }]

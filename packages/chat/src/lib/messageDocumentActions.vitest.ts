@@ -40,6 +40,9 @@ describe('buildDocumentActions', () => {
       { id: 'send-microsoft-teams', label: 'In Teams ablegen …' },
       { id: 'send-slack', label: 'In Slack posten …' },
     ]);
+    expect(actions[5]?.id).toBe('pdf');
+    const ids = actions.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('offers the editor and both plain downloads by default', () => {
