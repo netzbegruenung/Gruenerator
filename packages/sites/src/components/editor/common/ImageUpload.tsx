@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { useMediaPicker, useMediaUpload, type MediaItem } from '@gruenerator/shared/media-library';
 import { cn } from '@gruenerator/shared/utils';
 import { useRef } from 'react';
@@ -10,7 +11,7 @@ interface ImageUploadProps {
   size?: 'small' | 'medium' | 'large' | 'fill';
   circular?: boolean;
   disabled?: boolean;
-  /** Forwarded to the dropzone control so a `<label htmlFor>` can target it. */
+  /** Forwarded to the "Hochladen" button so a `<label htmlFor>` can target it. */
   id?: string;
 }
 
@@ -65,8 +66,8 @@ export function ImageUpload({
     }
   };
 
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRemove = () => {
+    if (disabled) return;
     onChange('');
   };
 
@@ -92,73 +93,88 @@ export function ImageUpload({
         type="file"
         accept="image/*"
         onChange={handleFileChange}
-        style={{ display: 'none' }}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
       />
       <div
-        id={id}
         className={cn(
-          'group relative border-2 border-dashed border-grey-300 dark:border-grey-700 rounded-lg cursor-pointer overflow-hidden flex items-center justify-center bg-grey-50 dark:bg-grey-900 transition-colors hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15',
+          'relative border-2 border-dashed border-grey-300 dark:border-grey-700 rounded-lg overflow-hidden flex items-center justify-center bg-grey-50 dark:bg-grey-900',
           circular && 'rounded-full'
         )}
         style={aspectRatio ? { aspectRatio: circular ? '1/1' : aspectRatio } : undefined}
-        onClick={value ? handleLibraryClick : handleUploadClick}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => e.key === 'Enter' && (value ? handleLibraryClick() : handleUploadClick())}
       >
         {isUploading ? (
           <div className="flex flex-col items-center justify-center gap-2 w-full p-5">
             <div
-              className="h-1 bg-primary-500 rounded transition-[width_0.2s_ease]"
-              style={{ width: `${progress}%` }}
-            />
+              role="progressbar"
+              aria-label="Upload-Fortschritt"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+              className="w-full h-1 rounded bg-grey-200 dark:bg-grey-700 overflow-hidden"
+            >
+              <div
+                className="h-full bg-primary-500 rounded transition-[width_0.2s_ease]"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
             <span className="text-[13px] text-grey-600 dark:text-grey-400">
               Hochladen... {Math.round(progress)}%
             </span>
           </div>
         ) : value ? (
-          <>
-            <img
-              src={value}
-              alt="Vorschau"
-              className={cn('w-full h-full object-cover', circular && 'rounded-full')}
-            />
-            <button
-              type="button"
-              className={cn(
-                'absolute top-2 right-2 w-7 h-7 border-none rounded-full bg-black/60 text-white text-lg cursor-pointer flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600/90',
-                circular && 'top-1 right-1 w-6 h-6 text-sm'
-              )}
-              onClick={handleRemove}
-              aria-label="Bild entfernen"
-            >
-              ×
-            </button>
-          </>
+          <img
+            src={value}
+            alt=""
+            className={cn('w-full h-full object-cover', circular && 'rounded-full')}
+          />
         ) : (
           <span
             className={cn(
-              'text-grey-400 dark:text-grey-500 text-[13px] text-center p-2',
+              'text-grey-600 dark:text-grey-400 text-[13px] text-center p-2',
               circular && 'text-xs p-2.5'
             )}
           >
-            + {placeholder}
+            {placeholder}
           </span>
         )}
       </div>
-      {!value && !isUploading && (
-        <button
-          type="button"
-          className={cn(
-            'block mt-1.5 p-0 border-none bg-transparent text-primary-600 dark:text-primary-400 text-[13px] cursor-pointer text-center w-full hover:underline',
-            (circular || size === 'small') && 'text-[11px] mt-1'
+      {!isUploading && (
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleUploadClick}
+            disabled={disabled}
+          >
+            Hochladen
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleLibraryClick}
+            disabled={disabled}
+          >
+            Aus Mediathek
+          </Button>
+          {value && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemove}
+              disabled={disabled}
+            >
+              Entfernen
+            </Button>
           )}
-          onClick={handleLibraryClick}
-        >
-          Aus Mediathek
-        </button>
+        </div>
       )}
     </div>
   );
