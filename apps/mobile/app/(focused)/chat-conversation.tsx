@@ -20,6 +20,7 @@ import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { VOICE_DOCK_INSET, VoiceCallBar, VoiceCallOverlay } from '../../components/voice/VoiceCall';
 import { WaveformIcon } from '../../components/voice/WaveformIcon';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
+import { useLinkedThreadId } from '../../hooks/useLinkedThreadId';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { runProjectChatHandoff } from '../../services/projectChatThread';
 import { lightTheme, darkTheme } from '../../theme';
@@ -199,6 +200,8 @@ function ChatConversation({
   useChatAgentSelection(resolvedAgentId, locale);
 
   const isNewChat = threadId === 'new';
+  // Links carry a slug (Tagesbriefing, Meldungen); the history needs the row id.
+  const linkedThreadId = useLinkedThreadId(isNewChat ? null : threadId);
 
   return (
     // The same chrome as every tab — drawer button, centred title, profile menu —
@@ -210,22 +213,24 @@ function ChatConversation({
       // bar is needed for the agent's name — they run to 45 characters.
       headerRight={null}
     >
-      <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <ConversationThread theme={theme} welcome={welcome} startInCall={voice === '1'} />
-        {isNewChat && (
-          <InitialTurnSender
-            message={initialMessage ?? ''}
-            {...(groupId && {
-              beforeSend: () =>
-                runProjectChatHandoff(`${groupId}:${handoff ?? ''}`, {
-                  groupId,
-                  teamShared: teamShared === '1',
-                }),
-            })}
-          />
-        )}
-        {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
-      </MobileChatProvider>
+      {linkedThreadId !== undefined && (
+        <MobileChatProvider threadId={linkedThreadId}>
+          <ConversationThread theme={theme} welcome={welcome} startInCall={voice === '1'} />
+          {isNewChat && (
+            <InitialTurnSender
+              message={initialMessage ?? ''}
+              {...(groupId && {
+                beforeSend: () =>
+                  runProjectChatHandoff(`${groupId}:${handoff ?? ''}`, {
+                    groupId,
+                    teamShared: teamShared === '1',
+                  }),
+              })}
+            />
+          )}
+          {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
+        </MobileChatProvider>
+      )}
     </ScreenScaffold>
   );
 }
