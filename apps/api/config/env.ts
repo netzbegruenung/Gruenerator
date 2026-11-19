@@ -115,6 +115,12 @@ const envSchema = z.object({
   ANTRAGSGRUEN_BOT_PASSWORD: z.string().optional(),
   ANTRAGSGRUEN_HOSTING_URL: z.string().url().optional(),
   /**
+   * nuudel-Umfragen für Personen anlegen (`services/nuudel/`). Ohne Wert
+   * `https://nuudel.digitalcourage.de`; ein LEERER Wert ist der Notschalter und
+   * nimmt die Werkzeuge aus dem Chat. Eine andere Framadate-Instanz nur für Tests.
+   */
+  NUUDEL_URL: z.string().optional(),
+  /**
    * Wie der Browser-Dienst die API erreicht (für den Modell-Proxy). Default
    * `http://localhost:3001`; im Betrieb `browser-gateway:8898`, das nur den
    * Modell-Pfad durchlässt.

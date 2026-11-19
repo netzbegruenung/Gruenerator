@@ -404,3 +404,34 @@ describe('createToolScope — die Antwort auf eine Rückfrage', () => {
     expect(scope.activeTools([])).not.toContain(PERSONAL[0]);
   });
 });
+
+describe('createToolScope — nuudel-Gruppe', () => {
+  const NUUDEL = DEFERRABLE_GROUPS.find((g) => g.id === 'nuudel')!;
+  const mounted = ['gruenerator_search', 'web_search', 'umfragen', ...NUUDEL.tools];
+  const opensOnText = (userText: string) => {
+    const active = createToolScope({ toolNames: mounted, userText, enforce: true }).activeTools();
+    return active === undefined || NUUDEL.tools.every((t) => active.includes(t));
+  };
+
+  it('öffnet bei Wörtern, die eine eigene Abstimmung meinen', () => {
+    for (const t of [
+      'Mach ein Doodle für das OV-Treffen',
+      'Erstelle eine Terminumfrage für Dezember',
+      'Wir müssen einen Termin finden für die KMV',
+      'Leg eine nuudel-Umfrage an',
+      'Schick mir den Abstimmungslink nochmal',
+    ]) {
+      expect(opensOnText(t), t).toBe(true);
+    }
+  });
+
+  // „Umfrage" allein meint meist Wahlumfragen — dafür gibt es `umfragen`.
+  it('bleibt bei Wahl- und Meinungsumfragen zu', () => {
+    for (const t of [
+      'Wie steht die Umfrage der Grünen in Bayern?',
+      'Neue Umfragen zur Landtagswahl',
+    ]) {
+      expect(opensOnText(t), t).toBe(false);
+    }
+  });
+});

@@ -155,6 +155,7 @@ import { mountAntragsgruenSitesContractRouter } from './routes/user/antragsgruen
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
 import letterheadStationeryRouter from './routes/user/letterheadStationeryRouter.js';
+import { mountNuudelPollsContractRouter } from './routes/user/nuudelPollsContractRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -463,6 +464,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUserWebsitesContractRouter(app);
   app.use('/api/auth/antragsgruen-sites', requireAuth);
   mountAntragsgruenSitesContractRouter(app);
+  app.use('/api/auth/nuudel-polls', requireAuth);
+  mountNuudelPollsContractRouter(app);
   // Letterheads (Absender for the PDF export). requireAuth at the prefix for
   // the same reason as its siblings: a contract router does not inherit the
   // later `app.use('/api/auth', ...)` middleware, and every route here reads or

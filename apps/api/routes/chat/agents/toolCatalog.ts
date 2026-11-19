@@ -115,6 +115,7 @@ import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
 import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
+import { makeNuudelCreateTool, makeNuudelReadTool, nuudelConfigured } from './nuudelTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -1206,6 +1207,12 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       tools.antragsgruen_antrag_stellen = makeAntragsgruenMotionTool(personalCtx);
       tools.antragsgruen_tagesordnung = makeAntragsgruenAgendaTool(personalCtx);
       tools.antragsgruen_seite_lesen = makeAntragsgruenReadTool(personalCtx);
+    }
+    // Hinter der Gruppe `nuudel` (`toolScope.ts`); das Anlegen fragt über das
+    // Freigabe-Gate (`INTERNAL_APPROVAL_REQUIRED_TOOLS`).
+    if (nuudelConfigured()) {
+      tools.nuudel_umfrage_anlegen = makeNuudelCreateTool(personalCtx);
+      tools.nuudel_umfrage_lesen = makeNuudelReadTool(personalCtx);
     }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);

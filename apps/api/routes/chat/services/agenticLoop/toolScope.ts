@@ -252,6 +252,18 @@ export const DEFERRABLE_GROUPS = [
     loaderDescription:
       'Schaltet die Antragsgrün-Werkzeuge frei. Parteitage der GRÜNEN NRW: antragsgruen (finden), antragsgruen_lesen, antragsgruen_auswerten (exakte Zahlen). Eigene Seite auf antragsgruen.de: antragsgruen_seite_anlegen, antragsgruen_antrag_stellen, antragsgruen_tagesordnung (lesen/setzen), antragsgruen_seite_lesen (Anträge mit Zeilennummern, für Änderungsanträge).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder um eine eigene Antragsgrün-Seite für eine Versammlung.',
   },
+  {
+    // nuudel-Umfragen (Terminfindung, Auswahl): für die meisten Turns ohne Belang.
+    id: 'nuudel',
+    loaderTool: 'nuudel_werkzeuge_laden',
+    tools: ['nuudel_umfrage_anlegen', 'nuudel_umfrage_lesen'],
+    // Kein bloßes „Umfrage": das meint meist Wahlumfragen (Werkzeug `umfragen`).
+    // Nur Wörter, die eine selbst gestellte Abstimmung meinen; alles andere
+    // entscheidet das Modell über den Lader.
+    hint: /nuudel|doodle|dudle|termin(?:umfrage|abstimmung|findung|suche|vorschl[äa]ge)|termin\s+(?:finden|abstimmen)|datumsumfrage|abstimmungslink|umfragelink/i,
+    loaderDescription:
+      "Schaltet die nuudel-Werkzeuge frei: nuudel_umfrage_anlegen (Terminfindung oder Auswahl auf nuudel.digitalcourage.de anlegen), nuudel_umfrage_lesen (Ergebnis einer eigenen Umfrage: wer kann wann).\n\nNUTZE WENN die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellen oder auswerten will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen').",
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];

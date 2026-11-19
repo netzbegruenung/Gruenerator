@@ -1696,3 +1696,15 @@ CREATE TABLE IF NOT EXISTS antragsgruen_hosted_sites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_antragsgruen_hosted_sites_user ON antragsgruen_hosted_sites(user_id);
+
+CREATE TABLE IF NOT EXISTS nuudel_polls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('date', 'classic')),
+    title TEXT NOT NULL,
+    poll_id TEXT NOT NULL UNIQUE,
+    admin_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nuudel_polls_user ON nuudel_polls(user_id, created_at DESC);

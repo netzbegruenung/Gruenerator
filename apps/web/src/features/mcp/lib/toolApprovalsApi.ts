@@ -46,6 +46,7 @@ export async function setToolDecision(input: {
  */
 const INTERNAL_TOOL_LABELS: Record<string, string> = {
   'internal/tabelle_auswerten': 'Tabellen auswerten (Python im Browser)',
+  'internal/nuudel_umfrage_anlegen': 'nuudel-Umfragen anlegen',
 };
 
 /** `mcp:<serverId>/<tool>` → nur der Werkzeugname, für die Anzeige ohne Label. */

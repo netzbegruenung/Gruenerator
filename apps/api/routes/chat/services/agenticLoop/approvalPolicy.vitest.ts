@@ -126,6 +126,19 @@ describe('tabelle_auswerten', () => {
   });
 });
 
+describe('nuudel_umfrage_anlegen', () => {
+  it('fragt wie ein Konnektor-Werkzeug, das Lesen nicht', () => {
+    expect(evaluateApproval({ toolName: 'nuudel_umfrage_anlegen', allowlist: new Set() })).toEqual({
+      required: true,
+      scopeKey: 'internal/nuudel_umfrage_anlegen',
+    });
+    expect(evaluateApproval({ toolName: 'nuudel_umfrage_lesen', allowlist: new Set() })).toEqual({
+      required: false,
+      reason: 'internal',
+    });
+  });
+});
+
 describe('approvalGateEnabled', () => {
   it('an, wenn Konnektoren laufen und jemand angemeldet ist', () => {
     expect(approvalGateEnabled({ disableMcp: false, userId: 'u1', toolNames: [] })).toBe(true);
