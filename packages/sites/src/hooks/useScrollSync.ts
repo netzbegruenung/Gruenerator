@@ -8,16 +8,14 @@ interface UseScrollSyncOptions {
 }
 
 export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOptions) {
-  const {
-    activeSection,
-    setActiveSection,
-    isScrollLocked,
-    setScrollLocked,
-    scrollSource,
-    setScrollSource,
-    pendingScrollTo,
-    clearPendingScroll,
-  } = useEditorStore();
+  const activeSection = useEditorStore((s) => s.activeSection);
+  const setActiveSection = useEditorStore((s) => s.setActiveSection);
+  const isScrollLocked = useEditorStore((s) => s.isScrollLocked);
+  const setScrollLocked = useEditorStore((s) => s.setScrollLocked);
+  const scrollSource = useEditorStore((s) => s.scrollSource);
+  const setScrollSource = useEditorStore((s) => s.setScrollSource);
+  const pendingScrollTo = useEditorStore((s) => s.pendingScrollTo);
+  const clearPendingScroll = useEditorStore((s) => s.clearPendingScroll);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sectionRefs = useRef<Map<SectionType, HTMLElement>>(new Map());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);

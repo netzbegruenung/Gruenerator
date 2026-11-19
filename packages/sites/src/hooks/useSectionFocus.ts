@@ -10,7 +10,9 @@ interface FieldRef {
 }
 
 export function useSectionFocus() {
-  const { focusedField, clearFocus, setHighlightedElement } = useEditorStore();
+  const focusedField = useEditorStore((s) => s.focusedField);
+  const clearFocus = useEditorStore((s) => s.clearFocus);
+  const setHighlightedElement = useEditorStore((s) => s.setHighlightedElement);
   const fieldRefs = useRef<Map<string, FieldRef>>(new Map());
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -101,7 +103,9 @@ export function useSectionFocus() {
 }
 
 export function useClickToEdit() {
-  const { focusField: storeFocusField, setActiveSection, setMobileEditorOpen } = useEditorStore();
+  const storeFocusField = useEditorStore((s) => s.focusField);
+  const setActiveSection = useEditorStore((s) => s.setActiveSection);
+  const setMobileEditorOpen = useEditorStore((s) => s.setMobileEditorOpen);
 
   const handlePreviewClick = useCallback(
     (event: React.SyntheticEvent<HTMLElement>) => {

@@ -2,7 +2,6 @@ export { EditorLayout } from './EditorLayout';
 export { EditorSidebar } from './EditorSidebar';
 export { SectionNavigation } from './SectionNavigation';
 export { SectionEditorContainer } from './SectionEditorContainer';
-export { InteractivePreview } from './preview/InteractivePreview';
 
 export * from './sections/HeroSectionEditor';
 export * from './sections/AboutSectionEditor';

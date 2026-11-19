@@ -1,124 +1,87 @@
 import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect } from 'react';
+import { Input, Textarea } from '@gruenerator/ui';
 
+import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
-
-import type { HeroImageSection } from '../../../types/editorDraft';
-
-interface HeroImageSectionEditorProps {
-  data: HeroImageSection;
-  onChange: (data: HeroImageSection) => void;
-}
 
 const MAX_TITLE_LENGTH = 60;
 const MAX_SUBTITLE_LENGTH = 200;
 
-export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEditorProps) {
+function Counter({ length, max }: { length: number; max: number }) {
+  return (
+    <div
+      className={cn(
+        'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
+        length > max * 0.9 && 'text-yellow-600'
+      )}
+    >
+      {length} / {max} Zeichen
+    </div>
+  );
+}
+
+export function HeroImageSectionEditor() {
   const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
-
-  const titleRef = useRef<HTMLInputElement>(null);
-  const subtitleRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    registerField('heroImage', 'title', titleRef.current);
-    registerField('heroImage', 'subtitle', subtitleRef.current);
-  }, [registerField]);
-
-  const updateField = (field: keyof HeroImageSection, value: string) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'heroImage' && highlightedElement?.field === field;
-  };
+  const { setField } = useDraftActions();
+  const imageUrl = useDraft((d) => d.heroImage.imageUrl);
+  const title = useDraft((d) => d.heroImage.title);
+  const subtitle = useDraft((d) => d.heroImage.subtitle);
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Hero-Bild
-      </h3>
+      <SectionHeading>Hero-Bild</SectionHeading>
 
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
         <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
           <ImageUpload
-            value={data.imageUrl}
-            onChange={(url) => updateField('imageUrl', url)}
+            value={imageUrl}
+            onChange={(url) => setField('heroImage.imageUrl', url)}
             placeholder="Bild"
             size="fill"
           />
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]'
-            )}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Field
+            panel="heroImage"
+            path="sections.heroImage.title"
+            htmlFor="heroimage-title"
+            label="Hauptbotschaft"
           >
-            <label
-              htmlFor="heroimage-title"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Hauptbotschaft
-            </label>
-            <input
-              ref={titleRef}
+            <Input
+              ref={(el) => registerField('heroImage', 'sections.heroImage.title', el)}
               id="heroimage-title"
-              type="text"
-              value={data.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'title')}
+              value={title}
+              onChange={(e) => setField('heroImage.title', e.target.value)}
+              onFocus={() => handleFieldFocus('heroImage', 'sections.heroImage.title')}
               onBlur={handleFieldBlur}
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
-            <div
-              className={cn(
-                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-                data.title.length > MAX_TITLE_LENGTH * 0.9 && 'text-yellow-600'
-              )}
-            >
-              {data.title.length} / {MAX_TITLE_LENGTH} Zeichen
-            </div>
-          </div>
+            <Counter length={title.length} max={MAX_TITLE_LENGTH} />
+          </Field>
 
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('subtitle') && 'animate-[field-highlight_1s_ease]'
-            )}
+          <Field
+            panel="heroImage"
+            path="sections.heroImage.subtitle"
+            htmlFor="heroimage-subtitle"
+            label="Untertitel"
           >
-            <label
-              htmlFor="heroimage-subtitle"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Untertitel
-            </label>
-            <textarea
-              ref={subtitleRef}
+            <Textarea
+              ref={(el) => registerField('heroImage', 'sections.heroImage.subtitle', el)}
               id="heroimage-subtitle"
-              value={data.subtitle}
-              onChange={(e) => updateField('subtitle', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'subtitle')}
+              value={subtitle}
+              onChange={(e) => setField('heroImage.subtitle', e.target.value)}
+              onFocus={() => handleFieldFocus('heroImage', 'sections.heroImage.subtitle')}
               onBlur={handleFieldBlur}
               placeholder="Ein unterstützender Satz zu deiner Hauptbotschaft..."
               rows={2}
               maxLength={MAX_SUBTITLE_LENGTH}
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
-            <div
-              className={cn(
-                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-                data.subtitle.length > MAX_SUBTITLE_LENGTH * 0.9 && 'text-yellow-600'
-              )}
-            >
-              {data.subtitle.length} / {MAX_SUBTITLE_LENGTH} Zeichen
-            </div>
-          </div>
+            <Counter length={subtitle.length} max={MAX_SUBTITLE_LENGTH} />
+          </Field>
         </div>
       </div>
     </div>

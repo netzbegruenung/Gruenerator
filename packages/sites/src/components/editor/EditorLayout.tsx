@@ -12,7 +12,8 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
   { sidebar, preview },
   ref
 ) {
-  const { isMobileEditorOpen, toggleMobileEditor } = useEditorStore();
+  const isMobileEditorOpen = useEditorStore((s) => s.isMobileEditorOpen);
+  const toggleMobileEditor = useEditorStore((s) => s.toggleMobileEditor);
 
   return (
     <div className="grid grid-cols-[1fr_1fr] h-[calc(100dvh-60px)] overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[1fr_auto]">

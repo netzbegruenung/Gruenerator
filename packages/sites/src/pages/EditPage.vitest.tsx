@@ -46,6 +46,7 @@ vi.mock('../components/editor', () => ({
       {preview as never}
     </div>
   ),
+  EditorSidebar: () => <nav aria-label="Abschnitte" />,
   SectionNavigation: () => <nav aria-label="Abschnitte" />,
 }));
 

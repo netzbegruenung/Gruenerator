@@ -8,7 +8,7 @@ import { Button } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
-import { EditorLayout, SectionNavigation } from '../components/editor';
+import { EditorLayout, EditorSidebar } from '../components/editor';
 import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
 import { useSiteDraftSession } from '../draft/useSiteDraftSession';
 import { useLeaveWarning } from '../hooks/useLeaveWarning';
@@ -115,10 +115,7 @@ export function SiteEditor({ site }: { site: SiteData }) {
         <SiteDraftProvider ydoc={session.ydoc}>
           <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
             <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)} />
-            <EditorLayout
-              sidebar={<SectionNavigation className="lg:hidden" />}
-              preview={<DraftPreview site={site} />}
-            />
+            <EditorLayout sidebar={<EditorSidebar />} preview={<DraftPreview site={site} />} />
             {previewOpen && <FullscreenPreview site={site} onClose={() => setPreviewOpen(false)} />}
           </div>
         </SiteDraftProvider>

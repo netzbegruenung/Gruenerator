@@ -1,16 +1,12 @@
-import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect, useState } from 'react';
+import { SITE_TAGLINE_MAX, SITE_TITLE_MAX, SITE_URL_MAX } from '@gruenerator/contracts';
+import { Button, Input, Label, Textarea } from '@gruenerator/ui';
+import { useState } from 'react';
+import { FiX } from 'react-icons/fi';
 
+import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
-
-import type { HeroSection, SocialLinks } from '../../../types/editorDraft';
-
-interface HeroSectionEditorProps {
-  data: HeroSection;
-  onChange: (data: HeroSection) => void;
-}
 
 const DEFAULT_PLATFORMS = ['instagram', 'facebook'] as const;
 
@@ -23,119 +19,74 @@ const ALL_PLATFORMS = [
   { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/...' },
 ] as const;
 
-export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
+export function HeroSectionEditor() {
   const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
+  const { setField } = useDraftActions();
+  const name = useDraft((d) => d.site_title);
+  const tagline = useDraft((d) => d.tagline);
+  const profileImage = useDraft((d) => d.profile_image);
+  const socialLinks = useDraft((d) => d.social_links);
 
-  const nameRef = useRef<HTMLInputElement>(null);
-  const taglineRef = useRef<HTMLTextAreaElement>(null);
-
-  // Track which additional platforms are visible
   const [visiblePlatforms, setVisiblePlatforms] = useState<string[]>(() => {
-    // Start with defaults + any that already have values
-    const withValues = ALL_PLATFORMS.filter(
-      (p) => data.socialLinks?.[p.key as keyof SocialLinks]
-    ).map((p) => p.key);
+    const withValues = ALL_PLATFORMS.filter((p) => socialLinks[p.key]).map((p) => p.key);
     return [...new Set([...DEFAULT_PLATFORMS, ...withValues])];
   });
 
-  useEffect(() => {
-    registerField('hero', 'name', nameRef.current);
-    registerField('hero', 'tagline', taglineRef.current);
-  }, [registerField]);
-
-  const updateField = (field: keyof HeroSection, value: string | SocialLinks) => {
-    onChange({ ...data, [field]: value });
-  };
-
   const updateSocialLink = (platform: string, url: string) => {
-    onChange({
-      ...data,
-      socialLinks: { ...data.socialLinks, [platform]: url },
-    });
-  };
-
-  const addPlatform = (key: string) => {
-    setVisiblePlatforms((prev) => [...prev, key]);
+    const next = { ...socialLinks };
+    if (url === '') delete next[platform];
+    else next[platform] = url;
+    setField('social_links', next);
   };
 
   const removePlatform = (key: string) => {
-    // Remove from visible and clear value
     setVisiblePlatforms((prev) => prev.filter((p) => p !== key));
-    const newLinks = { ...data.socialLinks };
-    delete newLinks[key as keyof SocialLinks];
-    onChange({ ...data, socialLinks: newLinks });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'hero' && highlightedElement?.field === field;
+    updateSocialLink(key, '');
   };
 
   const availableToAdd = ALL_PLATFORMS.filter((p) => !visiblePlatforms.includes(p.key));
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Profil
-      </h3>
+      <SectionHeading>Profil</SectionHeading>
 
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
         <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
           <ImageUpload
-            value={data.imageUrl}
-            onChange={(url) => updateField('imageUrl', url)}
+            value={profileImage}
+            onChange={(url) => setField('profile_image', url)}
             placeholder="Bild"
             size="fill"
           />
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('name') && 'animate-[field-highlight_1s_ease]'
-            )}
-          >
-            <label htmlFor="hero-name" className="block text-sm font-medium text-foreground mb-1.5">
-              Name
-            </label>
-            <input
-              ref={nameRef}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Field panel="hero" path="site_title" htmlFor="hero-name" label="Name">
+            <Input
+              ref={(el) => registerField('hero', 'site_title', el)}
               id="hero-name"
-              type="text"
-              value={data.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              onFocus={() => handleFieldFocus('hero', 'name')}
+              value={name}
+              onChange={(e) => setField('site_title', e.target.value)}
+              onFocus={() => handleFieldFocus('hero', 'site_title')}
               onBlur={handleFieldBlur}
               placeholder="Max Mustermann"
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              maxLength={SITE_TITLE_MAX}
             />
-          </div>
+          </Field>
 
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('tagline') && 'animate-[field-highlight_1s_ease]'
-            )}
-          >
-            <label
-              htmlFor="hero-tagline"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Tagline / Slogan
-            </label>
-            <textarea
-              ref={taglineRef}
+          <Field panel="hero" path="tagline" htmlFor="hero-tagline" label="Tagline / Slogan">
+            <Textarea
+              ref={(el) => registerField('hero', 'tagline', el)}
               id="hero-tagline"
-              value={data.tagline}
-              onChange={(e) => updateField('tagline', e.target.value)}
+              value={tagline}
+              onChange={(e) => setField('tagline', e.target.value)}
               onFocus={() => handleFieldFocus('hero', 'tagline')}
               onBlur={handleFieldBlur}
               placeholder="Kandidat*in für..."
               rows={2}
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+              maxLength={SITE_TAGLINE_MAX}
             />
-          </div>
+          </Field>
         </div>
       </div>
 
@@ -146,32 +97,33 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
         <div className="flex flex-col gap-2.5">
           {ALL_PLATFORMS.filter((p) => visiblePlatforms.includes(p.key)).map(
             ({ key, label, placeholder }) => (
-              <div key={key} className="mb-2.5">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor={`social-${key}`}
-                    className="block text-xs font-medium text-foreground mb-1.5"
-                  >
+              <div key={key}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label htmlFor={`social-${key}`} className="text-xs font-medium text-foreground">
                     {label}
-                  </label>
-                  {!DEFAULT_PLATFORMS.includes(key as (typeof DEFAULT_PLATFORMS)[number]) && (
-                    <button
+                  </Label>
+                  {!DEFAULT_PLATFORMS.some((p) => p === key) && (
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => removePlatform(key)}
-                      className="bg-transparent border-none text-grey-400 dark:text-grey-500 cursor-pointer text-base px-1"
-                      title="Entfernen"
+                      aria-label={`${label} entfernen`}
                     >
-                      ×
-                    </button>
+                      <FiX aria-hidden="true" />
+                    </Button>
                   )}
                 </div>
-                <input
+                <Input
+                  ref={(el) => registerField('hero', `social_links.${key}`, el)}
                   id={`social-${key}`}
                   type="url"
-                  value={data.socialLinks?.[key as keyof SocialLinks] || ''}
+                  value={socialLinks[key] ?? ''}
                   onChange={(e) => updateSocialLink(key, e.target.value)}
+                  onFocus={() => handleFieldFocus('hero', `social_links.${key}`)}
+                  onBlur={handleFieldBlur}
                   placeholder={placeholder}
-                  className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                  maxLength={SITE_URL_MAX}
                 />
               </div>
             )
@@ -180,15 +132,17 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
 
         {availableToAdd.length > 0 && (
           <div className="mt-2">
+            <Label htmlFor="social-add" className="sr-only">
+              Weiteres Netzwerk hinzufügen
+            </Label>
             <select
+              id="social-add"
               onChange={(e) => {
-                if (e.target.value) {
-                  addPlatform(e.target.value);
-                  e.target.value = '';
-                }
+                const key = e.target.value;
+                if (key) setVisiblePlatforms((prev) => [...prev, key]);
               }}
               className="py-1.5 px-2.5 text-[13px] border border-dashed border-grey-300 dark:border-grey-700 rounded bg-grey-50 dark:bg-grey-900 text-grey-600 dark:text-grey-400 cursor-pointer"
-              defaultValue=""
+              value=""
             >
               <option value="" disabled>
                 + Weiteres Netzwerk hinzufügen
