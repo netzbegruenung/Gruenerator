@@ -54,6 +54,10 @@ function clampLists(input: unknown): unknown {
     const list = out[key];
     if (Array.isArray(list)) out[key] = list.slice(0, MAX_SECTION_ITEMS);
   }
+  const contact = out.contact;
+  if (contact !== null && typeof contact === 'object') {
+    out.contact = { ...(contact as Record<string, unknown>), email: '' };
+  }
   return out;
 }
 

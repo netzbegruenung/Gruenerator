@@ -105,4 +105,10 @@ describe('validateWebsiteContent', () => {
     (input.themes[0] as Record<string, unknown>).imageUrl = null;
     expect(validateWebsiteContent('de-DE')(input).ok).toBe(true);
   });
+
+  it('ignores an invented contact e-mail', () => {
+    const input = content(3, 1);
+    input.contact.email = 'a'.repeat(400) + '@x.de';
+    expect(validateWebsiteContent('de-DE')(input).ok).toBe(true);
+  });
 });
