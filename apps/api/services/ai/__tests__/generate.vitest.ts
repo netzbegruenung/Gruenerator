@@ -205,10 +205,10 @@ describe('the wall clock', () => {
   });
 
   it('does not let a hung primary eat the whole budget', async () => {
-    // Der Fehler vom 28.08.2026, in einem Test: `doc_generation` liegt auf
-    // GreenPT, dessen eigene Frist (greenptThinkingFetch.ts) mit der Wanduhr
-    // hier identisch ist. Vorher lief deshalb GENAU EIN Anbieter, die
-    // Ausweichkette war tote Zeile, und der Aufruf endete nach 120 s mit 500.
+    // Der Fehler vom 28.08.2026, in einem Test: damals lag `doc_generation` auf
+    // GreenPT, dessen eigene Frist mit der Wanduhr hier identisch war. Es lief
+    // GENAU EIN Anbieter, und der Aufruf endete nach 120 s mit 500. Seit
+    // 19.11.2026 liegt die Lane auf dem Gemma-Primär (#5842).
     executeProvider.mockImplementation(hang);
 
     const failed = aiObject({
@@ -221,15 +221,16 @@ describe('the wall clock', () => {
       attempts: 1,
     }).catch((e: unknown) => e as Error);
 
-    // 60 s: vier Anbieter, also legt `attemptBudget` den drei hinter dem
+    // 80 s: drei Anbieter, also legt `attemptBudget` den zwei hinter dem
     // Primär je 20 s zurück.
-    await vi.advanceTimersByTimeAsync(59_999);
+    await vi.advanceTimersByTimeAsync(79_999);
     expect(executeProvider).toHaveBeenCalledTimes(1);
+    expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
 
-    // Als nächstes der Gemma-Primär, der erste Host desselben Gemma 4 in dieser Kette.
+    // Als nächstes der zweite Host desselben Gemma 4.
     await vi.advanceTimersByTimeAsync(2);
     expect(executeProvider).toHaveBeenCalledTimes(2);
-    expect(callAt(1).provider).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(callAt(1).provider).toBe(GEMMA_31B_ALTERNATE.provider);
 
     // Die Kette zu Ende laufen lassen, sonst wartet `failed` auf die zwei
     // Anbieter dahinter.
@@ -249,9 +250,8 @@ describe('the wall clock', () => {
     await vi.advanceTimersByTimeAsync(120_000);
     await failed;
 
-    expect(executeProvider).toHaveBeenCalledTimes(4);
-    expect([0, 1, 2, 3].map((i) => callAt(i).provider)).toEqual([
-      'greenpt',
+    expect(executeProvider).toHaveBeenCalledTimes(3);
+    expect([0, 1, 2].map((i) => callAt(i).provider)).toEqual([
       GEMMA_31B_PRIMARY.provider,
       GEMMA_31B_ALTERNATE.provider,
       'mistral',
@@ -363,10 +363,10 @@ describe('pinned targets', () => {
   it('takes provider and model from the named intermediate stage', async () => {
     await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
 
-    // Seit 29.08.2026 GreenPT — siehe „Warum die kleinen Stufen auf GreenPT/Cortecs
-    // liegen" im Kopf von intermediateLanes.ts.
-    expect(callAt(0).provider).toBe('greenpt');
-    expect(callAt(0).data.options.model).toBe('mistral-small-3.2-24b-instruct-2506');
+    // Seit 19.11.2026 Gemma `:speed` auf Melious (vorher GreenPT Small 3.2,
+    // Median 8,4 s) — siehe MELIOUS_GEMMA_4_SPEED in intermediateLanes.ts.
+    expect(callAt(0).provider).toBe('melious');
+    expect(callAt(0).data.options.model).toBe('gemma-4-31b:speed');
   });
 
   it('takes a literal pair for the call sites that name one', async () => {
@@ -422,12 +422,12 @@ describe('pinned targets', () => {
 
     await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
 
-    // Die Fassaden-Kette ist GENERIC_FALLBACK ohne den Primär — mit GreenPT
-    // vorne ist der Gemma-Primär der zweite Halt. Diese Kette ist NICHT die
+    // Die Fassaden-Kette ist GENERIC_FALLBACK ohne den Primär — mit Melious
+    // vorne ist der zweite Gemma-Host der zweite Halt. Diese Kette ist NICHT die
     // `fallback`-Kette der Stufe: die greift auf dem direkten Weg
     // (`getIntermediateModel`), diese hier auf dem Fassaden-Weg.
-    expect(callAt(0).provider).toBe('greenpt');
-    expect(callAt(1).provider).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(callAt(1).provider).toBe(GEMMA_31B_ALTERNATE.provider);
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 });

@@ -182,6 +182,18 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // `:speed` — dieselben Gewichte, Upstream infercom/DE statt Melious' FI-Knoten.
+  // Seit 19.11.2026 Primär der kleinen Zwischenstufen (intermediateLanes.ts).
+  // Melious meldet auch diese Aufrufe selbst (`environment_impact`); der Eintrag
+  // gilt nur für Zeilen ohne Meldung. Auf `:speed` NICHT gemessen, deshalb die
+  // Zahlen von `:balanced` als `bound`: der Rechenzentrums-Unterschied bleibt
+  // unkorrigiert.
+  'gemma-4-31b:speed': {
+    mWhPerOutputToken: 4.69,
+    mWhPerInputToken: 0.0219,
+    mWhFixed: 0,
+    basis: 'bound',
+  },
   // `deepseek-v4.1-flash` auf Melious — die Lane „Panda". Aus demselben Grund
   // wie Gemma darüber aus Melious' EIGENEN Meldungen kalibriert (gestreamte
   // Antworten tragen kein `environment_impact`): 5 nicht-gestreamte Aufrufe am

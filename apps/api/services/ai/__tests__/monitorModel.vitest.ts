@@ -4,9 +4,10 @@
  * Der Monitor lief bis 19.08.2026 auf litellm/verdigado-pro. Verdigado hat
  * einen einzigen Inferenz-Slot, und derselbe Host war zugleich der Ausweg der
  * Chat-Gemma-Lane: ein stündlicher Hintergrundlauf konnte damit einem
- * wartenden Menschen den Ausweichhost wegnehmen. Diese Fälle halten fest, dass
- * der Monitor dort nicht mehr landet — und dass er nicht auf GreenPTs Gemma
- * landet, das immer denkt und bei den gedeckelten Aufrufen leeren Text liefert.
+ * wartenden Menschen den Ausweichhost wegnehmen. Danach lief er bis 19.11.2026
+ * auf GreenPT (Small 3.2), das an dem Tag im Median 8,4 s für kurze Aufrufe
+ * brauchte. Diese Fälle halten fest, dass er auf dem Gemma-Primär schreibt und
+ * nie auf litellm/Verdigado oder GreenPT landet.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -23,6 +24,9 @@ vi.mock('../providerInstances.js', () => ({
   getGreenPTProvider: () => ({
     chat: (model: string) => ({ provider: 'greenpt', modelId: model }),
   }),
+  getMeliousProvider: () => ({
+    chat: (model: string) => ({ provider: 'melious', modelId: model }),
+  }),
   LITELLM_DEFAULT_BASE_URL: '',
   GREENPT_BASE_URL: '',
   MISTRAL_API_URL: '',
@@ -30,6 +34,7 @@ vi.mock('../providerInstances.js', () => ({
 }));
 
 const { getMonitorModel } = await import('../providers.js');
+const { GEMMA_31B_PRIMARY } = await import('../gemmaHosts.js');
 
 function hostOf(model: unknown): { provider: string; modelId: string } {
   return model as { provider: string; modelId: string };
@@ -40,18 +45,16 @@ describe('getMonitorModel', () => {
     isProviderConfigured.mockReset();
   });
 
-  it('schreibt auf GreenPT — und dort mit einem Modell, das nicht denkt', () => {
-    isProviderConfigured.mockImplementation((p) => p === 'greenpt');
+  it('schreibt auf dem Gemma-Primär, nicht auf GreenPT', () => {
+    isProviderConfigured.mockImplementation((p) => p === 'melious' || p === 'greenpt');
 
     const host = hostOf(getMonitorModel());
 
-    expect(host.provider).toBe('greenpt');
-    // NICHT `gemma4`: das denkt immer (~5.400 Zeichen) und liefert bei den
-    // gedeckelten Monitor-Aufrufen leeren Text.
-    expect(host.modelId).toBe('mistral-small-3.2-24b-instruct-2506');
+    expect(host.provider).toContain(GEMMA_31B_PRIMARY.provider);
+    expect(host.modelId).toBe(GEMMA_31B_PRIMARY.model);
   });
 
-  it('fällt ohne GreenPT auf Mistral zurück, nie auf litellm/Verdigado', () => {
+  it('fällt ohne Gemma-Primär auf Mistral zurück, nie auf litellm/Verdigado', () => {
     // litellm ist absichtlich konfiguriert: früher gewann es hier.
     isProviderConfigured.mockImplementation((p) => p === 'litellm');
 

@@ -163,16 +163,16 @@ describe('INTERMEDIATE_LANES fallback chains', () => {
     }
   });
 
-  it('keeps the small stages on one model across three hosts', () => {
-    // Ein Hostwechsel darf die Antwortqualität nicht mit umschalten. Die ersten
-    // drei Glieder tragen deshalb dieselben Gewichte; erst das vierte wechselt
-    // das Modell.
+  it('runs the small stages on Gemma :speed, not GreenPT, with Small 3.2 behind', () => {
+    // 19.11.2026: GreenPT Small 3.2 lag im Median bei 8,4 s, `:speed` bei 1,2 s
+    // (intermediateLanes.ts). Hinter dem Primär dasselbe kleine Modell bei zwei
+    // weiteren Vertragspartnern.
     for (const lane of ['trivial', 'standard'] as const) {
       const config = INTERMEDIATE_LANES[lane];
-      const models = [config.model, ...config.fallback.map((t) => t.model)];
-      expect(models.slice(0, 2)).toEqual([
-        'mistral-small-3.2-24b-instruct-2506',
-        'mistral-small-3.2-24b-instruct-2506',
+      expect([config, ...config.fallback].map((t) => `${t.provider}/${t.model}`)).toEqual([
+        'melious/gemma-4-31b:speed',
+        'cortecs/mistral-small-3.2-24b-instruct-2506',
+        'mistral/mistral-small-latest',
       ]);
     }
   });
@@ -207,10 +207,9 @@ describe('resolveIntermediateChain under a slow verdict', () => {
 
   it('is a no-op while nothing is flagged', () => {
     expect(resolveIntermediateChain('trivial').map((t) => t.provider)).toEqual([
-      'greenpt',
+      'melious',
       'cortecs',
       'mistral',
-      'melious',
     ]);
   });
 
@@ -227,11 +226,11 @@ describe('resolveIntermediateChain under a slow verdict', () => {
   });
 
   it('keeps every declared target when one is flagged — nothing is dropped', () => {
-    markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+    markSlow('melious', 'gemma-4-31b:speed');
 
     const chain = resolveIntermediateChain('trivial');
-    expect(chain).toHaveLength(4);
-    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'melious', 'greenpt']);
+    expect(chain).toHaveLength(3);
+    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'melious']);
   });
 
   it('never splices a foreign model into a small stage', () => {
@@ -249,7 +248,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
 
     for (const lane of ['trivial', 'standard'] as const) {
       _resetModelHealthForTests();
-      markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+      markSlow('melious', 'gemma-4-31b:speed');
 
       const chain = resolveIntermediateChain(lane);
       for (const target of chain) {
@@ -262,12 +261,11 @@ describe('resolveIntermediateChain under a slow verdict', () => {
   });
 
   it('drops a stage whose provider is not configured, keeping the rest in order', () => {
-    configured.delete('greenpt');
-    configured.delete('mistral');
+    configured.delete('cortecs');
 
     expect(resolveIntermediateChain('standard').map((t) => t.provider)).toEqual([
-      'cortecs',
       'melious',
+      'mistral',
     ]);
   });
 
@@ -276,7 +274,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
 
     // Sein Fehler ist die ehrlichere Auskunft als eine leere Kette.
     expect(resolveIntermediateChain('trivial')).toEqual([
-      { provider: 'greenpt', model: 'mistral-small-3.2-24b-instruct-2506' },
+      { provider: 'melious', model: 'gemma-4-31b:speed' },
     ]);
   });
 });
