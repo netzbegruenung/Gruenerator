@@ -9,8 +9,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../config/env.js', () => ({ env: { THUMBNAIL_CACHE_DIR: '/nonexistent' } }));
 
-const { createSitesHostGate, createSitesUnavailableGate, isSitesPassthrough } =
-  await import('./sitesHostGate.js');
+const {
+  createSitesHostGate,
+  createSitesReadLimiter,
+  createSitesUnavailableGate,
+  isSitesPassthrough,
+} = await import('./sitesHostGate.js');
 const { siteOrigin } = await import('../../../config/sitesOrigin.js');
 const { SITE_BARE_CSP } = await import('./siteSecurity.js');
 
@@ -52,6 +56,21 @@ beforeAll(async () => {
   const pages = Router();
   pages.get('/anna', (_req, res) => {
     res.send('page');
+  });
+  pages.get('/anna/impressum', (_req, res) => {
+    res.send('impressum');
+  });
+  pages.get('/_site/site.css', (_req, res) => {
+    res.send('css');
+  });
+  pages.get('/_site/fonts/a.woff2', (_req, res) => {
+    res.send('font');
+  });
+  pages.get('/api/image-picker/stock-image/a.jpg', (_req, res) => {
+    res.send('img');
+  });
+  pages.get('/robots.txt', (_req, res) => {
+    res.send('robots');
   });
   pages.get('/boom', () => {
     throw new Error('boom');
@@ -145,6 +164,50 @@ describe('createSitesHostGate', () => {
     expect(limited).toBe(before + 1);
     await get('/api/share/abcdef123/preview', 'sites.localhost');
     expect(limited).toBe(before + 1);
+  });
+
+  it('the limiter counts the three page routes and unknown names, not assets', async () => {
+    const before = limited;
+    for (const p of ['/anna/impressum', '/anna/datenschutz', '/nope'])
+      await get(p, 'sites.localhost');
+    expect(limited).toBe(before + 3);
+    for (const p of [
+      '/_site/site.css',
+      '/_site/fonts/a.woff2',
+      '/api/image-picker/stock-image/a.jpg?w=800&fmt=webp',
+      '/robots.txt',
+      '/favicon.ico',
+    ])
+      await get(p, 'sites.localhost');
+    expect(limited).toBe(before + 3);
+  });
+
+  it('a limited page answers 429 with no-store, the bare CSP and a German body', async () => {
+    const app = express();
+    app.use(
+      createSitesHostGate({
+        host: 'sites.localhost',
+        origin: 'https://sites.localhost',
+        pages: Router().get('/:handle', (_req, res) => {
+          res.send('page');
+        }),
+        limiter: createSitesReadLimiter(1),
+        robots: 'noindex',
+      })
+    );
+    const limitedServer = createServer(app);
+    await new Promise<void>((resolve) => limitedServer.listen(0, '127.0.0.1', resolve));
+    const to = (limitedServer.address() as AddressInfo).port;
+    try {
+      expect((await get('/anna', 'sites.localhost', {}, to)).status).toBe(200);
+      const res = await get('/anna', 'sites.localhost', {}, to);
+      expect(res.status).toBe(429);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['content-security-policy']).toBe(SITE_BARE_CSP);
+      expect(res.text).toBe('Zu viele Anfragen. Bitte versuche es in einigen Minuten noch einmal.');
+    } finally {
+      await new Promise<void>((resolve) => limitedServer.close(() => resolve()));
+    }
   });
 
   it('a throwing page is a 500 and never falls through', async () => {
