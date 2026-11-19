@@ -121,7 +121,8 @@ function fragmentToRichText(fragment: Y.XmlFragment): RichTextDoc {
   if (fragment.length === 0) return emptyRichTextDoc();
   const json = yXmlFragmentToProsemirrorJSON(fragment) as PmNode;
   // Boundary cast: y-prosemirror returns untyped JSON, shaped by siteSchema.
-  return stripEmptyAttrs(json) as unknown as RichTextDoc;
+  const doc = stripEmptyAttrs(json);
+  return doc as unknown as RichTextDoc;
 }
 
 function seedFragment(fragment: Y.XmlFragment, content: RichTextDoc): void {
@@ -232,33 +233,40 @@ export function isSiteDocSeeded(ydoc: Y.Doc): boolean {
   return typeof metaMap(ydoc).get(SITE_META_KEYS.seededAt) === 'string';
 }
 
+/** Concurrent moves each delete and re-insert an id, so the order array can hold it twice. */
+function uniqueIds(order: Y.Array<string>): string[] {
+  return [...new Set(order.toArray().filter((id) => typeof id === 'string'))];
+}
+
 export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
   const fields = fieldsMap(ydoc);
 
   const themes = themesMap(ydoc);
   const themeCards: SiteDraftThemeCard[] = [];
-  for (const id of themeOrder(ydoc).toArray()) {
+  for (const id of uniqueIds(themeOrder(ydoc))) {
     const card = themes.get(id);
-    if (!card) continue;
+    if (!(card instanceof Y.Map)) continue;
     themeCards.push({
       id,
       title: str(card.get('title'), ''),
       imageUrl: str(card.get('imageUrl'), ''),
       content: fragmentToRichText(getThemeFragment(ydoc, id)),
     });
+    if (themeCards.length >= SITE_THEMES_MAX) break;
   }
 
   const actions = actionsMap(ydoc);
   const actionTiles: SiteDraftActionTile[] = [];
-  for (const id of actionOrder(ydoc).toArray()) {
+  for (const id of uniqueIds(actionOrder(ydoc))) {
     const tile = actions.get(id);
-    if (!tile) continue;
+    if (!(tile instanceof Y.Map)) continue;
     actionTiles.push({
       id,
       text: str(tile.get('text'), ''),
       link: str(tile.get('link'), ''),
       imageUrl: str(tile.get('imageUrl'), ''),
     });
+    if (actionTiles.length >= SITE_ACTIONS_MAX) break;
   }
 
   return {
@@ -340,10 +348,12 @@ function removeItem(
   ydoc: Y.Doc,
   items: Y.Map<Y.Map<unknown>>,
   order: Y.Array<string>,
-  id: string
+  id: string,
+  fragment: Y.XmlFragment | null
 ): void {
   ydoc.transact(() => {
     items.delete(id);
+    if (fragment && fragment.length > 0) fragment.delete(0, fragment.length);
     for (let index = order.length - 1; index >= 0; index -= 1) {
       if (order.get(index) === id) order.delete(index, 1);
     }
@@ -368,10 +378,10 @@ export function addSiteThemeCard(ydoc: Y.Doc): string | null {
   });
 }
 
-// A removed theme leaves its `rt:theme:<id>` fragment behind: Yjs cannot delete a
-// top-level type, and the orphan is unreachable because decode follows the order array.
+// A removed theme leaves an empty `rt:theme:<id>` fragment stub behind: Yjs cannot delete a
+// top-level type, so only its content is cleared; decode never reaches it.
 export function removeSiteThemeCard(ydoc: Y.Doc, id: string): void {
-  removeItem(ydoc, themesMap(ydoc), themeOrder(ydoc), id);
+  removeItem(ydoc, themesMap(ydoc), themeOrder(ydoc), id, getThemeFragment(ydoc, id));
 }
 
 export function updateSiteThemeCard(
@@ -403,7 +413,7 @@ export function updateSiteActionTile(
 }
 
 export function removeSiteActionTile(ydoc: Y.Doc, id: string): void {
-  removeItem(ydoc, actionsMap(ydoc), actionOrder(ydoc), id);
+  removeItem(ydoc, actionsMap(ydoc), actionOrder(ydoc), id, null);
 }
 
 export function moveSiteActionTile(ydoc: Y.Doc, id: string, toIndex: number): void {

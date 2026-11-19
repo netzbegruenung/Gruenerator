@@ -113,11 +113,27 @@ export function siteDraftToSnapshotSource(
   return { ...columns, legal };
 }
 
+/**
+ * The editor schema re-adds node defaults a stored row may lack (`start: 1`, `type: null` on an
+ * ordered list), so equal documents can differ in form. Compare both sides in one canonical form.
+ */
+function canonicalSnapshotJson(value: unknown): string {
+  return JSON.stringify(value, (key, entry: unknown) => {
+    if (key !== 'attrs' || !entry || typeof entry !== 'object') return entry;
+    const attrs = Object.fromEntries(
+      Object.entries(entry).filter(
+        ([name, attr]) => !(name === 'start' && attr === 1) && !(name === 'type' && attr === null)
+      )
+    );
+    return Object.keys(attrs).length > 0 ? attrs : undefined;
+  });
+}
+
 export function snapshotDiffers(
   source: SiteSnapshotSource,
   published: PublishedSiteSnapshot
 ): boolean {
   const rebuilt = buildSiteSnapshot(source, published.locale);
   if (!rebuilt.ok) return true;
-  return JSON.stringify(rebuilt.snapshot) !== JSON.stringify(published);
+  return canonicalSnapshotJson(rebuilt.snapshot) !== canonicalSnapshotJson(published);
 }
