@@ -6,10 +6,9 @@ import {
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../lib/apiClient';
 import { SitesApiError } from '../utils/errorHandler';
 
 export type SiteData = Site;
@@ -140,7 +139,7 @@ export function useSite() {
       formData.append('flyer', data.file);
       if (data.email) formData.append('email', data.email);
 
-      const response = await apiClient.post<{ json: AiGeneratedContent }>(
+      const response = await getGlobalApiClient().post<{ json: AiGeneratedContent }>(
         '/sites/generate-from-flyer',
         formData,
         {

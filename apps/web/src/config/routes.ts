@@ -409,10 +409,8 @@ const MonitorTransparenzPage = lazy(
 );
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
-const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
-const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
-const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const SitesLegacyRedirect = lazy(() => Promise.resolve({ default: createRedirect('/sites') }));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
@@ -1011,10 +1009,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
-  { path: '/sites', component: SitesHomePage, layoutMode: 'sidebarOnly' },
-  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },
-  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'sidebarOnly' },
-  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'sidebarOnly' },
+  { path: '/sites', component: SitesEditPage, layoutMode: 'sidebarOnly' },
+  { path: '/sites/login', component: SitesLegacyRedirect, layoutMode: 'immersive', public: true },
+  { path: '/sites/demo', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
+  { path: '/sites/edit', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
   { path: '*', component: NotFound, public: true },
 ];
 

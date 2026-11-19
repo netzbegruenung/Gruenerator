@@ -100,3 +100,16 @@ describe('studio reel paths', () => {
     expect(resolve('/reel')).toBe('/reel');
   });
 });
+
+describe('sites legacy paths', () => {
+  const componentOf = (path: string) => routes.find((r) => r.path === path)?.component;
+
+  it('sites legacy paths redirect to /sites', () => {
+    const editor = componentOf('/sites');
+    const legacy = ['/sites/edit', '/sites/demo', '/sites/login'].map(componentOf);
+
+    expect(editor).toBeDefined();
+    expect(legacy.every((c) => c !== undefined && c !== editor)).toBe(true);
+    expect(new Set(legacy).size).toBe(1);
+  });
+});

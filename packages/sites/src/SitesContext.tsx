@@ -1,7 +1,5 @@
 import { type SupportedLocale } from '@gruenerator/contracts';
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
-
-import { setSitesUnauthorizedHandler } from './lib/apiClient';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 /**
  * Minimal user shape Sites consumes. Satisfied by each host's own user object
@@ -45,19 +43,6 @@ export function SitesProvider({
   reportError,
   children,
 }: SitesProviderProps) {
-  useEffect(() => {
-    setSitesUnauthorizedHandler(() => {
-      const here =
-        typeof window !== 'undefined'
-          ? window.location.pathname + window.location.search
-          : undefined;
-      login(here);
-    });
-    return () => {
-      setSitesUnauthorizedHandler(null);
-    };
-  }, [login]);
-
   const value = useMemo<SitesContextValue>(
     () => ({ basePath, auth, login, logout, reportError }),
     [basePath, auth, login, logout, reportError]

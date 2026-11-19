@@ -329,10 +329,6 @@ export function EditPage() {
   // Preview state (before creating site)
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
 
-  // Regenerate state (temporarily unused - feature in progress)
-  const [regenerateDescription, setRegenerateDescription] = useState('');
-  const [_showRegenerateForm, _setShowRegenerateForm] = useState(false);
-
   const handleGenerate = async () => {
     const subdomainError = validators.subdomain(subdomain);
     if (subdomainError) {
@@ -407,44 +403,6 @@ export function EditPage() {
 
   const handleDiscardPreview = () => {
     setPreviewData(null);
-  };
-
-  const _handleRegenerate = async () => {
-    if (!site) return;
-    if (!regenerateDescription.trim()) {
-      toast.error('Beschreibung fehlt', 'Bitte gib eine Beschreibung ein.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      'Achtung: Alle aktuellen Inhalte werden durch neue KI-generierte Inhalte ersetzt. Fortfahren?'
-    );
-
-    if (!confirmed) return;
-
-    try {
-      const result = await generateSite({
-        description: regenerateDescription,
-        email: site.contact_email || undefined,
-      });
-
-      await updateSite({
-        id: site.id,
-        data: {
-          site_title: result.transformed.site_title,
-          tagline: result.transformed.tagline,
-          contact_email: result.transformed.contact_email || site.contact_email || '',
-          sections: result.transformed.sections,
-        },
-      });
-
-      _setShowRegenerateForm(false);
-      setRegenerateDescription('');
-      toast.success('Seite neu generiert', 'Deine Seite wurde erfolgreich neu generiert');
-    } catch (err) {
-      console.error('Regenerate failed:', err);
-      handleApiError(err, toast);
-    }
   };
 
   if (isLoading) {
