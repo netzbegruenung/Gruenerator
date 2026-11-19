@@ -48,11 +48,14 @@ function failureMessage(err: unknown, fallback: string): string {
 }
 
 const STOCK_IMAGE_PREFIX = '/api/image-picker/stock-image/';
+// A candidate's site must not show alcohol (the catalog's pub photo was picked as contact background).
+const SITE_EXCLUDED_TAGS = ['beer', 'wine', 'alcohol'] as const;
 
 async function pickImage(text: string, exclude: readonly string[]): Promise<string> {
   try {
     const picked = await imagePickerService.selectBestImage(text, {
       maxCandidates: 5,
+      excludeTags: SITE_EXCLUDED_TAGS,
       excludeFilenames: exclude.map((url) => url.slice(STOCK_IMAGE_PREFIX.length)),
     });
     return `${STOCK_IMAGE_PREFIX}${picked.selectedImage.filename}`;

@@ -23,6 +23,7 @@ export interface ImageSelectionOptions {
   sharepicType?: string | undefined;
   maxCandidates?: number | undefined;
   excludeFilenames?: readonly string[] | undefined;
+  excludeTags?: readonly string[] | undefined;
 }
 
 export interface ImageSelectionResult {

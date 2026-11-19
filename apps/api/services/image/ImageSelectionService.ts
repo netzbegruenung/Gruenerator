@@ -45,7 +45,10 @@ class ImageSelectionService {
 
     const sharepicType = options.sharepicType || 'general';
     const excluded = new Set(options.excludeFilenames ?? []);
-    const remaining = this.imageCatalog!.images.filter((img) => !excluded.has(img.filename));
+    const excludedTags = new Set(options.excludeTags ?? []);
+    const remaining = this.imageCatalog!.images.filter(
+      (img) => !excluded.has(img.filename) && !img.tags.some((tag) => excludedTags.has(tag))
+    );
     // Excluding is a preference: with nothing left, the full catalog is better than no image.
     const images = remaining.length > 0 ? remaining : this.imageCatalog!.images;
 
