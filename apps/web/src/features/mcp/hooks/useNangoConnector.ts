@@ -1,3 +1,4 @@
+import { type DriveProvider } from '@gruenerator/contracts';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -11,12 +12,13 @@ interface ConnectionsStatus {
 }
 
 /**
- * Microsoft 365 (OneDrive, via Nango) as a card in the connector directory.
- * Open to everyone since 16.11.2026 and marked experimental in the card.
- * Status and disconnect use the existing `/api/connections` routes the chat's
- * @connect picker reads; the connect link comes from `connections.connectLink`.
+ * A Nango drive (Microsoft 365, Google Workspace) as a card in the connector
+ * directory. Both are open to everyone and marked experimental in the card
+ * (Microsoft since 16.11.2026, Google since 19.11.2026). Status and disconnect
+ * use the existing `/api/connections` routes the chat's @connect picker reads;
+ * the connect link comes from `connections.connectLink`.
  */
-export function useMicrosoftConnector() {
+export function useNangoConnector(provider: DriveProvider) {
   const queryClient = useQueryClient();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: STATUS_KEY });
 
@@ -29,23 +31,21 @@ export function useMicrosoftConnector() {
     mutationFn: () =>
       openConnectPopup(
         async () =>
-          unwrap(
-            await getContractsClient().connections.connectLink({
-              params: { provider: 'microsoft' },
-            })
-          ).connectLink
+          unwrap(await getContractsClient().connections.connectLink({ params: { provider } }))
+            .connectLink
       ),
     onSettled: refresh,
   });
   const disconnect = useMutation({
-    mutationFn: () => getGlobalApiClient().delete('/connections/microsoft'),
+    mutationFn: () => getGlobalApiClient().delete(`/connections/${provider}`),
     onSettled: refresh,
   });
 
+  const entry = status.data?.providers?.find((p) => p.provider === provider);
   return {
     /** False until the status answered; the card then shows „Verbinden". */
-    available: status.data?.providers?.some((p) => p.provider === 'microsoft') === true,
-    connected: status.data?.providers?.find((p) => p.provider === 'microsoft')?.connected === true,
+    available: entry !== undefined,
+    connected: entry?.connected === true,
     connect,
     disconnect,
   };

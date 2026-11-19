@@ -16,6 +16,7 @@ import {
   driveBrowseQuerySchema,
   driveBrowseResponseSchema,
   driveConnectLinkResponseSchema,
+  googlePickerConfigResponseSchema,
 } from '../schemas/connections.js';
 
 const c = initContract();
@@ -46,6 +47,17 @@ export const connectionsContract = c.router(
         500: driveBrowseErrorSchema,
       },
       summary: 'Nango-Link zum Verbinden genau dieses Laufwerks',
+    },
+    googlePicker: {
+      method: 'GET',
+      path: '/api/connections/google/picker',
+      responses: {
+        200: googlePickerConfigResponseSchema,
+        403: driveBrowseErrorSchema,
+        404: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Token, API-Key und App-ID für den Google Picker',
     },
   },
   { pathPrefix: '' }

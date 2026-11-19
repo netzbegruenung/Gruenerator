@@ -15,6 +15,8 @@ vi.mock('../../services/connections/ConnectionService.js', () => ({
   ConnectionNotAllowedError,
 }));
 vi.mock('../../services/connections/driveBrowse.js', () => ({ browseDrive }));
+const env: Record<string, string | undefined> = {};
+vi.mock('../../config/env.js', () => ({ env }));
 
 const { connectionsContractRouter } = await import('./connectionsContractRouter.js');
 
@@ -94,5 +96,34 @@ describe('connectionsContractRouter.connectLink', () => {
   it('meldet einen Nango-Fehler als 500', async () => {
     createConnectLink.mockReset().mockRejectedValue(new Error('nango down'));
     expect(await connectLink()).toMatchObject({ status: 500, body: { success: false } });
+  });
+});
+
+describe('connectionsContractRouter.googlePicker', () => {
+  const picker = () => connectionsContractRouter.googlePicker({ req } as never);
+
+  beforeEach(() => {
+    env.GOOGLE_PICKER_API_KEY = 'picker-key';
+    env.GOOGLE_PICKER_APP_ID = '531200095410';
+  });
+
+  it('gibt den Google-Token der angemeldeten Person mit Key und App-ID heraus', async () => {
+    expect(await picker()).toEqual({
+      status: 200,
+      body: { success: true, accessToken: 'tok-1', apiKey: 'picker-key', appId: '531200095410' },
+    });
+    expect(getConnection).toHaveBeenCalledWith('user-1', 'google');
+  });
+
+  it('meldet fehlende Picker-Konfiguration als 404, ohne einen Token zu holen', async () => {
+    env.GOOGLE_PICKER_APP_ID = undefined;
+
+    expect(await picker()).toMatchObject({ status: 404, body: { success: false } });
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
+  it('meldet ein fehlendes Konto als 403 mit reauth', async () => {
+    getConnection.mockRejectedValue(new Error('No google connection found for user'));
+    expect(await picker()).toMatchObject({ status: 403, body: { reauth: true } });
   });
 });
