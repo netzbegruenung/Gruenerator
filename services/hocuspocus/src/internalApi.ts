@@ -698,7 +698,8 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
   // load and write the site draft as a second live document, past the site gate.
   router.use(['/doc/:documentId', '/canvas/:documentId'], async (req, res, next) => {
     try {
-      if (await isSiteId(deps.db, req.params.documentId)) {
+      const { documentId } = req.params;
+      if (typeof documentId === 'string' && (await isSiteId(deps.db, documentId))) {
         res.status(400).json({ error: 'use site-<uuid>' });
         return;
       }
