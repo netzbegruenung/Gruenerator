@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { View, Modal, Platform, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -16,6 +16,15 @@ import { shouldDismissSheet } from './sheetDismiss';
 interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  /**
+   * Called once the sheet is gone. On iOS that is the Modal's `onDismiss`,
+   * after the slide-out: a native picker (files, photos, camera) presented
+   * while the Modal is still dismissing never appears, and expo-document-picker
+   * then rejects every later call with "Different document picking in
+   * progress". Android's Modal has no `onDismiss` and an Intent is not blocked
+   * by a closing dialog, so there it fires as soon as `visible` turns false.
+   */
+  onDismissed?: () => void;
   children: ReactNode;
   maxHeight?: `${number}%` | number;
   keyboardAvoiding?: boolean;
@@ -48,6 +57,7 @@ export function BottomSheet(props: BottomSheetProps) {
 function SheetModal({
   visible,
   onClose,
+  onDismissed,
   children,
   maxHeight = '85%',
   keyboardAvoiding,
@@ -78,6 +88,12 @@ function SheetModal({
   useEffect(() => {
     shown.set(visible);
   }, [visible, shown]);
+
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' && wasVisible.current && !visible) onDismissed?.();
+    wasVisible.current = visible;
+  }, [visible, onDismissed]);
 
   const dragToDismiss = useMemo(() => {
     const commitHaptic = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -171,6 +187,7 @@ function SheetModal({
       animationType="slide"
       transparent
       onRequestClose={onClose}
+      onDismiss={onDismissed}
       accessibilityViewIsModal={true}
     >
       {/* A Modal is a separate native root: gestures inside it need their own
