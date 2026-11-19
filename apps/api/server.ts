@@ -34,7 +34,6 @@ import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
 import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
-import { setupRoutes } from './routes.js';
 import {
   createSiteAssets,
   defaultSiteAssetPaths,
@@ -47,6 +46,7 @@ import {
   createSitesUnavailableGate,
   sitesReadLimiter,
 } from './routes/sites/public/sitesHostGate.js';
+import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
   startModelLatencyRollup,

@@ -14,6 +14,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { stockImageHandler } from './stockImage.js';
 
+import type { ImageCatalogEntry } from '../../services/image/types.js';
 import type {
   AuthenticatedRequest,
   ImageSelectRequestBody,
@@ -26,7 +27,6 @@ import type {
   StockCatalogResponse,
   StockCatalogQuery,
 } from './types.js';
-import type { ImageCatalogEntry } from '../../services/image/types.js';
 
 const selectBodySchema = z.object({
   text: z.string(),
