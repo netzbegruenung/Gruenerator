@@ -1,3 +1,4 @@
+import { type CollaborationConfig } from '@gruenerator/collab';
 import { type SupportedLocale } from '@gruenerator/contracts';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
@@ -27,6 +28,7 @@ export interface SitesContextValue {
   login: (redirectTo?: string) => void;
   logout: () => void | Promise<void>;
   reportError: (error: unknown, context?: Record<string, unknown>) => void;
+  collaboration: CollaborationConfig;
 }
 
 const SitesContext = createContext<SitesContextValue | null>(null);
@@ -41,11 +43,12 @@ export function SitesProvider({
   login,
   logout,
   reportError,
+  collaboration,
   children,
 }: SitesProviderProps) {
   const value = useMemo<SitesContextValue>(
-    () => ({ basePath, auth, login, logout, reportError }),
-    [basePath, auth, login, logout, reportError]
+    () => ({ basePath, auth, login, logout, reportError, collaboration }),
+    [basePath, auth, login, logout, reportError, collaboration]
   );
 
   return <SitesContext.Provider value={value}>{children}</SitesContext.Provider>;
@@ -61,6 +64,10 @@ function useSitesContext(): SitesContextValue {
 
 export function useSitesBasePath(): string {
   return useSitesContext().basePath;
+}
+
+export function useSitesCollaboration(): CollaborationConfig {
+  return useSitesContext().collaboration;
 }
 
 export function useSitesActions(): Pick<SitesContextValue, 'login' | 'logout' | 'reportError'> {

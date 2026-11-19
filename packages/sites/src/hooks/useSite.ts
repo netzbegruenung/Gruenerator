@@ -65,22 +65,37 @@ function toApiError(res: { status: number; body: unknown }): SitesApiError {
   return new SitesApiError(res.status, message);
 }
 
+export function usePrepareSiteDraft() {
+  const mutation = useMutation({
+    mutationFn: async (siteId: string) => {
+      const res = await getContractsClient().sites.prepareSiteDraft({
+        params: { id: siteId },
+        body: {},
+      });
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.seeded;
+    },
+  });
+  return mutation.mutateAsync;
+}
+
 export function useSite() {
   const queryClient = useQueryClient();
 
-  const {
-    data: site,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery<Site | null>({
+  const { data, isLoading, error, refetch } = useQuery<{
+    site: Site | null;
+    public_origin: string | null;
+  }>({
     queryKey: ['my-site'],
     queryFn: async () => {
       const res = await getContractsClient().sites.getMySite();
       if (res.status !== 200) throw toApiError(res);
-      return res.body.site;
+      return { site: res.body.site, public_origin: res.body.public_origin };
     },
   });
+  const site = data ? data.site : undefined;
+  const publicOrigin = data ? data.public_origin : null;
+  const prepareDraft = usePrepareSiteDraft();
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateSiteBody) => {
@@ -154,6 +169,8 @@ export function useSite() {
 
   return {
     site,
+    publicOrigin,
+    prepareDraft,
     isLoading,
     error,
     refetch,
