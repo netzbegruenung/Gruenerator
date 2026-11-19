@@ -93,7 +93,7 @@ describe('EditPage', () => {
     expect(screen.getByText('Erstell-Ablauf')).toBeInTheDocument();
   });
 
-  it('shows the save state in the editor header and warns on leave only while unsynced', () => {
+  it('shows unsaved states in the editor header and warns on leave only while unsynced', () => {
     setSite({ site: siteRow });
     const ydoc: Y.Doc = seededDoc({});
     hoisted.session.current = { state: 'ready', ydoc, provider: {}, save: 'saving' };
@@ -102,7 +102,7 @@ describe('EditPage', () => {
     expect(unloadCancelled()).toBe(true);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'saved' });
-    expect(screen.getByRole('status')).toHaveTextContent('Gespeichert');
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(unloadCancelled()).toBe(false);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'offline' });
