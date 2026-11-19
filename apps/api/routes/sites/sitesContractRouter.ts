@@ -16,7 +16,12 @@
  * router is mounted, so req.user is populated here. getUserId() still guards
  * against a missing user.
  */
-import { buildSiteSnapshot, checkSiteHandle, sitesContract } from '@gruenerator/contracts';
+import {
+  buildSiteSnapshot,
+  checkSiteHandle,
+  DEFAULT_SITE_VARIANT,
+  sitesContract,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { sql } from 'drizzle-orm';
 
@@ -49,6 +54,7 @@ const HANDLE_MESSAGES = {
 const ALLOWED_UPDATE_FIELDS = [
   'site_title',
   'tagline',
+  'theme',
   'contact_email',
   'contact_phone',
   'social_links',
@@ -95,7 +101,7 @@ export const sitesContractRouter = s.router(sitesContract, {
         subdomain,
         site_title,
         tagline,
-        theme = 'gruene',
+        theme = DEFAULT_SITE_VARIANT,
         contact_email,
         contact_phone,
         social_links,

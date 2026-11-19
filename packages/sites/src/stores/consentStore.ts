@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { EmbedPlatform, PlatformConsent } from '@gruenerator/sites-design';
+import type { EmbedPlatform, PlatformConsent } from '../types/consent';
 
 const CONSENT_STORAGE_KEY = 'gruenerator-sites-embed-consent';
 

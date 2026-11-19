@@ -5,7 +5,7 @@ import { FaInstagram } from 'react-icons/fa';
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 
-import type { SocialFeedSectionType as SocialFeedSection } from '@gruenerator/sites-design';
+import type { SocialFeedSection } from '../../../types/editorDraft';
 
 interface SocialFeedSectionEditorProps {
   data: SocialFeedSection;

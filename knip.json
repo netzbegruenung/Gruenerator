@@ -65,7 +65,13 @@
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/sites-design": {
-      "entry": ["src/index.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/server.ts",
+        "src/client/siteConsent.ts",
+        "scripts/*.tsx",
+        "src/**/*.vitest.{ts,tsx}"
+      ],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/eslint-config": {
