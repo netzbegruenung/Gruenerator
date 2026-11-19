@@ -59,7 +59,7 @@ interface NotebookComposerProps {
 }
 
 export function NotebookComposer({
-  placeholder = 'Stellen Sie eine Frage...',
+  placeholder = 'Stell eine Frage …',
   sourceFilters,
   categoryFilters,
   mode,

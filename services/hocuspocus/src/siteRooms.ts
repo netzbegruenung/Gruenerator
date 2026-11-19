@@ -1,5 +1,7 @@
 import * as Y from 'yjs';
 
+import type { DbQueryFn } from './types.js';
+
 /**
  * Site drafts (#5789) live in the room `site-<user_sites.id>`. Their Yjs rows are
  * keyed by the bare uuid, because `yjs_document_*.document_id` is a UUID column.
@@ -53,4 +55,22 @@ export async function siteRoomGate(
     return Y.encodeStateAsUpdate(liveDoc).length > SITE_DOC_MAX_BYTES ? SITE_TOO_LARGE : null;
   }
   return (await hasStoredState()) ? null : SITE_NOT_SEEDED;
+}
+
+/**
+ * Whether a bare id belongs to any `user_sites` row, trashed or not: such an id
+ * must never open a document, because a site's Yjs rows are keyed by it (#5805).
+ */
+export async function isSiteId(db: DbQueryFn, id: string): Promise<boolean> {
+  if (!UUID_RE.test(id.toLowerCase())) return false;
+  const rows = await db('SELECT 1 FROM user_sites WHERE id = $1 LIMIT 1', [id.toLowerCase()]);
+  return rows.length > 0;
+}
+
+/** Whether the site still exists and is not in the trash. */
+export async function siteIsLive(db: DbQueryFn, siteId: string): Promise<boolean> {
+  const rows = await db('SELECT 1 FROM user_sites WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [
+    siteId,
+  ]);
+  return rows.length > 0;
 }

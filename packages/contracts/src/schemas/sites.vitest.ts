@@ -90,6 +90,21 @@ describe('buildSiteSnapshot', () => {
     'accepts the action link %s',
     (link) => expect(buildSiteSnapshot(withActionLink(link), 'de-DE').ok).toBe(true)
   );
+  it.each([
+    ['de-AT', 'https://www.gruene.de/mitglied-werden', 'https://www.gruene.at/mitmachen'],
+    ['de-DE', 'https://www.gruene.at/mitmachen', 'https://www.gruene.de/mitglied-werden'],
+    ['de-AT', 'https://gruene.de/mitglied-werden/', 'https://www.gruene.at/mitmachen'],
+  ] as const)('swaps the known member URL for %s (%s)', (locale, link, expected) => {
+    const result = buildSiteSnapshot(withActionLink(link), locale);
+    expect(result.ok && result.snapshot.sections.actions?.[0]?.link).toBe(expected);
+  });
+  it.each(['https://gruene.de/mitmachen', 'https://example.org/mitglied-werden', '#kontakt'])(
+    'keeps the other action link %s untouched under de-AT',
+    (link) => {
+      const result = buildSiteSnapshot(withActionLink(link), 'de-AT');
+      expect(result.ok && result.snapshot.sections.actions?.[0]?.link).toBe(link);
+    }
+  );
   it('reports an image from a foreign origin', () =>
     expect(issuePaths({ ...validSource(), profile_image: 'https://evil.example/x.png' })).toContain(
       'profile_image'

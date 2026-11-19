@@ -45,6 +45,7 @@ const SOURCES = [
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/freeform_full.config.tsx' },
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/commonSections.ts' },
   { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/vorlagenTab.ts' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/designTab.ts' },
 ];
 
 function stringProp(obj, name) {

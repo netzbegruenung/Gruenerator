@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { type PublishedSiteSnapshot } from '@gruenerator/contracts';
 
 import { siteCopy } from '../model/copy.js';
@@ -25,7 +26,7 @@ export function SiteFooter({
   ];
 
   return (
-    <footer data-ground={sectionGround(snapshot.variant, 'footer')}>
+    <footer data-ground={sectionGround(snapshot.variant, 'footer', snapshot.locale)}>
       <div
         className={`${CONTAINER} site:flex site:flex-col site:gap-6 site:py-12 site:md:flex-row site:md:flex-wrap site:md:items-center site:md:justify-between`}
       >

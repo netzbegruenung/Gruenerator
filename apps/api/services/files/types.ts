@@ -1,9 +1,10 @@
 /**
  * Dateiablagen, anbieterneutral.
  *
- * Das Interface trägt heute genau einen Anbieter (öffentliche Nextcloud-Shares,
- * „die Wolke") und ist so geschnitten, dass ein zweiter — IceWarp spricht WebDAV
- * unter `/webdav/<user>@<domain>/Files/` — eine Ergänzung bleibt und keine
+ * Das Interface trägt öffentliche Nextcloud-Shares („die Wolke") sowie OneDrive
+ * (Microsoft 365) und Google Drive über die verbundenen Nango-Konten, und ist so
+ * geschnitten, dass ein weiterer — IceWarp spricht WebDAV unter
+ * `/webdav/<user>@<domain>/Files/` — eine Ergänzung bleibt und keine
  * Neuschreibung.
  *
  * **Es gibt keine Schreibmethoden, und das ist die Zusicherung.** Der Zugriff
@@ -23,7 +24,7 @@
  * ab, niemand deklariert die Menge neu. Ein zweiter Anbieter, der hier fehlt,
  * bricht `CLOUD_FILE_PROVIDERS` und damit den Build.
  */
-export type CloudProviderId = 'nextcloud-share';
+export type CloudProviderId = 'nextcloud-share' | 'onedrive' | 'google-drive';
 
 /** Woher die Wurzel kommt — eigene Verbindung oder über eine Gruppe geteilt. */
 export type CloudRootOrigin = 'own' | 'group';
@@ -69,12 +70,23 @@ export interface CloudListing {
   depthLimited: boolean;
   /** Der Mengendeckel hat die Liste abgeschnitten. */
   truncated: boolean;
+  /**
+   * Anbieter-Hinweis, der der Person bzw. dem Modell IMMER mitgegeben wird —
+   * Google Drive zeigt nur ausgewählte Dateien, und eine leere Liste darf nie
+   * als „das Drive ist leer" gelesen werden.
+   */
+  note?: string;
 }
 
 export interface CloudDownload {
   buffer: Buffer;
   mimeType: string | null;
   size: number;
+  /**
+   * Dateiname, wenn er sich nicht aus dem Pfad ergibt (Google Drive adressiert
+   * über die Id) oder die Umwandlung ihn ändert (Graph → `.pdf`).
+   */
+  name?: string;
 }
 
 export type CloudConnectionErrorCode =

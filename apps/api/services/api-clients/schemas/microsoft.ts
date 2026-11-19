@@ -8,6 +8,7 @@ export const microsoftDriveItemSchema = z.object({
   size: z.number(),
   lastModifiedDateTime: z.string(),
   webUrl: z.string().nullable().optional(),
+  parentReference: z.object({ path: z.string().nullable().optional() }).optional(),
   file: z
     .object({
       mimeType: z.string(),

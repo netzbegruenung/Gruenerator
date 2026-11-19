@@ -85,6 +85,9 @@ const SEEDS: Seed[] = [
   // free workspaces get it and whether the AS accepts our redirect domain is
   // only seen on a first connect. Replaces a Nango/Trello-app integration.
   ['Trello', 'https://mcp.trello.com/v1', 'oauth', 'Boards, Listen und Karten lesen und anlegen.', 'https://trello.com', 'Produktivität'],
+  // Self-hosted bridge (github.com/Movm/kalender-digital-mcp): each request
+  // carries the user's own calendar API key (Premium), no delete tools.
+  ['Kalender.digital', 'https://kalender-mcp.moritz-waechter.de/mcp', 'bearer', 'Experimentell: Termine im eigenen Kalender lesen, anlegen und ändern (API-Key je Kalender, nur Premium).', 'https://kalender.digital', 'Produktivität', { keyUrl: 'https://kalender.digital/c/documentation/api?lang=de' }],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
   // Goodnotes serves MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],

@@ -93,7 +93,7 @@ describe('EditPage', () => {
     expect(screen.getByText('Erstell-Ablauf')).toBeInTheDocument();
   });
 
-  it('shows the save state in the editor header and warns on leave only while unsynced', () => {
+  it('shows unsaved states in the editor header and warns on leave only while unsynced', () => {
     setSite({ site: siteRow });
     const ydoc: Y.Doc = seededDoc({});
     hoisted.session.current = { state: 'ready', ydoc, provider: {}, save: 'saving' };
@@ -102,7 +102,7 @@ describe('EditPage', () => {
     expect(unloadCancelled()).toBe(true);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'saved' });
-    expect(screen.getByRole('status')).toHaveTextContent('Gespeichert');
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(unloadCancelled()).toBe(false);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'offline' });
@@ -123,5 +123,20 @@ describe('EditPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     expect(retry).toHaveBeenCalledTimes(1);
     expect(unloadCancelled()).toBe(false);
+  });
+
+  it('shows a back button without the app title in the editor header and calls onBack', async () => {
+    setSite({ site: siteRow });
+    hoisted.session.current = {
+      state: 'ready',
+      ydoc: seededDoc({}),
+      provider: {},
+      save: 'saved',
+    };
+    const onBack = vi.fn();
+    render(<EditPage onBack={onBack} />);
+    expect(screen.queryByText('Grünerator Sites')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 });

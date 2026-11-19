@@ -149,19 +149,52 @@ export function siteDraftToSnapshotSource(
   return { ...columns, legal };
 }
 
+function isBlankParagraph(node: unknown): boolean {
+  if (!node || typeof node !== 'object') return false;
+  const { type, content } = node as { type?: unknown; content?: unknown };
+  return type === 'paragraph' && (!Array.isArray(content) || content.length === 0);
+}
+
+/**
+ * An empty rich text has several spellings (bare doc, no/empty content, blank paragraphs; the
+ * Yjs codec yields one blank paragraph). Fold them into one form; non-empty nodes pass through.
+ */
+function canonicalEmptyNode(entry: unknown): unknown {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+  const node = entry as { type?: unknown; content?: unknown };
+  if (node.type === 'doc') {
+    const content = node.content;
+    if (!Array.isArray(content) || content.every(isBlankParagraph)) {
+      return { type: 'doc', content: [{ type: 'paragraph' }] };
+    }
+  } else if (isBlankParagraph(node) && 'content' in node) {
+    const { content: _content, ...rest } = node;
+    return rest;
+  }
+  return entry;
+}
+
+/** Postgres `jsonb` reorders object keys on storage, so key order must not matter. Arrays keep theirs. */
+function sortKeys(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
 /**
  * The editor schema re-adds node defaults a stored row may lack (`start: 1`, `type: null` on an
  * ordered list), so equal documents can differ in form. Compare both sides in one canonical form.
  */
 function canonicalSnapshotJson(value: unknown): string {
   return JSON.stringify(value, (key, entry: unknown) => {
-    if (key !== 'attrs' || !entry || typeof entry !== 'object') return entry;
+    const node = canonicalEmptyNode(entry);
+    if (node !== entry) return sortKeys(node);
+    if (key !== 'attrs' || !entry || typeof entry !== 'object') return sortKeys(entry);
     const attrs = Object.fromEntries(
       Object.entries(entry).filter(
         ([name, attr]) => !(name === 'start' && attr === 1) && !(name === 'type' && attr === null)
       )
     );
-    return Object.keys(attrs).length > 0 ? attrs : undefined;
+    return Object.keys(attrs).length > 0 ? sortKeys(attrs) : undefined;
   });
 }
 

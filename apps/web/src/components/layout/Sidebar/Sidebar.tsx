@@ -52,9 +52,11 @@ const GlobalSearchDialog = lazy(() => import('../../../features/global-search/Gl
 interface SidebarProps {
   isDesktop?: boolean;
   onNavigate?: (path: string, title: string) => void;
+  /** The rail is slid off-screen (`.sidebar-hidden`) while closed: take it out of tab order and AT. */
+  railHidden?: boolean;
 }
 
-const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
+const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isOpen, close, open, toggle, forceExpanded } = useSidebarStore();
@@ -579,6 +581,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             isDesktop && isOpen && 'w-[220px]'
           )}
           aria-label="Hauptnavigation"
+          // Slid off-screen at width 0 while closed (.sidebar-hidden): without
+          // `inert` its links stay tabbable and focus lands off-screen.
+          inert={railHidden && !sidebarExpanded}
           onMouseEnter={isDesktop ? open : undefined}
           onMouseLeave={isDesktop && !forceExpanded ? handleMouseLeave : undefined}
         >

@@ -19,7 +19,11 @@ import {
 import { CanvasChatDraftIdContext } from './CanvasChatDocContext';
 import { webCanvasEditorServices } from './webCanvasEditorServices';
 
-import type { CanvasEditorServices, VorlagePage } from '@gruenerator/canvas-editor';
+import type {
+  CanvasDesignService,
+  CanvasEditorServices,
+  VorlagePage,
+} from '@gruenerator/canvas-editor';
 import type {
   SharepicBlock,
   SharepicBrand,
@@ -51,6 +55,25 @@ async function composeSpec(
 /** A single Seite, composed in the design's format. */
 const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
   composeSpec(sharepicSeiteSpec(seite, format), [seite.attribution]);
+
+/** The „Design" tab: the creator looks of a deck (loaded on the first open, like the composer). */
+const design: CanvasDesignService = {
+  options: async (pages, deck) => (await import('./retweakDeck')).deckTweaks(pages, deck),
+  apply: async (getPages, deck, choice) => {
+    const [{ retweakDeck }, { composeCreatorSharepic, creatorPhotoSrc }] = await Promise.all([
+      import('./retweakDeck'),
+      import('./freitext/composeForRender'),
+    ]);
+    return retweakDeck(getPages, deck, choice, (spec, attributions, { ownPhoto, kiLabel }) =>
+      composeCreatorSharepic(
+        spec,
+        attributions,
+        (filename) => ownPhoto(filename) ?? creatorPhotoSrc(filename),
+        kiLabel
+      )
+    );
+  },
+};
 
 /** „Mit KI hinzufügen": the server picks one of the candidates and writes it as the next page. */
 async function draftNextSeite({
@@ -129,6 +152,7 @@ export function WebCanvasEditorProvider({
               listBloecke: (brand) => queryClient.fetchQuery(sharepicBloeckeQuery(brand)),
               composeBlock,
             },
+            design,
           }
         : {}),
       feedback: { canRequest: canRequestFeedback, request: requestFeedback },

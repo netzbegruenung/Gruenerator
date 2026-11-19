@@ -5,12 +5,18 @@
  * (413/400 in `flyerUpload`), the body (ts-rest validation), the source and the PDF magic bytes.
  * Auth, sites access, AI consent and the AI limiter run on the prefix in routes.ts.
  */
-import { SITE_FLYER_FIELD, SITE_FLYER_MAX_BYTES, sitesContract } from '@gruenerator/contracts';
+import {
+  SITE_FLYER_FIELD,
+  SITE_FLYER_MAX_BYTES,
+  SITE_FLYER_MAX_PAGES,
+  sitesContract,
+} from '@gruenerator/contracts';
 import { initServer } from '@ts-rest/express';
 import { type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
+import { countPdfPages } from '../../services/sites/generation/flyer/countPdfPages.js';
 import { isPdfBuffer } from '../../services/sites/generation/flyer/isPdfBuffer.js';
 import {
   runSiteGeneration,
@@ -26,6 +32,7 @@ export const GENERATION_HEARTBEAT_MS = 20_000;
 const FILE_TOO_LARGE_MESSAGE = 'Die Datei ist zu groß. Maximal 20 MB erlaubt.';
 const UPLOAD_FAILED_MESSAGE = 'Die Datei konnte nicht hochgeladen werden.';
 const NOT_A_PDF_MESSAGE = 'Nur PDF-Dateien sind erlaubt.';
+const UNREADABLE_PDF_MESSAGE = 'Die PDF-Datei konnte nicht gelesen werden.';
 const BOTH_SOURCES_MESSAGE = 'Bitte gib entweder eine Beschreibung ein oder lade einen Flyer hoch.';
 const NO_SOURCE_MESSAGE = 'Bitte beschreib dich kurz oder lade einen Flyer hoch.';
 
@@ -64,6 +71,20 @@ export const generateSiteContentRoute = s.route(sitesContract.generateSiteConten
     }
     if (file && !isPdfBuffer(file.buffer)) {
       return { status: 400 as const, body: { error: NOT_A_PDF_MESSAGE } };
+    }
+    if (file) {
+      const pages = await countPdfPages(file.buffer);
+      if (pages === null) {
+        return { status: 400 as const, body: { error: UNREADABLE_PDF_MESSAGE } };
+      }
+      if (pages > SITE_FLYER_MAX_PAGES) {
+        return {
+          status: 400 as const,
+          body: {
+            error: `Der Flyer hat ${pages} Seiten. Erlaubt sind höchstens ${SITE_FLYER_MAX_PAGES}.`,
+          },
+        };
+      }
     }
 
     const source: SiteGenerationSource = file

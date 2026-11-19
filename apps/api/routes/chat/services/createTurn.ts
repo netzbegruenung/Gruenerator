@@ -33,17 +33,17 @@ import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRe
 import { CreateRefusedError } from './artifactGeneration.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
-import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
 import { threadImageInLibrary } from './sharepicTurnPhotos.js';
+import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
 import { embedUntrusted } from './untrustedContent.js';
 
-import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   CreatedDocument,
   SearchResult,
   ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SSEWriter } from './sseHelpers.js';
 
 const log = createLogger('ChatGraphController');
 
@@ -63,8 +63,6 @@ const log = createLogger('ChatGraphController');
  * prompt or the generation itself.
  */
 const CONTEXT_CHARS = 24_000;
-/** Per-message cap, so one pasted wall of text cannot eat the whole budget. */
-const PER_MESSAGE_CHARS = 4_000;
 
 /**
  * What a sharepic gets. A document generator turns a whole conversation into
@@ -100,12 +98,11 @@ export function buildCreateTurnContext(
     if (!message) continue;
     const text = extractTextContent(message.content).trim();
     if (!text) continue;
-    const clipped = applyContextCap(
-      text,
-      Math.min(PER_MESSAGE_CHARS, budget),
-      'createTurn:context',
-      false
-    );
+    // No per-message cap: the newest message is almost always the one the
+    // brief refers to ("mach daraus ein Dokument"), and a 4,000-char cap per
+    // message handed the generator half of an 8,541-char answer (#5843). The
+    // walk is newest-first, so a long message only crowds out OLDER ones.
+    const clipped = applyContextCap(text, budget, 'createTurn:context', false);
     lines.unshift(`${message.role}: ${clipped}`);
     budget -= clipped.length;
   }

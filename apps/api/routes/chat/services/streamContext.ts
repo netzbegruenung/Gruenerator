@@ -58,6 +58,7 @@ import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { clientCanUseTabularToolFrom } from '../agents/tabelleAuswertenTool.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
+import { getAtlassianConnections } from './atlassianConnectionContext.js';
 import {
   getThreadAttachmentDocumentIds,
   getThreadAttachments,
@@ -456,6 +457,9 @@ async function buildStreamContextInner({
   // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
   // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
   const cloudConnectionCount = await countCloudConnections(userId);
+  // Tor für `atlassian`: gleiche Frage, gleicher Zuschnitt. Ein Nango-Ausfall
+  // heißt „nicht verbunden" (geloggt), nie ein kaputter Turn.
+  const atlassianConnections = await getAtlassianConnections(userId);
 
   log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
   if (notebookIds.length > 0) {
@@ -1275,6 +1279,7 @@ async function buildStreamContextInner({
     sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
     cloudConnectionCount,
+    atlassianConnections,
     connectFiles,
     // Picked this turn they force the search route; carried, they are material.
     cloudFilesCarriedOnly: pickedCloudFiles.wolke.length + pickedCloudFiles.connect.length === 0,

@@ -1,3 +1,4 @@
+/** @jsxRuntime automatic @jsxImportSource react */
 import { isRichTextDocEmpty } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';
@@ -10,7 +11,7 @@ import { SiteRichText } from '../SiteRichText.js';
 export function ThemesSection({ ctx }: { ctx: SectionContext }) {
   const { snapshot, copy } = ctx;
   const anchor = SECTION_ANCHORS.themes;
-  const ground = sectionGround(snapshot.variant, 'themes');
+  const ground = sectionGround(snapshot.variant, 'themes', snapshot.locale);
   const cardGround = ground === 'paper' ? 'surface' : 'paper';
   const themes = snapshot.sections.themes ?? [];
 
@@ -32,7 +33,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
         >
           <ul
             data-field="sections.themes"
-            className="site:grid site:w-max site:auto-cols-[85vw] site:grid-flow-col site:gap-6 site:px-gutter site:md:auto-cols-[46vw] site:lg:w-auto site:lg:grid-flow-row site:lg:grid-cols-3 site:lg:gap-8 site:lg:px-0"
+            className="site:grid site:w-max site:auto-cols-[85vw] site:grid-flow-col site:gap-6 site:px-gutter site:md:auto-cols-[42vw] site:lg:w-auto site:lg:grid-flow-row site:lg:grid-cols-3 site:lg:gap-8 site:lg:px-0"
           >
             {themes.map((theme, i) => {
               const titleId = `thema-${i + 1}-titel`;
@@ -55,7 +56,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                       <h3
                         id={titleId}
                         data-field={`sections.themes.${i}.title`}
-                        className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-auto site:break-words"
+                        className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-manual site:break-words"
                       >
                         {title || `${copy.navThemes} ${i + 1}`}
                       </h3>

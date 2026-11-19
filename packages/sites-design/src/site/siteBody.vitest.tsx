@@ -34,6 +34,19 @@ describe('SiteBody', () => {
     expect(about.match(/<h2/g)).toHaveLength(1);
     expect(about).toContain('<h3');
   });
+  it('greets in the h1 and keeps the name editable as site_title', () => {
+    const out = html({ ...fullSnapshot(), site_title: 'Lena Hoffmann' }, 'preview');
+    expect(out).toContain('Hallo, ich bin <span data-field="site_title">Lena Hoffmann</span>!');
+  });
+  it('does not greet twice when the stored title already holds a greeting', () => {
+    const out = html({ ...fullSnapshot(), site_title: 'Hallo, ich bin Lena Hoffmann!' });
+    expect(out).toContain('Lena Hoffmann</span>!');
+    expect(out).not.toMatch(/ich bin[^<]*ich bin/i);
+  });
+  it('escapes the name inside the greeting', () => {
+    const out = html({ ...fullSnapshot(), site_title: '<b>x</b>' });
+    expect(out).toContain('&lt;b&gt;x&lt;/b&gt;');
+  });
   it('minimal snapshot renders only the hero', () => {
     const out = html(minimalSnapshot());
     expect(sections(out)).toEqual(['hero']);

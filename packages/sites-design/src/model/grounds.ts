@@ -1,6 +1,6 @@
-import { type SiteSectionId, type SiteVariant } from '@gruenerator/contracts';
+import { type SiteSectionId, type SiteVariant, type SupportedLocale } from '@gruenerator/contracts';
 
-export type SiteGround = 'paper' | 'surface' | 'deep' | 'deeper' | 'vivid' | 'photo';
+export type SiteGround = 'paper' | 'surface' | 'tint' | 'deep' | 'deeper' | 'vivid' | 'photo';
 export type SitePart = 'header' | SiteSectionId | 'footer';
 
 const GROUNDS: Record<SitePart, Record<SiteVariant, SiteGround>> = {
@@ -15,6 +15,12 @@ const GROUNDS: Record<SitePart, Record<SiteVariant, SiteGround>> = {
   footer: { dunkel: 'deeper', hell: 'deep', leuchtend: 'deeper' },
 };
 
-export function sectionGround(variant: SiteVariant, part: SitePart): SiteGround {
+export function sectionGround(
+  variant: SiteVariant,
+  part: SitePart,
+  locale: SupportedLocale
+): SiteGround {
+  // Austrian light variant: the about section sits on a Hellgrün tint instead of plain white.
+  if (locale === 'de-AT' && variant === 'hell' && part === 'about') return 'tint';
   return GROUNDS[part][variant];
 }

@@ -53,6 +53,9 @@ function swatch(palette: Palette, ground: SiteGround): SiteSwatch {
     case 'paper':
     case 'surface':
       return { ground: palette[ground], accent: palette.accentLight };
+    case 'tint':
+      // Only the about section uses the tint; hero and band never do, so no palette entry is mirrored.
+      return { ground: palette.paper, accent: palette.accentLight };
     case 'deep':
     case 'deeper':
       return { ground: palette[ground], accent: palette.highlight };
@@ -70,7 +73,7 @@ export function variantSwatches(
 ): { hero: SiteSwatch; band: SiteSwatch } {
   const palette = PALETTES[locale];
   return {
-    hero: swatch(palette, sectionGround(variant, 'hero')),
-    band: swatch(palette, sectionGround(variant, 'themes')),
+    hero: swatch(palette, sectionGround(variant, 'hero', locale)),
+    band: swatch(palette, sectionGround(variant, 'themes', locale)),
   };
 }

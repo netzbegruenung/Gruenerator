@@ -29,7 +29,7 @@ export async function validateDocumentLimits(
     if (fileSizeMB > maxSizeMB) {
       throw new Error(
         `Das Dokument ist zu groß. Maximale Dateigröße: ${maxSizeMB}MB. ` +
-          `Ihre Datei: ${fileSizeMB.toFixed(1)}MB.`
+          `Deine Datei: ${fileSizeMB.toFixed(1)}MB.`
       );
     }
 
@@ -41,7 +41,7 @@ export async function validateDocumentLimits(
       if (pageCount > maxPages) {
         throw new Error(
           `Das Dokument hat zu viele Seiten. Maximum: ${maxPages} Seiten. ` +
-            `Ihr Dokument: ${pageCount} Seiten.`
+            `Dein Dokument: ${pageCount} Seiten.`
         );
       }
 

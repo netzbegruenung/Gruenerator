@@ -14,10 +14,11 @@ import { makeCitationComponents } from '../../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../../lib/citationProcessing';
 import { maybeLoadKatexCss } from '../../lib/katexCss';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
+import { remarkDateLists } from '../../lib/remarkDateLists';
 
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
-const remarkPlugins = [remarkGfm, remarkMath];
+const remarkPlugins = [remarkGfm, remarkMath, remarkDateLists];
 // `throwOnError: false` → broken or half-streamed LaTeX renders as raw text
 // instead of throwing (mirrors open-webui's KaTeX config).
 const rehypePlugins: [typeof rehypeKatex, { throwOnError: boolean }][] = [

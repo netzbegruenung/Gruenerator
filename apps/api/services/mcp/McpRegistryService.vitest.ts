@@ -30,6 +30,22 @@ describe('McpRegistryService — Typeform directory entries', () => {
   });
 });
 
+describe('McpRegistryService — Kalender.digital', () => {
+  it('offers the self-hosted calendar connector as an experimental API-key card', async () => {
+    const { recommended } = await McpRegistryService.list({});
+    const entry = recommended.find((e) => e.title === 'Kalender.digital');
+    expect(entry).toMatchObject({
+      url: 'https://kalender-mcp.moritz-waechter.de/mcp',
+      authHint: 'bearer',
+      authOptions: ['bearer'],
+      keyUrl: 'https://kalender.digital/c/documentation/api?lang=de',
+    });
+    expect(entry?.description.startsWith('Experimentell:')).toBe(true);
+    // The server takes `Authorization: Bearer`, so no header override.
+    expect(seedConnectionHints('https://kalender-mcp.moritz-waechter.de/mcp')).toEqual({});
+  });
+});
+
 describe('McpRegistryService — auth options', () => {
   it('lists the preferred way first for every curated entry', async () => {
     const { recommended } = await McpRegistryService.list({});

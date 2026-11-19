@@ -57,6 +57,16 @@ describe('HubHero', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pressespiegel Lokal');
   });
 
+  it('nennt in der Überschrift nur den Namen, den Bearbeiten-Hinweis am Knopf', () => {
+    setup();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Pressespiegel Lokal' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pressespiegel Lokal' })).toHaveAccessibleDescription(
+      'Namen bearbeiten'
+    );
+  });
+
   it('speichert keinen leeren Namen', async () => {
     const { user, onSave } = setup();
 
@@ -70,7 +80,7 @@ describe('HubHero', () => {
   it('bricht die Beschreibung mit Shift+Enter um und speichert mit Enter', async () => {
     const { user, onSave } = setup();
 
-    await user.click(screen.getByRole('button', { name: /Beschreibung bearbeiten/ }));
+    await user.click(screen.getByRole('button', { description: 'Beschreibung bearbeiten' }));
     await user.type(
       screen.getByRole('textbox', { name: 'Beschreibung bearbeiten' }),
       'Zeile 1{Shift>}{Enter}{/Shift}Zeile 2{Enter}'

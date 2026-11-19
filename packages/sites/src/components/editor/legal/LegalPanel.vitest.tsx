@@ -59,7 +59,7 @@ describe('LegalPanel', () => {
       id: 's1',
       data: { legal: { name: 'Anna', city: 'Wien', email: 'a@b.de' } },
     });
-    expect(screen.getByText('Gespeichert')).toBeInTheDocument();
+    expect(screen.queryByText('Gespeichert')).toBeNull();
   });
 
   it('unmounting 300 ms after typing flushes exactly one PUT with the typed value', async () => {
@@ -151,7 +151,7 @@ describe('LegalPanel', () => {
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(hoisted.updateSite).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByText('Gespeichert')).toBeInTheDocument();
+    expect(screen.queryByText('Gespeichert')).toBeNull();
   });
 
   it('reopening before the refetch keeps the newest value and sends the merged object', async () => {

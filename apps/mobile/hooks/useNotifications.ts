@@ -1,5 +1,5 @@
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -18,6 +18,7 @@ export interface AppNotification {
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 60000;
+const UNREAD_COUNT_KEY = ['notifications', 'unread-count'];
 
 /**
  * The badge count behind every screen header's profile menu.
@@ -31,7 +32,7 @@ const POLL_INTERVAL = 60000;
 export function useUnreadCount() {
   const isFocused = useIsFocused();
   const { data, refetch } = useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: UNREAD_COUNT_KEY,
     queryFn: async () => {
       // Typed: the untyped read looked for `unreadCount`, the API sends `count`.
       const res = await getContractsClient().notifications.getUnreadCount();
@@ -94,31 +95,42 @@ export function useNotifications() {
     void refresh();
   }, [refresh]);
 
-  const markAsRead = useCallback(async (id: string) => {
-    try {
-      const client = getGlobalApiClient();
-      await client.patch(`/notifications/${id}/read`);
+  // Through the contract, not raw axios: these routes declare `body: z.object({})`,
+  // and a bodyless request reaches Express 5 as `req.body === undefined`, which
+  // ts-rest refuses with 400. "Entfernen" then reloaded the list and the row came
+  // back; "Alle gelesen" changed nothing.
+  const queryClient = useQueryClient();
+  const refreshBadge = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY }),
+    [queryClient]
+  );
+
+  const markAsRead = useCallback(
+    async (id: string) => {
+      const res = await getContractsClient()
+        .notifications.markAsRead({ params: { id }, body: {} })
+        .catch(() => null);
+      if (res?.status !== 200) return;
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
         )
       );
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      refreshBadge();
+    },
+    [refreshBadge]
+  );
 
   const markAllAsRead = useCallback(async () => {
-    try {
-      const client = getGlobalApiClient();
-      await client.patch('/notifications/read-all');
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
-      );
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    const res = await getContractsClient()
+      .notifications.markAllAsRead({ body: {} })
+      .catch(() => null);
+    if (res?.status !== 200) return;
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
+    );
+    refreshBadge();
+  }, [refreshBadge]);
 
   // Gone at once: waiting for the server made a slow request look like a missed
   // tap. A failure reloads the list, so the row comes back instead of vanishing
@@ -126,13 +138,16 @@ export function useNotifications() {
   const dismiss = useCallback(
     async (id: string) => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      try {
-        await getGlobalApiClient().delete(`/notifications/${id}`);
-      } catch {
+      const res = await getContractsClient()
+        .notifications.dismiss({ params: { id }, body: {} })
+        .catch(() => null);
+      if (res?.status !== 200) {
         void refresh();
+        return;
       }
+      refreshBadge();
     },
-    [refresh]
+    [refresh, refreshBadge]
   );
 
   return {

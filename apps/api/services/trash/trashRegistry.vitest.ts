@@ -23,10 +23,15 @@ vi.mock('../sharedMediaService.js', () => ({
   getSharedMediaService: () => ({ getTrashedShare, trashShare }),
 }));
 
+const closeCollabRooms = vi.fn();
+vi.mock('../collab/hocuspocusInternal.js', () => ({ closeCollabRooms }));
+
 const getTrashedOwnedRow = vi.fn();
+const trashOwnedRow = vi.fn();
 vi.mock('./ownedRowTrash.js', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getTrashedOwnedRow: (...a: unknown[]) => getTrashedOwnedRow(...a),
+  trashOwnedRow: (...a: unknown[]) => trashOwnedRow(...a),
 }));
 
 const { TRASH_KINDS, TRASH_RETENTION_DAYS, purgeAtFor, toTrashItem, trashHandlerFor } =
@@ -108,6 +113,22 @@ describe('TRASH_KINDS', () => {
         expect(typeof handler[method], `${kind}.${method}`).toBe('function');
       }
     }
+  });
+});
+
+describe('user_site handler', () => {
+  const ID = 'ABCDEF12-0000-4000-8000-000000000001';
+
+  it('closes the lower-cased site room after a trash, and not after a refusal', async () => {
+    closeCollabRooms.mockReset().mockResolvedValue(undefined);
+    trashOwnedRow.mockResolvedValueOnce('ok');
+    expect(await trashHandlerFor('user_site').trash('u1', ID)).toBe('ok');
+    expect(closeCollabRooms).toHaveBeenCalledWith([`site-${ID.toLowerCase()}`]);
+
+    closeCollabRooms.mockClear();
+    trashOwnedRow.mockResolvedValueOnce('not_found');
+    expect(await trashHandlerFor('user_site').trash('u1', ID)).toBe('not_found');
+    expect(closeCollabRooms).not.toHaveBeenCalled();
   });
 });
 

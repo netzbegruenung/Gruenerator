@@ -4,7 +4,7 @@ import {
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
 import { EditorLayout, EditorSidebar } from '../components/editor';
@@ -95,9 +95,10 @@ function PreviewInteractions({ doc }: { doc: Document | null }) {
   return null;
 }
 
-export function SiteEditor({ site }: { site: SiteData }) {
+export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => void }) {
   const session = useSiteDraftSession(site.id);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewButtonRef = useRef<HTMLButtonElement>(null);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
 
   switch (session.state) {
@@ -126,11 +127,20 @@ export function SiteEditor({ site }: { site: SiteData }) {
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
           <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
-            <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)}>
+            <EditorHeader
+              save={session.save}
+              onPreview={() => setPreviewOpen(true)}
+              onBack={onBack}
+              previewButtonRef={previewButtonRef}
+            >
               <PublishControls site={site} provider={session.provider} />
             </EditorHeader>
             <EditorLayout sidebar={<EditorSidebar />} preview={<PreviewPane site={site} />} />
-            <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen}>
+            <PreviewDialog
+              open={previewOpen}
+              onOpenChange={setPreviewOpen}
+              returnFocusRef={previewButtonRef}
+            >
               <DraftPreview site={site} editable={false} />
             </PreviewDialog>
           </div>

@@ -6,7 +6,8 @@
  *
  * Chinesische Text- und Chatmodelle (Qwen, GLM/Zhipu, Kimi/Moonshot, MiniMax,
  * DeepSeek) beantworten keine Nutzeranfragen — mit genau einer benannten
- * Ausnahme, der freischaltpflichtigen Lane „Panda" (`PANDA_LANE_MODEL`).
+ * Ausnahme, der freischaltpflichtigen Lane „Panda" (`PANDA_LANE_MODEL`) samt
+ * ihrem Ausweich (`PANDA_FALLBACK_MODEL`).
  * Der Grünerator ist ein Werkzeug einer deutschen Partei; welches Modell einen
  * politischen Text schreibt oder eine Anfrage einordnet, ist keine reine
  * Qualitätsfrage.
@@ -64,3 +65,21 @@ export function isExcludedTextModel(model: string): boolean {
  * `gruenerator-panda` und ihrem GreenPT-Geschwister zu.
  */
 export const PANDA_LANE_MODEL = 'deepseek-v4.1-flash';
+
+/**
+ * Die zweite benannte Ausnahme, und sie hängt an der ersten: GLM-5.3 auf
+ * Melious ist der Ausweich der Lane „Panda" — nur dort, nie wählbar, nie
+ * Ausweich einer anderen Lane.
+ *
+ * Entschieden am 19.11.2026: Wer Panda freigeschaltet bekommen hat, hat die
+ * chinesische Modellfamilie bewusst gewählt; fällt DeepSeek aus, bleibt der
+ * Zug in derselben Wahl. Für alle anderen gilt die Sperre unverändert.
+ *
+ * Warum GLM und nicht `deepseek-v4.1-flash-1017`: gemessen am 19.11.2026 streamt
+ * GLM-5.3 auf Melious Werkzeugargumente (rund 500 Chunks, längste Pause 1,1 s),
+ * die 1017-Fassung puffert sie wie Panda selbst (14–18 s Stille).
+ *
+ * Der Wächter in routes/chat/agents/providers.vitest.ts lässt das Modell genau
+ * in der Loop-Kette von Panda zu.
+ */
+export const PANDA_FALLBACK_MODEL = 'glm-5.3';

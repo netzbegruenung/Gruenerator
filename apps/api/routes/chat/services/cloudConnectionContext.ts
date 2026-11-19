@@ -16,6 +16,7 @@
 
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { ConnectionService } from '../../../services/connections/ConnectionService.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -31,25 +32,44 @@ export function resetCloudConnectionCache(): void {
 }
 
 /**
- * Wie viele AKTIVE eigene Verbindungen das Konto hat. Über Gruppen geteilte
- * Links zählen hier bewusst nicht mit: sie kosten eine zweite, teurere Abfrage
- * (drei Joins), und wer nur geteilte Links hat, erreicht das Werkzeug über das
- * Vokabular-Tor.
+ * Wie viele Verbindungen das Konto hat: AKTIVE eigene Wolke-Links plus
+ * verbundene Microsoft-365- und Google-Konten (OneDrive bzw. Google Drive).
+ * Über Gruppen geteilte Links zählen hier bewusst nicht mit: sie kosten eine
+ * zweite, teurere Abfrage (drei Joins), und wer nur geteilte Links hat, erreicht
+ * das Werkzeug über das Vokabular-Tor.
+ *
+ * Jede Quelle fällt für sich aus: ein Nango-Ausfall macht aus den Drive-Konten
+ * eine 0, ein Datenbankfehler aus den Wolke-Links — beides wird protokolliert,
+ * und kein Fehler bricht den Turn.
  */
 export async function countCloudConnections(userId: string): Promise<number> {
   const hit = cache.get(userId);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.count;
-  try {
-    const links = await NextcloudShareManager.getShareLinks(userId);
-    const count = links.filter((l) => l.is_active !== false).length;
-    cache.set(userId, { at: Date.now(), count });
-    return count;
-  } catch (err) {
-    // Ein Fehler darf das Werkzeug nicht dauerhaft verstecken — nicht cachen,
-    // beim nächsten Turn neu fragen.
-    log.warn('share-link count failed', err);
-    return 0;
+
+  const [links, drives] = await Promise.allSettled([
+    NextcloudShareManager.getShareLinks(userId),
+    ConnectionService.listConnections(userId),
+  ]);
+  let failed = false;
+  let count = 0;
+  if (links.status === 'fulfilled') {
+    count += links.value.filter((l) => l.is_active !== false).length;
+  } else {
+    failed = true;
+    log.warn('share-link count failed', links.reason);
   }
+  if (drives.status === 'fulfilled') {
+    count += drives.value.filter(
+      (c) => c.connected && (c.provider === 'microsoft' || c.provider === 'google')
+    ).length;
+  } else {
+    failed = true;
+    log.warn('drive connection count failed', drives.reason);
+  }
+  // Ein Fehler darf das Werkzeug nicht dauerhaft verstecken — nicht cachen,
+  // beim nächsten Turn neu fragen.
+  if (!failed) cache.set(userId, { at: Date.now(), count });
+  return count;
 }
 
 /**

@@ -14,7 +14,7 @@ import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-quer
 
 export type NotebookCollectionFetchError = 'not-found' | 'forbidden' | 'unknown';
 
-const notebookCollectionKey = (slugOrId: string | undefined) =>
+export const notebookCollectionKey = (slugOrId: string | undefined) =>
   ['notebook', 'collection', slugOrId] as const;
 
 async function fetchNotebookCollection(slugOrId: string) {

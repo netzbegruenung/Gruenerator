@@ -77,3 +77,25 @@ export async function dropSameContent(files: File[]): Promise<File[]> {
   }
   return kept;
 }
+
+/**
+ * Dateien, deren Name schon als Upload im Notebook steht, mit den betroffenen
+ * Quellen. Inhaltsgleiches fängt der Server ab (409, #5342) — ein gleicher Name
+ * mit ANDEREM Inhalt kam dagegen still als zweite Quelle dazu, und Antworten
+ * zitierten danach beide Fassungen. Uploads tragen den Dateinamen als Titel.
+ */
+export function findNameClashes<T extends { id: string; title: string }>(
+  files: File[],
+  existing: T[]
+): Map<File, T[]> {
+  const key = (name: string) => name.trim().toLocaleLowerCase('de');
+  const byName = new Map<string, T[]>();
+  for (const doc of existing)
+    byName.set(key(doc.title), [...(byName.get(key(doc.title)) ?? []), doc]);
+  const clashes = new Map<File, T[]>();
+  for (const file of files) {
+    const hits = byName.get(key(file.name));
+    if (hits) clashes.set(file, hits);
+  }
+  return clashes;
+}

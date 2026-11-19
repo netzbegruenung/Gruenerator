@@ -62,6 +62,46 @@ export async function listFiles(token: string, folderId?: string): Promise<Googl
   return { files, nextPageToken: pageToken ?? null };
 }
 
+const GOOGLE_FOLDER_MIME = 'application/vnd.google-apps.folder';
+
+/** Drive query literals: backslash and single quote are escaped. */
+function escapeQueryLiteral(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/**
+ * Every non-folder file this app can see. With scope `drive.file` that is only
+ * what the person picked in the Google Picker or the app created — there is no
+ * folder tree to walk. https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list
+ */
+export async function listAccessibleFiles(
+  token: string,
+  options: { nameContains?: string } = {}
+): Promise<GoogleDriveListResult> {
+  const clauses = ['trashed = false', `mimeType != '${GOOGLE_FOLDER_MIME}'`];
+  if (options.nameContains) {
+    clauses.push(`name contains '${escapeQueryLiteral(options.nameContains)}'`);
+  }
+  const files: GoogleDriveFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
+      headers: authHeaders(token),
+      params: {
+        q: clauses.join(' and '),
+        fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,parents,webViewLink)',
+        pageSize: 200,
+        pageToken,
+        orderBy: 'modifiedTime desc',
+      },
+    });
+    const parsed = googleDriveFileListResponseSchema.parse(response.data);
+    files.push(...parsed.files);
+    pageToken = parsed.nextPageToken;
+  } while (pageToken && files.length < MAX_LIST_FILES);
+  return { files, nextPageToken: pageToken ?? null };
+}
+
 export async function getFile(token: string, fileId: string): Promise<GoogleDriveFile> {
   validateDriveId(fileId, 'file ID');
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
