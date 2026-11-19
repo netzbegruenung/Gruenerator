@@ -10,7 +10,9 @@
   --color-action-ink: #ffffff;
   --color-signal: #0a99d2;
   --color-signal-ink: #ffffff;
-  --font-display: 'GrSite Display', 'Arial Narrow', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-display:
+    'GrSite Display', 'GrSite Display Fallback', 'Arial Narrow', 'Helvetica Neue', Arial, system-ui,
+    sans-serif;
   --font-text: 'GrSite Text', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --text-display: clamp(2.75rem, 1.75rem + 4.5vw, 5.5rem);
   --text-h2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
@@ -20,7 +22,11 @@
   --text-body--line-height: 1.6;
   --text-small: 0.9375rem;
   --text-small--line-height: 1.5;
+  --text-banner: clamp(2.25rem, 1.5rem + 3.5vw, 4.25rem);
   --spacing: 0.25rem;
+  --spacing-gutter: clamp(1.25rem, 0.75rem + 2.5vw, 3rem);
+  --spacing-section: clamp(4rem, 2rem + 6vw, 7.5rem);
+  --spacing-hero: clamp(2.5rem, 1.5rem + 4vw, 5rem);
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
   --breakpoint-lg: 64rem;
