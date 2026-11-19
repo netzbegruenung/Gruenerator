@@ -94,8 +94,12 @@ export const CitationBadge = memo(function CitationBadge({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
+        {/* Sichtbar bleibt die kleine Marke; die Trefferfläche reicht per
+            Pseudo-Element 4 px darüber und darunter (≈ 26 px hoch). Nur vertikal,
+            weil benachbarte Marken [1][2] sich sonst gegenseitig überdecken. */}
         <button
-          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold rounded-full px-0.5 mx-0.5 align-super cursor-pointer transition-opacity hover:opacity-80 bg-secondary-600 text-white dark:bg-primary-400 dark:text-grey-950"
+          type="button"
+          className="relative inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold rounded-full px-0.5 mx-0.5 align-super cursor-pointer transition-opacity hover:opacity-80 bg-secondary-600 text-white dark:bg-primary-400 dark:text-grey-950 before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']"
           aria-label={`Quelle ${citationId}: ${citation.title}`}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}

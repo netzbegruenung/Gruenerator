@@ -42,6 +42,15 @@ function setup() {
 }
 
 describe('SourceTable', () => {
+  it('liest sich als Tabelle mit Spaltenköpfen und je einer Zeile pro Quelle', () => {
+    setup();
+    const table = screen.getByRole('table', { name: 'Quellen' });
+    expect(within(table).getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+    // Kopfzeile + drei Quellen
+    expect(within(table).getAllByRole('row')).toHaveLength(4);
+    expect(within(table).getByRole('checkbox', { name: 'Scan.pdf auswählen' })).toBeInTheDocument();
+  });
+
   it('zeigt die Bulk-Leiste erst mit einer Auswahl und entfernt die ausgewählten Zeilen', async () => {
     const { user, onRemove } = setup();
     expect(screen.queryByText(/ausgewählt/)).not.toBeInTheDocument();

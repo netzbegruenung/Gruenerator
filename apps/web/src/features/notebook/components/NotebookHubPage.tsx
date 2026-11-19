@@ -1,5 +1,5 @@
 import { getContractsClient } from '@gruenerator/shared/api';
-import { buildNotebookSlug } from '@gruenerator/shared/utils';
+import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import {
   Button,
   Empty,
@@ -77,7 +77,15 @@ function NotebookEditPageInner() {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   if (!id) return null;
-  return <NotebookHubShell key={id} slugOrId={id} isNew={params.get('neu') === '1'} />;
+  // Der Schlüssel ist das Suffix, nicht der ganze Slug: nach dem Umbenennen zieht
+  // der Hub die URL nach, und ein Neu-Mount verlöre dabei laufende Uploads.
+  return (
+    <NotebookHubShell
+      key={extractSlugSuffix(id) ?? id}
+      slugOrId={id}
+      isNew={params.get('neu') === '1'}
+    />
+  );
 }
 
 export const NotebookCreatePage = withAuthRequired(NotebookCreatePageInner, {
