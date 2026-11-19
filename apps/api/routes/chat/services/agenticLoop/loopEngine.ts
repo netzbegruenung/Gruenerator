@@ -28,7 +28,11 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
-import { prefillAllowanceForModel, providerOfModel } from '../prefillAllowance.js';
+import {
+  modelNameOfModel,
+  prefillAllowanceForModel,
+  providerOfModel,
+} from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
@@ -146,9 +150,8 @@ const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
 
 function silentToolArgumentAllowanceMs(model: LanguageModel): number {
   const provider = providerOfModel(model);
-  const modelId = typeof model === 'string' ? model.slice(model.indexOf('/') + 1) : model.modelId;
   return (
-    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelId}`] ??
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelNameOfModel(model)}`] ??
     SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[provider] ??
     0
   );
@@ -197,6 +200,24 @@ class StreamAbortedError extends Error {
  * kommt für lange Prompts weiter oben drauf.
  */
 const FIRST_RESPONSE_DEADLINE_MS = 8_000;
+
+/**
+ * Lanes, deren erste Antwort ein stumm geschriebenes Werkzeugargument sein kann
+ * und die deshalb die kurze Frist oben NICHT bekommen; für sie gilt nur das
+ * Fenster der Werkzeugphase samt Zuschlag (`SILENT_TOOL_ARGUMENT_ALLOWANCE_MS`).
+ *
+ * Panda schreibt vor einem Werkzeugaufruf oft gar keinen Text: gemessen am
+ * 19.11.2026 in 2 von 16 Rohläufen, über das SDK mit „ohne Vorrede" in 3 von 3 —
+ * dann liefert das SDK 14–48 s lang keinen einzigen Stream-Teil, nicht einmal
+ * `start-step` oder mit `includeRawChunks` einen `raw`-Teil. Die 8 s rissen
+ * genau diese Züge ab, gaben sie an die nächste Stufe und vermerkten Panda als
+ * zäh. Der Preis: ein wirklich stummes Panda geht erst nach dem vollen Fenster
+ * an seinen Ausweich; Ablehnungen (5xx, 429) wechseln weiter sofort.
+ *
+ * Mistral steht trotz desselben Pufferns NICHT hier: Ultra schrieb in jedem
+ * gemessenen Lauf zuerst Text, und ein Zug ohne Vorrede ist dort nicht gemessen.
+ */
+const NO_FIRST_RESPONSE_DEADLINE: ReadonlySet<string> = new Set([`melious/${PANDA_LANE_MODEL}`]);
 
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
 /** finishReason, wenn das Modell auf dem werkzeuglosen Schlussschritt doch ein Werkzeug rief. */
@@ -823,7 +844,10 @@ async function streamWithTools(
   );
   const { idle, idleMs } = createToolPhaseIdle(p, model, prefillMs);
   const firstResponseMs = FIRST_RESPONSE_DEADLINE_MS + prefillMs;
-  let firstResponse: IdleDeadline | null = hasNextLane
+  const shortFirstResponse =
+    hasNextLane &&
+    !NO_FIRST_RESPONSE_DEADLINE.has(`${providerOfModel(model)}/${modelNameOfModel(model)}`);
+  let firstResponse: IdleDeadline | null = shortFirstResponse
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   const prepareStep = buildPrepareStep(
