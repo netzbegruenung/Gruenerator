@@ -64,3 +64,23 @@ export const driveBrowseErrorSchema = z.object({
   /** Das Konto muss neu verbunden werden (Token abgelaufen oder widerrufen). */
   reauth: z.boolean(),
 });
+
+/**
+ * Export in ein verbundenes Laufwerk: der Client schickt eine fertige Datei
+ * (Word aus dem Chat oder aus Docs) als Multipart-Teil `CLOUD_UPLOAD_FIELD`.
+ * Google legt daraus ein Google-Doc an, OneDrive eine .docx im Ordner
+ * „Grünerator“. Die Datei steht in `req.file`, nicht im Body-Schema.
+ */
+export const CLOUD_UPLOAD_FIELD = 'file';
+export const CLOUD_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+
+export const driveUploadBodySchema = z.object({});
+
+export const driveUploadResponseSchema = z.object({
+  success: z.literal(true),
+  /** Name der angelegten Datei, wie der Anbieter ihn vergeben hat. */
+  name: z.string(),
+  /** Link, der die Datei beim Anbieter öffnet. */
+  webUrl: z.string().url(),
+});
+export type DriveUploadResponse = z.infer<typeof driveUploadResponseSchema>;

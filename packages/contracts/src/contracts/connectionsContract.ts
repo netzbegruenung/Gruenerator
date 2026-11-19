@@ -16,6 +16,8 @@ import {
   driveBrowseQuerySchema,
   driveBrowseResponseSchema,
   driveConnectLinkResponseSchema,
+  driveUploadBodySchema,
+  driveUploadResponseSchema,
   googlePickerConfigResponseSchema,
 } from '../schemas/connections.js';
 
@@ -47,6 +49,21 @@ export const connectionsContract = c.router(
         500: driveBrowseErrorSchema,
       },
       summary: 'Nango-Link zum Verbinden genau dieses Laufwerks',
+    },
+    upload: {
+      method: 'POST',
+      path: '/api/connections/:provider/upload',
+      pathParams: driveBrowseParamsSchema,
+      contentType: 'multipart/form-data',
+      body: driveUploadBodySchema,
+      responses: {
+        200: driveUploadResponseSchema,
+        400: driveBrowseErrorSchema,
+        403: driveBrowseErrorSchema,
+        413: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Eine Word-Datei in das verbundene Laufwerk exportieren',
     },
     googlePicker: {
       method: 'GET',

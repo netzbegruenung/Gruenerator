@@ -78,6 +78,28 @@ export async function getDriveItem(token: string, itemId: string): Promise<Micro
   return microsoftDriveItemSchema.parse(response.data);
 }
 
+/** Ordner im eigenen OneDrive, in dem Exporte landen (Graph legt ihn an). */
+export const EXPORT_FOLDER = 'Grünerator';
+
+/**
+ * Lädt eine Datei nach `/Grünerator/<name>` im eigenen OneDrive. Bei gleichem
+ * Namen vergibt Graph einen neuen (`conflictBehavior=rename`), nichts wird
+ * überschrieben. Bis 250 MB reicht der einfache Upload.
+ */
+export async function uploadToMyDrive(
+  token: string,
+  content: Buffer,
+  filename: string
+): Promise<MicrosoftDriveItem> {
+  const path = `${encodeURIComponent(EXPORT_FOLDER)}/${encodeURIComponent(filename)}`;
+  const response = await axios.put(`${GRAPH_API}/me/drive/root:/${path}:/content`, content, {
+    headers: { ...authHeaders(token), 'Content-Type': 'application/octet-stream' },
+    params: { '@microsoft.graph.conflictBehavior': 'rename' },
+    maxBodyLength: Infinity,
+  });
+  return microsoftDriveItemSchema.parse(response.data);
+}
+
 /** `asPdf` lets Graph convert Office formats our extraction can't read. */
 export async function downloadDriveItem(
   token: string,
