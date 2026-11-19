@@ -4,7 +4,7 @@
  * nur ihren Abschnitt kostet und nicht das Briefing.
  */
 import { LANDESVERBAENDE, landesverbandIdsForRoles } from '@gruenerator/shared/agents';
-import { type UserRole } from '@gruenerator/shared/roles';
+import { type UserRole, mdbOfficeContext } from '@gruenerator/shared/roles';
 
 import { getCollectionDefaultFilter } from '../../config/systemCollectionsConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -81,7 +81,8 @@ export function roleContextLine(role: UserRole | undefined): string | null {
   const parts = [role.rolle];
   if (role.gliederung) parts.push(role.gliederung);
   if (role.bundesland) parts.push(role.bundesland);
-  if (role.abgeordnete) parts.push(`Büro von ${role.abgeordnete}`);
+  const office = mdbOfficeContext(role);
+  if (office) parts.push(office);
   return parts.join(', ');
 }
 

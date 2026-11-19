@@ -440,6 +440,7 @@ export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlU
 export { cn } from './lib/utils';
 export { loadPhosphorModule } from './lib/phosphorAgentIcon';
 export { chatSuggestions } from './lib/suggestions';
+export { resolveSkillIcon } from './lib/skillIcons';
 export {
   agentsList,
   listedAgentsList,
