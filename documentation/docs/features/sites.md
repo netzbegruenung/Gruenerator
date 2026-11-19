@@ -11,7 +11,7 @@ Mit Sites baust du dir eine eigene **Website** für deine Kandidatur, dein Manda
 
 ## Wer Sites nutzen kann
 
-Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support.
+Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat, sowie für Instanz-Admins selbst. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support.
 
 ## Website erstellen
 
