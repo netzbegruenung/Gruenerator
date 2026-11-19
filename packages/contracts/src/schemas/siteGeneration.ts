@@ -7,6 +7,7 @@ export const WEBSITE_DESCRIPTION_MIN = 50;
 export const WEBSITE_DESCRIPTION_MAX = 5000;
 export const SITE_FLYER_FIELD = 'flyer';
 export const SITE_FLYER_MAX_BYTES = 20 * 1024 * 1024;
+export const SITE_FLYER_MAX_PAGES = 100;
 
 export const siteGenerateBodySchema = z.object({
   description: z
