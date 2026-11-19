@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { moderationStateSchema } from './contentReport.js';
 import {
   boundedRichTextDoc,
+  emptyRichTextDoc,
   getRichTextLength,
   type RichTextDoc,
   SITE_ABOUT_MAX_LENGTH,
@@ -121,7 +122,40 @@ export const siteActionTileSchema = z.object({
 });
 export type SiteActionTile = z.infer<typeof siteActionTileSchema>;
 
+/** Names the role (how dark the leading ground is), not a colour: Tanne in DE, Dunkelgrün in AT. */
+export const siteVariantSchema = z.enum(['dunkel', 'hell', 'leuchtend']);
+export type SiteVariant = z.infer<typeof siteVariantSchema>;
+export const DEFAULT_SITE_VARIANT: SiteVariant = 'dunkel';
+
+export function readSiteVariant(theme: string | null): SiteVariant {
+  const parsed = siteVariantSchema.safeParse(theme);
+  return parsed.success ? parsed.data : DEFAULT_SITE_VARIANT;
+}
+
+export const siteOptionalSectionSchema = z.enum([
+  'about',
+  'heroImage',
+  'themes',
+  'actions',
+  'socialFeed',
+  'contact',
+]);
+export type SiteOptionalSection = z.infer<typeof siteOptionalSectionSchema>;
+
+/** Page order; the same values as `SectionType` in packages/sites editorStore. */
+export const SITE_SECTION_IDS = [
+  'hero',
+  'about',
+  'heroImage',
+  'themes',
+  'actions',
+  'socialFeed',
+  'contact',
+] as const;
+export type SiteSectionId = (typeof SITE_SECTION_IDS)[number];
+
 export const siteSectionsSchema = z.object({
+  hidden: z.array(siteOptionalSectionSchema).max(6).optional(),
   heroImage: z
     .object({
       imageUrl: urlField,
@@ -322,71 +356,121 @@ const snapshotPhone = z
   .max(SITE_PHONE_MAX)
   .regex(/^[0-9 +()/.-]{0,40}$/, PHONE_MESSAGE);
 
-const snapshotSectionsSchema = z.object({
-  heroImage: z
-    .object({
-      imageUrl: snapshotImage,
-      title: z.string().max(SITE_TITLE_MAX),
-      subtitle: z.string().max(SITE_TAGLINE_MAX),
-    })
-    .optional(),
-  about: z
-    .object({
-      title: z.string().max(SITE_SECTION_TITLE_MAX),
-      content: snapshotRichTextDoc(SITE_ABOUT_MAX_LENGTH),
-    })
-    .optional(),
-  themes: z
-    .array(
-      siteThemeCardSchema.extend({
-        imageUrl: snapshotImage,
-        content: snapshotRichTextDoc(SITE_THEME_CONTENT_MAX_LENGTH),
-      })
-    )
-    .max(SITE_THEMES_MAX)
-    .optional(),
-  actions: z
-    .array(siteActionTileSchema.extend({ imageUrl: snapshotImage, link: snapshotLink }))
-    .max(SITE_ACTIONS_MAX)
-    .optional(),
-  contact: z
-    .object({ title: z.string().max(SITE_SECTION_TITLE_MAX), backgroundImageUrl: snapshotImage })
-    .optional(),
-  socialFeed: z
-    .object({
-      title: z.string().max(SITE_SECTION_TITLE_MAX),
-      instagramUsername: z
-        .union([z.literal(''), z.string().regex(/^[A-Za-z0-9._]{1,30}$/, INSTAGRAM_MESSAGE)])
-        .optional(),
-      showFeed: z.boolean(),
-    })
-    .optional(),
-});
+const EMPTY_LEGAL = { name: '', street: '', postal_code: '', city: '', email: '' };
 
-export const publishedSiteSnapshotSchema = z.object({
-  version: z.literal(1),
-  locale: localeSchema,
-  site_title: z.string().trim().min(1, 'Titel fehlt').max(SITE_TITLE_MAX),
-  tagline: z.string().max(SITE_TAGLINE_MAX),
-  profile_image: snapshotImage,
-  contact_email: z.union([z.literal(''), z.string().max(LEGAL_EMAIL_MAX).email()]),
-  contact_phone: snapshotPhone,
-  social_links: z
-    .record(z.string().max(SOCIAL_KEY_MAX), snapshotSocialUrl)
-    .superRefine((links, ctx) => {
-      const keys = Object.keys(links);
-      if (keys.length > SITE_SOCIAL_LINKS_MAX) {
-        ctx.addIssue({ code: 'custom', message: 'Zu viele Social-Media-Links' });
-      }
-      for (const key of keys) {
-        if (!sitesSocialPlatformSchema.safeParse(key).success) {
-          ctx.addIssue({ code: 'custom', message: PLATFORM_MESSAGE, path: [key] });
-        }
-      }
-    }),
-  sections: snapshotSectionsSchema,
-  legal: siteLegalSchema.extend({ phone: snapshotPhone.optional() }),
-});
+function snapshotSchemaFor(mode: 'publish' | 'preview') {
+  // `.catch` keeps the output type, so both modes infer the same shape.
+  const lenient = <T extends z.ZodType>(schema: T, fallback: z.output<T>): T =>
+    mode === 'preview' ? (schema.catch(fallback) as unknown as T) : schema;
+
+  const image = lenient(snapshotImage, '');
+  const sectionTitle = lenient(z.string().max(SITE_SECTION_TITLE_MAX), '');
+  const richText = (max: number) => lenient(snapshotRichTextDoc(max), emptyRichTextDoc());
+
+  const sections = z.object({
+    heroImage: z
+      .object({
+        imageUrl: image,
+        title: lenient(z.string().max(SITE_TITLE_MAX), ''),
+        subtitle: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
+      })
+      .optional(),
+    about: z.object({ title: sectionTitle, content: richText(SITE_ABOUT_MAX_LENGTH) }).optional(),
+    themes: lenient(
+      z
+        .array(
+          z.object({
+            imageUrl: image,
+            title: sectionTitle,
+            content: richText(SITE_THEME_CONTENT_MAX_LENGTH),
+          })
+        )
+        .max(SITE_THEMES_MAX)
+        .optional(),
+      []
+    ),
+    actions: lenient(
+      z
+        .array(
+          z.object({
+            imageUrl: image,
+            text: lenient(z.string().max(SITE_ACTION_TEXT_MAX), ''),
+            link: lenient(snapshotLink, ''),
+          })
+        )
+        .max(SITE_ACTIONS_MAX)
+        .optional(),
+      []
+    ),
+    contact: z.object({ title: sectionTitle, backgroundImageUrl: image }).optional(),
+    socialFeed: z
+      .object({
+        title: sectionTitle,
+        instagramUsername: lenient(
+          z
+            .union([z.literal(''), z.string().regex(/^[A-Za-z0-9._]{1,30}$/, INSTAGRAM_MESSAGE)])
+            .optional(),
+          ''
+        ),
+        showFeed: z.boolean(),
+      })
+      .optional(),
+  });
+
+  const socialLinks =
+    mode === 'preview'
+      ? z
+          .record(z.string(), z.string())
+          .catch({})
+          .transform((links) =>
+            Object.fromEntries(
+              Object.entries(links).filter(
+                ([key, value]) =>
+                  sitesSocialPlatformSchema.safeParse(key).success && isHttpUrl(value)
+              )
+            )
+          )
+      : z.record(z.string().max(SOCIAL_KEY_MAX), snapshotSocialUrl).superRefine((links, ctx) => {
+          const keys = Object.keys(links);
+          if (keys.length > SITE_SOCIAL_LINKS_MAX) {
+            ctx.addIssue({ code: 'custom', message: 'Zu viele Social-Media-Links' });
+          }
+          for (const key of keys) {
+            if (!sitesSocialPlatformSchema.safeParse(key).success) {
+              ctx.addIssue({ code: 'custom', message: PLATFORM_MESSAGE, path: [key] });
+            }
+          }
+        });
+
+  const legal = siteLegalSchema.extend({ phone: snapshotPhone.optional() });
+  const legalField = <T extends z.ZodType>(schema: T) => lenient(schema, '' as z.output<T>);
+  const legalLenient = z.object({
+    name: legalField(legal.shape.name),
+    street: legalField(legal.shape.street),
+    postal_code: legalField(legal.shape.postal_code),
+    city: legalField(legal.shape.city),
+    email: legalField(legal.shape.email),
+    phone: lenient(snapshotPhone, '').optional(),
+  });
+
+  return z.object({
+    version: z.literal(1),
+    locale: localeSchema,
+    site_title: lenient(z.string().trim().min(1, 'Titel fehlt').max(SITE_TITLE_MAX), ''),
+    tagline: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
+    profile_image: image,
+    contact_email: lenient(z.union([z.literal(''), z.string().max(LEGAL_EMAIL_MAX).email()]), ''),
+    contact_phone: lenient(snapshotPhone, ''),
+    social_links: socialLinks,
+    sections,
+    legal: mode === 'preview' ? legalLenient.catch(EMPTY_LEGAL) : legal,
+    variant: lenient(siteVariantSchema.default(DEFAULT_SITE_VARIANT), DEFAULT_SITE_VARIANT),
+    hidden_sections: lenient(z.array(siteOptionalSectionSchema).max(6).default([]), []),
+  });
+}
+
+export const publishedSiteSnapshotSchema = snapshotSchemaFor('publish');
+export const previewSiteSnapshotSchema = snapshotSchemaFor('preview');
 export type PublishedSiteSnapshot = z.infer<typeof publishedSiteSnapshotSchema>;
 
 export const sitePublishIssueSchema = z.object({ path: z.string(), message: z.string() });
@@ -401,6 +485,7 @@ export type SiteSnapshotSource = Pick<
   | 'site_title'
   | 'tagline'
   | 'profile_image'
+  | 'theme'
   | 'contact_email'
   | 'contact_phone'
   | 'social_links'
@@ -413,7 +498,8 @@ const toPreviewUrl = (url: string | null | undefined): string =>
 
 function normaliseSections(sections: SiteSections | null): SiteSections {
   if (!sections) return {};
-  const out: SiteSections = { ...sections };
+  const { hidden: _hidden, ...rest } = sections;
+  const out: SiteSections = { ...rest };
   if (sections.heroImage) {
     out.heroImage = { ...sections.heroImage, imageUrl: toPreviewUrl(sections.heroImage.imageUrl) };
   }
@@ -432,18 +518,13 @@ function normaliseSections(sections: SiteSections | null): SiteSections {
   return out;
 }
 
-export function buildSiteSnapshot(
-  source: SiteSnapshotSource,
-  locale: SupportedLocale
-): { ok: true; snapshot: PublishedSiteSnapshot } | { ok: false; issues: SitePublishIssue[] } {
-  if (!source.legal) {
-    return { ok: false, issues: [{ path: 'legal', message: 'Impressumsangaben fehlen' }] };
-  }
-  const legal = source.legal;
+function snapshotCandidate(source: SiteSnapshotSource, locale: SupportedLocale) {
+  const legal = source.legal ?? {};
   const socialLinks = Object.fromEntries(
     Object.entries(source.social_links ?? {}).filter(([, value]) => value.trim() !== '')
   );
-  const parsed = publishedSiteSnapshotSchema.safeParse({
+  const hidden = new Set<string>(source.sections?.hidden ?? []);
+  return {
     version: 1,
     locale,
     site_title: source.site_title,
@@ -461,7 +542,21 @@ export function buildSiteSnapshot(
       email: legal.email ?? '',
       ...(legal.phone ? { phone: legal.phone } : {}),
     },
-  });
+    variant: readSiteVariant(source.theme),
+    hidden_sections: SITE_SECTION_IDS.filter(
+      (id): id is SiteOptionalSection => id !== 'hero' && hidden.has(id)
+    ),
+  };
+}
+
+export function buildSiteSnapshot(
+  source: SiteSnapshotSource,
+  locale: SupportedLocale
+): { ok: true; snapshot: PublishedSiteSnapshot } | { ok: false; issues: SitePublishIssue[] } {
+  if (!source.legal) {
+    return { ok: false, issues: [{ path: 'legal', message: 'Impressumsangaben fehlen' }] };
+  }
+  const parsed = publishedSiteSnapshotSchema.safeParse(snapshotCandidate(source, locale));
   if (parsed.success) return { ok: true, snapshot: parsed.data };
   return {
     ok: false,
@@ -470,6 +565,14 @@ export function buildSiteSnapshot(
       message: issue.message,
     })),
   };
+}
+
+/** Never fails: whatever does not validate is replaced by its empty value, for the editor preview. */
+export function buildSitePreviewSnapshot(
+  source: SiteSnapshotSource,
+  locale: SupportedLocale
+): PublishedSiteSnapshot {
+  return previewSiteSnapshotSchema.parse(snapshotCandidate(source, locale));
 }
 
 export const siteResponseSchema = z.object({ site: siteSchema });
@@ -492,6 +595,7 @@ export type CreateSiteBody = z.infer<typeof createSiteBodySchema>;
 
 export const updateUserSiteBodySchema = z.object({
   site_title: z.string().max(SITE_TITLE_MAX).optional(),
+  theme: siteVariantSchema.optional(),
   tagline: z.string().max(SITE_TAGLINE_MAX).optional(),
   contact_email: z.string().max(LEGAL_EMAIL_MAX).optional(),
   contact_phone: z.string().max(SITE_PHONE_MAX).optional(),

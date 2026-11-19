@@ -143,6 +143,24 @@ describe('sitesContract', () => {
     expect((await create(validCreate())).body.error).toBe('Diese Adresse ist bereits vergeben');
   });
 
+  it('update stores a colour variant', async () => {
+    queryMock.mockResolvedValue([row()]);
+    await update({ theme: 'hell' });
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/theme = \$\d/);
+    expect(params).toContain('hell');
+  });
+
+  it('create starts a site on the dark variant', async () => {
+    queryMock.mockResolvedValueOnce([]);
+    executeMock.mockResolvedValueOnce({ rows: [row()] });
+    await create(validCreate());
+    const chunks = executeMock.mock.calls[0][0].queryChunks as unknown[];
+    expect(
+      chunks.some((c) => c === 'dunkel' || (c as { value?: unknown })?.value === 'dunkel')
+    ).toBe(true);
+  });
+
   it('checkSubdomain reports invalid and reserved without a query', async () => {
     expect((await check('a--b')).body).toEqual({ available: false, reason: 'invalid' });
     expect((await check('api')).body).toEqual({ available: false, reason: 'reserved' });
