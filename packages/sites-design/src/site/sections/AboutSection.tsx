@@ -30,7 +30,7 @@ export function AboutSection({ ctx }: { ctx: SectionContext }) {
           {content ? (
             <SiteRichText content={content} headingOffset={1} field="sections.about.content" />
           ) : (
-            <Placeholder field="sections.about.content" text={copy.emptyAbout} />
+            <Placeholder field="sections.about.content" text={copy.emptyAbout} mode={ctx.mode} />
           )}
         </div>
       </div>

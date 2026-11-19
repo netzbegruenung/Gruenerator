@@ -5,6 +5,8 @@ import {
   type SiteSectionId,
 } from '@gruenerator/contracts';
 
+import { safeHref, telHref } from './links.js';
+
 export type SiteRenderMode = 'public' | 'preview';
 
 export const SECTION_ANCHORS: Record<SiteSectionId, string> = {
@@ -44,9 +46,9 @@ export function isSectionEmpty(snapshot: PublishedSiteSnapshot, id: SiteSectionI
       );
     case 'contact':
       return (
-        snapshot.contact_email === '' &&
-        snapshot.contact_phone === '' &&
-        Object.keys(snapshot.social_links).length === 0
+        safeHref(`mailto:${snapshot.contact_email.trim()}`) === null &&
+        telHref(snapshot.contact_phone) === null &&
+        !Object.values(snapshot.social_links).some((link) => safeHref(link) !== null)
       );
   }
 }

@@ -33,7 +33,11 @@ export function SocialFeedSection({
           </SectionHeading>
         </div>
         {username === '' ? (
-          <Placeholder field="sections.socialFeed.instagramUsername" text={copy.emptyInstagram} />
+          <Placeholder
+            field="sections.socialFeed.instagramUsername"
+            text={copy.emptyInstagram}
+            mode={mode}
+          />
         ) : (
           <div data-field="sections.socialFeed.instagramUsername">
             {mode === 'preview' && renderInstagram ? (

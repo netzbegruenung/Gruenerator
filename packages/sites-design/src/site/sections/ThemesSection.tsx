@@ -21,7 +21,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
       </div>
       {themes.length === 0 ? (
         <div className={CONTAINER}>
-          <Placeholder field="sections.themes" text={copy.emptyThemes} />
+          <Placeholder field="sections.themes" text={copy.emptyThemes} mode={ctx.mode} />
         </div>
       ) : (
         <div

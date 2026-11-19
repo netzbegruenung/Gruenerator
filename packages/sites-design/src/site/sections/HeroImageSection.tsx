@@ -60,6 +60,7 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
           <Placeholder
             field="sections.heroImage.imageUrl"
             text={copy.emptyHeroImage}
+            mode={ctx.mode}
             className="site:mx-auto site:max-w-prose"
           />
         )}

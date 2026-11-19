@@ -9,7 +9,8 @@ const TILE_LINK =
   'site:underline-offset-4 site:hover:underline site:after:absolute site:after:inset-0 site:after:z-10 site:focus-visible:outline-none site:focus-visible:after:outline-3 site:focus-visible:after:outline-offset-3 site:focus-visible:after:outline-solid site:focus-visible:after:outline-[color:var(--site-palette-heading)]';
 
 export function ActionsSection({ ctx }: { ctx: SectionContext }) {
-  const { snapshot, copy } = ctx;
+  const { snapshot, copy, visible } = ctx;
+  const liveAnchors = visible.map((id) => `#${SECTION_ANCHORS[id]}`);
   const anchor = SECTION_ANCHORS.actions;
   const actions = snapshot.sections.actions ?? [];
 
@@ -25,14 +26,15 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
           <SectionHeading id={`${anchor}-titel`}>{copy.actionsHeading}</SectionHeading>
         </div>
         {actions.length === 0 ? (
-          <Placeholder field="sections.actions" text={copy.emptyActions} />
+          <Placeholder field="sections.actions" text={copy.emptyActions} mode={ctx.mode} />
         ) : (
           <ul
             data-field="sections.actions"
             className="site:grid site:gap-6 site:sm:grid-cols-2 site:lg:grid-cols-3 site:lg:gap-8"
           >
             {actions.map((action, i) => {
-              const href = safeHref(action.link);
+              const safe = safeHref(action.link);
+              const href = safe?.startsWith('#') && !liveAnchors.includes(safe) ? null : safe;
               const text = (
                 <span data-field={`sections.actions.${i}.text`}>
                   {action.text.trim() || copy.navActions}

@@ -134,4 +134,44 @@ describe('renderSitePage', () => {
     'refuses the origin %j',
     (origin) => expect(() => page({ origin })).toThrow('invalid origin')
   );
+
+  describe('public mode hides editor placeholders', () => {
+    it('renders an about block with only a title without the placeholder', () => {
+      const snapshot = fullSnapshot();
+      const out = page({
+        snapshot: fullSnapshot({
+          sections: {
+            ...snapshot.sections,
+            about: { title: 'Wer ich bin', content: { type: 'doc', content: [] } },
+          },
+        }),
+      });
+      expect(out).toContain('Wer ich bin');
+      expect(out).not.toContain('data-empty');
+      expect(out).not.toContain('Erzähl hier, wer du bist.');
+    });
+
+    it('hides a contact section whose only data is a digitless phone', () => {
+      const out = page({
+        snapshot: fullSnapshot({
+          contact_email: '',
+          contact_phone: '--',
+          social_links: {},
+          hidden_sections: [],
+        }),
+      });
+      expect(out).not.toContain('data-empty');
+      expect(out).not.toContain('Noch keine Kontaktangaben');
+      expect(out).not.toContain('id="kontakt"');
+    });
+
+    it('drops an action tile link to a section that is not on the page', () => {
+      const withContact = page();
+      expect(withContact).toContain('href="#kontakt"');
+      const out = page({ snapshot: fullSnapshot({ hidden_sections: ['contact'] }) });
+      expect(out).not.toContain('id="kontakt"');
+      expect(out).not.toContain('href="#kontakt"');
+      expect(out).toContain('Kontakt aufnehmen');
+    });
+  });
 });

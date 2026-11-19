@@ -1,12 +1,17 @@
+import { type SiteRenderMode } from '../model/visibility.js';
+
 export function Placeholder({
   field,
   text,
+  mode,
   className = '',
 }: {
   field: string;
   text: string;
+  mode: SiteRenderMode;
   className?: string;
 }) {
+  if (mode !== 'preview') return null;
   return (
     <div
       data-field={field}

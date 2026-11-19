@@ -79,7 +79,9 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
             )}
           </ul>
         )}
-        {!hasRows && !hasSocial && <Placeholder field="contact_email" text={copy.emptyContact} />}
+        {!hasRows && !hasSocial && (
+          <Placeholder field="contact_email" text={copy.emptyContact} mode={ctx.mode} />
+        )}
         <SocialLinks links={snapshot.social_links} copy={copy} className="site:mt-8" />
       </div>
     </Section>
