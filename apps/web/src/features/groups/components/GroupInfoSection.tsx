@@ -1,4 +1,4 @@
-import { type GroupFeedItem, sharedContentKeys } from '@gruenerator/shared/groups';
+import { type GroupFeedItem, addableKey, sharedContentKeys } from '@gruenerator/shared/groups';
 import {
   Button,
   cn,
@@ -13,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -32,6 +35,7 @@ import {
 import { HiOutlineBellSlash } from 'react-icons/hi2';
 import { PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { resolveApiAssetUrl } from '../../../utils/platform';
@@ -46,7 +50,8 @@ import {
   type GroupLink,
 } from '../hooks/useGroups';
 
-import AddContentToGroupModal, { type CategoryId } from './AddContentToGroupModal';
+import { AddExistingPicker, type PickerItem } from './AddExistingPicker';
+import { AddLinkDialog } from './AddLinkDialog';
 import { GroupContentArea } from './feed/GroupContentArea';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
@@ -57,6 +62,7 @@ import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { ShareNoteDialog } from './ShareNoteDialog';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
@@ -250,9 +256,13 @@ const GroupInfoSection = memo(
       },
       [cloneTemplate, navigate]
     );
-    const [showAddContent, setShowAddContent] = useState(false);
-    const [shareInitialNote, setShareInitialNote] = useState('');
-    const [addCategory, setAddCategory] = useState<CategoryId | null>(null);
+    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert, aus dem Feed-Composer
+    // (der seine Notiz mitbringt) als Dialog.
+    const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
+    const [composerNote, setComposerNote] = useState('');
+    const [linkOpen, setLinkOpen] = useState(false);
+    // Die gerade hinzugefügte Freigabe, zu der „Notiz schreiben“ eine Notiz setzt.
+    const [noteKey, setNoteKey] = useState<string | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -291,6 +301,42 @@ const GroupInfoSection = memo(
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
     const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
     const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
+    const noteShareId = noteKey
+      ? (feedItems.find((i) => i.key === noteKey)?.share?.shareId ?? null)
+      : null;
+
+    const handleAdded = useCallback(
+      (items: PickerItem[], done: boolean) => {
+        refetchSharedContent?.();
+        if (!done) return;
+        // Wer aus dem Composer kommt, hat die Notiz schon geschrieben.
+        const withNote = picker === 'composer' && composerNote.trim() !== '';
+        setPicker(null);
+        const [only] = items;
+        if (items.length === 1 && only && !withNote) {
+          // 8 s statt der 4 s von sonner: genug Zeit, die Aktion zu lesen und zu treffen.
+          toast('Zum Projekt hinzugefügt', {
+            duration: 8000,
+            action: { label: 'Notiz schreiben', onClick: () => setNoteKey(addableKey(only)) },
+          });
+        } else {
+          toast(
+            items.length === 1 ? 'Zum Projekt hinzugefügt' : `${items.length} Inhalte hinzugefügt`
+          );
+        }
+      },
+      [refetchSharedContent, picker, composerNote]
+    );
+
+    const pickerContent = (
+      <AddExistingPicker
+        groupId={groupId}
+        sharedKeys={sharedKeys}
+        currentUserId={currentUserId ?? null}
+        note={picker === 'composer' ? composerNote : null}
+        onAdded={handleAdded}
+      />
+    );
 
     // Leaving is a member action, not an admin one: everybody except the
     // creator can leave (the backend rejects the creator — they must delete).
@@ -482,41 +528,47 @@ const GroupInfoSection = memo(
                 )}
               </span>
             )}
-            {canShare && !isSystem && (
-              <ProjectAddMenu
-                groupId={groupId}
-                canAddLink={!!data?.isAdmin && !!onAddLink}
-                onPickExisting={(category) => {
-                  setShareInitialNote('');
-                  setAddCategory(category);
-                  setShowAddContent(true);
-                }}
-                onFileAdded={(count) => {
-                  refetchSharedContent?.();
-                  onSuccessMessage?.(
-                    count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
-                  );
-                }}
-                onTextAdded={() => {
-                  refetchSharedContent?.();
-                  onSuccessMessage?.('Text hinzugefügt.');
-                }}
-                onError={(message) => onErrorMessage?.(message)}
-              />
-            )}
-            {canShare && isSystem && (
-              <Button
-                variant="brand"
-                onClick={() => {
-                  setShareInitialNote('');
-                  setAddCategory(null);
-                  setShowAddContent(true);
-                }}
-                className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
-              >
-                <PiPlus aria-hidden />
-                <span className="max-sm:sr-only">Hinzufügen</span>
-              </Button>
+            {canShare && (
+              <Popover open={picker === 'menu'} onOpenChange={(open) => !open && setPicker(null)}>
+                <PopoverAnchor asChild>
+                  <div className="flex">
+                    {isSystem ? (
+                      <Button
+                        variant="brand"
+                        onClick={() => setPicker('menu')}
+                        className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+                      >
+                        <PiPlus aria-hidden />
+                        <span className="max-sm:sr-only">Hinzufügen</span>
+                      </Button>
+                    ) : (
+                      <ProjectAddMenu
+                        groupId={groupId}
+                        onPickExisting={() => setPicker('menu')}
+                        {...(data?.isAdmin && onAddLink && { onAddLink: () => setLinkOpen(true) })}
+                        onFileAdded={(count) => {
+                          refetchSharedContent?.();
+                          onSuccessMessage?.(
+                            count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
+                          );
+                        }}
+                        onTextAdded={() => {
+                          refetchSharedContent?.();
+                          onSuccessMessage?.('Text hinzugefügt.');
+                        }}
+                        onError={(message) => onErrorMessage?.(message)}
+                      />
+                    )}
+                  </div>
+                </PopoverAnchor>
+                <PopoverContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-[min(500px,calc(100vw-2rem))] overflow-hidden rounded-xl p-0"
+                >
+                  {pickerContent}
+                </PopoverContent>
+              </Popover>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -651,9 +703,8 @@ const GroupInfoSection = memo(
           onOpenShare={
             canShare
               ? (note) => {
-                  setShareInitialNote(note ?? '');
-                  setAddCategory(null);
-                  setShowAddContent(true);
+                  setComposerNote(note ?? '');
+                  setPicker('composer');
                 }
               : null
           }
@@ -722,23 +773,29 @@ const GroupInfoSection = memo(
           )}
         />
 
-        <AddContentToGroupModal
-          isOpen={showAddContent}
-          onClose={() => setShowAddContent(false)}
-          groupId={groupId}
-          initialNote={shareInitialNote}
-          {...(addCategory && { initialCategory: addCategory })}
-          sharedKeys={sharedKeys}
-          currentUserId={currentUserId ?? null}
-          onAdded={(count) => {
-            refetchSharedContent?.();
-            onSuccessMessage?.(
-              count === 1 ? 'Inhalt hinzugefügt.' : `${count} Inhalte hinzugefügt.`
-            );
-          }}
-          {...(data?.isAdmin && { onAddLink })}
-          isAddingLink={isAddingLink}
-        />
+        <Dialog open={picker === 'composer'} onOpenChange={(open) => !open && setPicker(null)}>
+          <DialogContent
+            showCloseButton={false}
+            className="gap-0 overflow-hidden p-0 sm:max-w-[500px]"
+          >
+            <DialogTitle className="sr-only">Vorhandenes hinzufügen</DialogTitle>
+            {pickerContent}
+          </DialogContent>
+        </Dialog>
+        {linkOpen && onAddLink && (
+          <AddLinkDialog
+            onClose={() => setLinkOpen(false)}
+            onAddLink={onAddLink}
+            isAddingLink={isAddingLink}
+          />
+        )}
+        {noteKey && (
+          <ShareNoteDialog
+            groupId={groupId}
+            shareId={noteShareId}
+            onClose={() => setNoteKey(null)}
+          />
+        )}
 
         {isTeam && data?.isAdmin && (
           <GroupVisibilityDialog

@@ -3,44 +3,34 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
-import {
-  PiBookOpen,
-  PiFileText,
-  PiLink,
-  PiNotebook,
-  PiPaperclip,
-  PiPlus,
-  PiRobot,
-  PiTextT,
-} from 'react-icons/pi';
+import { PiLink, PiPlus, PiPlusSquare, PiTextT, PiUploadSimple } from 'react-icons/pi';
 
-import { type CategoryId } from './AddContentToGroupModal';
 import { ProjectFileUploadButton, type ProjectFileUploadHandle } from './ProjectFileUploadButton';
 import { ProjectTextAddButton } from './ProjectTextAddButton';
 
 interface ProjectAddMenuProps {
   groupId: string;
-  /** Opens the „Inhalte hinzufügen" dialog, in one category or (`null`) on the overview. */
-  onPickExisting: (category: CategoryId | null) => void;
-  /** Links can only be added by project admins. */
-  canAddLink: boolean;
+  /** Öffnet den Picker „Vorhandenes hinzufügen“. */
+  onPickExisting: () => void;
+  /** Links dürfen nur Projekt-Admins anlegen; ohne Handler fehlt der Eintrag. */
+  onAddLink?: () => void;
   onFileAdded: (count: number) => void;
   onTextAdded: () => void;
   onError: (message: string) => void;
 }
 
 /**
- * Das eine „Hinzufügen" der Projektseite: Datei und Text entstehen neu (und
- * liegen danach im Wissen des Projekts), alles andere wählt man aus dem, was
- * man schon hat.
+ * Das eine „Hinzufügen" der Projektseite: Vorhandenes wählt man im Picker, Datei,
+ * Text und Link entstehen neu.
  */
 export function ProjectAddMenu({
   groupId,
   onPickExisting,
-  canAddLink,
+  onAddLink,
   onFileAdded,
   onTextAdded,
   onError,
@@ -48,6 +38,11 @@ export function ProjectAddMenu({
   const fileRef = useRef<ProjectFileUploadHandle>(null);
   const [textOpen, setTextOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Der Picker hängt als Popover am selben Knopf. Öffnete er schon in `onSelect`, hielte
+  // das Menü den Fokus während seiner Schließanimation fest: der Picker schloss sich als
+  // „Fokus außerhalb“, und das Suchfeld bekam keinen Fokus. Deshalb öffnet er erst, wenn
+  // das Menü ganz zu ist (`onCloseAutoFocus`), und der Fokus geht nicht an den Knopf zurück.
+  const pickAfterClose = useRef(false);
 
   return (
     <>
@@ -64,34 +59,34 @@ export function ProjectAddMenu({
             </span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent
+          align="end"
+          onCloseAutoFocus={(e) => {
+            if (!pickAfterClose.current) return;
+            pickAfterClose.current = false;
+            e.preventDefault();
+            onPickExisting();
+          }}
+        >
+          <DropdownMenuItem
+            onSelect={() => {
+              pickAfterClose.current = true;
+            }}
+          >
+            <PiPlusSquare aria-hidden className="mr-xs size-4" />
+            Vorhandenes hinzufügen …
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => fileRef.current?.open()}>
-            <PiPaperclip aria-hidden className="mr-xs size-4" />
-            Datei
+            <PiUploadSimple aria-hidden className="mr-xs size-4" />
+            Datei hochladen
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setTextOpen(true)}>
             <PiTextT aria-hidden className="mr-xs size-4" />
             Text
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPickExisting('notebooks')}>
-            <PiBookOpen aria-hidden className="mr-xs size-4" />
-            Notebook
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPickExisting('recipes')}>
-            <PiNotebook aria-hidden className="mr-xs size-4" />
-            Rezept
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPickExisting('agents')}>
-            <PiRobot aria-hidden className="mr-xs size-4" />
-            Agent
-          </DropdownMenuItem>
-          {/* Docs, Sheets, Präsentationen und Boards sind vier Kacheln — die Übersicht zeigt alle. */}
-          <DropdownMenuItem onSelect={() => onPickExisting(null)}>
-            <PiFileText aria-hidden className="mr-xs size-4" />
-            Doc, Sheet, Board …
-          </DropdownMenuItem>
-          {canAddLink && (
-            <DropdownMenuItem onSelect={() => onPickExisting('links')}>
+          {onAddLink && (
+            <DropdownMenuItem onSelect={onAddLink}>
               <PiLink aria-hidden className="mr-xs size-4" />
               Link
             </DropdownMenuItem>

@@ -29,6 +29,8 @@ export interface AddToGroupResult {
   failed: number;
   /** Der erste Satz des Servers, etwa „Du kannst nur eigene Inhalte teilen." */
   firstError: string | null;
+  /** Je gescheitertem Inhalt sein `addableKey` und der Satz des Servers — für den Fehler an der Zeile. */
+  failures: { key: string; message: string }[];
 }
 
 const READ_ONLY = { read: true, write: false, collaborative: false } as const;
@@ -59,11 +61,20 @@ export async function addItemsToGroup(
       }
     })
   );
-  const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
-  const first: unknown = rejected[0]?.reason;
+  const failures = results.flatMap((r, i) =>
+    r.status === 'rejected'
+      ? [
+          {
+            key: addableKey(items[i]),
+            message: r.reason instanceof Error ? r.reason.message : String(r.reason),
+          },
+        ]
+      : []
+  );
   return {
-    added: results.length - rejected.length,
-    failed: rejected.length,
-    firstError: first instanceof Error ? first.message : first ? String(first) : null,
+    added: results.length - failures.length,
+    failed: failures.length,
+    firstError: failures[0]?.message ?? null,
+    failures,
   };
 }
