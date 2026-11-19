@@ -1,0 +1,293 @@
+import { describe, expect, it } from 'vitest';
+
+import { emptyRichTextDoc } from './richtext.js';
+import {
+  buildSiteSnapshot,
+  checkSiteHandle,
+  updateUserSiteBodySchema,
+  type SiteSnapshotSource,
+} from './sites.js';
+
+const card = () => ({ imageUrl: '', title: 'Klima', content: emptyRichTextDoc() });
+
+const validLegal = () => ({
+  name: 'Max Mustermann',
+  street: 'Musterstraße 1',
+  postal_code: '10115',
+  city: 'Berlin',
+  email: 'max@example.org',
+});
+
+const validSource = (): SiteSnapshotSource => ({
+  site_title: 'Max Mustermann',
+  tagline: 'Für Berlin',
+  profile_image: null,
+  contact_email: 'max@example.org',
+  contact_phone: null,
+  social_links: null,
+  sections: {
+    about: { title: 'Über mich', content: emptyRichTextDoc() },
+    themes: [card()],
+    actions: [],
+  },
+  legal: validLegal(),
+});
+
+const withActionLink = (link: string): SiteSnapshotSource => ({
+  ...validSource(),
+  sections: { actions: [{ imageUrl: '', text: 'Mitmachen', link }] },
+});
+
+const issuePaths = (source: SiteSnapshotSource): string[] => {
+  const result = buildSiteSnapshot(source, 'de-DE');
+  return result.ok ? [] : result.issues.map((issue) => issue.path);
+};
+
+describe('checkSiteHandle', () => {
+  it('normalises case and whitespace', () =>
+    expect(checkSiteHandle('  Max-Mustermann ')).toEqual({ ok: true, handle: 'max-mustermann' }));
+  it.each(['ab', 'a'.repeat(31), '-abc', 'abc-', 'a--b', 'max mustermann', 'müller', 'a.b'])(
+    'rejects %s as invalid',
+    (raw) => expect(checkSiteHandle(raw)).toEqual({ ok: false, reason: 'invalid' })
+  );
+  it.each(['impressum', 'datenschutz', 'api', 'WWW'])('rejects %s as reserved', (raw) =>
+    expect(checkSiteHandle(raw)).toEqual({ ok: false, reason: 'reserved' })
+  );
+});
+
+describe('draft bounds', () => {
+  it('rejects a title above the limit', () =>
+    expect(updateUserSiteBodySchema.safeParse({ site_title: 'x'.repeat(121) }).success).toBe(
+      false
+    ));
+  it('rejects a seventh theme card', () =>
+    expect(
+      updateUserSiteBodySchema.safeParse({ sections: { themes: Array.from({ length: 7 }, card) } })
+        .success
+    ).toBe(false));
+  it('accepts a half-typed link in a draft', () =>
+    expect(
+      updateUserSiteBodySchema.safeParse({
+        sections: { actions: [{ imageUrl: '', text: 'Mitmachen', link: 'www.example' }] },
+      }).success
+    ).toBe(true));
+});
+
+describe('buildSiteSnapshot', () => {
+  it('builds version 1 with the locale', () => {
+    const result = buildSiteSnapshot(validSource(), 'de-AT');
+    expect(result.ok && result.snapshot).toMatchObject({ version: 1, locale: 'de-AT' });
+  });
+  it.each(['javascript:alert(1)', 'data:text/html,x', 'www.example.org', '//evil.example'])(
+    'reports the action link %s',
+    (link) => expect(issuePaths(withActionLink(link))).toContain('sections.actions.0.link')
+  );
+  it.each(['https://gruene.de/mitmachen', 'mailto:hallo@example.org', '#kontakt'])(
+    'accepts the action link %s',
+    (link) => expect(buildSiteSnapshot(withActionLink(link), 'de-DE').ok).toBe(true)
+  );
+  it('reports an image from a foreign origin', () =>
+    expect(issuePaths({ ...validSource(), profile_image: 'https://evil.example/x.png' })).toContain(
+      'profile_image'
+    ));
+  it('rewrites a media-library download URL to the preview URL', () => {
+    const result = buildSiteSnapshot(
+      { ...validSource(), profile_image: '/api/share/abc123/download' },
+      'de-DE'
+    );
+    expect(result.ok && result.snapshot.profile_image).toBe('/api/share/abc123/preview');
+  });
+  it('accepts a stock image path', () =>
+    expect(
+      buildSiteSnapshot(
+        { ...validSource(), profile_image: '/api/image-picker/stock-image/wald-01.jpg' },
+        'de-DE'
+      ).ok
+    ).toBe(true));
+  it('drops empty social links and reports a non-http one', () => {
+    const ok = buildSiteSnapshot(
+      { ...validSource(), social_links: { instagram: '', mastodon: 'https://gruene.social/@x' } },
+      'de-DE'
+    );
+    expect(ok.ok && ok.snapshot.social_links).toEqual({ mastodon: 'https://gruene.social/@x' });
+    expect(
+      issuePaths({ ...validSource(), social_links: { facebook: 'javascript:alert(1)' } })
+    ).toContain('social_links.facebook');
+  });
+  it.each(['name', 'street', 'postal_code', 'city', 'email'] as const)(
+    'reports a missing legal.%s',
+    (field) =>
+      expect(issuePaths({ ...validSource(), legal: { ...validLegal(), [field]: '' } })).toContain(
+        `legal.${field}`
+      )
+  );
+  it('reports a missing legal block as a whole', () =>
+    expect(issuePaths({ ...validSource(), legal: null })).toContain('legal'));
+});
+
+describe('snapshot rich text', () => {
+  const aboutDoc = (content: unknown): SiteSnapshotSource => ({
+    ...validSource(),
+    sections: { about: { title: 'Über mich', content: content as never } },
+  });
+  const para = (text: string, marks?: unknown[]) => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text, ...(marks ? { marks } : {}) }],
+  });
+  const nested = (depth: number): unknown =>
+    depth === 0
+      ? para('x')
+      : { type: 'bulletList', content: [{ type: 'listItem', content: [nested(depth - 1)] }] };
+
+  it('reports attrs on a paragraph', () =>
+    expect(
+      issuePaths(
+        aboutDoc({
+          type: 'doc',
+          content: [{ ...para('x'), attrs: { style: 'x', onclick: 'alert(1)' } }],
+        })
+      )
+    ).toContain('sections.about.content'));
+  it('reports text carried by a non-text node', () =>
+    expect(
+      issuePaths(
+        aboutDoc({ type: 'doc', content: [{ type: 'paragraph', text: 'x'.repeat(5000) }] })
+      )
+    ).toContain('sections.about.content'));
+  it('reports a doc nested seven levels deep', () =>
+    expect(issuePaths(aboutDoc({ type: 'doc', content: [nested(3)] }))).toContain(
+      'sections.about.content'
+    ));
+  it('accepts a doc nested at the depth limit', () =>
+    expect(buildSiteSnapshot(aboutDoc({ type: 'doc', content: [nested(2)] }), 'de-DE').ok).toBe(
+      true
+    ));
+  it('reports an unknown node type', () =>
+    expect(
+      issuePaths(aboutDoc({ type: 'doc', content: [{ type: 'image', attrs: { src: 'x' } }] }))
+    ).toContain('sections.about.content'));
+  it('reports a mark with attrs', () =>
+    expect(
+      issuePaths(
+        aboutDoc({ type: 'doc', content: [para('x', [{ type: 'bold', attrs: { a: 1 } }])] })
+      )
+    ).toContain('sections.about.content'));
+  it('reports a heading level the editor does not offer', () =>
+    expect(
+      issuePaths(
+        aboutDoc({
+          type: 'doc',
+          content: [
+            { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'x' }] },
+          ],
+        })
+      )
+    ).toContain('sections.about.content'));
+  it('reports text above the length limit', () =>
+    expect(issuePaths(aboutDoc({ type: 'doc', content: [para('x'.repeat(1001))] }))).toContain(
+      'sections.about.content'
+    ));
+  it('reports a theme card with foreign attrs', () =>
+    expect(
+      issuePaths({
+        ...validSource(),
+        sections: {
+          themes: [
+            {
+              imageUrl: '',
+              title: 'Klima',
+              content: { type: 'doc', content: [{ ...para('x'), attrs: { id: 'a' } }] } as never,
+            },
+          ],
+        },
+      })
+    ).toContain('sections.themes.0.content'));
+  it('accepts bold text, a heading, a bullet list and an ordered list', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Titel' }] },
+        para('fett', [{ type: 'bold' }, { type: 'italic' }]),
+        {
+          type: 'bulletList',
+          content: [{ type: 'listItem', content: [para('Punkt')] }],
+        },
+        {
+          type: 'orderedList',
+          attrs: { start: 1, type: null },
+          content: [
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'hardBreak' }] }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(buildSiteSnapshot(aboutDoc(doc), 'de-DE').ok).toBe(true);
+  });
+});
+
+describe('snapshot charsets and links', () => {
+  it('accepts a phone number and reports markup in it', () => {
+    expect(
+      buildSiteSnapshot({ ...validSource(), contact_phone: '+49 30 123-45' }, 'de-DE').ok
+    ).toBe(true);
+    expect(issuePaths({ ...validSource(), contact_phone: '123<script>' })).toContain(
+      'contact_phone'
+    );
+  });
+  it('reports markup in the legal phone', () =>
+    expect(issuePaths({ ...validSource(), legal: { ...validLegal(), phone: '1<b>' } })).toContain(
+      'legal.phone'
+    ));
+  it('reports an instagram name with path characters', () =>
+    expect(
+      issuePaths({
+        ...validSource(),
+        sections: { socialFeed: { title: 'Feed', instagramUsername: 'x/../evil', showFeed: true } },
+      })
+    ).toContain('sections.socialFeed.instagramUsername'));
+  it('accepts an instagram name', () =>
+    expect(
+      buildSiteSnapshot(
+        {
+          ...validSource(),
+          sections: {
+            socialFeed: { title: 'Feed', instagramUsername: 'anna.b_1', showFeed: true },
+          },
+        },
+        'de-DE'
+      ).ok
+    ).toBe(true));
+  it('reports an unknown social platform without throwing', () => {
+    const key = '"><img src=x>';
+    expect(
+      issuePaths({ ...validSource(), social_links: { [key]: 'https://example.org' } })
+    ).toContain(`social_links.${key}`);
+    const dotted = buildSiteSnapshot(
+      { ...validSource(), social_links: { 'a.b': 'https://example.org' } },
+      'de-DE'
+    );
+    expect(dotted.ok).toBe(false);
+  });
+  it('keeps an unknown social key in a draft', () =>
+    expect(updateUserSiteBodySchema.safeParse({ social_links: { whatever: 'www' } }).success).toBe(
+      true
+    ));
+  it.each([
+    'https://gruene.de@evil.example',
+    'mailto:a@b.de?bcc=x@evil.example',
+    'mailto:a b@c.de',
+  ])('reports the action link %s', (link) =>
+    expect(issuePaths(withActionLink(link))).toContain('sections.actions.0.link')
+  );
+  it('reports credentials in a social link', () =>
+    expect(
+      issuePaths({ ...validSource(), social_links: { facebook: 'https://a:b@evil.example' } })
+    ).toContain('social_links.facebook'));
+  it('reports a stock image path with dots only', () =>
+    expect(
+      issuePaths({ ...validSource(), profile_image: '/api/image-picker/stock-image/..' })
+    ).toContain('profile_image'));
+});

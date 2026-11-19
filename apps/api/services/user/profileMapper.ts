@@ -70,6 +70,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     memory_enabled: row.memory_enabled,
     proactive_briefing_enabled: row.proactive_briefing_enabled,
     panda_enabled: row.panda_enabled,
+    sites_unlocked: row.sites_unlocked,
 
     // Timestamps
     created_at: row.created_at ?? new Date(),

@@ -17,12 +17,19 @@ export const instanceAdminUserSummarySchema = z.object({
   pandaEnabled: z.boolean().nullable(),
   /** What applies right now: the decision, else the instance default. */
   pandaEffective: z.boolean(),
+  /** Whether an admin has unlocked Sites for this account. */
+  sitesUnlocked: z.boolean(),
 });
 
 export type InstanceAdminUserSummary = z.infer<typeof instanceAdminUserSummarySchema>;
 
 /** Unlock or lock the „Panda" lane for one account (after training). */
 export const instanceAdminSetPandaBodySchema = z.object({
+  enabled: z.boolean(),
+});
+
+/** Unlock or lock Sites for one account. */
+export const instanceAdminSetSitesBodySchema = z.object({
   enabled: z.boolean(),
 });
 

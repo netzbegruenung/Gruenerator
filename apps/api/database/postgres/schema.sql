@@ -1708,3 +1708,14 @@ CREATE TABLE IF NOT EXISTS nuudel_polls (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nuudel_polls_user ON nuudel_polls(user_id, created_at DESC);
+
+-- zz_20261119_user_sites_publishing.sql
+ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS published_snapshot JSONB NULL;
+ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS legal JSONB NULL;
+ALTER TABLE user_sites
+    ADD COLUMN IF NOT EXISTS moderation TEXT NOT NULL DEFAULT 'ok'
+        CHECK (moderation IN ('ok', 'hidden', 'removed'));
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_unlocked BOOLEAN;
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_sites_one_live_per_user
+    ON user_sites (user_id) WHERE deleted_at IS NULL;

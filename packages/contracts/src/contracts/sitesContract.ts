@@ -7,11 +7,9 @@
  * Deliberately NOT contracted (still on the legacy axios paths):
  * - POST /api/sites/generate-from-flyer (multipart upload)
  * - POST /api/texte/website (AI generation)
- * - GET  /api/sites/public/:subdomain (no typed UI consumer)
- * - GET  /api/sites/themes
  *
  * Authentication: all routes here require auth. routes.ts applies requireAuth
- * for /api/sites (excluding /public/*) before this router is mounted.
+ * for /api/sites before this router is mounted.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -25,6 +23,7 @@ import {
   checkSubdomainResponseSchema,
   deleteSiteResponseSchema,
   sitesErrorSchema,
+  sitePublishErrorSchema,
 } from '../schemas/sites.js';
 
 const c = initContract();
@@ -40,6 +39,7 @@ export const sitesContract = c.router({
     responses: {
       200: mySiteResponseSchema,
       401: sitesErrorSchema,
+      403: sitesErrorSchema,
       500: sitesErrorSchema,
     },
     summary: "Get the current user's site",
@@ -58,6 +58,7 @@ export const sitesContract = c.router({
       200: siteResponseSchema,
       400: sitesErrorSchema,
       401: sitesErrorSchema,
+      403: sitesErrorSchema,
       500: sitesErrorSchema,
     },
     summary: 'Create a new site',
@@ -70,12 +71,13 @@ export const sitesContract = c.router({
   updateSite: {
     method: 'PUT',
     path: '/api/sites/:id',
-    pathParams: z.object({ id: z.string() }),
+    pathParams: z.object({ id: z.string().guid() }),
     body: updateUserSiteBodySchema,
     responses: {
       200: siteResponseSchema,
       400: sitesErrorSchema,
       401: sitesErrorSchema,
+      403: sitesErrorSchema,
       404: sitesErrorSchema,
       500: sitesErrorSchema,
     },
@@ -89,12 +91,14 @@ export const sitesContract = c.router({
   publishSite: {
     method: 'POST',
     path: '/api/sites/:id/publish',
-    pathParams: z.object({ id: z.string() }),
+    pathParams: z.object({ id: z.string().guid() }),
     body: publishSiteBodySchema,
     responses: {
       200: siteResponseSchema,
       401: sitesErrorSchema,
+      403: sitesErrorSchema,
       404: sitesErrorSchema,
+      422: sitePublishErrorSchema,
       500: sitesErrorSchema,
     },
     summary: 'Publish or unpublish a site',
@@ -121,11 +125,12 @@ export const sitesContract = c.router({
   deleteSite: {
     method: 'DELETE',
     path: '/api/sites/:id',
-    pathParams: z.object({ id: z.string() }),
+    pathParams: z.object({ id: z.string().guid() }),
     body: z.object({}),
     responses: {
       200: deleteSiteResponseSchema,
       401: sitesErrorSchema,
+      403: sitesErrorSchema,
       404: sitesErrorSchema,
       500: sitesErrorSchema,
     },

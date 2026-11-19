@@ -457,6 +457,7 @@ export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHome
 
 // Lib
 export { chatSuggestions } from './lib/suggestions';
+export { resolveSkillIcon } from './lib/skillIcons';
 export {
   agentsList,
   listedAgentsList,

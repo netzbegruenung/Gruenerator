@@ -8,6 +8,7 @@ import {
   useInstanceAdminUsers,
   useSetUserAdmin,
   useSetUserPanda,
+  useSetUserSites,
 } from '../hooks/useInstanceOverview';
 
 function UsersList() {
@@ -15,6 +16,7 @@ function UsersList() {
   const q = useDebouncedSearch(search);
   const { data: users, isLoading } = useInstanceAdminUsers(q);
   const setPanda = useSetUserPanda();
+  const setSites = useSetUserSites();
   const setAdmin = useSetUserAdmin();
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
   const confirm = useConfirm();
@@ -60,9 +62,12 @@ function UsersList() {
           isAdmin: u.isAdmin,
           pandaEnabled: u.pandaEnabled,
           pandaEffective: u.pandaEffective,
+          sitesUnlocked: u.sitesUnlocked,
         }))}
         onPandaChange={(userId, enabled) => setPanda.mutate({ userId, enabled })}
         pandaPendingUserId={setPanda.isPending ? (setPanda.variables?.userId ?? null) : null}
+        onSitesChange={(userId, enabled) => setSites.mutate({ userId, enabled })}
+        sitesPendingUserId={setSites.isPending ? (setSites.variables?.userId ?? null) : null}
         onAdminChange={(user, isAdmin) => void handleAdminChange(user, isAdmin)}
         adminPendingUserId={setAdmin.isPending ? (setAdmin.variables?.userId ?? null) : null}
         currentUserId={currentUserId}

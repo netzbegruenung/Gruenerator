@@ -178,6 +178,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { requireSitesAccess } from './services/user/sitesEntitlement.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
@@ -359,8 +360,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { default: thumbnailRouter } = await import('./routes/media/thumbnailRouter.js');
-  const { sitesController: sitesRouter, publicController: _publicSiteRouter } =
-    await import('./routes/sites/index.js');
   const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
@@ -1199,17 +1198,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSharedTemplateContractRouter(app);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
+  app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
-  // ts-rest contract router — mount before the legacy sitesRouter so the
-  // typed CRUD routes match first; /public/:subdomain and /themes fall
-  // through to the legacy router. requireAuth is path-filtered because
-  // /api/sites/public/* must stay anonymous.
-  app.use('/api/sites', standardMutationLimiter, (req, res, next) => {
-    if (req.path.startsWith('/public/')) return next();
-    void requireAuth(req, res, next);
-  });
   mountSitesContractRouter(app);
-  app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   // ts-rest contract router for image editing (multi-reference). requireAuth +
   // limiter run at the prefix because createExpressEndpoints registers

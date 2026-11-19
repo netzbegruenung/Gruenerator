@@ -7,6 +7,7 @@ import {
   fetchInstanceAdminRoles,
   setInstanceAdminUserAdmin,
   setInstanceAdminUserPanda,
+  setInstanceAdminUserSites,
 } from '../../../hooks/useInstanceAdminOverviewTyped';
 
 export type InstanceAdminUser = InstanceAdminUserSummary;
@@ -38,6 +39,18 @@ export function useSetUserPanda() {
   return useMutation({
     mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
       setInstanceAdminUserPanda(userId, enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['bgst-admin-users'] });
+    },
+  });
+}
+
+/** Unlock or lock Sites for one account. */
+export function useSetUserSites() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      setInstanceAdminUserSites(userId, enabled),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['bgst-admin-users'] });
     },
