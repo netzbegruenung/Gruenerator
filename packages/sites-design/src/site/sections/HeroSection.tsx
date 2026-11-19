@@ -65,6 +65,7 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
               url={snapshot.profile_image}
               slot="portrait"
               field="profile_image"
+              focus={snapshot.sections.profileImageFocus}
               className="site:relative site:aspect-[4/5] site:max-h-[70svh] site:w-full site:md:max-h-none"
             />
           ) : (

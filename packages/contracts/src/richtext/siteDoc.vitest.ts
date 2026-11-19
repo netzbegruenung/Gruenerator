@@ -8,6 +8,7 @@ import {
   snapshotDiffers,
 } from '../schemas/siteDraft.js';
 import {
+  buildSitePreviewSnapshot,
   buildSiteSnapshot,
   SITE_ACTIONS_MAX,
   SITE_THEMES_MAX,
@@ -26,6 +27,8 @@ import {
   removeSiteThemeCard,
   seedSiteDoc,
   setSiteField,
+  updateSiteActionTile,
+  updateSiteThemeCard,
 } from './siteDoc.js';
 
 const legal = {
@@ -300,5 +303,80 @@ describe('site ydoc codec', () => {
     expect(draft.hidden).toEqual(blank.hidden);
     expect(draft.site_title).toBe('');
     expect(draft.variant).toBe(blank.variant);
+  });
+});
+
+describe('image focal point', () => {
+  const focused = (): SiteSnapshotSource => {
+    const source = row();
+    source.sections = {
+      ...source.sections,
+      profileImageFocus: { x: 25, y: 0 },
+      heroImage: { imageUrl: '', imageFocus: { x: 75, y: 100 }, title: 'Gemeinsam', subtitle: '' },
+      themes: [{ imageUrl: '', imageFocus: { x: 0, y: 25 }, title: 'Klima', content: rich }],
+      actions: [
+        { imageUrl: '', imageFocus: { x: 100, y: 50 }, text: 'Mitmachen', link: '#kontakt' },
+      ],
+      contact: { title: 'Kontakt', backgroundImageUrl: '', backgroundFocus: { x: 50, y: 75 } },
+    };
+    return source;
+  };
+
+  it('codec round-trips a focus on a theme card', () => {
+    const ydoc = new Y.Doc();
+    seedSiteDoc(ydoc, siteDraftFromSite(focused()), '2026-11-19T10:00:00.000Z');
+    const draft = decodeSiteDraft(ydoc);
+    expect(draft.themes[0]?.imageFocus).toEqual({ x: 0, y: 25 });
+    expect(draft.actions[0]?.imageFocus).toEqual({ x: 100, y: 50 });
+    expect(draft.profileImageFocus).toEqual({ x: 25, y: 0 });
+    expect(draft.heroImage.imageFocus).toEqual({ x: 75, y: 100 });
+    expect(draft.contact.backgroundFocus).toEqual({ x: 50, y: 75 });
+    const back = siteDraftToSnapshotSource(draft, legal);
+    expect(buildSiteSnapshot(back, 'de-DE')).toEqual(buildSiteSnapshot(focused(), 'de-DE'));
+  });
+
+  it('mutators set and clear a focus on theme and action items', () => {
+    const ydoc = seeded();
+    const themeId = decodeSiteDraft(ydoc).themes[0]!.id;
+    const actionId = decodeSiteDraft(ydoc).actions[0]!.id;
+    updateSiteThemeCard(ydoc, themeId, { imageFocus: { x: 25, y: 25 } });
+    updateSiteActionTile(ydoc, actionId, { imageFocus: { x: 75, y: 75 } });
+    setSiteField(ydoc, 'profileImageFocus', { x: 0, y: 0 });
+    let draft = decodeSiteDraft(ydoc);
+    expect(draft.themes[0]?.imageFocus).toEqual({ x: 25, y: 25 });
+    expect(draft.actions[0]?.imageFocus).toEqual({ x: 75, y: 75 });
+    expect(draft.profileImageFocus).toEqual({ x: 0, y: 0 });
+    updateSiteThemeCard(ydoc, themeId, { imageFocus: null });
+    setSiteField(ydoc, 'profileImageFocus', null);
+    draft = decodeSiteDraft(ydoc);
+    expect(draft.themes[0]).not.toHaveProperty('imageFocus');
+    expect(draft).not.toHaveProperty('profileImageFocus');
+  });
+
+  it('a site whose focus was never set does not differ, and a centred focus is left out', () => {
+    const source = row();
+    const built = buildSiteSnapshot(source, 'de-DE');
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    const draft = decodeSiteDraft(seeded());
+    expect(snapshotDiffers(siteDraftToSnapshotSource(draft, legal), built.snapshot)).toBe(false);
+    draft.themes[0]!.imageFocus = { x: 50, y: 50 };
+    draft.profileImageFocus = { x: 50, y: 50 };
+    expect(snapshotDiffers(siteDraftToSnapshotSource(draft, legal), built.snapshot)).toBe(false);
+    draft.themes[0]!.imageFocus = { x: 25, y: 50 };
+    expect(snapshotDiffers(siteDraftToSnapshotSource(draft, legal), built.snapshot)).toBe(true);
+  });
+
+  it('the snapshot keeps a focus and drops an invalid one in preview', () => {
+    const built = buildSiteSnapshot(focused(), 'de-DE');
+    expect(built.ok && built.snapshot.sections.themes?.[0]?.imageFocus).toEqual({ x: 0, y: 25 });
+    expect(built.ok && built.snapshot.sections.profileImageFocus).toEqual({ x: 25, y: 0 });
+    const invalid = focused();
+    // Boundary cast: a stored row can hold a value the schema does not allow.
+    invalid.sections!.themes![0]!.imageFocus = { x: 30, y: 25 } as never;
+    expect(buildSiteSnapshot(invalid, 'de-DE').ok).toBe(false);
+    const preview = buildSitePreviewSnapshot(invalid, 'de-DE');
+    expect(preview.sections.themes?.[0]?.imageFocus).toBeUndefined();
+    expect(preview.sections.themes?.[0]?.title).toBe('Klima');
   });
 });

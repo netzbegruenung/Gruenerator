@@ -3,9 +3,11 @@ import {
   type CreateSiteBody,
   type RichTextDoc,
   type Site,
+  type SitePublishIssue,
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
+import { removeDocCache } from '@gruenerator/collab';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -63,6 +65,16 @@ function toApiError(res: { status: number; body: unknown }): SitesApiError {
   const message =
     (res.body as { error?: string } | null | undefined)?.error ?? `HTTP ${res.status}`;
   return new SitesApiError(res.status, message);
+}
+
+export class SitePublishError extends SitesApiError {
+  readonly issues: SitePublishIssue[];
+
+  constructor(message: string, issues: SitePublishIssue[]) {
+    super(422, message);
+    this.name = 'SitePublishError';
+    this.issues = issues;
+  }
 }
 
 export function usePrepareSiteDraft() {
@@ -125,8 +137,20 @@ export function useSite() {
         params: { id },
         body: { publish },
       });
+      if (res.status === 422) throw new SitePublishError(res.body.error, res.body.issues);
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await getContractsClient().sites.deleteSite({ params: { id }, body: {} });
+      if (res.status !== 200) throw toApiError(res);
+      removeDocCache(`site-${id}`);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-site'] });
@@ -177,11 +201,13 @@ export function useSite() {
     createSite: createMutation.mutateAsync,
     updateSite: updateMutation.mutateAsync,
     togglePublish: publishMutation.mutateAsync,
+    deleteSite: deleteMutation.mutateAsync,
     generateSite: generateMutation.mutateAsync,
     generateFromFlyer: flyerMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isPublishing: publishMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     isGenerating: generateMutation.isPending,
     isGeneratingFromFlyer: flyerMutation.isPending,
   };

@@ -5,17 +5,18 @@
  * (`@gruenerator/contracts/site-ydoc`).
  */
 import { type SiteDraft } from './schemas/siteDraft.js';
+import { type SiteImageFocus } from './schemas/sites.js';
 
 export const SITE_YDOC_KEYS = {
   /** Y.Map: seed guard and schema version. */
   meta: 'siteMeta',
   /** Y.Map of plain values, last writer wins per key. */
   fields: 'siteFields',
-  /** Y.Map<id, Y.Map>: theme cards (title, imageUrl). */
+  /** Y.Map<id, Y.Map>: theme cards (title, imageUrl, imageFocus). */
   themes: 'siteThemes',
   /** Y.Array<string>: theme ids in display order. */
   themeOrder: 'siteThemeOrder',
-  /** Y.Map<id, Y.Map>: action tiles (text, link, imageUrl). */
+  /** Y.Map<id, Y.Map>: action tiles (text, link, imageUrl, imageFocus). */
   actions: 'siteActions',
   /** Y.Array<string>: action ids in display order. */
   actionOrder: 'siteActionOrder',
@@ -33,6 +34,7 @@ export const SITE_FIELD_KEYS = [
   'site_title',
   'tagline',
   'profile_image',
+  'profileImageFocus',
   'variant',
   'contact_email',
   'contact_phone',
@@ -40,10 +42,12 @@ export const SITE_FIELD_KEYS = [
   'hidden',
   'about.title',
   'heroImage.imageUrl',
+  'heroImage.imageFocus',
   'heroImage.title',
   'heroImage.subtitle',
   'contact.title',
   'contact.backgroundImageUrl',
+  'contact.backgroundFocus',
   'socialFeed.title',
   'socialFeed.instagramUsername',
   'socialFeed.showFeed',
@@ -55,6 +59,7 @@ export type SiteFieldValues = {
   site_title: SiteDraft['site_title'];
   tagline: SiteDraft['tagline'];
   profile_image: SiteDraft['profile_image'];
+  profileImageFocus: SiteImageFocus | null;
   variant: SiteDraft['variant'];
   contact_email: SiteDraft['contact_email'];
   contact_phone: SiteDraft['contact_phone'];
@@ -62,10 +67,12 @@ export type SiteFieldValues = {
   hidden: SiteDraft['hidden'];
   'about.title': SiteDraft['about']['title'];
   'heroImage.imageUrl': SiteDraft['heroImage']['imageUrl'];
+  'heroImage.imageFocus': SiteImageFocus | null;
   'heroImage.title': SiteDraft['heroImage']['title'];
   'heroImage.subtitle': SiteDraft['heroImage']['subtitle'];
   'contact.title': SiteDraft['contact']['title'];
   'contact.backgroundImageUrl': SiteDraft['contact']['backgroundImageUrl'];
+  'contact.backgroundFocus': SiteImageFocus | null;
   'socialFeed.title': SiteDraft['socialFeed']['title'];
   'socialFeed.instagramUsername': SiteDraft['socialFeed']['instagramUsername'];
   'socialFeed.showFeed': SiteDraft['socialFeed']['showFeed'];

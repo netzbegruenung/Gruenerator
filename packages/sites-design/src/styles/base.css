@@ -109,3 +109,106 @@
     }
   }
 }
+
+/* Focal point of a cropped image. Classes, not style attributes: the public CSP forbids `style=`. */
+@layer base {
+  .site-focus-0-0 {
+    object-position: 0% 0%;
+  }
+
+  .site-focus-0-25 {
+    object-position: 0% 25%;
+  }
+
+  .site-focus-0-50 {
+    object-position: 0% 50%;
+  }
+
+  .site-focus-0-75 {
+    object-position: 0% 75%;
+  }
+
+  .site-focus-0-100 {
+    object-position: 0% 100%;
+  }
+
+  .site-focus-25-0 {
+    object-position: 25% 0%;
+  }
+
+  .site-focus-25-25 {
+    object-position: 25% 25%;
+  }
+
+  .site-focus-25-50 {
+    object-position: 25% 50%;
+  }
+
+  .site-focus-25-75 {
+    object-position: 25% 75%;
+  }
+
+  .site-focus-25-100 {
+    object-position: 25% 100%;
+  }
+
+  .site-focus-50-0 {
+    object-position: 50% 0%;
+  }
+
+  .site-focus-50-25 {
+    object-position: 50% 25%;
+  }
+
+  .site-focus-50-50 {
+    object-position: 50% 50%;
+  }
+
+  .site-focus-50-75 {
+    object-position: 50% 75%;
+  }
+
+  .site-focus-50-100 {
+    object-position: 50% 100%;
+  }
+
+  .site-focus-75-0 {
+    object-position: 75% 0%;
+  }
+
+  .site-focus-75-25 {
+    object-position: 75% 25%;
+  }
+
+  .site-focus-75-50 {
+    object-position: 75% 50%;
+  }
+
+  .site-focus-75-75 {
+    object-position: 75% 75%;
+  }
+
+  .site-focus-75-100 {
+    object-position: 75% 100%;
+  }
+
+  .site-focus-100-0 {
+    object-position: 100% 0%;
+  }
+
+  .site-focus-100-25 {
+    object-position: 100% 25%;
+  }
+
+  .site-focus-100-50 {
+    object-position: 100% 50%;
+  }
+
+  .site-focus-100-75 {
+    object-position: 100% 75%;
+  }
+
+  .site-focus-100-100 {
+    object-position: 100% 100%;
+  }
+}

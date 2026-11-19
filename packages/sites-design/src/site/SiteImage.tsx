@@ -1,14 +1,18 @@
-import { type SiteImageSlot, siteImageAttrs } from '../model/images.js';
+import { type SiteImageFocus } from '@gruenerator/contracts';
+
+import { focusClass, type SiteImageSlot, siteImageAttrs } from '../model/images.js';
 
 export function SiteImage({
   url,
   slot,
   field,
+  focus = null,
   className = '',
 }: {
   url: string;
   slot: SiteImageSlot;
   field: string;
+  focus?: SiteImageFocus | null | undefined;
   className?: string;
 }) {
   const attrs = siteImageAttrs(url, slot);
@@ -26,7 +30,7 @@ export function SiteImage({
           fetchPriority={attrs.fetchPriority}
           decoding="async"
           alt=""
-          className="site:block site:size-full site:object-cover"
+          className={`site:block site:size-full site:object-cover ${focusClass(focus)}`.trim()}
         />
       </picture>
     </div>

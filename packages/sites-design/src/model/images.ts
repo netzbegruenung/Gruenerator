@@ -1,3 +1,5 @@
+import { type SiteImageFocus } from '@gruenerator/contracts';
+
 export const SITE_IMAGE_WIDTHS = [400, 800, 1200, 2160] as const;
 export type SiteImageWidth = (typeof SITE_IMAGE_WIDTHS)[number];
 export type SiteImageSlot = 'portrait' | 'banner' | 'card' | 'tile' | 'backdrop';
@@ -91,4 +93,9 @@ export function siteImageAttrs(url: string, slot: SiteImageSlot): SiteImageAttrs
     loading: spec.loading,
     fetchPriority: spec.fetchPriority,
   };
+}
+
+export function focusClass(focus: SiteImageFocus | null | undefined): string {
+  if (!focus || (focus.x === 50 && focus.y === 50)) return '';
+  return `site-focus-${focus.x}-${focus.y}`;
 }

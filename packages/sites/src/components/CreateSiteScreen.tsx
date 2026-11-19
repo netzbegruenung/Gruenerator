@@ -3,8 +3,14 @@ import { Button, Label, Textarea, ToggleGroup, ToggleGroupItem } from '@gruenera
 import { useCallback, useRef, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiFile, FiUpload, FiX } from 'react-icons/fi';
 
+import { type HandleCheck } from '../hooks/useHandleCheck';
+import { formatAddress } from '../utils/siteAddress';
+
+import { AddressField } from './editor/settings/AddressField';
+
 interface CreateSiteScreenProps {
   subdomain: string;
+  publicOrigin: string | null;
   onSubdomainChange: (value: string) => void;
   description: string;
   onDescriptionChange: (value: string) => void;
@@ -22,6 +28,7 @@ const MIN_DESCRIPTION = 50;
 
 export function CreateSiteScreen({
   subdomain,
+  publicOrigin,
   onSubdomainChange,
   description,
   onDescriptionChange,
@@ -76,7 +83,13 @@ export function CreateSiteScreen({
     }
   }, [mode, selectedFile, onFlyerUpload, onGenerate]);
 
-  const canProceed = subdomain.trim().length >= 3;
+  const [addressState, setAddressState] = useState<HandleCheck>('idle');
+  const canProceed =
+    subdomain.trim().length >= 3 &&
+    addressState !== 'checking' &&
+    addressState !== 'taken' &&
+    addressState !== 'invalid' &&
+    addressState !== 'reserved';
   const descriptionLength = description.trim().length;
   const canGenerate =
     mode === 'flyer' ? !!selectedFile && !!onFlyerUpload : descriptionLength >= MIN_DESCRIPTION;
@@ -122,30 +135,22 @@ export function CreateSiteScreen({
           </p>
 
           <div className="max-w-[560px] lg:max-w-[600px] mx-auto">
-            <Label htmlFor="subdomain" className="sr-only">
-              Adresse
-            </Label>
-            <div className="flex items-center rounded-lg border border-grey-200 dark:border-grey-700 bg-card transition-all focus-within:border-primary-500 focus-within:ring-[3px] focus-within:ring-ring/50">
-              <span className="shrink-0 pl-5 pr-1 text-xl text-grey-300 dark:text-grey-600 select-none hidden sm:inline">
-                https://
-              </span>
-              <input
+            <div className="text-left">
+              <AddressField
                 id="subdomain"
-                type="text"
                 value={subdomain}
-                onChange={(e) => onSubdomainChange(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && canProceed && setStep(1)}
-                placeholder="dein-name"
+                onChange={onSubdomainChange}
+                current={null}
+                publicOrigin={publicOrigin}
+                onEnter={() => canProceed && setStep(1)}
+                onStateChange={setAddressState}
                 disabled={isProcessing}
                 autoFocus
-                className="flex-1 h-16 lg:h-[72px] bg-transparent text-xl lg:text-2xl text-foreground placeholder:text-grey-300 dark:placeholder:text-grey-600 border-none outline-none px-2 min-w-0"
+                large
               />
-              <span className="shrink-0 pr-5 text-xl text-grey-400 dark:text-grey-500 font-medium select-none">
-                .grsites.de
-              </span>
             </div>
-            <p className="text-sm text-grey-400 dark:text-grey-500 mt-3">
-              Kleinbuchstaben, Zahlen und Bindestriche · 3–50 Zeichen
+            <p className="text-sm text-grey-400 dark:text-grey-500 mt-1">
+              Kleinbuchstaben, Zahlen und Bindestriche · 3–30 Zeichen
             </p>
           </div>
 
@@ -174,7 +179,9 @@ export function CreateSiteScreen({
               <FiArrowLeft className="size-4" />
               Zurück
             </button>
-            <span className="text-sm text-grey-500 dark:text-grey-400">{subdomain}.grsites.de</span>
+            <span className="text-sm text-grey-500 dark:text-grey-400">
+              {formatAddress(publicOrigin, subdomain)}
+            </span>
           </div>
 
           <div className="text-center mb-8">

@@ -69,11 +69,11 @@ export const SITE_ACTIONS_MAX = 6;
 export const SITE_SOCIAL_LINKS_MAX = 10;
 export const SITE_PHONE_MAX = 40;
 
-const LEGAL_NAME_MAX = 120;
-const LEGAL_STREET_MAX = 160;
-const LEGAL_POSTAL_CODE_MAX = 12;
-const LEGAL_CITY_MAX = 80;
-const LEGAL_EMAIL_MAX = 254;
+export const LEGAL_NAME_MAX = 120;
+export const LEGAL_STREET_MAX = 160;
+export const LEGAL_POSTAL_CODE_MAX = 12;
+export const LEGAL_CITY_MAX = 80;
+export const LEGAL_EMAIL_MAX = 254;
 const SOCIAL_KEY_MAX = 30;
 const INSTAGRAM_USERNAME_MAX = 60;
 
@@ -108,8 +108,22 @@ const socialLinksDraft = z
     message: 'Zu viele Social-Media-Links',
   });
 
+const focusStep = z.union([
+  z.literal(0),
+  z.literal(25),
+  z.literal(50),
+  z.literal(75),
+  z.literal(100),
+]);
+export const SITE_IMAGE_FOCUS_STEPS = [0, 25, 50, 75, 100] as const;
+
+/** Where a cropped image stays in view, in percent steps; absent means the centre. */
+export const siteImageFocusSchema = z.object({ x: focusStep, y: focusStep });
+export type SiteImageFocus = z.infer<typeof siteImageFocusSchema>;
+
 export const siteThemeCardSchema = z.object({
   imageUrl: urlField,
+  imageFocus: siteImageFocusSchema.optional(),
   title: z.string().max(SITE_SECTION_TITLE_MAX),
   content: boundedRichTextDoc(SITE_THEME_CONTENT_MAX_LENGTH),
 });
@@ -117,6 +131,7 @@ export type SiteThemeCard = z.infer<typeof siteThemeCardSchema>;
 
 export const siteActionTileSchema = z.object({
   imageUrl: urlField,
+  imageFocus: siteImageFocusSchema.optional(),
   text: z.string().max(SITE_ACTION_TEXT_MAX),
   link: urlField,
 });
@@ -156,9 +171,11 @@ export type SiteSectionId = (typeof SITE_SECTION_IDS)[number];
 
 export const siteSectionsSchema = z.object({
   hidden: z.array(siteOptionalSectionSchema).max(6).optional(),
+  profileImageFocus: siteImageFocusSchema.optional(),
   heroImage: z
     .object({
       imageUrl: urlField,
+      imageFocus: siteImageFocusSchema.optional(),
       title: z.string().max(SITE_TITLE_MAX),
       subtitle: z.string().max(SITE_TAGLINE_MAX),
     })
@@ -172,7 +189,11 @@ export const siteSectionsSchema = z.object({
   themes: z.array(siteThemeCardSchema).max(SITE_THEMES_MAX).optional(),
   actions: z.array(siteActionTileSchema).max(SITE_ACTIONS_MAX).optional(),
   contact: z
-    .object({ title: z.string().max(SITE_SECTION_TITLE_MAX), backgroundImageUrl: urlField })
+    .object({
+      title: z.string().max(SITE_SECTION_TITLE_MAX),
+      backgroundImageUrl: urlField,
+      backgroundFocus: siteImageFocusSchema.optional(),
+    })
     .optional(),
   socialFeed: z
     .object({
@@ -338,10 +359,14 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
   const sectionTitle = lenient(z.string().max(SITE_SECTION_TITLE_MAX), '');
   const richText = (max: number) => lenient(snapshotRichTextDoc(max), emptyRichTextDoc());
 
+  const focus = lenient(siteImageFocusSchema.optional(), undefined);
+
   const sections = z.object({
+    profileImageFocus: focus,
     heroImage: z
       .object({
         imageUrl: image,
+        imageFocus: focus,
         title: lenient(z.string().max(SITE_TITLE_MAX), ''),
         subtitle: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
       })
@@ -352,6 +377,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
         .array(
           z.object({
             imageUrl: image,
+            imageFocus: focus,
             title: sectionTitle,
             content: richText(SITE_THEME_CONTENT_MAX_LENGTH),
           })
@@ -365,6 +391,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
         .array(
           z.object({
             imageUrl: image,
+            imageFocus: focus,
             text: lenient(z.string().max(SITE_ACTION_TEXT_MAX), ''),
             link: lenient(snapshotLink, ''),
           })
@@ -373,7 +400,9 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
         .optional(),
       []
     ),
-    contact: z.object({ title: sectionTitle, backgroundImageUrl: image }).optional(),
+    contact: z
+      .object({ title: sectionTitle, backgroundImageUrl: image, backgroundFocus: focus })
+      .optional(),
     socialFeed: z
       .object({
         title: sectionTitle,
@@ -621,6 +650,7 @@ export const checkSubdomainResponseSchema = z.object({
   available: z.boolean(),
   reason: z.enum(['invalid', 'reserved']).optional(),
 });
+export type CheckSubdomainResponse = z.infer<typeof checkSubdomainResponseSchema>;
 
 export const deleteSiteResponseSchema = z.object({ success: z.boolean() });
 

@@ -50,6 +50,7 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
                     url={action.imageUrl}
                     slot="tile"
                     field={`sections.actions.${i}.imageUrl`}
+                    focus={action.imageFocus}
                     className="site:aspect-[3/2] site:sm:aspect-[4/5]"
                   />
                   <div

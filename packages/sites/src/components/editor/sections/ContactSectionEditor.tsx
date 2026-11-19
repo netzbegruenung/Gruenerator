@@ -4,6 +4,7 @@ import { Input, Label } from '@gruenerator/ui';
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 
 export function ContactSectionEditor() {
@@ -13,6 +14,7 @@ export function ContactSectionEditor() {
   const email = useDraft((d) => d.contact_email);
   const phone = useDraft((d) => d.contact_phone);
   const backgroundImageUrl = useDraft((d) => d.contact.backgroundImageUrl);
+  const backgroundFocus = useDraft((d) => d.contact.backgroundFocus ?? null);
 
   return (
     <div>
@@ -61,19 +63,26 @@ export function ContactSectionEditor() {
       <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <Label
-          htmlFor="contact-background-image"
+        <p
+          id="contact-background-image-label"
           className="block text-sm font-medium text-foreground mb-1.5"
         >
           Hintergrundbild
-        </Label>
+        </p>
         <ImageUpload
-          id="contact-background-image"
+          labelledBy="contact-background-image-label"
           value={backgroundImageUrl}
           onChange={(url) => setField('contact.backgroundImageUrl', url)}
           aspectRatio="16/9"
           placeholder="Kontakt-Hintergrund"
         />
+        {backgroundImageUrl && (
+          <FocalPointPicker
+            src={backgroundImageUrl}
+            value={backgroundFocus}
+            onChange={(focus) => setField('contact.backgroundFocus', focus)}
+          />
+        )}
       </div>
     </div>
   );
