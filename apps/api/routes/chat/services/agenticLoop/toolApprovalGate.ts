@@ -11,6 +11,11 @@ export interface ToolApprovalGate {
    * Der Aufrufer darf das Werkzeug dann NICHT ausführen.
    */
   hold(call: { toolName: string; stepId: string; args: Record<string, unknown> }): boolean;
+  /**
+   * Die Absage für ein Werkzeug, das die Person in DIESER Fortsetzung gerade
+   * abgelehnt hat, sonst null. Der Aufrufer führt dann weder aus noch fragt er.
+   */
+  refusal(toolName: string): string | null;
   pending(): PendingToolCall[];
   hasPending(): boolean;
   /** Bricht den Loop ab, sobald der erste Aufruf zurückgehalten wurde. */
@@ -33,6 +38,13 @@ export function createToolApprovalGate(params: {
   titleFor?: (toolName: string) => string | undefined;
   serverNameFor?: (toolName: string) => string | undefined;
   grantedOnce?: ReadonlyMap<string, number>;
+  /**
+   * Die `scopeKey`s, die die Person in der Entscheidung zu dieser Fortsetzung
+   * abgelehnt hat. Ohne die Sperre rief das Modell live (19.11.2026, nuudel)
+   * nach „Ablehnen" sofort dasselbe Werkzeug mit neu geratenen Argumenten auf,
+   * und die Person bekam die nächste Karte statt einer Frage.
+   */
+  deniedOnce?: ReadonlySet<string>;
 }): ToolApprovalGate {
   const controller = new AbortController();
   const held = new Map<string, PendingToolCall>();
@@ -42,6 +54,14 @@ export function createToolApprovalGate(params: {
     signal: controller.signal,
     pending: () => [...held.values()],
     hasPending: () => held.size > 0,
+    refusal(toolName) {
+      if (!params.enabled || !params.deniedOnce?.size) return null;
+      const origin = params.originFor(toolName);
+      const verdict = evaluateApproval({ toolName, origin, allowlist: params.allowlist });
+      if (!verdict.required || !params.deniedOnce.has(verdict.scopeKey)) return null;
+      log.info(`[Freigabe] ${toolName} nach Ablehnung erneut versucht — abgewiesen`);
+      return 'Die Person hat diesen Aufruf gerade abgelehnt. Ruf das Werkzeug in dieser Antwort nicht erneut auf. Sag knapp, dass nichts passiert ist, und frag, was anders sein soll.';
+    },
     hold({ toolName, stepId, args }) {
       if (!params.enabled) return false;
       const origin = params.originFor(toolName);

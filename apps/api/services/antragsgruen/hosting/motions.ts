@@ -21,9 +21,9 @@
 import * as cheerio from 'cheerio';
 
 import { markdownToHtml } from '../../markdown/MarkdownService.js';
+import { FormStepError, type FormClient } from '../../webForms/formClient.js';
 
 import { agendaOf, findAgendaItem } from './agenda.js';
-import { AntragsgruenFormError, type FormClient } from './formClient.js';
 import { botClient, login, requireAdmins, type HostingConfig } from './session.js';
 
 export interface MotionRequest {
@@ -62,7 +62,7 @@ interface MotionType {
 export function splitSiteUrl(siteUrl: string): { origin: string; consultation: string } {
   const url = new URL(siteUrl);
   const consultation = url.pathname.split('/').filter(Boolean)[0];
-  if (!consultation) throw new AntragsgruenFormError(`Keine Konsultation in ${siteUrl}`, 'site');
+  if (!consultation) throw new FormStepError(`Keine Konsultation in ${siteUrl}`, 'site');
   return { origin: url.origin, consultation };
 }
 
@@ -85,7 +85,7 @@ async function restJson<T>(
   try {
     return { status: res.status, body: JSON.parse(res.html) as T };
   } catch {
-    throw new AntragsgruenFormError(`Keine JSON-Antwort (HTTP ${res.status})`, 'rest');
+    throw new FormStepError(`Keine JSON-Antwort (HTTP ${res.status})`, 'rest');
   }
 }
 
@@ -104,14 +104,13 @@ export function motionSections(
     else if (s === reason && req.reason)
       out.push({ section_id: s.id, data: markdownToHtml(req.reason) });
     else if (s.required === 'yes') {
-      throw new AntragsgruenFormError(
+      throw new FormStepError(
         `Der Antragstyp verlangt den Abschnitt „${s.title}" (${s.type}), den der Grünerator nicht füllen kann`,
         'motion-type'
       );
     }
   }
-  if (!body)
-    throw new AntragsgruenFormError('Der Antragstyp hat keinen Antragstext', 'motion-type');
+  if (!body) throw new FormStepError('Der Antragstyp hat keinen Antragstext', 'motion-type');
   return out;
 }
 
@@ -132,7 +131,7 @@ export async function tokenOf(
   } catch {
     token = undefined;
   }
-  if (!token) throw new AntragsgruenFormError('Kein Token für die Seite', 'token');
+  if (!token) throw new FormStepError('Kein Token für die Seite', 'token');
   return token;
 }
 
@@ -150,7 +149,7 @@ export async function motionTypeOf(
   );
   const type = types.body.items?.[0];
   if (types.status !== 200 || !type) {
-    throw new AntragsgruenFormError(`Keine Antragstypen (HTTP ${types.status})`, 'motion-type');
+    throw new FormStepError(`Keine Antragstypen (HTTP ${types.status})`, 'motion-type');
   }
   return { token, type };
 }
@@ -174,7 +173,7 @@ export async function createMotionOnHostedSite(
     const hit = findAgendaItem(items, req.agendaItem);
     if (!hit) {
       const list = items.map((i) => `${i.code ? `${i.code} ` : ''}${i.title}`).join(', ');
-      throw new AntragsgruenFormError(
+      throw new FormStepError(
         `Kein Tagesordnungspunkt „${req.agendaItem}"${list ? ` (vorhanden: ${list})` : ' — die Seite hat keine Tagesordnung'}`,
         'agenda-item'
       );
@@ -203,10 +202,7 @@ export async function createMotionOnHostedSite(
   });
   if (created.status !== 201 || typeof created.body.id !== 'number') {
     const detail = created.body.message ?? JSON.stringify(created.body.errors ?? '');
-    throw new AntragsgruenFormError(
-      `Antrag abgelehnt (HTTP ${created.status}): ${detail}`,
-      'create'
-    );
+    throw new FormStepError(`Antrag abgelehnt (HTTP ${created.status}): ${detail}`, 'create');
   }
   return {
     id: created.body.id,

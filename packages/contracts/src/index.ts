@@ -62,6 +62,7 @@ export {
   notebookWordpressContract,
   userWebsitesContract,
   antragsgruenSitesContract,
+  nuudelPollsContract,
   letterheadsContract,
   notebookSharingContract,
   docsContract,
@@ -185,6 +186,7 @@ export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
 export * from './schemas/userWebsite.js';
 export * from './schemas/antragsgruenSites.js';
+export * from './schemas/nuudelPolls.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';

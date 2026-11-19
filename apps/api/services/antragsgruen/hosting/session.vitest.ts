@@ -23,7 +23,7 @@ vi.mock('../../../utils/redis/client.js', () => ({
   },
 }));
 
-import { AntragsgruenFormError, FormClient, type FetchLike } from './formClient.js';
+import { FormStepError, FormClient, type FetchLike } from '../../webForms/formClient.js';
 import { login, loginRefusalText, resetBotSessionForTests, type HostingConfig } from './session.js';
 
 const CONFIG: HostingConfig = {
@@ -80,9 +80,7 @@ describe('login', () => {
   });
 
   it('shares the pause through Redis with the other workers', async () => {
-    await expect(login(fakeLogin('wrong').client, CONFIG)).rejects.toBeInstanceOf(
-      AntragsgruenFormError
-    );
+    await expect(login(fakeLogin('wrong').client, CONFIG)).rejects.toBeInstanceOf(FormStepError);
     // Ein anderer Worker: eigener Prozesszustand, dieselbe Redis.
     resetBotSessionForTests();
     const other = fakeLogin('ok');
@@ -101,12 +99,10 @@ describe('login', () => {
 
 describe('loginRefusalText', () => {
   it('names the captcha, and a paused or failed login, and nothing else', () => {
-    expect(loginRefusalText(new AntragsgruenFormError('x', 'captcha'))).toMatch(/Captcha/);
-    expect(loginRefusalText(new AntragsgruenFormError('x', 'login'))).toMatch(/nicht .* anmelden/);
-    expect(loginRefusalText(new AntragsgruenFormError('x', 'login-paused'))).toMatch(
-      /nicht .* anmelden/
-    );
-    expect(loginRefusalText(new AntragsgruenFormError('x', 'revoked'))).toBeNull();
+    expect(loginRefusalText(new FormStepError('x', 'captcha'))).toMatch(/Captcha/);
+    expect(loginRefusalText(new FormStepError('x', 'login'))).toMatch(/nicht .* anmelden/);
+    expect(loginRefusalText(new FormStepError('x', 'login-paused'))).toMatch(/nicht .* anmelden/);
+    expect(loginRefusalText(new FormStepError('x', 'revoked'))).toBeNull();
     expect(loginRefusalText(new Error('x'))).toBeNull();
   });
 });

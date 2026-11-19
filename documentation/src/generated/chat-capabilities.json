@@ -812,6 +812,13 @@
       "avatar": "🗳️",
       "category": "dokumente",
       "audience": "de-DE"
+    },
+    {
+      "command": "@nuudel",
+      "title": "Terminumfrage mit nuudel (Experimentell)",
+      "description": "Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen und auswerten. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.",
+      "avatar": "📅",
+      "category": "sonstiges"
     }
   ],
   "skillCategoryLabels": {

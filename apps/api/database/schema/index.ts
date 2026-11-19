@@ -37,6 +37,7 @@ export * from './userItemUsage.js';
 export * from './collectionSubscriptions.js';
 export * from './dailyBriefings.js';
 export * from './antragsgruenHostedSites.js';
+export * from './nuudelPolls.js';
 export * from './userLibraryItems.js';
 export * from './userUsage.js';
 export * from './platformCreation.js';

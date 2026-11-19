@@ -45,10 +45,10 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
   }),
 }));
 
-import { FormClient, type FetchLike } from './formClient.js';
+import { FormClient, OrderRefused, type FetchLike } from '../../webForms/formClient.js';
 import { createMotionOnHostedSite } from './motions.js';
 import { adminEmailsOf, login, requireAdmins, resetBotSessionForTests } from './session.js';
-import { SiteOrderRefused, connectAntragsgruenSite, parseSiteAddress } from './sites.js';
+import { connectAntragsgruenSite, parseSiteAddress } from './sites.js';
 
 const attr = (value: unknown) => JSON.stringify(value).replace(/"/g, '&quot;');
 
@@ -235,7 +235,7 @@ describe('connectAntragsgruenSite', () => {
   it('refuses addresses off the Antragsgrün host', async () => {
     await expect(
       connectAntragsgruenSite('u1', 'https://example.org/kmv', fakeSite({}))
-    ).rejects.toBeInstanceOf(SiteOrderRefused);
+    ).rejects.toBeInstanceOf(OrderRefused);
   });
 });
 

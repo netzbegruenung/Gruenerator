@@ -54,6 +54,7 @@ export type SettingsTab =
   | 'wolke'
   | 'websites'
   | 'antragsgruen'
+  | 'nuudel'
   | 'konnektoren'
   | 'nutzung'
   | 'support';

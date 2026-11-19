@@ -288,6 +288,10 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   antragsgruen_tagesordnung: 30_000,
   // Login, Admin-Prüfung, Antragsliste; beim Lesen eines Antrags dazu Token, JSON und Seite.
   antragsgruen_seite_lesen: 30_000,
+  // Drei Formularschritte bei nuudel (je Frist 20 s, `webForms/formClient.ts`).
+  nuudel_umfrage_anlegen: 70_000,
+  // Ein CSV-Abruf.
+  nuudel_umfrage_lesen: 25_000,
 };
 
 /**
@@ -367,4 +371,8 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'antragsgruen_seite_lesen',
   'antragsgruen_antrag_stellen',
   'antragsgruen_seite_anlegen',
+  // Ein korrigierter Termin oder eine zweite Umfrage teilt fast alle Argumente.
+  'nuudel_umfrage_anlegen',
+  // Erst die jüngste, dann eine andere über ihren Titel: ein Argument Unterschied.
+  'nuudel_umfrage_lesen',
 ]);

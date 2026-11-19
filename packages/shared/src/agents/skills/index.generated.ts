@@ -1018,4 +1018,19 @@ export const SKILLS = [
       'antragsgruen_seite_lesen',
     ],
   },
+  {
+    identifier: 'gruenerator-universal',
+    title: 'Terminumfrage mit nuudel (Experimentell)',
+    description:
+      'Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen und auswerten. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.',
+    iconKey: 'PiListChecks',
+    avatar: '📅',
+    backgroundColor: '#316049',
+    mention: 'nuudel',
+    skillCategory: 'sonstiges',
+    audience: 'all',
+    promptTemplate: 'Erstelle eine Terminumfrage für: ',
+    rolle: 'methode',
+    recommendedTools: ['nuudel_umfrage_anlegen', 'nuudel_umfrage_lesen'],
+  },
 ] as const satisfies readonly SystemSkill[];
