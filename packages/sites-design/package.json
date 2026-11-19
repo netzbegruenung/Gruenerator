@@ -6,12 +6,27 @@
   "sideEffects": [
     "**/*.css"
   ],
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "development": "./src/server.ts",
+      "types": "./src/server.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./site.css": "./dist/site.css",
+    "./consent.js": "./dist/client/siteConsent.js",
+    "./fonts/*": "./assets/fonts/*"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json && tailwindcss -i ./src/site.css -o ./dist/site.css --minify",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
