@@ -20,7 +20,7 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 const req = { user: { id: 'admin-1', email: 'admin@example.org' } } as never;
 const USER_ID = '6f1c1d1e-8f3a-4c2b-9a51-2b7f0c4d9e10';
 
-function row(panda_enabled: boolean | null) {
+function row(panda_enabled: boolean | null, sites_unlocked: boolean | null = null) {
   return {
     id: USER_ID,
     email: 'person@example.org',
@@ -29,6 +29,7 @@ function row(panda_enabled: boolean | null) {
     last_login: null,
     created_at: '2026-09-01T00:00:00.000Z',
     panda_enabled,
+    sites_unlocked,
   };
 }
 
@@ -86,6 +87,40 @@ describe('instanceAdminOverviewContract.setUserPanda', () => {
     } as never);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('instanceAdminOverviewContract.setUserSites', () => {
+  it('weist ohne Instanz-Admin mit 403 ab und schreibt nichts', async () => {
+    requireInstanceAdmin.mockResolvedValue(false);
+    const router = await loadRouter();
+    const res = await router.setUserSites({
+      req,
+      params: { userId: USER_ID },
+      body: { enabled: true },
+    } as never);
+
+    expect(res.status).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('schreibt die Freischaltung und meldet sie zurück', async () => {
+    query.mockResolvedValue([row(null, true)]);
+    const router = await loadRouter();
+    const res = await router.setUserSites({
+      req,
+      params: { userId: USER_ID },
+      body: { enabled: true },
+    } as never);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE profiles SET sites_unlocked = $1 WHERE id = $2::uuid'),
+      [true, USER_ID]
+    );
+    expect(res).toMatchObject({
+      status: 200,
+      body: { data: { id: USER_ID, sitesUnlocked: true } },
+    });
   });
 });
 

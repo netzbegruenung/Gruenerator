@@ -50,6 +50,8 @@ export interface AdminUserRow {
   pandaEnabled?: boolean | null;
   /** Whether the lane is on for this person right now. */
   pandaEffective?: boolean;
+  /** Whether an admin has unlocked Sites for this person. */
+  sitesUnlocked?: boolean;
 }
 
 interface AdminUserTableProps {
@@ -61,6 +63,9 @@ interface AdminUserTableProps {
   onPandaChange?: (userId: string, enabled: boolean) => void;
   /** The row whose unlock is being saved — its switch is disabled meanwhile. */
   pandaPendingUserId?: string | null;
+  /** Shows the „Sites" column; omitted on every other admin surface. */
+  onSitesChange?: (userId: string, enabled: boolean) => void;
+  sitesPendingUserId?: string | null;
   /** Shows the „Admin" column; omitted on every other admin surface. */
   onAdminChange?: (user: AdminUserRow, isAdmin: boolean) => void;
   adminPendingUserId?: string | null;
@@ -84,6 +89,8 @@ export default function AdminUserTable({
   pageSize = 25,
   onPandaChange,
   pandaPendingUserId = null,
+  onSitesChange,
+  sitesPendingUserId = null,
   onAdminChange,
   adminPendingUserId = null,
   currentUserId = null,
@@ -155,6 +162,24 @@ export default function AdminUserTable({
             } satisfies ColumnDef<AdminUserRow>,
           ]
         : []),
+      ...(onSitesChange
+        ? [
+            {
+              id: 'sites',
+              header: 'Sites',
+              cell: ({ row }) => (
+                <Switch
+                  checked={row.original.sitesUnlocked === true}
+                  disabled={sitesPendingUserId === row.original.id}
+                  onCheckedChange={(checked) => onSitesChange(row.original.id, checked)}
+                  aria-label={`Sites für ${row.original.name} ${
+                    row.original.sitesUnlocked ? 'sperren' : 'freischalten'
+                  }`}
+                />
+              ),
+            } satisfies ColumnDef<AdminUserRow>,
+          ]
+        : []),
       ...(onAdminChange
         ? [
             {
@@ -177,7 +202,15 @@ export default function AdminUserTable({
           ]
         : []),
     ],
-    [onPandaChange, pandaPendingUserId, onAdminChange, adminPendingUserId, currentUserId]
+    [
+      onPandaChange,
+      pandaPendingUserId,
+      onSitesChange,
+      sitesPendingUserId,
+      onAdminChange,
+      adminPendingUserId,
+      currentUserId,
+    ]
   );
 
   if (isLoading) {

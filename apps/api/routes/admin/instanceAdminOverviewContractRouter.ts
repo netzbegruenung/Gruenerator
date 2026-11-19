@@ -1,6 +1,6 @@
 /**
  * ts-rest contract router for the Bundesgeschäftsstelle-instance admin
- * overview. Read-only except for the „Panda" unlock and the admin grant, `requireInstanceAdmin`-gated per-handler like
+ * overview. Read-only except for the „Panda" and Sites unlocks and the admin grant, `requireInstanceAdmin`-gated per-handler like
  * skillVisibilityContractRouter/adminTemplates — `requireAuth` at the mount
  * prefix in routes.ts covers authentication only.
  */
@@ -13,6 +13,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getAppBundleUsage } from '../../services/appBundles/appBundleUsage.js';
 import { isPandaEntitled } from '../../services/user/pandaEntitlement.js';
+import { isSitesEntitled } from '../../services/user/sitesEntitlement.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { refreshSessionUserSnapshot } from '../../utils/betterAuthSessionUser.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -40,9 +41,11 @@ interface ProfileRow {
   last_login: string | null;
   created_at: string | null;
   panda_enabled: boolean | null;
+  sites_unlocked: boolean | null;
 }
 
-const PROFILE_COLUMNS = 'id, email, display_name, is_admin, last_login, created_at, panda_enabled';
+const PROFILE_COLUMNS =
+  'id, email, display_name, is_admin, last_login, created_at, panda_enabled, sites_unlocked';
 
 function toUserSummary(row: ProfileRow): InstanceAdminUserSummary {
   return {
@@ -54,6 +57,7 @@ function toUserSummary(row: ProfileRow): InstanceAdminUserSummary {
     createdAt: row.created_at,
     pandaEnabled: row.panda_enabled,
     pandaEffective: isPandaEntitled(row.panda_enabled),
+    sitesUnlocked: isSitesEntitled(row.sites_unlocked),
   };
 }
 
@@ -132,6 +136,39 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
       return { status: 200 as const, body: { success: true, data: toUserSummary(row) } };
     } catch (error) {
       log.error('[instanceAdminOverviewContract.setUserPanda] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Speichern der Freischaltung.' },
+      };
+    }
+  },
+
+  setUserSites: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      const { userId } = args.params;
+      const { enabled } = args.body;
+      const postgres = getPostgresInstance();
+      const rows = await postgres.query<ProfileRow>(
+        `UPDATE profiles SET sites_unlocked = $1 WHERE id = $2::uuid RETURNING ${PROFILE_COLUMNS}`,
+        [enabled, userId]
+      );
+      const row = rows[0];
+      if (!row) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Nutzer:in nicht gefunden.' },
+        };
+      }
+
+      log.info(
+        `[instanceAdminOverviewContract.setUserSites] ${authedUser.id} set sites_unlocked=${enabled} for ${userId}`
+      );
+      return { status: 200 as const, body: { success: true, data: toUserSummary(row) } };
+    } catch (error) {
+      log.error('[instanceAdminOverviewContract.setUserSites] Error:', error);
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Speichern der Freischaltung.' },

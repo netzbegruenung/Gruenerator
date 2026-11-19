@@ -53,6 +53,16 @@ describe('Website restore', () => {
     expect(statements.at(-1)).toMatch(/^UPDATE user_sites SET deleted_at = NULL/);
   });
 
+  it('brings the Website back as a draft, before the restore itself', async () => {
+    expect(await restoreUserSite(USER, ID)).toBe('ok');
+    const reset = statements.findIndex((s) =>
+      s.startsWith('UPDATE user_sites SET is_published = false, published_snapshot = NULL')
+    );
+    expect(reset).toBeGreaterThan(-1);
+    expect(statements[reset]).toMatch(/id = \$1 AND user_id = \$2 AND deleted_at IS NOT NULL/);
+    expect(reset).toBeLessThan(statements.length - 1);
+  });
+
   it('answers conflict next to a Website built meanwhile', async () => {
     liveSite = true;
     expect(await restoreUserSite(USER, ID)).toBe('conflict');

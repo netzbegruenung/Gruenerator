@@ -169,6 +169,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ],
   [
     'apps/api/services/contentReports/moderationTargets.ts',
+    'user_sites',
+    'moderation: a site the owner trashed is still removed or restored by the admin',
+    'where(eq(userSites.id, id))',
+  ],
+  [
+    'apps/api/services/contentReports/moderationTargets.ts',
+    'user_sites',
+    'moderation: the report queue shows a site the owner trashed, with its deletedAt',
+    'where(inArray(userSites.id, ids))',
+  ],
+  [
+    'apps/api/services/contentReports/moderationTargets.ts',
     'user_text_forms',
     'moderation: a recipe the owner trashed is still removed or restored by the admin',
     'where(eq(userTextForms.id, id))',
