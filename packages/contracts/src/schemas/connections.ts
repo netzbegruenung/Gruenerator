@@ -11,8 +11,16 @@ import { z } from 'zod';
  * Anbieter mit Ordneransicht und Dateien als Chat-Material. `microsoft-teams`
  * zeigt Team → Kanal → Dateiordner; die Kennungen dort kodiert der Server
  * (`services/connections/teamsIds.ts`), der Client reicht sie nur durch.
+ * `google-mail` und `microsoft-mail` zeigen Ordner bzw. Labels und darin Mails;
+ * eine Mail ist ein Eintrag wie eine Datei.
  */
-export const driveProviderSchema = z.enum(['google', 'microsoft', 'microsoft-teams']);
+export const driveProviderSchema = z.enum([
+  'google',
+  'microsoft',
+  'microsoft-teams',
+  'google-mail',
+  'microsoft-mail',
+]);
 export type DriveProvider = z.infer<typeof driveProviderSchema>;
 
 /** Laufwerke, in die ein Export ohne Zielwahl geht (eigene Ablage). */
@@ -28,7 +36,14 @@ export const connectorTargetProviderSchema = z.enum(['microsoft-teams', 'slack']
 export type ConnectorTargetProvider = z.infer<typeof connectorTargetProviderSchema>;
 
 /** Jeder Nango-Konnektor mit Karte im Verzeichnis. */
-export const connectorProviderSchema = z.enum(['google', 'microsoft', 'microsoft-teams', 'slack']);
+export const connectorProviderSchema = z.enum([
+  'google',
+  'microsoft',
+  'microsoft-teams',
+  'slack',
+  'google-mail',
+  'microsoft-mail',
+]);
 export type ConnectorProvider = z.infer<typeof connectorProviderSchema>;
 
 export const driveBrowseParamsSchema = z.object({
@@ -50,6 +65,8 @@ export const connectorTargetParamsSchema = z.object({
 export const driveBrowseQuerySchema = z.object({
   /** Ohne Angabe: die oberste Ebene des eigenen Laufwerks. */
   folderId: z.string().min(1).optional(),
+  /** Suche beim Anbieter; nur die Postfächer werten sie aus. */
+  q: z.string().trim().min(1).max(200).optional(),
 });
 
 export const driveEntrySchema = z.object({

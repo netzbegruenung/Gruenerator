@@ -18,6 +18,7 @@ import * as googleDriveClient from '../../../../services/api-clients/googleDrive
 import * as microsoftGraphClient from '../../../../services/api-clients/microsoftGraphClient.js';
 import { GRAPH_PDF_CONVERTIBLE } from '../../../../services/connections/connectFileSupport.js';
 import { ConnectionService } from '../../../../services/connections/ConnectionService.js';
+import { readMailAsText } from '../../../../services/connections/mailBrowse.js';
 import { decodeTeamsRef } from '../../../../services/connections/teamsIds.js';
 import { extractTextFromFile } from '../../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -106,6 +107,9 @@ async function acquireText(
         size: buffer.length,
       });
     }
+    case 'google-mail':
+    case 'microsoft-mail':
+      return readMailAsText(provider, accessToken, fileId);
     case 'jira': {
       const sites = await atlassianClient.getAccessibleResources(accessToken);
       if (sites.length === 0) return null;

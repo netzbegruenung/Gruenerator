@@ -1,4 +1,4 @@
-# Teams, Slack, Trello: Einrichtung außerhalb des Codes
+# Teams, Slack, Trello, Mail: Einrichtung außerhalb des Codes
 
 Stand 19.11.2026. Teams und Slack sind Exportziele mit Zielwahl (`GET/POST /api/connections/:provider/targets|send`), Teams zusätzlich Quelle im Cloud-Browser. Trello läuft **nicht** über Nango, sondern als MCP-Server im MCP-Katalog.
 
@@ -25,6 +25,14 @@ Teams und Slack stehen in `ADMIN_ONLY_NANGO_PROVIDERS` (`apps/api/config/nango.t
 - Katalogeintrag in `apps/api/services/mcp/McpRegistryService.ts`: `https://mcp.trello.com/v1`, OAuth über Atlassian mit DCR und PKCE. Keine eigene Trello-App, kein Nango.
 - Laut Trello standardmäßig an für Premium und Enterprise; ob kostenlose Arbeitsbereiche Zugriff haben, steht dort nicht.
 - Ungeprüft: ob Atlassian bei der Registrierung unsere Redirect-Domain annimmt — zeigt das erste Verbinden.
+
+## Postfächer: Gmail (`google-mail`) und Outlook (`microsoft-mail`)
+
+- Nur lesen, im Cloud-Browser des Chats: oben Ordner bzw. Labels, darunter die neuesten Mails, Suche geht an den Anbieter (`?q=`). Eine gewählte Mail wird erst beim Senden gelesen (`connectRetrieval` → `services/connections/mailBrowse.ts`) und geht mit Kopfzeilen als Material in den Turn. Anhänge werden nicht gelesen.
+- Eigene Integrationen neben `google`/`microsoft`: Mail ist eine eigene Zustimmung, bestehende Drive-/OneDrive-Verbindungen bleiben unberührt.
+- **Outlook:** Nango-Vorlage `outlook`, dieselbe Azure-App wie `microsoft`, Scopes `User.Read Mail.Read offline_access`. Keine Admin-Zustimmung nötig, auch private Outlook.com-Konten.
+- **Gmail:** Nango-Vorlage `google-mail`, vorerst derselbe OAuth-Client wie `google`, Scope `gmail.readonly`. Im Cloud-Projekt muss die Gmail API aktiviert sein. `gmail.readonly` ist ein „restricted scope“: ohne Googles Prüfung (mit externer Sicherheitsbewertung) nur für Testnutzer*innen bzw. mit Warnhinweis und höchstens 100 Personen. Vor einer breiten Freigabe ein eigenes Cloud-Projekt erwägen, damit die laufende Markenprüfung für Drive nicht an der Mail-Prüfung hängt (ungeprüft, ob das nötig ist).
+- Beide stehen in `ADMIN_ONLY_NANGO_PROVIDERS`. Die automatische Suche nach Arbeitsaufträgen fürs Tagesbriefing ist Schritt 2 (#5846).
 
 ## Nango-Integrationen per Script
 

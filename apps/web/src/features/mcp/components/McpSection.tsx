@@ -931,6 +931,12 @@ const NANGO_CARDS = [
     searchText: 'microsoft teams kanal dateien',
   },
   { provider: 'slack', title: 'Slack', searchText: 'slack kanal nachricht' },
+  { provider: 'google-mail', title: 'Gmail', searchText: 'gmail google mail e-mail postfach' },
+  {
+    provider: 'microsoft-mail',
+    title: 'Outlook',
+    searchText: 'outlook microsoft mail e-mail postfach exchange',
+  },
 ] as const satisfies readonly { provider: ConnectorProvider; title: string; searchText: string }[];
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
@@ -1000,15 +1006,21 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
   const google = useNangoConnector('google');
   const teams = useNangoConnector('microsoft-teams');
   const slack = useNangoConnector('slack');
+  const gmail = useNangoConnector('google-mail');
+  const outlook = useNangoConnector('microsoft-mail');
   const microsoftAvailable = microsoft.available;
   const googleAvailable = google.available;
   const teamsAvailable = teams.available;
   const slackAvailable = slack.available;
+  const gmailAvailable = gmail.available;
+  const outlookAvailable = outlook.available;
   const nangoConnectors = {
     microsoft,
     google,
     'microsoft-teams': teams,
     slack,
+    'google-mail': gmail,
+    'microsoft-mail': outlook,
   } satisfies Record<ConnectorProvider, ReturnType<typeof useNangoConnector>>;
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
@@ -1059,6 +1071,8 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
       google: googleAvailable,
       'microsoft-teams': teamsAvailable,
       slack: slackAvailable,
+      'google-mail': gmailAvailable,
+      'microsoft-mail': outlookAvailable,
     } satisfies Record<ConnectorProvider, boolean>;
     for (const card of NANGO_CARDS) {
       if (!nangoAvailable[card.provider] || !card.searchText.includes(query)) continue;
@@ -1079,6 +1093,8 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
     googleAvailable,
     teamsAvailable,
     slackAvailable,
+    gmailAvailable,
+    outlookAvailable,
     debouncedSearch,
   ]);
 

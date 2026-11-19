@@ -31,7 +31,8 @@ import { MentionFloatingPanel } from './MentionFloatingPanel';
  */
 
 /** Welche Quelle beim Öffnen vorgewählt ist. `drive` = das erste verbundene Laufwerk. */
-export type CloudSourceHint = 'wolke' | 'drive' | 'microsoft' | 'google' | 'microsoft-teams';
+export type CloudSourceHint =
+  'wolke' | 'drive' | 'microsoft' | 'google' | 'microsoft-teams' | 'google-mail' | 'microsoft-mail';
 
 export interface CloudSelection {
   wolke: WolkeFileToken[];
@@ -71,7 +72,13 @@ const DRIVE_LABELS: Record<string, string> = {
   microsoft: 'OneDrive',
   google: 'Google Drive',
   'microsoft-teams': 'Teams',
+  'google-mail': 'Gmail',
+  'microsoft-mail': 'Outlook',
 };
+
+/** Postfächer suchen beim Anbieter statt in der geladenen Liste. */
+const MAIL_SOURCES = new Set(['google-mail', 'microsoft-mail']);
+const MAIL_SEARCH_DEBOUNCE_MS = 350;
 
 function pickInitial(sources: Source[], hint: CloudSourceHint): Source | null {
   const match =
@@ -146,7 +153,16 @@ export function CloudFileBrowser({
   };
 
   const isGoogle = active?.kind === 'drive' && active.id === 'google';
+  const isMail = active?.kind === 'drive' && MAIL_SOURCES.has(active.id);
   const driveFolderId = driveTrail.at(-1)?.id ?? null;
+  const [mailQuery, setMailQuery] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setMailQuery(isMail ? filter.trim() : ''),
+      filter ? MAIL_SEARCH_DEBOUNCE_MS : 0
+    );
+    return () => clearTimeout(timer);
+  }, [filter, isMail]);
   const wolke = useWolkeBrowseQuery(
     active?.kind === 'wolke' ? active.id : null,
     wolkePath,
@@ -155,7 +171,8 @@ export function CloudFileBrowser({
   const drive = useConnectBrowseQuery(
     active?.kind === 'drive' ? active.id : null,
     driveFolderId,
-    visible && active?.kind === 'drive' && !isGoogle
+    visible && active?.kind === 'drive' && !isGoogle,
+    isMail && mailQuery ? mailQuery : null
   );
   const browse = active?.kind === 'drive' ? drive : wolke;
   const needsReconnect = drive.error instanceof ApiError && drive.error.status === 403;
@@ -203,10 +220,10 @@ export function CloudFileBrowser({
   }, [active, wolke.data, drive.data, wolkePath, googlePicked]);
 
   const visibleRows = useMemo(() => {
-    if (!filter) return rows;
+    if (!filter || isMail) return rows;
     const q = filter.toLowerCase();
     return rows.filter((r) => r.name.toLowerCase().includes(q));
-  }, [rows, filter]);
+  }, [rows, filter, isMail]);
 
   const location = active?.kind === 'wolke' ? wolkePath : driveTrail.map((c) => c.name).join('/');
   const canGoUp = active?.kind === 'wolke' ? wolkePath !== '' : driveTrail.length > 0;
@@ -298,7 +315,7 @@ export function CloudFileBrowser({
         }`}
       >
         <span aria-hidden className="text-base">
-          {row.isFolder ? '📁' : isSelected ? '☑️' : '📄'}
+          {row.isFolder ? '📁' : isSelected ? '☑️' : isMail ? '✉️' : '📄'}
         </span>
         <span className="flex-1 truncate">{row.name}</span>
         {!row.isFolder && row.size && (
@@ -367,8 +384,8 @@ export function CloudFileBrowser({
               autoFocus
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Dateien filtern…"
-              aria-label="Dateien filtern"
+              placeholder={isMail ? 'Mails durchsuchen…' : 'Dateien filtern…'}
+              aria-label={isMail ? 'Mails durchsuchen' : 'Dateien filtern'}
               className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
             />
           )}
