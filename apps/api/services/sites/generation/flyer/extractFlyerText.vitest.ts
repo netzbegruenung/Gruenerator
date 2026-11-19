@@ -12,7 +12,7 @@ vi.mock('../../../OcrService/doclingIntegration.js', () => ({
   extractTextWithDocling: (...args: unknown[]) => mocks.docling(...args),
   isDoclingAvailable: () => mocks.doclingUp(),
 }));
-vi.mock('../../../OcrService/OcrService.js', () => ({
+vi.mock('../../../OcrService/index.js', () => ({
   OCRService: class {
     extractTextFromDocument = mocks.ocr;
   },

@@ -1199,6 +1199,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
   app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
+  app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   mountSitesContractRouter(app);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);

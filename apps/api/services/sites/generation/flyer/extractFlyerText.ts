@@ -7,7 +7,7 @@ import {
   extractTextWithDocling,
   isDoclingAvailable,
 } from '../../../OcrService/doclingIntegration.js';
-import { OCRService } from '../../../OcrService/OcrService.js';
+import { OCRService } from '../../../OcrService/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 const log = createLogger('Sites:flyerText');
