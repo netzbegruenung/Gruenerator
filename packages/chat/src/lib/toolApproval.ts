@@ -137,6 +137,11 @@ const INTERNAL_APPROVAL_DISPLAY: Record<string, { title: string; description: st
     title: 'Tabelle auswerten',
     description: 'Der Grünerator erzeugt dafür Python-Code und führt ihn in deinem Browser aus.',
   },
+  nuudel_umfrage_anlegen: {
+    title: 'nuudel-Umfrage anlegen',
+    description:
+      'Legt die Umfrage auf nuudel.digitalcourage.de an, mit deinem Namen und deiner E-Mail-Adresse als Ersteller*in. nuudel schickt dir Teilnahme- und Admin-Link.',
+  },
 };
 
 export function internalApprovalDisplay(

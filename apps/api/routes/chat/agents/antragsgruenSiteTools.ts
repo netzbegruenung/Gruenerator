@@ -15,21 +15,18 @@ import {
   SUBDOMAIN_RE,
   isSubdomainAvailable,
 } from '../../../services/antragsgruen/hosting/createSite.js';
-import {
-  AntragsgruenFormError,
-  FormClient,
-} from '../../../services/antragsgruen/hosting/formClient.js';
 import { hostingConfigFromEnv } from '../../../services/antragsgruen/hosting/session.js';
 import {
   MAX_SITES_PER_USER,
   hostedSitesOf,
-  inviteeOf,
   readAntragsgruenAgenda,
   readOwnSite,
   sitesOrderedBy,
   type HostedSite,
   type OwnSiteReading,
 } from '../../../services/antragsgruen/hosting/sites.js';
+import { deliverableContactOf } from '../../../services/user/accountContact.js';
+import { FormStepError, FormClient } from '../../../services/webForms/formClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
@@ -102,7 +99,7 @@ function defaultDeps(): SiteToolDeps {
     isAvailable: (subdomain) =>
       config ? isSubdomainAvailable(new FormClient(), config, subdomain) : Promise.resolve(false),
     sitesOrderedBy,
-    hasInviteeEmail: async (userId) => (await inviteeOf(userId)) !== null,
+    hasInviteeEmail: async (userId) => (await deliverableContactOf(userId)) !== null,
   };
 }
 
@@ -360,9 +357,9 @@ Ohne „punkte": liefert die aktuelle Tagesordnung. Mit „punkte": ersetzt die 
           log.warn(`agenda read failed: ${err instanceof Error ? err.message : String(err)}`);
           return {
             error:
-              err instanceof AntragsgruenFormError && err.step === 'revoked'
+              err instanceof FormStepError && err.step === 'revoked'
                 ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin.'
-                : err instanceof AntragsgruenFormError && err.step === 'not-admin'
+                : err instanceof FormStepError && err.step === 'not-admin'
                   ? 'Die Person ist auf dieser Seite nicht mehr Admin; der Grünerator handelt dort nicht mehr für sie.'
                   : 'Die Tagesordnung ist gerade nicht abrufbar.',
           };
@@ -442,7 +439,7 @@ Für Änderungsanträge: lies den Antrag, schreib den Änderungsantrag mit den r
         reading = await deps.read(userId, site.subdomain, args.antrag?.trim() || null);
       } catch (err) {
         log.warn(`site read failed: ${err instanceof Error ? err.message : String(err)}`);
-        const step = err instanceof AntragsgruenFormError ? err.step : null;
+        const step = err instanceof FormStepError ? err.step : null;
         return {
           error:
             step === 'revoked'

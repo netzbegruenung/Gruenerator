@@ -1,7 +1,7 @@
 /** Abschnitte gegen den Antragstyp, wie ihn Antragsgrün 4.18.1 für eine neue Seite liefert (lokal gemessen). */
 import { describe, expect, it } from 'vitest';
 
-import { AntragsgruenFormError } from './formClient.js';
+import { FormStepError } from '../../webForms/formClient.js';
 import { motionSections } from './motions.js';
 
 const STANDARD = {
@@ -37,7 +37,7 @@ describe('motionSections', () => {
       sections: [...STANDARD.sections, { id: 7, type: 'Image', title: 'Bild', required: 'yes' }],
     };
     expect(() => motionSections(type, { title: 'T', text: 'x', reason: null })).toThrow(
-      AntragsgruenFormError
+      FormStepError
     );
   });
 });

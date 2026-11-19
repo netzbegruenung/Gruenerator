@@ -26,12 +26,12 @@ import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel, wasShortened } from './truncate.js';
 import { readMcpResult, TURN_ABORTABLE_TOOLS, type PersistedStep } from './types.js';
 
+import type { SSEWriter } from '../sseHelpers.js';
 import type { AskHumanGate } from './askHumanGate.js';
 import type { ClientToolGate } from './clientToolGate.js';
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { ToolActivity } from './toolActivity.js';
 import type { ToolApprovalGate } from './toolApprovalGate.js';
-import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
 
 const log = createLogger('agenticTools');
@@ -278,7 +278,7 @@ export interface WrapToolsContext {
    *  zusätzlich awaitet). */
   hooks?: ToolHooks;
   /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
-  approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+  approvalGate?: Pick<ToolApprovalGate, 'hold'> & Partial<Pick<ToolApprovalGate, 'refusal'>>;
   /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ der Aufruf wird wie ein
    *  gewöhnliches Tool ausgeführt (und liefert nur den defensiven Stub). */
   askGate?: Pick<AskHumanGate, 'hold'>;
@@ -552,6 +552,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // stehen, der wirklich läuft. Der Rückgabewert erreicht das Modell in der
       // Regel nicht mehr (das Gate bricht den Zug ab); er ist die harmlose
       // Antwort für ein Geschwister, das den Abbruch noch überholt.
+      // Gerade abgelehnt: kein zweites Gate, sondern eine Absage wie ein Guard
+      // (`guard` hält die Wiederholungs-Nudge davon ab, „versuch es erneut" zu sagen).
+      const refused = ctx.approvalGate?.refusal?.(toolName);
+      if (refused) return { error: refused, guard: 'approval_denied' };
+
       if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
         return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
       }

@@ -13,6 +13,7 @@ import { type IconType } from 'react-icons';
 import {
   FiBarChart2,
   FiBell,
+  FiCalendar,
   FiChevronLeft,
   FiChevronRight,
   FiClipboard,
@@ -38,6 +39,7 @@ import {
 
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
 import { useAntragsgruenSites } from './hooks/useAntragsgruenSites';
+import { useNuudelPolls } from './hooks/useNuudelPolls';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
 import { searchSettings, type SettingsSearchHit } from './settingsSearch';
 import {
@@ -62,9 +64,13 @@ const NAV_GROUPS: { key: SettingsNavGroup; label: string }[] = [
 
 type SettingsNavGroup = 'praeferenzen' | 'gruenerator' | 'verbindungen' | 'uebersicht';
 
+/** Reiter, die es nur gibt, wo ihr Dienst eingerichtet ist oder die Person dort schon etwas hat. */
+export type OptionalSettingsTab = Extract<SettingsTab, 'antragsgruen' | 'nuudel'>;
+export type AvailableOptionalTabs = Partial<Record<OptionalSettingsTab, boolean>>;
+
 // onlyWhileOnboarding: verschwindet, sobald die Einrichtung erledigt ist.
-// onlyWithAntragsgruen: nur, wo der Grünerator Antragsgrün-Seiten anlegen kann
-// oder die Person schon welche hat (experimentell, nur de-DE).
+// onlyWith: nur, wo der Dienst eingerichtet ist oder die Person dort schon
+// etwas hat — Antragsgrün-Seiten (experimentell, nur de-DE), nuudel-Umfragen.
 //
 // Die Liste bleibt ein statisches, flaches Array-Literal in Anzeigereihenfolge:
 // documentation/scripts/generate-settings.mjs liest sie per AST aus, um die
@@ -76,7 +82,7 @@ const NAV: {
   icon: IconType;
   group?: SettingsNavGroup;
   onlyWhileOnboarding?: boolean;
-  onlyWithAntragsgruen?: boolean;
+  onlyWith?: OptionalSettingsTab;
 }[] = [
   {
     value: 'onboarding',
@@ -117,7 +123,14 @@ const NAV: {
     label: 'Antragsgrün',
     icon: FiClipboard,
     group: 'verbindungen',
-    onlyWithAntragsgruen: true,
+    onlyWith: 'antragsgruen',
+  },
+  {
+    value: 'nuudel',
+    label: 'Umfragen',
+    icon: FiCalendar,
+    group: 'verbindungen',
+    onlyWith: 'nuudel',
   },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2, group: 'uebersicht' },
   { value: 'support', label: 'Support', icon: FiHelpCircle, group: 'uebersicht' },
@@ -144,10 +157,11 @@ export function groupSettingsNav(
 }
 
 /** Die Seitenleiste, wie sie in diesem Moment aussieht. */
-export function visibleSettingsNav(isOnboarding: boolean, antragsgruen = false) {
+export function visibleSettingsNav(isOnboarding: boolean, available: AvailableOptionalTabs = {}) {
   return NAV.filter(
     (entry) =>
-      (!entry.onlyWhileOnboarding || isOnboarding) && (!entry.onlyWithAntragsgruen || antragsgruen)
+      (!entry.onlyWhileOnboarding || isOnboarding) &&
+      (!entry.onlyWith || available[entry.onlyWith] === true)
   );
 }
 
@@ -168,10 +182,10 @@ export function resolveSettingsTab(
   tab: SettingsTab,
   tabWasNamed: boolean,
   isOnboarding: boolean,
-  antragsgruen = false
+  available: AvailableOptionalTabs = {}
 ): SettingsTab {
   const wanted = !tabWasNamed && isOnboarding ? 'onboarding' : tab;
-  return visibleSettingsNav(isOnboarding, antragsgruen).some((entry) => entry.value === wanted)
+  return visibleSettingsNav(isOnboarding, available).some((entry) => entry.value === wanted)
     ? wanted
     : 'allgemein';
 }
@@ -242,11 +256,15 @@ const SettingsDialog = () => {
   const { data: antragsgruenSites } = useAntragsgruenSites();
   // Solange die Liste lädt, bleibt ein direkt angesteuerter Reiter stehen,
   // statt auf Allgemein zurückzufallen.
-  const antragsgruen = antragsgruenSites
-    ? antragsgruenSites.enabled || antragsgruenSites.sites.length > 0
-    : tab === 'antragsgruen';
-  const nav = visibleSettingsNav(isOnboarding, antragsgruen);
-  const activeTab = resolveSettingsTab(tab, tabWasNamed, isOnboarding, antragsgruen);
+  const { data: nuudelPolls } = useNuudelPolls();
+  const available: AvailableOptionalTabs = {
+    antragsgruen: antragsgruenSites
+      ? antragsgruenSites.enabled || antragsgruenSites.sites.length > 0
+      : tab === 'antragsgruen',
+    nuudel: nuudelPolls ? nuudelPolls.enabled || nuudelPolls.polls.length > 0 : tab === 'nuudel',
+  };
+  const nav = visibleSettingsNav(isOnboarding, available);
+  const activeTab = resolveSettingsTab(tab, tabWasNamed, isOnboarding, available);
   const activeEntry = nav.find((entry) => entry.value === activeTab);
 
   // Schmal steht entweder die Liste oder der Bereich da. Die offene

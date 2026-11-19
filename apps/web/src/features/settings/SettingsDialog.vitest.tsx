@@ -27,7 +27,11 @@ describe('visibleSettingsNav', () => {
 
   it('führt Antragsgrün nur, wo es die Funktion gibt', () => {
     expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('antragsgruen');
-    expect(visibleSettingsNav(false, true).map((e) => e.value)).toContain('antragsgruen');
+    expect(visibleSettingsNav(false, { antragsgruen: true }).map((e) => e.value)).toContain(
+      'antragsgruen'
+    );
+    expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('nuudel');
+    expect(visibleSettingsNav(false, { nuudel: true }).map((e) => e.value)).toContain('nuudel');
   });
 });
 
@@ -45,7 +49,7 @@ describe('groupSettingsNav', () => {
   });
 
   it('verliert keinen Eintrag und behält die Reihenfolge', () => {
-    const flat = visibleSettingsNav(true, true);
+    const flat = visibleSettingsNav(true, { antragsgruen: true, nuudel: true });
     const regrouped = groupSettingsNav(flat).flatMap((g) => g.entries);
     expect(regrouped.map((e) => e.value)).toEqual(flat.map((e) => e.value));
   });
