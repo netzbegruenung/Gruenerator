@@ -60,6 +60,12 @@ describe('initSiteConsent', () => {
     document.documentElement.removeAttribute('data-site-consent-ready');
     initSiteConsent(document, storage);
     expect(document.querySelector('iframe')).not.toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('focuses the embed only after a click on the load button', () => {
+    click('[data-consent-load]');
+    expect(document.activeElement).toBe(document.querySelector('iframe'));
   });
 
   it('refuses a tampered embed URL', () => {

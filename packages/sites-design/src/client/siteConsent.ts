@@ -21,7 +21,7 @@ function isGranted(storage: ConsentStorage | null): boolean {
   );
 }
 
-function load(block: Element, doc: Document): void {
+function load(block: Element, doc: Document, focus: boolean): void {
   const src = block.getAttribute('data-embed-src') ?? '';
   const target = block.querySelector('[data-consent-target]');
   if (!EMBED_SRC.test(src) || !target || target.querySelector('iframe')) return;
@@ -34,7 +34,7 @@ function load(block: Element, doc: Document): void {
   frame.className = 'site:block site:min-h-[28rem] site:w-full site:rounded-card site:border-0';
   target.appendChild(frame);
   block.querySelector('[data-consent-prompt]')?.setAttribute('hidden', '');
-  frame.focus();
+  if (focus) frame.focus();
 }
 
 export function initSiteConsent(doc: Document, storage: ConsentStorage | null): void {
@@ -43,7 +43,7 @@ export function initSiteConsent(doc: Document, storage: ConsentStorage | null): 
   root.setAttribute('data-site-consent-ready', '');
 
   for (const block of doc.querySelectorAll('[data-site-consent="instagram"]')) {
-    if (isGranted(storage)) load(block, doc);
+    if (isGranted(storage)) load(block, doc, false);
     block.querySelector('[data-consent-load]')?.addEventListener('click', () => {
       const remember = block.querySelector<HTMLInputElement>('[data-consent-remember]');
       if (remember?.checked && storage) {
@@ -59,7 +59,7 @@ export function initSiteConsent(doc: Document, storage: ConsentStorage | null): 
           // storage refused: the choice just is not remembered
         }
       }
-      load(block, doc);
+      load(block, doc, true);
     });
   }
 }
