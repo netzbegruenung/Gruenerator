@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const tokensCss = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
 
 const LOCALES = ['de-DE', 'de-AT'] as const;
-const SOLID = ['paper', 'surface', 'deep', 'deeper', 'vivid'] as const;
+const SOLID = ['paper', 'surface', 'deep', 'deeper', 'vivid', 'tint'] as const;
 type Locale = (typeof LOCALES)[number];
 
 function rules(css: string): Map<string, Record<string, string>> {
@@ -24,12 +24,24 @@ function rules(css: string): Map<string, Record<string, string>> {
 const layer = tokensCss.slice(tokensCss.indexOf('@layer base'));
 const ruleMap = rules(layer.slice(layer.indexOf('{') + 1));
 
+// color-mix(in srgb, <a> N%, <b>) is a per-channel mix of the gamma-encoded values.
+function mixTint(value: string): string {
+  const m = /^color-mix\(in srgb, (#[0-9a-f]{6}) (\d+)%, (#[0-9a-f]{6})\)$/i.exec(value);
+  if (!m) return value;
+  const p = Number(m[2]) / 100;
+  const a = channels(m[1] ?? '');
+  const b = channels(m[3] ?? '');
+  const mixed = a.map((v, i) => Math.round(v * p + (b[i] ?? 0) * (1 - p)));
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function palette(locale: Locale): Record<string, string> {
   const base = ruleMap.get(':root') ?? {};
   const merged =
     locale === 'de-AT' ? { ...base, ...ruleMap.get(':root[data-site-locale="de-AT"]') } : base;
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(merged)) out[k.replace('--site-palette-', '')] = v;
+  for (const [k, v] of Object.entries(merged))
+    out[k.replace('--site-palette-', '')] = k === '--site-palette-tint' ? mixTint(v) : v;
   return out;
 }
 
@@ -77,6 +89,10 @@ function over(color: string, alpha: number, base: string): string {
 }
 
 describe('site tokens', () => {
+  it('derives the austrian tint from brand Hellgrün and white, and keeps de-DE tint white', () => {
+    expect(palette('de-AT')['tint']).toBe('#e6f3e0');
+    expect(palette('de-DE')['tint']).toBe('#ffffff');
+  });
   it('uses only colours from the brand packs', () => {
     const allowed = new Set(
       (JSON.stringify([GRUENE_DE, GRUENE_AT, HELLGRUEN_GLOW]).match(/#[0-9a-f]{6}/gi) ?? []).map(

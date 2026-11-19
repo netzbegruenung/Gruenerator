@@ -32,7 +32,7 @@ export function SiteHeader({
   const name = snapshot.site_title.trim();
 
   return (
-    <header data-ground={sectionGround(snapshot.variant, 'header')}>
+    <header data-ground={sectionGround(snapshot.variant, 'header', snapshot.locale)}>
       <div
         className={`${CONTAINER} site:flex site:flex-wrap site:items-center site:justify-between site:gap-x-8 site:gap-y-3 site:py-4`}
       >

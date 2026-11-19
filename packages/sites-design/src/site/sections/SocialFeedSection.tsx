@@ -23,7 +23,7 @@ export function SocialFeedSection({
     <Section
       section="socialFeed"
       anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'socialFeed')}
+      ground={sectionGround(snapshot.variant, 'socialFeed', snapshot.locale)}
       className="site:py-section"
     >
       <div className={CONTAINER}>
