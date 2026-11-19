@@ -19,10 +19,9 @@ function Fields() {
   );
 }
 
-let registerLate: (path: string, el: HTMLElement | null) => void = () => {};
-function Late() {
-  registerLate = useFieldRegistry().registerField;
-  return null;
+function LateField() {
+  const { registerField } = useFieldRegistry();
+  return <input aria-label="Name" ref={(el) => registerField('legal.name', el)} />;
 }
 
 describe('useFieldRegistry', () => {
@@ -40,8 +39,7 @@ describe('useFieldRegistry', () => {
 
   it('focuses a field that registers after the request was made', () => {
     act(() => useEditorStore.getState().focusPath('legal', 'legal.name'));
-    render(<Late />);
-    render(<input aria-label="Name" ref={(el) => registerLate('legal.name', el)} />);
+    render(<LateField />);
     expect(screen.getByLabelText('Name')).toHaveFocus();
   });
 });
