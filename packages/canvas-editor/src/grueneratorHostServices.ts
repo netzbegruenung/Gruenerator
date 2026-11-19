@@ -9,6 +9,8 @@
  * does the package barrel, so the augmentation is in every program that sees
  * them.
  */
+import type { SharepicTweak, SharepicTweakChoice } from './composer/sharepicTweaks';
+import type { ReplaceDeckOps } from '@ggraphic/editor/collab';
 import type { BlockSlide, LiftedBlock } from '@ggraphic/editor/elements';
 import type { CanvasPrintService } from '@ggraphic/editor/services';
 import type {
@@ -104,6 +106,36 @@ export interface CanvasBlockService {
   lift: (slide: BlockSlide, items: readonly number[], token: string) => LiftedBlock;
 }
 
+/** A page as the „Design" tab hands it to the host. */
+export interface DesignPage {
+  id: string;
+  configId: string;
+  state: Record<string, unknown>;
+}
+
+/**
+ * The „Design" tab: the looks a sharepic or carousel from the creator can
+ * switch between without the model (navigation, page number, numbering,
+ * colour …), the options the Studio offered on a finished draft. A choice is
+ * a deck choice: every page of the deck is composed afresh in it, with the
+ * person's hand edits put back where they still fit (needs the browser:
+ * fonts, photo tones). Without this service the tab is hidden.
+ */
+export interface CanvasDesignService {
+  /** The options of `deck` as its pages stand; empty when nothing varies. */
+  options: (pages: readonly DesignPage[], deck: string) => Promise<SharepicTweak[]>;
+  /**
+   * The deck in `choice`, from the live pages (`getPages` is read again when
+   * a hand edit landed while composing); null when the deck is gone.
+   * `dropped` counts the hand edits the new look could not keep.
+   */
+  apply: (
+    getPages: () => readonly DesignPage[],
+    deck: string,
+    choice: SharepicTweakChoice
+  ) => Promise<{ ops: ReplaceDeckOps; dropped: number } | null>;
+}
+
 declare module '@ggraphic/editor/host' {
   interface CanvasEditorHostServices {
     /** The host's Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
@@ -115,6 +147,9 @@ declare module '@ggraphic/editor/host' {
      * and `vorlagen.composeBlock`.
      */
     blocks?: CanvasBlockService;
+
+    /** The creator looks behind the „Design" tab; when omitted, the tab is hidden. */
+    design?: CanvasDesignService;
   }
 }
 
