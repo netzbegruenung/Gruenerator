@@ -19,10 +19,9 @@ export function getNango(): Nango {
 }
 
 export const NANGO_PROVIDERS = {
-  // NOTE: `google` is temporarily hidden via HIDDEN_NANGO_PROVIDERS below — the
-  // Google OAuth app / Nango integration isn't wired up yet. Kept in the type so
-  // connectRetrieval's `case 'google'` still compiles; re-enable by removing it
-  // from HIDDEN_NANGO_PROVIDERS.
+  // Scope `drive.file`: the app only sees files picked in the Google Picker
+  // (`GET /api/connections/google/picker`), so the chat opens the picker
+  // instead of a folder listing.
   google: {
     key: 'google',
     label: 'Google Workspace',
@@ -47,8 +46,12 @@ export const NANGO_PROVIDERS = {
 
 export type NangoProviderKey = keyof typeof NANGO_PROVIDERS;
 
-/** Providers hidden from the connector list until their OAuth setup is complete. */
-export const HIDDEN_NANGO_PROVIDERS = new Set<NangoProviderKey>(['google']);
+/**
+ * Providers hidden from the connector list until their OAuth setup is complete.
+ * Empty since 19.11.2026: Google Workspace is open to everyone, labelled
+ * experimental like Microsoft 365.
+ */
+export const HIDDEN_NANGO_PROVIDERS = new Set<NangoProviderKey>();
 
 /**
  * Providers only instance admins may connect, list or use until they are opened

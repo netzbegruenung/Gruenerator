@@ -44,6 +44,20 @@ export const driveConnectLinkResponseSchema = z.object({
   connectLink: z.string(),
 });
 
+/**
+ * Was der Google Picker im Browser braucht. Unter dem Scope `drive.file` sieht
+ * der Grünerator nur Dateien, die die Person im Picker ausgewählt hat; Token,
+ * API-Key und App-ID müssen aus demselben Cloud-Projekt stammen wie der
+ * OAuth-Client. Der Token gehört der angemeldeten Person.
+ */
+export const googlePickerConfigResponseSchema = z.object({
+  success: z.literal(true),
+  accessToken: z.string(),
+  apiKey: z.string(),
+  appId: z.string(),
+});
+export type GooglePickerConfig = z.infer<typeof googlePickerConfigResponseSchema>;
+
 export const driveBrowseErrorSchema = z.object({
   success: z.literal(false),
   message: z.string(),

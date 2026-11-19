@@ -12,6 +12,7 @@
 import {
   driveBrowseResponseSchema,
   driveProviderSchema,
+  googlePickerConfigResponseSchema,
   type DriveProvider,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
@@ -21,6 +22,7 @@ import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
 import { formatFileSize } from '../lib/fileUtils';
+import { pickGoogleFiles, type PickedGoogleFile } from '../lib/googlePicker';
 import { setHiddenAgentIdentifiers } from '../lib/hiddenAgentsState';
 import {
   setHiddenSkillMentions,
@@ -326,6 +328,22 @@ export function useConnectBrowseQuery(
     staleTime: 15_000,
     retry: (count, error) => !(error instanceof ApiError && error.status === 403) && count < 1,
   });
+}
+
+/**
+ * Opens the Google Picker with the user's own token. Google Drive runs under
+ * the `drive.file` scope: the app only sees files picked here, so Google has
+ * no folder listing in the cloud browser. Resolves to `[]` on cancel; a 403
+ * (`ApiError`) means the grant expired, a 404 that the picker key is missing.
+ */
+export function useOpenGooglePicker(): () => Promise<PickedGoogleFile[]> {
+  const apiClient = useApiClient();
+  return async () => {
+    const config = googlePickerConfigResponseSchema.parse(
+      await apiClient.get<unknown>('/api/connections/google/picker')
+    );
+    return pickGoogleFiles(config);
+  };
 }
 
 // ── @vorlage (Sharepic-Vorlagen catalogue) ───────────────────────────────────
