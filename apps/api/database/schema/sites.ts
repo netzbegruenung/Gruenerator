@@ -1,3 +1,4 @@
+import { type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -40,7 +41,7 @@ export const userSites = pgTable(
     meta_keywords: text('meta_keywords').array(),
     published_snapshot: jsonb('published_snapshot').$type<Record<string, unknown>>(),
     legal: jsonb('legal').$type<Record<string, unknown>>(),
-    moderation: text('moderation').notNull().default('ok'),
+    moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
   },
   // Nur unter lebenden Zeilen: eine Website im Papierkorb blockiert ihre Subdomain nicht.
   (t) => [
