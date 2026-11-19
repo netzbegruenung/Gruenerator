@@ -63,14 +63,14 @@ export function ContactSectionEditor() {
       <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <Label
-          htmlFor="contact-background-image"
+        <p
+          id="contact-background-image-label"
           className="block text-sm font-medium text-foreground mb-1.5"
         >
           Hintergrundbild
-        </Label>
+        </p>
         <ImageUpload
-          id="contact-background-image"
+          labelledBy="contact-background-image-label"
           value={backgroundImageUrl}
           onChange={(url) => setField('contact.backgroundImageUrl', url)}
           aspectRatio="16/9"

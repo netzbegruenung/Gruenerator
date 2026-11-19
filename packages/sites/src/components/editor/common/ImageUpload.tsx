@@ -11,8 +11,8 @@ interface ImageUploadProps {
   size?: 'small' | 'medium' | 'large' | 'fill';
   circular?: boolean;
   disabled?: boolean;
-  /** Forwarded to the "Hochladen" button so a `<label htmlFor>` can target it. */
-  id?: string;
+  /** Id of the element that labels the control group; the buttons keep their visible names. */
+  labelledBy?: string;
 }
 
 const sizeClasses: Record<NonNullable<ImageUploadProps['size']>, string> = {
@@ -30,7 +30,7 @@ export function ImageUpload({
   size = 'fill',
   circular = false,
   disabled = false,
-  id,
+  labelledBy,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { openImagePicker } = useMediaPicker();
@@ -82,6 +82,8 @@ export function ImageUpload({
 
   return (
     <div
+      role={labelledBy ? 'group' : undefined}
+      aria-labelledby={labelledBy}
       className={cn(
         'relative w-full',
         sizeClasses[size],
@@ -146,7 +148,6 @@ export function ImageUpload({
       {!isUploading && (
         <div className="mt-1.5 flex flex-wrap justify-center gap-1">
           <Button
-            id={id}
             type="button"
             variant="outline"
             size="sm"

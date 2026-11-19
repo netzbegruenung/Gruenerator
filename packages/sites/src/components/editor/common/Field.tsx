@@ -8,20 +8,34 @@ interface FieldProps {
   panel: EditorPanel;
   /** Snapshot path of the field, the same string the preview marks with `data-field`. */
   path: string;
-  htmlFor: string;
+  htmlFor?: string;
+  labelId?: string;
   label: ReactNode;
   children: ReactNode;
   hint?: ReactNode;
   className?: string;
 }
 
-export function Field({ panel, path, htmlFor, label, children, hint, className }: FieldProps) {
+export function Field({
+  panel,
+  path,
+  htmlFor,
+  labelId,
+  label,
+  children,
+  hint,
+  className,
+}: FieldProps) {
   const highlighted = useEditorStore(
     (s) => s.highlightedElement?.panel === panel && s.highlightedElement.path === path
   );
   return (
     <div className={cn('mb-md', highlighted && 'animate-[field-highlight_1s_ease]', className)}>
-      <Label htmlFor={htmlFor} className="block text-sm font-medium text-foreground mb-1.5">
+      <Label
+        id={labelId}
+        htmlFor={htmlFor}
+        className="block text-sm font-medium text-foreground mb-1.5"
+      >
         {label}
       </Label>
       {children}

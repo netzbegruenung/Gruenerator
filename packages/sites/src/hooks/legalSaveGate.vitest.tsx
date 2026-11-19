@@ -1,12 +1,18 @@
 import { type SiteLegalDraft } from '@gruenerator/contracts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({ updateSite: vi.fn() }));
 vi.mock('./useSite', () => ({ useSite: () => ({ updateSite: hoisted.updateSite }) }));
 
-import { settleLegalSave, trackLegalSave } from './legalSaveGate';
+import { settleLegalSave } from './legalSaveGate';
 import { useLegalAutosave } from './useLegalAutosave';
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+);
 
 const legal = (name: string): SiteLegalDraft => ({
   name,
@@ -30,9 +36,6 @@ describe('Impressum save ordering', () => {
   beforeEach(() => {
     hoisted.updateSite.mockReset();
   });
-  afterEach(async () => {
-    await trackLegalSave(Promise.resolve(true));
-  });
 
   it('never has two PUTs in flight and ends on the newest value', async () => {
     const first = deferred();
@@ -49,16 +52,17 @@ describe('Impressum save ordering', () => {
       });
     const { result, rerender } = renderHook(({ l }) => useLegalAutosave('s1', l), {
       initialProps: { l: legal('Alt') },
+      wrapper,
     });
 
     rerender({ l: legal('A') });
     let settled: Promise<{ ok: boolean }> = Promise.resolve({ ok: false });
     act(() => {
-      settled = settleLegalSave();
+      settled = settleLegalSave('s1');
     });
     rerender({ l: legal('B') });
     act(() => {
-      settled = settleLegalSave();
+      settled = settleLegalSave('s1');
     });
     expect(hoisted.updateSite).toHaveBeenCalledTimes(1);
 
@@ -84,16 +88,17 @@ describe('Impressum save ordering', () => {
     hoisted.updateSite.mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce({});
     const { result, rerender } = renderHook(({ l }) => useLegalAutosave('s1', l), {
       initialProps: { l: legal('Alt') },
+      wrapper,
     });
     rerender({ l: legal('A') });
     let r = { ok: true, pending: false };
     await act(async () => {
-      r = await settleLegalSave();
+      r = await settleLegalSave('s1');
     });
     expect(r.ok).toBe(false);
     expect(result.current.status).toBe('error');
     await act(async () => {
-      r = await settleLegalSave();
+      r = await settleLegalSave('s1');
     });
     expect(r.ok).toBe(true);
   });

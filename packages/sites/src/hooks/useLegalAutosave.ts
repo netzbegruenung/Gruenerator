@@ -1,19 +1,35 @@
-import { type SiteLegalDraft } from '@gruenerator/contracts';
+import { type Site, type SiteLegalDraft } from '@gruenerator/contracts';
+import { toast } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type SaveStatus } from '../draft/useSiteDraftSession';
 
-import { registerLegalFlusher, trackLegalSave } from './legalSaveGate';
+import {
+  enqueueLegalSave,
+  forgetLegal,
+  hasFailedLegalSave,
+  registerLegalFlusher,
+  rememberLegal,
+} from './legalSaveGate';
 import { useLeaveWarning } from './useLeaveWarning';
 import { useSite } from './useSite';
 
+const UNSAVED_MESSAGE =
+  'Deine Angaben sind noch nicht gespeichert. Öffne das Impressum und versuche es noch einmal.';
+
 export const LEGAL_AUTOSAVE_DELAY_MS = 800;
+
+type MySiteData = { site: Site | null; public_origin: string | null };
 
 export type LegalSaveStatus = SaveStatus | 'error';
 
 export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
   const { updateSite } = useSite();
-  const [status, setStatus] = useState<LegalSaveStatus>('saved');
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<LegalSaveStatus>(() =>
+    hasFailedLegalSave(siteId) ? 'error' : 'saved'
+  );
   const latest = useRef(legal);
   const saved = useRef(legal);
   const generation = useRef(0);
@@ -22,10 +38,8 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
   const sending = useRef<SiteLegalDraft | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const tail = useRef<Promise<unknown>>(Promise.resolve());
-  const queued = useRef(0);
+  const mounted = useRef(true);
 
-  // One PUT at a time: a save queued behind another sends the latest value when its turn comes.
   const save = useCallback(() => {
     const mine = ++generation.current;
     sending.current = latest.current;
@@ -33,7 +47,11 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
     const run = async () => {
       const current = latest.current;
       try {
-        await updateSite({ id: siteId, data: { legal: current } });
+        const site = await updateSite({ id: siteId, data: { legal: current } });
+        queryClient.setQueryData<MySiteData>(['my-site'], (old) =>
+          old && site ? { ...old, site } : old
+        );
+        forgetLegal(siteId, current);
         if (mine === generation.current) {
           saved.current = current;
           sending.current = null;
@@ -44,26 +62,23 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
         if (mine === generation.current) {
           sending.current = null;
           setStatus('error');
+          if (!mounted.current)
+            toast.error('Impressum nicht gespeichert', { description: UNSAVED_MESSAGE });
         }
         return false;
       }
     };
-    const result = queued.current === 0 ? run() : tail.current.then(run);
-    queued.current += 1;
-    tail.current = result;
-    void result.then(() => {
-      queued.current -= 1;
-    });
-    return trackLegalSave(result);
-  }, [siteId, updateSite]);
+    return enqueueLegalSave(siteId, run);
+  }, [siteId, updateSite, queryClient]);
 
   useEffect(() => {
     if (legal === saved.current) return;
+    rememberLegal(siteId, legal);
     setStatus('saving');
     const handle = setTimeout(() => void save(), LEGAL_AUTOSAVE_DELAY_MS);
     timer.current = handle;
     return () => clearTimeout(handle);
-  }, [legal, save]);
+  }, [legal, save, siteId]);
 
   const flush = useRef(() => {});
   flush.current = () => {
@@ -72,10 +87,12 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
   };
 
   useEffect(() => {
+    mounted.current = true;
     const onPageHide = () => flush.current();
     window.addEventListener('pagehide', onPageHide);
     const unregister = registerLegalFlusher(() => flush.current());
     return () => {
+      mounted.current = false;
       unregister();
       window.removeEventListener('pagehide', onPageHide);
       flush.current();

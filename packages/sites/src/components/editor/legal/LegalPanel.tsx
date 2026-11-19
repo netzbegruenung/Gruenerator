@@ -12,6 +12,7 @@ import { Button, Input } from '@gruenerator/ui';
 import { useState } from 'react';
 
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
+import { rememberedLegal } from '../../../hooks/legalSaveGate';
 import { useLegalAutosave } from '../../../hooks/useLegalAutosave';
 import { useSite } from '../../../hooks/useSite';
 import { useAuth } from '../../../SitesContext';
@@ -134,5 +135,5 @@ function LegalForm({ siteId, initial }: { siteId: string; initial: SiteLegalDraf
 export function LegalPanel() {
   const { site } = useSite();
   if (!site) return null;
-  return <LegalForm siteId={site.id} initial={site.legal ?? {}} />;
+  return <LegalForm siteId={site.id} initial={rememberedLegal(site.id) ?? site.legal ?? {}} />;
 }

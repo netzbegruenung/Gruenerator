@@ -93,9 +93,14 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
         />
       </Field>
 
-      <Field panel="themes" path={`${base}.imageUrl`} htmlFor={`theme-${id}-image`} label="Bild">
+      <Field
+        panel="themes"
+        path={`${base}.imageUrl`}
+        labelId={`theme-${id}-image-label`}
+        label="Bild"
+      >
         <ImageUpload
-          id={`theme-${id}-image`}
+          labelledBy={`theme-${id}-image-label`}
           value={imageUrl}
           onChange={(url) => updateTheme(id, { imageUrl: url })}
           aspectRatio="4/3"
