@@ -11,7 +11,7 @@ import {
   type SiteFontFile,
 } from '@gruenerator/sites-design';
 import siteCss from '@gruenerator/sites-design/site.css?inline';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { EditorInstagram } from './EditorInstagram';
@@ -32,7 +32,16 @@ interface SitePreviewFrameProps {
 }
 
 export function SitePreviewFrame({ snapshot, handle, title, className }: SitePreviewFrameProps) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [frameDoc, setFrameDoc] = useState<Document | null>(null);
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const onLoad = () => setFrameDoc(frame.contentDocument);
+    frame.addEventListener('load', onLoad);
+    return () => frame.removeEventListener('load', onLoad);
+  }, []);
 
   useEffect(() => {
     if (!frameDoc) return;
@@ -59,12 +68,7 @@ export function SitePreviewFrame({ snapshot, handle, title, className }: SitePre
 
   return (
     <>
-      <iframe
-        title={title}
-        srcDoc={FRAME_DOC}
-        className={className}
-        onLoad={(event) => setFrameDoc(event.currentTarget.contentDocument)}
-      />
+      <iframe title={title} srcDoc={FRAME_DOC} ref={frameRef} className={className} />
       {frameDoc &&
         createPortal(
           <>
