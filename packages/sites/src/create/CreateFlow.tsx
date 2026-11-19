@@ -11,8 +11,8 @@ import { useMemo, useState } from 'react';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
-import { useSiteGeneration } from '../hooks/useSiteGeneration';
 import { useSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useSiteGeneration } from '../hooks/useSiteGeneration';
 import { useToast } from '../hooks/useToast';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import { useAuth } from '../SitesContext';
@@ -66,7 +66,7 @@ function GeneratedPreview({
 
 export function CreateFlow() {
   const { user } = useAuth();
-  const { publicOrigin, createSite, isCreating } = useSite();
+  const { publicOrigin, createSite, isCreating, refetch } = useSite();
   const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
   const toast = useToast();
   const [failure, setFailure] = useState<{
@@ -153,6 +153,14 @@ export function CreateFlow() {
     } catch (err) {
       console.error('Create failed:', err);
       handleApiError(err, toast);
+      // A first attempt can have stored the site before failing; reload it so the editor opens.
+      if (
+        err instanceof SitesApiError &&
+        err.status === 400 &&
+        /bereits eine Website/.test(err.message)
+      ) {
+        void refetch();
+      }
     }
   };
 
