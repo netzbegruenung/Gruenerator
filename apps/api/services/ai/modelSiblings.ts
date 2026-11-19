@@ -35,7 +35,7 @@ import {
 import { GENERIC_FALLBACK } from './lanes.js';
 import { isModelSlow } from './modelHealth.js';
 import { getDefaultModel, isProviderConfigured } from './providers.js';
-import { PANDA_LANE_MODEL } from './textModelPolicy.js';
+import { PANDA_FALLBACK_MODEL, PANDA_LANE_MODEL } from './textModelPolicy.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -73,8 +73,9 @@ export interface ModelTarget {
  * (Melious: `owned_by: melious`), und schon der ERSTE Aufruf kam am 01.10.2026
  * mit 11.520 gecachten Tokens zurück — das sieht nach einem geteilten
  * Upstream aus. Wo die Anfragen dort verarbeitet werden, ist nicht geklärt.
- * Bis GreenPT das schriftlich bestätigt, geht ein zäher DeepSeek-Primär direkt
- * an Ultra. Bewusst eine Konstante und kein Env-Schalter: wer sie umlegt, tut
+ * Bis GreenPT das schriftlich bestätigt, geht ein zäher DeepSeek-Primär an
+ * Pandas eigenen Ausweich GLM-5.3 (`PANDA_FALLBACK_MODEL`, seit 19.11.2026;
+ * vorher Ultra). Bewusst eine Konstante und kein Env-Schalter: wer sie umlegt, tut
  * es im Diff, mit der Bestätigung im PR.
  */
 const GREENPT_DEEPSEEK_CLEARED = false;
@@ -83,7 +84,7 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // „Panda": nur in diese Richtung — GreenPT ist Ausweich, nie Primär.
   [`melious/${PANDA_LANE_MODEL}`]: GREENPT_DEEPSEEK_CLEARED
     ? { provider: 'greenpt', model: PANDA_LANE_MODEL }
-    : { provider: 'mistral', model: 'mistral-large-4' },
+    : { provider: 'melious', model: PANDA_FALLBACK_MODEL },
   // Das dichte 31B auf seinen beiden Hosts — dieselben GEWICHTE, nicht nur
   // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
   // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen

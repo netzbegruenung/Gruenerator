@@ -328,6 +328,24 @@ describe('tool phase stall guard (unified)', () => {
     expect(out.text).toBe('Entwurf. Fertig.');
   });
 
+  it('lässt Panda ein stumm geschriebenes Werkzeugargument zu Ende schreiben', async () => {
+    const panda = {
+      id: 'synth',
+      provider: 'melious.chat',
+      modelId: 'deepseek-v4.1-flash',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: panda, toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(61_000);
+    const out = await running;
+
+    expect(out.text).toBe('Entwurf. Fertig.');
+  });
+
   it('reisst andere Anbieter weiter nach 45 s Stille ab', async () => {
     const melious = {
       id: 'synth',
@@ -343,6 +361,63 @@ describe('tool phase stall guard (unified)', () => {
     const err = await running;
 
     expect((err as Error).name).toBe('TimeoutError');
+  });
+
+  /** Kein Wort vor dem Aufruf: das SDK liefert bis zum fertigen Argument
+   *  keinen einzigen Teil (gemessen 19.11.2026). */
+  const silentFromTheStart = (gapMs: number) => () =>
+    ({
+      stream: (async function* () {
+        await sleep(gapMs);
+        yield { type: 'text-delta', text: 'Fertig.' };
+        yield { type: 'finish', finishReason: 'stop' };
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  it('Panda bekommt keine 8-s-Erstantwort-Frist, auch mit Ausweich dahinter', async () => {
+    const panda = {
+      id: 'synth',
+      provider: 'melious.chat',
+      modelId: 'deepseek-v4.1-flash',
+    } as unknown as LoopEngineParams['model'];
+    const { deps, seen } = depsFor({
+      synth: silentFromTheStart(30_000),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ZU_FRUEH' }]),
+    });
+    const onLaneUnhealthy = vi.fn();
+
+    const running = runAgenticLoop(
+      unified({
+        model: panda,
+        fallbackModels: [fallbackModel],
+        toolActivity: { inFlight: () => 0 },
+        onLaneUnhealthy,
+      }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(31_000);
+    const out = await running;
+
+    expect(out.text).toBe('Fertig.');
+    expect(seen).toEqual(['synth']);
+    expect(onLaneUnhealthy).not.toHaveBeenCalled();
+  });
+
+  it('andere Lanes mit Ausweich wechseln weiter nach 8 s ohne Antwort', async () => {
+    const { deps, seen } = depsFor({
+      synth: silentFromTheStart(30_000),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'VOM_AUSWEICH' }]),
+    });
+
+    const running = runAgenticLoop(
+      unified({ fallbackModels: [fallbackModel], toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(31_000);
+    const out = await running;
+
+    expect(out.text).toBe('VOM_AUSWEICH');
+    expect(seen).toEqual(['synth', 'fallback']);
   });
 });
 

@@ -23,7 +23,7 @@ import {
   getCortecsProvider,
   isProviderConfigured,
 } from '../../../services/ai/providerInstances.js';
-import { PANDA_LANE_MODEL } from '../../../services/ai/textModelPolicy.js';
+import { PANDA_FALLBACK_MODEL, PANDA_LANE_MODEL } from '../../../services/ai/textModelPolicy.js';
 import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
 import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -37,9 +37,9 @@ import {
   UNIFIED_LANE_FALLBACKS,
 } from './autoPolicy.js';
 
-import type { AgentConfig } from './types.js';
 import type { RouteOptions } from '../../../services/ai/providerInstances.js';
 import type { ProviderName } from '../../../services/ai/providers.js';
+import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
@@ -127,6 +127,12 @@ const CTX_ULTRA = 1_048_576;
  * 60 s Schweigen, und das Einlesen von 1M läge genau dort.
  */
 const CTX_PANDA = 880_000;
+/**
+ * GLM-5.3 auf Melious, der Ausweich von „Panda" (`PANDA_FALLBACK_MODEL`).
+ * Nadelprobe 19.11.2026: 513.156 Tokens angenommen und gefunden, 101,5 s
+ * Einlesen. Melious nennt 1M; darüber ist nichts gemessen.
+ */
+const CTX_PANDA_FALLBACK = 513_000;
 /**
  * „Klein" — die kleine Antwort-Lane.
  *
@@ -584,6 +590,8 @@ export function getContextWindow(
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
   }
+  // Panda's Ausweich steht bewusst nicht in AVAILABLE_MODELS (nie wählbar).
+  if (modelId === PANDA_FALLBACK_MODEL && provider === 'melious') return CTX_PANDA_FALLBACK;
 
   // Provider-level defaults for agent configs that use 'auto' or unnamed models
   if (provider === 'mistral') return CTX_FULL;
@@ -835,6 +843,29 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
 }
 
 /**
+ * Welche Stufen die Loop-Kette einer Lane deklariert, in deklarierter Reihenfolge
+ * und ohne Instanzen — die reine Hälfte von {@link resolveLoopLaneChain}, damit
+ * der China-Wächter jede Lane prüfen kann, ohne Anbieter-Schlüssel zu brauchen.
+ */
+export function loopLaneTargets(
+  provider: string,
+  modelName: string,
+  wireModelName: string | null = null
+): { provider: Provider; model: string }[] {
+  if (isUnifiedGemma(provider, modelName)) {
+    return [
+      { provider: 'melious', model: modelName },
+      ...unifiedFallbackStages(provider, modelName, wireModelName),
+    ];
+  }
+  const own =
+    provider === 'melious' && modelName === PANDA_LANE_MODEL
+      ? [{ provider: 'melious' as const, model: PANDA_FALLBACK_MODEL }]
+      : [];
+  return [{ provider: provider as Provider, model: modelName }, ...own, ...UNIFIED_LANE_FALLBACKS];
+}
+
+/**
  * Die ganze Lane-Kette eines Unified-Gemma-Zuges: die gewählte Stufe, dahinter
  * `unifiedFallbackStages`. Zähe Stufen rücken ans Ende, nicht hinaus — ein
  * zähes Modell antwortet langsam, nicht falsch, und ist alles zäh, läuft der
@@ -846,6 +877,10 @@ function stageModel(stage: { provider: Provider; model: string }): LaneStage {
  * `UNIFIED_LANE_FALLBACKS` dahinter, rückt aber nie nach hinten: sie ist eine
  * ausdrückliche Wahl, ein langsames Modell bleibt dieses Modell. Gewechselt wird
  * nur, wenn es vor jeder Ausgabe schweigt oder ablehnt.
+ *
+ * Panda bekommt davor seinen eigenen Ausweich (`PANDA_FALLBACK_MODEL`): wer die
+ * chinesische Familie freigeschaltet gewählt hat, bleibt bei einem DeepSeek-
+ * Ausfall in dieser Wahl. Gemma `:speed` bleibt dahinter als letzte Stufe.
  */
 export function resolveLoopLaneChain(
   provider: string,
@@ -857,17 +892,14 @@ export function resolveLoopLaneChain(
    *  fahren mit dem, was die Auflösung schon gebaut hat. */
   selected: LanguageModel | null = null
 ): LaneStage[] {
+  const declared = loopLaneTargets(provider, modelName, wireModelName);
   if (!isUnifiedGemma(provider, modelName)) {
     const first: LaneStage =
       provider === 'mistral' || selected == null
         ? stageModel({ provider: provider as Provider, model: modelName })
         : { provider: provider as Provider, model: modelName, languageModel: selected };
-    return [first, ...UNIFIED_LANE_FALLBACKS.map(stageModel)];
+    return [first, ...declared.slice(1).map(stageModel)];
   }
-  const declared: { provider: Provider; model: string }[] = [
-    { provider: 'melious', model: modelName },
-    ...unifiedFallbackStages(provider, modelName, wireModelName),
-  ];
   const slow = (s: { provider: Provider; model: string }): boolean =>
     isModelSlow(s.provider, s.model);
   return [...declared.filter((s) => !slow(s)), ...declared.filter(slow)].map(stageModel);
