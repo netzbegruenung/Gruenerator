@@ -37,6 +37,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { PageShell, PageHeroSearch } from '../../../../components/common/PageHero';
 import { PillTabs, type PillTab } from '../../../../components/common/PillTabs';
 import ErrorBoundary from '../../../../components/ErrorBoundary';
+import { useDocumentTitle } from '../../../../components/hooks/useDocumentTitle';
 import { useAuthStore } from '../../../../stores/authStore';
 import { webAppDocsAdapter } from '../../../docs/docsAdapter';
 import { notebookCollectionKey } from '../../hooks/useNotebookCollection';
@@ -121,6 +122,7 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
     queryClient.setQueryData(notebookCollectionKey(canonicalSlug), hubData);
     void navigate(`/notebooks/${canonicalSlug}/bearbeiten${location.search}`, { replace: true });
   }, [canonicalSlug, slugOrId, hubData, queryClient, navigate, location.search]);
+  useDocumentTitle(collection ? `${collection.name} – Quellen` : null);
 
   if (hub.query.isPending) {
     return (
