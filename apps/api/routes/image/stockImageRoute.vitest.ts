@@ -35,6 +35,7 @@ vi.mock('../../services/sharepicCreator/catalog.js', () => ({
 }));
 
 const { default: pickerRouter } = await import('./pickerController.js');
+const { stockImageHandler } = await import('./stockImage.js');
 
 const STOCK_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -44,6 +45,8 @@ const LARGEST = 'patrick-hendry-vlA_C_HTc1A-unsplash.jpg';
 
 let server: Server;
 let baseUrl = '';
+let sServer: Server;
+let sBase = '';
 
 beforeAll(async () => {
   const app = express();
@@ -51,9 +54,18 @@ beforeAll(async () => {
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/image-picker`;
+
+  const sApp = express();
+  sApp.get('/s/:filename', stockImageHandler({ allowLive: false }));
+  sServer = createServer(sApp);
+  await new Promise<void>((resolve) => sServer.listen(0, '127.0.0.1', resolve));
+  sBase = `http://127.0.0.1:${(sServer.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
+  await new Promise<void>((resolve, reject) =>
+    sServer.close((err) => (err ? reject(err) : resolve()))
+  );
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve()))
   );
@@ -118,5 +130,17 @@ describe('GET /stock-image/:filename', () => {
   it('cannot be walked out of the stock directory', async () => {
     const res = await fetch(`${baseUrl}/stock-image/..%2F..%2Fpackage.json?w=2160`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('stockImageHandler without live photos', () => {
+  it('allowLive false answers 404 for a live photo without a redirect', async () => {
+    const res = await fetch(`${sBase}/s/${LIVE}`, { redirect: 'manual' });
+    expect(res.status).toBe(404);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('allowLive false still serves bundled files', async () => {
+    expect((await fetch(`${sBase}/s/${LARGEST}?w=800&fmt=webp`)).status).toBe(200);
   });
 });
