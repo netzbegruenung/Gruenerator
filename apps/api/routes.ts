@@ -360,7 +360,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { default: thumbnailRouter } = await import('./routes/media/thumbnailRouter.js');
-  const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
   const { mountSharepicCreatorContractRouter } =
@@ -638,7 +637,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // doppelt bekommen — zwei Sitzungsauflösungen und doppelte Kontingentzählung
   // pro Anfrage.
   app.use('/api/texte/alttext', requireAuth, requireAiConsent, aiGenerationLimiter);
-  app.use('/api/texte/website', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountTexteContractRouter(app);
   app.use('/api/texte/social', requireAuth, requireAiConsent, aiGenerationLimiter, socialRoute);
   // DeepL-Übersetzer (Seite + Admin-Glossar). Anmeldung und Art.-9-Einwilligung
@@ -1200,7 +1198,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
   app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
   app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent);
-  app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   mountSitesContractRouter(app);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   // ts-rest contract router for image editing (multi-reference). requireAuth +
