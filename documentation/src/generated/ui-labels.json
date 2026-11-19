@@ -252,6 +252,11 @@
     "subtitle": "Fotos & Scans in Text umwandeln",
     "path": "/scanner"
   },
+  "catalog.tool-sites": {
+    "title": "Sites",
+    "subtitle": "Eigene Website für Kandidat*innen erstellen",
+    "path": "/sites"
+  },
   "catalog.tool-sticker": {
     "title": "Sticker & Hintergründe",
     "subtitle": "Sticker und Hintergründe erstellen, teilen und entdecken",
@@ -480,6 +485,11 @@
   "workplace.sheets": {
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
+  },
+  "workplace.sites": {
+    "title": "Sites",
+    "subtitle": "Website für deine Kandidatur",
+    "path": "/sites"
   },
   "workplace.sticker": {
     "title": "Sticker & Hintergründe",

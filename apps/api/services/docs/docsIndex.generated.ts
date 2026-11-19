@@ -209,6 +209,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator."
   },
   {
+    "url": "/docs/features/sites",
+    "title": "Sites",
+    "category": "Features",
+    "lead": "Mit Sites baust du dir eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt. Pro Konto gibt es eine Website. Du beschreibst kurz, worum es geht, die KI schlägt eine fertige Seite vor,…"
+  },
+  {
     "url": "/docs/features/tabellen",
     "title": "Tabellen",
     "category": "Features",
@@ -1153,7 +1159,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 29 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 30 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
   },
   {
     "url": "/docs/basics/tools",
@@ -1177,7 +1183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen."
+    "text": "Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Sites: Website für deine Kandidatur Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst."
   },
   {
     "url": "/docs/basics/tools",
@@ -1185,7 +1191,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
+    "text": "Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
   },
   {
     "url": "/docs/basics/tools",
@@ -2410,6 +2416,86 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#selbst-ausprobieren",
     "category": "Features",
     "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Sites",
+    "anchor": "",
+    "category": "Features",
+    "text": "Mit Sites baust du dir eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt. Pro Konto gibt es eine Website. Du beschreibst kurz, worum es geht, die KI schlägt eine fertige Seite vor, und du passt sie im Editor an."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Adresse",
+    "anchor": "#adresse",
+    "category": "Features",
+    "text": "Deine Website erscheint unter grsites.de/ . Den Namen wählst du beim Erstellen; in den Einstellungen kannst du ihn bis zum ersten Veröffentlichen noch ändern, danach nicht mehr. In der Testphase lautet die Adresse beta.grsites.de/ ."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Bearbeiten",
+    "anchor": "#bearbeiten",
+    "category": "Features",
+    "text": "Der Editor zeigt links deine Einstellungen und rechts eine Live-Vorschau. Ein Klick auf einen Teil der Vorschau öffnet direkt das passende Feld. Du kannst unter anderem: eine Farbvariante wählen, Abschnitte aus- und einblenden, bei Bildern den Bildausschnitt über einen Fokuspunkt festlegen, die Angaben für das Impressum eintragen. Deine Änderungen sind zunächst nur ein Entwurf. Die veröffentlichte Website ändert sich erst, wenn du Änderungen veröffentlichen wählst. Der Editor zeigt dir, ob die Website „Nicht veröffentlicht“, „Website veröffentlicht“ oder „Änderungen nicht veröffentlicht“ ist."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Deutschland und Österreich",
+    "anchor": "#deutschland-und-österreich",
+    "category": "Features",
+    "text": "Sites gilt für beide Länder. Das Impressum richtet sich nach dem Land deines Kontos, und die Texte sind entsprechend formuliert: Wer sich mit einem österreichischen Konto anmeldet, bekommt das österreichische Impressum, sonst das deutsche. Auch der Fuß der Website nennt die Partei passend zum Land, und der Link zur Mitgliedschaft führt zur jeweiligen Seite von Die Grünen in Deutschland bzw. Österreich. Prüfe in beiden Fällen, ob alles zu deiner Situation passt."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Impressum und Datenschutz",
+    "anchor": "#impressum-und-datenschutz",
+    "category": "Features",
+    "text": "Für Impressum und Datenschutzerklärung legt Sites Vorlagen an. Die Pflichtangaben trägst du selbst ein, denn du bist für dein Impressum verantwortlich. Die Vorlagen sind keine Rechtsberatung; prüfe sie vor dem Veröffentlichen sorgfältig. Fehlen Angaben, weist dich der Editor darauf hin."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Melden",
+    "anchor": "#melden",
+    "category": "Features",
+    "text": "Wer auf einer Website einen Verstoß sieht, kann ihn melden. In der Testphase geschieht das über einen Melde-Link per E-Mail."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Testphase",
+    "anchor": "#testphase",
+    "category": "Features",
+    "text": "Solange Sites in der Testphase ist, sind alle Websites mit noindex markiert: Suchmaschinen sollen sie nicht in ihre Ergebnisse aufnehmen."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Veröffentlichen, zurückziehen, löschen",
+    "anchor": "#veröffentlichen-zurückziehen-löschen",
+    "category": "Features",
+    "text": "Veröffentlichen: Beim ersten Mal geht die Website damit online; später übernimmst du mit Änderungen veröffentlichen neue Änderungen. Veröffentlichung zurückziehen: Die Website ist nicht mehr öffentlich erreichbar, dein Entwurf bleibt erhalten. Löschen: Die Website ist sofort offline und liegt 30 Tage im Papierkorb. Stellst du sie wieder her, kommt sie als unveröffentlichter Entwurf zurück."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Website erstellen",
+    "anchor": "#website-erstellen",
+    "category": "Features",
+    "text": "Beim ersten Öffnen von Sites wählst du, wie du startest: Aus einer kurzen Beschreibung: Du schreibst, wer du bist und wofür du antrittst; die KI erstellt daraus die Website. Aus einem Flyer: Du lädst deinen Flyer als PDF hoch; die KI liest ihn aus und übernimmt Inhalte und Themen. Beides setzt die Einwilligung zur KI-Nutzung voraus, weil dein Text oder Flyer an einen KI-Anbieter geht. Prüfe den Entwurf anschließend, KI-Texte können Fehler enthalten."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Wer Sites nutzen kann",
+    "anchor": "#wer-sites-nutzen-kann",
+    "category": "Features",
+    "text": "Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support."
   },
   {
     "url": "/docs/features/tabellen",

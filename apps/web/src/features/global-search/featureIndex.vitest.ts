@@ -68,3 +68,26 @@ describe('buildFeatureIndex — invariants', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 });
+
+describe('sites entry gate', () => {
+  const hitsFor = (canSeeSites?: boolean) =>
+    matchFeatures(
+      buildFeatureIndex({
+        isAustrian: false,
+        locale: 'de-DE',
+        userAgents: [],
+        ...(canSeeSites === undefined ? {} : { canSeeSites }),
+      }),
+      'website',
+      10
+    ).filter((h) => h.path === '/sites');
+
+  it('hides Sites by default and when not unlocked', () => {
+    expect(hitsFor()).toHaveLength(0);
+    expect(hitsFor(false)).toHaveLength(0);
+  });
+
+  it('finds Sites via "website" for unlocked accounts', () => {
+    expect(hitsFor(true).length).toBeGreaterThan(0);
+  });
+});
