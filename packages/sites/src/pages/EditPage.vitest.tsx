@@ -124,4 +124,19 @@ describe('EditPage', () => {
     expect(retry).toHaveBeenCalledTimes(1);
     expect(unloadCancelled()).toBe(false);
   });
+
+  it('shows a back button without the app title in the editor header and calls onBack', async () => {
+    setSite({ site: siteRow });
+    hoisted.session.current = {
+      state: 'ready',
+      ydoc: seededDoc({}),
+      provider: {},
+      save: 'saved',
+    };
+    const onBack = vi.fn();
+    render(<EditPage onBack={onBack} />);
+    expect(screen.queryByText('Grünerator Sites')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
 });

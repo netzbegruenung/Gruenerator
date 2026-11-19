@@ -8,6 +8,7 @@ import {
 import { Button } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 
+import { BackButton } from '../components/common/BackButton';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
@@ -64,7 +65,7 @@ function GeneratedPreview({
   );
 }
 
-export function CreateFlow() {
+export function CreateFlow({ onBack }: { onBack?: () => void }) {
   const { user } = useAuth();
   const { publicOrigin, createSite, isCreating, refetch } = useSite();
   const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
@@ -185,6 +186,7 @@ export function CreateFlow() {
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
           onFlyerUpload={handleFlyerUpload}
+          onBack={onBack}
           isProcessing={isGenerating || isCreating}
           isGenerating={isGenerating}
           isGeneratingFromFlyer={isGenerating && isFlyer}
@@ -208,15 +210,14 @@ export function CreateFlow() {
 
   return (
     <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
-      <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
-        <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
-          Grünerator Sites
-        </h1>
+      <header className="flex flex-row items-center gap-sm py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
+        {onBack && <BackButton onBack={onBack} />}
+        <h1 className="sr-only">Seite erstellen</h1>
       </header>
 
       <div className="flex flex-col flex-1 overflow-hidden lg:flex-row">
         <aside className="w-full shrink-0 bg-background-pure p-lg overflow-y-auto border-b border-grey-200 dark:border-grey-700 max-h-[60vh] md:p-xl md:max-h-none lg:w-[400px] lg:border-b-0 lg:border-r lg:border-grey-200 dark:lg:border-grey-700 xl:w-[450px]">
-          <h2 className="text-lg text-foreground mb-lg">Vorschau</h2>
+          <h2 className="text-lg text-foreground mb-lg">Prüfen und erstellen</h2>
           <p className="text-grey-600 dark:text-grey-400 text-base leading-relaxed mb-lg">
             So wird deine Seite aussehen. Prüfe die Inhalte und erstelle die Seite.
           </p>
@@ -266,7 +267,7 @@ export function CreateFlow() {
 
         <div className="flex-1 flex flex-col overflow-hidden min-h-[40vh] lg:min-h-0">
           <div className="py-md px-lg bg-background-pure border-b border-grey-200 dark:border-grey-700">
-            <h3 className="m-0 text-base text-grey-600 dark:text-grey-400">Vorschau</h3>
+            <h2 className="m-0 text-base text-grey-600 dark:text-grey-400">Vorschau</h2>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden bg-background-pure">
             <GeneratedPreview

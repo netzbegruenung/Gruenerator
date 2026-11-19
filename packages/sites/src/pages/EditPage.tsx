@@ -3,7 +3,12 @@ import { CreateFlow } from '../create/CreateFlow';
 import { SiteEditor } from '../editor/SiteEditor';
 import { useSite } from '../hooks/useSite';
 
-export function EditPage() {
+interface EditPageProps {
+  /** Leaves the editor; the host decides where to (the page the person came from). */
+  onBack?: () => void;
+}
+
+export function EditPage({ onBack }: EditPageProps) {
   const { site, isLoading, error, refetch } = useSite();
 
   if (isLoading) {
@@ -20,8 +25,8 @@ export function EditPage() {
   }
 
   if (site) {
-    return <SiteEditor key={site.id} site={site} />;
+    return <SiteEditor key={site.id} site={site} onBack={onBack} />;
   }
 
-  return <CreateFlow />;
+  return <CreateFlow onBack={onBack} />;
 }
