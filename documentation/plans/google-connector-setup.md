@@ -2,6 +2,14 @@
 
 Stand 19.11.2026. Der Code ist fertig: Google steht nicht mehr in `HIDDEN_NANGO_PROVIDERS`, die Karte „Google Workspace" (experimentell) liegt im Konnektor-Verzeichnis, und der Cloud-Browser im Chat öffnet für Google den Google Picker (`GET /api/connections/google/picker`). Damit „Verbinden" und die Dateiauswahl in Prod wirklich funktionieren, braucht es die Schritte unten. Vorbild ist `microsoft-connector-chrome-todo.md`.
 
+**Stand 19.11.2026, nachgesehen:** A, B und C sind erledigt. Offen sind nur die Prüfung (D) nach dem Deploy und, wenn gewünscht, die Markenprüfung (A.2).
+
+- **A:** Cloud-Projekt `gruenerator`, Projektnummer `531200095410`. Die vier APIs sind aktiv, der Zustimmungsbildschirm steht auf „In Produktion“ (extern, nur `drive.file`), der OAuth-Client „gruenerator“ hat Ursprung `https://nango.gruenerator.eu` und Weiterleitung `https://nango.gruenerator.eu/oauth/callback`, und der Key „Grünerator Google Picker“ ist auf die Picker API und `https://gruenerator.eu/*` eingeschränkt. Das Überprüfungscenter meldet, dass das Branding Nutzer*innen nicht angezeigt wird; die Anmeldung funktioniert trotzdem.
+- **B:** Die Integration `google` (Google Drive) liegt in der Nango-Umgebung `dev`, derselben wie `microsoft`. Client-ID und Secret sind eingetragen, Scope `drive.file`.
+- **C:** Beide Pillar-Werte und beide Zeilen in `backend.env.j2` liegen auf Salt-`master`.
+
+Das Firebase-Projekt `gruenerator-b4849` hat mit dem Konnektor nichts zu tun.
+
 ## Warum der Picker
 
 Der OAuth-Client fragt nur den Scope `https://www.googleapis.com/auth/drive.file` an. Damit sieht der Grünerator ausschließlich Dateien, die die Person im Picker ausgewählt hat, und Google stuft den Scope als „nicht sensibel" ein. Bei `drive.readonly` wäre der Scope „restricted", und Google verlangt dann eine Verifizierung mit jährlicher Sicherheitsbewertung (CASA). Deshalb gibt es für Google keine Ordneransicht.
@@ -13,12 +21,12 @@ OAuth-Client, API-Key und App-ID **müssen aus demselben Cloud-Projekt stammen**
 1. APIs aktivieren: **Google Drive API**, **Google Docs API**, **Google Sheets API**, **Google Picker API**.
 2. OAuth-Zustimmungsbildschirm:
    - Typ „Extern“, App-Name „Grünerator“, Support-Mail, Datenschutz-Link `https://gruenerator.eu/datenschutz`, autorisierte Domain `gruenerator.eu`.
-   - Scopes: `openid`, `email`, `profile`, `drive.file` und sonst nichts.
+   - Scope: nur `drive.file`. `openid`, `email` und `profile` braucht der Code nicht, er ruft keine Userinfo ab.
    - **Veröffentlichungsstatus auf „In Produktion“ setzen.** Im Status „Testen“ kommen nur eingetragene Testkonten durch, und Refresh-Tokens laufen nach 7 Tagen ab.
    - Wegen der Markenprüfung (Name und Logo) kann Google ein paar Tage brauchen. Bei nur nicht sensiblen Scopes ist keine Sicherheitsbewertung nötig.
 3. Anmeldedaten → OAuth-Client-ID, Typ „Webanwendung“:
    - autorisierte Weiterleitungs-URI `https://nango.gruenerator.eu/oauth/callback` (Beta: der Nango-Host der Beta-Instanz)
-   - autorisierter JavaScript-Ursprung `https://gruenerator.eu`
+   - autorisierter JavaScript-Ursprung `https://nango.gruenerator.eu`
 4. Anmeldedaten → API-Schlüssel:
    - Einschränkung „Websites“ mit `https://gruenerator.eu/*` (Beta: deren Domain zusätzlich)
    - API-Einschränkung nur auf „Google Picker API“
@@ -28,7 +36,7 @@ OAuth-Client, API-Key und App-ID **müssen aus demselben Cloud-Projekt stammen**
 
 1. Integration anlegen, Anbieter „Google“ (bzw. „Google Drive“).
 2. **Unique Key genau `google`.** `NANGO_PROVIDERS` in `apps/api/config/nango.ts` verwendet diesen String fest.
-3. Client-ID und Client-Secret aus A.3 eintragen, Scopes wie oben: `openid email profile https://www.googleapis.com/auth/drive.file`.
+3. Client-ID und Client-Secret aus A.3 eintragen, Scope wie oben: `https://www.googleapis.com/auth/drive.file`.
 4. Die Umgebung muss dieselbe sein, deren Secret Key das Backend nutzt (siehe die Memory zur Nango-Key-Drift: `prod.sls` und `test.sls` zeigen auf denselben Passbolt-Eintrag).
 
 ## C. Salt
