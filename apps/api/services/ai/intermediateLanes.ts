@@ -113,6 +113,7 @@
 
 import {
   GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_MELIOUS_ECO,
   GEMMA_31B_ON_MELIOUS_SPEED,
   GEMMA_31B_PRIMARY,
 } from './gemmaHosts.js';
@@ -188,6 +189,14 @@ const MELIOUS_GEMMA_4_SPEED = {
 } as const;
 
 /**
+ * Der Primär von `trivial`: dieselben Gewichte über Melious `:eco` — die Stufe
+ * hat kein Latenzbudget (Hintergrundarbeit mit Ersatzwert), also zählt dort
+ * der sparsamere Upstream, nicht der schnellste. Am 19.11.2026 mit demselben
+ * Prompt wie oben gemessen: 8 von 8 richtig, Median 514 ms, max 994 ms.
+ */
+const MELIOUS_GEMMA_4_ECO = { provider: 'melious', model: GEMMA_31B_ON_MELIOUS_ECO } as const;
+
+/**
  * Hinter dem Primär: dasselbe kleine Mistral-Modell bei zwei weiteren
  * Vertragspartnern. `cortecs/mistral-small-3.2-24b-instruct-2506`, gemessen am
  * 29.08.2026 gegen den lebenden Endpunkt, 3 Läufe, `max_tokens: 16`: HTTP 200,
@@ -236,7 +245,7 @@ export const INTERMEDIATE_LANES = {
    * wird). Die Stufe mit der grössten Stückzahl und den kleinsten Antworten —
    * also die, bei der ein Wechsel am meisten brächte und am wenigsten riskiert.
    */
-  trivial: { ...MELIOUS_GEMMA_4_SPEED, fallback: SMALL_CHAIN },
+  trivial: { ...MELIOUS_GEMMA_4_ECO, fallback: SMALL_CHAIN },
 
   /**
    * Der Hot Path: kurze Ausgabe, harte Zeitsperren, Routing-Wirkung.

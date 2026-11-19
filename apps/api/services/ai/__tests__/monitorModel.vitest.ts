@@ -6,7 +6,7 @@
  * Chat-Gemma-Lane: ein stündlicher Hintergrundlauf konnte damit einem
  * wartenden Menschen den Ausweichhost wegnehmen. Danach lief er bis 19.11.2026
  * auf GreenPT (Small 3.2), das an dem Tag im Median 8,4 s für kurze Aufrufe
- * brauchte. Diese Fälle halten fest, dass er auf dem Gemma-Primär schreibt und
+ * brauchte. Diese Fälle halten fest, dass er auf Melious Gemma `:eco` schreibt und
  * nie auf litellm/Verdigado oder GreenPT landet.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -34,7 +34,6 @@ vi.mock('../providerInstances.js', () => ({
 }));
 
 const { getMonitorModel } = await import('../providers.js');
-const { GEMMA_31B_PRIMARY } = await import('../gemmaHosts.js');
 
 function hostOf(model: unknown): { provider: string; modelId: string } {
   return model as { provider: string; modelId: string };
@@ -45,16 +44,17 @@ describe('getMonitorModel', () => {
     isProviderConfigured.mockReset();
   });
 
-  it('schreibt auf dem Gemma-Primär, nicht auf GreenPT', () => {
+  it('schreibt auf Melious Gemma :eco, nicht auf GreenPT', () => {
+    // Nicht zeitkritisch, also der sparsame Upstream.
     isProviderConfigured.mockImplementation((p) => p === 'melious' || p === 'greenpt');
 
     const host = hostOf(getMonitorModel());
 
-    expect(host.provider).toContain(GEMMA_31B_PRIMARY.provider);
-    expect(host.modelId).toBe(GEMMA_31B_PRIMARY.model);
+    expect(host.provider).toContain('melious');
+    expect(host.modelId).toBe('gemma-4-31b:eco');
   });
 
-  it('fällt ohne Gemma-Primär auf Mistral zurück, nie auf litellm/Verdigado', () => {
+  it('fällt ohne Melious auf Mistral zurück, nie auf litellm/Verdigado', () => {
     // litellm ist absichtlich konfiguriert: früher gewann es hier.
     isProviderConfigured.mockImplementation((p) => p === 'litellm');
 

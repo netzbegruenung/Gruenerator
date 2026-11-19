@@ -13,7 +13,7 @@ import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { withFallbackChain } from './fallbackModel.js';
 import { withGemmaChannelFilter } from './gemmaChannelFilter.js';
-import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+import { GEMMA_31B_ON_MELIOUS_ECO } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { RETIRED_LITELLM_DEFAULT, retireLiteLLM } from './litellmRetired.js';
 import { isModelSlow } from './modelHealth.js';
@@ -180,8 +180,8 @@ export {
 } from './providerInstances.js';
 
 /**
- * Das Modell, mit dem der Monitor im Hintergrund schreibt: der Gemma-Primär
- * (`gemmaHosts.ts`), ohne Denken (`meliousFetch` setzt `reasoning_effort:
+ * Das Modell, mit dem der Monitor im Hintergrund schreibt: Gemma 4 über Melious
+ * `:eco` — nicht zeitkritisch, also der sparsame Upstream —, ohne Denken (`meliousFetch` setzt `reasoning_effort:
  * 'none'`) — fünf der neun Monitor-Aufrufe haben eine Ausgabedecke von
  * 1.500–2.000 Tokens, ein denkendes Modell gäbe dort leeren Text zurück.
  *
@@ -193,9 +193,7 @@ export {
  * Text-Lane mehr, die fest auf GreenPT liegt.
  */
 export function getMonitorModel(): LanguageModel {
-  if (isProviderConfigured(GEMMA_31B_PRIMARY.provider)) {
-    return getModel(GEMMA_31B_PRIMARY.provider, GEMMA_31B_PRIMARY.model);
-  }
+  if (isProviderConfigured('melious')) return getModel('melious', GEMMA_31B_ON_MELIOUS_ECO);
   return getModel('mistral');
 }
 

@@ -194,6 +194,15 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'bound',
   },
+  // `:eco` — dieselben Gewichte, seit 19.11.2026 Primär von `trivial` und des
+  // Monitors. Gleiche Lage wie `:speed`: Melious meldet selbst, der Eintrag gilt
+  // nur ohne Meldung, auf `:eco` nicht gemessen.
+  'gemma-4-31b:eco': {
+    mWhPerOutputToken: 4.69,
+    mWhPerInputToken: 0.0219,
+    mWhFixed: 0,
+    basis: 'bound',
+  },
   // `deepseek-v4.1-flash` auf Melious — die Lane „Panda". Aus demselben Grund
   // wie Gemma darüber aus Melious' EIGENEN Meldungen kalibriert (gestreamte
   // Antworten tragen kein `environment_impact`): 5 nicht-gestreamte Aufrufe am
