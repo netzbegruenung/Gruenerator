@@ -202,6 +202,18 @@ export class PostgresPersistence {
     return null;
   }
 
+  /** Whether any Yjs row exists for the room, readable or not. */
+  async hasStoredState(room: string): Promise<boolean> {
+    const rows = await this.db(
+      `SELECT 1 FROM yjs_document_updates WHERE document_id = $1
+       UNION ALL
+       SELECT 1 FROM yjs_document_snapshots WHERE document_id = $1
+       LIMIT 1`,
+      [persistenceKey(room)]
+    );
+    return rows.length > 0;
+  }
+
   async initializeWithTemplate(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);

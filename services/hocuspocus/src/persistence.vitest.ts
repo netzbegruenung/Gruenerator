@@ -220,4 +220,13 @@ describe('PostgresPersistence — site rooms use the bare uuid as key', () => {
       expect(call.params?.[0]).toBe(DOC_ID);
     }
   });
+
+  it(`hasStoredState('site-<uuid>') looks up document_id = <uuid> in both tables`, async () => {
+    const { db, calls } = recordingDb();
+    await expect(new PostgresPersistence(db).hasStoredState(ROOM)).resolves.toBe(false);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].params).toEqual([DOC_ID]);
+    expect(calls[0].sql).toContain('FROM yjs_document_updates');
+    expect(calls[0].sql).toContain('FROM yjs_document_snapshots');
+  });
 });

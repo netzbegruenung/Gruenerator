@@ -626,6 +626,15 @@ describe('AuthService — site rooms', () => {
     expect(captured.some((c) => /user_sites/.test(c.sql))).toBe(false);
   });
 
+  it('site room: an upper-case uuid is denied without a query', async () => {
+    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const room = `site-${SITE_ID.toUpperCase()}`;
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(room));
+    expect(res.authenticated).toBe(false);
+    expect(await roomReason(db, room)).toBe('Site not found');
+    expect(captured.some((c) => /user_sites/.test(c.sql))).toBe(false);
+  });
+
   it('site room: removed by moderation is read-only', async () => {
     const { db } = makeDb({ site: { user_id: 'user-9', moderation: 'removed' } });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));

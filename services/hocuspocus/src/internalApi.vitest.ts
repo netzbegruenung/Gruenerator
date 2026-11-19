@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as Y from 'yjs';
 
 import { detectPreviewKind } from './contentPreviews.js';
+import { SITE_DOC_MAX_BYTES } from './siteRooms.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
@@ -585,6 +586,32 @@ describe('POST /internal/site/:siteId/seed', () => {
     expect(await second.json()).toEqual({ seeded: false });
     expect(opened).toEqual([`site-${SITE_ID}`, `site-${SITE_ID}`]);
     expect(docs.get(`site-${SITE_ID}`)?.getMap('siteMeta').get('title')).toBe('Erste');
+  });
+
+  it('seeds the lower-case room for an upper-case id', async () => {
+    const opened: string[] = [];
+    const base = await start(new Map(), opened);
+    const res = await post(`${base}/${SITE_ID.toUpperCase()}/seed`, { update: seedOf('Erste') });
+    expect(await res.json()).toEqual({ seeded: true });
+    expect(opened).toEqual([`site-${SITE_ID}`]);
+  });
+
+  it('answers 413 for a seed over the store cap and seeds nothing', async () => {
+    const docs = new Map<string, Y.Doc>();
+    const opened: string[] = [];
+    const base = await start(docs, opened);
+    const big = new Y.Doc();
+    big.getMap('siteMeta').set('blob', 'x'.repeat(SITE_DOC_MAX_BYTES));
+    const update = Buffer.from(Y.encodeStateAsUpdate(big)).toString('base64');
+
+    const res = await post(`${base}/${SITE_ID}/seed`, { update });
+
+    expect(res.status).toBe(413);
+    expect((await res.json()) as { error: string }).toMatchObject({
+      error: expect.stringMatching(/over the \d+-byte cap/),
+    });
+    expect(opened).toEqual([]);
+    expect(docs.size).toBe(0);
   });
 
   it.each([
