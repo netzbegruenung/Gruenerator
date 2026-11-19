@@ -174,6 +174,12 @@ function canonicalEmptyNode(entry: unknown): unknown {
   return entry;
 }
 
+/** Postgres `jsonb` reorders object keys on storage, so key order must not matter. Arrays keep theirs. */
+function sortKeys(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
 /**
  * The editor schema re-adds node defaults a stored row may lack (`start: 1`, `type: null` on an
  * ordered list), so equal documents can differ in form. Compare both sides in one canonical form.
@@ -181,14 +187,14 @@ function canonicalEmptyNode(entry: unknown): unknown {
 function canonicalSnapshotJson(value: unknown): string {
   return JSON.stringify(value, (key, entry: unknown) => {
     const node = canonicalEmptyNode(entry);
-    if (node !== entry) return node;
-    if (key !== 'attrs' || !entry || typeof entry !== 'object') return entry;
+    if (node !== entry) return sortKeys(node);
+    if (key !== 'attrs' || !entry || typeof entry !== 'object') return sortKeys(entry);
     const attrs = Object.fromEntries(
       Object.entries(entry).filter(
         ([name, attr]) => !(name === 'start' && attr === 1) && !(name === 'type' && attr === null)
       )
     );
-    return Object.keys(attrs).length > 0 ? attrs : undefined;
+    return Object.keys(attrs).length > 0 ? sortKeys(attrs) : undefined;
   });
 }
 
