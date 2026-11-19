@@ -290,7 +290,7 @@ export function CreateSiteScreen({
                       oder hierher ziehen
                     </span>
                     <span className="text-xs text-grey-400 dark:text-grey-500">
-                      PDF, max. 20 MB
+                      PDF, max. 20 MB, bis 100 Seiten
                     </span>
                   </button>
                   <input
