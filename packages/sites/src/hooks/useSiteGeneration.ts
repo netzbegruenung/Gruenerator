@@ -10,9 +10,11 @@ export function useSiteGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFlyer, setIsFlyer] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(
     () => () => {
+      mountedRef.current = false;
       controllerRef.current?.abort();
     },
     []
@@ -39,12 +41,18 @@ export function useSiteGeneration() {
       } finally {
         if (controllerRef.current === controller) {
           controllerRef.current = null;
-          setIsGenerating(false);
+          if (mountedRef.current) setIsGenerating(false);
         }
       }
     },
     []
   );
 
-  return { generate, steps, current, isGenerating, isFlyer };
+  const cancel = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    setIsGenerating(false);
+  }, []);
+
+  return { generate, cancel, steps, current, isGenerating, isFlyer };
 }
