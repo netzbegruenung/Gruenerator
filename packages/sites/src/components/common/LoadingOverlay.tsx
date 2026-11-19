@@ -1,5 +1,7 @@
+import { useRef } from 'react';
+
 import { type SiteGenerationStep } from '@gruenerator/contracts';
-import { Button } from '@gruenerator/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@gruenerator/ui';
 
 import { SITE_GENERATION_STEP_LABELS } from '../../generation/stepLabels';
 
@@ -11,14 +13,14 @@ interface LoadingOverlayProps {
   onCancel?: () => void;
 }
 
-export function LoadingOverlay({
+function OverlayDialog({
   isLoading,
   message,
   steps,
   current,
   onCancel,
-}: LoadingOverlayProps) {
-  if (!isLoading) return null;
+}: Omit<LoadingOverlayProps, 'isLoading'>) {
+  const returnFocusTo = useRef<Element | null>(document.activeElement);
 
   const currentIndex = current ? steps.indexOf(current) : -1;
   const finished = Math.max(currentIndex, 0);
@@ -26,18 +28,32 @@ export function LoadingOverlay({
   const currentLabel = current ? SITE_GENERATION_STEP_LABELS[current] : '';
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] animate-[fade-in_0.2s_ease-out] motion-reduce:animate-none"
-      role="dialog"
-      aria-modal="true"
-      aria-label={message}
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel?.();
+      }}
     >
-      <div className="bg-background-pure rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.2)] max-w-[400px] w-[90%] text-center">
+      <DialogContent
+        showCloseButton={false}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (returnFocusTo.current instanceof HTMLElement) returnFocusTo.current.focus();
+        }}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => {
+          if (!onCancel) event.preventDefault();
+        }}
+        className="bg-background-pure rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.2)] max-w-[400px] w-[90%] block text-center motion-reduce:animate-none motion-reduce:duration-0"
+      >
+        <DialogDescription className="sr-only">
+          Bitte warten, die Seite wird erstellt.
+        </DialogDescription>
         <div
           className="w-[60px] h-[60px] mx-auto mb-6 border-4 border-grey-100 dark:border-grey-800 border-t-primary-950 rounded-full animate-[spin_0.8s_linear_infinite] motion-reduce:animate-none"
           aria-hidden="true"
         />
-        <p className="text-lg font-medium text-foreground mb-2">{message}</p>
+        <DialogTitle className="text-lg font-medium text-foreground mb-2">{message}</DialogTitle>
         <p role="status" className="sr-only">
           {currentLabel}
         </p>
@@ -84,7 +100,12 @@ export function LoadingOverlay({
             Abbrechen
           </Button>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+export function LoadingOverlay({ isLoading, ...rest }: LoadingOverlayProps) {
+  if (!isLoading) return null;
+  return <OverlayDialog {...rest} />;
 }

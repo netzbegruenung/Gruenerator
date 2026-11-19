@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -49,6 +49,32 @@ describe('LoadingOverlay', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus inside on open, cancels on Escape and returns focus on close', async () => {
+    const onCancel = vi.fn();
+    const Host = ({ loading }: { loading: boolean }) => (
+      <>
+        <button type="button">Generieren</button>
+        <LoadingOverlay
+          isLoading={loading}
+          message="m"
+          steps={FLYER_STEPS}
+          current="write"
+          onCancel={onCancel}
+        />
+      </>
+    );
+    const { rerender } = render(<Host loading={false} />);
+    const trigger = screen.getByRole('button', { name: 'Generieren' });
+    trigger.focus();
+    rerender(<Host loading />);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await userEvent.keyboard('{Escape}');
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    rerender(<Host loading={false} />);
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it('renders nothing when not loading', () => {
