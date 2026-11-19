@@ -87,6 +87,7 @@ import {
   makeAntragsgruenLesenTool,
   makeAntragsgruenTool,
 } from './antragsgruenTools.js';
+import { makeAtlassianTool } from './atlassianTools.js';
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
@@ -1301,6 +1302,21 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // dessen URL steht ebenfalls nur in den Anhangsdaten.
     if (cloudFilesMounted) {
       tools.cloud_files = makeCloudFilesTool(personalCtx);
+    }
+
+    // Jira/Confluence (read-only): mounted only for an account that has at
+    // least one of them connected — no word gating, an unconnected account
+    // pays nothing. The count is a 60 s cache filled in `buildStreamContext`.
+    const atlassianConnections = state.atlassianConnections ?? { jira: false, confluence: false };
+    if (
+      state.enabledTools?.['atlassian'] !== false &&
+      (atlassianConnections.jira || atlassianConnections.confluence)
+    ) {
+      tools.atlassian = makeAtlassianTool({
+        state,
+        sourceRegistry,
+        connections: atlassianConnections,
+      });
     }
 
     // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict

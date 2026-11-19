@@ -17,7 +17,7 @@ export function AboutSection({ ctx }: { ctx: SectionContext }) {
     <Section
       section="about"
       anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'about')}
+      ground={sectionGround(snapshot.variant, 'about', snapshot.locale)}
       className="site:py-section"
     >
       <div className={`${CONTAINER} site:grid site:gap-8 site:md:grid-cols-12 site:lg:gap-x-8`}>

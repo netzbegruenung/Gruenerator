@@ -396,6 +396,8 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache
 
       - name: Boot smoke test
+        env:
+          SMOKE_DOCKER_ARGS: '-e SITES_HOST=sites.ci.test'
         run: scripts/smoke-image-boot.sh smoke-api:ci
 
       - name: Build and push

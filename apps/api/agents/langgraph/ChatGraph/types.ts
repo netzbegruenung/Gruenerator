@@ -9,7 +9,6 @@
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type {
   NotebookEditPolicy,
@@ -21,6 +20,7 @@ import type { EditableArtifact } from '../../../routes/chat/services/editAddress
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
+import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -592,6 +592,12 @@ export interface ChatGraphInput {
    * 60-Sekunden-Cache; `undefined` heißt „nicht ermittelt", nicht „keine".
    */
   cloudConnectionCount?: number | undefined;
+  /**
+   * Welche Atlassian-Produkte (Jira/Confluence) das Konto verbunden hat — das
+   * Tor für `atlassian` im Werkzeugkatalog. 60-Sekunden-Cache in
+   * `buildStreamContext`; `undefined` heißt „nicht ermittelt", nicht „keine".
+   */
+  atlassianConnections?: { jira: boolean; confluence: boolean } | undefined;
   /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
    *  tools. Needed separately from `threadAttachments`, which carries no bytes
    *  and is only written after the turn completes — on the very first turn
@@ -866,6 +872,8 @@ export interface ChatGraphState {
   hasTabularAttachment: boolean;
   /** See the input-side field: the tool-catalog gate for `cloud_files`. */
   cloudConnectionCount: number;
+  /** See the input-side field: the tool-catalog gate for `atlassian`. */
+  atlassianConnections: { jira: boolean; confluence: boolean };
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   /** See `ChatGraphInput.turnTabularTexts`. */
