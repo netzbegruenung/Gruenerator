@@ -26,6 +26,7 @@ import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
 import { CURRENT_INSTANCE } from './config/instance.js';
 import { getServerConfig } from './config/serverConfig.js';
+import { siteOrigin } from './config/sitesOrigin.js';
 import { Sentry } from './lib/sentry.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
@@ -34,6 +35,14 @@ import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
 import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
 import { setupRoutes } from './routes.js';
+import {
+  createSiteAssets,
+  defaultSiteAssetPaths,
+  type SiteAssets,
+} from './routes/sites/public/siteAssets.js';
+import { createSitePagesRouter } from './routes/sites/public/sitePages.js';
+import { SITE_ROBOTS } from './routes/sites/public/siteSecurity.js';
+import { createSitesHostGate, sitesReadLimiter } from './routes/sites/public/sitesHostGate.js';
 import {
   startModelLatencyCleanup,
   startModelLatencyRollup,
@@ -56,6 +65,7 @@ import {
   LV_SOCIAL_IMAGE_DIR,
   LV_SOCIAL_IMAGE_PATH,
 } from './services/scrapers/utils/lvSocialImages.js';
+import { loadPublishedSite } from './services/sites/publishedSite.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -222,6 +232,34 @@ async function startWorker(): Promise<void> {
 
   // Trust proxy for secure cookies behind nginx/load balancer
   app.set('trust proxy', 1);
+
+  if (env.SITES_HOST) {
+    let assets: SiteAssets | null = null;
+    try {
+      assets = createSiteAssets(defaultSiteAssetPaths());
+    } catch (error) {
+      if (env.NODE_ENV === 'production') throw error;
+      log.error('[sites] site assets missing — run pnpm --filter @gruenerator/sites-design build');
+    }
+    if (assets) {
+      // Must stay before CORS, the upload routes, the session and the Redis cache: each of
+      // them would answer, or set a cookie, on the sites host before the gate could.
+      app.use(
+        createSitesHostGate({
+          host: env.SITES_HOST,
+          pages: createSitePagesRouter({
+            assets,
+            origin: siteOrigin(env.SITES_HOST, config.port),
+            reportEmail: env.SITES_REPORT_EMAIL ?? '',
+            robots: SITE_ROBOTS,
+            loadSnapshot: loadPublishedSite,
+          }),
+          limiter: sitesReadLimiter,
+          robots: SITE_ROBOTS,
+        })
+      );
+    }
+  }
 
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);
