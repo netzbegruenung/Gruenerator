@@ -175,7 +175,7 @@ const PageLayout = ({
           </div>
         </div>
       ) : null}
-      <Sidebar />
+      <Sidebar railHidden={sidebarRailHidden} />
       <div className={appContentClasses}>
         <main id="main-content" className={mainClasses}>
           {children}
