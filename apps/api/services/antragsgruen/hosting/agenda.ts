@@ -7,7 +7,7 @@
  * Session und das CSRF-Token im Kopf `X-CSRF-Token`, ein Bearer-Token reicht
  * nicht (gemessen 16.11.2026, sonst HTTP 400).
  */
-import { AntragsgruenFormError, csrfOf, type FormClient } from './formClient.js';
+import { FormStepError, csrfOf, type FormClient } from '../../webForms/formClient.js';
 
 export interface AgendaEntry {
   /** z. B. „1." oder „TOP 3"; `null` = Antragsgrün nummeriert selbst. */
@@ -99,8 +99,7 @@ export async function setAgenda(
 ): Promise<AgendaItemRef[]> {
   const page = await client.request(`${origin}/${consultation}/admin/agenda`);
   const csrf = csrfOf(page.html);
-  if (!csrf)
-    throw new AntragsgruenFormError('Kein CSRF-Token auf der Tagesordnungs-Seite', 'agenda');
+  if (!csrf) throw new FormStepError('Kein CSRF-Token auf der Tagesordnungs-Seite', 'agenda');
   const res = await client.request(`${origin}/rest/${consultation}/agenda`, {
     method: 'POST',
     json: { csrf, body: agendaBody(entries, motionTypeId, existing) },
@@ -112,10 +111,7 @@ export async function setAgenda(
     items = undefined;
   }
   if (res.status !== 200 || !items) {
-    throw new AntragsgruenFormError(
-      `Tagesordnung nicht gespeichert (HTTP ${res.status})`,
-      'agenda'
-    );
+    throw new FormStepError(`Tagesordnung nicht gespeichert (HTTP ${res.status})`, 'agenda');
   }
   return flatten(items);
 }
@@ -129,7 +125,7 @@ export async function agendaOf(
   try {
     return flatten((JSON.parse(res.html) as { items?: ApiAgendaItem[] }).items ?? []);
   } catch {
-    throw new AntragsgruenFormError(`Tagesordnung nicht lesbar (HTTP ${res.status})`, 'agenda');
+    throw new FormStepError(`Tagesordnung nicht lesbar (HTTP ${res.status})`, 'agenda');
   }
 }
 

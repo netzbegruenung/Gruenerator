@@ -51,6 +51,7 @@ import {
   notebookWordpressContract,
   userWebsitesContract,
   antragsgruenSitesContract,
+  nuudelPollsContract,
   letterheadsContract,
   notebookSharingContract,
   notificationsContract,
@@ -109,6 +110,7 @@ import {
   explainablesContract,
   publicExplainablesContract,
   podcastsContract,
+  videoAiContract,
   briefingContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
@@ -325,6 +327,7 @@ const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
 const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _antragsgruenSitesClient = () => initClient(antragsgruenSitesContract, CLIENT_OPTS);
+const _nuudelPollsClient = () => initClient(nuudelPollsContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
@@ -387,6 +390,7 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
 const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
 const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
+const _videoAiClient = () => initClient(videoAiContract, CLIENT_OPTS);
 const _briefingClient = () => initClient(briefingContract, CLIENT_OPTS);
 
 export interface ContractsClient {
@@ -423,6 +427,7 @@ export interface ContractsClient {
   notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   antragsgruenSites: ReturnType<typeof _antragsgruenSitesClient>;
+  nuudelPolls: ReturnType<typeof _nuudelPollsClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
@@ -482,6 +487,7 @@ export interface ContractsClient {
   explainables: ReturnType<typeof _explainablesClient>;
   publicExplainables: ReturnType<typeof _publicExplainablesClient>;
   podcasts: ReturnType<typeof _podcastsClient>;
+  videoAi: ReturnType<typeof _videoAiClient>;
   briefing: ReturnType<typeof _briefingClient>;
 }
 
@@ -534,6 +540,7 @@ export function getContractsClient(): ContractsClient {
     notebookWordpress: _notebookWordpressClient(),
     userWebsites: _userWebsitesClient(),
     antragsgruenSites: _antragsgruenSitesClient(),
+    nuudelPolls: _nuudelPollsClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     chatThreadSharing: _chatThreadSharingClient(),
@@ -593,6 +600,7 @@ export function getContractsClient(): ContractsClient {
     explainables: _explainablesClient(),
     publicExplainables: _publicExplainablesClient(),
     podcasts: _podcastsClient(),
+    videoAi: _videoAiClient(),
     briefing: _briefingClient(),
     speech: _speechClient(),
   };

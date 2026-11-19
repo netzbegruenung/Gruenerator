@@ -61,6 +61,10 @@
       "label": "Antragsgrün"
     },
     {
+      "value": "nuudel",
+      "label": "Umfragen"
+    },
+    {
       "value": "nutzung",
       "label": "Nutzung"
     },
@@ -459,6 +463,18 @@
         "key": "daily_briefing",
         "label": "Tagesbriefing",
         "description": "Deine Übersicht beim ersten Besuch des Tages",
+        "group": "system"
+      },
+      {
+        "key": "video_ai_ready",
+        "label": "KI-Schnitt fertig",
+        "description": "Wenn dein KI-Schnitt zur Vorschau bereitsteht",
+        "group": "system"
+      },
+      {
+        "key": "video_ai_failed",
+        "label": "KI-Schnitt fehlgeschlagen",
+        "description": "Wenn ein KI-Schnitt nicht erstellt werden konnte",
         "group": "system"
       },
       {

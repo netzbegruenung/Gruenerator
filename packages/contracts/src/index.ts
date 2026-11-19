@@ -52,6 +52,7 @@ export {
   explainablesContract,
   publicExplainablesContract,
   podcastsContract,
+  videoAiContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,
@@ -61,6 +62,7 @@ export {
   notebookWordpressContract,
   userWebsitesContract,
   antragsgruenSitesContract,
+  nuudelPollsContract,
   letterheadsContract,
   notebookSharingContract,
   docsContract,
@@ -128,6 +130,7 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/videoAi.js';
 export * from './schemas/studioAssets.js';
 export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';
@@ -183,6 +186,7 @@ export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
 export * from './schemas/userWebsite.js';
 export * from './schemas/antragsgruenSites.js';
+export * from './schemas/nuudelPolls.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';

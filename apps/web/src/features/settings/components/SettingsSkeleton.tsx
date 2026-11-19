@@ -169,6 +169,7 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   wolke: () => <SettingsCardsSkeleton cards={2} />,
   websites: () => <SettingsCardsSkeleton cards={2} />,
   antragsgruen: () => <SettingsCardsSkeleton cards={2} />,
+  nuudel: () => <SettingsCardsSkeleton cards={2} />,
   konnektoren: () => <SettingsCardsSkeleton cards={3} />,
   nutzung: () => <SettingsStatsSkeleton />,
   support: () => <SettingsRowsSkeleton rows={3} />,

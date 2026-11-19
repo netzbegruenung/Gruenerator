@@ -36,6 +36,7 @@ import {
   DEGENERATE_FINISH_REASON,
   trimDegenerate,
 } from './degeneration.js';
+import { reportMidWordEnd } from './midWordEnd.js';
 import { toolsForProvider } from './providerTools.js';
 import { findSourceEchoCut } from './sourceRegistry.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
@@ -130,6 +131,32 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
   mistral: 45_000,
 };
+
+/**
+ * Wie lange ununterbrochenes Denken als Lebenszeichen zählt.
+ *
+ * Jedes Denk-Delta stellt die Leerlauf-Frist neu scharf. Ein Modell, das nur
+ * noch denkt, lief deshalb bis zur harten Decke (#5422: Large 4, fünf Minuten,
+ * kein Wort). Nach diesem Budget zählt Denken nicht mehr, und die Frist der
+ * Phase läuft ab wie bei Stille. Jeder andere Teil (Text, Werkzeug, Schritt)
+ * setzt das Budget zurück. Dieselbe Zahl wie `REASONING_PHASE_BUDGET_MS` im
+ * Single-Pass, mit derselben Begründung: sie fängt die Entgleisung, nicht das
+ * gründliche Denken eines Schritts.
+ */
+const REASONING_RUN_BUDGET_MS = 120_000;
+
+/**
+ * Das SDK meldet einen Abbruch als Stream-Teil `abort` und schliesst den Strom
+ * danach regulär (ai v7). Ohne diesen Fehler endete die harte Decke wie eine
+ * fertige Antwort: halber Text ohne Abbruch-Hinweis, leerer Text als „keine
+ * passende Antwort" (#5365, #5422).
+ */
+class StreamAbortedError extends Error {
+  constructor(reason: string | undefined) {
+    super(reason ?? 'stream aborted');
+    this.name = 'AbortError';
+  }
+}
 
 /**
  * Frist bis zum ERSTEN Lebenszeichen eines Planer-Versuchs, solange danach
@@ -883,6 +910,7 @@ async function streamWithTools(
     // The start of the copied register is already on the wire.
     return { text, finishReason, replacement: 'unified_source_echo' };
   }
+  reportMidWordEnd(text, finishReason, modelLabel(model), 'unified');
   return { text, finishReason };
 }
 
@@ -898,8 +926,10 @@ interface LaneProbe {
    *  already said so, and the writer, missing the failure note, announced a
    *  research plan with tool names and asked „Soll ich starten?". */
   sawToolResult: boolean;
-  /** Reasoning or text already reached the client. A second lane would
-   *  stream its own next to it, so the attempt is not repeated either. */
+  /** Answer text already reached the client. A second lane would stream its
+   *  own next to it, so the attempt is not repeated either. Reasoning does not
+   *  count: it is shown apart from the answer, and a lane that only thought
+   *  until its deadline left nothing a retry would duplicate (#5422). */
   sawOutput: boolean;
 }
 
@@ -997,14 +1027,13 @@ function observeLane(
           ]);
           if (next.done) return next;
           const part = next.value;
+          // The first-response deadline fired and the SDK closed the stream
+          // before the race saw it: surface the stall, not a bare abort.
+          if (part.type === 'abort' && waiting?.signal.aborted) await waiting.deadline;
           if (!SDK_PREAMBLE_PARTS.has(part.type)) onFirstResponse();
           if (part.type === 'tool-call') probe.sawToolCall = true;
           if (part.type === 'tool-result') probe.sawToolResult = true;
-          if (
-            (part.type === 'reasoning-delta' || part.type === 'text-delta') &&
-            part.text != null &&
-            part.text.length > 0
-          ) {
+          if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
             probe.sawOutput = true;
           }
           return next;
@@ -1157,7 +1186,9 @@ async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string>
     });
     const { text, finishReason } = await drain(result, () => {}, p.onReasoning, idle);
     // What gets persisted and what every validator downstream reads.
-    return { text: stripToolControlTokens(text), finishReason };
+    const clean = stripToolControlTokens(text);
+    reportMidWordEnd(clean, finishReason, modelLabel(model), 'synth');
+    return { text: clean, finishReason };
   };
 
   /** A stalled or empty pass costs the user the whole turn, so try the sibling
@@ -1323,7 +1354,13 @@ async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string>
   return retry.text;
 }
 
-type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string };
+type StreamPart = {
+  type: string;
+  text?: string;
+  error?: unknown;
+  finishReason?: string;
+  reason?: string;
+};
 
 interface Drainable {
   stream: AsyncIterable<StreamPart>;
@@ -1333,9 +1370,10 @@ async function drain(
   result: Drainable,
   onText: (d: string) => void,
   onReasoning: (d: string) => void,
-  /** Optional stall guard. Every chunk — text OR reasoning — counts as liveness,
-   *  so a thinking model is never mistaken for a hung one. */
-  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void },
+  /** Optional stall guard. Every chunk counts as liveness, reasoning too, so a
+   *  thinking model is not mistaken for a hung one — but reasoning only up to
+   *  REASONING_RUN_BUDGET_MS without any other part in between. */
+  idle?: IdleDeadline,
   /**
    * Was ein Stillstand bedeutet. `throw` (Standard) für die Synth-Phase, die
    * darauf ihre Geschwister-Lane startet. `stop` für die Werkzeugphase: dort
@@ -1351,6 +1389,8 @@ async function drain(
   let echoCut = false;
   const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
+  let reasoningSince: number | null = null;
+  let reasoningOverrun = false;
   try {
     while (true) {
       // Racing the deadline is what makes a stall observable: awaiting `next()`
@@ -1372,8 +1412,35 @@ async function drain(
         next = await iterator.next();
       }
       if (next.done) break;
-      idle?.touch();
       const part = next.value;
+      if (part.type === 'abort') {
+        // Our own deadline fired and the SDK closed the stream before the race
+        // saw the rejection: that is a stall, not a bare abort.
+        if (idle?.signal.aborted) {
+          const stall: unknown = await idle.deadline.catch((err: unknown) => err);
+          if (onStall === 'stop' && stall instanceof ToolPhaseStallError) {
+            stalled = true;
+            break;
+          }
+          throw stall;
+        }
+        throw new StreamAbortedError(part.reason);
+      }
+      if (part.type.startsWith('reasoning')) {
+        reasoningSince ??= Date.now();
+        if (Date.now() - reasoningSince < REASONING_RUN_BUDGET_MS) {
+          idle?.touch();
+        } else if (!reasoningOverrun) {
+          reasoningOverrun = true;
+          log.warn(
+            `[Engine] reasoning ran ${REASONING_RUN_BUDGET_MS}ms without text or a tool call — no longer counting it as liveness`
+          );
+        }
+      } else {
+        reasoningOverrun = false;
+        reasoningSince = null;
+        idle?.touch();
+      }
       if (part.type === 'error') throw part.error;
       if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
         onReasoning(part.text);

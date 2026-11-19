@@ -1,0 +1,384 @@
+/**
+ * Stage B of the KI-Schnitt: what is shown and heard on top of the cut.
+ *
+ * The model decides only what needs taste: caption look, the words of the
+ * titles, where pictures and b-roll go, logo, music. What follows from the
+ * footage is computed instead:
+ *   - framing per segment from the contact sheets (framing.ts);
+ *   - punch-in zooms on every second jump cut, style "dynamisch" only.
+ *
+ * Both gates run on the answer: the design rules from the prompt (checkDesign)
+ * and the meaning rules of validateEdl. A violation is the repair turn.
+ */
+import {
+  videoAiCaptionTemplateSchema,
+  videoAiOverlaySchema,
+  type VideoAiEdl,
+  type VideoAiFraming,
+  type VideoAiOverlay,
+  type VideoAiSegment,
+  type VideoAiStyle,
+} from '@gruenerator/contracts';
+import { z } from 'zod';
+
+import { aiObject } from '../ai/generate.js';
+
+import { type CutBrief, type CutDecision } from './decideCut.js';
+import { videoAiPrompt } from './prompts.js';
+import { segmentText } from './timeline.js';
+import { normalizeToken, pulledHook, type TranscriptUnit } from './transcriptUnits.js';
+import {
+  validateEdl,
+  type ValidationAsset,
+  type ValidationClip,
+  type ValidationResult,
+} from './validateEdl.js';
+
+export interface DesignAsset extends ValidationAsset {
+  /** What the person called it, or the file name. */
+  label: string;
+  /** Vision description for images; null for audio. */
+  description: string | null;
+  durationSeconds: number | null;
+}
+
+export interface DesignClip extends ValidationClip {
+  /** One line from the contact sheets, for b-roll. */
+  summary: string;
+}
+
+export interface DesignInput {
+  brief: CutBrief & {
+    style: VideoAiStyle;
+    /** For the lower third; null hides it. */
+    person: { name: string; role: string | null } | null;
+  };
+  cut: CutDecision;
+  units: ReadonlyMap<string, TranscriptUnit>;
+  clips: readonly DesignClip[];
+  assets: readonly DesignAsset[];
+  framing: ReadonlyMap<string, VideoAiFraming | null>;
+  /** The footage already carries captions; ours would sit on top of them. */
+  burnedInCaptions: boolean;
+}
+
+export const MAX_TITLES = 2;
+
+/** Punch-in on every second jump cut (same clip back to back), dynamic style only. */
+export function segmentsFor(
+  unitIds: readonly string[],
+  units: ReadonlyMap<string, TranscriptUnit>,
+  framing: ReadonlyMap<string, VideoAiFraming | null>,
+  style: VideoAiStyle
+): VideoAiSegment[] {
+  let punched = false;
+  return unitIds.map((unitId, i) => {
+    const clip = units.get(unitId)?.clipId;
+    const jumpCut = i > 0 && clip !== undefined && clip === units.get(unitIds[i - 1])?.clipId;
+    punched = style === 'talking-head-dynamisch' && jumpCut ? !punched : false;
+    return { unitId, framing: framing.get(unitId) ?? null, zoom: punched ? 'nah' : 'normal' };
+  });
+}
+
+/**
+ * One list per kind, every field of a kind required. The first version had a
+ * single overlay object with all fields optional, and Gemma left out
+ * the anchor piece, `durationSeconds` and `assetId` on every overlay, twice in a
+ * row (10.11.2026). Missing seconds fall back to DEFAULT_SECONDS.
+ */
+const stueck = z.number().int();
+const sekunden = z.number().nullish();
+const answerSchema = z.object({
+  untertitel: z.string(),
+  titel: z
+    .array(z.object({ art: z.enum(['hook', 'statement']), text: z.string(), stueck, sekunden }))
+    .nullish(),
+  bilder: z
+    .array(
+      z.object({
+        id: z.string(),
+        darstellung: z.enum(['vollbild', 'bild-im-bild', 'sticker']),
+        stueck,
+        sekunden,
+      })
+    )
+    .nullish(),
+  broll: z
+    .array(z.object({ clip: z.string(), ab_sekunde: z.number(), stueck, sekunden }))
+    .nullish(),
+  logo: z.enum(['ecke', 'abspann', 'keins']).nullish(),
+  musik: z.object({ id: z.string(), lautstaerke: z.enum(['leise', 'mittel']) }).nullish(),
+});
+type Answer = z.infer<typeof answerSchema>;
+
+export const DEFAULT_SECONDS = { titel: 3, bauchbinde: 4, bild: 3, broll: 2.5 } as const;
+
+const STUECK = { type: 'integer', description: 'Nummer des Stücks (#) in der Zeitleiste' };
+const SEKUNDEN = { type: 'number', description: 'Wie lange sichtbar' };
+const TOOL_SCHEMA = {
+  type: 'object',
+  properties: {
+    untertitel: {
+      type: 'string',
+      description: `Eine Vorlage (${videoAiCaptionTemplateSchema.options.join(', ')}) oder "aus"`,
+    },
+    titel: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          art: { type: 'string', enum: ['hook', 'statement'] },
+          text: { type: 'string', description: 'Höchstens sechs Wörter' },
+          stueck: STUECK,
+          sekunden: SEKUNDEN,
+        },
+        required: ['art', 'text', 'stueck', 'sekunden'],
+      },
+    },
+    bilder: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'ID aus "Material", z. B. a1' },
+          darstellung: { type: 'string', enum: ['vollbild', 'bild-im-bild', 'sticker'] },
+          stueck: STUECK,
+          sekunden: SEKUNDEN,
+        },
+        required: ['id', 'darstellung', 'stueck', 'sekunden'],
+      },
+    },
+    broll: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          clip: { type: 'string', description: 'B-Roll-Clip, z. B. c2' },
+          ab_sekunde: { type: 'number', description: 'Startsekunde im B-Roll-Clip' },
+          stueck: STUECK,
+          sekunden: SEKUNDEN,
+        },
+        required: ['clip', 'ab_sekunde', 'stueck', 'sekunden'],
+      },
+    },
+    logo: { type: 'string', enum: ['ecke', 'abspann', 'keins'] },
+    musik: {
+      type: 'object',
+      description: 'Nur wenn Musik hochgeladen ist, sonst weglassen',
+      properties: {
+        id: { type: 'string' },
+        lautstaerke: { type: 'string', enum: ['leise', 'mittel'] },
+      },
+      required: ['id', 'lautstaerke'],
+    },
+  },
+  required: ['untertitel', 'titel', 'bilder', 'broll', 'logo'],
+};
+
+/**
+ * Where the lower third goes: the sentence in which the person says their
+ * surname, else the second one (right after the hook). Gemma left it out
+ * in three of three runs although the briefing named the person (10.11.2026);
+ * it is a rule, not a matter of taste.
+ */
+export function lowerThirdUnit(
+  unitIds: readonly string[],
+  units: ReadonlyMap<string, TranscriptUnit>,
+  name: string
+): string {
+  const surname = normalizeToken(name.trim().split(/\s+/).at(-1) ?? '');
+  const said = unitIds.find((id) =>
+    (units.get(id)?.words ?? []).some((w) => surname !== '' && normalizeToken(w.word) === surname)
+  );
+  return said ?? unitIds[Math.min(1, unitIds.length - 1)];
+}
+
+/**
+ * The model's lists, in the EDL's overlay shape. The model counts pieces of
+ * the timeline (`#3`); the plan names the sentence. A piece that does not
+ * exist becomes `atUnit: null`, which the schema rejects with the others.
+ */
+export function overlaysFrom(answer: Answer, unitIds: readonly string[]): unknown[] {
+  const at = (stueck: number) => unitIds[stueck] ?? null;
+  return [
+    ...(answer.titel ?? []).map((t) => ({
+      kind: 'titel',
+      preset: t.art,
+      text: t.text,
+      atUnit: at(t.stueck),
+      durationSeconds: t.sekunden ?? DEFAULT_SECONDS.titel,
+    })),
+    ...(answer.bilder ?? []).map((b) => ({
+      kind: 'asset',
+      assetId: b.id,
+      layout: b.darstellung,
+      atUnit: at(b.stueck),
+      durationSeconds: b.sekunden ?? DEFAULT_SECONDS.bild,
+    })),
+    ...(answer.broll ?? []).map((b) => ({
+      kind: 'broll',
+      clipId: b.clip,
+      sourceStart: b.ab_sekunde,
+      atUnit: at(b.stueck),
+      durationSeconds: b.sekunden ?? DEFAULT_SECONDS.broll,
+    })),
+    ...(answer.logo && answer.logo !== 'keins' ? [{ kind: 'logo', placement: answer.logo }] : []),
+  ];
+}
+
+export function buildDesignPrompt(input: DesignInput): string {
+  const { brief, cut } = input;
+  const timeline = cut.validation.timeline;
+  const lines = [
+    '# Briefing',
+    brief.topic ? `Thema: ${brief.topic}` : null,
+    `Format: ${brief.format}`,
+    brief.person
+      ? `Person: ${brief.person.name}${brief.person.role ? `, ${brief.person.role}` : ''} (Bauchbinde setzt die Technik)`
+      : null,
+    brief.hints ? `Hinweise: ${brief.hints}` : null,
+    input.burnedInCaptions ? 'Das Material hat schon eingebrannte Untertitel.' : null,
+    '',
+    '# Zeitleiste',
+  ];
+  timeline.pieces.forEach((p, i, all) => {
+    if (all.findIndex((q) => q.segmentIndex === p.segmentIndex) !== i) return;
+    const last = all.filter((q) => q.segmentIndex === p.segmentIndex).at(-1) ?? p;
+    lines.push(
+      `#${p.segmentIndex} [${p.outStart.toFixed(1)}–${last.outEnd.toFixed(1)} s] „${segmentText(timeline, p.segmentIndex)}“`
+    );
+  });
+  lines.push(`Gesamtlänge: ${timeline.duration.toFixed(1)} s`, '', '# Material');
+
+  const images = input.assets.filter((a) => a.kind !== 'audio');
+  const music = input.assets.filter((a) => a.kind === 'audio');
+  const broll = input.clips.filter((c) => c.role === 'broll');
+  if (images.length + music.length + broll.length === 0) lines.push('Keins.');
+  for (const a of images) {
+    lines.push(
+      `${a.id}: ${a.kind === 'logo' ? 'Logo' : 'Bild'} „${a.label}“ – ${a.description ?? 'ohne Beschreibung'}`
+    );
+  }
+  for (const c of broll)
+    lines.push(`${c.id}: B-Roll, ${c.duration.toFixed(1)} s – ${c.summary || 'ohne Beschreibung'}`);
+  for (const m of music) {
+    lines.push(
+      `${m.id}: Musik „${m.label}“${m.durationSeconds ? `, ${Math.round(m.durationSeconds)} s` : ''}`
+    );
+  }
+  return lines.filter((l): l is string => l !== null).join('\n');
+}
+
+/** The prompt's design rules, enforced. German: they go back as the repair turn. */
+export function checkDesign(
+  edl: VideoAiEdl,
+  input: Pick<DesignInput, 'burnedInCaptions'>
+): string[] {
+  const errors: string[] = [];
+  const titles = edl.overlays.filter((o) => o.kind === 'titel').length;
+  if (titles > MAX_TITLES) errors.push(`Höchstens ${MAX_TITLES} Titel, nicht ${titles}.`);
+  for (const o of edl.overlays) {
+    const coversHook =
+      'atUnit' in o &&
+      o.atUnit === edl.segments[0].unitId &&
+      (o.kind === 'broll' || (o.kind === 'asset' && o.layout === 'vollbild'));
+    if (coversHook) errors.push('Im Stück #0 (Hook) kein Vollbild und keine B-Roll.');
+  }
+  if (input.burnedInCaptions && edl.captions.enabled) {
+    errors.push('Untertitel "aus": Das Material hat schon eingebrannte Untertitel.');
+  }
+  return errors;
+}
+
+function toEdl(
+  answer: Answer,
+  input: DesignInput
+): { ok: true; edl: VideoAiEdl } | { ok: false; error: string } {
+  const errors: string[] = [];
+  let template: VideoAiEdl['captions']['template'] = null;
+  if (answer.untertitel !== 'aus') {
+    const parsed = videoAiCaptionTemplateSchema.safeParse(answer.untertitel);
+    if (parsed.success) template = parsed.data;
+    else errors.push(`Untertitel "${answer.untertitel}" gibt es nicht.`);
+  }
+  const overlays: VideoAiOverlay[] = [];
+  const last = input.cut.unitIds.length - 1;
+  overlaysFrom(answer, input.cut.unitIds).forEach((raw, i) => {
+    const parsed = videoAiOverlaySchema.safeParse(raw);
+    if (parsed.success) overlays.push(parsed.data);
+    else if ((raw as { atUnit?: unknown }).atUnit === null)
+      errors.push(`Overlay ${i + 1}: Dieses Stück gibt es nicht (nur #0–#${last}).`);
+    else
+      errors.push(
+        `Overlay ${i + 1}: ${parsed.error.issues.map((x) => `${x.path.join('.')} ${x.message}`).join('; ')}`
+      );
+  });
+  if (errors.length > 0) return { ok: false, error: errors.join('\n') };
+  return {
+    ok: true,
+    edl: {
+      version: 1,
+      format: input.brief.format,
+      segments: segmentsFor(input.cut.unitIds, input.units, input.framing, input.brief.style),
+      hook: pulledHook(input.cut.unitIds),
+      captions: { enabled: answer.untertitel !== 'aus', template },
+      overlays: input.brief.person
+        ? [
+            ...overlays,
+            {
+              kind: 'bauchbinde',
+              atUnit: lowerThirdUnit(input.cut.unitIds, input.units, input.brief.person.name),
+              durationSeconds: DEFAULT_SECONDS.bauchbinde,
+            },
+          ]
+        : overlays,
+      music: answer.musik ? { assetId: answer.musik.id, volume: answer.musik.lautstaerke } : null,
+    },
+  };
+}
+
+export interface DesignDecision {
+  edl: VideoAiEdl;
+  validation: Extract<ValidationResult, { ok: true }>;
+}
+
+export async function decideDesign(
+  input: DesignInput,
+  signal: AbortSignal | null = null
+): Promise<DesignDecision> {
+  const ctx = {
+    units: input.units,
+    clips: input.clips,
+    assets: input.assets,
+    target: input.brief.target ?? null,
+    briefTexts: [input.brief.topic ?? '', input.brief.hints ?? ''],
+  };
+  const result = await aiObject<DesignDecision>({
+    lane: 'video_ai',
+    system: `${videoAiPrompt('gestaltung.md')}\n\n${videoAiPrompt(`stile/${input.brief.style}.md`)}`,
+    prompt: buildDesignPrompt(input),
+    toolName: 'gestaltung_festlegen',
+    toolDescription:
+      'Legt Untertitel, Einblendungen, Logo und Musik für das geschnittene Video fest.',
+    schema: TOOL_SCHEMA,
+    reasoning: 'medium',
+    temperature: 0.3,
+    maxOutputTokens: 8000,
+    timeoutMs: 120_000,
+    ...(signal !== null && { signal }),
+    label: 'video_ai_design',
+    validate: (raw) => {
+      const parsed = answerSchema.safeParse(raw);
+      if (!parsed.success) return { ok: false, error: parsed.error.message };
+      const built = toEdl(parsed.data, input);
+      if (!built.ok) return built;
+      const errors = [...checkDesign(built.edl, input)];
+      const validation = validateEdl(built.edl, ctx);
+      if (!validation.ok) errors.push(...validation.errors);
+      if (errors.length > 0 || !validation.ok) return { ok: false, error: errors.join('\n') };
+      return { ok: true, value: { edl: built.edl, validation } };
+    },
+  });
+  if (!result.ok) throw result.cause ?? new Error(result.error);
+  return result.data;
+}

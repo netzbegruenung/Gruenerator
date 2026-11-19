@@ -280,6 +280,7 @@ export { MessageSourcesButton } from './components/message-parts/MessageSourcesB
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 export { stripForSpeech } from './lib/speechText';
+export { pickGoogleFiles, type PickedGoogleFile } from './lib/googlePicker';
 
 // Citation Context
 export {
@@ -440,6 +441,7 @@ export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlU
 export { cn } from './lib/utils';
 export { loadPhosphorModule } from './lib/phosphorAgentIcon';
 export { chatSuggestions } from './lib/suggestions';
+export { resolveSkillIcon } from './lib/skillIcons';
 export {
   agentsList,
   listedAgentsList,

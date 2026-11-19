@@ -8,7 +8,7 @@ vi.mock('../services/pendingActionStore.js', () => ({
   pendingActionStore: { store: async () => {} },
 }));
 
-import { AntragsgruenFormError } from '../../../services/antragsgruen/hosting/formClient.js';
+import { FormStepError } from '../../../services/webForms/formClient.js';
 import { type OwnSiteReading } from '../../../services/antragsgruen/hosting/sites.js';
 
 import {
@@ -320,7 +320,7 @@ describe('antragsgruen_seite_lesen', () => {
 
   it('refuses once the person is no admin', async () => {
     const { run } = readCtx(async () => {
-      throw new AntragsgruenFormError('x', 'not-admin');
+      throw new FormStepError('x', 'not-admin');
     });
     expect((await run({})).error).toMatch(
       /nicht mehr Admin; der Grünerator handelt dort nicht mehr/

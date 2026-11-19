@@ -321,6 +321,25 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return n == null ? null : `über ${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
     },
   },
+  nuudel_werkzeuge_laden: {
+    label: 'nuudel-Werkzeuge',
+    activeLabel: 'Öffne die nuudel-Werkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'nuudel-Werkzeuge freigeschaltet',
+  },
+  nuudel_umfrage_anlegen: {
+    label: 'nuudel-Umfrage',
+    activeLabel: 'Lege die Umfrage bei nuudel an …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  nuudel_umfrage_lesen: {
+    label: 'nuudel-Ergebnis',
+    activeLabel: 'Lese das Ergebnis bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   antragsgruen_werkzeuge_laden: {
     label: 'Antragsgrün-Werkzeuge',
     activeLabel: 'Öffne die Antragsgrün-Werkzeuge',

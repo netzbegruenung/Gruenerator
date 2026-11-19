@@ -1,11 +1,12 @@
 /**
- * Ein kleiner Browser-Ersatz für die Formulare von antragsgruen.de: Cookies
- * über Weiterleitungen und Subdomains hinweg, CSRF-Token aus der Seite.
+ * Ein kleiner Browser-Ersatz für Dienste, die nur HTML-Formulare haben und
+ * keine API: Cookies über Weiterleitungen und Subdomains hinweg, CSRF-Token aus
+ * der Seite, die Werte eines Formulars, wie der Browser sie absenden würde.
  *
- * Antragsgrün hat für das Anlegen einer Seite und das Eintragen von Personen
- * keine REST-API — nur die HTML-Formulare, mit Yii-Session und `_csrf`. Das
- * Session-Cookie gilt für `.antragsgruen.de`, also auch auf der neuen
- * Subdomain; das `_csrf`-Cookie gilt nur für den Host, der es gesetzt hat.
+ * Nutzer: Antragsgrün (`services/antragsgruen/hosting/`, Yii-Session und
+ * `_csrf`; das Session-Cookie gilt für `.antragsgruen.de`, also auch auf einer
+ * neuen Subdomain, das `_csrf`-Cookie nur für den setzenden Host) und nuudel
+ * (`services/nuudel/`, Framadate mit PHP-Session über drei Schritte).
  */
 import * as cheerio from 'cheerio';
 
@@ -19,15 +20,35 @@ interface StoredCookie {
   host: string;
 }
 
-export class AntragsgruenFormError extends Error {
+/**
+ * Ein Schritt eines Formular-Ablaufs hat nicht das erwartete Ergebnis gebracht.
+ * Die Felder und Marken eines fremden Formulars sind kein Vertrag: jede Stufe
+ * prüft ihr Ergebnis und bricht mit ihrem Namen ab (`step`).
+ */
+export class FormStepError extends Error {
   constructor(
     message: string,
     readonly step: string,
-    /** Gesetzt, wenn die Seite schon steht und erst ein späterer Schritt scheiterte. */
-    readonly siteUrl: string | null = null
+    /** Gesetzt, wenn das Ergebnis schon steht und erst ein späterer Schritt scheiterte. */
+    readonly createdUrl: string | null = null
   ) {
     super(message);
-    this.name = 'AntragsgruenFormError';
+    this.name = 'FormStepError';
+  }
+}
+
+/**
+ * Eine Bestellung, die wir ablehnen, bevor der fremde Dienst gefragt wird
+ * (Obergrenze, fehlende Konto-Adresse, nicht eingerichtet). `userText` ist für
+ * die Person geschrieben; eigenes Feld, damit `no-raw-error-to-client` greift.
+ */
+export class OrderRefused extends Error {
+  readonly userText: string;
+
+  constructor(userText: string) {
+    super(userText);
+    this.name = 'OrderRefused';
+    this.userText = userText;
   }
 }
 
@@ -120,7 +141,7 @@ export class FormClient {
       }
       return { status: res.status, url: target.toString(), html: await res.text(), redirected };
     }
-    throw new AntragsgruenFormError('Zu viele Weiterleitungen', 'redirect');
+    throw new FormStepError('Zu viele Weiterleitungen', 'redirect');
   }
 }
 
@@ -169,7 +190,7 @@ export function formValuesOf(html: string, formSelector: string): URLSearchParam
   return out;
 }
 
-/** Fehlermeldungen, wie Antragsgrün sie über Formularen zeigt. */
+/** Fehlermeldungen über einem Formular (Bootstrap `.alert-danger`, Antragsgrün und Framadate). */
 export function alertsOf(html: string): string[] {
   const $ = cheerio.load(html);
   return $('.alert-danger')

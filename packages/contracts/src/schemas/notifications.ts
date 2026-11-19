@@ -55,6 +55,8 @@ export const notificationTypeSchema = z.enum([
   'template_approved',
   'template_rejected',
   'daily_briefing',
+  'video_ai_ready',
+  'video_ai_failed',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

@@ -456,10 +456,9 @@ export async function executeAction(
     }
 
     case 'create_antragsgruen_site': {
-      const { orderAntragsgruenSite, SiteOrderRefused } =
+      const { orderAntragsgruenSite } =
         await import('../../services/antragsgruen/hosting/sites.js');
-      const { AntragsgruenFormError } =
-        await import('../../services/antragsgruen/hosting/formClient.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
       const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const site = await orderAntragsgruenSite(action.userId, action.payload);
@@ -475,18 +474,18 @@ export async function executeAction(
           url: site.url,
         };
       } catch (err) {
-        if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
         const loginText = loginRefusalText(err);
         if (loginText) throw new ConfirmActionRefusal(loginText);
-        if (err instanceof AntragsgruenFormError) {
+        if (err instanceof FormStepError) {
           log.warn(
-            `[antragsgruen-site] step=${err.step} site=${err.siteUrl ?? '-'}: ${err.message}`
+            `[antragsgruen-site] step=${err.step} site=${err.createdUrl ?? '-'}: ${err.message}`
           );
           throw new ConfirmActionRefusal(
             err.step === 'check-subdomain'
               ? `Die Adresse „${action.payload.subdomain}" ist bei Antragsgrün schon vergeben. Nimm eine andere.`
-              : err.siteUrl
-                ? `Die Seite steht unter ${err.siteUrl}, aber dich dort als Admin einzutragen hat nicht geklappt. Das holen wir von Hand nach.`
+              : err.createdUrl
+                ? `Die Seite steht unter ${err.createdUrl}, aber dich dort als Admin einzutragen hat nicht geklappt. Das holen wir von Hand nach.`
                 : 'Antragsgrün hat das Anlegen nicht angenommen. Es wurde nichts angelegt.'
           );
         }
@@ -495,10 +494,9 @@ export async function executeAction(
     }
 
     case 'set_antragsgruen_agenda': {
-      const { orderAntragsgruenAgenda, SiteOrderRefused } =
+      const { orderAntragsgruenAgenda } =
         await import('../../services/antragsgruen/hosting/sites.js');
-      const { AntragsgruenFormError } =
-        await import('../../services/antragsgruen/hosting/formClient.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
       const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const items = await orderAntragsgruenAgenda(
@@ -508,10 +506,10 @@ export async function executeAction(
         );
         return { message: `Die Tagesordnung steht: ${items.length} Punkte.` };
       } catch (err) {
-        if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
         const loginText = loginRefusalText(err);
         if (loginText) throw new ConfirmActionRefusal(loginText);
-        if (err instanceof AntragsgruenFormError) {
+        if (err instanceof FormStepError) {
           log.warn(`[antragsgruen-agenda] step=${err.step}: ${err.message}`);
           throw new ConfirmActionRefusal(
             err.step === 'revoked'
@@ -526,10 +524,9 @@ export async function executeAction(
     }
 
     case 'create_antragsgruen_motion': {
-      const { orderAntragsgruenMotion, SiteOrderRefused } =
+      const { orderAntragsgruenMotion } =
         await import('../../services/antragsgruen/hosting/sites.js');
-      const { AntragsgruenFormError } =
-        await import('../../services/antragsgruen/hosting/formClient.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
       const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
       try {
         const motion = await orderAntragsgruenMotion(action.userId, action.payload);
@@ -538,10 +535,10 @@ export async function executeAction(
           ...(motion.url && { url: motion.url }),
         };
       } catch (err) {
-        if (err instanceof SiteOrderRefused) throw new ConfirmActionRefusal(err.message);
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
         const loginText = loginRefusalText(err);
         if (loginText) throw new ConfirmActionRefusal(loginText);
-        if (err instanceof AntragsgruenFormError) {
+        if (err instanceof FormStepError) {
           log.warn(`[antragsgruen-motion] step=${err.step}: ${err.message}`);
           throw new ConfirmActionRefusal(
             err.step === 'revoked'

@@ -48,6 +48,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   explainable: [['explainables']],
   podcast: [['podcasts']],
   studio_asset: [['studio-assets']],
+  video_ai_project: [['video-ai-projects']],
 };
 
 /** `kind: null` — a change across kinds (emptying the trash) touches only the shared lists. */
