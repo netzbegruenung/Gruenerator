@@ -75,3 +75,32 @@ describe('closeCollabRooms', () => {
     await expect(closeCollabRooms(['doc-1'])).resolves.toBeUndefined();
   });
 });
+
+describe('hocuspocusInternalOrNull', () => {
+  it('answers null for the route’s own 404', async () => {
+    const { hocuspocusInternalOrNull } = await load('secret');
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'document has no Yjs state' }), { status: 404 })
+    );
+
+    await expect(hocuspocusInternalOrNull('GET', '/internal/doc/site-x/yjs')).resolves.toBeNull();
+  });
+
+  it('throws for an HTML 404 of an unmounted internal API', async () => {
+    const { hocuspocusInternalOrNull } = await load('secret');
+    fetchMock.mockResolvedValueOnce(new Response('<pre>Cannot GET</pre>', { status: 404 }));
+
+    await expect(hocuspocusInternalOrNull('GET', '/internal/doc/site-x/yjs')).rejects.toThrow(
+      /404/
+    );
+  });
+
+  it('throws for any other error status', async () => {
+    const { hocuspocusInternalOrNull } = await load('secret');
+    fetchMock.mockResolvedValueOnce(new Response('boom', { status: 500 }));
+
+    await expect(hocuspocusInternalOrNull('GET', '/internal/doc/site-x/yjs')).rejects.toThrow(
+      /500/
+    );
+  });
+});

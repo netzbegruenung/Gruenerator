@@ -21,6 +21,7 @@ import {
 import { mergeStalePatch } from './canvasMerge.js';
 import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
+import { SITE_DOC_MAX_BYTES, applySiteSeed, siteRoomOf } from './siteRooms.js';
 
 import type { PostgresPersistence } from './persistence.js';
 import type { Connection, Hocuspocus, Server } from '@hocuspocus/server';
@@ -49,6 +50,31 @@ export const CANVAS_DOCUMENT_NEWER_STATUS = 426;
 export const CANVAS_STATE_UNWRITABLE_STATUS = 400;
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
+
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+/** A seed's base64 fits the store cap plus room for the JSON around it. */
+const SITE_SEED_JSON_LIMIT = Math.ceil((SITE_DOC_MAX_BYTES * 4) / 3) + 64 * 1024;
+const SITE_SEED_PATH = /^\/site\/[^/]+\/seed$/;
+
+/**
+ * A seed update that decodes and carries state, with the size of the state it
+ * produces on an empty doc (the only doc it is applied to), or null.
+ */
+export function parseSiteSeedUpdate(v: unknown): { update: Uint8Array; stateBytes: number } | null {
+  if (typeof v !== 'string' || !v || !BASE64_RE.test(v)) return null;
+  const update = new Uint8Array(Buffer.from(v, 'base64'));
+  const probe = new Y.Doc();
+  try {
+    Y.applyUpdate(probe, update);
+    if (probe.store.clients.size === 0) return null;
+    return { update, stateBytes: Y.encodeStateAsUpdate(probe).length };
+  } catch {
+    return null;
+  } finally {
+    probe.destroy();
+  }
+}
 
 // Well-known board field IDs — duplicated from apps/api BoardService.FIELD_IDS
 // on purpose: unlike canvas state, which goes through @ggraphic/core/ydoc (canvasCodec.ts), the
@@ -655,7 +681,9 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
   }
 
   const router = express.Router();
-  router.use(express.json({ limit: '1mb' }));
+  const json = express.json({ limit: '1mb' });
+  // A site seed may be larger; its route parses its own body, after the token check.
+  router.use((req, res, next) => (SITE_SEED_PATH.test(req.path) ? next() : json(req, res, next)));
   router.use((req, res, next) => {
     if (req.headers['x-internal-token'] !== token) {
       res.status(401).json({ error: 'invalid internal token' });
@@ -1059,6 +1087,51 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // First state of a site draft. The check and the write run in one transaction on the
+  // live doc, so of two concurrent seeds exactly one lands; the second answers seeded:false.
+  router.post(
+    '/site/:siteId/seed',
+    express.json({ limit: SITE_SEED_JSON_LIMIT }),
+    async (req, res) => {
+      const room = siteRoomOf(req.params.siteId);
+      if (!room) {
+        res.status(400).json({ error: 'siteId must be a uuid' });
+        return;
+      }
+      const seed = parseSiteSeedUpdate((req.body as { update?: unknown } | null)?.update);
+      if (!seed) {
+        res.status(400).json({ error: 'update must be a base64 Yjs update that carries state' });
+        return;
+      }
+      if (seed.stateBytes > SITE_DOC_MAX_BYTES) {
+        res.status(413).json({
+          error: `seed state is ${seed.stateBytes} bytes, over the ${SITE_DOC_MAX_BYTES}-byte cap`,
+        });
+        return;
+      }
+      const { update } = seed;
+      try {
+        const connection = await deps.server.hocuspocus.openDirectConnection(room);
+        try {
+          let seeded = false;
+          await connection.transact((doc) => {
+            seeded = applySiteSeed(doc, update);
+          });
+          log.info(
+            `Site seed for ${room}: ${seeded ? `applied ${update.byteLength} bytes` : 'skipped, doc has state'}`
+          );
+          res.json({ seeded });
+        } finally {
+          await connection.disconnect();
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log.error(`POST site seed failed for ${room}: ${msg}`);
+        res.status(500).json({ error: msg });
+      }
+    }
+  );
+
   // Called by the API after an access change (permission removed or changed,
   // share settings changed, document trashed, project left or trashed).
   router.post('/rooms/close', (req, res) => {
@@ -1078,6 +1151,6 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops and /internal/rooms/close'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops, /internal/site/*/seed and /internal/rooms/close'
   );
 }

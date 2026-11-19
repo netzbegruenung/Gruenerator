@@ -31,6 +31,12 @@
       "import": "./dist/richtext/presentationDoc.js",
       "default": "./dist/richtext/presentationDoc.js"
     },
+    "./site-ydoc": {
+      "development": "./src/richtext/siteDoc.ts",
+      "types": "./src/richtext/siteDoc.ts",
+      "import": "./dist/richtext/siteDoc.js",
+      "default": "./dist/richtext/siteDoc.js"
+    },
     "./brand": {
       "development": "./src/brand/grueneBrand.ts",
       "types": "./src/brand/grueneBrand.ts",

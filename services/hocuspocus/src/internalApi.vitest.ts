@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as Y from 'yjs';
 
 import { detectPreviewKind } from './contentPreviews.js';
+import { SITE_DOC_MAX_BYTES } from './siteRooms.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
@@ -516,5 +517,118 @@ describe('closing rooms after an access change', () => {
       const res = await post(url, { rooms: 'doc-1' }, 'secret');
       expect(res.status).toBe(400);
     });
+  });
+});
+
+describe('POST /internal/site/:siteId/seed', () => {
+  const SITE_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+  let close: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await close?.();
+    close = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function start(docs: Map<string, Y.Doc>, opened: string[]): Promise<string> {
+    vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+    const app = express();
+    const hocuspocus = {
+      documents: new Map(),
+      openDirectConnection: async (room: string) => {
+        opened.push(room);
+        const doc = docs.get(room) ?? new Y.Doc();
+        docs.set(room, doc);
+        return {
+          transact: async (fn: (d: Y.Doc) => void) => {
+            doc.transact(() => fn(doc));
+          },
+          disconnect: async () => {},
+        };
+      },
+    };
+    registerInternalApi(app, {
+      server: { hocuspocus } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
+      persistence: {} as Parameters<typeof registerInternalApi>[1]['persistence'],
+    });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
+    return `http://127.0.0.1:${address.port}/internal/site`;
+  }
+
+  const post = (url: string, body: unknown) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': 'secret' },
+      body: JSON.stringify(body),
+    });
+
+  const seedOf = (title: string) => {
+    const doc = new Y.Doc();
+    doc.getMap('siteMeta').set('title', title);
+    return Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
+  };
+
+  it('seed route applies once', async () => {
+    const docs = new Map<string, Y.Doc>();
+    const opened: string[] = [];
+    const base = await start(docs, opened);
+
+    const first = await post(`${base}/${SITE_ID}/seed`, { update: seedOf('Erste') });
+    const second = await post(`${base}/${SITE_ID}/seed`, { update: seedOf('Zweite') });
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ seeded: true });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ seeded: false });
+    expect(opened).toEqual([`site-${SITE_ID}`, `site-${SITE_ID}`]);
+    expect(docs.get(`site-${SITE_ID}`)?.getMap('siteMeta').get('title')).toBe('Erste');
+  });
+
+  it('seeds the lower-case room for an upper-case id', async () => {
+    const opened: string[] = [];
+    const base = await start(new Map(), opened);
+    const res = await post(`${base}/${SITE_ID.toUpperCase()}/seed`, { update: seedOf('Erste') });
+    expect(await res.json()).toEqual({ seeded: true });
+    expect(opened).toEqual([`site-${SITE_ID}`]);
+  });
+
+  it('answers 413 for a seed over the store cap and seeds nothing', async () => {
+    const docs = new Map<string, Y.Doc>();
+    const opened: string[] = [];
+    const base = await start(docs, opened);
+    const big = new Y.Doc();
+    big.getMap('siteMeta').set('blob', 'x'.repeat(SITE_DOC_MAX_BYTES));
+    const update = Buffer.from(Y.encodeStateAsUpdate(big)).toString('base64');
+
+    const res = await post(`${base}/${SITE_ID}/seed`, { update });
+
+    expect(res.status).toBe(413);
+    expect((await res.json()) as { error: string }).toMatchObject({
+      error: expect.stringMatching(/over the \d+-byte cap/),
+    });
+    expect(opened).toEqual([]);
+    expect(docs.size).toBe(0);
+  });
+
+  it.each([
+    ['a non-uuid id', 'not-a-uuid', { update: 'AAA=' }],
+    ['a missing update', SITE_ID, {}],
+    ['a non-string update', SITE_ID, { update: 7 }],
+    ['an update that is not base64', SITE_ID, { update: '***' }],
+    [
+      'an update without state',
+      SITE_ID,
+      { update: Buffer.from(Y.encodeStateAsUpdate(new Y.Doc())).toString('base64') },
+    ],
+  ])('answers 400 for %s', async (_label, id, body) => {
+    const opened: string[] = [];
+    const base = await start(new Map(), opened);
+    const res = await post(`${base}/${id}/seed`, body);
+    expect(res.status).toBe(400);
+    expect(opened).toEqual([]);
   });
 });

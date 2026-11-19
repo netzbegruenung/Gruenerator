@@ -14,6 +14,8 @@ import * as Y from 'yjs';
  * CLAUDE.md the Hocuspocus service keeps zero cross-package deps beyond
  * @gruenerator/shared.
  */
+// Duplicated from @gruenerator/contracts `SITE_YDOC_KEYS.meta` (siteYdoc.ts).
+const SITE_META = 'siteMeta';
 const SHEET_META = 'sheetMeta';
 const SHEET_SNAPSHOT = 'snapshot';
 const PRESENTATION_SLIDES = 'slides';
@@ -28,7 +30,7 @@ const MAX_SLIDE_TITLES = 8;
 const MAX_BOARD_COLUMNS = 4;
 const MAX_WHITEBOARD_NOTES = 6;
 
-export type PreviewKind = 'sheets' | 'presentations' | 'board' | 'blocknote';
+export type PreviewKind = 'site' | 'sheets' | 'presentations' | 'board' | 'blocknote';
 
 /**
  * Detect the document flavor from the Y.Doc's root types. Checked via
@@ -36,6 +38,7 @@ export type PreviewKind = 'sheets' | 'presentations' | 'board' | 'blocknote';
  * document.
  */
 export function detectPreviewKind(ydoc: Y.Doc): PreviewKind {
+  if (ydoc.share.has(SITE_META)) return 'site';
   if (ydoc.share.has(SHEET_META)) return 'sheets';
   if (ydoc.share.has(PRESENTATION_SLIDES)) return 'presentations';
   if (ydoc.share.has(BOARD_ROWS) || ydoc.share.has(BOARD_ELEMENTS)) return 'board';

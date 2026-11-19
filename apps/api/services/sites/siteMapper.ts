@@ -1,8 +1,13 @@
-import { buildSiteSnapshot, publishedSiteSnapshotSchema, type Site } from '@gruenerator/contracts';
+import {
+  previewSiteSnapshotSchema,
+  publishedSiteSnapshotSchema,
+  snapshotDiffers,
+  type Site,
+} from '@gruenerator/contracts';
 
 import { type UserSiteRow } from '../../database/schema/sites.js';
 
-type SiteDraft = Omit<Site, 'has_unpublished_changes'>;
+type SiteDraft = Omit<Site, 'has_unpublished_changes' | 'published_snapshot'>;
 
 function toDraft(row: UserSiteRow): SiteDraft {
   return {
@@ -35,14 +40,17 @@ function toDraft(row: UserSiteRow): SiteDraft {
 }
 
 export function toSite(row: UserSiteRow): Site {
-  return { ...toDraft(row), has_unpublished_changes: hasUnpublishedChanges(row) };
+  const snapshot = previewSiteSnapshotSchema.safeParse(row.published_snapshot);
+  return {
+    ...toDraft(row),
+    has_unpublished_changes: hasUnpublishedChanges(row),
+    published_snapshot: snapshot.success && row.published_snapshot ? snapshot.data : null,
+  };
 }
 
 export function hasUnpublishedChanges(row: UserSiteRow): boolean {
   if (!row.published_snapshot) return false;
   const stored = publishedSiteSnapshotSchema.safeParse(row.published_snapshot);
   if (!stored.success) return true;
-  const rebuilt = buildSiteSnapshot(toDraft(row), stored.data.locale);
-  if (!rebuilt.ok) return true;
-  return JSON.stringify(rebuilt.snapshot) !== JSON.stringify(stored.data);
+  return snapshotDiffers(toDraft(row), stored.data);
 }

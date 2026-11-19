@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { createLogger } from './logger.js';
+import { SITE_ROOM_PREFIX, siteIdFromRoom } from './siteRooms.js';
 
 import type {
   DbQueryFn,
@@ -92,7 +93,7 @@ export class AuthService {
   ): Promise<AuthenticationResult> {
     // Guest access exists only for shared documents. Chat and presence rooms
     // would otherwise send their room name into a uuid comparison (#5395).
-    if (!isDocumentRoom(documentName)) {
+    if (!isDocumentRoom(documentName) || documentName.startsWith(SITE_ROOM_PREFIX)) {
       return { authenticated: false, reason: 'Guest access is limited to documents' };
     }
 
@@ -172,7 +173,50 @@ export class AuthService {
       return this.checkGroupPresenceAccess(groupId, userId);
     }
 
+    if (documentName.startsWith(SITE_ROOM_PREFIX)) {
+      return this.checkSiteAccess(documentName, userId);
+    }
+
     return this.checkDocumentPermissions(documentName, userId);
+  }
+
+  /** Owner only in this phase; shared editing (Phase 7) extends this one query. */
+  private async checkSiteAccess(room: string, userId: string): Promise<AuthenticationResult> {
+    const siteId = siteIdFromRoom(room);
+    if (!siteId) return { authenticated: false, reason: 'Site not found' };
+
+    const rows = await this.db(
+      `SELECT s.user_id, s.moderation FROM user_sites s
+       JOIN profiles p ON p.id = s.user_id
+       WHERE s.id = $1 AND s.deleted_at IS NULL AND p.sites_unlocked = true LIMIT 1`,
+      [siteId]
+    );
+    const site = rows[0] as { user_id: string; moderation: string | null } | undefined;
+    if (!site) {
+      log.warn(`[Auth-Site] Site ${siteId} not found, trashed or not unlocked`);
+      return { authenticated: false, reason: 'Site not found' };
+    }
+    if (site.user_id !== userId) {
+      log.warn(`[Auth-Site] FAILED: User ${userId} is not the owner of site ${siteId}`);
+      return { authenticated: false, reason: 'Access denied' };
+    }
+
+    const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [
+      userId,
+    ]).catch((err) => {
+      log.warn(`[Auth-Site] Display name lookup failed for ${userId}: ${err}`);
+      return [];
+    });
+    const readOnly = site.moderation === 'removed';
+    log.debug(
+      `[Auth-Site] Owner ${userId} authenticated for site ${siteId} (${readOnly ? 'read-only' : 'read-write'})`
+    );
+    return {
+      authenticated: true,
+      userId,
+      userName: (userResult[0]?.display_name as string) || 'Unknown User',
+      readOnly,
+    };
   }
 
   private async checkChatThreadAccess(
@@ -334,6 +378,15 @@ export class AuthService {
     log.debug(`[Auth] Document query returned ${docResult.length} results`);
 
     if (docResult.length === 0) {
+      // A site's Yjs rows are keyed by its bare uuid, so that id must never reach
+      // the create-on-first-open grant below. No trash filter on purpose: a
+      // trashed site keeps its rows closed as well (#5805).
+      const siteRows = await this.db('SELECT 1 FROM user_sites WHERE id = $1', [documentName]);
+      if (siteRows.length > 0) {
+        log.warn(`[Auth] FAILED: ${documentName} is a site id, not a document room`);
+        return { authenticated: false, reason: 'Access denied' };
+      }
+
       log.debug(`[Auth] Document ${documentName} not found, allowing user ${userId} to create it`);
 
       return {
