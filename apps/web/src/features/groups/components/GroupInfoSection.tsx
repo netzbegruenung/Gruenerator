@@ -1,6 +1,4 @@
-import { type GroupContentType } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
-import { type GroupFeedItem } from '@gruenerator/shared/groups';
+import { type GroupFeedItem, sharedContentKeys } from '@gruenerator/shared/groups';
 import {
   Button,
   cn,
@@ -292,6 +290,7 @@ const GroupInfoSection = memo(
     const showChats = canShare && !isSystem;
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
     const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
+    const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
 
     // Leaving is a member action, not an admin one: everybody except the
     // creator can leave (the backend rejects the creator — they must delete).
@@ -345,31 +344,6 @@ const GroupInfoSection = memo(
       target.style.height = 'auto';
       target.style.height = target.scrollHeight + 2 + 'px';
     }, []);
-
-    const handleShareContent = useCallback(
-      async (
-        contentType: string,
-        itemId: string | number,
-        options: {
-          permissions: { read: boolean; write: boolean; collaborative: boolean };
-          targetGroupId: string;
-          note: string | null;
-        }
-      ) => {
-        const res = await getContractsClient().groups.shareContent({
-          params: { groupId: options.targetGroupId },
-          body: {
-            contentType: contentType as GroupContentType,
-            contentId: String(itemId),
-            permissions: options.permissions,
-            note: options.note,
-          },
-        });
-        if (res.status !== 200)
-          throw apiErrorFromResponse(res, 'Inhalt konnte nicht geteilt werden.');
-      },
-      []
-    );
 
     return (
       <>
@@ -754,10 +728,13 @@ const GroupInfoSection = memo(
           groupId={groupId}
           initialNote={shareInitialNote}
           {...(addCategory && { initialCategory: addCategory })}
-          onShareContent={handleShareContent}
-          onSuccess={() => {
-            setShowAddContent(false);
+          sharedKeys={sharedKeys}
+          currentUserId={currentUserId ?? null}
+          onAdded={(count) => {
             refetchSharedContent?.();
+            onSuccessMessage?.(
+              count === 1 ? 'Inhalt hinzugefügt.' : `${count} Inhalte hinzugefügt.`
+            );
           }}
           {...(data?.isAdmin && { onAddLink })}
           isAddingLink={isAddingLink}

@@ -23,8 +23,8 @@ import { ProjectTextAddButton } from './ProjectTextAddButton';
 
 interface ProjectAddMenuProps {
   groupId: string;
-  /** Opens the „Inhalte hinzufügen" dialog, optionally in one category. */
-  onPickExisting: (category: CategoryId) => void;
+  /** Opens the „Inhalte hinzufügen" dialog, in one category or (`null`) on the overview. */
+  onPickExisting: (category: CategoryId | null) => void;
   /** Links can only be added by project admins. */
   canAddLink: boolean;
   onFileAdded: (count: number) => void;
@@ -85,7 +85,8 @@ export function ProjectAddMenu({
             <PiRobot aria-hidden className="mr-xs size-4" />
             Agent
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPickExisting('collabDocs')}>
+          {/* Docs, Sheets, Präsentationen und Boards sind vier Kacheln — die Übersicht zeigt alle. */}
+          <DropdownMenuItem onSelect={() => onPickExisting(null)}>
             <PiFileText aria-hidden className="mr-xs size-4" />
             Doc, Sheet, Board …
           </DropdownMenuItem>
