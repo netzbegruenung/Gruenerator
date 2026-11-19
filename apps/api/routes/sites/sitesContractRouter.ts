@@ -11,9 +11,6 @@
  *   DELETE /api/sites/:id
  *   POST   /api/sites/generate (SSE, see siteGenerationRoute.ts)
  *
- * The legacy flyer upload (POST /api/sites/generate-from-flyer) has its own router,
- * mounted ahead of this one in routes.ts.
- *
  * Authentication: routes.ts applies requireAuth for /api/sites before this
  * router is mounted, so req.user is populated here. getUserId() still guards
  * against a missing user.

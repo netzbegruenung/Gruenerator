@@ -1,6 +1,6 @@
 /**
  * Zod-Schemas für die contract-basierten Texte-Generatoren
- * (`/api/texte/alttext`, `/api/texte/website`).
+ * (`/api/texte/alttext`).
  *
  * Beide Formen standen vorher doppelt im Baum: `WebsiteContent` als Interface
  * in `apps/api/types/routes.ts` und `AiGeneratedContent` als handgeschriebene
@@ -119,19 +119,6 @@ export const websiteContentSchema = z.object({
 export type WebsiteContent = z.infer<typeof websiteContentSchema>;
 export type WebsiteTheme = z.infer<typeof websiteThemeSchema>;
 export type WebsiteAction = z.infer<typeof websiteActionSchema>;
-
-export const websiteGenerateBodySchema = z.object({
-  description: z.string().min(1, 'Bitte gib eine Beschreibung an'),
-  email: z.string().optional(),
-});
-export type WebsiteGenerateBody = z.infer<typeof websiteGenerateBodySchema>;
-
-export const websiteGenerateResponseSchema = z.object({
-  json: websiteContentSchema,
-  /** Modell-/Verbrauchsangaben des AI-Laufs; kein Konsument liest sie heute. */
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-export type WebsiteGenerateResponse = z.infer<typeof websiteGenerateResponseSchema>;
 
 // ── Fehler ──────────────────────────────────────────────────────────────────
 
