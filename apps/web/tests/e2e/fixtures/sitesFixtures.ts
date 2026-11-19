@@ -64,8 +64,8 @@ const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 const doc = (text: string) => ({
-  type: 'doc',
-  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+  type: 'doc' as const,
+  content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text }] }],
 });
 
 export function makeSite(over: Partial<Site> = {}): Site {
@@ -142,7 +142,16 @@ export function installSitesApi(
     page.on('domcontentloaded', () => {
       void page
         .evaluate(async (loc) => {
-          const { useAuthStore } = await import('/src/stores/authStore.ts');
+          type AuthUser = Record<string, unknown>;
+          interface AuthStoreModule {
+            useAuthStore: {
+              getState: () => { user: AuthUser | null };
+              setState: (state: { user: AuthUser }) => void;
+              subscribe: (listener: () => void) => void;
+            };
+          }
+          const storePath = '/src/stores/authStore.ts';
+          const { useAuthStore } = (await import(storePath)) as AuthStoreModule;
           const patch = () => {
             const { user } = useAuthStore.getState();
             if (user && user.sites_unlocked !== true) {
