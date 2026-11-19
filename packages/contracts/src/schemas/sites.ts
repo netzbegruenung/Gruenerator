@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { moderationStateSchema } from './contentReport.js';
 import {
   boundedRichTextDoc,
+  getRichTextLength,
+  type RichTextDoc,
   SITE_ABOUT_MAX_LENGTH,
   SITE_THEME_CONTENT_MAX_LENGTH,
 } from './richtext.js';
@@ -179,28 +181,146 @@ export type Site = z.infer<typeof siteSchema>;
 
 const LINK_MESSAGE = 'Link muss mit https:// beginnen';
 const IMAGE_MESSAGE = 'Bild muss aus der Mediathek stammen';
+const RICH_TEXT_FORMAT_MESSAGE = 'Text enthält nicht erlaubte Formatierung';
+const RICH_TEXT_LENGTH_MESSAGE = 'Text ist zu lang';
+const PHONE_MESSAGE = 'Telefonnummer enthält nicht erlaubte Zeichen';
+const INSTAGRAM_MESSAGE = 'Instagram-Name enthält nicht erlaubte Zeichen';
+const PLATFORM_MESSAGE = 'Unbekannte Plattform';
+
+const SNAPSHOT_RICH_TEXT_MAX_DEPTH = 6;
+const SNAPSHOT_RICH_TEXT_MAX_NODES = 500;
+
+/** The platforms the site editor offers (HeroSectionEditor `ALL_PLATFORMS`). */
+export const sitesSocialPlatformSchema = z.enum([
+  'instagram',
+  'facebook',
+  'twitter',
+  'linkedin',
+  'mastodon',
+  'youtube',
+]);
+export type SitesSocialPlatform = z.infer<typeof sitesSocialPlatformSchema>;
+
+const snapshotMarkSchema = z.object({ type: z.enum(['bold', 'italic', 'underline']) }).strict();
+
+type SnapshotNode = {
+  type: string;
+  attrs?: Record<string, unknown>;
+  marks?: { type: string }[];
+  text?: string;
+  content?: SnapshotNode[];
+};
+
+/**
+ * Closed per node type, mirroring `siteRichTextExtensions`
+ * (richtext/index.ts): Document, Paragraph, Text, HardBreak, Bold, Italic,
+ * Underline, Heading (levels 2 and 3), BulletList, OrderedList, ListItem.
+ */
+const snapshotNodeSchema: z.ZodType<SnapshotNode> = z.lazy(() => {
+  const children = z.array(snapshotNodeSchema).optional();
+  const marks = z.array(snapshotMarkSchema).optional();
+  return z.union([
+    z.object({ type: z.literal('text'), text: z.string(), marks }).strict(),
+    z.object({ type: z.literal('hardBreak'), marks }).strict(),
+    z.object({ type: z.literal('paragraph'), content: children }).strict(),
+    z
+      .object({
+        type: z.literal('heading'),
+        attrs: z.object({ level: z.union([z.literal(2), z.literal(3)]) }).strict(),
+        content: children,
+      })
+      .strict(),
+    z.object({ type: z.literal('bulletList'), content: children }).strict(),
+    z
+      .object({
+        type: z.literal('orderedList'),
+        attrs: z
+          .object({ start: z.number().int().positive().optional(), type: z.null().optional() })
+          .strict()
+          .optional(),
+        content: children,
+      })
+      .strict(),
+    z.object({ type: z.literal('listItem'), content: children }).strict(),
+  ]);
+});
+
+const snapshotDocSchema = z
+  .object({ type: z.literal('doc'), content: z.array(snapshotNodeSchema).optional() })
+  .strict();
+
+/** Iterative, so a hostile nesting cannot overflow the stack before the bound applies. */
+function measureRichText(doc: unknown): { depth: number; nodes: number } {
+  let depth = 0;
+  let nodes = 0;
+  const stack: { value: unknown; depth: number }[] = [{ value: doc, depth: 0 }];
+  while (stack.length > 0) {
+    const item = stack.pop();
+    if (!item || typeof item.value !== 'object' || item.value === null) continue;
+    nodes += 1;
+    depth = Math.max(depth, item.depth);
+    if (nodes > SNAPSHOT_RICH_TEXT_MAX_NODES || depth > SNAPSHOT_RICH_TEXT_MAX_DEPTH) break;
+    const content = (item.value as { content?: unknown }).content;
+    if (Array.isArray(content)) {
+      for (const child of content) stack.push({ value: child, depth: item.depth + 1 });
+    }
+  }
+  return { depth, nodes };
+}
+
+/** Rich text as the public renderer may receive it: closed node and mark set, no free attrs. */
+export const snapshotRichTextDoc = (maxLength: number) =>
+  z.custom<RichTextDoc>().superRefine((value, ctx) => {
+    const { depth, nodes } = measureRichText(value);
+    if (depth > SNAPSHOT_RICH_TEXT_MAX_DEPTH || nodes > SNAPSHOT_RICH_TEXT_MAX_NODES) {
+      ctx.addIssue({ code: 'custom', message: RICH_TEXT_FORMAT_MESSAGE });
+      return;
+    }
+    const parsed = snapshotDocSchema.safeParse(value);
+    if (!parsed.success) {
+      ctx.addIssue({ code: 'custom', message: RICH_TEXT_FORMAT_MESSAGE });
+      return;
+    }
+    if (getRichTextLength(value) > maxLength) {
+      ctx.addIssue({ code: 'custom', message: RICH_TEXT_LENGTH_MESSAGE });
+    }
+  });
 
 const isHttpUrl = (value: string): boolean => {
   if (!/^https?:\/\//i.test(value)) return false;
   try {
-    new URL(value);
-    return true;
+    const url = new URL(value);
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      url.username === '' &&
+      url.password === ''
+    );
   } catch {
     return false;
   }
 };
 
+const isMailtoLink = (value: string): boolean => {
+  if (!/^mailto:/i.test(value)) return false;
+  const address = value.slice('mailto:'.length);
+  return !/[?\s\u0000-\u001f\u007f]/.test(address) && z.string().email().safeParse(address).success;
+};
+
 const isActionLink = (value: string): boolean =>
-  isHttpUrl(value) || /^mailto:/i.test(value) || /^#[a-z][a-z0-9-]*$/.test(value);
+  isHttpUrl(value) || isMailtoLink(value) || /^#[a-z][a-z0-9-]*$/.test(value);
 
 const isSiteImage = (value: string): boolean =>
   value === '' ||
   /^\/api\/share\/[A-Za-z0-9_-]{6,128}\/preview$/.test(value) ||
-  /^\/api\/image-picker\/stock-image\/[A-Za-z0-9._-]+$/.test(value);
+  /^\/api\/image-picker\/stock-image\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(value);
 
 const snapshotImage = urlField.refine(isSiteImage, { message: IMAGE_MESSAGE });
 const snapshotLink = urlField.refine(isActionLink, { message: LINK_MESSAGE });
 const snapshotSocialUrl = urlField.refine(isHttpUrl, { message: LINK_MESSAGE });
+const snapshotPhone = z
+  .string()
+  .max(SITE_PHONE_MAX)
+  .regex(/^[0-9 +()\/.-]{0,40}$/, PHONE_MESSAGE);
 
 const snapshotSectionsSchema = z.object({
   heroImage: z
@@ -210,9 +330,19 @@ const snapshotSectionsSchema = z.object({
       subtitle: z.string().max(SITE_TAGLINE_MAX),
     })
     .optional(),
-  about: siteSectionsSchema.shape.about,
+  about: z
+    .object({
+      title: z.string().max(SITE_SECTION_TITLE_MAX),
+      content: snapshotRichTextDoc(SITE_ABOUT_MAX_LENGTH),
+    })
+    .optional(),
   themes: z
-    .array(siteThemeCardSchema.extend({ imageUrl: snapshotImage }))
+    .array(
+      siteThemeCardSchema.extend({
+        imageUrl: snapshotImage,
+        content: snapshotRichTextDoc(SITE_THEME_CONTENT_MAX_LENGTH),
+      })
+    )
     .max(SITE_THEMES_MAX)
     .optional(),
   actions: z
@@ -222,7 +352,15 @@ const snapshotSectionsSchema = z.object({
   contact: z
     .object({ title: z.string().max(SITE_SECTION_TITLE_MAX), backgroundImageUrl: snapshotImage })
     .optional(),
-  socialFeed: siteSectionsSchema.shape.socialFeed,
+  socialFeed: z
+    .object({
+      title: z.string().max(SITE_SECTION_TITLE_MAX),
+      instagramUsername: z
+        .union([z.literal(''), z.string().regex(/^[A-Za-z0-9._]{1,30}$/, INSTAGRAM_MESSAGE)])
+        .optional(),
+      showFeed: z.boolean(),
+    })
+    .optional(),
 });
 
 export const publishedSiteSnapshotSchema = z.object({
@@ -232,14 +370,22 @@ export const publishedSiteSnapshotSchema = z.object({
   tagline: z.string().max(SITE_TAGLINE_MAX),
   profile_image: snapshotImage,
   contact_email: z.union([z.literal(''), z.string().max(LEGAL_EMAIL_MAX).email()]),
-  contact_phone: z.string().max(SITE_PHONE_MAX),
+  contact_phone: snapshotPhone,
   social_links: z
     .record(z.string().max(SOCIAL_KEY_MAX), snapshotSocialUrl)
-    .refine((links) => Object.keys(links).length <= SITE_SOCIAL_LINKS_MAX, {
-      message: 'Zu viele Social-Media-Links',
+    .superRefine((links, ctx) => {
+      const keys = Object.keys(links);
+      if (keys.length > SITE_SOCIAL_LINKS_MAX) {
+        ctx.addIssue({ code: 'custom', message: 'Zu viele Social-Media-Links' });
+      }
+      for (const key of keys) {
+        if (!sitesSocialPlatformSchema.safeParse(key).success) {
+          ctx.addIssue({ code: 'custom', message: PLATFORM_MESSAGE, path: [key] });
+        }
+      }
     }),
   sections: snapshotSectionsSchema,
-  legal: siteLegalSchema,
+  legal: siteLegalSchema.extend({ phone: snapshotPhone.optional() }),
 });
 export type PublishedSiteSnapshot = z.infer<typeof publishedSiteSnapshotSchema>;
 

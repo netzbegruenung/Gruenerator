@@ -21,7 +21,7 @@ UPDATE user_sites s
        SELECT 1 FROM user_sites n
         WHERE n.user_id = s.user_id
           AND n.deleted_at IS NULL
-          AND (n.updated_at, n.id) > (s.updated_at, s.id)
+          AND (COALESCE(n.updated_at, '-infinity'::timestamptz), n.id) > (COALESCE(s.updated_at, '-infinity'::timestamptz), s.id)
    );
 
 CREATE UNIQUE INDEX IF NOT EXISTS user_sites_one_live_per_user

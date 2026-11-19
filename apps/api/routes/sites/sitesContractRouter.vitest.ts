@@ -1,9 +1,14 @@
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
+const executeMock = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
+}));
+vi.mock('../../database/services/DrizzleService.js', () => ({
+  getDrizzleInstance: () => ({ execute: executeMock }),
 }));
 vi.mock('../auth/groups/groupsContract/shared.js', () => ({
   getUserLocale: (req: { locale?: string }) => req.locale ?? 'de-DE',
@@ -67,10 +72,15 @@ const validRow = () => row();
 
 const validCreate = () => ({ subdomain: 'anna-berlin', site_title: 'Anna' });
 const pgUnique = (constraint: string) =>
-  Object.assign(new Error('duplicate key'), { code: '23505', constraint });
+  new DrizzleQueryError(
+    'INSERT INTO user_sites',
+    [],
+    Object.assign(new Error('duplicate key'), { code: '23505', constraint })
+  );
 
 beforeEach(() => {
   queryMock.mockReset();
+  executeMock.mockReset();
 });
 
 describe('sitesContract', () => {
@@ -122,16 +132,14 @@ describe('sitesContract', () => {
   });
 
   it('create names the reason when the account already has a site', async () => {
-    queryMock
-      .mockResolvedValueOnce([])
-      .mockRejectedValueOnce(pgUnique('user_sites_one_live_per_user'));
+    queryMock.mockResolvedValueOnce([]);
+    executeMock.mockRejectedValueOnce(pgUnique('user_sites_one_live_per_user'));
     expect((await create(validCreate())).body.error).toBe('Du hast bereits eine Website erstellt');
   });
 
   it('create names the reason when the address is taken', async () => {
-    queryMock
-      .mockResolvedValueOnce([])
-      .mockRejectedValueOnce(pgUnique('user_sites_subdomain_unique'));
+    queryMock.mockResolvedValueOnce([]);
+    executeMock.mockRejectedValueOnce(pgUnique('user_sites_subdomain_unique'));
     expect((await create(validCreate())).body.error).toBe('Diese Adresse ist bereits vergeben');
   });
 

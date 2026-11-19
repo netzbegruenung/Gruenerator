@@ -124,3 +124,170 @@ describe('buildSiteSnapshot', () => {
   it('reports a missing legal block as a whole', () =>
     expect(issuePaths({ ...validSource(), legal: null })).toContain('legal'));
 });
+
+describe('snapshot rich text', () => {
+  const aboutDoc = (content: unknown): SiteSnapshotSource => ({
+    ...validSource(),
+    sections: { about: { title: 'Über mich', content: content as never } },
+  });
+  const para = (text: string, marks?: unknown[]) => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text, ...(marks ? { marks } : {}) }],
+  });
+  const nested = (depth: number): unknown =>
+    depth === 0
+      ? para('x')
+      : { type: 'bulletList', content: [{ type: 'listItem', content: [nested(depth - 1)] }] };
+
+  it('reports attrs on a paragraph', () =>
+    expect(
+      issuePaths(
+        aboutDoc({
+          type: 'doc',
+          content: [{ ...para('x'), attrs: { style: 'x', onclick: 'alert(1)' } }],
+        })
+      )
+    ).toContain('sections.about.content'));
+  it('reports text carried by a non-text node', () =>
+    expect(
+      issuePaths(
+        aboutDoc({ type: 'doc', content: [{ type: 'paragraph', text: 'x'.repeat(5000) }] })
+      )
+    ).toContain('sections.about.content'));
+  it('reports a doc nested seven levels deep', () =>
+    expect(issuePaths(aboutDoc({ type: 'doc', content: [nested(3)] }))).toContain(
+      'sections.about.content'
+    ));
+  it('accepts a doc nested at the depth limit', () =>
+    expect(buildSiteSnapshot(aboutDoc({ type: 'doc', content: [nested(2)] }), 'de-DE').ok).toBe(
+      true
+    ));
+  it('reports an unknown node type', () =>
+    expect(
+      issuePaths(aboutDoc({ type: 'doc', content: [{ type: 'image', attrs: { src: 'x' } }] }))
+    ).toContain('sections.about.content'));
+  it('reports a mark with attrs', () =>
+    expect(
+      issuePaths(
+        aboutDoc({ type: 'doc', content: [para('x', [{ type: 'bold', attrs: { a: 1 } }])] })
+      )
+    ).toContain('sections.about.content'));
+  it('reports a heading level the editor does not offer', () =>
+    expect(
+      issuePaths(
+        aboutDoc({
+          type: 'doc',
+          content: [
+            { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'x' }] },
+          ],
+        })
+      )
+    ).toContain('sections.about.content'));
+  it('reports text above the length limit', () =>
+    expect(issuePaths(aboutDoc({ type: 'doc', content: [para('x'.repeat(1001))] }))).toContain(
+      'sections.about.content'
+    ));
+  it('reports a theme card with foreign attrs', () =>
+    expect(
+      issuePaths({
+        ...validSource(),
+        sections: {
+          themes: [
+            {
+              imageUrl: '',
+              title: 'Klima',
+              content: { type: 'doc', content: [{ ...para('x'), attrs: { id: 'a' } }] } as never,
+            },
+          ],
+        },
+      })
+    ).toContain('sections.themes.0.content'));
+  it('accepts bold text, a heading, a bullet list and an ordered list', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Titel' }] },
+        para('fett', [{ type: 'bold' }, { type: 'italic' }]),
+        {
+          type: 'bulletList',
+          content: [{ type: 'listItem', content: [para('Punkt')] }],
+        },
+        {
+          type: 'orderedList',
+          attrs: { start: 1, type: null },
+          content: [
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'hardBreak' }] }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(buildSiteSnapshot(aboutDoc(doc), 'de-DE').ok).toBe(true);
+  });
+});
+
+describe('snapshot charsets and links', () => {
+  it('accepts a phone number and reports markup in it', () => {
+    expect(
+      buildSiteSnapshot({ ...validSource(), contact_phone: '+49 30 123-45' }, 'de-DE').ok
+    ).toBe(true);
+    expect(issuePaths({ ...validSource(), contact_phone: '123<script>' })).toContain(
+      'contact_phone'
+    );
+  });
+  it('reports markup in the legal phone', () =>
+    expect(issuePaths({ ...validSource(), legal: { ...validLegal(), phone: '1<b>' } })).toContain(
+      'legal.phone'
+    ));
+  it('reports an instagram name with path characters', () =>
+    expect(
+      issuePaths({
+        ...validSource(),
+        sections: { socialFeed: { title: 'Feed', instagramUsername: 'x/../evil', showFeed: true } },
+      })
+    ).toContain('sections.socialFeed.instagramUsername'));
+  it('accepts an instagram name', () =>
+    expect(
+      buildSiteSnapshot(
+        {
+          ...validSource(),
+          sections: {
+            socialFeed: { title: 'Feed', instagramUsername: 'anna.b_1', showFeed: true },
+          },
+        },
+        'de-DE'
+      ).ok
+    ).toBe(true));
+  it('reports an unknown social platform without throwing', () => {
+    const key = '"><img src=x>';
+    expect(
+      issuePaths({ ...validSource(), social_links: { [key]: 'https://example.org' } })
+    ).toContain(`social_links.${key}`);
+    const dotted = buildSiteSnapshot(
+      { ...validSource(), social_links: { 'a.b': 'https://example.org' } },
+      'de-DE'
+    );
+    expect(dotted.ok).toBe(false);
+  });
+  it('keeps an unknown social key in a draft', () =>
+    expect(updateUserSiteBodySchema.safeParse({ social_links: { whatever: 'www' } }).success).toBe(
+      true
+    ));
+  it.each([
+    'https://gruene.de@evil.example',
+    'mailto:a@b.de?bcc=x@evil.example',
+    'mailto:a b@c.de',
+  ])('reports the action link %s', (link) =>
+    expect(issuePaths(withActionLink(link))).toContain('sections.actions.0.link')
+  );
+  it('reports credentials in a social link', () =>
+    expect(
+      issuePaths({ ...validSource(), social_links: { facebook: 'https://a:b@evil.example' } })
+    ).toContain('social_links.facebook'));
+  it('reports a stock image path with dots only', () =>
+    expect(
+      issuePaths({ ...validSource(), profile_image: '/api/image-picker/stock-image/..' })
+    ).toContain('profile_image'));
+});

@@ -18,12 +18,14 @@
  */
 import { buildSiteSnapshot, checkSiteHandle, sitesContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
+import { sql } from 'drizzle-orm';
 
 import { type UserSiteRow } from '../../database/schema/sites.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toSite } from '../../services/sites/siteMapper.js';
 import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
-import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
+import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { getUserLocale } from '../auth/groups/groupsContract/shared.js';
@@ -117,43 +119,31 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 400 as const, body: { error: 'Du hast bereits eine Website erstellt' } };
       }
 
-      const result = await db.query<UserSiteRow>(
-        `INSERT INTO user_sites (
-           user_id, subdomain, site_title, tagline, theme, is_published,
-           contact_email, contact_phone, social_links, profile_image, background_image,
-           sections, legal
-         )
-         VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10, $11, $12)
-         RETURNING *`,
-        [
-          userId,
-          handle.handle,
-          site_title,
-          tagline ?? null,
-          theme,
-          contact_email ?? null,
-          contact_phone ?? null,
-          social_links ? JSON.stringify(social_links) : null,
-          profile_image ?? null,
-          background_image ?? null,
-          sections ? JSON.stringify(sections) : null,
-          legal ? JSON.stringify(legal) : null,
-        ]
+      // Drizzle, not `db.query`: PostgresService strips the pg code and constraint.
+      const result = await getDrizzleInstance().execute<UserSiteRow>(
+        sql`INSERT INTO user_sites (
+              user_id, subdomain, site_title, tagline, theme, is_published,
+              contact_email, contact_phone, social_links, profile_image, background_image,
+              sections, legal
+            )
+            VALUES (
+              ${userId}, ${handle.handle}, ${site_title}, ${tagline ?? null}, ${theme}, false,
+              ${contact_email ?? null}, ${contact_phone ?? null},
+              ${social_links ? JSON.stringify(social_links) : null}, ${profile_image ?? null},
+              ${background_image ?? null}, ${sections ? JSON.stringify(sections) : null},
+              ${legal ? JSON.stringify(legal) : null}
+            )
+            RETURNING *`
       );
 
-      const row = result?.[0];
+      const row = result.rows[0];
       if (!row) {
         return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Website' } };
       }
       return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error as { code: string }).code === '23505'
-      ) {
-        const constraint =
-          'constraint' in error ? (error as { constraint: unknown }).constraint : null;
+      if (isUniqueViolation(error)) {
+        const constraint = (error as { cause?: { constraint?: unknown } }).cause?.constraint;
         const message =
           constraint === 'user_sites_one_live_per_user'
             ? 'Du hast bereits eine Website erstellt'
