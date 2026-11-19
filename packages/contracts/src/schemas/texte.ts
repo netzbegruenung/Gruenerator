@@ -9,6 +9,18 @@
  */
 import { z } from 'zod';
 
+import { SITE_ABOUT_MAX_LENGTH, SITE_THEME_CONTENT_MAX_LENGTH } from './richtext.js';
+import {
+  LEGAL_EMAIL_MAX,
+  SITE_ACTIONS_MAX,
+  SITE_ACTION_TEXT_MAX,
+  SITE_SECTION_TITLE_MAX,
+  SITE_TAGLINE_MAX,
+  SITE_THEMES_MAX,
+  SITE_TITLE_MAX,
+  SITE_URL_MAX,
+} from './sites.js';
+
 // ── Alt-Text ────────────────────────────────────────────────────────────────
 
 export const altTextBodySchema = z.object({
@@ -58,16 +70,16 @@ export type SlideAltTextResponse = z.infer<typeof slideAltTextResponseSchema>;
 // ── Landing-Page-Inhalte ────────────────────────────────────────────────────
 
 export const websiteThemeSchema = z.object({
-  title: z.string(),
-  content: z.string(),
+  title: z.string().trim().min(1).max(SITE_SECTION_TITLE_MAX),
+  content: z.string().max(SITE_THEME_CONTENT_MAX_LENGTH),
   /** Vom Bildwähler nachgetragen; leer, wenn er nichts Passendes fand. */
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().max(SITE_URL_MAX).optional(),
 });
 
 export const websiteActionSchema = z.object({
-  text: z.string(),
-  link: z.string(),
-  imageUrl: z.string().optional(),
+  text: z.string().trim().min(1).max(SITE_ACTION_TEXT_MAX),
+  link: z.string().max(SITE_URL_MAX),
+  imageUrl: z.string().max(SITE_URL_MAX).optional(),
 });
 
 /**
@@ -78,26 +90,30 @@ export const websiteActionSchema = z.object({
  */
 export const websiteContentSchema = z.object({
   hero: z.object({
-    heading: z.string(),
-    text: z.string(),
+    heading: z.string().trim().min(1).max(SITE_TITLE_MAX),
+    text: z.string().max(SITE_TAGLINE_MAX),
   }),
   about: z.object({
-    title: z.string(),
-    content: z.string(),
+    title: z.string().max(SITE_SECTION_TITLE_MAX),
+    content: z.string().trim().min(1).max(SITE_ABOUT_MAX_LENGTH),
   }),
   hero_image: z.object({
-    title: z.string(),
-    subtitle: z.string(),
-    imageUrl: z.string().optional(),
+    title: z.string().max(SITE_TITLE_MAX),
+    subtitle: z.string().max(SITE_TAGLINE_MAX),
+    imageUrl: z.string().max(SITE_URL_MAX).optional(),
   }),
-  themes: z.array(websiteThemeSchema).min(1, 'Das themes-Array braucht mindestens einen Eintrag'),
+  themes: z
+    .array(websiteThemeSchema)
+    .min(1, 'Das themes-Array braucht mindestens einen Eintrag')
+    .max(SITE_THEMES_MAX),
   actions: z
     .array(websiteActionSchema)
-    .min(1, 'Das actions-Array braucht mindestens einen Eintrag'),
+    .min(1, 'Das actions-Array braucht mindestens einen Eintrag')
+    .max(SITE_ACTIONS_MAX),
   contact: z.object({
-    title: z.string(),
-    email: z.string(),
-    backgroundImageUrl: z.string().optional(),
+    title: z.string().max(SITE_SECTION_TITLE_MAX),
+    email: z.string().max(LEGAL_EMAIL_MAX),
+    backgroundImageUrl: z.string().max(SITE_URL_MAX).optional(),
   }),
 });
 export type WebsiteContent = z.infer<typeof websiteContentSchema>;

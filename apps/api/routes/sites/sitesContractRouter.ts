@@ -9,8 +9,9 @@
  *   POST   /api/sites/:id/draft
  *   GET    /api/sites/check-subdomain
  *   DELETE /api/sites/:id
+ *   POST   /api/sites/generate (SSE, see siteGenerationRoute.ts)
  *
- * The flyer upload (POST /api/sites/generate-from-flyer) has its own router,
+ * The legacy flyer upload (POST /api/sites/generate-from-flyer) has its own router,
  * mounted ahead of this one in routes.ts.
  *
  * Authentication: routes.ts applies requireAuth for /api/sites before this
@@ -45,6 +46,8 @@ import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowT
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { getUserLocale } from '../auth/groups/groupsContract/shared.js';
+
+import { generateSiteContentRoute } from './siteGenerationRoute.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -149,6 +152,8 @@ const PUBLISH_ROW_COLUMNS = updateUserSiteBodySchema
 const s = initServer();
 
 export const sitesContractRouter = s.router(sitesContract, {
+  generateSiteContent: generateSiteContentRoute,
+
   getMySite: async ({ req }) => {
     try {
       const userId = getUserId(req);
