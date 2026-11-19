@@ -220,3 +220,24 @@ export function searchMdBs(query: string, limit = 5): MdB[] {
   }
   return results;
 }
+
+/**
+ * „Büro von Lisa Badum, Bayern, Sprecherin für Klimapolitik" — der Kontext eines
+ * MdB-Büros für Rollen-Prompt und Tagesbriefing. Die Rolle speichert nur den
+ * Namen; Bundesland und Funktion kommen aus der Liste, damit das Modell vom
+ * ersten Turn an im richtigen Fachgebiet schreibt. Ein Name, der nicht in der
+ * Liste steht (frei getippt, ausgeschieden), bleibt allein stehen. Das
+ * Bundesland entfällt, wenn die Rolle es schon nennt.
+ */
+export function mdbOfficeContext(role: {
+  abgeordnete?: string;
+  bundesland?: string;
+}): string | null {
+  const name = role.abgeordnete?.trim();
+  if (!name) return null;
+  const mdb = GRUENE_MDBS.find((m) => m.name === name);
+  const parts = [`Büro von ${name}`];
+  if (mdb && mdb.bundesland !== role.bundesland) parts.push(mdb.bundesland);
+  if (mdb?.rolle) parts.push(mdb.rolle);
+  return parts.join(', ');
+}

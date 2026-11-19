@@ -27,14 +27,12 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # ggraphic release of 2026-11-18 (Movm/ggraphic#215, #216): schema alpha.5, core alpha.6 and
-  # editor alpha.13 published 2026-11-18 ~09:39 UTC. Inert from 2026-11-21 09:40 UTC,
+  # ggraphic spread-set order keys (Movm/ggraphic#224, lift id /2): schema alpha.6, core alpha.7
+  # and editor alpha.17 published 2026-11-19 ~00:12 UTC. Inert from 2026-11-22 00:15 UTC,
   # remove then.
-  - '@ggraphic/schema@0.1.0-alpha.5'
-  - '@ggraphic/core@0.1.0-alpha.6'
-  # ggraphic share panel (Movm/ggraphic#218, #220, #222): editor alpha.16 published 2026-11-18.
-  # Inert from 2026-11-21 13:00 UTC, remove then.
-  - '@ggraphic/editor@0.1.0-alpha.16'
+  - '@ggraphic/schema@0.1.0-alpha.6'
+  - '@ggraphic/core@0.1.0-alpha.7'
+  - '@ggraphic/editor@0.1.0-alpha.17'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date

@@ -5,6 +5,7 @@
  * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
  */
 import { connectorBrandIcon } from '@gruenerator/chat/connectors';
+import { type DriveProvider } from '@gruenerator/contracts';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
   Button,
@@ -30,7 +31,7 @@ import {
   useMcpRegistry,
   invalidateMcpServers,
 } from '../hooks/useMcpServers';
-import { useMicrosoftConnector } from '../hooks/useMicrosoftConnector';
+import { useNangoConnector } from '../hooks/useNangoConnector';
 import {
   connectRegistryConnector,
   createMcpServer,
@@ -678,8 +679,8 @@ const CardShell = memo(
     /** Provider also takes an API key — offered next to the one-click login. */
     onUseKey?: (() => void) | null;
     /**
-     * Set for a connection that stays a card once connected (Microsoft 365 is
-     * no MCP row, so it has no place under „Verbunden").
+     * Set for a connection that stays a card once connected (Microsoft 365 and
+     * Google Workspace are no MCP rows, so they have no place under „Verbunden").
      */
     onDisconnect?: (() => void) | null;
   }) => (
@@ -914,11 +915,17 @@ const BearerConnectDialog = ({
 type AvailableItem =
   | { kind: 'mcp'; key: string; category: string; title: string; entry: McpRegistryEntry }
   /** A Nango connection (not MCP) that lives in the same directory. */
-  | { kind: 'microsoft'; key: string; category: string; title: string };
+  | { kind: 'nango'; key: string; category: string; title: string; provider: DriveProvider };
 
-const MICROSOFT_TITLE = 'Microsoft 365';
-/** What the directory search matches for the Microsoft card (it isn't in the registry). */
-const MICROSOFT_SEARCH_TEXT = 'microsoft 365 onedrive office';
+/** The Nango cards and what the directory search matches for each (they aren't in the registry). */
+const NANGO_CARDS = [
+  { provider: 'microsoft', title: 'Microsoft 365', searchText: 'microsoft 365 onedrive office' },
+  {
+    provider: 'google',
+    title: 'Google Workspace',
+    searchText: 'google workspace drive docs sheets slides tabellen',
+  },
+] as const satisfies readonly { provider: DriveProvider; title: string; searchText: string }[];
 
 // The registry ships ~12 fine-grained categories; we fold them into a few broad
 // buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
@@ -983,7 +990,8 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
   }, [search]);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
-  const microsoft = useMicrosoftConnector();
+  const microsoft = useNangoConnector('microsoft');
+  const google = useNangoConnector('google');
 
   const refreshMcp = () => invalidateMcpServers(queryClient);
 
@@ -1027,16 +1035,27 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
     const items = merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-    if (microsoft.available && MICROSOFT_SEARCH_TEXT.includes(debouncedSearch.toLowerCase())) {
+    const query = debouncedSearch.toLowerCase();
+    const isAvailable = { microsoft: microsoft.available, google: google.available };
+    for (const card of NANGO_CARDS) {
+      if (!isAvailable[card.provider] || !card.searchText.includes(query)) continue;
       items.push({
-        kind: 'microsoft',
-        key: 'nango:microsoft',
+        kind: 'nango',
+        key: `nango:${card.provider}`,
         category: OTHER_CATEGORY,
-        title: MICROSOFT_TITLE,
+        title: card.title,
+        provider: card.provider,
       });
     }
     return items;
-  }, [registry, connectedHosts, connectedKeys, microsoft.available, debouncedSearch]);
+  }, [
+    registry,
+    connectedHosts,
+    connectedKeys,
+    microsoft.available,
+    google.available,
+    debouncedSearch,
+  ]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -1200,38 +1219,43 @@ const McpSection = memo(({ onSuccess, onError, afterConnected }: McpSectionProps
     );
   };
 
-  const renderCard = (it: AvailableItem) =>
-    it.kind === 'microsoft' ? (
+  const renderCard = (it: AvailableItem) => {
+    if (it.kind !== 'nango') {
+      return (
+        <CardShell
+          key={it.key}
+          title={it.title}
+          connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
+          onConnect={() => handlePickMcp(it.entry)}
+          onUseKey={keyAlternative(it.entry)}
+        />
+      );
+    }
+    const conn = it.provider === 'google' ? google : microsoft;
+    return (
       <CardShell
         key={it.key}
         title={it.title}
         experimental
-        connecting={microsoft.connect.isPending}
+        connecting={conn.connect.isPending}
         onConnect={() =>
-          microsoft.connect.mutate(undefined, {
+          conn.connect.mutate(undefined, {
             onError: (err) =>
               onError(err instanceof Error ? err.message : 'Verbinden fehlgeschlagen'),
           })
         }
         onDisconnect={
-          microsoft.connected
+          conn.connected
             ? () =>
-                microsoft.disconnect.mutate(undefined, {
-                  onSuccess: () => onSuccess(`${MICROSOFT_TITLE} getrennt`),
+                conn.disconnect.mutate(undefined, {
+                  onSuccess: () => onSuccess(`${it.title} getrennt`),
                   onError: () => onError('Verbindung konnte nicht getrennt werden'),
                 })
             : null
         }
       />
-    ) : (
-      <CardShell
-        key={it.key}
-        title={it.title}
-        connecting={connecting === (it.entry.registryKey ?? it.entry.url)}
-        onConnect={() => handlePickMcp(it.entry)}
-        onUseKey={keyAlternative(it.entry)}
-      />
     );
+  };
 
   const hasConnected = connected.length > 0;
 

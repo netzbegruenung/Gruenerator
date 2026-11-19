@@ -20,9 +20,9 @@ import * as cheerio from 'cheerio';
 
 import { motionSchema } from '../../scrapers/implementations/ParteitageScraper/antragsgruenClient.js';
 import { htmlToStructuredText } from '../../scrapers/utils/htmlCleaner.js';
+import { FormStepError, type FormClient } from '../../webForms/formClient.js';
 import { matchValues, sameKuerzel } from '../resolve.js';
 
-import { AntragsgruenFormError, type FormClient } from './formClient.js';
 import { tokenOf } from './motions.js';
 
 export interface OwnMotionRef {
@@ -76,7 +76,7 @@ export async function listOwnMotions(
 ): Promise<OwnMotionRef[]> {
   const res = await client.request(`${origin}/${consultation}/admin/list`);
   if (res.status !== 200 || res.redirected) {
-    throw new AntragsgruenFormError(`Antragsliste nicht lesbar (HTTP ${res.status})`, 'list');
+    throw new FormStepError(`Antragsliste nicht lesbar (HTTP ${res.status})`, 'list');
   }
   return motionListOf(res.html, origin);
 }
@@ -159,7 +159,7 @@ export async function readOwnMotion(
     parsed = null;
   }
   if (json.status !== 200 || !parsed?.success) {
-    throw new AntragsgruenFormError(`Antrag nicht lesbar (HTTP ${json.status})`, 'read');
+    throw new FormStepError(`Antrag nicht lesbar (HTTP ${json.status})`, 'read');
   }
   const page = await client.request(ref.url);
   const numbered = page.status === 200 ? numberedLinesOf(page.html) : [];

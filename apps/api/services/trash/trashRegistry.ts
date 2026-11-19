@@ -94,6 +94,11 @@ import {
   purgeUserAgent,
   USER_AGENT_TRASH,
 } from '../userAgents/userAgentsRepository.js';
+import {
+  purgeVideoAiProject,
+  trashVideoAiProject,
+  VIDEO_AI_PROJECT_TRASH,
+} from '../videoAi/projectRepository.js';
 
 import {
   getTrashedOwnedRow,
@@ -506,6 +511,14 @@ const podcastHandler = ownedRowHandler<Titled>({
   purge: purgePodcast,
 });
 
+const videoAiProjectHandler = ownedRowHandler<Titled>({
+  kind: 'video_ai_project',
+  table: VIDEO_AI_PROJECT_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter KI-Schnitt'),
+  trash: trashVideoAiProject,
+  purge: purgeVideoAiProject,
+});
+
 const studioAssetHandler = ownedRowHandler<Titled & Pick<StudioAssetRow, 'kind'>>({
   kind: 'studio_asset',
   table: STUDIO_ASSET_TRASH,
@@ -567,6 +580,7 @@ export const TRASH_KINDS = {
   explainable: explainableHandler,
   podcast: podcastHandler,
   studio_asset: studioAssetHandler,
+  video_ai_project: videoAiProjectHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {

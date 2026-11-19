@@ -130,6 +130,10 @@ export const UI_TOOL_NAMES = z.enum([
   'antragsgruen_antrag_stellen',
   'antragsgruen_tagesordnung',
   'antragsgruen_seite_lesen',
+  // nuudel-Umfragen und der Lader ihrer Gruppe.
+  'nuudel_werkzeuge_laden',
+  'nuudel_umfrage_anlegen',
+  'nuudel_umfrage_lesen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1415,6 +1419,26 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   antragsgruen_werkzeuge_laden: entry('antragsgruen_werkzeuge_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Antragsgrün-Werkzeuge freigeschaltet',
+  })),
+  nuudel_werkzeuge_laden: entry('nuudel_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'nuudel-Werkzeuge freigeschaltet',
+  })),
+  nuudel_umfrage_anlegen: entry('nuudel_umfrage_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'teilnahme_link')
+        ? `Umfrage „${getString(r, 'titel') ?? ''}" angelegt: ${getString(r, 'teilnahme_link')}`
+        : 'Umfrage angelegt'),
+  })),
+  nuudel_umfrage_lesen: entry('nuudel_umfrage_lesen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel')
+        ? `Ergebnis von „${getString(r, 'titel')}" gelesen`
+        : 'Umfrage gelesen'),
   })),
 };
 

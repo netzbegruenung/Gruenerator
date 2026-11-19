@@ -28,6 +28,7 @@ export const trashKindSchema = z.enum([
   'explainable',
   'podcast',
   'studio_asset',
+  'video_ai_project',
 ]);
 export type TrashKind = z.infer<typeof trashKindSchema>;
 

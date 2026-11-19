@@ -133,9 +133,10 @@ describe('McpSection — bekannte Konnektoren', () => {
 });
 
 /**
- * Microsoft 365 ist kein MCP-Server, sondern eine Nango-Verbindung, steht aber im
- * selben Verzeichnis unter „Sonstige". Seit 16.11.2026 für alle, als experimentell
- * markiert; Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
+ * Microsoft 365 und Google Workspace sind keine MCP-Server, sondern
+ * Nango-Verbindungen, stehen aber im selben Verzeichnis unter „Sonstige". Für
+ * alle, als experimentell markiert (Microsoft seit 16.11.2026, Google seit
+ * 19.11.2026); Status kommt aus derselben Nutzer-Route wie der @connect-Picker.
  */
 describe('McpSection — Microsoft 365', () => {
   const STATUS_URL = `${API}/connections/status`;
@@ -174,6 +175,20 @@ describe('McpSection — Microsoft 365', () => {
 
     await screen.findByText('Rateo');
     expect(screen.queryByText('Microsoft 365')).not.toBeInTheDocument();
+  });
+
+  it('zeigt Google Workspace als eigene Karte mit eigenem Status', async () => {
+    serveMicrosoft([
+      { provider: 'microsoft', connected: false },
+      { provider: 'google', connected: true },
+    ]);
+    renderWithProviders(<McpSection onSuccess={vi.fn()} onError={vi.fn()} />);
+
+    const google = (await screen.findByText('Google Workspace')).closest('li') as HTMLElement;
+    expect(within(google).getByText('Experimentell')).toBeInTheDocument();
+    expect(await within(google).findByRole('button', { name: 'Trennen' })).toBeInTheDocument();
+    const microsoft = await cardOf();
+    expect(within(microsoft).getByRole('button', { name: 'Verbinden' })).toBeInTheDocument();
   });
 });
 

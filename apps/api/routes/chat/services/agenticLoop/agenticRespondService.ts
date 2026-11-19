@@ -249,6 +249,12 @@ export async function streamAgenticResponse(
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
+  // Die Schritte DIESES Zugs vor der Pause (Freigabe-Fortsetzung). Sie liefen
+  // nach der letzten Nutzernachricht und stehen deshalb dahinter, nicht wie
+  // die Beobachtungen früherer Turns davor (`spliceToolReplay`). Davor gesetzt
+  // las das Modell live (19.11.2026) zuletzt wieder den Auftrag „Mach ein
+  // Doodle …" und plante nach „Ablehnen" das Anlegen von vorn.
+  let resumeReplayMessages: ModelMessage[] = [];
   let synthName = '';
   // Außerhalb des try, damit die Attribution nach dem Loop noch erreichbar ist
   // — auch wenn der Loop selbst abgebrochen wurde (das Rezept war dann
@@ -394,6 +400,9 @@ export async function streamAgenticResponse(
       },
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
+      ...(resumeApproval?.denied.length
+        ? { deniedOnce: new Set(resumeApproval.denied.map((d) => d.call.scopeKey)) }
+        : {}),
     });
     askGate = createAskHumanGate();
     clientToolGate = createClientToolGate(async (call) => {
@@ -448,9 +457,14 @@ export async function streamAgenticResponse(
         }
       }
       for (const { call, reason } of resumeApproval.denied) {
+        // Der Zusatz ist nötig: mit bloßem „Vom Nutzer abgelehnt." schrieb das
+        // Modell live (19.11.2026, nuudel) „Ich lege jetzt … an" weiter, samt
+        // neu erfundener Termine. Das Präfix bleibt, `respondNode` zitiert es.
+        const afterDenial =
+          ' Der Aufruf wurde NICHT ausgeführt, es ist nichts passiert. Behaupte nichts anderes und frag kurz, was anders sein soll.';
         const error = reason?.trim()
-          ? `Vom Nutzer abgelehnt: ${reason.trim()}`
-          : 'Vom Nutzer abgelehnt.';
+          ? `Vom Nutzer abgelehnt (Begründung: ${reason.trim()}).${afterDenial}`
+          : `Vom Nutzer abgelehnt.${afterDenial}`;
         steps.push({
           toolCallId: call.toolCallId,
           toolName: call.toolName,
@@ -482,13 +496,10 @@ export async function streamAgenticResponse(
           `[Freigabe] ${resumeApproval.heldClientTool.toolName} nicht wieder eingesetzt — ein anderer Browser-Aufruf hält schon`
         );
       }
-      toolReplayMessages = [
-        ...toolReplayMessages,
-        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
-          sameTurn: true,
-          resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
-        }),
-      ];
+      resumeReplayMessages = buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
+        sameTurn: true,
+        resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
+      });
     }
 
     // WS-5: "was kann @sally" must be grounded in the server's REAL tools, not
@@ -647,7 +658,11 @@ export async function streamAgenticResponse(
           : ''),
       // The reconstructed tool-call/result history goes in front of the
       // previous answer, where those calls happened (`spliceToolReplay`).
-      messages: [...spliceToolReplay(turnMessages, toolReplayMessages), ...orderedArtifactReplay],
+      messages: [
+        ...spliceToolReplay(turnMessages, toolReplayMessages),
+        ...resumeReplayMessages,
+        ...orderedArtifactReplay,
+      ],
       // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").

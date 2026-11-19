@@ -133,7 +133,6 @@ import {
 import { mountSharepicTextContractRouter } from './routes/sharepic/sharepic_text/sharepicTextContractRouter.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
-import { requireSitesAccess } from './services/user/sitesEntitlement.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
@@ -156,6 +155,7 @@ import { mountAntragsgruenSitesContractRouter } from './routes/user/antragsgruen
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
 import letterheadStationeryRouter from './routes/user/letterheadStationeryRouter.js';
+import { mountNuudelPollsContractRouter } from './routes/user/nuudelPollsContractRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -167,6 +167,7 @@ import v1ChatCompletionsRouter, {
 } from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -177,6 +178,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { requireSitesAccess } from './services/user/sitesEntitlement.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
@@ -462,6 +464,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUserWebsitesContractRouter(app);
   app.use('/api/auth/antragsgruen-sites', requireAuth);
   mountAntragsgruenSitesContractRouter(app);
+  app.use('/api/auth/nuudel-polls', requireAuth);
+  mountNuudelPollsContractRouter(app);
   // Letterheads (Absender for the PDF export). requireAuth at the prefix for
   // the same reason as its siblings: a contract router does not inherit the
   // later `app.use('/api/auth', ...)` middleware, and every route here reads or
@@ -584,6 +588,19 @@ export async function setupRoutes(app: Application): Promise<void> {
     next()
   );
   mountPodcastsContractRouter(app);
+  // KI-Schnitt: queued here, analysed and cut by services/videoAi/videoAiWorker.ts.
+  app.use('/api/video-ai', requireAuth, authenticatedReadLimiter);
+  app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  // A correction round can call Gemma (free-text request), so the same gate as create.
+  app.post(
+    '/api/video-ai/projects/:id/revise',
+    aiGenerationLimiter,
+    requireAiConsent,
+    (_req, _res, next) => next()
+  );
+  mountVideoAiContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);

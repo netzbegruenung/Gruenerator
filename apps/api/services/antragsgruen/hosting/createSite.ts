@@ -19,14 +19,15 @@
  */
 import * as cheerio from 'cheerio';
 
-import { setAgenda, type AgendaEntry } from './agenda.js';
 import {
-  AntragsgruenFormError,
+  FormStepError,
   type FormClient,
   alertsOf,
   csrfOf,
   formValuesOf,
-} from './formClient.js';
+} from '../../webForms/formClient.js';
+
+import { setAgenda, type AgendaEntry } from './agenda.js';
 import { motionTypeOf, splitSiteUrl } from './motions.js';
 import { botClient, login, type HostingConfig } from './session.js';
 
@@ -103,10 +104,7 @@ function wizardForm(req: SiteRequest, csrf: string): URLSearchParams {
 
 function fail(step: string, message: string, html?: string): never {
   const alerts = html ? alertsOf(html) : [];
-  throw new AntragsgruenFormError(
-    alerts.length ? `${message}: ${alerts.join(' · ')}` : message,
-    step
-  );
+  throw new FormStepError(alerts.length ? `${message}: ${alerts.join(' · ')}` : message, step);
 }
 
 export async function isSubdomainAvailable(
@@ -229,22 +227,18 @@ export async function createAntragsgruenSite(
   client: FormClient = botClient()
 ): Promise<CreatedSite> {
   if (!SUBDOMAIN_RE.test(req.subdomain)) {
-    throw new AntragsgruenFormError(`Ungültige Subdomain „${req.subdomain}"`, 'validate');
+    throw new FormStepError(`Ungültige Subdomain „${req.subdomain}"`, 'validate');
   }
   await login(client, config);
   if (!(await isSubdomainAvailable(client, config, req.subdomain))) {
-    throw new AntragsgruenFormError(
-      `Die Subdomain „${req.subdomain}" ist vergeben`,
-      'check-subdomain'
-    );
+    throw new FormStepError(`Die Subdomain „${req.subdomain}" ist vergeben`, 'check-subdomain');
   }
   const url = await createSiteForm(client, config, req);
   try {
     await inviteAsSiteAdmin(client, url, req);
   } catch (err) {
     // Die Seite steht schon; ohne die URL wüsste niemand, wo nachzuholen ist.
-    if (err instanceof AntragsgruenFormError)
-      throw new AntragsgruenFormError(err.message, err.step, url);
+    if (err instanceof FormStepError) throw new FormStepError(err.message, err.step, url);
     throw err;
   }
   // Die Person ist Admin und hat ihre Zugangsdaten; scheitert nur das Umstellen
@@ -253,7 +247,7 @@ export async function createAntragsgruenSite(
   try {
     await handOverAdminEmail(client, url, req.invitee.email);
   } catch (err) {
-    if (!(err instanceof AntragsgruenFormError)) throw err;
+    if (!(err instanceof FormStepError)) throw err;
     adminEmailHandedOver = false;
   }
   let agendaSet: boolean | null = null;
@@ -264,7 +258,7 @@ export async function createAntragsgruenSite(
       await setAgenda(client, origin, consultation, req.agenda, type.id);
       agendaSet = true;
     } catch (err) {
-      if (!(err instanceof AntragsgruenFormError)) throw err;
+      if (!(err instanceof FormStepError)) throw err;
       agendaSet = false;
     }
   }

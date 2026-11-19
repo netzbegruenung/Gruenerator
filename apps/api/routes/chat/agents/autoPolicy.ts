@@ -53,6 +53,17 @@ import type { SearchIntent } from '@gruenerator/contracts';
  *     in @ai-sdk/mistral), so `low` collapses to off there. See
  *     `mistralReasoningOption` in responseStreamingService.
  *   - the remaining lanes only have on/off.
+ *
+ * Who actually reads the column (#5494), so a grade here is not mistaken for
+ * a Gemma setting:
+ *   - Gemma in the LOOP never thinks: the loop forwards reasoning only as
+ *     `providerOptions.mistral`, and `meliousFetch` pins
+ *     `reasoning_effort: 'none'`. For the loop intents the grade matters only
+ *     when the turn lands on Mistral — the MEDIUM overrides below, Large 4 at
+ *     the end of `UNIFIED_GEMMA_CHAIN`, and an Ultra selection
+ *     (`POLICY_GRADED_SELECTIONS` in `resolveModel`).
+ *   - Gemma in the SINGLE PASS reads it as on/off: any value but `off` thinks,
+ *     and Melious' low/medium/high are indistinguishable (measured 09.11.2026).
  */
 export type ReasoningSetting = 'off' | 'low' | 'medium' | 'high';
 

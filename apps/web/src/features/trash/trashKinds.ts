@@ -7,6 +7,7 @@ import {
   PiEnvelope,
   PiFile,
   PiFileText,
+  PiFilmSlate,
   PiFilmStrip,
   PiFloppyDisk,
   PiGlobe,
@@ -50,6 +51,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   explainable: 'Explainable',
   podcast: 'Podcast',
   studio_asset: 'Sticker & Hintergründe',
+  video_ai_project: 'KI-Schnitt',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -73,6 +75,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   explainable: PiLightbulb,
   podcast: PiHeadphones,
   studio_asset: PiSticker,
+  video_ai_project: PiFilmSlate,
 };
 
 interface SubtypeDisplay {

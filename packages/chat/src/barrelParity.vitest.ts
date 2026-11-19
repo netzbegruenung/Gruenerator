@@ -57,6 +57,8 @@ const PLATFORM_ONLY_LIB_MODULES: Readonly<Record<string, string>> = {
     'web only — lazy-loads react-icons/pi; native renders agent icons itself',
   './lib/notebookSourceTier':
     'web only — the Quellen-Ampel switch lives in the web notebook settings popover; mobile has none',
+  './lib/googlePicker':
+    'web only — loads the Google Picker script from apis.google.com; mobile has no picker',
   './lib/computeResult': 'native only — web renders compute results through its own tool-ui cards',
   './lib/mathSegments': 'native only — web math rendering goes through streamdown/KaTeX',
   './lib/narrationView': 'native only — web narrates via ToolCallUI',

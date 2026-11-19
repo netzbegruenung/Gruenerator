@@ -9,13 +9,11 @@ import { antragsgruenSitesContract } from '@gruenerator/contracts';
 import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { AntragsgruenFormError } from '../../services/antragsgruen/hosting/formClient.js';
 import {
   hostingConfigFromEnv,
   loginRefusalText,
 } from '../../services/antragsgruen/hosting/session.js';
 import {
-  SiteOrderRefused,
   connectAntragsgruenSite,
   forgetHostedSite,
   grueneratorAccessOn,
@@ -24,6 +22,7 @@ import {
   type HostedSite,
 } from '../../services/antragsgruen/hosting/sites.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
+import { FormStepError, OrderRefused } from '../../services/webForms/formClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -90,11 +89,11 @@ export const antragsgruenSitesContractRouter = s.router(antragsgruenSitesContrac
       const site = await connectAntragsgruenSite(getUserId(req), body.url);
       return { status: 201 as const, body: toApiSite(site) };
     } catch (error) {
-      if (error instanceof SiteOrderRefused) {
+      if (error instanceof OrderRefused) {
         return { status: 400 as const, body: { error: error.userText } };
       }
       if (
-        error instanceof AntragsgruenFormError ||
+        error instanceof FormStepError ||
         (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'TypeError'))
       ) {
         log.warn(`[connectSite] antragsgruen.de failed: ${error.message}`);

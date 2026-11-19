@@ -126,6 +126,19 @@ describe('tabelle_auswerten', () => {
   });
 });
 
+describe('nuudel_umfrage_anlegen', () => {
+  it('fragt wie ein Konnektor-Werkzeug, das Lesen nicht', () => {
+    expect(evaluateApproval({ toolName: 'nuudel_umfrage_anlegen', allowlist: new Set() })).toEqual({
+      required: true,
+      scopeKey: 'internal/nuudel_umfrage_anlegen',
+    });
+    expect(evaluateApproval({ toolName: 'nuudel_umfrage_lesen', allowlist: new Set() })).toEqual({
+      required: false,
+      reason: 'internal',
+    });
+  });
+});
+
 describe('approvalGateEnabled', () => {
   it('an, wenn Konnektoren laufen und jemand angemeldet ist', () => {
     expect(approvalGateEnabled({ disableMcp: false, userId: 'u1', toolNames: [] })).toBe(true);
@@ -184,6 +197,18 @@ describe('createToolApprovalGate', () => {
     const gate = gateFor({ grantedOnce: new Map([[scopeKey, 1]]) });
     expect(gate.hold({ toolName: 'x', stepId: 'c1', args: {} })).toBe(false);
     expect(gate.hold({ toolName: 'x', stepId: 'c2', args: {} })).toBe(true);
+  });
+
+  it('weist ein gerade abgelehntes Werkzeug ab, statt erneut zu fragen', () => {
+    const gate = gateFor({ deniedOnce: new Set([approvalScopeKey('x', mcpOrigin)]) });
+    expect(gate.refusal('x')).toMatch(/gerade abgelehnt/);
+    // Andere Werkzeuge desselben Zugs fragen weiter.
+    const other = gateFor({
+      deniedOnce: new Set([approvalScopeKey('x', mcpOrigin)]),
+      originFor: (name) => (name === 'x' ? mcpOrigin : managedOrigin),
+    });
+    expect(other.refusal('bahn__timetable')).toBeNull();
+    expect(gateFor().refusal('x')).toBeNull();
   });
 
   it('hält gar nichts zurück, solange der Schalter aus ist', () => {

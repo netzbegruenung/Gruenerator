@@ -23,9 +23,14 @@ export type ApprovalVerdict =
  *
  * `tabelle_auswerten` lässt erzeugten Python-Code im Browser der Person laufen;
  * die Garantie-Schicht kennt es nicht.
+ *
+ * `nuudel_umfrage_anlegen` legt bei einem fremden Dienst eine öffentliche
+ * Umfrage an und schickt dabei Name und Adresse des Kontos mit — es fragt wie
+ * ein Konnektor-Werkzeug statt über eine eigene Karte.
  */
 export const INTERNAL_APPROVAL_REQUIRED_TOOLS: ReadonlySet<string> = new Set<string>([
   'tabelle_auswerten',
+  'nuudel_umfrage_anlegen',
 ]);
 
 /**

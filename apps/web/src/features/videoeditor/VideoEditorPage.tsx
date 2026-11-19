@@ -26,6 +26,7 @@ function betaNoticeSeen(): boolean {
 }
 
 export default function VideoEditorPage() {
+  // Read once: the frame keeps its document; changing src later would reload the editor.
   const [src] = useState(() => editorAppSrc(window.location.search));
   const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
 
