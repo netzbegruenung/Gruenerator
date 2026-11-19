@@ -36,3 +36,15 @@ export function isConnectFileSupported(
       return true;
   }
 }
+
+/**
+ * Mit welchem Medientyp ein Google-Format exportiert wird: Tabellen als CSV
+ * (erstes Blatt), Dokumente und Folien als Text. `null` = kein Export möglich
+ * (Formulare, Zeichnungen …).
+ * https://developers.google.com/workspace/drive/api/guides/ref-export-formats
+ */
+export function googleExportMimeType(mimeType: string): 'text/plain' | 'text/csv' | null {
+  if (mimeType === 'application/vnd.google-apps.spreadsheet') return 'text/csv';
+  if (GOOGLE_EXPORTABLE.has(mimeType)) return 'text/plain';
+  return null;
+}

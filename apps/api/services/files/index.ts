@@ -7,11 +7,15 @@
  * ein Anbieter, den niemand erreicht, weil eine Zuordnung fehlt.
  */
 
+import { googleDriveProvider } from './googleDriveProvider.js';
 import { nextcloudShareProvider } from './nextcloudShareProvider.js';
+import { oneDriveProvider } from './oneDriveProvider.js';
 import { type CloudFileProvider, type CloudProviderId, type CloudRoot } from './types.js';
 
 export const CLOUD_FILE_PROVIDERS: Record<CloudProviderId, CloudFileProvider> = {
   'nextcloud-share': nextcloudShareProvider,
+  onedrive: oneDriveProvider,
+  'google-drive': googleDriveProvider,
 };
 
 export function getCloudProvider(id: CloudProviderId): CloudFileProvider {
@@ -35,6 +39,8 @@ export {
   hrefToRootRelativePath,
   nextcloudShareProvider,
 } from './nextcloudShareProvider.js';
+
+export { CloudAccessError } from './driveErrors.js';
 
 export type {
   CloudConnectionErrorCode,
