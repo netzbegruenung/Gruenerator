@@ -32,7 +32,7 @@ import { sql } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { getServerConfig } from '../../config/serverConfig.js';
 import { siteOrigin } from '../../config/sitesOrigin.js';
-import { type UserSiteRow } from '../../database/schema/sites.js';
+import { type UserSiteRawRow, type UserSiteRow } from '../../database/schema/sites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
@@ -99,9 +99,9 @@ async function updateSiteWithAddress(
     }
   }
 
-  let row: UserSiteRow | undefined;
+  let row: UserSiteRawRow | undefined;
   try {
-    const result = await getDrizzleInstance().execute<UserSiteRow>(
+    const result = await getDrizzleInstance().execute<UserSiteRawRow>(
       sql`UPDATE user_sites
           SET ${sql.join(assignments, sql`, `)}
           WHERE id = ${id} AND user_id = ${userId} AND deleted_at IS NULL
@@ -212,7 +212,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
 
       // Drizzle, not `db.query`: PostgresService strips the pg code and constraint.
-      const result = await getDrizzleInstance().execute<UserSiteRow>(
+      const result = await getDrizzleInstance().execute<UserSiteRawRow>(
         sql`INSERT INTO user_sites (
               user_id, subdomain, site_title, tagline, theme, is_published,
               contact_email, contact_phone, social_links, profile_image, background_image,
