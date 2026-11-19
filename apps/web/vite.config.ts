@@ -154,6 +154,10 @@ export default defineConfig(({ command }) => ({
         __dirname,
         '../../packages/contracts/src/richtext/presentationDoc.ts'
       ),
+      '@gruenerator/contracts/site-ydoc': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/richtext/siteDoc.ts'
+      ),
       '@gruenerator/contracts/brand': path.resolve(
         __dirname,
         '../../packages/contracts/src/brand/grueneBrand.ts'

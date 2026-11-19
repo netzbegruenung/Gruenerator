@@ -7,7 +7,8 @@ interface SectionNavigationProps {
 }
 
 export function SectionNavigation({ className }: SectionNavigationProps) {
-  const { activeSection, navigateToSection } = useEditorStore();
+  const activeSection = useEditorStore((s) => s.activeSection);
+  const navigateToSection = useEditorStore((s) => s.navigateToSection);
 
   return (
     // Kein tablist/tab: `navigateToSection` tauscht keine Panels, es scrollt die

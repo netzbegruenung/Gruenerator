@@ -3,6 +3,7 @@ import { useCallback, useMemo, type ReactNode } from 'react';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useAuth from '../../hooks/useAuth';
+import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 interface SitesProviderWebProps {
   children: ReactNode;
@@ -15,6 +16,8 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
     const target = redirectTo || window.location.pathname;
     window.location.href = `/login?redirectTo=${encodeURIComponent(target)}`;
   }, []);
+
+  const collaboration = useCollaborationConfig();
 
   const logout = useCallback(() => webLogout(), [webLogout]);
 
@@ -50,6 +53,7 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
         login={login}
         logout={logout}
         reportError={reportError}
+        collaboration={collaboration}
       >
         {children}
       </SitesProvider>

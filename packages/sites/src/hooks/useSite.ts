@@ -6,10 +6,9 @@ import {
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../lib/apiClient';
 import { SitesApiError } from '../utils/errorHandler';
 
 export type SiteData = Site;
@@ -66,22 +65,37 @@ function toApiError(res: { status: number; body: unknown }): SitesApiError {
   return new SitesApiError(res.status, message);
 }
 
+export function usePrepareSiteDraft() {
+  const mutation = useMutation({
+    mutationFn: async (siteId: string) => {
+      const res = await getContractsClient().sites.prepareSiteDraft({
+        params: { id: siteId },
+        body: {},
+      });
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.seeded;
+    },
+  });
+  return mutation.mutateAsync;
+}
+
 export function useSite() {
   const queryClient = useQueryClient();
 
-  const {
-    data: site,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery<Site | null>({
+  const { data, isLoading, error, refetch } = useQuery<{
+    site: Site | null;
+    public_origin: string | null;
+  }>({
     queryKey: ['my-site'],
     queryFn: async () => {
       const res = await getContractsClient().sites.getMySite();
       if (res.status !== 200) throw toApiError(res);
-      return res.body.site;
+      return { site: res.body.site, public_origin: res.body.public_origin };
     },
   });
+  const site = data ? data.site : undefined;
+  const publicOrigin = data ? data.public_origin : null;
+  const prepareDraft = usePrepareSiteDraft();
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateSiteBody) => {
@@ -140,7 +154,7 @@ export function useSite() {
       formData.append('flyer', data.file);
       if (data.email) formData.append('email', data.email);
 
-      const response = await apiClient.post<{ json: AiGeneratedContent }>(
+      const response = await getGlobalApiClient().post<{ json: AiGeneratedContent }>(
         '/sites/generate-from-flyer',
         formData,
         {
@@ -155,6 +169,8 @@ export function useSite() {
 
   return {
     site,
+    publicOrigin,
+    prepareDraft,
     isLoading,
     error,
     refetch,

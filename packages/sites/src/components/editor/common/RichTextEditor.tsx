@@ -1,17 +1,18 @@
-import { type RichTextDoc } from '@gruenerator/contracts';
 import { siteRichTextExtensions } from '@gruenerator/contracts/sites-richtext';
 import { cn } from '@gruenerator/shared/utils';
+import { Collaboration } from '@tiptap/extension-collaboration';
 import { ListKeymap } from '@tiptap/extension-list';
-import { CharacterCount, Placeholder, UndoRedo } from '@tiptap/extensions';
+import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdFormatListNumbered } from 'react-icons/md';
 
+import type * as Y from 'yjs';
+
 import '../../../styles/components/rich-text-editor.css';
 
 export interface RichTextEditorProps {
-  value: RichTextDoc;
-  onChange: (doc: RichTextDoc) => void;
+  fragment: Y.XmlFragment;
   onFocus?: () => void;
   onBlur?: () => void;
   placeholder?: string;
@@ -122,12 +123,11 @@ function CharCounter({ editor, maxLength }: { editor: Editor; maxLength: number 
 }
 
 /**
- * Semi-controlled: `value` initializes the document on mount; later external
- * changes are ignored. Reset by remounting (SiteEditor is keyed by site.id).
+ * Bound to a Y.XmlFragment of the site draft through the Collaboration extension: remote edits
+ * and the shared undo history come from Yjs, so there is no `UndoRedo` here.
  */
 export default function RichTextEditor({
-  value,
-  onChange,
+  fragment,
   onFocus,
   onBlur,
   placeholder,
@@ -135,20 +135,22 @@ export default function RichTextEditor({
   minHeight,
   id,
 }: RichTextEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      ...siteRichTextExtensions,
-      ListKeymap,
-      UndoRedo,
-      Placeholder.configure({ placeholder: placeholder ?? '' }),
-      CharacterCount.configure({ limit: maxLength }),
-    ],
-    content: value,
-    editorProps: id ? { attributes: { id } } : undefined,
-    onUpdate: ({ editor: e }) => onChange(e.getJSON() as RichTextDoc),
-    onFocus: () => onFocus?.(),
-    onBlur: () => onBlur?.(),
-  });
+  const editor = useEditor(
+    {
+      extensions: [
+        ...siteRichTextExtensions,
+        ListKeymap,
+        Placeholder.configure({ placeholder: placeholder ?? '' }),
+        CharacterCount.configure({ limit: maxLength }),
+        Collaboration.configure({ fragment }),
+      ],
+      editorProps: { attributes: id ? { id } : {} },
+      immediatelyRender: true,
+      onFocus: () => onFocus?.(),
+      onBlur: () => onBlur?.(),
+    },
+    [fragment]
+  );
 
   if (!editor) return null;
 

@@ -1,33 +1,27 @@
+import { type SiteSectionId } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
-export type SectionType =
-  'hero' | 'about' | 'heroImage' | 'themes' | 'actions' | 'socialFeed' | 'contact';
+export type SectionType = SiteSectionId;
+export type EditorPanel = SiteSectionId | 'settings' | 'legal';
 
 export interface FocusedField {
-  section: SectionType;
-  field: string;
-  index?: number;
-}
-
-export interface HighlightedElement {
-  section: SectionType;
-  field?: string;
-  index?: number;
+  panel: EditorPanel;
+  path: string;
 }
 
 interface EditorState {
-  activeSection: SectionType | null;
+  activeSection: EditorPanel | null;
   focusedField: FocusedField | null;
-  highlightedElement: HighlightedElement | null;
+  highlightedElement: FocusedField | null;
   isScrollLocked: boolean;
   isMobileEditorOpen: boolean;
   scrollSource: 'preview' | 'sidebar' | null;
   pendingScrollTo: SectionType | null;
 
-  setActiveSection: (section: SectionType | null) => void;
+  setActiveSection: (section: EditorPanel | null) => void;
   navigateToSection: (section: SectionType) => void;
-  focusField: (section: SectionType, field: string, index?: number) => void;
-  setHighlightedElement: (element: HighlightedElement | null) => void;
+  focusPath: (panel: EditorPanel, path: string) => void;
+  setHighlightedElement: (element: FocusedField | null) => void;
   clearFocus: () => void;
   setScrollLocked: (locked: boolean) => void;
   setScrollSource: (source: 'preview' | 'sidebar' | null) => void;
@@ -54,11 +48,11 @@ export const useEditorStore = create<EditorState>((set) => ({
       scrollSource: 'sidebar',
     }),
 
-  focusField: (section, field, index) =>
+  focusPath: (panel, path) =>
     set({
-      activeSection: section,
-      focusedField: { section, field, index },
-      highlightedElement: { section, field, index },
+      activeSection: panel,
+      focusedField: { panel, path },
+      highlightedElement: { panel, path },
       isMobileEditorOpen: true,
     }),
 

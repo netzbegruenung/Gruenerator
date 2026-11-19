@@ -1,192 +1,132 @@
-import { emptyRichTextDoc, SITE_THEME_CONTENT_MAX_LENGTH } from '@gruenerator/contracts';
+import {
+  SITE_SECTION_TITLE_MAX,
+  SITE_THEME_CONTENT_MAX_LENGTH,
+  SITE_THEMES_MAX,
+} from '@gruenerator/contracts';
+import { getThemeFragment } from '@gruenerator/contracts/site-ydoc';
 import { cn } from '@gruenerator/shared/utils';
-import { useRef, useCallback } from 'react';
+import { Input } from '@gruenerator/ui';
+import { useMemo } from 'react';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useDraft, useDraftActions, useSiteYdoc } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
+import { AddItemButton } from '../common/AddItemButton';
+import { Field, SectionHeading } from '../common/Field';
 import { ImageUpload } from '../common/ImageUpload';
+import { ItemControls } from '../common/ItemControls';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
-import type { ThemesSection, ThemeCard } from '../../../types/editorDraft';
-
-interface ThemesSectionEditorProps {
-  data: ThemesSection;
-  onChange: (data: ThemesSection) => void;
+interface ThemeCardEditorProps {
+  id: string;
+  index: number;
+  count: number;
 }
 
-const MAX_THEMES = 6;
-const MAX_TITLE_LENGTH = 40;
-
-const createDefaultTheme = (): ThemeCard => ({
-  imageUrl: '',
-  title: '',
-  content: emptyRichTextDoc(),
-});
-
-export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
-
-  const titleRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-
-  const setTitleRef = useCallback(
-    (index: number, el: HTMLInputElement | null) => {
-      if (el) {
-        titleRefs.current.set(index, el);
-        registerField('themes', 'title', el, index);
-      }
-    },
-    [registerField]
+function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const ydoc = useSiteYdoc();
+  const { updateTheme, removeTheme, moveTheme } = useDraftActions();
+  const title = useDraft((d) => d.themes.find((theme) => theme.id === id)?.title ?? '');
+  const imageUrl = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageUrl ?? '');
+  const highlighted = useEditorStore(
+    (s) =>
+      s.highlightedElement?.panel === 'themes' &&
+      s.highlightedElement.path.startsWith(`sections.themes.${index}.`)
   );
+  const fragment = useMemo(() => getThemeFragment(ydoc, id), [ydoc, id]);
+  const base = `sections.themes.${index}`;
+  const name = title || `Thema ${index + 1}`;
 
-  const updateTheme = <K extends keyof ThemeCard>(index: number, field: K, value: ThemeCard[K]) => {
-    const current = data.themes[index];
-    if (!current) return;
-    const newThemes = [...data.themes];
-    newThemes[index] = { ...current, [field]: value };
-    onChange({ ...data, themes: newThemes });
-  };
+  return (
+    <div
+      className={cn(
+        'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
+        highlighted && 'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
+      )}
+    >
+      <div className="flex items-center justify-between mb-sm">
+        <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+          Thema {index + 1}
+        </span>
+        <ItemControls
+          kind="Thema"
+          name={name}
+          canMoveUp={index > 0}
+          canMoveDown={index < count - 1}
+          canRemove={count > 1}
+          onMoveUp={() => moveTheme(id, index - 1)}
+          onMoveDown={() => moveTheme(id, index + 1)}
+          onRemove={() => removeTheme(id)}
+        />
+      </div>
 
-  const addTheme = () => {
-    if (data.themes.length >= MAX_THEMES) return;
-    onChange({
-      ...data,
-      themes: [...data.themes, { ...createDefaultTheme(), _key: crypto.randomUUID() }],
-    });
-  };
+      <Field panel="themes" path={`${base}.title`} htmlFor={`theme-${id}-title`} label="Titel">
+        <Input
+          ref={(el) => registerField(`${base}.title`, el)}
+          id={`theme-${id}-title`}
+          value={title}
+          onChange={(e) => updateTheme(id, { title: e.target.value })}
+          onFocus={() => handleFieldFocus('themes', `${base}.title`)}
+          onBlur={handleFieldBlur}
+          placeholder="z.B. Klimaschutz"
+          maxLength={SITE_SECTION_TITLE_MAX}
+        />
+      </Field>
 
-  const removeTheme = (index: number) => {
-    if (data.themes.length <= 1) return;
-    const newThemes = data.themes.filter((_, i) => i !== index);
-    onChange({ ...data, themes: newThemes });
-  };
+      <Field
+        panel="themes"
+        path={`${base}.content`}
+        htmlFor={`theme-${id}-content`}
+        label="Beschreibung"
+      >
+        <RichTextEditor
+          id={`theme-${id}-content`}
+          fragment={fragment}
+          onFocus={() => handleFieldFocus('themes', `${base}.content`)}
+          onBlur={handleFieldBlur}
+          placeholder="Beschreibe dein Engagement für dieses Thema..."
+          maxLength={SITE_THEME_CONTENT_MAX_LENGTH}
+          minHeight="120px"
+        />
+      </Field>
 
-  const isItemHighlighted = (index: number) => {
-    return highlightedElement?.section === 'themes' && highlightedElement?.index === index;
-  };
+      <Field panel="themes" path={`${base}.imageUrl`} htmlFor={`theme-${id}-image`} label="Bild">
+        <ImageUpload
+          id={`theme-${id}-image`}
+          value={imageUrl}
+          onChange={(url) => updateTheme(id, { imageUrl: url })}
+          aspectRatio="4/3"
+          placeholder="Themenbild"
+        />
+      </Field>
+    </div>
+  );
+}
 
-  const isFieldHighlighted = (index: number, field: string) => {
-    return isItemHighlighted(index) && highlightedElement?.field === field;
-  };
+export function ThemesSectionEditor() {
+  const { addTheme } = useDraftActions();
+  const ids = useDraft((d) => d.themes.map((theme) => theme.id));
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Meine Themen
-      </h3>
+      <SectionHeading>Meine Themen</SectionHeading>
 
       <p className="text-xs text-grey-500 dark:text-grey-400 mt-1 mb-md">
-        Füge bis zu {MAX_THEMES} politische Schwerpunktthemen hinzu.
+        Füge bis zu {SITE_THEMES_MAX} politische Schwerpunktthemen hinzu.
       </p>
 
-      <div className="flex flex-col gap-md">
-        {data.themes.map((theme, index) => {
-          return (
-            <div
-              key={theme._key ?? theme.title}
-              className={cn(
-                'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
-                isItemHighlighted(index) &&
-                  'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
-              )}
-            >
-              <div className="flex items-center justify-between mb-sm">
-                <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                  Thema {index + 1}
-                </span>
-                <div className="flex gap-1">
-                  {data.themes.length > 1 && (
-                    <button
-                      type="button"
-                      className="flex items-center justify-center w-8 h-8 border-none bg-transparent rounded-md cursor-pointer text-grey-500 dark:text-grey-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600"
-                      onClick={() => removeTheme(index)}
-                      aria-label="Thema entfernen"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  'mb-md',
-                  isFieldHighlighted(index, 'title') && 'animate-[field-highlight_1s_ease]'
-                )}
-              >
-                <label
-                  htmlFor={`theme-${index}-title`}
-                  className="block text-sm font-medium text-foreground mb-1.5"
-                >
-                  Titel
-                </label>
-                <input
-                  ref={(el) => setTitleRef(index, el)}
-                  id={`theme-${index}-title`}
-                  type="text"
-                  value={theme.title}
-                  onChange={(e) => updateTheme(index, 'title', e.target.value)}
-                  onFocus={() => handleFieldFocus('themes', 'title', index)}
-                  onBlur={handleFieldBlur}
-                  placeholder="z.B. Klimaschutz"
-                  maxLength={MAX_TITLE_LENGTH}
-                  className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
-                />
-              </div>
-
-              <div
-                className={cn(
-                  'mb-md',
-                  isFieldHighlighted(index, 'content') && 'animate-[field-highlight_1s_ease]'
-                )}
-              >
-                <label
-                  htmlFor={`theme-${index}-content`}
-                  className="block text-sm font-medium text-foreground mb-1.5"
-                >
-                  Beschreibung
-                </label>
-                <RichTextEditor
-                  id={`theme-${index}-content`}
-                  value={theme.content}
-                  onChange={(doc) => updateTheme(index, 'content', doc)}
-                  onFocus={() => handleFieldFocus('themes', 'content', index)}
-                  onBlur={handleFieldBlur}
-                  placeholder="Beschreibe dein Engagement für dieses Thema..."
-                  maxLength={SITE_THEME_CONTENT_MAX_LENGTH}
-                  minHeight="120px"
-                />
-              </div>
-
-              <div className="mb-md">
-                <label
-                  htmlFor={`theme-${index}-image`}
-                  className="block text-sm font-medium text-foreground mb-1.5"
-                >
-                  Bild
-                </label>
-                <ImageUpload
-                  id={`theme-${index}-image`}
-                  value={theme.imageUrl}
-                  onChange={(url) => updateTheme(index, 'imageUrl', url)}
-                  aspectRatio="4/3"
-                  placeholder="Themenbild"
-                />
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex flex-col gap-md mb-md">
+        {ids.map((id, index) => (
+          <ThemeCardEditor key={id} id={id} index={index} count={ids.length} />
+        ))}
       </div>
 
-      {data.themes.length < MAX_THEMES && (
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-grey-300 dark:border-grey-700 bg-transparent rounded-lg cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-400 transition-colors hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950"
-          onClick={addTheme}
-        >
-          + Thema hinzufügen
-        </button>
-      )}
+      <AddItemButton
+        label="Thema"
+        disabled={ids.length >= SITE_THEMES_MAX}
+        onAdd={() => addTheme()}
+      />
     </div>
   );
 }
