@@ -63,12 +63,12 @@ export function ContactSectionEditor() {
       <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <Label
+        <p
           id="contact-background-image-label"
           className="block text-sm font-medium text-foreground mb-1.5"
         >
           Hintergrundbild
-        </Label>
+        </p>
         <ImageUpload
           labelledBy="contact-background-image-label"
           value={backgroundImageUrl}

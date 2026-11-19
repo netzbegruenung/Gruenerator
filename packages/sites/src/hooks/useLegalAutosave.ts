@@ -62,7 +62,8 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
         if (mine === generation.current) {
           sending.current = null;
           setStatus('error');
-          if (!mounted.current) toast.error('Impressum nicht gespeichert', UNSAVED_MESSAGE);
+          if (!mounted.current)
+            toast.error('Impressum nicht gespeichert', { description: UNSAVED_MESSAGE });
         }
         return false;
       }

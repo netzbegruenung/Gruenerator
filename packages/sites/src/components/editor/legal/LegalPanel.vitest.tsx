@@ -13,7 +13,7 @@ vi.mock('../../../hooks/useSite', () => ({
   useSite: () => ({ site: hoisted.site.current, updateSite: hoisted.updateSite }),
 }));
 vi.mock('@gruenerator/ui', async (orig) => ({
-  ...(await orig<typeof import('@gruenerator/ui')>()),
+  ...(await orig<Record<string, unknown>>()),
   toast: { error: hoisted.toastError },
 }));
 vi.mock('../../../SitesContext', () => ({
@@ -189,7 +189,7 @@ describe('LegalPanel', () => {
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(hoisted.toastError).toHaveBeenCalledWith(
       'Impressum nicht gespeichert',
-      expect.stringContaining('Impressum')
+      expect.objectContaining({ description: expect.stringContaining('Impressum') })
     );
 
     setup();
