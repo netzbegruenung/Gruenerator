@@ -115,6 +115,7 @@ describe('applyAgentToolWhitelist', () => {
       'search_threads',
       'pdf_form',
       'cloud_files',
+      'atlassian',
       'vorlagen',
     ]) {
       expect(out[key], key).toBe(false);
