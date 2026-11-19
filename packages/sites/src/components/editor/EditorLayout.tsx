@@ -1,5 +1,5 @@
 import { cn } from '@gruenerator/shared/utils';
-import { forwardRef, type ReactNode } from 'react';
+import { forwardRef, useId, type ReactNode } from 'react';
 
 import { useEditorStore } from '../../stores/editorStore';
 
@@ -14,6 +14,7 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
 ) {
   const isMobileEditorOpen = useEditorStore((s) => s.isMobileEditorOpen);
   const toggleMobileEditor = useEditorStore((s) => s.toggleMobileEditor);
+  const sheetId = useId();
 
   return (
     <div className="grid grid-cols-[1fr_1fr] h-[calc(100dvh-60px)] overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[1fr_auto]">
@@ -29,10 +30,14 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
           className="lg:hidden flex justify-center p-3 cursor-grab touch-none border-none bg-transparent"
           onClick={toggleMobileEditor}
           aria-label="Editor-Bereich ein-/ausblenden"
+          aria-expanded={isMobileEditorOpen}
+          aria-controls={sheetId}
         >
           <div className="w-10 h-1 bg-grey-400 dark:bg-grey-600 rounded-full" />
         </button>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">{sidebar}</div>
+        <div id={sheetId} className="flex-1 overflow-y-auto overflow-x-hidden">
+          {sidebar}
+        </div>
       </div>
 
       <div className="flex flex-col bg-grey-100 dark:bg-grey-800 h-full overflow-hidden max-lg:h-[calc(100dvh-60px-56px)]">
