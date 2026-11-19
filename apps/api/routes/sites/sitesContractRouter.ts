@@ -16,17 +16,18 @@
  * router is mounted, so req.user is populated here. getUserId() still guards
  * against a missing user.
  */
-import { sitesContract, type Site } from '@gruenerator/contracts';
+import { buildSiteSnapshot, checkSiteHandle, sitesContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { toSite } from '../../services/sites/siteMapper.js';
 import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
 import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { RESERVED_SUBDOMAINS } from './types.js';
+import { getUserLocale } from '../auth/groups/groupsContract/shared.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -38,24 +39,23 @@ function getUserId(req: Request): string | undefined {
   return (req.user as UserProfile | undefined)?.id;
 }
 
-/**
- * Boundary cast DB row → contract shape: the sections jsonb stores the object
- * form the contract codifies, and Date columns serialize to ISO strings via
- * res.json. The cast is the single assertion of that mapping.
- */
-function toSiteBody(row: UserSiteRow): Site {
-  return row as unknown as Site;
-}
+const HANDLE_MESSAGES = {
+  invalid:
+    'Die Adresse darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten und muss 3 bis 30 Zeichen lang sein',
+  reserved: 'Diese Adresse ist reserviert',
+} as const;
 
 const ALLOWED_UPDATE_FIELDS = [
   'site_title',
   'tagline',
   'contact_email',
+  'contact_phone',
   'social_links',
   'accent_color',
   'profile_image',
   'background_image',
   'sections',
+  'legal',
   'meta_description',
   'meta_keywords',
 ] as const;
@@ -76,7 +76,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       );
 
       const row = result?.[0];
-      return { status: 200 as const, body: { site: row ? toSiteBody(row) : null } };
+      return { status: 200 as const, body: { site: row ? toSite(row) : null } };
     } catch (error) {
       log.error('Error fetching user site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Laden der Site' } };
@@ -96,22 +96,17 @@ export const sitesContractRouter = s.router(sitesContract, {
         tagline,
         theme = 'gruene',
         contact_email,
+        contact_phone,
         social_links,
         profile_image,
         background_image,
         sections,
+        legal,
       } = body;
 
-      const subdomainLower = subdomain.toLowerCase().trim();
-      if (!/^[a-z0-9-]+$/.test(subdomainLower)) {
-        return {
-          status: 400 as const,
-          body: { error: 'Subdomain darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten' },
-        };
-      }
-
-      if (RESERVED_SUBDOMAINS.includes(subdomainLower)) {
-        return { status: 400 as const, body: { error: 'Diese Subdomain ist reserviert' } };
+      const handle = checkSiteHandle(subdomain);
+      if (!handle.ok) {
+        return { status: 400 as const, body: { error: HANDLE_MESSAGES[handle.reason] } };
       }
 
       const existingCheck = await db.query<Pick<UserSiteRow, 'id'>>(
@@ -120,27 +115,30 @@ export const sitesContractRouter = s.router(sitesContract, {
       );
 
       if (existingCheck && existingCheck.length > 0) {
-        return { status: 400 as const, body: { error: 'Sie haben bereits eine Site erstellt' } };
+        return { status: 400 as const, body: { error: 'Du hast bereits eine Website erstellt' } };
       }
 
       const result = await db.query<UserSiteRow>(
         `INSERT INTO user_sites (
            user_id, subdomain, site_title, tagline, theme, is_published,
-           contact_email, social_links, profile_image, background_image, sections
+           contact_email, contact_phone, social_links, profile_image, background_image,
+           sections, legal
          )
-         VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           userId,
-          subdomainLower,
+          handle.handle,
           site_title,
           tagline ?? null,
           theme,
           contact_email ?? null,
+          contact_phone ?? null,
           social_links ? JSON.stringify(social_links) : null,
           profile_image ?? null,
           background_image ?? null,
           sections ? JSON.stringify(sections) : null,
+          legal ? JSON.stringify(legal) : null,
         ]
       );
 
@@ -148,14 +146,20 @@ export const sitesContractRouter = s.router(sitesContract, {
       if (!row) {
         return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Site' } };
       }
-      return { status: 200 as const, body: { site: toSiteBody(row) } };
+      return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error: unknown) {
       if (
         error instanceof Error &&
         'code' in error &&
         (error as { code: string }).code === '23505'
       ) {
-        return { status: 400 as const, body: { error: 'Diese Subdomain ist bereits vergeben' } };
+        const constraint =
+          'constraint' in error ? (error as { constraint: unknown }).constraint : null;
+        const message =
+          constraint === 'user_sites_one_live_per_user'
+            ? 'Du hast bereits eine Website erstellt'
+            : 'Diese Adresse ist bereits vergeben';
+        return { status: 400 as const, body: { error: message } };
       }
       log.error('Error creating site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Site' } };
@@ -199,7 +203,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       if (!row) {
         return { status: 404 as const, body: { error: 'Site nicht gefunden' } };
       }
-      return { status: 200 as const, body: { site: toSiteBody(row) } };
+      return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error) {
       log.error('Error updating site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Aktualisieren der Site' } };
@@ -213,19 +217,48 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
       }
 
-      const result = await db.query<UserSiteRow>(
-        `UPDATE user_sites
-         SET is_published = $1, last_published = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_published END
-         WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
-         RETURNING *`,
-        [body.publish, params.id, userId]
-      );
+      let result: UserSiteRow[] | null;
+      if (body.publish) {
+        const current = await db.query<UserSiteRow>(
+          'SELECT * FROM user_sites WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+          [params.id, userId]
+        );
+        const draft = current?.[0];
+        if (!draft) {
+          return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
+        }
+        const built = buildSiteSnapshot(toSite(draft), getUserLocale(req));
+        if (!built.ok) {
+          return {
+            status: 422 as const,
+            body: {
+              error: 'Die Website kann noch nicht veröffentlicht werden',
+              issues: built.issues,
+            },
+          };
+        }
+        result = await db.query<UserSiteRow>(
+          `UPDATE user_sites
+           SET published_snapshot = $1, is_published = true, last_published = CURRENT_TIMESTAMP
+           WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
+           RETURNING *`,
+          [JSON.stringify(built.snapshot), params.id, userId]
+        );
+      } else {
+        result = await db.query<UserSiteRow>(
+          `UPDATE user_sites
+           SET is_published = false, published_snapshot = NULL
+           WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+           RETURNING *`,
+          [params.id, userId]
+        );
+      }
 
       const row = result?.[0];
       if (!row) {
-        return { status: 404 as const, body: { error: 'Site nicht gefunden' } };
+        return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
       }
-      return { status: 200 as const, body: { site: toSiteBody(row) } };
+      return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error) {
       log.error('Error publishing site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Veröffentlichen der Site' } };
@@ -234,19 +267,14 @@ export const sitesContractRouter = s.router(sitesContract, {
 
   checkSubdomain: async ({ query }) => {
     try {
-      const subdomainLower = query.subdomain.toLowerCase().trim();
-
-      if (!/^[a-z0-9-]+$/.test(subdomainLower)) {
-        return { status: 200 as const, body: { available: false, reason: 'invalid' as const } };
-      }
-
-      if (RESERVED_SUBDOMAINS.includes(subdomainLower)) {
-        return { status: 200 as const, body: { available: false, reason: 'reserved' as const } };
+      const handle = checkSiteHandle(query.subdomain);
+      if (!handle.ok) {
+        return { status: 200 as const, body: { available: false, reason: handle.reason } };
       }
 
       const result = await db.query<Pick<UserSiteRow, 'id'>>(
         'SELECT id FROM user_sites WHERE subdomain = $1 AND deleted_at IS NULL',
-        [subdomainLower]
+        [handle.handle]
       );
 
       return { status: 200 as const, body: { available: !result || result.length === 0 } };
