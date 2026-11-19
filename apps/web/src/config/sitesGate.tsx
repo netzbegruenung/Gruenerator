@@ -16,7 +16,7 @@ export const isSitesPath = (path: string): boolean =>
 export const useCanSeeSites = (): boolean => useAuthStore((s) => s.user?.sites_unlocked === true);
 
 /** Wraps a Sites page: non-entitled accounts get the normal not-found page. */
-export function withSitesGate<P extends object>(Page: ComponentType<P>): ComponentType<P> {
+export function withSitesGate<P extends object>(Page: ComponentType<P>) {
   const Gated = (props: P) => {
     const allowed = useCanSeeSites();
     return allowed ? <Page {...props} /> : <NotFound />;

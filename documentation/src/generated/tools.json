@@ -159,6 +159,12 @@
           "title": "Projekte",
           "description": "Chats & Inhalte bündeln",
           "path": "/projekte"
+        },
+        {
+          "id": "sites",
+          "title": "Sites",
+          "description": "Website für deine Kandidatur",
+          "path": "/sites"
         }
       ]
     },
@@ -280,6 +286,11 @@
       "title": "Scanner",
       "path": "/scanner",
       "subtitle": "Fotos & Scans in Text umwandeln"
+    },
+    "tool-sites": {
+      "title": "Sites",
+      "path": "/sites",
+      "subtitle": "Eigene Website für Kandidat*innen erstellen"
     },
     "tool-sticker": {
       "title": "Sticker & Hintergründe",
