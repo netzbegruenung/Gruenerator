@@ -24,6 +24,7 @@ type SiteDocument = RenderSitePageInput['document'];
 
 export interface SitePagesOptions {
   assets: SiteAssets;
+  origin: string;
   reportEmail: string;
   robots: 'index' | 'noindex';
   loadSnapshot: (handle: string) => Promise<PublishedSiteSnapshot | null>;
@@ -41,7 +42,7 @@ export function sendSiteNotFound(res: Response): void {
 }
 
 export function createSitePagesRouter(options: SitePagesOptions): Router {
-  const { assets, reportEmail, robots, loadSnapshot } = options;
+  const { assets, origin, reportEmail, robots, loadSnapshot } = options;
   const router = Router();
 
   router.use((_req, res, next) => {
@@ -95,7 +96,7 @@ export function createSitePagesRouter(options: SitePagesOptions): Router {
       }
       const { handle } = checked;
       if (handle !== raw) {
-        res.redirect(301, sitePaths(handle)[document]);
+        res.set('Cache-Control', 'public, max-age=60').redirect(301, sitePaths(handle)[document]);
         return;
       }
       const snapshot = await loadSnapshot(handle);
@@ -107,7 +108,7 @@ export function createSitePagesRouter(options: SitePagesOptions): Router {
         snapshot,
         handle,
         document,
-        origin: `${req.protocol}://${req.host}`,
+        origin,
         stylesheetHref: assets.stylesheet.href,
         fontUrl: siteFontUrl,
         consentScriptSrc: assets.consent.href,
@@ -138,9 +139,8 @@ export function createSitePagesRouter(options: SitePagesOptions): Router {
       res.destroy();
       return;
     }
-    // The router rejects a malformed percent-encoding with a 400 before any handler runs.
-    const status = (err as { status?: unknown } | null)?.status;
-    if (status === 400) {
+    // The router rejects a malformed percent-encoding in a path parameter before any handler runs.
+    if (err instanceof URIError && (err as URIError & { status?: unknown }).status === 400) {
       sendSiteNotFound(res);
       return;
     }

@@ -61,6 +61,10 @@ const WITH_HERO = snapshot({
   },
 });
 
+const ORIGIN = 'https://grsites.de';
+const STOCK = `/api/image-picker/stock-image/${LARGEST}`;
+const WITH_PROFILE = snapshot({ profile_image: STOCK });
+
 const loadSnapshot = vi.fn<(handle: string) => Promise<PublishedSiteSnapshot | null>>();
 
 let dir: string;
@@ -102,9 +106,11 @@ beforeAll(async () => {
   });
 
   const app = express();
+  app.set('trust proxy', true);
   app.use(
     createSitePagesRouter({
       assets,
+      origin: ORIGIN,
       reportEmail: 'meldung@gruenerator.eu',
       robots: 'noindex',
       loadSnapshot,
@@ -183,9 +189,7 @@ describe('site pages', () => {
     for (const doc of ['impressum', 'datenschutz']) {
       const res = await get(`/anna/${doc}`);
       expect(res.status).toBe(200);
-      expect(await res.text()).toMatch(
-        new RegExp(`<link rel="canonical" href="https?://[^"]+/anna/${doc}"`)
-      );
+      expect(await res.text()).toContain(`<link rel="canonical" href="${ORIGIN}/anna/${doc}"`);
     }
   });
 
@@ -234,6 +238,7 @@ describe('site pages', () => {
     const res = await get('/Anna/impressum', {}, 'manual');
     expect(res.status).toBe(301);
     expect(res.headers.get('location')).toBe('/anna/impressum');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
     expect(loadSnapshot).not.toHaveBeenCalled();
   });
 
@@ -247,8 +252,26 @@ describe('site pages', () => {
     expect(await res.text()).toBe('Die Website ist gerade nicht erreichbar.');
   });
 
-  it('a host the renderer refuses is a 500', async () =>
-    expect((await rawGet('/anna', { host: 'evil_host' })).status).toBe(500));
+  it('an error that merely carries status 400 stays a 500', async () => {
+    loadSnapshot.mockRejectedValueOnce(Object.assign(new Error('bad'), { status: 400 }));
+    expect((await get('/anna')).status).toBe(500);
+  });
+
+  it('links point at the configured origin whatever the request host says', async () => {
+    loadSnapshot.mockResolvedValue(WITH_PROFILE);
+    for (const headers of [
+      { host: 'attacker.example' },
+      { 'x-forwarded-host': 'attacker.example', 'x-forwarded-proto': 'http' },
+      { host: 'evil_host' },
+    ]) {
+      const res = await rawGet('/anna', headers);
+      expect(res.status, JSON.stringify(headers)).toBe(200);
+      expect(res.body).toContain(`<link rel="canonical" href="${ORIGIN}/anna"`);
+      expect(res.body).toContain(`<meta property="og:image" content="${ORIGIN}${STOCK}`);
+      expect(res.body).not.toContain('attacker.example');
+      expect(res.body).not.toContain('evil_host');
+    }
+  });
 
   it('serves the stylesheet immutably under its version', async () => {
     const current = await get(assets.stylesheet.href);
