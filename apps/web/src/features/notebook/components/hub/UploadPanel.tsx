@@ -3,7 +3,7 @@ import {
   NOTEBOOK_MAX_DOCUMENTS,
   type NotebookDocumentRecord,
 } from '@gruenerator/contracts';
-import { toast } from '@gruenerator/ui';
+import { toast, useConfirm } from '@gruenerator/ui';
 import { useRef, useState, type DragEvent } from 'react';
 import { HiUpload } from 'react-icons/hi';
 
@@ -16,6 +16,7 @@ import {
   ACCEPTED_EXTENSIONS,
   describeRejectedFiles,
   dropSameContent,
+  findNameClashes,
   hasFileDrag,
   partitionUploadableFiles,
 } from './uploadFiles';
@@ -26,8 +27,13 @@ import type { NotebookHubApi } from './useNotebookHub';
  * Hochladen samt verstecktem Dateifeld. Liegt beim Hub, weil der Knopf dafür
  * im Kopf steht und das Panel nur Ablagefläche und Tabelle trägt.
  */
-export function useHubUpload(hub: NotebookHubApi, total: number) {
+export function useHubUpload(
+  hub: NotebookHubApi,
+  total: number,
+  existing: NotebookDocumentRecord[]
+) {
   const uploadFileOnly = useDocumentsStore((s) => s.uploadFileOnly);
+  const confirm = useConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
 
@@ -56,7 +62,12 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
   const uploadBatch = async (files: File[]) => {
     const { accepted: picked, rejected } = partitionUploadableFiles(files);
     const accepted = await dropSameContent(picked);
-    const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total);
+    const clashes = findNameClashes(accepted, existing);
+    const choice = clashes.size > 0 ? await askAboutClashes([...clashes.keys()]) : 'keep';
+    if (choice === 'cancel') return;
+    const replacing = choice === 'replace' ? clashes : new Map<File, NotebookDocumentRecord[]>();
+    const freed = [...replacing.values()].reduce((n, docs) => n + docs.length, 0);
+    const room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - total + freed);
     const batch = accepted.slice(0, room);
     if (rejected.length > 0) toast.error(describeRejectedFiles(rejected));
     if (accepted.length > batch.length) {
@@ -69,11 +80,15 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
     setUploading(batch.length);
     const ids: string[] = [];
     const duplicates: string[] = [];
+    // Erst abhängen, was wirklich eine neue Fassung bekommen hat: ein inhaltsgleicher
+    // Upload endet im 409, und dann bleibt die alte Quelle stehen.
+    const superseded: string[] = [];
     try {
       for (const file of batch) {
         try {
           const doc = await uploadFileOnly(file, file.name, hub.collection?.id);
           ids.push(doc.id);
+          for (const old of replacing.get(file) ?? []) superseded.push(old.id);
         } catch (err) {
           if (!(err instanceof DuplicateUploadError)) throw err;
           duplicates.push(err.message);
@@ -90,11 +105,29 @@ export function useHubUpload(hub: NotebookHubApi, total: number) {
     }
     try {
       await hub.addDocuments(ids);
+      if (superseded.length > 0) await hub.removeDocuments(superseded);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Anhängen fehlgeschlagen.');
     } finally {
       setUploading(0);
     }
+  };
+
+  /** „Ersetzen" bestätigt, „Beide behalten" ist die dritte Taste, Abbrechen lädt nichts hoch. */
+  const askAboutClashes = async (files: File[]): Promise<'replace' | 'keep' | 'cancel'> => {
+    let keepBoth = false;
+    const single = files.length === 1;
+    const replace = await confirm({
+      title: single
+        ? `„${files[0]!.name}" ist schon im Notebook`
+        : `${files.length} Dateien sind schon im Notebook`,
+      description: `${single ? '' : `${files.map((f) => f.name).join(', ')}. `}Beim Ersetzen kommt die bisherige Fassung aus dem Notebook heraus, gelöscht wird sie nicht. Behältst du beide, zitieren Antworten auch beide Fassungen.`,
+      confirmLabel: 'Ersetzen',
+      variant: 'default',
+      alternateAction: { label: 'Beide behalten', onSelect: () => (keepBoth = true) },
+    });
+    if (replace) return 'replace';
+    return keepBoth ? 'keep' : 'cancel';
   };
 
   const input = (
