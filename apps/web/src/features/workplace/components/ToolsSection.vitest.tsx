@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
+import { useAuthStore } from '../../../stores/authStore';
+
 import { OfficeActionTile, OfficeSection } from './ToolsSection';
 
 import type { IconType } from '../../../config/icons';
@@ -59,5 +61,26 @@ describe('OfficeSection', () => {
     expect(menuRow.style.getPropertyValue('--tile-basis')).toBe(
       areaRow.style.getPropertyValue('--tile-basis')
     );
+  });
+});
+
+describe('OfficeSection sites tile', () => {
+  const renderStrip = (user: Record<string, unknown>) => {
+    useAuthStore.setState({ user: user as never });
+    render(
+      <MemoryRouter>
+        <OfficeSection />
+      </MemoryRouter>
+    );
+  };
+
+  it('is absent for accounts that are not unlocked', () => {
+    renderStrip({ id: 'u', sites_unlocked: false });
+    expect(screen.queryByText('Website für deine Kandidatur')).toBeNull();
+  });
+
+  it('is present for unlocked accounts, also with locale de-AT', () => {
+    renderStrip({ id: 'u', sites_unlocked: true, locale: 'de-AT' });
+    expect(screen.getByText('Website für deine Kandidatur')).toBeInTheDocument();
   });
 });

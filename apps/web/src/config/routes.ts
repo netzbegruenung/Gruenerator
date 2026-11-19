@@ -22,6 +22,7 @@ import { startTabLink } from '../utils/startpage';
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
 import { withParteitageAdminGate } from './parteitageAdminGate';
+import { withSitesGate } from './sitesGate';
 
 /**
  * Route configuration interface
@@ -411,7 +412,10 @@ const MonitorTransparenzPage = lazy(
 );
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
-const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const SitesEditPage = lazy(async () => {
+  const { default: Page } = await import('../features/sites/SitesEditPage');
+  return { default: withSitesGate(Page) };
+});
 const SitesLegacyRedirect = lazy(() => Promise.resolve({ default: createRedirect('/sites') }));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));

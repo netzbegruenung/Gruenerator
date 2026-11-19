@@ -18,6 +18,7 @@
  *     typecheck/tests point at every mirror literal still carrying old values.
  */
 import { type InstanceChannel } from '@gruenerator/shared/instances';
+import { PiGlobe } from 'react-icons/pi';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, type ActionIconName, type IconType, type NavigationIconName } from './icons';
@@ -207,6 +208,19 @@ const TOOLS = [
     },
     favourite: true,
     theme: true,
+  },
+  {
+    id: 'sites',
+    // PLACEHOLDER-NAME: final product name pending (CLAUDE.md Sprachregelungen)
+    title: 'Sites',
+    path: '/sites',
+    icon: { component: PiGlobe },
+    tile: { group: 'organisieren', description: 'Website für deine Kandidatur', badge: 'Neu' },
+    search: {
+      id: 'tool-sites',
+      subtitle: 'Eigene Website für Kandidat*innen erstellen',
+      keywords: ['sites', 'website', 'webseite', 'homepage', 'kandidatur', 'kandidat', 'seite'],
+    },
   },
   {
     id: 'suche',
@@ -709,6 +723,7 @@ const SEARCH_ORDER = [
   'tool-agentura',
   'tool-marktplatz',
   'tool-projekte',
+  'tool-sites',
 ] as const satisfies readonly ToolSearchId[];
 
 export function resolveToolIcon(ref: ToolIconRef): IconType {

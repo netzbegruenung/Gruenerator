@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
+import { useCanSeeSites } from '../../../config/sitesGate';
 import { getToolTheme } from '../../../config/toolTheme';
 import {
   OFFICE_TOOLS,
@@ -482,6 +483,7 @@ const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
   byId('marktplatz'),
   ...OFFICE_TOOLS,
   byId('projekte'),
+  byId('sites'),
 ].filter((t): t is WorkplaceToolItem => Boolean(t));
 
 // The Arbeiten tool row: colored creation tiles + the Weitere toggle tile, in one
@@ -491,9 +493,14 @@ const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
 export const OfficeSection = React.memo(() => {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const canSeeSites = useCanSeeSites();
   const tiles = useMemo(
-    () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
-    [favouriteIds]
+    () =>
+      sortToolsByFavourites(
+        filterWorkplaceTools(OFFICE_ROW_TOOLS).filter((t) => canSeeSites || t.id !== 'sites'),
+        favouriteIds
+      ),
+    [favouriteIds, canSeeSites]
   );
   const openMenu = TOOL_MENUS.find((menu) => menu.id === openMenuId);
   // Both rows share the top row's sizing so the Weitere tiles match the area

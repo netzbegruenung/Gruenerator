@@ -17,6 +17,7 @@ import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
+import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
@@ -64,6 +65,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
+  const canSeeSites = useCanSeeSites();
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -91,7 +93,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     [profileHydrated, profileRoles, profileLocale]
   );
 
-  const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
+  const directMenuItems = useMemo(
+    () => getDirectMenuItems({ isAustrian, canSeeSites }),
+    [isAustrian, canSeeSites]
+  );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   // The "start" icon goes straight to /start (the page picks the user's preferred
   // tab) so the click, the mobile <Link to>, and active highlighting all resolve

@@ -14,6 +14,8 @@ import {
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
 
+import { PiGlobe } from 'react-icons/pi';
+
 import { getIcon } from './icons';
 import { CURRENT_INSTANCE } from './instance';
 import { NEWSLETTER_SIGNUP_URL } from './newsletter';
@@ -260,6 +262,14 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     description: 'Chats & Inhalte bündeln',
     path: '/projekte',
     icon: getIcon('navigation', 'projekte')!,
+  },
+  {
+    id: 'sites',
+    title: 'Sites',
+    description: 'Website für deine Kandidatur',
+    path: '/sites',
+    icon: PiGlobe,
+    badge: 'Neu',
   },
 ] satisfies RegisteredTile[];
 
