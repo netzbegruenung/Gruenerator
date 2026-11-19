@@ -461,7 +461,7 @@ export type SpecEditResult =
   | { status: 'failed' };
 
 /** Own photos (`upload:N`) resolve to the URL the page already shows. */
-function uploadSources(members: { source: SharepicSource }[]): Map<string, string> {
+export function uploadSources(members: { source: SharepicSource }[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const { source } of members) {
     const bg = source.slide.slides[0]!.background;
