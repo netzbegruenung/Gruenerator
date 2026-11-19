@@ -1,4 +1,4 @@
-import { type WebsiteContent, websiteContentSchema } from '@gruenerator/contracts';
+import { stripGreeting, type WebsiteContent, websiteContentSchema } from '@gruenerator/contracts';
 
 import { type StructuredValidation } from '../../ai/structuredParsing.js';
 import { type Locale } from '../../localization/index.js';
@@ -15,23 +15,44 @@ export function clampSections(content: WebsiteContent): WebsiteContent {
   };
 }
 
+export type PickImage = (text: string, exclude: readonly string[]) => Promise<string>;
+
+/**
+ * Picks in parallel, then re-picks a later section's image if an earlier one
+ * already uses it (order: hero, themes, actions, contact), so a site never
+ * shows the same stock photo twice while alternatives exist.
+ */
 export async function attachImages(
   content: WebsiteContent,
-  pick: (text: string) => Promise<string>
+  pick: PickImage
 ): Promise<WebsiteContent> {
-  const [heroUrl, themeUrls, actionUrls, contactUrl] = await Promise.all([
-    pick(`${content.hero_image.title} ${content.hero_image.subtitle}`),
-    Promise.all(content.themes.map((theme) => pick(`${theme.title} ${theme.content}`))),
-    Promise.all(content.actions.map((action) => pick(action.text))),
-    pick(`${content.contact.title} Kontakt Politik Grüne`),
-  ]);
+  const texts = [
+    `${content.hero_image.title} ${content.hero_image.subtitle}`,
+    ...content.themes.map((theme) => `${theme.title} ${theme.content}`),
+    ...content.actions.map((action) => action.text),
+    `${content.contact.title} Kontakt Politik Grüne`,
+  ];
+  const urls = await Promise.all(texts.map((text) => pick(text, [])));
 
+  const used = new Set<string>();
+  for (const [i, text] of texts.entries()) {
+    let url = urls[i] ?? '';
+    if (url !== '' && used.has(url)) url = await pick(text, [...used]);
+    urls[i] = url;
+    if (url !== '') used.add(url);
+  }
+
+  const themeStart = 1;
+  const actionStart = themeStart + content.themes.length;
   return {
     ...content,
-    hero_image: { ...content.hero_image, imageUrl: heroUrl },
-    themes: content.themes.map((theme, i) => ({ ...theme, imageUrl: themeUrls[i] ?? '' })),
-    actions: content.actions.map((action, i) => ({ ...action, imageUrl: actionUrls[i] ?? '' })),
-    contact: { ...content.contact, backgroundImageUrl: contactUrl },
+    hero_image: { ...content.hero_image, imageUrl: urls[0] ?? '' },
+    themes: content.themes.map((theme, i) => ({ ...theme, imageUrl: urls[themeStart + i] ?? '' })),
+    actions: content.actions.map((action, i) => ({
+      ...action,
+      imageUrl: urls[actionStart + i] ?? '',
+    })),
+    contact: { ...content.contact, backgroundImageUrl: urls[urls.length - 1] ?? '' },
   };
 }
 
@@ -79,7 +100,13 @@ export function validateWebsiteContent(
         }
       });
     }
-    if (parsed.success && issues.length === 0) return { ok: true, value: parsed.data };
+    if (parsed.success && issues.length === 0) {
+      const { hero } = parsed.data;
+      return {
+        ok: true,
+        value: { ...parsed.data, hero: { ...hero, heading: stripGreeting(hero.heading) } },
+      };
+    }
     return { ok: false, error: `Ungültige Seiteninhalte: ${issues.join('; ')}` };
   };
 }
