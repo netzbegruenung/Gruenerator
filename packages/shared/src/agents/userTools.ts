@@ -100,9 +100,9 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
   },
   {
     key: 'cloud_files',
-    label: 'Wolke',
+    label: 'Dateiablagen',
     description:
-      'Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend.',
+      'Durchsucht die verbundenen Ablagen (Wolke, OneDrive, Google Drive), listet Dateien auf und liest sie — ausschließlich lesend.',
   },
   {
     key: 'vertonen',
