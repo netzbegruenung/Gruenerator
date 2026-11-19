@@ -4,11 +4,14 @@ import { ApiError } from '@gruenerator/shared/api';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  type ChatConnectFile,
   useConnectBrowseQuery,
   useConnectProvidersQuery,
+  useOpenGooglePicker,
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
 } from '../../hooks/useMentionablesQuery';
+import { type PickedGoogleFile } from '../../lib/googlePicker';
 import { type ConnectFileToken, type WolkeFileToken } from '../../lib/mentionables';
 import { joinWolkePath, wolkeParentPath } from '../../lib/wolkePath';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -21,6 +24,10 @@ import { MentionFloatingPanel } from './MentionFloatingPanel';
  * Die Wolke adressiert über Pfade, die Laufwerke über IDs; beides wird hier zu
  * derselben Zeile, und die Auswahl darf über Quellen hinweg gesammelt werden.
  * Gelesen werden die Dateien erst beim Senden (`wolkeRetrieval`/`connectRetrieval`).
+ *
+ * Google Drive hat keine Ordneransicht: unter dem Scope `drive.file` sieht der
+ * Grünerator nur, was die Person im Google Picker auswählt. Für Google öffnet
+ * der Browser deshalb den Picker, und die Auswahl daraus steht als Liste da.
  */
 
 /** Welche Quelle beim Öffnen vorgewählt ist. `drive` = das erste verbundene Laufwerk. */
@@ -105,6 +112,10 @@ export function CloudFileBrowser({
   const [driveTrail, setDriveTrail] = useState<DriveCrumb[]>([]);
   const [filter, setFilter] = useState('');
   const [selection, setSelection] = useState<Map<string, Picked>>(new Map());
+  const openGooglePicker = useOpenGooglePicker();
+  const [googlePicked, setGooglePicked] = useState<PickedGoogleFile[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
@@ -114,6 +125,8 @@ export function CloudFileBrowser({
       setDriveTrail([]);
       setSelection(new Map());
       setFilter('');
+      setGooglePicked([]);
+      setPickerError(null);
       return;
     }
     if (!active && !sourcesLoading) {
@@ -128,6 +141,7 @@ export function CloudFileBrowser({
     setFilter('');
   };
 
+  const isGoogle = active?.kind === 'drive' && active.id === 'google';
   const driveFolderId = driveTrail.at(-1)?.id ?? null;
   const wolke = useWolkeBrowseQuery(
     active?.kind === 'wolke' ? active.id : null,
@@ -137,7 +151,7 @@ export function CloudFileBrowser({
   const drive = useConnectBrowseQuery(
     active?.kind === 'drive' ? active.id : null,
     driveFolderId,
-    visible && active?.kind === 'drive'
+    visible && active?.kind === 'drive' && !isGoogle
   );
   const browse = active?.kind === 'drive' ? drive : wolke;
   const needsReconnect = drive.error instanceof ApiError && drive.error.status === 403;
@@ -161,7 +175,11 @@ export function CloudFileBrowser({
         };
       });
     }
-    return (drive.data ?? []).map((f) => ({
+    const files: ChatConnectFile[] =
+      active.id === 'google'
+        ? googlePicked.map((f) => ({ ...f, isDirectory: false, isSupported: true }))
+        : (drive.data ?? []);
+    return files.map((f) => ({
       key: `drive:${active.id}:${f.id}`,
       name: f.name,
       isFolder: Boolean(f.isDirectory),
@@ -178,7 +196,7 @@ export function CloudFileBrowser({
         },
       }),
     }));
-  }, [active, wolke.data, drive.data, wolkePath]);
+  }, [active, wolke.data, drive.data, wolkePath, googlePicked]);
 
   const visibleRows = useMemo(() => {
     if (!filter) return rows;
@@ -204,6 +222,41 @@ export function CloudFileBrowser({
     });
   };
 
+  // Was im Picker gewählt wurde, ist gleich ausgewählt — die Person hat es dort
+  // schon bestätigt.
+  const handleOpenGooglePicker = async () => {
+    setPickerError(null);
+    setPickerOpen(true);
+    try {
+      const files = await openGooglePicker();
+      if (files.length === 0) return;
+      setGooglePicked((prev) => [
+        ...prev,
+        ...files.filter((f) => !prev.some((p) => p.id === f.id)),
+      ]);
+      setSelection((prev) => {
+        const next = new Map(prev);
+        for (const f of files) {
+          next.set(`drive:google:${f.id}`, {
+            kind: 'connect',
+            token: { provider: 'google', fileId: f.id, name: f.name, mimeType: f.mimeType },
+          });
+        }
+        return next;
+      });
+    } catch (err) {
+      setPickerError(
+        err instanceof ApiError && err.status === 403
+          ? 'Der Zugang zu Google Drive ist abgelaufen. Bitte verbinde das Konto neu.'
+          : err instanceof ApiError && err.status === 404
+            ? 'Die Dateiauswahl für Google Drive ist noch nicht eingerichtet.'
+            : 'Die Dateiauswahl von Google konnte nicht geöffnet werden.'
+      );
+    } finally {
+      setPickerOpen(false);
+    }
+  };
+
   const handleConfirm = () => {
     const picked = [...selection.values()];
     if (picked.length === 0) return;
@@ -213,12 +266,53 @@ export function CloudFileBrowser({
     });
   };
 
+  const renderRow = (row: Row) => {
+    const isSelected = selection.has(row.key);
+    const isDisabled = !row.isFolder && !row.isSupported;
+    return (
+      <button
+        key={row.key}
+        type="button"
+        disabled={isDisabled}
+        aria-pressed={row.isFolder ? undefined : isSelected}
+        title={isDisabled ? 'Dieses Format kann der Chat nicht lesen' : undefined}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          if (row.isFolder) {
+            row.open();
+            setFilter('');
+          } else {
+            toggle(row);
+          }
+        }}
+        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+          isSelected
+            ? 'bg-primary/10 text-foreground'
+            : isDisabled
+              ? 'cursor-not-allowed text-foreground-muted/50'
+              : 'text-foreground-muted hover:bg-primary/5'
+        }`}
+      >
+        <span aria-hidden className="text-base">
+          {row.isFolder ? '📁' : isSelected ? '☑️' : '📄'}
+        </span>
+        <span className="flex-1 truncate">{row.name}</span>
+        {!row.isFolder && row.size && (
+          <span className="text-xs text-foreground-muted/70">{row.size}</span>
+        )}
+      </button>
+    );
+  };
+
   const hasNoSources = !sourcesLoading && sources.length === 0;
 
   return (
     <MentionFloatingPanel
       open={visible}
-      onDismiss={onDismiss}
+      // Der Picker liegt ausserhalb des Panels: ein Klick dort darf es nicht
+      // schliessen, und solange er offen ist, tritt das Panel zurück.
+      onDismiss={pickerOpen ? () => {} : onDismiss}
+      className={pickerOpen ? 'invisible' : ''}
       width="w-[380px]"
       role="dialog"
       ariaLabel="Dateien aus der Cloud auswählen"
@@ -263,7 +357,7 @@ export function CloudFileBrowser({
               })}
             </div>
           )}
-          {active && (
+          {active && !isGoogle && (
             <input
               type="text"
               autoFocus
@@ -307,6 +401,37 @@ export function CloudFileBrowser({
                 </a>
               )}
             </div>
+          ) : isGoogle ? (
+            <div className="flex flex-col">
+              <div className="flex flex-col items-start gap-2 px-3 py-3">
+                <button
+                  type="button"
+                  disabled={pickerOpen}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    void handleOpenGooglePicker();
+                  }}
+                  className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-primary/5 disabled:opacity-50"
+                >
+                  {googlePicked.length > 0
+                    ? 'Weitere Dateien auswählen…'
+                    : 'In Google Drive auswählen…'}
+                </button>
+                {pickerError ? (
+                  <p role="alert" className="text-xs text-foreground-muted">
+                    {pickerError}
+                  </p>
+                ) : (
+                  googlePicked.length === 0 && (
+                    <p className="text-xs text-foreground-muted">
+                      Google zeigt dir deine Dateien. Der Grünerator liest nur, was du dort
+                      auswählst.
+                    </p>
+                  )
+                )}
+              </div>
+              {visibleRows.map(renderRow)}
+            </div>
           ) : sourcesLoading || browse.isLoading ? (
             <div className="px-3 py-4 text-sm text-foreground-muted">Lade Dateien…</div>
           ) : needsReconnect ? (
@@ -322,43 +447,7 @@ export function CloudFileBrowser({
               {filter ? 'Keine Treffer.' : 'Ordner ist leer.'}
             </div>
           ) : (
-            visibleRows.map((row) => {
-              const isSelected = selection.has(row.key);
-              const isDisabled = !row.isFolder && !row.isSupported;
-              return (
-                <button
-                  key={row.key}
-                  type="button"
-                  disabled={isDisabled}
-                  aria-pressed={row.isFolder ? undefined : isSelected}
-                  title={isDisabled ? 'Dieses Format kann der Chat nicht lesen' : undefined}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (row.isFolder) {
-                      row.open();
-                      setFilter('');
-                    } else {
-                      toggle(row);
-                    }
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    isSelected
-                      ? 'bg-primary/10 text-foreground'
-                      : isDisabled
-                        ? 'cursor-not-allowed text-foreground-muted/50'
-                        : 'text-foreground-muted hover:bg-primary/5'
-                  }`}
-                >
-                  <span aria-hidden className="text-base">
-                    {row.isFolder ? '📁' : isSelected ? '☑️' : '📄'}
-                  </span>
-                  <span className="flex-1 truncate">{row.name}</span>
-                  {!row.isFolder && row.size && (
-                    <span className="text-xs text-foreground-muted/70">{row.size}</span>
-                  )}
-                </button>
-              );
-            })
+            visibleRows.map(renderRow)
           )}
         </div>
 

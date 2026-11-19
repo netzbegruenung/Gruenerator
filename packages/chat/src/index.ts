@@ -280,6 +280,7 @@ export { MessageSourcesButton } from './components/message-parts/MessageSourcesB
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 export { stripForSpeech } from './lib/speechText';
+export { pickGoogleFiles, type PickedGoogleFile } from './lib/googlePicker';
 
 // Citation Context
 export {
