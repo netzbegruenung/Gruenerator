@@ -187,10 +187,9 @@ describe('LegalPanel', () => {
     type('Name', 'Anna');
     first.unmount();
     await act(() => vi.advanceTimersByTimeAsync(0));
-    expect(hoisted.toastError).toHaveBeenCalledWith(
-      'Impressum nicht gespeichert',
-      expect.objectContaining({ description: expect.stringContaining('Impressum') })
-    );
+    const [title, options] = hoisted.toastError.mock.calls[0] as [string, { description: string }];
+    expect(title).toBe('Impressum nicht gespeichert');
+    expect(options.description).toContain('Impressum');
 
     setup();
     expect(screen.getByLabelText('Name')).toHaveValue('Anna');
