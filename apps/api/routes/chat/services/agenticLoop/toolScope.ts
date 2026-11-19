@@ -169,7 +169,13 @@ interface DeferrableGroup {
    * `parlament_lesen`): sie werden erst gebraucht, wenn der Einstieg gelaufen ist.
    */
   readonly opensOn?: readonly string[];
-  readonly loaderDescription: string;
+  /**
+   * Was der Lader verspricht. Als Funktion bekommt sie die MONTIERTEN Werkzeuge
+   * der Gruppe: ein Lader, der ein fehlendes Werkzeug ankündigt, lädt das Modell
+   * ein, dessen Wirkung zu behaupten (#5804 — „Seite angelegt" ohne
+   * `antragsgruen_seite_anlegen`).
+   */
+  readonly loaderDescription: string | ((present: readonly string[]) => string);
 }
 
 /**
@@ -249,8 +255,30 @@ export const DEFERRABLE_GROUPS = [
       'antragsgruen_seite_lesen',
     ],
     hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
-    loaderDescription:
-      'Schaltet die Antragsgrün-Werkzeuge frei. Parteitage der GRÜNEN NRW: antragsgruen (finden), antragsgruen_lesen, antragsgruen_auswerten (exakte Zahlen). Eigene Seite auf antragsgruen.de: antragsgruen_seite_anlegen, antragsgruen_antrag_stellen, antragsgruen_tagesordnung (lesen/setzen), antragsgruen_seite_lesen (Anträge mit Zeilennummern, für Änderungsanträge).\n\nNUTZE WENN es um Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission — oder um eine eigene Antragsgrün-Seite für eine Versammlung.',
+    // Die Seiten-Werkzeuge montiert der Katalog nur mit Zugangsdaten des
+    // Grünerator-Kontos (`siteCreationConfigured`), alle vier zusammen.
+    loaderDescription: (present: readonly string[]) => {
+      const nrw = present.includes('antragsgruen');
+      const site = present.includes('antragsgruen_seite_anlegen');
+      return [
+        'Schaltet die Antragsgrün-Werkzeuge frei.',
+        nrw
+          ? ' Parteitage der GRÜNEN NRW: antragsgruen (finden), antragsgruen_lesen, antragsgruen_auswerten (exakte Zahlen).'
+          : '',
+        site
+          ? ' Eigene Seite auf antragsgruen.de: antragsgruen_seite_anlegen, antragsgruen_antrag_stellen, antragsgruen_tagesordnung (lesen/setzen), antragsgruen_seite_lesen (Anträge mit Zeilennummern, für Änderungsanträge).'
+          : '',
+        '\n\nNUTZE WENN es um ',
+        nrw
+          ? 'Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission'
+          : '',
+        nrw && site ? ' — oder um ' : '',
+        site ? 'eine eigene Antragsgrün-Seite für eine Versammlung' : '',
+        nrw && !site
+          ? '. Eine eigene Antragsgrün-Seite anlegen kann der Grünerator hier nicht.'
+          : '.',
+      ].join('');
+    },
   },
   {
     // nuudel-Umfragen (Terminfindung, Auswahl): für die meisten Turns ohne Belang.
@@ -387,8 +415,9 @@ export function createToolScope(params: {
       for (const group of DEFERRABLE_GROUPS) {
         const open = closed.get(group.id);
         if (!open) continue;
+        const describe = (group as DeferrableGroup).loaderDescription;
         tools[group.loaderTool] = tool({
-          description: group.loaderDescription,
+          description: typeof describe === 'function' ? describe(open.tools) : describe,
           inputSchema: z.object({}),
           execute: async () => {
             closed.delete(group.id);

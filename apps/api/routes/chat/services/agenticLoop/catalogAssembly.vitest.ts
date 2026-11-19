@@ -552,6 +552,31 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeRegistry.render()).toContain('Fremdrumpf');
   });
 
+  // #5804: ohne `antragsgruen_seite_anlegen` lud das Modell `antragsgruen-seite`
+  // und meldete die Seite als angelegt.
+  it('lässt ein Methoden-Rezept weg, dessen Werkzeuge alle fehlen', async () => {
+    const seite = {
+      ...catalog[0]!,
+      key: 'antragsgruen-seite',
+      mention: 'antragsgruen-seite',
+      recommendedTools: ['antragsgruen_seite_anlegen'],
+    };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [...catalog, seite] })
+    );
+    expect(assembled.recipeCatalog.map((e) => e.key)).toEqual(['presse']);
+  });
+
+  it('behält eine Textsorte, auch wenn ihre empfohlenen Werkzeuge fehlen', async () => {
+    const presse = { ...catalog[0]!, recommendedTools: ['nicht_montiert'] };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [presse] })
+    );
+    expect(assembled.recipeCatalog).toEqual([{ ...presse, recommendedTools: [] }]);
+  });
+
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {
     const assembled = await assemble(fakeState(), deps({ buildRecipeCatalog: async () => [] }));
     expect(assembled.tools.rezept_laden).toBeUndefined();

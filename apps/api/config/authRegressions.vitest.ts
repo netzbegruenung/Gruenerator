@@ -85,9 +85,10 @@
  *      table. The library defers on a missing table, but matches only
  *      `err.message`, and Drizzle wraps the pg error as `Failed query: …`
  *      with the real text in `cause`. The rejection is cached in
- *      `auth.$context`, so the process stays broken until restart. Fix:
- *      `patches/@better-auth__oauth-provider@1.7.5.patch` catches the
- *      init-time seed and leaves it to the lazy `seedResourcesOnce` path.
+ *      `auth.$context`, so the process stays broken until restart. Fixed
+ *      first by a local patch, upstream since 1.7.18: `init` catches the
+ *      seed, `logStartupSeedFailure` walks `cause`, and the lazy
+ *      `seedResourcesOnce` path seeds on first resource access (#5721).
  *
  * Run: `pnpm --filter @gruenerator/api test`
  */
@@ -239,9 +240,11 @@ describe('regression #3667 — OAuth resource seed must not poison auth init', (
       resources: ['https://mcp.example.org'],
       disableJwtPlugin: true,
     });
+    const logger = { debug: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() };
     const ctx = {
       options: {},
       baseURL: 'http://localhost:3000/api/auth/v2',
+      logger,
       adapter: {
         findOne: () => Promise.reject(drizzleError),
         create: () => Promise.reject(drizzleError),
@@ -249,5 +252,9 @@ describe('regression #3667 — OAuth resource seed must not poison auth init', (
     };
 
     await expect((plugin.init as (c: unknown) => Promise<unknown>)(ctx)).resolves.toBeDefined();
+    // The missing table sits in `cause`, not in `message`: it must still be
+    // recognised as "not migrated yet" rather than reported as a seed failure.
+    expect(logger.debug).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 });
