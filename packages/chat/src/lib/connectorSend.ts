@@ -53,6 +53,7 @@ export async function fetchConnectorTargets(
 ): Promise<ConnectorTarget[]> {
   const qs = parent ? `?parent=${encodeURIComponent(parent)}` : '';
   const response = await fetchFn(`/api/connections/${provider}/targets${qs}`);
+  // swallow-ok: a non-JSON body still ends in failure() with the HTTP status
   const json: unknown = await response.json().catch(() => null);
   if (response.ok) return connectorTargetsResponseSchema.parse(json).entries;
   return failure(response, json, 'Ziele konnten nicht geladen werden');
@@ -84,6 +85,7 @@ export async function sendToConnector(
     method: 'POST',
     body: buildConnectorSendForm(input),
   });
+  // swallow-ok: a non-JSON body still ends in failure() with the HTTP status
   const json: unknown = await response.json().catch(() => null);
   if (response.ok) return connectorSendResponseSchema.parse(json);
   return failure(response, json, 'Senden fehlgeschlagen');

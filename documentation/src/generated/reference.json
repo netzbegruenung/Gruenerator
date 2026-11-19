@@ -334,6 +334,11 @@
         "description": "Meeting-Notizen durchsuchen und Action Items extrahieren."
       },
       {
+        "title": "Kalender.digital",
+        "auth": "Zugangsschlüssel",
+        "description": "Experimentell: Termine im eigenen Kalender lesen, anlegen und ändern (API-Key je Kalender, nur Premium)."
+      },
+      {
         "title": "Miro",
         "auth": "Anmeldung beim Dienst",
         "description": "Whiteboards, Boards und Diagramme lesen und bearbeiten."
@@ -357,6 +362,11 @@
         "title": "Todoist",
         "auth": "Anmeldung beim Dienst",
         "description": "Aufgaben, Projekte und To-do-Listen verwalten."
+      },
+      {
+        "title": "Trello",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Boards, Listen und Karten lesen und anlegen."
       }
     ],
     "Recht & Compliance": [
