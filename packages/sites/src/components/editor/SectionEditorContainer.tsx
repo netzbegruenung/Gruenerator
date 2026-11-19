@@ -8,10 +8,7 @@ import { HeroSectionEditor } from './sections/HeroSectionEditor';
 import { SocialFeedSectionEditor } from './sections/SocialFeedSectionEditor';
 import { ThemesSectionEditor } from './sections/ThemesSectionEditor';
 
-import type {
-  CandidateData,
-  SocialFeedSectionType as SocialFeedSection,
-} from '@gruenerator/sites-design';
+import type { CandidateData, SocialFeedSection } from '../../types/editorDraft';
 
 interface SectionEditorContainerProps {
   candidateData: CandidateData;

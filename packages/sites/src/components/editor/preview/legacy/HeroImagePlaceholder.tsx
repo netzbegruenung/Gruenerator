@@ -12,7 +12,7 @@ interface HeroImagePlaceholderProps {
 export function HeroImagePlaceholder({ className }: HeroImagePlaceholderProps) {
   return (
     <div
-      className={`relative overflow-hidden bg-gradient-to-br from-primary-500 to-primary-800 ${className ?? ''}`}
+      className={`relative overflow-hidden bg-primary-600 bg-gradient-to-br from-primary-500 to-primary-800 ${className ?? ''}`}
       aria-hidden="true"
     >
       <svg

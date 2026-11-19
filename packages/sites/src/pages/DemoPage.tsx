@@ -1,8 +1,15 @@
-import { richTextDocFromPlainText } from '@gruenerator/contracts';
+import {
+  buildSitePreviewSnapshot,
+  richTextDocFromPlainText,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
+import { useMemo } from 'react';
 
-import { CandidatePage } from '../CandidatePage';
+import { candidateToSnapshotSource } from '../preview/candidateToSnapshotSource';
+import { SitePreviewFrame } from '../preview/SitePreviewFrame';
+import { useAuth } from '../SitesContext';
 
-import type { CandidateData } from '@gruenerator/sites-design';
+import type { CandidateData } from '../types/editorDraft';
 
 const demoCandidate: CandidateData = {
   id: 'demo',
@@ -95,5 +102,20 @@ Mein Antrieb: Eine Welt hinterlassen, in der auch unsere Enkel noch gut leben k√
 };
 
 export function DemoPage() {
-  return <CandidatePage candidate={demoCandidate} />;
+  const { user } = useAuth();
+  const locale: SupportedLocale = user?.locale ?? 'de-DE';
+  const snapshot = useMemo(
+    () => buildSitePreviewSnapshot(candidateToSnapshotSource(demoCandidate, null), locale),
+    [locale]
+  );
+  return (
+    <div className="h-dvh">
+      <SitePreviewFrame
+        snapshot={snapshot}
+        handle={demoCandidate.slug}
+        title="Vorschau der Website"
+        className="block h-full w-full border-0"
+      />
+    </div>
+  );
 }
