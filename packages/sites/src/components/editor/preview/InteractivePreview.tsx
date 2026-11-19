@@ -1,13 +1,12 @@
 import { isRichTextDocEmpty } from '@gruenerator/contracts';
-import {
-  HeroImagePlaceholder,
-  RichTextContent,
-  type CandidateData,
-} from '@gruenerator/sites-design';
+import { SiteRichText } from '@gruenerator/sites-design';
 
 import { useScrollSync } from '../../../hooks/useScrollSync';
 import { useClickToEdit } from '../../../hooks/useSectionFocus';
 import { useEditorStore, type SectionType } from '../../../stores/editorStore';
+import { type CandidateData } from '../../../types/editorDraft';
+
+import { HeroImagePlaceholder } from './legacy/HeroImagePlaceholder';
 
 import '../../../styles/components/editable-preview.css';
 
@@ -117,7 +116,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             {isRichTextDocEmpty(candidateData.about.content) ? (
               <p>Deine Biografie wird hier erscheinen...</p>
             ) : (
-              <RichTextContent content={candidateData.about.content} />
+              <SiteRichText content={candidateData.about.content} />
             )}
           </div>
         </div>
@@ -215,7 +214,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                       {isRichTextDocEmpty(theme.content) ? (
                         <p>Beschreibung...</p>
                       ) : (
-                        <RichTextContent content={theme.content} />
+                        <SiteRichText content={theme.content} />
                       )}
                     </div>
                   </div>

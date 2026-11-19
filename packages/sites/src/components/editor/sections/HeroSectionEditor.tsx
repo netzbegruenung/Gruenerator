@@ -5,7 +5,7 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
-import type { HeroSectionType as HeroSection, SocialLinks } from '@gruenerator/sites-design';
+import type { HeroSection, SocialLinks } from '../../../types/editorDraft';
 
 interface HeroSectionEditorProps {
   data: HeroSection;

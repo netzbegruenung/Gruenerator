@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { emptyRichTextDoc } from './richtext.js';
 import {
   buildSiteSnapshot,
+  buildSitePreviewSnapshot,
   checkSiteHandle,
+  publishedSiteSnapshotSchema,
+  readSiteVariant,
   updateUserSiteBodySchema,
   type SiteSnapshotSource,
 } from './sites.js';
@@ -22,6 +25,7 @@ const validSource = (): SiteSnapshotSource => ({
   site_title: 'Max Mustermann',
   tagline: 'Für Berlin',
   profile_image: null,
+  theme: null,
   contact_email: 'max@example.org',
   contact_phone: null,
   social_links: null,
@@ -290,4 +294,111 @@ describe('snapshot charsets and links', () => {
     expect(
       issuePaths({ ...validSource(), profile_image: '/api/image-picker/stock-image/..' })
     ).toContain('profile_image'));
+});
+
+describe('site variant', () => {
+  it.each([
+    ['dunkel', 'dunkel'],
+    ['hell', 'hell'],
+    ['leuchtend', 'leuchtend'],
+    ['gruene', 'dunkel'],
+    ['', 'dunkel'],
+    [null, 'dunkel'],
+  ] as const)('readSiteVariant(%s) is %s', (theme, variant) =>
+    expect(readSiteVariant(theme)).toBe(variant)
+  );
+  it('update body accepts a variant and rejects the legacy value', () => {
+    expect(updateUserSiteBodySchema.safeParse({ theme: 'hell' }).success).toBe(true);
+    expect(updateUserSiteBodySchema.safeParse({ theme: 'gruene' }).success).toBe(false);
+  });
+  it('the snapshot takes the variant from theme', () => {
+    const r = buildSiteSnapshot({ ...validSource(), theme: 'leuchtend' }, 'de-DE');
+    expect(r.ok && r.snapshot.variant).toBe('leuchtend');
+  });
+});
+
+describe('hidden sections', () => {
+  it('a draft accepts optional section ids', () =>
+    expect(
+      updateUserSiteBodySchema.safeParse({ sections: { hidden: ['themes', 'socialFeed'] } }).success
+    ).toBe(true));
+  it('a draft cannot hide the hero', () =>
+    expect(updateUserSiteBodySchema.safeParse({ sections: { hidden: ['hero'] } }).success).toBe(
+      false
+    ));
+  it('the snapshot lists them once, in page order, outside sections', () => {
+    const src = validSource();
+    const r = buildSiteSnapshot(
+      { ...src, sections: { ...src.sections, hidden: ['contact', 'themes', 'contact'] } },
+      'de-DE'
+    );
+    expect(r.ok && r.snapshot.hidden_sections).toEqual(['themes', 'contact']);
+    expect(r.ok && 'hidden' in r.snapshot.sections).toBe(false);
+  });
+  it('a snapshot stored before this change parses with defaults', () => {
+    const r = buildSiteSnapshot(validSource(), 'de-DE');
+    if (!r.ok) throw new Error('fixture');
+    const { variant: _v, hidden_sections: _h, ...stored } = r.snapshot;
+    expect(publishedSiteSnapshotSchema.parse(stored)).toMatchObject({
+      variant: 'dunkel',
+      hidden_sections: [],
+    });
+  });
+});
+
+describe('buildSitePreviewSnapshot', () => {
+  const aboutDoc = (content: unknown): SiteSnapshotSource => ({
+    ...validSource(),
+    sections: { about: { title: 'Über mich', content: content as never } },
+  });
+  it('equals the published snapshot for a valid draft', () => {
+    const r = buildSiteSnapshot(validSource(), 'de-AT');
+    expect(r.ok && buildSitePreviewSnapshot(validSource(), 'de-AT')).toEqual(r.ok && r.snapshot);
+  });
+  it.each(['javascript:alert(1)', 'www.example.org'])('blanks the action link %s', (link) => {
+    const s = buildSitePreviewSnapshot(withActionLink(link), 'de-DE');
+    expect(s.sections.actions?.[0]).toMatchObject({ text: 'Mitmachen', link: '' });
+  });
+  it('blanks a foreign image', () =>
+    expect(
+      buildSitePreviewSnapshot(
+        { ...validSource(), profile_image: 'https://evil.example/x.png' },
+        'de-DE'
+      ).profile_image
+    ).toBe(''));
+  it('drops unsafe and unknown social links and keeps the rest', () =>
+    expect(
+      buildSitePreviewSnapshot(
+        {
+          ...validSource(),
+          social_links: {
+            instagram: 'javascript:x',
+            tiktok: 'https://tiktok.com/@x',
+            mastodon: 'https://gruene.social/@x',
+          },
+        },
+        'de-DE'
+      ).social_links
+    ).toEqual({ mastodon: 'https://gruene.social/@x' }));
+  it('fills a missing legal block with empty fields', () =>
+    expect(buildSitePreviewSnapshot({ ...validSource(), legal: null }, 'de-DE').legal).toEqual({
+      name: '',
+      street: '',
+      postal_code: '',
+      city: '',
+      email: '',
+    }));
+  it('keeps an empty title', () =>
+    expect(buildSitePreviewSnapshot({ ...validSource(), site_title: '' }, 'de-DE').site_title).toBe(
+      ''
+    ));
+  it('replaces rich text with an unsupported node by an empty doc', () =>
+    expect(
+      buildSitePreviewSnapshot(aboutDoc({ type: 'doc', content: [{ type: 'image' }] }), 'de-DE')
+        .sections.about?.content
+    ).toEqual(emptyRichTextDoc()));
+  it('falls back to the default variant for an unknown theme', () =>
+    expect(buildSitePreviewSnapshot({ ...validSource(), theme: 'pink' }, 'de-DE').variant).toBe(
+      'dunkel'
+    ));
 });

@@ -1,17 +1,19 @@
+import { type SupportedLocale } from '@gruenerator/contracts';
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import { setSitesUnauthorizedHandler } from './lib/apiClient';
 
 /**
  * Minimal user shape Sites consumes. Satisfied by each host's own user object
- * (web `UserProfile`, mobile shared `User`) — Sites only ever reads `email`
- * and `display_name`, so it intentionally does not depend on either heavy type
+ * (web `UserProfile`, mobile shared `User`) — Sites only ever reads `email`,
+ * `display_name` and `locale`, so it intentionally does not depend on either heavy type
  * (which disagree on whether `email` is required).
  */
 export interface SitesUser {
   id: string;
   email?: string;
   display_name?: string;
+  locale: SupportedLocale;
 }
 
 export interface SitesAuth {

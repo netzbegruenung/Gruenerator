@@ -6,7 +6,7 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
-import type { AboutSectionType as AboutSection } from '@gruenerator/sites-design';
+import type { AboutSection } from '../../../types/editorDraft';
 
 interface AboutSectionEditorProps {
   data: AboutSection;

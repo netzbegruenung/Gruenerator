@@ -27,7 +27,14 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
   // that left `isLoading` stuck `true` and the page hung on its spinner.
   const auth = useMemo<SitesAuth>(
     () => ({
-      user: user ? { id: user.id, email: user.email, display_name: user.display_name } : null,
+      user: user
+        ? {
+            id: user.id,
+            email: user.email,
+            display_name: user.display_name,
+            locale: user.locale === 'de-AT' ? 'de-AT' : 'de-DE',
+          }
+        : null,
       isAuthenticated,
       isLoading: loading,
       error,

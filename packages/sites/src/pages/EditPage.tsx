@@ -1,10 +1,12 @@
-import { emptyRichTextDoc } from '@gruenerator/contracts';
+import {
+  buildSitePreviewSnapshot,
+  emptyRichTextDoc,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
-import { type CandidateData } from '@gruenerator/sites-design';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { FiExternalLink, FiEye } from 'react-icons/fi';
 
-import { CandidatePage } from '../CandidatePage';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import {
@@ -16,10 +18,38 @@ import {
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
 import { useSite, type GeneratedSiteData, type SiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
+import { candidateToSnapshotSource } from '../preview/candidateToSnapshotSource';
+import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import { useAuth } from '../SitesContext';
+import { type CandidateData } from '../types/editorDraft';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
+
+function CandidatePreviewFrame({
+  candidate,
+  site,
+  handle,
+}: {
+  candidate: CandidateData;
+  site: SiteData | null;
+  handle: string;
+}) {
+  const { user } = useAuth();
+  const locale: SupportedLocale = user?.locale ?? 'de-DE';
+  const snapshot = useMemo(
+    () => buildSitePreviewSnapshot(candidateToSnapshotSource(candidate, site), locale),
+    [candidate, site, locale]
+  );
+  return (
+    <SitePreviewFrame
+      snapshot={snapshot}
+      handle={handle}
+      title="Vorschau der Website"
+      className="block h-full w-full border-0"
+    />
+  );
+}
 
 function buildCandidateDataFromSite(site: SiteData): CandidateData {
   return {
@@ -247,17 +277,21 @@ function SiteEditor({ site }: SiteEditorProps) {
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto bg-grey-200 dark:bg-grey-700 flex justify-center p-0">
+          <div className="flex-1 min-h-0 overflow-hidden bg-grey-200 dark:bg-grey-700 flex justify-center p-0">
             <div
               className={cn(
-                'bg-background-pure h-full overflow-y-auto transition-[width] duration-300',
+                'bg-background-pure h-full min-h-0 overflow-hidden transition-[width] duration-300',
                 previewDevice === 'desktop' && 'w-full',
                 previewDevice === 'tablet' && 'w-[768px] max-w-full shadow-lg',
                 previewDevice === 'phone' && 'w-[375px] max-w-full shadow-lg'
               )}
               style={{ containerType: 'inline-size', containerName: 'preview' }}
             >
-              <CandidatePage candidate={candidateData} />
+              <CandidatePreviewFrame
+                candidate={candidateData}
+                site={site}
+                handle={site.subdomain}
+              />
             </div>
           </div>
         </div>
@@ -582,8 +616,12 @@ export function EditPage() {
           <div className="py-md px-lg bg-background-pure border-b border-grey-200 dark:border-grey-700">
             <h3 className="m-0 text-base text-grey-600 dark:text-grey-400">Vorschau</h3>
           </div>
-          <div className="flex-1 overflow-y-auto bg-background-pure">
-            <CandidatePage candidate={previewCandidateData} />
+          <div className="flex-1 min-h-0 overflow-hidden bg-background-pure">
+            <CandidatePreviewFrame
+              candidate={previewCandidateData}
+              site={null}
+              handle={subdomain}
+            />
           </div>
         </div>
       </div>

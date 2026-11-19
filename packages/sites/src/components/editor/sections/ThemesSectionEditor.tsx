@@ -7,7 +7,7 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
-import type { ThemesSectionType as ThemesSection, ThemeCard } from '@gruenerator/sites-design';
+import type { ThemesSection, ThemeCard } from '../../../types/editorDraft';
 
 interface ThemesSectionEditorProps {
   data: ThemesSection;
