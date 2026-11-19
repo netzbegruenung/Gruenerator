@@ -39,7 +39,7 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
             <h1
               id={headingId}
               data-field="site_title"
-              className="site:text-display site:text-heading site:hyphens-auto site:wrap-anywhere"
+              className="site:text-display site:text-heading site:hyphens-manual site:wrap-anywhere"
             >
               {name}
             </h1>

@@ -55,7 +55,7 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                       <h3
                         id={titleId}
                         data-field={`sections.themes.${i}.title`}
-                        className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-auto site:break-words"
+                        className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-manual site:break-words"
                       >
                         {title || `${copy.navThemes} ${i + 1}`}
                       </h3>
