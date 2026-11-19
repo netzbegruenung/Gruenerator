@@ -9,6 +9,7 @@ import { connectionsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import axios from 'axios';
 
+import { env } from '../../config/env.js';
 import {
   ConnectionNotAllowedError,
   ConnectionService,
@@ -68,6 +69,27 @@ export const connectionsContractRouter = s.router(connectionsContract, {
       if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
       log.error(`[connectLink] ${params.provider} failed`, err);
       return failure(500, 'Verbindung konnte nicht gestartet werden.');
+    }
+  },
+
+  // Der Picker gibt dem Grünerator erst Zugriff auf die ausgewählten Dateien
+  // (Scope `drive.file`). Key und App-ID sind öffentlich, sie landen ohnehin
+  // im Browser; sie stehen in der API-Env, damit ein Tausch keinen Web-Build braucht.
+  googlePicker: async ({ req }) => {
+    const userId = getAuthedUser(req).id;
+    const apiKey = env.GOOGLE_PICKER_API_KEY;
+    const appId = env.GOOGLE_PICKER_APP_ID;
+    if (!apiKey || !appId) {
+      log.warn('[googlePicker] GOOGLE_PICKER_API_KEY or GOOGLE_PICKER_APP_ID is not set');
+      return failure(404, 'Die Dateiauswahl für Google Drive ist noch nicht eingerichtet.');
+    }
+    try {
+      const { accessToken } = await ConnectionService.getConnection(userId, 'google');
+      return { status: 200 as const, body: { success: true as const, accessToken, apiKey, appId } };
+    } catch (err) {
+      if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
+      log.warn('[googlePicker] google connection lookup failed', err);
+      return failure(403, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
     }
   },
 });
