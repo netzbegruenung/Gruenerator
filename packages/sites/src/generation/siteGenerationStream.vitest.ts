@@ -2,11 +2,13 @@ import { type SiteGenerationEvent, type WebsiteContent } from '@gruenerator/cont
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const notifyAiConsentRequired = vi.hoisted(() => vi.fn());
+const locale = vi.hoisted(() => ({ value: 'de-DE' }));
 
 vi.mock('@gruenerator/shared/api', () => ({
   getGlobalApiClient: () => ({ defaults: { baseURL: '/api' } }),
   stripApiPrefix: (p: string) => (p.startsWith('/api/') ? p.slice(4) : p),
   notifyAiConsentRequired,
+  getApiLocale: () => locale.value,
 }));
 
 import { SitesApiError } from '../utils/errorHandler';
@@ -51,6 +53,7 @@ function run(events: SiteGenerationEvent[] = []) {
 beforeEach(() => {
   fetchMock.mockReset();
   notifyAiConsentRequired.mockReset();
+  locale.value = 'de-DE';
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -63,6 +66,7 @@ describe('streamSiteGeneration', () => {
     expect(url).toBe('/api/sites/generate');
     expect(init.method).toBe('POST');
     expect(init.credentials).toBe('include');
+    expect(init.headers).toEqual({ 'X-User-Locale': 'de-DE' });
     const body = init.body as FormData;
     expect(body.get('description')).toBe(description);
     expect(body.get('email')).toBe('a@b.de');
@@ -145,5 +149,65 @@ describe('streamSiteGeneration', () => {
     const err = await run().catch((e: unknown) => e);
     expect((err as SitesApiError).message).toBe('Nur PDF-Dateien sind erlaubt.');
     expect(notifyAiConsentRequired).not.toHaveBeenCalled();
+  });
+
+  it('sends the AT locale', async () => {
+    locale.value = 'de-AT';
+    fetchMock.mockResolvedValue(sseResponse([frame({ type: 'done', content })]));
+    await run();
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].headers).toEqual({
+      'X-User-Locale': 'de-AT',
+    });
+  });
+
+  it('wraps a rejecting fetch and keeps aborts', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    const err = await run().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SiteGenerationError);
+    expect((err as SiteGenerationError).retryable).toBe(true);
+
+    fetchMock.mockRejectedValue(new DOMException('aborted', 'AbortError'));
+    const abort = await run().catch((e: unknown) => e);
+    expect((abort as Error).name).toBe('AbortError');
+  });
+
+  it('wraps a stream that errors mid-read', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(frame({ type: 'step', step: 'write' })));
+      },
+      pull(controller) {
+        controller.error(new TypeError('network error'));
+      },
+    });
+    fetchMock.mockResolvedValue(new Response(stream, { status: 200 }));
+    const err = await run().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SiteGenerationError);
+    expect((err as SiteGenerationError).message).toBe(
+      'Die Verbindung ist abgebrochen. Bitte versuch es noch einmal.'
+    );
+  });
+
+  it('parses CRLF frames, data: without space, multi-line data and split UTF-8 bytes', async () => {
+    const withUmlaut: WebsiteContent = {
+      ...content,
+      about: { title: 'A', content: 'Über Ökologie' },
+    };
+    const json = JSON.stringify({ type: 'done', content: withUmlaut });
+    const bytes = new TextEncoder().encode(`data:${json}\r\n\r\n`);
+    const at = bytes.indexOf(0xc3) + 1;
+    const multiLine = 'data: {"type":\r\ndata: "heartbeat"}\r\n\r\n';
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(multiLine));
+        controller.enqueue(bytes.slice(0, at));
+        controller.enqueue(bytes.slice(at));
+        controller.close();
+      },
+    });
+    fetchMock.mockResolvedValue(new Response(stream, { status: 200 }));
+    await expect(run()).resolves.toEqual(withUmlaut);
   });
 });

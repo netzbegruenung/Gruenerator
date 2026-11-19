@@ -7,6 +7,7 @@ import {
   type WebsiteContent,
 } from '@gruenerator/contracts';
 import {
+  getApiLocale,
   getGlobalApiClient,
   notifyAiConsentRequired,
   stripApiPrefix,
@@ -41,16 +42,28 @@ function buildBody(input: SiteGenerationInput, email: string): FormData {
 }
 
 function parseFrame(frame: string): SiteGenerationEvent | null {
-  const line = frame.split('\n').find((l) => l.startsWith('data: '));
-  if (!line) return null;
+  const data = frame
+    .split('\n')
+    .filter((l) => l.startsWith('data:'))
+    .map((l) => (l.startsWith('data: ') ? l.slice(6) : l.slice(5)))
+    .join('\n');
+  if (!data) return null;
   let raw: unknown;
   try {
-    raw = JSON.parse(line.slice(6));
+    raw = JSON.parse(data);
   } catch {
     return null;
   }
   const parsed = siteGenerationEventSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
+}
+
+function isAbort(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError';
+}
+
+function interrupted(err: unknown): unknown {
+  return isAbort(err) ? err : new SiteGenerationError(INTERRUPTED_MESSAGE, true);
 }
 
 async function failureFromResponse(response: Response): Promise<SitesApiError> {
@@ -72,12 +85,18 @@ export async function streamSiteGeneration(
   const url = `${getGlobalApiClient().defaults.baseURL ?? ''}${stripApiPrefix(
     sitesContract.generateSiteContent.path
   )}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    credentials: 'include',
-    body: buildBody(input, email),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-User-Locale': getApiLocale() },
+      body: buildBody(input, email),
+      signal,
+    });
+  } catch (err) {
+    throw interrupted(err);
+  }
 
   if (!response.ok) throw await failureFromResponse(response);
   if (!response.body) throw new SiteGenerationError(INTERRUPTED_MESSAGE, true);
@@ -96,8 +115,14 @@ export async function streamSiteGeneration(
 
   try {
     for (;;) {
-      const { done, value } = await reader.read();
-      if (value) buffer += decoder.decode(value, { stream: !done });
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await reader.read();
+      } catch (err) {
+        throw interrupted(err);
+      }
+      const { done, value } = chunk;
+      buffer += decoder.decode(value, { stream: !done }).replace(/\r\n?/g, '\n');
       const frames = buffer.split('\n\n');
       buffer = frames.pop() ?? '';
       for (const frame of frames) {
