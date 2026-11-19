@@ -69,11 +69,11 @@ export const SITE_ACTIONS_MAX = 6;
 export const SITE_SOCIAL_LINKS_MAX = 10;
 export const SITE_PHONE_MAX = 40;
 
-const LEGAL_NAME_MAX = 120;
-const LEGAL_STREET_MAX = 160;
-const LEGAL_POSTAL_CODE_MAX = 12;
-const LEGAL_CITY_MAX = 80;
-const LEGAL_EMAIL_MAX = 254;
+export const LEGAL_NAME_MAX = 120;
+export const LEGAL_STREET_MAX = 160;
+export const LEGAL_POSTAL_CODE_MAX = 12;
+export const LEGAL_CITY_MAX = 80;
+export const LEGAL_EMAIL_MAX = 254;
 const SOCIAL_KEY_MAX = 30;
 const INSTAGRAM_USERNAME_MAX = 60;
 
