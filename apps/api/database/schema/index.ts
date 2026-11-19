@@ -52,6 +52,7 @@ export * from './aiModelLatency.js';
 export * from './reisekosten.js';
 export * from './explainables.js';
 export * from './podcasts.js';
+export * from './videoAi.js';
 export * from './studioAssets.js';
 export * from './contentReports.js';
 export * from './parteitage.js';

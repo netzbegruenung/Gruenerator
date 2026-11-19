@@ -694,6 +694,117 @@ class SharedMediaService {
     }
   }
 
+  /**
+   * Moves a file into a fresh share directory, not copied — the files here are
+   * hundreds of megabytes up to 3 GB. The caller removes the directory when a
+   * later step fails.
+   */
+  private async moveIntoShare(
+    sourcePath: string,
+    shareToken: string,
+    fileName: string
+  ): Promise<{ target: string; size: number }> {
+    const shareDir = getSafeShareDir(shareToken);
+    await fs.mkdir(shareDir, { recursive: true });
+    const target = path.join(shareDir, fileName);
+    try {
+      await fs.rename(sourcePath, target);
+    } catch {
+      // Another filesystem (tmp on its own mount): copy, then drop the source.
+      await fs.copyFile(sourcePath, target);
+      await fs.rm(sourcePath, { force: true });
+    }
+    const stats = await fs.stat(target);
+    return { target, size: stats.size };
+  }
+
+  /**
+   * The KI-Schnitt's working copy of a clip. Internal (`is_library_item`
+   * false, never in the Mediathek grid) and without a share deadline: the
+   * project and the editor stream it as long as the project lives, and the
+   * project's purge removes it. The file is moved in, not copied — a proxy of
+   * fifteen minutes is hundreds of megabytes.
+   */
+  async createVideoAiProxyShare(
+    userId: string,
+    params: { videoPath: string; title: string; durationSeconds: number }
+  ): Promise<{ id: string; shareToken: string }> {
+    await this.ensureInitialized();
+
+    const shareToken = this.generateShareToken();
+    const shareDir = getSafeShareDir(shareToken);
+    try {
+      const { size } = await this.moveIntoShare(params.videoPath, shareToken, 'media.mp4');
+      const row = await this.postgres!.queryOne<{ id: string; share_token: string }>(
+        `INSERT INTO shared_media
+           (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+            file_size, mime_type, duration, status, is_library_item, upload_source,
+            content_origin, image_metadata)
+         VALUES ($1, $2, 'video', $3, $4, 'media.mp4', NULL, $5, 'video/mp4', $6, 'ready', FALSE,
+                 'video-ai-proxy', 'upload', '{}')
+         RETURNING id, share_token`,
+        [userId, shareToken, params.title, `${shareToken}/media.mp4`, size, params.durationSeconds]
+      );
+      return { id: row!.id, shareToken: row!.share_token };
+    } catch (error) {
+      await fs.rm(shareDir, { recursive: true, force: true }).catch(() => undefined);
+      throw new Error(`Failed to store KI-Schnitt proxy: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * A finished resumable upload as a Mediathek item (video or audio). The file
+   * is moved in, not copied — videos here are up to 3 GB. Like every upload it
+   * is the person's source material (`content_origin 'upload'`).
+   */
+  async importUploadedMedia(
+    userId: string,
+    params: {
+      sourcePath: string;
+      mediaType: 'video' | 'audio';
+      mimeType: string;
+      extension: string;
+      title: string;
+      originalFilename: string;
+      durationSeconds: number;
+    }
+  ): Promise<{ id: string; shareToken: string }> {
+    await this.ensureInitialized();
+
+    const shareToken = this.generateShareToken();
+    const shareDir = getSafeShareDir(shareToken);
+    const fileName = `media.${params.extension}`;
+    try {
+      const { target, size } = await this.moveIntoShare(params.sourcePath, shareToken, fileName);
+      const row = await this.postgres!.queryOne<{ id: string; share_token: string }>(
+        `INSERT INTO shared_media
+           (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+            file_size, mime_type, duration, status, is_library_item, upload_source,
+            original_filename, content_origin, image_metadata, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, $8, $9, 'ready', TRUE, 'upload', $10,
+                 'upload', '{}', ${SHARE_EXPIRY_SQL})
+         RETURNING id, share_token`,
+        [
+          userId,
+          shareToken,
+          params.mediaType,
+          params.title,
+          `${shareToken}/${fileName}`,
+          fileName,
+          size,
+          params.mimeType,
+          params.durationSeconds,
+          params.originalFilename,
+        ]
+      );
+      if (params.mediaType === 'video') void this.processVideoPoster(shareToken, target);
+      return { id: row!.id, shareToken: row!.share_token };
+    } catch (error) {
+      await fs.rm(shareDir, { recursive: true, force: true }).catch(() => undefined);
+      throw new Error(`Failed to import upload: ${(error as Error).message}`);
+    }
+  }
+
   async createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
 
