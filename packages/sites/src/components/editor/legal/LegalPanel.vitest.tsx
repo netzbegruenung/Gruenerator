@@ -17,7 +17,7 @@ vi.mock('../../../SitesContext', () => ({
 import { LegalPanel } from './LegalPanel';
 
 function setup() {
-  render(<LegalPanel />);
+  return render(<LegalPanel />);
 }
 
 const blur = (label: string) => fireEvent.blur(screen.getByLabelText(label));
@@ -47,6 +47,27 @@ describe('LegalPanel', () => {
       data: { legal: { name: 'Anna', city: 'Wien', email: 'a@b.de' } },
     });
     expect(screen.getByText('Gespeichert')).toBeInTheDocument();
+  });
+
+  it('unmounting 300 ms after typing flushes exactly one PUT with the typed value', async () => {
+    const view = setup();
+    type('Name', 'Anna');
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(hoisted.updateSite).not.toHaveBeenCalled();
+    view.unmount();
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    expect(hoisted.updateSite).toHaveBeenCalledTimes(1);
+    expect(hoisted.updateSite).toHaveBeenCalledWith({
+      id: 's1',
+      data: { legal: { name: 'Anna' } },
+    });
+  });
+
+  it('pagehide flushes a pending save', async () => {
+    setup();
+    type('Name', 'Anna');
+    window.dispatchEvent(new Event('pagehide'));
+    expect(hoisted.updateSite).toHaveBeenCalledTimes(1);
   });
 
   it('does not save on mount and waits the full 800 ms', async () => {

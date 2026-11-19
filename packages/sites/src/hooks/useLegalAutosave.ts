@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type SaveStatus } from '../draft/useSiteDraftSession';
 
+import { useLeaveWarning } from './useLeaveWarning';
 import { useSite } from './useSite';
 
 export const LEGAL_AUTOSAVE_DELAY_MS = 800;
@@ -36,6 +37,22 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
     const timer = setTimeout(() => void save(), LEGAL_AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [legal, save]);
+
+  const flush = useRef(() => {});
+  flush.current = () => {
+    if (latest.current !== saved.current) void save();
+  };
+
+  useEffect(() => {
+    const onPageHide = () => flush.current();
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      flush.current();
+    };
+  }, []);
+
+  useLeaveWarning(status !== 'saved');
 
   const retry = useCallback(() => void save(), [save]);
 
