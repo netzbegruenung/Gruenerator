@@ -129,6 +129,16 @@ describe('PublishControls', () => {
     expect(screen.queryByRole('button', { name: /Impressum: Name/ })).toBeNull();
   });
 
+  it('does not hand the focus back to the publish button after picking an issue', async () => {
+    const { user } = setup(site({ legal: { ...LEGAL, name: '' } }));
+    await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
+    await user.click(await screen.findByRole('button', { name: /Impressum: Name/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Impressum: Name/ })).toBeNull()
+    );
+    expect(screen.getByRole('button', { name: 'Veröffentlichen' })).not.toHaveFocus();
+  });
+
   it('publish waits for sync before calling the API', async () => {
     const p = fakeProvider(2);
     const { user } = setup(site(), p.provider);
