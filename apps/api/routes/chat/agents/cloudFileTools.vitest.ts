@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { NextcloudHttpError } from '../../../services/api-clients/nextcloudApiClient.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
+import { CloudAccessError } from '../../../services/files/index.js';
 import { makeCloudFilesTool, type AttachedNotebookFolder } from './cloudFileTools.js';
 
 // `emitToolConfirmAction` legt die Karte in Redis ab. Ohne erreichbares Redis
@@ -130,6 +131,7 @@ describe('list_connections', () => {
     expect(result.connections).toEqual([
       {
         connectionId: 'link-1',
+        provider: 'nextcloud-share',
         label: 'Anträge',
         host: 'wolke.netzbegruenung.de',
         origin: 'own',
@@ -137,6 +139,7 @@ describe('list_connections', () => {
       },
       {
         connectionId: 'link-2',
+        provider: 'nextcloud-share',
         label: 'Presse',
         host: 'wolke.netzbegruenung.de',
         origin: 'own',
@@ -638,5 +641,153 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
 
     expect(sourceRegistry.freshSize).toBe(0);
     expect(sourceRegistry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
+  });
+});
+
+describe('mehrere Anbieter', () => {
+  const OD_ROOT: CloudRoot = {
+    connectionId: 'nango-ms',
+    providerId: 'onedrive',
+    label: 'OneDrive',
+    host: 'onedrive.live.com',
+    origin: 'own',
+    isActive: true,
+    secret: 'user-1',
+  };
+  const GD_ROOT: CloudRoot = {
+    ...OD_ROOT,
+    connectionId: 'nango-g',
+    providerId: 'google-drive',
+    label: 'Google Drive',
+    host: 'drive.google.com',
+  };
+  const PICKER_NOTE = 'Nur im Dateiwähler ausgewählte Dateien.';
+
+  function build(
+    providers: Partial<Record<'onedrive' | 'google-drive', Partial<CloudFileProvider>>>
+  ) {
+    const notes: Array<[string, string]> = [];
+    const registered: unknown[] = [];
+    const sourceRegistry = {
+      note: (t: string, c: string) => notes.push([t, c]),
+      register: (r: unknown) => {
+        registered.push(r);
+        return '[1] Auszug';
+      },
+    } as unknown as SourceRegistry;
+    const tool = makeCloudFilesTool({
+      state: {
+        agentConfig: { userId: 'user-1' },
+        attachedWebpageUrls: [],
+      } as unknown as ChatGraphState,
+      sse: { send: () => {} } as unknown as SSEWriter,
+      threadId: 'thread-1',
+      sourceRegistry,
+      providers: Object.fromEntries(
+        Object.entries(providers).map(([id, p]) => [id, { id, ...p }])
+      ) as never,
+      listRoots: async () => [ROOT, OD_ROOT, GD_ROOT],
+      listNotebookFolders: async () => [],
+    });
+    const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
+      (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
+        { recursive: false, ...args },
+        {}
+      )) ?? {};
+    return { run, notes, registered };
+  }
+
+  it('routes each root to its own provider', async () => {
+    const od = vi.fn(async () => listing({ entries: [entry('Berichte/a.pdf')] }));
+    const gd = vi.fn(async () => listing({ entries: [entry('1AbC', { name: 'Notiz' })] }));
+    const { run } = build({ onedrive: { list: od }, 'google-drive': { list: gd } });
+
+    await run({ action: 'list', connectionId: 'nango-ms', path: 'Berichte' });
+    expect(od).toHaveBeenCalledTimes(1);
+    expect(gd).not.toHaveBeenCalled();
+
+    await run({ action: 'list', connectionId: 'nango-g' });
+    expect(gd).toHaveBeenCalledTimes(1);
+  });
+
+  it('names all three providers in list_connections and flags Google Drive as flat', async () => {
+    const { run, registered } = build({});
+    const result = await run({ action: 'list_connections' });
+    expect((result.connections as Array<{ provider: string }>).map((c) => c.provider)).toEqual([
+      'nextcloud-share',
+      'onedrive',
+      'google-drive',
+    ]);
+    const text = (registered[0] as Array<{ content: string }>)[0].content;
+    expect(text).toContain('Google Drive');
+    expect(text).toContain('ausgewählt');
+  });
+
+  it('never calls an empty Google Drive empty: the picker note comes through', async () => {
+    const { run, notes } = build({
+      'google-drive': { list: async () => listing({ note: PICKER_NOTE }) },
+    });
+    const result = await run({ action: 'list', connectionId: 'nango-g' });
+    expect(result.entryCount).toBe(0);
+    expect(String(result.note)).toContain(PICKER_NOTE);
+    expect(notes[0][1]).toBe(PICKER_NOTE);
+    expect(notes[0][1]).not.toContain('leer');
+  });
+
+  it('reads a file under the provider-supplied name', async () => {
+    const { run } = build({
+      'google-drive': {
+        read: async () => ({
+          buffer: Buffer.from('Hallo Welt'),
+          mimeType: 'text/plain',
+          size: 10,
+          name: 'Notiz.txt',
+        }),
+      },
+    });
+    const result = await run({ action: 'read', connectionId: 'nango-g', path: '1AbC' });
+    expect(result.file).toBe('Notiz.txt');
+    expect(result.connection).toBe('Google Drive');
+  });
+
+  it('turns a provider access error into a reconnect hint without leaking the cause', async () => {
+    const { run } = build({
+      onedrive: {
+        list: async () => {
+          throw new CloudAccessError('reauth', 'Verbindung neu verbinden.');
+        },
+      },
+    });
+    const result = await run({ action: 'list', connectionId: 'nango-ms' });
+    expect(result.errorCode).toBe('forbidden');
+    expect(String(result.error)).toContain('OneDrive-Zugriff');
+    expect(String(result.error)).toContain('neu verbinden');
+  });
+
+  it('maps not_found and rate_limit without an errorCode leak', async () => {
+    const { run } = build({
+      onedrive: {
+        read: async () => {
+          throw new CloudAccessError('not_found', 'nicht gefunden');
+        },
+        find: async () => {
+          throw new CloudAccessError('rate_limit', 'begrenzt');
+        },
+      },
+    });
+    const nf = await run({ action: 'read', connectionId: 'nango-ms', path: 'x.pdf' });
+    expect(nf.errorCode).toBe('not_found');
+    const rl = await run({ action: 'find', connectionId: 'nango-ms', name: 'x' });
+    expect(rl.errorCode).toBeUndefined();
+    expect(String(rl.error)).toContain('begrenzt');
+  });
+
+  it('tests a Drive connection with Drive wording, not share-link wording', async () => {
+    const { run } = build({
+      onedrive: { test: async () => ({ ok: false, errorCode: 'forbidden' as const }) },
+    });
+    const result = await run({ action: 'test_connection', connectionId: 'nango-ms' });
+    expect(String(result.note)).toContain('Konnektoren');
+    expect(String(result.note)).not.toContain('Freigabe-Link');
   });
 });

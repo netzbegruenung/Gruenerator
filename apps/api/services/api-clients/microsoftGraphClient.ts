@@ -41,21 +41,18 @@ function graphNextUrl(nextLink: string): string {
   return `${GRAPH_API}/${nextLink.slice(prefix.length)}`;
 }
 
+const ITEM_SELECT = 'id,name,size,lastModifiedDateTime,webUrl,file,folder';
+
 /** Follows `@odata.nextLink` up to the cap. */
-export async function listDriveItems(
+async function collectItems(
   token: string,
-  folderId?: string
+  firstUrl: string,
+  firstParams: Record<string, string | number>
 ): Promise<MicrosoftDriveListResult> {
-  if (folderId) validateGraphId(folderId, 'folder ID');
-  const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
   const items: MicrosoftDriveItem[] = [];
-  let url: string | null = `${GRAPH_API}${path}`;
+  let url: string | null = firstUrl;
   let nextLink: string | null = null;
-  let params: Record<string, string | number> | undefined = {
-    $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
-    $top: 200,
-    $orderby: 'name',
-  };
+  let params: Record<string, string | number> | undefined = firstParams;
   while (url && items.length < MAX_LIST_ITEMS) {
     const response = await axios.get(url, { headers: authHeaders(token), params });
     const parsed = graphDriveItemListResponseSchema.parse(response.data);
@@ -65,6 +62,73 @@ export async function listDriveItems(
     params = undefined;
   }
   return { items, nextLink };
+}
+
+export async function listDriveItems(
+  token: string,
+  folderId?: string
+): Promise<MicrosoftDriveListResult> {
+  if (folderId) validateGraphId(folderId, 'folder ID');
+  const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
+  return collectItems(token, `${GRAPH_API}${path}`, {
+    $select: ITEM_SELECT,
+    $top: 200,
+    $orderby: 'name',
+  });
+}
+
+/**
+ * Path addressing `/me/drive/root:/<path>:` — each segment percent-encoded.
+ * https://learn.microsoft.com/graph/api/driveitem-get (access by path)
+ * Callers pass a path already checked by `assertRootRelativePath`.
+ */
+function pathAddress(path: string): string {
+  const encoded = path
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return encoded ? `/me/drive/root:/${encoded}:` : '/me/drive/root';
+}
+
+/** Children of a folder addressed by its path; `''` is the drive root. */
+export async function listDriveItemsAtPath(
+  token: string,
+  path: string
+): Promise<MicrosoftDriveListResult> {
+  const address = pathAddress(path);
+  return collectItems(token, `${GRAPH_API}${address}/children`, {
+    $select: ITEM_SELECT,
+    $top: 200,
+  });
+}
+
+/** One item by path (`''` = drive root). */
+export async function getDriveItemByPath(token: string, path: string): Promise<MicrosoftDriveItem> {
+  const response = await axios.get(`${GRAPH_API}${pathAddress(path)}`, {
+    headers: authHeaders(token),
+    params: { $select: ITEM_SELECT },
+  });
+  return microsoftDriveItemSchema.parse(response.data);
+}
+
+/**
+ * Drive search, first page only (`nextLink` set when there is more). Graph
+ * matches file name AND content, so callers still filter by name themselves.
+ * https://learn.microsoft.com/graph/api/driveitem-search — single quotes in the
+ * term are doubled.
+ */
+export async function searchDriveItems(
+  token: string,
+  query: string
+): Promise<MicrosoftDriveListResult> {
+  const term = encodeURIComponent(query.replace(/'/g, "''"));
+  const response = await axios.get(`${GRAPH_API}/me/drive/root/search(q='${term}')`, {
+    headers: authHeaders(token),
+    params: { $select: `${ITEM_SELECT},parentReference`, $top: 50 },
+  });
+  const parsed = graphDriveItemListResponseSchema.parse(response.data);
+  return { items: parsed.value, nextLink: parsed['@odata.nextLink'] ?? null };
 }
 
 export async function getDriveItem(token: string, itemId: string): Promise<MicrosoftDriveItem> {
