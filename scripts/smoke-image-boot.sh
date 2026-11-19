@@ -8,8 +8,10 @@ set -euo pipefail
 
 image="$1"
 wait_seconds="${2:-20}"
+# Optional extra `docker run` arguments, e.g. SMOKE_DOCKER_ARGS="-e SITES_HOST=sites.ci.test".
+read -r -a extra_args <<<"${SMOKE_DOCKER_ARGS:-}"
 
-cid=$(docker run -d "$image")
+cid=$(docker run -d ${extra_args[@]+"${extra_args[@]}"} "$image")
 sleep "$wait_seconds"
 logs=$(docker logs "$cid" 2>&1 || true)
 docker rm -f "$cid" >/dev/null
