@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MarkdownStreamingProvider } from '../../context/MarkdownStreamingContext';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
 import { remarkCitationMarkers } from '../../lib/remarkCitationMarkers';
+import { remarkDateLists } from '../../lib/remarkDateLists';
 import { remarkSourceLinks } from '../../lib/remarkSourceLinks';
 
 import { StreamdownMarkdownText } from './StreamdownMarkdownText';
@@ -87,6 +88,7 @@ describe('StreamdownMarkdownText — citations stay out of preprocess', () => {
     const plugins = captured.props.remarkPlugins ?? [];
     expect(plugins).toContain(remarkCitationMarkers);
     expect(plugins).toContain(remarkSourceLinks);
+    expect(plugins).toContain(remarkDateLists);
     // A custom list REPLACES the defaults inside Streamdown; without gfm, tables die.
     for (const plugin of Object.values(defaultRemarkPlugins)) expect(plugins).toContain(plugin);
   });
