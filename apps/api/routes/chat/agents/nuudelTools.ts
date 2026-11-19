@@ -9,11 +9,14 @@
  * Das Lesen ändert nichts und fragt nicht.
  *
  * Beide liegen hinter der Gruppe `nuudel` (`toolScope.ts`). Ablauf und
- * Formulierungen: Rezept „umfrage".
+ * Formulierungen: Rezept „nuudel". Das Modell lädt es im Loop selten von
+ * selbst (live gemessen 19.11.2026: in 15 Turns nie), deshalb stehen die
+ * Regeln, ohne die eine Umfrage schief angelegt wird, in der Beschreibung.
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { berlinDay } from '../../../services/briefing/time.js';
 import { nuudelBaseUrl } from '../../../services/nuudel/client.js';
 import {
   orderNuudelPoll,
@@ -44,7 +47,7 @@ const ISO_DAY = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), 'kein gültiges Datum');
 
-const CREATE_INPUT = z.object({
+const CREATE_FIELDS = z.object({
   art: z
     .enum(['termin', 'auswahl'])
     .describe('„termin" = Terminfindung (Tage, optional Uhrzeiten); „auswahl" = freie Optionen'),
@@ -58,7 +61,9 @@ const CREATE_INPUT = z.object({
           .array(z.string().trim().min(1).max(30))
           .max(10)
           .optional()
-          .describe('z. B. ["18:00", "19:30"]; weglassen = ganzer Tag'),
+          .describe(
+            'z. B. ["18:00", "19:30"]; eine Zeitspanne bleibt EIN Eintrag ("10–16 Uhr"); weglassen = ganzer Tag'
+          ),
       })
     )
     .min(1)
@@ -76,7 +81,35 @@ const CREATE_INPUT = z.object({
   ),
 });
 
-type CreateInput = z.infer<typeof CREATE_INPUT>;
+type CreateInput = z.infer<typeof CREATE_FIELDS>;
+
+/**
+ * Das Eingabeschema mit dem heutigen Tag. Vergangene Tage scheitern hier und
+ * nicht erst in `execute`: das SDK prüft die Eingabe VOR `execute`, und dort
+ * sitzt das Freigabe-Gate (`wrapTools.ts`). Sonst bekäme die Person eine
+ * Umfrage zur Freigabe, die danach doch abgelehnt wird; so sieht das Modell
+ * den Fehler und fragt nach (live 19.11.2026: „3. und 5. November" ging bis
+ * ans Gate).
+ */
+export function createInputSchema(today: string = berlinDay(new Date())) {
+  return CREATE_FIELDS.superRefine((args, ctx) => {
+    const past = (args.termine ?? []).map((t) => t.tag).filter((d) => d < today);
+    if (past.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['termine'],
+        message: `Diese Termine liegen in der Vergangenheit (heute ist ${today}): ${past.join(', ')}. Frag die Person, welche Tage gemeint sind.`,
+      });
+    }
+    if (args.ende && args.ende < today) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ende'],
+        message: `Das Ablaufdatum ${args.ende} liegt in der Vergangenheit (heute ist ${today}).`,
+      });
+    }
+  });
+}
 
 export function toOrder(args: CreateInput): PollOrder | { error: string } {
   const base = {
@@ -110,10 +143,16 @@ export function makeNuudelCreateTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Legt eine Umfrage auf nuudel.digitalcourage.de an (Dienst von Digitalcourage e.V., wie Doodle ohne Tracking): eine Terminfindung („Wann können alle?") oder eine Auswahl zwischen Optionen. Die Person wird mit Name und E-Mail-Adresse ihres Kontos als Ersteller*in eingetragen; nuudel schickt ihr Teilnahme- und Admin-Link.
 
-NUTZE, wenn die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellt haben will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen'). Termine immer als „YYYY-MM-DD" (heute ist ${new Date().toISOString().slice(0, 10)}).
+NUTZE, wenn die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellt haben will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen'). Termine immer als „YYYY-MM-DD" (heute ist ${berlinDay(new Date())}); relative Angaben („nächster Dienstag") rechnest du selbst um.
 
-Fehlt Wesentliches (Titel, Termine bzw. Optionen), frag in EINER Nachricht nach. Die Person bestätigt den Aufruf vor dem Anlegen. Ablauf und Antwort danach: Rezept „umfrage" (über rezept_laden).`,
-    inputSchema: CREATE_INPUT,
+REGELN:
+- Den Titel schlägst du selbst vor, frag nie danach. Fehlen nur die Termine bzw. Optionen, frag in EINER kurzen Frage genau danach, ohne Liste weiterer Angaben.
+- Optionen und Uhrzeiten übernimmst du wörtlich, ohne Zusätze. „beschreibung" nur mit dem, was die Person gesagt oder eingefügt hat (Ort, Tagesordnung); sonst weglassen.
+- Liegt ein genannter Tag vor heute, ruf nicht auf, sondern frag nach, welcher gemeint ist.
+- Sind Titel und Termine bzw. Optionen klar, ruf das Werkzeug SOFORT auf, mit einem Satz davor, was angelegt wird. Frag NICHT „Soll ich das so anlegen?": die Oberfläche zeigt der Person den Aufruf mit allen Angaben, und sie erlaubt oder lehnt ihn ab. Vorher ist nichts angelegt und es gibt keinen Link. Nie nach der E-Mail-Adresse fragen.
+- Danach: Teilnahme-Link zum Weiterschicken, Admin-Link nur für die Person (bearbeiten, auswerten, löschen); nuudel schickt beide auch per Mail; die Funktion ist experimentell.
+Mehr dazu: Rezept „nuudel" (über rezept_laden).`,
+    inputSchema: createInputSchema(),
     execute: async (args) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
@@ -151,7 +190,9 @@ export function makeNuudelReadTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Liest das Ergebnis einer nuudel-Umfrage, die der Grünerator für die Person angelegt hat: je Termin bzw. Option die Zahl der Ja-, Vorbehalt- und Nein-Stimmen und wer wie abgestimmt hat. Ohne „umfrage" die jüngste; die Antwort listet alle eigenen Umfragen mit.
 
-NUTZE, wenn die Person wissen will, wie eine ihrer Umfragen steht oder welcher Termin passt. Fremde nuudel-Umfragen kann es nicht lesen.`,
+NUTZE, wenn die Person wissen will, wie eine ihrer Umfragen steht oder welcher Termin passt, auch wenn sie einen nuudel-Link schickt. Fremde nuudel-Umfragen kann es nicht lesen; das Ergebnis sagt es dann.
+
+Antwort: Termin bzw. Option mit den meisten Ja-Stimmen; bei Gleichstand alle gleichauf liegenden, Vorbehalt-Stimmen als zweites Kriterium; dazu die Zahl der Teilnehmenden.`,
     inputSchema: z.object({
       umfrage: z
         .string()
@@ -163,6 +204,15 @@ NUTZE, wenn die Person wissen will, wie eine ihrer Umfragen steht oder welcher T
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
       const polls = await pollsOf(userId);
+      const foreign = foreignPollRef(polls, args.umfrage ?? null);
+      if (foreign) {
+        return {
+          error: `${foreign} ist keine Umfrage, die der Grünerator für die Person angelegt hat. Fremde nuudel-Umfragen kann er nicht lesen; die Person sieht das Ergebnis auf der Seite selbst oder kopiert es hier hinein.`,
+          ...(polls.length > 0
+            ? { alle: polls.map((p) => ({ titel: p.title, teilnahme_link: p.pollUrl })) }
+            : {}),
+        };
+      }
       if (polls.length === 0) {
         return {
           error: 'Die Person hat noch keine nuudel-Umfrage über den Grünerator angelegt.',
@@ -207,6 +257,13 @@ NUTZE, wenn die Person wissen will, wie eine ihrer Umfragen steht oder welcher T
       }
     },
   });
+}
+
+/** Ein nuudel-Link, der zu keiner eigenen Umfrage gehört, oder null. */
+export function foreignPollRef(polls: OwnPoll[], ref: string | null): string | null {
+  const link = ref?.match(/https?:\/\/\S*nuudel\S*/i)?.[0] ?? null;
+  if (!link) return null;
+  return pickPoll(polls, link) ? null : link;
 }
 
 /** Montiert nur, solange nuudel nicht abgeschaltet ist (`NUUDEL_URL`). */
