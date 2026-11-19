@@ -3,6 +3,7 @@ import {
   siteDraftToSnapshotSource,
   type SupportedLocale,
 } from '@gruenerator/contracts';
+import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
@@ -21,6 +22,7 @@ import { useAuth } from '../SitesContext';
 
 import { EditorHeader } from './EditorHeader';
 import { PreviewDialog } from './PreviewDialog';
+import { PublishControls } from './publish/PublishControls';
 
 function DraftPreview({ site, editable }: { site: SiteData; editable: boolean }) {
   const { user } = useAuth();
@@ -43,6 +45,46 @@ function DraftPreview({ site, editable }: { site: SiteData; editable: boolean })
         onFrameDocument={setFrameDoc}
       />
     </>
+  );
+}
+
+type PreviewView = 'draft' | 'live';
+
+export function PreviewPane({ site }: { site: SiteData }) {
+  const [view, setView] = useState<PreviewView>('draft');
+  const published = site.published_snapshot;
+  const showLive = view === 'live' && published !== null;
+  return (
+    <div className="flex h-full flex-col">
+      {published && (
+        <div className="flex shrink-0 justify-center border-b border-grey-200 p-xs dark:border-grey-700">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={view}
+            onValueChange={(value) => {
+              if (value) setView(value as PreviewView);
+            }}
+            aria-label="Vorschau-Stand"
+          >
+            <ToggleGroupItem value="draft">Entwurf</ToggleGroupItem>
+            <ToggleGroupItem value="live">Live-Stand</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        {showLive ? (
+          <SitePreviewFrame
+            snapshot={published}
+            handle={site.subdomain}
+            title="Live-Stand der Website"
+            className="block h-full w-full border-0"
+          />
+        ) : (
+          <DraftPreview site={site} editable />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -84,11 +126,10 @@ export function SiteEditor({ site }: { site: SiteData }) {
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
           <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
-            <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)} />
-            <EditorLayout
-              sidebar={<EditorSidebar />}
-              preview={<DraftPreview site={site} editable />}
-            />
+            <EditorHeader save={session.save} onPreview={() => setPreviewOpen(true)}>
+              <PublishControls site={site} provider={session.provider} />
+            </EditorHeader>
+            <EditorLayout sidebar={<EditorSidebar />} preview={<PreviewPane site={site} />} />
             <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen}>
               <DraftPreview site={site} editable={false} />
             </PreviewDialog>

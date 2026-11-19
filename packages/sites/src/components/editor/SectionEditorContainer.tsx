@@ -1,5 +1,7 @@
 import { useEditorStore } from '../../stores/editorStore';
 
+import { LegalPanel } from './legal/LegalPanel';
+import { SettingsPanel } from './settings/SettingsPanel';
 import { AboutSectionEditor } from './sections/AboutSectionEditor';
 import { ActionsSectionEditor } from './sections/ActionsSectionEditor';
 import { ContactSectionEditor } from './sections/ContactSectionEditor';
@@ -26,7 +28,9 @@ function ActiveEditor() {
     case 'contact':
       return <ContactSectionEditor />;
     case 'settings':
+      return <SettingsPanel />;
     case 'legal':
+      return <LegalPanel />;
     case null:
       return null;
   }

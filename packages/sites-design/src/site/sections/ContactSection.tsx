@@ -39,6 +39,7 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
             url={backdrop}
             slot="backdrop"
             field="sections.contact.backgroundImageUrl"
+            focus={contact?.backgroundFocus}
             className="site:absolute site:inset-0 site:-z-20"
           />
           <div

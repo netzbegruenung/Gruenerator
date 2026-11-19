@@ -12,6 +12,7 @@ export {
 export { sitePaths, type SiteLinks } from './model/paths.js';
 export { reportHref, safeHref } from './model/links.js';
 export { SECTION_ANCHORS, visibleSections, type SiteRenderMode } from './model/visibility.js';
+export { variantSwatches, type SiteSwatch } from './model/swatches.js';
 export { sizedSrc } from './model/images.js';
 export { type SiteDocumentKind } from './model/meta.js';
 export { type LegalDocumentKind } from './legal/types.js';
