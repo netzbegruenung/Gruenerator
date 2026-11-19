@@ -89,6 +89,48 @@ describe('site draft', () => {
     expect(snapshotDiffers({ ...source, legal: null }, built.snapshot)).toBe(true);
   });
 
+  describe('key order (jsonb reorders keys on storage)', () => {
+    // Re-inserts every object's keys in reverse order at every level; arrays keep their order.
+    const reorder = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(reorder);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(
+        Object.entries(value)
+          .reverse()
+          .map(([k, v]) => [k, reorder(v)])
+      );
+    };
+    const build = (source: SiteSnapshotSource): PublishedSiteSnapshot => {
+      const built = buildSiteSnapshot(source, 'de-DE');
+      if (!built.ok) throw new Error('fixture must be valid');
+      return built.snapshot;
+    };
+
+    it('compares a key-reordered published snapshot as equal', () => {
+      const source = row();
+      const published = reorder(build(source)) as PublishedSiteSnapshot;
+      expect(JSON.stringify(published)).not.toBe(JSON.stringify(build(source)));
+      expect(snapshotDiffers(source, published)).toBe(false);
+    });
+
+    it('still detects a text change and a list order change', () => {
+      const source = row();
+      const published = reorder(build(source)) as PublishedSiteSnapshot;
+      const changed = row();
+      changed.sections = {
+        ...changed.sections,
+        about: { title: 'Wer ich bin', content: richTextDocFromPlainText('Anders') },
+      };
+      expect(snapshotDiffers(changed, published)).toBe(true);
+      const swapped = row();
+      swapped.sections = {
+        ...swapped.sections,
+        themes: [...(swapped.sections?.themes ?? [])].reverse(),
+      };
+      expect(snapshotDiffers(swapped, published)).toBe(true);
+    });
+  });
+
   it('treats every spelling of an empty rich text as unchanged', () => {
     const source = row();
     source.sections = {
