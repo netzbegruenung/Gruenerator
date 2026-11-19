@@ -13,6 +13,8 @@ import { DOCUMENT_UPLOAD_FORMAT_HINT, resolveDocumentUploadFormat } from '@gruen
 import { ocrService } from '../../OcrService/index.js';
 import { stripPageMarkers, type PageMarkerOptions } from '../../OcrService/pageMarkers.js';
 
+import { DocumentReadError } from './processingError.js';
+
 import type { UploadedFile } from './types.js';
 
 /**
@@ -102,7 +104,7 @@ export async function extractDocumentFromFile(
         (validationError.message.includes('zu groß') ||
           validationError.message.includes('zu viele Seiten'))
       ) {
-        throw validationError;
+        throw new DocumentReadError(validationError.message, { cause: validationError });
       }
       throw validationError;
     } finally {
@@ -115,7 +117,7 @@ export async function extractDocumentFromFile(
       .extname(file.originalname || '')
       .toUpperCase()
       .replace('.', '');
-    throw new Error(
+    throw new DocumentReadError(
       `${ext ? `${ext}-Dateien` : 'Dieser Dateityp'} können nicht gelesen werden. Unterstützt werden: ${DOCUMENT_UPLOAD_FORMAT_HINT}. Speichere das Dokument als PDF oder DOCX und lade es erneut hoch.`
     );
   }
