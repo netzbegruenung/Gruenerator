@@ -17,107 +17,17 @@
  */
 
 import {
-  threadsContract,
-  chatThreadSharingContract,
-  exportsContract,
-  speechContract,
-  recentValuesContract,
-  recentActivityContract,
-  contentContract,
-  trashContract,
-  itemUsageContract,
-  userLibraryContract,
-  userUsageContract,
-  treesContract,
-  transparencyContract,
-  globalSearchContract,
-  researchContract,
-  boardsContract,
-  sheetsContract,
-  presentationsContract,
-  boardCommentsContract,
-  entityReactionsContract,
-  entityCommentsContract,
-  boardAgentContract,
-  boardActivityContract,
-  boardSubscriptionsContract,
-  boardSchedulesContract,
-  boardAttachmentsContract,
-  boardCardDocumentsContract,
-  publicBoardsContract,
-  notebookContract,
-  notebookCollectionsContract,
-  wolkePendingContract,
-  notebookWordpressContract,
-  userWebsitesContract,
-  antragsgruenSitesContract,
-  nuudelPollsContract,
-  letterheadsContract,
-  notebookSharingContract,
-  notificationsContract,
-  memoryContract,
-  emailContract,
-  feedbackContract,
-  contentReportContract,
-  adminReportsContract,
-  modelPreferencesContract,
-  imageModelPreferenceContract,
-  mcpServersContract,
-  chatToolApprovalsContract,
-  imageEditContract,
-  sharepicCreatorContract,
-  sharepicVorlagenContract,
-  sharepicTextContract,
-  adminVorlagenContract,
-  userTemplatesContract,
-  sharedTemplateContract,
-  templateInteractionsContract,
-  studioAssetsContract,
-  marketplaceContract,
-  parteitageContract,
-  parteitageAdminContract,
-  userAgentsContract,
-  userAgentsSharingContract,
-  skillPromptContract,
-  agentVisibilityContract,
-  chunkInspectorContract,
-  bundestagQaContract,
-  connectorTestContract,
-  connectionsContract,
-  skillVisibilityContract,
-  instanceAdminOverviewContract,
-  adminStatsContract,
-  appReleaseContract,
-  translationContract,
-  lvAdminAssignmentContract,
-  landesverbandAdminContract,
-  userTextFormsContract,
-  recurringTasksContract,
-  docsContract,
-  docSnapshotsContract,
-  documentsContract,
-  groupsContract,
-  userProfileContract,
-  canvasContract,
-  monitorContract,
-  sitesContract,
-  texteContract,
-  subtitlerContract,
-  reisekostenContract,
-  imagePickerContract,
-  sharesReadContract,
-  promptsContract,
-  explainablesContract,
-  publicExplainablesContract,
-  podcastsContract,
-  videoAiContract,
-  mediaImportContract,
-  briefingContract,
-} from '@gruenerator/contracts';
-import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
+  initClient,
+  isZodType,
+  type AppRoute,
+  type AppRouter,
+  type InitClientArgs,
+} from '@ts-rest/core';
 import { isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
+
+import type * as ContractsModule from '@gruenerator/contracts';
 
 // ── Axios-backed fetch adapter ───────────────────────────────────────────────
 
@@ -293,205 +203,213 @@ const VALIDATED_CLIENT_OPTS = {
   validateResponse: true,
 } as const;
 
-// Infer types directly from initClient — avoids importing InitClientReturn
-// which may not be exported in all @ts-rest/core minor versions.
-const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
-const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
-const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
-const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
-const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
-const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
-const _trashClient = () => initClient(trashContract, CLIENT_OPTS);
-const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
-const _userLibraryClient = () => initClient(userLibraryContract, CLIENT_OPTS);
-const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
-const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
-const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
-const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
-const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
-const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
-const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
-const _presentationsClient = () => initClient(presentationsContract, CLIENT_OPTS);
-const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
-const _entityReactionsClient = () => initClient(entityReactionsContract, CLIENT_OPTS);
-const _entityCommentsClient = () => initClient(entityCommentsContract, CLIENT_OPTS);
-const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
-const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
-const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
-const _boardSchedulesClient = () => initClient(boardSchedulesContract, CLIENT_OPTS);
-const _boardAttachmentsClient = () => initClient(boardAttachmentsContract, CLIENT_OPTS);
-const _boardCardDocumentsClient = () => initClient(boardCardDocumentsContract, CLIENT_OPTS);
-const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
-const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
-const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
-const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
-const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
-const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
-const _antragsgruenSitesClient = () => initClient(antragsgruenSitesContract, CLIENT_OPTS);
-const _nuudelPollsClient = () => initClient(nuudelPollsContract, CLIENT_OPTS);
-const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
-const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
-const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
-const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
-const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
-const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
-const _contentReportsClient = () => initClient(contentReportContract, CLIENT_OPTS);
-const _adminReportsClient = () => initClient(adminReportsContract, CLIENT_OPTS);
-const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
-const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
-const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
-const _chatToolApprovalsClient = () => initClient(chatToolApprovalsContract, CLIENT_OPTS);
-const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
-const _sharepicCreatorClient = () => initClient(sharepicCreatorContract, CLIENT_OPTS);
-const _sharepicVorlagenClient = () => initClient(sharepicVorlagenContract, CLIENT_OPTS);
-const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
-const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
-const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
-const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OPTS);
-const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
-const _studioAssetsClient = () => initClient(studioAssetsContract, CLIENT_OPTS);
-const _marketplaceClient = () => initClient(marketplaceContract, CLIENT_OPTS);
-const _parteitageClient = () => initClient(parteitageContract, CLIENT_OPTS);
-const _parteitageAdminClient = () => initClient(parteitageAdminContract, CLIENT_OPTS);
-const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
-const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
-const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
-const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
-const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
-const _bundestagQaClient = () => initClient(bundestagQaContract, CLIENT_OPTS);
-const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
-const _connectionsClient = () => initClient(connectionsContract, CLIENT_OPTS);
-const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
-const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
-const _adminStatsClient = () => initClient(adminStatsContract, CLIENT_OPTS);
-const _appReleaseClient = () => initClient(appReleaseContract, CLIENT_OPTS);
-const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
-const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
-const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
-const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
-const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
-const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
-const _docSnapshotsClient = () => initClient(docSnapshotsContract, CLIENT_OPTS);
-const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
-const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
-const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
-// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
-const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
-const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
-const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
-const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
-// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
-const _subtitlerClient = () => initClient(subtitlerContract, VALIDATED_CLIENT_OPTS);
-const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
-const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
-// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
-const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
-const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
-const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
-const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
-const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
-const _videoAiClient = () => initClient(videoAiContract, CLIENT_OPTS);
-const _mediaImportClient = () => initClient(mediaImportContract, CLIENT_OPTS);
-const _briefingClient = () => initClient(briefingContract, CLIENT_OPTS);
+// ── Lazy per-namespace clients ───────────────────────────────────────────────
+//
+// `@gruenerator/contracts` (every contract plus its Zod schemas) is large, and
+// almost every namespace is only used by a lazy route. A static import here
+// put all of it into the web entry's closure, and the first
+// `getContractsClient()` ran ~96 `initClient` factories on top. So the contract
+// *values* are now loaded with a dynamic `import()` on the first route call of
+// a namespace. That costs nothing at the call sites: every ts-rest route call
+// already returns a Promise, so `client.ns.route(args)` just resolves a tick
+// later the first time. The type of `ContractsClient` is derived from the
+// contract TYPES below (type-only, erased at build time) and is unchanged.
+//
+// `@gruenerator/contracts` has no per-contract subpath exports, so the first
+// call of ANY namespace loads the whole contracts module as one lazy chunk,
+// not just that namespace's contract. It is still out of the boot closure.
 
-export interface ContractsClient {
-  threads: ReturnType<typeof _threadsClient>;
-  exports: ReturnType<typeof _exportsClient>;
-  speech: ReturnType<typeof _speechClient>;
-  recentValues: ReturnType<typeof _recentValuesClient>;
-  recentActivity: ReturnType<typeof _recentActivityClient>;
-  content: ReturnType<typeof _contentClient>;
-  trash: ReturnType<typeof _trashClient>;
-  itemUsage: ReturnType<typeof _itemUsageClient>;
-  userLibrary: ReturnType<typeof _userLibraryClient>;
-  userUsage: ReturnType<typeof _userUsageClient>;
-  trees: ReturnType<typeof _treesClient>;
-  transparency: ReturnType<typeof _transparencyClient>;
-  globalSearch: ReturnType<typeof _globalSearchClient>;
-  research: ReturnType<typeof _researchClient>;
-  boards: ReturnType<typeof _boardsClient>;
-  sheets: ReturnType<typeof _sheetsClient>;
-  presentations: ReturnType<typeof _presentationsClient>;
-  boardComments: ReturnType<typeof _boardCommentsClient>;
-  entityReactions: ReturnType<typeof _entityReactionsClient>;
-  entityComments: ReturnType<typeof _entityCommentsClient>;
-  boardAgent: ReturnType<typeof _boardAgentClient>;
-  boardActivity: ReturnType<typeof _boardActivityClient>;
-  boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
-  boardSchedules: ReturnType<typeof _boardSchedulesClient>;
-  boardAttachments: ReturnType<typeof _boardAttachmentsClient>;
-  boardCardDocuments: ReturnType<typeof _boardCardDocumentsClient>;
-  publicBoards: ReturnType<typeof _publicBoardsClient>;
-  notebook: ReturnType<typeof _notebookClient>;
-  notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
-  wolkePending: ReturnType<typeof _wolkePendingClient>;
-  notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
-  userWebsites: ReturnType<typeof _userWebsitesClient>;
-  antragsgruenSites: ReturnType<typeof _antragsgruenSitesClient>;
-  nuudelPolls: ReturnType<typeof _nuudelPollsClient>;
-  letterheads: ReturnType<typeof _letterheadsClient>;
-  notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
-  notifications: ReturnType<typeof _notificationsClient>;
-  memory: ReturnType<typeof _memoryClient>;
-  email: ReturnType<typeof _emailClient>;
-  feedback: ReturnType<typeof _feedbackClient>;
-  contentReports: ReturnType<typeof _contentReportsClient>;
-  adminReports: ReturnType<typeof _adminReportsClient>;
-  translation: ReturnType<typeof _translationClient>;
-  modelPreferences: ReturnType<typeof _modelPreferencesClient>;
-  imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
-  mcpServers: ReturnType<typeof _mcpServersClient>;
-  chatToolApprovals: ReturnType<typeof _chatToolApprovalsClient>;
-  imageEdit: ReturnType<typeof _imageEditClient>;
-  sharepicCreator: ReturnType<typeof _sharepicCreatorClient>;
-  sharepicVorlagen: ReturnType<typeof _sharepicVorlagenClient>;
-  sharepicText: ReturnType<typeof _sharepicTextClient>;
-  adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
-  userTemplates: ReturnType<typeof _userTemplatesClient>;
-  sharedTemplate: ReturnType<typeof _sharedTemplateClient>;
-  templateInteractions: ReturnType<typeof _templateInteractionsClient>;
-  studioAssets: ReturnType<typeof _studioAssetsClient>;
-  marketplace: ReturnType<typeof _marketplaceClient>;
-  parteitage: ReturnType<typeof _parteitageClient>;
-  parteitageAdmin: ReturnType<typeof _parteitageAdminClient>;
-  userAgents: ReturnType<typeof _userAgentsClient>;
-  userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
-  skillPrompt: ReturnType<typeof _skillPromptClient>;
-  agentVisibility: ReturnType<typeof _agentVisibilityClient>;
-  chunkInspector: ReturnType<typeof _chunkInspectorClient>;
-  bundestagQa: ReturnType<typeof _bundestagQaClient>;
-  connectorTest: ReturnType<typeof _connectorTestClient>;
-  connections: ReturnType<typeof _connectionsClient>;
-  skillVisibility: ReturnType<typeof _skillVisibilityClient>;
-  instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
-  adminStats: ReturnType<typeof _adminStatsClient>;
-  appRelease: ReturnType<typeof _appReleaseClient>;
-  lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
-  landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
-  userTextForms: ReturnType<typeof _userTextFormsClient>;
-  recurringTasks: ReturnType<typeof _recurringTasksClient>;
-  docs: ReturnType<typeof _docsClient>;
-  docSnapshots: ReturnType<typeof _docSnapshotsClient>;
-  documents: ReturnType<typeof _documentsClient>;
-  groups: ReturnType<typeof _groupsClient>;
-  userProfile: ReturnType<typeof _userProfileClient>;
-  canvas: ReturnType<typeof _canvasClient>;
-  monitor: ReturnType<typeof _monitorClient>;
-  sites: ReturnType<typeof _sitesClient>;
-  texte: ReturnType<typeof _texteClient>;
-  subtitler: ReturnType<typeof _subtitlerClient>;
-  reisekosten: ReturnType<typeof _reisekostenClient>;
-  imagePicker: ReturnType<typeof _imagePickerClient>;
-  sharesRead: ReturnType<typeof _sharesReadClient>;
-  prompts: ReturnType<typeof _promptsClient>;
-  explainables: ReturnType<typeof _explainablesClient>;
-  publicExplainables: ReturnType<typeof _publicExplainablesClient>;
-  podcasts: ReturnType<typeof _podcastsClient>;
-  videoAi: ReturnType<typeof _videoAiClient>;
-  mediaImport: ReturnType<typeof _mediaImportClient>;
-  briefing: ReturnType<typeof _briefingClient>;
+type ContractModule = typeof ContractsModule;
+
+type PlainClient<T extends AppRouter> = ReturnType<typeof initClient<T, typeof CLIENT_OPTS>>;
+type ValidatedClient<T extends AppRouter> = ReturnType<
+  typeof initClient<T, typeof VALIDATED_CLIENT_OPTS>
+>;
+
+/**
+ * namespace → contract export + client options. `validated` namespaces parse
+ * the 200 body against the contract's Zod schema — see VALIDATED_CLIENT_OPTS
+ * (`canvas`, `subtitler`, `sharesRead`).
+ */
+const NAMESPACES = {
+  threads: { contract: 'threadsContract', opts: 'plain' },
+  exports: { contract: 'exportsContract', opts: 'plain' },
+  speech: { contract: 'speechContract', opts: 'plain' },
+  recentValues: { contract: 'recentValuesContract', opts: 'plain' },
+  recentActivity: { contract: 'recentActivityContract', opts: 'plain' },
+  content: { contract: 'contentContract', opts: 'plain' },
+  trash: { contract: 'trashContract', opts: 'plain' },
+  itemUsage: { contract: 'itemUsageContract', opts: 'plain' },
+  userLibrary: { contract: 'userLibraryContract', opts: 'plain' },
+  userUsage: { contract: 'userUsageContract', opts: 'plain' },
+  trees: { contract: 'treesContract', opts: 'plain' },
+  transparency: { contract: 'transparencyContract', opts: 'plain' },
+  globalSearch: { contract: 'globalSearchContract', opts: 'plain' },
+  research: { contract: 'researchContract', opts: 'plain' },
+  boards: { contract: 'boardsContract', opts: 'plain' },
+  sheets: { contract: 'sheetsContract', opts: 'plain' },
+  presentations: { contract: 'presentationsContract', opts: 'plain' },
+  boardComments: { contract: 'boardCommentsContract', opts: 'plain' },
+  entityReactions: { contract: 'entityReactionsContract', opts: 'plain' },
+  entityComments: { contract: 'entityCommentsContract', opts: 'plain' },
+  boardAgent: { contract: 'boardAgentContract', opts: 'plain' },
+  boardActivity: { contract: 'boardActivityContract', opts: 'plain' },
+  boardSubscriptions: { contract: 'boardSubscriptionsContract', opts: 'plain' },
+  boardSchedules: { contract: 'boardSchedulesContract', opts: 'plain' },
+  boardAttachments: { contract: 'boardAttachmentsContract', opts: 'plain' },
+  boardCardDocuments: { contract: 'boardCardDocumentsContract', opts: 'plain' },
+  publicBoards: { contract: 'publicBoardsContract', opts: 'plain' },
+  notebook: { contract: 'notebookContract', opts: 'plain' },
+  notebookCollections: { contract: 'notebookCollectionsContract', opts: 'plain' },
+  wolkePending: { contract: 'wolkePendingContract', opts: 'plain' },
+  notebookWordpress: { contract: 'notebookWordpressContract', opts: 'plain' },
+  userWebsites: { contract: 'userWebsitesContract', opts: 'plain' },
+  antragsgruenSites: { contract: 'antragsgruenSitesContract', opts: 'plain' },
+  nuudelPolls: { contract: 'nuudelPollsContract', opts: 'plain' },
+  letterheads: { contract: 'letterheadsContract', opts: 'plain' },
+  notebookSharing: { contract: 'notebookSharingContract', opts: 'plain' },
+  chatThreadSharing: { contract: 'chatThreadSharingContract', opts: 'plain' },
+  notifications: { contract: 'notificationsContract', opts: 'plain' },
+  memory: { contract: 'memoryContract', opts: 'plain' },
+  email: { contract: 'emailContract', opts: 'plain' },
+  feedback: { contract: 'feedbackContract', opts: 'plain' },
+  contentReports: { contract: 'contentReportContract', opts: 'plain' },
+  adminReports: { contract: 'adminReportsContract', opts: 'plain' },
+  translation: { contract: 'translationContract', opts: 'plain' },
+  modelPreferences: { contract: 'modelPreferencesContract', opts: 'plain' },
+  imageModelPreference: { contract: 'imageModelPreferenceContract', opts: 'plain' },
+  mcpServers: { contract: 'mcpServersContract', opts: 'plain' },
+  chatToolApprovals: { contract: 'chatToolApprovalsContract', opts: 'plain' },
+  imageEdit: { contract: 'imageEditContract', opts: 'plain' },
+  sharepicCreator: { contract: 'sharepicCreatorContract', opts: 'plain' },
+  sharepicVorlagen: { contract: 'sharepicVorlagenContract', opts: 'plain' },
+  sharepicText: { contract: 'sharepicTextContract', opts: 'plain' },
+  adminVorlagen: { contract: 'adminVorlagenContract', opts: 'plain' },
+  userTemplates: { contract: 'userTemplatesContract', opts: 'plain' },
+  sharedTemplate: { contract: 'sharedTemplateContract', opts: 'plain' },
+  templateInteractions: { contract: 'templateInteractionsContract', opts: 'plain' },
+  studioAssets: { contract: 'studioAssetsContract', opts: 'plain' },
+  marketplace: { contract: 'marketplaceContract', opts: 'plain' },
+  parteitage: { contract: 'parteitageContract', opts: 'plain' },
+  parteitageAdmin: { contract: 'parteitageAdminContract', opts: 'plain' },
+  userAgents: { contract: 'userAgentsContract', opts: 'plain' },
+  userAgentsSharing: { contract: 'userAgentsSharingContract', opts: 'plain' },
+  skillPrompt: { contract: 'skillPromptContract', opts: 'plain' },
+  agentVisibility: { contract: 'agentVisibilityContract', opts: 'plain' },
+  chunkInspector: { contract: 'chunkInspectorContract', opts: 'plain' },
+  bundestagQa: { contract: 'bundestagQaContract', opts: 'plain' },
+  connectorTest: { contract: 'connectorTestContract', opts: 'plain' },
+  connections: { contract: 'connectionsContract', opts: 'plain' },
+  skillVisibility: { contract: 'skillVisibilityContract', opts: 'plain' },
+  instanceAdminOverview: { contract: 'instanceAdminOverviewContract', opts: 'plain' },
+  adminStats: { contract: 'adminStatsContract', opts: 'plain' },
+  appRelease: { contract: 'appReleaseContract', opts: 'plain' },
+  lvAdminAssignment: { contract: 'lvAdminAssignmentContract', opts: 'plain' },
+  landesverbandAdmin: { contract: 'landesverbandAdminContract', opts: 'plain' },
+  userTextForms: { contract: 'userTextFormsContract', opts: 'plain' },
+  recurringTasks: { contract: 'recurringTasksContract', opts: 'plain' },
+  docs: { contract: 'docsContract', opts: 'plain' },
+  docSnapshots: { contract: 'docSnapshotsContract', opts: 'plain' },
+  documents: { contract: 'documentsContract', opts: 'plain' },
+  groups: { contract: 'groupsContract', opts: 'plain' },
+  userProfile: { contract: 'userProfileContract', opts: 'plain' },
+  canvas: { contract: 'canvasContract', opts: 'validated' },
+  monitor: { contract: 'monitorContract', opts: 'plain' },
+  sites: { contract: 'sitesContract', opts: 'plain' },
+  texte: { contract: 'texteContract', opts: 'plain' },
+  subtitler: { contract: 'subtitlerContract', opts: 'validated' },
+  reisekosten: { contract: 'reisekostenContract', opts: 'plain' },
+  imagePicker: { contract: 'imagePickerContract', opts: 'plain' },
+  sharesRead: { contract: 'sharesReadContract', opts: 'validated' },
+  prompts: { contract: 'promptsContract', opts: 'plain' },
+  explainables: { contract: 'explainablesContract', opts: 'plain' },
+  publicExplainables: { contract: 'publicExplainablesContract', opts: 'plain' },
+  podcasts: { contract: 'podcastsContract', opts: 'plain' },
+  videoAi: { contract: 'videoAiContract', opts: 'plain' },
+  mediaImport: { contract: 'mediaImportContract', opts: 'plain' },
+  briefing: { contract: 'briefingContract', opts: 'plain' },
+} as const satisfies Record<
+  string,
+  { contract: keyof ContractModule; opts: 'plain' | 'validated' }
+>;
+
+type Namespaces = typeof NAMESPACES;
+type NamespaceName = keyof Namespaces;
+
+export type ContractsClient = {
+  [N in NamespaceName]: ContractModule[Namespaces[N]['contract']] extends infer T extends AppRouter
+    ? Namespaces[N]['opts'] extends 'validated'
+      ? ValidatedClient<T>
+      : PlainClient<T>
+    : never;
+};
+
+type NamespaceClient = Record<string, unknown>;
+
+let contractsModule: Promise<ContractModule> | null = null;
+const namespaceClients = new Map<NamespaceName, Promise<NamespaceClient>>();
+
+function loadContracts(): Promise<ContractModule> {
+  if (!contractsModule) {
+    const pending = import('@gruenerator/contracts');
+    contractsModule = pending;
+    // A failed chunk load (offline, stale deploy) must not be cached forever.
+    pending.catch(() => {
+      if (contractsModule === pending) contractsModule = null;
+    });
+  }
+  return contractsModule;
+}
+
+function loadNamespace(name: NamespaceName): Promise<NamespaceClient> {
+  const cached = namespaceClients.get(name);
+  if (cached) return cached;
+
+  const spec = NAMESPACES[name];
+  const pending = loadContracts().then((contracts) => {
+    // Boundary cast: the table pins `spec.contract` to a contract export, which
+    // `ContractsClient` already types precisely. Here it is only handed on.
+    const contract = contracts[spec.contract] as AppRouter;
+    const opts: InitClientArgs = spec.opts === 'validated' ? VALIDATED_CLIENT_OPTS : CLIENT_OPTS;
+    return initClient(contract, opts) as NamespaceClient;
+  });
+  namespaceClients.set(name, pending);
+  pending.catch(() => {
+    if (namespaceClients.get(name) === pending) namespaceClients.delete(name);
+  });
+  return pending;
+}
+
+/**
+ * A callable stand-in for `client[namespace](.sub)*.route`. Property access
+ * extends the path; calling it loads the namespace, walks the path on the real
+ * client and invokes the real route function. `then` and symbols answer
+ * `undefined` so a proxy is never mistaken for a thenable (`await client.ns`,
+ * `return client.ns` from an async function) or an iterable.
+ */
+function createRouteProxy(name: NamespaceName, path: readonly string[]): unknown {
+  const children = new Map<string, unknown>();
+  return new Proxy(function lazyRoute() {}, {
+    get(_target, prop) {
+      if (typeof prop === 'symbol' || prop === 'then') return undefined;
+      let child = children.get(prop);
+      if (child === undefined) {
+        child = createRouteProxy(name, [...path, prop]);
+        children.set(prop, child);
+      }
+      return child;
+    },
+    apply(_target, _thisArg, args: unknown[]) {
+      return loadNamespace(name).then((client) => {
+        let target: unknown = client;
+        for (const key of path) target = (target as Record<string, unknown>)[key];
+        if (typeof target !== 'function') {
+          throw new TypeError(`contracts client: ${[name, ...path].join('.')} is not a route`);
+        }
+        return (target as (...a: unknown[]) => unknown)(...args);
+      });
+    },
+  });
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -510,105 +428,12 @@ let _client: ContractsClient | null = null;
 export function getContractsClient(): ContractsClient {
   if (_client) return _client;
 
-  _client = {
-    threads: _threadsClient(),
-    exports: _exportsClient(),
-    recentValues: _recentValuesClient(),
-    recentActivity: _recentActivityClient(),
-    content: _contentClient(),
-    trash: _trashClient(),
-    itemUsage: _itemUsageClient(),
-    userLibrary: _userLibraryClient(),
-    userUsage: _userUsageClient(),
-    trees: _treesClient(),
-    transparency: _transparencyClient(),
-    globalSearch: _globalSearchClient(),
-    research: _researchClient(),
-    boards: _boardsClient(),
-    sheets: _sheetsClient(),
-    presentations: _presentationsClient(),
-    boardComments: _boardCommentsClient(),
-    entityReactions: _entityReactionsClient(),
-    entityComments: _entityCommentsClient(),
-    boardAgent: _boardAgentClient(),
-    boardActivity: _boardActivityClient(),
-    boardSubscriptions: _boardSubscriptionsClient(),
-    boardSchedules: _boardSchedulesClient(),
-    boardAttachments: _boardAttachmentsClient(),
-    boardCardDocuments: _boardCardDocumentsClient(),
-    publicBoards: _publicBoardsClient(),
-    notebook: _notebookClient(),
-    notebookCollections: _notebookCollectionsClient(),
-    wolkePending: _wolkePendingClient(),
-    notebookWordpress: _notebookWordpressClient(),
-    userWebsites: _userWebsitesClient(),
-    antragsgruenSites: _antragsgruenSitesClient(),
-    nuudelPolls: _nuudelPollsClient(),
-    letterheads: _letterheadsClient(),
-    notebookSharing: _notebookSharingClient(),
-    chatThreadSharing: _chatThreadSharingClient(),
-    notifications: _notificationsClient(),
-    memory: _memoryClient(),
-    email: _emailClient(),
-    feedback: _feedbackClient(),
-    contentReports: _contentReportsClient(),
-    adminReports: _adminReportsClient(),
-    translation: _translationClient(),
-    modelPreferences: _modelPreferencesClient(),
-    imageModelPreference: _imageModelPreferenceClient(),
-    mcpServers: _mcpServersClient(),
-    chatToolApprovals: _chatToolApprovalsClient(),
-    imageEdit: _imageEditClient(),
-    sharepicCreator: _sharepicCreatorClient(),
-    sharepicVorlagen: _sharepicVorlagenClient(),
-    sharepicText: _sharepicTextClient(),
-    adminVorlagen: _adminVorlagenClient(),
-    userTemplates: _userTemplatesClient(),
-    sharedTemplate: _sharedTemplateClient(),
-    templateInteractions: _templateInteractionsClient(),
-    studioAssets: _studioAssetsClient(),
-    marketplace: _marketplaceClient(),
-    parteitage: _parteitageClient(),
-    parteitageAdmin: _parteitageAdminClient(),
-    userAgents: _userAgentsClient(),
-    userAgentsSharing: _userAgentsSharingClient(),
-    skillPrompt: _skillPromptClient(),
-    agentVisibility: _agentVisibilityClient(),
-    chunkInspector: _chunkInspectorClient(),
-    bundestagQa: _bundestagQaClient(),
-    connectorTest: _connectorTestClient(),
-    connections: _connectionsClient(),
-    skillVisibility: _skillVisibilityClient(),
-    instanceAdminOverview: _instanceAdminOverviewClient(),
-    adminStats: _adminStatsClient(),
-    appRelease: _appReleaseClient(),
-    lvAdminAssignment: _lvAdminAssignmentClient(),
-    landesverbandAdmin: _landesverbandAdminClient(),
-    userTextForms: _userTextFormsClient(),
-    recurringTasks: _recurringTasksClient(),
-    docs: _docsClient(),
-    docSnapshots: _docSnapshotsClient(),
-    documents: _documentsClient(),
-    groups: _groupsClient(),
-    userProfile: _userProfileClient(),
-    canvas: _canvasClient(),
-    monitor: _monitorClient(),
-    sites: _sitesClient(),
-    texte: _texteClient(),
-    subtitler: _subtitlerClient(),
-    reisekosten: _reisekostenClient(),
-    imagePicker: _imagePickerClient(),
-    sharesRead: _sharesReadClient(),
-    prompts: _promptsClient(),
-    explainables: _explainablesClient(),
-    publicExplainables: _publicExplainablesClient(),
-    podcasts: _podcastsClient(),
-    videoAi: _videoAiClient(),
-    mediaImport: _mediaImportClient(),
-    briefing: _briefingClient(),
-    speech: _speechClient(),
-  };
-
+  const entries = (Object.keys(NAMESPACES) as NamespaceName[]).map(
+    (name) => [name, createRouteProxy(name, [])] as const
+  );
+  // Boundary cast: the proxies are untyped by construction; `ContractsClient`
+  // is the contract-derived type they stand in for.
+  _client = Object.fromEntries(entries) as unknown as ContractsClient;
   return _client;
 }
 
@@ -618,4 +443,5 @@ export function getContractsClient(): ContractsClient {
  */
 export function resetContractsClient(): void {
   _client = null;
+  namespaceClients.clear();
 }
