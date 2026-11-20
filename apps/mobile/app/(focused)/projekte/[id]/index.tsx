@@ -1,4 +1,4 @@
-import { filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
+import { canShareIntoGroup, filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -25,6 +25,7 @@ import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
+import { useShareItemActions } from '../../../../hooks/useShareItemActions';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
@@ -37,7 +38,9 @@ type ViewMode = 'feed' | 'all';
  * Ein Projekt bzw. eine Gruppe. Feed (neueste Freigaben, Angeheftetes oben)
  * und „Alle" (eine Reihe je Art). Mitglieder, Links und Beschreibung stehen
  * hinter dem Personen-Symbol auf der Info-Seite; über „+“ legt man eigene
- * Inhalte hinein. Anheften und Verwaltung bleiben dem Web.
+ * Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw. langes
+ * Drücken die Rolle oder nimmt die Freigabe heraus. Anheften und die übrige
+ * Verwaltung bleiben dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -52,7 +55,9 @@ export default function ProjektDetailScreen() {
   const group = detailsQuery.data?.group;
   const isPersonal = group?.group_type === 'personal';
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
-  const canAdd = !!group && (!group.is_system || !!detailsQuery.data?.membership.isAdmin);
+  const isAdmin = !!detailsQuery.data?.membership.isAdmin;
+  const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
+  const shareActions = useShareItemActions(id ?? null, isAdmin);
 
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
@@ -251,6 +256,7 @@ export default function ProjektDetailScreen() {
                   groupId={id ?? ''}
                   token={token}
                   canComment={!isPersonal}
+                  shareActions={shareActions}
                   onOpen={open}
                   onShowComments={setCommentsFor}
                 />
@@ -258,7 +264,12 @@ export default function ProjektDetailScreen() {
             ))}
           </View>
         ) : (
-          <GroupKindRows items={visible} showPinned={!query.trim()} onOpen={open} />
+          <GroupKindRows
+            items={visible}
+            showPinned={!query.trim()}
+            onOpen={open}
+            shareActions={shareActions}
+          />
         )}
       </ScrollView>
 

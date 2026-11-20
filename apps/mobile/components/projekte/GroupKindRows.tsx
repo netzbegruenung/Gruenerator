@@ -8,9 +8,9 @@ import {
 } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { canOpenInApp } from '../../hooks/useGroupContent';
+import { type ShareItemActions } from '../../hooks/useShareItemActions';
 import { useTheme } from '../../hooks/useTheme';
 import { resolveWebUrl } from '../../services/webOrigin';
 import { BODY_FONT, typography } from '../../theme';
@@ -18,6 +18,8 @@ import { BODY_FONT, typography } from '../../theme';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { FeedPreview } from './GroupFeedCard';
 import { useProjekteTone } from './projekteTone';
+import { projectRoleLabel } from './shareMenu';
+import { ShareMenuPressable } from './ShareMenuPressable';
 
 /** Kachelmaß je Art: Sharepics hochkant, Texte quer, der Rest klein. */
 const TILE: Partial<Record<GroupFeedKind, [number, number]>> = {
@@ -33,10 +35,17 @@ interface GroupKindRowsProps {
   items: GroupFeedItem[];
   showPinned: boolean;
   onOpen: (item: GroupFeedItem) => void;
+  /** Rolle ändern und Entfernen per langem Drücken; `null`, wo das Projekt es nicht anbietet. */
+  shareActions?: ShareItemActions | null;
 }
 
 /** „Alle": angeheftete Leiste, dann eine horizontale Reihe je Art. */
-export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps) {
+export function GroupKindRows({
+  items,
+  showPinned,
+  onOpen,
+  shareActions = null,
+}: GroupKindRowsProps) {
   const theme = useTheme();
   const tone = useProjekteTone();
   const pinned = items.filter(isPinned);
@@ -57,11 +66,11 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
             contentContainerStyle={styles.row}
           >
             {pinned.map((item) => (
-              <Pressable
+              <ShareMenuPressable
                 key={item.key}
-                onPress={() => onOpen(item)}
-                disabled={!canOpenInApp(item)}
-                accessibilityRole={canOpenInApp(item) ? 'button' : 'image'}
+                item={item}
+                shareActions={shareActions}
+                onOpen={onOpen}
                 accessibilityLabel={`${item.title}, ${groupFeedKindMeta(item.kind).label}`}
                 style={[styles.pinChip, { backgroundColor: theme.card }]}
               >
@@ -81,10 +90,12 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
                     {item.title}
                   </Text>
                   <Text style={[styles.small, { color: theme.textSecondary }]}>
-                    {groupFeedKindMeta(item.kind).label}
+                    {[groupFeedKindMeta(item.kind).label, projectRoleLabel(item)]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </Text>
                 </View>
-              </Pressable>
+              </ShareMenuPressable>
             ))}
           </ScrollView>
         </View>
@@ -108,11 +119,11 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
               contentContainerStyle={styles.row}
             >
               {section.items.map((item) => (
-                <Pressable
+                <ShareMenuPressable
                   key={item.key}
-                  onPress={() => onOpen(item)}
-                  disabled={!canOpenInApp(item)}
-                  accessibilityRole={canOpenInApp(item) ? 'button' : 'image'}
+                  item={item}
+                  shareActions={shareActions}
+                  onOpen={onOpen}
                   accessibilityLabel={item.title}
                   style={{ width: w, gap: 6 }}
                 >
@@ -123,11 +134,15 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
                     {item.title}
                   </Text>
                   <Text style={[styles.small, { color: theme.textSecondary }]} numberOfLines={1}>
-                    {[item.sharedByName?.split(' ')[0], formatFeedDate(item.sharedAt, 'short')]
+                    {[
+                      item.sharedByName?.split(' ')[0],
+                      formatFeedDate(item.sharedAt, 'short'),
+                      projectRoleLabel(item),
+                    ]
                       .filter(Boolean)
                       .join(' · ')}
                   </Text>
-                </Pressable>
+                </ShareMenuPressable>
               ))}
             </ScrollView>
           </View>
