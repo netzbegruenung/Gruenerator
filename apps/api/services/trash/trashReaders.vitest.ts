@@ -271,12 +271,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     `${NOT_SQL} (a test fixture matching SQL text)`,
   ],
   ['apps/api/services/migrations/backfillGroupSlugSuffixes.ts', 'groups', PERMANENT_BACKFILL],
-  [
-    'apps/api/routes/docs/docsContractRouter.ts',
-    'groups',
-    `${NOT_SQL} (an error message)`,
-    'unshare from groups',
-  ],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'shared_media', PERMANENT_CLEANUP],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'subtitler_projects', PERMANENT_CLEANUP],
   [
