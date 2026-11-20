@@ -36,10 +36,7 @@ export function useAnchorRect(
 
   useEffect(() => {
     const win = doc?.defaultView;
-    if (!doc || !win || !selection) {
-      setRect(null);
-      return;
-    }
+    if (!doc || !win || !selection) return;
     let raf = 0;
     const measure = () => {
       raf = 0;
@@ -75,5 +72,6 @@ export function useAnchorRect(
     };
   }, [doc, selection]);
 
-  return rect;
+  // Without a selection the last measurement is stale; the next one replaces it.
+  return doc && selection ? rect : null;
 }
