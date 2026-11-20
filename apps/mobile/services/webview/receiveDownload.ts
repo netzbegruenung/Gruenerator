@@ -10,8 +10,9 @@
 
 import { type WebViewOutboundMessage } from '@gruenerator/shared';
 
-import { saveImageToGallery } from '../imageStudio';
+import { saveFileToGallery, saveImageToGallery } from '../imageStudio';
 import { base64ToBytes, shareBytesAsFile } from '../share';
+import { writeShareFile } from '../shareCache';
 
 import { pickTarget, safeCacheFilename } from './downloadPolicy';
 
@@ -27,9 +28,14 @@ export async function receiveDownload(message: DownloadMessage): Promise<void> {
   const filename = safeCacheFilename(message.filename);
 
   if (pickTarget(message.mime) === 'gallery') {
-    const saved = await saveImageToGallery(message.data, filename);
+    const saved = message.mime.toLowerCase().startsWith('image/')
+      ? await saveImageToGallery(message.data, filename)
+      : await saveFileToGallery(
+          writeShareFile(base64ToBytes(message.data), filename).uri,
+          message.mime
+        );
     if (saved) return;
-    // Permission denied or the write failed — `saveImageToGallery` has already
+    // Permission denied or the write failed — the gallery save has already
     // told the user; the share sheet is a second chance, not a second error.
   }
 

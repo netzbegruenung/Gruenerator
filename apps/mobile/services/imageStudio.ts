@@ -55,6 +55,46 @@ export async function base64ToFileUri(
 }
 
 /**
+ * Saves a file that is already on disk to the gallery (write-only permission),
+ * then confirms with a way into the gallery. False when the user declined or
+ * the save failed — the user has been told either way.
+ */
+export async function saveFileToGallery(fileUri: string, mime: string): Promise<boolean> {
+  const video = mime.toLowerCase().startsWith('video/');
+  try {
+    // Write-only: saving only, never reading the library.
+    const { status } = await MediaLibrary.requestPermissionsAsync(true);
+    if (status !== 'granted') {
+      Alert.alert(
+        'Galerie-Berechtigung',
+        `Bitte erlaube den Zugriff auf die Galerie, um ${video ? 'Videos' : 'Bilder'} zu speichern.`
+      );
+      return false;
+    }
+    // SDK 56 class-based API — saveToLibraryAsync now throws. `asset.id` is the
+    // MediaStore content URI on Android — the only handle that lets the success
+    // alert offer a way into the gallery.
+    const asset = await MediaLibrary.Asset.create(fileUri);
+    alertSavedToGallery(
+      asset.id,
+      video
+        ? 'Das Video wurde in der Galerie gespeichert.'
+        : 'Das Bild wurde in der Galerie gespeichert.'
+    );
+    return true;
+  } catch (error: unknown) {
+    console.error('[ImageStudioService] saveFileToGallery error:', getErrorMessage(error));
+    Alert.alert(
+      'Fehler',
+      video
+        ? 'Das Video konnte nicht gespeichert werden.'
+        : 'Das Bild konnte nicht gespeichert werden.'
+    );
+    return false;
+  }
+}
+
+/**
  * Save a base64 image to the device gallery
  */
 export async function saveImageToGallery(
@@ -65,42 +105,27 @@ export async function saveImageToGallery(
    */
   filename?: string
 ): Promise<boolean> {
+  let fileUri: string;
   try {
-    // Write-only: saving only, never reading the library.
-    const { status } = await MediaLibrary.requestPermissionsAsync(true);
-    if (status !== 'granted') {
-      Alert.alert(
-        'Galerie-Berechtigung',
-        'Bitte erlaube den Zugriff auf die Galerie, um Bilder zu speichern.'
-      );
-      return false;
-    }
-
-    // Create temp file
-    const fileUri = filename
+    fileUri = filename
       ? await base64ToFileUri(base64Data, filename)
       : await base64ToFileUri(base64Data);
-
-    // Save to gallery (SDK 56 class-based API — saveToLibraryAsync now throws).
-    // `asset.id` is the MediaStore content URI on Android — the only handle
-    // that lets the success alert offer a way into the gallery.
-    const asset = await MediaLibrary.Asset.create(fileUri);
-
-    // Clean up temp file
-    const file = new File(Paths.cache, fileUri.split('/').pop() || '');
-    try {
-      file.delete();
-    } catch {
-      // Ignore cleanup errors - file deletion is non-critical
-    }
-
-    alertSavedToGallery(asset.id, 'Das Bild wurde in der Galerie gespeichert.');
-    return true;
   } catch (error: unknown) {
     console.error('[ImageStudioService] saveImageToGallery error:', getErrorMessage(error));
     Alert.alert('Fehler', 'Das Bild konnte nicht gespeichert werden.');
     return false;
   }
+
+  const saved = await saveFileToGallery(fileUri, 'image/*');
+
+  // Clean up temp file
+  const file = new File(Paths.cache, fileUri.split('/').pop() || '');
+  try {
+    file.delete();
+  } catch {
+    // Ignore cleanup errors - file deletion is non-critical
+  }
+  return saved;
 }
 
 /**

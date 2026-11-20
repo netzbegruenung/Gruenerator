@@ -95,6 +95,7 @@ const UTI_BY_MIME: Record<string, string> = {
   'image/jpeg': 'public.jpeg',
   'application/pdf': 'com.adobe.pdf',
   'application/zip': 'public.zip-archive',
+  'video/mp4': 'public.mpeg-4',
 };
 
 export function mimeFromFileName(name: string): string {
@@ -119,11 +120,12 @@ export async function shareBytesAsFile(
 ): Promise<void> {
   const type = mimeType ?? mimeFromFileName(fileName);
   const file = writeShareFile(bytes, fileName);
-  await shareFile(file.uri, {
-    mimeType: type,
-    dialogTitle,
-    uti: UTI_BY_MIME[type] ?? 'public.data',
-  });
+  await shareLocalFile(file.uri, type, dialogTitle);
+}
+
+/** Shares a file that is already on disk, typed for iOS by its MIME. */
+export async function shareLocalFile(uri: string, mimeType: string, dialogTitle: string) {
+  await shareFile(uri, { mimeType, dialogTitle, uti: UTI_BY_MIME[mimeType] ?? 'public.data' });
 }
 
 export function base64ToBytes(base64: string): Uint8Array {

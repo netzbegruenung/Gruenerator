@@ -41,6 +41,10 @@ export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   // Copies a Grünerator-Vorlage into a new canvas, then moves on to
   // `/studio/canvas/:id` client-side.
   '/studio/vorlage/',
+  // The Video-Editor page, which embeds the private editor app in an iframe
+  // (`/videoeditor/app/`, same origin, loaded as a subframe). Whole path: the
+  // page takes no id.
+  '/studio/videoeditor',
   '/texte/',
   // A Grünerator-Vorlage opened from the Marktplatz (`marketplaceOpenTarget`).
   '/vorlagen/v/',

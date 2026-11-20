@@ -14,6 +14,7 @@ export type AppRoute =
   | '/start'
   // Tools
   | '/(focused)/reel'
+  | '/(fullscreen)/video-editor'
   | '/(focused)/scanner'
   | '/(focused)/vorlagen'
   | '/(focused)/sharepic'

@@ -74,6 +74,7 @@ describe('pickTarget', () => {
     ['image/jpeg', 'gallery'],
     ['image/webp', 'gallery'],
     ['IMAGE/PNG', 'gallery'],
+    ['video/mp4', 'gallery'],
     ['application/zip', 'share'],
     ['text/csv', 'share'],
     ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'share'],
