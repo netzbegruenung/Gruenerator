@@ -3,10 +3,12 @@ import {
   canManageShare,
   useRemoveGroupContent,
   useSetGroupContentWrite,
+  useUpdateGroupShare,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 
@@ -20,14 +22,18 @@ export interface ShareItemActions {
 }
 
 /**
- * Rolle ändern und Freigabe entfernen — die Regel (Admin oder Teilende*r) und die
- * Aufrufe sind dieselben wie im Web; der Server prüft sie noch einmal.
+ * Rolle ändern, Notiz bearbeiten, anheften und Freigabe entfernen — die Regel
+ * (Admin oder Teilende*r; Anheften nur Admin, nicht im persönlichen Projekt) und
+ * die Aufrufe sind dieselben wie im Web; der Server prüft sie noch einmal.
  */
 export function useShareItemActions(
   groupId: string | null,
-  isAdmin: boolean | null | undefined
+  isAdmin: boolean | null | undefined,
+  canPin = false
 ): ShareItemActions {
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const router = useRouter();
+  const { mutate: updateShare } = useUpdateGroupShare(groupId ?? '');
   const { mutate: removeContent } = useRemoveGroupContent(groupId);
   const { mutate: setWrite } = useSetGroupContentWrite(groupId);
 
@@ -35,13 +41,26 @@ export function useShareItemActions(
     const fail = (error: Error) => useNoticeStore.getState().show('error', error.message);
     const done = () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     return {
-      actionsFor: (item) => buildShareActions(item, canManageShare(item, isAdmin, userId)),
+      actionsFor: (item) =>
+        buildShareActions(item, canManageShare(item, isAdmin, userId), canPin && !!isAdmin),
       run: (item, id) => {
         const action = id as ShareMenuId;
         if (action === 'write' || action === 'read') {
           const write = action === 'write';
           if (write === item.projectWrite) return;
           setWrite({ contentId: item.id, write }, { onSuccess: done, onError: fail });
+        } else if (action === 'pin' || action === 'unpin') {
+          if (!item.share) return;
+          updateShare(
+            { shareId: item.share.shareId, pinned: action === 'pin' },
+            { onSuccess: done, onError: fail }
+          );
+        } else if (action === 'note') {
+          if (!item.share || !groupId) return;
+          router.push({
+            pathname: '/(focused)/projekte/[id]/notiz',
+            params: { id: groupId, shareId: item.share.shareId, note: item.share.note ?? '' },
+          });
         } else if (action === 'remove') {
           Alert.alert(
             'Aus dem Projekt entfernen?',
@@ -62,5 +81,5 @@ export function useShareItemActions(
         }
       },
     };
-  }, [isAdmin, userId, removeContent, setWrite]);
+  }, [isAdmin, canPin, userId, groupId, router, removeContent, setWrite, updateShare]);
 }

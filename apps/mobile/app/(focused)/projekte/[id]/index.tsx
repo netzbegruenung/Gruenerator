@@ -43,8 +43,8 @@ type ViewMode = 'feed' | 'all';
  * und „Alle" (eine Reihe je Art). Mitglieder, Links und Beschreibung stehen
  * hinter dem Personen-Symbol auf der Info-Seite; über „+“ legt man eigene
  * Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw. langes
- * Drücken die Rolle oder nimmt die Freigabe heraus. Anheften und die übrige
- * Verwaltung bleiben dem Web.
+ * Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an. Beiträge
+ * und die übrige Verwaltung bleiben dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -61,7 +61,7 @@ export default function ProjektDetailScreen() {
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
   const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
-  const shareActions = useShareItemActions(id ?? null, isAdmin);
+  const shareActions = useShareItemActions(id ?? null, isAdmin, !isPersonal);
   const addActions = useProjectAddActions(id ?? null);
   const addMenu = useMemo(() => buildAddActions(), []);
 
@@ -289,7 +289,12 @@ export default function ProjektDetailScreen() {
         onClose={() => setAddOpen(false)}
       />
       {id ? (
-        <GroupCommentsSheet groupId={id} item={commentsFor} onClose={() => setCommentsFor(null)} />
+        <GroupCommentsSheet
+          groupId={id}
+          item={commentsFor}
+          isAdmin={isAdmin}
+          onClose={() => setCommentsFor(null)}
+        />
       ) : null}
     </>
   );

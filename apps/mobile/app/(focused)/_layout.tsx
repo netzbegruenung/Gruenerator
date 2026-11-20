@@ -49,6 +49,15 @@ export default function FocusedLayout() {
           animation: 'default',
         }}
       />
+      <Stack.Screen
+        name="projekte/[id]/notiz"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.45, 1],
+          sheetGrabberVisible: true,
+          animation: 'default',
+        }}
+      />
     </Stack>
   );
 }

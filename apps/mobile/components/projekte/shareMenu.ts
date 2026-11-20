@@ -3,7 +3,7 @@ import { type GroupFeedItem } from '@gruenerator/shared/groups';
 
 import { buildModerationActions } from './moderationMenu';
 
-export type ShareMenuId = 'write' | 'read' | 'remove';
+export type ShareMenuId = 'write' | 'read' | 'note' | 'pin' | 'unpin' | 'remove';
 
 /** „Bearbeiten" / „Nur lesen" — nur für Docs, Sheets, Präsentationen und Boards (wie im Web). */
 export function projectRoleLabel(item: Pick<GroupFeedItem, 'projectWrite'>): string | null {
@@ -13,12 +13,14 @@ export function projectRoleLabel(item: Pick<GroupFeedItem, 'projectWrite'>): str
 
 /**
  * Die Verwaltungseinträge zu einer Freigabe: wer bearbeiten darf (mit Häkchen am
- * aktuellen Stand) und „Aus dem Projekt entfernen". Beiträge sind keine Freigaben —
- * sie haben eigene Routen und kommen hier nie vor.
+ * aktuellen Stand), Notiz bearbeiten, Anheften/Lösen (nur Projekt-Admins) und
+ * „Aus dem Projekt entfernen". Beiträge sind keine Freigaben — sie haben eigene
+ * Routen und kommen hier nie vor.
  */
 export function buildShareActions(
-  item: Pick<GroupFeedItem, 'projectWrite' | 'post'>,
-  canManage: boolean
+  item: Pick<GroupFeedItem, 'projectWrite' | 'post' | 'share'>,
+  canManage: boolean,
+  canPin = false
 ): MenuAction[] {
   if (!canManage || item.post) return [];
   const actions: MenuAction[] = [];
@@ -35,6 +37,14 @@ export function buildShareActions(
         state: item.projectWrite ? 'off' : 'on',
       }
     );
+  }
+  if (item.share) {
+    actions.push({ id: 'note', title: 'Notiz bearbeiten' });
+    if (canPin) {
+      actions.push(
+        item.share.pinnedAt ? { id: 'unpin', title: 'Lösen' } : { id: 'pin', title: 'Anheften' }
+      );
+    }
   }
   actions.push({
     id: 'remove',
