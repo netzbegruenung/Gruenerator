@@ -409,7 +409,7 @@ const TOOLS = [
   {
     id: 'studio-voice',
     title: 'Voice',
-    path: '/voice',
+    path: '/vertonen',
     icon: { navigation: 'voice' },
     tile: { group: 'studio', description: 'Text vertonen' },
   },

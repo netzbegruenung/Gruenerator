@@ -348,8 +348,13 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPage'));
-const VoicePage = lazy(() => import('../features/voice/VoicePage'));
-const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
+const VertonenPage = lazy(() => import('../features/vertonen/VertonenPage'));
+const VoiceRedirect = lazy(() =>
+  import('../features/vertonen/legacyRedirects').then((m) => ({ default: m.VoiceRedirect }))
+);
+const TranskriptionRedirect = lazy(() =>
+  import('../features/vertonen/legacyRedirects').then((m) => ({ default: m.TranskriptionRedirect }))
+);
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const TrashPage = lazy(() => import('../features/trash/TrashPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
@@ -436,7 +441,6 @@ export const GrueneratorenBundle = {
   MobileEditor: MobileEditorPage,
   MobileRender: MobileRenderPage,
   Scanner: ScannerPage,
-  Transkription: TranskriptionPage,
 } as const;
 
 // Route Konfigurationen
@@ -764,9 +768,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/uebersetzer', component: UebersetzerPage },
-  { path: '/voice', component: VoicePage },
+  { path: '/vertonen', component: VertonenPage },
+  { path: '/voice', component: VoiceRedirect },
   { path: '/transfer', component: TransferRedirect, channel: 'internal' },
-  { path: '/transkription', component: GrueneratorenBundle.Transkription },
+  { path: '/transkription', component: TranskriptionRedirect },
   {
     path: '/subtitler/share/:shareToken',
     component: SharedVideoPage,

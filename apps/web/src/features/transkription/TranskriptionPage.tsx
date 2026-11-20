@@ -84,7 +84,7 @@ const PROTOKOLL_TYPES: { value: ProtokollTyp; label: string; description: string
   },
 ];
 
-const TranskriptionPage = () => {
+const TranskriptionPage = ({ embedded = false }: { embedded?: boolean }) => {
   const { state, transcribe, reset, restore } = useTranscription();
   const {
     state: protokollState,
@@ -360,9 +360,10 @@ const TranskriptionPage = () => {
   return (
     <ErrorBoundary>
       <PageContainer
-        title="Transkription"
-        subtitle="Audio- und Meeting-Aufnahmen automatisch transkribieren."
+        title={embedded ? undefined : 'Transkription'}
+        subtitle={embedded ? undefined : 'Audio- und Meeting-Aufnahmen automatisch transkribieren.'}
         maxWidth="md"
+        embedded={embedded}
       >
         {showRipple && canRecover && (
           <div className="mb-lg rounded-lg border border-grey-300 dark:border-grey-600 bg-background-pure p-md flex flex-wrap items-center justify-between gap-md">

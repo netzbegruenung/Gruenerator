@@ -20,6 +20,8 @@ interface PageContainerProps {
   /** Background utilities applied to the full-height outer wrapper (e.g. a
    *  custom page gradient). Takes precedence over the built-in `gradient`. */
   bgClassName?: string;
+  /** Renders only the children (in a plain wrapper) for pages hosted inside another page's container. */
+  embedded?: boolean;
 }
 
 export default function PageContainer({
@@ -31,7 +33,9 @@ export default function PageContainer({
   noPadTop = false,
   className,
   bgClassName,
+  embedded = false,
 }: PageContainerProps) {
+  if (embedded) return <div className={className}>{children}</div>;
   return (
     <div
       className={cn(
