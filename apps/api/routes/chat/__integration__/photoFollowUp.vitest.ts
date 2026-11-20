@@ -150,8 +150,11 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 });
 
 // Das Bild selbst: FLUX und die Datei auf der Platte sind nicht der Gegenstand.
-vi.mock('../services/lastGeneratedImage.js', () => ({
-  loadLastGeneratedImage: async () => ({ name: 'vorher.jpg', type: 'image/jpeg', data: 'AAAA' }),
+// Kein erzeugtes Bild im Thread — nur das hochgeladene Foto. Der Rückfall
+// `loadLatestThreadPhoto` bleibt echt und liest über die Harness-Steuerung.
+vi.mock('../services/lastGeneratedImage.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
+  loadLastGeneratedImage: async () => null,
 }));
 const editInputs: Array<{ name: string; data: string }> = [];
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/imageEditNode.js', () => ({
@@ -175,7 +178,8 @@ const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
 const { createJournalCapture } = await import('./harness/journalCapture.js');
 const { pinChatEnv } = await import('./harness/env.js');
-const { createThread, resetThreadStore } = await import('./harness/fakeThreadStore.js');
+const { createThread, resetThreadStore, setThreadToolContextFixture } =
+  await import('./harness/fakeThreadStore.js');
 const { TEST_USER } = await import('./harness/fakeUser.js');
 const { resetMockControls, attachmentControl } = await import('./harness/mocks.js');
 const { respond } = await import('./harness/respondScript.js');
@@ -274,6 +278,46 @@ describe('„Ja" auf die Rückfrage zu einem früher hochgeladenen Foto (#5879)'
     expect(loopScript.calls[0]?.system ?? '').toContain(
       'Bild 1: weiher.jpg (aus einer früheren Nachricht)'
     );
+  });
+
+  it('„bearbeite das Foto …" ohne Anhang geht in den Loop und bearbeitet das gespeicherte Foto', async () => {
+    const threadId = await photoThread(true);
+    loopScript.script({
+      calls: [{ tool: 'edit_image', args: { anweisung: 'verschneit', bild: 1 } }],
+      text: 'Der Platz ist jetzt verschneit.',
+    });
+    const { trace } = await runTurn(app.baseUrl, {
+      threadId,
+      messages: [
+        userTurn('Was für ein Platz ist das?', 'm1'),
+        { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'Ein Platz mit Weiher.' }] },
+        userTurn('bearbeite das Foto und mach den Platz verschneit', 'm2'),
+      ],
+    });
+    // Vorher: Einzeldurchlauf `image_edit` → „Bitte hänge ein Bild an".
+    expect(trace.intent).toBe('agentic');
+    expect(editInputs).toEqual([{ name: 'weiher.jpg', type: 'image/jpeg', data: 'V0VJSEVS' }]);
+  });
+
+  it('mit erzeugtem Bild UND Foto im Thread wählt der Loop, nicht eine feste Regel', async () => {
+    const threadId = await photoThread(true);
+    // Das letzte Artefakt ist ein erzeugtes Bild (das Winterbild).
+    setThreadToolContextFixture(threadId, {
+      kind: 'image',
+      ref: '/uploads/flux/results/t/winter.jpg',
+      label: 'Winterbild',
+    });
+    loopScript.script({
+      calls: [{ tool: 'edit_image', args: { anweisung: 'Sommer mit Eisdiele', bild: 1 } }],
+      text: 'Hier ist die Sommer-Variante deines ursprünglichen Fotos.',
+    });
+    const { trace } = await runTurn(app.baseUrl, {
+      threadId,
+      messages: [userTurn('bearbeite mein ursprüngliches Foto: Sommer mit Eisdiele', 'm1')],
+    });
+    expect(trace.intent).toBe('agentic');
+    expect(loopScript.calls[0]?.toolNames).toContain('edit_image');
+    expect(editInputs).toEqual([{ name: 'weiher.jpg', type: 'image/jpeg', data: 'V0VJSEVS' }]);
   });
 
   it('ohne gespeicherte Bytes (Foto von vor dem Fix) bleibt die Liste leer', async () => {
