@@ -75,6 +75,11 @@ export interface GroupFeedItem {
   sharedById: string | null;
   sharedAt: string | null;
   share: GroupShareMeta | null;
+  /**
+   * Docs, Sheets, Präsentationen und Boards: dürfen Projektmitglieder bearbeiten
+   * (`true`) oder nur lesen (`false`)? `null` für alles andere — dort gibt es nur Lesen.
+   */
+  projectWrite: boolean | null;
   post: GroupPostContent | null;
 }
 
@@ -112,6 +117,10 @@ function base(row: Row, contentType: GroupFeedContentType, kind: GroupFeedKind, 
     sharedById: str(row.shared_by_id),
     sharedAt: str(row.shared_at),
     share: parsed.success ? parsed.data : null,
+    projectWrite:
+      contentType === 'collaborative_documents'
+        ? (row.group_permissions as { write?: unknown } | null | undefined)?.write === true
+        : null,
     post: null,
   } satisfies GroupFeedItem;
 }

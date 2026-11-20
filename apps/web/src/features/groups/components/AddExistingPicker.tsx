@@ -102,6 +102,11 @@ interface AddExistingPickerProps {
   /** Notiz für den Feed, etwa der Text aus dem Composer. */
   note?: string | null;
   /**
+   * Docs, Sheets, Präsentationen und Boards mit Schreibrecht teilen — in Team-Projekten
+   * der Standard. Ändern lässt es sich danach im Zeilenmenü der Projektliste.
+   */
+  writeDocuments?: boolean;
+  /**
    * `items` kamen an. `done`: nichts schlug fehl — der Host schließt dann. Sonst stehen
    * die Fehler an ihren Zeilen, und der Picker bleibt offen.
    */
@@ -117,6 +122,7 @@ export function AddExistingPicker({
   sharedKeys,
   currentUserId,
   note = null,
+  writeDocuments = false,
   onAdded,
 }: AddExistingPickerProps) {
   const [query, setQuery] = useState('');
@@ -229,7 +235,7 @@ export function AddExistingPicker({
   async function add(items: PickerItem[]) {
     if (items.length === 0 || busy) return;
     setBusy(true);
-    const result = await addItemsToGroup(groupId, items, note);
+    const result = await addItemsToGroup(groupId, items, note, { writeDocuments });
     setBusy(false);
     const failed = new Set(result.failures.map((f) => f.key));
     const added = items.filter((i) => !failed.has(addableKey(i)));

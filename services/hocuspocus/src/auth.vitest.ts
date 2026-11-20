@@ -15,9 +15,12 @@ import { AuthService } from './auth.js';
 
 import type { DbQueryFn, RedisLike } from './types.js';
 
+type Share = { read?: boolean; write?: boolean };
+
 interface Rows {
   doc?: Record<string, unknown> | null;
-  group?: { read?: boolean; write?: boolean } | null;
+  /** Mehrere Einträge: dasselbe Dokument in mehreren Projekten der Person. */
+  group?: Share | Share[] | null;
   membership?: boolean;
   thread?: Record<string, unknown> | null;
   /** The group behind `group`/`membership` is in the Papierkorb. */
@@ -59,12 +62,20 @@ function makeDb(rows: Rows) {
     const groupVisible = !rows.groupTrashed || !LIVE_GROUP.test(sql);
     if (/FROM group_content_shares/i.test(sql) && /can_write/.test(sql)) {
       // Chat-thread share lookup: bool_or over zero rows is one row with NULL.
-      const g = rows.group;
+      const g = Array.isArray(rows.group) ? rows.group[0] : rows.group;
       const readable = !!g && g.read !== false && groupVisible;
       return [{ can_write: readable ? (g.write ?? true) : null }];
     }
+    if (/FROM group_content_shares/i.test(sql) && /doc_write/.test(sql)) {
+      // Document share lookup: bool_or over all readable shares of the person.
+      const shares = (
+        Array.isArray(rows.group) ? rows.group : rows.group ? [rows.group] : []
+      ).filter((g) => g.read !== false && groupVisible);
+      return [{ doc_write: shares.length ? shares.some((g) => g.write === true) : null }];
+    }
     if (/FROM group_content_shares/i.test(sql)) {
-      return rows.group && groupVisible ? [{ permissions: rows.group }] : [];
+      const g = Array.isArray(rows.group) ? rows.group[0] : rows.group;
+      return g && groupVisible ? [{ permissions: g }] : [];
     }
     if (/FROM group_memberships/i.test(sql)) {
       return rows.membership && groupVisible ? [{ '?column?': 1 }] : [];
@@ -285,6 +296,28 @@ describe('AuthService — write rule shared with the REST layer', () => {
     ],
     ['a project write share', { doc: privateDoc(), group: { read: true, write: true } }, false],
     ['a project read share', { doc: privateDoc(), group: { read: true, write: false } }, true],
+    [
+      'two projects, read in one and write in the other — in either row order',
+      {
+        doc: privateDoc(),
+        group: [
+          { read: true, write: false },
+          { read: true, write: true },
+        ],
+      },
+      false,
+    ],
+    [
+      'two projects, write first and read second',
+      {
+        doc: privateDoc(),
+        group: [
+          { read: true, write: true },
+          { read: true, write: false },
+        ],
+      },
+      false,
+    ],
     [
       'an entry without a level, even with a project write share',
       { doc: privateDoc({ permissions: { 'user-9': {} } }), group: { read: true, write: true } },

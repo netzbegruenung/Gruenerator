@@ -7,10 +7,12 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { type ReactNode, useState } from 'react';
-import { PiChatsCircle, PiDotsThreeVertical, PiMagnifyingGlass, PiTrash } from 'react-icons/pi';
+import { PiChatsCircle, PiDotsThreeVertical, PiMagnifyingGlass } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { FEED_KIND_ICONS, feedItemHref } from '../config/groupFeedPresentation';
+
+import { type ShareActions, ShareMenuItems, hasShareMenu, projectRoleLabel } from './shareActions';
 
 /** Ab so vielen Zeilen lohnt sich ein Suchfeld. */
 const SEARCH_FROM = 6;
@@ -18,8 +20,8 @@ const SEARCH_FROM = 6;
 interface ProjectKnowledgeListProps {
   items: GroupFeedItem[];
   onUseTemplate: (id: string) => void;
-  /** null: the viewer may not remove things from this project. */
-  onRemove: ((item: GroupFeedItem) => void) | null;
+  /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
+  actions: ShareActions | null;
   /** null: no Austausch here (personal project, system project). */
   onDiscuss: ((item: GroupFeedItem) => void) | null;
 }
@@ -36,7 +38,7 @@ const rowCls =
 export function ProjectKnowledgeList({
   items,
   onUseTemplate,
-  onRemove,
+  actions,
   onDiscuss,
 }: ProjectKnowledgeListProps) {
   const [query, setQuery] = useState('');
@@ -85,7 +87,7 @@ export function ProjectKnowledgeList({
                   key={item.key}
                   item={item}
                   onUseTemplate={onUseTemplate}
-                  onRemove={onRemove}
+                  actions={actions}
                   onDiscuss={onDiscuss}
                 />
               ))}
@@ -100,12 +102,12 @@ export function ProjectKnowledgeList({
 function KnowledgeRow({
   item,
   onUseTemplate,
-  onRemove,
+  actions,
   onDiscuss,
 }: {
   item: GroupFeedItem;
   onUseTemplate: (id: string) => void;
-  onRemove: ProjectKnowledgeListProps['onRemove'];
+  actions: ShareActions | null;
   onDiscuss: ProjectKnowledgeListProps['onDiscuss'];
 }) {
   const Icon = FEED_KIND_ICONS[item.kind];
@@ -114,12 +116,13 @@ function KnowledgeRow({
       <Icon aria-hidden className="size-[18px] shrink-0 text-primary-600 dark:text-primary-400" />
       <span className="min-w-0 flex-1 truncate text-[15px]">{item.title}</span>
       <span className="shrink-0 text-[13px] text-muted-foreground">
-        {groupFeedKindMeta(item.kind).label}
+        {[groupFeedKindMeta(item.kind).label, projectRoleLabel(item)].filter(Boolean).join(' · ')}
       </span>
     </>
   );
   const href = feedItemHref(item);
-  const hasMenu = !!onRemove || (!!onDiscuss && !!item.share);
+  const canDiscuss = !!onDiscuss && !!item.share;
+  const hasMenu = canDiscuss || hasShareMenu(item, actions);
 
   return (
     <li className="flex items-center rounded-md transition-colors hover:bg-background-alt">
@@ -151,20 +154,14 @@ function KnowledgeRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {onDiscuss && item.share && (
+            {canDiscuss && onDiscuss && (
               <DropdownMenuItem onSelect={() => onDiscuss(item)}>
                 <PiChatsCircle aria-hidden className="mr-xs size-4" />
                 Im Austausch besprechen
               </DropdownMenuItem>
             )}
-            {onRemove && (
-              <DropdownMenuItem
-                onSelect={() => onRemove(item)}
-                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-              >
-                <PiTrash aria-hidden className="mr-xs size-4" />
-                Aus dem Projekt entfernen
-              </DropdownMenuItem>
+            {actions && (
+              <ShareMenuItems item={item} actions={actions} leadingSeparator={canDiscuss} />
             )}
           </DropdownMenuContent>
         </DropdownMenu>

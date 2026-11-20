@@ -38,17 +38,33 @@ type GroupShare = {
   permissions: { read?: boolean; write?: boolean } | null;
 };
 
+/**
+ * Das Projektrecht der Person an einem Dokument — über ALLE ihre Projekte, in denen
+ * es liegt: lesen, sobald eine lesbare Freigabe besteht, schreiben, sobald eine davon
+ * Schreibrecht gibt. Vorher nahm `LIMIT 1` ohne Reihenfolge irgendeine Zeile, und ein
+ * Doc in zwei Projekten (lesen + schreiben) bekam zufällig eines der beiden Rechte.
+ * Hocuspocus rechnet in `getGroupSharePermissions` (services/hocuspocus/src/auth.ts)
+ * genauso; beide müssen gleich antworten.
+ */
 async function loadGroupShare(userId: string, documentId: string): Promise<GroupShare | null> {
+  // bool_or über null Zeilen ist eine Zeile mit NULL = keine Freigabe.
   const rows = (await db.query(
-    `SELECT gcs.content_type, gcs.permissions FROM group_content_shares gcs
+    `SELECT bool_or((gcs.permissions->>'write')::boolean IS TRUE) AS doc_write,
+            bool_or(gcs.content_type = 'collaborative_documents') AS via_document
+       FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
      INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
        AND gcs.content_id = $2
-     LIMIT 1`,
+       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
     [userId, documentId]
-  )) as GroupShare[];
-  return rows[0] ?? null;
+  )) as { doc_write: boolean | null; via_document: boolean | null }[];
+  const row = rows[0];
+  if (!row || row.doc_write === null) return null;
+  return {
+    content_type: row.via_document ? 'collaborative_documents' : 'canvas_template',
+    permissions: { read: true, write: row.doc_write },
+  };
 }
 
 export async function checkGroupAccess(userId: string, documentId: string): Promise<AccessResult> {
