@@ -7,6 +7,7 @@ import {
   NativeDownloadTooLargeError,
   NativeTransferFailedError,
   pickShareRoute,
+  transferInChunks,
   registerDesktopSaver,
   shareDataUrlViaNativeHost,
 } from './download.js';
@@ -246,47 +247,60 @@ describe('downloadBlob — transfer in pieces', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  /** Just over what one `DOWNLOAD_FILE` carries. */
-  const bigBlob = () => {
-    const bytes = new Uint8Array((WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH / 4) * 3 + 10);
+  /** A few chunks' worth: the transfer itself, without the cost of a 9 MB file. */
+  const smallBlob = () => {
+    const bytes = new Uint8Array(FILE_TRANSFER_CHUNK_BYTES * 2 + 10);
     for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
     return { bytes, blob: new Blob([bytes], { type: 'video/mp4' }) };
   };
+  const chunkCount = (size: number) => Math.ceil(size / FILE_TRANSFER_CHUNK_BYTES);
 
-  it('sends begin, acknowledged chunks that add up to the file, and end', async () => {
-    const posted = withChunkingHost({ capability: true });
-    const { bytes, blob } = bigBlob();
-
-    await downloadBlob(blob, 'Mein Video 1/2.mp4');
-
-    const begin = posted[0];
-    expect(begin).toMatchObject({
+  it('takes the transfer path for a blob one DOWNLOAD_FILE cannot carry', async () => {
+    // The host refuses at BEGIN, so no chunk is ever encoded.
+    const posted = withChunkingHost({ capability: true, failAt: 0 });
+    const big = new Blob([new Uint8Array((WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH / 4) * 3 + 10)], {
+      type: 'video/mp4',
+    });
+    await expect(downloadBlob(big, 'Mein Video 1/2.mp4')).rejects.toBeInstanceOf(
+      NativeTransferFailedError
+    );
+    expect(posted[0]).toMatchObject({
       type: 'FILE_TRANSFER_BEGIN',
       filename: 'Mein Video 1-2.mp4',
       mime: 'video/mp4',
-      size: bytes.length,
+      size: big.size,
     });
+    expect(posted.map((m) => m.type)).toEqual(['FILE_TRANSFER_BEGIN', 'FILE_TRANSFER_ABORT']);
+  });
+
+  it('sends begin, acknowledged chunks that add up to the file, and end', async () => {
+    const posted = withChunkingHost({ capability: true });
+    const { bytes, blob } = smallBlob();
+
+    await transferInChunks(blob, 'v.mp4', 'video/mp4');
+
+    const begin = posted[0];
+    expect(begin).toMatchObject({ type: 'FILE_TRANSFER_BEGIN', size: bytes.length });
     const chunks = posted.filter((m) => m.type === 'FILE_TRANSFER_CHUNK');
-    expect(chunks.map((c) => c.index)).toEqual(chunks.map((_, i) => i));
-    expect(chunks.length).toBe(Math.ceil(bytes.length / FILE_TRANSFER_CHUNK_BYTES));
+    expect(chunks.map((c) => c.index)).toEqual([0, 1, 2]);
+    expect(chunks.length).toBe(chunkCount(bytes.length));
     const joined = Buffer.concat(chunks.map((c) => Buffer.from(c.data as string, 'base64')));
     expect(joined.equals(Buffer.from(bytes))).toBe(true);
     expect(posted.at(-1)).toEqual({ type: 'FILE_TRANSFER_END', transferId: begin?.transferId });
   });
 
   it('rejects when the host refuses the end', async () => {
-    const { blob, bytes } = bigBlob();
-    const posted = withChunkingHost({
-      capability: true,
-      failAt: Math.ceil(bytes.length / FILE_TRANSFER_CHUNK_BYTES) + 1,
-    });
-    await expect(downloadBlob(blob, 'a.mp4')).rejects.toBeInstanceOf(NativeTransferFailedError);
+    const { blob, bytes } = smallBlob();
+    const posted = withChunkingHost({ capability: true, failAt: chunkCount(bytes.length) + 1 });
+    await expect(transferInChunks(blob, 'a.mp4', 'video/mp4')).rejects.toBeInstanceOf(
+      NativeTransferFailedError
+    );
     expect(posted.map((m) => m.type)).toContain('FILE_TRANSFER_END');
   });
 
   it('aborts and rejects when the host fails the transfer', async () => {
     const posted = withChunkingHost({ capability: true, failAt: 2 });
-    await expect(downloadBlob(bigBlob().blob, 'a.mp4')).rejects.toBeInstanceOf(
+    await expect(transferInChunks(smallBlob().blob, 'a.mp4', 'video/mp4')).rejects.toBeInstanceOf(
       NativeTransferFailedError
     );
     expect(posted.at(-1)?.type).toBe('FILE_TRANSFER_ABORT');

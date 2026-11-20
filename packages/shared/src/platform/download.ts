@@ -185,7 +185,7 @@ function hostAcks(transferId: string) {
  * side ever holds more than a chunk of base64 — the page reads each slice only
  * when the host is ready for it.
  */
-async function transferInChunks(blob: Blob, filename: string, mime: string): Promise<void> {
+export async function transferInChunks(blob: Blob, filename: string, mime: string): Promise<void> {
   const transferId = crypto.randomUUID();
   const acks = hostAcks(transferId);
   try {
