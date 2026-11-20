@@ -1,4 +1,7 @@
+import { shareErrorText } from '@gruenerator/shared/api';
+import { groupContentKey } from '@gruenerator/shared/groups';
 import { useQuery, useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import {
   type CollabShareApiClient,
@@ -29,6 +32,11 @@ export const useDocumentSharing = (
   { namespace, apiClient, extraInvalidationKeys = [] }: UseDocumentSharingOptions
 ) => {
   const queryClient = useQueryClient();
+  // Der Satz zum letzten gescheiterten Schritt — wie auf der Projektseite der des
+  // Servers (kein Recht im Projekt, schon im Projekt …). Vorher scheiterte jeder
+  // Schritt still, und das Auswahlfeld sprang kommentarlos zurück.
+  const [error, setError] = useState<string | null>(null);
+  const fail = (err: Error) => setError(shareErrorText(err));
   const permKey = [namespace, documentId, 'permissions'];
   const shareKey = [namespace, documentId, 'share'];
   const groupsKey = [namespace, documentId, 'groups'];
@@ -56,6 +64,11 @@ export const useDocumentSharing = (
     enabled: !!documentId,
   });
 
+  /** Die Projektseite zeigt Inhalt und Rolle; ohne das stünde dort der alte Stand. */
+  const invalidateProject = (groupId: string) => {
+    void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+  };
+
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: permKey });
     void queryClient.invalidateQueries({ queryKey: shareKey });
@@ -76,13 +89,15 @@ export const useDocumentSharing = (
     patch: (old: TCache, vars: TVars) => TCache
   ) => ({
     onMutate: async (vars: TVars) => {
+      setError(null);
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<TCache>(key);
       if (previous) queryClient.setQueryData<TCache>(key, patch(previous, vars));
       return { previous };
     },
-    onError: (_err: Error, _vars: TVars, ctx?: { previous?: TCache }) => {
+    onError: (err: Error, _vars: TVars, ctx?: { previous?: TCache }) => {
       if (ctx?.previous) queryClient.setQueryData<TCache>(key, ctx.previous);
+      fail(err);
     },
     onSettled: invalidateAll,
   });
@@ -121,6 +136,8 @@ export const useDocumentSharing = (
         permission_level: permissionLevel,
       });
     },
+    onMutate: () => setError(null),
+    onError: fail,
     onSuccess: invalidateAll,
   });
 
@@ -147,6 +164,8 @@ export const useDocumentSharing = (
     mutationFn: async (userId: string) => {
       await apiClient.delete(`/docs/${documentId}/permissions/${userId}`);
     },
+    onMutate: () => setError(null),
+    onError: fail,
     onSuccess: invalidateAll,
   });
 
@@ -163,7 +182,12 @@ export const useDocumentSharing = (
         permission_level: permissionLevel,
       });
     },
-    onSuccess: invalidateAll,
+    onMutate: () => setError(null),
+    onError: fail,
+    onSuccess: (_data, { groupId }) => {
+      invalidateAll();
+      invalidateProject(groupId);
+    },
   });
 
   const updateGroupPermission = useMutation({
@@ -183,13 +207,19 @@ export const useDocumentSharing = (
       (old, { groupId, permissionLevel }) =>
         old.map((g) => (g.group_id === groupId ? { ...g, permission_level: permissionLevel } : g))
     ),
+    onSuccess: (_data, { groupId }) => invalidateProject(groupId),
   });
 
   const unshareFromGroup = useMutation({
     mutationFn: async (groupId: string) => {
       await apiClient.delete(`/docs/${documentId}/groups/${groupId}`);
     },
-    onSuccess: invalidateAll,
+    onMutate: () => setError(null),
+    onError: fail,
+    onSuccess: (_data, groupId) => {
+      invalidateAll();
+      invalidateProject(groupId);
+    },
   });
 
   return {
@@ -198,6 +228,8 @@ export const useDocumentSharing = (
     userGroups: userGroups.data ?? [],
     documentGroups: documentGroups.data ?? [],
     isLoading: collaborators.isLoading || shareSettings.isLoading,
+    /** Satz zum letzten gescheiterten Schritt; null, solange nichts schiefging. */
+    error,
     setShareMode,
     setSharePermission,
     grantAccess,

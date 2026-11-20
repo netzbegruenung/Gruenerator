@@ -7,7 +7,6 @@
 import { type PublicOwnership } from '@gruenerator/contracts';
 
 import { agentRef, getAgentSlug } from '../agents/slug.js';
-import { isApiErrorWithStatus } from '../api/index.js';
 import { slugifyName } from '../utils/index.js';
 
 /** Agents und Rezepte teilen dieselben drei Stufen (`userAgentShareModeSchema`,
@@ -49,17 +48,8 @@ export function planListing(shareMode: ShareMode, choice: PublicOwnership): List
   };
 }
 
-/**
- * Bei 400/403/409 sagt der Server selbst, was im Weg steht (kein Recht im
- * Projekt, schon geteilt, angepasstes System-Rezept, von der Moderation
- * entfernt). Alles andere ist keine Auskunft für Nutzer*innen und bekommt die
- * Sammelzeile.
- */
-export function shareErrorText(error: unknown): string {
-  const explained = [400, 403, 409].some((status) => isApiErrorWithStatus(error, status));
-  if (explained && error instanceof Error && error.message) return error.message;
-  return 'Die Freigabe konnte nicht geändert werden.';
-}
+/** Liegt seit dem Angleichen der Teilen-Dialoge neben `ApiError`; hier für bestehende Importe. */
+export { shareErrorText } from '../api/index.js';
 
 /**
  * Der Pfad, der im Teilen-Dialog steht: `<name>-<slugSuffix>` wie bei Notebooks

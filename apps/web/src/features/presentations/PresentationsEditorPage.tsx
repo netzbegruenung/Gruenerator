@@ -473,6 +473,7 @@ function PresentationsEditorContent() {
       {showShareModal && (
         <Suspense fallback={null}>
           <ShareModal
+            heading="Präsentation teilen"
             documentId={id!}
             documentTitle={docData.title}
             onClose={() => setShowShareModal(false)}

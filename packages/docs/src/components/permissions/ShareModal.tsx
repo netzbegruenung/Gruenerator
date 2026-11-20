@@ -8,10 +8,17 @@ import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 interface ShareModalProps {
   documentId: string;
   documentTitle?: string;
+  /** Überschrift je Art — Sheets und Präsentationen nutzen denselben Dialog. */
+  heading?: string;
   onClose: () => void;
 }
 
-export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalProps) => {
+export const ShareModal = ({
+  documentId,
+  documentTitle,
+  heading = 'Dokument teilen',
+  onClose,
+}: ShareModalProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const userDisplayName = adapter.getCurrentUserDisplayName?.() ?? null;
@@ -76,7 +83,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-grey-200 p-6 dark:border-grey-700">
-          <span className="text-lg font-semibold">Dokument teilen</span>
+          <span className="text-lg font-semibold">{heading}</span>
           <button
             onClick={onClose}
             className="flex h-8 w-8 max-sm:h-11 max-sm:w-11 cursor-pointer items-center justify-center rounded border-none bg-transparent p-0 text-lg text-foreground hover:bg-black/5 dark:hover:bg-white/10"

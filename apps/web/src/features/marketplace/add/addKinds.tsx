@@ -280,7 +280,7 @@ function TemplateVisibility({ item, onBack, onDone }: StepProps & { item: UserTe
       // Submitted counts as public here: the choice is made, only the review is pending.
       current={badge === 'private' ? 'private' : 'public'}
       currentGroupIds={[]}
-      projectUnavailable="Vorlagen lassen sich noch nicht in Projekte und Gruppen teilen."
+      projectUnavailable="In Projekte teilst du eine Vorlage über „Teilen“ an der Vorlage selbst."
       publicRequirement="review"
       onBack={onBack}
       onApply={async (choice) => {

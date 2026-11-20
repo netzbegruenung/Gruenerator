@@ -20,6 +20,8 @@ export const GROUP_FEED_KINDS = [
   { id: 'sharepic-template', label: 'Sharepic-Vorlage', plural: 'Sharepic-Vorlagen' },
   { id: 'sharepic', label: 'Sharepic', plural: 'Sharepics' },
   { id: 'doc', label: 'Doc', plural: 'Docs' },
+  { id: 'sheet', label: 'Sheet', plural: 'Sheets' },
+  { id: 'pres', label: 'Präsentation', plural: 'Präsentationen' },
   { id: 'board', label: 'Board', plural: 'Boards' },
   { id: 'generator', label: 'Grünerator', plural: 'Grüneratoren' },
   { id: 'agent', label: 'Grünerator-Agent', plural: 'Grünerator-Agenten' },
@@ -128,6 +130,8 @@ function base(row: Row, contentType: GroupFeedContentType, kind: GroupFeedKind, 
 function collabKind(subtype: unknown): GroupFeedKind {
   if (subtype === 'boards') return 'board';
   if (subtype === 'canvas') return 'sharepic';
+  if (subtype === 'sheets') return 'sheet';
+  if (subtype === 'presentations') return 'pres';
   return 'doc';
 }
 

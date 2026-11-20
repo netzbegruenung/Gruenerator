@@ -39,6 +39,7 @@ export const ShareDialogBody = ({
     shareWithGroup,
     updateGroupPermission,
     unshareFromGroup,
+    error,
   } = sharing;
 
   if (isLoading || !shareSettings) {
@@ -71,6 +72,12 @@ export const ShareDialogBody = ({
         onRemove={(groupId) => unshareFromGroup.mutate(groupId)}
         isSharing={shareWithGroup.isPending}
       />
+
+      {error && (
+        <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       <CollaboratorList
         collaborators={collaborators}

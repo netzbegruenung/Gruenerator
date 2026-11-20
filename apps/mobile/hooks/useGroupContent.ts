@@ -84,6 +84,20 @@ export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
     case 'doc':
       router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } });
       return;
+    // Wie in Office (`pushOfficeItem`): Sheets und Präsentationen haben eigene Viewer.
+    // Bis sie eigene Feed-Arten waren, öffneten sie als Doc im Text-Editor.
+    case 'sheet':
+      router.push({
+        pathname: '/(fullscreen)/sheet-viewer',
+        params: { id: item.id, title: item.title || 'Unbenannt' },
+      });
+      return;
+    case 'pres':
+      router.push({
+        pathname: '/(fullscreen)/slide-viewer',
+        params: { id: item.id, title: item.title || 'Unbenannt' },
+      });
+      return;
     case 'board':
       router.push({
         pathname: '/(fullscreen)/web-viewer',
