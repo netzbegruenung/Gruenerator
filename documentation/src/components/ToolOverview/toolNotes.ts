@@ -83,6 +83,15 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
     platform: ['web'],
   },
+  'studio-ki-schnitt': {
+    note: 'Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material.',
+    platform: ['web'],
+  },
+  parteitage: {
+    note: 'Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt.',
+    platform: ['web'],
+    readMore: { label: 'Parteitage', href: '/docs/features/parteitage' },
+  },
   'studio-voice': {
     note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
     platform: ['web', 'desktop'],
@@ -127,6 +136,12 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
       label: 'Wie erstelle ich ein gemeinsames Projekt?',
       href: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
     },
+  },
+
+  sites: {
+    note: 'Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung.',
+    platform: ['web'],
+    readMore: { label: 'Sites', href: '/docs/features/sites' },
   },
 
   // ── Weitere ───────────────────────────────────────────────────────────────

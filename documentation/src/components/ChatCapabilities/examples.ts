@@ -229,6 +229,16 @@ export const EXAMPLES: CapabilityExample[] = [
     ],
   },
   {
+    intent: 'antragsgruen',
+    group: 'politik',
+    label: 'Antragsgrün NRW',
+    mentionable: 'antragsgruen',
+    questions: [
+      'Welche Anträge zur Verkehrswende gab es auf dem letzten Landesparteitag in NRW?',
+      'Was hat der NRW-Parteitag zum Kohleausstieg beschlossen?',
+    ],
+  },
+  {
     intent: 'umfragen',
     group: 'politik',
     label: 'Umfragen',
