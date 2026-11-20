@@ -55,6 +55,7 @@ export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.
 
 export {
   GROUP_FEED_KINDS,
+  austauschItems,
   fileExtensionLabel,
   filterGroupFeed,
   formatFeedDate,
@@ -73,6 +74,8 @@ export {
   type GroupPostFile,
   type ToGroupFeedItemsOptions,
 } from './feed.js';
+
+export { projectChatThreads } from './projectChats.js';
 
 export {
   addItemsToGroup,

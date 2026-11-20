@@ -247,6 +247,28 @@ export function isPinned(item: GroupFeedItem): boolean {
   return !!item.share?.pinnedAt;
 }
 
+/**
+ * Der Austausch zeigt, was besprochen wird: Beiträge und Freigaben mit Notiz,
+ * Anheftung, Reaktionen oder Kommentaren — plus, was gerade angesteuert wird
+ * (`discussed`: per „Im Austausch besprechen" geholt; `focusShareId`: Link oder
+ * Benachrichtigung). Alles andere ist Wissen.
+ */
+export function austauschItems(
+  items: GroupFeedItem[],
+  discussed: ReadonlySet<string>,
+  focusShareId: string | null
+): GroupFeedItem[] {
+  return items.filter(
+    (i) =>
+      i.kind === 'post' ||
+      isPinned(i) ||
+      !!i.share?.note ||
+      (i.share?.commentCount ?? 0) > 0 ||
+      (i.share?.reactions.length ?? 0) > 0 ||
+      (!!i.share && (discussed.has(i.share.shareId) || i.share.shareId === focusShareId))
+  );
+}
+
 /** „Alle": je Art ein Abschnitt, leere weggelassen, Reihenfolge wie `GROUP_FEED_KINDS`. */
 export function groupFeedByKind(items: GroupFeedItem[]) {
   return GROUP_FEED_KINDS.map((k) => ({
