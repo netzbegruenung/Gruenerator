@@ -18,6 +18,7 @@ import {
 import {
   Copy,
   Check,
+  CloudUpload,
   FileDown,
   FileText,
   Headphones,
@@ -37,7 +38,9 @@ import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useMayReplaceTurn } from '../../hooks/useMayReplaceTurn';
+import { isDriveProvider, useConnectProvidersQuery } from '../../hooks/useMentionablesQuery';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
+import { notifyCloudExportResult, uploadToCloud } from '../../lib/cloudExport';
 import { downloadBlob } from '../../lib/downloadBlob';
 import {
   buildDocumentActions,
@@ -57,7 +60,7 @@ import { MessageTime } from './MessageTimestamp';
 import { MessageTTSButton } from './MessageTTSButton';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
-import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
+import type { DriveProvider, ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import type { ReactNode } from 'react';
 
 /** Icon and handler per menu entry; the entries themselves come from the model. */
@@ -105,6 +108,10 @@ export const MessageActions = memo(function MessageActions({
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
+  // Fetched when the menu opens: people connect a drive in the settings
+  // between two answers, and a stale list would hide the new target.
+  const connectedDrives = useConnectProvidersQuery(menuOpen && !readOnly);
+  const cloudTargets = (connectedDrives.data ?? []).map((p) => p.provider).filter(isDriveProvider);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
   const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
   const nav = useChatNavigation();
@@ -122,28 +129,48 @@ export const MessageActions = memo(function MessageActions({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /** The Word file the server renders for this message — for download and cloud export. */
+  const fetchDocx = async (): Promise<{ blob: Blob; filename: string }> => {
+    const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+    const response = await configFetch(endpoints.exportMessage, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: exportContent,
+        role: 'assistant',
+        timestamp: Date.now(),
+        metadata,
+      }),
+    });
+    if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
+    return {
+      blob: await response.blob(),
+      filename: filenameFromDisposition(response.headers.get('Content-Disposition'), 'docx'),
+    };
+  };
+
   const handleExportDocx = async () => {
     try {
-      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-      const response = await configFetch(endpoints.exportMessage, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: exportContent,
-          role: 'assistant',
-          timestamp: Date.now(),
-          metadata,
-        }),
-      });
-
-      if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
-      await downloadBlob(
-        await response.blob(),
-        filenameFromDisposition(response.headers.get('Content-Disposition'), 'docx')
-      );
+      const { blob, filename } = await fetchDocx();
+      await downloadBlob(blob, filename);
     } catch (error) {
       console.error('Export error:', error);
       notifyError('Export fehlgeschlagen', 'Die Nachricht konnte nicht heruntergeladen werden.');
+    }
+  };
+
+  const handleExportToCloud = async (provider: DriveProvider) => {
+    try {
+      const { blob, filename } = await fetchDocx();
+      const result = await uploadToCloud(
+        useChatConfigStore.getState().fetch,
+        provider,
+        blob,
+        filename
+      );
+      notifyCloudExportResult(provider, { ok: true, result });
+    } catch (error) {
+      notifyCloudExportResult(provider, { ok: false, error });
     }
   };
 
@@ -299,6 +326,7 @@ export const MessageActions = memo(function MessageActions({
       hasNavigation: Boolean(nav),
       readOnly,
     }),
+    cloudTargets,
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -311,6 +339,14 @@ export const MessageActions = memo(function MessageActions({
     recipe: {
       icon: <BookPlus className="h-3.5 w-3.5" />,
       run: () => Promise.resolve(handleSaveAsRecipe()),
+    },
+    'cloud-google': {
+      icon: <CloudUpload className="h-3.5 w-3.5" />,
+      run: () => handleExportToCloud('google'),
+    },
+    'cloud-microsoft': {
+      icon: <CloudUpload className="h-3.5 w-3.5" />,
+      run: () => handleExportToCloud('microsoft'),
     },
   };
 

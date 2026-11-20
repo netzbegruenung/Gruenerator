@@ -281,6 +281,12 @@ export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 export { stripForSpeech } from './lib/speechText';
 export { pickGoogleFiles, type PickedGoogleFile } from './lib/googlePicker';
+export {
+  CLOUD_EXPORT_LABELS,
+  CloudExportError,
+  notifyCloudExportResult,
+  uploadToCloud,
+} from './lib/cloudExport';
 
 // Citation Context
 export {

@@ -1,4 +1,10 @@
-import { EditorChatPanel } from '@gruenerator/chat';
+import {
+  CLOUD_EXPORT_LABELS,
+  EditorChatPanel,
+  notifyCloudExportResult,
+  uploadToCloud,
+  useConnectProvidersQuery,
+} from '@gruenerator/chat';
 import {
   CollabUnavailable,
   useCollaboration,
@@ -7,6 +13,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { type DriveProvider, driveProviderSchema } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocumentChat,
@@ -523,6 +530,40 @@ function EditorContent() {
     }
   }, [docData, editor, exportBlockedBySuggestions]);
 
+  // Fetched when the export submenu opens: a drive connected in the settings
+  // since the page loaded shows up without a reload.
+  const connectedDrives = useConnectProvidersQuery(showExportSubmenu);
+  const cloudTargets = (connectedDrives.data ?? [])
+    .map((p) => p.provider)
+    .filter((p): p is DriveProvider => driveProviderSchema.safeParse(p).success);
+
+  /** The same Word file as „Als Word (.docx)“, saved into a connected drive. */
+  const handleExportToCloud = useCallback(
+    async (provider: DriveProvider) => {
+      if (!docData || !editor) return;
+      if (exportBlockedBySuggestions()) return;
+      setShowActionsMenu(false);
+      const { toast } = await import('sonner');
+      const pending = toast.loading('Wird gespeichert …');
+      try {
+        const { createDocxExporter } = await import('./documentExporters');
+        const blob = await createDocxExporter().toBlob(editor.document);
+        const result = await uploadToCloud(
+          (url, init) => platformFetch(url, { ...init, credentials: 'include' }),
+          provider,
+          blob,
+          `${docData.title || 'Dokument'}.docx`
+        );
+        toast.dismiss(pending);
+        notifyCloudExportResult(provider, { ok: true, result });
+      } catch (error) {
+        toast.dismiss(pending);
+        notifyCloudExportResult(provider, { ok: false, error });
+      }
+    },
+    [docData, editor, exportBlockedBySuggestions]
+  );
+
   const togglePanel = useCallback((panel: SidebarPanel) => {
     setActiveSidebar((prev) => (prev === panel ? null : panel));
   }, []);
@@ -946,6 +987,15 @@ function EditorContent() {
                         >
                           Als ODT (.odt)
                         </button>
+                        {cloudTargets.map((provider) => (
+                          <button
+                            key={provider}
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => void handleExportToCloud(provider)}
+                          >
+                            {CLOUD_EXPORT_LABELS[provider]}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>,

@@ -7,10 +7,20 @@
  * Rendering a Radix menu in jsdom to read four labels back would test the menu
  * library.
  */
+import { type DriveProvider } from '@gruenerator/contracts';
+
+import { CLOUD_EXPORT_LABELS } from './cloudExport';
 
 /** Identifiers, not labels — the component maps these to icons and handlers. */
 export type DocumentActionId =
-  'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable' | 'podcast' | 'recipe';
+  | 'docs'
+  | 'docx'
+  | 'pdf'
+  | 'pdf-letterhead'
+  | 'explainable'
+  | 'podcast'
+  | 'recipe'
+  | `cloud-${DriveProvider}`;
 
 export interface DocumentActionDescriptor {
   id: DocumentActionId;
@@ -41,6 +51,11 @@ export interface DocumentActionOptions {
    * and callers that never offer it need not name it.
    */
   canSaveAsRecipe?: boolean;
+  /**
+   * Connected drives the Word file can be saved into, in display order.
+   * Optional so callers that never offer it need not name it.
+   */
+  cloudTargets?: readonly DriveProvider[];
 }
 
 /**
@@ -85,10 +100,15 @@ export function buildDocumentActions({
   canCreateExplainable,
   canCreatePodcast,
   canSaveAsRecipe = false,
+  cloudTargets = [],
 }: DocumentActionOptions): DocumentActionDescriptor[] {
   return [
     { id: 'docs', label: hasLinkedDoc ? 'Im Editor öffnen' : 'Im Editor bearbeiten' },
     { id: 'docx', label: 'Als Word (.docx)' },
+    ...cloudTargets.map((provider) => ({
+      id: `cloud-${provider}` as const,
+      label: CLOUD_EXPORT_LABELS[provider],
+    })),
     { id: 'pdf', label: 'Als PDF' },
     ...(canExportPdfLetterhead
       ? [{ id: 'pdf-letterhead' as const, label: 'Als PDF mit Briefkopf …' }]
