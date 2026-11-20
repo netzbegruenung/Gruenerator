@@ -45,6 +45,7 @@ export const TOOL_ICON_KEYS = {
   'ki-bildgenerierung': 'magic',
   sharepic: 'imageSquare',
   reel: 'videoCamera',
+  videoeditor: 'videoCamera',
   wissen: 'book',
   profilbild: 'userCircle',
   sticker: 'sticker',
