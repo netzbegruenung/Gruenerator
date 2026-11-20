@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   '/ki-transparenz',
   '/startseite',
   '/testsommer',
+  '/app',
   '/login',
   '/register',
   '/sites/login',

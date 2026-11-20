@@ -42,6 +42,10 @@ const EXPECTED_PUBLIC_PATHS = [
   '/office/:id',
   // Legacy URL of the same page — links shared before the /office rename.
   '/docs/:id',
+  // Download target of the app QR codes: renders nothing, sends a phone to its
+  // store and everyone else to /apps (which is login-gated). A phone scanning the
+  // code must not meet a login first.
+  '/app',
   // Legally required to be reachable without an account.
   '/datenschutz',
   '/impressum',

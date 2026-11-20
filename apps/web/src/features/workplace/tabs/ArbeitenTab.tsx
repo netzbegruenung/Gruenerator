@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { DocsHome } from '../../docs/DocsPage';
+import { AppsSection } from '../components/AppsSection';
 import {
   BriefingSection,
   MEDIA_GRID,
@@ -19,7 +20,7 @@ import { NewContentMenu } from '../components/NewContentMenu';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz.
+// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps.
 const ArbeitenTab = () => {
   return (
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
@@ -41,6 +42,7 @@ const ArbeitenTab = () => {
         />
         <BriefingSection />
         <MarketplaceSection />
+        <AppsSection />
       </div>
     </PageContainer>
   );
