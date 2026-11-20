@@ -126,7 +126,7 @@ describe('copy, meta, grounds', () => {
       `Datenschutzerklärung – ${fullSnapshot().site_title}`
     ));
   it('maps the variant to grounds', () => {
-    expect(sectionGround('dunkel', 'hero', 'de-DE')).toBe('deep');
+    expect(sectionGround('dunkel', 'hero', 'de-DE')).toBe('surface');
     expect(sectionGround('hell', 'hero', 'de-DE')).toBe('surface');
     expect(sectionGround('leuchtend', 'themes', 'de-DE')).toBe('deep');
     expect(sectionGround('hell', 'footer', 'de-DE')).toBe('deep');
@@ -145,7 +145,7 @@ describe('copy, meta, grounds', () => {
     ] as const;
     const expected = {
       header: ['deep', 'surface', 'vivid'],
-      hero: ['deep', 'surface', 'vivid'],
+      hero: ['surface', 'surface', 'surface'],
       about: ['paper', 'paper', 'paper'],
       heroImage: ['photo', 'photo', 'photo'],
       themes: ['surface', 'paper', 'deep'],

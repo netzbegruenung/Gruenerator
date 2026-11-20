@@ -16,7 +16,6 @@ export function siteCopy(locale: SupportedLocale) {
     socialFeedDefault: 'Instagram',
     contactDefault: 'Kontakt',
     aboutDefault: 'Über mich',
-    stoerer: 'Mach mit!',
     socialList: 'Social Media',
     email: 'E-Mail',
     phone: 'Telefon',
