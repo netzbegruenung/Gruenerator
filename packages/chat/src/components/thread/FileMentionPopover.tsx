@@ -80,6 +80,7 @@ interface FileMentionPopoverProps {
 const DRIVE_ROWS = [
   { provider: 'microsoft', label: 'OneDrive' },
   { provider: 'google', label: 'Google Drive' },
+  { provider: 'microsoft-teams', label: 'Teams' },
 ] as const;
 
 export function FileMentionPopover({

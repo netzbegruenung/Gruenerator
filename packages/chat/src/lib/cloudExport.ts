@@ -8,18 +8,18 @@ import {
   CLOUD_UPLOAD_FIELD,
   driveBrowseErrorSchema,
   driveUploadResponseSchema,
-  type DriveProvider,
+  type CloudExportProvider,
   type DriveUploadResponse,
 } from '@gruenerator/contracts';
 
 import { notifyError } from './notify';
 
-export const CLOUD_EXPORT_LABELS: Record<DriveProvider, string> = {
+export const CLOUD_EXPORT_LABELS: Record<CloudExportProvider, string> = {
   google: 'In Google Drive speichern',
   microsoft: 'In OneDrive speichern',
 };
 
-const PROVIDER_NAMES: Record<DriveProvider, string> = {
+const PROVIDER_NAMES: Record<CloudExportProvider, string> = {
   google: 'Google Drive',
   microsoft: 'OneDrive',
 };
@@ -37,7 +37,7 @@ export class CloudExportError extends Error {
 
 export async function uploadToCloud(
   fetchFn: (url: string, options?: RequestInit) => Promise<Response>,
-  provider: DriveProvider,
+  provider: CloudExportProvider,
   docx: Blob,
   filename: string
 ): Promise<DriveUploadResponse> {
@@ -59,7 +59,7 @@ export async function uploadToCloud(
 
 /** Erfolg mit Link zur Datei, Fehler mit dem Satz der Route. */
 export function notifyCloudExportResult(
-  provider: DriveProvider,
+  provider: CloudExportProvider,
   outcome: { ok: true; result: DriveUploadResponse } | { ok: false; error: unknown }
 ): void {
   const where = PROVIDER_NAMES[provider];

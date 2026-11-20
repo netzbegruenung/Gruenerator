@@ -7,9 +7,10 @@
  * Rendering a Radix menu in jsdom to read four labels back would test the menu
  * library.
  */
-import { type DriveProvider } from '@gruenerator/contracts';
+import { type CloudExportProvider, type ConnectorTargetProvider } from '@gruenerator/contracts';
 
 import { CLOUD_EXPORT_LABELS } from './cloudExport';
+import { CONNECTOR_SEND_LABELS } from './connectorSend';
 
 /** Identifiers, not labels — the component maps these to icons and handlers. */
 export type DocumentActionId =
@@ -20,7 +21,8 @@ export type DocumentActionId =
   | 'explainable'
   | 'podcast'
   | 'recipe'
-  | `cloud-${DriveProvider}`;
+  | `cloud-${CloudExportProvider}`
+  | `send-${ConnectorTargetProvider}`;
 
 export interface DocumentActionDescriptor {
   id: DocumentActionId;
@@ -55,7 +57,12 @@ export interface DocumentActionOptions {
    * Connected drives the Word file can be saved into, in display order.
    * Optional so callers that never offer it need not name it.
    */
-  cloudTargets?: readonly DriveProvider[];
+  cloudTargets?: readonly CloudExportProvider[];
+  /**
+   * Connected providers that take the export into a chosen target (Teams
+   * channel or Slack channel), in display order.
+   */
+  sendTargets?: readonly ConnectorTargetProvider[];
 }
 
 /**
@@ -101,6 +108,7 @@ export function buildDocumentActions({
   canCreatePodcast,
   canSaveAsRecipe = false,
   cloudTargets = [],
+  sendTargets = [],
 }: DocumentActionOptions): DocumentActionDescriptor[] {
   return [
     { id: 'docs', label: hasLinkedDoc ? 'Im Editor öffnen' : 'Im Editor bearbeiten' },
@@ -108,6 +116,10 @@ export function buildDocumentActions({
     ...cloudTargets.map((provider) => ({
       id: `cloud-${provider}` as const,
       label: CLOUD_EXPORT_LABELS[provider],
+    })),
+    ...sendTargets.map((provider) => ({
+      id: `send-${provider}` as const,
+      label: CONNECTOR_SEND_LABELS[provider],
     })),
     { id: 'pdf', label: 'Als PDF' },
     ...(canExportPdfLetterhead

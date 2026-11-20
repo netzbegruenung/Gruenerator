@@ -18,6 +18,7 @@ import * as googleDriveClient from '../../../../services/api-clients/googleDrive
 import * as microsoftGraphClient from '../../../../services/api-clients/microsoftGraphClient.js';
 import { GRAPH_PDF_CONVERTIBLE } from '../../../../services/connections/connectFileSupport.js';
 import { ConnectionService } from '../../../../services/connections/ConnectionService.js';
+import { decodeTeamsRef } from '../../../../services/connections/teamsIds.js';
 import { extractTextFromFile } from '../../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { SOURCE_PREFIX, type DocumentSource, type SearchResult } from '../types.js';
@@ -56,10 +57,20 @@ async function acquireText(
   mimeType?: string | null
 ): Promise<string | null> {
   switch (provider) {
-    case 'microsoft': {
+    case 'microsoft':
+    case 'microsoft-teams': {
+      // Teams-Dateien liegen in der Bibliothek des Teams; die Kennung trägt sie mit.
+      let itemId = fileId;
+      let driveId: string | undefined;
+      if (provider === 'microsoft-teams') {
+        const ref = decodeTeamsRef(fileId);
+        if (ref?.kind !== 'item') return null;
+        ({ itemId, driveId } = ref);
+      }
       if (GRAPH_PDF_CONVERTIBLE.test(name)) {
-        const buffer = await microsoftGraphClient.downloadDriveItem(accessToken, fileId, {
+        const buffer = await microsoftGraphClient.downloadDriveItem(accessToken, itemId, {
           asPdf: true,
+          ...(driveId ? { driveId } : {}),
         });
         return extractTextFromFile({
           buffer,
@@ -68,7 +79,9 @@ async function acquireText(
           size: buffer.length,
         });
       }
-      const buffer = await microsoftGraphClient.downloadDriveItem(accessToken, fileId);
+      const buffer = driveId
+        ? await microsoftGraphClient.downloadDriveItem(accessToken, itemId, { driveId })
+        : await microsoftGraphClient.downloadDriveItem(accessToken, itemId);
       return extractTextFromFile({
         buffer,
         mimetype: mimeTypeFromName(name, mimeType),

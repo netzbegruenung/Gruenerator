@@ -15,10 +15,17 @@ import axios from 'axios';
 import multer from 'multer';
 
 import { env } from '../../config/env.js';
+import { SlackApiError } from '../../services/api-clients/slackClient.js';
 import {
   ConnectionNotAllowedError,
   ConnectionService,
 } from '../../services/connections/ConnectionService.js';
+import {
+  InvalidTargetError,
+  listTargets,
+  MissingPayloadError,
+  sendToTarget,
+} from '../../services/connections/connectorTargets.js';
 import { browseDrive } from '../../services/connections/driveBrowse.js';
 import { isDocxBuffer, uploadToDrive } from '../../services/connections/driveUpload.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -39,9 +46,37 @@ function failure<S extends 400 | 403 | 404 | 413 | 500>(
   return { status, body: { success: false as const, message, reauth } };
 }
 
+/**
+ * Eine Fehlerform für Zielwahl und Senden: was der Person sagt, ob sie neu
+ * verbinden muss, ob das Ziel weg ist oder ob ihr Export nicht passte.
+ */
+function targetFailure(err: unknown, action: string) {
+  if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
+  if (err instanceof InvalidTargetError) return failure(404, err.message);
+  if (err instanceof MissingPayloadError) return failure(400, err.message);
+  if (err instanceof SlackApiError) {
+    if (err.kind === 'auth') return failure(403, 'Zugang abgelaufen — bitte neu verbinden.', true);
+    if (err.kind === 'not_found') {
+      return failure(404, 'Kanal nicht gefunden — ist der Grünerator dort eingeladen?');
+    }
+  }
+  if (err instanceof Error && err.message.startsWith('No ')) {
+    return failure(403, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
+  }
+  const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+  if (status === 401 || status === 403) {
+    return failure(403, 'Zugang abgelaufen oder ohne Berechtigung — bitte neu verbinden.', true);
+  }
+  if (status === 404 || (err instanceof Error && err.message.startsWith('Invalid'))) {
+    return failure(404, 'Ziel nicht gefunden.');
+  }
+  log.error(`[${action}] failed`, err);
+  return failure(500, 'Das hat nicht geklappt. Bitte später noch einmal versuchen.');
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: CLOUD_UPLOAD_MAX_BYTES, files: 1, fields: 2 },
+  limits: { fileSize: CLOUD_UPLOAD_MAX_BYTES, files: 1, fields: 4 },
   defParamCharset: 'utf8',
 }).single(CLOUD_UPLOAD_FIELD);
 
@@ -139,6 +174,39 @@ export const connectionsContractRouter = s.router(connectionsContract, {
         }
         log.error(`[upload] ${params.provider} upload failed`, err);
         return failure(500, 'Die Datei konnte nicht gespeichert werden.');
+      }
+    },
+  },
+
+  targets: async ({ req, params, query }) => {
+    const userId = getAuthedUser(req).id;
+    try {
+      const entries = await listTargets(params.provider, userId, query.parent);
+      return { status: 200 as const, body: { success: true as const, entries } };
+    } catch (err) {
+      return targetFailure(err, `targets:${params.provider}`);
+    }
+  },
+
+  // Teams bekommt die Word-Datei (Multipart-Teil), Slack den Text.
+  send: {
+    middleware: [cloudUpload],
+    handler: async ({ req, params, body }) => {
+      const userId = getAuthedUser(req).id;
+      const file = req.file;
+      if (file && !isDocxBuffer(file.buffer)) {
+        return failure(400, 'Nur Word-Dateien (.docx) können abgelegt werden.');
+      }
+      try {
+        const result = await sendToTarget(params.provider, userId, {
+          targetId: body.targetId,
+          title: body.title,
+          ...(body.text ? { text: body.text } : {}),
+          ...(file ? { docx: file.buffer } : {}),
+        });
+        return { status: 200 as const, body: { success: true as const, ...result } };
+      } catch (err) {
+        return targetFailure(err, `send:${params.provider}`);
       }
     },
   },

@@ -31,7 +31,7 @@ import { MentionFloatingPanel } from './MentionFloatingPanel';
  */
 
 /** Welche Quelle beim Öffnen vorgewählt ist. `drive` = das erste verbundene Laufwerk. */
-export type CloudSourceHint = 'wolke' | 'drive' | 'microsoft' | 'google';
+export type CloudSourceHint = 'wolke' | 'drive' | 'microsoft' | 'google' | 'microsoft-teams';
 
 export interface CloudSelection {
   wolke: WolkeFileToken[];
@@ -67,7 +67,11 @@ interface Row {
 type Picked =
   { kind: 'wolke'; token: WolkeFileToken } | { kind: 'connect'; token: ConnectFileToken };
 
-const DRIVE_LABELS: Record<string, string> = { microsoft: 'OneDrive', google: 'Google Drive' };
+const DRIVE_LABELS: Record<string, string> = {
+  microsoft: 'OneDrive',
+  google: 'Google Drive',
+  'microsoft-teams': 'Teams',
+};
 
 function pickInitial(sources: Source[], hint: CloudSourceHint): Source | null {
   const match =
