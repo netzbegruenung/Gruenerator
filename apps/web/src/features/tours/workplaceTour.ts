@@ -73,9 +73,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
       {
         element: SEL.arbeitenCreate,
         popover: {
-          title: 'Arbeiten: Neues erstellen',
+          title: 'Arbeiten: Alles finden',
           description:
-            'Dokumente, Boards, Tabellen und Präsentationen — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
+            'Such hier nach deinen Dokumenten, Boards, Tabellen, Präsentationen und Werkzeugen. Neues legst du über „Neu erstellen“ an.',
           side: 'bottom',
           onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
         },

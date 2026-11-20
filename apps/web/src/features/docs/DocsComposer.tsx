@@ -91,6 +91,10 @@ interface DocsComposerProps {
   draft?: { id: number; text: string };
   /** Show the live search results under the field. Off: the field only creates. */
   search?: boolean;
+  /** Off: the field only searches — no create option, no templates, no "+" menu, no type
+   * chip; the button opens the highlighted hit. Used on the Arbeiten tab, where
+   * „Neu erstellen" beside „Zuletzt" is the way to make something. */
+  create?: boolean;
   /** Colours of the submit button (background + hover). Defaults to the Grünerator green. */
   submitClassName?: string;
   /** Glyph on the submit button. `search` on surfaces that lead with finding
@@ -142,6 +146,7 @@ export function DocsComposer({
   promptExamplesShort = PROMPT_EXAMPLES_SHORT,
   placeholder,
   search = true,
+  create: canCreate = true,
   draft,
   submitIcon = 'arrow',
   submitClassName = 'bg-[#4C8A6E] hover:bg-[#3E7A5F]',
@@ -201,14 +206,16 @@ export function DocsComposer({
   const matchedItems = lcQuery
     ? items.filter((it) => it.title.toLowerCase().includes(lcQuery)).slice(0, MAX_ITEMS)
     : [];
-  const matchedTemplates = lcQuery
-    ? templates
-        .filter(
-          (t) =>
-            t.title.toLowerCase().includes(lcQuery) || t.description.toLowerCase().includes(lcQuery)
-        )
-        .slice(0, MAX_TEMPLATES)
-    : [];
+  const matchedTemplates =
+    lcQuery && canCreate
+      ? templates
+          .filter(
+            (t) =>
+              t.title.toLowerCase().includes(lcQuery) ||
+              t.description.toLowerCase().includes(lcQuery)
+          )
+          .slice(0, MAX_TEMPLATES)
+      : [];
 
   // Content matches from the backend — documents/boards/sheets/presentations
   // whose query term lives in the body, not the title. Drop the ones already
@@ -391,10 +398,13 @@ export function DocsComposer({
     ? [createOption, ...resultOptions]
     : [...resultOptions, createOption];
   // First, so Enter takes the offer the notice above just made.
-  const options: Option[] = chatIntent ? [chatOption, ...baseOptions] : baseOptions;
+  const actionOptions: Option[] = canCreate ? baseOptions : resultOptions;
+  const options: Option[] = chatIntent ? [chatOption, ...actionOptions] : actionOptions;
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
-  const showDropdown = search && open && query.length > 0 && options.length > 0;
+  // Search-only: an empty result list still opens, to say there was nothing.
+  const showDropdown = search && open && query.length > 0 && (options.length > 0 || !canCreate);
+  const openActive = () => options[clampedActive]?.onSelect();
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'ArrowDown' && showDropdown) {
@@ -406,7 +416,7 @@ export function DocsComposer({
     } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!search) runCreate();
-      else options[clampedActive]?.onSelect();
+      else openActive();
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -415,9 +425,9 @@ export function DocsComposer({
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
       <div
-        className={`flex gap-3 border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${multiline ? 'items-end rounded-[28px]' : 'items-center rounded-full'} ${allowImports ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
+        className={`flex gap-3 border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${multiline ? 'items-end rounded-[28px]' : 'items-center rounded-full'} ${allowImports && canCreate ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
       >
-        {allowImports && (
+        {allowImports && canCreate && (
           <ResponsiveMenu
             open={plusOpen}
             onOpenChange={setPlusOpen}
@@ -476,14 +486,14 @@ export function DocsComposer({
             }}
             onKeyDown={onKeyDown}
             placeholder={placeholder}
-            aria-label="Erstellen oder suchen"
+            aria-label={canCreate ? 'Erstellen oder suchen' : 'Inhalte und Werkzeuge durchsuchen'}
             className="block w-full min-w-0 resize-none border-0 bg-transparent py-[9px] text-base leading-6 text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
           />
         </div>
 
         {typeof toolbarSlot === 'function' ? toolbarSlot(query) : toolbarSlot}
 
-        {query.length > 0 && !toolbarSlot && (
+        {query.length > 0 && !toolbarSlot && canCreate && (
           <span
             // Narrow phones: drop the word, keep the coloured type icon — the
             // label ("Präsentation") otherwise squeezes the input to nothing.
@@ -505,9 +515,13 @@ export function DocsComposer({
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={runCreate}
-          disabled={(query.length === 0 && !allowEmptySubmit) || isGenerating}
-          aria-label="Erstellen"
+          onClick={canCreate ? runCreate : openActive}
+          disabled={
+            canCreate
+              ? (query.length === 0 && !allowEmptySubmit) || isGenerating
+              : options.length === 0
+          }
+          aria-label={canCreate ? 'Erstellen' : 'Suchen'}
           className={`flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-white transition-[background,transform] active:scale-95 disabled:opacity-50 ${submitClassName}`}
         >
           {isGenerating ? (
@@ -541,7 +555,7 @@ export function DocsComposer({
             if (blurTimer.current) clearTimeout(blurTimer.current);
           }}
         >
-          {chatIntent && (
+          {chatIntent && canCreate && (
             <div
               role="status"
               className="mb-1 flex items-start gap-2.5 rounded-xl bg-[#F2F6F3] px-3 py-2.5 dark:bg-grey-700/60"
@@ -557,10 +571,15 @@ export function DocsComposer({
               </p>
             </div>
           )}
-          {!promptMode && !chatIntent && (
+          {(canCreate ? !promptMode && !chatIntent : options.length > 0) && (
             <div className="flex items-center gap-2 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-brand">
               <FiSearch size={11} /> Ergebnisse
             </div>
+          )}
+          {options.length === 0 && (
+            <p role="status" className="m-0 px-3 py-2.5 text-sm text-muted-brand">
+              Keine Treffer für „{query}“
+            </p>
           )}
           {options.map((opt, i) => (
             <button
