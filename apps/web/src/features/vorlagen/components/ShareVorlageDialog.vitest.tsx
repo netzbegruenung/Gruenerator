@@ -126,13 +126,68 @@ describe('ShareVorlageDialog', () => {
     );
 
     await screen.findByText('KV Musterstadt');
-    const select = screen.getByDisplayValue('Bearbeiter*in');
+    const select = screen.getByDisplayValue('Bearbeiten');
     await userEvent.selectOptions(select, 'viewer');
 
     // Without the optimistic write the controlled select snapped back to
-    // „Bearbeiter*in" until the server answered.
+    // „Bearbeiten" until the server answered.
     expect(select).toHaveValue('viewer');
     release();
+  });
+
+  it('belegt in Team-Projekten „Bearbeiten“ vor, sonst „Nur lesen“', async () => {
+    setupHandlers('public');
+    let body: unknown = null;
+    server.use(
+      http.get('http://localhost/api/docs/groups/me', () =>
+        HttpResponse.json([
+          { id: 'team', name: 'KV Musterstadt', role: 'member', team: true },
+          { id: 'mine', name: 'Mein Projekt', role: 'admin', team: false },
+        ])
+      ),
+      http.post(`${DOCS}/groups`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ success: true });
+      })
+    );
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
+
+    const project = await screen.findByDisplayValue('Projekt oder Gruppe auswählen...');
+    const role = screen.getByLabelText('Mitglieder können');
+    await userEvent.selectOptions(project, 'mine');
+    expect(role).toHaveValue('viewer');
+    await userEvent.selectOptions(project, 'team');
+    expect(role).toHaveValue('editor');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Teilen' }));
+    await waitFor(() => expect(body).toEqual({ group_id: 'team', permission_level: 'editor' }));
+  });
+
+  it('zeigt den Satz des Servers, wenn das Projekt das Teilen ablehnt', async () => {
+    setupHandlers('public');
+    server.use(
+      http.get('http://localhost/api/docs/groups/me', () =>
+        HttpResponse.json([{ id: 'team', name: 'KV Musterstadt', role: 'member', team: true }])
+      ),
+      http.post(`${DOCS}/groups`, () =>
+        HttpResponse.json({ error: 'Du kannst in diesem Projekt nichts teilen.' }, { status: 403 })
+      )
+    );
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
+
+    await userEvent.selectOptions(
+      await screen.findByDisplayValue('Projekt oder Gruppe auswählen...'),
+      'team'
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Teilen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Du kannst in diesem Projekt nichts teilen.'
+    );
   });
 
   it('hat keine a11y-Verstöße', async () => {

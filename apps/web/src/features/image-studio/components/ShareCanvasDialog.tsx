@@ -5,7 +5,8 @@ import {
   ShareModeSelect,
   type ShareMode,
 } from '@gruenerator/docs';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient, shareErrorText } from '@gruenerator/shared/api';
+import { groupContentKey } from '@gruenerator/shared/groups';
 import {
   Button,
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { FiCheckCircle } from 'react-icons/fi';
 
@@ -55,7 +57,9 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     shareWithGroup,
     updateGroupPermission,
     unshareFromGroup,
+    error: sharingError,
   } = useCanvasSharing(canvasId);
+  const queryClient = useQueryClient();
 
   const handleShareAsVorlage = useCallback(async () => {
     if (!vorlageGroupId) return;
@@ -71,19 +75,16 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
           permissions: { read: true },
         },
       });
-      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      void queryClient.invalidateQueries({ queryKey: groupContentKey(vorlageGroupId) });
       setVorlageStatus('shared');
       setVorlageSharedGroupName(targetGroup?.name ?? null);
       setVorlageGroupId('');
     } catch (err) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error).message ||
-        'Fehler beim Teilen';
       setVorlageStatus('error');
-      setVorlageError(message);
+      setVorlageError(shareErrorText(err));
     }
-  }, [vorlageGroupId, userGroups, canvasId]);
+  }, [vorlageGroupId, userGroups, canvasId, queryClient]);
 
   if (isLoading || !shareSettings) {
     return (
@@ -138,6 +139,12 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
           onRemove={(groupId) => unshareFromGroup.mutate(groupId)}
           isSharing={shareWithGroup.isPending}
         />
+
+        {sharingError && (
+          <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
+            {sharingError}
+          </p>
+        )}
 
         {userGroups.length > 0 && (
           <div className="border-t border-grey-200 dark:border-grey-700 pt-md">

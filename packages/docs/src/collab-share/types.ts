@@ -32,6 +32,8 @@ export interface SharingUserGroup {
   id: string;
   name: string;
   role: string;
+  /** Team-Projekt: Docs gehen dort standardmäßig mit „Bearbeiten“ hinein. */
+  team?: boolean;
 }
 
 export interface SharingGroupShare {

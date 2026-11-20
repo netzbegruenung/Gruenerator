@@ -96,6 +96,7 @@ export function ShareVorlageBody({ title, owned: ownedProp, templateId, url }: V
     shareWithGroup,
     updateGroupPermission,
     unshareFromGroup,
+    error: sharingError,
   } = sharing;
 
   const shareUrl = canvasId && owned ? `${window.location.origin}/vorlagen/v/${owned.id}` : url;
@@ -176,6 +177,12 @@ export function ShareVorlageBody({ title, owned: ownedProp, templateId, url }: V
             onRemove={(groupId) => unshareFromGroup.mutate(groupId)}
             isSharing={shareWithGroup.isPending}
           />
+
+          {sharingError && (
+            <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
+              {sharingError}
+            </p>
+          )}
 
           <CollaboratorList
             collaborators={collaborators}

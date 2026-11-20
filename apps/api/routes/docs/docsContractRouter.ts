@@ -225,7 +225,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can manage group sharing' },
+          body: { error: 'Nur wem das Dokument gehört, kann es in Projekte teilen.' },
         };
       }
 
@@ -275,7 +275,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can unshare from groups' },
+          body: { error: 'Nur wem das Dokument gehört, kann es aus Projekten nehmen.' },
         };
       }
 
@@ -284,7 +284,11 @@ export const docsContractRouter = s.router(docsContract, {
         contentType: 'collaborative_documents',
         contentId: id,
       });
-      if (!removed) return { status: 404 as const, body: { error: 'Group share not found' } };
+      if (!removed)
+        return {
+          status: 404 as const,
+          body: { error: 'Das Dokument liegt nicht in diesem Projekt.' },
+        };
 
       return {
         status: 200 as const,
@@ -483,7 +487,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can share with groups' },
+          body: { error: 'Nur wem das Dokument gehört, kann es in Projekte teilen.' },
         };
       }
 
@@ -502,13 +506,13 @@ export const docsContractRouter = s.router(docsContract, {
         if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
-          body: { error: 'You are not allowed to share with this group' },
+          body: { error: 'Du kannst in diesem Projekt nichts teilen.' },
         };
       }
       if (!created) {
         return {
           status: 409 as const,
-          body: { error: 'Document is already shared with this group' },
+          body: { error: 'Das Dokument liegt schon in diesem Projekt.' },
         };
       }
 
@@ -567,7 +571,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can update group permissions' },
+          body: { error: 'Nur wem das Dokument gehört, kann die Rechte im Projekt ändern.' },
         };
       }
 
@@ -578,7 +582,10 @@ export const docsContractRouter = s.router(docsContract, {
         permissions: { read: true, write: permission_level === 'editor' },
       });
       if (!updated) {
-        return { status: 404 as const, body: { error: 'Group share not found' } };
+        return {
+          status: 404 as const,
+          body: { error: 'Das Dokument liegt nicht in diesem Projekt.' },
+        };
       }
 
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };

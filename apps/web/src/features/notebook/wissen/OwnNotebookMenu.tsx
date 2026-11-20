@@ -1,5 +1,5 @@
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { canShareIntoGroup } from '@gruenerator/shared/groups';
+import { apiErrorFromResponse, getContractsClient, shareErrorText } from '@gruenerator/shared/api';
+import { canShareIntoGroup, groupContentKey } from '@gruenerator/shared/groups';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,16 +10,26 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   cn,
+  toast,
   useConfirm,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { HiDotsVertical, HiOutlineTrash, HiPencil, HiShare, HiUserGroup } from 'react-icons/hi';
+import {
+  HiCheck,
+  HiDotsVertical,
+  HiOutlineTrash,
+  HiPencil,
+  HiShare,
+  HiUserGroup,
+} from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
+import { useNotebookGroupShares } from '../hooks/useNotebookSharing';
 
 import { collectionSlug } from './useNotebookShelves';
 
@@ -52,6 +62,11 @@ function OwnNotebookActions({ collection }: { collection: NotebookCollection }) 
   const { deleteQACollection } = useNotebookCollections({ isActive: true });
   const { userGroups = [] } = useGroups({ isActive: true });
   const groups = userGroups.filter(canShareIntoGroup) as { id: string; name: string }[];
+  // Projekte, in denen das Notebook schon liegt: markiert statt ein zweites Mal
+  // anzubieten (der Server antwortete sonst mit 409).
+  const sharesQuery = useNotebookGroupShares(collection.id, true);
+  const sharedIn = new Set((sharesQuery.data ?? []).map((share) => share.group_id));
+  const queryClient = useQueryClient();
   const [shareFlash, flashShare] = useFlash();
   const [deleteFlash, flashDelete] = useFlash();
   const [deleting, setDeleting] = useState(false);
@@ -63,7 +78,7 @@ function OwnNotebookActions({ collection }: { collection: NotebookCollection }) 
     flashShare('Link kopiert!');
   };
 
-  const shareToGroup = async (groupId: string) => {
+  const shareToGroup = async (groupId: string, groupName: string) => {
     try {
       const res = await getContractsClient().groups.shareContent({
         params: { groupId },
@@ -73,10 +88,13 @@ function OwnNotebookActions({ collection }: { collection: NotebookCollection }) 
           permissions: { read: true, write: false, collaborative: false },
         },
       });
-      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
-      flashShare('Geteilt!');
-    } catch {
-      flashShare('Fehler!');
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+      void sharesQuery.refetch();
+      toast(`Zu „${groupName}“ hinzugefügt`);
+    } catch (error) {
+      // Dieselben Sätze wie auf der Projektseite statt „Fehler!“ im Menütitel.
+      toast.error(shareErrorText(error));
     }
   };
 
@@ -114,12 +132,23 @@ function OwnNotebookActions({ collection }: { collection: NotebookCollection }) 
             Link kopieren
           </DropdownMenuItem>
           {groups.length > 0 && <DropdownMenuSeparator />}
-          {groups.map((group) => (
-            <DropdownMenuItem key={group.id} onClick={() => void shareToGroup(group.id)}>
-              <HiUserGroup />
-              {group.name}
-            </DropdownMenuItem>
-          ))}
+          {groups.map((group) =>
+            sharedIn.has(group.id) ? (
+              <DropdownMenuItem key={group.id} disabled>
+                <HiCheck />
+                {group.name}
+                <span className="ml-auto text-xs text-muted-foreground">Im Projekt</span>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                key={group.id}
+                onClick={() => void shareToGroup(group.id, group.name)}
+              >
+                <HiUserGroup />
+                {group.name}
+              </DropdownMenuItem>
+            )
+          )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
       <DropdownMenuSeparator />
