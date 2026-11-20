@@ -156,24 +156,28 @@ if (!rootElement) {
 // paint (nonBlockingEntryCssPlugin in vite.config.ts), so the inline app shell
 // shows immediately. React must still not paint before it is applied.
 function whenAppCssReady(): Promise<void> {
-  const link = document.getElementById('app-css');
-  if (!(link instanceof HTMLLinkElement) || link.media === 'all') return Promise.resolve();
-  const apply = () => {
-    link.media = 'all';
-  };
-  if (link.sheet) {
-    apply();
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => {
-    const done = () => {
-      apply();
-      resolve();
-    };
-    // On error React still renders, unstyled, rather than never.
-    link.addEventListener('load', done, { once: true });
-    link.addEventListener('error', done, { once: true });
-  });
+  const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[data-app-css]'));
+  return Promise.all(
+    links.map((link) => {
+      const apply = () => {
+        link.media = 'all';
+      };
+      if (link.media === 'all') return Promise.resolve();
+      if (link.sheet) {
+        apply();
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        const done = () => {
+          apply();
+          resolve();
+        };
+        // On error React still renders, unstyled, rather than never.
+        link.addEventListener('load', done, { once: true });
+        link.addEventListener('error', done, { once: true });
+      });
+    })
+  ).then(() => undefined);
 }
 
 const root = createRoot(rootElement);

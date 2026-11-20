@@ -72,30 +72,31 @@ function preloadFontsPlugin(): Plugin {
 // preload (high priority) + media="print" (non-blocking), and src/index.tsx
 // waits for it and switches it to media="all" BEFORE React renders. The app
 // itself therefore never paints unstyled, exactly as before.
-// APP_CSS_ID is the contract between this plugin and src/index.tsx.
+// The data-app-css attribute is the contract between this plugin and
+// src/index.tsx.
 function nonBlockingEntryCssPlugin(): Plugin {
+  const STYLESHEET = /<link rel="stylesheet"[^>]*href="(\/assets\/css\/[^"]+\.css)"[^>]*>/g;
   return {
     name: 'non-blocking-entry-css',
     apply: 'build',
     transformIndexHtml: {
       order: 'post',
       handler(html) {
-        const links = html.match(
-          /<link rel="stylesheet"[^>]*href="\/assets\/css\/[^"]+\.css"[^>]*>/g
-        );
-        if (!links || links.length !== 1) {
-          throw new Error(
-            `non-blocking-entry-css: expected exactly one entry stylesheet in index.html, found ${links?.length ?? 0}`
-          );
+        // One stylesheet per CSS-carrying chunk of the static closure: one
+        // with the merged boot chunks, three with natural splitting.
+        let found = 0;
+        const out = html.replace(STYLESHEET, (_link, href: string) => {
+          found += 1;
+          return [
+            `<link rel="preload" as="style" crossorigin href="${href}">`,
+            `<link rel="stylesheet" crossorigin href="${href}" media="print" data-app-css>`,
+            `<noscript><link rel="stylesheet" crossorigin href="${href}"></noscript>`,
+          ].join('\n    ');
+        });
+        if (found === 0) {
+          throw new Error('non-blocking-entry-css: no entry stylesheet found in index.html');
         }
-        const link = links[0];
-        const href = /href="([^"]+)"/.exec(link)?.[1] ?? '';
-        const replacement = [
-          `<link rel="preload" as="style" crossorigin href="${href}">`,
-          `<link rel="stylesheet" crossorigin href="${href}" media="print" id="app-css">`,
-          `<noscript><link rel="stylesheet" crossorigin href="${href}"></noscript>`,
-        ].join('\n    ');
-        return html.replace(link, replacement);
+        return out;
       },
     },
   };
