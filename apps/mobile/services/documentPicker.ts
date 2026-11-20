@@ -75,6 +75,24 @@ export async function pickDocument(
 }
 
 /**
+ * Pick several documents at once. Returns an empty list if cancelled.
+ */
+export async function pickDocuments(types: string[] = DOCUMENT_TYPES): Promise<PickedDocument[]> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: types,
+    copyToCacheDirectory: true,
+    multiple: true,
+  });
+  if (result.canceled) return [];
+  return result.assets.map((asset) => ({
+    uri: asset.uri,
+    name: asset.name,
+    mimeType: asset.mimeType || 'application/octet-stream',
+    size: asset.size || 0,
+  }));
+}
+
+/**
  * Pick a document using the scanner-compatible type list (includes GIF).
  */
 export async function pickDocumentForScanner(): Promise<PickedDocument | null> {
@@ -208,40 +226,52 @@ export async function uploadDocumentToChat(doc: PickedDocument): Promise<Uploade
 }
 
 /**
+ * POSTs the file to /documents/upload-only and throws on failure. With `groupId`
+ * the server shares the document into that project in the same step (403 and a
+ * server message if the person may not).
+ */
+export async function postDocumentOnly(
+  doc: PickedDocument,
+  groupId: string | null = null
+): Promise<UploadedDocument> {
+  const apiClient = getGlobalApiClient();
+  const formData = new FormData();
+
+  formData.append('document', {
+    uri: doc.uri,
+    name: doc.name,
+    type: doc.mimeType,
+  } as unknown as Blob);
+
+  formData.append('title', doc.name);
+  if (groupId) formData.append('groupId', groupId);
+
+  // The route stays multipart and therefore outside ts-rest, but its answer is
+  // `uploadOnlyResponseSchema` — derived here rather than transcribed, which
+  // is how this copy came to declare `title` optional while the web copy had
+  // it required.
+  const response = await apiClient.post<UploadOnlyResponse>('/documents/upload-only', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  });
+
+  if (response.data.success) {
+    return {
+      id: response.data.data.id,
+      title: response.data.data.title || doc.name,
+    };
+  }
+
+  throw new Error(response.data.message || 'Upload fehlgeschlagen');
+}
+
+/**
  * Upload a file to disk only (no OCR/vectorization).
- * POSTs multipart/form-data to /documents/upload-only.
  * Used for notebook collection creation — processing is deferred.
  */
 export async function uploadDocumentOnly(doc: PickedDocument): Promise<UploadedDocument | null> {
   try {
-    const apiClient = getGlobalApiClient();
-    const formData = new FormData();
-
-    formData.append('document', {
-      uri: doc.uri,
-      name: doc.name,
-      type: doc.mimeType,
-    } as unknown as Blob);
-
-    formData.append('title', doc.name);
-
-    // The route stays multipart and therefore outside ts-rest, but its answer is
-    // `uploadOnlyResponseSchema` — derived here rather than transcribed, which
-    // is how this copy came to declare `title` optional while the web copy had
-    // it required.
-    const response = await apiClient.post<UploadOnlyResponse>('/documents/upload-only', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-    });
-
-    if (response.data.success) {
-      return {
-        id: response.data.data.id,
-        title: response.data.data.title || doc.name,
-      };
-    }
-
-    throw new Error(response.data.message || 'Upload fehlgeschlagen');
+    return await postDocumentOnly(doc);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Fehler beim Hochladen';
     Alert.alert('Upload fehlgeschlagen', message);

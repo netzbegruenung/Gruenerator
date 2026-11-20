@@ -17,6 +17,7 @@ export {
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
+  useSetGroupMute,
   useUpdateMemberRole,
   useUploadGroupAvatar,
   useUserGroups,

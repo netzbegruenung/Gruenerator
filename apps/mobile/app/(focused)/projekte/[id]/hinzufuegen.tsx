@@ -36,8 +36,9 @@ import { goBackOr } from '../../../../utils/navigation';
 
 /**
  * Eigene Agents, Rezepte, Notebooks, Docs und Boards in ein Projekt legen —
- * das Gegenstück zum Web-Dialog „Inhalte hinzufügen". Geteilt wird nur lesend;
- * ob es erlaubt ist, entscheidet der Server.
+ * das Gegenstück zum Web-Dialog „Inhalte hinzufügen". Im Team dürfen Mitglieder
+ * geteilte Docs bearbeiten, sonst wird nur lesend geteilt; ob es erlaubt ist,
+ * entscheidet der Server.
  */
 export default function ProjektHinzufuegenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,6 +48,8 @@ export default function ProjektHinzufuegenScreen() {
   const queryClient = useQueryClient();
 
   const group = useGroupDetails(id).data?.group;
+  // Wie im Web: im Team dürfen Mitglieder geteilte Docs bearbeiten, sonst nur lesen.
+  const isTeam = !!group && group.group_type !== 'personal' && group.is_system !== true;
   const feed = useGroupFeed(id);
   const { sections, isPending } = useAddableContent();
   const alreadyShared = useMemo(() => sharedContentKeys(feed.data ?? []), [feed.data]);
@@ -79,7 +82,9 @@ export default function ProjektHinzufuegenScreen() {
     if (selected.size === 0 || saving) return;
     setSaving(true);
     // addItemsToGroup wirft nie (Promise.allSettled), deshalb kein try.
-    const result = await addItemsToGroup(groupId, [...selected.values()], note);
+    const result = await addItemsToGroup(groupId, [...selected.values()], note, {
+      writeDocuments: isTeam,
+    });
     setSaving(false);
     void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
     if (result.failed === 0) {
