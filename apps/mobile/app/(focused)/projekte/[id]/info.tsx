@@ -1,31 +1,58 @@
 import { groupFeedByKind } from '@gruenerator/shared/groups';
-import { useLocalSearchParams } from 'expo-router';
-import { type ReactNode } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useAuthStore } from '@gruenerator/shared/stores';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import * as Haptics from 'expo-haptics';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState, type ReactNode } from 'react';
+import { Alert, Platform, Share, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
 
+import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
 import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
+import {
+  MAKE_ADMIN_ID,
+  buildMemberActions,
+  canChangeMemberRole,
+  canLeaveProject,
+  canShareInviteLink,
+} from '../../../../components/projekte/settingsRules';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
-import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
+import {
+  buildGroupInviteUrl,
+  useGroupDetails,
+  useGroupMembers,
+  useLeaveGroup,
+  useSetGroupMute,
+  useUpdateMemberRole,
+  type GroupMember,
+} from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
+import { useNoticeStore } from '../../../../stores/noticeStore';
 import { spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { roleLabel } from '../../../../utils/groups';
 import { goBackOr } from '../../../../utils/navigation';
 
 /**
- * Was im Web die Seitenleiste ist: Beschreibung, Mitglieder und die
- * Inhalte nach Art. Verwaltung (Umbenennen, Rollen, Einladen, Löschen) bleibt
- * dem Web — die App ist hier nur zum Lesen.
+ * Was im Web die Seitenleiste ist, als Einstellungsseite: Beschreibung,
+ * Mitglieder und Inhalte nach Art — dazu die Verwaltung, die auf dem Handy
+ * Sinn ergibt: Stummschalten (alle), Name und Beschreibung (Admin), Einladungs-
+ * link teilen (Admin, Team-Projekt), Mitglieder-Rollen (Admin) und Verlassen
+ * (Team-Projekt, nicht für die Ersteller*in). Im Web bleiben: Projekt anlegen,
+ * Einladung per E-Mail, Profilbild, Links und Anweisungen bearbeiten, Löschen,
+ * öffentliche Projekte, Beitrittsanfragen und Sichtbarkeit.
  */
 export default function ProjektInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const tone = useProjekteTone();
+  const router = useRouter();
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+  const [menuMember, setMenuMember] = useState<GroupMember | null>(null);
 
   const detailsQuery = useGroupDetails(id);
   const membersQuery = useGroupMembers(id);
@@ -37,6 +64,61 @@ export default function ProjektInfoScreen() {
   // The system group holds every user and never shows its members.
   const showMembers = !isPersonal && !group?.is_system;
   const members = membersQuery.data ?? [];
+
+  const isAdmin = !!membership?.isAdmin;
+  const muteMutation = useSetGroupMute(id ?? '');
+  const roleMutation = useUpdateMemberRole(id ?? '');
+  const leaveMutation = useLeaveGroup();
+  const muted = muteMutation.isPending
+    ? (muteMutation.variables ?? false)
+    : !!membership?.notifications_muted;
+  const canShareLink = !!group && canShareInviteLink(group, isAdmin);
+  const canLeave = !!group && canLeaveProject(group, currentUserId);
+  const fail = (error: Error) => useNoticeStore.getState().show('error', error.message);
+  const done = () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+  const toggleMute = (value: boolean) =>
+    muteMutation.mutate(value, { onSuccess: done, onError: fail });
+
+  const shareInvite = () => {
+    if (!group?.join_token) return;
+    const url = buildGroupInviteUrl(group.join_token);
+    const title = group.name;
+    void Share.share(Platform.OS === 'ios' ? { url, title } : { message: url, title }).catch(
+      (error: Error) => fail(error)
+    );
+  };
+
+  const confirmLeave = () => {
+    if (!id) return;
+    Alert.alert(
+      'Projekt verlassen',
+      'Du verlierst den Zugriff auf alle Inhalte dieses Projekts. Das Projekt selbst, deine eigenen Inhalte und deine Team-Chats im Projekt bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue Einladung möglich.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Verlassen',
+          style: 'destructive',
+          onPress: () =>
+            leaveMutation.mutate(id, {
+              onSuccess: () => {
+                done();
+                router.replace('/(focused)/projekte');
+              },
+              onError: fail,
+            }),
+        },
+      ]
+    );
+  };
+
+  const selectMemberAction = (actionId: string) => {
+    if (!menuMember) return;
+    roleMutation.mutate(
+      { memberId: menuMember.user_id, role: actionId === MAKE_ADMIN_ID ? 'admin' : 'member' },
+      { onSuccess: done, onError: fail }
+    );
+  };
   const sections = groupFeedByKind(feedQuery.data ?? []);
 
   const section = (title: string, body: ReactNode): ReactNode => (
@@ -76,9 +158,66 @@ export default function ProjektInfoScreen() {
               </Text>
             </View>
           </View>
+        ) : detailsQuery.isError ? (
+          <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>
+            Das Projekt konnte nicht geladen werden.
+          </Text>
         ) : (
           <SkeletonRows count={2} leading={44} />
         )}
+
+        {group
+          ? section(
+              'Benachrichtigungen',
+              <>
+                <ListGroup>
+                  <ListRow
+                    icon={muted ? 'notifications-off-outline' : 'notifications-outline'}
+                    title="Stummschalten"
+                    last
+                    accessory={
+                      <Switch
+                        value={muted}
+                        onValueChange={toggleMute}
+                        accessibilityLabel="Projekt stummschalten"
+                      />
+                    }
+                  />
+                </ListGroup>
+                <Text style={[styles.footer, { color: theme.textSecondary }]}>
+                  Schaltet E-Mails und Push-Mitteilungen dieses Projekts aus. Im Grünerator selbst
+                  erscheinen sie weiterhin.
+                </Text>
+              </>
+            )
+          : null}
+
+        {group && isAdmin
+          ? section(
+              'Verwaltung',
+              <ListGroup>
+                <ListRow
+                  icon="create-outline"
+                  title="Name und Beschreibung bearbeiten"
+                  last={!canShareLink}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(focused)/projekte/[id]/bearbeiten',
+                      params: { id: id ?? '' },
+                    })
+                  }
+                />
+                {canShareLink ? (
+                  <ListRow
+                    icon="share-outline"
+                    title="Einladungslink teilen"
+                    last
+                    onPress={shareInvite}
+                  />
+                ) : null}
+              </ListGroup>
+            )
+          : null}
 
         {group?.description
           ? section(
@@ -100,15 +239,33 @@ export default function ProjektInfoScreen() {
               </Text>
             ) : (
               <ListGroup>
-                {members.map((member, i) => (
-                  <ListRow
-                    key={member.user_id}
-                    icon="person-outline"
-                    title={member.display_name ?? member.first_name ?? member.email ?? 'Mitglied'}
-                    value={roleLabel(member.role)}
-                    last={i === members.length - 1}
-                  />
-                ))}
+                {members.map((member, i) => {
+                  const editable = canChangeMemberRole(
+                    isAdmin,
+                    member.user_id,
+                    currentUserId,
+                    group?.created_by
+                  );
+                  return (
+                    <ListRow
+                      key={member.user_id}
+                      icon="person-outline"
+                      title={member.display_name ?? member.first_name ?? member.email ?? 'Mitglied'}
+                      value={roleLabel(member.role)}
+                      last={i === members.length - 1}
+                      {...(editable && {
+                        onPress: () => setMenuMember(member),
+                        accessory: (
+                          <Ionicons
+                            name="ellipsis-horizontal"
+                            size={20}
+                            color={theme.textSecondary}
+                          />
+                        ),
+                      })}
+                    />
+                  );
+                })}
               </ListGroup>
             )
           )}
@@ -128,7 +285,28 @@ export default function ProjektInfoScreen() {
               ))}
             </ListGroup>
           )}
+
+        {canLeave && (
+          <ListGroup>
+            <ListRow
+              icon="log-out-outline"
+              title="Projekt verlassen"
+              destructive
+              last
+              disabled={leaveMutation.isPending}
+              onPress={confirmLeave}
+            />
+          </ListGroup>
+        )}
       </ScrollView>
+      <MenuActionSheet
+        visible={menuMember !== null}
+        theme={theme}
+        heading={menuMember?.display_name ?? menuMember?.first_name ?? menuMember?.email ?? ''}
+        actions={menuMember ? buildMemberActions(menuMember.role) : []}
+        onSelect={selectMemberAction}
+        onClose={() => setMenuMember(null)}
+      />
     </ScreenScaffold>
   );
 }
@@ -163,6 +341,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    paddingHorizontal: spacing.xsmall,
+  },
+  footer: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    lineHeight: 18,
     paddingHorizontal: spacing.xsmall,
   },
   emptyLine: { fontFamily: BODY_FONT, fontSize: 14 },
