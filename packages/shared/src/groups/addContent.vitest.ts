@@ -20,7 +20,7 @@ describe('addItemsToGroup', () => {
       ],
       '  Für die Sitzung  '
     );
-    expect(result).toEqual({ added: 2, failed: 0, firstError: null });
+    expect(result).toEqual({ added: 2, failed: 0, firstError: null, failures: [] });
     expect(shareContent).toHaveBeenCalledWith({
       params: { groupId: 'g1' },
       body: {
@@ -51,6 +51,9 @@ describe('addItemsToGroup', () => {
       added: 1,
       failed: 1,
       firstError: 'Du kannst nur eigene Inhalte teilen.',
+      failures: [
+        { key: 'collaborative_documents:d1', message: 'Du kannst nur eigene Inhalte teilen.' },
+      ],
     });
     expect(shareContent.mock.calls[0]?.[0].body.note).toBeNull();
   });
