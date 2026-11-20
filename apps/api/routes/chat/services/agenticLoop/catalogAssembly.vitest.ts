@@ -1252,6 +1252,46 @@ describe('assembleToolCatalog — toolAllowlist', () => {
   });
 });
 
+// Review #5889: der Prompt nennt das eigene Notebook des Agenten — dann darf
+// `notebook_quellen` nicht hinter dem „meine Inhalte"-Lader warten.
+describe('assembleToolCatalog — Notebook des Agenten bleibt sichtbar', () => {
+  const visibleFor = async (defaultNotebookIds: string[]) => {
+    const buildChatToolCatalog = vi.fn(() => ({
+      tools: {
+        notebook_quellen: { execute: async () => ({}) },
+        find_content: { execute: async () => ({}) },
+      },
+      toolNames: ['notebook_quellen', 'find_content'],
+    }));
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState({
+          agentConfig: { identifier: 'eigener-agent', userId: 'u1', defaultNotebookIds },
+          lastUserTextNoMentions: 'Warum sind die Grünen für Rot-Rot-Grün in Berlin?',
+        }),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        threadId: 't1',
+      },
+      deps({
+        buildChatToolCatalog:
+          buildChatToolCatalog as unknown as CatalogDeps['buildChatToolCatalog'],
+      })
+    );
+    return assembled.toolScope.activeTools([]) ?? Object.keys(assembled.tools);
+  };
+
+  it('auch wenn der Agent nur an eigene Notebooks gebunden ist', async () => {
+    expect(await visibleFor(['6f1c2e9a-0000-4000-8000-000000000001'])).toContain(
+      'notebook_quellen'
+    );
+  });
+
+  it('versteckt es ohne gebundenes Notebook hinter dem Lader', async () => {
+    expect(await visibleFor([])).not.toContain('notebook_quellen');
+  });
+});
+
 describe('priorLookups (#3931)', () => {
   it('liefert nur eigene Abrufe, mit Begriff, Trefferzahl und Ausgang', () => {
     const steps: PersistedStep[] = [
