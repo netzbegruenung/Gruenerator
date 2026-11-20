@@ -316,9 +316,14 @@ const GroupDetailSection = memo(
           feedItems={feedItems}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
-            if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
-              unshareContent.mutate({ contentId, contentType });
-            }
+            if (!window.confirm('Aus dem Projekt entfernen?')) return;
+            unshareContent.mutate(
+              { contentId, contentType },
+              {
+                onSuccess: () => onSuccessMessage('Aus dem Projekt entfernt.'),
+                onError: (error) => onErrorMessage(error.message),
+              }
+            );
           }}
           onSetShareWrite={(contentId, write) =>
             setShareWrite.mutate(

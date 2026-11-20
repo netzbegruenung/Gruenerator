@@ -312,21 +312,20 @@ const GroupInfoSection = memo(
     const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
     const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
     // Wer verwalten darf, entscheidet dieselbe Regel wie auf dem Server
-    // (`updateContentPermissions`): Admin oder die Person, die geteilt hat.
+    // (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person,
+    // die geteilt hat.
     const isAdmin = !!data?.isAdmin;
-    const shareActions = useMemo<ShareActions | null>(
-      () =>
-        onUnshareContent && onSetShareWrite
-          ? {
-              canManage: (item) =>
-                isAdmin || (!!currentUserId && item.sharedById === String(currentUserId)),
-              canRemove: () => isAdmin,
-              onSetWrite: (item, write) => onSetShareWrite(item.id, write),
-              onRemove: (item) => onUnshareContent(item.id, item.contentType),
-            }
-          : null,
-      [isAdmin, currentUserId, onUnshareContent, onSetShareWrite]
-    );
+    const shareActions = useMemo<ShareActions | null>(() => {
+      if (!onUnshareContent || !onSetShareWrite) return null;
+      const canManage = (item: GroupFeedItem) =>
+        isAdmin || (!!currentUserId && item.sharedById === String(currentUserId));
+      return {
+        canManage,
+        canRemove: canManage,
+        onSetWrite: (item, write) => onSetShareWrite(item.id, write),
+        onRemove: (item) => onUnshareContent(item.id, item.contentType),
+      };
+    }, [isAdmin, currentUserId, onUnshareContent, onSetShareWrite]);
     const noteShareId = noteKey
       ? (feedItems.find((i) => i.key === noteKey)?.share?.shareId ?? null)
       : null;
