@@ -570,6 +570,19 @@ describe('a Sticker/Hintergrund moderation removed', () => {
       }
     );
 
+    // A streamed clip is otherwise revalidated (`no-cache` + ETag), which still
+    // lets the browser keep the bytes on disk — not for removed media.
+    it('streams a removed clip without letting the browser keep it', async () => {
+      getShareByToken.mockResolvedValue(
+        studio({ media_type: 'video', file_path: 'video', mime_type: 'video/mp4' })
+      );
+      const res = await get('/api/share/abc123/stream', admin);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('cache-control')).toBe('private, no-store');
+      expect(res.headers.get('etag')).toBeNull();
+      await res.arrayBuffer();
+    });
+
     it.each([
       ['the owner', owner],
       ['someone else', { headers: { 'x-test-user': 'other-1' } }],

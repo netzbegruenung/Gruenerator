@@ -452,20 +452,22 @@ async function resolveShareMedia(
 /**
  * Revalidated rather than downloaded again: the video editor fetches a whole
  * clip up front (prefetch), and on a slow line that took a minute on every
- * reload because nothing here was cacheable.
+ * reload because nothing here was cacheable. An instance admin reviewing
+ * removed media gets `no-store` instead, as every other answer in this file.
  */
 function streamShareFile(
   req: Request,
   res: Response,
-  media: { mediaPath: string; fileSize: number; lastModified: Date },
+  media: { mediaPath: string; fileSize: number; lastModified: Date; moderator: boolean },
   contentType: string
 ): void {
-  const { mediaPath, fileSize, lastModified } = media;
+  const { mediaPath, fileSize, lastModified, moderator } = media;
+  if (moderator) res.setHeader('Cache-Control', MODERATION_CACHE_CONTROL);
   streamFile(req, res, {
     size: fileSize,
     contentType,
     downloadName: null,
-    lastModified,
+    ...(!moderator && { lastModified }),
     open: (range) =>
       range ? fs.createReadStream(mediaPath, range) : fs.createReadStream(mediaPath),
   });
