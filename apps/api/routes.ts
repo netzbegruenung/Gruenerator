@@ -12,6 +12,7 @@ import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
 import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
 import { mountAdminStatsContractRouter } from './routes/admin/adminStatsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
@@ -588,7 +589,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   );
   mountPodcastsContractRouter(app);
   // KI-Schnitt: queued here, analysed and cut by services/videoAi/videoAiWorker.ts.
-  app.use('/api/video-ai', requireAuth, authenticatedReadLimiter);
+  // Instance admins only for now (test phase); the web hides it via adminToolsGate.
+  app.use('/api/video-ai', requireAuth, requireInstanceAdminMiddleware, authenticatedReadLimiter);
   app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
     next()
   );

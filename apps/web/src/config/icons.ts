@@ -136,6 +136,7 @@ export type NavigationIconName =
   | 'suche'
   | 'reel'
   | 'videoEditor'
+  | 'kiSchnitt'
   | 'sharepic'
   | 'datenbank'
   | 'vorlagen'
@@ -266,6 +267,7 @@ export const ICONS: IconRegistry = {
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
     videoEditor: PiFilmSlate,
+    kiSchnitt: PiMagicWand,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
     vorlagen: PiPaintBrush,

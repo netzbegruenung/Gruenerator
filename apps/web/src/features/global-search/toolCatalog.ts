@@ -15,7 +15,6 @@ import {
   isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
-
 import { PiGlobe } from 'react-icons/pi';
 
 import { getIcon } from '../../config/icons';
@@ -59,6 +58,14 @@ export const CATALOG: ToolCatalogEntry[] = [
     path: '/studio/videoeditor',
     icon: nav('videoEditor'),
     keywords: ['video editor', 'video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
+  },
+  {
+    id: 'tool-ki-schnitt',
+    title: 'KI-Schnitt',
+    subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
+    path: '/studio/ki-schnitt',
+    icon: nav('kiSchnitt'),
+    keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
   },
   {
     id: 'tool-parteitage',

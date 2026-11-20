@@ -421,6 +421,19 @@ const TOOLS = [
     theme: true,
   },
   {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    path: '/studio/ki-schnitt',
+    icon: { navigation: 'kiSchnitt' },
+    tile: { group: 'studio', description: 'Rohvideos automatisch schneiden' },
+    search: {
+      id: 'tool-ki-schnitt',
+      title: 'KI-Schnitt',
+      subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
+      keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
+    },
+  },
+  {
     id: 'parteitage',
     title: 'Parteitage',
     path: '/parteitage',
@@ -702,6 +715,7 @@ const MENU_ORDER = [
 const SEARCH_ORDER = [
   'tool-reel',
   'tool-videoeditor',
+  'tool-ki-schnitt',
   'tool-parteitage',
   'tool-studio',
   'tool-imagine',

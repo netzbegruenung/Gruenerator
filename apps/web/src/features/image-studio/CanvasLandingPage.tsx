@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { isAdminOnlyTool, useCanSeeAdminTools } from '../../config/adminToolsGate';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
-import { PARTEITAGE_TOOL_ID, useCanSeeParteitage } from '../../config/parteitageAdminGate';
 import { getToolGradient } from '../../config/toolTheme';
 import {
   CANVAS_TOOLS,
@@ -113,24 +113,25 @@ const CanvasLandingContent = () => {
   const locale = useAuthStore((s) => s.locale);
   // The creator speaks both corporate designs, so the composer serves DE and AT.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
+  const canSeeAdminTools = useCanSeeAdminTools();
   // „Vorlagen" and „KI-Bilder" give way to the two example pills below; Reels stays.
   const visibleCanvasTools = useMemo(
     () =>
       filterWorkplaceTools(CANVAS_TOOLS).filter(
-        (t) => t.id !== 'canvas-vorlagen' && t.id !== 'canvas-ki'
+        (t) =>
+          t.id !== 'canvas-vorlagen' &&
+          t.id !== 'canvas-ki' &&
+          (canSeeAdminTools || !isAdminOnlyTool(t.id))
       ),
-    []
+    [canSeeAdminTools]
   );
 
-  const canSeeParteitage = useCanSeeParteitage();
   const studioWerkzeuge = useMemo(
     () =>
       filterWorkplaceTools(STUDIO_WERKZEUGE).filter(
-        (t) =>
-          (!t.audience || t.audience === 'all' || t.audience === locale) &&
-          (canSeeParteitage || t.id !== PARTEITAGE_TOOL_ID)
+        (t) => !t.audience || t.audience === 'all' || t.audience === locale
       ),
-    [locale, canSeeParteitage]
+    [locale]
   );
 
   // The guided tour types its example prompts into the field.
