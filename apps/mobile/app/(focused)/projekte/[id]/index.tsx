@@ -75,6 +75,8 @@ export default function ProjektDetailScreen() {
   const group = detailsQuery.data?.group;
   const isPersonal = group?.group_type === 'personal';
   const isSystem = group?.is_system === true;
+  // „Gruppe“ gibt es nur als Team-Projekt; persönlich und System heißen Projekt.
+  const isTeam = !!group && !isPersonal && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
   const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
@@ -169,7 +171,7 @@ export default function ProjektDetailScreen() {
             }
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={isPersonal ? 'Projekt-Info anzeigen' : 'Gruppen-Info anzeigen'}
+            accessibilityLabel={isTeam ? 'Gruppen-Info anzeigen' : 'Projekt-Info anzeigen'}
             style={[styles.headerButton, { backgroundColor: theme.card }]}
           >
             <Ionicons name="people-outline" size={20} color={theme.text} />
@@ -217,7 +219,7 @@ export default function ProjektDetailScreen() {
   const emptyText = query.trim()
     ? `Kein Beitrag passt zu „${query.trim()}“.`
     : canAdd
-      ? 'Noch nichts im Austausch. Schreib etwas an die Gruppe oder teile einen Inhalt mit einer Notiz.'
+      ? `Noch nichts im Austausch. Schreib etwas${isTeam ? ' an die Gruppe' : ''} oder teile einen Inhalt mit einer Notiz.`
       : 'Noch keine Beiträge.';
 
   return scaffold(
@@ -291,7 +293,7 @@ export default function ProjektDetailScreen() {
               />
             )}
             <ProjectLinks links={group.links ?? []} />
-            {!isPersonal && !isSystem ? (
+            {isTeam ? (
               <ProjectMembersPreview
                 members={members}
                 onShowAll={() =>
@@ -306,7 +308,13 @@ export default function ProjektDetailScreen() {
         ) : (
           <>
             <View style={styles.padded}>
-              {canPost ? <PostComposerRow userName={userName} onPress={writePost} /> : null}
+              {canPost ? (
+                <PostComposerRow
+                  userName={userName}
+                  onPress={writePost}
+                  placeholder={isTeam ? 'Schreib etwas an die Gruppe …' : 'Schreib einen Beitrag …'}
+                />
+              ) : null}
               <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
                 <Ionicons name="search" size={18} color={theme.textSecondary} />
                 <TextInput

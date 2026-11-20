@@ -82,7 +82,7 @@ export default function ProjektInfoScreen() {
 
         {group?.description
           ? section(
-              isPersonal ? 'Über das Projekt' : 'Über die Gruppe',
+              showMembers ? 'Über die Gruppe' : 'Über das Projekt',
               <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <Text style={[styles.description, { color: theme.text }]}>{group.description}</Text>
               </View>

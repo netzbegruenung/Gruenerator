@@ -9,10 +9,16 @@ import { useProjekteTone } from './projekteTone';
 interface PostComposerRowProps {
   userName: string | null;
   onPress: () => void;
+  /** Im System-Projekt gibt es keine „Gruppe“. */
+  placeholder?: string;
 }
 
 /** Wie im Web die zugeklappte Zeile über dem Feed: ein Tipp öffnet das Beitragsblatt. */
-export function PostComposerRow({ userName, onPress }: PostComposerRowProps) {
+export function PostComposerRow({
+  userName,
+  onPress,
+  placeholder = 'Schreib etwas an die Gruppe …',
+}: PostComposerRowProps) {
   const theme = useTheme();
   const tone = useProjekteTone();
   return (
@@ -30,7 +36,7 @@ export function PostComposerRow({ userName, onPress }: PostComposerRowProps) {
         ]}
       >
         <Text style={[styles.placeholder, { color: theme.textSecondary }]} numberOfLines={1}>
-          Schreib etwas an die Gruppe …
+          {placeholder}
         </Text>
       </Pressable>
     </View>
