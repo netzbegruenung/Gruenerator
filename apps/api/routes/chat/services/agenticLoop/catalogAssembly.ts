@@ -15,6 +15,10 @@
  */
 import { skillRole } from '@gruenerator/shared/agents';
 
+import {
+  agentNotebookDocIds,
+  searchScopedDocuments,
+} from '../../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
@@ -1118,6 +1122,86 @@ export async function seedAttachedPages(params: {
 }
 
 /**
+ * Die eigenen Notebooks des Agenten (`defaultNotebookIds` mit Nutzer-UUIDs),
+ * vorab gelesen wie im Einzeldurchlauf: eine Suche über ihre Dokumente, nur
+ * wenn der Turn selbst nichts gewählt hat (`agentNotebookDocIds`).
+ *
+ * Ohne den Abruf sah der Loop die Notebooks nie — `gruenerator_search` kennt
+ * nur System-Sammlungen, und der Prompt nannte sie nicht. Live 19.11.2026:
+ * ein Bürgermail-Agent mit drei eigenen Notebooks schrieb einmal aus dem
+ * System-Notebook Berlin und einmal „kein Zugriff auf interne Dokumente".
+ *
+ * Der Replay läuft unter `notebook_quellen` (`find`), wenn es montiert ist —
+ * das Werkzeug, mit dem der Planer in denselben Notebooks weiterlesen kann.
+ */
+export async function seedAgentNotebooks(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  const { state } = params;
+  const documentIds = agentNotebookDocIds(state);
+  if (documentIds.length === 0) return NOTHING_SEEDED;
+  const query = attachedDocsQuery(state);
+  if (!query) return NOTHING_SEEDED;
+  try {
+    const results = await searchScopedDocuments({
+      query,
+      userId: state.agentConfig.userId,
+      documentIds,
+      documentNotebookIds: state.documentNotebookIds,
+    });
+    if (results.length === 0) {
+      params.onInfo(
+        `[Agentic] Vorab-Abruf über ${documentIds.length} Dokument(e) der Agent-Notebooks ohne Treffer`
+      );
+      return NOTHING_SEEDED;
+    }
+    const block = params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
+    params.onInfo(
+      `[Agentic] ${results.length} Passage(n) aus den Notebooks des Agenten vorab abgerufen`
+    );
+    if (!params.isMounted) return { replay: [], delivered: true };
+
+    const toolCallId = `seed-agent-notebooks-${state.agentConfig.userId ?? 'anon'}`;
+    return {
+      delivered: true,
+      replay: [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: 'notebook_quellen',
+              input: { action: 'find', query },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: 'notebook_quellen',
+              output: { type: 'text' as const, value: block },
+            },
+          ],
+        },
+      ],
+    };
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der Agent-Notebooks übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return NOTHING_SEEDED;
+  }
+}
+
+/**
  * Der eine Vorab-Abruf für das Material eines Loop-Turns (#5266): ruft die
  * Seeds je Leseweg (`resolveTurnMaterial`) und meldet EIN `delivered` an
  * `shouldForceFirstToolCall`. Bis dahin standen drei Aufrufe nebeneinander im
@@ -1161,9 +1245,16 @@ export async function seedTurnMaterial(params: {
     onInfo,
     onError,
   });
+  const agentNotebooks = await seedAgentNotebooks({
+    state,
+    sourceRegistry,
+    isMounted: isMounted('notebook_quellen'),
+    onInfo,
+    onError,
+  });
   return {
-    replay: [...docs.replay, ...cloud.replay, ...pages.replay],
-    delivered: docs.delivered || cloud.delivered || pages.delivered,
+    replay: [...docs.replay, ...cloud.replay, ...pages.replay, ...agentNotebooks.replay],
+    delivered: docs.delivered || cloud.delivered || pages.delivered || agentNotebooks.delivered,
     writerNote: unreadableCloudFilesNote(cloud.unreadable),
   };
 }

@@ -19,6 +19,14 @@ vi.mock('../../../../agents/langgraph/ChatGraph/nodes/searchNode.js', async (imp
   ...(await importOriginal<Record<string, unknown>>()),
   executeMultiDocFanout: (...a: unknown[]) => fanout(...a),
 }));
+const scoped = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+vi.mock(
+  '../../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js',
+  async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    searchScopedDocuments: (...a: unknown[]) => scoped(...a),
+  })
+);
 const crawl = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
 vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -77,6 +85,17 @@ describe('seedTurnMaterial', () => {
       searchedCollections: [],
       errors: [],
     }));
+    scoped.mockReset();
+    scoped.mockResolvedValue([
+      {
+        source: 'document:agent-doc-1',
+        title: 'Kreisvorstandsbeschluss.pdf',
+        content: 'Wir lehnen jede Form von Antisemitismus ab.',
+        relevance: 0.8,
+        documentId: 'agent-doc-1',
+        collectionId: 'agent-nb-1',
+      },
+    ]);
     crawl.mockReset();
     crawl.mockImplementation(async (seeds) =>
       (seeds as { url: string }[]).map((s) => ({
@@ -137,5 +156,46 @@ describe('seedTurnMaterial', () => {
       'doc-1',
       'nb-1',
     ]);
+  });
+
+  // Live 19.11.2026: ein Agent mit drei eigenen Notebooks antwortete im Loop aus
+  // dem System-Notebook Berlin oder gar nicht — den Scope las nur `searchNode`.
+  describe('eigene Notebooks des Agenten', () => {
+    const agentScope = {
+      defaultNotebookDocumentIds: ['agent-doc-1', 'agent-doc-2'],
+      documentNotebookIds: { 'agent-doc-1': 'agent-nb-1', 'agent-doc-2': 'agent-nb-1' },
+    };
+
+    it('liest sie vorab, wenn der Turn nichts gewählt hat', async () => {
+      const seeded = await run(stateWith(agentScope), ['notebook_quellen']);
+      expect(scoped).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: 'Radweg',
+          userId: 'u1',
+          documentIds: ['agent-doc-1', 'agent-doc-2'],
+        })
+      );
+      expect(seeded.delivered).toBe(true);
+      expect(toolNames(seeded.replay)).toEqual(['notebook_quellen']);
+    });
+
+    it('liefert auch ohne notebook_quellen, dann ohne Replay', async () => {
+      const seeded = await run(stateWith(agentScope), []);
+      expect(seeded.delivered).toBe(true);
+      expect(seeded.replay).toEqual([]);
+    });
+
+    it('lässt eine Auswahl im Turn vor der Vorgabe des Agenten gelten', async () => {
+      await run(stateWith({ ...agentScope, notebookCollectionIds: ['berlin'] }), []);
+      await run(stateWith({ ...agentScope, notebookDocumentIds: ['picked-doc'] }), []);
+      await run(stateWith({ ...agentScope, documentIds: ['picked-doc'] }), []);
+      expect(scoped).not.toHaveBeenCalled();
+    });
+
+    it('meldet nichts als geliefert, wenn die Suche leer bleibt', async () => {
+      scoped.mockResolvedValue([]);
+      const seeded = await run(stateWith(agentScope), ['notebook_quellen']);
+      expect(seeded.delivered).toBe(false);
+    });
   });
 });
