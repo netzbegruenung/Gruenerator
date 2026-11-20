@@ -684,7 +684,12 @@ function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): 
     // clipboard), and `bild_ansehen` addresses an image by its number.
     const names = turnImages
       .map((img, i) => {
-        const label = img.kind === 'wolke' ? `${img.name} (aus der Wolke)` : img.name;
+        const label =
+          img.kind === 'wolke'
+            ? `${img.name} (aus der Wolke)`
+            : img.kind === 'verlauf'
+              ? `${img.name} (aus einer früheren Nachricht)`
+              : img.name;
         return visibility === 'tool' ? `Bild ${i + 1}: ${label}` : label;
       })
       .join(', ');
