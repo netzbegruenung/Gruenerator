@@ -110,7 +110,7 @@ export const connectionsContractRouter = s.router(connectionsContract, {
     }
 
     try {
-      const folder = await browseDrive(params.provider, accessToken, query.folderId);
+      const folder = await browseDrive(params.provider, accessToken, query.folderId, query.q);
       return { status: 200 as const, body: { success: true as const, ...folder } };
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;

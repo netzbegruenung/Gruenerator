@@ -50,6 +50,21 @@ export const NANGO_PROVIDERS = {
     label: 'Slack',
     services: ['Nachrichten posten'],
   },
+  // Postfächer, nur lesen. Eigene Integrationen neben `google`/`microsoft`,
+  // damit Mail eine eigene Zustimmung bleibt und bestehende Drive-/OneDrive-
+  // Verbindungen nicht neu zustimmen müssen. Gmail: `gmail.readonly` ist ein
+  // „restricted scope“ (bis zur Google-Prüfung nur Testnutzer*innen).
+  // Outlook: `User.Read Mail.Read offline_access`, auch private Konten.
+  'google-mail': {
+    key: 'google-mail',
+    label: 'Gmail',
+    services: ['Mails lesen'],
+  },
+  'microsoft-mail': {
+    key: 'microsoft-mail',
+    label: 'Outlook',
+    services: ['Mails lesen'],
+  },
   jira: {
     key: 'jira',
     label: 'Jira',
@@ -83,4 +98,6 @@ export const ADMIN_ONLY_NANGO_PROVIDERS = new Set<NangoProviderKey>([
   // Bis die Integrationen in Nango stehen und einmal echt durchlaufen sind.
   'microsoft-teams',
   'slack',
+  'google-mail',
+  'microsoft-mail',
 ]);

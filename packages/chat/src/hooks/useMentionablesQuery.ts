@@ -327,13 +327,18 @@ export function useConnectedProvidersQuery(enabled = true) {
 export function useConnectBrowseQuery(
   provider: string | null,
   folderId: string | null,
-  enabled = true
+  enabled = true,
+  /** Suche beim Anbieter (Postfächer). */
+  search: string | null = null
 ) {
   const apiClient = useApiClient();
   return useQuery<ChatConnectFile[]>({
-    queryKey: ['mention-connect-browse', provider, folderId],
+    queryKey: ['mention-connect-browse', provider, folderId, search],
     queryFn: async () => {
-      const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+      const params = new URLSearchParams();
+      if (folderId) params.set('folderId', folderId);
+      if (search) params.set('q', search);
+      const qs = params.size > 0 ? `?${params.toString()}` : '';
       const res = driveBrowseResponseSchema.parse(
         await apiClient.get<unknown>(`/api/connections/${provider}/browse${qs}`)
       );

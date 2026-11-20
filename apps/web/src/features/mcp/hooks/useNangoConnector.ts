@@ -12,7 +12,7 @@ interface ConnectionsStatus {
 }
 
 /**
- * A Nango connector (Microsoft 365, Google Workspace, Teams, Slack) as a card in the connector
+ * A Nango connector (Microsoft 365, Google Workspace, Teams, Slack, Gmail, Outlook) as a card in the connector
  * directory. Both are open to everyone and marked experimental in the card
  * (Microsoft since 16.11.2026, Google since 19.11.2026). Status and disconnect
  * use the existing `/api/connections` routes the chat's @connect picker reads;

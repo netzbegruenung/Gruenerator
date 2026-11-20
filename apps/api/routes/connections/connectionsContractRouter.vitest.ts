@@ -55,7 +55,7 @@ describe('connectionsContractRouter.browse', () => {
     const res = await browse('folder1');
 
     expect(getConnection).toHaveBeenCalledWith('user-1', 'microsoft');
-    expect(browseDrive).toHaveBeenCalledWith('microsoft', 'tok-1', 'folder1');
+    expect(browseDrive).toHaveBeenCalledWith('microsoft', 'tok-1', 'folder1', undefined);
     expect(res).toEqual({ status: 200, body: { success: true, entries: [], truncated: false } });
   });
 

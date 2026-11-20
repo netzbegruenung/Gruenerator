@@ -10,6 +10,7 @@ import * as googleDriveClient from '../api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../api-clients/microsoftGraphClient.js';
 
 import { isConnectFileSupported } from './connectFileSupport.js';
+import { browseMail, isMailProvider } from './mailBrowse.js';
 import { decodeTeamsRef, encodeTeamsRef } from './teamsIds.js';
 
 const GOOGLE_FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -22,8 +23,10 @@ export interface DriveFolder {
 export async function browseDrive(
   provider: DriveProvider,
   accessToken: string,
-  folderId?: string
+  folderId?: string,
+  query?: string
 ): Promise<DriveFolder> {
+  if (isMailProvider(provider)) return browseMail(provider, accessToken, folderId, query);
   if (provider === 'google') {
     const result = await googleDriveClient.listFiles(accessToken, folderId);
     return {
