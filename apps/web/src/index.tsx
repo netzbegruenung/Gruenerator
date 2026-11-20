@@ -171,6 +171,18 @@ root.render(
   // </React.StrictMode>
 );
 
+// Core Web Vitals as Umami events, only with analytics consent (the same key
+// the Umami loader in index.html reads). Lazy so it stays out of the entry.
+let analyticsConsent = false;
+try {
+  analyticsConsent = localStorage.getItem('analyticsConsent') === 'true';
+} catch {
+  // storage blocked: no consent, nothing to report
+}
+if (analyticsConsent && import.meta.env.PROD) {
+  void import('./utils/reportWebVitals').then((m) => m.reportWebVitals());
+}
+
 // Register Service Worker for illustration caching (production only)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   registerServiceWorker().catch((err) => {
