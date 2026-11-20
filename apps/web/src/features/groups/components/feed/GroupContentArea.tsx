@@ -1,6 +1,6 @@
 import {
+  austauschItems,
   filterGroupFeed,
-  isPinned,
   type GroupFeedItem,
   type GroupMember,
 } from '@gruenerator/shared/groups';
@@ -91,23 +91,13 @@ export function GroupContentArea({
     [members, currentUserId, isSystem, onOpenShare]
   );
 
-  // Der Austausch zeigt, was besprochen wird: Beiträge und Freigaben mit Notiz,
-  // Anheftung, Reaktionen oder Kommentaren — plus, was gerade angesteuert wird.
-  // Alles andere ist Wissen und steht in der Liste der Übersicht.
-  const austauschItems = useMemo(
-    () =>
-      items.filter(
-        (i) =>
-          i.kind === 'post' ||
-          isPinned(i) ||
-          !!i.share?.note ||
-          (i.share?.commentCount ?? 0) > 0 ||
-          (i.share?.reactions.length ?? 0) > 0 ||
-          (!!i.share && (discussed.has(i.share.shareId) || i.share.shareId === focusShareId))
-      ),
+  // Was in den Austausch gehört, entscheidet `austauschItems`; alles andere
+  // ist Wissen und steht in der Liste der Übersicht.
+  const austausch = useMemo(
+    () => austauschItems(items, discussed, focusShareId),
     [items, discussed, focusShareId]
   );
-  const visible = filterGroupFeed(austauschItems, query);
+  const visible = filterGroupFeed(austausch, query);
   const hasQuery = query.trim().length > 0;
 
   // Aus einer Benachrichtigung (`?beitrag=<shareId>`) oder „Im Austausch besprechen": hinscrollen.
