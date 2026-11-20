@@ -66,17 +66,19 @@ export function ElementPanel({ selection }: { selection: EditorSelection }) {
   const image = panel === 'image' ? imageTarget(selection) : null;
   if (panel === 'image' && !image) return null;
   const title = panel === 'image' ? 'Bild' : SECTION_LABELS[selection.section];
-  const headingId = 'element-panel-title';
 
   return (
     <aside
-      aria-labelledby={headingId}
+      aria-label={title}
       className="section-editor-panel absolute z-30 flex flex-col overflow-hidden rounded-xl border border-grey-200 bg-background-pure shadow-[0_10px_40px_rgba(0,0,0,0.18)] dark:border-grey-700 inset-x-2 bottom-2 max-h-[70%] sm:inset-x-auto sm:bottom-auto sm:top-4 sm:right-4 sm:w-[400px] sm:max-h-[calc(100%-2rem)]"
     >
       <div className="flex items-center justify-between gap-sm border-b border-grey-200 px-md py-sm dark:border-grey-700">
-        <h2 id={headingId} className="m-0 text-base font-semibold text-foreground">
-          {title}
-        </h2>
+        {/* The section forms bring their own heading; only the image needs one here. */}
+        {image ? (
+          <h2 className="m-0 text-base font-semibold text-foreground">{title}</h2>
+        ) : (
+          <span />
+        )}
         <Button
           type="button"
           variant="ghost"
