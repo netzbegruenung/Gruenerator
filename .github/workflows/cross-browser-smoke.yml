@@ -1,0 +1,101 @@
+name: Cross-Browser-Smoke
+
+# Laedt das Produktions-Bundle in Chromium, Firefox und WebKit und prueft, dass
+# keine Route beim Start abstuerzt (tests/smoke/bundle-init.spec.ts).
+#
+# Warum drei Engines: die meisten Nutzer*innen sind auf Firefox und Safari,
+# interaktiv getestet wird aber fast nur in Chrome. Was Safari oder Firefox
+# fehlt (eine Laufzeit-API, eine Syntax), faellt sonst erst bei ihnen auf.
+# WebKit ist nicht Safari, aber dieselbe Engine — fuer "startet die Seite"
+# reicht das.
+#
+# Laeuft im offiziellen Playwright-Image statt mit `playwright install
+# --with-deps`: das ruft apt-get auf, und der Ubuntu-Mirror der Runner hing
+# daran schon mehrfach (siehe canvas.yml). Das Image bringt alle drei Browser
+# samt Systembibliotheken mit. Seine Version muss exakt zu @playwright/test
+# passen, deshalb liest der erste Job sie aus dem Paket statt sie hier
+# festzuschreiben.
+
+on:
+  # Kein `branches:`-Filter, damit gestapelte PRs nicht durchfallen (#3100).
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/cross-browser-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  playwright-version:
+    name: Playwright-Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: pnpm-lock.yaml
+
+      # Die aufgeloeste Version aus dem Lockfile, nicht der Bereich aus
+      # package.json — das Image gibt es nur fuer exakte Versionen.
+      - name: Version aus dem Lockfile
+        id: v
+        run: |
+          version=$(grep -oE "^  '?@playwright/test@[0-9]+\.[0-9]+\.[0-9]+" pnpm-lock.yaml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$')
+          test -n "$version" || { echo "::error::@playwright/test nicht im Lockfile gefunden"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Bundle-Start in Chromium, Firefox, WebKit
+    needs: playwright-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm build:web
+
+      # HOME=/root: Firefox verweigert den Start, wenn HOME einem anderen
+      # Nutzer gehoert als dem, der den Container fuehrt (Playwright-Doku, CI).
+      - name: Smoke-Test
+        working-directory: apps/web
+        env:
+          HOME: /root
+        run: pnpm exec playwright test -c playwright.smoke.config.ts --reporter=github,list
+
+      - name: Traces bei Fehlschlag
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cross-browser-smoke-traces
+          path: apps/web/test-results/
+          retention-days: 7
