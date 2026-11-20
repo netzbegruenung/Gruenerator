@@ -568,8 +568,6 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
   const killSwitches: [string, Partial<TurnPlanInput>][] = [
     ['ausgeschaltete Schleife', { loopEnabled: false }],
     ['Verbund-Turn', { isCompound: true }],
-    // Seit #3841 nur noch mit einer Frage, die das Bild allein beantwortet.
-    ['Bildanhang', { hasImageAttachments: true, lastUserText: 'Was siehst du auf dem Bild?' }],
     ['zweiter Intent', { secondaryIntent: 'save_as_doc' }],
   ];
 
@@ -584,6 +582,19 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
       });
     }
   }
+
+  // Ein Bildanhang ist seit dem 20.11.2026 kein Notausschalter mehr (die
+  // Wortweiche `image_only_ask` ist weg): der Turn geht mit seinem Intent in
+  // die Schleife, die das Bild über `bild_ansehen` liest.
+  it('ein Bildanhang hält den Turn nicht mehr draussen', () => {
+    const p = plan({
+      intent: 'bundestag',
+      hasImageAttachments: true,
+      lastUserText: 'Was siehst du auf dem Bild?',
+    });
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('bundestag');
+  });
 
   it('die Erwähnung ändert daran nichts — auch ein gepinnter Turn degradiert', () => {
     const p = plan({

@@ -1,0 +1,17 @@
+# bild-frage-loop — routing
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Was steht auf dem Plakat?"
+router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=false inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true
+router.intent_override           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = (not reached)
+respond.answer_format            = brief                          complexity=simple intent=produktion retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+loop.unified_repair              = (not reached)
+notebook.answer_mode             = (not reached)
+-- wire --
+intent=produktion agentic=true tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24
