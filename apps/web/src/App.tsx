@@ -45,13 +45,18 @@ const FirstRunWizard = lazy(() =>
   }))
 );
 
+// Dev only: the constant folds to `false` in production, so the import() is dead code.
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/react-query-devtools').then((m) => ({ default: m.ReactQueryDevtools }))
+    )
+  : () => null;
+
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 
 import { shouldRetryQuery } from './components/utils/queryRetry';
 import { toastApiError } from './components/utils/toastError';
-import { prefetchCanvasEditor } from './features/image-studio/canvasQuery';
 import { startServerRestartNotice } from './lib/serverRestartNotice';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
 // `terms-banner` block there. It was the LCP element on / for fresh
@@ -108,7 +113,11 @@ startServerRestartNotice(queryClient);
 // Direktaufruf des Canvas-Editors: Route-Chunk und Dokument parallel zum
 // Auth-Bootstrap laden, statt erst wenn das Routing die Seite gemountet hat.
 const directCanvasId = window.location.pathname.match(/^\/studio\/canvas\/([^/]+)/)?.[1];
-if (directCanvasId) prefetchCanvasEditor(queryClient, directCanvasId);
+if (directCanvasId) {
+  void import('./features/image-studio/canvasQuery').then(({ prefetchCanvasEditor }) =>
+    prefetchCanvasEditor(queryClient, directCanvasId)
+  );
+}
 
 // Umami SPA Page View Tracking
 const RouteLogger = () => {
@@ -283,7 +292,11 @@ function App() {
             </GlobalChatProvider>
           </Router>
         </TooltipProvider>
-        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
+        {import.meta.env.DEV && (
+          <Suspense fallback={null}>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </Suspense>
+        )}
       </QueryClientProvider>
     </ErrorBoundary>
   );

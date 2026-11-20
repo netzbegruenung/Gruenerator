@@ -7,7 +7,7 @@ vi.mock('@sentry/react', () => ({ captureMessage: vi.fn() }));
 
 function navigationType(type: string) {
   vi.spyOn(performance, 'getEntriesByType').mockReturnValue([
-    { type } as unknown as PerformanceEntry,
+    { type } as unknown as PerformanceNavigationTiming,
   ]);
 }
 

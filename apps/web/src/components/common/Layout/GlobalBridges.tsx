@@ -1,10 +1,13 @@
-import { useCallback } from 'react';
+import { lazy, Suspense, useCallback } from 'react';
 
-import FeedbackWidget from '../../../features/feedback/FeedbackWidget';
 import { useDesktopMenu } from '../../../hooks/useDesktopMenu';
 import { useNotificationSSE } from '../../../hooks/useNotificationSSE';
 import { useAuthStore } from '../../../stores/authStore';
 import { isEmbedded } from '../../../utils/platform';
+
+// Lazy: das Widget zieht @dnd-kit (Launcher) und rendert nur für angemeldete Personen
+// mit aktivem Knopf — es gehört nicht in den Entry.
+const FeedbackWidget = lazy(() => import('../../../features/feedback/FeedbackWidget'));
 
 export function GlobalBridges() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -30,5 +33,9 @@ export function GlobalBridges() {
 
   if (!isAuthenticated || feedbackButton === 'off') return null;
 
-  return <FeedbackWidget variant={feedbackButton} />;
+  return (
+    <Suspense fallback={null}>
+      <FeedbackWidget variant={feedbackButton} />
+    </Suspense>
+  );
 }
