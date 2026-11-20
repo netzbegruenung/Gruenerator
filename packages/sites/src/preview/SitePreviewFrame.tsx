@@ -30,6 +30,7 @@ const EDITOR_FRAME_CSS = `
 [data-field] { cursor: pointer; }
 [data-field]:hover { outline: 2px dashed #46962b; outline-offset: 2px; }
 [data-editor-active] { outline: 2px solid #46962b; outline-offset: 2px; }
+[data-section][data-editor-selected] { outline: 2px solid #46962b; outline-offset: -2px; }
 @media (prefers-reduced-motion: no-preference) {
   [data-field] { transition: outline-color 0.15s ease; }
 }
