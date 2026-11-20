@@ -47,6 +47,7 @@ export function usePreviewSelection(doc: Document | null): void {
 /** Outlines the selected section and the highlighted field inside the page. */
 export function usePreviewHighlight(doc: Document | null): void {
   const section = useEditorStore((s) => s.selection?.section ?? null);
+  const index = useEditorStore((s) => s.selection?.index ?? null);
   const path = useEditorStore((s) => s.highlightedElement?.path ?? s.selection?.path ?? null);
   useEffect(() => {
     if (!doc) return;
@@ -55,6 +56,14 @@ export function usePreviewHighlight(doc: Document | null): void {
         element.toggleAttribute(
           'data-editor-selected',
           element.getAttribute('data-section') === section
+        );
+      }
+      for (const element of doc.querySelectorAll('[data-section] [data-index]')) {
+        element.toggleAttribute(
+          'data-editor-selected',
+          index !== null &&
+            element.closest('[data-section]')?.getAttribute('data-section') === section &&
+            element.getAttribute('data-index') === String(index)
         );
       }
       for (const element of doc.querySelectorAll('[data-field]')) {
@@ -69,5 +78,5 @@ export function usePreviewHighlight(doc: Document | null): void {
     const observer = new MutationObserver(apply);
     observer.observe(doc.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [doc, section, path]);
+  }, [doc, section, index, path]);
 }
