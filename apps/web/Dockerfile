@@ -157,9 +157,13 @@ server {
     index index.html;
 
     # Brotli compression. Negotiated via Accept-Encoding: br; browsers that
-    # only send gzip still hit the gzip path below. On-the-fly compression
-    # (no pre-compressed .br files) — CPU cost is small for the modest
-    # request rate, and avoids touching the Vite build pipeline.
+    # only send gzip still hit the gzip path below. The Vite build writes
+    # `<file>.br` (quality 11) and `<file>.gz` (level 9) next to js/css/svg/
+    # json/wasm (apps/web/precompressPlugin.ts); the *_static directives serve
+    # those. Everything else (and index.html, which `sub_filter` rewrites and
+    # so must not be pre-encoded) is still compressed on the fly.
+    brotli_static on;
+    gzip_static on;
     brotli on;
     brotli_comp_level 5;
     brotli_min_length 1024;
