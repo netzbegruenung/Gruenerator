@@ -107,7 +107,7 @@ export function NewsletterCard() {
       </div>
 
       {!status && (
-        <Button variant="brand" size="lg" className="self-start" onClick={() => setOpen(true)}>
+        <Button variant="brand" size="lg" className="w-full" onClick={() => setOpen(true)}>
           Newsletter abonnieren
         </Button>
       )}

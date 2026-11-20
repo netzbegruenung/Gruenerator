@@ -23,12 +23,14 @@ const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedS
 // Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps & Newsletter.
 const ArbeitenTab = () => {
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
+    // Phones start right under the tab bar: the greeting is hidden there (see DocsHome),
+    // so „Zuletzt" sits 16 px into the scroll area, ~26 px below the tab pill.
+    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg max-sm:pt-0">
       <div data-tour="arbeiten-create">
         <DocsHome />
       </div>
 
-      <div className="mt-lg flex flex-col gap-10 pb-2xl md:gap-12 lg:gap-14">
+      <div className="mt-lg flex flex-col gap-10 pb-2xl max-sm:mt-4 md:gap-12 lg:gap-14">
         <div data-tour="arbeiten-recents">
           <Suspense fallback={null}>
             <RecentlyCreatedSection headerAction={<NewContentMenu />} />

@@ -129,7 +129,7 @@ const WorkplacePage = () => {
             passing beside it collided with the sidebar button. The top edge fades in. */}
         <div
           hidden={tab !== 'arbeiten'}
-          className="mt-14 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
+          className="mt-14 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)]"
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>

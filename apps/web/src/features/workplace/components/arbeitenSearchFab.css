@@ -1,0 +1,54 @@
+/*
+ * Phone search: a round button that unfolds into the search bar and folds back.
+ * Only clip-path and opacity move — the bar is laid out at full width the whole
+ * time, the clip merely reveals it from the circle at the right end, so nothing
+ * reflows during the motion. Both are transitions (not keyframes), so a tap in the
+ * middle of the motion retargets from the current value instead of restarting.
+ * The negative insets when open keep the pill's own shadow inside the clip.
+ */
+.arbeiten-search {
+  --arbeiten-search-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.arbeiten-search__pill {
+  clip-path: inset(calc(100% - 48px) 0 0 calc(100% - 48px) round 24px);
+  /* Closing is quicker than opening: the system answers fast, the user deliberates. */
+  transition: clip-path 220ms var(--arbeiten-search-ease);
+}
+
+.arbeiten-search[data-open='true'] .arbeiten-search__pill {
+  clip-path: inset(-24px -24px -24px -24px round 28px);
+  transition-duration: 280ms;
+}
+
+.arbeiten-search__fab {
+  opacity: 1;
+  /* On the way back the circle returns once the clip has nearly closed. */
+  transition: opacity 120ms ease-out 100ms;
+}
+
+.arbeiten-search[data-open='true'] .arbeiten-search__fab {
+  opacity: 0;
+  transition-delay: 0ms;
+  transition-duration: 140ms;
+}
+
+/* Reduced motion: no movement, just a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .arbeiten-search__pill,
+  .arbeiten-search[data-open='true'] .arbeiten-search__pill {
+    clip-path: inset(-24px -24px -24px -24px round 28px);
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .arbeiten-search[data-open='true'] .arbeiten-search__pill {
+    opacity: 1;
+  }
+
+  .arbeiten-search__fab,
+  .arbeiten-search[data-open='true'] .arbeiten-search__fab {
+    transition: opacity 150ms ease;
+    transition-delay: 0ms;
+  }
+}

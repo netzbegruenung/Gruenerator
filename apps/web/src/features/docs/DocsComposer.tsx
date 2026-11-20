@@ -15,6 +15,7 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuSection,
   TypingAnimation,
+  cn,
   useIsMobile,
 } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -100,6 +101,12 @@ interface DocsComposerProps {
   /** Glyph on the submit button. `search` on surfaces that lead with finding
    * things; the action stays "create" either way. */
   submitIcon?: 'arrow' | 'search';
+  /** Merged into the root — lets a host drop the default centring margins. */
+  rootClassName?: string;
+  /** Merged into the input pill — lets a host animate it (e.g. the phone search morph). */
+  pillClassName?: string;
+  /** Where the result list opens. `above` for a field docked at the screen bottom. */
+  resultsPlacement?: 'below' | 'above';
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -150,6 +157,9 @@ export function DocsComposer({
   draft,
   submitIcon = 'arrow',
   submitClassName = 'bg-[#4C8A6E] hover:bg-[#3E7A5F]',
+  rootClassName,
+  pillClassName,
+  resultsPlacement = 'below',
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -423,9 +433,9 @@ export function DocsComposer({
   };
 
   return (
-    <div className="relative mx-auto mt-10 w-full max-w-[760px]">
+    <div className={cn('relative mx-auto mt-10 w-full max-w-[760px]', rootClassName)}>
       <div
-        className={`flex gap-3 border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${multiline ? 'items-end rounded-[28px]' : 'items-center rounded-full'} ${allowImports && canCreate ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
+        className={`${pillClassName ?? ''} flex gap-3 border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${multiline ? 'items-end rounded-[28px]' : 'items-center rounded-full'} ${allowImports && canCreate ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
       >
         {allowImports && canCreate && (
           <ResponsiveMenu
@@ -548,7 +558,7 @@ export function DocsComposer({
       {showDropdown && (
         // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onMouseDown only preserves focus for the click below; the options themselves are real buttons
         <div
-          className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[360px] overflow-y-auto overflow-x-hidden rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800"
+          className={`absolute left-0 right-0 z-20 overflow-y-auto ${resultsPlacement === 'above' ? 'bottom-full mb-2 max-h-[min(360px,calc(100dvh-var(--mobile-keyboard-offset,0px)-9rem))]' : 'top-full mt-2 max-h-[360px]'} overflow-x-hidden rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800`}
           onMouseDown={(e) => {
             // keep focus so the input's blur→close doesn't fire before the click
             e.preventDefault();

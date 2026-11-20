@@ -130,10 +130,11 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-// Collapsed, the grid shows one row; „Mehr anzeigen" opens it to three. Rows,
-// not a fixed count, so the last row is full at every width.
-const COLLAPSED_ROWS = 1;
-const EXPANDED_ROWS = 3;
+// Collapsed, the grid shows one row; „Mehr anzeigen" opens it to three. A phone's
+// two-column grid shows two rows and doubles to four (one row is only two items).
+// Rows, not a fixed count, so the last row is full at every width.
+const collapsedRows = (columns: number) => (columns <= 2 ? 2 : 1);
+const expandedRows = (columns: number) => (columns <= 2 ? 4 : 3);
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
@@ -522,7 +523,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
   // Phone layout until the grid is measured (it renders after loading). The
   // skeleton and the real grid are never mounted together, so one ref serves both.
   const columns = useGridColumns(grid) || 2;
-  const visibleCount = columns * (expanded ? EXPANDED_ROWS : COLLAPSED_ROWS);
+  const visibleCount = columns * (expanded ? expandedRows(columns) : collapsedRows(columns));
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
@@ -610,7 +611,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
 
       {isLoading ? (
         <div ref={setGrid} className={ARBEITEN_GRID}>
-          {Array.from({ length: columns }, (_, i) => (
+          {Array.from({ length: columns * collapsedRows(columns) }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
@@ -646,14 +647,14 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
           <div ref={setGrid} id={gridId} className={ARBEITEN_GRID}>
             {items.slice(0, visibleCount).map(renderCard)}
           </div>
-          {items.length > columns * COLLAPSED_ROWS && (
+          {items.length > columns * collapsedRows(columns) && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setExpanded((prev) => !prev)}
               aria-expanded={expanded}
               aria-controls={gridId}
-              className="mt-md self-center rounded-full px-5"
+              className="mt-md self-center rounded-full px-5 max-sm:h-11 max-sm:w-full max-sm:self-stretch"
             >
               {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
             </Button>
