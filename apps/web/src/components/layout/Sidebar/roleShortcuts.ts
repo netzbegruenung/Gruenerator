@@ -15,11 +15,17 @@ import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { isNotebookOfferedIn, type NotebookId } from '@gruenerator/shared/notebooks';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 import { type IconType } from 'react-icons';
-import { GiHedgehog } from 'react-icons/gi';
-import { PiBank, PiBooks, PiBuildings, PiImage, PiInstagramLogo } from 'react-icons/pi';
 
 import { getAgentIcon } from './sidebarAgentConfig';
 
+import {
+  GiHedgehog,
+  PiBank,
+  PiBooks,
+  PiBuildings,
+  PiImage,
+  PiInstagramLogo,
+} from '@/config/shellIcons.generated';
 import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 

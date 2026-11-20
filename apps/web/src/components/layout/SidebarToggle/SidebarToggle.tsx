@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { FiSidebar } from 'react-icons/fi';
 
 import useSidebarStore from '../../../stores/sidebarStore';
 
+import { FiSidebar } from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 
 interface SidebarToggleProps {

@@ -525,6 +525,10 @@ jobs:
           pnpm --filter @gruenerator/documentation agentura:check
           pnpm --filter @gruenerator/documentation reference:check
           pnpm --filter @gruenerator/documentation models:check
+          # Shell icons: per-icon GenIcon copies of what apps/web/src imports from
+          # config/shellIcons.generated, so the entry never pulls a whole react-icons
+          # pack (#5891). Needs react-icons from the install above.
+          node scripts/generate-shell-icons.mjs --check
 
   # No `needs:` on test/build. Gating them behind the quality job bought
   # nothing — Actions minutes are free on a public repo, wall-clock is the

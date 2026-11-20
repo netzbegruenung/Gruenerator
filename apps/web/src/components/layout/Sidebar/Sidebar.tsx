@@ -12,8 +12,6 @@ import {
 } from '@gruenerator/ui';
 import { useEffect, useMemo, useCallback, useRef, useState, memo, lazy, Suspense } from 'react';
 import { type IconType } from 'react-icons';
-import { FiSidebar } from 'react-icons/fi';
-import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -41,6 +39,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
+import { FiSidebar, PiSignIn, PiSparkle, PiStarFill } from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';

@@ -1,5 +1,6 @@
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 import { type IconType } from 'react-icons';
+
 import {
   PiBrain,
   PiChatCircle,
@@ -27,7 +28,7 @@ import {
   PiTable,
   PiUsersThree,
   PiVideo,
-} from 'react-icons/pi';
+} from '@/config/shellIcons.generated';
 
 /** Label per storage kind; the Select offers these, a row refines two of them by `subtype`. */
 export const TRASH_KIND_LABELS: Record<TrashKind, string> = {

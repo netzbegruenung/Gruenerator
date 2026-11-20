@@ -9,12 +9,13 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useCallback, useState } from 'react';
-import { PiChatCircle, PiGearSix, PiUsersThree } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { useGroups } from '../../../features/groups/hooks/useGroups';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
+
+import { PiChatCircle, PiGearSix, PiUsersThree } from '@/config/shellIcons.generated';
 
 interface ProjekteSidebarSectionProps {
   openRef: MutableRefObject<boolean>;
