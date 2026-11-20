@@ -1,12 +1,7 @@
+import { groupMentionsFromDraft } from '@gruenerator/shared/utils';
 import { describe, expect, it } from 'vitest';
 
-import {
-  canDeleteComment,
-  canSendComment,
-  replyDraft,
-  replyTarget,
-  serializeMentions,
-} from './commentRules';
+import { canDeleteComment, canSendComment, replyDraft, replyTarget } from './commentRules';
 
 const UID = '123e4567-e89b-12d3-a456-426614174000';
 
@@ -35,19 +30,19 @@ describe('replyTarget', () => {
   });
 });
 
-describe('replyDraft / serializeMentions', () => {
+describe('replyDraft', () => {
   it('builds a member token when the id is known', () => {
     const t = replyTarget({ id: 'c', parentId: null, userId: UID, authorName: 'Anna Beispiel' });
     const d = replyDraft(t);
     expect(d.text).toBe('@Anna ');
-    expect(serializeMentions(`${d.text}danke`, d.mentions)).toBe(`@[Anna](user:${UID}) danke`);
+    expect(groupMentionsFromDraft(`${d.text}danke`, d.mentions)).toBe(`@[Anna](user:${UID}) danke`);
   });
   it('falls back to a plain first-name mention without an id', () => {
     const t = replyTarget({ id: 'c', parentId: null, userId: null, authorName: 'Anna Beispiel' });
     expect(replyDraft(t)).toEqual({ text: '@Anna ', mentions: [] });
   });
   it('drops the mention when the person deleted it from the draft', () => {
-    expect(serializeMentions('danke', [{ label: 'Anna', userId: UID }])).toBe('danke');
+    expect(groupMentionsFromDraft('danke', [{ label: 'Anna', userId: UID }])).toBe('danke');
   });
 });
 

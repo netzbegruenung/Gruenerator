@@ -16,6 +16,8 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useHiddenMemberIds } from '../../hooks/useHiddenMembers';
+import { useMentionDraft } from '../../hooks/useMentionDraft';
+import { useMentionOptions } from '../../hooks/useMentionOptions';
 import { useTheme } from '../../hooks/useTheme';
 import { useNoticeStore } from '../../stores/noticeStore';
 import { BODY_FONT, colors, spacing } from '../../theme';
@@ -31,12 +33,11 @@ import {
   COMMENT_DELETE_ACTIONS,
   replyDraft,
   replyTarget,
-  serializeMentions,
-  type MentionRef,
   type ReplyTarget,
 } from './commentRules';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupMentionText } from './GroupMentionText';
+import { MentionSuggestions } from './MentionSuggestions';
 import { ModerationMenuButton } from './ModerationMenuButton';
 import { CommentReactions } from './ProjectReactions';
 import { useProjekteTone } from './projekteTone';
@@ -46,6 +47,8 @@ interface GroupCommentsSheetProps {
   item: GroupFeedItem | null;
   /** Projekt-Admins dürfen auch fremde Kommentare löschen. */
   isAdmin?: boolean;
+  /** Das System-Projekt: `@alle` erreicht dort alle Nutzer*innen. */
+  isSystem?: boolean;
   onClose: () => void;
 }
 
@@ -54,6 +57,7 @@ export function GroupCommentsSheet({
   groupId,
   item,
   isAdmin = false,
+  isSystem = false,
   onClose,
 }: GroupCommentsSheetProps) {
   const theme = useTheme();
@@ -69,27 +73,26 @@ export function GroupCommentsSheet({
   const [reportId, setReportId] = useState<string | null>(null);
   const addComment = useAddGroupShareComment(groupId, shareId);
   const deleteComment = useDeleteGroupShareComment(groupId, shareId);
-  const [draft, setDraft] = useState('');
-  const [mentions, setMentions] = useState<MentionRef[]>([]);
+  const mentionOptions = useMentionOptions(groupId, isSystem, isAdmin);
+  const mention = useMentionDraft(mentionOptions, GROUP_COMMENT_MAX);
+  const draft = mention.text;
   const [reply, setReply] = useState<ReplyTarget | null>(null);
 
   const startReply = (c: GroupShareComment) => {
     const target = replyTarget(c);
     const d = replyDraft(target);
     setReply(target);
-    setDraft(d.text);
-    setMentions(d.mentions);
+    mention.start(d.text, d.mentions);
   };
   const resetDraft = () => {
-    setDraft('');
-    setMentions([]);
+    mention.reset();
     setReply(null);
   };
   const send = () => {
-    if (!canSendComment(draft, addComment.isPending)) return;
+    if (!canSendComment(draft, addComment.isPending) || mention.tooLong) return;
     // Bei einem Fehler bleibt der Entwurf stehen.
     addComment.mutate(
-      { body: serializeMentions(draft.trim(), mentions), parentId: reply?.threadId ?? null },
+      { body: mention.serialize(), parentId: reply?.threadId ?? null },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -218,11 +221,14 @@ export function GroupCommentsSheet({
                 </Pressable>
               </View>
             ) : null}
+            <MentionSuggestions
+              suggestions={mention.suggestions}
+              memberCount={mentionOptions.memberCount}
+              onChoose={mention.choose}
+            />
             <View style={styles.inputRow}>
               <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                maxLength={GROUP_COMMENT_MAX}
+                {...mention.inputProps}
                 multiline
                 placeholder="Kommentar schreiben …"
                 placeholderTextColor={theme.textSecondary}

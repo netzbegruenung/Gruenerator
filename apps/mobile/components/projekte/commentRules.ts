@@ -1,6 +1,6 @@
 import { type MenuAction } from '@expo/ui/community/menu';
 import { replyMention } from '@gruenerator/shared/groups';
-import { buildMemberMention } from '@gruenerator/shared/utils';
+import { type GroupMentionPick } from '@gruenerator/shared/utils';
 
 export interface ReplyTarget {
   /** Kommentar oberster Ebene, an dem die Antwort hängt. */
@@ -11,10 +11,7 @@ export interface ReplyTarget {
   authorName: string;
 }
 
-export interface MentionRef {
-  label: string;
-  userId: string;
-}
+export type MentionRef = GroupMentionPick;
 
 /** Eigene Kommentare darf jede Person löschen, fremde nur Projekt-Admins (der Server prüft es noch einmal). */
 export function canDeleteComment(
@@ -51,14 +48,6 @@ export function replyDraft(target: ReplyTarget): { text: string; mentions: Menti
     text: `@${target.label} `,
     mentions: [{ label: target.label, userId: target.userId }],
   };
-}
-
-/** Macht aus „@Anna“ im Entwurf das Token, das der Server versteht; was nicht mehr im Text steht, bleibt weg. */
-export function serializeMentions(text: string, mentions: MentionRef[]): string {
-  return mentions.reduce(
-    (out, m) => out.split(`@${m.label}`).join(buildMemberMention(m.label, m.userId)),
-    text
-  );
 }
 
 export function canSendComment(text: string, busy: boolean): boolean {

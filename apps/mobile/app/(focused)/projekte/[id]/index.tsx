@@ -293,6 +293,7 @@ export default function ProjektDetailScreen() {
           groupId={id}
           item={commentsFor}
           isAdmin={isAdmin}
+          isSystem={group.is_system === true}
           onClose={() => setCommentsFor(null)}
         />
       ) : null}
