@@ -18,11 +18,17 @@ const { canWriteDocument, checkDocumentWriteAccess } = await import('./documentA
 
 type Group = { read?: boolean; write?: boolean } | null;
 
-function primeDb(group: Group, doc: Record<string, unknown> | null = null) {
+/** Wie Postgres die Aggregat-Abfrage über alle Projekte der Person beantwortet. */
+function aggregate(shares: NonNullable<Group>[]) {
+  const readable = shares.filter((g) => g.read !== false);
+  if (readable.length === 0) return [{ doc_write: null, via_document: null }];
+  return [{ doc_write: readable.some((g) => g.write === true), via_document: true }];
+}
+
+function primeDb(group: Group | NonNullable<Group>[], doc: Record<string, unknown> | null = null) {
+  const shares = Array.isArray(group) ? group : group ? [group] : [];
   query.mockReset().mockImplementation(async (sql: string) => {
-    if (/FROM group_content_shares/i.test(sql)) {
-      return group ? [{ content_type: 'collaborative_documents', permissions: group }] : [];
-    }
+    if (/FROM group_content_shares/i.test(sql)) return aggregate(shares);
     if (/FROM collaborative_documents/i.test(sql)) return doc ? [doc] : [];
     return [];
   });
@@ -81,6 +87,29 @@ describe('canWriteDocument', () => {
   it.each(cases)('%s', async (_name, overrides, group, expected) => {
     primeDb(group);
     expect(await canWriteDocument(doc(overrides), 'user-9')).toBe(expected);
+  });
+
+  it('takes the strongest right across all projects, whichever row comes first', async () => {
+    primeDb([
+      { read: true, write: false },
+      { read: true, write: true },
+    ]);
+    expect(await canWriteDocument(doc(), 'user-9')).toBe(true);
+    primeDb([
+      { read: true, write: true },
+      { read: true, write: false },
+    ]);
+    expect(await canWriteDocument(doc(), 'user-9')).toBe(true);
+  });
+
+  it('aggregates in SQL instead of picking one row', async () => {
+    primeDb({ read: true, write: false });
+    await canWriteDocument(doc(), 'user-9');
+    const groupSql = query.mock.calls
+      .map(([sql]) => sql as string)
+      .find((sql) => /FROM group_content_shares/i.test(sql));
+    expect(groupSql).toMatch(/bool_or/);
+    expect(groupSql).not.toMatch(/LIMIT 1/);
   });
 
   it('counts a canvas_template project share like Hocuspocus does', async () => {

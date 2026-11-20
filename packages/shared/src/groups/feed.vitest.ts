@@ -19,6 +19,7 @@ const content = {
       title: 'Pressemitteilung',
       document_subtype: 'docs',
       shared_at: '2026-09-24T10:00:00Z',
+      group_permissions: { read: true, write: true },
       share: share({ shareId: 'sd1', note: 'Bitte gegenlesen', commentCount: 2 }),
     },
     {
@@ -96,6 +97,13 @@ describe('toGroupFeedItems', () => {
     expect(items.find((i) => i.id === 'c1')?.thumbnailUrl).toBe('https://x/t.png');
     expect(items.find((i) => i.id === 'g1')?.slug).toBe('klima-tipps');
     expect(items.find((i) => i.id === 'x1')?.excerpt).toBe('420 Wörter');
+  });
+
+  it('reads the members’ role on documents, and has none elsewhere', () => {
+    expect(items.find((i) => i.id === 'd1')?.projectWrite).toBe(true);
+    // No group_permissions on the board row: reading only.
+    expect(items.find((i) => i.id === 'b1')?.projectWrite).toBe(false);
+    expect(items.find((i) => i.id === 'g1')?.projectWrite).toBeNull();
   });
 
   it('returns an empty list for missing content', () => {

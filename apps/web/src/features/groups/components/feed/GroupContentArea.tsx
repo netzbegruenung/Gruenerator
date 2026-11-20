@@ -9,6 +9,8 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { PiMagnifyingGlass } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 
+import { type ShareActions } from '../shareActions';
+
 import { GroupComposer } from './GroupComposer';
 import { GroupFeedCard } from './GroupFeedCard';
 import { GroupMentionProvider } from './GroupMentions';
@@ -31,7 +33,8 @@ interface GroupContentAreaProps {
    * null: the viewer may not share here (system group, non-admin).
    */
   onOpenShare: ((note?: string) => void) | null;
-  onRemove: ((item: GroupFeedItem) => void) | null;
+  /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
+  actions: ShareActions | null;
   onUseTemplate: (id: string) => void;
   cloningId: string | null;
   /**
@@ -58,7 +61,7 @@ export function GroupContentArea({
   currentUserName,
   members,
   onOpenShare,
-  onRemove,
+  actions,
   onUseTemplate,
   cloningId,
   overview,
@@ -202,7 +205,7 @@ export function GroupContentArea({
                         defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
                         onUseTemplate={onUseTemplate}
                         isCloning={cloningId === item.id}
-                        onRemove={onRemove}
+                        actions={actions}
                       />
                     ))}
               </div>

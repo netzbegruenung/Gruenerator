@@ -140,25 +140,30 @@ export class AuthService {
     }
   }
 
+  /**
+   * Über ALLE Projekte der Person, in denen der Inhalt liegt: lesbar, sobald eine
+   * lesbare Freigabe besteht, schreibbar, sobald eine davon Schreibrecht gibt. Vorher
+   * entschied `LIMIT 1` ohne Reihenfolge zufällig. Die REST-Seite rechnet in
+   * `loadGroupShare` (apps/api/routes/docs/documentAccess.ts) genauso.
+   */
   private async getGroupSharePermissions(
     userId: string,
     contentId: string
   ): Promise<{ read?: boolean; write?: boolean } | null> {
+    // bool_or über null Zeilen ist eine Zeile mit NULL = keine Freigabe.
     const rows = await this.db(
-      `SELECT gcs.permissions FROM group_content_shares gcs
+      `SELECT bool_or((gcs.permissions->>'write')::boolean IS TRUE) AS doc_write
+         FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
          AND gcs.content_id = $2
-       LIMIT 1`,
+         AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
       [userId, contentId]
     );
-    if (rows.length === 0) return null;
-    const raw = rows[0].permissions;
-    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-      read?: boolean;
-      write?: boolean;
-    } | null;
+    const write = (rows[0] as { doc_write: boolean | null } | undefined)?.doc_write;
+    if (write === null || write === undefined) return null;
+    return { read: true, write };
   }
 
   private async checkRoomAccess(

@@ -33,12 +33,26 @@ export interface AddToGroupResult {
   failures: { key: string; message: string }[];
 }
 
-const READ_ONLY = { read: true, write: false, collaborative: false } as const;
+export interface AddToGroupOptions {
+  /**
+   * Docs, Sheets, Präsentationen und Boards mit Schreibrecht teilen — in Team-Projekten
+   * der Standard, denn gemeinsam bearbeiten ist dort der Zweck. Alles andere liest der
+   * Server ohnehin nur.
+   */
+  writeDocuments?: boolean;
+}
+
+const permissionsFor = (item: AddableItem, options: AddToGroupOptions) => ({
+  read: true,
+  write: item.contentType === 'collaborative_documents' && options.writeDocuments === true,
+  collaborative: false,
+});
 
 export async function addItemsToGroup(
   groupId: string,
   items: readonly AddableItem[],
-  note: string | null
+  note: string | null,
+  options: AddToGroupOptions = {}
 ): Promise<AddToGroupResult> {
   const trimmed = note?.trim().slice(0, GROUP_SHARE_NOTE_MAX) || null;
   const results = await Promise.allSettled(
@@ -49,7 +63,7 @@ export async function addItemsToGroup(
           contentType: item.contentType,
           contentId: item.id,
           note: trimmed,
-          permissions: READ_ONLY,
+          permissions: permissionsFor(item, options),
         },
       });
       if (res.status !== 200) {

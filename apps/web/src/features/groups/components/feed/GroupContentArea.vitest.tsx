@@ -40,6 +40,7 @@ const item = (id: string, title: string, note: string | null): GroupFeedItem => 
   sharedById: 'u2',
   sharedAt: '2026-11-10T10:00:00Z',
   share: meta(`s-${id}`, note),
+  projectWrite: null,
   post: null,
 });
 
@@ -59,7 +60,7 @@ function render(props: Partial<React.ComponentProps<typeof GroupContentArea>> = 
       currentUserName="Moritz"
       members={[]}
       onOpenShare={() => {}}
-      onRemove={null}
+      actions={null}
       onUseTemplate={() => {}}
       cloningId={null}
       overview={({ onDiscuss }) => (

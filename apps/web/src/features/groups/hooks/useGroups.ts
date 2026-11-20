@@ -288,6 +288,26 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     },
   });
 
+  // Docs, Sheets, Präsentationen und Boards: dürfen Mitglieder bearbeiten oder nur lesen?
+  // Der Server erlaubt das Admins und der Person, die geteilt hat, und schließt
+  // offene Editor-Räume, damit das neue Recht sofort gilt.
+  const setShareWriteMutation = useMutation({
+    mutationFn: async ({ contentId, write }: { contentId: string; write: boolean }) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const res = await getContractsClient().groups.updateContentPermissions({
+        params: { groupId, contentId },
+        body: {
+          contentType: 'collaborative_documents',
+          permissions: { read: true, write, collaborative: false },
+        },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
+    },
+  });
+
   return {
     groupContent: groupContentQuery.data || {},
     isLoadingGroupContent: groupContentQuery.isPending,
@@ -299,6 +319,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
       return groupContentQuery.refetch();
     },
     unshareContent: unshareContentMutation,
+    setShareWrite: setShareWriteMutation,
   };
 };
 
