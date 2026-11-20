@@ -19,9 +19,9 @@ import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkele
 import { isDesktopApp } from '../utils/platform';
 import { startTabLink } from '../utils/startpage';
 
+import { withAdminToolGate } from './adminToolsGate';
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
-import { withParteitageAdminGate } from './parteitageAdminGate';
 import { withSitesGate } from './sitesGate';
 
 /**
@@ -322,16 +322,22 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
-const KiSchnittNewPage = lazy(() => import('../features/video-ai/KiSchnittNewPage'));
-const KiSchnittProjectPage = lazy(() => import('../features/video-ai/KiSchnittProjectPage'));
-// admin only until the system-media volume is live (Salt #5527) — see parteitageAdminGate.
+// KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const KiSchnittNewPage = lazy(async () => {
+  const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
+  return { default: withAdminToolGate(Page) };
+});
+const KiSchnittProjectPage = lazy(async () => {
+  const { default: Page } = await import('../features/video-ai/KiSchnittProjectPage');
+  return { default: withAdminToolGate(Page) };
+});
 const ParteitageListPage = lazy(async () => {
   const { default: Page } = await import('../features/parteitage/ParteitageListPage');
-  return { default: withParteitageAdminGate(Page) };
+  return { default: withAdminToolGate(Page) };
 });
 const ParteitagPage = lazy(async () => {
   const { default: Page } = await import('../features/parteitage/ParteitagPage');
-  return { default: withParteitageAdminGate(Page) };
+  return { default: withAdminToolGate(Page) };
 });
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
