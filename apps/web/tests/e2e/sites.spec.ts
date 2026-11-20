@@ -88,14 +88,12 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await page.locator('[data-tour="arbeiten-tools"]').getByRole('link', { name: /Sites/ }).click();
     await expect(page).toHaveURL(/\/sites$/);
 
-    // Create: address, description, generated preview, create.
+    // Create: address, description, generate. The site is created right away, no review step.
     await page.getByLabel('Adresse').fill(HANDLE);
-    await expect(page.getByText('Diese Adresse ist frei')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Weiter/ })).toBeEnabled();
     await page.getByRole('button', { name: /Weiter/ }).click();
     await page.locator('#description').fill(DESCRIPTION);
     await page.getByRole('button', { name: /Seite generieren/ }).click();
-    await expect(page.getByText(GENERATED.hero.heading).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Seite erstellen' }).click();
     await expect.poll(() => state.site?.subdomain ?? null).toBe(HANDLE);
     expect(state.createBodies[0]).toMatchObject({
       subdomain: HANDLE,
@@ -160,7 +158,7 @@ test.describe('Sites: Editor', () => {
     test.skip(true, reason);
   });
 
-  test('edit in the preview, publish', async ({ page }) => {
+  test('edit on the page, publish', async ({ page }) => {
     await installApiFixtures(page);
     const site = makeSite();
     const room = await startDraftServer(site);
@@ -178,11 +176,12 @@ test.describe('Sites: Editor', () => {
 
       const preview = page.frameLocator('iframe').first();
       await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
-      await preview.locator('[data-field="site_title"]').click();
-      const input = page.locator('input:focus');
-      await expect(input).toHaveValue(GENERATED.hero.heading);
-      await input.press('End');
-      await input.pressSequentially(' Neu');
+      // The name is edited on the page itself.
+      const name = preview.getByRole('textbox', { name: 'Dein Name' });
+      await expect(name).toHaveText(GENERATED.hero.heading);
+      await name.click();
+      await name.press('End');
+      await name.pressSequentially(' Neu');
 
       await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
