@@ -62,9 +62,8 @@ export function useProjectAddActions(groupId: string | null) {
         useNoticeStore
           .getState()
           .show('error', err instanceof Error ? err.message : 'Konnte nicht angelegt werden.');
-      } finally {
-        setBusy(false);
       }
+      setBusy(false);
     },
     [groupId, refresh, router]
   );
@@ -81,7 +80,8 @@ export function useProjectAddActions(groupId: string | null) {
         await postDocumentOnly(doc, groupId);
         added += 1;
       } catch (err) {
-        firstError ??= serverMessage(err, 'Datei konnte nicht hochgeladen werden.');
+        if (firstError === null)
+          firstError = serverMessage(err, 'Datei konnte nicht hochgeladen werden.');
       }
     }
     setBusy(false);
