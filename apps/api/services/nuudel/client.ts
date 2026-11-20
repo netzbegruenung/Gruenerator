@@ -23,6 +23,7 @@
 import * as cheerio from 'cheerio';
 
 import { env } from '../../config/env.js';
+import { berlinDay } from '../briefing/time.js';
 import { FormClient, FormStepError, alertsOf } from '../webForms/formClient.js';
 
 export const NUUDEL_DEFAULT_URL = 'https://nuudel.digitalcourage.de';
@@ -126,6 +127,181 @@ export async function createNuudelPoll(
     );
   }
   return { pollId, adminId };
+}
+
+/**
+ * Die Admin-Seite (`/<admin-id>/admin`), gemessen am 19.11.2026:
+ *
+ * - Titel, Beschreibung, Ablaufdatum: POST an die Seite mit dem Feld
+ *   (`title`, `description`, `expiration_date`) und `update_poll_info=<feld>`.
+ *   Ein leerer Wert ändert nichts; geleert wird mit einem Leerzeichen.
+ *   Das Ablaufdatum begrenzt nuudel STILL auf morgen bis zur Vorgabe beim
+ *   Anlegen (2035 → 2028-11-08, 2020 → morgen); was gilt, steht danach im Feld.
+ * - Termin hinzufügen: POST `newdate` (`YYYY-MM-DD`), `newmoment` (frei),
+ *   `confirm_add_column`. Ein unmögliches Datum rollt nuudel still weiter
+ *   (2026-13-45 → 2027-02-14), deshalb prüft das Eingabeschema.
+ * - Termin entfernen: GET `…/admin/action/delete_column/<id>`; die Rückfrage
+ *   macht nur das JavaScript der Seite. `<id>` ist base64 von
+ *   `<Mitternacht Europe/Berlin als Unix-Zeit>@<Uhrzeit>`. Mit der Spalte
+ *   verschwinden alle Stimmen darauf.
+ * - Löschen: POST `delete_poll` zeigt eine Rückfrage, erst POST
+ *   `confirm_delete_poll` löscht.
+ *
+ * Ob eine Änderung angekommen ist, prüft der Ablauf am Zustand der danach
+ * geladenen Seite, nicht an der Meldung.
+ */
+export interface PollSlot {
+  /** `YYYY-MM-DD` */
+  day: string;
+  /** Wie bei nuudel eingetragen; leer = ganzer Tag. */
+  time: string;
+}
+
+export interface AdminState {
+  title: string;
+  description: string;
+  endDate: string;
+  /** In der Reihenfolge der Seite, dieselbe wie die Spalten im CSV. */
+  slots: (PollSlot & { removePath: string })[];
+}
+
+/** `MTc5NjA3OTYwMEAxOTowMA` → `{ day: '2026-12-01', time: '19:00' }`. */
+export function decodeSlotId(id: string): PollSlot | null {
+  const raw = Buffer.from(id, 'base64').toString('utf8');
+  const m = raw.match(/^(\d{9,11})@(.*)$/s);
+  if (!m) return null;
+  return { day: berlinDay(new Date(Number(m[1]) * 1000)), time: m[2].trim() };
+}
+
+export function adminStateOf(html: string): AdminState | null {
+  const $ = cheerio.load(html);
+  const title = $('input#newtitle').attr('value');
+  if (title === undefined) return null;
+  const slots: AdminState['slots'] = [];
+  $('a.remove-column').each((_, el) => {
+    const href = $(el).attr('href') ?? '';
+    const m = href.match(/\/action\/delete_column\/([^/?#]+)$/);
+    const slot = m ? decodeSlotId(decodeURIComponent(m[1])) : null;
+    if (slot) slots.push({ ...slot, removePath: new URL(href).pathname });
+  });
+  return {
+    title,
+    description: $('textarea#newdescription').text(),
+    endDate: $('input#newexpirationdate').attr('value') ?? '',
+    slots,
+  };
+}
+
+export const sameSlot = (a: PollSlot, b: PollSlot) =>
+  a.day === b.day && a.time.trim().toLowerCase() === b.time.trim().toLowerCase();
+
+export interface PollEdit {
+  title?: string;
+  description?: string;
+  endDate?: string;
+  addSlots?: PollSlot[];
+  removeSlots?: PollSlot[];
+}
+
+async function loadAdmin(adminId: string, base: string, client: FormClient): Promise<AdminState> {
+  const res = await client.request(adminUrl(base, adminId));
+  const state = adminStateOf(res.html);
+  if (!state) throw new FormStepError('Umfrage gibt es bei nuudel nicht mehr', 'gone');
+  return state;
+}
+
+/** Der Zustand der Admin-Seite, ohne etwas zu ändern. */
+export function readNuudelAdmin(
+  adminId: string,
+  base: string,
+  client = new FormClient()
+): Promise<AdminState> {
+  return loadAdmin(adminId, base, client);
+}
+
+const slotText = (slots: PollSlot[]) => slots.map((s) => `${s.day} ${s.time}`.trim()).join(', ');
+
+/**
+ * Ändert eine Umfrage über ihre Admin-Seite und gibt den Zustand danach
+ * zurück. Termine, die es schon gibt, werden nicht noch einmal angelegt;
+ * ob entfernte Termine Stimmen tragen, prüft der Aufrufer vorher.
+ */
+export async function editNuudelPoll(
+  adminId: string,
+  edit: PollEdit,
+  base: string,
+  client = new FormClient()
+): Promise<AdminState> {
+  const page = adminUrl(base, adminId);
+  const before = await loadAdmin(adminId, base, client);
+
+  const fields = [
+    ['title', 'title'],
+    ['description', 'description'],
+    ['endDate', 'expiration_date'],
+  ] as const;
+  for (const [key, field] of fields) {
+    const value = edit[key];
+    if (value === undefined) continue;
+    const form = new URLSearchParams();
+    // Ein leerer Wert lässt nuudel das alte Feld stehen (gemessen); ein
+    // Leerzeichen leert es sichtbar.
+    form.set(field, value === '' ? ' ' : value);
+    form.set('update_poll_info', field);
+    await client.request(page, { method: 'POST', form });
+  }
+
+  for (const slot of edit.addSlots ?? []) {
+    if (before.slots.some((s) => sameSlot(s, slot))) continue;
+    const form = new URLSearchParams();
+    form.set('newdate', slot.day);
+    form.set('newmoment', slot.time);
+    form.set('confirm_add_column', '');
+    await client.request(page, { method: 'POST', form });
+  }
+
+  for (const slot of edit.removeSlots ?? []) {
+    const hit = before.slots.find((s) => sameSlot(s, slot));
+    if (hit) await client.request(new URL(hit.removePath, base).toString());
+  }
+
+  const after = await loadAdmin(adminId, base, client);
+  if (edit.title !== undefined && after.title !== edit.title) {
+    throw new FormStepError('Titel nicht übernommen', 'title');
+  }
+  if (edit.description !== undefined && after.description.trim() !== edit.description.trim()) {
+    throw new FormStepError('Beschreibung nicht übernommen', 'description');
+  }
+  const missing = (edit.addSlots ?? []).filter((s) => !after.slots.some((a) => sameSlot(a, s)));
+  if (missing.length > 0) {
+    throw new FormStepError(`Termine nicht übernommen: ${slotText(missing)}`, 'add-slot');
+  }
+  const stuck = (edit.removeSlots ?? []).filter((s) => after.slots.some((a) => sameSlot(a, s)));
+  if (stuck.length > 0) {
+    throw new FormStepError(`Termine nicht entfernt: ${slotText(stuck)}`, 'remove-slot');
+  }
+  return after;
+}
+
+/** Löscht eine Umfrage bei nuudel endgültig, samt der Rückfrage der Seite. */
+export async function deleteNuudelPoll(
+  adminId: string,
+  base: string,
+  client = new FormClient()
+): Promise<void> {
+  const page = adminUrl(base, adminId);
+  await loadAdmin(adminId, base, client);
+  const ask = new URLSearchParams();
+  ask.set('delete_poll', '');
+  const r1 = await client.request(page, { method: 'POST', form: ask });
+  if (cheerio.load(r1.html)('button[name="confirm_delete_poll"]').length === 0) {
+    fail('delete-ask', r1.html, 'Rückfrage zum Löschen nicht erhalten');
+  }
+  const confirm = new URLSearchParams();
+  confirm.set('confirm_delete_poll', '');
+  await client.request(page, { method: 'POST', form: confirm });
+  const check = await client.request(page);
+  if (adminStateOf(check.html)) throw new FormStepError('Umfrage steht noch', 'delete-confirm');
 }
 
 export type Answer = 'yes' | 'maybe' | 'no' | null;

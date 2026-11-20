@@ -29,6 +29,7 @@ export function isConnectFileSupported(
 ): boolean {
   switch (provider) {
     case 'microsoft':
+    case 'microsoft-teams':
       return isSupportedWolkeFile(name) || GRAPH_PDF_CONVERTIBLE.test(name);
     case 'google':
       return (mimeType !== null && GOOGLE_EXPORTABLE.has(mimeType)) || isSupportedWolkeFile(name);

@@ -11,11 +11,20 @@
 import { initContract } from '@ts-rest/core';
 
 import {
+  cloudExportParamsSchema,
+  connectorProviderParamsSchema,
+  connectorSendBodySchema,
+  connectorSendResponseSchema,
+  connectorTargetParamsSchema,
+  connectorTargetsQuerySchema,
+  connectorTargetsResponseSchema,
   driveBrowseErrorSchema,
   driveBrowseParamsSchema,
   driveBrowseQuerySchema,
   driveBrowseResponseSchema,
   driveConnectLinkResponseSchema,
+  driveUploadBodySchema,
+  driveUploadResponseSchema,
   googlePickerConfigResponseSchema,
 } from '../schemas/connections.js';
 
@@ -39,7 +48,7 @@ export const connectionsContract = c.router(
     connectLink: {
       method: 'POST',
       path: '/api/connections/:provider/connect-link',
-      pathParams: driveBrowseParamsSchema,
+      pathParams: connectorProviderParamsSchema,
       body: c.noBody(),
       responses: {
         200: driveConnectLinkResponseSchema,
@@ -47,6 +56,50 @@ export const connectionsContract = c.router(
         500: driveBrowseErrorSchema,
       },
       summary: 'Nango-Link zum Verbinden genau dieses Laufwerks',
+    },
+    upload: {
+      method: 'POST',
+      path: '/api/connections/:provider/upload',
+      pathParams: cloudExportParamsSchema,
+      contentType: 'multipart/form-data',
+      body: driveUploadBodySchema,
+      responses: {
+        200: driveUploadResponseSchema,
+        400: driveBrowseErrorSchema,
+        403: driveBrowseErrorSchema,
+        413: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Eine Word-Datei in das verbundene Laufwerk exportieren',
+    },
+    targets: {
+      method: 'GET',
+      path: '/api/connections/:provider/targets',
+      pathParams: connectorTargetParamsSchema,
+      query: connectorTargetsQuerySchema,
+      responses: {
+        200: connectorTargetsResponseSchema,
+        403: driveBrowseErrorSchema,
+        404: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Eine Ebene der Zielwahl (Teams- oder Slack-Kanäle)',
+    },
+    send: {
+      method: 'POST',
+      path: '/api/connections/:provider/send',
+      pathParams: connectorTargetParamsSchema,
+      contentType: 'multipart/form-data',
+      body: connectorSendBodySchema,
+      responses: {
+        200: connectorSendResponseSchema,
+        400: driveBrowseErrorSchema,
+        403: driveBrowseErrorSchema,
+        404: driveBrowseErrorSchema,
+        413: driveBrowseErrorSchema,
+        500: driveBrowseErrorSchema,
+      },
+      summary: 'Einen Export an das gewählte Ziel schicken',
     },
     googlePicker: {
       method: 'GET',

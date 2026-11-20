@@ -297,6 +297,28 @@ export function useConnectProvidersQuery(enabled = true) {
 }
 
 /**
+ * Every connected Nango provider key, not just the drives — the document menu
+ * needs it for the Teams/Slack send targets. Fetched on open for the
+ * same reason as {@link useConnectProvidersQuery}.
+ */
+export function useConnectedProvidersQuery(enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<string[]>({
+    queryKey: ['connected-providers'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ providers?: ChatConnectProvider[] }>(
+        '/api/connections/status'
+      );
+      return (res?.providers ?? []).filter((p) => p.connected).map((p) => p.provider);
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
+/**
  * One folder of a connected drive (OneDrive, Google Drive), already in one
  * shape for both providers (`/api/connections/:provider/browse`). Jira and
  * Confluence have no folder view. A 403 means the grant expired: the picker
@@ -305,13 +327,18 @@ export function useConnectProvidersQuery(enabled = true) {
 export function useConnectBrowseQuery(
   provider: string | null,
   folderId: string | null,
-  enabled = true
+  enabled = true,
+  /** Suche beim Anbieter (Postfächer). */
+  search: string | null = null
 ) {
   const apiClient = useApiClient();
   return useQuery<ChatConnectFile[]>({
-    queryKey: ['mention-connect-browse', provider, folderId],
+    queryKey: ['mention-connect-browse', provider, folderId, search],
     queryFn: async () => {
-      const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+      const params = new URLSearchParams();
+      if (folderId) params.set('folderId', folderId);
+      if (search) params.set('q', search);
+      const qs = params.size > 0 ? `?${params.toString()}` : '';
       const res = driveBrowseResponseSchema.parse(
         await apiClient.get<unknown>(`/api/connections/${provider}/browse${qs}`)
       );

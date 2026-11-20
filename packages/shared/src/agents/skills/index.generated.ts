@@ -1022,7 +1022,7 @@ export const SKILLS = [
     identifier: 'gruenerator-universal',
     title: 'Terminumfrage mit nuudel (Experimentell)',
     description:
-      'Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen und auswerten. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.',
+      'Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen, auswerten, ändern und löschen. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.',
     iconKey: 'PiListChecks',
     avatar: '📅',
     backgroundColor: '#316049',
@@ -1031,6 +1031,11 @@ export const SKILLS = [
     audience: 'all',
     promptTemplate: 'Erstelle eine Terminumfrage für: ',
     rolle: 'methode',
-    recommendedTools: ['nuudel_umfrage_anlegen', 'nuudel_umfrage_lesen'],
+    recommendedTools: [
+      'nuudel_umfrage_anlegen',
+      'nuudel_umfrage_lesen',
+      'nuudel_umfrage_bearbeiten',
+      'nuudel_umfrage_loeschen',
+    ],
   },
 ] as const satisfies readonly SystemSkill[];

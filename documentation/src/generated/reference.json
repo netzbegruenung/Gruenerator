@@ -362,6 +362,11 @@
         "title": "Todoist",
         "auth": "Anmeldung beim Dienst",
         "description": "Aufgaben, Projekte und To-do-Listen verwalten."
+      },
+      {
+        "title": "Trello",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Boards, Listen und Karten lesen und anlegen."
       }
     ],
     "Recht & Compliance": [

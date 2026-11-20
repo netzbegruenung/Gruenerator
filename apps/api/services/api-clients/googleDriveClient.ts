@@ -165,6 +165,43 @@ export async function getSheetContent(
   return googleSheetsResponseSchema.parse(response.data);
 }
 
+const GOOGLE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files';
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const GOOGLE_DOC_MIME = 'application/vnd.google-apps.document';
+
+/**
+ * Legt aus einer .docx ein Google-Doc in „Meine Ablage“ an. Unter `drive.file`
+ * darf die App Dateien anlegen; danach sieht sie genau diese wieder.
+ */
+export async function uploadDocxAsGoogleDoc(
+  token: string,
+  docx: Buffer,
+  title: string
+): Promise<GoogleDriveFile> {
+  const boundary = `gruenerator-${Date.now().toString(36)}`;
+  const metadata = JSON.stringify({ name: title, mimeType: GOOGLE_DOC_MIME });
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n` +
+        `--${boundary}\r\nContent-Type: ${DOCX_MIME}\r\n\r\n`
+    ),
+    docx,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const response = await axios.post(GOOGLE_UPLOAD_API, body, {
+    headers: {
+      ...authHeaders(token),
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    params: {
+      uploadType: 'multipart',
+      fields: 'id,name,mimeType,size,modifiedTime,parents,webViewLink',
+    },
+    maxBodyLength: Infinity,
+  });
+  return googleDriveFileSchema.parse(response.data);
+}
+
 export async function searchFiles(token: string, query: string): Promise<GoogleDriveFile[]> {
   const sanitized = query.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {

@@ -284,13 +284,18 @@ export const DEFERRABLE_GROUPS = [
     // nuudel-Umfragen (Terminfindung, Auswahl): für die meisten Turns ohne Belang.
     id: 'nuudel',
     loaderTool: 'nuudel_werkzeuge_laden',
-    tools: ['nuudel_umfrage_anlegen', 'nuudel_umfrage_lesen'],
+    tools: [
+      'nuudel_umfrage_anlegen',
+      'nuudel_umfrage_lesen',
+      'nuudel_umfrage_bearbeiten',
+      'nuudel_umfrage_loeschen',
+    ],
     // Kein bloßes „Umfrage": das meint meist Wahlumfragen (Werkzeug `umfragen`).
     // Nur Wörter, die eine selbst gestellte Abstimmung meinen; alles andere
     // entscheidet das Modell über den Lader.
     hint: /nuudel|doodle|dudle|termin(?:umfrage|abstimmung|findung|suche|vorschl[äa]ge)|termin\s+(?:finden|abstimmen)|datumsumfrage|abstimmungslink|umfragelink/i,
     loaderDescription:
-      "Schaltet die nuudel-Werkzeuge frei: nuudel_umfrage_anlegen (Terminfindung oder Auswahl auf nuudel.digitalcourage.de anlegen), nuudel_umfrage_lesen (Ergebnis einer eigenen Umfrage: wer kann wann).\n\nNUTZE WENN die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellen oder auswerten will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen').",
+      "Schaltet die nuudel-Werkzeuge frei: nuudel_umfrage_anlegen (Terminfindung oder Auswahl auf nuudel.digitalcourage.de anlegen), nuudel_umfrage_lesen (Ergebnis einer eigenen Umfrage: wer kann wann), nuudel_umfrage_bearbeiten (Titel, Beschreibung, Ablauf, Termine einer eigenen Umfrage ändern), nuudel_umfrage_loeschen (eigene Umfrage endgültig löschen).\n\nNUTZE WENN die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellen, auswerten, ändern oder löschen will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen').",
   },
 ] as const satisfies readonly DeferrableGroup[];
 
