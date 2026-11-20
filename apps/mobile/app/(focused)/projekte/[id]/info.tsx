@@ -1,5 +1,4 @@
 import { groupFeedByKind } from '@gruenerator/shared/groups';
-import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams } from 'expo-router';
 import { type ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
@@ -13,27 +12,13 @@ import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
-import { openUrl } from '../../../../services/share';
 import { spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { roleLabel } from '../../../../utils/groups';
 import { goBackOr } from '../../../../utils/navigation';
 
-const LINK_ICONS: Record<string, IoniconsIconName> = {
-  link: 'link',
-  globe: 'globe-outline',
-  mail: 'mail-outline',
-  calendar: 'calendar-outline',
-  chat: 'chatbubble-outline',
-  folder: 'folder-outline',
-  document: 'document-outline',
-  video: 'videocam-outline',
-  phone: 'call-outline',
-  drive: 'cloud-outline',
-};
-
 /**
- * Was im Web die Seitenleiste ist: Beschreibung, Mitglieder, Links und die
+ * Was im Web die Seitenleiste ist: Beschreibung, Mitglieder und die
  * Inhalte nach Art. Verwaltung (Umbenennen, Rollen, Einladen, Löschen) bleibt
  * dem Web — die App ist hier nur zum Lesen.
  */
@@ -52,7 +37,6 @@ export default function ProjektInfoScreen() {
   // The system group holds every user and never shows its members.
   const showMembers = !isPersonal && !group?.is_system;
   const members = membersQuery.data ?? [];
-  const links = group?.links ?? [];
   const sections = groupFeedByKind(feedQuery.data ?? []);
 
   const section = (title: string, body: ReactNode): ReactNode => (
@@ -140,23 +124,6 @@ export default function ProjektInfoScreen() {
                   title={s.plural}
                   value={String(s.items.length)}
                   last={i === sections.length - 1}
-                />
-              ))}
-            </ListGroup>
-          )}
-
-        {links.length > 0 &&
-          section(
-            'Links',
-            <ListGroup>
-              {links.map((link, i) => (
-                <ListRow
-                  key={link.id}
-                  icon={LINK_ICONS[link.icon] ?? 'link'}
-                  title={link.title}
-                  value={link.description ?? link.url}
-                  onPress={() => void openUrl(link.url)}
-                  last={i === links.length - 1}
                 />
               ))}
             </ListGroup>

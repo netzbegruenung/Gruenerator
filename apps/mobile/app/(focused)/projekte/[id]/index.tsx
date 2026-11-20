@@ -1,4 +1,9 @@
-import { canShareIntoGroup, filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
+import {
+  austauschItems,
+  canShareIntoGroup,
+  filterGroupFeed,
+  type GroupFeedItem,
+} from '@gruenerator/shared/groups';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -23,15 +28,21 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { buildAddActions } from '../../../../components/projekte/addMenu';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
-import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { knowledgeItems } from '../../../../components/projekte/knowledgeMenu';
 import { PostComposerRow } from '../../../../components/projekte/PostComposerRow';
 import { canWritePost } from '../../../../components/projekte/postRules';
 import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
+import { ProjectChatList } from '../../../../components/projekte/ProjectChatList';
+import { ProjectInstructionsCard } from '../../../../components/projekte/ProjectInstructionsCard';
+import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKnowledgeList';
+import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
+import { ProjectMembersPreview } from '../../../../components/projekte/ProjectMembersPreview';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
-import { useGroupDetails } from '../../../../hooks/useGroups';
+import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
 import { useProjectAddActions } from '../../../../hooks/useProjectAddActions';
+import { useProjectChats } from '../../../../hooks/useProjectChats';
 import { useShareItemActions } from '../../../../hooks/useShareItemActions';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
@@ -39,15 +50,16 @@ import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
 import { goBackOr } from '../../../../utils/navigation';
 
-type ViewMode = 'feed' | 'all';
+type ViewMode = 'uebersicht' | 'austausch';
 
 /**
- * Ein Projekt bzw. eine Gruppe. Feed (neueste Freigaben, Angeheftetes oben)
- * und „Alle" (eine Reihe je Art). Mitglieder, Links und Beschreibung stehen
- * hinter dem Personen-Symbol auf der Info-Seite; über „+“ legt man eigene
- * Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw. langes
- * Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an. Eigene Beiträge
- * schreibt man über die Zeile oben im Feed bzw. „+“; die übrige Verwaltung bleibt dem Web.
+ * Ein Projekt bzw. eine Gruppe. „Übersicht“: neuer Chat, die Chats des Projekts,
+ * Anweisungen, Wissen, Links und Mitglieder. „Austausch“ (nur Gruppen): Beiträge
+ * und Freigaben, über die gesprochen wird — Angeheftetes oben. Über „+“ legt man
+ * eigene Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw.
+ * langes Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an.
+ * Eigene Beiträge schreibt man über die Zeile oben im Austausch bzw. „+“; die
+ * übrige Verwaltung bleibt dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -58,9 +70,11 @@ export default function ProjektDetailScreen() {
 
   const detailsQuery = useGroupDetails(id);
   const feedQuery = useGroupFeed(id);
+  const membersQuery = useGroupMembers(id);
   const token = useBearerToken();
   const group = detailsQuery.data?.group;
   const isPersonal = group?.group_type === 'personal';
+  const isSystem = group?.is_system === true;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
   const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
@@ -72,7 +86,11 @@ export default function ProjektDetailScreen() {
   const writePost = () =>
     router.push({ pathname: '/(focused)/projekte/[id]/beitrag', params: { id: id ?? '' } });
 
-  const [view, setView] = useState<ViewMode>('feed');
+  // Wie im Web: ein Link auf einen Beitrag und das System-Projekt öffnen im Austausch.
+  const [chosenView, setChosenView] = useState<ViewMode | null>(null);
+  // Wissen-Einträge, die jemand aus der Liste in den Austausch geholt hat.
+  const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
+  const [focusShareId, setFocusShareId] = useState<string | null>(beitrag ?? null);
   const [query, setQuery] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
@@ -93,13 +111,33 @@ export default function ProjektDetailScreen() {
     });
   };
 
-  const activeView: ViewMode = isPersonal ? 'all' : view;
+  const activeView: ViewMode = isPersonal
+    ? 'uebersicht'
+    : (chosenView ?? (beitrag || isSystem ? 'austausch' : 'uebersicht'));
   const hiddenIds = useHiddenMemberIds();
   const items = useMemo(
     () => filterHiddenFeed(feedQuery.data ?? [], hiddenIds),
     [feedQuery.data, hiddenIds]
   );
-  const visible = filterGroupFeed(items, query);
+  const visible = useMemo(
+    () => filterGroupFeed(austauschItems(items, discussed, focusShareId), query),
+    [items, discussed, focusShareId, query]
+  );
+  const knowledge = useMemo(() => knowledgeItems(items), [items]);
+  const members = membersQuery.data ?? [];
+  const showChats = canAdd && !isSystem;
+  const chatsQuery = useProjectChats(id, showChats);
+  const onDiscuss = isPersonal
+    ? null
+    : (item: GroupFeedItem) => {
+        const shareId = item.share?.shareId;
+        if (!shareId) return;
+        setDiscussed((prev) => new Set(prev).add(shareId));
+        setFocusShareId(shareId);
+        setQuery('');
+        focus.current = { listY: null, cardY: null, done: false };
+        setChosenView('austausch');
+      };
   const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);
 
   const scaffold = (children: ReactNode): ReactNode => (
@@ -177,15 +215,16 @@ export default function ProjektDetailScreen() {
   }
 
   const emptyText = query.trim()
-    ? `Kein Inhalt passt zu „${query.trim()}“.`
-    : isPersonal
-      ? 'In diesem Projekt liegt noch nichts.'
-      : 'Noch nichts geteilt.';
+    ? `Kein Beitrag passt zu „${query.trim()}“.`
+    : canAdd
+      ? 'Noch nichts im Austausch. Schreib etwas an die Gruppe oder teile einen Inhalt mit einer Notiz.'
+      : 'Noch keine Beiträge.';
 
   return scaffold(
     <>
       <ScrollView
         ref={scrollRef}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -195,98 +234,134 @@ export default function ProjektDetailScreen() {
             onRefresh={() => {
               void detailsQuery.refetch();
               void feedQuery.refetch();
+              void membersQuery.refetch();
+              if (showChats) void chatsQuery.refetch();
             }}
           />
         }
       >
-        <View style={styles.padded}>
-          {id ? (
-            <ProjectChatComposer
-              groupId={id}
-              groupName={group.name}
-              solo={isPersonal || group.is_system === true}
-            />
-          ) : null}
-          {!isPersonal && (
+        {!isPersonal && (
+          <View style={styles.padded}>
             <SegmentedControl
               accessibilityLabel="Ansicht"
               activeColor={tone.accent}
               value={activeView}
-              onChange={(v) => setView(v as ViewMode)}
+              onChange={(v) => setChosenView(v as ViewMode)}
               options={[
-                { value: 'feed', label: 'Feed', short: 'Feed', disabled: false },
                 {
-                  value: 'all',
-                  label: `Alle, ${items.length} Inhalte`,
-                  short: `Alle · ${items.length}`,
+                  value: 'uebersicht',
+                  label: 'Übersicht',
+                  short: 'Übersicht',
+                  disabled: false,
+                },
+                {
+                  value: 'austausch',
+                  label: 'Austausch',
+                  short: 'Austausch',
                   disabled: false,
                 },
               ]}
             />
-          )}
-          {canPost && activeView === 'feed' ? (
-            <PostComposerRow userName={userName} onPress={writePost} />
-          ) : null}
-          <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
-            <Ionicons name="search" size={18} color={theme.textSecondary} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-              placeholderTextColor={theme.textSecondary}
-              accessibilityLabel={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-              style={[styles.searchInput, { color: theme.text }]}
-              returnKeyType="search"
-            />
           </View>
-        </View>
+        )}
 
-        {feedQuery.isPending ? (
+        {activeView === 'uebersicht' ? (
           <View style={styles.padded}>
-            <SkeletonRows count={3} leading={44} />
+            {showChats && id ? (
+              <>
+                <ProjectChatComposer groupId={id} groupName={group.name} solo={isPersonal} />
+                <ProjectChatList groupId={id} />
+              </>
+            ) : null}
+            {!isSystem && id ? <ProjectInstructionsCard groupId={id} /> : null}
+            {feedQuery.isPending ? (
+              <SkeletonRows count={3} leading={44} />
+            ) : feedQuery.isError ? (
+              <Pressable onPress={() => void feedQuery.refetch()} accessibilityRole="button">
+                <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
+                  Inhalte konnten nicht geladen werden. Tippen zum Wiederholen.
+                </Text>
+              </Pressable>
+            ) : (
+              <ProjectKnowledgeList
+                items={knowledge}
+                onOpen={open}
+                shareActions={shareActions}
+                onDiscuss={onDiscuss}
+              />
+            )}
+            <ProjectLinks links={group.links ?? []} />
+            {!isPersonal && !isSystem ? (
+              <ProjectMembersPreview
+                members={members}
+                onShowAll={() =>
+                  router.push({
+                    pathname: '/(focused)/projekte/[id]/info',
+                    params: { id: id ?? '' },
+                  })
+                }
+              />
+            ) : null}
           </View>
-        ) : feedQuery.isError ? (
-          <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
-            Inhalte konnten nicht geladen werden.
-          </Text>
-        ) : visible.length === 0 ? (
-          <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>{emptyText}</Text>
-        ) : activeView === 'feed' ? (
-          <View
-            style={styles.padded}
-            onLayout={(e) => {
-              focus.current.listY = e.nativeEvent.layout.y;
-              scrollToFocus();
-            }}
-          >
-            {visible.map((item) => (
+        ) : (
+          <>
+            <View style={styles.padded}>
+              {canPost ? <PostComposerRow userName={userName} onPress={writePost} /> : null}
+              <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
+                <Ionicons name="search" size={18} color={theme.textSecondary} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Im Austausch suchen"
+                  placeholderTextColor={theme.textSecondary}
+                  accessibilityLabel="Im Austausch suchen"
+                  style={[styles.searchInput, { color: theme.text }]}
+                  returnKeyType="search"
+                />
+              </View>
+            </View>
+
+            {feedQuery.isPending ? (
+              <View style={styles.padded}>
+                <SkeletonRows count={3} leading={44} />
+              </View>
+            ) : feedQuery.isError ? (
+              <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
+                Inhalte konnten nicht geladen werden.
+              </Text>
+            ) : visible.length === 0 ? (
+              <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>{emptyText}</Text>
+            ) : (
               <View
-                key={item.key}
+                style={styles.padded}
                 onLayout={(e) => {
-                  if (!beitrag || item.share?.shareId !== beitrag) return;
-                  focus.current.cardY = e.nativeEvent.layout.y;
+                  focus.current.listY = e.nativeEvent.layout.y;
                   scrollToFocus();
                 }}
               >
-                <GroupFeedCard
-                  item={item}
-                  groupId={id ?? ''}
-                  token={token}
-                  canComment={!isPersonal}
-                  shareActions={shareActions}
-                  onOpen={open}
-                  onShowComments={setCommentsFor}
-                />
+                {visible.map((item) => (
+                  <View
+                    key={item.key}
+                    onLayout={(e) => {
+                      if (!focusShareId || item.share?.shareId !== focusShareId) return;
+                      focus.current.cardY = e.nativeEvent.layout.y;
+                      scrollToFocus();
+                    }}
+                  >
+                    <GroupFeedCard
+                      item={item}
+                      groupId={id ?? ''}
+                      token={token}
+                      canComment={!isPersonal}
+                      shareActions={shareActions}
+                      onOpen={open}
+                      onShowComments={setCommentsFor}
+                    />
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        ) : (
-          <GroupKindRows
-            items={visible}
-            showPinned={!query.trim()}
-            onOpen={open}
-            shareActions={shareActions}
-          />
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -303,7 +378,7 @@ export default function ProjektDetailScreen() {
           groupId={id}
           item={commentsFor}
           isAdmin={isAdmin}
-          isSystem={group.is_system === true}
+          isSystem={isSystem}
           onClose={() => setCommentsFor(null)}
         />
       ) : null}
