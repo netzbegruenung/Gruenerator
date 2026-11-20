@@ -48,7 +48,22 @@ export function acceptForMediaType(type: 'image' | 'video' | 'audio' | 'all' = '
   return SUPPORTED_MIME_TYPES.join(',');
 }
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+export const MAX_IMAGE_SIZE = 50 * 1024 * 1024; // 50MB
+/** A phone 4K clip of a few minutes is 0.5-2 GB; nginx in front allows 2100M. */
+export const MAX_VIDEO_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+
+/** Largest file the upload endpoint takes at all (a video). */
+export const MAX_FILE_SIZE = MAX_VIDEO_SIZE;
+
+export function maxUploadBytesFor(mimeType: string): number {
+  return mimeType.startsWith('video/') ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+}
+
+/** „50 MB" / „2 GB" */
+export function formatUploadLimit(bytes: number): string {
+  const gb = bytes / 1024 ** 3;
+  return gb >= 1 ? `${Math.round(gb)} GB` : `${Math.round(bytes / 1024 ** 2)} MB`;
+}
 
 export const DEFAULT_PAGINATION = {
   limit: 50,

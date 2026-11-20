@@ -154,7 +154,9 @@ export interface UpdateImageShareParams {
  * Parameters for uploading a media file
  */
 export interface UploadMediaFileParams {
-  fileBuffer: Buffer;
+  /** Exactly one of `fileBuffer` / `sourcePath`. `sourcePath` is MOVED into the share dir. */
+  fileBuffer?: Buffer | undefined;
+  sourcePath?: string | undefined;
   originalFilename: string;
   mimeType: string;
   title?: string | null | undefined;

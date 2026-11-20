@@ -59,6 +59,42 @@ const __dirname = path.dirname(__filename);
 
 const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
+
+/**
+ * Where multer spools incoming uploads. Next to (not inside) the share dir on
+ * the same volume, so moving a finished file into place is a rename, not a copy.
+ */
+export const INCOMING_MEDIA_PATH = path.join(__dirname, '../uploads/incoming-media');
+const INCOMING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+let incomingSwept = false;
+
+export async function ensureIncomingMediaDir(): Promise<string> {
+  await fs.mkdir(INCOMING_MEDIA_PATH, { recursive: true });
+  if (!incomingSwept) {
+    incomingSwept = true;
+    // A crash mid-upload leaves its spool file behind; nothing else removes it.
+    try {
+      for (const name of await fs.readdir(INCOMING_MEDIA_PATH)) {
+        const file = path.join(INCOMING_MEDIA_PATH, name);
+        const stat = await fs.stat(file);
+        if (Date.now() - stat.mtimeMs > INCOMING_MAX_AGE_MS) await fs.rm(file, { force: true });
+      }
+    } catch (error) {
+      console.warn('[SharedMediaService] Could not sweep incoming uploads:', error);
+    }
+  }
+  return INCOMING_MEDIA_PATH;
+}
+
+async function moveFile(from: string, to: string): Promise<void> {
+  try {
+    await fs.rename(from, to);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error;
+    await fs.copyFile(from, to);
+    await fs.rm(from, { force: true });
+  }
+}
 const THUMBNAIL_SIZE = 400;
 
 /** One row removed by {@link SharedMediaService.reapOrphanedShares}. */
@@ -1598,6 +1634,7 @@ class SharedMediaService {
 
     const {
       fileBuffer,
+      sourcePath,
       originalFilename,
       mimeType,
       title,
@@ -1625,7 +1662,14 @@ class SharedMediaService {
 
       const extension = this.getExtensionFromMime(mimeType);
       const targetPath = path.join(shareDir, `media.${extension}`);
-      await fs.writeFile(targetPath, fileBuffer);
+      if (sourcePath) {
+        await moveFile(sourcePath, targetPath);
+      } else if (fileBuffer) {
+        await fs.writeFile(targetPath, fileBuffer);
+      } else {
+        throw new Error('No file content given.');
+      }
+      const fileSize = (await fs.stat(targetPath)).size;
 
       const relativeFilePath = `${shareToken}/media.${extension}`;
       let imageInfo: ImageInfo | null = null;
@@ -1667,7 +1711,7 @@ class SharedMediaService {
         relativeFilePath,
         `media.${extension}`,
         null, // thumbnail_path filled by processMediaVariants / processVideoPoster
-        fileBuffer.length,
+        fileSize,
         mimeType,
         isLibraryItem,
         altText || null,

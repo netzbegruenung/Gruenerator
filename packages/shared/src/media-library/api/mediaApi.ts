@@ -61,6 +61,8 @@ export async function getMediaById(id: string): Promise<MediaItemResponse> {
  * Upload media file
  * Note: For web, pass a File object. For mobile, pass a Blob with the file data.
  */
+const UPLOAD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
 export async function uploadMedia(
   file: File | Blob,
   options: {
@@ -104,6 +106,8 @@ export async function uploadMedia(
 
   try {
     const response = await client.post<MediaUploadResponse>(MEDIA_ENDPOINTS.UPLOAD, formData, {
+      // A multi-GB video on a slow line outlasts the shared client's 15 min bulk timeout.
+      timeout: UPLOAD_TIMEOUT_MS,
       headers: {
         'Content-Type': 'multipart/form-data',
       },

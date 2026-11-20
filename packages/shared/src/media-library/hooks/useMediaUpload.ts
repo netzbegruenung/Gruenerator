@@ -11,7 +11,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import { mediaApi } from '../api/index.js';
-import { MAX_FILE_SIZE, SUPPORTED_MIME_LABEL, SUPPORTED_MIME_TYPES } from '../constants.js';
+import {
+  formatUploadLimit,
+  maxUploadBytesFor,
+  SUPPORTED_MIME_LABEL,
+  SUPPORTED_MIME_TYPES,
+} from '../constants.js';
 
 import { MEDIA_LIBRARY_QUERY_KEY } from './useMediaLibrary.js';
 
@@ -49,10 +54,11 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const validateFile = useCallback((file: File | Blob): { valid: boolean; error?: string } => {
-    if (file.size > MAX_FILE_SIZE) {
+    const maxBytes = maxUploadBytesFor(file.type);
+    if (file.size > maxBytes) {
       return {
         valid: false,
-        error: `Datei ist zu groß. Maximum: ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`,
+        error: `Datei ist zu groß. Maximum: ${formatUploadLimit(maxBytes)}`,
       };
     }
     if (!SUPPORTED_MIME_TYPES.includes(file.type as (typeof SUPPORTED_MIME_TYPES)[number])) {

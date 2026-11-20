@@ -704,7 +704,7 @@ async function startWorker(): Promise<void> {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.',
+          error: 'Datei ist zu groß.',
         });
         return;
       }

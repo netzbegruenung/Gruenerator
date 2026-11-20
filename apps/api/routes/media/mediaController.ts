@@ -1,13 +1,20 @@
+import crypto from 'crypto';
+import fs from 'fs/promises';
+
 import { UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
-import express, { type Request, type Response, type Router } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { getSharedMediaService } from '../../services/sharedMediaService.js';
+import {
+  ensureIncomingMediaDir,
+  getSharedMediaService,
+} from '../../services/sharedMediaService.js';
 import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../services/studioAssets/studioAssetShare.js';
 
 import { transformMediaItem } from './mediaItemTransform.js';
+import { MAX_VIDEO_SIZE, formatUploadLimit, maxUploadBytesFor } from './uploadLimits.js';
 
 import type { AllowedMimeType } from '../../types/media.js';
 
@@ -55,11 +62,21 @@ const ALLOWED_MIME_TYPES: AllowedMimeType[] = [
   'video/quicktime',
 ];
 
+// Spooled to disk: a video can be GBs and the API runs several workers, so
+// memoryStorage would hold the whole file in RAM per request.
 const upload = multer({
   defParamCharset: 'utf8',
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      ensureIncomingMediaDir().then(
+        (dir) => cb(null, dir),
+        (error: Error) => cb(error, '')
+      );
+    },
+    filename: (_req, _file, cb) => cb(null, crypto.randomUUID()),
+  }),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: MAX_VIDEO_SIZE,
   },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
     if (ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
@@ -69,6 +86,38 @@ const upload = multer({
     }
   },
 });
+
+function receiveUpload(req: Request, res: Response, next: NextFunction): void {
+  // Whatever happens after multer (validation 400, service error, client gone),
+  // the spool file must not outlive the request. A successful upload has moved it already.
+  res.once('close', () => {
+    if (req.file?.path) void fs.rm(req.file.path, { force: true });
+  });
+  upload.single('file')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        success: false,
+        error: `Datei ist zu groß. Maximal ${formatUploadLimit(MAX_VIDEO_SIZE)} pro Datei.`,
+      });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    if (req.file) {
+      const max = maxUploadBytesFor(req.file.mimetype);
+      if (req.file.size > max) {
+        res.status(413).json({
+          success: false,
+          error: `Datei ist zu groß. Bilder dürfen maximal ${formatUploadLimit(max)} groß sein.`,
+        });
+        return;
+      }
+    }
+    next();
+  });
+}
 
 /**
  * GET /api/media
@@ -202,7 +251,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response): Promise<
  */
 router.post(
   '/upload',
-  upload.single('file'),
+  receiveUpload,
   validateBody(mediaUploadSchema),
   async (req: TypedRequest<MediaUploadBody>, res: Response): Promise<void> => {
     try {
@@ -221,7 +270,7 @@ router.post(
 
       const mediaService = getSharedMediaService();
       const result = await mediaService.uploadMediaFile(userId, {
-        fileBuffer: req.file.buffer,
+        sourcePath: req.file.path,
         originalFilename: req.file.originalname,
         mimeType: req.file.mimetype,
         title: title || null,
