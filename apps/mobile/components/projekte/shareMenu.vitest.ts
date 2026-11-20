@@ -14,7 +14,7 @@ describe('buildShareActions', () => {
     expect(buildShareActions(doc(true), false)).toEqual([]);
   });
   it('never offers management for posts', () => {
-    const post = { projectWrite: null, post: {} as never };
+    const post = { projectWrite: null, post: {} as never, share: null };
     expect(buildShareActions(post, true)).toEqual([]);
   });
   it('offers only remove for items without a role', () => {
