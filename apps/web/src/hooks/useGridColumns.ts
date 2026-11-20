@@ -13,7 +13,9 @@ export function useGridColumns(el: HTMLElement | null): number {
     if (!el) return;
 
     const measure = () => {
-      const tracks = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+      const template = getComputedStyle(el).gridTemplateColumns;
+      // `none` = not laid out as a grid (yet): unmeasured, not one column.
+      const tracks = template === 'none' ? 0 : template.split(' ').filter(Boolean).length;
       setColumns(tracks);
     };
 

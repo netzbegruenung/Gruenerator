@@ -76,6 +76,7 @@ export {
   memoryContract,
   emailContract,
   feedbackContract,
+  newsletterContract,
   contentReportContract,
   adminReportsContract,
   modelPreferencesContract,
@@ -195,6 +196,7 @@ export * from './schemas/notifications.js';
 export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
+export * from './schemas/newsletter.js';
 export * from './schemas/contentReport.js';
 export * from './schemas/adminReports.js';
 export * from './schemas/translation.js';

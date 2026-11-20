@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   Button,
   CardGrid,
+  useIsMobile,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
@@ -43,6 +44,7 @@ import {
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
+import { ArbeitenSearchFab, type SearchFabSlots } from '../workplace/components/ArbeitenSearchFab';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
@@ -114,6 +116,7 @@ export function DocumentsContent({
   officeToolStrip = false,
   heroTitle,
   heroSubtitle,
+  heroTextHiddenOnPhone = false,
   composerPlaceholder,
   composerSubmitIcon,
   composerCreate = true,
@@ -130,6 +133,8 @@ export function DocumentsContent({
   heroTitle?: string;
   /** Optional line under the hero heading. */
   heroSubtitle?: string;
+  /** Arbeiten on phones: no greeting, the page starts with its content. */
+  heroTextHiddenOnPhone?: boolean;
   /** Static composer placeholder instead of the rotating create examples. */
   composerPlaceholder?: string;
   composerSubmitIcon?: 'arrow' | 'search';
@@ -605,6 +610,29 @@ export function DocumentsContent({
     return scope ? all.filter((t) => t.kind === scope) : all;
   }, [sharepicEnabled, scope, sharepicVorlagen]);
 
+  // Search-only surface (Arbeiten) on phones: no inline field, a round button that
+  // unfolds into the bar instead. md, not sm — it is the app's own phone breakpoint
+  // (sidebar drawer, tab bar), and a 640–767 px portrait tablet is still a thumb device.
+  const isPhone = useIsMobile();
+  const phoneSearch = !composerCreate && isPhone;
+  const composer = (slots?: Partial<SearchFabSlots>) => (
+    <DocsComposer
+      items={composerItems}
+      templates={composerTemplates}
+      featureIndex={featureIndex}
+      isGenerating={creating}
+      sharepicEnabled={sharepicEnabled}
+      forcedKind={scope}
+      onGenerate={handleComposerCreate}
+      onSelectTemplate={handleComposerTemplate}
+      onImport={handleComposerImport}
+      placeholder={composerPlaceholder}
+      submitIcon={composerSubmitIcon}
+      create={composerCreate}
+      {...slots}
+    />
+  );
+
   return (
     <>
       <WorkplaceHero
@@ -622,22 +650,16 @@ export function DocumentsContent({
                 : 'Willkommen im Grünerator Workplace'
         }
         subtitle={heroSubtitle}
+        textHiddenOnPhone={heroTextHiddenOnPhone}
       >
-        <DocsComposer
-          items={composerItems}
-          templates={composerTemplates}
-          featureIndex={featureIndex}
-          isGenerating={creating}
-          sharepicEnabled={sharepicEnabled}
-          forcedKind={scope}
-          onGenerate={handleComposerCreate}
-          onSelectTemplate={handleComposerTemplate}
-          onImport={handleComposerImport}
-          placeholder={composerPlaceholder}
-          submitIcon={composerSubmitIcon}
-          create={composerCreate}
-        />
+        {phoneSearch ? null : composer()}
       </WorkplaceHero>
+
+      {phoneSearch && (
+        <ArbeitenSearchFab label="Inhalte und Werkzeuge durchsuchen">
+          {(slots) => composer(slots)}
+        </ArbeitenSearchFab>
+      )}
 
       {officeToolStrip && (
         <section className="mb-xl mt-xl">
@@ -886,7 +908,8 @@ export const DocsHome = () => (
       <DocumentsContent
         showRecents={false}
         heroSubtitle="Hier findest du deine Inhalte und Werkzeuge. Zum Chatten wechselst du oben in den Tab „Chat“."
-        composerPlaceholder="Inhalte und Werkzeuge durchsuchen …"
+        heroTextHiddenOnPhone
+        composerPlaceholder="Inhalte & Werkzeuge suchen"
         composerSubmitIcon="search"
         composerCreate={false}
       />
