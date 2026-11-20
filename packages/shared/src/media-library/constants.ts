@@ -22,6 +22,22 @@ export const SUPPORTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktim
 
 export const SUPPORTED_MIME_TYPES = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES] as const;
 
+/**
+ * Audio reaches the Mediathek only through the resumable upload (the multipart
+ * route takes no audio); the API decides by ffprobe and file extension, so the
+ * browser's MIME spelling only has to get past the picker.
+ */
+export const SUPPORTED_AUDIO_TYPES = [
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'audio/flac',
+] as const;
+
 const MIME_LABELS: Record<(typeof SUPPORTED_MIME_TYPES)[number], string> = {
   'image/jpeg': 'JPEG',
   'image/png': 'PNG',
@@ -48,7 +64,7 @@ export function acceptForMediaType(type: 'image' | 'video' | 'audio' | 'all' = '
   return SUPPORTED_MIME_TYPES.join(',');
 }
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB: the multipart route (images)
 
 export const DEFAULT_PAGINATION = {
   limit: 50,

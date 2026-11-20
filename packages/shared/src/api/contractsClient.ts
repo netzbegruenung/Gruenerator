@@ -111,6 +111,7 @@ import {
   publicExplainablesContract,
   podcastsContract,
   videoAiContract,
+  mediaImportContract,
   briefingContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
@@ -391,6 +392,7 @@ const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
 const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
 const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
 const _videoAiClient = () => initClient(videoAiContract, CLIENT_OPTS);
+const _mediaImportClient = () => initClient(mediaImportContract, CLIENT_OPTS);
 const _briefingClient = () => initClient(briefingContract, CLIENT_OPTS);
 
 export interface ContractsClient {
@@ -488,6 +490,7 @@ export interface ContractsClient {
   publicExplainables: ReturnType<typeof _publicExplainablesClient>;
   podcasts: ReturnType<typeof _podcastsClient>;
   videoAi: ReturnType<typeof _videoAiClient>;
+  mediaImport: ReturnType<typeof _mediaImportClient>;
   briefing: ReturnType<typeof _briefingClient>;
 }
 
@@ -601,6 +604,7 @@ export function getContractsClient(): ContractsClient {
     publicExplainables: _publicExplainablesClient(),
     podcasts: _podcastsClient(),
     videoAi: _videoAiClient(),
+    mediaImport: _mediaImportClient(),
     briefing: _briefingClient(),
     speech: _speechClient(),
   };

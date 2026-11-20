@@ -1,12 +1,16 @@
 /**
- * A finished resumable upload (TUS, `/api/audio/upload`) becomes a Mediathek
+ * A finished resumable upload (TUS, `/api/uploads`) becomes a Mediathek
  * item: videos too large for the 50 MB multipart path, and audio, which the
  * multipart path does not take at all. What the file is decides ffprobe, not
  * the name or the client's MIME claim — a file without a decodable video or
- * sound track is refused.
+ * sound track is refused. Only the person who created the upload can import
+ * it (the tus server stamps the uploader into the upload metadata); a foreign
+ * or unknown id looks the same: not found.
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+
+import { MAX_AUDIO_BYTES, MAX_VIDEO_UPLOAD_BYTES } from '@gruenerator/contracts';
 
 export interface ProbedStream {
   codec_type: string;
@@ -74,12 +78,38 @@ export type ImportResult =
       mediaId: string;
       mediaType: 'video' | 'audio';
       title: string;
+      shareToken: string;
       durationSeconds: number;
     }
-  | { ok: false; status: 400 | 409; error: string };
+  | { ok: false; status: 400 | 404 | 409; error: string };
+
+const NOT_FOUND: ImportResult = {
+  ok: false,
+  status: 404,
+  error: 'Der Upload wurde nicht gefunden.',
+};
+
+/** Imports in flight in this process; the file move is the guard across workers. */
+const importing = new Set<string>();
 
 /** Takes a finished TUS upload into the person's Mediathek. */
 export async function importUpload(
+  userId: string,
+  uploadId: string,
+  title: string | null
+): Promise<ImportResult> {
+  if (importing.has(uploadId)) {
+    return { ok: false, status: 409, error: 'Der Upload wird gerade übernommen.' };
+  }
+  importing.add(uploadId);
+  try {
+    return await importOwnUpload(userId, uploadId, title);
+  } finally {
+    importing.delete(uploadId);
+  }
+}
+
+async function importOwnUpload(
   userId: string,
   uploadId: string,
   title: string | null
@@ -91,6 +121,9 @@ export async function importUpload(
   const { getSharedMediaService } = await import('../sharedMediaService.js');
 
   const status = await tus.getUploadStatus(uploadId);
+  // Unknown, foreign and pre-stamp uploads all answer 404: the answer must not
+  // tell another person which upload ids exist.
+  if (!status.exists || tus.getUploadOwner(status) !== userId) return NOT_FOUND;
   const sourcePath = tus.getFilePathFromUploadId(uploadId);
   // Complete = all announced bytes on disk. The sidecar's `offset` is no
   // help: @tus/server's FileStore never updates it (only the binary upload
@@ -100,7 +133,7 @@ export async function importUpload(
     .then((s) => s.size)
     .catch(() => -1);
   const announced = status.metadata?.size ?? Number.POSITIVE_INFINITY;
-  if (!status.exists || onDisk < announced) {
+  if (onDisk < announced) {
     return { ok: false, status: 409, error: 'Der Upload ist noch nicht vollständig.' };
   }
   const filename = await tus.getOriginalFilename(uploadId);
@@ -120,6 +153,14 @@ export async function importUpload(
     return { ok: false, status: 400, error: IMPORT_REFUSED };
   }
 
+  // tus capped the upload by the filetype the client declared; what the file
+  // really is decides here (audio stays under the audio cap, as in tusService).
+  const cap = kind.mediaType === 'video' ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES;
+  if (onDisk > cap) {
+    await tus.cleanupUploadFiles(uploadId, 'too large');
+    return { ok: false, status: 400, error: IMPORT_REFUSED };
+  }
+
   const name = title?.trim() || path.basename(filename, path.extname(filename)) || 'Upload';
   const share = await getSharedMediaService().importUploadedMedia(userId, {
     sourcePath,
@@ -135,6 +176,7 @@ export async function importUpload(
   return {
     ok: true,
     mediaId: share.id,
+    shareToken: share.shareToken,
     mediaType: kind.mediaType,
     title: name,
     durationSeconds: kind.durationSeconds,
