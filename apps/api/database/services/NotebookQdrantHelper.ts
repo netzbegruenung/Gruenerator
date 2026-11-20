@@ -462,6 +462,41 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Ids of `share_mode='private'` notebooks that still have
+   * `group_content_shares` rows — the input of the one-shot cleanup in
+   * `backfillNotebookGroupShareMode` (#5851). share_mode lives in Qdrant, so
+   * that cleanup cannot be plain SQL. Sees trashed points too: a trashed
+   * private notebook's rows are as dead. Rows whose notebook no longer exists
+   * in Qdrant are not returned.
+   */
+  async listPrivateNotebookIdsWithGroupShares(): Promise<string[]> {
+    await this.ensureInitialized();
+
+    const postgres = getPostgresInstance();
+    const shareRows = (await postgres.query(
+      `SELECT DISTINCT content_id FROM group_content_shares
+         WHERE content_type = 'notebook_collections'`
+    )) as Array<{ content_id: string }>;
+    const sharedIds = new Set(shareRows.map((r) => r.content_id));
+    if (sharedIds.size === 0) return [];
+
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    const privateIds: string[] = [];
+    for (const point of allResults) {
+      const collectionId = point.payload.collection_id;
+      if (typeof collectionId !== 'string' || !sharedIds.has(collectionId)) continue;
+      if (normalizeShareMode(point.payload.share_mode) !== 'private') continue;
+      privateIds.push(collectionId);
+    }
+    return privateIds;
+  }
+
+  /**
    * One-shot backfill: rewrite legacy `audience='all'` (or missing-audience)
    * notebook rows to the owner's actual locale, looked up once per distinct
    * user_id from `profiles.locale`. Idempotent — a row whose audience is
