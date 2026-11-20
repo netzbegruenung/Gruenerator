@@ -5,6 +5,11 @@ import {
   type Agent,
   type AgentIconKey,
 } from '@gruenerator/shared/agents';
+
+import { CURRENT_INSTANCE } from '../../../config/instance';
+
+import type { IconType } from 'react-icons';
+
 import {
   PiSparkle,
   PiMegaphone,
@@ -26,11 +31,7 @@ import {
   PiEnvelopeSimple,
   PiListChecks,
   PiGavel,
-} from 'react-icons/pi';
-
-import { CURRENT_INSTANCE } from '../../../config/instance';
-
-import type { IconType } from 'react-icons';
+} from '@/config/shellIcons.generated';
 
 /**
  * Concept key → react-icons component. The key set is owned by

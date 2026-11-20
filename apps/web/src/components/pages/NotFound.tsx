@@ -1,6 +1,7 @@
 import { Button } from '@gruenerator/ui';
-import { FaHome } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+
+import { FaHome } from '@/config/shellIcons.generated';
 
 const NotFound = () => {
   return (

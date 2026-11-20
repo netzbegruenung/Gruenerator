@@ -18,11 +18,11 @@
  *     typecheck/tests point at every mirror literal still carrying old values.
  */
 import { type InstanceChannel } from '@gruenerator/shared/instances';
-import { PiGlobe } from 'react-icons/pi';
-import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, type ActionIconName, type IconType, type NavigationIconName } from './icons';
 import { NEWSLETTER_SIGNUP_URL } from './newsletter';
+
+import { PiGlobe, RiSpyLine } from '@/config/shellIcons.generated';
 
 /** Icon reference resolved through config/icons.ts; `component` is the escape
  * hatch for icons without a registry entry (Agentura's RiSpyLine). */

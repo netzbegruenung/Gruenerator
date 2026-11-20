@@ -1,5 +1,6 @@
 import { type IconType } from 'react-icons';
-import { HiDocumentText, HiInformationCircle, HiCollection } from 'react-icons/hi';
+
+import { HiDocumentText, HiInformationCircle, HiCollection } from '@/config/shellIcons.generated';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 

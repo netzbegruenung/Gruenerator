@@ -15,13 +15,14 @@ import {
   isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
-import { PiGlobe } from 'react-icons/pi';
 
 import { getIcon } from '../../config/icons';
 import { CURRENT_INSTANCE } from '../../config/instance';
 
 import type { IconType } from '../../config/icons';
 import type { ToolSearchId } from '../../config/toolRegistry';
+
+import { PiGlobe } from '@/config/shellIcons.generated';
 
 export interface ToolCatalogEntry {
   id: string;

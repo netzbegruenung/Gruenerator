@@ -16,8 +16,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, LogOut, Trash2 } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
-import { FiServer, FiSliders } from 'react-icons/fi';
-import { HiCog } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
@@ -36,6 +34,7 @@ import {
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useAuthStore } from '../../../stores/authStore';
 
+import { FiServer, FiSliders, HiCog } from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 
 interface SidebarAccountProps {

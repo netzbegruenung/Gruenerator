@@ -9,11 +9,12 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useCallback, useRef, useState } from 'react';
-import { PiChatCircle } from 'react-icons/pi';
 
 import { NavTooltip } from './NavTooltip';
 import { type RoleShortcut, type RoleShortcutLink } from './roleShortcuts';
 import { iconClass, menuLinkClass } from './sidebarStyles';
+
+import { PiChatCircle } from '@/config/shellIcons.generated';
 
 interface RoleShortcutsSidebarSectionProps {
   /** Ein Eintrag je Rolle mit eigener Schnellauswahl (Landesverband, Grüne Jugend). */
