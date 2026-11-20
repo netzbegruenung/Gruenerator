@@ -23,6 +23,7 @@ import { ReportSheet } from '../common/ReportSheet';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
 import { ModerationMenuButton } from './ModerationMenuButton';
+import { ShareReactions } from './ProjectReactions';
 import { useProjekteTone } from './projekteTone';
 import { projectRoleLabel } from './shareMenu';
 
@@ -173,6 +174,12 @@ export const GroupFeedCard = memo(function GroupFeedCard({
         </>
       )}
 
+      {canComment && share ? (
+        <View style={styles.reactions}>
+          <ShareReactions groupId={groupId} share={share} />
+        </View>
+      ) : null}
+
       <View style={styles.footer}>
         {canComment && share ? (
           <Pressable
@@ -303,6 +310,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: { ...typography.h3, fontSize: 17, lineHeight: 22 },
+  reactions: { paddingHorizontal: 14, paddingTop: 12 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
