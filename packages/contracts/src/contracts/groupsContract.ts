@@ -489,7 +489,7 @@ export const groupsContract = c.router({
       404: groupErrorResponseSchema,
       500: groupErrorResponseSchema,
     },
-    summary: 'Remove content from a group (admin)',
+    summary: 'Remove content from a group (admin or sharer)',
   },
 
   listGroupVorlagen: {

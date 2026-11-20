@@ -202,16 +202,6 @@ export const contentRoutes = {
       const userId = getUserId(args.req);
       const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      if (!isAdmin) {
-        return {
-          status: 403 as const,
-          body: {
-            success: false as const,
-            message: 'Nur Gruppenadministratoren können geteilte Inhalte entfernen.',
-          },
-        };
-      }
-
       const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
@@ -224,12 +214,25 @@ export const contentRoutes = {
         };
       }
 
+      // Dieselbe Regel wie beim Ändern der Rechte (`updateContentPermissions`): Admins
+      // und die Person, die geteilt hat. Wer etwas ins Projekt gelegt hat, nimmt es
+      // auch selbst wieder heraus.
+      if (!isAdmin && shareRecord.shared_by_user_id !== userId) {
+        return {
+          status: 403 as const,
+          body: {
+            success: false as const,
+            message: 'Nur Admins und wer den Inhalt geteilt hat, können ihn entfernen.',
+          },
+        };
+      }
+
       const removed = await removeGroupShare({ groupId, contentType, contentId });
       if (!removed) throw new Error('Share record not found or already deleted');
 
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Inhalt erfolgreich aus der Gruppe entfernt.' },
+        body: { success: true as const, message: 'Aus dem Projekt entfernt.' },
       };
     } catch (error) {
       return groupErrorResponse(
