@@ -34,7 +34,7 @@ export const newsletterContractRouter = s.router(newsletterContract, {
   subscribe: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const result = await subscribeToNewsletter(userId, REDIRECTION_URL);
+      const result = await subscribeToNewsletter(userId, REDIRECTION_URL, args.body?.email);
 
       if (result.status === 'already_subscribed') {
         return { status: 200 as const, body: { status: 'already_subscribed' as const } };

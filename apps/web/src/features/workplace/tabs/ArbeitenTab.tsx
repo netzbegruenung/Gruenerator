@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { DocsHome } from '../../docs/DocsPage';
-import { AppsSection } from '../components/AppsSection';
+import { AppsNewsletterSection } from '../components/AppsNewsletterSection';
 import {
   BriefingSection,
   MEDIA_GRID,
@@ -11,7 +11,6 @@ import {
   ToolCardsSection,
 } from '../components/ArbeitenSections';
 import { NewContentMenu } from '../components/NewContentMenu';
-import { NewsletterSection } from '../components/NewsletterSection';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
 // Reaktivieren `FavoritesSection` aus `../components/ToolsSection` importieren
 // und als eigenen Abschnitt einblenden.
@@ -21,7 +20,7 @@ import { NewsletterSection } from '../components/NewsletterSection';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps, Newsletter.
+// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps & Newsletter.
 const ArbeitenTab = () => {
   return (
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
@@ -43,8 +42,7 @@ const ArbeitenTab = () => {
         />
         <BriefingSection />
         <MarketplaceSection />
-        <AppsSection />
-        <NewsletterSection />
+        <AppsNewsletterSection />
       </div>
     </PageContainer>
   );

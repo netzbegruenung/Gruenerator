@@ -1,15 +1,15 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { NEWSLETTER_SIGNUP_URL } from '@gruenerator/shared/links';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
-import { NewsletterSection } from './NewsletterSection';
+import { NewsletterCard } from './NewsletterSection';
 
 import { useAuthStore } from '@/stores/authStore';
-import { axe, renderWithProviders, screen } from '@/test-utils';
+import { axe, renderWithProviders, screen, waitFor } from '@/test-utils';
 
-const TREES = 'http://localhost/api/trees/me';
 const SUBSCRIBE = 'http://localhost/api/newsletter/subscribe';
 
 beforeAll(() => {
@@ -17,106 +17,90 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  localStorage.clear();
   useAuthStore.setState({
     user: { id: 'u1', email: 'anna@example.org' } as never,
     isAuthenticated: true,
   });
-  serveBudget(false);
 });
 
 afterEach(() => {
   server.resetHandlers();
 });
 
-function serveBudget(newsletterBonus: boolean) {
-  server.use(
-    http.get(TREES, () =>
-      HttpResponse.json({
-        used: 1,
-        limit: newsletterBonus ? 15 : 10,
-        remaining: 9,
-        resetsAt: '2026-11-21T00:00:00.000Z',
-        newsletterBonus,
-      })
-    )
-  );
+async function openDialog() {
+  const view = renderWithProviders(<NewsletterCard />);
+  await view.user.click(screen.getByRole('button', { name: 'Newsletter abonnieren' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Newsletter abonnieren' });
+  return { ...view, dialog };
 }
 
-describe('NewsletterSection', () => {
-  it('shows the pitch, the address and the consent line, and passes axe', async () => {
-    const { container } = renderWithProviders(<NewsletterSection />);
-    expect(await screen.findByRole('button', { name: 'Newsletter abonnieren' })).toBeEnabled();
-    expect(screen.getByText(/15 statt 10 Bäume/)).toBeInTheDocument();
-    expect(screen.getByText(/anna@example\.org/)).toBeInTheDocument();
-    expect(screen.getByText(/Erst nach deiner Bestätigung bist du angemeldet/)).toBeInTheDocument();
+describe('NewsletterCard', () => {
+  it('shows the heading, past issues and the button, and passes axe', async () => {
+    const { container } = renderWithProviders(<NewsletterCard />);
+    expect(screen.getByRole('heading', { name: 'Newsletter' })).toBeInTheDocument();
+    expect(screen.getByText('Das Herbst-Update')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Newsletter abonnieren' })).toBeEnabled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('asks for the address in a dialog, prefilled with the account', async () => {
+    const { dialog } = await openDialog();
+    expect(screen.getByLabelText('E-Mail-Adresse')).toHaveValue('anna@example.org');
     expect(screen.getByRole('link', { name: 'Datenschutz' })).toHaveAttribute(
       'href',
       '/datenschutz'
     );
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await axe(dialog)).toHaveNoViolations();
   });
 
-  it('asks to confirm the mail after a click', async () => {
+  it('sends another address and asks to confirm the mail', async () => {
+    let body: unknown = null;
     server.use(
-      http.post(SUBSCRIBE, () =>
-        HttpResponse.json({ status: 'confirmation_sent' }, { status: 202 })
-      )
+      http.post(SUBSCRIBE, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ status: 'confirmation_sent' }, { status: 202 });
+      })
     );
-    const { user } = renderWithProviders(<NewsletterSection />);
-    await user.click(await screen.findByRole('button', { name: 'Newsletter abonnieren' }));
+    const { user } = await openDialog();
+    const input = screen.getByLabelText('E-Mail-Adresse');
+    await user.clear(input);
+    await user.type(input, 'privat@example.org');
+    expect(
+      screen.getByText('Die 5 Bäume mehr gibt es nur für die Adresse deines Kontos.')
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Bestätigungs-Mail senden' }));
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Fast geschafft: Bitte bestätige die Mail an anna@example.org.'
+      'Fast geschafft: Bitte bestätige die Mail an privat@example.org.'
     );
+    expect(body).toEqual({ email: 'privat@example.org' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Newsletter abonnieren' })).not.toBeInTheDocument();
   });
 
-  it('tells an existing subscriber they already get it', async () => {
+  it('says so when the address already gets the newsletter', async () => {
     server.use(http.post(SUBSCRIBE, () => HttpResponse.json({ status: 'already_subscribed' })));
-    const { user } = renderWithProviders(<NewsletterSection />);
-    await user.click(await screen.findByRole('button', { name: 'Newsletter abonnieren' }));
+    const { user } = await openDialog();
+    await user.click(screen.getByRole('button', { name: 'Bestätigungs-Mail senden' }));
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Du bekommst den Newsletter schon.'
     );
   });
 
-  it('shows the error with retry and the hosted form as fallback', async () => {
+  it('keeps the dialog open on an error and offers the Brevo form', async () => {
     server.use(
       http.post(SUBSCRIBE, () =>
-        HttpResponse.json({ code: 'brevo_failed', error: 'Mail ging nicht raus.' }, { status: 502 })
+        HttpResponse.json({ error: 'Brevo ist gerade nicht erreichbar.' }, { status: 502 })
       )
     );
-    const { user, container } = renderWithProviders(<NewsletterSection />);
-    await user.click(await screen.findByRole('button', { name: 'Newsletter abonnieren' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Mail ging nicht raus.');
-    expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeEnabled();
-    expect(screen.getByRole('link', { name: 'Formular öffnen' }).getAttribute('href')).toContain(
-      'sibforms.com'
+    const { user } = await openDialog();
+    await user.click(screen.getByRole('button', { name: 'Bestätigungs-Mail senden' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Brevo ist gerade nicht erreichbar.'
     );
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('is hidden for subscribers', async () => {
-    serveBudget(true);
-    renderWithProviders(<NewsletterSection />);
-    // Give the budget query time to settle, then check nothing rendered.
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByRole('region', { name: 'Newsletter' })).not.toBeInTheDocument();
-  });
-
-  it('renders nothing while the budget is loading', () => {
-    server.use(http.get(TREES, () => new Promise(() => undefined)));
-    renderWithProviders(<NewsletterSection />);
-    expect(screen.queryByRole('region', { name: 'Newsletter' })).not.toBeInTheDocument();
-  });
-
-  it('stays hidden after „Ausblenden", also on the next render', async () => {
-    const { user, unmount } = renderWithProviders(<NewsletterSection />);
-    await user.click(await screen.findByRole('button', { name: 'Ausblenden' }));
-    expect(screen.queryByRole('region', { name: 'Newsletter' })).not.toBeInTheDocument();
-    unmount();
-    renderWithProviders(<NewsletterSection />);
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByRole('region', { name: 'Newsletter' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Formular öffnen' })).toHaveAttribute(
+      'href',
+      NEWSLETTER_SIGNUP_URL
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

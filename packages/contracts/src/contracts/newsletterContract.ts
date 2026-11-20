@@ -6,7 +6,11 @@
  */
 import { initContract } from '@ts-rest/core';
 
-import { newsletterErrorSchema, newsletterSubscribeResponseSchema } from '../schemas/newsletter.js';
+import {
+  newsletterErrorSchema,
+  newsletterSubscribeBodySchema,
+  newsletterSubscribeResponseSchema,
+} from '../schemas/newsletter.js';
 
 const c = initContract();
 
@@ -15,7 +19,7 @@ export const newsletterContract = c.router(
     subscribe: {
       method: 'POST',
       path: '/api/newsletter/subscribe',
-      body: c.noBody(),
+      body: newsletterSubscribeBodySchema,
       responses: {
         200: newsletterSubscribeResponseSchema,
         202: newsletterSubscribeResponseSchema,
@@ -24,7 +28,7 @@ export const newsletterContract = c.router(
         502: newsletterErrorSchema,
         503: newsletterErrorSchema,
       },
-      summary: 'Grünerator-Newsletter mit der Kontoadresse abonnieren (Double-Opt-In)',
+      summary: 'Grünerator-Newsletter abonnieren (Double-Opt-In; ohne Adresse die des Kontos)',
     },
   },
   { pathPrefix: '' }

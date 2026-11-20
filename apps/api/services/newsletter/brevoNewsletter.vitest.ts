@@ -225,3 +225,27 @@ describe('subscribeToNewsletter', () => {
     });
   });
 });
+
+describe('subscribeToNewsletter mit eingegebener Adresse', () => {
+  it('nutzt die Adresse aus dem Dialog und fragt Brevo direkt nach ihrem Abo', async () => {
+    getProfileByIdMock.mockResolvedValue({ id: 'u1', email: 'a@b.de', first_name: 'Anna' });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({}) });
+
+    const result = await subscribeToNewsletter('u1', 'https://x/start', 'privat@example.org');
+
+    expect(result).toEqual({ status: 'confirmation_sent' });
+    expect(String(fetchMock.mock.calls[0][0])).toContain(encodeURIComponent('privat@example.org'));
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(body.email).toBe('privat@example.org');
+    expect(body.attributes).toEqual({ VORNAME: 'Anna' });
+  });
+
+  it('meldet „schon abonniert" für eine andere Adresse, die in Liste 5 steht', async () => {
+    fetchMock.mockResolvedValueOnce(brevoContact([5]));
+    const result = await subscribeToNewsletter('u1', 'https://x/start', 'privat@example.org');
+    expect(result).toEqual({ status: 'already_subscribed' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

@@ -112,15 +112,23 @@ export type SubscribeResult =
  */
 export async function subscribeToNewsletter(
   userId: string,
-  redirectionUrl: string
+  redirectionUrl: string,
+  /** The address the person typed in the dialog; without it the account address. */
+  requestedEmail?: string | null
 ): Promise<SubscribeResult> {
   if (!env.BREVO_API_KEY) return { status: 'error', code: 'not_configured' };
 
   const profile = await getProfileService().getProfileById(userId);
-  const email = profile?.email?.trim();
+  const accountEmail = profile?.email?.trim() || null;
+  const email = requestedEmail?.trim() || accountEmail;
   if (!email) return { status: 'error', code: 'no_email' };
 
-  if (await isNewsletterSubscriber(userId)) return { status: 'already_subscribed' };
+  // The cached check only knows the account address; another address is asked directly.
+  const alreadySubscribed =
+    email.toLowerCase() === accountEmail?.toLowerCase()
+      ? await isNewsletterSubscriber(userId)
+      : (await fetchSubscription(email, env.BREVO_API_KEY)) === true;
+  if (alreadySubscribed) return { status: 'already_subscribed' };
 
   // Dieselben Attributnamen wie im gehosteten Brevo-Formular; leere weglassen,
   // damit ein vorhandener Kontakt keinen Namen mit Leerstring überschreibt.
