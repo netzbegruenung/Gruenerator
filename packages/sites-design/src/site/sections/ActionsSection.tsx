@@ -41,7 +41,10 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
           >
             {actions.map((action, i) => {
               const safe = safeHref(action.link);
-              const href = safe?.startsWith('#') && !liveAnchors.includes(safe) ? null : safe;
+              // While editing, the tile is no link: its stretched ::after would take every click
+              // meant for the text. The link itself is edited in the section form.
+              const href =
+                ctx.edit || (safe?.startsWith('#') && !liveAnchors.includes(safe)) ? null : safe;
               const text = (
                 <span data-field={`sections.actions.${i}.text`}>
                   {editableText(

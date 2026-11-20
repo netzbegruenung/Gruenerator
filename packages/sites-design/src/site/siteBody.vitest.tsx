@@ -33,6 +33,15 @@ describe('SiteBody', () => {
     expect(out).toContain('data-slot="tagline"');
     expect(out).toContain('data-rich-slot="sections.about.content"');
     expect(html({ ...minimalSnapshot(), tagline: '' }, 'preview')).not.toContain('data-slot');
+    const actions = renderToStaticMarkup(
+      <SiteBody snapshot={fullSnapshot()} links={links} mode="preview" edit={edit} />
+    );
+    const tiles = actions.slice(
+      actions.indexOf('data-section="actions"'),
+      actions.indexOf('data-section="socialFeed"')
+    );
+    expect(tiles).toContain('data-slot="sections.actions.0.text"');
+    expect(tiles).not.toContain('data-field="sections.actions.0.link"');
   });
   it('renders the visible sections in page order with anchors', () => {
     const out = html(fullSnapshot());
