@@ -225,6 +225,8 @@ export interface ShowcaseCardProps {
   size?: 'default' | 'compact';
   /** Abweichendes Seitenverhältnis der Bildfläche, z. B. `aspect-[4/3]` für Bildvorschauen. */
   mediaClassName?: string;
+  /** Bildfläche bis an den Kartenrand, ohne inneren Abstand; nur der Text bekommt ihn. */
+  bleed?: boolean;
   className?: string;
 }
 
@@ -242,6 +244,7 @@ export function ShowcaseCard({
   titleFont,
   size = 'default',
   mediaClassName,
+  bleed = false,
   className,
 }: ShowcaseCardProps) {
   const Heading = `h${headingLevel}` as const;
@@ -252,15 +255,22 @@ export function ShowcaseCard({
       onActivate={onActivate}
       href={href}
       className={cn(
-        'group flex h-full cursor-pointer flex-col rounded-2xl border border-grey-200 bg-card p-sm transition-transform duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none dark:border-grey-700',
-        compact ? 'gap-sm rounded-xl p-xs' : 'gap-md',
+        'group flex h-full cursor-pointer flex-col rounded-2xl border border-grey-200 bg-card transition-transform duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none dark:border-grey-700',
+        compact ? 'gap-sm rounded-xl' : 'gap-md',
+        // One padding class, never two: tailwind-merge doesn't see `p-sm` and `p-0` as
+        // the same group, so an override would lose to whichever comes later in the CSS.
+        bleed ? 'overflow-hidden' : compact ? 'p-xs' : 'p-sm',
         className
       )}
     >
-      <ShowcaseMedia tone={tone} size={size} className={cn('w-full', mediaClassName)}>
+      <ShowcaseMedia
+        tone={tone}
+        size={size}
+        className={cn('w-full', bleed && 'rounded-none', mediaClassName)}
+      >
         {media}
       </ShowcaseMedia>
-      <div className="flex items-start gap-xs px-xs pb-xs">
+      <div className={cn('flex items-start gap-xs', bleed ? 'px-md pb-md' : 'px-xs pb-xs')}>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {meta && <span className="text-[13px] text-foreground-muted">{meta}</span>}
           <Heading
