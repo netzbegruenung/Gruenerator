@@ -103,6 +103,35 @@ describe('shared content leaves the project or gets narrower', () => {
   });
 });
 
+describe('removeGroupContent — who may take something out of the project', () => {
+  const remove = contentRoutes.removeGroupContent as unknown as Handler;
+  const args = (userId: string) => ({
+    req: req(userId),
+    params: { groupId: GROUP_ID, contentId: DOC_ID },
+    body: { contentType: 'collaborative_documents' },
+  });
+  const removed = () =>
+    db.query.mock.calls.some(([sql]) => /DELETE FROM group_content_shares/.test(sql as string));
+
+  it('lets the person who shared it remove it without being admin', async () => {
+    getPostgresAndCheckMembership.mockResolvedValue({ postgres: db, isAdmin: false });
+    expect((await remove(args(SHARER))).status).toBe(200);
+    expect(removed()).toBe(true);
+  });
+
+  it('lets an admin remove what someone else shared', async () => {
+    expect((await remove(args('user-admin'))).status).toBe(200);
+    expect(removed()).toBe(true);
+  });
+
+  it('refuses another member and leaves the share alone', async () => {
+    getPostgresAndCheckMembership.mockResolvedValue({ postgres: db, isAdmin: false });
+    expect((await remove(args('user-other'))).status).toBe(403);
+    expect(removed()).toBe(false);
+    expect(closeShareRoom).not.toHaveBeenCalled();
+  });
+});
+
 describe('leaveGroup', () => {
   const leave = (userId: string) =>
     (coreRoutes.leaveGroup as unknown as Handler)({
