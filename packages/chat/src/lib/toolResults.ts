@@ -340,6 +340,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'personal',
   },
+  nuudel_umfrage_bearbeiten: {
+    label: 'nuudel-Umfrage ändern',
+    activeLabel: 'Ändere die Umfrage bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  nuudel_umfrage_loeschen: {
+    label: 'nuudel-Umfrage löschen',
+    activeLabel: 'Lösche die Umfrage bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   antragsgruen_werkzeuge_laden: {
     label: 'Antragsgrün-Werkzeuge',
     activeLabel: 'Öffne die Antragsgrün-Werkzeuge',

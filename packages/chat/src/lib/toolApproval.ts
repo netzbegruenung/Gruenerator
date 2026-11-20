@@ -142,6 +142,16 @@ const INTERNAL_APPROVAL_DISPLAY: Record<string, { title: string; description: st
     description:
       'Legt die Umfrage auf nuudel.digitalcourage.de an, mit deinem Namen und deiner E-Mail-Adresse als Ersteller*in. nuudel schickt dir Teilnahme- und Admin-Link.',
   },
+  nuudel_umfrage_bearbeiten: {
+    title: 'nuudel-Umfrage ändern',
+    description:
+      'Ändert deine Umfrage auf nuudel.digitalcourage.de. Wird ein Termin entfernt, auf den schon geantwortet wurde, löscht nuudel diese Antworten endgültig.',
+  },
+  nuudel_umfrage_loeschen: {
+    title: 'nuudel-Umfrage löschen',
+    description:
+      'Löscht deine Umfrage auf nuudel.digitalcourage.de endgültig, samt aller Antworten. Der Teilnahme-Link funktioniert danach nicht mehr.',
+  },
 };
 
 export function internalApprovalDisplay(

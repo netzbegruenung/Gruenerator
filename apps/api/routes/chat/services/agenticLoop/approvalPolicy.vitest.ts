@@ -132,6 +132,12 @@ describe('nuudel_umfrage_anlegen', () => {
       required: true,
       scopeKey: 'internal/nuudel_umfrage_anlegen',
     });
+    for (const toolName of ['nuudel_umfrage_bearbeiten', 'nuudel_umfrage_loeschen']) {
+      expect(evaluateApproval({ toolName, allowlist: new Set() })).toEqual({
+        required: true,
+        scopeKey: `internal/${toolName}`,
+      });
+    }
     expect(evaluateApproval({ toolName: 'nuudel_umfrage_lesen', allowlist: new Set() })).toEqual({
       required: false,
       reason: 'internal',
