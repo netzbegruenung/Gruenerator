@@ -30,7 +30,7 @@ export interface BriefingViewProps {
   /**
    * Hängt `?locale=` an interne Links (`useMonitorLocaleParam`). Als Prop statt als Hook
    * in der Karte, damit der Routen-Fallback ohne Auth-Store auskommt — `routes.ts`
-   * importiert `BriefingSkeleton` direkt.
+   * importiert `BriefingSkeleton` direkt (aus `BriefingSkeleton.tsx`).
    */
   withLocale: (path: string) => string;
 }
@@ -122,27 +122,4 @@ export function BriefingView({
   );
 }
 
-const PENDING_LIST = { items: [], pending: true };
-
-/** Die ganze Seite im Ladezustand — Routen-Fallback von /briefing. */
-export function BriefingSkeleton() {
-  const noop = () => {};
-  return (
-    <BriefingView
-      locale="de"
-      snapshot={null}
-      snapshotPending
-      news={{
-        important: PENDING_LIST,
-        greens: PENDING_LIST,
-        greensArticles: [],
-        greensPending: true,
-        landesverbaende: PENDING_LIST,
-      }}
-      open={null}
-      withLocale={(path) => path}
-      onToggle={noop}
-      onOpen={noop}
-    />
-  );
-}
+export { BriefingSkeleton } from './BriefingSkeleton';

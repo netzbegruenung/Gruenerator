@@ -3,6 +3,8 @@ import { createAuthClient } from 'better-auth/react';
 import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
+import { takeEarlyAuthStatus } from './earlyAuthStatus';
+
 /**
  * Better Auth React client. Mounted against the native handler at
  * `/api/auth/v2/*`. Replaces the previous `/api/auth/status` wrapper:
@@ -41,6 +43,9 @@ const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/a
  * same-origin and `getDesktopToken()` only resolves inside the desktop shell.
  */
 const desktopBearerFetch: typeof fetch = async (input, init) => {
+  // Web only: the inline script in index.html skips Tauri, so this is a no-op there.
+  const early = await takeEarlyAuthStatus(input, init);
+  if (early) return early;
   if (isDesktopApp()) {
     const token = await getDesktopToken();
     if (token) {

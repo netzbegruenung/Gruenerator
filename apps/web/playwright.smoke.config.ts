@@ -28,7 +28,14 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Chunk-init order is engine-independent, but what crashes on load is not:
+  // a runtime API or syntax Safari or Firefox lacks fails here first. Most
+  // users are on Firefox and Safari, while interactive testing runs in Chrome.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
 
   webServer: process.env.SMOKE_SKIP_SERVER
     ? undefined

@@ -9,13 +9,17 @@
  */
 
 import { researchDocumentQueryKey } from '@gruenerator/shared/api';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 
-import {
-  type ReaderTarget,
-  ResearchDocumentReader,
-} from '../notebook/manual-search/ResearchDocumentReader';
+import { type ReaderTarget } from '../notebook/manual-search/ResearchDocumentReader';
 import { useResearchReader } from '../notebook/manual-search/useResearchReader';
+
+// The host is mounted on every page; the reader only after a source click.
+const ResearchDocumentReader = lazy(() =>
+  import('../notebook/manual-search/ResearchDocumentReader').then((m) => ({
+    default: m.ResearchDocumentReader,
+  }))
+);
 
 let openReader: ((target: ReaderTarget) => void) | null = null;
 
@@ -36,11 +40,13 @@ export function ChatSourceReaderHost() {
 
   if (!reader.target) return null;
   return (
-    <ResearchDocumentReader
-      key={researchDocumentQueryKey(reader.target).join('|')}
-      target={reader.target}
-      onClose={reader.close}
-      chatActions={false}
-    />
+    <Suspense fallback={null}>
+      <ResearchDocumentReader
+        key={researchDocumentQueryKey(reader.target).join('|')}
+        target={reader.target}
+        onClose={reader.close}
+        chatActions={false}
+      />
+    </Suspense>
   );
 }

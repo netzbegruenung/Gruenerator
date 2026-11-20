@@ -1,11 +1,10 @@
-import { PiGlobe } from 'react-icons/pi';
-import { RiSpyLine } from 'react-icons/ri';
-
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
 import type { BadgeType } from '../../common/StatusBadge';
 import type { JSX, ComponentType } from 'react';
 import type { IconType } from 'react-icons';
+
+import { PiGlobe, RiSpyLine } from '@/config/shellIcons.generated';
 
 export interface MenuFlags {
   isAustrian?: boolean;

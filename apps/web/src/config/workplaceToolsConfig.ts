@@ -13,7 +13,6 @@ import {
   isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
-import { PiGlobe } from 'react-icons/pi';
 
 import { getIcon } from './icons';
 import { CURRENT_INSTANCE } from './instance';
@@ -21,6 +20,8 @@ import { NEWSLETTER_SIGNUP_URL } from './newsletter';
 
 import type { IconType } from './icons';
 import type { OfficeCreateKind, OfficeSuiteActionId, ToolAudience, ToolId } from './toolRegistry';
+
+import { PiGlobe } from '@/config/shellIcons.generated';
 
 export { type OfficeCreateKind } from './toolRegistry';
 
