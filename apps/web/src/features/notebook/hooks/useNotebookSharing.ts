@@ -89,6 +89,8 @@ export function useSetNotebookShareMode(notebookId: string) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
+      // „Privat" nimmt das Notebook serverseitig aus allen Projekten (#5851).
+      void qc.invalidateQueries({ queryKey: GROUP_SHARES_KEY(notebookId) });
       void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
       void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
