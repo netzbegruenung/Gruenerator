@@ -148,7 +148,10 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
   return (
     <>
       {status !== 'changed' && (
-        <Badge variant={status === 'live' ? 'default' : 'secondary'}>{BADGE_LABELS[status]}</Badge>
+        // The publish button names the state too; on a phone the header has no room for both.
+        <Badge variant={status === 'live' ? 'default' : 'secondary'} className="max-sm:hidden">
+          {BADGE_LABELS[status]}
+        </Badge>
       )}
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
         <PopoverAnchor asChild>
