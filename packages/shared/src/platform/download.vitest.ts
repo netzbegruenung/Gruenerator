@@ -209,6 +209,7 @@ describe('downloadBlob — transfer in pieces', () => {
   /** A host that acknowledges every message on the next tick, or fails on `failAt`. */
   function withChunkingHost(options: { capability: boolean; failAt?: number }) {
     const posted: Record<string, unknown>[] = [];
+    let chunks = 0;
     const win = new EventTarget() as EventTarget & Record<string, unknown>;
     const doc = new EventTarget();
     const reply = (data: unknown) =>
@@ -220,12 +221,15 @@ describe('downloadBlob — transfer in pieces', () => {
         const message = JSON.parse(raw) as Record<string, unknown>;
         posted.push(message);
         const transferId = message.transferId;
+        if (message.type === 'FILE_TRANSFER_CHUNK') chunks += 1;
         const received =
           message.type === 'FILE_TRANSFER_BEGIN'
             ? 0
             : message.type === 'FILE_TRANSFER_CHUNK'
               ? (message.index as number) + 1
-              : null;
+              : message.type === 'FILE_TRANSFER_END'
+                ? chunks + 1
+                : null;
         if (received === null) return;
         if (options.failAt === received) {
           reply({ type: 'FILE_TRANSFER_FAILED', transferId, reason: 'disk full' });
@@ -268,6 +272,16 @@ describe('downloadBlob — transfer in pieces', () => {
     const joined = Buffer.concat(chunks.map((c) => Buffer.from(c.data as string, 'base64')));
     expect(joined.equals(Buffer.from(bytes))).toBe(true);
     expect(posted.at(-1)).toEqual({ type: 'FILE_TRANSFER_END', transferId: begin?.transferId });
+  });
+
+  it('rejects when the host refuses the end', async () => {
+    const { blob, bytes } = bigBlob();
+    const posted = withChunkingHost({
+      capability: true,
+      failAt: Math.ceil(bytes.length / FILE_TRANSFER_CHUNK_BYTES) + 1,
+    });
+    await expect(downloadBlob(blob, 'a.mp4')).rejects.toBeInstanceOf(NativeTransferFailedError);
+    expect(posted.map((m) => m.type)).toContain('FILE_TRANSFER_END');
   });
 
   it('aborts and rejects when the host fails the transfer', async () => {

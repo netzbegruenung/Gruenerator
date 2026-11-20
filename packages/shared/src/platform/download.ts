@@ -199,6 +199,9 @@ async function transferInChunks(blob: Blob, filename: string, mime: string): Pro
       await acks.waitFor(index + 1);
     }
     postToNativeHost({ type: 'FILE_TRANSFER_END', transferId });
+    // The host answers END with one ack past the last chunk once the file is
+    // complete on disk; a refusal arrives as FAILED and rejects here.
+    await acks.waitFor(chunks + 1);
   } catch (error) {
     postToNativeHost({ type: 'FILE_TRANSFER_ABORT', transferId });
     throw error;

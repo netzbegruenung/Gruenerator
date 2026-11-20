@@ -54,7 +54,7 @@ describe('file transfer receiver', () => {
     await receiver.handle(end);
 
     expect(replies).toEqual(
-      [0, 1, 2].map((received) => ({
+      [0, 1, 2, 3].map((received) => ({
         type: 'FILE_TRANSFER_ACK',
         transferId: 't',
         received,
@@ -106,5 +106,51 @@ describe('file transfer receiver', () => {
     await disposed.receiver.handle(begin(4));
     disposed.receiver.dispose();
     expect(disposed.files[0]?.state).toBe('discarded');
+  });
+
+  it('refuses a duplicate begin without dropping the running transfer', async () => {
+    const { receiver, replies, files, deliver } = setup();
+    await receiver.handle(begin(2));
+    await receiver.handle(begin(2));
+    expect(replies.at(-1)).toMatchObject({
+      type: 'FILE_TRANSFER_FAILED',
+      reason: 'duplicate transfer',
+    });
+    await receiver.handle(chunk(0, [1, 2]));
+    await receiver.handle(end);
+    expect(files).toHaveLength(1);
+    expect(deliver).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a new transfer push out the oldest when the slots are taken', async () => {
+    const { receiver, replies, files } = setup();
+    for (const id of ['a', 'b', 'c']) {
+      await receiver.handle({ ...begin(1), transferId: id });
+    }
+    expect(files[0]?.state).toBe('discarded');
+    expect(replies).toContainEqual({
+      type: 'FILE_TRANSFER_FAILED',
+      transferId: 'a',
+      reason: 'superseded by a newer transfer',
+    });
+    expect(replies.at(-1)).toEqual({ type: 'FILE_TRANSFER_ACK', transferId: 'c', received: 0 });
+  });
+
+  it('reports a failed close and keeps cleanup errors quiet', async () => {
+    const { receiver, replies, files } = setup();
+    await receiver.handle(begin(1));
+    await receiver.handle(chunk(0, [1]));
+    const file = files[0]!;
+    file.close = () => {
+      throw new Error('disk full');
+    };
+    file.discard = () => {
+      throw new Error('already closed');
+    };
+    await receiver.handle(end);
+    expect(replies.at(-1)).toMatchObject({ type: 'FILE_TRANSFER_FAILED', reason: 'close failed' });
+    await expect(receiver.handle({ type: 'FILE_TRANSFER_ABORT', transferId: 't' })).resolves.toBe(
+      undefined
+    );
   });
 });

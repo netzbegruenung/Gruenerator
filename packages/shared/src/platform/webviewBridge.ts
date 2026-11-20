@@ -275,7 +275,11 @@ export type WebViewOutboundMessage =
       data: string;
     }
   | {
-      /** Every chunk is acknowledged; the host delivers the file. */
+      /**
+       * Every chunk is acknowledged. The host closes the file, answers
+       * `FILE_TRANSFER_ACK` with `received` = number of chunks + 1, then
+       * delivers it.
+       */
       type: 'FILE_TRANSFER_END';
       transferId: string;
     }

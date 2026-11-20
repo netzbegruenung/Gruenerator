@@ -143,15 +143,16 @@ export default function WebViewerScreen() {
   // Built in an effect: its replies go through the WebView ref.
   const fileTransfers = useRef<ReturnType<typeof createCacheFileTransferReceiver> | null>(null);
   useEffect(() => {
-    const receiver = createCacheFileTransferReceiver((message) =>
-      webViewRef.current?.postMessage(JSON.stringify(message))
+    const receiver = createCacheFileTransferReceiver(
+      (message) => webViewRef.current?.postMessage(JSON.stringify(message)),
+      shareQueue.enqueue
     );
     fileTransfers.current = receiver;
     return () => {
       receiver.dispose();
       fileTransfers.current = null;
     };
-  }, []);
+  }, [shareQueue]);
 
   // Android's hardware back pops this route rather than walking the WebView's
   // history: the screen is pinned to one page, so "back" can only mean "leave
@@ -358,8 +359,8 @@ export default function WebViewerScreen() {
         message.type === 'FILE_TRANSFER_END' ||
         message.type === 'FILE_TRANSFER_ABORT'
       ) {
-        // A failed delivery is an alert, as for DOWNLOAD_FILE; a refused
-        // transfer the page hears about itself (`FILE_TRANSFER_FAILED`).
+        // Delivery runs on the share queue, which alerts on its own failure; a
+        // refused transfer the page hears about itself (`FILE_TRANSFER_FAILED`).
         void fileTransfers.current?.handle(message).catch((err: unknown) => {
           console.warn('[WebViewer] file transfer delivery failed', err);
           Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');

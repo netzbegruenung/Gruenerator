@@ -51,19 +51,22 @@ interface OpenTransfer<T> {
   next: number;
 }
 
+/** Cleanup must not turn into an error of its own: the cache is the OS's to clear. */
+function discardQuietly(target: TransferTarget): void {
+  try {
+    target.discard();
+  } catch {
+    // Best effort.
+  }
+}
+
 export function createFileTransferReceiver<T extends TransferTarget>(io: FileTransferIo<T>) {
   const open = new Map<string, OpenTransfer<T>>();
 
   const fail = (transferId: string, reason: string) => {
     const transfer = open.get(transferId);
     open.delete(transferId);
-    if (transfer) {
-      try {
-        transfer.target.discard();
-      } catch {
-        // Nothing more to lose; the reply below is what matters.
-      }
-    }
+    if (transfer) discardQuietly(transfer.target);
     io.reply({ type: 'FILE_TRANSFER_FAILED', transferId, reason });
   };
 
@@ -71,8 +74,18 @@ export function createFileTransferReceiver<T extends TransferTarget>(io: FileTra
   async function handle(message: FileTransferMessage): Promise<void> {
     const transferId = message.transferId;
     if (message.type === 'FILE_TRANSFER_BEGIN') {
-      if (open.has(transferId)) return fail(transferId, 'duplicate transfer');
-      if (open.size >= MAX_OPEN_TRANSFERS) return fail(transferId, 'too many transfers');
+      // Refused without touching the transfer already running under this id.
+      if (open.has(transferId)) {
+        io.reply({ type: 'FILE_TRANSFER_FAILED', transferId, reason: 'duplicate transfer' });
+        return;
+      }
+      // A page that reloaded mid-transfer never sends ABORT; its transfers
+      // would hold the slots for the life of the screen. The newest wins.
+      while (open.size >= MAX_OPEN_TRANSFERS) {
+        const [oldest] = open.keys();
+        if (oldest === undefined) break;
+        fail(oldest, 'superseded by a newer transfer');
+      }
       let target: T;
       try {
         target = io.create(message.filename);
@@ -94,7 +107,7 @@ export function createFileTransferReceiver<T extends TransferTarget>(io: FileTra
     const transfer = open.get(transferId);
     if (message.type === 'FILE_TRANSFER_ABORT') {
       open.delete(transferId);
-      transfer?.target.discard();
+      if (transfer) discardQuietly(transfer.target);
       return;
     }
     if (!transfer) return fail(transferId, 'unknown transfer');
@@ -123,26 +136,23 @@ export function createFileTransferReceiver<T extends TransferTarget>(io: FileTra
 
     // FILE_TRANSFER_END
     if (transfer.written !== transfer.size) return fail(transferId, 'fewer bytes than announced');
-    open.delete(transferId);
     try {
       transfer.target.close();
     } catch {
-      transfer.target.discard();
-      io.reply({ type: 'FILE_TRANSFER_FAILED', transferId, reason: 'close failed' });
-      return;
+      return fail(transferId, 'close failed');
     }
+    open.delete(transferId);
+    // One past the last chunk: the file is complete on disk. The page waits
+    // for this, so a refused END reaches it as FAILED instead of a silent
+    // success. Delivery (gallery, share sheet) waits on the user and reports
+    // its own failure natively.
+    io.reply({ type: 'FILE_TRANSFER_ACK', transferId, received: transfer.next + 1 });
     await io.deliver(transfer.target, transfer.filename, transfer.mime);
   }
 
   /** The screen goes (or its page died): every unfinished file goes with it. */
   function dispose(): void {
-    for (const transfer of open.values()) {
-      try {
-        transfer.target.discard();
-      } catch {
-        // Best effort; the cache is the OS's to clear.
-      }
-    }
+    for (const transfer of open.values()) discardQuietly(transfer.target);
     open.clear();
   }
 
