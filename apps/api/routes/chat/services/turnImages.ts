@@ -11,6 +11,7 @@ import {
 import { MAX_BYTES } from '../../../services/sharepicCreator/photoAnalysis.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { getThreadImageData } from './attachmentPersistenceService.js';
 import { listTurnImageRefs } from './turnImageList.js';
 
 const log = createLogger('turnImages');
@@ -37,11 +38,15 @@ const IMAGE_MIME: Record<string, string> = {
 const mimeOf = (name: string): string =>
   IMAGE_MIME[name.split('.').pop()!.toLowerCase()] ?? 'image/jpeg';
 
+type LoadThreadImage = typeof getThreadImageData;
+
 export function turnImagesOf(
-  state: Pick<ChatGraphState, 'imageAttachments' | 'wolkeFiles'> & {
-    agentConfig?: Pick<ChatGraphState['agentConfig'], 'userId'> | null;
-  },
-  download: Download = downloadWolkeFile
+  state: Pick<ChatGraphState, 'imageAttachments' | 'wolkeFiles'> &
+    Partial<Pick<ChatGraphState, 'threadAttachments' | 'threadId'>> & {
+      agentConfig?: Pick<ChatGraphState['agentConfig'], 'userId'> | null;
+    },
+  download: Download = downloadWolkeFile,
+  loadThreadImage: LoadThreadImage = getThreadImageData
 ): TurnImage[] {
   const userId = state.agentConfig?.userId ?? null;
   return listTurnImageRefs(state).map((entry): TurnImage => {
@@ -51,6 +56,30 @@ export function turnImagesOf(
         name: entry.name,
         fromWolke: false,
         load: async () => ({ ok: true, image }),
+      };
+    }
+    if (entry.kind === 'verlauf') {
+      const threadId = state.threadId ?? null;
+      let pendingEarlier: Promise<TurnImageLoad> | null = null;
+      const fetchEarlier = async (): Promise<TurnImageLoad> => {
+        if (!userId || !threadId) {
+          return { ok: false, message: `„${entry.name}“ ist ohne Thread nicht lesbar.` };
+        }
+        try {
+          const row = await loadThreadImage(threadId, userId, entry.attachmentId);
+          if (!row) return { ok: false, message: `„${entry.name}“ ist nicht mehr gespeichert.` };
+          return { ok: true, image: { name: row.name, type: row.mimeType, data: row.data } };
+        } catch (err) {
+          log.warn(
+            `[turnImages] loading earlier photo "${entry.name}" threw: ${err instanceof Error ? err.message : String(err)}`
+          );
+          return { ok: false, message: 'Laden fehlgeschlagen' };
+        }
+      };
+      return {
+        name: entry.name,
+        fromWolke: false,
+        load: () => (pendingEarlier ??= fetchEarlier()),
       };
     }
     let pending: Promise<TurnImageLoad> | null = null;

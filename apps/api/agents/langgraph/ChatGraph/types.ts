@@ -520,7 +520,8 @@ export interface ThreadAttachment {
   summary: string | null;
   /** Ob die Originalbytes des Anhangs gespeichert sind (`file_data`). Für PDFs
    *  ist das gleichbedeutend mit „beim Upload als ausfüllbares Formular
-   *  erkannt" — siehe die DB-seitige ThreadAttachment. */
+   *  erkannt", für Fotos mit „nicht über 8 MB" — siehe die DB-seitige
+   *  ThreadAttachment. */
   hasFileData: boolean;
   createdAt: Date;
 }
