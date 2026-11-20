@@ -9,13 +9,17 @@ import { test, expect } from '@playwright/test';
  * not a function" or "Cannot read properties of undefined (reading
  * 'displayName')").
  *
- * Routes are picked to exercise each named vendor chunk in
- * `apps/web/vite.config.ts` advancedChunks.groups:
- *   - /imagine        → vendor-konva, pkg-canvas-editor
- *   - /boards         → vendor-collab, vendor-mermaid
- *   - /briefing       → vendor-recharts
- *   - /docs/<id>      → vendor-blocknote-export (lazy on Export click — not asserted here)
- *   - /chat, /start, /workplace, /settings → entry chunk only
+ * The entry's static closure is merged into a few `boot-*` chunks plus
+ * `vendor-react` (vite.config.ts advancedChunks.groups), so a module-init
+ * order mistake there would break EVERY route. The routes below pull in the
+ * lazy chunks that share modules with it (canvas editor, boards, charts):
+ *   - /imagine        → canvas editor (lazy)
+ *   - /boards         → collab, mermaid (lazy)
+ *   - /briefing       → recharts (lazy)
+ *   - /chat, /start, /workplace, /settings → boot chunks only
+ *
+ * Besides the chunk-init fingerprints, each route must mount React into #root
+ * and must not fail to load any JS asset (a renamed/missing chunk).
  *
  * The test fails on ANY pageerror or console-error matching the chunk-init
  * fingerprints. Other unrelated errors (network failures from missing API
@@ -69,6 +73,14 @@ for (const route of ROUTES) {
       if (CHUNK_INIT_PATTERNS.some((p) => p.test(msg))) errors.push(`pageerror ${msg}`);
     });
 
+    const failedAssets: string[] = [];
+    page.on('response', (res) => {
+      const url = new URL(res.url());
+      if (url.pathname.startsWith('/assets/') && res.status() >= 400) {
+        failedAssets.push(`${res.status()} ${url.pathname}`);
+      }
+    });
+
     page.on('console', (msg) => {
       if (msg.type() !== 'error') return;
       const text = msg.text();
@@ -82,5 +94,18 @@ for (const route of ROUTES) {
     await page.waitForTimeout(500);
 
     expect(errors, `chunk-init errors on ${route}:\n${errors.join('\n')}`).toEqual([]);
+    expect(failedAssets, `asset requests failed on ${route}`).toEqual([]);
+    // React mounted: #root holds rendered DOM (splash, login, or the page).
+    await expect(page.locator('#root > *').first()).toBeAttached({ timeout: 10_000 });
   });
 }
+
+test('boot closure stays a handful of files', async ({ request }) => {
+  // The static closure is what loads before first paint; a regression back to
+  // hundreds of tiny chunks shows up as many module scripts / preloads.
+  const html = await (await request.get('/')).text();
+  const boot =
+    html.match(/<(script type="module"|link rel="modulepreload")[^>]*assets\/js\//g) ?? [];
+  expect(boot.length).toBeGreaterThan(0);
+  expect(boot.length).toBeLessThanOrEqual(12);
+});
