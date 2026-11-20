@@ -86,3 +86,9 @@ export {
   patchShareReactions,
   type GroupContentBuckets,
 } from './reactionPatches.js';
+
+export {
+  CREATE_IN_PROJECT_FALLBACK,
+  createInProject,
+  type CreateInProjectKind,
+} from './createInProject.js';
