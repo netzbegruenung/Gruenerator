@@ -3,9 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
+import { SheetHeader } from '../../../../components/projekte/SheetHeader';
 import { useTheme } from '../../../../hooks/useTheme';
 import { getGlobalApiClient } from '../../../../services/api';
 import { useNoticeStore } from '../../../../stores/noticeStore';
@@ -17,7 +18,7 @@ const TEXT_MAX = 100_000;
 const TITLE_MAX = 200;
 
 /**
- * „Text hinzufügen" als formSheet: Titel und Text werden als Dokument angelegt
+ * „Text hinzufügen" als formSheet mit eigener Kopfleiste (`SheetHeader`): Titel und Text werden als Dokument angelegt
  * (`POST /documents/add-text`) und im selben Zug ins Projekt geteilt. Bei einem
  * Fehler bleibt der Entwurf stehen; geschlossen wird erst nach Erfolg.
  */
@@ -54,50 +55,15 @@ export default function ProjektTextScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.6, 1],
-          sheetGrabberVisible: true,
-          headerShown: true,
-          title: 'Text hinzufügen',
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.text,
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Abbrechen"
-              hitSlop={8}
-            >
-              <Text style={[styles.headerText, { color: theme.text }]}>Abbrechen</Text>
-            </Pressable>
-          ),
-          headerRight: () =>
-            busy ? (
-              <ActivityIndicator />
-            ) : (
-              <Pressable
-                onPress={() => void save()}
-                disabled={!canSave}
-                accessibilityRole="button"
-                accessibilityLabel="Text speichern"
-                accessibilityState={{ disabled: !canSave }}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.headerText,
-                    styles.save,
-                    { color: theme.text, opacity: canSave ? 1 : 0.4 },
-                  ]}
-                >
-                  Speichern
-                </Text>
-              </Pressable>
-            ),
-        }}
+      <Stack.Screen options={{ headerShown: false }} />
+      <SheetHeader
+        title="Text hinzufügen"
+        onCancel={() => router.back()}
+        actionLabel="Speichern"
+        actionAccessibilityLabel="Text speichern"
+        onAction={() => void save()}
+        canAct={canSave}
+        busy={busy}
       />
       <KeyboardAvoidingView
         behavior="padding"
@@ -136,8 +102,6 @@ export default function ProjektTextScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   form: { flex: 1, padding: spacing.medium, gap: spacing.small },
-  headerText: { fontFamily: BODY_FONT, fontSize: 16 },
-  save: { fontWeight: '600' },
   title: {
     fontFamily: BODY_FONT,
     fontSize: 16,

@@ -10,15 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { MentionSuggestions } from '../../../../components/projekte/MentionSuggestions';
@@ -30,6 +22,7 @@ import {
   type DraftFile,
 } from '../../../../components/projekte/postRules';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
+import { SheetHeader } from '../../../../components/projekte/SheetHeader';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useMentionDraft } from '../../../../hooks/useMentionDraft';
 import { useMentionOptions } from '../../../../hooks/useMentionOptions';
@@ -40,7 +33,7 @@ import { BODY_FONT, colors, spacing } from '../../../../theme';
 import { serverMessage } from '../../../../utils/serverMessage';
 
 /**
- * „Beitrag schreiben" als formSheet: Text mit @-Erwähnungen, dazu Fotos und
+ * „Beitrag schreiben" als formSheet mit eigener Kopfleiste (`SheetHeader`): Text mit @-Erwähnungen, dazu Fotos und
  * Dateien. Mit `postId` ist es „Beitrag bearbeiten" — dann nur der Text. Bei
  * einem Fehler bleibt der Entwurf stehen; geschlossen wird erst nach Erfolg.
  */
@@ -133,50 +126,15 @@ export default function ProjektBeitragScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.7, 1],
-          sheetGrabberVisible: true,
-          headerShown: true,
-          title: editing ? 'Beitrag bearbeiten' : 'Beitrag',
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.text,
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Abbrechen"
-              hitSlop={8}
-            >
-              <Text style={[styles.headerText, { color: theme.text }]}>Abbrechen</Text>
-            </Pressable>
-          ),
-          headerRight: () =>
-            busy ? (
-              <ActivityIndicator />
-            ) : (
-              <Pressable
-                onPress={submit}
-                disabled={!canPost}
-                accessibilityRole="button"
-                accessibilityLabel={editing ? 'Änderung speichern' : 'Beitrag posten'}
-                accessibilityState={{ disabled: !canPost }}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.headerText,
-                    styles.strong,
-                    { color: theme.text, opacity: canPost ? 1 : 0.4 },
-                  ]}
-                >
-                  {editing ? 'Speichern' : 'Posten'}
-                </Text>
-              </Pressable>
-            ),
-        }}
+      <Stack.Screen options={{ headerShown: false }} />
+      <SheetHeader
+        title={editing ? 'Beitrag bearbeiten' : 'Beitrag'}
+        onCancel={() => router.back()}
+        actionLabel={editing ? 'Speichern' : 'Posten'}
+        actionAccessibilityLabel={editing ? 'Änderung speichern' : 'Beitrag posten'}
+        onAction={submit}
+        canAct={canPost}
+        busy={busy}
       />
       <KeyboardAvoidingView
         behavior="padding"
@@ -323,7 +281,6 @@ function RemoveButton({
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   form: { padding: spacing.medium, gap: spacing.small },
-  headerText: { fontFamily: BODY_FONT, fontSize: 16 },
   strong: { fontWeight: '600' },
   hint: { fontFamily: BODY_FONT, fontSize: 13 },
   body: {

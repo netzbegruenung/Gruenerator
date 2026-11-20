@@ -3,15 +3,16 @@ import { useUpdateGroupShare } from '@gruenerator/shared/groups';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
+import { SheetHeader } from '../../../../components/projekte/SheetHeader';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useNoticeStore } from '../../../../stores/noticeStore';
 import { spacing, BODY_FONT } from '../../../../theme';
 
 /**
- * „Notiz bearbeiten" als formSheet. Eine leere Notiz löscht sie (`note: ''`).
+ * „Notiz bearbeiten" als formSheet mit eigener Kopfleiste (`SheetHeader`). Eine leere Notiz löscht sie (`note: ''`).
  * Bei einem Fehler bleibt der Entwurf stehen; geschlossen wird erst nach Erfolg.
  */
 export default function ProjektNotizScreen() {
@@ -43,50 +44,15 @@ export default function ProjektNotizScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.45, 1],
-          sheetGrabberVisible: true,
-          headerShown: true,
-          title: 'Notiz bearbeiten',
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.text,
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Abbrechen"
-              hitSlop={8}
-            >
-              <Text style={[styles.headerText, { color: theme.text }]}>Abbrechen</Text>
-            </Pressable>
-          ),
-          headerRight: () =>
-            busy ? (
-              <ActivityIndicator />
-            ) : (
-              <Pressable
-                onPress={save}
-                disabled={!canSave}
-                accessibilityRole="button"
-                accessibilityLabel="Notiz speichern"
-                accessibilityState={{ disabled: !canSave }}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.headerText,
-                    styles.save,
-                    { color: theme.text, opacity: canSave ? 1 : 0.4 },
-                  ]}
-                >
-                  Speichern
-                </Text>
-              </Pressable>
-            ),
-        }}
+      <Stack.Screen options={{ headerShown: false }} />
+      <SheetHeader
+        title="Notiz bearbeiten"
+        onCancel={() => router.back()}
+        actionLabel="Speichern"
+        actionAccessibilityLabel="Notiz speichern"
+        onAction={save}
+        canAct={canSave}
+        busy={busy}
       />
       <KeyboardAvoidingView
         behavior="padding"
@@ -118,8 +84,6 @@ export default function ProjektNotizScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   form: { flex: 1, padding: spacing.medium, gap: spacing.xsmall },
-  headerText: { fontFamily: BODY_FONT, fontSize: 16 },
-  save: { fontWeight: '600' },
   input: {
     flex: 1,
     fontFamily: BODY_FONT,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
+import { SheetHeader } from '../../../../components/projekte/SheetHeader';
 import { useGroupDetails, useUpdateGroupInfo } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useNoticeStore } from '../../../../stores/noticeStore';
@@ -15,7 +16,7 @@ const DESCRIPTION_MAX = 500;
 const COUNTER_FROM = 450;
 
 /**
- * „Name und Beschreibung bearbeiten" als formSheet (nur Admins, der Server
+ * „Name und Beschreibung bearbeiten" als formSheet mit eigener Kopfleiste (`SheetHeader`) (nur Admins, der Server
  * prüft es noch einmal). Wie im Web geht beides über `updateInfo`; bei einem
  * Fehler bleibt der Entwurf stehen, geschlossen wird erst nach Erfolg.
  */
@@ -58,50 +59,14 @@ export default function ProjektBearbeitenScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.5, 1],
-          sheetGrabberVisible: true,
-          headerShown: true,
-          title: 'Projekt bearbeiten',
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.text,
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Abbrechen"
-              hitSlop={8}
-            >
-              <Text style={[styles.headerText, { color: theme.text }]}>Abbrechen</Text>
-            </Pressable>
-          ),
-          headerRight: () =>
-            isPending ? (
-              <ActivityIndicator />
-            ) : (
-              <Pressable
-                onPress={save}
-                disabled={!canSave}
-                accessibilityRole="button"
-                accessibilityLabel="Speichern"
-                accessibilityState={{ disabled: !canSave }}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.headerText,
-                    styles.save,
-                    { color: theme.text, opacity: canSave ? 1 : 0.4 },
-                  ]}
-                >
-                  Speichern
-                </Text>
-              </Pressable>
-            ),
-        }}
+      <Stack.Screen options={{ headerShown: false }} />
+      <SheetHeader
+        title="Projekt bearbeiten"
+        onCancel={() => router.back()}
+        actionLabel="Speichern"
+        onAction={save}
+        canAct={canSave}
+        busy={isPending}
       />
       <KeyboardAvoidingView
         behavior="padding"
