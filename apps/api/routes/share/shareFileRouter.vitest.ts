@@ -172,6 +172,30 @@ describe('GET /:shareToken/stream', () => {
     getShareByToken.mockResolvedValue(imageShare());
     expect((await get('/api/share/abc123/stream')).status).toBe(404);
   });
+
+  // The video editor fetches the whole clip once (prefetch); without a
+  // validator every reload downloaded it again, a minute on a slow line.
+  it('lets the browser keep the clip and revalidate it with a 304', async () => {
+    const first = await get('/api/share/abc123/stream');
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+    expect(first.headers.get('cache-control')).toBe('private, no-cache');
+    expect(first.headers.get('last-modified')).toBeTruthy();
+    await first.arrayBuffer();
+
+    const again = await get('/api/share/abc123/stream', { headers: { 'If-None-Match': etag! } });
+    expect(again.status).toBe(304);
+    expect((await again.arrayBuffer()).byteLength).toBe(0);
+  });
+
+  it('still checks access on a revalidation', async () => {
+    const first = await get('/api/share/abc123/stream');
+    const etag = first.headers.get('etag')!;
+    await first.arrayBuffer();
+    getShareByToken.mockResolvedValue(null);
+    const res = await get('/api/share/abc123/stream', { headers: { 'If-None-Match': etag } });
+    expect(res.status).toBe(410);
+  });
 });
 
 describe('GET /:shareToken/preview', () => {

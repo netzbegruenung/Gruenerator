@@ -8,8 +8,14 @@ import type { Request, Response } from 'express';
 
 const DATA = Buffer.from(Array.from({ length: 100 }, (_, i) => i));
 
-function run(range: string | null, downloadName: string | null = null) {
-  const req = { headers: range ? { range } : {} } as unknown as Request;
+function run(
+  range: string | null,
+  downloadName: string | null = null,
+  extra: { headers?: Record<string, string>; lastModified?: Date } = {}
+) {
+  const req = {
+    headers: { ...(range ? { range } : {}), ...extra.headers },
+  } as unknown as Request;
   const out = new PassThrough();
   const chunks: Buffer[] = [];
   out.on('data', (c: Buffer) => chunks.push(c));
@@ -25,6 +31,7 @@ function run(range: string | null, downloadName: string | null = null) {
     size: DATA.length,
     contentType: 'video/mp4',
     downloadName,
+    ...(extra.lastModified && { lastModified: extra.lastModified }),
     open: (r) =>
       Readable.from([r ? DATA.subarray(r.start, r.end + 1) : DATA], { objectMode: false }),
   });
@@ -71,6 +78,61 @@ describe('streamFile', () => {
     const r = await run(null, 'Müllerstein.mp4');
     expect(r.headers['Content-Disposition']).toContain("filename*=UTF-8''M%C3%BCllerstein.mp4");
     expect(r.headers['Content-Disposition']).toContain('attachment; filename="M_llerstein.mp4"');
+  });
+
+  describe('validators', () => {
+    const lastModified = new Date('2026-11-20T08:00:00Z');
+
+    it('without lastModified nothing is cacheable, as for every caller before', async () => {
+      const r = await run(null);
+      expect(r.headers.ETag).toBeUndefined();
+      expect(r.headers['Cache-Control']).toBeUndefined();
+    });
+
+    it('with lastModified the full and the ranged answer carry the same ETag', async () => {
+      const full = await run(null, null, { lastModified });
+      const part = await run('bytes=0-9', null, { lastModified });
+      expect(full.headers.ETag).toMatch(/^"[0-9a-z]+-[0-9a-z]+"$/);
+      expect(part.headers.ETag).toBe(full.headers.ETag);
+      expect(full.headers['Cache-Control']).toBe('private, no-cache');
+      expect(full.headers['Last-Modified']).toBe(lastModified.toUTCString());
+    });
+
+    it('a matching If-None-Match → 304 without a body', async () => {
+      const { headers } = await run(null, null, { lastModified });
+      const r = await run(null, null, {
+        lastModified,
+        headers: { 'if-none-match': String(headers.ETag) },
+      });
+      expect(r.status).toBe(304);
+      expect(r.body.length).toBe(0);
+    });
+
+    it('a changed file gets a new ETag, so the old one no longer matches', async () => {
+      const { headers } = await run(null, null, { lastModified });
+      const r = await run(null, null, {
+        lastModified: new Date(lastModified.getTime() + 1000),
+        headers: { 'if-none-match': String(headers.ETag) },
+      });
+      expect(r.status).toBe(200);
+      expect(r.body.length).toBe(100);
+    });
+
+    it('If-Range with a stale ETag → full 200 instead of the range', async () => {
+      const r = await run('bytes=0-9', null, { lastModified, headers: { 'if-range': '"old"' } });
+      expect(r.status).toBe(200);
+      expect(r.body.length).toBe(100);
+    });
+
+    it('If-Range with the current ETag keeps the range', async () => {
+      const { headers } = await run(null, null, { lastModified });
+      const r = await run('bytes=0-9', null, {
+        lastModified,
+        headers: { 'if-range': String(headers.ETag) },
+      });
+      expect(r.status).toBe(206);
+      expect(r.body.length).toBe(10);
+    });
   });
 
   it('a read error ends the response without throwing', async () => {

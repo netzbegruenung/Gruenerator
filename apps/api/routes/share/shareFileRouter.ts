@@ -404,6 +404,7 @@ async function resolveShareMedia(
   share: SharedMediaRow;
   mediaPath: string;
   fileSize: number;
+  lastModified: Date;
   moderator: boolean;
 } | null> {
   const service = await getSharedMediaService();
@@ -439,20 +440,32 @@ async function resolveShareMedia(
     return null;
   }
 
-  return { share, mediaPath, fileSize: stat.size, moderator: access === 'moderator' };
+  return {
+    share,
+    mediaPath,
+    fileSize: stat.size,
+    lastModified: stat.mtime,
+    moderator: access === 'moderator',
+  };
 }
 
+/**
+ * Revalidated rather than downloaded again: the video editor fetches a whole
+ * clip up front (prefetch), and on a slow line that took a minute on every
+ * reload because nothing here was cacheable.
+ */
 function streamShareFile(
   req: Request,
   res: Response,
-  mediaPath: string,
-  fileSize: number,
+  media: { mediaPath: string; fileSize: number; lastModified: Date },
   contentType: string
 ): void {
+  const { mediaPath, fileSize, lastModified } = media;
   streamFile(req, res, {
     size: fileSize,
     contentType,
     downloadName: null,
+    lastModified,
     open: (range) =>
       range ? fs.createReadStream(mediaPath, range) : fs.createReadStream(mediaPath),
   });
@@ -494,13 +507,7 @@ router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Re
       res.status(404).json({ error: 'Kein Video oder Audio' });
       return;
     }
-    streamShareFile(
-      req,
-      res,
-      resolved.mediaPath,
-      resolved.fileSize,
-      streamContentType(resolved.share)
-    );
+    streamShareFile(req, res, resolved, streamContentType(resolved.share));
   } catch (error) {
     log.error('Failed to stream media:', error);
     res.status(500).json({ error: 'Fehler beim Laden des Videos' });
@@ -529,7 +536,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
   try {
     const resolved = await resolveShareMedia(req.params.shareToken, req, res);
     if (!resolved) return;
-    const { share, mediaPath, fileSize, moderator } = resolved;
+    const { share, mediaPath, moderator } = resolved;
 
     const version = versionFromShareRow(share);
     const rawWidth = parseInt(req.query.w as string, 10);
@@ -552,7 +559,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
         ? (await getSharedMediaService()).getThumbnailFilePath(share.thumbnail_path)
         : null;
     if ((share.media_type === 'video' && !posterPath) || share.media_type === 'audio') {
-      streamShareFile(req, res, mediaPath, fileSize, streamContentType(share));
+      streamShareFile(req, res, resolved, streamContentType(share));
       return;
     }
     const sourcePath = posterPath ?? mediaPath;
