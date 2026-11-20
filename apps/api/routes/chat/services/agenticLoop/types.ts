@@ -292,6 +292,10 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   nuudel_umfrage_anlegen: 70_000,
   // Ein CSV-Abruf.
   nuudel_umfrage_lesen: 25_000,
+  // Admin-Seite, CSV (Stimmen), je Änderung ein Aufruf, Admin-Seite zur Probe.
+  nuudel_umfrage_bearbeiten: 90_000,
+  // Admin-Seite, Rückfrage, Bestätigung, Probe.
+  nuudel_umfrage_loeschen: 70_000,
 };
 
 /**
@@ -375,4 +379,6 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'nuudel_umfrage_anlegen',
   // Erst die jüngste, dann eine andere über ihren Titel: ein Argument Unterschied.
   'nuudel_umfrage_lesen',
+  // Erst ohne, dann nach dem Ja der Person mit `stimmen_verwerfen`.
+  'nuudel_umfrage_bearbeiten',
 ]);

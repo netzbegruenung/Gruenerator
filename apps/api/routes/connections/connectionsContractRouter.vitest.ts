@@ -15,6 +15,11 @@ vi.mock('../../services/connections/ConnectionService.js', () => ({
   ConnectionNotAllowedError,
 }));
 vi.mock('../../services/connections/driveBrowse.js', () => ({ browseDrive }));
+const uploadToDrive = vi.fn();
+vi.mock('../../services/connections/driveUpload.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/connections/driveUpload.js')>()),
+  uploadToDrive,
+}));
 const env: Record<string, string | undefined> = {};
 vi.mock('../../config/env.js', () => ({ env }));
 
@@ -50,7 +55,7 @@ describe('connectionsContractRouter.browse', () => {
     const res = await browse('folder1');
 
     expect(getConnection).toHaveBeenCalledWith('user-1', 'microsoft');
-    expect(browseDrive).toHaveBeenCalledWith('microsoft', 'tok-1', 'folder1');
+    expect(browseDrive).toHaveBeenCalledWith('microsoft', 'tok-1', 'folder1', undefined);
     expect(res).toEqual({ status: 200, body: { success: true, entries: [], truncated: false } });
   });
 
@@ -125,5 +130,49 @@ describe('connectionsContractRouter.googlePicker', () => {
   it('meldet ein fehlendes Konto als 403 mit reauth', async () => {
     getConnection.mockRejectedValue(new Error('No google connection found for user'));
     expect(await picker()).toMatchObject({ status: 403, body: { reauth: true } });
+  });
+});
+
+describe('connectionsContractRouter.upload', () => {
+  const DOCX = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00]);
+  const upload = (file: { buffer: Buffer; originalname: string } | undefined) =>
+    connectionsContractRouter.upload.handler({
+      req: { ...(req as object), file },
+      params: { provider: 'microsoft' },
+    } as never);
+
+  beforeEach(() => {
+    uploadToDrive
+      .mockReset()
+      .mockResolvedValue({ name: 'Antrag.docx', webUrl: 'https://onedrive.example/a' });
+  });
+
+  it('speichert die Word-Datei mit dem Token der angemeldeten Person', async () => {
+    const res = await upload({ buffer: DOCX, originalname: 'Antrag.docx' });
+
+    expect(getConnection).toHaveBeenCalledWith('user-1', 'microsoft');
+    expect(uploadToDrive).toHaveBeenCalledWith('microsoft', 'tok-1', DOCX, 'Antrag.docx');
+    expect(res).toEqual({
+      status: 200,
+      body: { success: true, name: 'Antrag.docx', webUrl: 'https://onedrive.example/a' },
+    });
+  });
+
+  it('lehnt eine Datei ab, die keine .docx ist, ohne einen Token zu holen', async () => {
+    const res = await upload({ buffer: Buffer.from('%PDF-1.7'), originalname: 'x.docx' });
+
+    expect(res).toMatchObject({ status: 400, body: { success: false } });
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
+  // Wer vor dem Export-Scope verbunden hat (OneDrive `Files.Read`), bekommt von
+  // Graph 403 — das muss als „neu verbinden" ankommen, nicht als 500.
+  it('meldet fehlendes Schreibrecht als 403 mit reauth', async () => {
+    uploadToDrive.mockRejectedValue(axiosError(403));
+
+    expect(await upload({ buffer: DOCX, originalname: 'a.docx' })).toMatchObject({
+      status: 403,
+      body: { reauth: true },
+    });
   });
 });

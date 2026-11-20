@@ -7,7 +7,7 @@
  * öffnen, oder die Picker-Auswahl kommt nicht im Composer an.
  */
 import { ApiError } from '@gruenerator/shared/api';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +24,7 @@ type DriveFile = {
 const driveFolders: Record<string, DriveFile[]> = {};
 let driveError: unknown = null;
 const driveCalls: (string | null)[] = [];
+const searchCalls: (string | null)[] = [];
 const openGooglePicker = vi.fn();
 
 vi.mock('../../hooks/useMentionablesQuery', () => ({
@@ -32,6 +33,7 @@ vi.mock('../../hooks/useMentionablesQuery', () => ({
     data: [
       { provider: 'microsoft', label: 'Microsoft 365' },
       { provider: 'google', label: 'Google Workspace' },
+      { provider: 'microsoft-mail', label: 'Outlook' },
     ],
     isLoading: false,
   }),
@@ -43,8 +45,14 @@ vi.mock('../../hooks/useMentionablesQuery', () => ({
     isError: false,
   }),
   useOpenGooglePicker: () => openGooglePicker,
-  useConnectBrowseQuery: (provider: string | null, folderId: string | null, enabled: boolean) => {
+  useConnectBrowseQuery: (
+    provider: string | null,
+    folderId: string | null,
+    enabled: boolean,
+    search: string | null = null
+  ) => {
     if (enabled) driveCalls.push(`${provider}:${folderId}`);
+    if (enabled) searchCalls.push(search);
     return {
       data: enabled && !driveError ? driveFolders[folderId ?? 'root'] : undefined,
       isLoading: false,
@@ -57,7 +65,7 @@ vi.mock('../../hooks/useMentionablesQuery', () => ({
 const onSelect = vi.fn();
 const onDismiss = vi.fn();
 
-function renderBrowser(initialSource: 'wolke' | 'drive' | 'google') {
+function renderBrowser(initialSource: 'wolke' | 'drive' | 'google' | 'microsoft-mail') {
   return render(
     <CloudFileBrowser
       visible
@@ -73,6 +81,7 @@ beforeEach(() => {
   openGooglePicker.mockReset();
   driveError = null;
   driveCalls.length = 0;
+  searchCalls.length = 0;
   driveFolders.root = [
     { id: 'f1', name: 'Projekte', isDirectory: true },
     { id: 'x1', name: 'Haushalt.xlsx', isSupported: true, mimeType: 'application/x' },
@@ -83,6 +92,17 @@ beforeEach(() => {
 });
 
 describe('CloudFileBrowser', () => {
+  it('searches a mailbox at the provider instead of filtering the loaded list', async () => {
+    const user = userEvent.setup();
+    renderBrowser('microsoft-mail');
+
+    await user.type(await screen.findByLabelText('Mails durchsuchen'), 'Haushalt');
+
+    await waitFor(() => expect(searchCalls.at(-1)).toBe('Haushalt'));
+    // The provider answered for the query; the list is not filtered again locally.
+    expect(screen.getByText('Projekte')).toBeInTheDocument();
+  });
+
   it('opens @connect on the drive and walks back up one level at a time', async () => {
     const user = userEvent.setup();
     renderBrowser('drive');

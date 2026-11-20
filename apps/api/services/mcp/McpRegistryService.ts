@@ -80,6 +80,11 @@ const SEEDS: Seed[] = [
   ['Typeform (EU – .com)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.eu.typeform.com) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Typeform (EU – .eu)', 'https://api.typeform.eu/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.typeform.eu) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität', { alt: ['bearer'], keyUrl: 'https://app.todoist.com/app/settings/integrations/developer' }],
+  // Atlassian-AS with DCR + PKCE (registration_endpoint checked live
+  // 2026-11-19). Trello enables it by default on Premium/Enterprise; whether
+  // free workspaces get it and whether the AS accepts our redirect domain is
+  // only seen on a first connect. Replaces a Nango/Trello-app integration.
+  ['Trello', 'https://mcp.trello.com/v1', 'oauth', 'Boards, Listen und Karten lesen und anlegen.', 'https://trello.com', 'Produktivität'],
   // Self-hosted bridge (github.com/Movm/kalender-digital-mcp): each request
   // carries the user's own calendar API key (Premium), no delete tools.
   ['Kalender.digital', 'https://kalender-mcp.moritz-waechter.de/mcp', 'bearer', 'Experimentell: Termine im eigenen Kalender lesen, anlegen und ändern (API-Key je Kalender, nur Premium).', 'https://kalender.digital', 'Produktivität', { keyUrl: 'https://kalender.digital/c/documentation/api?lang=de' }],

@@ -281,6 +281,19 @@ export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 export { stripForSpeech } from './lib/speechText';
 export { pickGoogleFiles, type PickedGoogleFile } from './lib/googlePicker';
+export {
+  CLOUD_EXPORT_LABELS,
+  CloudExportError,
+  notifyCloudExportResult,
+  uploadToCloud,
+} from './lib/cloudExport';
+export {
+  CONNECTOR_SEND_LABELS,
+  fetchConnectorTargets,
+  notifyConnectorSendResult,
+  sendToConnector,
+} from './lib/connectorSend';
+export { ConnectorTargetDialog } from './components/ConnectorTargetDialog';
 
 // Citation Context
 export {
@@ -404,6 +417,7 @@ export {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   useConnectProvidersQuery,
+  useConnectedProvidersQuery,
   useConnectBrowseQuery,
   MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,

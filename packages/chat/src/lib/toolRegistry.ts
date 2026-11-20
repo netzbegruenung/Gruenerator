@@ -135,6 +135,8 @@ export const UI_TOOL_NAMES = z.enum([
   'nuudel_werkzeuge_laden',
   'nuudel_umfrage_anlegen',
   'nuudel_umfrage_lesen',
+  'nuudel_umfrage_bearbeiten',
+  'nuudel_umfrage_loeschen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -1481,6 +1483,18 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
       (getString(r, 'titel')
         ? `Ergebnis von „${getString(r, 'titel')}" gelesen`
         : 'Umfrage gelesen'),
+  })),
+  nuudel_umfrage_bearbeiten: entry('nuudel_umfrage_bearbeiten', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Umfrage „${getString(r, 'titel')}" geändert` : 'Umfrage geändert'),
+  })),
+  nuudel_umfrage_loeschen: entry('nuudel_umfrage_loeschen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Umfrage „${getString(r, 'titel')}" gelöscht` : 'Umfrage gelöscht'),
   })),
 };
 

@@ -1,4 +1,14 @@
-import { EditorChatPanel } from '@gruenerator/chat';
+import {
+  CLOUD_EXPORT_LABELS,
+  CONNECTOR_SEND_LABELS,
+  ConnectorTargetDialog,
+  EditorChatPanel,
+  notifyCloudExportResult,
+  notifyConnectorSendResult,
+  sendToConnector,
+  uploadToCloud,
+  useConnectedProvidersQuery,
+} from '@gruenerator/chat';
 import {
   CollabUnavailable,
   useCollaboration,
@@ -7,6 +17,12 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import {
+  type CloudExportProvider,
+  type ConnectorTargetProvider,
+  cloudExportProviderSchema,
+  connectorTargetProviderSchema,
+} from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocumentChat,
@@ -523,6 +539,77 @@ function EditorContent() {
     }
   }, [docData, editor, exportBlockedBySuggestions]);
 
+  // Fetched when the export submenu opens: a drive connected in the settings
+  // since the page loaded shows up without a reload.
+  const connectedProviders = useConnectedProvidersQuery(showExportSubmenu);
+  const cloudTargets = (connectedProviders.data ?? []).filter(
+    (p): p is CloudExportProvider => cloudExportProviderSchema.safeParse(p).success
+  );
+  const sendTargets = (connectedProviders.data ?? []).filter(
+    (p): p is ConnectorTargetProvider => connectorTargetProviderSchema.safeParse(p).success
+  );
+  const [sendProvider, setSendProvider] = useState<ConnectorTargetProvider | null>(null);
+  const authedFetch = useCallback(
+    (url: string, init?: RequestInit) => platformFetch(url, { ...init, credentials: 'include' }),
+    []
+  );
+
+  /** The same Word file as „Als Word (.docx)“, saved into a connected drive. */
+  const handleExportToCloud = useCallback(
+    async (provider: CloudExportProvider) => {
+      if (!docData || !editor) return;
+      if (exportBlockedBySuggestions()) return;
+      setShowActionsMenu(false);
+      const { toast } = await import('sonner');
+      const pending = toast.loading('Wird gespeichert …');
+      try {
+        const { createDocxExporter } = await import('./documentExporters');
+        const blob = await createDocxExporter().toBlob(editor.document);
+        const result = await uploadToCloud(
+          authedFetch,
+          provider,
+          blob,
+          `${docData.title || 'Dokument'}.docx`
+        );
+        toast.dismiss(pending);
+        notifyCloudExportResult(provider, { ok: true, result });
+      } catch (error) {
+        toast.dismiss(pending);
+        notifyCloudExportResult(provider, { ok: false, error });
+      }
+    },
+    [docData, editor, exportBlockedBySuggestions, authedFetch]
+  );
+
+  /** Teams takes the Word file, Slack the document as markdown. */
+  const handleSendToConnector = useCallback(
+    async (provider: ConnectorTargetProvider, target: { id: string; name: string }) => {
+      if (!docData || !editor) return;
+      if (exportBlockedBySuggestions()) return;
+      const { toast } = await import('sonner');
+      const pending = toast.loading('Wird gesendet …');
+      try {
+        const title = docData.title || 'Dokument';
+        let input: Parameters<typeof sendToConnector>[2];
+        if (provider === 'microsoft-teams') {
+          const { createDocxExporter } = await import('./documentExporters');
+          const blob = await createDocxExporter().toBlob(editor.document);
+          input = { targetId: target.id, title, docx: { blob, filename: `${title}.docx` } };
+        } else {
+          const text = editor.blocksToMarkdownLossy(editor.document);
+          input = { targetId: target.id, title, text };
+        }
+        const result = await sendToConnector(authedFetch, provider, input);
+        toast.dismiss(pending);
+        notifyConnectorSendResult(provider, { ok: true, result });
+      } catch (error) {
+        toast.dismiss(pending);
+        notifyConnectorSendResult(provider, { ok: false, error });
+      }
+    },
+    [docData, editor, exportBlockedBySuggestions, authedFetch]
+  );
+
   const togglePanel = useCallback((panel: SidebarPanel) => {
     setActiveSidebar((prev) => (prev === panel ? null : panel));
   }, []);
@@ -946,6 +1033,27 @@ function EditorContent() {
                         >
                           Als ODT (.odt)
                         </button>
+                        {cloudTargets.map((provider) => (
+                          <button
+                            key={provider}
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => void handleExportToCloud(provider)}
+                          >
+                            {CLOUD_EXPORT_LABELS[provider]}
+                          </button>
+                        ))}
+                        {sendTargets.map((provider) => (
+                          <button
+                            key={provider}
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              setSendProvider(provider);
+                            }}
+                          >
+                            {CONNECTOR_SEND_LABELS[provider]}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>,
@@ -953,6 +1061,18 @@ function EditorContent() {
                 )}
             </>
           }
+        />
+      )}
+
+      {sendProvider && (
+        <ConnectorTargetDialog
+          provider={sendProvider}
+          open
+          fetchFn={authedFetch}
+          onOpenChange={(next) => {
+            if (!next) setSendProvider(null);
+          }}
+          onPick={(target) => void handleSendToConnector(sendProvider, target)}
         />
       )}
 

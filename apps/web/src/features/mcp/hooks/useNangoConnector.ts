@@ -1,4 +1,4 @@
-import { type DriveProvider } from '@gruenerator/contracts';
+import { type ConnectorProvider } from '@gruenerator/contracts';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -12,13 +12,13 @@ interface ConnectionsStatus {
 }
 
 /**
- * A Nango drive (Microsoft 365, Google Workspace) as a card in the connector
+ * A Nango connector (Microsoft 365, Google Workspace, Teams, Slack, Gmail, Outlook) as a card in the connector
  * directory. Both are open to everyone and marked experimental in the card
  * (Microsoft since 16.11.2026, Google since 19.11.2026). Status and disconnect
  * use the existing `/api/connections` routes the chat's @connect picker reads;
  * the connect link comes from `connections.connectLink`.
  */
-export function useNangoConnector(provider: DriveProvider) {
+export function useNangoConnector(provider: ConnectorProvider) {
   const queryClient = useQueryClient();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: STATUS_KEY });
 

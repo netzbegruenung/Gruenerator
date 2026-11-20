@@ -108,7 +108,11 @@ function Status({
 
 type CloudSource = { kind: 'wolke' | 'drive'; id: string; label: string };
 
-const DRIVE_LABELS: Record<string, string> = { microsoft: 'OneDrive', google: 'Google Drive' };
+const DRIVE_LABELS: Record<string, string> = {
+  microsoft: 'OneDrive',
+  google: 'Google Drive',
+  'microsoft-teams': 'Teams',
+};
 
 /**
  * Wolke-Freigaben und verbundene Laufwerke in einer Ansicht, wie web's
