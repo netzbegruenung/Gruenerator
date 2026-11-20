@@ -37,6 +37,7 @@ import {
 import { Link } from 'react-router-dom';
 
 import { FEED_KIND_ICONS, feedItemHref } from '../../config/groupFeedPresentation';
+import { type ShareActions, ShareMenuItems, hasShareMenu, projectRoleLabel } from '../shareActions';
 
 import { GroupCommentThread } from './GroupCommentThread';
 import { GroupPostContent } from './GroupPostContent';
@@ -52,7 +53,8 @@ export interface GroupFeedCardProps {
   defaultOpen?: boolean;
   onUseTemplate: (id: string) => void;
   isCloning: boolean;
-  onRemove: ((item: GroupFeedItem) => void) | null;
+  /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
+  actions: ShareActions | null;
 }
 
 const BOARD_CELLS = [1, 1, 1, 1, 1, 0, 1].map((filled, i) => ({ id: `c${i}`, filled: !!filled }));
@@ -181,7 +183,7 @@ export function GroupFeedCard({
   defaultOpen = false,
   onUseTemplate,
   isCloning,
-  onRemove,
+  actions,
 }: GroupFeedCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
@@ -230,7 +232,9 @@ export function GroupFeedCard({
         <div className="flex min-w-0 flex-1 flex-col">
           <strong className="truncate text-[15px]">{item.sharedByName ?? 'Jemand'}</strong>
           <span className="truncate text-[13px] text-muted-foreground">
-            {[formatFeedDate(item.sharedAt), kindLabel].filter(Boolean).join(' · ')}
+            {[formatFeedDate(item.sharedAt), kindLabel, projectRoleLabel(item)]
+              .filter(Boolean)
+              .join(' · ')}
           </span>
         </div>
         {isAdmin && share && (
@@ -272,7 +276,7 @@ export function GroupFeedCard({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {onRemove && !post && (
+        {!post && hasShareMenu(item, actions) && actions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={`Aktionen für ${item.title}`}>
@@ -280,10 +284,7 @@ export function GroupFeedCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem variant="destructive" onClick={() => onRemove(item)}>
-                <PiTrash className="mr-xs size-4" />
-                Aus Gruppe entfernen
-              </DropdownMenuItem>
+              <ShareMenuItems item={item} actions={actions} />
             </DropdownMenuContent>
           </DropdownMenu>
         )}

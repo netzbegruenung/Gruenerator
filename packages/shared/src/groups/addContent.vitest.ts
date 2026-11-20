@@ -32,6 +32,26 @@ describe('addItemsToGroup', () => {
     });
   });
 
+  it('teilt in Team-Projekten Docs und Boards mit Schreibrecht, alles andere weiter lesend', async () => {
+    shareContent.mockResolvedValue({ status: 200, body: { success: true } });
+    await addItemsToGroup(
+      'g1',
+      [
+        { contentType: 'collaborative_documents', id: 'd1', title: 'Antrag' },
+        { contentType: 'user_agents', id: 'a1', title: 'Presse' },
+      ],
+      null,
+      { writeDocuments: true }
+    );
+    const perms = shareContent.mock.calls.map(
+      ([arg]) => (arg as { body: { permissions: unknown } }).body.permissions
+    );
+    expect(perms).toEqual([
+      { read: true, write: true, collaborative: false },
+      { read: true, write: false, collaborative: false },
+    ]);
+  });
+
   it('meldet Teilerfolge mit dem Satz des Servers', async () => {
     shareContent
       .mockResolvedValueOnce({ status: 200, body: { success: true } })

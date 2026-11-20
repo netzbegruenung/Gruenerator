@@ -66,6 +66,7 @@ import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
@@ -118,6 +119,8 @@ interface GroupInfoSectionProps {
   feedItems: GroupFeedItem[];
   isLoadingSharedContent: boolean;
   onUnshareContent?: (contentId: string, contentType: string) => void;
+  /** Docs, Sheets, Präsentationen, Boards: Mitglieder bearbeiten (`true`) oder lesen nur. */
+  onSetShareWrite?: (contentId: string, write: boolean) => void;
   refetchSharedContent?: () => void;
   currentUserId?: string;
   currentUserName?: string | null;
@@ -161,6 +164,7 @@ const GroupInfoSection = memo(
     feedItems,
     isLoadingSharedContent,
     onUnshareContent,
+    onSetShareWrite,
     refetchSharedContent,
     currentUserId,
     currentUserName,
@@ -307,6 +311,22 @@ const GroupInfoSection = memo(
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
     const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
     const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
+    // Wer verwalten darf, entscheidet dieselbe Regel wie auf dem Server
+    // (`updateContentPermissions`): Admin oder die Person, die geteilt hat.
+    const isAdmin = !!data?.isAdmin;
+    const shareActions = useMemo<ShareActions | null>(
+      () =>
+        onUnshareContent && onSetShareWrite
+          ? {
+              canManage: (item) =>
+                isAdmin || (!!currentUserId && item.sharedById === String(currentUserId)),
+              canRemove: () => isAdmin,
+              onSetWrite: (item, write) => onSetShareWrite(item.id, write),
+              onRemove: (item) => onUnshareContent(item.id, item.contentType),
+            }
+          : null,
+      [isAdmin, currentUserId, onUnshareContent, onSetShareWrite]
+    );
     const noteShareId = noteKey
       ? (feedItems.find((i) => i.key === noteKey)?.share?.shareId ?? null)
       : null;
@@ -340,6 +360,7 @@ const GroupInfoSection = memo(
         sharedKeys={sharedKeys}
         currentUserId={currentUserId ?? null}
         note={picker === 'composer' ? composerNote : null}
+        writeDocuments={isTeam}
         onAdded={handleAdded}
       />
     );
@@ -717,11 +738,7 @@ const GroupInfoSection = memo(
                 }
               : null
           }
-          onRemove={
-            data?.isAdmin && onUnshareContent
-              ? (item) => onUnshareContent(item.id, item.contentType)
-              : null
-          }
+          actions={shareActions}
           onUseTemplate={handleCloneTemplate}
           cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
           overview={({ onDiscuss }) => (
@@ -753,11 +770,7 @@ const GroupInfoSection = memo(
                 <ProjectKnowledgeList
                   items={knowledgeItems}
                   onUseTemplate={handleCloneTemplate}
-                  onRemove={
-                    data?.isAdmin && onUnshareContent
-                      ? (item) => onUnshareContent(item.id, item.contentType)
-                      : null
-                  }
+                  actions={shareActions}
                   onDiscuss={onDiscuss}
                 />
                 {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
