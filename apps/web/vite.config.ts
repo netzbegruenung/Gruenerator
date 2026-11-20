@@ -64,6 +64,43 @@ function preloadFontsPlugin(): Plugin {
   };
 }
 
+// The global stylesheet must not block the first paint (#5891): index.html
+// carries a static app shell and the terms banner, both styled inline, which
+// can paint as soon as the HTML arrives. A render-blocking <link> held them
+// back until the 600 KB stylesheet had downloaded, and on Slow 4G it competes
+// with the entry chunks for bandwidth. So the entry stylesheet becomes
+// preload (high priority) + media="print" (non-blocking), and src/index.tsx
+// waits for it and switches it to media="all" BEFORE React renders. The app
+// itself therefore never paints unstyled, exactly as before.
+// APP_CSS_ID is the contract between this plugin and src/index.tsx.
+function nonBlockingEntryCssPlugin(): Plugin {
+  return {
+    name: 'non-blocking-entry-css',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const links = html.match(
+          /<link rel="stylesheet"[^>]*href="\/assets\/css\/[^"]+\.css"[^>]*>/g
+        );
+        if (!links || links.length !== 1) {
+          throw new Error(
+            `non-blocking-entry-css: expected exactly one entry stylesheet in index.html, found ${links?.length ?? 0}`
+          );
+        }
+        const link = links[0];
+        const href = /href="([^"]+)"/.exec(link)?.[1] ?? '';
+        const replacement = [
+          `<link rel="preload" as="style" crossorigin href="${href}">`,
+          `<link rel="stylesheet" crossorigin href="${href}" media="print" id="app-css">`,
+          `<noscript><link rel="stylesheet" crossorigin href="${href}"></noscript>`,
+        ].join('\n    ');
+        return html.replace(link, replacement);
+      },
+    },
+  };
+}
+
 // Plugin to provide stub modules for Tauri packages in web context
 function tauriStubPlugin(): Plugin {
   return {
@@ -107,6 +144,7 @@ export default defineConfig(({ command }) => ({
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
     preloadFontsPlugin(),
+    nonBlockingEntryCssPlugin(),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),

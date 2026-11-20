@@ -152,23 +152,49 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
+// The production build loads the global stylesheet without blocking the first
+// paint (nonBlockingEntryCssPlugin in vite.config.ts), so the inline app shell
+// shows immediately. React must still not paint before it is applied.
+function whenAppCssReady(): Promise<void> {
+  const link = document.getElementById('app-css');
+  if (!(link instanceof HTMLLinkElement) || link.media === 'all') return Promise.resolve();
+  const apply = () => {
+    link.media = 'all';
+  };
+  if (link.sheet) {
+    apply();
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const done = () => {
+      apply();
+      resolve();
+    };
+    // On error React still renders, unstyled, rather than never.
+    link.addEventListener('load', done, { once: true });
+    link.addEventListener('error', done, { once: true });
+  });
+}
+
 const root = createRoot(rootElement);
-root.render(
-  // <React.StrictMode>
-  <Sentry.ErrorBoundary
-    fallback={({ error }) => (
-      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-        <h1>Etwas ist schiefgelaufen</h1>
-        <p>Bitte lade die Seite neu. Wenn der Fehler bleibt, kontaktiere den Support.</p>
-        <pre style={{ whiteSpace: 'pre-wrap', color: '#888', marginTop: '1rem' }}>
-          {error instanceof Error ? error.message : String(error)}
-        </pre>
-      </div>
-    )}
-  >
-    <App />
-  </Sentry.ErrorBoundary>
-  // </React.StrictMode>
+void whenAppCssReady().then(() =>
+  root.render(
+    // <React.StrictMode>
+    <Sentry.ErrorBoundary
+      fallback={({ error }) => (
+        <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+          <h1>Etwas ist schiefgelaufen</h1>
+          <p>Bitte lade die Seite neu. Wenn der Fehler bleibt, kontaktiere den Support.</p>
+          <pre style={{ whiteSpace: 'pre-wrap', color: '#888', marginTop: '1rem' }}>
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
+        </div>
+      )}
+    >
+      <App />
+    </Sentry.ErrorBoundary>
+    // </React.StrictMode>
+  )
 );
 
 // Register Service Worker for illustration caching (production only)
