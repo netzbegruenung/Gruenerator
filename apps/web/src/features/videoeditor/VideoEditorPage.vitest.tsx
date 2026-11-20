@@ -1,9 +1,14 @@
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import VideoEditorPage, { BETA_NOTICE_SEEN_KEY, VIDEO_EDITOR_APP_PATH } from './VideoEditorPage';
+import VideoEditorPage, {
+  BETA_NOTICE_SEEN_KEY,
+  VIDEO_EDITOR_APP_PATH,
+  VIDEO_EDITOR_HOST_GLOBAL,
+  type VideoEditorHost,
+} from './VideoEditorPage';
 
-import { axe, render, screen } from '@/test-utils';
+import { axe, renderWithProviders as render, screen } from '@/test-utils';
 
 describe('VideoEditorPage', () => {
   beforeEach(() => {
@@ -33,5 +38,16 @@ describe('VideoEditorPage', () => {
     unmount();
     render(<VideoEditorPage />);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('offers the editor in the iframe a host while mounted', () => {
+    const slot = window as unknown as Record<string, VideoEditorHost | undefined>;
+    const { unmount } = render(<VideoEditorPage />);
+    const host = slot[VIDEO_EDITOR_HOST_GLOBAL];
+    expect(typeof host?.saveFile).toBe('function');
+    expect(typeof host?.close).toBe('function');
+    expect(host?.inApp).toBe(false);
+    unmount();
+    expect(slot[VIDEO_EDITOR_HOST_GLOBAL]).toBeUndefined();
   });
 });

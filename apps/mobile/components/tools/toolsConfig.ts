@@ -1,7 +1,9 @@
 import { toolIconKey, type ToolIconKey } from '@gruenerator/shared/icons';
 import { DOKU_URL, NEWSLETTER_SIGNUP_URL } from '@gruenerator/shared/links';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Platform } from 'react-native';
 
+import { isVideoEditorSupported } from '../../services/videoEditorSupport';
 import { type AppRoute } from '../../types/routes';
 
 export interface ToolDef {
@@ -90,6 +92,18 @@ export const STUDIO_TOOLS: ToolDef[] = [
     icon: toolIconKey('reel'),
     route: '/(focused)/reel',
   },
+  // Web's `studio-videoeditor`, in the WebView; from iOS 26, see `isVideoEditorSupported`.
+  ...(isVideoEditorSupported(Platform.OS, Platform.Version)
+    ? [
+        {
+          id: 'videoeditor',
+          title: 'Video-Editor',
+          description: 'Clips schneiden & gestalten',
+          icon: toolIconKey('videoeditor'),
+          route: '/(fullscreen)/video-editor',
+        } satisfies ToolDef,
+      ]
+    : []),
   {
     id: 'profilbild',
     title: 'Profilbild',
@@ -113,6 +127,7 @@ export const STUDIO_TOOLS: ToolDef[] = [
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
   'ki-bildgenerierung': 'sparkles',
   reel: 'videocam',
+  videoeditor: 'film',
   profilbild: 'person-circle',
   sticker: 'happy',
 };

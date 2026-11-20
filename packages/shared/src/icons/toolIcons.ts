@@ -23,6 +23,7 @@ export type ToolIconKey =
   | 'magic'
   | 'imageSquare'
   | 'videoCamera'
+  | 'filmSlate'
   | 'book'
   | 'userCircle'
   | 'sticker'
@@ -45,6 +46,7 @@ export const TOOL_ICON_KEYS = {
   'ki-bildgenerierung': 'magic',
   sharepic: 'imageSquare',
   reel: 'videoCamera',
+  videoeditor: 'filmSlate',
   wissen: 'book',
   profilbild: 'userCircle',
   sticker: 'sticker',
