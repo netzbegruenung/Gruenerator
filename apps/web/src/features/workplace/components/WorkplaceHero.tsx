@@ -21,13 +21,15 @@ export function WorkplaceHero({
   textHiddenOnPhone?: boolean;
 }) {
   return (
-    // Left-aligned on the same edge as the sections below: one reading axis, not a
-    // centred block over a left-aligned page. Search ends 40 px above the first
-    // section, the same rhythm as between sections.
-    <div className={cn('pb-4 sm:pt-4', textHiddenOnPhone && 'max-md:pb-0')}>
+    <div
+      className={cn(
+        'mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4',
+        textHiddenOnPhone && 'max-md:pb-0 max-md:pt-0'
+      )}
+    >
       <h1
         className={cn(
-          'm-0 font-[Raleway,PT_Sans,Arial,sans-serif] text-[26px] font-bold leading-[1.15] tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] sm:text-[32px] lg:text-[36px]',
+          'mb-6 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]',
           textHiddenOnPhone && 'max-md:sr-only'
         )}
       >
@@ -36,24 +38,14 @@ export function WorkplaceHero({
       {subtitle && (
         <p
           className={cn(
-            'm-0 mt-2 text-base text-grey-600 [text-wrap:pretty] dark:text-grey-400',
+            'mb-6 -mt-3 text-center text-[15px] text-grey-600 [text-wrap:balance] dark:text-grey-400 max-sm:text-sm',
             textHiddenOnPhone && 'max-md:hidden'
           )}
         >
           {subtitle}
         </p>
       )}
-      {/* The composer brings its own centring margins (mt-10 mx-auto); here it sits under the text. */}
-      {children != null && (
-        <div
-          className={cn(
-            'mt-5 max-w-[640px] sm:mt-6 [&>*]:mx-0 [&>*]:mt-0',
-            textHiddenOnPhone && 'max-md:mt-0'
-          )}
-        >
-          {children}
-        </div>
-      )}
+      {children}
     </div>
   );
 }

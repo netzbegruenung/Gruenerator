@@ -646,8 +646,8 @@ export function DocumentsContent({
                 ? `${SCOPE_META[scope].heading}, ${firstName}`
                 : SCOPE_META[scope].heading
               : firstName
-                ? `Hallo ${firstName}`
-                : 'Willkommen im Grünerator'
+                ? `Willkommen im Grünerator Workplace, ${firstName}`
+                : 'Willkommen im Grünerator Workplace'
         }
         subtitle={heroSubtitle}
         textHiddenOnPhone={heroTextHiddenOnPhone}
@@ -907,7 +907,7 @@ export const DocsHome = () => (
     <DocsProvider adapter={webAppDocsAdapter}>
       <DocumentsContent
         showRecents={false}
-        heroSubtitle="Deine Inhalte und Werkzeuge."
+        heroSubtitle="Hier findest du deine Inhalte und Werkzeuge. Zum Chatten wechselst du oben in den Tab „Chat“."
         heroTextHiddenOnPhone
         composerPlaceholder="Inhalte & Werkzeuge suchen"
         composerSubmitIcon="search"

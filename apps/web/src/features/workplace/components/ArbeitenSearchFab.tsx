@@ -59,11 +59,13 @@ export function ArbeitenSearchFab({
 
   useMobileKeyboardOffset(barRef);
 
-  // The feedback launcher sits bottom right as well: it steps above the button, and
-  // while the bar is open (full width) it hides — the bar and its results need the room.
+  // The feedback launcher would sit in the same corner: on this page it is hidden
+  // (both bottom corners blocked) while the search button is shown, and while the
+  // bar is open (full width) — the bar and its results need the room.
   useMeasuredCornerReservation(fabRef, {
-    corner: 'bottom-right',
+    corner: ['bottom-left', 'bottom-right'],
     axis: 'vertical',
+    blocked: true,
     active: !open,
   });
   useMeasuredCornerReservation(barRef, {
