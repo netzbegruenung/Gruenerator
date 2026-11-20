@@ -79,9 +79,8 @@ export function useSite() {
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    // Awaited so `isCreating` holds until the new site is loaded and EditPage opens the editor.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-site'] }),
   });
 
   const updateMutation = useMutation({
