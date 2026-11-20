@@ -214,6 +214,7 @@ describe('every notebook_collections reader filters liveOnly (source guard)', ()
   const EXEMPT = new Set([
     'backfillSlugSuffixes',
     'backfillGroupShareModes',
+    'listPrivateNotebookIdsWithGroupShares',
     'backfillAudience',
     'scrollTrashed',
     'purgeNotebookCollection',

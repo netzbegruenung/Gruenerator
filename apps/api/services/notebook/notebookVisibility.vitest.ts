@@ -5,6 +5,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+// The writer pulls in Postgres and the collab chain; every test injects `dropShares`.
+vi.mock('../groups/groupShareWriter.js', () => ({ removeAllGroupShares: vi.fn() }));
+
 import { applyNotebookVisibility, planNotebookVisibility } from './notebookVisibility.js';
 
 import type { NotebookCollection } from '../../database/services/NotebookQdrantHelper.js';
@@ -111,6 +114,38 @@ describe('applyNotebookVisibility', () => {
     expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', {
       edit_policy: 'group_admins',
     });
+  });
+
+  it('going private drops every project share (#5851)', async () => {
+    const helper = helperWith(collection({ share_mode: 'groups' }));
+    const dropShares = vi.fn(async () => 2);
+    const out = await applyNotebookVisibility(
+      'n1',
+      'u1',
+      { share_mode: 'private' },
+      helper,
+      dropShares
+    );
+    expect(out).toEqual({ ok: true });
+    expect(dropShares).toHaveBeenCalledWith({
+      contentType: 'notebook_collections',
+      contentId: 'n1',
+    });
+  });
+
+  it('keeps project shares for every other step', async () => {
+    const helper = helperWith(collection({ share_mode: 'groups' }));
+    const dropShares = vi.fn(async () => 0);
+    await applyNotebookVisibility('n1', 'u1', { share_mode: 'authenticated' }, helper, dropShares);
+    await applyNotebookVisibility('n1', 'u1', { edit_policy: 'all_members' }, helper, dropShares);
+    expect(dropShares).not.toHaveBeenCalled();
+  });
+
+  it('a refused patch drops nothing', async () => {
+    const dropShares = vi.fn(async () => 0);
+    const helper = helperWith(collection({ user_id: 'other', share_mode: 'groups' }));
+    await applyNotebookVisibility('n1', 'u1', { share_mode: 'private' }, helper, dropShares);
+    expect(dropShares).not.toHaveBeenCalled();
   });
 
   it('is owner-only', async () => {
