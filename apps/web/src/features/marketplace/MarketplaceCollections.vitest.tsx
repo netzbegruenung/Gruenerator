@@ -79,6 +79,18 @@ describe('CollectionCards scroll row', () => {
     expect(screen.queryByRole('region')).toBeNull();
   });
 
+  it('drops the entry count from the meta line in the slim row', () => {
+    const items = [{ id: 'a' }, { id: 'b' }] as unknown as never[];
+    const withCount = [{ collectionId: 'europa' as const, items }];
+    const { unmount } = render(
+      <CollectionCards title={null} scroll collections={withCount} onOpen={vi.fn()} />
+    );
+    expect(screen.getByText(/2 Einträge/)).toBeInTheDocument();
+    unmount();
+    render(<CollectionCards title={null} scroll slim collections={withCount} onOpen={vi.fn()} />);
+    expect(screen.queryByText(/Einträge/)).toBeNull();
+  });
+
   it('keeps the titled section a labelled region', () => {
     render(<CollectionCards title="Kollektionen" collections={collections} onOpen={vi.fn()} />);
     expect(screen.getByRole('region', { name: 'Kollektionen' })).toBeInTheDocument();

@@ -240,6 +240,7 @@ export function CollectionCards({
   title = 'Kollektionen',
   row,
   scroll = false,
+  slim = false,
 }: {
   collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
   onOpen: (id: MarketplaceCollectionId) => void;
@@ -249,6 +250,8 @@ export function CollectionCards({
   row?: NonNullable<MarketplaceCollection['row']> | 'rest';
   /** One row that scrolls sideways at every width, the next card peeking in. */
   scroll?: boolean;
+  /** The Arbeiten tab's row: picture to the card edge, meta line without the entry count. */
+  slim?: boolean;
 }): JSX.Element | null {
   const headingId = useId();
   const cards = collectionCardsFor(collections, row);
@@ -267,9 +270,10 @@ export function CollectionCards({
             decorative
           />
         }
-        meta={collectionMetaLine(def, items.length)}
+        meta={slim ? def.kicker : collectionMetaLine(def, items.length)}
         title={def.title}
         description={plainEmphasis(def.description)}
+        bleed={slim}
         titleFont={DISPLAY_FONT}
       />
     </li>

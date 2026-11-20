@@ -126,6 +126,7 @@ export function MarketplaceSection() {
         <CollectionCards
           title={null}
           scroll
+          slim
           collections={page.data?.collections ?? []}
           onOpen={(collection) => navigate(marketplaceHref({ collection }))}
         />
