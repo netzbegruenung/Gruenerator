@@ -8,6 +8,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
 import { wissenMockPlugin } from './devMocks/wissenMock';
+import { precompressPlugin } from './precompressPlugin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -146,6 +147,7 @@ export default defineConfig(({ command }) => ({
     ...(!isTauri ? [tauriStubPlugin()] : []),
     preloadFontsPlugin(),
     nonBlockingEntryCssPlugin(),
+    precompressPlugin({ disabled: isNativeBuild || process.env.VITE_PRECOMPRESS === '0' }),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
@@ -333,28 +335,12 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 300,
     outDir: 'build',
     reportCompressedSize: false,
-    // Vite's default modulePreload eagerly emits <link rel="modulepreload">
-    // for every chunk reachable from the entry's static graph — including
-    // the heavy named chunks declared in `advancedChunks.groups` below.
-    // That defeats code-splitting: a 7 MB `vendor-blocknote-export` chunk
-    // only used by the docs editor's Export action would be preloaded on
-    // /login. Filter the preload list to drop those named lazy chunks; they
-    // still load on-demand when their consuming route or action triggers
-    // the dynamic import.
-    //
-    // EXCEPTION: `vendor-react` (the React runtime + react-query) is eager
-    // core — it loads on every page — so it must STAY preloaded. The negative
-    // lookahead keeps it while still dropping every other `vendor-*` leaf.
-    // The catch-all core chunk is named `vendor` (no hyphen) so it is never
-    // matched here and stays preloaded too.
-    modulePreload: {
-      polyfill: true,
-      resolveDependencies: (_filename, deps) =>
-        deps.filter((d) => {
-          const base = d.split('/').pop() ?? '';
-          return !/^(vendor-(?!react-)|pkg-canvas-editor)/.test(base);
-        }),
-    },
+    // Vite's default modulePreload emits <link rel="modulepreload"> for the
+    // entry's STATIC graph only; dynamic imports are never preloaded, so lazy
+    // vendor chunks (blocknote export, canvas editor, ...) stay on demand and no
+    // filtering is needed. (A `resolveDependencies` filter on `vendor-*` /
+    // `pkg-canvas-editor` used to sit here; those chunk names no longer exist.)
+    modulePreload: { polyfill: true },
     cssMinify: true,
     emptyOutDir: true,
     rolldownOptions: {
@@ -394,7 +380,8 @@ export default defineConfig(({ command }) => ({
           }
           return `assets/${base}-[hash][extname]`;
         },
-        // NATURAL code-splitting: the ONLY forced group is `vendor-react`.
+        // NATURAL code-splitting plus three groups: `vendor-react` and, for the
+        // entry's static closure, `boot-vendor` / `boot-app` (see below).
         // Everything else (app code, workspace packages, node_modules) is split
         // by Rolldown's own reachability analysis, so a library reached only via
         // a lazy() route lands in that route's async chunk — and so does its CSS
@@ -406,9 +393,19 @@ export default defineConfig(({ command }) => ({
         // chunk holding React-DOM/react-query, so `React` was null → "Cannot read
         // properties of null (reading 'useEffect')". Pinning the ENTIRE React
         // runtime — react, react-dom, scheduler, use-sync-external-store AND
-        // @tanstack/react-query/-table — into one eager chunk means no async
-        // chunk can ever see a half-initialized React. react-query/-table MUST
-        // stay here.
+        // @tanstack/react-query — into one eager chunk means no async
+        // chunk can ever see a half-initialized React. react-query MUST stay
+        // here. (@tanstack/react-table is NOT pinned: its only importer is the
+        // admin users tab, so it follows that lazy route.)
+        //
+        // `boot-vendor` / `boot-app` collapse the entry's static closure (the
+        // `$initial` tag: modules reachable from the entry through static
+        // imports only) into a few files instead of ~270 tiny ones — every file
+        // before first paint costs a request, a compression context and parse
+        // overhead. Lazy-only modules are never tagged `$initial`, so nothing
+        // heavy moves into the boot path; `scripts/check-entry-closure.mjs`
+        // guards that. src/index.jsx is excluded so the entry stays its own
+        // chunk (otherwise the manifest loses `isEntry`).
         //
         // The previous design ALSO used a catch-all `vendor` chunk + named heavy
         // leaf groups to tame the auto-splitter. That was only needed because
@@ -431,8 +428,20 @@ export default defineConfig(({ command }) => ({
                     // react-dom/server is excluded: it's a leaf only reached via a
                     // dynamic import (canvas IllustrationPrimitive), so pinning it
                     // here would ship it eagerly on every page.
-                    test: /[\\/]node_modules[\\/](react|react-dom(?![\\/](server|cjs[\\/]react-dom-server))|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
+                    test: /[\\/]node_modules[\\/](react|react-dom(?![\\/](server|cjs[\\/]react-dom-server))|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core))[\\/]/,
                     priority: 100,
+                  },
+                  {
+                    name: 'boot-vendor',
+                    tags: ['$initial'],
+                    test: /[\\/]node_modules[\\/]/,
+                    priority: 50,
+                  },
+                  {
+                    name: 'boot-app',
+                    tags: ['$initial'],
+                    test: (id) => !/[\\/]src[\\/]index\.jsx$/.test(id),
+                    priority: 40,
                   },
                 ],
               },
