@@ -21,9 +21,12 @@
 import { parseDataUrl } from '../utils/dataUrl.js';
 
 import {
+  FILE_TRANSFER_CHUNK_BYTES,
   hasNativeHost,
+  HOST_CAPABILITY_FILE_TRANSFER,
   HOST_CAPABILITY_SHARE,
   hostSupports,
+  parseHostMessage,
   postToNativeHost,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
@@ -60,6 +63,18 @@ let desktopSaver: DesktopSaver | null = null;
 export function registerDesktopSaver(saver: DesktopSaver | null): void {
   desktopSaver = saver;
 }
+
+/** Thrown when the host refused or stopped answering a transfer in pieces. */
+export class NativeTransferFailedError extends Error {
+  constructor(reason: string) {
+    super('Die Datei konnte nicht an die App übergeben werden.');
+    this.name = 'NativeTransferFailedError';
+    this.cause = reason;
+  }
+}
+
+/** How long the page waits for the host to acknowledge one chunk. */
+const FILE_TRANSFER_ACK_TIMEOUT_MS = 30_000;
 
 /** True when this base64 payload would exceed what the bridge accepts. */
 export function exceedsNativeLimit(base64: string): boolean {
@@ -104,6 +119,98 @@ function postToHost(base64: string, mime: string, filename: string): void {
 }
 
 /**
+ * Base64 of one chunk. Through `arrayBuffer` rather than FileReader so it also
+ * runs in the node test lane; `btoa` over 32 KiB pieces keeps the intermediate
+ * string small (and a multiple of 3, so the pieces concatenate without padding).
+ */
+async function chunkToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let base64 = '';
+  const step = 3 * 1024 * 11;
+  for (let i = 0; i < bytes.length; i += step) {
+    base64 += btoa(String.fromCharCode(...bytes.subarray(i, i + step)));
+  }
+  return base64;
+}
+
+/**
+ * The host's answers to one transfer: `waitFor(n)` resolves once the host has
+ * acknowledged `n` chunks and rejects on `FILE_TRANSFER_FAILED` or silence.
+ */
+function hostAcks(transferId: string) {
+  let received = -1;
+  let failure: string | null = null;
+  let wake: (() => void) | null = null;
+  const onMessage = (event: Event) => {
+    const message = parseHostMessage((event as MessageEvent).data);
+    if (message === null || !('transferId' in message) || message.transferId !== transferId) {
+      return;
+    }
+    if (message.type === 'FILE_TRANSFER_ACK') received = Math.max(received, message.received);
+    if (message.type === 'FILE_TRANSFER_FAILED') failure = message.reason;
+    wake?.();
+  };
+  // react-native-webview delivers to `document` on Android, `window` on iOS.
+  window.addEventListener('message', onMessage);
+  document.addEventListener('message', onMessage);
+
+  return {
+    waitFor(count: number): Promise<void> {
+      return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          wake = null;
+          reject(new NativeTransferFailedError('ack timeout'));
+        }, FILE_TRANSFER_ACK_TIMEOUT_MS);
+        const check = () => {
+          if (failure === null && received < count) return;
+          clearTimeout(timer);
+          wake = null;
+          if (failure !== null) reject(new NativeTransferFailedError(failure));
+          else resolve();
+        };
+        wake = check;
+        check();
+      });
+    },
+    dispose() {
+      window.removeEventListener('message', onMessage);
+      document.removeEventListener('message', onMessage);
+    },
+  };
+}
+
+/**
+ * Hands a blob to the host in acknowledged pieces, for files one
+ * `DOWNLOAD_FILE` cannot carry. One chunk is in flight at a time, so neither
+ * side ever holds more than a chunk of base64 — the page reads each slice only
+ * when the host is ready for it.
+ */
+async function transferInChunks(blob: Blob, filename: string, mime: string): Promise<void> {
+  const transferId = crypto.randomUUID();
+  const acks = hostAcks(transferId);
+  try {
+    postToNativeHost({ type: 'FILE_TRANSFER_BEGIN', transferId, filename, mime, size: blob.size });
+    await acks.waitFor(0);
+    const chunks = Math.ceil(blob.size / FILE_TRANSFER_CHUNK_BYTES);
+    for (let index = 0; index < chunks; index++) {
+      const start = index * FILE_TRANSFER_CHUNK_BYTES;
+      const data = await chunkToBase64(blob.slice(start, start + FILE_TRANSFER_CHUNK_BYTES));
+      postToNativeHost({ type: 'FILE_TRANSFER_CHUNK', transferId, index, data });
+      await acks.waitFor(index + 1);
+    }
+    postToNativeHost({ type: 'FILE_TRANSFER_END', transferId });
+  } catch (error) {
+    postToNativeHost({ type: 'FILE_TRANSFER_ABORT', transferId });
+    throw error;
+  } finally {
+    acks.dispose();
+  }
+}
+
+/** Base64 length of `bytes` raw bytes. */
+const base64Length = (bytes: number) => Math.ceil(bytes / 3) * 4;
+
+/**
  * Hands a base64 data URL to the user.
  *
  * Separate from {@link downloadBlob} because the canvas editor already holds a
@@ -140,6 +247,16 @@ export async function downloadBlob(blob: Blob, filename: string): Promise<void> 
   }
   if (!hasNativeHost()) {
     clickAnchor(URL.createObjectURL(blob), filename, true);
+    return;
+  }
+  // In pieces only what one message cannot carry: everything smaller keeps the
+  // path every shipped binary understands.
+  if (
+    base64Length(blob.size) > WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH &&
+    hostSupports(HOST_CAPABILITY_FILE_TRANSFER)
+  ) {
+    const mime = blob.type || 'application/octet-stream';
+    await transferInChunks(blob, sanitizeDownloadFilename(filename), mime);
     return;
   }
   // readAsDataURL rather than btoa over a binary string: btoa doubles the

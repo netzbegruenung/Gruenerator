@@ -5,11 +5,17 @@ import {
   downloadDataUrl,
   exceedsNativeLimit,
   NativeDownloadTooLargeError,
+  NativeTransferFailedError,
   pickShareRoute,
   registerDesktopSaver,
   shareDataUrlViaNativeHost,
 } from './download.js';
-import { HOST_CAPABILITIES_GLOBAL, WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH } from './webviewBridge.js';
+import {
+  FILE_TRANSFER_CHUNK_BYTES,
+  HOST_CAPABILITIES_GLOBAL,
+  HOST_CAPABILITY_FILE_TRANSFER,
+  WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
+} from './webviewBridge.js';
 
 /**
  * Only the NATIVE path is exercised here, on purpose: it is the branch that
@@ -196,5 +202,80 @@ describe('shareDataUrlViaNativeHost', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('downloadBlob — transfer in pieces', () => {
+  /** A host that acknowledges every message on the next tick, or fails on `failAt`. */
+  function withChunkingHost(options: { capability: boolean; failAt?: number }) {
+    const posted: Record<string, unknown>[] = [];
+    const win = new EventTarget() as EventTarget & Record<string, unknown>;
+    const doc = new EventTarget();
+    const reply = (data: unknown) =>
+      setTimeout(() =>
+        win.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) }))
+      );
+    win.ReactNativeWebView = {
+      postMessage: (raw: string) => {
+        const message = JSON.parse(raw) as Record<string, unknown>;
+        posted.push(message);
+        const transferId = message.transferId;
+        const received =
+          message.type === 'FILE_TRANSFER_BEGIN'
+            ? 0
+            : message.type === 'FILE_TRANSFER_CHUNK'
+              ? (message.index as number) + 1
+              : null;
+        if (received === null) return;
+        if (options.failAt === received) {
+          reply({ type: 'FILE_TRANSFER_FAILED', transferId, reason: 'disk full' });
+        } else {
+          reply({ type: 'FILE_TRANSFER_ACK', transferId, received });
+        }
+      },
+    };
+    if (options.capability) win[HOST_CAPABILITIES_GLOBAL] = [HOST_CAPABILITY_FILE_TRANSFER];
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('document', doc);
+    return posted;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Just over what one `DOWNLOAD_FILE` carries. */
+  const bigBlob = () => {
+    const bytes = new Uint8Array((WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH / 4) * 3 + 10);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
+    return { bytes, blob: new Blob([bytes], { type: 'video/mp4' }) };
+  };
+
+  it('sends begin, acknowledged chunks that add up to the file, and end', async () => {
+    const posted = withChunkingHost({ capability: true });
+    const { bytes, blob } = bigBlob();
+
+    await downloadBlob(blob, 'Mein Video 1/2.mp4');
+
+    const begin = posted[0];
+    expect(begin).toMatchObject({
+      type: 'FILE_TRANSFER_BEGIN',
+      filename: 'Mein Video 1-2.mp4',
+      mime: 'video/mp4',
+      size: bytes.length,
+    });
+    const chunks = posted.filter((m) => m.type === 'FILE_TRANSFER_CHUNK');
+    expect(chunks.map((c) => c.index)).toEqual(chunks.map((_, i) => i));
+    expect(chunks.length).toBe(Math.ceil(bytes.length / FILE_TRANSFER_CHUNK_BYTES));
+    const joined = Buffer.concat(chunks.map((c) => Buffer.from(c.data as string, 'base64')));
+    expect(joined.equals(Buffer.from(bytes))).toBe(true);
+    expect(posted.at(-1)).toEqual({ type: 'FILE_TRANSFER_END', transferId: begin?.transferId });
+  });
+
+  it('aborts and rejects when the host fails the transfer', async () => {
+    const posted = withChunkingHost({ capability: true, failAt: 2 });
+    await expect(downloadBlob(bigBlob().blob, 'a.mp4')).rejects.toBeInstanceOf(
+      NativeTransferFailedError
+    );
+    expect(posted.at(-1)?.type).toBe('FILE_TRANSFER_ABORT');
+    expect(posted.filter((m) => m.type === 'FILE_TRANSFER_CHUNK')).toHaveLength(2);
   });
 });
