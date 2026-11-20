@@ -107,7 +107,13 @@ export function NewsletterCard() {
       </div>
 
       {!status && (
-        <Button variant="brand" size="lg" className="w-full" onClick={() => setOpen(true)}>
+        <Button
+          variant="brand"
+          size="lg"
+          // Full width: on a phone 16 px semibold and 44 px tall, like „Mehr anzeigen".
+          className="w-full max-md:h-11 max-md:text-base max-md:font-semibold"
+          onClick={() => setOpen(true)}
+        >
           Newsletter abonnieren
         </Button>
       )}

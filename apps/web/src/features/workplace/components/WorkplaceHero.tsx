@@ -24,11 +24,11 @@ export function WorkplaceHero({
     // Left-aligned on the same edge as the sections below: one reading axis, not a
     // centred block over a left-aligned page. Search ends 40 px above the first
     // section, the same rhythm as between sections.
-    <div className={cn('pb-4 sm:pt-4', textHiddenOnPhone && 'max-sm:pb-0')}>
+    <div className={cn('pb-4 sm:pt-4', textHiddenOnPhone && 'max-md:pb-0')}>
       <h1
         className={cn(
           'm-0 font-[Raleway,PT_Sans,Arial,sans-serif] text-[26px] font-bold leading-[1.15] tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] sm:text-[32px] lg:text-[36px]',
-          textHiddenOnPhone && 'max-sm:sr-only'
+          textHiddenOnPhone && 'max-md:sr-only'
         )}
       >
         {title}
@@ -37,7 +37,7 @@ export function WorkplaceHero({
         <p
           className={cn(
             'm-0 mt-2 text-base text-grey-600 [text-wrap:pretty] dark:text-grey-400',
-            textHiddenOnPhone && 'max-sm:hidden'
+            textHiddenOnPhone && 'max-md:hidden'
           )}
         >
           {subtitle}
@@ -48,7 +48,7 @@ export function WorkplaceHero({
         <div
           className={cn(
             'mt-5 max-w-[640px] sm:mt-6 [&>*]:mx-0 [&>*]:mt-0',
-            textHiddenOnPhone && 'max-sm:mt-0'
+            textHiddenOnPhone && 'max-md:mt-0'
           )}
         >
           {children}

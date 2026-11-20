@@ -112,6 +112,6 @@ describe('RecentlyCreatedSection layout', () => {
     const { container } = renderWithProviders(<RecentlyCreatedSection />);
     loading = false;
 
-    expect(container.querySelectorAll('section > div > div')).toHaveLength(4);
+    expect(container.querySelectorAll('section > .grid > div')).toHaveLength(4);
   });
 });

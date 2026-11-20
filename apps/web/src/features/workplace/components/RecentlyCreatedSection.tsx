@@ -654,7 +654,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
               onClick={() => setExpanded((prev) => !prev)}
               aria-expanded={expanded}
               aria-controls={gridId}
-              className="mt-md self-center rounded-full px-5 max-sm:h-11 max-sm:w-full max-sm:self-stretch"
+              className="mt-md self-center rounded-full px-5 max-md:h-11 max-md:w-full max-md:self-stretch max-md:text-base max-md:font-semibold"
             >
               {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
             </Button>
