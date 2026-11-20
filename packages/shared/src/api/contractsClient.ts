@@ -215,9 +215,9 @@ const VALIDATED_CLIENT_OPTS = {
 // later the first time. The type of `ContractsClient` is derived from the
 // contract TYPES below (type-only, erased at build time) and is unchanged.
 //
-// `@gruenerator/contracts` has no per-contract subpath exports, so the first
-// call of ANY namespace loads the whole contracts module as one lazy chunk,
-// not just that namespace's contract. It is still out of the boot closure.
+// The contract values come from `./contractsRegistry.ts`, one lazy chunk for
+// all namespaces (contracts that boot-path modules import by name stay in the
+// entry anyway). It is out of the boot closure.
 
 type ContractModule = typeof ContractsModule;
 
@@ -346,12 +346,17 @@ export type ContractsClient = {
 
 type NamespaceClient = Record<string, unknown>;
 
-let contractsModule: Promise<ContractModule> | null = null;
+type ContractRegistry = Pick<ContractModule, Namespaces[NamespaceName]['contract']>;
+
+let contractsModule: Promise<ContractRegistry> | null = null;
 const namespaceClients = new Map<NamespaceName, Promise<NamespaceClient>>();
 
-function loadContracts(): Promise<ContractModule> {
+function loadContracts(): Promise<ContractRegistry> {
   if (!contractsModule) {
-    const pending = import('@gruenerator/contracts');
+    // Not `import('@gruenerator/contracts')`: see contractsRegistry.ts.
+    const pending: Promise<ContractRegistry> = import('./contractsRegistry.js').then(
+      (m) => m.CONTRACTS
+    );
     contractsModule = pending;
     // A failed chunk load (offline, stale deploy) must not be cached forever.
     pending.catch(() => {
