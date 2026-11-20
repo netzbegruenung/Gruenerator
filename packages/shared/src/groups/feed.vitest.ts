@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { austauschItems, filterGroupFeed, groupFeedByKind, toGroupFeedItems } from './feed.js';
+import {
+  austauschItems,
+  filterGroupFeed,
+  groupFeedByKind,
+  postTitle,
+  toGroupFeedItems,
+} from './feed.js';
 
 const share = (over: Record<string, unknown> = {}) => ({
   shareId: 's',
@@ -340,5 +346,13 @@ describe('austauschItems', () => {
     const titles = austauschItems(items, new Set(['s-disc']), 's-foc').map((i) => i.title);
     expect(titles).toEqual(expect.arrayContaining(['Besprochen', 'Fokus']));
     expect(titles).not.toContain('Still');
+  });
+});
+
+describe('postTitle', () => {
+  it('shows mentions as plain names, not as stored tokens', () => {
+    expect(
+      postTitle('Hallo @[Lena Hoffmann](user:00000000-0000-4000-a000-0000000000b2) kannst du?', [])
+    ).toBe('Hallo @Lena Hoffmann kannst du?');
   });
 });
