@@ -89,6 +89,12 @@
           "path": "/studio/videoeditor"
         },
         {
+          "id": "studio-ki-schnitt",
+          "title": "KI-Schnitt",
+          "description": "Rohvideos automatisch schneiden",
+          "path": "/studio/ki-schnitt"
+        },
+        {
           "id": "parteitage",
           "title": "Parteitage",
           "description": "Reden als Reels",
@@ -246,6 +252,11 @@
       "title": "KI-Bild erstellen",
       "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
+    },
+    "tool-ki-schnitt": {
+      "title": "KI-Schnitt",
+      "path": "/studio/ki-schnitt",
+      "subtitle": "Aus Rohvideos einen fertigen Clip schneiden lassen"
     },
     "tool-marktplatz": {
       "title": "Marktplatz",

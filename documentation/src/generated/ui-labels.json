@@ -215,6 +215,11 @@
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
     "path": "/studio"
   },
+  "catalog.tool-ki-schnitt": {
+    "title": "KI-Schnitt",
+    "subtitle": "Aus Rohvideos einen fertigen Clip schneiden lassen",
+    "path": "/studio/ki-schnitt"
+  },
   "catalog.tool-marktplatz": {
     "title": "Marktplatz",
     "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken",
@@ -498,6 +503,11 @@
     "title": "Sticker & Hintergründe",
     "subtitle": "Sticker erstellen, teilen & entdecken",
     "path": "/studio/sticker"
+  },
+  "workplace.studio-ki-schnitt": {
+    "title": "KI-Schnitt",
+    "subtitle": "Rohvideos automatisch schneiden",
+    "path": "/studio/ki-schnitt"
   },
   "workplace.studio-videoeditor": {
     "title": "Video-Editor",
