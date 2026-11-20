@@ -56,6 +56,7 @@ import {
   memoryContract,
   emailContract,
   feedbackContract,
+  newsletterContract,
   contentReportContract,
   adminReportsContract,
   modelPreferencesContract,
@@ -327,6 +328,7 @@ const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS
 const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
+const _newsletterClient = () => initClient(newsletterContract, CLIENT_OPTS);
 const _contentReportsClient = () => initClient(contentReportContract, CLIENT_OPTS);
 const _adminReportsClient = () => initClient(adminReportsContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
@@ -421,6 +423,7 @@ export interface ContractsClient {
   memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
+  newsletter: ReturnType<typeof _newsletterClient>;
   contentReports: ReturnType<typeof _contentReportsClient>;
   adminReports: ReturnType<typeof _adminReportsClient>;
   translation: ReturnType<typeof _translationClient>;
@@ -528,6 +531,7 @@ export function getContractsClient(): ContractsClient {
     memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
+    newsletter: _newsletterClient(),
     contentReports: _contentReportsClient(),
     adminReports: _adminReportsClient(),
     translation: _translationClient(),
