@@ -40,6 +40,15 @@ export default function FocusedLayout() {
         options={{ ...toolHeader, title: 'Marktplatz' }}
       />
       <Stack.Screen name="sticker-neu" options={{ ...toolHeader, title: 'Sticker erstellen' }} />
+      <Stack.Screen
+        name="projekte/[id]/text"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.6, 1],
+          sheetGrabberVisible: true,
+          animation: 'default',
+        }}
+      />
     </Stack>
   );
 }

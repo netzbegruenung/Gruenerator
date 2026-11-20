@@ -3,6 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -13,10 +14,12 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 
+import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
 import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
 import { SegmentedControl } from '../../../../components/common/SegmentedControl';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
+import { buildAddActions } from '../../../../components/projekte/addMenu';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
@@ -25,6 +28,7 @@ import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
+import { useProjectAddActions } from '../../../../hooks/useProjectAddActions';
 import { useShareItemActions } from '../../../../hooks/useShareItemActions';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
@@ -58,9 +62,12 @@ export default function ProjektDetailScreen() {
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
   const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
   const shareActions = useShareItemActions(id ?? null, isAdmin);
+  const addActions = useProjectAddActions(id ?? null);
+  const addMenu = useMemo(() => buildAddActions(), []);
 
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
   const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
   const scrollRef = useRef<ScrollViewInstance>(null);
   // Karte und Liste melden ihre Lage getrennt (die Karte zuerst); gescrollt wird einmal, wenn beide da sind.
@@ -97,18 +104,18 @@ export default function ProjektDetailScreen() {
         <View style={styles.headerActions}>
           {canAdd ? (
             <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/(focused)/projekte/[id]/hinzufuegen',
-                  params: { id: id ?? '' },
-                })
-              }
+              onPress={() => setAddOpen(true)}
+              disabled={addActions.busy}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Inhalte hinzufügen"
               style={[styles.headerButton, { backgroundColor: theme.card }]}
             >
-              <Ionicons name="add" size={22} color={theme.text} />
+              {addActions.busy ? (
+                <ActivityIndicator size="small" color={theme.text} />
+              ) : (
+                <Ionicons name="add" size={22} color={theme.text} />
+              )}
             </Pressable>
           ) : null}
           <Pressable
@@ -273,6 +280,14 @@ export default function ProjektDetailScreen() {
         )}
       </ScrollView>
 
+      <MenuActionSheet
+        visible={addOpen}
+        theme={theme}
+        heading="Zum Projekt hinzufügen"
+        actions={addMenu}
+        onSelect={addActions.run}
+        onClose={() => setAddOpen(false)}
+      />
       {id ? (
         <GroupCommentsSheet groupId={id} item={commentsFor} onClose={() => setCommentsFor(null)} />
       ) : null}
