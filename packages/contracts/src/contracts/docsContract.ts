@@ -260,6 +260,7 @@ export const docsContract = c.router(
       responses: {
         201: collaborativeDocumentSchema,
         401: docsErrorSchema,
+        403: docsErrorSchema,
         500: docsErrorWithDetailsSchema,
       },
       summary: 'Create a new collaborative document',

@@ -36,6 +36,8 @@ import {
   trashCollaborativeDocument,
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
+import { CREATE_IN_GROUP_FORBIDDEN, createInGroup } from '../../services/groups/createInGroup.js';
+import { GroupShareForbiddenError } from '../../services/groups/groupShareWriter.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -337,12 +339,21 @@ export const boardsContractRouter = s.router(boardsContract, {
 
   createBoard: async (args) => {
     try {
-      const { title = 'Neues Board', boardType } = args.body;
+      const { title = 'Neues Board', boardType, groupId } = args.body;
       const userId = getAuthedUser(args.req).id;
 
-      const board = await createBoardDocument(title, userId, boardType);
+      const board = groupId
+        ? await createInGroup({
+            userId,
+            groupId,
+            insert: (query) => createBoardDocument(title, userId, boardType, query),
+          })
+        : await createBoardDocument(title, userId, boardType);
       return { status: 201 as const, body: board as BoardDocument };
     } catch (error) {
+      if (error instanceof GroupShareForbiddenError) {
+        return { status: 403 as const, body: { error: CREATE_IN_GROUP_FORBIDDEN } };
+      }
       log.error('[Boards Contract] Error creating board:', error);
       return {
         status: 500 as const,

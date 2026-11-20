@@ -33,6 +33,7 @@ import {
   trashCollaborativeDocument,
   type QueryRunner,
 } from '../docs/CollaborativeDocumentService.js';
+import { type TxQuery } from '../groups/createInGroup.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { type UploadSource } from '../sharedMediaService.js';
 
@@ -321,7 +322,9 @@ export interface CreateCanvasInput {
 
 export async function createCanvas(
   userId: string,
-  input: CreateCanvasInput
+  input: CreateCanvasInput,
+  /** Eine offene Transaktion (`createInGroup`); ohne sie der Pool. */
+  query: TxQuery = (text, params) => db.query(text, params)
 ): Promise<CanvasDocument> {
   const {
     title = 'Neuer Canvas',
@@ -332,7 +335,7 @@ export async function createCanvas(
     format = DEFAULT_CANVAS_FORMAT,
   } = input;
 
-  const docRows = (await db.query(
+  const docRows = (await query(
     `INSERT INTO collaborative_documents
        (title, content, created_by, last_edited_by, document_subtype, is_public)
      VALUES ($1, $2, $3, $3, $4, false)
@@ -353,7 +356,7 @@ export async function createCanvas(
   >;
   const doc = docRows[0];
 
-  const sidecarRows = (await db.query(
+  const sidecarRows = (await query(
     `INSERT INTO canvas_documents
        (document_id, template_type, base_template_id, page_count, initial_state, format)
      VALUES ($1, $2, $3, $4, $5, $6)
