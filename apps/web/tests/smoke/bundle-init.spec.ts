@@ -22,12 +22,26 @@ import { test, expect } from '@playwright/test';
  * stubs etc.) are tolerated by the matcher.
  */
 
+// Each engine words the same error differently, and the config runs all three.
+// Without the Firefox/WebKit variants the test is green there by construction
+// (measured: WebKit matched 1 of 4 error kinds, Firefox 2 of 4).
 const CHUNK_INIT_PATTERNS = [
   /TypeError: \w+ is not a function/i,
-  /Cannot read propert(y|ies) of undefined/i,
-  /Cannot read propert(y|ies) of null/i,
+  // V8
+  /Cannot read propert(y|ies) of (undefined|null)/i,
   /\w+ is not defined/i,
+  // SpiderMonkey
+  /can't access property .+ (of|is) (undefined|null)/i,
+  // JavaScriptCore
+  /(undefined|null) is not an object/i,
+  /Can't find variable/i,
 ];
+
+// Uncaught syntax errors mean a chunk uses syntax the engine cannot parse —
+// the cross-browser failure the build target is meant to prevent. Only
+// matched on pageerror: console errors carry JSON.parse noise from the
+// missing API.
+const PAGE_ONLY_PATTERNS = [/^SyntaxError:/];
 
 const ROUTES = [
   '/login',
@@ -66,7 +80,9 @@ for (const route of ROUTES) {
 
     page.on('pageerror', (err) => {
       const msg = `${err.name}: ${err.message}`;
-      if (CHUNK_INIT_PATTERNS.some((p) => p.test(msg))) errors.push(`pageerror ${msg}`);
+      if ([...CHUNK_INIT_PATTERNS, ...PAGE_ONLY_PATTERNS].some((p) => p.test(msg))) {
+        errors.push(`pageerror ${msg}`);
+      }
     });
 
     page.on('console', (msg) => {
