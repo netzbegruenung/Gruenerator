@@ -19,9 +19,12 @@ import {
   TextInput,
   type ScrollViewInstance,
 } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
+import { Fab } from '../../../../components/common/Fab';
 import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
 import { SegmentedControl } from '../../../../components/common/SegmentedControl';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
@@ -67,6 +70,7 @@ export default function ProjektDetailScreen() {
   const router = useRouter();
   const theme = useTheme();
   const tone = useProjekteTone();
+  const insets = useSafeAreaInsets();
 
   const detailsQuery = useGroupDetails(id);
   const feedQuery = useGroupFeed(id);
@@ -94,6 +98,12 @@ export default function ProjektDetailScreen() {
   const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
   const [focusShareId, setFocusShareId] = useState<string | null>(beitrag ?? null);
   const [query, setQuery] = useState('');
+  // Die Suche wartet hinter einem FAB statt als feste Zeile über dem Austausch.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = () => {
+    setQuery('');
+    setSearchOpen(false);
+  };
   const [addOpen, setAddOpen] = useState(false);
   const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -136,7 +146,7 @@ export default function ProjektDetailScreen() {
         if (!shareId) return;
         setDiscussed((prev) => new Set(prev).add(shareId));
         setFocusShareId(shareId);
-        setQuery('');
+        closeSearch();
         focus.current = { listY: null, cardY: null, done: false };
         setChosenView('austausch');
       };
@@ -315,18 +325,6 @@ export default function ProjektDetailScreen() {
                   placeholder={isTeam ? 'Schreib etwas an die Gruppe …' : 'Schreib einen Beitrag …'}
                 />
               ) : null}
-              <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
-                <Ionicons name="search" size={18} color={theme.textSecondary} />
-                <TextInput
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder="Im Austausch suchen"
-                  placeholderTextColor={theme.textSecondary}
-                  accessibilityLabel="Im Austausch suchen"
-                  style={[styles.searchInput, { color: theme.text }]}
-                  returnKeyType="search"
-                />
-              </View>
             </View>
 
             {feedQuery.isPending ? (
@@ -373,6 +371,47 @@ export default function ProjektDetailScreen() {
         )}
       </ScrollView>
 
+      {activeView === 'austausch' ? (
+        searchOpen ? (
+          <KeyboardStickyView
+            offset={{ closed: 0, opened: Math.max(insets.bottom, spacing.medium) - spacing.small }}
+            style={[styles.searchDock, { bottom: Math.max(insets.bottom, spacing.medium) }]}
+          >
+            <View style={[styles.search, { backgroundColor: theme.card }]}>
+              <Ionicons name="search" size={18} color={theme.textSecondary} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                autoFocus
+                placeholder="Im Austausch suchen"
+                placeholderTextColor={theme.textSecondary}
+                accessibilityLabel="Im Austausch suchen"
+                style={[styles.searchInput, { color: theme.text }]}
+                returnKeyType="search"
+              />
+              <Pressable
+                onPress={closeSearch}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Suche schließen"
+              >
+                <Ionicons name="close" size={20} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+          </KeyboardStickyView>
+        ) : (
+          <Fab
+            icon="search"
+            accessibilityLabel="Im Austausch suchen"
+            onPress={() => setSearchOpen(true)}
+            style={{
+              backgroundColor: tone.accent,
+              bottom: Math.max(insets.bottom, spacing.medium),
+            }}
+          />
+        )
+      ) : null}
+
       <MenuActionSheet
         visible={addOpen}
         theme={theme}
@@ -408,15 +447,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  searchDock: {
+    position: 'absolute',
+    left: spacing.medium,
+    right: spacing.medium,
+    alignItems: 'center',
+  },
   search: {
-    height: 44,
-    borderRadius: 12,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    height: 48,
+    borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
-  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 44 },
+  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 48 },
   emptyLine: {
     fontFamily: BODY_FONT,
     fontSize: 15,
