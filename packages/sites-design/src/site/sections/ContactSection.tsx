@@ -4,7 +4,13 @@ import { FaEnvelope, FaPhone } from 'react-icons/fa6';
 import { sectionGround } from '../../model/grounds.js';
 import { safeHref, telHref } from '../../model/links.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 import { SocialLinks } from '../SocialLinks.js';
@@ -24,7 +30,8 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
   const mailHref = email === '' ? null : safeHref(`mailto:${email}`);
   const phone = snapshot.contact_phone.trim();
   const phoneHref = phone === '' ? null : telHref(phone);
-  const hasRows = mailHref !== null || phoneHref !== null;
+  const editing = ctx.edit !== null;
+  const hasRows = mailHref !== null || phoneHref !== null || editing;
   const hasSocial = Object.keys(snapshot.social_links).length > 0;
 
   return (
@@ -54,29 +61,33 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
       <div className={CONTAINER}>
         <div className="site:mb-8">
           <SectionHeading id={`${anchor}-titel`} field="sections.contact.title">
-            {title}
+            {editableText(ctx, 'sections.contact.title', copy.contactDefault, title)}
           </SectionHeading>
         </div>
         {hasRows && (
           <ul className="site:flex site:flex-col site:gap-2">
-            {mailHref && (
+            {(mailHref || editing) && (
               <li className="site:min-w-0">
-                <a href={mailHref} data-field="contact_email" className={ROW_LINK}>
+                <a href={mailHref ?? undefined} data-field="contact_email" className={ROW_LINK}>
                   <FaEnvelope aria-hidden className="site:size-5 site:shrink-0 site:text-accent" />
                   <span className="site:min-w-0">
                     <span className="site:block site:text-small">{copy.email}</span>
-                    <span className={ROW_VALUE}>{email}</span>
+                    <span className={ROW_VALUE}>
+                      {editableText(ctx, 'contact_email', copy.editEmail, email)}
+                    </span>
                   </span>
                 </a>
               </li>
             )}
-            {phoneHref && (
+            {(phoneHref || editing) && (
               <li>
-                <a href={phoneHref} data-field="contact_phone" className={ROW_LINK}>
+                <a href={phoneHref ?? undefined} data-field="contact_phone" className={ROW_LINK}>
                   <FaPhone aria-hidden className="site:size-5 site:shrink-0 site:text-accent" />
                   <span className="site:min-w-0">
                     <span className="site:block site:text-small">{copy.phone}</span>
-                    <span className={ROW_VALUE}>{phone}</span>
+                    <span className={ROW_VALUE}>
+                      {editableText(ctx, 'contact_phone', copy.editPhone, phone)}
+                    </span>
                   </span>
                 </a>
               </li>

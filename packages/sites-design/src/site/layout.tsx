@@ -9,11 +9,33 @@ import { type SiteRenderMode } from '../model/visibility.js';
 
 export type SiteCopy = ReturnType<typeof siteCopy>;
 
+/**
+ * Editor seam: when set, a section renders an editable widget for a text field in place of its
+ * static value and keeps every wrapper element, so the page looks the same while it is edited.
+ * The editor resolves `field` (a `data-field` path) to the draft value itself. Never set when the
+ * public site or the read-only preview renders.
+ */
+export interface SiteEditSlots {
+  text(field: string, placeholder: string): ReactNode;
+  richText(field: string, placeholder: string): ReactNode;
+}
+
 export interface SectionContext {
   snapshot: PublishedSiteSnapshot;
   mode: SiteRenderMode;
   copy: SiteCopy;
   visible: readonly SiteSectionId[];
+  edit: SiteEditSlots | null;
+}
+
+/** The static value, or the editor's widget for `field` while editing. */
+export function editableText(
+  ctx: SectionContext,
+  field: string,
+  placeholder: string,
+  value: ReactNode
+): ReactNode {
+  return ctx.edit ? ctx.edit.text(field, placeholder) : value;
 }
 
 export const CONTAINER = 'site:mx-auto site:w-full site:max-w-page site:px-gutter';

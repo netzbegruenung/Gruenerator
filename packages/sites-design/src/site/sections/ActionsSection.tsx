@@ -2,7 +2,13 @@
 import { sectionGround } from '../../model/grounds.js';
 import { safeHref } from '../../model/links.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 
@@ -38,7 +44,12 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
               const href = safe?.startsWith('#') && !liveAnchors.includes(safe) ? null : safe;
               const text = (
                 <span data-field={`sections.actions.${i}.text`}>
-                  {action.text.trim() || copy.navActions}
+                  {editableText(
+                    ctx,
+                    `sections.actions.${i}.text`,
+                    copy.navActions,
+                    action.text.trim() || copy.navActions
+                  )}
                 </span>
               );
               return (

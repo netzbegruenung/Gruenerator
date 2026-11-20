@@ -36,6 +36,13 @@ export function siteCopy(locale: SupportedLocale) {
     emptyInstagram: 'Füge deinen Instagram-Namen hinzu',
     emptyContact: 'Noch keine Kontaktangaben',
     emptyHeroImage: 'Noch kein Bild',
+    // Placeholders of empty fields while the editor edits the page in place.
+    editTagline: 'Ein Satz über dich',
+    editBannerTitle: 'Überschrift',
+    editBannerSubtitle: 'Untertitel',
+    editThemeText: 'Worum geht es dir bei diesem Thema?',
+    editEmail: 'E-Mail-Adresse',
+    editPhone: 'Telefonnummer',
     instagram: 'Instagram',
     facebook: 'Facebook',
     twitter: 'X (Twitter)',

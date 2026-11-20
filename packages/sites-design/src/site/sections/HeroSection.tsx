@@ -3,7 +3,7 @@ import { stripGreeting } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext } from '../layout.js';
+import { CONTAINER, editableText, Section, type SectionContext } from '../layout.js';
 import { PortraitPlaceholder } from '../PortraitPlaceholder.js';
 import { SiteImage } from '../SiteImage.js';
 import { SocialLinks } from '../SocialLinks.js';
@@ -30,7 +30,7 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
           <p className="site:mb-5 site:text-small site:font-[700] site:tracking-[0.08em] site:uppercase">
             {copy.partyShort}
           </p>
-          {name === '' && mode === 'preview' ? (
+          {name === '' && mode === 'preview' && !ctx.edit ? (
             <h1
               id={headingId}
               data-field="site_title"
@@ -45,15 +45,18 @@ export function HeroSection({ ctx }: { ctx: SectionContext }) {
               className="site:text-display site:text-heading site:hyphens-manual site:wrap-anywhere"
             >
               {copy.heroGreeting}
-              <span data-field="site_title">{name}</span>!
+              <span data-field="site_title">
+                {editableText(ctx, 'site_title', copy.emptyName, name)}
+              </span>
+              !
             </h1>
           )}
-          {tagline !== '' && (
+          {(tagline !== '' || ctx.edit) && (
             <p
               data-field="tagline"
               className="site:mt-6 site:max-w-[32ch] site:text-lead site:wrap-anywhere"
             >
-              {tagline}
+              {editableText(ctx, 'tagline', copy.editTagline, tagline)}
             </p>
           )}
           <SocialLinks links={snapshot.social_links} copy={copy} className="site:mt-8" />

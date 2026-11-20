@@ -3,7 +3,13 @@ import { isRichTextDocEmpty } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 import { SiteRichText } from '../SiteRichText.js';
 
@@ -24,11 +30,19 @@ export function AboutSection({ ctx }: { ctx: SectionContext }) {
       <div className={`${CONTAINER} site:grid site:gap-8 site:md:grid-cols-12 site:lg:gap-x-8`}>
         <div className="site:md:col-span-5">
           <SectionHeading id={`${anchor}-titel`} field="sections.about.title">
-            {title}
+            {editableText(ctx, 'sections.about.title', copy.aboutDefault, title)}
           </SectionHeading>
         </div>
         <div className="site:text-lead site:md:col-span-7 site:md:pt-[1.625rem]">
-          {content ? (
+          {ctx.edit ? (
+            <div
+              data-rich-text=""
+              data-field="sections.about.content"
+              className="site:max-w-prose site:hyphens-auto"
+            >
+              {ctx.edit.richText('sections.about.content', copy.emptyAbout)}
+            </div>
+          ) : content ? (
             <SiteRichText content={content} headingOffset={1} field="sections.about.content" />
           ) : (
             <Placeholder field="sections.about.content" text={copy.emptyAbout} mode={ctx.mode} />
