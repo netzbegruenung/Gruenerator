@@ -94,7 +94,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Deine Werkzeuge',
           description:
-            'Unter „Bild & Video“ liegen Profilbild, Video, Voice, Transkription und die Mediathek, darunter weitere Werkzeuge wie Übersetzer und Scanner.',
+            'Unter „Mach mehr mit deinem Grünerator“ liegen Videos, Notebooks, Vorlagen, Profilbild, Vertonen & Transkribieren und der Übersetzer.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());

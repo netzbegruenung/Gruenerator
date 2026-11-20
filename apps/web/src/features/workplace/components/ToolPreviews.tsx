@@ -1,39 +1,35 @@
 import { type ReactNode } from 'react';
 
 /**
- * Small illustrations on the Bild & Video cards, shown instead of the tool icon.
+ * Small pictures on the „Mach mehr mit deinem Grünerator" cards, shown instead of the tool icon.
  *
- * The pictures were generated with FLUX.2 [klein] (Melious, `flux-2-klein-9b`),
- * flat pastel style without text, 384 px. The avatar is cut out (rembg,
- * `isnet-general-use`) so the sheet behind it carries our own colour.
+ * All from Unsplash (Unsplash licence: free use, no attribution required), cut to the sheet:
+ * - video.jpg       — film reels, Noom Peerapong (unsplash.com/photos/2uwFEAGUm6E)
+ * - notebooks.jpg   — reading woman, Art Institute of Chicago (A_JEIQvJ0Iw)
+ * - vorlagen.jpg    — botanical sunflower, Europeana (kKu1pSsNk54)
+ * - profilbild.jpg  — portrait in profile, Birmingham Museums Trust (laGUzKTY7mA)
+ * - voice.jpg       — sound wave, Susan Wilkinson (fMXyMuOxuYU)
+ * - uebersetzer.jpg — abstract painting, Fons Heijnsbroek (S1Cv0sXA7uI)
  */
 
-const preview = (name: string): ReactNode => (
+// `zoom` skips past an empty margin around the motif; a picture that fills its frame
+// (a whole painting) goes without it.
+const preview = (name: string, { zoom = true }: { zoom?: boolean } = {}): ReactNode => (
   <img
     src={`/arbeiten-previews/${name}.jpg`}
     alt=""
     loading="lazy"
     // Dimmed in dark mode so the light picture doesn't glare on the card.
-    // The motif fills the middle of the square; zoom past the empty margin.
-    className="size-full scale-125 object-cover dark:brightness-[.8]"
+    className={`size-full object-cover dark:brightness-[.8] ${zoom ? 'scale-125' : ''}`}
   />
 );
 
 /** The picture on the front sheet of a card, keyed by tool id. */
 export const TOOL_PREVIEWS: Partial<Record<string, ReactNode>> = {
-  'canvas-vorlagen': preview('vorlagen'),
-  profilbild: (
-    <img
-      src="/arbeiten-previews/profilbild.webp"
-      alt=""
-      loading="lazy"
-      // Transparent cutout: the tint is ours, the head sits at the sheet's bottom edge.
-      // The dark tint is already dark; only the (light) figure is dimmed, like the JPGs.
-      className="size-full bg-[#cfe6da] object-cover object-top pt-2 dark:bg-[#2c4a3c] dark:brightness-[.8]"
-    />
-  ),
   'reels-untertitel': preview('video'),
-  'studio-voice': preview('voice'),
-  transkription: preview('transkription'),
-  mediathek: preview('mediathek'),
+  wissen: preview('notebooks', { zoom: false }),
+  'canvas-vorlagen': preview('vorlagen', { zoom: false }),
+  profilbild: preview('profilbild'),
+  'studio-voice': preview('voice', { zoom: false }),
+  uebersetzer: preview('uebersetzer'),
 };

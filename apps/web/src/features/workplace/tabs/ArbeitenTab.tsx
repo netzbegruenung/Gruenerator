@@ -6,8 +6,6 @@ import {
   BriefingSection,
   MEDIA_GRID,
   MEDIA_TOOLS,
-  MORE_GRID,
-  MORE_TOOLS,
   MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
@@ -21,7 +19,7 @@ import { NewContentMenu } from '../components/NewContentMenu';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Grünerator Briefing, Bild & Video, Marktplatz, Weitere Werkzeuge.
+// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz.
 const ArbeitenTab = () => {
   return (
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
@@ -35,15 +33,14 @@ const ArbeitenTab = () => {
             <RecentlyCreatedSection headerAction={<NewContentMenu />} />
           </Suspense>
         </div>
-        <BriefingSection />
         <ToolCardsSection
-          title="Bild & Video"
+          title="Mach mehr mit deinem Grünerator"
           tools={MEDIA_TOOLS}
           gridClassName={MEDIA_GRID}
           data-tour="arbeiten-tools"
         />
+        <BriefingSection />
         <MarketplaceSection />
-        <ToolCardsSection title="Weitere Werkzeuge" tools={MORE_TOOLS} gridClassName={MORE_GRID} />
       </div>
     </PageContainer>
   );

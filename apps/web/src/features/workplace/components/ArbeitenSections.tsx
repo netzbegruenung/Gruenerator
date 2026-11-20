@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import {
   CANVAS_TOOLS,
+  OFFICE_TOOLS,
   STUDIO_WERKZEUGE,
   TOOL_MENUS,
   WORKPLACE_TOOLS,
@@ -144,6 +145,7 @@ interface ToolCard {
 }
 
 const ALL_TOOLS: ToolCard[] = [
+  ...OFFICE_TOOLS,
   ...CANVAS_TOOLS,
   ...STUDIO_WERKZEUGE,
   ...WORKPLACE_TOOLS,
@@ -161,47 +163,29 @@ function pickTools(entries: readonly { id: string; theme: string; title?: string
 }
 
 /**
- * Bild & Video: six cards in a 3 × 2 grid (two columns on phones). The cards sit on
- * changing pastels (`PREVIEW_GROUNDS`); `theme: 'canvas-ki'` only colours the icon fallback.
+ * „Mach mehr mit deinem Grünerator": six cards in a 3 × 2 grid (two columns on phones).
+ * Each card wears its tool's tile colour from `toolTheme`; Vertonen & transkribieren and the
+ * Übersetzer have no theme of their own and borrow coral and the neutral grey.
  */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
-// Most cards say what the tool does; the Mediathek keeps its name.
+// Every card says what the tool does.
 export const MEDIA_TOOLS = pickTools([
-  { id: 'canvas-vorlagen', theme: 'canvas-ki', title: 'Vorlagen durchsuchen' },
-  { id: 'profilbild', theme: 'canvas-ki', title: 'Profilbild erstellen' },
-  { id: 'reels-untertitel', theme: 'canvas-ki', title: 'Videos bearbeiten' },
-  { id: 'studio-voice', theme: 'canvas-ki', title: 'Texte vertonen' },
-  { id: 'transkription', theme: 'canvas-ki', title: 'Sitzungen transkribieren' },
-  { id: 'mediathek', theme: 'canvas-ki' },
-]);
-
-/** Three tools: one row of three, stacked on a phone so none stands alone. */
-export const MORE_GRID = 'grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4';
-
-// Weitere Werkzeuge: one pastel each — teal, coral, soft yellow.
-export const MORE_TOOLS = pickTools([
-  { id: 'uebersetzer', theme: 'canvas-vorlagen' },
-  { id: 'scanner', theme: 'bild-erweitern' },
-  { id: 'zeichenzaehler', theme: 'agents' },
+  { id: 'reels-untertitel', theme: 'mediathek', title: 'Videos bearbeiten' },
+  // The Notebooks live on /wissen (/notebooks redirects there).
+  { id: 'wissen', theme: 'wissen', title: 'Notebooks durchsuchen' },
+  { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
+  { id: 'profilbild', theme: 'profilbild', title: 'Profilbild erstellen' },
+  // Vertonen and Transkription become one tool; until then the card links to Voice as an example.
+  { id: 'studio-voice', theme: 'bild-erweitern', title: 'Vertonen & transkribieren' },
+  { id: 'uebersetzer', theme: 'weitere', title: 'Texte übersetzen' },
 ]);
 
 const TOOL_CARD =
   'group relative flex h-24 items-center overflow-hidden rounded-2xl px-4 no-underline transition-shadow ' +
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
-// Cards with a preview picture sit on a light pastel that changes from card to card
-// (mint, peach, sky, butter, rosé, lavender).
-const PREVIEW_GROUNDS = [
-  'bg-[#eaf4ee] dark:bg-[#17241d]',
-  'bg-[#fbeee6] dark:bg-[#2a1d16]',
-  'bg-[#e8f0f8] dark:bg-[#162130]',
-  'bg-[#faf4dc] dark:bg-[#26220f]',
-  'bg-[#f8e9ef] dark:bg-[#2a1720]',
-  'bg-[#efedf8] dark:bg-[#1f1b2e]',
-];
-
-function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
+function ToolCardLink({ tool }: { tool: ToolCard }) {
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
   const preview = TOOL_PREVIEWS[tool.id];
@@ -210,11 +194,10 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
       <span
         className={cn(
           // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
-          'relative z-10 max-w-[56%] text-[15px] font-bold leading-tight text-balance md:text-base',
-          preview
-            ? // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
-              'text-foreground-heading max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
-            : theme?.title
+          'relative z-10 max-w-[56%] text-[17px] font-bold leading-tight text-balance md:text-lg',
+          theme?.title,
+          // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
+          preview && 'max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
         )}
       >
         {tool.title}
@@ -251,12 +234,7 @@ function ToolCardLink({ tool, index }: { tool: ToolCard; index: number }) {
       </span>
     </>
   );
-  const className = cn(
-    TOOL_CARD,
-    preview
-      ? PREVIEW_GROUNDS[index % PREVIEW_GROUNDS.length]
-      : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')
-  );
+  const className = cn(TOOL_CARD, theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40');
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
       {body}
@@ -276,7 +254,7 @@ export function ToolCardsSection({
 }: {
   title: string;
   tools: ToolCard[];
-  /** Defaults to the page grid; Bild & Video uses 3 × 2. */
+  /** Defaults to the page grid; „Mach mehr mit deinem Grünerator" uses 3 × 2. */
   gridClassName?: string;
   'data-tour'?: string;
 }) {
@@ -284,9 +262,9 @@ export function ToolCardsSection({
   return (
     <ArbeitenSection title={title} {...rest}>
       <ul className={cn(gridClassName, 'm-0 list-none p-0')}>
-        {tools.map((tool, index) => (
+        {tools.map((tool) => (
           <li key={tool.id}>
-            <ToolCardLink tool={tool} index={index} />
+            <ToolCardLink tool={tool} />
           </li>
         ))}
       </ul>
