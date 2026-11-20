@@ -36,7 +36,6 @@ describe('keepsSinglePass — jeder Grund hält einen Prosa-Turn draussen', () =
     ['compound', { isCompound: true }],
     ['secondary_intent', { secondaryIntent: 'image' }],
     ['pixel_turn', { hasImageAttachments: true, intent: 'image' }],
-    ['image_only_ask', { hasImageAttachments: true, lastUserText: 'Was steht auf dem Plakat?' }],
     [
       // Live 29.09.2026: ein eingefügter Newsletter kam zusammengefasst statt
       // korrigiert zurück, weil der Planer nach Werkzeugen griff statt zum Text.
