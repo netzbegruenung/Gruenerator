@@ -12,7 +12,8 @@ declare global {
 
   // Umami analytics
   interface UmamiTracker {
-    track: (callback?: (props: Record<string, unknown>) => Record<string, unknown>) => void;
+    track(callback?: (props: Record<string, unknown>) => Record<string, unknown>): void;
+    track(eventName: string, data?: Record<string, string | number>): void;
   }
 
   interface Window {
