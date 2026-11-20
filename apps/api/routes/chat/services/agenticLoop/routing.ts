@@ -409,43 +409,13 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
   return (GENERATION_NOUN_RE.test(t) || hasExplicitSharepicWord(t)) && RESEARCH_SIGNAL_RE.test(t);
 }
 
-// The ask points at the picture: an image noun, a seeing verb, or a bare
-// deictic ending ("Was ist das?", "Wer ist das hier?"). The nouns carry no
-// leading `\b` so compounds count ("Wahlplakat", "Gruppenfoto"); their endings
-// are spelled out so `bild` does not also claim "Bildung".
-const IMAGE_REFERENCE_RE =
-  /(bild(?:er|ern|es|s|chen)?|fotos?|fotografie|screenshots?|grafik(?:en)?|logos?|plakat(?:e|en|es|s)?|motiv(?:e|en|s)?|abbildung(?:en)?|flyers?|sharepics?)\b|\b(siehst|sieht\s+man|zu\s+sehen|erkenn\w*|abgebildet|drauf|darauf|beschreib\w*|alt-?text\w*)\b|\b(das|dies|dieses|hier|da)\s*[?.!]*\s*$/i;
-
-// The answer lies OUTSIDE the picture: what someone said or demanded, how recent
-// something is, or where to look it up. RESEARCH_SIGNAL_RE counts as well.
-const BEYOND_THE_IMAGE_RE =
-  /\b(zuletzt|neulich|heute|gestern|gesagt|ge[äa]u(?:ß|ss)ert|gefordert|hintergr[üu]nd\w*|internet|online|web|google)\b/i;
-
-/**
- * An image turn whose question the picture itself answers — "Was siehst du?",
- * "Passt das Logo?", "Was steht auf dem Plakat?".
- *
- * Those stay single-pass (#3841): there a vision model reads the pixels
- * directly, while the loop can only ask about the image through `bild_ansehen`
- * and pays a planner step on top. A question that points past the picture
- * ("Wer sind die Leute, und was haben sie zuletzt gesagt?") is not image-only
- * and takes the normal gate.
- *
- * Errs towards the loop: an image question it misses still gets answered there,
- * one tool call later.
- */
-export function looksLikeImageOnlyAsk(raw: string): boolean {
-  const t = (raw ?? '').trim();
-  if (!IMAGE_REFERENCE_RE.test(t)) return false;
-  return !RESEARCH_SIGNAL_RE.test(t) && !BEYOND_THE_IMAGE_RE.test(t) && !PERSONAL_DATA_RE.test(t);
-}
-
 const PIXEL_INTENTS: ReadonlySet<string> = new Set(['image', 'image_edit']);
 
 /**
  * An image turn whose intent works on the pixels themselves (generate from or
- * edit the attachment). No loop tool does that, so these stay single-pass on
- * every path; every other image turn can read the image via `bild_ansehen`.
+ * edit the attachment): the classifier already decided, and the single-pass
+ * image nodes run it. Every other image turn goes to the loop, which reads the
+ * image via `bild_ansehen` and changes it via `edit_image`.
  */
 export function isPixelTurn(hasImageAttachments: boolean, intent: string): boolean {
   return hasImageAttachments && PIXEL_INTENTS.has(intent);
@@ -960,8 +930,8 @@ export interface AgenticDecisionInput {
   /** Compound research+generation sharepic turn (fat tool mounted). */
   compoundGeneration: boolean;
   /** The turn carries image attachments. The loop reads them through
-   *  `bild_ansehen`; which image turns still stay single-pass is
-   *  `imageStaysSinglePass` in {@link decideRunAgentic}. */
+   *  `bild_ansehen` and edits them through `edit_image`; only a pixel intent
+   *  (`isPixelTurn`) keeps an image turn single-pass. */
   hasImageAttachments: boolean;
   /** A fill ask ("füll das aus") on a thread that has a REACHABLE form — a PDF
    *  whose bytes were kept because `isFillablePdf` accepted it. Precomputed by
@@ -1005,7 +975,6 @@ export type SinglePassReason =
   | 'compound'
   | 'secondary_intent'
   | 'pixel_turn'
-  | 'image_only_ask'
   | 'reworks_own_material';
 
 /** Alles, was einen Turn UNABHÄNGIG vom Intent in die Schleife hebt. */
@@ -1026,10 +995,9 @@ function hasExplicitLoopReason(p: AgenticDecisionInput): boolean {
  * Pipeline-Agent (eigene Kette) und das „ja" auf ein Artefakt-Angebot.
  *
  * Gegründet auf Zustand: Intent, Schalter, Anhänge, Pins, gewähltes Notebook.
- * Textgegründet sind nur noch
- * `image_only_ask` (`looksLikeImageOnlyAsk`) und `reworks_own_material`
- * (`reworksSuppliedText`) — beide waren schon vorher so erkannt und sind hier
- * unverändert übernommen.
+ * Textgegründet ist nur noch
+ * `reworks_own_material` (`reworksSuppliedText`) — schon vorher so erkannt und
+ * hier unverändert übernommen.
  */
 export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | null {
   const tabular = p.isTabularAnalysisTurn === true;
@@ -1046,9 +1014,13 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
     return 'secondary_intent';
   }
   if (isPixelTurn(p.hasImageAttachments, p.intent)) return 'pixel_turn';
-  if (p.hasImageAttachments && !hasExplicitLoopReason(p) && looksLikeImageOnlyAsk(p.lastUserText)) {
-    return 'image_only_ask';
-  }
+  // Kein `image_only_ask` mehr (20.11.2026): die Wortweiche hielt jeden
+  // Foto-Turn mit „Bild" und ohne Recherche-Wort für eine Frage an das Foto.
+  // „erstelle aus diesem Bild ein winterliches Bild" blieb so im
+  // Einzeldurchlauf, der kein Bild bauen kann: die Antwort fragte „Soll ich?",
+  // und das „Ja" danach fand das Foto nicht mehr (es überlebt den Turn
+  // serverseitig nicht). Eine reine Bildfrage kostet im Loop einen
+  // `bild_ansehen`-Schritt mehr — der Preis für eine Weiche weniger.
   // Nur wenn nichts anderes den Turn in die Schleife hebt: eine mitgenannte Art
   // („Dazu passt später ein Sharepic") montiert ihr Werkzeug auch an einer
   // Umarbeitung des eigenen Materials.
@@ -1114,7 +1086,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       ...(keptReason != null && { singlePassReason: keptReason }),
       // Only on image turns, so the imageless decision maps keep their columns.
       ...(p.hasImageAttachments && {
-        imageStaysSinglePass: keptReason === 'pixel_turn' || keptReason === 'image_only_ask',
+        imageStaysSinglePass: keptReason === 'pixel_turn',
       }),
     },
   });
