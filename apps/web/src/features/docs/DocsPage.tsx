@@ -116,6 +116,7 @@ export function DocumentsContent({
   heroSubtitle,
   composerPlaceholder,
   composerSubmitIcon,
+  composerCreate = true,
 }: {
   showRecents?: boolean;
   scope?: OfficeScope;
@@ -132,6 +133,8 @@ export function DocumentsContent({
   /** Static composer placeholder instead of the rotating create examples. */
   composerPlaceholder?: string;
   composerSubmitIcon?: 'arrow' | 'search';
+  /** Off: the composer only searches (the Arbeiten tab creates via „Neu erstellen"). */
+  composerCreate?: boolean;
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
@@ -632,6 +635,7 @@ export function DocumentsContent({
           onImport={handleComposerImport}
           placeholder={composerPlaceholder}
           submitIcon={composerSubmitIcon}
+          create={composerCreate}
         />
       </WorkplaceHero>
 
@@ -881,9 +885,10 @@ export const DocsHome = () => (
     <DocsProvider adapter={webAppDocsAdapter}>
       <DocumentsContent
         showRecents={false}
-        heroSubtitle="Hier erstellst und durchsuchst du Inhalte. Zum Chatten wechselst du oben in den Tab „Chat“."
-        composerPlaceholder="Inhalte durchsuchen oder neu erstellen …"
+        heroSubtitle="Hier findest du deine Inhalte und Werkzeuge. Zum Chatten wechselst du oben in den Tab „Chat“."
+        composerPlaceholder="Inhalte und Werkzeuge durchsuchen …"
         composerSubmitIcon="search"
+        composerCreate={false}
       />
     </DocsProvider>
   </ErrorBoundary>
