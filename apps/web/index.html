@@ -260,12 +260,16 @@
          no hydration is involved. Hidden via html.no-shell (set by the
          terms-banner script below) for -no-header-footer and embedded=1. -->
     <style>
-      html,
-      body {
+      /* Only while the shell is mounted. These rules are unlayered, and the
+         app's own body background lives in @layer legacy (global.css), so an
+         unscoped rule here would beat it forever and paint every page,
+         including the chat, white. */
+      html:has(#root > .app-shell),
+      html:has(#root > .app-shell) body {
         background: #ffffff;
       }
-      html[data-theme='dark'],
-      html[data-theme='dark'] body {
+      html[data-theme='dark']:has(#root > .app-shell),
+      html[data-theme='dark']:has(#root > .app-shell) body {
         background: #1a1a1a;
       }
       .app-shell {
