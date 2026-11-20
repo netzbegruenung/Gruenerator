@@ -409,10 +409,11 @@ const RecentItemCard = memo(
 
         <div className="flex items-start gap-1.5 border-t border-grey-100 px-3 pb-3 pt-2.5 dark:border-grey-700/60 sm:gap-2 sm:px-4 sm:pb-4 sm:pt-3.5">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
-            <h3 className="m-0 min-w-0 truncate text-[14px] font-semibold text-foreground-heading sm:text-[16px]">
+            {/* Phone cards are ~160 px wide: two lines instead of „Neues Dokum…". */}
+            <h3 className="m-0 min-w-0 line-clamp-2 break-words text-[14px] font-semibold leading-snug text-foreground-heading sm:line-clamp-1 sm:text-[16px]">
               {item.title || fallbackTitle}
             </h3>
-            <p className="m-0 min-w-0 truncate text-[11px] text-grey-500 dark:text-grey-400 sm:text-[13px]">
+            <p className="m-0 min-w-0 truncate text-xs text-grey-500 dark:text-grey-400 sm:text-[13px]">
               {metaLine}
             </p>
           </div>

@@ -197,8 +197,9 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
           // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
           'relative z-10 max-w-[56%] text-[17px] font-bold leading-tight text-balance md:text-lg',
           theme?.title,
-          // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
-          preview && 'max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
+          // A narrow card (phone, or three across on a tablet): the title takes the full top,
+          // the picture the corner below it. Side by side needs ~290 px.
+          preview && '@max-[18rem]:max-w-none'
         )}
       >
         {tool.title}
@@ -210,7 +211,7 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
         className={cn(
           'absolute -bottom-3 h-20 md:h-24',
           preview
-            ? 'right-3 max-sm:-bottom-4 max-sm:h-14 max-sm:w-[4.5rem] sm:right-4 sm:w-28 md:w-32'
+            ? 'right-4 w-28 md:w-32 @max-[18rem]:right-3 @max-[18rem]:h-[76px] @max-[18rem]:w-[92px]'
             : 'right-1 w-[44%]'
         )}
       >
@@ -235,7 +236,12 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
       </span>
     </>
   );
-  const className = cn(TOOL_CARD, theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40');
+  const className = cn(
+    TOOL_CARD,
+    // Narrow card: two lines of title on top, the picture below them (never under the text).
+    preview && '@max-[18rem]:h-[132px] @max-[18rem]:items-start @max-[18rem]:pt-4',
+    theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'
+  );
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
       {body}
@@ -264,7 +270,8 @@ export function ToolCardsSection({
     <ArbeitenSection title={title} {...rest}>
       <ul className={cn(gridClassName, 'm-0 list-none p-0')}>
         {tools.map((tool) => (
-          <li key={tool.id}>
+          // The card lays itself out by its own width (see ToolCardLink).
+          <li key={tool.id} className="@container">
             <ToolCardLink tool={tool} />
           </li>
         ))}

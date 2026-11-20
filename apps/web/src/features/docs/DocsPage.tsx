@@ -886,7 +886,7 @@ export const DocsHome = () => (
       <DocumentsContent
         showRecents={false}
         heroSubtitle="Hier findest du deine Inhalte und Werkzeuge. Zum Chatten wechselst du oben in den Tab „Chat“."
-        composerPlaceholder="Inhalte und Werkzeuge durchsuchen …"
+        composerPlaceholder="Inhalte & Werkzeuge suchen"
         composerSubmitIcon="search"
         composerCreate={false}
       />
