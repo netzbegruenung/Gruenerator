@@ -20,8 +20,11 @@ const LINK_ICONS: Record<string, IoniconsIconName> = {
   drive: 'cloud-outline',
 };
 
+/** Wie `GroupLink`, aber die Details-Antwort liefert `description` auch als `null`. */
+type ProjectLink = Omit<GroupLink, 'description'> & { description?: string | null };
+
 /** Die Links des Projekts; ohne Links gibt es den Abschnitt nicht. */
-export function ProjectLinks({ links }: { links: GroupLink[] }) {
+export function ProjectLinks({ links }: { links: ProjectLink[] }) {
   const theme = useTheme();
   if (links.length === 0) return null;
   return (
