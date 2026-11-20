@@ -1,6 +1,7 @@
 import { type MenuAction } from '@expo/ui/community/menu';
 import {
   HOST_CAPABILITY_EDITOR_CHROME,
+  HOST_CAPABILITY_FILE_TRANSFER,
   HOST_CAPABILITY_REQUEST_CLOSE,
   HOST_CAPABILITY_SHARE,
   hostCapabilitiesScript,
@@ -48,6 +49,7 @@ import {
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
+import { createCacheFileTransferReceiver } from '../../services/webview/receiveFileTransfer';
 import { receiveShare } from '../../services/webview/receiveShare';
 import { createRestartBudget } from '../../services/webview/restartBudget';
 import { createSerialQueue } from '../../services/webview/serialQueue';
@@ -61,6 +63,7 @@ const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript([
   HOST_CAPABILITY_SHARE,
   HOST_CAPABILITY_REQUEST_CLOSE,
   HOST_CAPABILITY_EDITOR_CHROME,
+  HOST_CAPABILITY_FILE_TRANSFER,
 ]);
 
 /** How long hardware back waits for the page's `CLOSE`; its own flush bounds itself at 1 s. */
@@ -135,6 +138,20 @@ export default function WebViewerScreen() {
   );
 
   useEffect(() => shareQueue.cancel, [shareQueue]);
+
+  // Files too large for one `DOWNLOAD_FILE` (an exported video) arrive in pieces.
+  // Built in an effect: its replies go through the WebView ref.
+  const fileTransfers = useRef<ReturnType<typeof createCacheFileTransferReceiver> | null>(null);
+  useEffect(() => {
+    const receiver = createCacheFileTransferReceiver((message) =>
+      webViewRef.current?.postMessage(JSON.stringify(message))
+    );
+    fileTransfers.current = receiver;
+    return () => {
+      receiver.dispose();
+      fileTransfers.current = null;
+    };
+  }, []);
 
   // Android's hardware back pops this route rather than walking the WebView's
   // history: the screen is pinned to one page, so "back" can only mean "leave
@@ -284,6 +301,7 @@ export default function WebViewerScreen() {
       setError('Die Seite konnte nicht geöffnet werden. Bitte versuche es später erneut.');
       return;
     }
+    fileTransfers.current?.dispose();
     setTargetUrl(null);
     setLoading(true);
     setPresenting(false);
@@ -332,6 +350,20 @@ export default function WebViewerScreen() {
       }
       if (message.type === 'SHARE_FILE') {
         void shareQueue.enqueue(() => receiveShare(message));
+        return;
+      }
+      if (
+        message.type === 'FILE_TRANSFER_BEGIN' ||
+        message.type === 'FILE_TRANSFER_CHUNK' ||
+        message.type === 'FILE_TRANSFER_END' ||
+        message.type === 'FILE_TRANSFER_ABORT'
+      ) {
+        // A failed delivery is an alert, as for DOWNLOAD_FILE; a refused
+        // transfer the page hears about itself (`FILE_TRANSFER_FAILED`).
+        void fileTransfers.current?.handle(message).catch((err: unknown) => {
+          console.warn('[WebViewer] file transfer delivery failed', err);
+          Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
+        });
       }
     },
     [closeRequest, shareQueue]
