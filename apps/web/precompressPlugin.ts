@@ -50,7 +50,7 @@ async function compressFile(file: string): Promise<number> {
 
 /**
  * Production-only: writes `<file>.br` (quality 11) and `<file>.gz` (level 9)
- * next to every compressible asset, for nginx `brotli_static` / `gzip_static`
+ * next to every compressible file under the build's assets dir, for nginx `brotli_static` / `gzip_static`
  * (apps/web/Dockerfile). On-the-fly compression stays on as the fallback.
  * Not for the Tauri desktop bundle, which loads files from disk.
  */
@@ -61,7 +61,10 @@ export function precompressPlugin(options: { disabled: boolean }): Plugin {
     apply: 'build',
     enforce: 'post',
     configResolved(config) {
-      outDir = path.resolve(config.root, config.build.outDir);
+      // Only the hashed, immutable build output. public/ (illustrations, emoji,
+      // Pyodide) would add ~50 MB to the image for files that are fetched
+      // rarely; nginx still compresses those on the fly.
+      outDir = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
     },
     async closeBundle() {
       if (options.disabled) return;
