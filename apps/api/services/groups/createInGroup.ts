@@ -1,6 +1,10 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
+import { assertCanShareToGroup } from './groupMembership.js';
 import { addGroupShare } from './groupShareWriter.js';
+
+const log = createLogger('createInGroup');
 
 /** Eine Abfrage auf der offenen Transaktion; liefert die Zeilen wie `PostgresService.query`. */
 export type TxQuery = (text: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
@@ -47,4 +51,41 @@ export async function createInGroup<T extends { id: string }>({
     });
     return created;
   });
+}
+
+/** Darf die Person in dieses Projekt teilen? Vor dem Anlegen gefragt, damit ein Nein nichts hinterlässt. */
+export async function mayShareIntoGroup(groupId: string, userId: string): Promise<boolean> {
+  try {
+    await assertCanShareToGroup(groupId, userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Für Inhalte, die nicht in eine Transaktion passen (hochgeladene Dateien, Text mit
+ * Vektoren): das eben angelegte Dokument ins Projekt teilen. Scheitert das trotz
+ * vorheriger {@link mayShareIntoGroup}-Prüfung, räumt `undo` das Dokument wieder ab,
+ * und der Fehler geht weiter — ein Dokument, das niemand im Projekt sieht und die
+ * Person nicht bestellt hat, bleibt so nicht liegen.
+ */
+export async function shareNewDocumentIntoGroup(
+  { userId, groupId, documentId }: { userId: string; groupId: string; documentId: string },
+  undo: () => Promise<unknown>
+): Promise<void> {
+  try {
+    await addGroupShare({
+      userId,
+      groupId,
+      contentType: 'documents',
+      contentId: documentId,
+      permissions: { read: true, write: false },
+    });
+  } catch (error) {
+    await undo().catch((undoError: unknown) =>
+      log.error(`[shareNewDocumentIntoGroup] undo failed for ${documentId}:`, undoError)
+    );
+    throw error;
+  }
 }

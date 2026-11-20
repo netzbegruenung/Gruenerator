@@ -223,7 +223,13 @@ interface DocumentsActions {
   fetchCombinedContent: () => Promise<{ documents: Document[]; texts: Text[] } | undefined>;
   uploadDocument: (file: File, title: string, groupId?: string | null) => Promise<Document>;
   /** `collectionId` turns on the server's duplicate check for that notebook. */
-  uploadFileOnly: (file: File, title?: string, collectionId?: string) => Promise<Document>;
+  /** `groupId`: gleich ins Projekt legen — der Server prüft und teilt im selben Aufruf. */
+  uploadFileOnly: (
+    file: File,
+    title?: string,
+    collectionId?: string,
+    groupId?: string
+  ) => Promise<Document>;
   pollDocumentStatus: (
     documentId: string,
     onStatusChange?: (status: DocumentStatus) => void
@@ -424,7 +430,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
       },
 
       // Upload file only (no processing) — used by 2-step notebook creation
-      uploadFileOnly: async (file, title, collectionId) => {
+      uploadFileOnly: async (file, title, collectionId, groupId) => {
         set((state) => {
           state.isUploading = true;
           state.uploadProgress = 0;
@@ -439,6 +445,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
           }
           if (collectionId) {
             formData.append('collectionId', collectionId);
+          }
+          if (groupId) {
+            formData.append('groupId', groupId);
           }
 
           const response = await apiClient.post<DocumentUploadResponse>(

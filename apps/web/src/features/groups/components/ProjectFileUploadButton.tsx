@@ -1,10 +1,10 @@
 import { DOCUMENT_UPLOAD_EXTENSIONS } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { type Ref, useImperativeHandle, useRef, useState } from 'react';
 import { PiPaperclip } from 'react-icons/pi';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
+import { serverMessage } from '../serverMessage';
 
 interface ProjectFileUploadButtonProps {
   groupId: string;
@@ -48,22 +48,11 @@ export function ProjectFileUploadButton({
     let lastError: string | null = null;
     for (const file of files) {
       try {
-        const doc = await uploadFileOnly(file);
-        const res = await getContractsClient().groups.shareContent({
-          params: { groupId },
-          body: {
-            contentType: 'documents',
-            contentId: doc.id,
-            permissions: { read: true, write: false, collaborative: false },
-            note: null,
-          },
-        });
-        if (res.status !== 200) {
-          throw apiErrorFromResponse(res, 'Datei konnte nicht geteilt werden.');
-        }
+        // Ein Aufruf: der Server prüft das Teilrecht vorher und teilt im selben Zug.
+        await uploadFileOnly(file, undefined, undefined, groupId);
         added += 1;
       } catch (err) {
-        lastError = err instanceof Error ? err.message : 'Datei konnte nicht hinzugefügt werden.';
+        lastError = serverMessage(err, 'Datei konnte nicht hinzugefügt werden.');
       }
     }
     setBusy(false);

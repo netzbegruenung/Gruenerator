@@ -22,9 +22,9 @@ async function fillAndSubmit(user: ReturnType<typeof renderWithProviders>['user'
 }
 
 describe('ProjectTextAddButton', () => {
-  it('creates the document, then shares it into the project as a document', async () => {
+  it('creates the text with the project id in one call — no second share request', async () => {
     let created: unknown = null;
-    let shared: unknown = null;
+    let shareCalls = 0;
     server.use(
       http.post('http://localhost/api/documents/add-text', async ({ request }) => {
         created = await request.json();
@@ -33,8 +33,8 @@ describe('ProjectTextAddButton', () => {
           data: { id: 'doc-9', title: 'Förderbedingungen' },
         });
       }),
-      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, async ({ request }) => {
-        shared = await request.json();
+      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, () => {
+        shareCalls += 1;
         return HttpResponse.json({ success: true });
       })
     );
@@ -50,21 +50,20 @@ describe('ProjectTextAddButton', () => {
     expect(created).toEqual({
       title: 'Förderbedingungen',
       content: 'Gefördert werden 40 Prozent.',
+      groupId: GROUP,
     });
-    expect(shared).toMatchObject({ contentType: 'documents', contentId: 'doc-9' });
+    expect(shareCalls).toBe(0);
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('shares nothing when the text could not be created', async () => {
-    let shareCalls = 0;
+  it('shows the server sentence when the project refuses the text', async () => {
     server.use(
       http.post('http://localhost/api/documents/add-text', () =>
-        HttpResponse.json({ success: false, message: 'kaputt' }, { status: 500 })
-      ),
-      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, () => {
-        shareCalls += 1;
-        return HttpResponse.json({ success: true });
-      })
+        HttpResponse.json(
+          { success: false, message: 'Du kannst in diesem Projekt nichts anlegen.' },
+          { status: 403 }
+        )
+      )
     );
     const onAdded = vi.fn();
     const onError = vi.fn();
@@ -74,8 +73,9 @@ describe('ProjectTextAddButton', () => {
 
     await fillAndSubmit(user);
 
-    await waitFor(() => expect(onError).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('Du kannst in diesem Projekt nichts anlegen.')
+    );
     expect(onAdded).not.toHaveBeenCalled();
-    expect(shareCalls).toBe(0);
   });
 });

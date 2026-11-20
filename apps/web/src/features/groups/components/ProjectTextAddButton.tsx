@@ -1,4 +1,3 @@
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
   Dialog,
@@ -13,6 +12,7 @@ import { useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
 import apiClient from '../../../components/utils/apiClient';
+import { serverMessage } from '../serverMessage';
 
 /** Obergrenze je Text: er wird in einem Zug eingebettet. Längeres gehört in eine Datei. */
 const TEXT_MAX = 100_000;
@@ -25,11 +25,6 @@ interface ProjectTextAddButtonProps {
   /** Controlled mode (the „Hinzufügen" menu opens it): no own button. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-}
-
-interface AddTextResponse {
-  success: boolean;
-  data: { id: string };
 }
 
 /**
@@ -61,26 +56,18 @@ export function ProjectTextAddButton({
     if (!canSubmit) return;
     setBusy(true);
     try {
-      const created = await apiClient.post<AddTextResponse>('/documents/add-text', {
+      // Ein Aufruf: der Server prüft das Teilrecht vorher und teilt im selben Zug.
+      await apiClient.post('/documents/add-text', {
         title: title.trim(),
         content: text.trim(),
+        groupId,
       });
-      const res = await getContractsClient().groups.shareContent({
-        params: { groupId },
-        body: {
-          contentType: 'documents',
-          contentId: created.data.data.id,
-          permissions: { read: true, write: false, collaborative: false },
-          note: null,
-        },
-      });
-      if (res.status !== 200) throw apiErrorFromResponse(res, 'Text konnte nicht geteilt werden.');
       setOpen(false);
       setTitle('');
       setText('');
       onAdded();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Text konnte nicht hinzugefügt werden.');
+      onError(serverMessage(err, 'Text konnte nicht hinzugefügt werden.'));
     } finally {
       setBusy(false);
     }

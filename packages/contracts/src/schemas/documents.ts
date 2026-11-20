@@ -155,7 +155,16 @@ export const uploadOnlyBodySchema = z.object({
    * binaries) means no check.
    */
   collectionId: z.string().uuid().nullish(),
+  /**
+   * Gleich ins Projekt legen. Das Teilrecht wird vor dem Speichern geprüft (403,
+   * keine Datei bleibt liegen); scheitert das Teilen danach, verschwindet das
+   * Dokument wieder.
+   */
+  groupId: z.string().uuid().nullish(),
 });
+
+/** POST /documents/add-text — der optionale Projektteil; Titel und Text prüft die Route selbst. */
+export const addTextGroupBodySchema = z.object({ groupId: z.string().uuid().nullish() });
 
 export const uploadOnlyResponseSchema = z.object({
   success: z.literal(true),
