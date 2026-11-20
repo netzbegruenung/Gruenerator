@@ -14,10 +14,8 @@ import {
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { uploadMedia } from '@gruenerator/shared/media-library';
-import * as tus from 'tus-js-client';
 
-import apiClient from '@/components/utils/apiClient';
-import { getTusAuthOptions } from '@/utils/tusAuth';
+import { uploadToMediathekResumable } from '@/utils/resumableMediaUpload';
 
 export const projectsQueryKey = ['video-ai-projects'] as const;
 export const projectQueryKey = (ref: string) => ['video-ai-projects', ref] as const;
@@ -114,32 +112,14 @@ export async function removeProject(id: string) {
 
 // --- new material ----------------------------------------------------------
 
+/** The multipart Mediathek upload stops at 50 MB and takes no audio. */
+const MULTIPART_MAX_BYTES = 50 * 1024 * 1024;
+
 export interface UploadedMaterial {
   mediaId: string;
   mediaType: 'video' | 'image' | 'audio';
   title: string;
   durationSeconds: number | null;
-}
-
-/** The multipart Mediathek upload stops at 50 MB and takes no audio. */
-const MULTIPART_MAX_BYTES = 50 * 1024 * 1024;
-const TUS_ENDPOINT = `${apiClient.defaults.baseURL}/audio/upload`;
-
-async function tusUpload(file: File, onProgress: (percent: number) => void): Promise<string> {
-  const auth = await getTusAuthOptions();
-  return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint: TUS_ENDPOINT,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      chunkSize: 5 * 1024 * 1024,
-      metadata: { filename: file.name, filetype: file.type || 'application/octet-stream' },
-      ...auth,
-      onError: () => reject(new Error(`„${file.name}“ konnte nicht hochgeladen werden.`)),
-      onProgress: (sent, total) => onProgress(Math.round((sent / total) * 100)),
-      onSuccess: () => resolve(upload.url?.split('/').pop() ?? ''),
-    });
-    upload.start();
-  });
 }
 
 export async function uploadMaterial(
@@ -153,10 +133,7 @@ export async function uploadMaterial(
       throw new Error(`„${file.name}“ konnte nicht hochgeladen werden.`);
     return { mediaId: res.data.id, mediaType: 'image', title: file.name, durationSeconds: null };
   }
-  const uploadId = await tusUpload(file, onProgress);
-  const res = await client().importUpload({ body: { uploadId, title: file.name } });
-  if (res.status === 201) return res.body;
-  fail(res.body, `„${file.name}“ konnte nicht übernommen werden.`);
+  return uploadToMediathekResumable(file, { title: file.name, onProgress });
 }
 
 export function defaultRole(mediaType: UploadedMaterial['mediaType']): VideoAiInputRole {

@@ -31,6 +31,7 @@ export {
   MEDIA_ENDPOINTS,
   SUPPORTED_IMAGE_TYPES,
   SUPPORTED_VIDEO_TYPES,
+  SUPPORTED_AUDIO_TYPES,
   SUPPORTED_MIME_TYPES,
   SUPPORTED_MIME_LABEL,
   acceptForMediaType,
@@ -82,7 +83,7 @@ export {
 
 // Hooks
 export { useMediaLibrary, MEDIA_LIBRARY_QUERY_KEY } from './hooks/useMediaLibrary.js';
-export { useMediaUpload } from './hooks/useMediaUpload.js';
+export { useMediaUpload, type ResumableUpload } from './hooks/useMediaUpload.js';
 
 // Stores
 export { useMediaPickerStore, useMediaPicker } from './stores/mediaPickerStore.js';

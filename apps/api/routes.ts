@@ -89,6 +89,7 @@ import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
+import { mountMediaImportContractRouter } from './routes/media/mediaImportContractRouter.js';
 import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
@@ -253,6 +254,19 @@ const contentReportLimiter = isRateLimitDisabled
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Each import runs ffprobe and moves a file of up to 3 GB; a person finishes a
+// handful of uploads at a time, so 30 per 15 minutes (tus creation has its own limit).
+const mediaImportLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
     });
 
 // Studio shop uploads are rare and every one may go public at once — cap
@@ -1002,6 +1016,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // iframe drives its interactive window.openai bridge through here.
   app.use('/api/mcp-apps', requireAuth, authenticatedReadLimiter, createMcpAppsRouter());
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
+  // Finished resumable upload → Mediathek. Before mediaRouter so the prefix limiter
+  // (not the generic one) applies; any logged-in person, no admin gate.
+  app.use('/api/media/import-upload', requireAuth, mediaImportLimiter);
+  mountMediaImportContractRouter(app);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
   app.use('/api/docs/resolve', optionalAuth, publicReadLimiter, docResolveRouter);

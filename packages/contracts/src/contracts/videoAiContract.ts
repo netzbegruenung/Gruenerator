@@ -45,6 +45,7 @@ export const videoAiContract = c.router(
       responses: {
         201: importVideoAiUploadResponseSchema,
         400: videoAiErrorSchema,
+        404: videoAiErrorSchema,
         409: videoAiErrorSchema,
       },
       summary: 'Take a finished resumable upload into the Mediathek',

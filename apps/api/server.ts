@@ -435,6 +435,21 @@ async function startWorker(): Promise<void> {
     }
   );
 
+  // Generic resumable upload for any client (Mediathek web, the video editor,
+  // KI-Schnitt): create + PATCH here, then POST /api/media/import-upload.
+  const genericUploadPath = '/api/uploads';
+  app.all(genericUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    genericUploadPath + '/*splat',
+    tusCreationLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
   // Admin-only TUS uploads for the Parteitage import. No creation limiter: the import
   // creates ~180 uploads in one run and every request is already admin-gated.
   const parteitageUploadPath = '/api/admin/parteitage/upload';
@@ -704,7 +719,7 @@ async function startWorker(): Promise<void> {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.',
+          error: 'Die Datei ist zu groß.',
         });
         return;
       }

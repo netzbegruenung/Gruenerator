@@ -9,6 +9,7 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 export const TUS_UPLOAD_PATHS = [
   '/api/subtitler/upload',
   '/api/audio/upload',
+  '/api/uploads',
   '/api/admin/parteitage/upload',
 ];
 

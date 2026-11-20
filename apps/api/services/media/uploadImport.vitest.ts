@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { classifyUpload } from '../uploadImport.js';
+import { classifyUpload } from './uploadImport.js';
 
 describe('classifyUpload', () => {
   it('takes phone videos by their container and keeps the length', () => {
@@ -40,20 +40,24 @@ describe('classifyUpload', () => {
 describe('importUpload', () => {
   it('keeps the upload and fails loudly when ffprobe itself cannot run', async () => {
     const cleanupUploadFiles = vi.fn(async () => undefined);
-    vi.doMock('../../subtitler/tusService.js', () => ({
-      getUploadStatus: async () => ({ exists: true, metadata: { size: 1 } }),
+    vi.doMock('../subtitler/tusService.js', () => ({
+      getUploadStatus: async () => ({
+        exists: true,
+        metadata: { size: 1, metadata: { uploader: 'user-1' } },
+      }),
+      getUploadOwner: () => 'user-1',
       getFilePathFromUploadId: () => import.meta.filename,
       getOriginalFilename: async () => 'take.mp4',
       cleanupUploadFiles,
       markUploadAsPromoted: vi.fn(),
     }));
-    vi.doMock('../../subtitler/ffmpegWrapper.js', () => ({
+    vi.doMock('../subtitler/ffmpegWrapper.js', () => ({
       ffprobe: async () => {
         throw Object.assign(new Error('spawn /opt/ffprobe EACCES'), { code: 'EACCES' });
       },
     }));
-    vi.doMock('../../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
-    const { importUpload } = await import('../uploadImport.js');
+    vi.doMock('../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
+    const { importUpload } = await import('./uploadImport.js');
 
     await expect(importUpload('user-1', 'abcdef0123456789', null)).rejects.toThrow('EACCES');
     expect(cleanupUploadFiles).not.toHaveBeenCalled();

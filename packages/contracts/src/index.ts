@@ -94,6 +94,7 @@ export {
   sharedTemplateContract,
   templateInteractionsContract,
   studioAssetsContract,
+  mediaImportContract,
   parteitageContract,
   parteitageAdminContract,
   marketplaceContract,
@@ -132,6 +133,7 @@ export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
 export * from './schemas/videoAi.js';
 export * from './schemas/studioAssets.js';
+export * from './schemas/mediaImport.js';
 export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';
 export * from './schemas/textForm.js';

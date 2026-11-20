@@ -7,6 +7,7 @@ import { videoAiContract, videoAiTreeUnits } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
+import { importUpload } from '../../services/media/uploadImport.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import { probeVideoMetadata } from '../../services/subtitler/videoMetadata.js';
 import { getTreeBudget } from '../../services/trees/index.js';
@@ -28,7 +29,6 @@ import {
   type MediaForInput,
 } from '../../services/videoAi/projectRepository.js';
 import { compileTimeline } from '../../services/videoAi/projectTimeline.js';
-import { importUpload } from '../../services/videoAi/uploadImport.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
