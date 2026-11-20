@@ -56,6 +56,8 @@ import {
   CanvasDocumentNewerReadError,
   CanvasStateUnwritableError,
 } from '../../services/canvas/canvasWriteErrors.js';
+import { CREATE_IN_GROUP_FORBIDDEN, createInGroup } from '../../services/groups/createInGroup.js';
+import { GroupShareForbiddenError } from '../../services/groups/groupShareWriter.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/userFacing.js';
@@ -179,7 +181,13 @@ export const canvasContractRouter = s.router(canvasContract, {
         ...(b.page_count !== undefined ? { page_count: b.page_count } : {}),
         ...(b.format !== undefined ? { format: b.format } : {}),
       };
-      const canvas = await createCanvas(userId, input);
+      const canvas = b.groupId
+        ? await createInGroup({
+            userId,
+            groupId: b.groupId,
+            insert: (query) => createCanvas(userId, input, query),
+          })
+        : await createCanvas(userId, input);
       // Authoritative server-side page seed — a studio tab opening later must
       // not race its template defaults against another tab (deterministic
       // seed ids make even a double-seed converge, this removes the race
@@ -191,6 +199,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       );
       return { status: 201 as const, body: canvas };
     } catch (error) {
+      if (error instanceof GroupShareForbiddenError) {
+        return { status: 403 as const, body: { error: CREATE_IN_GROUP_FORBIDDEN } };
+      }
       const err = error as Error;
       log.error('[canvas.create] Error:', err);
       return {

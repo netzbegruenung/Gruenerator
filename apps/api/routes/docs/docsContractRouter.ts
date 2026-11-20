@@ -38,6 +38,11 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import {
+  CREATE_IN_GROUP_FORBIDDEN,
+  type TxQuery,
+  createInGroup,
+} from '../../services/groups/createInGroup.js';
 import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import {
@@ -625,28 +630,41 @@ export const docsContractRouter = s.router(docsContract, {
         title = 'Untitled Document',
         folder_id = null,
         document_subtype = 'blank',
+        groupId = null,
       } = args.body;
 
       const subtype = DOCS_SUBTYPES.includes(document_subtype ?? 'blank')
         ? (document_subtype ?? 'blank')
         : 'blank';
 
-      const result = (await db.query(
-        `INSERT INTO collaborative_documents
-          (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
-         VALUES ($1, $2, $2, $3, $4, $5, false)
-         RETURNING *`,
-        [
-          title,
-          userId,
-          subtype,
-          folder_id,
-          JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        ]
-      )) as CollaborativeDocument[];
+      const insert = async (query: TxQuery) =>
+        (
+          await query(
+            `INSERT INTO collaborative_documents
+              (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
+             VALUES ($1, $2, $2, $3, $4, $5, false)
+             RETURNING *`,
+            [
+              title,
+              userId,
+              subtype,
+              // Im Projekt angelegt: kein Ordner der Person.
+              groupId ? null : folder_id,
+              JSON.stringify({
+                [userId]: { level: 'owner', granted_at: new Date().toISOString() },
+              }),
+            ]
+          )
+        )[0] as unknown as CollaborativeDocument;
 
-      return { status: 201 as const, body: result[0] };
+      const doc = groupId
+        ? await createInGroup({ userId, groupId, insert })
+        : await insert((text, params) => db.query(text, params));
+      return { status: 201 as const, body: doc };
     } catch (error) {
+      if (error instanceof GroupShareForbiddenError) {
+        return { status: 403 as const, body: { error: CREATE_IN_GROUP_FORBIDDEN } };
+      }
       const message = error instanceof Error ? error.message : String(error);
       log.error('[docsContract.createDocument] Error:', error);
       return {

@@ -5,7 +5,11 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
  * Neue Präsentation als Canvas: Format `slide-16-9`, eine Titelfolie aus den
  * CD-Layouts. Österreich nimmt die AT-Vorlage, damit das Corporate Design stimmt.
  */
-export async function createSlideDeck(locale: string | null): Promise<CanvasDocument> {
+export async function createSlideDeck(
+  locale: string | null,
+  /** Gleich ins Projekt legen. */
+  groupId?: string
+): Promise<CanvasDocument> {
   const { buildSlideLayout, DEFAULT_SLIDE_LAYOUT, slideLayoutConfigId } =
     await import('@gruenerator/canvas-editor/slides');
   const brandLocale = locale === 'de-AT' ? 'de-AT' : 'de-DE';
@@ -22,8 +26,13 @@ export async function createSlideDeck(locale: string | null): Promise<CanvasDocu
       format: 'slide-16-9',
       initial_state: { ...state, pages: [{ id: 'seed-0', configId: templateType, state }] },
       page_count: 1,
+      ...(groupId && { groupId }),
     },
   });
+  if (response.status === 403) {
+    // Kein Teilrecht im Projekt: der Server sagt es auf Deutsch.
+    throw new ApiError(403, response.body.error);
+  }
   if (response.status !== 201) {
     throw new ApiError(
       response.status,

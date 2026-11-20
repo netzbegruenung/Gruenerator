@@ -167,6 +167,8 @@ export const createDocumentBodySchema = z.object({
   title: z.string().nullish(),
   folder_id: z.string().nullish(),
   document_subtype: collabSubtypeSchema.nullish(),
+  /** Gleich ins Projekt legen (Freigabe mit Schreibrecht, in derselben Transaktion). */
+  groupId: z.string().uuid().nullish(),
 });
 
 /**

@@ -20,11 +20,13 @@ function upload(container: HTMLElement, user: ReturnType<typeof renderWithProvid
 }
 
 describe('ProjectFileUploadButton', () => {
-  it('uploads the file, then shares it into the project as a document', async () => {
-    let shared: unknown = null;
+  it('uploads the file with the project id in one call — no second share request', async () => {
+    let groupId: FormDataEntryValue | null = null;
+    let shareCalls = 0;
     server.use(
-      http.post('http://localhost/api/documents/upload-only', () =>
-        HttpResponse.json({
+      http.post('http://localhost/api/documents/upload-only', async ({ request }) => {
+        groupId = (await request.formData()).get('groupId');
+        return HttpResponse.json({
           success: true,
           message: 'ok',
           data: {
@@ -33,10 +35,10 @@ describe('ProjectFileUploadButton', () => {
             filename: 'Foerderbescheid.pdf',
             status: 'uploaded',
           },
-        })
-      ),
-      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, async ({ request }) => {
-        shared = await request.json();
+        });
+      }),
+      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, () => {
+        shareCalls += 1;
         return HttpResponse.json({ success: true });
       })
     );
@@ -50,20 +52,19 @@ describe('ProjectFileUploadButton', () => {
 
     await upload(container, user);
     await waitFor(() => expect(onAdded).toHaveBeenCalledWith(1));
-    expect(shared).toMatchObject({ contentType: 'documents', contentId: 'doc-1' });
+    expect(groupId).toBe(GROUP);
+    expect(shareCalls).toBe(0);
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('reports a failed upload and shares nothing', async () => {
-    let shareCalls = 0;
+  it('shows the server sentence when the project refuses the file', async () => {
     server.use(
       http.post('http://localhost/api/documents/upload-only', () =>
-        HttpResponse.json({ success: false, message: 'kaputt' }, { status: 415 })
-      ),
-      http.post(`http://localhost/api/auth/groups/${GROUP}/share`, () => {
-        shareCalls += 1;
-        return HttpResponse.json({ success: true });
-      })
+        HttpResponse.json(
+          { success: false, message: 'Du kannst in diesem Projekt nichts anlegen.' },
+          { status: 403 }
+        )
+      )
     );
     const onAdded = vi.fn();
     const onError = vi.fn();
@@ -71,8 +72,9 @@ describe('ProjectFileUploadButton', () => {
       <ProjectFileUploadButton groupId={GROUP} onAdded={onAdded} onError={onError} />
     );
     await upload(container, user);
-    await waitFor(() => expect(onError).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('Du kannst in diesem Projekt nichts anlegen.')
+    );
     expect(onAdded).not.toHaveBeenCalled();
-    expect(shareCalls).toBe(0);
   });
 });
