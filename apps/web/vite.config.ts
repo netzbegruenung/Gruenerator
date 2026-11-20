@@ -64,6 +64,44 @@ function preloadFontsPlugin(): Plugin {
   };
 }
 
+// The global stylesheet must not block the first paint (#5891): index.html
+// carries a static app shell and the terms banner, both styled inline, which
+// can paint as soon as the HTML arrives. A render-blocking <link> held them
+// back until the 600 KB stylesheet had downloaded, and on Slow 4G it competes
+// with the entry chunks for bandwidth. So the entry stylesheet becomes
+// preload (high priority) + media="print" (non-blocking), and src/index.tsx
+// waits for it and switches it to media="all" BEFORE React renders. The app
+// itself therefore never paints unstyled, exactly as before.
+// The data-app-css attribute is the contract between this plugin and
+// src/index.tsx.
+function nonBlockingEntryCssPlugin(): Plugin {
+  const STYLESHEET = /<link rel="stylesheet"[^>]*href="(\/assets\/css\/[^"]+\.css)"[^>]*>/g;
+  return {
+    name: 'non-blocking-entry-css',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        // One stylesheet per CSS-carrying chunk of the static closure: one
+        // with the merged boot chunks, three with natural splitting.
+        let found = 0;
+        const out = html.replace(STYLESHEET, (_link, href: string) => {
+          found += 1;
+          return [
+            `<link rel="preload" as="style" crossorigin href="${href}">`,
+            `<link rel="stylesheet" crossorigin href="${href}" media="print" data-app-css>`,
+            `<noscript><link rel="stylesheet" crossorigin href="${href}"></noscript>`,
+          ].join('\n    ');
+        });
+        if (found === 0) {
+          throw new Error('non-blocking-entry-css: no entry stylesheet found in index.html');
+        }
+        return out;
+      },
+    },
+  };
+}
+
 // Plugin to provide stub modules for Tauri packages in web context
 function tauriStubPlugin(): Plugin {
   return {
@@ -107,6 +145,7 @@ export default defineConfig(({ command }) => ({
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
     preloadFontsPlugin(),
+    nonBlockingEntryCssPlugin(),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
