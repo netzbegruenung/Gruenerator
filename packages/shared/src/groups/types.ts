@@ -124,6 +124,22 @@ export const canShareIntoGroup = (group: {
   isAdmin?: boolean | null;
 }): boolean => !group.is_system || !!group.isAdmin;
 
+/**
+ * Wer eine Freigabe verwalten (Rolle ändern, entfernen) darf — dieselbe Regel wie auf dem
+ * Server (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person, die geteilt hat.
+ */
+export const canManageShare = (
+  item: { sharedById: string | null },
+  isAdmin: boolean | null | undefined,
+  currentUserId: string | number | null | undefined
+): boolean =>
+  !!isAdmin ||
+  (currentUserId !== null &&
+    currentUserId !== undefined &&
+    currentUserId !== '' &&
+    item.sharedById !== null &&
+    item.sharedById === String(currentUserId));
+
 export const buildGroupInviteUrl = (joinToken: string): string =>
   `${PRODUCTION_WEB_ORIGIN}/join-group/${joinToken}`;
 
