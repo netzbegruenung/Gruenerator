@@ -1,7 +1,7 @@
 import { Button } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { LoadingOverlay } from '../components/common/LoadingOverlay';
+import { GenerationProgress } from '../components/common/GenerationProgress';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import { EditorSkeleton } from '../editor/EditorSkeleton';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
@@ -111,42 +111,44 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
     await runGeneration({ file });
   };
 
-  const overlay = (
-    <LoadingOverlay
-      isLoading={isGenerating}
-      message={isFlyer ? 'Flyer wird analysiert...' : 'KI generiert deine Seite...'}
-      steps={steps}
-      current={current}
-      onCancel={cancel}
-    />
-  );
-
   if (isCreating) {
     return <EditorSkeleton label="Seite wird angelegt" />;
   }
 
+  // The form stays mounted while a run is going, so its step and inputs survive a cancel.
   return (
     <>
-      <CreateSiteScreen
-        subdomain={subdomain}
-        publicOrigin={publicOrigin}
-        onSubdomainChange={setSubdomainInput}
-        description={description}
-        onDescriptionChange={setDescription}
-        onGenerate={handleGenerate}
-        onFlyerUpload={handleFlyerUpload}
-        onBack={onBack}
-        isProcessing={isGenerating || isCreating}
-        isGenerating={isGenerating}
-        isGeneratingFromFlyer={isGenerating && isFlyer}
-      />
-      {failure && (
-        <div role="alert" className="mx-auto max-w-xl p-md text-center">
-          <p className="text-foreground mb-sm">{failure.message}</p>
-          {failure.retry && <Button onClick={failure.retry}>Noch einmal versuchen</Button>}
-        </div>
+      {isGenerating && (
+        <EditorSkeleton label="Seite wird generiert">
+          <GenerationProgress
+            message={isFlyer ? 'Flyer wird analysiert …' : 'KI generiert deine Seite …'}
+            steps={steps}
+            current={current}
+            onCancel={cancel}
+          />
+        </EditorSkeleton>
       )}
-      {overlay}
+      <div hidden={isGenerating}>
+        <CreateSiteScreen
+          subdomain={subdomain}
+          publicOrigin={publicOrigin}
+          onSubdomainChange={setSubdomainInput}
+          description={description}
+          onDescriptionChange={setDescription}
+          onGenerate={handleGenerate}
+          onFlyerUpload={handleFlyerUpload}
+          onBack={onBack}
+          isProcessing={isGenerating || isCreating}
+          isGenerating={isGenerating}
+          isGeneratingFromFlyer={isGenerating && isFlyer}
+        />
+        {failure && (
+          <div role="alert" className="mx-auto max-w-xl p-md text-center">
+            <p className="text-foreground mb-sm">{failure.message}</p>
+            {failure.retry && <Button onClick={failure.retry}>Noch einmal versuchen</Button>}
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -103,7 +103,7 @@ describe('CreateFlow', () => {
     m.gen.steps = ['extract', 'analyze'];
     m.gen.current = 'extract';
     render(<CreateFlow />);
-    expect(screen.getByRole('dialog', { name: 'Flyer wird analysiert...' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Flyer wird analysiert …' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Text wird aus dem Flyer gelesen');
   });
 
