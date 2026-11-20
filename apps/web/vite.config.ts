@@ -8,6 +8,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
 import { wissenMockPlugin } from './devMocks/wissenMock';
+import { precompressPlugin } from './precompressPlugin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -107,6 +108,7 @@ export default defineConfig(({ command }) => ({
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
     preloadFontsPlugin(),
+    precompressPlugin({ disabled: isNativeBuild || process.env.VITE_PRECOMPRESS === '0' }),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
