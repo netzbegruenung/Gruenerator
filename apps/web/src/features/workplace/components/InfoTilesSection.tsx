@@ -1,83 +1,47 @@
 import { DOKU_URL } from '@gruenerator/shared/links';
-import { type CSSProperties } from 'react';
-import { type IconType } from 'react-icons';
-import {
-  PiArrowUpRight,
-  PiBookOpenText,
-  PiCode,
-  PiEye,
-  PiLeaf,
-  PiPersonArmsSpread,
-  PiPlugs,
-  PiShieldCheck,
-  PiSparkle,
-} from 'react-icons/pi';
+import { type ReactNode } from 'react';
+import { PiArrowUpRight } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { ArbeitenSection } from './ArbeitenSections';
+import { BookIcon, EyeIcon, PlugIcon, ShieldIcon, SparkleIcon } from './InfoTileIcons';
 
 import './infoTiles.css';
 
 type InfoTile = {
   title: string;
-  icon: IconType;
-  /** Keyframes from infoTiles.css, the tile's own hover motion. */
-  animation: string;
-  /** Rotation/scale origin, e.g. a leaf sways from its stem. */
-  origin?: string;
-  duration?: string;
+  icon: ReactNode;
+  /** Gradient pair from infoTiles.css; the hue walks from moss to eucalyptus along the row. */
+  tone: 'moss' | 'fern' | 'sage' | 'mint' | 'eucalyptus';
 } & ({ path: string } | { href: string });
 
 const TILES: InfoTile[] = [
-  { title: 'Dokumentation', icon: PiBookOpenText, animation: 'info-page', href: DOKU_URL },
-  { title: 'KI-Transparenz', icon: PiSparkle, animation: 'info-twinkle', path: '/ki-transparenz' },
-  { title: 'Transparenz', icon: PiEye, animation: 'info-blink', path: '/transparenz' },
-  { title: 'MCP-Server', icon: PiPlugs, animation: 'info-plug', path: '/apps' },
-  { title: 'Datenschutz', icon: PiShieldCheck, animation: 'info-shield', path: '/datenschutz' },
-  {
-    title: 'Nachhaltigkeit',
-    icon: PiLeaf,
-    animation: 'info-sway',
-    origin: '20% 90%',
-    href: `${DOKU_URL}/docs/basics/nachhaltigkeit`,
-  },
-  {
-    title: 'Open Source',
-    icon: PiCode,
-    animation: 'info-turn',
-    duration: '800ms',
-    href: `${DOKU_URL}/docs/basics/open-source`,
-  },
-  {
-    title: 'Barrierefreiheit',
-    icon: PiPersonArmsSpread,
-    animation: 'info-hop',
-    origin: '50% 100%',
-    href: `${DOKU_URL}/docs/basics/barrierefreiheit`,
-  },
+  { title: 'Dokumentation', icon: <BookIcon />, tone: 'moss', href: DOKU_URL },
+  { title: 'KI-Transparenz', icon: <SparkleIcon />, tone: 'fern', path: '/ki-transparenz' },
+  { title: 'Transparenz', icon: <EyeIcon />, tone: 'sage', path: '/transparenz' },
+  { title: 'MCP-Server', icon: <PlugIcon />, tone: 'mint', path: '/apps' },
+  { title: 'Datenschutz', icon: <ShieldIcon />, tone: 'eucalyptus', path: '/datenschutz' },
 ];
 
-// Square green tiles: white text on #2F6B4F is 6.3:1 (WCAG AA for all text sizes).
+// Colours, depth and motion live in infoTiles.css; padding, icon and title scale with the
+// square (cqw of the li), so the longest title stays on one line at every tile size.
 const TILE =
-  'info-tile group relative flex aspect-square flex-col justify-between overflow-hidden rounded-2xl ' +
-  'bg-[#2F6B4F] p-[12cqw] text-white no-underline transition-colors hover:bg-[#285C44] ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 ' +
-  'dark:bg-[#24533D] dark:hover:bg-[#2B6148]';
+  'info-tile relative flex aspect-square flex-col justify-between rounded-[min(22px,14cqw)] ' +
+  'p-[min(20px,9cqw)] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 ' +
+  'focus-visible:outline-primary-600 dark:focus-visible:outline-primary-400';
 
 function TileBody({ tile, external }: { tile: InfoTile; external: boolean }) {
-  const Icon = tile.icon;
-  const style = {
-    '--info-anim': tile.animation,
-    '--info-dur': tile.duration,
-    transformOrigin: tile.origin,
-  } as CSSProperties;
   return (
     <>
       <span className="flex items-start justify-between">
-        <Icon aria-hidden className="info-tile__icon size-[min(36px,24cqw)]" style={style} />
-        {external && <PiArrowUpRight aria-hidden className="size-4 opacity-70" />}
+        <span className="info-tile__chip grid size-[min(60px,32cqw)] place-items-center rounded-[30%]">
+          {tile.icon}
+        </span>
+        {external && (
+          <PiArrowUpRight aria-hidden className="info-tile__arrow size-[min(18px,12cqw)]" />
+        )}
       </span>
-      <span className="text-[min(16px,11cqw)] font-bold leading-tight break-words">
+      <span className="text-[min(18px,11.5cqw)] leading-tight font-bold tracking-[-0.005em] whitespace-nowrap">
         {tile.title}
         {external && <span className="sr-only"> (öffnet in neuem Tab)</span>}
       </span>
@@ -85,27 +49,31 @@ function TileBody({ tile, external }: { tile: InfoTile; external: boolean }) {
   );
 }
 
-/** Where the Grünerator explains itself: docs, transparency, MCP, privacy and co. */
+/** Where the Grünerator explains itself: docs, transparency, MCP and privacy. */
 export function InfoTilesSection() {
   return (
     <ArbeitenSection title="Transparenz, MCP & Co">
       {/* Phone: one swipeable row of squares that snaps and lets the next one peek in
-          (eight squares in two columns were four rows of secondary links). From sm a
-          grid of four, from xl all eight in one row. */}
-      <ul
-        lang="de"
-        className="m-0 -mx-4 flex list-none snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:gap-4 xl:grid-cols-8"
-      >
+          (five squares in two columns were three rows of secondary links at the page's
+          end). From sm all five in one row, on the page grid's five columns from lg. */}
+      <ul className="m-0 -mx-4 -my-2 flex list-none snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:m-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0 lg:gap-4">
         {TILES.map((tile) => (
-          // Container: padding, icon and title scale with the square, so the longest
-          // title („Barrierefreiheit") stays on one line from 130 px to 160 px squares.
-          <li key={tile.title} className="@container w-[40%] shrink-0 snap-start sm:w-auto">
+          <li
+            key={tile.title}
+            className="@container w-[40%] max-w-44 shrink-0 snap-start sm:w-auto sm:max-w-none"
+          >
             {'href' in tile ? (
-              <a href={tile.href} target="_blank" rel="noopener noreferrer" className={TILE}>
+              <a
+                href={tile.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={TILE}
+                data-tone={tile.tone}
+              >
                 <TileBody tile={tile} external />
               </a>
             ) : (
-              <Link to={tile.path} className={TILE}>
+              <Link to={tile.path} className={TILE} data-tone={tile.tone}>
                 <TileBody tile={tile} external={false} />
               </Link>
             )}
