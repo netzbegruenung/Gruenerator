@@ -1,18 +1,31 @@
-import { Skeleton } from '@gruenerator/ui';
+import { cn } from '@gruenerator/shared/utils';
+import { Skeleton as BaseSkeleton } from '@gruenerator/ui';
+import { type ComponentProps, type ReactNode } from 'react';
+
+// `bg-muted` disappears on the editor's dark header; the editor greys stay visible in both themes.
+function Skeleton({ className, ...props }: ComponentProps<typeof BaseSkeleton>) {
+  return <BaseSkeleton className={cn('bg-grey-200 dark:bg-grey-700', className)} {...props} />;
+}
 
 /**
  * Loading placeholder shaped like the editor (header, form column, preview),
  * so the editor lands in place instead of replacing a centred spinner.
- * `data-reduce-motion` on <html> already stops the pulse for reduced motion.
+ * `data-reduce-motion` on <html> already stops the pulse for reduced motion. `children` float
+ * centred on top, e.g. the progress of a running generation.
  */
-export function EditorSkeleton({ label }: { label: string }) {
+export function EditorSkeleton({ label, children }: { label: string; children?: ReactNode }) {
   return (
     <div
       role="status"
       aria-label={label}
       aria-busy="true"
-      className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800"
+      className="relative min-h-full flex flex-col bg-grey-100 dark:bg-grey-800"
     >
+      {children && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-md">
+          {children}
+        </div>
+      )}
       <div className="flex items-center gap-sm py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
         <Skeleton className="size-8 rounded-full" />
         <div className="hidden lg:flex flex-1 gap-xs">
