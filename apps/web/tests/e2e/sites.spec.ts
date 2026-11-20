@@ -179,9 +179,7 @@ test.describe('Sites: Editor', () => {
       // The name is edited on the page itself.
       const name = preview.getByRole('textbox', { name: 'Dein Name' });
       await expect(name).toHaveText(GENERATED.hero.heading);
-      await name.click();
-      await name.press('End');
-      await name.pressSequentially(' Neu');
+      await name.fill(`${GENERATED.hero.heading} Neu`);
 
       await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
