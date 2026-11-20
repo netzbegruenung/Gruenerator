@@ -7,6 +7,8 @@ export const FEED_KIND_ICONS: Record<GroupFeedKind, IoniconsIconName> = {
   'sharepic-template': 'image-outline',
   sharepic: 'image-outline',
   doc: 'document-text-outline',
+  sheet: 'grid-outline',
+  pres: 'easel-outline',
   board: 'grid-outline',
   generator: 'sparkles-outline',
   agent: 'chatbubbles-outline',

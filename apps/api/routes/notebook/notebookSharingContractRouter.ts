@@ -238,7 +238,7 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       if (collection.user_id !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Nur Eigentümer*in kann Gruppen hinzufügen' },
+          body: { error: 'Nur wem das Notebook gehört, kann es in Projekte teilen.' },
         };
       }
 
@@ -258,13 +258,13 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
         if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
-          body: { error: 'Du darfst mit dieser Gruppe nicht teilen' },
+          body: { error: 'Du kannst in diesem Projekt nichts teilen.' },
         };
       }
       if (!created) {
         return {
           status: 409 as const,
-          body: { error: 'Notebook ist bereits mit dieser Gruppe geteilt' },
+          body: { error: 'Das Notebook liegt schon in diesem Projekt.' },
         };
       }
 

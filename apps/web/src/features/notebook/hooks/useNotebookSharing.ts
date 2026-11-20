@@ -162,6 +162,15 @@ export function useSetNotebookEditPolicy(notebookId: string) {
   });
 }
 
+/**
+ * Die Notebook-Routen schicken ihren deutschen Satz im Feld `error`. Als `ApiError`
+ * mit Status zeigt `shareErrorText` ihn an (bei 400/403/409), sonst die Sammelzeile.
+ */
+function serverError(result: { status: number; body: unknown }): ApiError {
+  const text = (result.body as { error?: unknown } | null)?.error;
+  return new ApiError(result.status, typeof text === 'string' ? text : `HTTP ${result.status}`);
+}
+
 export function useAddNotebookGroupShare(notebookId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -171,9 +180,7 @@ export function useAddNotebookGroupShare(notebookId: string) {
         params: { id: notebookId },
         body: { group_id: groupId },
       });
-      if (result.status !== 201) {
-        throw new ApiError(result.status, `Failed to add group share (HTTP ${result.status})`);
-      }
+      if (result.status !== 201) throw serverError(result);
       return result.body;
     },
     onSuccess: () => {
@@ -190,9 +197,7 @@ export function useRemoveNotebookGroupShare(notebookId: string) {
       const result = await client.notebookSharing.deleteGroupShare({
         params: { id: notebookId, groupId },
       });
-      if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to remove group share (HTTP ${result.status})`);
-      }
+      if (result.status !== 200) throw serverError(result);
       return result.body;
     },
     onSuccess: () => {

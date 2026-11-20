@@ -92,3 +92,16 @@ export function apiErrorFromResponse(
 ): ApiError {
   return new ApiError(res.status, errMessage(res.body, fallback));
 }
+
+/**
+ * Der Satz für einen gescheiterten Teilen-Schritt — gleich auf der Projektseite und
+ * in den Teilen-Dialogen der Inhalte. Bei 400/403/409 sagt der Server selbst, was im Weg
+ * steht (kein Recht im Projekt, schon geteilt, angepasstes System-Rezept, von der
+ * Moderation entfernt). Alles andere ist keine Auskunft für
+ * Nutzer*innen und bekommt die Sammelzeile.
+ */
+export function shareErrorText(error: unknown): string {
+  const explained = [400, 403, 409].some((status) => isApiErrorWithStatus(error, status));
+  if (explained && error instanceof Error && error.message) return error.message;
+  return 'Die Freigabe konnte nicht geändert werden.';
+}

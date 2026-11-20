@@ -17,6 +17,7 @@ import {
   useUserGroups,
   getGroupInitials,
   GROUPS_QUERY_KEY,
+  groupContentKey,
   groupDetailsKey,
   type GroupLink,
   type GroupMember,
@@ -242,7 +243,8 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
-  const groupContentQueryKey = ['groupContent', groupId];
+  // Derselbe Schlüssel, den die Teilen-Dialoge der Inhalte nach jedem Schritt auffrischen.
+  const groupContentQueryKey = groupContentKey(groupId ?? '');
 
   const fetchGroupContentFn = async (): Promise<GroupContentData> => {
     if (!user?.id || !groupId) {

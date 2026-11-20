@@ -98,6 +98,7 @@ function OwnerAccess({ canvasId, nav }: { canvasId: string; nav: ShareNav }) {
     shareWithGroup,
     updateGroupPermission,
     unshareFromGroup,
+    error: sharingError,
   } = useCanvasSharing(canvasId);
 
   const [confirmOff, setConfirmOff] = useState(false);
@@ -166,7 +167,9 @@ function OwnerAccess({ canvasId, nav }: { canvasId: string; nav: ShareNav }) {
 
   const addGroup = () => {
     if (!addGroupId) return;
-    shareWithGroup.mutate({ groupId: addGroupId, permissionLevel: 'viewer' });
+    // Wie auf der Projektseite: in Team-Projekten bearbeiten alle mit.
+    const team = userGroups.find((g) => g.id === addGroupId)?.team === true;
+    shareWithGroup.mutate({ groupId: addGroupId, permissionLevel: team ? 'editor' : 'viewer' });
     setAddGroupId('');
     setAddOpen(false);
   };
@@ -299,6 +302,12 @@ function OwnerAccess({ canvasId, nav }: { canvasId: string; nav: ShareNav }) {
             Projekt hinzufügen
           </button>
         ))}
+
+      {sharingError && (
+        <p role="alert" className="m-0 py-2 text-sm text-[var(--editor-danger-fg)]">
+          {sharingError}
+        </p>
+      )}
 
       <CopyLinkButton canvasId={canvasId} />
     </div>

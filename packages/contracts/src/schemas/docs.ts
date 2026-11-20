@@ -213,6 +213,8 @@ export const userGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
+  /** Team-Projekt: der Teilen-Dialog belegt dort „Bearbeiten“ vor. Fehlt bei alten Servern. */
+  team: z.boolean().optional(),
 });
 export const userGroupsListSchema = z.array(userGroupSchema);
 
