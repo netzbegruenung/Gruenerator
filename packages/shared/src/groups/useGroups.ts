@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiErrorFromResponse, getContractsClient, getGlobalApiClient } from '../api/index.js';
 
+import { buildGroupPostFormData, type GroupPostUploadFile } from './postFormData.js';
 import {
   GROUPS_QUERY_KEY,
   groupContentKey,
@@ -367,20 +368,17 @@ export const useDeleteGroupAvatar = (groupId: string) => {
 
 /**
  * Beitrag mit Text und Dateien schreiben. Multipart, daher der rohe Client
- * wie beim Avatar. Web übergibt `File`s; eine fertige `FormData` (Felder
- * `body` und `files`) geht unverändert durch.
+ * wie beim Avatar. Web übergibt `File`s, React Native `{ uri, name, type }`.
  */
 export const useCreateGroupPost = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       body: string;
-      files: File[];
+      files: GroupPostUploadFile[];
       onProgress?: (fraction: number) => void;
     }): Promise<GroupPostCreatedResponse> => {
-      const formData = new FormData();
-      formData.append('body', input.body);
-      for (const file of input.files) formData.append('files', file, file.name);
+      const formData = buildGroupPostFormData(new FormData(), input.body, input.files);
       const res = await getGlobalApiClient().post<GroupPostCreatedResponse>(
         `/auth/groups/${groupId}/posts`,
         formData,

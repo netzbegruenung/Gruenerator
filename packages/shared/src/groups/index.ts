@@ -51,6 +51,8 @@ export {
   useVerifyJoinToken,
 } from './useGroups.js';
 
+export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
+
 export {
   GROUP_FEED_KINDS,
   fileExtensionLabel,
