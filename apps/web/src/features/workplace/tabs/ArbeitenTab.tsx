@@ -10,6 +10,7 @@ import {
   MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
+import { InfoTilesSection } from '../components/InfoTilesSection';
 import { NewContentMenu } from '../components/NewContentMenu';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
 // Reaktivieren `FavoritesSection` aus `../components/ToolsSection` importieren
@@ -45,6 +46,7 @@ const ArbeitenTab = () => {
         <BriefingSection />
         <MarketplaceSection />
         <AppsNewsletterSection />
+        <InfoTilesSection />
       </div>
     </PageContainer>
   );
