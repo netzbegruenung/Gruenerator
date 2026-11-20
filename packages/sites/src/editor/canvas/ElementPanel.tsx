@@ -41,6 +41,7 @@ function ImageForm({ target }: { target: ImageTarget }) {
         value={value.url}
         onChange={(url) => target.write(actions, readDraft(), { url })}
         placeholder="Bild"
+        aspectRatio={target.aspectRatio}
       />
       {value.url && (
         <FocalPointPicker

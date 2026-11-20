@@ -20,6 +20,10 @@ import { hiddenWith, imageTarget, isCardList, isOptionalSection } from './target
 import { type AnchorRect } from './useAnchorRect';
 
 const TOOLBAR_HEIGHT = 44;
+/** Rough width of the widest toolbar, to keep it on the canvas. */
+const TOOLBAR_WIDTH = 420;
+/** The element panel's width (400px) plus its margin. */
+const PANEL_SPACE = 432;
 const GAP = 8;
 
 const CARD_NOUN = { themes: 'Thema', actions: 'Aktion' } as const;
@@ -152,7 +156,12 @@ export function CanvasToolbar({
     Math.max(GAP, anchor.top - TOOLBAR_HEIGHT - GAP),
     Math.max(GAP, canvasHeight - TOOLBAR_HEIGHT - GAP)
   );
-  const left = Math.min(Math.max(GAP, anchor.left), Math.max(GAP, canvasWidth - 360));
+  // An open panel sits at the right edge (from `sm` up); keep the toolbar clear of it.
+  const reserved = panel && canvasWidth >= 640 ? PANEL_SPACE : 0;
+  const left = Math.min(
+    Math.max(GAP, anchor.left),
+    Math.max(GAP, canvasWidth - reserved - TOOLBAR_WIDTH)
+  );
 
   const toggle = (next: 'details' | 'image') => openElementPanel(panel === next ? null : next);
 

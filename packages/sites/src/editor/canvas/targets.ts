@@ -16,6 +16,8 @@ export interface ImageValue {
 /** One image of the draft, addressed by the `data-field` path the page renders for it. */
 export interface ImageTarget {
   path: string;
+  /** Shape of the image on the page, for the upload area. */
+  aspectRatio: string;
   read(draft: SiteDraft): ImageValue;
   write(
     actions: SiteDraftActions,
@@ -27,6 +29,7 @@ export interface ImageTarget {
 const SECTION_IMAGES: Partial<Record<SectionType, ImageTarget>> = {
   hero: {
     path: 'profile_image',
+    aspectRatio: '4/5',
     read: (d) => ({ url: d.profile_image, focus: d.profileImageFocus ?? null }),
     write: (a, _d, p) => {
       if (p.url !== undefined) a.setField('profile_image', p.url);
@@ -35,6 +38,7 @@ const SECTION_IMAGES: Partial<Record<SectionType, ImageTarget>> = {
   },
   heroImage: {
     path: 'sections.heroImage.imageUrl',
+    aspectRatio: '16/9',
     read: (d) => ({ url: d.heroImage.imageUrl, focus: d.heroImage.imageFocus ?? null }),
     write: (a, _d, p) => {
       if (p.url !== undefined) a.setField('heroImage.imageUrl', p.url);
@@ -43,6 +47,7 @@ const SECTION_IMAGES: Partial<Record<SectionType, ImageTarget>> = {
   },
   contact: {
     path: 'sections.contact.backgroundImageUrl',
+    aspectRatio: '16/9',
     read: (d) => ({
       url: d.contact.backgroundImageUrl,
       focus: d.contact.backgroundFocus ?? null,
@@ -57,6 +62,7 @@ const SECTION_IMAGES: Partial<Record<SectionType, ImageTarget>> = {
 function cardImage(list: 'themes' | 'actions', index: number): ImageTarget {
   return {
     path: `sections.${list}.${index}.imageUrl`,
+    aspectRatio: list === 'themes' ? '16/10' : '4/5',
     read: (d) => {
       const card = d[list][index];
       return { url: card?.imageUrl ?? '', focus: card?.imageFocus ?? null };
