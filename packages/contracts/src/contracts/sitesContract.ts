@@ -1,8 +1,9 @@
 /**
  * ts-rest contract for the candidate-site builder CRUD endpoints.
  *
- * Phase 1 covers the JSON CRUD surface consumed by packages/sites (useSite):
- * my-site, create, update, publish, check-subdomain, delete.
+ * The JSON CRUD surface consumed by packages/sites (useSite): list, by-handle,
+ * create, update, publish, check-subdomain, delete. An account may own up to
+ * SITES_PER_ACCOUNT_MAX live sites.
  *
  * POST /api/sites/generate (streamed generation) is contracted below; its 200 is SSE.
  *
@@ -15,6 +16,8 @@ import { z } from 'zod';
 import { siteGenerateBodySchema } from '../schemas/siteGeneration.js';
 import {
   mySiteResponseSchema,
+  siteByHandleResponseSchema,
+  siteListResponseSchema,
   siteResponseSchema,
   createSiteBodySchema,
   updateUserSiteBodySchema,
@@ -53,8 +56,45 @@ export const sitesContract = c.router({
   },
 
   /**
+   * GET /api/sites
+   * The current user's live sites, most recently edited first.
+   */
+  listSites: {
+    method: 'GET',
+    path: '/api/sites',
+    responses: {
+      200: siteListResponseSchema,
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: "List the current user's sites",
+  },
+
+  /**
+   * GET /api/sites/by-handle/:handle
+   * One of the current user's sites by its address, or by its id (the editor
+   * falls back to the id when the address it opened with has changed).
+   */
+  getSiteByHandle: {
+    method: 'GET',
+    path: '/api/sites/by-handle/:handle',
+    pathParams: z.object({ handle: z.string().min(1).max(64) }),
+    responses: {
+      200: siteByHandleResponseSchema,
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: "Get one of the current user's sites",
+  },
+
+  /**
    * GET /api/sites/my-site
-   * The current user's site, or { site: null } if none exists yet.
+   * @deprecated since 2026-11-20 — use listSites / getSiteByHandle. Kept for web
+   * tabs opened before the multi-site deploy; answers the most recently edited
+   * site, or { site: null }. Remove after 2027-02-20.
    */
   getMySite: {
     method: 'GET',
@@ -70,8 +110,8 @@ export const sitesContract = c.router({
 
   /**
    * POST /api/sites/create
-   * Create the user's (single) site. 400 covers invalid/reserved/taken
-   * subdomains and "site already exists".
+   * Create a site. 400 covers invalid/reserved/taken subdomains, 409 an
+   * account already at SITES_PER_ACCOUNT_MAX live sites.
    */
   createSite: {
     method: 'POST',
@@ -82,6 +122,7 @@ export const sitesContract = c.router({
       400: sitesErrorSchema,
       401: sitesErrorSchema,
       403: sitesErrorSchema,
+      409: sitesErrorSchema,
       500: sitesErrorSchema,
     },
     summary: 'Create a new site',

@@ -116,7 +116,7 @@ describe('restore', () => {
     handler.restore.mockResolvedValueOnce('conflict');
     const res = await call('POST', '/api/trash/user_site/s1/restore');
     expect(res.status).toBe(409);
-    expect(JSON.stringify(res.body)).toContain('andere Website');
+    expect(JSON.stringify(res.body)).toContain('Höchstzahl an Websites');
     expect(JSON.stringify(res.body)).not.toContain('umbenennen');
   });
 
