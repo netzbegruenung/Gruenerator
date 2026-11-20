@@ -1,4 +1,3 @@
-import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
 import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import {
@@ -11,9 +10,10 @@ import {
 } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
+import { CanvasEditorRouteSkeleton } from '../features/image-studio/CanvasEditorRouteSkeleton';
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { type BriefingCardId } from '../features/monitor/briefing/BriefingCard';
-import { BriefingSkeleton } from '../features/monitor/briefing/BriefingView';
+import { BriefingSkeleton } from '../features/monitor/briefing/BriefingSkeleton';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkeletons';
 import { isDesktopApp } from '../utils/platform';
@@ -980,7 +980,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: CollabCanvasStudioPage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   // Experimental free-text creator — literal path, before /studio/:category.
   {
@@ -995,7 +995,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: SharepicVorlageInstantiatePage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   // Copies a print Vorlage into a new canvas — the collection launchpad links here.
   {
@@ -1003,7 +1003,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: PrintVorlageInstantiatePage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   { path: '/studio/:category', component: RetiredStudioCategoryRedirect },
   { path: '/studio/:category/:type', component: RetiredStudioCategoryRedirect },
