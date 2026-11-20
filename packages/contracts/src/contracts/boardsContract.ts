@@ -141,6 +141,7 @@ export const boardsContract = c.router(
       responses: {
         201: createBoardResponseSchema,
         401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
         500: boardErrorResponseSchema,
       },
       summary: 'Create a new board',

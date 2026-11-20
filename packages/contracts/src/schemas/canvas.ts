@@ -72,6 +72,8 @@ export const createCanvasBodySchema = z.object({
   page_count: z.number().int().positive().optional(),
   // Free string by design (see NOTE above); the server checks `print-*` ids against its format registry.
   format: z.string().optional(),
+  /** Gleich ins Projekt legen (Freigabe mit Schreibrecht, in derselben Transaktion). */
+  groupId: z.string().uuid().optional(),
 });
 
 export type CreateCanvasBody = z.infer<typeof createCanvasBodySchema>;

@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { type TxQuery } from '../groups/createInGroup.js';
 import { markdownToPlainText } from '../markdown/MarkdownService.js';
 
 const gunzipAsync = promisify(gunzip);
@@ -575,11 +576,12 @@ export function postProcessBoardStructure(
 export async function createBoardDocument(
   title: string,
   userId: string,
-  boardType?: 'kanban' | 'whiteboard'
+  boardType?: 'kanban' | 'whiteboard',
+  /** Eine offene Transaktion (`createInGroup`); ohne sie der Pool. */
+  query: TxQuery = (text, params) => getPostgresInstance().query(text, params)
 ): Promise<{ id: string; title: string }> {
-  const db = getPostgresInstance();
   const content = boardType ? JSON.stringify({ board_type: boardType }) : null;
-  const result = await db.query(
+  const result = await query(
     `INSERT INTO collaborative_documents
       (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
      VALUES ($1, $2, $2, $3, $4, false, $5::jsonb)
