@@ -156,9 +156,6 @@ export function CreateSiteScreen({
                 large
               />
             </div>
-            <p className="text-sm text-grey-400 dark:text-grey-500 mt-1">
-              Kleinbuchstaben, Zahlen und Bindestriche · 3–30 Zeichen
-            </p>
           </div>
 
           <div className="mt-12">
