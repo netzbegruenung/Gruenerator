@@ -268,6 +268,13 @@ const MAX_TABULAR_BYTES_PERSISTED = 2 * 1024 * 1024;
  *  unlike sheets they are only ever stored when they actually have form fields. */
 const MAX_PDF_BYTES_PERSISTED = 8 * 1024 * 1024;
 
+/** Max raw bytes of a photo we persist so a later turn can still look at or
+ *  edit it (`bild_ansehen` / `edit_image` with `bild`). Without the bytes a
+ *  photo did not survive its own turn: „Soll ich?" — „Ja" found nothing to edit
+ *  and the model invented a failed call (#5879). Same cap as the form PDFs; a
+ *  larger photo stays usable in its own turn, the bytes are in the request. */
+const MAX_IMAGE_BYTES_PERSISTED = 8 * 1024 * 1024;
+
 /**
  * Does this PDF carry an interactive AcroForm? Only fillable PDFs get their raw
  * bytes stored — otherwise every uploaded brochure would bloat the attachment
@@ -390,6 +397,9 @@ export async function processAttachments(
         isImage: true,
         extractedText: null,
         imageData: attachment.data,
+        ...(Math.floor((attachment.data.length * 3) / 4) <= MAX_IMAGE_BYTES_PERSISTED && {
+          fileData: attachment.data,
+        }),
       });
       log.info(`[${requestId}] Added image attachment: ${attachment.name}`);
     } else {

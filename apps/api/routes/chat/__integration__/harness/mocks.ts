@@ -117,12 +117,25 @@ export function compactionMock(original: Record<string, unknown>): Record<string
   };
 }
 
+/**
+ * Was ein Thread aus früheren Zügen an Anhängen gespeichert hat, und die Bytes
+ * seiner Fotos (`file_data`). Leer ist der Normalfall eines frischen Threads;
+ * gesetzt prüft ein Szenario den Folgezug auf ein Foto (#5879).
+ */
+interface AttachmentControl {
+  threadAttachments: unknown[];
+  imageData: Map<string, { name: string; mimeType: string; data: string }>;
+}
+export const attachmentControl: AttachmentControl = { threadAttachments: [], imageData: new Map() };
+
 export function attachmentPersistenceMock(
   original: Record<string, unknown>
 ): Record<string, unknown> {
   return {
     ...original,
-    getThreadAttachments: () => Promise.resolve([]),
+    getThreadAttachments: () => Promise.resolve(attachmentControl.threadAttachments),
+    getThreadImageData: (_threadId: string, _userId: string, attachmentId: string) =>
+      Promise.resolve(attachmentControl.imageData.get(attachmentId) ?? null),
     getThreadAttachmentDocumentIds: () => Promise.resolve([]),
     getThreadTabularFiles: () => Promise.resolve([]),
     getThreadPdfFiles: () => Promise.resolve([]),
@@ -283,6 +296,8 @@ export function resetMockControls(): void {
   memoryControl.search = [];
   memoryControl.listError = null;
   memoryControl.searchCalls.length = 0;
+  attachmentControl.threadAttachments = [];
+  attachmentControl.imageData.clear();
 }
 
 /**

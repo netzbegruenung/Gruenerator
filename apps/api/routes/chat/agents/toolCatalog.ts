@@ -1415,7 +1415,8 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       tools.generate_image = makeImageTool({ sse, state });
     }
     // Ein Bild verändern: das zuletzt erzeugte des Threads (ohne `bild`) oder
-    // ein Foto dieses Turns (mit `bild`, Wolke oder Anhang — die Vorlage für
+    // ein Foto der Bildliste (mit `bild`: Anhang, Wolke oder ein früher im
+    // Thread hochgeladenes Foto, `listTurnImageRefs` — die Vorlage für
     // „ein Bild von mir, wie ich …"). Ob ein Turn es meint, entscheidet der
     // Planer, nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die
     // grafik noch einmal an" ohne Werkzeug → erfundene Anpassung). Ein

@@ -65,7 +65,8 @@ export type ImageVisibility =
  * einer Quelle.
  */
 export function imageVisibility(
-  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments' | 'wolkeFiles'>,
+  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments' | 'wolkeFiles'> &
+    Partial<Pick<ChatGraphState, 'threadAttachments'>>,
   opts: { loop?: boolean } = {}
 ): ImageVisibility {
   // Fotos aus der Wolke stehen nur für den Loop bereit (`bild_ansehen` lädt sie);

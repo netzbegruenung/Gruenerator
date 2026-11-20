@@ -170,3 +170,82 @@ describe('bild_ansehen mit Wolke-Foto', () => {
     expect(turn.map((t) => t.name)).toEqual(['beleg.jpg', 'IMG_2601.jpg']);
   });
 });
+
+// #5879: ein Foto aus einem früheren Zug, dessen Bytes im Thread liegen.
+describe('turnImagesOf — Fotos aus früheren Nachrichten', () => {
+  const earlier = (id: string, name: string, over: Record<string, unknown> = {}) => ({
+    id,
+    name,
+    mimeType: 'image/jpeg',
+    isImage: true,
+    extractedText: null,
+    documentId: null,
+    summary: null,
+    hasFileData: true,
+    createdAt: new Date(),
+    ...over,
+  });
+
+  it('hängt sie hinter Anhang und Wolke an, das jüngste zuerst, nur Fotos mit Bytes', () => {
+    const turn = turnImagesOf(
+      {
+        imageAttachments: attachments.slice(0, 1),
+        wolkeFiles: [],
+        threadId: 't1',
+        threadAttachments: [
+          earlier('a1', 'alt.jpg'),
+          earlier('a2', 'ohne-bytes.jpg', { hasFileData: false }),
+          earlier('a3', 'tabelle.csv', { isImage: false, mimeType: 'text/csv' }),
+          earlier('a4', 'neu.jpg'),
+          // Dasselbe Foto in diesem Zug noch einmal angehängt: steht schon oben.
+          earlier('a5', 'beleg.jpg'),
+        ],
+        agentConfig: { userId: 'u1' },
+      },
+      vi.fn(),
+      vi.fn()
+    );
+    expect(turn.map((t) => t.name)).toEqual(['beleg.jpg', 'neu.jpg', 'alt.jpg']);
+  });
+
+  it('lädt die Bytes erst beim Gebrauch, einmal, aus dem eigenen Thread', async () => {
+    const load = vi.fn(async () => ({ name: 'neu.jpg', mimeType: 'image/png', data: 'TkVV' }));
+    const [entry] = turnImagesOf(
+      {
+        imageAttachments: [],
+        wolkeFiles: [],
+        threadId: 't1',
+        threadAttachments: [earlier('a4', 'neu.jpg')],
+        agentConfig: { userId: 'u1' },
+      },
+      vi.fn(),
+      load
+    );
+    expect(load).not.toHaveBeenCalled();
+    expect(await entry!.load()).toEqual({
+      ok: true,
+      image: { name: 'neu.jpg', type: 'image/png', data: 'TkVV' },
+    });
+    await entry!.load();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(load).toHaveBeenCalledWith('t1', 'u1', 'a4');
+  });
+
+  it('meldet ein nicht mehr gespeichertes Foto ehrlich', async () => {
+    const [entry] = turnImagesOf(
+      {
+        imageAttachments: [],
+        wolkeFiles: [],
+        threadId: 't1',
+        threadAttachments: [earlier('a4', 'neu.jpg')],
+        agentConfig: { userId: 'u1' },
+      },
+      vi.fn(),
+      vi.fn(async () => null)
+    );
+    expect(await entry!.load()).toEqual({
+      ok: false,
+      message: '„neu.jpg“ ist nicht mehr gespeichert.',
+    });
+  });
+});

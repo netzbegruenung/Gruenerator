@@ -1257,7 +1257,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
     summary TEXT,                 -- LLM summary (~200-400 tokens)
-    file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
+    file_data TEXT,               -- Raw bytes (base64): tabular files (pandas reload), fillable PDFs (fill_pdf_form), photos ≤ 8 MB (bild_ansehen/edit_image on later turns)
     document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
     content_hash TEXT,            -- md5 of the trimmed extracted text (name+size for binaries) — one row per file per thread
 
